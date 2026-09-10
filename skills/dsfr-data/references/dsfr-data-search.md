@@ -35,6 +35,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | `'search("{q}")'` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec `server-search`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -110,6 +111,7 @@ contradictoires (#654).
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse a ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignores — le paramètre est nommé d'apres le champ, ou via `url-param-map` du contexte). Le contexte peut etre declare apres la recherche dans la page. Vide = comportement autonome. |
 | `count` | `boolean` | `false` | Affiche un compteur de resultats sous le champ (compte serveur `meta.total` en `server-search`). Ce compteur reste visible en toutes circonstances ; seule sa nature de region live depend de la chaine aval (#654). |
 | `debounce` | `number` | `300` | Delai en ms avant declenchement du filtre apres la derniere frappe |
 | `fields` | `string` | `""` (vide) | Champs sur lesquels rechercher (virgule-separes). Vide = tous les champs |
@@ -134,7 +136,7 @@ contradictoires (#654).
 | `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (delegation transparente). Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter sans connaitre la structure du pipeline. |
 | `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter résolus de la source amont (delegation transparente, headers api-key-ref inclus — #274). |
 | `getData()` | `Record<string, unknown>[]` | Retourne les données actuellement filtrees |
-| `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
+| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (delegation transparente). |
 | `search(term: string)` | `void` | Declenche une recherche programmatique |
 | `setData(data: Record<string, unknown>[])` | `void` | Remplace le jeu de données source |
 
@@ -151,7 +153,7 @@ contradictoires (#654).
 | `dsfr-data-loading` | `{ sourceId }` | émis | Chargement amont relayé vers l’aval. |
 | `dsfr-data-source-command` | `{ sourceId, page?, where?, whereKey?, orderBy?, groupBy?, aggregate? }` | émis | Commande de pagination / filtre / tri envoyée à la source AMONT — soit originée par ce composant, soit relayée depuis l’aval. |
 | `dsfr-data-search-change` | — | émis | `{ query, count }` sur l'element — la saisie de recherche a change (pour synchroniser une UI de page). |
-| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont. `origin` porte l'id de ce composant (#603). |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603). |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

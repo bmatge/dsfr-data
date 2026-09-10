@@ -164,7 +164,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | `getAdapter()` | `ApiAdapter \| null` | Returns the adapter for this source (if in adapter mode) |
 | `getAdapterParams()` | `AdapterParams` | Parametres adapter resolus, headers effectifs inclus (headers + api-key-ref). Consomme par les composants aval via SourceElement (#274). |
 | `getData()` | `unknown` | — |
-| `getEffectiveWhere(excludeKey?: string)` | `string` | Returns the effective WHERE clause (static + all dynamic overlays merged) |
+| `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Returns the effective WHERE clause (static + all dynamic overlays merged). `excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 — une facette en mode `context` emet un whereKey PAR champ et doit les exclure tous du where de base de sa cascade). |
 | `getError()` | `Error \| null` | — |
 | `isLoading()` | `boolean` | — |
 | `reload()` | `void` | — |

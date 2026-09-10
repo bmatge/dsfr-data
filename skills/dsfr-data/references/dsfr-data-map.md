@@ -2,7 +2,7 @@
 
 > Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport
 >
-> Déclencheurs : carte, map, leaflet, poi, marker, geoshape, geojson, clustering, bbox, viewport, tuiles, ign, geoplateforme, cercles proportionnels, heatmap, carte interactive, geo_point, geo_shape, choropleth carte, map layer, timeline, animation temporelle, carte animee, evolution temporelle, color-map, couleur catégorielle, couleur par valeur, souverainete, sovereign-only, osm-fr, tiles-attribution, fond de carte, clé api tuiles, légende, legende carte, map-legend, classes, bornes, fond atténué, tiles-style, fit-zone, contours, fonds administratifs, geo/regions, geo/departements
+> Déclencheurs : carte, map, leaflet, poi, marker, geoshape, geojson, clustering, bbox, viewport, tuiles, ign, geoplateforme, cercles proportionnels, heatmap, carte interactive, geo_point, geo_shape, choropleth carte, map layer, timeline, animation temporelle, carte animee, evolution temporelle, color-map, couleur catégorielle, couleur par valeur, souverainete, sovereign-only, osm-fr, tiles-attribution, fond de carte, clé api tuiles, légende, legende carte, map-legend, classes, bornes, fond atténué, tiles-style, fit-zone, contours, fonds administratifs, geo/regions, geo/departements, refine-on-click, map-select, clic sur la carte, carte comme filtre, annuaire
 
 ## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
@@ -53,6 +53,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | geo-field | String | `""` | Chemin vers GeoJSON (Point, Polygon) — objet ou chaine JSON serialisee (colonnes Text Grist/CSV) |
 | shape-class | String | `""` | Classe CSS appliquee aux traces SVG (geoshape/circle) — motifs hachures via <pattern> defini par la page |
 | no-interactive | Boolean | `false` | Couche decorative : aucun clic/tooltip/popup (contours administratifs, habillage) |
+| label | String | `""` | Libellé de la couche — libellé du tag du contexte en `refine-on-click` (défaut : le nom du champ) |
+| refine-on-click | String | `""` | Champ dont la valeur de l'objet clique devient un filtre `eq` (#681) : premier clic = filtre, second clic sur le même objet = retrait, autre objet = remplacement. Avec `context` (recommandé) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans `context` : commande directe a `source` (whereKey `map-select-ID`, sans tag ni URL) |
+| context | String | `""` | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Peut etre declare apres la couche |
 | popup-template | String | `""` | Template : `"{nom} — {val} kW"` |
 | popup-fields | String | `""` | Champs pour tableau auto : `"nom,adresse"` |
 | tooltip-field | String | `""` | Champ affiche au survol |
@@ -229,6 +232,43 @@ Sans template, tableau auto.
   </template>
 </dsfr-data-map-popup>
 ```
+
+### La carte comme filtre — dsfr-data-map-select et refine-on-click (#681, ADR-104)
+
+Au clic sur un marqueur, un cercle ou une forme (jamais en `no-interactive`), la couche emet
+`dsfr-data-map-select` `{ record, layerId, selected }` (bubbles, composed) en plus de la popup :
+tout JS de page peut reagir. `selected` vaut `true` a la selection, `false` au retrait
+(second clic sur le même objet).
+
+Avec `refine-on-click="champ"` + `context="ctx"` (recommande), la couche s'enregistre comme
+filtre `eq` du dsfr-data-context : premier clic = filtre diffuse a toutes les sources du contexte
+(au dialecte de chacune), tag dans dsfr-data-context-tags (libelle = `label` de la couche ou le
+champ), URL portee par le contexte (`url-sync`) ; second clic sur le même objet = retrait ; autre
+objet = remplacement. Sans `context`, la clause part directement a `source` (whereKey
+`map-select-ID`) : pas de tag, pas d'URL, pas de traduction de dialecte — chemin degrade.
+
+Recette annuaire (la carte filtre la liste) :
+
+```html
+<dsfr-data-source id="etablissements" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+<dsfr-data-source id="etablissements-carte" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+
+<!-- Le contexte ne cible que la liste : la carte garde tous ses points -->
+<dsfr-data-context id="ctx" sources="etablissements" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" fit-bounds>
+  <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
+    tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+```
+
+Piege : si la source de la carte est AUSSI dans `sources` du contexte, la carte se filtre
+elle-même au clic (seul l'objet clique reste, jusqu'au second clic). Pour garder tous les points,
+donner a la carte sa propre source (deux dsfr-data-source sur le même jeu) et ne lister que la
+liste dans `sources` — c'est `sources` du contexte qui regle les cibles, pas la couche.
 
 ### Exemple : zoom ranges (multi-resolution)
 
@@ -416,12 +456,14 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `color` | `string` | `'#000091'` | Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. |
 | `color-field` | `string` | `""` (vide) | Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). |
 | `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` separees par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
 | `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaine JSON serialisee (#426) |
 | `heat-blur` | `number` | `15` | Flou applique a la heatmap, en pixels. |
 | `heat-field` | `string` | `""` (vide) | Champ de ponderation des points de la heatmap. |
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |
+| `label` | `string` | `""` (vide) | Libellé de la couche — sert de libellé au tag du contexte en `refine-on-click` (#681). Vide = le nom du champ. |
 | `lat-field` | `string` | `""` (vide) | Chemin vers le champ latitude (mode coordonnees separees). |
 | `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnees separees). |
 | `max-items` | `number` | `5000` | Plafond du nombre d'elements rendus sur la carte (défaut 5000). Il protege les marqueurs DOM (`divIcon`), le fit et les popups ; au-dela, un bandeau indique combien d'elements sont affiches sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupes ne pesent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
@@ -436,6 +478,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `radius-max` | `number` | `30` | Rayon maximum de l'auto-scaling, en pixels. |
 | `radius-min` | `number` | `4` | Rayon minimum de l'auto-scaling, en pixels. |
 | `radius-unit` | `'px' \| 'm'` | `'px'` | Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). |
+| `refine-on-click` | `string` | `""` (vide) | Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681). Premier clic = filtre, second clic sur le même objet = retrait, clic sur un autre objet = remplacement. Avec `context="id"` (recommandé), la couche s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la clause part directement à `source` (whereKey `map-select-ID`) — sans tag ni URL. Attention : si `source` est aussi une cible du contexte, la carte se filtre elle-même (seul l'objet cliqué reste, jusqu'au second clic) ; pour garder tous les points, ne pas lister cette source dans `sources` du contexte (ou donner à la carte sa propre source). |
 | `selected-palette` | `string` | `""` (vide) | Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`. |
 | `shape-class` | `string` | `""` (vide) | Classe CSS appliquee aux traces SVG de la couche (geoshape/circle) — permet un style page (motif hachure, pointilles...) via CSS/SVG <pattern> |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont cette couche consomme les données. |
@@ -452,6 +495,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 |---|---|---|
 | `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
 | `getRenderedCount()` | `number` | Nombre d'elements effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
+| `getSelectedRecord()` | `Record<string, unknown> \| null` | Objet actuellement sélectionné (null hors sélection) |
 | `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnees ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
@@ -465,8 +509,10 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
+| `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). |
 | `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
 | `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
+| `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 
 
 **Slots** — aucun (le composant rend son propre contenu).

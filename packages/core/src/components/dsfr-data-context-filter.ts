@@ -2,11 +2,37 @@ import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { escapeColonValue } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
 
 /** YYYY-MM-DD en UTC (#230) */
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * YYYY-MM-DD dans le fuseau LOCAL (#682) : la date calendaire que voit
+ * l'utilisateur — a 00:30 a Paris le 1er juin, l'UTC est encore le 31 mai.
+ */
+function localIsoDate(d: Date): string {
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+/** Mots-clés dynamiques de `default` (#682), résolus au montage dans le fuseau local */
+const DEFAULT_KEYWORDS = ['today', 'first-of-month', 'first-of-year'] as const;
+
+/**
+ * Résout un mot-clé de `default` en date ISO locale (#682) ; toute autre
+ * valeur est un littéral rendu tel quel.
+ */
+function resolveDefaultKeyword(value: string): string {
+  if (!(DEFAULT_KEYWORDS as readonly string[]).includes(value)) return value;
+  const today = localIsoDate(new Date());
+  if (value === 'first-of-month') return `${today.slice(0, 7)}-01`;
+  if (value === 'first-of-year') return `${today.slice(0, 4)}-01-01`;
+  return today;
 }
 
 /**
@@ -50,6 +76,20 @@ function fitDateToInput(
   return truncateToOperator(value, operator);
 }
 
+/**
+ * Adapte une valeur de `default` au controle qui la recoit (#682) : un
+ * mot-cle resout en date complete, qu'un input type="month" refuserait et
+ * qu'un `year-of` sur un input texte n'attend pas. Reutilise la troncature
+ * de #646 ; une valeur qui n'est pas une date est rendue telle quelle.
+ */
+function fitDefaultToInput(value: string, inputType: string, operator: ContextOperator): string {
+  if (operator === 'year-of' || operator === 'month-of') {
+    return fitDateToInput(value, inputType, operator);
+  }
+  if (inputType === 'month') return truncateToOperator(value, 'month-of');
+  return value;
+}
+
 /** Plage [1er du mois, 1er du mois suivant) depuis "YYYY-MM" (ou une date complete, #646) */
 function monthRange(value: string): [string, string] | null {
   const m = /^(\d{4})-(\d{2})$/.exec(truncateToOperator(value, 'month-of'));
@@ -85,22 +125,27 @@ const OPERATORS = [
   'lt',
   'gte',
   'between',
+  // Sous-chaine (#678) : deja traduit par filter-translator (like "%v%" en
+  // ODSQL, includes en local), il n'etait simplement pas expose ici
+  'contains',
   // Operateurs de date (#230) — clauses en plages [debut, fin)
   'month-of',
   'year-of',
   'lt-day-after',
   'last-n-days',
   'current-year',
+  'current-month',
 ] as const;
 type ContextOperator = (typeof OPERATORS)[number];
 
 /**
  * <dsfr-data-context-filter> — un filtre du contexte (#229).
  *
- * Enfant de <dsfr-data-context>. Écoute les change/input de l'élément d'UI
+ * Enfant de <dsfr-data-context> — ou, avec `context="id"` (#678), placé
+ * n'importe où dans la page. Écoute les change/input de l'élément d'UI
  * référencé par `ui` (select, input, select multiple — ou DEUX ids pour
  * `between` : min puis max), construit une clause **colon** (le dialecte
- * pivot de la lib, #277) et la confie au contexte parent qui la diffuse aux
+ * pivot de la lib, #277) et la confie au contexte qui la diffuse aux
  * sources ciblées, traduite au dialecte de chaque adapter.
  *
  * La valeur vide retire le filtre (where vide sur le même whereKey).
@@ -116,8 +161,10 @@ export class DsfrDataContextFilter extends LitElement {
   ui = '';
 
   /**
-   * Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages
-   * [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.
+   * Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et
+   * dates (#230, clauses en plages [debut, fin)) : month-of, year-of,
+   * lt-day-after, last-n-days, current-year, current-month (#682 — case à
+   * cocher, mois en cours, borne dynamique).
    *
    * `year-of` et `month-of` acceptent une date plus precise que l'operateur
    * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
@@ -137,7 +184,39 @@ export class DsfrDataContextFilter extends LitElement {
   @property({ type: String })
   label = '';
 
+  /**
+   * Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —
+   * un paramètre d'URL présent gagne toujours (ADR-031). Mots-clés
+   * dynamiques résolus dans le fuseau local : `today` (date du jour),
+   * `first-of-month` (1er du mois en cours), `first-of-year` (1er janvier
+   * de l'année en cours) ; toute autre valeur est un littéral. La date est
+   * adaptée au contrôle (input type="month" → AAAA-MM, `year-of` → AAAA)
+   * puis écrite dans l'UI et émise par le chemin normal, jamais injectée
+   * dans un where. Pour `between` et `in`, plusieurs valeurs séparées par
+   * une virgule (ex. `first-of-year,today`).
+   */
+  @property({ type: String, attribute: 'default' })
+  defaultValue = '';
+
+  /**
+   * Id du dsfr-data-context cible (#678). Vide = le contexte parent le plus
+   * proche (`closest`), comportement historique. Le contexte peut être
+   * déclaré après ce filtre dans le DOM : l'enregistrement se fait alors à
+   * sa connexion.
+   */
+  @property({ type: String })
+  context = '';
+
   private _context: DsfrDataContext | null = null;
+
+  /** Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#678) */
+  private _onContextConnected = (e: Event) => {
+    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
+    if (this.context && id === this.context) {
+      this._unbindUi();
+      this._bind();
+    }
+  };
 
   private _uiEls: HTMLElement[] = [];
 
@@ -152,7 +231,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this._context = this.closest('dsfr-data-context');
+    document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
     // Bind différé d'un tick : à l'innerHTML, les éléments d'UI déclarés
     // après le contexte dans le même fragment ne sont pas encore là
     queueMicrotask(() => this._bind());
@@ -160,6 +239,7 @@ export class DsfrDataContextFilter extends LitElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
     this._unbindUi();
     this._context?._unregisterFilter(this);
     this._context = null;
@@ -167,7 +247,12 @@ export class DsfrDataContextFilter extends LitElement {
 
   willUpdate(changed: Map<string, unknown>) {
     super.willUpdate(changed);
-    if (changed.has('ui') || changed.has('field') || changed.has('operator')) {
+    if (
+      changed.has('ui') ||
+      changed.has('field') ||
+      changed.has('operator') ||
+      changed.has('context')
+    ) {
       if (this.hasUpdated) {
         this._unbindUi();
         this._bind();
@@ -175,15 +260,28 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
+  /** Contexte cible : par id (`context`, #678) sinon le parent le plus proche */
+  private _resolveContext(): DsfrDataContext | null {
+    if (this.context) return findContextById(this.context);
+    return this.closest('dsfr-data-context');
+  }
+
   /** Validation + abonnement aux éléments d'UI */
   private _bind(): void {
     if (!this.isConnected) return;
 
+    const context = this._resolveContext();
+    if (context !== this._context) {
+      this._context?._unregisterFilter(this);
+      this._context = context;
+    }
     if (!this._context) {
       reportConfigError(
         this,
         'dsfr-data-context-filter',
-        'doit être un enfant de <dsfr-data-context>'
+        this.context
+          ? `dsfr-data-context introuvable : "${this.context}"`
+          : 'doit être un enfant de <dsfr-data-context> (ou le viser par context="id")'
       );
       return;
     }
@@ -238,6 +336,9 @@ export class DsfrDataContextFilter extends LitElement {
     const urlValues = this._context._urlValuesFor(this.field);
     if (urlValues) {
       this._prefillUi(urlValues);
+    } else if (this.defaultValue) {
+      // Valeur initiale (#682) : APRES l'URL, qui gagne — meme chemin
+      this._prefillUi(this._resolvedDefault());
     }
 
     // Une UI déjà remplie au montage applique son filtre immédiatement
@@ -246,7 +347,22 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
-  /** Écrit des valeurs (issues de l'URL) dans les contrôles d'UI liés */
+  /**
+   * Valeurs de `default` résolues (#682) : mots-clés → date locale du jour,
+   * adaptée au contrôle qui la reçoit. `between` et `in` acceptent
+   * plusieurs valeurs séparées par une virgule.
+   */
+  private _resolvedDefault(): string[] {
+    const multi = this.operator === 'between' || this.operator === 'in';
+    const raw = multi ? this.defaultValue.split(',') : [this.defaultValue];
+    return raw.map((v, i) => {
+      const el = this._uiEls[this.operator === 'between' ? i : 0];
+      const inputType = el instanceof HTMLInputElement ? el.type : '';
+      return fitDefaultToInput(resolveDefaultKeyword(v.trim()), inputType, this.operator);
+    });
+  }
+
+  /** Écrit des valeurs (issues de l'URL ou de `default`) dans les contrôles d'UI liés */
   private _prefillUi(values: string[]): void {
     if (this.operator === 'between') {
       const [min, max] = values;
@@ -289,6 +405,7 @@ export class DsfrDataContextFilter extends LitElement {
     }
     const raw = values[0] ?? '';
     if (this.operator === 'current-year') return 'année en cours';
+    if (this.operator === 'current-month') return 'mois en cours';
     if (this.operator === 'last-n-days') return `${raw} derniers jours`;
     if (this.operator === 'year-of' || this.operator === 'month-of') {
       // Le tag montre la precision reellement filtree (#646)
@@ -386,7 +503,7 @@ export class DsfrDataContextFilter extends LitElement {
     if (raw === '') return '';
 
     // Operateurs de date (#230) : plages [debut, fin) en ISO. Les bornes
-    // DYNAMIQUES (last-n-days, current-year) se recalculent ICI, a chaque
+    // DYNAMIQUES (last-n-days, current-year, current-month) se recalculent ICI, a chaque
     // diffusion — jamais de date figee ; l'URL serialise l'intention (#231)
     if (this.operator === 'month-of') {
       const range = monthRange(raw);
@@ -418,6 +535,12 @@ export class DsfrDataContextFilter extends LitElement {
     if (this.operator === 'current-year') {
       const year = new Date().getUTCFullYear();
       return `${this.field}:gte:${year}-01-01, ${this.field}:lt:${year + 1}-01-01`;
+    }
+    if (this.operator === 'current-month') {
+      // Symetrique de current-year (#682) : meme horloge UTC, meme plage [1er, 1er suivant)
+      const range = monthRange(isoDate(new Date()));
+      if (!range) return '';
+      return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
 
     if (this.operator === 'in') {

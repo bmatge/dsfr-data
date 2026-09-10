@@ -705,6 +705,34 @@ Points cles :
 - **Cadrage** : `fit-bounds` ajuste la vue aux donnees ; `max-bounds="latSW,lonSW,latNE,lonNE"` limite le deplacement ET clippe le fit. Des que la carte porte un encart ultramarin (`insets="drom"`…) sans `max-bounds`, le fit est clippe par defaut sur la metropole (`41,-5.5,51.5,10`) : les DROM ne dezooment plus la vue, le deplacement reste libre. `fit-zone="latSW,lonSW,latNE,lonNE"` surcharge cette zone (`fit-zone="none"` la desactive).
 - **Popup** : placeholders `{{champ}}` (echappe), `{{champ:number}}` (format fr-FR), `{{champ|defaut}}`, `{{champ.sous.cle}}` ; modes `popup`, `modal`, `panel-right`, `panel-left`.
 - **Timeline** : sur une couche, `time-field` (+ `time-bucket`, `time-mode="snapshot|cumulative"`) decoupe les donnees en etapes ; `<dsfr-data-map-timeline>` ajoute lecture/pause et navigation clavier.
+- **Clic** : chaque couche interactive emet `dsfr-data-map-select` `{ record, layerId, selected }` (bubbles, composed) au clic sur un marqueur, un cercle ou une forme, en plus de la popup — de quoi brancher n'importe quel JS de page. `selected` vaut `true` a la selection, `false` au retrait (second clic sur le meme objet).
+
+#### Recette annuaire : la carte filtre la liste (`refine-on-click`)
+
+Avec `refine-on-click="champ"` et `context="id"`, la couche devient un **filtre du `dsfr-data-context`** (ADR-104) : cliquer un marqueur pose un filtre `eq` sur la valeur de l'objet clique, diffuse a toutes les sources du contexte (au dialecte de chacune), avec un tag dans `dsfr-data-context-tags` (libelle = `label` de la couche, sinon le champ) et l'URL portee par le contexte (`url-sync`). Second clic sur le meme objet = retrait ; clic sur un autre objet = remplacement ; la croix du tag retire le filtre par le meme chemin.
+
+```html
+<!-- Deux sources sur le meme jeu : la carte garde tous ses points, seule la liste se filtre -->
+<dsfr-data-source id="etablissements" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="mon-annuaire"></dsfr-data-source>
+<dsfr-data-source id="etablissements-carte" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="mon-annuaire"></dsfr-data-source>
+
+<dsfr-data-context id="ctx" sources="etablissements" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<dsfr-data-map center="46.6,2.9" zoom="6" fit-bounds name="Etablissements">
+  <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
+    tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune"></dsfr-data-map-layer>
+</dsfr-data-map>
+<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+```
+
+Points d'attention :
+
+- **Le mode `context` est recommande.** Sans `context`, `refine-on-click` pousse la clause directement a la `source` de la couche (whereKey `map-select-<id>`) : pas de tag, pas d'URL, pas de traduction de dialecte — chemin degrade, reserve aux pages sans contexte.
+- **Une carte qui se filtre elle-meme.** Si la source de la couche figure aussi dans `sources` du contexte, le clic ne laisse que l'objet clique sur la carte (jusqu'au second clic) : c'est voulu pour un annuaire « une commune a la fois », pas pour une carte de navigation. Ce sont les `sources` du contexte qui reglent les cibles — la couche n'a pas d'`apply-to` ; pour garder tous les points, donner a la carte sa propre source, comme ci-dessus.
+- **Couches decoratives** (`no-interactive`) : aucun evenement ni filtre.
 
 Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/) (section Cartographie) et [specifications dsfr-data-map](https://chartsbuilder.miweb.run/specs/).
 

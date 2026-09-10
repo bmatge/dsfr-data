@@ -102,12 +102,15 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
             <tr><td><code>height</code></td><td>String</td><td><code>"500px"</code></td><td>Hauteur du conteneur Leaflet (pas de l'hôte : les encarts gardent leur place). Accepte toute unité CSS (<code>px</code>, <code>vh</code>, <code>rem</code>). Un pourcentage <code>"NN%"</code> est interprété comme un <strong>ratio de la largeur</strong> (aspect-ratio responsive, recalculé par ResizeObserver) : <code>height="60%"</code> = hauteur à 60&nbsp;% de la largeur courante.</td></tr>
             <tr><td><code>tiles</code></td><td>String</td><td><code>"ign-plan"</code></td><td>Fond de carte : un des 6 presets (voir tableau ci-dessous), l'alias <code>osm</code> (&rarr; <code>osm-fr</code>), un preset déprécié (&rarr; <code>ign-plan</code> + warn : <code>ign-topo</code> #429, <code>carto-positron</code> et <code>carto-dark</code> #576), ou une URL template custom <code>{z}/{x}/{y}</code> &mdash; dans ce dernier cas <code>tiles-attribution</code> est obligatoire</td></tr>
             <tr><td><code>tiles-attribution</code></td><td>String</td><td><code>""</code></td><td>Mention d'attribution affichée sur la carte quand <code>tiles</code> est une URL custom. Obligatoire pour respecter l'ODbL et les CGU du fournisseur (un <code>console.warn</code> signale son absence). Ignoré sur un preset connu, qui porte déjà son attribution.</td></tr>
+            <tr><td><code>tiles-style</code></td><td>String</td><td><code>""</code></td><td>Atténuation du fond de carte pour les cartes thématiques : <code>muted</code> (gris + 55&nbsp;% d'opacité), <code>grey</code> (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS appliqué au seul volet des tuiles de cette carte ; les encarts héritent du réglage. Un fond « neutre » = <code>ign-plan</code> + <code>tiles-style="muted"</code> (#686)</td></tr>
             <tr><td><code>sovereign-only</code></td><td>Boolean</td><td><code>false</code></td><td>Restreint <code>tiles</code> aux presets IGN souverains (<code>ign-plan</code>, <code>ign-ortho</code>, <code>ign-topo</code>, <code>ign-cadastre</code>). Tout autre preset ou URL custom est refusé avec un <code>console.warn</code> et remplacé par <code>ign-plan</code>.</td></tr>
             <tr><td><code>no-controls</code></td><td>Boolean</td><td><code>false</code></td><td>Masque le contrôle de zoom Leaflet</td></tr>
             <tr><td><code>locked</code></td><td>Boolean</td><td><code>false</code></td><td>Carte verrouillée : aucune interaction (pan, zoom, molette, clavier). Utilisé par les encarts et les vignettes.</td></tr>
             <tr><td><code>insets</code></td><td>String</td><td><code>""</code></td><td>Raccourci encarts territoriaux : groupe et/ou territoires nommés séparés par des virgules (<code>"drom"</code>, <code>"drom,corse"</code>). Le groupe <code>drom</code> = guadeloupe, martinique, guyane, la-reunion, mayotte. Produit les <code>&lt;dsfr-data-map-inset&gt;</code> correspondants ; un encart posé explicitement en HTML pour le même territoire prime.</td></tr>
             <tr><td><code>fit-bounds</code></td><td>Boolean</td><td><code>false</code></td><td>Ajuste automatiquement le viewport aux bounds des couches (padding 20, sans animation ; bounds recalculés à chaque rendu de couche). Les couches <code>no-interactive</code> sont exclues du calcul.</td></tr>
             <tr><td><code>max-bounds</code></td><td>String</td><td><code>""</code></td><td>Limites de pan Leaflet <code>"latSW,lonSW,latNE,lonNE"</code> — <strong>ET clip du fit</strong> (ADR-094) : le rectangle du <code>fit-bounds</code> est intersecté avec cette zone, si bien que des données lointaines (DROM) ne dézooment plus la vue métropole. Intersection vide = vue inchangée.</td></tr>
+            <tr><td><code>fit-zone</code></td><td>String</td><td><code>""</code></td><td>Zone sur laquelle <code>fit-bounds</code> est clippé, au format <code>"latSW,lonSW,latNE,lonNE"</code> — le pan reste libre. Défaut : <code>max-bounds</code> s'il est renseigné ; sinon la métropole (<code>41,-5.5,51.5,10</code>) dès que la carte porte un encart ultramarin (<code>insets="drom"</code>&hellip;), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. <code>fit-zone="none"</code> désactive le clip (#687)</td></tr>
+            <tr><td><code>fit-max-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom maximal atteint par <code>fit-bounds</code> (ex. <code>12</code>) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. <code>0</code> (défaut) = pas de plafond, <code>max-zoom</code> s'applique</td></tr>
             <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Nom accessible de la carte (aria-label + description + télémétrie beacon)</td></tr>
           </tbody>
         </table>
@@ -222,11 +225,26 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer source="A"  (ge
         <!-- Voir aussi -->
         <!-- ============================================================ -->
 
+        <h2 id="legende" class="fr-mt-4w">Légende &mdash; <code>dsfr-data-map-legend</code></h2>
+        <p>
+          Compagnon déclaratif placé dans la carte : il rend la légende des couches
+          (classes d'une choroplèthe, paires de <code>color-map</code>, ou entrée unique
+          d'une couche monochrome) et se met à jour avec elles.
+        </p>
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Id (ou <code>source</code>) de la couche <code>&lt;dsfr-data-map-layer&gt;</code> décrite. Vide = toutes les couches directes de la carte hôte, entrées concaténées</td></tr>
+            <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Titre de la légende, affiché au-dessus de la liste (ex. « Densité (hab./km&sup2;) »). Sert aussi de libellé à l'entrée unique d'une couche monochrome</td></tr>
+          </tbody>
+        </table>
+
         <h2 class="fr-mt-4w">Composants compagnons</h2>
         <ul>
           <li><a href="dsfr-data-map-layer.html"><code>dsfr-data-map-layer</code></a> — couche de données : markers, geoshape, cercles proportionnels, heatmap, clustering, bbox, animation temporelle</li>
           <li><a href="dsfr-data-map-popup.html"><code>dsfr-data-map-popup</code></a> — affichage au clic : popup, modale ou volet latéral avec template</li>
           <li><a href="dsfr-data-map-inset.html"><code>dsfr-data-map-inset</code></a> — encarts territoriaux (DROM, Corse, zoom local)</li>
+          <li><a href="#legende"><code>dsfr-data-map-legend</code></a> — légende des couches (classes de choroplèthe, <code>color-map</code>, couche monochrome)</li>
           <li><a href="dsfr-data-map-timeline.html"><code>dsfr-data-map-timeline</code></a> — contrôles de lecture temporelle</li>
         </ul>
     </div>

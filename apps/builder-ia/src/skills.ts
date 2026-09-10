@@ -722,23 +722,41 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
-| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
-| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). En mode server-facets, fields est obligatoire |
+| server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
 | cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
+| context | String | \`""\` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur \`source\`. Vide = mode autonome (commande directe a \`source\`) |
+| no-reset | Boolean | \`false\` | non | Masque le bouton local « Réinitialiser les filtres » (#679, #640) : a poser quand un context-tags clear-all fait office de « tout effacer », ou pour qu'une colonne de facettes ne change pas de hauteur a la premiere selection |
+
+### Mode context (#678) — un select peuple depuis la donnee, avec cascade
+\`\`\`html
+<dsfr-data-context id="ctx" sources="src-charges src-produits" url-sync></dsfr-data-context>
+<dsfr-data-facets id="geo" context="ctx" source="src-facettes" server-facets
+  fields="region,departement" display="region:select | departement:select"></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+\`\`\`
+Zero <option> ecrite a la main : les valeurs viennent de l'API facettes, choisir une region
+restreint les departements (cascade server-facets), et les deux sources cibles se refiltrent
+ensemble. Un filtre par champ (eq une valeur, in plusieurs), whereKey stable \`uid + champ\`.
+Le contexte peut etre declare apres la facette dans la page. Ne PAS generer d'\`<option>\` en dur
+ni d'\`options-source\` sur context-filter (refuse) : c'est ce pattern qu'il faut.
+Migration d'une facette qui portait url-sync : reporter \`url-param-map\` sur le contexte
+(un parametre par champ, format du contexte).
 
 ### Modes d'affichage
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
 - **select** : liste deroulante DSFR standard, selection exclusive (une seule valeur)
 - **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout sélectionner/deselectionner"
-- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive
+- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive (sera renomme \`radio-dropdown\` dans une version majeure)
+- **radio-inline** : boutons radio DSFR visibles en ligne dans un fieldset, precedes d'une option « Tous » qui retire la selection ; selection exclusive, toutes les valeurs affichees (#684)
 
 Le mode \`select\` rend la facette automatiquement exclusive.
-Le mode \`radio\` rend la facette automatiquement exclusive.
+Le mode \`radio\` rend la facette automatiquement exclusive, \`radio-inline\` aussi.
 Le mode \`multiselect\` rend la facette automatiquement disjonctive (multi-selection OU).
 
 ### Logique de filtrage
@@ -857,6 +875,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | \`'search("{q}")'\` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -2463,6 +2482,11 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'fonds administratifs',
       'geo/regions',
       'geo/departements',
+      'refine-on-click',
+      'map-select',
+      'clic sur la carte',
+      'carte comme filtre',
+      'annuaire',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -2514,6 +2538,9 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | geo-field | String | \`""\` | Chemin vers GeoJSON (Point, Polygon) — objet ou chaine JSON serialisee (colonnes Text Grist/CSV) |
 | shape-class | String | \`""\` | Classe CSS appliquee aux traces SVG (geoshape/circle) — motifs hachures via <pattern> defini par la page |
 | no-interactive | Boolean | \`false\` | Couche decorative : aucun clic/tooltip/popup (contours administratifs, habillage) |
+| label | String | \`""\` | Libellé de la couche — libellé du tag du contexte en \`refine-on-click\` (défaut : le nom du champ) |
+| refine-on-click | String | \`""\` | Champ dont la valeur de l'objet clique devient un filtre \`eq\` (#681) : premier clic = filtre, second clic sur le même objet = retrait, autre objet = remplacement. Avec \`context\` (recommandé) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`map-select-ID\`, sans tag ni URL) |
+| context | String | \`""\` | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#681, ADR-104). Peut etre declare apres la couche |
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
 | popup-fields | String | \`""\` | Champs pour tableau auto : \`"nom,adresse"\` |
 | tooltip-field | String | \`""\` | Champ affiche au survol |
@@ -2690,6 +2717,43 @@ Sans template, tableau auto.
   </template>
 </dsfr-data-map-popup>
 \`\`\`
+
+### La carte comme filtre — dsfr-data-map-select et refine-on-click (#681, ADR-104)
+
+Au clic sur un marqueur, un cercle ou une forme (jamais en \`no-interactive\`), la couche emet
+\`dsfr-data-map-select\` \`{ record, layerId, selected }\` (bubbles, composed) en plus de la popup :
+tout JS de page peut reagir. \`selected\` vaut \`true\` a la selection, \`false\` au retrait
+(second clic sur le même objet).
+
+Avec \`refine-on-click="champ"\` + \`context="ctx"\` (recommande), la couche s'enregistre comme
+filtre \`eq\` du dsfr-data-context : premier clic = filtre diffuse a toutes les sources du contexte
+(au dialecte de chacune), tag dans dsfr-data-context-tags (libelle = \`label\` de la couche ou le
+champ), URL portee par le contexte (\`url-sync\`) ; second clic sur le même objet = retrait ; autre
+objet = remplacement. Sans \`context\`, la clause part directement a \`source\` (whereKey
+\`map-select-ID\`) : pas de tag, pas d'URL, pas de traduction de dialecte — chemin degrade.
+
+Recette annuaire (la carte filtre la liste) :
+
+\`\`\`html
+<dsfr-data-source id="etablissements" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+<dsfr-data-source id="etablissements-carte" api-type="opendatasoft" base-url="…" dataset-id="…"></dsfr-data-source>
+
+<!-- Le contexte ne cible que la liste : la carte garde tous ses points -->
+<dsfr-data-context id="ctx" sources="etablissements" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" fit-bounds>
+  <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
+    tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune">
+  </dsfr-data-map-layer>
+</dsfr-data-map>
+<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+\`\`\`
+
+Piege : si la source de la carte est AUSSI dans \`sources\` du contexte, la carte se filtre
+elle-même au clic (seul l'objet clique reste, jusqu'au second clic). Pour garder tous les points,
+donner a la carte sa propre source (deux dsfr-data-source sur le même jeu) et ne lister que la
+liste dans \`sources\` — c'est \`sources\` du contexte qui regle les cibles, pas la couche.
 
 ### Exemple : zoom ranges (multi-resolution)
 
@@ -2942,6 +3006,17 @@ Sans contexte, chaque source reste autonome (defaut inchange).
 Les enfants <dsfr-data-context-filter> declarent chacun UN filtre. La clause est
 construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adapter
 (ODSQL pour OpenDataSoft). Le disconnect du contexte libere tous ses filtres.
+
+### Un seul bus de diffusion (#678, ADR-104)
+
+Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
+<dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
+<dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
+en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
+<dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
+diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
+Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
+connexion. whereKey stable indexe sur \`uid + champ\` (insertion tardive sans decalage).
 ` + reference('dsfr-data-context'),
   },
 
@@ -2963,18 +3038,25 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 |----------|------|--------|--------|-------------|
 | field | String | \`""\` | oui | Colonne filtree |
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
-| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year (bornes dynamiques recalculees a chaque diffusion) |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), contains (sous-chaine, #678), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
+| default | String | \`""\` | non | Valeur initiale (#682), appliquee APRES l'URL (l'URL gagne) : \`today\`, \`first-of-month\`, \`first-of-year\` (resolus dans le fuseau local, adaptes au controle) ou un litteral ; pour between/in, valeurs separees par une virgule |
+| context | String | \`""\` | non | Id du dsfr-data-context cible (#678) — permet de placer le filtre hors du contexte, meme declare avant lui. Vide = contexte parent le plus proche |
 
 ### Operateurs
 
 - \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
+- \`contains\` : sous-chaine (input texte ; \`like "%v%"\` en ODSQL) — #678
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
-  dynamique), \`current-year\` (checkbox -> annee en cours). Plages [debut, fin) en ISO,
-  recalculees a chaque diffusion — l'URL serialise l'intention (« 30 »), pas les dates resolues.
+  dynamique), \`current-year\` (checkbox -> annee en cours), \`current-month\` (checkbox -> mois
+  en cours, #682). Plages [debut, fin) en ISO, recalculees a chaque diffusion — l'URL serialise
+  l'intention (« 30 », « on »), pas les dates resolues.
+- Valeur initiale (#682) : \`default="today"\` sur un \`lt-day-after\` filtre « jusqu'a aujourd'hui »
+  sans script ; \`default="first-of-year,today"\` sur un \`between\` donne « depuis le 1er janvier ».
+  Un parametre d'URL present prime toujours sur \`default\`.
 - Troncature (#646) : \`year-of\` et \`month-of\` acceptent une date plus precise et la tronquent
   ("2026-09-09" -> annee 2026 / mois 2026-09) : un input type=date peut nourrir les deux (il n'existe
   pas de type=year). Une valeur qui reste inexploitable retire le filtre et l'annonce par un
@@ -2993,13 +3075,16 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 Affiche des tags DSFR supprimables : un tag par filtre actif du contexte observe
 (libelle naturel + valeur). La croix reinitialise le filtre en VIDANT son UI —
 meme chemin qu'un utilisateur qui efface le champ : sources, URL et tags se
-mettent a jour ensemble.
+mettent a jour ensemble. Tout type de filtre confondu (#678) : context-filter,
+champs d'une facets context="…", terme d'une search context="…" (tag « Recherche : terme »).
+Une facette multi-valeurs (in) donne UN tag par valeur, chacune retirable seule (#679).
 
 ### Attributs
 
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | for | String | \`""\` | oui | Id du dsfr-data-context observe |
+| clear-all | Boolean | \`false\` | non | Bouton unique « Tout effacer » (#679) apres les tags : vide tous les filtres actifs en une fois (une seule URL, une seule notification), annonce en region live, absent sans filtre actif. Poser \`no-reset\` sur les facets de la page pour ne pas doubler leur bouton local |
 
 ### Pattern
 
@@ -3008,7 +3093,8 @@ mettent a jour ensemble.
   <dsfr-data-context-filter field="categorie" label="Catégorie" operator="in" ui="ui-cat">
   </dsfr-data-context-filter>
 </dsfr-data-context>
-<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+<dsfr-data-facets context="ctx" source="src-a" server-facets fields="region" no-reset></dsfr-data-facets>
+<dsfr-data-context-tags for="ctx" clear-all></dsfr-data-context-tags>
 \`\`\`
 ` + reference('dsfr-data-context-tags'),
   },
@@ -3495,23 +3581,38 @@ Les modes et ce qu’ils rendent :
 | \`checkbox\` (defaut) | cases a cocher en ligne | multiple (OU intra-facette) |
 | \`select\` | \`<select class="fr-select">\` natif, en ligne | **unique** |
 | \`radio\` | **dropdown** repliable contenant des boutons radio + recherche | unique |
+| \`radio-inline\` | boutons radio **visibles en ligne** (fieldset DSFR), option « Tous » en tete | unique |
 | \`multiselect\` | dropdown repliable avec cases a cocher + « tout selectionner » | multiple |
 
-Donc : « un choix unique visible directement » = \`champ:select\`. \`radio\` n’est pas
-une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente, pas un
-bug. Une facette en \`select\` ou \`radio\` est exclusive d’office, sans \`disjunctive\`.
+Donc : « un choix unique visible directement » = \`champ:select\` (liste deroulante) ou
+\`champ:radio-inline\` (boutons radio en ligne, « Tous » pour retirer le choix). \`radio\`
+n’est pas une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente,
+pas un bug — il sera renomme \`radio-dropdown\` dans une version majeure. Une facette en
+\`select\`, \`radio\` ou \`radio-inline\` est exclusive d’office, sans \`disjunctive\`.
 
 ### Facettes en cascade (server-facets)
 
 Avec \`server-facets\` (adapters OpenDataSoft et Grist), les valeurs et compteurs de
 chaque facette sont recalcules **cote serveur en tenant compte des selections des
 autres facettes** : choisir une region reduit la liste des departements, avec les
-bons compteurs. C’est la cascade native ; \`fields\` est obligatoire dans ce mode.
+bons compteurs. C’est la cascade native. Sans \`fields\`, le composant decouvre au
+premier cycle les facettes declarees par le jeu (ODS : champs annotes « facet » des
+metadonnees, avec leur libelle ; Grist : colonnes Choice / ChoiceList) et les affiche
+toutes, cascade comprise (#680). \`fields\` reste le moyen d’en choisir un sous-ensemble
+ou d’imposer l’ordre.
+
+Une facette ODS de type **date** sert ses valeurs par annee (« 2022 ») ; le filtre emis
+est alors un intervalle \`champ >= date'2022-01-01' AND champ < date'2023-01-01'\`, jamais
+l’egalite \`champ = "2022"\` (refusee par ODS, #676). Rien a configurer : le type vient de
+la decouverte, meme avec \`fields\` explicite.
 
 \`\`\`html
 <dsfr-data-source id="src" api-type="opendatasoft" base-url="..." dataset-id="..." server-side page-size="50"></dsfr-data-source>
 <dsfr-data-facets id="f" source="src" server-facets fields="region, departement"
   display="region:select | departement:select"></dsfr-data-facets>
+
+<!-- Toutes les facettes declarees par le jeu, sans les nommer -->
+<dsfr-data-facets id="f2" source="src" server-facets></dsfr-data-facets>
 \`\`\`
 
 En mode local (sans \`server-facets\`), les compteurs se recalculent aussi selon
@@ -3533,8 +3634,22 @@ cochee = filtre actif, decochee = filtre retire.
 </dsfr-data-context>
 \`\`\`
 
-Meme famille : \`year-of\` (annee choisie dans un select), \`month-of\`, \`last-n-days\`,
-\`lt-day-after\` (borne haute inclusive).
+Meme famille : \`current-month\` (case a cocher -> mois en cours, #682), \`year-of\` (annee
+choisie dans un select), \`month-of\`, \`last-n-days\`, \`lt-day-after\` (borne haute inclusive).
+
+### Filtrer jusqu’a aujourd’hui sans script (default="today")
+
+\`default\` (#682) pre-remplit le controle d'UI au montage, APRES l'URL (un parametre d'URL
+present gagne toujours), puis emet par le chemin normal : tags et URL suivent. Mots-cles
+\`today\`, \`first-of-month\`, \`first-of-year\` (date calendaire locale, adaptee au controle :
+input type=month -> AAAA-MM, \`year-of\` -> AAAA) ou un litteral.
+
+\`\`\`html
+<input type="date" id="jusqu-au">
+<dsfr-data-context sources="src" url-sync>
+  <dsfr-data-context-filter field="date_debut" operator="lt-day-after" ui="jusqu-au" default="today"></dsfr-data-context-filter>
+</dsfr-data-context>
+\`\`\`
 
 ### Cles de jointure : comparaison en chaine (join on)
 

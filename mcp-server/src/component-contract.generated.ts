@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 24 balises, 271 attributs.
+ * 24 balises, 280 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -85,6 +85,8 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-context-filter": {
     "attributes": [
       "apply-to",
+      "context",
+      "default",
       "field",
       "label",
       "operator",
@@ -93,6 +95,7 @@ export const COMPONENT_CONTRACT = {
   },
   "dsfr-data-context-tags": {
     "attributes": [
+      "clear-all",
       "for"
     ]
   },
@@ -111,6 +114,7 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-facets": {
     "attributes": [
       "cols",
+      "context",
       "disjunctive",
       "display",
       "fields",
@@ -118,6 +122,7 @@ export const COMPONENT_CONTRACT = {
       "hide-empty",
       "labels",
       "max-values",
+      "no-reset",
       "searchable",
       "server-facets",
       "sort",
@@ -238,12 +243,14 @@ export const COMPONENT_CONTRACT = {
       "color",
       "color-field",
       "color-map",
+      "context",
       "fill-field",
       "fill-opacity",
       "geo-field",
       "heat-blur",
       "heat-field",
       "heat-radius",
+      "label",
       "lat-field",
       "lon-field",
       "max-items",
@@ -258,6 +265,7 @@ export const COMPONENT_CONTRACT = {
       "radius-max",
       "radius-min",
       "radius-unit",
+      "refine-on-click",
       "selected-palette",
       "shape-class",
       "source",
@@ -334,6 +342,7 @@ export const COMPONENT_CONTRACT = {
   },
   "dsfr-data-search": {
     "attributes": [
+      "context",
       "count",
       "debounce",
       "fields",

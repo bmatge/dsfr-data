@@ -317,12 +317,20 @@ export class DsfrDataSource extends LitElement {
     return this._adapter;
   }
 
-  /** Returns the effective WHERE clause (static + all dynamic overlays merged) */
-  public getEffectiveWhere(excludeKey?: string): string {
+  /**
+   * Returns the effective WHERE clause (static + all dynamic overlays merged).
+   * `excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 —
+   * une facette en mode `context` emet un whereKey PAR champ et doit les
+   * exclure tous du where de base de sa cascade).
+   */
+  public getEffectiveWhere(excludeKey?: string | string[]): string {
+    const excluded = new Set(
+      Array.isArray(excludeKey) ? excludeKey : excludeKey !== undefined ? [excludeKey] : []
+    );
     const parts: string[] = [];
     if (this.where) parts.push(this.where);
     for (const [key, value] of this._whereOverlays) {
-      if (key !== excludeKey && value) parts.push(value);
+      if (!excluded.has(key) && value) parts.push(value);
     }
     const adapter = this.getAdapter();
     const separator = adapter?.capabilities.whereFormat === 'odsql' ? ' AND ' : ', ';

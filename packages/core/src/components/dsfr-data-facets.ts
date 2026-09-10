@@ -3,13 +3,26 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import type { ApiAdapter } from '../adapters/api-adapter.js';
+import type { ApiAdapter, AdapterParams, FacetDescriptor } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { isUnsafeKey } from '@dsfr-data/shared/lib';
-import { joinWhere } from '../utils/where.js';
+import type { ContextFilterLike } from '@dsfr-data/shared/lib';
+import { joinWhere, escapeColonValue } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
+import type { DsfrDataContext } from './dsfr-data-context.js';
 
-type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
+type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio' | 'radio-inline';
+
+/** Modes d'affichage reconnus par `display` (toute autre valeur est ignoree) */
+const FACET_DISPLAY_MODES: ReadonlySet<string> = new Set<FacetDisplayMode>([
+  'checkbox',
+  'select',
+  'multiselect',
+  'radio',
+  'radio-inline',
+]);
 
 interface FacetValue {
   value: string;
@@ -26,6 +39,67 @@ interface FacetGroup {
 }
 
 /**
+ * Un champ de facette vu par le contexte (#678, ADR-104) : la facette
+ * s'enregistre UNE fois par champ aupres de <dsfr-data-context>, qui
+ * diffuse la clause a ses cibles (au dialecte de chacune), porte l'URL et
+ * alimente les tags. La facette, elle, continue de calculer valeurs,
+ * compteurs et cascade sur sa `source`.
+ */
+class FacetFieldFilter implements ContextFilterLike {
+  readonly applyTo = '*';
+  /** `in` pour la detection de doublon : c'est l'operateur multi-valeurs de la facette */
+  readonly operator = 'in';
+
+  constructor(
+    private readonly host: DsfrDataFacets,
+    readonly field: string
+  ) {}
+
+  get isConnected(): boolean {
+    return this.host.isConnected;
+  }
+
+  private _values(): string[] {
+    return [...(this.host._selectionsOf(this.field) ?? [])];
+  }
+
+  /** Une valeur = `eq`, plusieurs = `in` (meme forme que le repli colon de la facette) */
+  buildColonWhere(): string {
+    const values = this._values();
+    if (values.length === 0) return '';
+    if (values.length === 1) return `${this.field}:eq:${escapeColonValue(values[0])}`;
+    return `${this.field}:in:${values.map((v) => escapeColonValue(v)).join('|')}`;
+  }
+
+  displayLabel(): string {
+    return this.host._parseLabels().get(this.field) ?? this.field;
+  }
+
+  displayValue(): string {
+    return this._values().join(', ');
+  }
+
+  /** Un tag par valeur dans context-tags (#679) */
+  displayValues(): string[] {
+    return this._values();
+  }
+
+  /** Meme chemin qu'un clic « Tout » : la facette re-pousse son etat au contexte */
+  clear(): void {
+    this.host._clearFieldSelections(this.field);
+  }
+
+  /** Meme chemin qu'une case decochee : les autres valeurs du champ restent (#679) */
+  clearValue(value: string): void {
+    this.host._removeFieldValue(this.field, value);
+  }
+
+  urlValue(): string {
+    return this._values().join(',');
+  }
+}
+
+/**
  * <dsfr-data-facets> - Filtres a facettes interactifs
  *
  * Composant visuel intermediaire qui affiche des controles de filtre
@@ -39,7 +113,14 @@ interface FacetGroup {
  * <dsfr-data-normalize id="clean" source="raw" trim numeric-auto></dsfr-data-normalize>
  * <dsfr-data-facets id="filtered" source="clean" fields="region, type"></dsfr-data-facets>
  * <dsfr-data-chart source="filtered" type="bar" label-field="region" value-field="population"></dsfr-data-chart>
- * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — selection de facettes relayee en filtre serveur. `origin` porte l'id de ce composant (#603).
+ * En mode `context="id"` (#678, ADR-104), la facette devient un filtre de
+ * <dsfr-data-context> : un filtre par champ, diffusion par le contexte a
+ * toutes ses sources cibles (au dialecte de chacune), URL portee par le
+ * contexte (un parametre par champ), tags gratuits. Elle n'emet plus de
+ * commande directe ; valeurs, compteurs et cascade restent calcules sur sa
+ * `source` (client ou `server-facets`, inchanges).
+ *
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — selection de facettes relayee en filtre serveur (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
  */
 let facetsInstanceSeq = 0;
 
@@ -49,7 +130,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Champs a exposer comme facettes (virgule-separes). Vide = auto-detection */
+  /**
+   * Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les
+   * données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le
+   * jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)
+   */
   @property({ type: String })
   fields = '';
 
@@ -88,7 +173,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'hide-empty' })
   hideEmpty = false;
 
-  /** Mode d'affichage par facette : "field:select | field2:multiselect". Défaut = checkbox */
+  /**
+   * Mode d'affichage par facette : "champ:mode | champ2:mode". Défaut = checkbox.
+   * - `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple)
+   * - `select` : liste déroulante native fr-select (sélection unique)
+   * - `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple)
+   * - `radio` : menu déroulant repliable contenant des boutons radio et une recherche
+   *   (sélection unique) — sera renommé `radio-dropdown` dans une version majeure
+   * - `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous »
+   *   qui retire la sélection (sélection unique, #684)
+   */
   @property({ type: String })
   display = '';
 
@@ -108,7 +202,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * Active le mode facettes serveur ODS.
    * Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.
    * Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side.
-   * En mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection).
+   * Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le
+   * jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type
+   * date (valeurs par année) sont filtrées par intervalle et non par égalité (#676).
    */
   @property({ type: Boolean, attribute: 'server-facets' })
   serverFacets = false;
@@ -136,6 +232,26 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Colonnage DSFR des facettes : "6" (global) ou "field:4 | field2:6" (par facette) */
   @property({ type: String })
   cols = '';
+
+  /**
+   * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette
+   * devient alors un filtre du contexte, un par champ : c'est le contexte
+   * qui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et
+   * `url-params` de la facette sont ignores — reporter `url-param-map` sur
+   * le contexte). Le contexte peut etre declare apres la facette dans la
+   * page. Vide = comportement autonome historique (commande directe a `source`).
+   */
+  @property({ type: String })
+  context = '';
+
+  /**
+   * Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9).
+   * À poser quand un dsfr-data-context-tags clear-all fait office de « tout
+   * effacer » pour la page (mode `context`), ou pour qu'une colonne de
+   * facettes ne change pas de hauteur à la première sélection.
+   */
+  @property({ type: Boolean, attribute: 'no-reset' })
+  noReset = false;
 
   @state()
   private _rawData: Record<string, unknown>[] = [];
@@ -165,6 +281,45 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   private _popstateHandler: (() => void) | null = null;
 
+  /** Contexte resolu (mode `context`, #678) */
+  private _context: DsfrDataContext | null = null;
+
+  /**
+   * Un filtre de contexte par champ, avec son whereKey et la derniere clause
+   * confiee au contexte (mode `context`, #678) — un champ inchange n'est pas
+   * re-diffuse : une source cible re-emet apres chaque commande
+   */
+  private _contextFilters = new Map<
+    string,
+    { filter: FacetFieldFilter; whereKey: string; pushed: string }
+  >();
+
+  /** Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678) */
+  private _onContextConnected = (e: Event) => {
+    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
+    if (this.context && id === this.context) this._bindContext();
+  };
+
+  /** Mode `context` demande (que le contexte soit deja resolu ou non) */
+  private get _contextMode(): boolean {
+    return this.context.trim() !== '';
+  }
+
+  /** Lecture de l'URL par la facette elle-meme — desactivee en mode `context` (l'URL est au contexte) */
+  private get _ownUrlParams(): boolean {
+    return this.urlParams && !this._contextMode;
+  }
+
+  /** Ecriture de l'URL par la facette elle-meme — desactivee en mode `context` */
+  private get _ownUrlSync(): boolean {
+    return this.urlSync && !this._contextMode;
+  }
+
+  /** Selections courantes d'un champ (lues par les filtres de contexte) */
+  _selectionsOf(field: string): Set<string> | undefined {
+    return this._activeSelections[field];
+  }
+
   // --- Public API (delegation to upstream source) ---
 
   /**
@@ -185,7 +340,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /**
    * Retourne le where effectif de la source amont (delegation transparente).
    */
-  public getEffectiveWhere(excludeKey?: string): string {
+  public getEffectiveWhere(excludeKey?: string | string[]): string {
     if (this.source) {
       const sourceEl = document.getElementById(this.source);
       if (sourceEl && 'getEffectiveWhere' in sourceEl) {
@@ -204,7 +359,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-facets');
     document.addEventListener('click', this._onClickOutsideMultiselect);
-    if (this.urlSync) {
+    if (this._ownUrlSync) {
       this._popstateHandler = () => {
         this._applyUrlParams();
         this._buildFacetGroups();
@@ -212,10 +367,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       };
       window.addEventListener('popstate', this._popstateHandler);
     }
+    if (this._contextMode) {
+      document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      // Bind differe d'un tick : dans un meme fragment innerHTML, le contexte
+      // declare apres la facette n'est pas encore upgrade
+      queueMicrotask(() => this._bindContext());
+    }
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+    this._unbindContext();
     // Abandonne le fetch de facettes en vol (#309)
     this._facetsAbort?.abort();
     this._facetsAbort = null;
@@ -229,6 +392,21 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     if (this._popstateHandler) {
       window.removeEventListener('popstate', this._popstateHandler);
       this._popstateHandler = null;
+    }
+  }
+
+  willUpdate(changed: Map<PropertyKey, unknown>) {
+    super.willUpdate(changed);
+    // Changement de contexte a chaud (#678) : on libere l'ancien, on rejoint le nouveau
+    if (changed.has('context') && this.hasUpdated) {
+      this._unbindContext();
+      document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      if (this._contextMode) {
+        document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+        this._bindContext();
+      } else {
+        clearConfigError(this);
+      }
     }
   }
 
@@ -289,15 +467,22 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   protected beforeTransformerSubscribe(): void {
+    const hadSelections = this._hasActiveSelections();
     this._activeSelections = {};
     this._expandedFacets = new Set();
     this._searchQueries = {};
+
+    // Re-souscription en mode context (changement de source) : les filtres
+    // du contexte ne doivent pas rester figes sur des selections effacees
+    if (this._context && hadSelections) {
+      this._pushContextFilters();
+    }
 
     // In server/static mode with URL params, read selections and send command
     // proactively BEFORE data arrives. This lets dsfr-data-query (which defers its
     // first fetch in server-side mode) include the facet filter in the initial request.
     const isServerMode = this.serverFacets || !!this.staticValues;
-    if (isServerMode && this.urlParams && !this._urlParamsApplied) {
+    if (isServerMode && this._ownUrlParams && !this._urlParamsApplied) {
       this._applyUrlParams();
       this._urlParamsApplied = true;
       if (this._hasActiveSelections()) {
@@ -322,7 +507,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   private _onData(data: unknown) {
     this._rawData = Array.isArray(data) ? data : [];
     const isServerMode = this.serverFacets || !!this.staticValues;
-    if (this.urlParams && !this._urlParamsApplied) {
+    if (this._ownUrlParams && !this._urlParamsApplied) {
       this._applyUrlParams();
       this._urlParamsApplied = true;
       // In server mode, send initial URL-selected facets as command
@@ -427,17 +612,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     `;
   }
 
-  /** Element checkbox/radio complet — etait copie 3x */
+  /** Element checkbox/radio complet — etait copie 3x. `inline` : element en ligne (radio-inline, #684) */
   private _renderToggleItem(
     group: FacetGroup,
     fv: FacetValue,
     inputId: string,
     kind: 'checkbox' | 'radio',
-    radioName?: string
+    radioName?: string,
+    inline = false
   ) {
     const isChecked = (this._activeSelections[group.field] ?? new Set()).has(fv.value);
     return html`
-      <div class="fr-fieldset__element">
+      <div class="fr-fieldset__element${inline ? ' fr-fieldset__element--inline' : ''}">
         <div class="fr-${kind}-group fr-${kind}-group--sm">
           <input
             type="${kind}"
@@ -471,6 +657,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
           return group.values.length > 0;
         })
     );
+    this._syncContextFilters();
   }
 
   /**
@@ -492,6 +679,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
           values: parsed[field].map((v) => ({ value: v, count: 0 })),
         }))
         .filter((group) => !(this.hideEmpty && group.values.length <= 1));
+      this._syncContextFilters();
     } catch {
       console.warn('dsfr-data-facets: static-values invalide (JSON attendu)');
     }
@@ -506,7 +694,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const adapter: ApiAdapter | undefined =
       (rawEl as unknown as SourceElement)?.getAdapter?.() ?? undefined;
     if (adapter?.buildFacetWhere) {
-      return adapter.buildFacetWhere(this._activeSelections, excludeField);
+      // Champs date connus par la decouverte (#676) : une annee devient un intervalle
+      return adapter.buildFacetWhere(this._activeSelections, excludeField, {
+        dateFields: this._dateFacetFields(),
+      });
     }
     // Fallback: colon syntax (for client-side mode without adapter)
     const parts: string[] = [];
@@ -720,6 +911,78 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   /** Erreur du dernier fetch de facettes (rendue, plus avalee — #309) */
   private _facetsError: string | null = null;
 
+  // --- Decouverte des facettes declarees (#680) ---
+
+  /** Facettes decouvertes aupres du provider ; null tant que la decouverte n'a pas abouti */
+  private _discoveredFacets: FacetDescriptor[] | null = null;
+
+  /** Cle (baseUrl + datasetId) de la decouverte memorisee : un autre jeu l'invalide */
+  private _discoveryKey = '';
+
+  /** Decouverte en vol, partagee entre deux cycles de fetch concurrents */
+  private _discoveryPromise: Promise<FacetDescriptor[]> | null = null;
+
+  /** « Aucune facette declaree » deja signale pour ce jeu (un warn, pas un par cycle) */
+  private _discoveryEmptyWarned = false;
+
+  /**
+   * Un appel de decouverte par jeu de donnees : noms et libelles des facettes
+   * declarees (utilises quand `fields` est absent) et champs de type date —
+   * utiles meme avec `fields` explicite, car le where d'une annee doit etre
+   * un intervalle (#676). Une decouverte en echec est memorisee vide (pas de
+   * nouvelle tentative a chaque cycle) jusqu'a un changement de jeu.
+   */
+  private _discoverServerFacets(
+    adapter: ApiAdapter,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+  ): Promise<FacetDescriptor[]> {
+    if (!adapter.discoverFacets) return Promise.resolve([]);
+    const key = `${params.baseUrl}|${params.datasetId}`;
+    if (this._discoveryKey === key) {
+      if (this._discoveredFacets) return Promise.resolve(this._discoveredFacets);
+      if (this._discoveryPromise) return this._discoveryPromise;
+    }
+    this._discoveryKey = key;
+    this._discoveredFacets = null;
+    this._discoveryEmptyWarned = false;
+    const promise = adapter
+      .discoverFacets(params)
+      .catch((e: unknown) => {
+        logFetchWarning(`dsfr-data-facets[${this.id}]: découverte des facettes en échec`, e);
+        return [] as FacetDescriptor[];
+      })
+      .then((descriptors) => {
+        if (this._discoveryKey === key) {
+          this._discoveredFacets = descriptors;
+          this._discoveryPromise = null;
+        }
+        return descriptors;
+      });
+    this._discoveryPromise = promise;
+    return promise;
+  }
+
+  /** Champs date connus par la decouverte (#676) ; undefined avant decouverte ou sans date */
+  private _dateFacetFields(): ReadonlySet<string> | undefined {
+    if (!this._discoveredFacets) return undefined;
+    const dates = this._discoveredFacets.filter((d) => d.isDate).map((d) => d.field);
+    return dates.length > 0 ? new Set(dates) : undefined;
+  }
+
+  /** Une selection active porte-t-elle une annee sur un champ date decouvert ? */
+  private _hasDateYearSelection(): boolean {
+    const dateFields = this._dateFacetFields();
+    if (!dateFields) return false;
+    return Object.entries(this._activeSelections).some(
+      ([field, values]) => dateFields.has(field) && [...values].some((v) => /^\d{4}$/.test(v))
+    );
+  }
+
+  /** Libelle declare par le provider pour un champ decouvert (a defaut de `labels`) */
+  private _discoveredLabel(field: string): string | undefined {
+    return this._discoveredFacets?.find((d) => d.field === field)?.label;
+  }
+
   /** L'adapter amont supporte-t-il les facettes serveur ? (#313) */
   private _serverFacetsSupported(): boolean {
     const sourceEl = document.getElementById(this.source);
@@ -728,25 +991,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return !!(adapter?.capabilities.serverFacets && adapter.fetchFacets);
   }
 
-  /** Fetch facet values from server API with cross-facet counts */
-  private async _fetchServerFacets() {
-    const sourceEl = document.getElementById(this.source);
-    if (!sourceEl) return;
-
-    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
-    const adapter: ApiAdapter | undefined =
-      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
-    if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
-      // Adapter does not support server facets — fallback to client-side
-      this._buildFacetGroups();
-      this._applyFilters();
-      return;
-    }
-
-    // Parametres resolus par la source elle-meme (headers effectifs avec
-    // api-key-ref) via la delegation SourceElement — re-parser les attributs
-    // DOM ratait la resolution d'api-key-ref → 401 sur sources
-    // authentifiees (#274)
+  /**
+   * Parametres serveur (baseUrl, datasetId, headers, proxy) de la source
+   * amont. Resolus par la source elle-meme (headers effectifs avec
+   * api-key-ref) via la delegation SourceElement — re-parser les attributs
+   * DOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees
+   * (#274). Null sans datasetId.
+   */
+  private _resolveServerParams(
+    sourceEl: HTMLElement
+  ): Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'> | null {
     const resolvedParams = (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
 
     let baseUrl: string;
@@ -775,18 +1029,97 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       }
     }
 
-    if (!datasetId) return;
+    if (!datasetId) return null;
+    return { baseUrl, datasetId, headers, proxyUrl };
+  }
 
-    const fields = _parseCSV(this.fields);
-    if (fields.length === 0) return; // fields requis en mode server
+  /** Une selection active porte-t-elle une valeur en forme d'annee (avant toute decouverte) ? */
+  private _hasYearShapedSelection(): boolean {
+    return Object.values(this._activeSelections).some((values) =>
+      [...values].some((v) => /^\d{4}$/.test(v))
+    );
+  }
+
+  /**
+   * Erreur amont en mode serveur AVANT toute decouverte (#676) : une
+   * selection annuelle issue de l'URL a pu etre emise en egalite sur un
+   * champ date (400) — la source n'emet alors aucune donnee, donc le cycle
+   * de facettes (et sa decouverte) n'aurait jamais lieu. On lance la
+   * decouverte ici et, si un champ date est concerne, on re-emet la
+   * commande en intervalle. Une seule tentative par jeu (decouverte memorisee).
+   */
+  public emitTransformerError(error: Error): void {
+    super.emitTransformerError(error);
+    if (!this.serverFacets || this._discoveredFacets !== null || this._discoveryPromise) return;
+    if (!this._hasYearShapedSelection()) return;
+    const sourceEl = document.getElementById(this.source);
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement | null)?.getAdapter?.() ?? undefined;
+    if (!sourceEl || !adapter?.discoverFacets) return;
+    const serverParams = this._resolveServerParams(sourceEl);
+    if (!serverParams) return;
+    void this._discoverServerFacets(adapter, serverParams).then(() => {
+      if (this.isConnected && this._hasDateYearSelection()) this._dispatchFacetCommand();
+    });
+  }
+
+  /** Fetch facet values from server API with cross-facet counts */
+  private async _fetchServerFacets() {
+    const sourceEl = document.getElementById(this.source);
+    if (!sourceEl) return;
+
+    // Get adapter from the source element (dsfr-data-query delegates to dsfr-data-source)
+    const adapter: ApiAdapter | undefined =
+      (sourceEl as unknown as SourceElement).getAdapter?.() ?? undefined;
+    if (!adapter?.capabilities.serverFacets || !adapter.fetchFacets) {
+      // Adapter does not support server facets — fallback to client-side
+      this._buildFacetGroups();
+      this._applyFilters();
+      return;
+    }
+
+    const serverParams = this._resolveServerParams(sourceEl);
+    if (!serverParams) return;
+    const { baseUrl, datasetId, headers, proxyUrl } = serverParams;
+
+    // Decouverte des facettes declarees (#680) : un appel par jeu, memorise.
+    // Sans `fields`, ses noms deviennent les champs ; avec `fields`, elle ne
+    // sert qu'a typer les champs date (#676).
+    let fields = _parseCSV(this.fields);
+    if (adapter.discoverFacets) {
+      const knewDateFields = this._dateFacetFields() !== undefined;
+      const discovered = await this._discoverServerFacets(adapter, serverParams);
+      if (fields.length === 0) fields = discovered.map((d) => d.field);
+      // Une selection (URL) emise AVANT la decouverte sur un champ date etait
+      // en egalite (400) : la re-emettre en intervalle, le type etant connu
+      if (!knewDateFields && this._hasDateYearSelection()) {
+        this._dispatchFacetCommand();
+      }
+    }
+    if (fields.length === 0) {
+      if (!this.fields && !this._discoveryEmptyWarned) {
+        this._discoveryEmptyWarned = true;
+        console.warn(
+          `dsfr-data-facets[${this.id}]: aucune facette déclarée par le jeu de données — ` +
+            `renseigner l'attribut fields`
+        );
+      }
+      return;
+    }
 
     const labelMap = this._parseLabels();
 
     // Cross-facet: group fields by their effective where clause
     // Fields sharing the same where can be fetched in a single API call
     const whereToFields = new Map<string, string[]>();
-    // baseWhere est invariant : il etait recalcule a chaque iteration (#313)
-    const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(this.id) || '';
+    // baseWhere est invariant : il etait recalcule a chaque iteration (#313).
+    // En mode context, la source (si elle est aussi une cible du contexte)
+    // porte deja nos filtres sous un whereKey PAR champ : les exclure tous,
+    // sinon chaque facette ne proposerait plus que sa propre selection (#678)
+    const ownKeys = this._context
+      ? [this.id, ...[...this._contextFilters.values()].map((c) => c.whereKey)]
+      : this.id;
+    const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(ownKeys) || '';
     for (const field of fields) {
       const otherFacetWhere = this._buildFacetWhere(field);
       // Jointure selon le dialecte du provider : ' AND ' en ODSQL, ', ' en
@@ -822,7 +1155,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         for (const result of results) {
           allGroups.push({
             field: result.field,
-            label: labelMap.get(result.field) ?? result.field,
+            label:
+              labelMap.get(result.field) ?? this._discoveredLabel(result.field) ?? result.field,
             values: this._sortValues(result.values),
           });
         }
@@ -848,13 +1182,110 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         .filter((g): g is FacetGroup => !!g)
         .filter((g) => !(this.hideEmpty && g.values.length <= 1))
     );
+    this._syncContextFilters();
     this.requestUpdate();
   }
 
-  /** Dispatch facet where command to upstream dsfr-data-query */
+  /**
+   * Dispatch facet where command to upstream dsfr-data-query.
+   * Jamais en mode `context` (#678) : c'est le contexte qui diffuse.
+   */
   private _dispatchFacetCommand() {
+    if (this._contextMode) return;
     const facetWhere = this._buildFacetWhere();
     dispatchSourceCommand(this.source, { where: facetWhere, whereKey: this.id, origin: this.id });
+  }
+
+  // --- Mode context (#678, ADR-104) ---
+
+  /**
+   * Resout le contexte vise par `context="id"` et y enregistre un filtre par
+   * champ connu. Le contexte peut arriver plus tard (declare apres dans la
+   * page) : l'erreur de config est posee en attendant et levee a sa connexion.
+   */
+  private _bindContext(): void {
+    if (!this.isConnected || !this._contextMode) return;
+    const context = findContextById(this.context);
+    if (context === this._context) {
+      if (context) this._syncContextFilters();
+      return;
+    }
+    this._unbindContext();
+    if (!context) {
+      reportConfigError(
+        this,
+        'dsfr-data-facets',
+        `dsfr-data-context introuvable : "${this.context}"`
+      );
+      return;
+    }
+    clearConfigError(this);
+    this._context = context;
+    this._syncContextFilters();
+
+    // Pre-selection depuis l'URL du contexte (#231, ADR-031) : les valeurs
+    // deviennent des selections de facette, qui repassent par le MEME chemin
+    // qu'un clic — jamais injectees directement dans un where. Elles sont
+    // conservees apres peuplement (#310 : rendues cochees, « indisponible »
+    // si les donnees ne les connaissent pas).
+    const selections = { ...this._activeSelections };
+    let prefilled = false;
+    for (const field of this._contextFilters.keys()) {
+      const values = context._urlValuesFor(field);
+      if (values && values.length > 0) {
+        selections[field] = new Set(values);
+        prefilled = true;
+      }
+    }
+    if (prefilled) {
+      this._activeSelections = selections;
+      this._afterSelectionChange();
+    } else {
+      this._pushContextFilters();
+    }
+  }
+
+  /** Libere les filtres aupres du contexte (disconnect, changement de contexte) */
+  private _unbindContext(): void {
+    if (this._context) {
+      for (const { filter } of this._contextFilters.values()) {
+        this._context._unregisterFilter(filter);
+      }
+    }
+    this._context = null;
+    this._contextFilters.clear();
+  }
+
+  /**
+   * Un filtre par champ connu (`fields`, groupes construits, selections) :
+   * les champs auto-detectes en mode client n'existent qu'apres les donnees.
+   * Idempotent — un champ deja enregistre garde son filtre et son whereKey.
+   */
+  private _syncContextFilters(): void {
+    if (!this._context) return;
+    const fields = new Set<string>([
+      ..._parseCSV(this.fields),
+      ...this._facetGroups.map((g) => g.field),
+      ...Object.keys(this._activeSelections),
+    ]);
+    for (const field of fields) {
+      if (this._contextFilters.has(field)) continue;
+      const filter = new FacetFieldFilter(this, field);
+      const whereKey = this._context._registerFilter(filter);
+      this._contextFilters.set(field, { filter, whereKey, pushed: '' });
+    }
+  }
+
+  /** Confie l'etat courant de chaque champ au contexte, qui diffuse (#678) */
+  private _pushContextFilters(): void {
+    if (!this._context) return;
+    this._syncContextFilters();
+    for (const entry of this._contextFilters.values()) {
+      const where = entry.filter.buildColonWhere();
+      if (where === entry.pushed) continue;
+      entry.pushed = where;
+      this._context._applyFilter(entry.filter, where);
+    }
   }
 
   // --- Filtering ---
@@ -910,11 +1341,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       if (colonIndex === -1) continue;
       const key = pair.substring(0, colonIndex).trim();
       const value = pair.substring(colonIndex + 1).trim();
-      if (
-        key &&
-        (value === 'checkbox' || value === 'select' || value === 'multiselect' || value === 'radio')
-      ) {
-        map.set(key, value);
+      if (key && FACET_DISPLAY_MODES.has(value)) {
+        map.set(key, value as FacetDisplayMode);
       }
     }
     return map;
@@ -989,7 +1417,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     this._afterSelectionChange();
 
     // Announce selection change for all interactive modes
-    if (displayMode === 'multiselect' || displayMode === 'radio' || displayMode === 'checkbox') {
+    if (
+      displayMode === 'multiselect' ||
+      displayMode === 'radio' ||
+      displayMode === 'radio-inline' ||
+      displayMode === 'checkbox'
+    ) {
       const action = wasSelected ? 'désélectionnée' : 'sélectionnée';
       this._announce(
         `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
@@ -1012,12 +1445,33 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     this._afterSelectionChange();
   }
 
-  private _clearFieldSelections(field: string) {
+  _clearFieldSelections(field: string) {
     const selections = { ...this._activeSelections };
     delete selections[field];
     this._activeSelections = selections;
     this._afterSelectionChange();
     this._announce('Aucune option sélectionnée');
+  }
+
+  /** Retire UNE valeur d'un champ (tag de context-tags, #679) — les autres restent */
+  _removeFieldValue(field: string, value: string) {
+    const current = this._activeSelections[field];
+    if (!current?.has(value)) return;
+    const fieldSet = new Set(current);
+    fieldSet.delete(value);
+    const selections = { ...this._activeSelections };
+    if (fieldSet.size === 0) {
+      delete selections[field];
+    } else {
+      selections[field] = fieldSet;
+    }
+    this._activeSelections = selections;
+    this._afterSelectionChange();
+    this._announce(
+      fieldSet.size === 0
+        ? 'Aucune option sélectionnée'
+        : `${value} désélectionnée, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
+    );
   }
 
   private _selectAllValues(field: string) {
@@ -1207,15 +1661,31 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     this._afterSelectionChange();
   }
 
-  /** Common logic after any selection change — routes to client, server, or static mode */
+  /**
+   * Common logic after any selection change — routes to client, server, or
+   * static mode. En mode `context` (#678), la diffusion est confiee au
+   * contexte ; la facette ne garde que le calcul de ses valeurs : cascade
+   * serveur relancee ici (sa `source` n'est pas forcement une cible du
+   * contexte, rien ne la refetcherait), filtre local inchange en mode client.
+   */
   private _afterSelectionChange() {
+    if (this._contextMode) {
+      this._pushContextFilters();
+      if (this.serverFacets) {
+        this._fetchServerFacets();
+      } else if (!this.staticValues) {
+        this._buildFacetGroups();
+        this._applyFilters();
+      }
+      return;
+    }
     if (this.serverFacets || this.staticValues) {
       this._dispatchFacetCommand();
     } else {
       this._buildFacetGroups();
       this._applyFilters();
     }
-    if (this.urlSync) this._syncUrl();
+    if (this._ownUrlSync) this._syncUrl();
   }
 
   // --- URL params ---
@@ -1287,8 +1757,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   private _syncUrl() {
     // Partir des params EXISTANTS (#312) : repartir de zero effacait le
     // parametre du dsfr-data-search voisin et tout autre param de la page
-    // a chaque clic (search preserve, lui)
-    const params = new URLSearchParams(window.location.search);
+    // a chaque clic (search preserve, lui). Construite par l'API URL (#683) :
+    // concatener pathname produisait, sur une page servie sous `//chemin`,
+    // une URL relative au schema (autre hote) et replaceState levait
+    // SecurityError — sync perdue en silence
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
     const paramMap = this._parseUrlParamMap();
     // Build reverse map: field -> URL param name
     const reverseMap = new Map<string, string>();
@@ -1310,11 +1784,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       params.set(paramName, [...values].join(','));
     }
 
-    const search = params.toString();
-    const newUrl = search
-      ? `${window.location.pathname}?${search}${window.location.hash}`
-      : `${window.location.pathname}${window.location.hash}`;
-    window.history.replaceState(null, '', newUrl);
+    window.history.replaceState(null, '', url.href);
   }
 
   // --- Rendering ---
@@ -1435,7 +1905,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
         ${facetsErrorBanner}
         ${
-          hasActiveFilters
+          hasActiveFilters && !this.noReset
             ? html`
                 <div class="dsfr-data-facets__header">
                   <button
@@ -1481,6 +1951,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         return this._renderMultiselectGroup(group);
       case 'radio':
         return this._renderRadioGroup(group);
+      case 'radio-inline':
+        return this._renderRadioInlineGroup(group);
       default:
         return this._renderCheckboxGroup(group);
     }
@@ -1668,6 +2140,46 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
             : nothing
         }
       </div>
+    `;
+  }
+
+  /**
+   * Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est
+   * le libelle de la facette, une option « Tous » (cochee quand rien n'est
+   * selectionne) qui retire la selection, puis une radio par valeur. Toutes
+   * les valeurs sont rendues (pas de « Voir plus » : un choix unique visible
+   * d'un coup d'oeil, comme `select`).
+   */
+  private _renderRadioInlineGroup(group: FacetGroup) {
+    const uid = `${this._instanceUid}-${group.field}`;
+    const selected = this._activeSelections[group.field] ?? new Set();
+    const hasSelection = selected.size > 0;
+    const radioName = `${uid}-radio`;
+
+    return html`
+      <fieldset
+        class="fr-fieldset dsfr-data-facets__group dsfr-data-facets__radio-inline"
+        aria-labelledby="${uid}-legend"
+        data-field="${group.field}"
+      >
+        <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
+        <div class="fr-fieldset__element fr-fieldset__element--inline">
+          <div class="fr-radio-group fr-radio-group--sm">
+            <input
+              type="radio"
+              id="${uid}-all"
+              name="${radioName}"
+              value=""
+              .checked="${!hasSelection}"
+              @change="${() => this._clearFieldSelections(group.field)}"
+            />
+            <label class="fr-label" for="${uid}-all">Tous</label>
+          </div>
+        </div>
+        ${group.values.map((fv, fvIndex) =>
+          this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'radio', radioName, true)
+        )}
+      </fieldset>
     `;
   }
 

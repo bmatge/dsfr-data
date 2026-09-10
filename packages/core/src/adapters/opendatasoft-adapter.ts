@@ -12,6 +12,8 @@ import type {
   FetchResult,
   ServerSideOverlay,
   FacetResult,
+  FacetDescriptor,
+  FacetWhereOptions,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
@@ -26,6 +28,19 @@ import { ODS_CONFIG, getProxiedUrl, normalizeProviderAuthHeaders } from '@dsfr-d
  */
 function escapeOdsqlString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Clause de facette sur un champ date (#676) : une annee `YYYY` devient
+ * l'intervalle `[1er janvier, 1er janvier suivant)` en litteraux ODSQL
+ * `date'…'` ; toute autre valeur retombe sur l'egalite historique.
+ */
+function odsDateFacetClause(field: string, value: string): string {
+  if (/^\d{4}$/.test(value)) {
+    const year = Number(value);
+    return `${field} >= date'${value}-01-01' AND ${field} < date'${year + 1}-01-01'`;
+  }
+  return `${field} = "${escapeOdsqlString(value)}"`;
 }
 
 /** `"a:desc, b:asc"` → `"a DESC, b ASC"` — multi-champs via la grammaire commune (#273) */
@@ -375,6 +390,58 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     return results;
   }
 
+  /**
+   * Decouverte des facettes declarees par le jeu (#680). Source principale :
+   * les metadonnees du jeu (`/datasets/ID`), dont `fields[]` porte
+   * `annotations.facet` ET le `type` — c'est le seul endroit qui dit qu'un
+   * champ est une date (l'endpoint /facets ne renvoie ni type ni forme
+   * hierarchique sans refine, verifie sur data.economie.gouv.fr). Repli sur
+   * `/facets` sans parametre (noms seuls, sans type) si les metadonnees
+   * n'exposent aucune facette.
+   */
+  async discoverFacets(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    signal?: AbortSignal
+  ): Promise<FacetDescriptor[]> {
+    const base = params.baseUrl || 'https://data.opendatasoft.com';
+    const datasetUrl = `${base}/api/explore/v2.1/catalog/datasets/${params.datasetId}`;
+
+    const metaResponse = await fetch(
+      getProxiedUrl(datasetUrl, params.proxyUrl),
+      buildFetchOptions(params, datasetUrl, signal)
+    );
+    if (metaResponse.ok) {
+      const meta = (await metaResponse.json()) as {
+        fields?: Array<{
+          name: string;
+          label?: string;
+          type?: string;
+          annotations?: { facet?: boolean };
+        }>;
+      };
+      const declared = (meta.fields ?? []).filter((f) => f.annotations?.facet === true);
+      if (declared.length > 0) {
+        return declared.map((f) => ({
+          field: f.name,
+          label: f.label || undefined,
+          isDate: f.type === 'date' || f.type === 'datetime',
+        }));
+      }
+    }
+
+    // Repli : /facets sans parametre liste les facettes servies (noms seuls)
+    const facetsUrl = `${datasetUrl}/facets`;
+    const response = await fetch(
+      getProxiedUrl(facetsUrl, params.proxyUrl),
+      buildFetchOptions(params, facetsUrl, signal)
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const json = (await response.json()) as { facets?: Array<{ name: string }> };
+    return (json.facets ?? []).map((f) => ({ field: f.name }));
+  }
+
   /** Source de verite : OPENDATASOFT_CONFIG.query.searchTemplate (#285) */
   getDefaultSearchTemplate(): string | null {
     return this.getProviderConfig().query.searchTemplate ?? null;
@@ -384,10 +451,25 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     return ODS_CONFIG;
   }
 
-  buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
+  /**
+   * Where de facettes en ODSQL. Sur un champ date (`options.dateFields`),
+   * une valeur annuelle `YYYY` — forme servie par /facets sur ce type —
+   * devient l'intervalle `champ >= date'YYYY-01-01' AND champ < date'YYYY+1-01-01'` :
+   * l'egalite `champ = "2022"` est refusee (400 IncompatibleTypesInComparisonFilter, #676).
+   */
+  buildFacetWhere(
+    selections: Record<string, Set<string>>,
+    excludeField?: string,
+    options?: FacetWhereOptions
+  ): string {
     const parts: string[] = [];
     for (const [field, values] of Object.entries(selections)) {
       if (field === excludeField || values.size === 0) continue;
+      if (options?.dateFields?.has(field)) {
+        const dateParts = [...values].map((v) => odsDateFacetClause(field, v));
+        parts.push(dateParts.length === 1 ? dateParts[0] : `(${dateParts.join(' OR ')})`);
+        continue;
+      }
       if (values.size === 1) {
         const val = escapeOdsqlString([...values][0]);
         parts.push(`${field} = "${val}"`);

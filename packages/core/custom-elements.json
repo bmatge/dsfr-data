@@ -2077,7 +2077,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-context-filter> — un filtre du contexte (#229).\n\nEnfant de <dsfr-data-context>. Écoute les change/input de l'élément d'UI\nréférencé par `ui` (select, input, select multiple — ou DEUX ids pour\n`between` : min puis max), construit une clause **colon** (le dialecte\npivot de la lib, #277) et la confie au contexte parent qui la diffuse aux\nsources ciblées, traduite au dialecte de chaque adapter.\n\nLa valeur vide retire le filtre (where vide sur le même whereKey).",
+          "description": "<dsfr-data-context-filter> — un filtre du contexte (#229).\n\nEnfant de <dsfr-data-context> — ou, avec `context=\"id\"` (#678), placé\nn'importe où dans la page. Écoute les change/input de l'élément d'UI\nréférencé par `ui` (select, input, select multiple — ou DEUX ids pour\n`between` : min puis max), construit une clause **colon** (le dialecte\npivot de la lib, #277) et la confie au contexte qui la diffuse aux\nsources ciblées, traduite au dialecte de chaque adapter.\n\nLa valeur vide retire le filtre (where vide sur le même whereKey).",
           "name": "DsfrDataContextFilter",
           "members": [
             {
@@ -2107,7 +2107,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages\n[debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "attribute": "operator"
             },
             {
@@ -2132,12 +2132,38 @@
             },
             {
               "kind": "field",
+              "name": "defaultValue",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —\nun paramètre d'URL présent gagne toujours (ADR-031). Mots-clés\ndynamiques résolus dans le fuseau local : `today` (date du jour),\n`first-of-month` (1er du mois en cours), `first-of-year` (1er janvier\nde l'année en cours) ; toute autre valeur est un littéral. La date est\nadaptée au contrôle (input type=\"month\" → AAAA-MM, `year-of` → AAAA)\npuis écrite dans l'UI et émise par le chemin normal, jamais injectée\ndans un where. Pour `between` et `in`, plusieurs valeurs séparées par\nune virgule (ex. `first-of-year,today`).",
+              "attribute": "default"
+            },
+            {
+              "kind": "field",
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context cible (#678). Vide = le contexte parent le plus\nproche (`closest`), comportement historique. Le contexte peut être\ndéclaré après ce filtre dans le DOM : l'enregistrement se fait alors à\nsa connexion.",
+              "attribute": "context"
+            },
+            {
+              "kind": "field",
               "name": "_context",
               "type": {
                 "text": "DsfrDataContext | null"
               },
               "privacy": "private",
               "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_onContextConnected",
+              "privacy": "private",
+              "description": "Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#678)"
             },
             {
               "kind": "field",
@@ -2165,6 +2191,17 @@
             },
             {
               "kind": "method",
+              "name": "_resolveContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "DsfrDataContext | null"
+                }
+              },
+              "description": "Contexte cible : par id (`context`, #678) sinon le parent le plus proche"
+            },
+            {
+              "kind": "method",
               "name": "_bind",
               "privacy": "private",
               "return": {
@@ -2173,6 +2210,17 @@
                 }
               },
               "description": "Validation + abonnement aux éléments d'UI"
+            },
+            {
+              "kind": "method",
+              "name": "_resolvedDefault",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Valeurs de `default` résolues (#682) : mots-clés → date locale du jour,\nadaptée au contrôle qui la reçoit. `between` et `in` acceptent\nplusieurs valeurs séparées par une virgule."
             },
             {
               "kind": "method",
@@ -2191,7 +2239,7 @@
                   }
                 }
               ],
-              "description": "Écrit des valeurs (issues de l'URL) dans les contrôles d'UI liés"
+              "description": "Écrit des valeurs (issues de l'URL ou de `default`) dans les contrôles d'UI liés"
             },
             {
               "kind": "method",
@@ -2326,7 +2374,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between — et dates (#230, clauses en plages\n[debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year.\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'operateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "fieldName": "operator"
             },
             {
@@ -2346,6 +2394,24 @@
               "default": "''",
               "description": "Libellé naturel pour l'affichage (tags #232) — défaut : field",
               "fieldName": "label"
+            },
+            {
+              "name": "default",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —\nun paramètre d'URL présent gagne toujours (ADR-031). Mots-clés\ndynamiques résolus dans le fuseau local : `today` (date du jour),\n`first-of-month` (1er du mois en cours), `first-of-year` (1er janvier\nde l'année en cours) ; toute autre valeur est un littéral. La date est\nadaptée au contrôle (input type=\"month\" → AAAA-MM, `year-of` → AAAA)\npuis écrite dans l'UI et émise par le chemin normal, jamais injectée\ndans un where. Pour `between` et `in`, plusieurs valeurs séparées par\nune virgule (ex. `first-of-year,today`).",
+              "fieldName": "defaultValue"
+            },
+            {
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context cible (#678). Vide = le contexte parent le plus\nproche (`closest`), comportement historique. Le contexte peut être\ndéclaré après ce filtre dans le DOM : l'enregistrement se fait alors à\nsa connexion.",
+              "fieldName": "context"
             }
           ],
           "superclass": {
@@ -2381,7 +2447,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-context-tags> — récap des filtres actifs d'un contexte (#232).\n\nAffiche des tags DSFR supprimables : un tag par filtre actif (libellé\nnaturel + valeur). La croix réinitialise le filtre en VIDANT son UI —\nmême chemin qu'un utilisateur qui efface le champ : les sources, l'URL\n(#231) et les tags se mettent à jour ensemble.\n\n```html\n<dsfr-data-context-tags for=\"ctx\"></dsfr-data-context-tags>\n```",
+          "description": "<dsfr-data-context-tags> — récap des filtres actifs d'un contexte (#232).\n\nAffiche des tags DSFR supprimables : un tag par filtre actif (libellé\nnaturel + valeur). La croix réinitialise le filtre en VIDANT son UI —\nmême chemin qu'un utilisateur qui efface le champ : les sources, l'URL\n(#231) et les tags se mettent à jour ensemble.\n\nTout type de filtre confondu (#678, contrat `ContextFilterLike`) : filtres\nclassiques, champs d'une <dsfr-data-facets context=\"…\">, terme d'une\n<dsfr-data-search context=\"…\">. Un filtre multi-valeurs (facette `in`)\ndonne UN tag par valeur, chacune retirable seule (#679) ; la recherche\ndonne un tag « Recherche : terme ».\n\n```html\n<dsfr-data-context-tags for=\"ctx\" clear-all></dsfr-data-context-tags>\n```",
           "name": "DsfrDataContextTags",
           "members": [
             {
@@ -2393,6 +2459,26 @@
               "default": "''",
               "description": "Id du dsfr-data-context observé",
               "attribute": "for"
+            },
+            {
+              "kind": "field",
+              "name": "clearAll",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Bouton « Tout effacer » (#679) — un seul geste pour vider tous les filtres du contexte",
+              "attribute": "clear-all"
+            },
+            {
+              "kind": "field",
+              "name": "_liveAnnouncement",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Message annoncé par la région live (lecteurs d'écran)"
             },
             {
               "kind": "field",
@@ -2417,9 +2503,76 @@
                   "text": "void"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_entries",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "TagEntry[]"
+                }
+              },
+              "description": "Un tag par filtre actif — ou par valeur quand le filtre en expose\nplusieurs (`displayValues` + `clearValue`, facette `in`, #679)."
+            },
+            {
+              "kind": "method",
+              "name": "_announce",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_remove",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "entry",
+                  "type": {
+                    "text": "TagEntry"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_clearAll",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "« Tout effacer » (#679) : un lot côté contexte, une seule diffusion"
             }
           ],
           "attributes": [
+            {
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Bouton « Tout effacer » (#679) — un seul geste pour vider tous les filtres du contexte",
+              "name": "clear-all",
+              "default": "false",
+              "fieldName": "clearAll"
+            },
             {
               "name": "for",
               "type": {
@@ -2462,8 +2615,26 @@
       "path": "packages/core/src/components/dsfr-data-context.ts",
       "declarations": [
         {
+          "kind": "function",
+          "name": "findContextById",
+          "return": {
+            "type": {
+              "text": "DsfrDataContext | null"
+            }
+          },
+          "parameters": [
+            {
+              "name": "id",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Resout un contexte par id — null si absent ou pas encore defini/upgrade\n(un element non upgrade n'a pas encore `_registerFilter`). Les filtres\ndeclares AVANT le contexte dans le DOM retentent a l'evenement\n`dsfr-data-context-connected` (#678). La resolution vit dans\n`utils/context-registry.ts` (#681) : la carte, dans un autre bundle,\ns'en sert sans importer ce composant."
+        },
+        {
           "kind": "class",
-          "description": "<dsfr-data-context> — chef d'orchestre de filtres transverses (#229).\n\nComposant OPT-IN et additif (epic #224, ADR-031) : il tient les filtres\ncommuns d'un dashboard multi-vues et les diffuse à N sources nommées —\nle fan-out qui manquait (chaque dsfr-data-source restait un pipeline\nisolé, un filtre commun exigeait du JS d'orchestration à la main).\nLes pages mono-graphique ne sont PAS concernées : sans contexte, tout\nfonctionne comme avant.\n\nIl ne fetch rien et ne transforme rien : il écoute les enfants\n<dsfr-data-context-filter> et émet des commandes `where` via\ndispatchSourceCommand, un **whereKey stable par filtre** — le merge\nmulti-émetteurs existant côté source fait le AND (ADR-031 : jamais\n« le dernier gagne », l'ordre des balises HTML ne change rien).\n\n```html\n<dsfr-data-context sources=\"src-a src-b\">\n  <dsfr-data-context-filter field=\"categorie\" operator=\"in\" ui=\"select-cat\">\n  </dsfr-data-context-filter>\n</dsfr-data-context>\n```",
+          "description": "<dsfr-data-context> — chef d'orchestre de filtres transverses (#229).\n\nComposant OPT-IN et additif (epic #224, ADR-031) : il tient les filtres\ncommuns d'un dashboard multi-vues et les diffuse à N sources nommées —\nle fan-out qui manquait (chaque dsfr-data-source restait un pipeline\nisolé, un filtre commun exigeait du JS d'orchestration à la main).\nLes pages mono-graphique ne sont PAS concernées : sans contexte, tout\nfonctionne comme avant.\n\nIl ne fetch rien et ne transforme rien : il écoute ses filtres et émet\ndes commandes `where` via dispatchSourceCommand, un **whereKey stable\npar filtre** — le merge multi-émetteurs existant côté source fait le AND\n(ADR-031 : jamais « le dernier gagne », l'ordre des balises HTML ne\nchange rien).\n\nUn seul bus de diffusion (#678, ADR-104) : tout composant qui remplit le\ncontrat `ContextFilterLike` peut s'y enregistrer — les enfants\n<dsfr-data-context-filter>, mais aussi <dsfr-data-facets context=\"id\">\net <dsfr-data-search context=\"id\">, qui vivent hors du contexte dans la\nmise en page. Le whereKey est indexé sur `uid + champ` : stable à\nl'insertion tardive d'un filtre, quel que soit l'ordre du DOM.\n\n```html\n<dsfr-data-context id=\"ctx\" sources=\"src-a src-b\" url-sync>\n  <dsfr-data-context-filter field=\"categorie\" operator=\"in\" ui=\"select-cat\">\n  </dsfr-data-context-filter>\n</dsfr-data-context>\n<dsfr-data-facets context=\"ctx\" source=\"src-facettes\" server-facets\n  fields=\"region,departement\" display=\"region:select | departement:select\">\n</dsfr-data-facets>\n```",
           "name": "DsfrDataContext",
           "members": [
             {
@@ -2483,7 +2654,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement.",
+              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.",
               "attribute": "url-sync"
             },
             {
@@ -2508,11 +2679,28 @@
               "kind": "field",
               "name": "_filters",
               "type": {
-                "text": "DsfrDataContextFilter[]"
+                "text": "ContextFilterLike[]"
               },
               "privacy": "private",
               "default": "[]",
-              "description": "Filtres enregistrés, dans l'ordre DOM (index → whereKey stable)"
+              "description": "Filtres enregistrés (tout type : filter, facettes, recherche)"
+            },
+            {
+              "kind": "field",
+              "name": "_whereKeys",
+              "privacy": "private",
+              "default": "new Map<ContextFilterLike, string>()",
+              "description": "whereKey de chaque filtre, indexé sur `uid + champ` (#678) — stable à\nl'insertion tardive : un filtre enregistré après coup ne décale pas les\nclés des autres (l'ancien index d'ordre DOM le faisait)."
+            },
+            {
+              "kind": "field",
+              "name": "_batching",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Lot en cours (`clearAll`, #679) : les commandes partent filtre par\nfiltre (un whereKey chacun, les sources coalescent leur fetch), mais\nl'URL n'est écrite et le changement notifié qu'une fois, à la fin."
             },
             {
               "kind": "method",
@@ -2540,11 +2728,11 @@
                 {
                   "name": "filter",
                   "type": {
-                    "text": "DsfrDataContextFilter"
+                    "text": "ContextFilterLike"
                   }
                 }
               ],
-              "description": "Enregistrement d'un enfant filter (appelé à son montage).\nRetourne le whereKey stable du filtre — indexé sur l'ordre\nd'enregistrement (= ordre DOM), pas sur field/operator : deux filtres\nidentiques restent deux émetteurs AND distincts (ADR-031)."
+              "description": "Enregistrement d'un filtre (appelé à son montage).\nRetourne le whereKey stable du filtre — indexé sur `uid + champ` (#678),\npas sur l'ordre DOM : un filtre enregistré tard (facette déclarée\nailleurs dans la page, contexte connecté après lui) ne décale rien.\nDeux filtres sur le même champ restent deux émetteurs AND distincts\n(ADR-031) : le second reçoit un suffixe."
             },
             {
               "kind": "method",
@@ -2558,11 +2746,11 @@
                 {
                   "name": "filter",
                   "type": {
-                    "text": "DsfrDataContextFilter"
+                    "text": "ContextFilterLike"
                   }
                 }
               ],
-              "description": "Désenregistrement (disconnect d'un enfant) — son filtre est libéré"
+              "description": "Désenregistrement (disconnect d'un filtre) — son filtre est libéré"
             },
             {
               "kind": "method",
@@ -2576,7 +2764,7 @@
                 {
                   "name": "filter",
                   "type": {
-                    "text": "DsfrDataContextFilter"
+                    "text": "ContextFilterLike"
                   }
                 },
                 {
@@ -2590,13 +2778,34 @@
             },
             {
               "kind": "method",
+              "name": "_notifyChange",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "URL (si url-sync) puis notification des observateurs (dsfr-data-context-tags, #232)"
+            },
+            {
+              "kind": "method",
+              "name": "clearAll",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Retire tous les filtres actifs d'un coup (#679, « Tout effacer » de\ndsfr-data-context-tags). Chaque filtre est vidé par son propre `clear()`\n(même chemin qu'un geste utilisateur : son UI se vide), mais l'URL n'est\nécrite et `dsfr-data-context-change` émis qu'UNE fois. Retourne le\nnombre de filtres retirés."
+            },
+            {
+              "kind": "method",
               "name": "activeFilters",
               "return": {
                 "type": {
-                  "text": "DsfrDataContextFilter[]"
+                  "text": "ContextFilterLike[]"
                 }
               },
-              "description": "Filtres actifs du contexte (#232) — pour les composants d'affichage\n(tags). Un filtre est actif si sa clause courante est non vide."
+              "description": "Filtres actifs du contexte (#232) — pour les composants d'affichage\n(tags). Un filtre est actif si sa clause courante est non vide. Tout\ntype de filtre confondu (#678) : filter, facettes, recherche."
             },
             {
               "kind": "method",
@@ -2655,7 +2864,7 @@
                   "text": "void"
                 }
               },
-              "description": "Écrit l'état courant des filtres dans l'URL. Part des paramètres\nEXISTANTS et ne gère que les siens (leçon #312 : repartir de zéro\neffaçait les paramètres des composants voisins). replaceState : pas\nd'entrée d'historique par frappe (ADR-031)."
+              "description": "Écrit l'état courant des filtres dans l'URL. Part des paramètres\nEXISTANTS et ne gère que les siens (leçon #312 : repartir de zéro\neffaçait les paramètres des composants voisins). replaceState : pas\nd'entrée d'historique par frappe (ADR-031).\n\nConstruite avec l'API `URL` (#683) : concaténer `pathname` produisait,\nsur une page servie sous `//chemin`, une URL relative au schéma\n(`//chemin?…` = autre hôte) et `replaceState` levait SecurityError —\ntoute la synchro d'URL cessait, en silence."
             },
             {
               "kind": "method",
@@ -2670,7 +2879,7 @@
                 {
                   "name": "filter",
                   "type": {
-                    "text": "DsfrDataContextFilter"
+                    "text": "ContextFilterLike"
                   }
                 }
               ],
@@ -2689,7 +2898,7 @@
                 {
                   "name": "filter",
                   "type": {
-                    "text": "DsfrDataContextFilter"
+                    "text": "ContextFilterLike"
                   }
                 }
               ],
@@ -2730,6 +2939,10 @@
               "description": "sur l'element — l'etat des filtres du contexte a change (utile pour <dsfr-data-context-tags> et la synchro d'URL)."
             },
             {
+              "description": "`{ id }` sur `document` — le contexte vient d'etre connecte (#678) : les filtres declares avant lui dans le DOM (`context=\"id\"`) s'enregistrent a ce moment.",
+              "name": "dsfr-data-context-connected"
+            },
+            {
               "description": "`{ sourceId, where, whereKey, origin? }` sur `document` — clause `where` diffusee vers chaque source de `sources`, avec un whereKey stable par filtre (merge en AND cote source, ADR-031). `origin` (#603) nomme le composant emetteur : le bus etant plat, une trace ne pourrait sinon pas dire qui demande quoi.",
               "name": "dsfr-data-source-command"
             }
@@ -2750,7 +2963,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement.",
+              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.",
               "fieldName": "urlSync"
             },
             {
@@ -2772,6 +2985,22 @@
         }
       ],
       "exports": [
+        {
+          "kind": "js",
+          "name": "CONTEXT_CONNECTED_EVENT",
+          "declaration": {
+            "name": "CONTEXT_CONNECTED_EVENT",
+            "module": "../utils/context-registry.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "findContextById",
+          "declaration": {
+            "name": "findContextById",
+            "module": "packages/core/src/components/dsfr-data-context.ts"
+          }
+        },
         {
           "kind": "js",
           "name": "DsfrDataContext",
@@ -3372,7 +3601,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs a exposer comme facettes (virgule-separes). Vide = auto-detection",
+              "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)",
               "attribute": "fields"
             },
             {
@@ -3442,7 +3671,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Mode d'affichage par facette : \"field:select | field2:multiselect\". Défaut = checkbox",
+              "description": "Mode d'affichage par facette : \"champ:mode | champ2:mode\". Défaut = checkbox.\n- `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple)\n- `select` : liste déroulante native fr-select (sélection unique)\n- `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple)\n- `radio` : menu déroulant repliable contenant des boutons radio et une recherche\n  (sélection unique) — sera renommé `radio-dropdown` dans une version majeure\n- `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous »\n  qui retire la sélection (sélection unique, #684)",
               "attribute": "display"
             },
             {
@@ -3482,7 +3711,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active le mode facettes serveur ODS.\nFetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.\nRequiert source pointant vers un dsfr-data-source avec api-type=\"opendatasoft\" et server-side.\nEn mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection).",
+              "description": "Active le mode facettes serveur ODS.\nFetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.\nRequiert source pointant vers un dsfr-data-source avec api-type=\"opendatasoft\" et server-side.\nSans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le\njeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type\ndate (valeurs par année) sont filtrées par intervalle et non par égalité (#676).",
               "attribute": "server-facets"
             },
             {
@@ -3523,6 +3752,26 @@
               "default": "''",
               "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette)",
               "attribute": "cols"
+            },
+            {
+              "kind": "field",
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignores — reporter `url-param-map` sur\nle contexte). Le contexte peut etre declare apres la facette dans la\npage. Vide = comportement autonome historique (commande directe a `source`).",
+              "attribute": "context"
+            },
+            {
+              "kind": "field",
+              "name": "noReset",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9).\nÀ poser quand un dsfr-data-context-tags clear-all fait office de « tout\neffacer » pour la page (mode `context`), ou pour qu'une colonne de\nfacettes ne change pas de hauteur à la première sélection.",
+              "attribute": "no-reset"
             },
             {
               "kind": "field",
@@ -3608,6 +3857,77 @@
               "default": "null"
             },
             {
+              "kind": "field",
+              "name": "_context",
+              "type": {
+                "text": "DsfrDataContext | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Contexte resolu (mode `context`, #678)"
+            },
+            {
+              "kind": "field",
+              "name": "_contextFilters",
+              "privacy": "private",
+              "default": "new Map< string, { filter: FacetFieldFilter; whereKey: string; pushed: string } >()",
+              "description": "Un filtre de contexte par champ, avec son whereKey et la derniere clause\nconfiee au contexte (mode `context`, #678) — un champ inchange n'est pas\nre-diffuse : une source cible re-emet apres chaque commande"
+            },
+            {
+              "kind": "field",
+              "name": "_onContextConnected",
+              "privacy": "private",
+              "description": "Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678)"
+            },
+            {
+              "kind": "field",
+              "name": "_contextMode",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Mode `context` demande (que le contexte soit deja resolu ou non)",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_ownUrlParams",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Lecture de l'URL par la facette elle-meme — desactivee en mode `context` (l'URL est au contexte)",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_ownUrlSync",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Ecriture de l'URL par la facette elle-meme — desactivee en mode `context`",
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_selectionsOf",
+              "return": {
+                "type": {
+                  "text": "Set<string> | undefined"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Selections courantes d'un champ (lues par les filtres de contexte)"
+            },
+            {
               "kind": "method",
               "name": "getAdapter",
               "privacy": "public",
@@ -3632,7 +3952,7 @@
                   "name": "excludeKey",
                   "optional": true,
                   "type": {
-                    "text": "string"
+                    "text": "string | string[]"
                   }
                 }
               ],
@@ -3847,9 +4167,13 @@
                   "type": {
                     "text": "string"
                   }
+                },
+                {
+                  "name": "inline",
+                  "default": "false"
                 }
               ],
-              "description": "Element checkbox/radio complet — etait copie 3x"
+              "description": "Element checkbox/radio complet — etait copie 3x. `inline` : element en ligne (radio-inline, #684)"
             },
             {
               "kind": "method",
@@ -4102,6 +4426,112 @@
               "description": "Erreur du dernier fetch de facettes (rendue, plus avalee — #309)"
             },
             {
+              "kind": "field",
+              "name": "_discoveredFacets",
+              "type": {
+                "text": "FacetDescriptor[] | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Facettes decouvertes aupres du provider ; null tant que la decouverte n'a pas abouti"
+            },
+            {
+              "kind": "field",
+              "name": "_discoveryKey",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Cle (baseUrl + datasetId) de la decouverte memorisee : un autre jeu l'invalide"
+            },
+            {
+              "kind": "field",
+              "name": "_discoveryPromise",
+              "type": {
+                "text": "Promise<FacetDescriptor[]> | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Decouverte en vol, partagee entre deux cycles de fetch concurrents"
+            },
+            {
+              "kind": "field",
+              "name": "_discoveryEmptyWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "« Aucune facette declaree » deja signale pour ce jeu (un warn, pas un par cycle)"
+            },
+            {
+              "kind": "method",
+              "name": "_discoverServerFacets",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Promise<FacetDescriptor[]>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "params",
+                  "type": {
+                    "text": "Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>"
+                  }
+                }
+              ],
+              "description": "Un appel de decouverte par jeu de donnees : noms et libelles des facettes\ndeclarees (utilises quand `fields` est absent) et champs de type date —\nutiles meme avec `fields` explicite, car le where d'une annee doit etre\nun intervalle (#676). Une decouverte en echec est memorisee vide (pas de\nnouvelle tentative a chaque cycle) jusqu'a un changement de jeu."
+            },
+            {
+              "kind": "method",
+              "name": "_dateFacetFields",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ReadonlySet<string> | undefined"
+                }
+              },
+              "description": "Champs date connus par la decouverte (#676) ; undefined avant decouverte ou sans date"
+            },
+            {
+              "kind": "method",
+              "name": "_hasDateYearSelection",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Une selection active porte-t-elle une annee sur un champ date decouvert ?"
+            },
+            {
+              "kind": "method",
+              "name": "_discoveredLabel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | undefined"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Libelle declare par le provider pour un champ decouvert (a defaut de `labels`)"
+            },
+            {
               "kind": "method",
               "name": "_serverFacetsSupported",
               "privacy": "private",
@@ -4114,6 +4544,55 @@
             },
             {
               "kind": "method",
+              "name": "_resolveServerParams",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'> | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceEl",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                }
+              ],
+              "description": "Parametres serveur (baseUrl, datasetId, headers, proxy) de la source\namont. Resolus par la source elle-meme (headers effectifs avec\napi-key-ref) via la delegation SourceElement — re-parser les attributs\nDOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees\n(#274). Null sans datasetId."
+            },
+            {
+              "kind": "method",
+              "name": "_hasYearShapedSelection",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Une selection active porte-t-elle une valeur en forme d'annee (avant toute decouverte) ?"
+            },
+            {
+              "kind": "method",
+              "name": "emitTransformerError",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "error",
+                  "type": {
+                    "text": "Error"
+                  }
+                }
+              ],
+              "description": "Erreur amont en mode serveur AVANT toute decouverte (#676) : une\nselection annuelle issue de l'URL a pu etre emise en egalite sur un\nchamp date (400) — la source n'emet alors aucune donnee, donc le cycle\nde facettes (et sa decouverte) n'aurait jamais lieu. On lance la\ndecouverte ici et, si un champ date est concerne, on re-emet la\ncommande en intervalle. Une seule tentative par jeu (decouverte memorisee)."
+            },
+            {
+              "kind": "method",
               "name": "_fetchServerFacets",
               "privacy": "private",
               "description": "Fetch facet values from server API with cross-facet counts"
@@ -4122,7 +4601,51 @@
               "kind": "method",
               "name": "_dispatchFacetCommand",
               "privacy": "private",
-              "description": "Dispatch facet where command to upstream dsfr-data-query"
+              "description": "Dispatch facet where command to upstream dsfr-data-query.\nJamais en mode `context` (#678) : c'est le contexte qui diffuse."
+            },
+            {
+              "kind": "method",
+              "name": "_bindContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Resout le contexte vise par `context=\"id\"` et y enregistre un filtre par\nchamp connu. Le contexte peut arriver plus tard (declare apres dans la\npage) : l'erreur de config est posee en attendant et levee a sa connexion."
+            },
+            {
+              "kind": "method",
+              "name": "_unbindContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Libere les filtres aupres du contexte (disconnect, changement de contexte)"
+            },
+            {
+              "kind": "method",
+              "name": "_syncContextFilters",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Un filtre par champ connu (`fields`, groupes construits, selections) :\nles champs auto-detectes en mode client n'existent qu'apres les donnees.\nIdempotent — un champ deja enregistre garde son filtre et son whereKey."
+            },
+            {
+              "kind": "method",
+              "name": "_pushContextFilters",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Confie l'etat courant de chaque champ au contexte, qui diffuse (#678)"
             },
             {
               "kind": "method",
@@ -4234,7 +4757,6 @@
             {
               "kind": "method",
               "name": "_clearFieldSelections",
-              "privacy": "private",
               "parameters": [
                 {
                   "name": "field",
@@ -4243,6 +4765,25 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "_removeFieldValue",
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Retire UNE valeur d'un champ (tag de context-tags, #679) — les autres restent"
             },
             {
               "kind": "method",
@@ -4390,7 +4931,7 @@
               "kind": "method",
               "name": "_afterSelectionChange",
               "privacy": "private",
-              "description": "Common logic after any selection change — routes to client, server, or static mode"
+              "description": "Common logic after any selection change — routes to client, server, or\nstatic mode. En mode `context` (#678), la diffusion est confiee au\ncontexte ; la facette ne garde que le calcul de ses valeurs : cascade\nserveur relancee ici (sa `source` n'est pas forcement une cible du\ncontexte, rien ne la refetcherait), filtre local inchange en mode client."
             },
             {
               "kind": "method",
@@ -4467,6 +5008,20 @@
             },
             {
               "kind": "method",
+              "name": "_renderRadioInlineGroup",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "group",
+                  "type": {
+                    "text": "FacetGroup"
+                  }
+                }
+              ],
+              "description": "Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est\nle libelle de la facette, une option « Tous » (cochee quand rien n'est\nselectionne) qui retire la selection, puis une radio par valeur. Toutes\nles valeurs sont rendues (pas de « Voir plus » : un choix unique visible\nd'un coup d'oeil, comme `select`)."
+            },
+            {
+              "kind": "method",
               "name": "_renderRadioGroup",
               "privacy": "private",
               "parameters": [
@@ -4495,7 +5050,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs a exposer comme facettes (virgule-separes). Vide = auto-detection",
+              "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)",
               "fieldName": "fields"
             },
             {
@@ -4558,7 +5113,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Mode d'affichage par facette : \"field:select | field2:multiselect\". Défaut = checkbox",
+              "description": "Mode d'affichage par facette : \"champ:mode | champ2:mode\". Défaut = checkbox.\n- `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple)\n- `select` : liste déroulante native fr-select (sélection unique)\n- `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple)\n- `radio` : menu déroulant repliable contenant des boutons radio et une recherche\n  (sélection unique) — sera renommé `radio-dropdown` dans une version majeure\n- `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous »\n  qui retire la sélection (sélection unique, #684)",
               "fieldName": "display"
             },
             {
@@ -4594,7 +5149,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active le mode facettes serveur ODS.\nFetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.\nRequiert source pointant vers un dsfr-data-source avec api-type=\"opendatasoft\" et server-side.\nEn mode server-facets, l'attribut fields est obligatoire (pas d'auto-detection).",
+              "description": "Active le mode facettes serveur ODS.\nFetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.\nRequiert source pointant vers un dsfr-data-source avec api-type=\"opendatasoft\" et server-side.\nSans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le\njeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type\ndate (valeurs par année) sont filtrées par intervalle et non par égalité (#676).",
               "fieldName": "serverFacets"
             },
             {
@@ -4623,6 +5178,24 @@
               "default": "''",
               "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette)",
               "fieldName": "cols"
+            },
+            {
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignores — reporter `url-param-map` sur\nle contexte). Le contexte peut etre declare apres la facette dans la\npage. Vide = comportement autonome historique (commande directe a `source`).",
+              "fieldName": "context"
+            },
+            {
+              "name": "no-reset",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9).\nÀ poser quand un dsfr-data-context-tags clear-all fait office de « tout\neffacer » pour la page (mode `context`), ou pour qu'une colonne de\nfacettes ne change pas de hauteur à la première sélection.",
+              "fieldName": "noReset"
             }
           ],
           "mixins": [
@@ -6940,6 +7513,36 @@
             },
             {
               "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681). Vide = le nom du champ.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "refineOnClick",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681).\nPremier clic = filtre, second clic sur le même objet = retrait, clic sur\nun autre objet = remplacement. Avec `context=\"id\"` (recommandé), la\ncouche s'enregistre comme filtre du dsfr-data-context : diffusion à\ntoutes ses sources cibles au dialecte de chacune, tag dans\ndsfr-data-context-tags, URL portée par le contexte. Sans `context`,\nla clause part directement à `source` (whereKey `map-select-ID`) —\nsans tag ni URL. Attention : si `source` est aussi une cible du\ncontexte, la carte se filtre elle-même (seul l'objet cliqué reste,\njusqu'au second clic) ; pour garder tous les points, ne pas lister\ncette source dans `sources` du contexte (ou donner à la carte sa\npropre source).",
+              "attribute": "refine-on-click"
+            },
+            {
+              "kind": "field",
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context auquel s'enregistrer en `refine-on-click`\n(#681, ADR-104). Le contexte peut être déclaré après la couche dans\nla page. Vide = commande directe à `source` (chemin dégradé).",
+              "attribute": "context"
+            },
+            {
+              "kind": "field",
               "name": "popupTemplate",
               "type": {
                 "text": "string"
@@ -7487,6 +8090,286 @@
               },
               "privacy": "private",
               "default": "-1"
+            },
+            {
+              "kind": "field",
+              "name": "_selectedRecord",
+              "type": {
+                "text": "Record<string, unknown> | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Objet sélectionné (null hors sélection ; null aussi si la sélection vient de l'URL)"
+            },
+            {
+              "kind": "field",
+              "name": "_selectedKey",
+              "type": {
+                "text": "string | Record<string, unknown> | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Identité de la sélection : la valeur du champ `refine-on-click` (stable\nd'un rendu à l'autre — la couche se re-dessine avec de nouveaux objets\nquand sa source re-émet), sinon l'objet lui-même."
+            },
+            {
+              "kind": "field",
+              "name": "_selectedFieldValue",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Valeur filtrée (mode refine) — conservée même sans objet (pré-remplie depuis l'URL)"
+            },
+            {
+              "kind": "field",
+              "name": "_context",
+              "type": {
+                "text": "ContextHost | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Contexte résolu (mode `context`, #681)"
+            },
+            {
+              "kind": "field",
+              "name": "_contextFilter",
+              "type": {
+                "text": "MapSelectFilter | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Le filtre unique enregistré auprès du contexte (#681)"
+            },
+            {
+              "kind": "field",
+              "name": "_lastPushedWhere",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Dernière clause confiée au contexte ou à la source — ne re-diffuse pas une clause inchangée"
+            },
+            {
+              "kind": "field",
+              "name": "_onContextConnected",
+              "privacy": "private",
+              "description": "Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#681)"
+            },
+            {
+              "kind": "field",
+              "name": "_refineMode",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Mode `refine-on-click` demandé",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_contextMode",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Mode `context` demandé (que le contexte soit déjà résolu ou non)",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_directWhereKey",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "description": "whereKey du chemin dégradé (commande directe à `source`)",
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_selectedValue",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Valeur courante du filtre de sélection (lue par le filtre de contexte)"
+            },
+            {
+              "kind": "method",
+              "name": "getSelectedRecord",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown> | null"
+                }
+              },
+              "description": "Objet actuellement sélectionné (null hors sélection)"
+            },
+            {
+              "kind": "method",
+              "name": "_selectionKeyOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | Record<string, unknown>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ],
+              "description": "Identité d'un objet pour la sélection : valeur du champ en mode refine, l'objet sinon"
+            },
+            {
+              "kind": "method",
+              "name": "_bindSelect",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "layer",
+                  "type": {
+                    "text": "LeafletLayer"
+                  }
+                },
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ],
+              "description": "Branche le clic de sélection sur un objet Leaflet (marqueur, forme, cercle)"
+            },
+            {
+              "kind": "method",
+              "name": "_onFeatureClick",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ],
+              "description": "Clic sur un objet : bascule la sélection (premier clic = sélection,\nsecond clic sur le même objet = retrait, autre objet = remplacement),\német `dsfr-data-map-select`, puis diffuse le filtre en mode refine."
+            },
+            {
+              "kind": "method",
+              "name": "_clearSelection",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Retire la sélection courante par le même chemin qu'un second clic (appelé par le tag du contexte)"
+            },
+            {
+              "kind": "method",
+              "name": "_setSelection",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown> | null"
+                  }
+                },
+                {
+                  "name": "key",
+                  "type": {
+                    "text": "string | Record<string, unknown> | null"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_emitSelect",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "selected",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_pushSelection",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Diffuse la sélection courante : au contexte (qui traduit, porte l'URL et\nle tag) ou, sans `context`, directement à `source` sous un whereKey\nstable. Dédupliqué : une clause inchangée ne repart pas."
+            },
+            {
+              "kind": "method",
+              "name": "_bindContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Résout le contexte visé par `context=\"id\"` et y enregistre le filtre.\nLe contexte peut arriver plus tard (déclaré après dans la page) :\nl'erreur de config est posée en attendant et levée à sa connexion."
+            },
+            {
+              "kind": "method",
+              "name": "_unbindContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Libère le filtre auprès du contexte (disconnect, changement de contexte)"
+            },
+            {
+              "kind": "method",
+              "name": "_releaseDirectSelection",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Libère la clause du chemin dégradé poussée sur `source` (disconnect, changement de mode)"
             },
             {
               "kind": "method",
@@ -8145,6 +9028,13 @@
           ],
           "events": [
             {
+              "name": "dsfr-data-map-select",
+              "type": {
+                "text": "CustomEvent"
+              },
+              "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte)."
+            },
+            {
               "name": "dsfr-data-map-layer-time-ready",
               "type": {
                 "text": "CustomEvent"
@@ -8157,6 +9047,10 @@
                 "text": "CustomEvent"
               },
               "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
+            },
+            {
+              "description": "`{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse.",
+              "name": "dsfr-data-source-command"
             }
           ],
           "attributes": [
@@ -8222,6 +9116,33 @@
               "default": "false",
               "description": "Couche decorative : aucune interaction (pas de clic, tooltip ni popup) —\ncontours administratifs, habillage",
               "fieldName": "noInteractive"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681). Vide = le nom du champ.",
+              "fieldName": "label"
+            },
+            {
+              "name": "refine-on-click",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681).\nPremier clic = filtre, second clic sur le même objet = retrait, clic sur\nun autre objet = remplacement. Avec `context=\"id\"` (recommandé), la\ncouche s'enregistre comme filtre du dsfr-data-context : diffusion à\ntoutes ses sources cibles au dialecte de chacune, tag dans\ndsfr-data-context-tags, URL portée par le contexte. Sans `context`,\nla clause part directement à `source` (whereKey `map-select-ID`) —\nsans tag ni URL. Attention : si `source` est aussi une cible du\ncontexte, la carte se filtre elle-même (seul l'objet cliqué reste,\njusqu'au second clic) ; pour garder tous les points, ne pas lister\ncette source dans `sources` du contexte (ou donner à la carte sa\npropre source).",
+              "fieldName": "refineOnClick"
+            },
+            {
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context auquel s'enregistrer en `refine-on-click`\n(#681, ADR-104). Le contexte peut être déclaré après la couche dans\nla page. Vide = commande directe à `source` (chemin dégradé).",
+              "fieldName": "context"
             },
             {
               "name": "popup-template",
@@ -12158,6 +13079,16 @@
             },
             {
               "kind": "field",
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le paramètre est nommé d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
+              "attribute": "context"
+            },
+            {
+              "kind": "field",
               "name": "_allData",
               "type": {
                 "text": "Record<string, unknown>[]"
@@ -12221,6 +13152,82 @@
               "default": "false"
             },
             {
+              "kind": "field",
+              "name": "_context",
+              "type": {
+                "text": "DsfrDataContext | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Contexte resolu (mode `context`, #678)"
+            },
+            {
+              "kind": "field",
+              "name": "_contextFilter",
+              "type": {
+                "text": "SearchContextFilter | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Le filtre unique enregistre aupres du contexte (#678)"
+            },
+            {
+              "kind": "field",
+              "name": "_lastPushedWhere",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Derniere clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange"
+            },
+            {
+              "kind": "field",
+              "name": "_onContextConnected",
+              "privacy": "private",
+              "description": "Un contexte vise par id vient d'etre connecte : (re)bind si c'est le notre (#678)"
+            },
+            {
+              "kind": "field",
+              "name": "_contextMode",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Mode `context` demande (que le contexte soit deja resolu ou non)",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_ownUrlSync",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Synchro d'URL par la recherche elle-meme — desactivee en mode `context`",
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_contextField",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Champ filtre en mode context : le champ unique de `fields` (vide sinon)"
+            },
+            {
+              "kind": "method",
+              "name": "_effectiveTerm",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Terme courant s'il atteint `min-length`, sinon vide (filtre inactif)"
+            },
+            {
               "kind": "method",
               "name": "getAdapter",
               "privacy": "public",
@@ -12245,7 +13252,7 @@
                   "name": "excludeKey",
                   "optional": true,
                   "type": {
-                    "text": "string"
+                    "text": "string | string[]"
                   }
                 }
               ],
@@ -12272,6 +13279,39 @@
                 }
               },
               "description": "Parametres de recherche → re-filtrage local (#281)"
+            },
+            {
+              "kind": "method",
+              "name": "_bindContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Resout le contexte vise par `context=\"id\"` et y enregistre le filtre.\nLe contexte peut arriver plus tard (declare apres dans la page) :\nl'erreur de config est posee en attendant et levee a sa connexion."
+            },
+            {
+              "kind": "method",
+              "name": "_unbindContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Libere le filtre aupres du contexte (disconnect, changement de contexte)"
+            },
+            {
+              "kind": "method",
+              "name": "_pushContextFilter",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Confie le terme courant au contexte, qui diffuse (#678). Deduplique :\n_applyFilter est aussi appele a chaque arrivee de donnees, et une source\ncible re-emet apres chaque commande — sans ce garde, boucle."
             },
             {
               "kind": "method",
@@ -12407,7 +13447,7 @@
             {
               "kind": "method",
               "name": "_applyUrlSearchParam",
-              "description": "Read URL search param and set as initial search term"
+              "description": "Read URL search param and set as initial search term (hors mode context, #678)"
             },
             {
               "kind": "method",
@@ -12418,6 +13458,25 @@
               "name": "_applyServerSearch",
               "privacy": "private",
               "description": "Server-search: envoie une commande { where } au source upstream\nau lieu de filtrer localement."
+            },
+            {
+              "kind": "method",
+              "name": "_emitSearchChange",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "count",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Emit dsfr-data-search-change event"
             },
             {
               "kind": "method",
@@ -12530,7 +13589,7 @@
               "kind": "method",
               "name": "_syncUrl",
               "privacy": "private",
-              "description": "Sync current search term back to URL (replaceState)"
+              "description": "Sync current search term back to URL (replaceState). Construite par\nl'API URL (#683) : concatener pathname produisait, sur une page servie\nsous `//chemin`, une URL relative au schema (autre hote) et replaceState\nlevait SecurityError — sync perdue en silence."
             },
             {
               "kind": "method",
@@ -12556,7 +13615,7 @@
               "name": "dsfr-data-search-change"
             },
             {
-              "description": "`{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont. `origin` porte l'id de ce composant (#603).",
+              "description": "`{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).",
               "name": "dsfr-data-source-command"
             }
           ],
@@ -12686,6 +13745,15 @@
               "default": "''",
               "description": "Template pour la recherche serveur.\n{q} est remplace par le terme de recherche.\nSi vide et server-search active, lu depuis l'adapter de la source amont.\nEx ODS: 'search(\"{q}\")', custom: '{q} IN nom'",
               "fieldName": "searchTemplate"
+            },
+            {
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse a ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignores — le paramètre est nommé d'apres le\nchamp, ou via `url-param-map` du contexte). Le contexte peut etre\ndeclare apres la recherche dans la page. Vide = comportement autonome.",
+              "fieldName": "context"
             }
           ],
           "mixins": [
@@ -13153,11 +14221,11 @@
                   "name": "excludeKey",
                   "optional": true,
                   "type": {
-                    "text": "string"
+                    "text": "string | string[]"
                   }
                 }
               ],
-              "description": "Returns the effective WHERE clause (static + all dynamic overlays merged)"
+              "description": "Returns the effective WHERE clause (static + all dynamic overlays merged).\n`excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 —\nune facette en mode `context` emet un whereKey PAR champ et doit les\nexclure tous du where de base de sa cascade)."
             },
             {
               "kind": "method",

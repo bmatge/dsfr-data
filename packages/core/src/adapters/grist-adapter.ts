@@ -26,6 +26,7 @@ import type {
   AdapterParams,
   FetchResult,
   FacetResult,
+  FacetDescriptor,
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
@@ -276,6 +277,22 @@ export class GristAdapter implements ApiAdapter {
     }
 
     return results;
+  }
+
+  /**
+   * Equivalent Grist de la decouverte des facettes (#680) : les colonnes de
+   * type Choice / ChoiceList sont les champs categoriels declares par le
+   * document. Les dates Grist sont des nombres (epoch), pas des annees :
+   * aucun marquage `isDate`.
+   */
+  async discoverFacets(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    signal?: AbortSignal
+  ): Promise<FacetDescriptor[]> {
+    const columns = await this.fetchColumns(params as AdapterParams, signal);
+    return columns
+      .filter((c) => c.type === 'Choice' || c.type === 'ChoiceList')
+      .map((c) => ({ field: c.id, label: c.label !== c.id ? c.label : undefined }));
   }
 
   // =========================================================================

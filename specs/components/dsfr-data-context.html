@@ -80,9 +80,10 @@
             <tbody>
               <tr><td><code>field</code></td><td>String</td><td>requis</td><td>Colonne filtree</td></tr>
               <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id de l'element d'UI ecoute — DEUX ids (min puis max) pour <code>between</code></td></tr>
-              <tr><td><code>operator</code></td><td>String</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code></td><td>Opérateur de la clause générée — 5 opérateurs de base + 5 opérateurs de date (#230). Voir le tableau des operateurs</td></tr>
+              <tr><td><code>operator</code></td><td>String</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code>, <code>current-month</code></td><td>Opérateur de la clause générée — 5 opérateurs de base + 6 opérateurs de date (#230, #682). Voir le tableau des operateurs</td></tr>
               <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td><code>*</code> = toutes les sources du contexte, ou liste d'ids cibles</td></tr>
               <tr><td><code>label</code></td><td>String</td><td>défaut : field</td><td>Libelle naturel pour l'affichage (tags)</td></tr>
+              <tr><td><code>default</code></td><td>String</td><td><code>today</code>, <code>first-of-month</code>, <code>first-of-year</code> ou littéral</td><td>Valeur initiale (#682), appliquée après l'URL (l'URL gagne) et émise par le chemin normal — mots-clés résolus dans le fuseau local, adaptés au contrôle</td></tr>
             </tbody>
           </table>
         </div>
@@ -103,6 +104,7 @@
               <tr><td><code>lt-day-after</code></td><td><code>input type="date"</code></td><td>inclusif jusqu'au jour choisi</td></tr>
               <tr><td><code>last-n-days</code></td><td>input N</td><td>borne dynamique « N derniers jours », recalculee a chaque diffusion</td></tr>
               <tr><td><code>current-year</code></td><td>checkbox</td><td>plage de l'annee en cours (dynamique)</td></tr>
+              <tr><td><code>current-month</code></td><td>checkbox</td><td>plage du mois en cours (dynamique, #682)</td></tr>
             </tbody>
           </table>
         </div>
