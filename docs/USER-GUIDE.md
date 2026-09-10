@@ -425,10 +425,11 @@ Quatre decoupages de carte sont disponibles (API cartes unifiee [DSFR Chart](htt
 | `map` | Departements | Code INSEE (`01`-`95`, `2A`, `2B`, `971`-`976`) |
 | `map-reg` | Regions | Code region INSEE (`11`, `84`...), cle DSFR Chart (`IDF`, `20R`, `971`) ou nom (`Ile-de-France`) |
 | `map-aca` | Academies | Nom de l'academie, accentue ou non, avec ou sans le prefixe « Academie de » (`Academie de Besancon`, `BESANCON`, `Orleans-Tours`) |
-| `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) |
+| `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) ou **nom du pays en francais** (`Allemagne`, `allemagne`, `l'Allemagne`, `Pays-Bas`, `Cote d'Ivoire`) |
 
 Les cles sont traduites vers le referentiel de DSFR Chart quand c'est possible. Une cle qui n'y
-correspond a aucun territoire (nom d'academie inconnu, code de region inexistant, territoire absent du
+correspond a aucun territoire (nom d'academie inconnu, code de region inexistant, nom de pays hors
+referentiel, territoire absent du
 decoupage `aca` : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE) n'est pas dessinee : la
 ligne est **comptee** et le nombre de lignes ignorees apparait dans la console et dans le volet
 Diagnostic (#729).
@@ -721,6 +722,31 @@ configuration plutot que de produire un tableau a 10 000 colonnes).
 serait lu comme un nombre). Le volet Diagnostic affiche, sur l'etape pivot, le nombre de colonnes
 generees et de cellules vides.
 
+#### Colorer une cellule selon un seuil : colonne calculee → classe (`cell-class`)
+
+Il n'y a pas de `threshold-*` par colonne sur le tableau (c'est une specificite de `dsfr-data-kpi`). La voie est **colonne calculee → classe** : `compute` sait deja produire une tranche, `cell-class` en fait la classe CSS de la cellule. Une seule mecanique au lieu de deux — et le critere RGAA 1.4.1 (« l'information n'est pas portee par la seule couleur ») satisfait par construction, puisque la valeur textuelle existe deja dans une colonne.
+
+```html
+<dsfr-data-normalize id="avec-seuil" source="brut"
+  compute="alerte = when taux_reponse >= 50 then 'seuil-ok' else 'seuil-bas'">
+</dsfr-data-normalize>
+
+<dsfr-data-list source="avec-seuil"
+  columns="service:Service, taux_reponse:Taux de reponse, alerte:Seuil"
+  cell-class="taux_reponse:alerte">
+</dsfr-data-list>
+
+<style>
+  .seuil-bas { background: var(--background-contrast-error); font-weight: 700; }
+  .seuil-ok  { background: var(--background-contrast-success); }
+</style>
+```
+
+- **Grammaire** : `cell-class="colonne:colonne_classe"`, plusieurs paires separees par des virgules. `cell-class="statut"` seul classe la cellule de `statut` par sa propre valeur.
+- **La valeur DEVIENT la classe** : `'seuil-bas'` donne `class="seuil-bas"`, `'fr-badge fr-badge--error'` en donne deux. Seuls les identifiants CSS sont retenus (une valeur comme `12 %` n'en produit aucune) : la donnee ne peut pas sortir de l'attribut `class`.
+- **Si la colonne de classe n'est pas affichee**, sa valeur est ajoutee dans la cellule en texte masque visuellement (`(seuil-bas)`) : un lecteur d'ecran l'entend meme si la colonne n'est pas dans `columns`. Le plus lisible reste de l'afficher, comme dans l'exemple.
+- **Ne comptez pas sur la couleur seule** dans votre CSS : ajoutez une graisse, une bordure ou une icone. La classe est un point d'accroche, pas une garantie de contraste.
+
 ### Cartes interactives Leaflet — la famille dsfr-data-map
 
 Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Six composants se combinent :
@@ -764,6 +790,7 @@ Points cles :
 
 - **Fonds de carte** : presets `ign-plan` (defaut), `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`, `opentopomap`, ou une URL de tuiles custom `{z}/{x}/{y}` (`carto-positron` et `carto-dark` sont deprecies : redirection vers `ign-plan`). L'attribut `sovereign-only` restreint aux presets souverains IGN.
 - **Fond attenue** : `tiles-style="muted"` (gris + 55 % d'opacite) ou `tiles-style="grey"` (niveaux de gris) efface le plan sous une carte thematique, sans CSS de page — un fond « neutre » = `ign-plan` attenue. Les encarts heritent du reglage.
+- **Choix du fond par le lecteur** : `tiles-switcher="ign-plan,ign-ortho"` rend un menu deroulant etiquete « Fond de carte » en haut a droite de la carte. C'est un `select` natif place avant le conteneur : atteint au clavier juste apres le lien d'evitement, sa valeur est annoncee par les lecteurs d'ecran, et le changement est repete dans la zone d'annonces. Seuls les presets connus (alias compris) sont retenus ; une URL custom ou un nom inconnu est ecarte avec un avertissement, et il en faut au moins deux differents pour que le controle apparaisse (avec `sovereign-only`, s'en tenir aux presets IGN). Le fond courant est ajoute en tete s'il manque a la liste, les encarts suivent le choix, et chaque bascule emet `dsfr-data-map-tiles-change` `{ tiles }`. Sans effet avec `locked` ou `no-controls`.
 - **Choroplethe** : sur une couche `geoshape`, `fill-field` colore les polygones par classes (`selected-palette`, defaut `sequentialAscending`). `classes="5"` fixe le nombre de classes, `method="quantile|equal|manual"` la discretisation, `breaks="10,50,100"` des bornes manuelles ; defaut : quantiles, autant de classes que de couleurs (9).
 - **Couleurs categorielles** : `color-field` + `color-map="modalite:#couleur,…"`. Meme grammaire sur `dsfr-data-chart` (#732). Une virgule ou un deux-points dans une modalite s'ecrit `%2C` ou `%3A` (`Commerce%2C transport:#000091`), sinon la paire est coupee au decoupage.
 - **Legende** : `<dsfr-data-map-legend for="id-couche" label="…">` rend sous la carte une liste DSFR « pastille + texte » : classes avec bornes chiffrees (fr-FR) pour une choroplethe, paires de `color-map` (+ repli `color`) pour une couche categorielle. Elle se rafraichit a chaque rendu de la couche (`getLegendEntries()` / evenement `dsfr-data-map-layer-render`). Hors perimetre : `dsfr-data-chart type="map"` (echelle continue de DSFR Chart).
@@ -803,6 +830,31 @@ Points d'attention :
 - **Couches decoratives** (`no-interactive`) : aucun evenement ni filtre.
 
 Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/) (section Cartographie) et [specifications dsfr-data-map](https://chartsbuilder.miweb.run/specs/).
+
+#### Le meme geste sans carte : `refine-on-click` sur la liste et les cartes-tuiles
+
+Depuis la 0.27, `refine-on-click` (et son `context`) existe aussi sur **`dsfr-data-list`** et **`dsfr-data-display`** (#734) : le motif maitre-detail ne demande plus de partir d'une carte. Le contrat est identique a celui de la couche — premier clic = filtre `eq`, second clic sur le meme element = retrait, clic sur un autre = remplacement, tag dans `dsfr-data-context-tags`, URL portee par le contexte, chemin degrade vers `source` sans `context`.
+
+```html
+<dsfr-data-context id="ctx" sources="depenses" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<!-- Cliquer une ligne filtre le graphique, pas le tableau (sources distinctes) -->
+<dsfr-data-list source="communes" columns="commune:Commune, population:Population"
+  refine-on-click="commune" context="ctx"></dsfr-data-list>
+<dsfr-data-chart source="depenses" type="bar" label-field="annee" value-field="montant"></dsfr-data-chart>
+```
+
+Accessibilite (le vrai cout du geste, et ce qui en fait la valeur) :
+
+- **Un vrai bouton par ligne**, dans une colonne de selection ajoutee en tete du tableau (ou en pied de chaque carte pour `dsfr-data-display`) : il est dans l'ordre de tabulation, annonce comme un bouton, active par Entree et Espace. Aucun `tabindex` bricole, aucun `role` pose sur la ligne.
+- **L'etat n'est pas porte par la couleur** : `aria-pressed` sur le bouton, `aria-current="true"` sur la ligne, et surtout un libelle qui change — « Filtrer sur Paris » devient « Retirer le filtre Paris ». Le fond bleu et la barre laterale ne font que redire ce que le texte dit deja (RGAA 1.4.1).
+- **Le clic sur la ligne entiere** reste possible pour le confort a la souris ; il ne double pas le clic du bouton et ne vole pas celui d'un lien rendu dans une cellule ou dans le template.
+- Chaque bascule emet `dsfr-data-select` `{ record, elementId, selected }` (bubbles, composed) et est annoncee dans la region live du composant.
+
+Comme pour la carte : si la source du tableau figure aussi dans les `sources` du contexte, le tableau se filtre lui-meme (seule la ligne cliquee reste, jusqu'au second clic). Pour garder la liste complete, donnez au tableau sa propre source.
+
+Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749) — `@gouvfr/dsfr-chart` n'emet aucun evenement de clic au niveau graphique.
 
 ### KPIs : groupes, formats et litteraux
 
@@ -923,6 +975,124 @@ le jeu complet au montage est une requete couteuse dont personne ne regarde le r
   refusees (rien ne pourrait lever l'attente) et un avertissement est emis en console.
 
 ---
+
+### Facettes : un tri different par champ
+
+`sort` accepte desormais la meme grammaire par champ que `labels`, `display` et `cols`
+(barre verticale, `champ:critere[:sens]`). Une facette d'annees se range A → Z pendant
+qu'une facette de categories reste rangee par frequence, sans dupliquer le composant :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="annee, categorie"
+  sort="annee:alpha:asc | categorie:count:desc"></dsfr-data-facets>
+```
+
+- Un champ que `sort` ne nomme pas garde le tri par defaut (`count:desc`).
+- L'entree `*` change ce defaut : `sort="*:alpha | annee:count:desc"` range toutes les
+  facettes A → Z sauf `annee`.
+- Les formes globales historiques restent valides telles quelles (`count`, `alpha`,
+  `count:asc`, `alpha:desc`), y compris les formes depreciees `-count` / `-alpha`, qui
+  continuent d'avertir en console.
+- Un champ qui s'appelle litteralement `count` ou `alpha` se nomme sans ambiguite en
+  trois segments : `sort="count:alpha:desc"` trie le champ `count` de Z a A.
+
+---
+
+### Facettes : compter une mesure plutot que des lignes
+
+Sur une table de mesures, « 1 240 » ne dit rien au lecteur : ce sont des lignes de releve,
+pas des personnes. `weight-field` remplace le nombre de lignes par la **somme** d'un champ :
+
+```html
+<dsfr-data-facets id="filtres" source="src" fields="region"
+  weight-field="effectif"></dsfr-data-facets>
+```
+
+- Le tri `count` porte alors sur cette somme, et le nombre est formate a la francaise
+  (`4 500,5`). Les lecteurs d'ecran entendent « total 4 500,5 », pas « 4 500 resultats ».
+- Une valeur non numerique pese zero ; un champ absent de toutes les lignes est signale
+  une fois en console.
+- Sur une cellule multi-valeurs (ChoiceList Grist), chaque valeur recoit le poids entier
+  de la ligne — comme elle recevait une unite dans le comptage par lignes.
+- **Client uniquement, et c'est assume.** En mode `server-facets`, l'API facettes ne
+  renvoie qu'un nombre de lignes : la somme n'existe pas. Plutot qu'afficher un nombre de
+  lignes sous un libelle de somme, le composant **masque les compteurs**, pose
+  `data-dsfr-config-error` et rend un avertissement DSFR au-dessus des facettes. Pour
+  ponderer des facettes serveur, il faut ramener les donnees cote client.
+
+---
+
+### Ecrire la valeur d'un filtre dans un titre
+
+`dsfr-data-context-tags` liste les filtres actifs, mais ne s'insere pas dans une phrase :
+« Résultats pour {{departement}} » n'etait pas exprimable. `<dsfr-data-context-value>` rend
+la valeur courante d'un ou plusieurs filtres du contexte, comme du texte :
+
+```html
+<dsfr-data-context id="ctx" sources="src" url-sync>
+  <dsfr-data-context-filter field="departement" operator="eq" ui="ui-dep">
+  </dsfr-data-context-filter>
+</dsfr-data-context>
+
+<h2>
+  <dsfr-data-context-value for="ctx" template="Résultats pour {{departement}}"
+    fallback="Résultats pour toute la France" live></dsfr-data-context-value>
+</h2>
+```
+
+- `field="departement"` est le raccourci de `template="{{departement}}"`.
+- **Repli declare** : `fallback` s'affiche tant qu'un champ cite n'a aucune valeur. Un seul
+  champ manquant suffit a basculer — « Résultats pour  » serait pire qu'une phrase de repli.
+  Sans `fallback`, le composant ne rend rien.
+- **Accessibilite** : `live` fait du composant une region live polie (`aria-live="polite"`,
+  `role="status"`), pour qu'un titre qui suit le filtre annonce le changement de contenu.
+  A poser sur **un seul** element de la page : trois libelles qui parlent en meme temps sont
+  un bruit, pas une aide.
+- Tout filtre du contexte est lisible ainsi (contrat commun) : `dsfr-data-context-filter`,
+  champs d'une `dsfr-data-facets context="…"`, terme d'une `dsfr-data-search context="…"`.
+- Le rendu est du texte : la valeur d'un filtre ne traverse jamais l'analyseur HTML.
+
+---
+
+### Annee scolaire, exercice comptable, saison : `year-start-month`
+
+Tous les operateurs de date raisonnent en annee civile ; `year-of` coupait l'annee scolaire
+en son milieu, en silence. `year-start-month` dit ou commence l'annee :
+
+```html
+<label for="ui-annee">Année scolaire</label>
+<input id="ui-annee" type="number" min="2015" max="2030" step="1" value="2024">
+
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
+    year-start-month="9" ui="ui-annee"></dsfr-data-context-filter>
+</dsfr-data-context>
+```
+
+- `year-start-month="9"` filtre `[2024-09-01, 2025-09-01)` pour la valeur « 2024 ». `4` donne
+  l'exercice comptable britannique, `7` l'exercice australien, `10` une saison sportive.
+  `1` (defaut) laisse l'annee civile strictement inchangee.
+- L'attribut vaut aussi pour `current-year` : en juin 2026 avec `year-start-month="9"`,
+  l'annee en cours est 2025-2026.
+- **Une annee nue** (« 2024 ») nomme l'annee qui **commence** en 2024 ; **une date**
+  (« 2025-03-10 ») designe l'annee qui la **contient**. Les deux regles coincident quand
+  l'annee commence en janvier, ce qui permet de nourrir l'operateur d'un `<input type="date">`.
+- Le tag affiche « 2024-2025 », pas « 2024 » : ce qui est filtre est ce qui est ecrit.
+- **Le desucrage reste `gte` + `lt`** : la plage se delegue au serveur comme n'importe quelle
+  autre. Aucun adaptateur, aucun dialecte n'est concerne.
+
+**La voie client, disponible depuis la 0.24** : une colonne d'annee scolaire se derive avec
+`compute` sur `dsfr-data-normalize`, ce qui donne en prime un `group-by` et un libelle
+« 2024-2025 » gratuits :
+
+```html
+<dsfr-data-normalize id="clean" source="src"
+  compute="annee_scolaire = when month(d) >= 9 then concat(year(d),'-',year(d)+1) else concat(year(d)-1,'-',year(d))">
+</dsfr-data-normalize>
+```
+
+`compute` est un transformateur **client** : il ne se delegue pas. Sur un jeu hebdomadaire
+depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-month` evite.
 
 ---
 

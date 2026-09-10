@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { toNumber } from '@dsfr-data/shared/lib';
+import { isUnsafeKey, toNumber } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
@@ -10,6 +10,7 @@ import type { AdapterCapabilities } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import {
   AGGREGATE_FUNCTIONS,
+  isRunningAggregate,
   parseAggregates,
   validateAggregateFunctions,
   type ParsedAggregate,
@@ -150,9 +151,50 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Agrégations pour mode generic/tabular
    * Format: "field:function, field2:function"
    * Ex: "population:sum, count:count"
+   *
+   * `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :
+   * il produit une ligne par ligne de sortie, chacune portant la somme des
+   * précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des
+   * lignes reçues fait foi et le résultat n'a en général pas de sens : un
+   * avertissement console le signale. Le cumul reste toujours côté client.
+   * Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"`
+   * avec `order-by="mois:asc"`.
    */
   @property({ type: String })
   aggregate = '';
+
+  /**
+   * Champs multivalués à éclater avant le regroupement (séparés par virgule).
+   *
+   * Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé
+   * de groupe : `["a", "b"]` devient la modalité `"a,b"`, une COMBINAISON
+   * comptée comme une valeur — là où `dsfr-data-facets` éclate le même champ
+   * (#421). Les deux composants branchés sur le même champ donnaient donc des
+   * chiffres différents, sans rien signaler (#736).
+   *
+   * Avec `explode="tags"`, chaque élément de la cellule produit sa propre
+   * ligne : les modalités du regroupement sont exactement celles de la
+   * facette du même champ, et une ligne portant N valeurs compte dans N
+   * groupes (les agrégats la comptent donc N fois).
+   *
+   * Règles, alignées sur les facettes : les éléments vides sont ignorés, et
+   * une cellule sans aucune valeur (tableau vide, `null`, chaîne vide)
+   * ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la
+   * facette n'a pas de modalité vide. Une cellule scalaire est inchangée.
+   *
+   * Chaque champ listé doit figurer dans `group-by` (sinon erreur de
+   * configuration et champ ignoré : éclater un champ hors regroupement
+   * dupliquerait les lignes et gonflerait les sommes).
+   *
+   * L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline
+   * ne sait éclater un champ multivalué, déléguer produirait à nouveau des
+   * combinaisons. Sur une source volumineuse, penser au plafond de lignes
+   * rapatriées.
+   *
+   * Par défaut vide : le comportement historique est conservé.
+   */
+  @property({ type: String })
+  explode = '';
 
   /**
    * Tri des résultats
@@ -308,6 +350,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       'where',
       'filter',
       'groupBy',
+      'explode',
       'aggregate',
       'orderBy',
       'limit',
@@ -342,6 +385,19 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     this._aggregateError = aggError ? `aggregate="${this.aggregate}" : ${aggError}` : null;
     if (this._aggregateError) {
       reportConfigError(this, `dsfr-data-query[${this.id}]`, this._aggregateError);
+    }
+
+    // Cumul sans ordre explicite (#738) : le resultat depend alors de l'ordre
+    // des lignes recues, qui n'est pas un contrat. Avertissement, pas erreur :
+    // une source deja triee (order-by pose sur elle) est un cas legitime.
+    this._warnRunningWithoutOrder();
+
+    // Éclatement d'un champ hors regroupement (#736) : la ligne serait
+    // dupliquée sans changer de groupe, et toutes les sommes gonfleraient.
+    // Signalé, puis le champ est ignoré (le reste de la requête tourne).
+    const explodeError = this._validateExplode();
+    if (explodeError) {
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, explodeError);
     }
 
     // Negotiate server-side delegation BEFORE subscribing to data.
@@ -488,17 +544,31 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       // Fonction non traduisible par l'adapter (Tabular n'a pas de
       // `distinct`, #672) : tout le group-by reste client-side, sur les
       // lignes brutes — comme pour un champ non delegable.
+      //
+      // Un agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :
+      // aucun ne le traduit, et ceux qui n'implementent pas
+      // `supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc
+      // « delegable » — l'API recevrait `running_sum` et repondrait en erreur
+      // pour tous les abonnes de la source.
       const canDelegateAggregates = (aggs: ParsedAggregate[]): boolean =>
-        aggs.every((a) => adapter.supportsServerAggregate?.(a.function) !== false);
+        aggs.every(
+          (a) =>
+            !isRunningAggregate(a.function) &&
+            adapter.supportsServerAggregate?.(a.function) !== false
+        );
 
       // Delegate group-by + aggregate together (they're coupled).
       // Don't override if source already has its own groupBy or aggregate.
+      // `explode` (#736) reste client-side : aucune API du pipeline ne sait
+      // éclater un champ multivalué, un group_by serveur regrouperait à
+      // nouveau par combinaison.
       if (
         this.groupBy &&
         caps.serverGroupBy &&
         !sourceGroupBy &&
         !sourceAggregate &&
-        !this._aggregateError
+        !this._aggregateError &&
+        !this.explode
       ) {
         // Le where conditionne la délégation du group-by (#275) : un filtre
         // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
@@ -759,10 +829,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const needsClientGroupBy = this.groupBy && (!this._serverDelegated.groupBy || forceClientSide);
     if (needsClientGroupBy) {
       result = this._applyGroupByAndAggregate(result);
-    } else if (!this.groupBy && this.aggregate) {
+    } else if (!this.groupBy && this._groupAggregates().length > 0) {
       // Agregat global (#278) : aggregate sans group-by produit UNE ligne
       // (la grammaire etait acceptee mais no-op silencieux). Cas d'usage
       // typique : alimenter un dsfr-data-kpi (total, moyenne...).
+      // Les agregats cumules (#738) en sont exclus : ils gardent une ligne
+      // par ligne, sinon `montant:running_sum` seul replierait tout en une.
       result = [this._computeGlobalAggregates(result)];
     }
 
@@ -771,6 +843,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const needsClientSort = this.orderBy && (!this._serverDelegated.orderBy || forceClientSide);
     if (needsClientSort) {
       result = this._applySort(result);
+    }
+
+    // 3 bis. Agregats cumules (#738) : transformation ORDONNEE, donc APRES le
+    // tri et sur les lignes de sortie (elle peut cumuler une colonne produite
+    // par le group-by). Toujours client-side. Avant ou apres `limit` est
+    // indifferent : un cumul est un prefixe, les N premieres valeurs sont les
+    // memes — la place ici evite d'y penser.
+    const runningAggregates = this._runningAggregates();
+    if (runningAggregates.length > 0) {
+      result = this._applyRunningAggregates(result, runningAggregates);
     }
 
     // 4. Appliquer la limite (toujours client-side)
@@ -941,6 +1023,100 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
   }
 
+  /** Champs listés dans `explode`, trimés (#736). */
+  private _explodeFields(): string[] {
+    return this.explode
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Vérifie que chaque champ d'`explode` est bien un champ de regroupement
+   * (#736). Retourne un message lisible (destiné à reportConfigError), ou
+   * null si la configuration est cohérente.
+   */
+  private _validateExplode(): string | null {
+    const explodeFields = this._explodeFields();
+    if (explodeFields.length === 0) return null;
+
+    const groupFields = this.groupBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const orphans = explodeFields.filter((f) => !groupFields.includes(f));
+    if (orphans.length === 0) return null;
+
+    return (
+      `explode="${this.explode}" : ${orphans.map((f) => `"${f}"`).join(', ')} ` +
+      `${orphans.length > 1 ? 'ne sont pas des champs' : "n'est pas un champ"} de group-by — ` +
+      `l'éclatement ne s'applique qu'aux champs de regroupement ` +
+      `(ajoutez-les à group-by, sinon les lignes seraient dupliquées et les sommes gonflées)`
+    );
+  }
+
+  /**
+   * Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes
+   * (`_facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non
+   * vides, une cellule vide n'en fournit aucune, un scalaire fournit sa
+   * valeur.
+   */
+  private _explodedValuesOf(val: unknown): unknown[] {
+    if (val === null || val === undefined || val === '') return [];
+    if (Array.isArray(val)) {
+      return val.filter((v) => v !== null && v !== undefined && v !== '');
+    }
+    return [val];
+  }
+
+  /**
+   * Copie d'une ligne avec une valeur de remplacement sur un champ (#736).
+   * La colonne vertébrale du chemin est clonée : `setByPath` sur une copie
+   * de surface écrirait dans l'objet imbriqué PARTAGÉ avec la ligne source.
+   */
+  private _rowWithFieldValue(
+    row: Record<string, unknown>,
+    field: string,
+    value: unknown
+  ): Record<string, unknown> {
+    const clone: Record<string, unknown> = { ...row };
+    const keys = field.replace(/\[(\d+)\]/g, '.$1').split('.');
+    let current = clone;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (isUnsafeKey(key)) return clone;
+      const child = current[key];
+      if (!child || typeof child !== 'object' || Array.isArray(child)) break;
+      const childClone = { ...(child as Record<string, unknown>) };
+      current[key] = childClone;
+      current = childClone;
+    }
+    setByPath(clone, field, value);
+    return clone;
+  }
+
+  /**
+   * Éclate les champs multivalués demandés (#736) : une ligne portant N
+   * valeurs devient N lignes, une pour chaque valeur. Les lignes d'origine
+   * ne sont jamais mutées.
+   */
+  private _explodeRows(
+    data: Record<string, unknown>[],
+    fields: string[]
+  ): Record<string, unknown>[] {
+    let rows = data;
+    for (const field of fields) {
+      const out: Record<string, unknown>[] = [];
+      for (const row of rows) {
+        for (const value of this._explodedValuesOf(getByPath(row, field))) {
+          out.push(this._rowWithFieldValue(row, field, value));
+        }
+      }
+      rows = out;
+    }
+    return rows;
+  }
+
   /**
    * Applique le GROUP BY et les agrégations
    */
@@ -949,12 +1125,20 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       .split(',')
       .map((f) => f.trim())
       .filter(Boolean);
-    const aggregates = this._parseAggregates(this.aggregate);
+    // Les agregats cumules (#738) ne reduisent pas un groupe : ils sont
+    // appliques apres le tri, sur les lignes de sortie.
+    const aggregates = this._groupAggregates();
+
+    // Éclatement des champs multivalués demandés (#736), AVANT la clé de
+    // groupe : sans lui, `["a","b"]` serait la modalité « a,b ». Les champs
+    // hors group-by sont ignorés (erreur de configuration déjà signalée).
+    const explodeFields = this._explodeFields().filter((f) => groupFields.includes(f));
+    const rows = explodeFields.length > 0 ? this._explodeRows(data, explodeFields) : data;
 
     // Créer les groupes
     const groups = new Map<string, Record<string, unknown>[]>();
 
-    for (const item of data) {
+    for (const item of rows) {
       const key = groupFields.map((f) => String(getByPath(item, f) ?? '')).join('|||');
       if (!groups.has(key)) {
         groups.set(key, []);
@@ -993,13 +1177,63 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return parseAggregates(aggExpr);
   }
 
+  /** Agregats reducteurs : ceux qui replient un groupe en une valeur (#738). */
+  private _groupAggregates(): ParsedAggregate[] {
+    return this._parseAggregates(this.aggregate).filter((a) => !isRunningAggregate(a.function));
+  }
+
+  /** Agregats cumules, appliques apres le tri sur les lignes de sortie (#738). */
+  private _runningAggregates(): ParsedAggregate[] {
+    return this._parseAggregates(this.aggregate).filter((a) => isRunningAggregate(a.function));
+  }
+
+  /**
+   * Avertit qu'un cumul est demandé sans `order-by` (#738) : le résultat suit
+   * alors l'ordre des lignes reçues, qui n'est pas un contrat (pagination,
+   * ordre d'insertion de l'API). Un `order-by` posé sur la source amont reste
+   * légitime, d'où un avertissement et non une erreur de configuration.
+   */
+  private _warnRunningWithoutOrder(): void {
+    if (this.orderBy || this._runningAggregates().length === 0) return;
+    console.warn(
+      `dsfr-data-query[${this.id}]: aggregate="${this.aggregate}" cumule sans "order-by" — ` +
+        `le cumul suit l'ordre des lignes reçues, qui n'est pas garanti. ` +
+        `Ajoutez order-by (ex. order-by="mois:asc") ou assurez-vous que la source amont est triée.`
+    );
+  }
+
+  /**
+   * Applique les agrégats cumulés sur les lignes de sortie (#738), dans leur
+   * ordre courant : chaque ligne porte la somme des valeurs des lignes
+   * précédentes, la sienne comprise. Les valeurs non numériques sont ignorées
+   * (même règle que `sum`, #301) et la ligne porte alors le cumul en cours.
+   * Les lignes ne sont jamais mutées : sans group-by, ce sont les objets de
+   * la source.
+   */
+  private _applyRunningAggregates(
+    data: Record<string, unknown>[],
+    aggregates: ParsedAggregate[]
+  ): Record<string, unknown>[] {
+    const totals = new Map<string, number>();
+    return data.map((row) => {
+      let out = row;
+      for (const agg of aggregates) {
+        const value = toNumber(getByPath(row, agg.field), true);
+        const total = (totals.get(agg.alias) ?? 0) + (value ?? 0);
+        totals.set(agg.alias, total);
+        out = this._rowWithFieldValue(out, agg.alias, total);
+      }
+      return out;
+    });
+  }
+
   /**
    * Agregat global (#278) : agrege l'ensemble des lignes (filtrees) en une
    * seule ligne, avec la meme convention d'alias field__fn que le group-by.
    */
   private _computeGlobalAggregates(data: Record<string, unknown>[]): Record<string, unknown> {
     const row: Record<string, unknown> = {};
-    for (const agg of this._parseAggregates(this.aggregate)) {
+    for (const agg of this._groupAggregates()) {
       setByPath(row, agg.alias, this._computeAggregate(data, agg));
     }
     return row;

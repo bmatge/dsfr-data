@@ -135,8 +135,13 @@ const ACADEMY_ALIASES: Readonly<Record<string, string>> = {
 /** Article ou préposition ouvrant un nom d'académie, après le mot « académie ». */
 const ACADEMY_PREFIX = /^ACADEMIE\s+(?:DE\s+LA\s+|DE\s+L'|DES\s+|DE\s+|DU\s+|D')/;
 
-/** Majuscules sans accent, apostrophe droite, espaces normalisés. */
-function normalizeKey(raw: string): string {
+/**
+ * Majuscules sans accent, apostrophe droite, espaces normalisés.
+ *
+ * Partagé avec la table de noms de pays de `data/continent-lookup.ts` (#743) :
+ * une seule normalisation pour tous les référentiels géographiques.
+ */
+export function normalizeGeoLabel(raw: string): string {
   return raw
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -147,7 +152,7 @@ function normalizeKey(raw: string): string {
 }
 
 /** Sépare les mots par un espace unique (tiret, tiret long ou souligné inclus). */
-function flattenSeparators(key: string): string {
+export function flattenSeparators(key: string): string {
   return key
     .replace(/[-\u2010-\u2015_]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -164,7 +169,7 @@ function flattenSeparators(key: string): string {
  * est rejetée plutôt que transmise telle quelle, donc comptée par l'appelant.
  */
 export function toAcademyKey(raw: string): string {
-  const normalized = normalizeKey(raw);
+  const normalized = normalizeGeoLabel(raw);
   if (!normalized) return '';
   if (ACADEMY_KEYS.has(normalized)) return normalized;
 
@@ -188,7 +193,7 @@ export function toAcademyKey(raw: string): string {
  * région (« Île-de-France », « ile de france »).
  */
 export function toRegionKey(raw: string): string {
-  const normalized = normalizeKey(raw);
+  const normalized = normalizeGeoLabel(raw);
   if (!normalized) return '';
   if (REGION_KEYS.has(normalized)) return normalized;
 

@@ -15,13 +15,17 @@ import { escapeHtml, formatDate } from '@dsfr-data/shared/lib';
  * Limite documentée : `|` est interdit dans l'argument (il ouvre le défaut),
  * `}` est interdit partout (il ferme le placeholder).
  *
- * Blocs conditionnels, non imbriqués : `{{#if chemin}}…{{/if}}` et
- * `{{#unless chemin}}…{{/unless}}`. Ils sont résolus par une pré-passe sur
- * le texte du template, AVANT la substitution des placeholders : une valeur
- * substituée n'est jamais rescannée (pas d'injection de template en cascade).
+ * Blocs, non imbriqués : `{{#if chemin}}…{{/if}}`, `{{#unless chemin}}…{{/unless}}`
+ * et `{{#each chemin}}…{{/each}}` (répétition sur un champ tableau, #737).
+ * Ils sont résolus par une pré-passe sur le texte du template, AVANT la
+ * substitution des placeholders : une valeur substituée n'est jamais
+ * rescannée (pas d'injection de template en cascade).
  *
  * Les variables spéciales (`$index`, `$uid`...) sont fournies par l'appelant
- * via `vars` — résolues avant toute autre interprétation.
+ * via `vars` — résolues avant toute autre interprétation. La pré-passe
+ * `{{#each}}` en ajoute une par élément rendu : les valeurs d'élément
+ * n'entrent JAMAIS dans le texte du template, elles restent des variables
+ * résolues (et échappées) à la substitution.
  */
 
 /** Expression décomposée selon la grammaire `chemin[:format[:arg]][|défaut]`. */
@@ -176,17 +180,87 @@ export function isTemplateTruthy(value: unknown): boolean {
   return true;
 }
 
-const BLOCK_RE = /\{\{#(if|unless)\s+([^}]+?)\s*\}\}([\s\S]*?)\{\{\/\1\s*\}\}/g;
+const BLOCK_RE = /\{\{#(if|unless|each)\s+([^}]+?)\s*\}\}([\s\S]*?)\{\{\/\1\s*\}\}/g;
+
+const PLACEHOLDER_RE = /\{\{\{([^}]+)\}\}\}|\{\{([^}]+)\}\}/g;
 
 /**
- * Pré-passe des blocs `{{#if chemin}}…{{/if}}` / `{{#unless chemin}}…{{/unless}}`
- * sur le TEXTE du template (jamais sur une valeur). Blocs non imbriqués :
- * un bloc ouvert dans un autre est fermé par la première balise de fin du
- * même type. Une ouverture sans fermeture n'est pas un bloc (elle sera vidée par la substitution).
+ * Éléments parcourus par un bloc `{{#each}}` (#737). Mêmes règles que les
+ * facettes et que l'éclatement de `dsfr-data-query` : les éléments vides sont
+ * ignorés, une cellule vide ne rend rien, un scalaire vaut un élément unique.
  */
-export function resolveTemplateBlocks(templateHtml: string, item: Record<string, unknown>): string {
+function eachValuesOf(value: unknown): unknown[] {
+  if (value === null || value === undefined || value === '') return [];
+  if (Array.isArray(value)) {
+    return value.filter((v) => v !== null && v !== undefined && v !== '');
+  }
+  return [value];
+}
+
+/**
+ * Développe UNE itération d'un bloc `{{#each}}` (#737) : les placeholders qui
+ * désignent l'élément courant (`{{.}}`, `{{.:format}}`, `{{$index}}`) sont
+ * remplacés dans le TEXTE par une variable unique, et la valeur elle-même est
+ * déposée dans `vars`. La donnée n'entre donc jamais dans le template — elle
+ * est résolue, et échappée, par la passe de substitution. Les autres
+ * placeholders (champs de l'enregistrement) sont laissés tels quels.
+ */
+function expandEachIteration(
+  body: string,
+  value: unknown,
+  index: number,
+  vars: Record<string, () => string>
+): string {
+  return body.replace(
+    PLACEHOLDER_RE,
+    (match, rawExpr: string | undefined, escExpr: string | undefined) => {
+      const expr = (rawExpr ?? escExpr) as string;
+      let resolve: (() => string) | null = null;
+
+      if (expr.trim() === '$index') {
+        resolve = () => String(index);
+      } else {
+        const parsed = parseTemplateExpression(expr);
+        if (parsed.path === '.') {
+          resolve = () =>
+            value === null || value === undefined
+              ? parsed.defaultValue
+              : formatTemplateValue(value, parsed.format, parsed.arg);
+        }
+      }
+      if (!resolve) return match;
+
+      const name = `$each${Object.keys(vars).length}`;
+      vars[name] = resolve;
+      return rawExpr !== undefined ? `{{{${name}}}}` : `{{${name}}}`;
+    }
+  );
+}
+
+/**
+ * Pré-passe des blocs `{{#if chemin}}…{{/if}}`, `{{#unless chemin}}…{{/unless}}`
+ * et `{{#each chemin}}…{{/each}}` sur le TEXTE du template (jamais sur une
+ * valeur). Blocs non imbriqués : un bloc ouvert dans un autre est fermé par la
+ * première balise de fin du même type, et le corps d'un bloc n'est pas
+ * rescanné — un `{{#each}}` placé dans un `{{#if}}` n'est donc pas développé.
+ * Une ouverture sans fermeture n'est pas un bloc (elle sera vidée par la substitution).
+ *
+ * `vars` reçoit les variables d'élément créées par `{{#each}}` : appelée sans
+ * lui, la fonction développe quand même le bloc, mais les valeurs d'élément ne
+ * pourront pas être résolues. Le point d'entrée à utiliser est `renderTemplate`.
+ */
+export function resolveTemplateBlocks(
+  templateHtml: string,
+  item: Record<string, unknown>,
+  vars: Record<string, () => string> = {}
+): string {
   if (!templateHtml.includes('{{#')) return templateHtml;
   return templateHtml.replace(BLOCK_RE, (_match, kind: string, path: string, body: string) => {
+    if (kind === 'each') {
+      return eachValuesOf(getByPath(item, path))
+        .map((value, index) => expandEachIteration(body, value, index, vars))
+        .join('');
+    }
     const truthy = isTemplateTruthy(getByPath(item, path));
     return (kind === 'if') === truthy ? body : '';
   });
@@ -202,21 +276,25 @@ export interface RenderTemplateOptions {
   vars?: Record<string, () => string>;
 }
 
-const PLACEHOLDER_RE = /\{\{\{([^}]+)\}\}\}|\{\{([^}]+)\}\}/g;
-
 /**
  * Rend un template HTML pour un enregistrement : pré-passe des blocs, puis
  * UNE seule passe de substitution des placeholders. La valeur substituée
  * n'est jamais rescannée : une donnée qui contient elle-même `{{x}}` ou
  * `{{#if}}` est rendue littéralement.
+ *
+ * Les variables d'élément produites par `{{#each}}` (#737) s'ajoutent aux
+ * `vars` de l'appelant : dans un bloc `each`, `{{$index}}` est le rang de
+ * l'élément et masque le `$index` de la ligne fourni par l'appelant.
  */
 export function renderTemplate(
   templateHtml: string,
   item: Record<string, unknown>,
   options: RenderTemplateOptions = {}
 ): string {
-  const { raw = false, vars } = options;
-  const withBlocks = resolveTemplateBlocks(templateHtml, item);
+  const { raw = false, vars: callerVars } = options;
+  const eachVars: Record<string, () => string> = {};
+  const withBlocks = resolveTemplateBlocks(templateHtml, item, eachVars);
+  const vars = { ...callerVars, ...eachVars };
   return withBlocks.replace(
     PLACEHOLDER_RE,
     (_match, rawExpr: string | undefined, escExpr: string | undefined) => {

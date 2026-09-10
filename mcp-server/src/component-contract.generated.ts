@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 25 balises, 304 attributs.
+ * 26 balises, 320 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -93,7 +93,8 @@ export const COMPONENT_CONTRACT = {
       "field",
       "label",
       "operator",
-      "ui"
+      "ui",
+      "year-start-month"
     ]
   },
   "dsfr-data-context-tags": {
@@ -102,13 +103,25 @@ export const COMPONENT_CONTRACT = {
       "for"
     ]
   },
+  "dsfr-data-context-value": {
+    "attributes": [
+      "fallback",
+      "field",
+      "for",
+      "live",
+      "template"
+    ]
+  },
   "dsfr-data-display": {
     "attributes": [
       "cols",
+      "context",
       "empty",
       "gap",
       "idle-message",
+      "label",
       "pagination",
+      "refine-on-click",
       "source",
       "uid-field",
       "url-page-param",
@@ -134,7 +147,8 @@ export const COMPONENT_CONTRACT = {
       "static-values",
       "url-param-map",
       "url-params",
-      "url-sync"
+      "url-sync",
+      "weight-field"
     ]
   },
   "dsfr-data-join": {
@@ -186,13 +200,17 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-list": {
     "attributes": [
       "caption",
+      "cell-class",
       "columns",
       "columns-auto",
+      "context",
       "decimals",
       "export",
       "filters",
       "idle-message",
+      "label",
       "pagination",
+      "refine-on-click",
       "search",
       "server-sort",
       "sort",
@@ -226,6 +244,7 @@ export const COMPONENT_CONTRACT = {
       "tiles",
       "tiles-attribution",
       "tiles-style",
+      "tiles-switcher",
       "zoom"
     ]
   },
@@ -356,6 +375,7 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-query": {
     "attributes": [
       "aggregate",
+      "explode",
       "filter",
       "group-by",
       "limit",

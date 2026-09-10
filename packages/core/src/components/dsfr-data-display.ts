@@ -1,7 +1,9 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { getByPath } from '../utils/json-path.js';
+import { escapeHtml } from '@dsfr-data/shared/lib';
 import {
   renderTemplate,
   resolveTemplateExpression,
@@ -63,8 +65,12 @@ import { PaginationController } from '../utils/pagination-controller.js';
  */
 let displayInstanceSeq = 0;
 
+/**
+ * @fires dsfr-data-select - `{ record, elementId, selected }` sur le composant (bubbles, composed) — au clic sur un élément en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur le même élément, ou croix du tag de contexte).
+ * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `display-select-ID`. Avec `context`, c'est le contexte qui diffuse.
+ */
 @customElement('dsfr-data-display')
-export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
+export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
   /** Prefixe d'ids DOM unique par instance (#304 — item-N duplique entre displays) */
   private readonly _uid = `dsfr-display-${++displayInstanceSeq}`;
   /** Id de la source (ou du transformateur) dont ce composant consomme les données. */
@@ -106,6 +112,39 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
    */
   @property({ type: String, attribute: 'idle-message' })
   idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  // --- Sélection au clic (#734, ADR-104 — mixin partagé avec la carte) ---
+
+  /**
+   * Champ dont la valeur de l'élément cliqué devient un filtre `eq` (#734).
+   * Premier clic = filtre, second clic sur le même élément = retrait, clic sur
+   * un autre élément = remplacement. Chaque élément reçoit un bouton
+   * « Filtrer sur … », atteignable au clavier et dont l'état est annoncé
+   * (`aria-pressed`) : la mise en avant de l'élément sélectionné n'est jamais
+   * la seule marque. Avec `context="id"` (recommandé), le composant
+   * s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses
+   * sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags,
+   * URL portée par le contexte. Sans `context`, la clause part directement à
+   * `source` (whereKey `display-select-ID`) — sans tag ni URL, et la liste se
+   * filtre elle-même (seul l'élément cliqué reste, jusqu'au second clic).
+   */
+  @property({ type: String, attribute: 'refine-on-click' })
+  refineOnClick = '';
+
+  /**
+   * Identifiant du dsfr-data-context auquel s'enregistrer en
+   * `refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le
+   * composant dans la page. Vide = commande directe à `source` (chemin dégradé).
+   */
+  @property({ type: String })
+  context = '';
+
+  /**
+   * Libellé du tag de contexte en `refine-on-click` (#734). Vide = le nom du
+   * champ filtré.
+   */
+  @property({ type: String })
+  label = '';
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -180,6 +219,25 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     this._hashScrollDone = false;
     // Detection serveur (#270) ; le controleur preserve ?page=N (#304)
     this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
+  }
+
+  // --- Sélection au clic (#734, mixin partagé avec la carte) ---
+
+  /** whereKey du chemin dégradé : `display-select-ID` */
+  protected selectionWhereKeyPrefix(): string {
+    return 'display-select';
+  }
+
+  /** Repli d'identifiant : le préfixe d'ids DOM de l'instance (#304) */
+  protected selectionUid(): string {
+    return this._uid;
+  }
+
+  /** La sélection a changé : redessiner l'état des éléments et l'annoncer */
+  protected onSelectionChange(): void {
+    this.requestUpdate();
+    const value = this._selectedValue();
+    this._announce(value ? `Filtre appliqué : ${value}` : 'Filtre retiré');
   }
 
   updated(changedProperties: Map<string, unknown>) {
@@ -294,19 +352,76 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
     // l'offset se calcule avec la taille de page SERVEUR (pas l'attribut
     // pagination local)
     const startIndex = this._pager.pageOffset();
+    const refine = this.selectionField !== '';
+    // Le rendu passe par une chaîne : le clic est délégué au conteneur et
+    // l'élément retrouvé par son index de page (#734)
+    this._renderedItems = items;
 
     const itemsHtml = items
       .map((item, i) => {
         const globalIndex = startIndex + i;
         const rendered = this._renderItem(item, globalIndex);
         const uid = this._getItemUid(item, globalIndex);
-        return `<div class="${colClass}" id="${uid}">${rendered}</div>`;
+        if (!refine) return `<div class="${colClass}" id="${uid}">${rendered}</div>`;
+        const selected = this.isSelected(item);
+        const classes = `${colClass} dsfr-data-display__item${
+          selected ? ' dsfr-data-display__item--selected' : ''
+        }`;
+        return (
+          `<div class="${classes}" id="${uid}" data-dsfr-select="${i}"` +
+          `${selected ? ' aria-current="true"' : ''}>${rendered}` +
+          this._renderSelectButton(item, i, selected) +
+          `</div>`
+        );
       })
       .join('');
 
     const gridHtml = `<div class="fr-grid-row ${this.gap}">${itemsHtml}</div>`;
-    return html`<div .innerHTML="${gridHtml}"></div>`;
+    return html`<div
+      @click="${refine ? this._handleGridClick : nothing}"
+      .innerHTML="${gridHtml}"
+    ></div>`;
   }
+
+  /**
+   * Bouton de sélection d'un élément (#734) : c'est lui le chemin clavier et
+   * le porteur de l'état annoncé (`aria-pressed`). Son libellé change avec
+   * l'état — la mise en avant de la carte n'est jamais la seule marque.
+   */
+  private _renderSelectButton(
+    item: Record<string, unknown>,
+    index: number,
+    selected: boolean
+  ): string {
+    const value = this.selectionValueOf(item);
+    const action = selected ? `Retirer le filtre ${value}` : `Filtrer sur ${value}`;
+    const icon = selected ? 'fr-icon-check-line' : 'fr-icon-filter-line';
+    return (
+      `<button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary ${icon} fr-btn--icon-left ` +
+      `dsfr-data-display__select-btn" aria-pressed="${selected ? 'true' : 'false'}" ` +
+      `data-dsfr-select="${index}">${escapeHtml(action)}</button>`
+    );
+  }
+
+  /**
+   * Clic délégué sur la grille : le bouton de sélection ou n'importe où sur
+   * l'élément (confort à la souris), sans voler le clic d'un lien ou d'un
+   * contrôle rendu par le template.
+   */
+  private _handleGridClick = (event: Event) => {
+    const target = event.target as Element | null;
+    if (!target) return;
+    const button = target.closest('button[data-dsfr-select]');
+    const holder = button ?? target.closest('[data-dsfr-select]');
+    if (!holder) return;
+    if (!button && target.closest('a, button, input, select, textarea, label')) return;
+    const index = Number(holder.getAttribute('data-dsfr-select'));
+    const item = this._renderedItems[index];
+    if (item) this._onFeatureClick(item);
+  };
+
+  /** Éléments du dernier rendu — l'index délégué y renvoie */
+  private _renderedItems: Record<string, unknown>[] = [];
 
   private _renderPagination(totalPages: number) {
     // En mode serveur la pagination s'affiche meme sans attribut
@@ -466,6 +581,12 @@ export class DsfrDataDisplay extends SourceSubscriberMixin(LitElement) {
           color: var(--text-mention-grey, #666);
           padding: 2rem;
           font-size: 0.875rem;
+        }
+        .dsfr-data-display__select-btn {
+          margin-top: 0.5rem;
+        }
+        .dsfr-data-display__item--selected {
+          box-shadow: inset 0 0 0 2px var(--border-active-blue-france, #000091);
         }
       </style>
     `;

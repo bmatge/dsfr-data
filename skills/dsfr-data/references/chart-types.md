@@ -64,6 +64,8 @@ Guide pour choisir le type de visualisation adapte aux données.
 ### Carte mondiale (map-monde)
 - **Quand** : données internationales par pays
 - **Champs** : code-field (code pays ISO 3166-1 : alpha-2 "FR", alpha-3 "FRA" ou numerique "250" — convertis automatiquement en alpha-2), value-field
+- **Nom de pays en francais accepte** : "Allemagne", "allemagne", "l'Allemagne", "Pays-Bas", "Etats-Unis", "Cote d'Ivoire" valent leur code (insensible a la casse, aux accents, aux traits d'union et a l'article). Formes longues courantes reconnues ("Republique federale d'Allemagne", "Republique tcheque"/"Tchequie", "Birmanie"/"Myanmar")
+- **Liste blanche** : un nom hors referentiel (ex. "Angleterre", qui n'est pas le Royaume-Uni) est ignore ET compte (console + volet Diagnostic), jamais devine
 - **Palette recommandee** : sequentialAscending
 
 ### Séries multiples (bar, line, bar-line, radar)
