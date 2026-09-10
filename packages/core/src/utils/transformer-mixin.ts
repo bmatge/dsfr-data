@@ -13,9 +13,9 @@
  *   cache initial (hook de veto pour query, #276) ;
  * - la re-souscription via `reinitTransformer()` — cleanup TOUJOURS en
  *   premier, même si la nouvelle config est invalide ;
- * - les états loading/error avec les contrats publics `isLoading()` /
- *   `getError()` identiques partout ; l'erreur est remise à null à chaque
- *   succès ;
+ * - les états loading/error/attente avec les contrats publics `isLoading()` /
+ *   `getError()` / `isIdle()` identiques partout ; l'erreur est remise à null
+ *   à chaque succès ;
  * - la ré-émission aval : meta de pagination posée AVANT `dispatchDataLoaded`
  *   (#282 — `document.dispatchEvent` est synchrone, l'aval lirait sinon la
  *   meta du batch précédent) ;
@@ -58,6 +58,9 @@ type Constructor<T = object> = new (...args: any[]) => T;
 export interface TransformerInterface {
   isLoading(): boolean;
   getError(): Error | null;
+  isIdle(): boolean;
+  /** L'amont attend un filtre (`require-where`, #690) — état « attente ». */
+  _transformerIdle: boolean;
   reinitTransformer(): void;
   emitTransformedData(data: unknown): void;
   emitTransformerError(error: Error): void;
@@ -72,6 +75,18 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
     /** Dernière erreur amont/traitement (contrat public via getError()) */
     _transformerError: Error | null = null;
+
+    /**
+     * L'amont attend un filtre (#690) — contrat public via isIdle().
+     *
+     * `emitTransformerIdle()` propageait l'état aval sans jamais le rendre
+     * lisible par l'hôte : aucun transformateur ne pouvait donc afficher
+     * l'attente, là où `SourceSubscriberMixin` porte `_sourceIdle` (#728).
+     * Purement un ÉTAT DE RENDU : il n'y a ni données périmées ni erreur à
+     * montrer, et surtout pas un « aucune donnée » qui laisserait croire que
+     * la requête a été faite pour rien.
+     */
+    _transformerIdle = false;
 
     /** Désabonnements des sources amont (1 par source, join en a 2) */
     _transformerUnsubs: Array<() => void> = [];
@@ -202,6 +217,11 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       return this._transformerError;
     }
 
+    /** Attente d'un filtre amont (`require-where`, #690, #728) */
+    public isIdle(): boolean {
+      return this._transformerIdle;
+    }
+
     // --- Orchestration ---
 
     /**
@@ -213,6 +233,11 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       // vidée au runtime) ne doit pas laisser l'ancien abonnement vivant
       // (fuite historique de facets/search).
       this._cleanup();
+
+      // Purge de l'attente : changer de `source` ne doit pas laisser le
+      // message « choisissez un filtre » d'un amont qu'on vient de quitter
+      // (#728). Repositionné juste après par isDataIdle() si besoin.
+      this._transformerIdle = false;
 
       const error = this.validateTransformerConfig();
       if (error) {
@@ -246,6 +271,7 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
               // Une émission réussie efface l'erreur précédente — query ne
               // le faisait jamais (#280)
               this._transformerError = null;
+              this._transformerIdle = false;
               this.onTransformerData(data, sourceId, index);
               this.requestUpdate();
             },
@@ -278,6 +304,7 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       if (!this.id) return;
       this._transformerLoading = false;
       this._transformerError = null;
+      this._transformerIdle = false;
 
       const primary = this.transformerSources()[0];
       const upstreamMeta = primary ? getDataMeta(primary) : undefined;
@@ -292,6 +319,7 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     public emitTransformerError(error: Error): void {
       this._transformerError = error;
       this._transformerLoading = false;
+      this._transformerIdle = false;
       if (this.id) dispatchDataError(this.id, error);
       this.requestUpdate();
     }
@@ -305,6 +333,7 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     public emitTransformerIdle(): void {
       this._transformerLoading = false;
       this._transformerError = null;
+      this._transformerIdle = true;
       if (this.id) dispatchDataIdle(this.id);
       this.requestUpdate();
     }
@@ -312,6 +341,7 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     /** Chargement : état + propagation aval */
     public emitTransformerLoading(): void {
       this._transformerLoading = true;
+      this._transformerIdle = false;
       if (this.id) dispatchDataLoading(this.id);
       this.requestUpdate();
     }

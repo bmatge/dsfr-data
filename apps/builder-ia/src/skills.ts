@@ -618,8 +618,8 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | rename | String | \`""\` | non | Renommage : \`"ancien:nouveau \\| ancien2:nouveau2"\` (pipe-separe) |
 | trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
 | strip-html | Boolean | \`false\` | non | Supprime les balises HTML des valeurs string |
-| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe). Egalite stricte sur la valeur entiere, pas de regex. Un \`:\` littéral dans le pattern s'échappe en \`%3A\` (\`%7C\`, \`%2C\`, \`%25\` idem) : \`"10%3A00:10h"\`. |
-| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. Un \`:\` littéral dans le pattern s'échappe en \`%3A\` : \`"h:10%3A00:10h"\`. Pas de regex : pour un recodage plus riche (sous-chaine, annee d'une date), utiliser \`compute\` avec \`replace()\` ou \`year()\`. |
+| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe). Egalite stricte sur la FORME CHAINE de la valeur entiere, pas de regex : une colonne numerique ou booleenne est concernee aussi (#730). Un \`:\` littéral dans le pattern s'échappe en \`%3A\` (\`%7C\`, \`%2C\`, \`%25\` idem) : \`"10%3A00:10h"\`. |
+| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. Egalite stricte sur la forme chaine de la valeur : \`replace-fields="annee:2024:2024-2025"\` fonctionne sur une colonne numerique (#730). Un \`:\` littéral dans le pattern s'échappe en \`%3A\` : \`"h:10%3A00:10h"\`. Pas de regex : pour un recodage plus riche (sous-chaine, annee d'une date), utiliser \`compute\` avec \`replace()\` ou \`year()\`. |
 | split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
@@ -1004,7 +1004,8 @@ Les compteurs de facettes se recalculent dynamiquement.
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
-| count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`). Voir Accessibilité : il n'est une région live que sans afficheur aval |
+| count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (\`require-where\`), le compteur cède la place au message d'attente |
+| idle-message | String | "Choisissez un filtre pour afficher les données" | non | Message rendu à la place du compteur quand l'amont attend un filtre (\`require-where\`). Nécessite \`count\` |
 | url-search-param | String | "" | non | Nom du parametre d'URL a lire comme terme de recherche initial |
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
