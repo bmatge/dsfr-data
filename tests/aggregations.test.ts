@@ -122,4 +122,56 @@ describe('aggregations', () => {
       expect(computeAggregation('invalid', 'avg:score')).toBe(null);
     });
   });
+
+  describe('min / max sur des dates ISO (#667)', () => {
+    const rows = [
+      { maj: '2026-09-01', prix: 1.749 },
+      { maj: '2026-09-09', prix: 1.799 },
+      { maj: '2026-08-30', prix: 1.7 },
+    ];
+
+    it('AC : max renvoie la date ISO la plus récente (grammaire commune et historique)', () => {
+      expect(computeAggregation(rows, 'maj:max')).toBe('2026-09-09');
+      expect(computeAggregation(rows, 'max:maj')).toBe('2026-09-09');
+    });
+
+    it('min renvoie la date ISO la plus ancienne', () => {
+      expect(computeAggregation(rows, 'maj:min')).toBe('2026-08-30');
+    });
+
+    it('avant #667, toNumber("2026-09-09") valait 2026 : plus de faux maximum numérique', () => {
+      expect(computeAggregation(rows, 'maj:max')).not.toBe(2026);
+    });
+
+    it('accepte les datetime ISO (T ou espace, Z ou décalage) et ignore les vides', () => {
+      // Comparaison textuelle (espace ramené à T) : les décalages horaires ne
+      // sont pas convertis — une colonne homogène est l'usage attendu.
+      const dt = [
+        { at: '2026-09-09T08:00:00Z' },
+        { at: '' },
+        { at: null },
+        { at: '2026-09-09 17:30:00' },
+        { at: '2026-09-08T23:59:59+02:00' },
+      ];
+      expect(computeAggregation(dt, 'at:max')).toBe('2026-09-09 17:30:00');
+      expect(computeAggregation(dt, 'at:min')).toBe('2026-09-08T23:59:59+02:00');
+    });
+
+    it('colonne numérique : comportement INCHANGÉ (nombres, décimales françaises)', () => {
+      expect(computeAggregation(rows, 'prix:max')).toBe(1.799);
+      expect(computeAggregation(rows, 'prix:min')).toBe(1.7);
+      const fr = [{ v: '1 234,5' }, { v: '99' }];
+      expect(computeAggregation(fr, 'v:max')).toBe(1234.5);
+    });
+
+    it('colonne mixte (dates et nombres) : chemin numérique, pas de comparaison de dates', () => {
+      const mixed = [{ v: '2026-09-09' }, { v: 3000 }];
+      expect(computeAggregation(mixed, 'v:max')).toBe(3000);
+    });
+
+    it('first / last renvoient la chaîne ISO brute (formatée par le KPI via format="date")', () => {
+      expect(computeAggregation(rows, 'maj:first')).toBe('2026-09-01');
+      expect(computeAggregation(rows, 'maj:last')).toBe('2026-08-30');
+    });
+  });
 });

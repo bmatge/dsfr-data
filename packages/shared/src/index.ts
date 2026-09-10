@@ -11,13 +11,15 @@ export {
   formatDateShort,
   formatValue,
   formatNumber,
+  formatNumberFr,
   formatPercentage,
   formatCurrency,
   formatDecimal,
-  formatNumberFr,
   formatDate,
+  FORMAT_TYPES,
+  isFormatType,
 } from './utils/formatters.js';
-export type { FormatType } from './utils/formatters.js';
+export type { FormatType, FormatValueOptions } from './utils/formatters.js';
 export { toNumber, looksLikeNumber } from './utils/number-parser.js';
 export { isValidDeptCode, normalizeDeptCode } from './utils/dept-codes.js';
 export type { JoinType, JoinKey, JoinOptions } from './utils/join.js';

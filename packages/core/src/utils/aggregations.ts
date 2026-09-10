@@ -170,6 +170,10 @@ export function computeAggregation(data: unknown, expression: string): number | 
     }
 
     case 'min': {
+      // Colonne de dates ISO (#667) : ordre lexicographique, AVANT le chemin
+      // numerique — toNumber('2026-09-09') vaudrait 2026.
+      const dates = collectIsoDates(items, parsed.field);
+      if (dates) return dates.reduce((acc, d) => (isoKey(d) < isoKey(acc) ? d : acc));
       // Le garde portait sur items.length, pas sur le tableau filtre :
       // aucune valeur numerique -> Math.min(...[]) = Infinity (#301)
       const values = collectNumericValues(items, parsed.field);
@@ -177,6 +181,8 @@ export function computeAggregation(data: unknown, expression: string): number | 
     }
 
     case 'max': {
+      const dates = collectIsoDates(items, parsed.field);
+      if (dates) return dates.reduce((acc, d) => (isoKey(d) > isoKey(acc) ? d : acc));
       const values = collectNumericValues(items, parsed.field);
       return values.length > 0 ? Math.max(...values) : null;
     }
@@ -200,6 +206,44 @@ function collectNumericValues(items: Record<string, unknown>[], field: string): 
     if (v !== null) out.push(v);
   }
   return out;
+}
+
+/**
+ * Date ISO 8601 : `AAAA-MM-JJ`, ou datetime `AAAA-MM-JJThh:mm[:ss[.mmm]][Z|+hh:mm]`
+ * (separateur `T` ou espace). Validation de FORME seulement : l'ordre
+ * lexicographique de ces chaines est l'ordre chronologique.
+ */
+const ISO_DATE_RE =
+  /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+/**
+ * Cle de comparaison d'une date ISO : le separateur espace est ramene a `T`
+ * pour que `2026-09-09 17:30` et `2026-09-09T08:00` se comparent entre eux.
+ * Les decalages horaires ne sont PAS normalises (comparaison textuelle).
+ */
+function isoKey(value: string): string {
+  return value.replace(' ', 'T');
+}
+
+/** Une valeur est-elle une chaine de date ISO (#667) ? */
+export function isIsoDateString(value: unknown): value is string {
+  return typeof value === 'string' && ISO_DATE_RE.test(value.trim());
+}
+
+/**
+ * Valeurs d'un champ quand la colonne est une colonne de DATES ISO (#667) :
+ * toutes les valeurs renseignees sont des chaines ISO (au moins une). Sinon
+ * null — la colonne suit le chemin numerique, inchange (#301).
+ */
+function collectIsoDates(items: Record<string, unknown>[], field: string): string[] | null {
+  const out: string[] = [];
+  for (const item of items) {
+    const v = getByPath(item, field);
+    if (v === null || v === undefined || v === '') continue;
+    if (!isIsoDateString(v)) return null;
+    out.push(v.trim());
+  }
+  return out.length > 0 ? out : null;
 }
 
 /** Egalite lache alignee sur dsfr-data-query (#278/#303) */

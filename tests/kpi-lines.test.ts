@@ -63,6 +63,60 @@ describe('resolveKpiLine — data-driven', () => {
   });
 });
 
+describe('resolveKpiLine — decimals, unit, format date (#665, #667)', () => {
+  const norm = (s: string) => s.replace(/\s+/g, ' ');
+
+  it('decimals fixe les décimales de la ligne (euro à 3 décimales)', () => {
+    const line = resolveKpiLine({ value: 'prix:avg', format: 'euro', decimals: 3 }, [
+      { prix: 1.749 },
+    ]);
+    expect(norm(line!.text)).toBe('1,749 €');
+  });
+
+  it('unit accole une unité après la valeur, avant le suffix', () => {
+    const line = resolveKpiLine(
+      { value: 'm:sum', format: 'compact', unit: '€', suffix: 'de budget' },
+      [{ m: 44_900_000_000 }]
+    );
+    expect(norm(line!.text)).toBe('44,9 Md € de budget');
+  });
+
+  it('sign + decimals + unit se combinent', () => {
+    const line = resolveKpiLine(
+      { value: 'evol:avg', format: 'decimal', decimals: 2, unit: 'pts', sign: true },
+      [{ evol: 1.5 }]
+    );
+    expect(norm(line!.text)).toBe('+1,50 pts');
+  });
+
+  it('format "date" rend une chaîne ISO (max) en JJ/MM/AAAA, avec préfixe', () => {
+    const line = resolveKpiLine({ value: 'maj:max', format: 'date', prefix: 'Mis à jour le' }, [
+      { maj: '2026-09-01' },
+      { maj: '2026-09-09' },
+    ]);
+    expect(norm(line!.text)).toBe('Mis à jour le 09/09/2026');
+    expect(line!.color).toBeNull();
+  });
+
+  it('format "date" : repli `na` si illisible, masquée sinon ; color auto ignorée', () => {
+    expect(resolveKpiLine({ value: 'maj', format: 'date' }, [{ maj: 'hier' }])).toBeNull();
+    const line = resolveKpiLine({ value: 'maj', format: 'date', na: 'n.d.', color: 'auto' }, [
+      { maj: 'hier' },
+    ]);
+    expect(line!.text).toBe('n.d.');
+    expect(line!.color).toBeNull();
+    const ok = resolveKpiLine({ value: 'maj', format: 'date', color: 'auto' }, [
+      { maj: '2026-09-09' },
+    ]);
+    expect(ok!.color).toBeNull();
+  });
+
+  it('défauts inchangés sans decimals/unit', () => {
+    const line = resolveKpiLine({ value: 'evol:avg', sign: true }, [{ evol: 92.5 }]);
+    expect(norm(line!.text)).toBe('+92,5 %');
+  });
+});
+
 describe('resolveKpiLine — texte statique & couleurs', () => {
   it('rend un texte statique avec couleur token française', () => {
     const line = resolveKpiLine({ text: 'Donnée mai 2026', color: 'gris' }, null);

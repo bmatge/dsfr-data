@@ -40,9 +40,9 @@ describe('formatNumberFr (#666 — cellules des tableaux affichés)', () => {
     expect(formatNumberFr(2.27, {})).toBe('2,27');
   });
 
-  it('ne casse pas sur NaN / Infinity', () => {
-    expect(formatNumberFr(NaN)).toBe('NaN');
-    expect(formatNumberFr(Infinity)).toBe('Infinity');
+  it('rend un tiret sur NaN / Infinity', () => {
+    expect(formatNumberFr(NaN)).toBe('—');
+    expect(formatNumberFr(Infinity)).toBe('—');
   });
 
   it('est exporté par les deux barrels (lib.ts et index.ts)', () => {
