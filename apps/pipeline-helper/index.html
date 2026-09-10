@@ -51,7 +51,10 @@
   </app-action-bar>
 
 
-  <div class="pipeline-page">
+  <!-- Seule app dont le lien d'evitement de app-header pointait reellement
+       dans le vide (#627). `role="main"` plutot qu'un <main> : la balise
+       n'existe pas ici et l'imbrication de cette page ne s'y prete pas. -->
+  <div class="pipeline-page" id="main-content" role="main" tabindex="-1">
     <!-- Main content: 2/3 editor + 1/3 inspector -->
     <div class="pipeline-layout">
       <div class="pipeline-layout__editor">
