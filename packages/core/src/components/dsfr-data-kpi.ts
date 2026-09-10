@@ -9,7 +9,13 @@ import {
   FormatType,
   getColorBySeuil,
 } from '../utils/formatters.js';
-import { computeAggregation, parseExpression } from '../utils/aggregations.js';
+import {
+  computeAggregation,
+  parseExpression,
+  countsReceivedRows,
+  isRateExpression,
+  type AggregationContext,
+} from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
@@ -19,16 +25,10 @@ import {
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
 import { getDataMeta } from '../utils/data-bridge.js';
+import { getByPath } from '../utils/json-path.js';
+import { applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
-
-/**
- * Expression speciale `value="meta:total"` (#659) : le total publie dans la
- * meta de la source (`total_count` serveur en `server-side`, lignes avant
- * `limit` derriere un query), pas un agregat des lignes recues. Meme
- * grammaire `champ:fn` que le reste, sans prefixe `$`.
- */
-const META_TOTAL_EXPR = 'meta:total';
 
 const COLOR_CLASSES: Record<KpiColor, string> = {
   vert: 'dsfr-data-kpi--success',
@@ -62,9 +62,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Expression de valeur — convention cible anglaise (#300).
    * Grammaire commune "champ:fn" (#303), ex. value="population:sum".
+   * `champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs
+   * distinctes, null et chaîne vide exclus, calculé sur les lignes reçues.
    * `meta:total` (#659) : total publié par l'amont (total serveur en
    * server-side, lignes avant `limit` derrière un query) — `count` ne
    * compte que les lignes reçues.
+   * Ratio (#673) : `value="count:statut:ouvert / count"`, chaque côté dans
+   * la grammaire ci-dessus (`meta:total` compris). Résultat = fraction
+   * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
+   * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
+   * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
+   * `champ:evolution` (#675) : (dernière − première) / première sur les
+   * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
+   * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,
+   * `trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.
    */
   @property({ type: String })
   value = '';
@@ -72,6 +83,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /** @deprecated alias français de `value` (#300) */
   @property({ type: String })
   valeur = '';
+
+  /**
+   * Filtre des lignes AVANT le calcul (#674), dialecte colon de
+   * dsfr-data-query : `where="categorie:eq:Actif, montant:gte:1000"` —
+   * mêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,
+   * in, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués
+   * acceptés. Appliqué à `value`, `trend` et `lines`.
+   * CÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre
+   * porte sur les lignes reçues (derrière un `limit` ou une page, poser le
+   * `where` sur la source ou une query amont). `meta:total` n'en tient pas
+   * compte. Une clause non reconnue est une erreur de configuration.
+   */
+  @property({ type: String })
+  where = '';
 
   /**
    * Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises).
@@ -131,6 +156,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une
    * valeur, la chaine etait interpretee comme nom de champ (#303).
    * Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %").
+   * `trend="recettes:evolution"` (#675) : taux d'évolution entre la première
+   * et la dernière ligne, rendu en pourcentage.
    */
   @property({ type: String })
   trend = '';
@@ -223,6 +250,22 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   static styles = css``;
 
+  /**
+   * Lignes de la source après le `where` client (#674). Sans `where` (ou
+   * avec un `where` invalide, déjà signalé), les données brutes — y compris
+   * une source mono-objet, que computeAggregation sait lire.
+   */
+  private _filteredData(): unknown {
+    const data = this._sourceData;
+    if (!this.where || data == null || validateColonFilter(this.where) !== null) return data;
+    const rows: Record<string, unknown>[] = Array.isArray(data)
+      ? (data as Record<string, unknown>[])
+      : typeof data === 'object'
+        ? [data as Record<string, unknown>]
+        : [];
+    return applyLocalFilter(rows, this.where, getByPath);
+  }
+
   private _computeValue(): number | string | null {
     const expr = this.value || this.valeur;
     if (!expr) return null;
@@ -236,13 +279,37 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     }
     if (!this._sourceData) return null;
     const rows = Array.isArray(this._sourceData) ? this._sourceData.length : 1;
-    // Total de la meta (#659) : suit recherche et facettes en server-side,
-    // la source reposant sa meta a chaque fetch avant d'emettre.
-    if (expr === META_TOTAL_EXPR) {
-      return getDataMeta(this.source)?.total ?? rows;
+    const parsed = parseExpression(expr);
+    // Le warn compare le total amont aux lignes RECUES (avant `where`) :
+    // un filtre qui garde 3 lignes sur 12 n'est pas une troncature.
+    if (countsReceivedRows(parsed)) {
+      this._warnPartialCount(rows, parsed.type === 'distinct' ? 'distinct' : 'count');
     }
-    if (parseExpression(expr).type === 'count') this._warnPartialCount(rows);
-    return computeAggregation(this._sourceData, expr);
+    // `meta:total` (#659) est résolu par le contexte : total de l'amont,
+    // que le `where` client (#674) ne filtre pas.
+    const raw = computeAggregation(this._filteredData(), expr, this._aggregationContext());
+    return this._scaleRate(raw, expr, this.format);
+  }
+
+  /** Contexte d'évaluation : total publié par l'amont (`meta:total`, #659). */
+  private _aggregationContext(): AggregationContext {
+    return { metaTotal: getDataMeta(this.source)?.total };
+  }
+
+  /**
+   * Un ratio (#673) est une fraction ; en `format="pourcentage"` on la rend
+   * en pourcentage (0,35 -> 35). La valeur retournée par `_computeValue` est
+   * celle qui s'affiche : seuils et aria-label parlent de la même unité.
+   */
+  private _scaleRate(
+    value: number | string | null,
+    expr: string,
+    format: string
+  ): number | string | null {
+    if (typeof value === 'number' && format === 'pourcentage' && isRateExpression(expr)) {
+      return value * 100;
+    }
+    return value;
   }
 
   /**
@@ -263,13 +330,13 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * pagination serveur ou un plafond `max-records`, ce n'est pas le total.
    * Trois annuaires ont affiche « 12 activites » pour 28 pendant sept lots.
    */
-  private _warnPartialCount(rows: number): void {
+  private _warnPartialCount(rows: number, fn: 'count' | 'distinct' = 'count'): void {
     if (this._partialCountWarned) return;
     const total = getDataMeta(this.source)?.total;
     if (typeof total !== 'number' || total <= rows) return;
     this._partialCountWarned = true;
     console.warn(
-      `dsfr-data-kpi: value="count" sur "${this.source}" compte ${rows} lignes reçues, ` +
+      `dsfr-data-kpi: value="${fn}" sur "${this.source}" compte ${rows} lignes reçues, ` +
         `mais l'amont en détient ${total} (meta.total) — chiffre partiel (limit, page ou max-records). ` +
         `Pour le total : value="meta:total" (#659)`
     );
@@ -293,7 +360,13 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const trendExpr = this.trend || this.tendance;
     if (!trendExpr || !this._sourceData) return null;
 
-    const tendanceValue = computeAggregation(this._sourceData, trendExpr);
+    // La tendance est TOUJOURS rendue en pourcentage : un ratio y est mis à
+    // l'échelle (#673), une colonne d'évolution est déjà en points de %.
+    const tendanceValue = this._scaleRate(
+      computeAggregation(this._filteredData(), trendExpr, this._aggregationContext()),
+      trendExpr,
+      'pourcentage'
+    );
     if (typeof tendanceValue !== 'number') return null;
 
     return {
@@ -307,7 +380,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     if (!this.lines) return [];
     const specs = parseKpiLines(this.lines);
     if (!specs) return [];
-    return resolveKpiLines(specs, this._sourceData);
+    return resolveKpiLines(specs, this._filteredData(), this._aggregationContext());
   }
 
   /** Dernier message d'erreur de config posé (anti-spam console). */
@@ -337,10 +410,20 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     this._blockingConfigError = null;
 
     const valueExpr = this.value || this.valeur;
-    if (valueExpr && !valueExpr.startsWith('=') && valueExpr !== META_TOTAL_EXPR) {
+    if (valueExpr && !valueExpr.startsWith('=')) {
       const parsed = parseExpression(valueExpr);
       if (parsed.type === 'invalid') {
         message = `value="${valueExpr}" : ${parsed.error}`;
+        this._blockingConfigError = message;
+      }
+    }
+
+    // `where` non parsable (#674) : bloquant — un filtre ignoré en silence
+    // afficherait un chiffre faux avec l'aplomb d'un chiffre juste.
+    if (!message && this.where) {
+      const whereError = validateColonFilter(this.where);
+      if (whereError) {
+        message = `where="${this.where}" : ${whereError}`;
         this._blockingConfigError = message;
       }
     }
@@ -368,7 +451,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       if (trendExpr && parseExpression(trendExpr).type === 'invalid') {
         message = `trend="${trendExpr}" : ${parseExpression(trendExpr).error}`;
       } else if (trendExpr && this._sourceData != null) {
-        const v = computeAggregation(this._sourceData, trendExpr);
+        const v = computeAggregation(this._filteredData(), trendExpr, this._aggregationContext());
         if (typeof v !== 'number') {
           message =
             `trend="${trendExpr}" ne résout pas en nombre — attendu une ` +

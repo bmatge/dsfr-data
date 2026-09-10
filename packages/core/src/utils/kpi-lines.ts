@@ -1,4 +1,4 @@
-import { computeAggregation } from './aggregations.js';
+import { computeAggregation, isRateExpression, type AggregationContext } from './aggregations.js';
 import { formatValue, type FormatType } from './formatters.js';
 
 /**
@@ -13,7 +13,7 @@ import { formatValue, type FormatType } from './formatters.js';
 
 /** Specification d'une ligne (un item du tableau JSON `lines`). */
 export interface KpiLineSpec {
-  /** Expression "champ:fn" calculee sur la source (ex. "evol:avg"). */
+  /** Expression "champ:fn" calculee sur la source (ex. "evol:avg"), ou un ratio "expr / expr" (#673). */
   value?: string;
   /** Texte statique. Ignore si `value` est fourni. */
   text?: string;
@@ -90,10 +90,23 @@ function joinParts(prefix: string | undefined, body: string, suffix: string | un
  * Resout une ligne en `{ text, color }`, ou null si elle doit etre masquee
  * (valeur non resoluble sans repli `na`, ou spec vide).
  */
-export function resolveKpiLine(spec: KpiLineSpec, data: unknown): ResolvedKpiLine | null {
+export function resolveKpiLine(
+  spec: KpiLineSpec,
+  data: unknown,
+  context: AggregationContext = {}
+): ResolvedKpiLine | null {
   // Ligne data-driven : la valeur prime sur le texte statique.
   if (spec.value) {
-    const raw = computeAggregation(data, spec.value);
+    let raw = computeAggregation(data, spec.value, context);
+    // Ratio (#673) : fraction mise a l'echelle du pourcentage quand la ligne
+    // est rendue en pourcentage (format par defaut).
+    if (
+      typeof raw === 'number' &&
+      (spec.format ?? 'pourcentage') === 'pourcentage' &&
+      isRateExpression(spec.value)
+    ) {
+      raw = raw * 100;
+    }
 
     // Ligne date (#667) : la valeur est une chaine ISO (first/last/min/max),
     // pas un nombre — formatee JJ/MM/AAAA, repli `na` si illisible.
@@ -146,6 +159,12 @@ export function resolveKpiLine(spec: KpiLineSpec, data: unknown): ResolvedKpiLin
 }
 
 /** Resout toutes les lignes, en filtrant celles a masquer. */
-export function resolveKpiLines(specs: KpiLineSpec[], data: unknown): ResolvedKpiLine[] {
-  return specs.map((s) => resolveKpiLine(s, data)).filter((l): l is ResolvedKpiLine => l !== null);
+export function resolveKpiLines(
+  specs: KpiLineSpec[],
+  data: unknown,
+  context: AggregationContext = {}
+): ResolvedKpiLine[] {
+  return specs
+    .map((s) => resolveKpiLine(s, data, context))
+    .filter((l): l is ResolvedKpiLine => l !== null);
 }

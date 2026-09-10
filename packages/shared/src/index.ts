@@ -74,7 +74,12 @@ export { DSFR_TAG_MAP, MAP_LEVEL_MAP } from './charts/chart-types.js';
 export type { DSFRChartType } from './charts/chart-types.js';
 
 // Query / Filters
-export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';
+export {
+  filterToOdsql,
+  applyLocalFilter,
+  validateColonFilter,
+  COLON_FILTER_OPERATORS,
+} from './query/filter-translator.js';
 export type { ContextFilterLike } from './query/context-filter.js';
 
 // API / Proxy

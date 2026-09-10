@@ -118,16 +118,65 @@ function compareForRange(value: unknown, ref: unknown): number | null {
   return String(value).localeCompare(String(ref));
 }
 
+/** Les 12 opérateurs du dialecte colon `champ:op[:valeur]` (query, KPI `where`). */
+export const COLON_FILTER_OPERATORS = [
+  'eq',
+  'neq',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'contains',
+  'notcontains',
+  'in',
+  'notin',
+  'isnull',
+  'isnotnull',
+] as const;
+
+/**
+ * Valide la grammaire colon d'un filtre (#674) sans l'appliquer : chaque
+ * clause doit être `champ:op[:valeur]` avec un opérateur connu, et une
+ * valeur sauf pour isnull/isnotnull. Retourne un message lisible (le
+ * composant y préfixe son nom et l'attribut), ou null si tout est parsable.
+ * Même contrat que la validation interne de dsfr-data-query.
+ */
+export function validateColonFilter(filterExpr: string): string | null {
+  const known: readonly string[] = COLON_FILTER_OPERATORS;
+  for (const part of filterExpr
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)) {
+    const segs = part.split(':');
+    if (segs.length < 2 || !segs[0].trim()) {
+      return `clause "${part}" non reconnue — syntaxe attendue "champ:opérateur[:valeur]" (ex. "categorie:eq:Actif")`;
+    }
+    const op = segs[1];
+    if (!known.includes(op)) {
+      return `opérateur inconnu "${op}" dans la clause "${part}" — opérateurs acceptés : ${known.join(', ')}`;
+    }
+    if (segs.length < 3 && op !== 'isnull' && op !== 'isnotnull') {
+      return `valeur manquante dans la clause "${part}" (seuls isnull/isnotnull s'utilisent sans valeur)`;
+    }
+  }
+  return null;
+}
+
 /**
  * Apply a dsfr-data-query style filter (field:operator:value) to local data rows.
  * Supports the same 12 operators as filterToOdsql — same input, same rows kept.
  * Sémantique null alignée sur dsfr-data-query (#278) : les opérateurs positifs
  * (eq, in, contains, comparaisons) ne matchent jamais null/undefined, les
  * négatifs (neq, notin, notcontains) les laissent passer.
+ *
+ * `getField` (#674) : résolution de la valeur d'un champ dans une ligne —
+ * par défaut la clé directe `row[field]` ; un consommateur qui accepte des
+ * chemins imbriqués (`fields.score`) passe son propre accesseur.
  */
 export function applyLocalFilter(
   data: Record<string, unknown>[],
-  filterExpr: string
+  filterExpr: string,
+  getField: (row: Record<string, unknown>, field: string) => unknown = (row, field) => row[field]
 ): Record<string, unknown>[] {
   const filters = filterExpr
     .split(',')
@@ -142,7 +191,7 @@ export function applyLocalFilter(
 
   return data.filter((row) =>
     filters.every((f) => {
-      const v = row[f.field];
+      const v = getField(row, f.field);
       const value = unescapeColonValue(f.rawValue);
       switch (f.op) {
         case 'eq':

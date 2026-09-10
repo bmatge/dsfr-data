@@ -6,16 +6,56 @@ import { getByPath } from './json-path.js';
  * Permet de calculer des agrégats (avg, sum, count, min, max) sur des tableaux de données
  */
 
-export type AggregationType = 'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last';
+export type AggregationType =
+  'avg' | 'sum' | 'count' | 'min' | 'max' | 'first' | 'last' | 'distinct' | 'evolution';
+
+/**
+ * Alias acceptés en entrée et ramenés à leur fonction canonique AVANT tout
+ * traitement : `count-distinct` = `distinct` (#672). L'alias de colonne et
+ * les traductions adaptateurs ne voient que la forme canonique.
+ */
+export const AGGREGATION_ALIASES: Readonly<Record<string, AggregationType>> = {
+  'count-distinct': 'distinct',
+};
+
+/** Fonction canonique d'un segment de fonction (alias résolus, #672). */
+export function canonicalAggregation(fn: string): string {
+  return AGGREGATION_ALIASES[fn] ?? fn;
+}
 
 export interface ParsedExpression {
-  /** `invalid` : fonction hors liste blanche (#649), `error` porte le message. */
-  type: AggregationType | 'direct' | 'invalid';
+  /**
+   * `invalid` : fonction hors liste blanche (#649), `error` porte le message.
+   * `meta` : `meta:total` (#659), total publié par l'amont.
+   * `ratio` : `<expr> / <expr>` (#673), `numerator` et `denominator` portent
+   * les deux côtés, chacun dans la grammaire mono-expression.
+   */
+  type: AggregationType | 'direct' | 'invalid' | 'meta' | 'ratio';
   field: string;
   filterField?: string;
   filterValue?: string | boolean | number;
   error?: string;
+  numerator?: ParsedExpression;
+  denominator?: ParsedExpression;
 }
+
+/**
+ * Contexte d'évaluation optionnel : `metaTotal` = total publié par l'amont
+ * (`meta:total`, #659), fourni par le composant qui connaît sa source.
+ */
+export interface AggregationContext {
+  metaTotal?: number;
+}
+
+/** Expression spéciale `meta:total` (#659). */
+export const META_TOTAL_EXPR = 'meta:total';
+
+/**
+ * Séparateur de ratio (#673) : une barre oblique ENTOURÉE d'espaces
+ * (`count:statut:ouvert / count`). Sans espaces, `/` reste un caractère de
+ * nom de champ (`km/h:avg`).
+ */
+const RATIO_SEPARATOR = /\s+\/\s+/;
 
 /** Fonctions d'agrégat acceptées par dsfr-data-kpi (grammaire "champ:fn"). */
 export const KPI_AGGREGATION_TYPES: readonly AggregationType[] = [
@@ -26,9 +66,26 @@ export const KPI_AGGREGATION_TYPES: readonly AggregationType[] = [
   'max',
   'first',
   'last',
+  'distinct',
+  'evolution',
 ];
 
 const AGG_TYPES: ReadonlySet<string> = new Set(KPI_AGGREGATION_TYPES);
+
+/**
+ * Fonctions lisibles dans l'ancienne grammaire inversée "fn:champ" (#303) :
+ * celles qui existaient à sa dépréciation. `distinct` (#672) et `evolution`
+ * (#675) ne s'écrivent qu'en grammaire commune "champ:fn".
+ */
+const LEGACY_AGG_TYPES: ReadonlySet<string> = new Set([
+  'avg',
+  'sum',
+  'count',
+  'min',
+  'max',
+  'first',
+  'last',
+]);
 
 let legacyGrammarWarned = false;
 
@@ -46,6 +103,10 @@ let legacyGrammarWarned = false;
  * - "fn:field"         -> ancienne grammaire kpi (dépréciée)
  * - "count"            -> compte tous les enregistrements
  * - "count:field:value"-> compte les occurrences où field == value (lâche)
+ * - "field:distinct"   -> nombre de valeurs distinctes (alias "count-distinct", #672)
+ * - "field:evolution"  -> (dernière − première) / première, dans l'ordre courant (#675)
+ * - "meta:total"       -> total publié par l'amont (#659), via le contexte
+ * - "<expr> / <expr>"  -> ratio de deux expressions ci-dessus (#673)
  *
  * Une expression à 2+ segments dont AUCUN segment de fonction n'est dans la
  * liste blanche (ex. `x:somme`) est renvoyée en `type: 'invalid'` avec un
@@ -53,7 +114,34 @@ let legacyGrammarWarned = false;
  * était lue comme fn="x" et produisait un KPI vide en silence.
  */
 export function parseExpression(expression: string): ParsedExpression {
-  const parts = expression.split(':');
+  const trimmed = expression.trim();
+
+  // Ratio (#673) : deux côtés séparés par ` / `, chacun parsé avec la
+  // grammaire mono-expression. Un côté invalide invalide le tout, avec le
+  // message du côté fautif ; plus d'un séparateur est refusé.
+  const sides = trimmed.split(RATIO_SEPARATOR);
+  if (sides.length > 1) {
+    if (sides.length > 2 || sides.some((side) => side === '')) {
+      return {
+        type: 'invalid',
+        field: '',
+        error:
+          `ratio "${expression}" mal formé — attendu exactement deux expressions ` +
+          `séparées par " / " (ex. "count:statut:ouvert / count")`,
+      };
+    }
+    const numerator = parseExpression(sides[0]);
+    const denominator = parseExpression(sides[1]);
+    const invalid = [numerator, denominator].find((side) => side.type === 'invalid');
+    if (invalid) return { type: 'invalid', field: '', error: invalid.error };
+    return { type: 'ratio', field: '', numerator, denominator };
+  }
+
+  if (trimmed === META_TOTAL_EXPR) return { type: 'meta', field: 'total' };
+
+  // Alias de fonction (`count-distinct` -> `distinct`, #672) résolus sur
+  // chaque segment : la grammaire commune et l'ancienne les acceptent.
+  const parts = trimmed.split(':').map(canonicalAggregation);
 
   if (parts.length === 1) {
     // "count" seul = compter tous les enregistrements
@@ -64,14 +152,19 @@ export function parseExpression(expression: string): ParsedExpression {
   }
 
   // Grammaire commune "field:fn" : parts[1] est une fonction connue et
-  // parts[0] n'en est pas une (un champ nommé 'sum' reste l'ancienne lecture)
-  if (parts.length === 2 && AGG_TYPES.has(parts[1]) && !AGG_TYPES.has(parts[0])) {
+  // parts[0] n'est pas une fonction de l'ancienne grammaire (un champ nommé
+  // 'count' — colonne d'un group-by — garde la lecture historique `sum:count`).
+  // Les fonctions ajoutées après la dépréciation (`distinct`, `evolution`)
+  // n'ont JAMAIS eu de forme inversée : `evolution:avg` est la moyenne de la
+  // colonne "evolution" (exemple documenté partout), pas l'évolution d'une
+  // colonne "avg" (#675).
+  if (parts.length === 2 && AGG_TYPES.has(parts[1]) && !LEGACY_AGG_TYPES.has(parts[0])) {
     return { type: parts[1] as AggregationType, field: parts[0] };
   }
 
   // Ni grammaire commune ("champ:fn") ni grammaire historique ("fn:champ",
   // "count:champ:valeur") : la fonction reçue est inconnue (#649).
-  if (!AGG_TYPES.has(parts[0])) {
+  if (!LEGACY_AGG_TYPES.has(parts[0])) {
     const received = parts.length === 2 ? parts[1] : parts[0];
     return {
       type: 'invalid',
@@ -110,11 +203,44 @@ export function parseExpression(expression: string): ParsedExpression {
 }
 
 /**
+ * Une expression est-elle un TAUX — ratio (#673) ou `evolution` (#675) —
+ * dont le résultat est une fraction (0,35) que `format="pourcentage"`,
+ * `trend` et les `lines` rendent en pourcentage (35 %) ? Les autres
+ * expressions renvoient une valeur dans l'unité de la colonne.
+ */
+export function isRateExpression(expression: string): boolean {
+  const type = parseExpression(expression).type;
+  return type === 'ratio' || type === 'evolution';
+}
+
+/**
+ * L'expression compte-t-elle les lignes REÇUES (count, distinct, ou un
+ * ratio qui en dépend) ? Sert au warn de troncature du KPI (#659).
+ */
+export function countsReceivedRows(parsed: ParsedExpression): boolean {
+  if (parsed.type === 'count' || parsed.type === 'distinct') return true;
+  if (parsed.type === 'ratio') {
+    return countsReceivedRows(parsed.numerator!) || countsReceivedRows(parsed.denominator!);
+  }
+  return false;
+}
+
+/**
  * Calcule une agrégation sur un tableau de données
  */
-export function computeAggregation(data: unknown, expression: string): number | string | null {
-  const parsed = parseExpression(expression);
+export function computeAggregation(
+  data: unknown,
+  expression: string,
+  context: AggregationContext = {}
+): number | string | null {
+  return evaluateParsed(data, parseExpression(expression), context);
+}
 
+function evaluateParsed(
+  data: unknown,
+  parsed: ParsedExpression,
+  context: AggregationContext
+): number | string | null {
   // Accès direct sur un objet seul (pas un tableau) : getByPath (#303) gère
   // les chemins imbriques — valeur="fields.score" echouait silencieusement.
   if (parsed.type === 'direct' && !Array.isArray(data)) {
@@ -138,6 +264,20 @@ export function computeAggregation(data: unknown, expression: string): number | 
   }
 
   switch (parsed.type) {
+    case 'meta':
+      // Total de l'amont (#659) ; sans meta, les lignes reçues.
+      return context.metaTotal ?? items.length;
+
+    case 'ratio': {
+      // Chaque côté doit résoudre en nombre (une chaîne numérique est
+      // acceptée) ; division par zéro ou côté non numérique -> null, rendu
+      // « — », jamais Infinity ni NaN (#673).
+      const num = toNumber(evaluateParsed(data, parsed.numerator!, context), true);
+      const den = toNumber(evaluateParsed(data, parsed.denominator!, context), true);
+      if (num === null || den === null || den === 0) return null;
+      return num / den;
+    }
+
     case 'direct':
     case 'first':
       return items.length > 0 ? (getByPath(items[0], parsed.field) as number | string) : null;
@@ -160,6 +300,22 @@ export function computeAggregation(data: unknown, expression: string): number | 
     case 'sum':
       // toNumber : decimales francaises ('1 234,5') parsees ; NaN exclu (#301)
       return collectNumericValues(items, parsed.field).reduce((acc, v) => acc + v, 0);
+
+    case 'distinct':
+      return countDistinct(items, parsed.field);
+
+    case 'evolution': {
+      // (dernière − première) / première (#675) sur les valeurs numériques
+      // renseignées, DANS L'ORDRE COURANT de la source : c'est à l'amont
+      // (order-by d'une query, tri de la source) de garantir l'ordre
+      // chronologique. Moins de deux valeurs ou première = 0 -> null.
+      const values = collectNumericValues(items, parsed.field);
+      if (values.length < 2) return null;
+      const first = values[0];
+      const last = values[values.length - 1];
+      if (first === 0) return null;
+      return (last - first) / first;
+    }
 
     case 'avg': {
       // Moyenne sur les seules valeurs numeriques — diviser par
@@ -209,6 +365,28 @@ function collectNumericValues(items: Record<string, unknown>[], field: string): 
 }
 
 /**
+ * Nombre de valeurs distinctes d'un champ (#672), même sémantique que
+ * `count(distinct x)` côté serveur : `null`, `undefined` et la chaîne vide
+ * (ou blanche) sont EXCLUS ; la comparaison se fait sur la valeur ramenée
+ * en chaîne, donc `75` et `"75"` comptent pour une seule valeur. Un champ
+ * tableau (tags) compte ses éléments distincts.
+ */
+export function countDistinct(items: Record<string, unknown>[], field: string): number {
+  const seen = new Set<string>();
+  const add = (v: unknown): void => {
+    if (v === null || v === undefined) return;
+    const key = String(v).trim();
+    if (key !== '') seen.add(key);
+  };
+  for (const item of items) {
+    const v = getByPath(item, field);
+    if (Array.isArray(v)) v.forEach(add);
+    else add(v);
+  }
+  return seen.size;
+}
+
+/**
  * Date ISO 8601 : `AAAA-MM-JJ`, ou datetime `AAAA-MM-JJThh:mm[:ss[.mmm]][Z|+hh:mm]`
  * (separateur `T` ou espace). Validation de FORME seulement : l'ordre
  * lexicographique de ces chaines est l'ordre chronologique.
@@ -246,8 +424,14 @@ function collectIsoDates(items: Record<string, unknown>[], field: string): strin
   return out.length > 0 ? out : null;
 }
 
-/** Egalite lache alignee sur dsfr-data-query (#278/#303) */
+/**
+ * Egalite lache alignee sur dsfr-data-query (#278/#303). Un champ TABLEAU
+ * (tags, catégories multiples) matche si l'un de ses éléments est égal
+ * (sémantique contains, #673) : `count:tags:urgent` compte les lignes dont
+ * les tags contiennent « urgent ».
+ */
 function looseEquals(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a)) return a.some((el) => looseEquals(el, b));
   if (a === null || a === undefined) return b === null || b === undefined;
   // eslint-disable-next-line eqeqeq -- coercition lache intentionnelle
   if (a == b) return true;
