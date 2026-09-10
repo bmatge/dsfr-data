@@ -1,5 +1,19 @@
 # dsfr-data
 
+## 0.28.0
+
+### Minor Changes
+
+- [#761](https://github.com/bmatge/dsfr-data/pull/761) [`d106818`](https://github.com/bmatge/dsfr-data/commit/d106818da277eebcb407b844c7d793e82c6a9e2c) Thanks [@bmatge](https://github.com/bmatge)! - Un document exporté par le Studio pagine désormais côté serveur (`server-side`, `page-size` et
+  `server-sort`) quand une source n'alimente qu'un seul tableau paginé : il ne rapatrie plus tout le
+  jeu pour en afficher vingt lignes. Une source partagée entre plusieurs blocs, agrégée ou pilotée par
+  un bloc de filtres continue de charger l'ensemble — y poser la pagination serveur fausserait
+  silencieusement les graphiques et KPI d'à côté ; pour ce cas, utiliser `fetch-mode="export"` ([#717](https://github.com/bmatge/dsfr-data/issues/717)).
+
+### Patch Changes
+
+- [#761](https://github.com/bmatge/dsfr-data/pull/761) [`d106818`](https://github.com/bmatge/dsfr-data/commit/d106818da277eebcb407b844c7d793e82c6a9e2c) Thanks [@bmatge](https://github.com/bmatge)! - Les descriptions de `year-start-month` et de la région live de `dsfr-data-context-value` sont accentuées : elles apparaissent désormais dans les tableaux d'attributs générés des pages de specs, au lieu d'en être écartées par le lint de libellés.
+
 ## 0.27.0
 
 ### Minor Changes
