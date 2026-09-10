@@ -2,7 +2,12 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { renderSourceLoading, renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceLoading,
+  renderSourceError,
+  renderSourceIdle,
+  IDLE_MESSAGE_DEFAULT,
+} from '../utils/status-templates.js';
 import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
@@ -146,6 +151,14 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   /** @deprecated alias français de `server-sort` (#300) */
   @property({ type: Boolean, attribute: 'server-tri' })
   serverTri = false;
+
+  /**
+   * Message rendu quand l'amont attend un filtre (`require-where`, #690).
+   * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
+   * le libellé par défaut est utilisé.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
 
   @state()
   private _data: Record<string, unknown>[] = [];
@@ -899,18 +912,21 @@ ${bodyRows}
             ? renderSourceLoading('dsfr-data-list', 'Chargement des données...')
             : this._sourceError && !(this._serverPagination && this._data.length > 0)
               ? renderSourceError('dsfr-data-list', this._sourceError)
-              : html`
-                  <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
-                    ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
-                    ${
-                      !this._serverPagination &&
-                      (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
-                        ? ' (filtré)'
-                        : ''
-                    }
-                  </p>
-                  ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
-                `
+              : this._sourceIdle
+                ? renderSourceIdle('dsfr-data-list', this.idleMessage)
+                : html`
+                    <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
+                      ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
+                      ${
+                        !this._serverPagination &&
+                        (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
+                          ? ' (filtré)'
+                          : ''
+                      }
+                    </p>
+                    ${this._renderTable(columns, paginatedData)}
+                    ${this._renderPagination(totalPages)}
+                  `
         }
       </div>
 

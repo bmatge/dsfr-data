@@ -228,6 +228,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
 | fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft seulement ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. |
+| require-where | Boolean | \`false\` | non | Ne rien charger tant qu'aucun filtre n'a été reçu (#690) : la source reste en attente et émet \`dsfr-data-idle\`, les afficheurs rendent « Choisissez un filtre pour afficher les données ». Le \`where\` STATIQUE ne compte pas — seules les clauses reçues par commande (facettes, recherche, dsfr-data-context, délégation d'un dsfr-data-query). Retirer le dernier filtre repasse en attente : jamais de requête « tout ». Réservé au mode adapter (les commandes where sont refusées en mode URL). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (\`proxy-url\`, \`window.DSFR_DATA_PROXY\`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
 | proxy-url | String | \`""\` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur \`window.DSFR_DATA_PROXY\` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le \`use-proxy\` generique. Ex: \`proxy-url="https://mon-proxy.fr"\`. Vide = resolution proxy globale habituelle. |
@@ -309,7 +310,34 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
   base-url="https://proxy.example.com/grist-proxy/api/docs/x/tables/y/records"
   headers='{"Authorization": "Bearer TOKEN"}'>
 </dsfr-data-source>
-\\\`\\\`\\\`` + reference('dsfr-data-source'),
+\\\`\\\`\\\`
+
+### Pages d'exploration : ne rien charger tant que l'utilisateur n'a rien choisi
+
+Une page où l'on choisit une commune, une année ou un thème avant de voir quoi que ce soit
+ne doit PAS rapatrier le jeu entier au chargement : c'est une requête coûteuse dont
+personne ne regarde le résultat. \`require-where\` sur la source (ou sur la requête) tient
+le pipeline en attente jusqu'au premier filtre, et les afficheurs rendent un message
+DSFR au lieu d'un graphique vide.
+
+\\\`\\\`\\\`html
+<dsfr-data-context id="ctx" sources="src">
+  <dsfr-data-context-filter field="commune" operator="eq"></dsfr-data-context-filter>
+</dsfr-data-context>
+
+<!-- Aucune requête tant qu'aucune commune n'est choisie -->
+<dsfr-data-source id="src" api-type="opendatasoft" require-where
+  base-url="https://data.example.gouv.fr" dataset-id="equipements">
+</dsfr-data-source>
+
+<dsfr-data-list source="src" columns="commune,equipement"
+  idle-message="Choisissez une commune pour afficher ses équipements">
+</dsfr-data-list>
+\\\`\\\`\\\`
+
+Retirer le dernier filtre ramène la page en attente : il n'y a jamais de requête
+« tout » implicite. L'état est visible dans le volet Diagnostic (« en attente d'un
+filtre ») et sur le bus via l'événement \`dsfr-data-idle\`.` + reference('dsfr-data-source'),
   },
 
   dsfrDataQuery: {
@@ -376,6 +404,7 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
+| require-where | Boolean | \`false\` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état \`idle\` descend jusqu'aux afficheurs. Compte comme filtre le \`where\`/\`filter\` de cette requête, ou toute clause reçue par commande. |
 
 > dsfr-data-query est un pur transformateur de données. Utilisez dsfr-data-source pour le fetch HTTP.
 > Le where de query est colon-only : la syntaxe ODSQL ne s'utilise que sur le where de dsfr-data-source.
@@ -1374,6 +1403,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
 | name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Priorité : \`name\` explicite, sinon l'alias inline \`champ:Libellé\` de value-field(s), sinon le nom du champ ou les valeurs de series-field |
+| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
@@ -1674,6 +1704,7 @@ masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 | cols | Number | \`1\` | non | Nombre de colonnes dans la grille (1-6) |
 | pagination | Number | \`0\` | non | Elements par page (0 = tout afficher) |
 | empty | String | \`"Aucun resultat"\` | non | Message quand le tableau est vide |
+| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690) — distinct de \`empty\`, qui répond à une requête revenue vide. |
 | gap | String | \`"fr-grid-row--gutters"\` | non | Classe CSS de gap pour la grille |
 | uid-field | String | \`""\` | non | Champ de données pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |

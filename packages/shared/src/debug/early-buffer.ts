@@ -16,7 +16,7 @@
  * faux dans les deux sens.
  *
  * On ne court donc pas après l'événement : un script minuscule, injecté en
- * TÊTE du document d'aperçu, s'abonne aux quatre événements avant que quoi
+ * TÊTE du document d'aperçu, s'abonne aux événements du bus avant que quoi
  * que ce soit d'autre ne soit analysé, et empile ce qui passe. Le collecteur
  * du parent vide ce tampon au branchement, puis prend le relais en direct.
  *
@@ -49,7 +49,8 @@ interface WindowWithBuffer extends Window {
 export function earlyBufferScript(): string {
   return (
     `<script>(function(){try{var b=[];window.${EARLY_BUFFER_KEY}=b;` +
-    `var n=['dsfr-data-loaded','dsfr-data-error','dsfr-data-loading','dsfr-data-source-command'];` +
+    `var n=['dsfr-data-loaded','dsfr-data-error','dsfr-data-loading','dsfr-data-idle',` +
+    `'dsfr-data-source-command'];` +
     `for(var i=0;i<n.length;i++){(function(k){document.addEventListener(k,function(e){` +
     `if(b.length<500){b.push({name:k,detail:e.detail,t:Date.now()});}});})(n[i]);}` +
     `}catch(e){}})();</script>`
