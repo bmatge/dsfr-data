@@ -1,5 +1,52 @@
 # dsfr-data
 
+## 0.24.0
+
+### Minor Changes
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - `compute` de `dsfr-data-normalize` — grammaire v2 (ADR-105) : fonctions en liste blanche (`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains`), conditions `when … then … else` (`else` obligatoire), comparaisons `= != < <= > >=` avec la même égalité lâche que `where`, `and or not`, littéraux `null true false`. Fonction inconnue, arité fausse ou `when` sans `else` : erreur de configuration nommée (console + `data-dsfr-config-error`), jamais une colonne vide. Les colonnes calculées apparaissent dans la trace du volet Diagnostic avec un exemple de valeur ([#671](https://github.com/bmatge/dsfr-data/issues/671)).
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - Agrégat `evolution` sur `dsfr-data-kpi` : `value="recettes:evolution" format="pourcentage"` = (dernière − première) / première, calculé sur la source dans son ordre courant (poser un `order-by` chronologique en amont) ; rendu naturel dans `trend` et `lines`. « — » si moins de deux valeurs ou première = 0. `lag` (valeur de la ligne précédente) est différé : la différence entre deux séries passe par un pivot long → large (`dsfr-data-pivot`, [#255](https://github.com/bmatge/dsfr-data/issues/255)) puis `compute` ([#675](https://github.com/bmatge/dsfr-data/issues/675)).
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - Agrégat `distinct` (alias `count-distinct`) dans la grammaire commune : `value="nom_departement:distinct"` sur `dsfr-data-kpi`, `aggregate="commune:distinct"` sur `dsfr-data-query` (colonne `commune__distinct`). Null et chaîne vide exclus. Délégué à OpenDataSoft (`count(distinct x)`) et Grist SQL (`COUNT(DISTINCT x)`), calculé côté client sur les lignes reçues pour Tabular, avec un avertissement si l'API en détient davantage ([#672](https://github.com/bmatge/dsfr-data/issues/672)).
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - Ratio de deux agrégats sur `dsfr-data-kpi` : `value="count:statut:ouvert / count" format="pourcentage"` affiche la part correcte, chaque côté étant une expression de la grammaire actuelle (`count`, `montant:sum`, `champ:distinct`, `meta:total`…). Division par zéro rendue « — », jamais Infinity. `count:champ:valeur` accepte un champ tableau (un élément égal suffit). `count-if` est refusé sur `dsfr-data-query` (filtrer avec `where`, puis compter) ([#673](https://github.com/bmatge/dsfr-data/issues/673)).
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - Attribut `where` sur `dsfr-data-kpi` : `value="montant:sum" where="categorie:eq:Actif"` calcule la somme filtrée sans query intermédiaire. Dialecte colon de `dsfr-data-query` (12 opérateurs, clauses multiples), appliqué à `value`, `trend` et `lines`. Côté client seulement : le filtre porte sur les lignes reçues et n'est jamais délégué au serveur ([#674](https://github.com/bmatge/dsfr-data/issues/674)).
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-normalize` : nouvel attribut `fold="motif_*:cible"` qui replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité : `handicap_moteur`, `handicap_visuel`…) en un seul champ tableau contenant les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide), filtrable par une seule facette ; `fold-drop` retire les colonnes d'origine. Le repli s'exécute après `rename`, dont les libellés servent d'étiquettes. Nouvel utilitaire partagé `toBoolean` ([#677](https://github.com/bmatge/dsfr-data/issues/677)).
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - Nouveau composant `dsfr-data-pivot`, symétrique de `dsfr-data-unpivot` : replie un tableau « long » en tableau croisé « wide » (`row`, `column`, `value`, `aggregate` = `sum` par défaut, `column-order`, `column-format`, `labels`, `max-columns`), cellules vides à `null`, statistiques (colonnes générées, cellules vides) dans la trace du Diagnostic. `dsfr-data-list` sans `columns` dérive désormais ses colonnes des données, et `columns-auto` complète une liste de colonnes figées avec celles des données ([#255](https://github.com/bmatge/dsfr-data/issues/255), [#640](https://github.com/bmatge/dsfr-data/issues/640)).
+
+### Patch Changes
+
+- [#708](https://github.com/bmatge/dsfr-data/pull/708) [`c14c762`](https://github.com/bmatge/dsfr-data/commit/c14c7624a02bc384ff800300f8a05e264da48583) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-normalize` : les attributs `replace` et `replace-fields` (et `rename`) acceptent l'échappement percent d'un `:` littéral (`%3A`, ainsi que `%7C`, `%2C`, `%25`), avec la même convention que `where` — `replace-fields="h:10%3A00:10h"` récrit désormais une heure ([#676](https://github.com/bmatge/dsfr-data/issues/676)).
+
+- [#709](https://github.com/bmatge/dsfr-data/pull/709) [`ffd6af1`](https://github.com/bmatge/dsfr-data/commit/ffd6af1957bb991ca2f7fb23b182a6d290521a25) Thanks [@bmatge](https://github.com/bmatge)! - Documentation : les tableaux d'attributs des pages `/specs` sont désormais générés
+  depuis le custom-elements manifest (`npm run build:specs-tables`), au lieu d'être
+  saisis à la main. Le regroupement thématique des sections reste éditorial, mais le
+  contenu des lignes (type, défaut, description) vient du JSDoc des composants, et
+  l'exhaustivité est vérifiée : un attribut ajouté au code sans être rangé dans une
+  section fait échouer la génération. `npm run check:specs-tables` rejoue le contrôle
+  sans écrire, pour la CI.
+  
+  Effets sur la lib :
+  
+  - Descriptions JSDoc ré-accentuées dans `packages/core/src/components/` (141 blocs) :
+    elles alimentent aussi les skills, le serveur MCP et l'assistant IA, qui servaient
+    jusqu'ici du français dé-accentué.
+  - Nouvel export lib-safe `escapeText` dans `@dsfr-data/shared` — échappement pour
+    contenu textuel (`&`, `<`, `>` seulement), distinct de `escapeHtml` qui vise les
+    attributs et transformerait la prose française en `l&#039;élément`.
+  
+  Attributs qui n'étaient documentés nulle part, révélés par le contrôle d'exhaustivité :
+  `dsfr-data-map-layer` (`refine-on-click`, `context`, `label`), `dsfr-data-facets`
+  (`context`, `no-reset`), `dsfr-data-search` (`context`), `dsfr-data-context-filter`
+  (`context`), `dsfr-data-context-tags` (`clear-all`).
+  
+  Les extraits de code des pages `/specs` sont colorisés au build (spans `tok-*` posés
+  par le générateur, stylés dans `packages/app-ui`) — sans coloriseur au runtime.
+
 ## 0.23.0
 
 ### Minor Changes
