@@ -804,6 +804,31 @@ Points d'attention :
 
 Exemples executables : [guide des cartes](https://chartsbuilder.miweb.run/guide/) (section Cartographie) et [specifications dsfr-data-map](https://chartsbuilder.miweb.run/specs/).
 
+#### Le meme geste sans carte : `refine-on-click` sur la liste et les cartes-tuiles
+
+Depuis la 0.27, `refine-on-click` (et son `context`) existe aussi sur **`dsfr-data-list`** et **`dsfr-data-display`** (#734) : le motif maitre-detail ne demande plus de partir d'une carte. Le contrat est identique a celui de la couche — premier clic = filtre `eq`, second clic sur le meme element = retrait, clic sur un autre = remplacement, tag dans `dsfr-data-context-tags`, URL portee par le contexte, chemin degrade vers `source` sans `context`.
+
+```html
+<dsfr-data-context id="ctx" sources="depenses" url-sync></dsfr-data-context>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+<!-- Cliquer une ligne filtre le graphique, pas le tableau (sources distinctes) -->
+<dsfr-data-list source="communes" columns="commune:Commune, population:Population"
+  refine-on-click="commune" context="ctx"></dsfr-data-list>
+<dsfr-data-chart source="depenses" type="bar" label-field="annee" value-field="montant"></dsfr-data-chart>
+```
+
+Accessibilite (le vrai cout du geste, et ce qui en fait la valeur) :
+
+- **Un vrai bouton par ligne**, dans une colonne de selection ajoutee en tete du tableau (ou en pied de chaque carte pour `dsfr-data-display`) : il est dans l'ordre de tabulation, annonce comme un bouton, active par Entree et Espace. Aucun `tabindex` bricole, aucun `role` pose sur la ligne.
+- **L'etat n'est pas porte par la couleur** : `aria-pressed` sur le bouton, `aria-current="true"` sur la ligne, et surtout un libelle qui change — « Filtrer sur Paris » devient « Retirer le filtre Paris ». Le fond bleu et la barre laterale ne font que redire ce que le texte dit deja (RGAA 1.4.1).
+- **Le clic sur la ligne entiere** reste possible pour le confort a la souris ; il ne double pas le clic du bouton et ne vole pas celui d'un lien rendu dans une cellule ou dans le template.
+- Chaque bascule emet `dsfr-data-select` `{ record, elementId, selected }` (bubbles, composed) et est annoncee dans la region live du composant.
+
+Comme pour la carte : si la source du tableau figure aussi dans les `sources` du contexte, le tableau se filtre lui-meme (seule la ligne cliquee reste, jusqu'au second clic). Pour garder la liste complete, donnez au tableau sa propre source.
+
+Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749) — `@gouvfr/dsfr-chart` n'emet aucun evenement de clic au niveau graphique.
+
 ### KPIs : groupes, formats et litteraux
 
 `<dsfr-data-kpi-group>` remplace les grilles CSS manuelles pour aligner plusieurs KPIs (grille DSFR responsive, empilement mobile automatique) :

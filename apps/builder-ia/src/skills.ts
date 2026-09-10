@@ -1589,6 +1589,27 @@ les colonnes déclarées (libellées, en tête) puis celles des données.
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
 | server-sort | Boolean | \`false\` | non | Delegue le tri au serveur (retour page 1 automatique, #304). Alias deprecie : \`server-tri\` |
+| refine-on-click | String | \`""\` | non | Champ dont la valeur de la ligne cliquee devient un filtre \`eq\` (#734) : premier clic = filtre, second clic sur la meme ligne = retrait, autre ligne = remplacement. Avec \`context\` (recommande) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`list-select-ID\`) |
+| context | String | \`""\` | non | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#734, ADR-104). Peut etre declare apres le tableau |
+| label | String | \`""\` | non | Libelle du tag du contexte en \`refine-on-click\` (defaut : le libelle de la colonne filtree, sinon le nom du champ) |
+
+### Le clic sur une ligne filtre les autres vues (refine-on-click, #734)
+Meme mecanique que \`dsfr-data-map-layer refine-on-click\` (#681), meme mixin : le tableau
+devient un filtre du \`dsfr-data-context\`. Une colonne de selection est ajoutee en tete du
+tableau, avec un vrai \`<button>\` par ligne : atteignable au clavier, annonce comme un bouton,
+etat porte par \`aria-pressed\` et par le libelle (« Filtrer sur Paris » / « Retirer le filtre
+Paris »), jamais par la seule couleur. La ligne selectionnee porte aussi \`aria-current="true"\`.
+Le clic n'importe ou sur la ligne fait la meme bascule (confort a la souris) sans voler le clic
+d'un lien rendu dans une cellule. L'evenement \`dsfr-data-select\` \`{ record, elementId, selected }\`
+est emis a chaque bascule (bubbles, composed). Meme chose sur \`dsfr-data-display\`.
+
+\`\`\`html
+<dsfr-data-context id="ctx" sources="details" url-sync></dsfr-data-context>
+<dsfr-data-list source="communes" columns="commune:Commune, population:Population"
+  refine-on-click="commune" context="ctx"></dsfr-data-list>
+<dsfr-data-context-tags context="ctx"></dsfr-data-context-tags>
+<dsfr-data-chart source="details" type="bar" label-field="annee" value-field="valeur"></dsfr-data-chart>
+\`\`\`
 
 ### Tri serveur
 Avec \`server-sort\`, le clic sur un en-tete de colonne envoie une commande \`{ orderBy }\`
@@ -1711,6 +1732,17 @@ masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 | uid-field | String | \`""\` | non | Champ de données pour l'ID unique par item. Chaque item recoit un id="item-{valeur}" pour ancrage URL |
 | url-sync | Boolean | \`false\` | non | Synchronise le numero de page dans l'URL (?page=N) via replaceState |
 | url-page-param | String | \`"page"\` | non | Nom du parametre URL pour la page |
+| refine-on-click | String | \`""\` | non | Champ dont la valeur de l'element clique devient un filtre \`eq\` (#734) : premier clic = filtre, second clic sur le meme element = retrait, autre element = remplacement. Avec \`context\` (recommande) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`display-select-ID\`) |
+| context | String | \`""\` | non | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#734, ADR-104). Peut etre declare apres le composant |
+| label | String | \`""\` | non | Libelle du tag du contexte en \`refine-on-click\` (defaut : le nom du champ) |
+
+### Le clic sur un element filtre les autres vues (refine-on-click, #734)
+Meme mecanique et meme mixin que \`dsfr-data-list\` et \`dsfr-data-map-layer\`. Chaque element
+recoit un vrai \`<button>\` « Filtrer sur … » : atteignable au clavier, annonce comme un bouton,
+etat porte par \`aria-pressed\` et par son libelle (« Retirer le filtre … » une fois selectionne),
+jamais par la seule couleur ; l'element selectionne porte \`aria-current="true"\`. Le clic
+n'importe ou sur l'element fait la meme bascule, sans voler le clic d'un lien du template.
+Evenement \`dsfr-data-select\` \`{ record, elementId, selected }\` (bubbles, composed).
 
 ### Pagination serveur
 Quand la source est un \`dsfr-data-source\` avec \`paginate\`, dsfr-data-display détecté automatiquement
