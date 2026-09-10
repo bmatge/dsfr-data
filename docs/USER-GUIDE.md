@@ -423,9 +423,15 @@ Quatre decoupages de carte sont disponibles (API cartes unifiee [DSFR Chart](htt
 | `type` | Decoupage | Cles attendues (`code-field`) |
 |--------|-----------|-------------------------------|
 | `map` | Departements | Code INSEE (`01`-`95`, `2A`, `2B`, `971`-`976`) |
-| `map-reg` | Regions | Code region INSEE (`11`, `84`...) |
-| `map-aca` | Academies | Nom en majuscules (`PARIS`, `LYON`...) |
+| `map-reg` | Regions | Code region INSEE (`11`, `84`...), cle DSFR Chart (`IDF`, `20R`, `971`) ou nom (`Ile-de-France`) |
+| `map-aca` | Academies | Nom de l'academie, accentue ou non, avec ou sans le prefixe « Academie de » (`Academie de Besancon`, `BESANCON`, `Orleans-Tours`) |
 | `map-monde` | Monde | Code pays ISO 3166-1 (alpha-2 `FR`, alpha-3 `FRA` ou numerique `250` — convertis automatiquement) |
+
+Les cles sont traduites vers le referentiel de DSFR Chart quand c'est possible. Une cle qui n'y
+correspond a aucun territoire (nom d'academie inconnu, code de region inexistant, territoire absent du
+decoupage `aca` : Polynesie, Wallis-et-Futuna, Saint-Pierre-et-Miquelon, AEFE) n'est pas dessinee : la
+ligne est **comptee** et le nombre de lignes ignorees apparait dans la console et dans le volet
+Diagnostic (#729).
 
 #### KPI — Indicateurs Industrie du futur
 

@@ -53,6 +53,7 @@ import {
   type AliasedColumn,
 } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
+import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
 
 type DSFRChartType =
   | 'line'
@@ -603,7 +604,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) :
-   * code geographique absent, vide ou invalide pour le decoupage. 0 hors carte.
+   * code geographique absent, vide, invalide ou hors du referentiel du
+   * decoupage (academie inconnue, region inconnue, #729). 0 hors carte.
    */
   getSkippedCount(): number {
     return this._skippedGeoCount;
@@ -626,8 +628,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           continue;
         }
       } else if (this.type === 'map-aca') {
-        // Cles = nom d'academie en majuscules ("PARIS", "LYON"...)
-        code = code.toUpperCase();
+        // Cles = capitale de l'academie sans accent ni article ("PARIS",
+        // "BESANCON", "ORLEANS-TOURS"). Liste blanche : une valeur hors
+        // referentiel est comptee, pas transmise en silence (#729).
+        code = toAcademyKey(code);
+        if (!code) {
+          this._skippedGeoCount++;
+          continue;
+        }
+      } else if (this.type === 'map-reg') {
+        // Cles = ISO 3166-2 sans prefixe pays ("IDF", "20R") ou code INSEE
+        // ultramarin ("971"). Traduit le code INSEE et le nom (#729).
+        code = toRegionKey(code);
         if (!code) {
           this._skippedGeoCount++;
           continue;
@@ -650,7 +662,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       this._skippedWarnedData = this._data;
       console.warn(
         `dsfr-data-chart[${this.id}]: ${this._skippedGeoCount} ligne(s) sur ${this._data.length} ` +
-          `ignorée(s) — code géographique absent ou invalide dans "${field}" pour ${this.type}`
+          `ignorée(s) — code géographique absent, invalide ou hors référentiel dans "${field}" pour ${this.type}`
       );
     }
     return JSON.stringify(mapData);
