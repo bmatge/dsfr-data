@@ -51,6 +51,7 @@ import { DsfrDataContext } from '@/components/dsfr-data-context.js';
 import { DsfrDataContextFilter } from '@/components/dsfr-data-context-filter.js';
 import { DsfrDataContextTags } from '@/components/dsfr-data-context-tags.js';
 import { DsfrDataUnpivot } from '@/components/dsfr-data-unpivot.js';
+import { DsfrDataPivot } from '@/components/dsfr-data-pivot.js';
 import { DsfrDataMap } from '@/components/dsfr-data-map.js';
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
@@ -63,7 +64,7 @@ import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
 /** `id` est un attribut HTML standard : Lit ne le declare pas, le manifeste non plus. */
 const IGNORED_ATTRS = new Set(['id']);
 
-/** Les 23 composants `dsfr-data-*` et leur classe Lit. */
+/** Les 24 composants `dsfr-data-*` et leur classe Lit. */
 const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
   [
     ['dsfr-data-a11y', DsfrDataA11y],
@@ -85,6 +86,7 @@ const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
     ['dsfr-data-map-popup', DsfrDataMapPopup],
     ['dsfr-data-map-timeline', DsfrDataMapTimeline],
     ['dsfr-data-normalize', DsfrDataNormalize],
+    ['dsfr-data-pivot', DsfrDataPivot],
     ['dsfr-data-podium', DsfrDataPodium],
     ['dsfr-data-query', DsfrDataQuery],
     ['dsfr-data-search', DsfrDataSearch],
@@ -152,6 +154,7 @@ const SKILL_TAGS: Record<string, string[]> = {
   dsfrDataContextTags: ['dsfr-data-context-tags'],
   dsfrDataJoin: ['dsfr-data-join'],
   dsfrDataUnpivot: ['dsfr-data-unpivot'],
+  dsfrDataPivot: ['dsfr-data-pivot'],
   dsfrDataPodium: ['dsfr-data-podium'],
   dsfrDataBeacon: ['dsfr-data-beacon'],
 };
@@ -186,7 +189,7 @@ describe('reference generee des skills (#512)', () => {
     ) as CemManifest;
     const expected = buildReferences(manifest);
 
-    it('couvre exactement les 23 composants dsfr-data-*', () => {
+    it('couvre exactement les 24 composants dsfr-data-*', () => {
       expect(Object.keys(COMPONENT_REFERENCES).sort()).toEqual(COMPONENTS.map(([t]) => t).sort());
     });
 

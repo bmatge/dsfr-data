@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 24 balises, 280 attributs.
+ * 25 balises, 293 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -159,7 +159,8 @@ export const COMPONENT_CONTRACT = {
       "threshold-orange",
       "trend",
       "unit",
-      "value"
+      "value",
+      "where"
     ],
     "deprecated": {
       "valeur": "alias français de `value` (#300)",
@@ -181,6 +182,7 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "caption",
       "columns",
+      "columns-auto",
       "decimals",
       "export",
       "filters",
@@ -302,6 +304,8 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "compute",
       "flatten",
+      "fold",
+      "fold-drop",
       "lowercase-keys",
       "numeric",
       "numeric-auto",
@@ -313,6 +317,19 @@ export const COMPONENT_CONTRACT = {
       "split",
       "strip-html",
       "trim"
+    ]
+  },
+  "dsfr-data-pivot": {
+    "attributes": [
+      "aggregate",
+      "column",
+      "column-format",
+      "column-order",
+      "labels",
+      "max-columns",
+      "row",
+      "source",
+      "value"
     ]
   },
   "dsfr-data-podium": {

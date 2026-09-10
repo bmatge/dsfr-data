@@ -25,7 +25,7 @@ export {
 } from './early-buffer.js';
 export type { BufferedBusEvent } from './early-buffer.js';
 export { STAGE_ROLES, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
-export type { StageRole, StageNode, DataflowGraph } from './graph.js';
+export type { StageRole, StageNode, DataflowGraph, ComputedColumn } from './graph.js';
 
 export { extractRows, summarizeStage, diffFields, fieldMatrix } from './summarize.js';
 export type { StageSummary, FieldDiff } from './summarize.js';

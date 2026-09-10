@@ -3,7 +3,7 @@
  * Permet aux composants dsfr-data-* de partager des données via un système d'événements
  */
 
-import type { JoinStats } from '@dsfr-data/shared/lib';
+import type { JoinStats, PivotStats } from '@dsfr-data/shared/lib';
 
 export interface DataLoadedEvent {
   sourceId: string;
@@ -65,6 +65,8 @@ export interface PaginationMeta {
   truncated?: boolean;
   /** Taux d'appariement d'une jointure — #660 */
   join?: JoinStats;
+  /** Colonnes generees et cellules vides d'un pivot long → wide — #255 */
+  pivot?: PivotStats;
 }
 
 export interface SourceCommandEvent {

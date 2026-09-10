@@ -61,9 +61,21 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Définition des colonnes: "clé:Label, cle2:Label2" */
+  /**
+   * Définition des colonnes : `"clé:Label, cle2:Label2"`. Omis : toutes les clés
+   * présentes dans les données deviennent colonnes, dans leur ordre d'apparition,
+   * libellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255).
+   */
   @property({ type: String })
   columns = '';
+
+  /**
+   * Complète `columns` avec les clés des données qui n'y figurent pas (ordre
+   * d'apparition, libellé = clé) : les premières colonnes sont libellées et
+   * figées, les suivantes suivent les données (#640).
+   */
+  @property({ type: Boolean, attribute: 'columns-auto' })
+  columnsAuto = false;
 
   /** @deprecated alias français de `columns` (#300) */
   @property({ type: String })
@@ -247,11 +259,56 @@ export class DsfrDataList extends SourceSubscriberMixin(LitElement) {
 
   parseColumns(): ColumnDef[] {
     const columnsExpr = this.columns || this.colonnes;
-    if (!columnsExpr) return [];
-    return columnsExpr.split(',').map((col) => {
-      const [key, label] = col.trim().split(':');
-      return { key: key.trim(), label: label?.trim() || key.trim() };
-    });
+    const declared: ColumnDef[] = !columnsExpr
+      ? []
+      : columnsExpr.split(',').map((col) => {
+          const [key, label] = col.trim().split(':');
+          return { key: key.trim(), label: label?.trim() || key.trim() };
+        });
+    // Sans `columns`, ou avec `columns-auto` : les clés des données complètent
+    // la liste (ordre d'apparition, libellé = clé) — schéma dynamique (#255).
+    if (columnsExpr && !this.columnsAuto) return declared;
+    const known = new Set(declared.map((c) => c.key));
+    for (const key of this._dataKeys()) {
+      if (!known.has(key)) {
+        known.add(key);
+        declared.push({ key, label: key });
+      }
+    }
+    return declared;
+  }
+
+  /**
+   * Union ordonnée des clés des lignes reçues (les lignes peuvent être
+   * hétérogènes). Un pivot amont publie l'ordre voulu dans la meta (#255) :
+   * JavaScript énumère les clés entières (`2022`, `2023`) avant les autres,
+   * `Object.keys` seul mettrait les années devant la commune.
+   */
+  private _dataKeys(): string[] {
+    const present: string[] = [];
+    const presentSet = new Set<string>();
+    for (const row of this._data) {
+      if (!row || typeof row !== 'object') continue;
+      for (const key of Object.keys(row)) {
+        if (!presentSet.has(key)) {
+          presentSet.add(key);
+          present.push(key);
+        }
+      }
+    }
+    // L'indice du pivot ne fait qu'ORDONNER des clés réellement présentes : un
+    // normalize intermédiaire (rename) peut l'avoir rendu partiellement caduc.
+    const pivot = this.source ? getDataMeta(this.source)?.pivot : undefined;
+    if (!pivot) return present;
+    const ordered: string[] = [];
+    const seen = new Set<string>();
+    for (const key of [...pivot.rowFields, ...pivot.columnNames, ...present]) {
+      if (presentSet.has(key) && !seen.has(key)) {
+        seen.add(key);
+        ordered.push(key);
+      }
+    }
+    return ordered;
   }
 
   private _getFilterableColumns(): string[] {

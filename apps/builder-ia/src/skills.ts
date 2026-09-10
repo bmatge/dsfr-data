@@ -429,9 +429,16 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | avg | Moyenne | \`"prix:avg"\` |
 | min | Minimum | \`"temperature:min"\` |
 | max | Maximum | \`"score:max"\` |
+| distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
+
+Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
+**Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
+détient davantage — chiffre partiel derrière un \`max-records\` ou un \`limit\`).
 
 Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
 visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.
+\`count-if\` est refusé : filtrer avec \`where\` puis \`champ:count\` (sur le KPI :
+\`value="count:champ:valeur"\`).
 
 ### Exemples
 \`\`\`html
@@ -534,6 +541,24 @@ visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — ja
       'multi-valeurs',
       'decouper',
       'group_concat',
+      'fold',
+      'replier',
+      'colonnes oui/non',
+      'colonnes booleennes',
+      'compute',
+      'colonne calculee',
+      'colonnes calculees',
+      'calculer une colonne',
+      'recoder',
+      'recodage',
+      'tranche',
+      'seuil',
+      'when',
+      'coalesce',
+      'non renseigne',
+      'annee d une date',
+      'extraire l annee',
+      'solde',
     ],
     content:
       `## <dsfr-data-normalize> - Normalisation de données
@@ -563,12 +588,14 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | rename | String | \`""\` | non | Renommage : \`"ancien:nouveau \\| ancien2:nouveau2"\` (pipe-separe) |
 | trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
 | strip-html | Boolean | \`false\` | non | Supprime les balises HTML des valeurs string |
-| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe) |
-| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. |
+| replace | String | \`""\` | non | Remplace des valeurs globalement : \`"N/A: \\| n.d.: \\| -:0"\` (pipe-separe). Egalite stricte sur la valeur entiere, pas de regex. Un \`:\` littéral dans le pattern s'échappe en \`%3A\` (\`%7C\`, \`%2C\`, \`%25\` idem) : \`"10%3A00:10h"\`. |
+| replace-fields | String | \`""\` | non | Remplacement cible par champ : \`"CHAMP:ancien:nouveau \\| CHAMP2:a:n"\` (pipe-separe). Ne remplace que dans le champ specifie. Un \`:\` littéral dans le pattern s'échappe en \`%3A\` : \`"h:10%3A00:10h"\`. Pas de regex : pour un recodage plus riche (sous-chaine, annee d'une date), utiliser \`compute\` avec \`replace()\` ou \`year()\`. |
 | split | String | \`""\` | non | Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux : \`"Axes:\\|, Cibles:;"\` (entrees separees par virgule, \`champ:sep\`, separateur par defaut = virgule). Elements trimes, vides ecartes, chaine vide = tableau vide. Les facettes affichent alors une valeur par element au lieu d'un bouton combine « a\\|b ». |
 | round | String | \`""\` | non | Arrondit des champs numériques : \`"montant, prix"\` (0 decimales) ou \`"taux:2, score:1"\` (decimales explicites) |
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
-| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne). Format \`"cible = expression; cible2 = expr2"\`. Supporte l'arithmetique \`+ - * /\`, la concatenation texte (\`+\` avec litteraux 'entre quotes') et les parentheses. Ex: \`"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme"\`. Hors perimetre : conditions, fonctions, calculs sur valeurs agregees. |
+| fold | String | \`""\` | non | Replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité) en UN champ tableau : \`"handicap_*:handicaps"\` (entrees separees par virgule, \`motif:cible\`, joker \`*\` en debut ou en fin de motif seulement, ou nom exact ; plusieurs motifs peuvent viser la meme cible). Le tableau contient les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide via \`toBoolean\`), etiquetees par la partie variable du motif (\`handicap_moteur\` → « moteur ») ou le nom complet pour un motif exact. Colonnes sources conservees. |
+| fold-drop | Boolean | \`false\` | non | Avec \`fold\` : retire les colonnes sources repliees du resultat. |
+| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
@@ -581,14 +608,85 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 6. **round** — arrondit les valeurs numériques
 7. rename — renomme les clés
 8. lowercase-keys — clés en minuscules
-9. **compute** — colonnes calculees (en dernier, sur valeurs déjà typees : \`valeur * 100\` voit un nombre, \`a + ' / ' + b\` concatene)
+9. **fold** — replie les colonnes booléennes en un tableau (apres rename et lowercase-keys : les motifs se lisent sur les noms finaux, qui servent d'etiquettes — \`rename="handicap_moteur:handicap_Moteur"\` donne « Moteur »)
+10. **compute** — colonnes calculees (en dernier, sur valeurs déjà typees : \`valeur * 100\` voit un nombre, \`a + ' / ' + b\` concatene ; un tableau issu de \`fold\` y est disponible)
 
 ### Separateurs
 - \`numeric\` : champs separes par virgule
 - \`rename\` et \`replace\` : paires separees par \`|\`, clé et valeur separees par \`:\`
   Le \`:\` separe le pattern de sa valeur de remplacement (valeur vide = suppression).
 - \`replace-fields\` : paires separees par \`|\`, format \`CHAMP:pattern:remplacement\` (les 2 premiers \`:\` sont des delimiteurs, le remplacement peut contenir des \`:\`).
+- Echappement percent (\`rename\`, \`replace\`, \`replace-fields\`, meme convention que \`where\`) : un \`:\` littéral s'ecrit \`%3A\`, \`|\` → \`%7C\`, \`,\` → \`%2C\`, \`%\` → \`%25\`. Decode APRES le decoupage sur les separateurs : \`replace-fields="h:10%3A00:10h"\` recrit « 10:00 » en « 10h ». Aucune regex n'est acceptee (surface ReDoS) : au-dela de l'egalite stricte, passer par \`compute\` (\`replace(s, 'a', 'b')\` littéral, \`year(date)\`).
 - \`split\` : entrees separees par virgule, format \`champ:separateur\` (le separateur peut etre \`|\`, \`;\`, \` / \`… ; absent = virgule). Ne pas utiliser \`|\` entre les entrees : c'est le separateur le plus courant a decouper.
+- \`fold\` : entrees separees par virgule, format \`motif:cible\` (\`*\` en debut ou en fin du motif seulement ; un motif au joker mal place est signale en console + \`data-dsfr-config-error\` et ignore, les autres s'appliquent).
+
+### Colonnes calculees : compute (fonctions, when / then / else)
+
+\`compute\` s'execute en dernier, sur les valeurs deja typees par \`numeric\` / \`round\` /
+\`rename\`. Une assignation suivante peut relire une colonne calculee avant elle. Tout
+est **par ligne** : pour un agregat (somme, moyenne, distinct), passer par \`dsfr-data-query\`
+ou \`dsfr-data-kpi\` ; pour l'affichage conditionnel d'un fragment, par les templates
+(\`{{#if}}\`), pas par \`compute\`.
+
+**Fonctions (liste blanche, appel \`f(a, b)\`)** — toute autre fonction est une erreur de
+configuration, jamais une colonne vide :
+
+| Famille | Fonctions | Notes |
+|---------|-----------|-------|
+| Dates | \`year(d)\`, \`month(d)\`, \`day(d)\` | Date ISO (\`2024-03-15\`, \`2024-03-15T10:00:00Z\`, \`2024-03\`) ou objet Date → nombre ; sinon \`null\` (une date \`15/03/2024\` n'est pas reconnue) |
+| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` |
+| Texte | \`lower(s)\`, \`upper(s)\`, \`trim(s)\`, \`len(s)\`, \`concat(a, b, …)\`, \`replace(s, 'de', 'vers')\` | \`replace\` est litteral (toutes les occurrences, pas de regex) ; \`null\` reste \`null\` sauf \`len\` (0) et \`concat\` (vide) |
+| Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
+| Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
+
+**Conditions** : \`when COND then EXPR [when COND then EXPR]… else EXPR\`. La premiere
+condition vraie gagne ; le \`else\` est **obligatoire**. Une condition combine des
+comparaisons \`= != < <= > >=\` avec \`and\`, \`or\`, \`not\` (priorite : \`not\` > \`and\` > \`or\` ;
+parentheses possibles). Un \`when\` peut s'imbriquer dans une arithmetique ou dans une
+branche — le mettre entre parentheses quand il est suivi d'un operateur.
+
+**Meme semantique que \`where\`, syntaxe infixe** : l'egalite est lache (nombre ↔ chaine
+numerique : \`dept = 75\` matche \`"75"\`), \`< <= > >=\` comparent en nombre quand les deux
+cotes sont numeriques et en texte sinon (dates ISO comprises), null / absent / vide ne
+matchent jamais une comparaison d'ordre. Correspondance :
+
+| \`where\` (dialecte colon, attribut) | \`when\` (infixe, dans compute) |
+|------|------|
+| \`champ:eq:v\` | \`champ = 'v'\` ou \`champ = 75\` |
+| \`champ:neq:v\` | \`champ != 'v'\` |
+| \`champ:gt:n\` / \`gte\` / \`lt\` / \`lte\` | \`champ > n\` / \`>=\` / \`<\` / \`<=\` |
+| \`champ:isnull\` / \`champ:isnotnull\` | \`is_null(champ)\` / \`not is_null(champ)\` (ou \`champ = null\` / \`champ != null\`) |
+| \`champ:contains:v\` / \`notcontains\` | \`contains(champ, 'v')\` / \`not contains(champ, 'v')\` |
+| \`champ:in:a\\|b\` / \`notin\` | \`champ = 'a' or champ = 'b'\` / \`not (…)\` |
+| \`a:eq:1, b:eq:2\` (virgule = ET) | \`a = 1 and b = 2\` |
+
+Garde-fous : aucun \`eval\`, seuls les champs de la ligne sont lisibles, expression bornee
+en longueur (2000 caracteres) et en profondeur (32 niveaux). Les colonnes produites
+apparaissent dans la trace du volet Diagnostic (« calculees (compute) : … » avec un exemple
+de valeur).
+
+\`\`\`html
+<!-- Solde, tranche par seuils, valeur par defaut, annee d'une date -->
+<dsfr-data-normalize id="calc" source="raw" numeric="actif, passif, montant"
+  compute="solde = actif - passif;
+           tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           type = coalesce(type_entreprise, 'Non renseigné');
+           annee = year(date_notification)">
+</dsfr-data-normalize>
+<dsfr-data-query id="par-tranche" source="calc" group-by="tranche" aggregate="solde:sum"></dsfr-data-query>
+
+<!-- Part en % arrondie, libelle compose, indicateur booleen -->
+<dsfr-data-normalize id="calc" source="raw"
+  compute="part_pct = round(part * 100, 1);
+           libelle = concat(upper(code), ' - ', trim(nom));
+           actif = when statut = 'A' and not is_empty(siret) then true else false">
+</dsfr-data-normalize>
+
+<!-- Recodage d'une liste (split) puis reconstitution -->
+<dsfr-data-normalize id="calc" source="raw" split="risques:|"
+  compute="nb_risques = len(risques); inondable = contains(risques, 'inondation'); risques_txt = join(risques, ', ')">
+</dsfr-data-normalize>
+\`\`\`
 
 ### Aplatir des données imbriquees (Grist, ODS v1, Airtable)
 
@@ -662,6 +760,12 @@ rendant les données compatibles avec tous les composants (facettes, datalist, g
 <!-- Champs multivalues (group_concat SQL, CSV « a|b|c ») -> tableaux pour les facettes -->
 <dsfr-data-normalize id="data" source="flat" split="Axes:|, Operateurs:|, Cibles:|"></dsfr-data-normalize>
 <dsfr-data-facets id="filtres" source="data" fields="Axes, Operateurs" disjunctive="Axes"></dsfr-data-facets>
+
+<!-- Colonnes booléennes paralleles (handicap_moteur, handicap_visuel, handicap_auditif,
+     handicap_mental : Oui/Non) -> UN champ tableau « handicaps » filtrable par UNE facette.
+     Sans fold, il faudrait une facette par colonne. fold-drop retire les colonnes d'origine. -->
+<dsfr-data-normalize id="acces" source="raw" fold="handicap_*:handicaps" fold-drop></dsfr-data-normalize>
+<dsfr-data-facets id="filtres" source="acces" fields="handicaps"></dsfr-data-facets>
 
 <!-- INSEE Melodi : les libelles sont resolus automatiquement (#592).
      Les observations n'arrivent plus en codes SDMX : AGE vaut « De 25 a 49 ans »
@@ -976,7 +1080,8 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la dsfr-data-source ou dsfr-data-query |
-| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| value | String | \`""\` | oui | Expression : \`"champ"\`, \`"champ:avg"\`, \`"champ:sum"\`, \`"champ:min"\`, \`"champ:max"\`, \`"champ:distinct"\`, \`"count:champ:valeur"\` (grammaire commune champ:fn, #303), ou un ratio \`"expr / expr"\` (\`"count:statut:ouvert / count"\`). Alias deprecie : \`valeur\` · litteral avec \`=\` : \`value="=667"\`, \`value="=87 %"\` (sans source) |
+| where | String | \`""\` | non | Filtre des lignes AVANT le calcul, dialecte colon de dsfr-data-query : \`where="categorie:eq:Actif, montant:gte:1000"\` (mêmes 12 opérateurs). Appliqué à \`value\`, \`trend\` et \`lines\`. **Client seulement** : porte sur les lignes reçues, jamais délégué au serveur |
 | heading | String | \`""\` | non | Titre affiche AU-DESSUS de la valeur (surtitre, majuscules grises). Nomme \`heading\` (pas \`title\`, qui collisionne avec la propriete DOM native) |
 | label | String | \`""\` | non | Libelle sous la valeur (et sous les \`lines\`) |
 | description | String | \`""\` | non | Description pour accessibilité (sr-only) |
@@ -991,13 +1096,63 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
 | col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
 
-Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last.
+Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last,
+distinct (alias \`count-distinct\`), evolution.
 Toute autre fonction (ex. \`"x:somme"\`) affiche une erreur de configuration à la place du KPI
 (console + \`data-dsfr-config-error\`) — jamais une valeur vide.
+
+\`value="nom_departement:distinct"\` compte les valeurs distinctes (« 101 départements ») sur les
+lignes reçues — null et chaîne vide exclus, un champ tableau compte ses éléments. Sur des lignes
+tronquées (limit, page, max-records), un warn console signale le chiffre partiel, comme \`count\`.
 
 Dates : \`min\`/\`max\` acceptent une colonne de dates ISO (\`AAAA-MM-JJ\` ou datetime) et renvoient
 la date la plus ancienne/récente ; \`first\`/\`last\` renvoient la chaîne brute. Avec \`format="date"\`,
 la valeur est rendue JJ/MM/AAAA : \`value="maj:max" format="date"\` -> « 09/09/2026 ».
+
+### Taux d'évolution N / N-1 : \`champ:evolution\`
+\`value="recettes:evolution" format="pourcentage"\` = (dernière − première) / première, calculé sur
+les lignes **dans leur ordre courant** : poser un \`order-by\` chronologique sur la query ou la
+source amont (\`order-by="annee:asc"\`), sinon le sens du taux dépend de l'ordre de livraison.
+Fraction (0,25) rendue en pourcentage (« 25 % ») par \`format="pourcentage"\`, par \`trend\`
+(« ↑ 25 % ») et par \`lines\` (format pourcentage par défaut). « — » si moins de deux valeurs
+numériques ou si la première vaut 0. Réservé au KPI (pas sur \`aggregate\` de dsfr-data-query).
+\`\`\`html
+<dsfr-data-query id="chrono" source="budget" order-by="annee:asc"></dsfr-data-query>
+<dsfr-data-kpi source="chrono" value="recettes:last" format="euro" trend="recettes:evolution" label="Recettes"></dsfr-data-kpi>
+\`\`\`
+Différence entre deux **séries** (par ligne) : ce n'est pas un agrégat — passer par un pivot
+long → large (\`dsfr-data-pivot\`) puis \`compute\`.
+
+### Part, taux, ratio : \`value="expr / expr"\`
+Deux expressions séparées par \` / \` (barre oblique ENTOURÉE d'espaces), chacune dans la
+grammaire ci-dessus (\`count\`, \`champ:sum\`, \`count:champ:valeur\`, \`champ:distinct\`,
+\`meta:total\`…). Le résultat est une fraction (0,35) ; \`format="pourcentage"\` l'affiche en
+pourcentage (« 35 % ») et les seuils s'expriment alors en pourcentage ; \`format="decimal"\` garde
+la fraction. Division par zéro ou côté non numérique : « — » (jamais Infinity).
+\`\`\`html
+<dsfr-data-kpi source="dossiers" value="count:statut:ouvert / count" format="pourcentage" label="Dossiers ouverts"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum / count" format="euro" label="Montant moyen"></dsfr-data-kpi>
+\`\`\`
+- \`count:champ:valeur\` accepte un champ **tableau** (tags) : la ligne compte si l'un des
+  éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
+- Un ratio marche aussi dans \`trend\` (rendu en %) et dans \`lines\` (format pourcentage par défaut).
+- Pas de \`count-if\` sur dsfr-data-query : filtrer avec \`where\` puis compter.
+
+### Filtrer sans query intermédiaire : \`where\`
+\`where="champ:op:valeur[, …]"\` filtre les lignes AVANT \`value\`, \`trend\` et \`lines\`, avec la
+grammaire colon de dsfr-data-query (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin,
+isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne coûte plus une query :
+\`\`\`html
+<dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Actif" label="Actif" format="euro"></dsfr-data-kpi>
+<dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Passif, exercice:gte:2024" label="Passif 2024+"></dsfr-data-kpi>
+\`\`\`
+- **Côté client seulement** : le KPI ne délègue rien au serveur, le filtre porte sur les lignes
+  reçues. Derrière un \`limit\`, une page serveur ou un \`max-records\`, poser le \`where\` sur la
+  source ou une query amont. \`meta:total\` n'est pas filtré.
+- La forme \`montant:sum:categorie=Actif\` n'existe pas (elle entrerait en collision avec
+  \`count:champ:valeur\`) : le filtre est un attribut, pas un segment de \`value\`.
+- Clause non reconnue (opérateur inconnu, valeur manquante) : erreur de configuration à la
+  place du KPI.
 
 ### Compter le total, pas les lignes reçues : \`value="meta:total"\`
 \`value="count"\` compte les lignes REÇUES. Derrière un \`dsfr-data-query limit="12"\`, une source
@@ -1040,6 +1195,9 @@ Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille respon
 | \`"sum:champ"\` | Somme | \`valeur="sum:montant"\` |
 | \`"min:champ"\` | Minimum | \`valeur="min:prix"\` |
 | \`"max:champ"\` | Maximum | \`valeur="max:prix"\` |
+| \`"champ:distinct"\` | Nombre de valeurs distinctes | \`value="commune:distinct"\` |
+| \`"champ:evolution"\` | (dernière − première) / première, source ordonnée | \`value="recettes:evolution" format="pourcentage"\` |
+| \`"expr / expr"\` | Ratio de deux expressions | \`value="count:statut:ouvert / count" format="pourcentage"\` |
 | \`"count:champ:valeur"\` | Nombre d'items ou champ = valeur | \`valeur="count:status:active"\` |
 
 ### Exemples
@@ -1375,15 +1533,19 @@ Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
 
 ### Format des données
-Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`colonnes\`
-au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`colonnes\` est omis, toutes
-les clés du premier objet sont utilisees comme colonnes.
+Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`columns\`
+au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`columns\` est omis, toutes
+les clés présentes dans les données deviennent colonnes (ordre d'apparition, libellé = clé) :
+le tableau suit un schéma dynamique — c'est le consommateur naturel d'un \`dsfr-data-pivot\`
+dont les colonnes suivent une facette (#255, #640). \`columns-auto\` combine les deux :
+les colonnes déclarées (libellées, en tête) puis celles des données.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
-| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Alias deprecie : \`colonnes\` |
+| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Omis : toutes les clés des données (ordre d'apparition). Alias deprecie : \`colonnes\` |
+| columns-auto | Boolean | \`false\` | non | Complète \`columns\` avec les clés des données absentes de la liste (libellé = clé) : colonnes figées en tête, dynamiques ensuite (#640) |
 | search | Boolean | \`false\` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : \`recherche\` |
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
@@ -3292,6 +3454,113 @@ Tout autre \`{nom}\` matche un segment générique. Le motif est ancré (début 
       reference('dsfr-data-unpivot'),
   },
 
+  dsfrDataPivot: {
+    id: 'dsfrDataPivot',
+    name: 'dsfr-data-pivot',
+    description:
+      'Replie un tableau "long" en "wide" (tableau croisé) : une colonne par valeur distincte d\'un champ',
+    trigger: [
+      'pivot',
+      'tableau croisé',
+      'tableau croise',
+      'crosstab',
+      'cross-tab',
+      'lignes en colonnes',
+      'une colonne par année',
+      'une colonne par annee',
+      'une colonne par valeur',
+      'long vers wide',
+      'écart entre deux séries',
+      'ecart entre deux series',
+      'différence entre deux années',
+      'difference entre deux annees',
+      'comparer deux années',
+    ],
+    content:
+      `## <dsfr-data-pivot> - Repli "long" → "wide" (tableau croisé)
+
+Composant invisible, pur transformateur (aucun fetch HTTP), symétrique exact de
+dsfr-data-unpivot. Un jeu "long" porte une observation par ligne
+(\`commune | annee | montant\`) ; le pivot en fait un tableau croisé : une ligne par
+valeur de \`row\`, une colonne par valeur distincte de \`column\`, et dans chaque cellule
+l'agrégat des valeurs de \`value\`.
+
+### Position dans le pipeline
+\`\`\`
+dsfr-data-source (long) ──► [dsfr-data-query : filtre / facette] ──► dsfr-data-pivot ──► dsfr-data-list
+                                                                              └──► dsfr-data-normalize (compute) ──► chart / kpi
+\`\`\`
+
+### Attributs
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique de la sortie. |
+| source | String | "" | oui | ID de la source amont (format long). |
+| row | String | "" | oui | Champs formant l'identité de ligne, virgule-séparés. Ex: \`"commune"\`, \`"etab, dep"\`. |
+| column | String | "" | oui | Champ dont chaque valeur distincte devient une colonne. Ex: \`"annee"\`. |
+| value | String | "" | oui | Champ dont les valeurs remplissent les cellules. Ex: \`"montant"\`. |
+| aggregate | String | "sum" | non | Réduction quand plusieurs lignes tombent dans la même cellule : \`sum\`, \`count\`, \`avg\`, \`min\`, \`max\`, \`first\`, \`last\` (grammaire commune du pipeline). |
+| column-order | String | "" | non | Ordre des colonnes générées : vide = ordre d'apparition, \`asc\` / \`desc\` (tri numérique si toutes les valeurs le sont). |
+| column-format | String | "" | non | Gabarit des noms de colonnes, \`{value}\` = valeur brute. Ex: \`"annee_{value}"\` → \`annee_2023\` (identifiant sûr pour \`compute\`). |
+| labels | String | "" | non | Libellés par valeur brute : \`"2022:Année 2022 \\| 2023:Année 2023"\` (prime sur column-format ; \`:\` et \`\\|\` littéraux échappés en \`%3A\` / \`%7C\`). |
+| max-columns | Number | 50 | non | Plafond de colonnes générées. Au-delà : erreur de configuration explicite, pas un tableau. |
+
+### Règles
+- **Cellule sans observation = \`null\`**, jamais 0 (#301). \`sum\`/\`avg\` sans valeur numérique → \`null\` aussi.
+- Toutes les lignes émises portent **toutes** les colonnes générées (schéma uniforme).
+- Le **schéma de sortie dépend des données** : une nouvelle valeur de \`column\` dans la source
+  crée une nouvelle colonne sans changer le HTML. Un \`dsfr-data-list\` sans \`columns\` (ou avec
+  \`columns-auto\`) suit ce schéma ; un \`dsfr-data-chart\` en \`value-fields\` doit nommer les colonnes
+  qu'il attend (utiliser \`column-format\` pour des noms prévisibles).
+- Les lignes dont le champ \`column\` est vide/null sont ignorées (comptées dans la trace).
+- Une valeur de \`column\` qui porte le nom d'un champ de \`row\` est une erreur (collision) :
+  poser \`column-format\`.
+- Plus de \`max-columns\` valeurs distinctes (50 par défaut) → \`data-dsfr-config-error\` : un pivot
+  sur un identifiant (10 000 valeurs) est une erreur de page. Filtrer en amont ou changer de champ.
+- La trace du volet Diagnostic (#604) affiche le nombre de colonnes générées et de cellules vides.
+
+### Exemple 1 : tableau croisé dont les colonnes suivent une facette (#640)
+\`\`\`html
+<dsfr-data-source id="tarifs" api-type="tabular" resource="…"></dsfr-data-source>
+<!-- la facette filtre les services ; les colonnes de la grille suivent la sélection -->
+<dsfr-data-facets id="svc" source="tarifs" fields="service"></dsfr-data-facets>
+<dsfr-data-pivot id="large" source="svc"
+  row="etab, dep" column="service" value="tarif" aggregate="first">
+</dsfr-data-pivot>
+<dsfr-data-list source="large"
+  columns="etab:Établissement, dep:Département" columns-auto
+  sort="etab:asc" export="csv">
+</dsfr-data-list>
+\`\`\`
+
+### Exemple 2 : écart entre deux séries (pivot puis compute)
+\`\`\`html
+<dsfr-data-source id="long" data='[
+  {"commune":"Lyon","annee":2022,"montant":10},
+  {"commune":"Lyon","annee":2023,"montant":12},
+  {"commune":"Nice","annee":2022,"montant":7},
+  {"commune":"Nice","annee":2023,"montant":9}
+]'></dsfr-data-source>
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant" column-format="annee_{value}">
+</dsfr-data-pivot>
+<dsfr-data-normalize id="ecart" source="wide"
+  compute="ecart = annee_2023 - annee_2022">
+</dsfr-data-normalize>
+<dsfr-data-chart source="ecart" type="bar" label-field="commune" value-field="ecart:Écart 2023 − 2022">
+</dsfr-data-chart>
+\`\`\`
+
+### Pièges
+- Sans \`column-format\`, les colonnes s'appellent \`2022\`, \`2023\` : un \`compute\` lit alors
+  un nombre, pas un champ. Toujours \`column-format="annee_{value}"\` avant un calcul.
+- \`aggregate\` par défaut = \`sum\` : pour des tarifs ou des libellés (une valeur par cellule),
+  préférer \`first\`.
+- Ne pas pivoter pour alimenter un graphique multi-séries : \`dsfr-data-chart series-field\`
+  consomme le format long directement. Le pivot sert au **tableau croisé** et au **calcul
+  entre colonnes**.` + reference('dsfr-data-pivot'),
+  },
+
   dsfrDataPodium: {
     id: 'dsfrDataPodium',
     name: 'dsfr-data-podium',
@@ -3437,7 +3706,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap',
     trigger: [
       'grammaire',
       'voie native',
@@ -3472,6 +3741,11 @@ compte pas (peut etre place apres les composants).
       'valeur nulle',
       'is not null',
       'isnotnull',
+      'colonne calculee',
+      'compute',
+      'when',
+      'recoder',
+      'tranche',
       'fond neutre',
       'fond gris',
       'niveaux de gris',
@@ -3676,6 +3950,30 @@ Deux dialectes selon l’endroit :
 
 Un groupe « (vide) » dans un graphique vient presque toujours de lignes a valeur
 nulle : filtrer avec \`isnotnull\` plutot que de post-traiter les donnees.
+Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
+\`dsfr-data-normalize compute="type = coalesce(type, 'Non renseigné')"\`.
+
+### Colonne derivee, recodage par ligne : compute (when / then / else, fonctions)
+
+\`dsfr-data-normalize compute\` : \`"cible = expression; cible2 = expression2"\`, par ligne,
+en dernier. Arithmetique, concatenation, fonctions en liste blanche (\`year month day
+round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
+contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
+comparaisons \`= != < <= > >=\`, \`and or not\`). Meme egalite lache que \`where\` : la
+condition \`when dept = 75\` garde les memes lignes que \`where="dept:eq:75"\`.
+
+\`\`\`html
+<dsfr-data-normalize id="calc" source="raw" numeric="montant"
+  compute="tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           annee = year(date_notification); solde = actif - passif">
+</dsfr-data-normalize>
+\`\`\`
+
+Pas de script pour « une colonne annee », « une tranche selon un seuil », « un solde »,
+« null → Non renseigné » : c'est \`compute\`. Une fonction hors liste ou un \`when\` sans
+\`else\` est une erreur de configuration visible (console + \`data-dsfr-config-error\`).
+Les agregats (somme, distinct, part) restent dans \`dsfr-data-query\` / \`dsfr-data-kpi\` ;
+l'affichage conditionnel d'un fragment, dans les templates (\`{{#if}}\`).
 
 ### Fond de carte neutre, grise, niveaux de gris
 

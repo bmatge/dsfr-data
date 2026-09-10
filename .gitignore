@@ -53,3 +53,8 @@ app-dist/
 # Local Claude Code agent state
 .claude/
 audit-ui-*/
+
+# Liens symboliques posés par les worktrees d'agents (le motif avec / ne couvre que les dossiers)
+node_modules
+packages/app-ui/dist
+vitest.wt.config.ts

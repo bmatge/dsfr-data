@@ -586,10 +586,14 @@ export class GristAdapter implements ApiAdapter {
         const aggParts = this.parseAggregates(params.aggregate);
         const selectParts = [
           ...groupFields,
-          ...aggParts.map(
-            (a) =>
-              `${a.function.toUpperCase()}(${this._escapeIdentifier(a.field)}) as ${this._escapeIdentifier(a.alias || `${a.field}__${a.function}`)}`
-          ),
+          ...aggParts.map((a) => {
+            // `distinct` (#672) : SQL COUNT(DISTINCT col), alias col__distinct
+            const sqlFn =
+              a.function === 'distinct'
+                ? `COUNT(DISTINCT ${this._escapeIdentifier(a.field)})`
+                : `${a.function.toUpperCase()}(${this._escapeIdentifier(a.field)})`;
+            return `${sqlFn} as ${this._escapeIdentifier(a.alias || `${a.field}__${a.function}`)}`;
+          }),
         ];
         select = selectParts.join(', ');
       } else {

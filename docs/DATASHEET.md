@@ -18,6 +18,7 @@ Source de donnees → Nettoyage → Requetage → Visualisation
 | `<dsfr-data-query>` | Filtrer, trier, regrouper, agreger les donnees |
 | `<dsfr-data-join>` | Joindre deux sources sur une cle pivot (inner, left, right, full) |
 | `<dsfr-data-unpivot>` | Basculer un tableau "wide" en "long/tidy" (melt) |
+| `<dsfr-data-pivot>` | Replier un tableau "long" en "wide" (tableau croise, une colonne par valeur) |
 | `<dsfr-data-normalize>` | Nettoyer : conversion numerique, renommage, trim, colonnes calculees |
 | `<dsfr-data-context>` | Orchestrer des filtres transverses multi-sources (dashboards) |
 | `<dsfr-data-context-filter>` | Relier un filtre du contexte a un controle d'UI natif |

@@ -654,6 +654,61 @@ Les donnees passent par `dsfr-data-query` qui les filtre, regroupe et/ou agrege 
 </dsfr-data-list>
 ```
 
+### Tableau croise : dsfr-data-source → dsfr-data-pivot → dsfr-data-list
+
+Beaucoup de jeux sont servis en format **long** (une observation par ligne : `commune | annee | montant`).
+`dsfr-data-pivot` les replie en tableau **wide** (croise) : une ligne par valeur de `row`, une colonne par
+valeur distincte de `column`, et dans chaque cellule l'agregat (`aggregate`, `sum` par defaut) de `value`.
+Une cellule sans observation reste vide (`null`), jamais 0. C'est le symetrique de `dsfr-data-unpivot`.
+
+#### Tableau croise dont les colonnes suivent les donnees
+
+```html
+<dsfr-data-source id="long" data='[
+  {"commune":"Lyon","annee":2022,"montant":10},
+  {"commune":"Lyon","annee":2023,"montant":12},
+  {"commune":"Nice","annee":2022,"montant":7},
+  {"commune":"Nice","annee":2023,"montant":9}
+]'></dsfr-data-source>
+
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant" aggregate="sum">
+</dsfr-data-pivot>
+
+<!-- sans `columns`, la grille prend toutes les colonnes des donnees : commune | 2022 | 2023 -->
+<dsfr-data-list source="wide" sort="commune:asc" export="csv"></dsfr-data-list>
+```
+
+Une nouvelle annee dans la source devient une nouvelle colonne sans toucher au HTML. Pour figer et
+libeller les premieres colonnes tout en laissant les suivantes suivre les donnees, poser
+`columns="commune:Commune" columns-auto` sur la liste. En aval d'une facette (`dsfr-data-facets`) ou
+d'une requete filtree, les colonnes visibles sont exactement les valeurs retenues par le filtre.
+
+Options utiles : `column-order="asc|desc"` (ordre des colonnes), `labels="2022:Annee 2022 | 2023:Annee 2023"`
+(libelles), `max-columns` (plafond, 50 par defaut : au-dela le composant signale une erreur de
+configuration plutot que de produire un tableau a 10 000 colonnes).
+
+#### Ecart entre deux series : pivot puis compute
+
+```html
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant"
+  column-format="annee_{value}">
+</dsfr-data-pivot>
+
+<dsfr-data-normalize id="ecart" source="wide"
+  compute="ecart = annee_2023 - annee_2022">
+</dsfr-data-normalize>
+
+<dsfr-data-chart source="ecart" type="bar"
+  label-field="commune" value-field="ecart:Ecart 2023 - 2022">
+</dsfr-data-chart>
+```
+
+`column-format="annee_{value}"` donne des noms de colonnes utilisables dans `compute` (`2023` seul
+serait lu comme un nombre). Le volet Diagnostic affiche, sur l'etape pivot, le nombre de colonnes
+generees et de cellules vides.
+
 ### Cartes interactives Leaflet — la famille dsfr-data-map
 
 Au-dela des cartes choroplethes de `dsfr-data-chart` (type `map`/`map-reg`/`map-aca`/`map-monde`), la famille `dsfr-data-map` (bundle `map`) rend des **cartes interactives Leaflet** multi-couches : marqueurs, formes GeoJSON, cercles proportionnels, heatmap. Six composants se combinent :

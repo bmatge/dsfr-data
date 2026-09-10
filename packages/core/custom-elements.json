@@ -5806,7 +5806,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.",
+              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
               "attribute": "value"
             },
             {
@@ -5818,6 +5818,16 @@
               "default": "''",
               "deprecated": "alias français de `value` (#300)",
               "attribute": "valeur"
+            },
+            {
+              "kind": "field",
+              "name": "where",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Filtre des lignes AVANT le calcul (#674), dialecte colon de\ndsfr-data-query : `where=\"categorie:eq:Actif, montant:gte:1000\"` —\nmêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,\nin, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués\nacceptés. Appliqué à `value`, `trend` et `lines`.\nCÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre\nporte sur les lignes reçues (derrière un `limit` ou une page, poser le\n`where` sur la source ou une query amont). `meta:total` n'en tient pas\ncompte. Une clause non reconnue est une erreur de configuration.",
+              "attribute": "where"
             },
             {
               "kind": "field",
@@ -5905,7 +5915,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaine etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").",
+              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaine etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
               "attribute": "trend"
             },
             {
@@ -6018,6 +6028,17 @@
             },
             {
               "kind": "method",
+              "name": "_filteredData",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "unknown"
+                }
+              },
+              "description": "Lignes de la source après le `where` client (#674). Sans `where` (ou\navec un `where` invalide, déjà signalé), les données brutes — y compris\nune source mono-objet, que computeAggregation sait lire."
+            },
+            {
+              "kind": "method",
               "name": "_computeValue",
               "privacy": "private",
               "return": {
@@ -6025,6 +6046,48 @@
                   "text": "number | string | null"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_aggregationContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AggregationContext"
+                }
+              },
+              "description": "Contexte d'évaluation : total publié par l'amont (`meta:total`, #659)."
+            },
+            {
+              "kind": "method",
+              "name": "_scaleRate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number | string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "number | string | null"
+                  }
+                },
+                {
+                  "name": "expr",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "format",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Un ratio (#673) est une fraction ; en `format=\"pourcentage\"` on la rend\nen pourcentage (0,35 -> 35). La valeur retournée par `_computeValue` est\ncelle qui s'affiche : seuils et aria-label parlent de la même unité."
             },
             {
               "kind": "method",
@@ -6069,6 +6132,13 @@
                   "name": "rows",
                   "type": {
                     "text": "number"
+                  }
+                },
+                {
+                  "name": "fn",
+                  "default": "'count'",
+                  "type": {
+                    "text": "'count' | 'distinct'"
                   }
                 }
               ],
@@ -6158,7 +6228,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.",
+              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
               "fieldName": "value"
             },
             {
@@ -6169,6 +6239,15 @@
               "default": "''",
               "deprecated": "alias français de `value` (#300)",
               "fieldName": "valeur"
+            },
+            {
+              "name": "where",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Filtre des lignes AVANT le calcul (#674), dialecte colon de\ndsfr-data-query : `where=\"categorie:eq:Actif, montant:gte:1000\"` —\nmêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,\nin, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués\nacceptés. Appliqué à `value`, `trend` et `lines`.\nCÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre\nporte sur les lignes reçues (derrière un `limit` ou une page, poser le\n`where` sur la source ou une query amont). `meta:total` n'en tient pas\ncompte. Une clause non reconnue est une erreur de configuration.",
+              "fieldName": "where"
             },
             {
               "name": "heading",
@@ -6247,7 +6326,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaine etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").",
+              "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaine etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
               "fieldName": "trend"
             },
             {
@@ -6403,8 +6482,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Définition des colonnes: \"clé:Label, cle2:Label2\"",
+              "description": "Définition des colonnes : `\"clé:Label, cle2:Label2\"`. Omis : toutes les clés\nprésentes dans les données deviennent colonnes, dans leur ordre d'apparition,\nlibellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255).",
               "attribute": "columns"
+            },
+            {
+              "kind": "field",
+              "name": "columnsAuto",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Complète `columns` avec les clés des données qui n'y figurent pas (ordre\nd'apparition, libellé = clé) : les premières colonnes sont libellées et\nfigées, les suivantes suivent les données (#640).",
+              "attribute": "columns-auto"
             },
             {
               "kind": "field",
@@ -6710,6 +6799,17 @@
                   "text": "ColumnDef[]"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_dataKeys",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Union ordonnée des clés des lignes reçues (les lignes peuvent être\nhétérogènes). Un pivot amont publie l'ordre voulu dans la meta (#255) :\nJavaScript énumère les clés entières (`2022`, `2023`) avant les autres,\n`Object.keys` seul mettrait les années devant la commune."
             },
             {
               "kind": "method",
@@ -7044,8 +7144,17 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Définition des colonnes: \"clé:Label, cle2:Label2\"",
+              "description": "Définition des colonnes : `\"clé:Label, cle2:Label2\"`. Omis : toutes les clés\nprésentes dans les données deviennent colonnes, dans leur ordre d'apparition,\nlibellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255).",
               "fieldName": "columns"
+            },
+            {
+              "name": "columns-auto",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Complète `columns` avec les clés des données qui n'y figurent pas (ordre\nd'apparition, libellé = clé) : les premières colonnes sont libellées et\nfigées, les suivantes suivent les données (#640).",
+              "fieldName": "columnsAuto"
             },
             {
               "name": "colonnes",
@@ -11188,7 +11297,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Renommage de clés. Format: \"ancien:nouveau | ancien2:nouveau2\"",
+              "description": "Renommage de clés. Format : \"ancien:nouveau | ancien2:nouveau2\".\nUn `:` ou `|` littéral dans un nom s'échappe en percent (`%3A`, `%7C`), comme dans `where`.",
               "attribute": "rename"
             },
             {
@@ -11218,7 +11327,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement de valeurs. Format: \"pattern:remplacement | pattern2:remplacement2\"",
+              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». Pour un recodage plus riche\n(sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
               "attribute": "replace"
             },
             {
@@ -11228,7 +11337,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement cible par champ. Format: \"CHAMP:pattern:remplacement | CHAMP2:p:r\"",
+              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
               "attribute": "replace-fields"
             },
             {
@@ -11250,6 +11359,26 @@
               "default": "''",
               "description": "Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; separateur\npar defaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque element est trime, les elements vides sont ecartes, une chaine vide\ndonne un tableau vide. Les valeurs non-string (tableau deja forme, null,\nnombre) sont laissees telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par element).",
               "attribute": "split"
+            },
+            {
+              "kind": "field",
+              "name": "fold",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Repli de colonnes booléennes parallèles en un champ multi-valeurs (#677) — le motif\nopen data « une colonne Oui/Non par modalité » (`handicap_moteur`, `handicap_visuel`…).\nFormat : \"motif:cible, motif2:cible2\". Le joker `*` n'est accepté qu'en début ou en fin\nde motif (`handicap_*`, `*_ok`) ; un motif sans joker désigne une colonne exacte ; plusieurs\nmotifs peuvent viser la même cible. Chaque ligne reçoit dans `cible` le tableau des colonnes\ndont la valeur est vraie au sens de `toBoolean` (Oui/Non, 1/0, true/false, X/vide…),\nétiquetées par la partie variable du motif (`handicap_moteur` donne « moteur ») ou par le\nnom complet de la colonne pour un motif sans joker. Les colonnes sources sont conservées\n(voir `fold-drop`). S'exécute après `rename` et `lowercase-keys`, avant `compute` : les\nmotifs se lisent sur les noms renommés, qui servent donc d'étiquettes\n(`rename=\"handicap_moteur:handicap_Moteur\"` donne « Moteur »). Le tableau obtenu se\nfiltre avec `dsfr-data-facets` comme un champ `split` (une valeur par élément).\nEx : `fold=\"handicap_*:handicaps\"`.",
+              "attribute": "fold"
+            },
+            {
+              "kind": "field",
+              "name": "foldDrop",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Avec `fold` : retire du résultat les colonnes sources repliées.",
+              "attribute": "fold-drop"
             },
             {
               "kind": "field",
@@ -11278,8 +11407,39 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonnes calculées (ligne à ligne, sur valeurs brutes).\nFormat : \"cible = expression; cible2 = expression2\".\nSupporte l'arithmétique (+ - * /), la concaténation texte (+ avec littéraux 'entre quotes')\net les parenthèses. Ex : \"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme\".\nHors périmètre : conditions, fonctions, calculs sur valeurs agrégées.",
+              "description": "Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par\nnumeric / round / rename). Format : \"cible = expression; cible2 = expression2\"\n(une assignation suivante peut relire une colonne calculée avant elle).\n\nGrammaire (ADR-105, #671) :\n- arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté\n  n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;\n- littéraux `null`, `true`, `false` ;\n- fonctions en liste blanche, appel `f(a, b)` :\n  dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;\n  nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;\n  texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,\n  `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;\n  absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,\n  `is_empty(x)` (null, '' ou tableau vide) ;\n  tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;\n- conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est\n  obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`\n  et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les\n  signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),\n  `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne\n  numérique) : `when cat = 'A'` et `where=\"cat:eq:A\"` gardent les mêmes lignes.\n  Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,\n  en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.\n\nExemples : \"solde = actif - passif\",\n\"tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'\",\n\"type = coalesce(type_entreprise, 'Non renseigné')\", \"annee = year(date_notification)\",\n\"pct = round(part * 100, 1)\", \"serie = Indicateurs + ' / ' + Sous_theme\" ; une tranche\npar seuils s'écrit avec les opérateurs d'ordre (voir le guide).\n\nFonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop\nimbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur\nen aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,\nAST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs\nagrégées (query / kpi), ligne précédente, cumul.",
               "attribute": "compute"
+            },
+            {
+              "kind": "field",
+              "name": "_computedColumns",
+              "type": {
+                "text": "ComputedColumn[]"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Colonnes produites par `compute` au dernier traitement, avec un exemple\nde valeur (première ligne) — lu par la trace du volet Diagnostic (#604,\n#671), même doctrine que `getSkippedCount()` des afficheurs."
+            },
+            {
+              "kind": "field",
+              "name": "_computeConfigError",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "True tant qu'une erreur de grammaire `compute` est affichée (#671)."
+            },
+            {
+              "kind": "method",
+              "name": "getComputedColumns",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "ComputedColumn[]"
+                }
+              },
+              "description": "Colonnes ajoutées par `compute` au dernier traitement (vide sans compute)."
             },
             {
               "kind": "method",
@@ -11553,6 +11713,85 @@
             },
             {
               "kind": "method",
+              "name": "_parseFold",
+              "return": {
+                "type": {
+                  "text": "ParsedFold"
+                }
+              },
+              "description": "Parse l'attribut fold en règles `{ cible, motifs }` (#677). Format : \"motif:cible, motif2:cible2\".\nEntrées séparées par virgule ; le premier `:` sépare le motif de la cible (échappement percent\ndécodé après découpage). Le joker `*` n'est accepté qu'en début ou en fin de motif ; une\nentrée malformée (sans `:`, motif ou cible vide, joker au milieu ou multiple) est rendue dans\n`errors` et ignorée. Plusieurs motifs visant la même cible sont regroupés, dans l'ordre déclaré."
+            },
+            {
+              "kind": "method",
+              "name": "_parseFoldMatcher",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FoldMatcher | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "pattern",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Un motif de fold : `prefix*`, `*suffix` ou nom exact ; null si le joker est mal placé."
+            },
+            {
+              "kind": "method",
+              "name": "_foldLabel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "key",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "matcher",
+                  "type": {
+                    "text": "FoldMatcher"
+                  }
+                }
+              ],
+              "description": "Étiquette d'une colonne repliée : la partie variable du motif (`handicap_moteur` avec\n`handicap_*` donne « moteur »), ou le nom complet pour un motif exact ; null si la\ncolonne ne matche pas. Une partie variable vide (colonne = partie fixe) garde le nom complet."
+            },
+            {
+              "kind": "method",
+              "name": "_applyFold",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "row",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "rules",
+                  "type": {
+                    "text": "FoldRule[]"
+                  }
+                }
+              ],
+              "description": "Applique les règles de fold à une ligne déjà normalisée (clés finales). Pour chaque cible,\nles colonnes matchées sont parcourues motif par motif, dans l'ordre de la ligne ; chaque\ncolonne ne compte qu'une fois (le premier motif qui la matche fixe son étiquette) et celles\ndont la valeur est vraie (`toBoolean`) fournissent leur étiquette au tableau cible, sans\ndoublon. Les colonnes sources sont retirées si `fold-drop` est posé."
+            },
+            {
+              "kind": "method",
               "name": "_parseSplitFields",
               "return": {
                 "type": {
@@ -11597,7 +11836,7 @@
                   }
                 }
               ],
-              "description": "Parse l'attribut replace-fields en Map<champ, Map<pattern, remplacement>>"
+              "description": "Parse l'attribut replace-fields en Map<champ, Map<pattern, remplacement>>.\nLes trois parties sont décodées par `unescapeColonValue` APRÈS le découpage\nsur `|` et sur les deux premiers `:` (échappement percent, #676)."
             },
             {
               "kind": "method",
@@ -11615,7 +11854,7 @@
                   }
                 }
               ],
-              "description": "Parse un attribut pipe-separe en Map clé:valeur"
+              "description": "Parse un attribut pipe-séparé (`rename`, `replace`) en Map clé:valeur.\nClé et valeur sont décodées par `unescapeColonValue` APRÈS le découpage\nsur `|` et sur le premier `:` (échappement percent, #676)."
             }
           ],
           "attributes": [
@@ -11652,7 +11891,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Renommage de clés. Format: \"ancien:nouveau | ancien2:nouveau2\"",
+              "description": "Renommage de clés. Format : \"ancien:nouveau | ancien2:nouveau2\".\nUn `:` ou `|` littéral dans un nom s'échappe en percent (`%3A`, `%7C`), comme dans `where`.",
               "fieldName": "rename"
             },
             {
@@ -11679,7 +11918,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement de valeurs. Format: \"pattern:remplacement | pattern2:remplacement2\"",
+              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». Pour un recodage plus riche\n(sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
               "fieldName": "replace"
             },
             {
@@ -11688,7 +11927,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement cible par champ. Format: \"CHAMP:pattern:remplacement | CHAMP2:p:r\"",
+              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
               "fieldName": "replaceFields"
             },
             {
@@ -11708,6 +11947,24 @@
               "default": "''",
               "description": "Decoupe des champs multivalues (chaine avec separateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; separateur\npar defaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque element est trime, les elements vides sont ecartes, une chaine vide\ndonne un tableau vide. Les valeurs non-string (tableau deja forme, null,\nnombre) sont laissees telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par element).",
               "fieldName": "split"
+            },
+            {
+              "name": "fold",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Repli de colonnes booléennes parallèles en un champ multi-valeurs (#677) — le motif\nopen data « une colonne Oui/Non par modalité » (`handicap_moteur`, `handicap_visuel`…).\nFormat : \"motif:cible, motif2:cible2\". Le joker `*` n'est accepté qu'en début ou en fin\nde motif (`handicap_*`, `*_ok`) ; un motif sans joker désigne une colonne exacte ; plusieurs\nmotifs peuvent viser la même cible. Chaque ligne reçoit dans `cible` le tableau des colonnes\ndont la valeur est vraie au sens de `toBoolean` (Oui/Non, 1/0, true/false, X/vide…),\nétiquetées par la partie variable du motif (`handicap_moteur` donne « moteur ») ou par le\nnom complet de la colonne pour un motif sans joker. Les colonnes sources sont conservées\n(voir `fold-drop`). S'exécute après `rename` et `lowercase-keys`, avant `compute` : les\nmotifs se lisent sur les noms renommés, qui servent donc d'étiquettes\n(`rename=\"handicap_moteur:handicap_Moteur\"` donne « Moteur »). Le tableau obtenu se\nfiltre avec `dsfr-data-facets` comme un champ `split` (une valeur par élément).\nEx : `fold=\"handicap_*:handicaps\"`.",
+              "fieldName": "fold"
+            },
+            {
+              "name": "fold-drop",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Avec `fold` : retire du résultat les colonnes sources repliées.",
+              "fieldName": "foldDrop"
             },
             {
               "name": "round",
@@ -11733,7 +11990,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonnes calculées (ligne à ligne, sur valeurs brutes).\nFormat : \"cible = expression; cible2 = expression2\".\nSupporte l'arithmétique (+ - * /), la concaténation texte (+ avec littéraux 'entre quotes')\net les parenthèses. Ex : \"pct = valeur * 100; groupe = Indicateurs + ' / ' + Sous_theme\".\nHors périmètre : conditions, fonctions, calculs sur valeurs agrégées.",
+              "description": "Colonnes calculées, ligne à ligne, en dernier (sur les valeurs déjà typées par\nnumeric / round / rename). Format : \"cible = expression; cible2 = expression2\"\n(une assignation suivante peut relire une colonne calculée avant elle).\n\nGrammaire (ADR-105, #671) :\n- arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté\n  n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;\n- littéraux `null`, `true`, `false` ;\n- fonctions en liste blanche, appel `f(a, b)` :\n  dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;\n  nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;\n  texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,\n  `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;\n  absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,\n  `is_empty(x)` (null, '' ou tableau vide) ;\n  tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;\n- conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est\n  obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`\n  et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les\n  signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),\n  `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne\n  numérique) : `when cat = 'A'` et `where=\"cat:eq:A\"` gardent les mêmes lignes.\n  Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,\n  en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.\n\nExemples : \"solde = actif - passif\",\n\"tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'\",\n\"type = coalesce(type_entreprise, 'Non renseigné')\", \"annee = year(date_notification)\",\n\"pct = round(part * 100, 1)\", \"serie = Indicateurs + ' / ' + Sous_theme\" ; une tranche\npar seuils s'écrit avec les opérateurs d'ordre (voir le guide).\n\nFonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop\nimbriquée : erreur de configuration (console + `data-dsfr-config-error`), état d'erreur\nen aval — jamais une colonne silencieusement vide. Aucun `eval` : tokenizer, parseur,\nAST ; seuls les champs de la ligne sont accessibles. Hors périmètre : valeurs\nagrégées (query / kpi), ligne précédente, cumul.",
               "fieldName": "compute"
             }
           ],
@@ -11766,6 +12023,441 @@
           "declaration": {
             "name": "DsfrDataNormalize",
             "module": "packages/core/src/components/dsfr-data-normalize.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/core/src/components/dsfr-data-pivot.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "<dsfr-data-pivot> — Replie un tableau « long » en tableau « wide » (tableau croisé)\n\nTransformateur pur (frère de dsfr-data-query / dsfr-data-join / dsfr-data-unpivot,\naucun fetch HTTP), symétrique exact de dsfr-data-unpivot (#255). Une ligne par\nvaleur distincte de `row`, une colonne par valeur distincte de `column`, et dans\nchaque cellule l'agrégat (`aggregate`, `sum` par défaut) des valeurs de `value`.\n\nUne cellule sans observation vaut `null`, jamais 0 (#301). Toutes les lignes\némises portent toutes les colonnes générées : un `dsfr-data-list` en aval sans\nattribut `columns` dérive ses colonnes des données — elles suivent donc une\nfacette ou un filtre posé en amont (#640).\n\nLe schéma de sortie dépend des données. Pour des noms de colonnes sûrs dans un\n`compute` (`annee_2023 - annee_2022`), utiliser `column-format=\"annee_{value}\"`.\nAu-delà de `max-columns` valeurs distinctes (50 par défaut), c'est une erreur de\nconfiguration (`data-dsfr-config-error`) et non un tableau de 10 000 colonnes.",
+          "name": "DsfrDataPivot",
+          "members": [
+            {
+              "kind": "field",
+              "name": "source",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "ID de la source de données à écouter (format long : une observation par ligne).",
+              "attribute": "source"
+            },
+            {
+              "kind": "field",
+              "name": "row",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champs formant l'identité de ligne, virgule-séparés : une ligne émise par\ncombinaison distincte. Ex : `\"commune\"` ou `\"etab, dep\"`.",
+              "attribute": "row"
+            },
+            {
+              "kind": "field",
+              "name": "column",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont chaque valeur distincte devient une colonne. Ex : `\"annee\"`.",
+              "attribute": "column"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont les valeurs remplissent les cellules. Ex : `\"montant\"`.",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "aggregate",
+              "type": {
+                "text": "string"
+              },
+              "default": "'sum'",
+              "description": "Réduction quand plusieurs lignes tombent dans la même cellule :\n`sum` (défaut), `count`, `avg`, `min`, `max`, `first`, `last`.\nUne cellule sans valeur numérique reste `null` (pas de 0 silencieux).",
+              "attribute": "aggregate"
+            },
+            {
+              "kind": "field",
+              "name": "columnOrder",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Ordre des colonnes générées : vide = ordre d'apparition dans les données,\n`asc` / `desc` = tri des valeurs (numérique si elles le sont toutes).",
+              "attribute": "column-order"
+            },
+            {
+              "kind": "field",
+              "name": "columnFormat",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Gabarit des noms de colonnes générées, `{value}` = valeur brute.\nEx : `\"annee_{value}\"` donne `annee_2023` — un identifiant utilisable dans\n`compute`. Défaut : la valeur brute (`2023`).",
+              "attribute": "column-format"
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellés des colonnes générées, par valeur brute : `\"2022:Année 2022 | 2023:Année 2023\"`.\nUne valeur libellée prend son libellé pour nom de colonne (prime sur column-format).\nUn `:` ou `|` littéral s'échappe en `%3A` / `%7C`.",
+              "attribute": "labels"
+            },
+            {
+              "kind": "field",
+              "name": "maxColumns",
+              "default": "PIVOT_DEFAULT_MAX_COLUMNS",
+              "description": "Plafond de colonnes générées (défaut 50). Au-delà, erreur de configuration\nexplicite : un pivot sur un champ à 10 000 valeurs distinctes est une erreur\nde page, pas un tableau.",
+              "attribute": "max-columns"
+            },
+            {
+              "kind": "field",
+              "name": "_data",
+              "type": {
+                "text": "Row[]"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "_lastStats",
+              "type": {
+                "text": "PivotStats | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Statistiques du dernier pivot (meta + trace, #604)."
+            },
+            {
+              "kind": "field",
+              "name": "_configError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de configuration détectée avant traitement (agrégat inconnu…)."
+            },
+            {
+              "kind": "method",
+              "name": "getAdapter",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "import('../adapters/api-adapter.js').ApiAdapter | null"
+                }
+              },
+              "description": "Retourne l'adapter de la source amont (délégation transparente), pour que\nfacets / search en aval atteignent l'adapter à travers ce transformateur."
+            },
+            {
+              "kind": "method",
+              "name": "getEffectiveWhere",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "excludeKey",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Retourne le where effectif de la source amont (délégation transparente)."
+            },
+            {
+              "kind": "method",
+              "name": "getAdapterParams",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "import('../adapters/api-adapter.js').AdapterParams | null"
+                }
+              },
+              "description": "Retourne les paramètres adapter résolus de la source amont (délégation, #274)."
+            },
+            {
+              "kind": "method",
+              "name": "transformsSchema",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Le pivot fabrique ses colonnes à partir des données : le schéma aval ne\ncorrespond jamais à celui de la source qui fetch (#394). Une query en aval\nne doit donc jamais déléguer ses opérations au serveur à travers lui."
+            },
+            {
+              "kind": "method",
+              "name": "getData",
+              "return": {
+                "type": {
+                  "text": "Row[]"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "getPivotStats",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "PivotStats | null"
+                }
+              },
+              "description": "Statistiques du dernier pivot (colonnes générées, cellules vides), ou null avant le premier."
+            },
+            {
+              "kind": "method",
+              "name": "transformerName",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "beforeTransformerSubscribe",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Validation de la configuration avant abonnement (#649) : l'erreur est\nsignalée ici (console + `data-dsfr-config-error`) et rendue en erreur aval\nau traitement — jamais un tableau plausible en silence."
+            },
+            {
+              "kind": "method",
+              "name": "onTransformerData",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "transformMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "meta",
+                  "type": {
+                    "text": "PaginationMeta"
+                  }
+                }
+              ],
+              "description": "Meta amont propagée avec `total` invalidé (#282, le pivot change le nombre\nde lignes) et enrichie des statistiques du pivot (#604)."
+            },
+            {
+              "kind": "method",
+              "name": "transformerOwnMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta | null"
+                }
+              },
+              "description": "Sans meta amont (source inline), le pivot publie quand même ses statistiques."
+            },
+            {
+              "kind": "method",
+              "name": "transformerReprocessProps",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Paramètres de pivot → retraitement des données en cache (#281)."
+            },
+            {
+              "kind": "method",
+              "name": "onTransformerReprocess",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_validateConfig",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_buildOptions",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "PivotOptions"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_processData",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "rawData",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "source",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "ID de la source de données à écouter (format long : une observation par ligne).",
+              "fieldName": "source"
+            },
+            {
+              "name": "row",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champs formant l'identité de ligne, virgule-séparés : une ligne émise par\ncombinaison distincte. Ex : `\"commune\"` ou `\"etab, dep\"`.",
+              "fieldName": "row"
+            },
+            {
+              "name": "column",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont chaque valeur distincte devient une colonne. Ex : `\"annee\"`.",
+              "fieldName": "column"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont les valeurs remplissent les cellules. Ex : `\"montant\"`.",
+              "fieldName": "value"
+            },
+            {
+              "name": "aggregate",
+              "type": {
+                "text": "string"
+              },
+              "default": "'sum'",
+              "description": "Réduction quand plusieurs lignes tombent dans la même cellule :\n`sum` (défaut), `count`, `avg`, `min`, `max`, `first`, `last`.\nUne cellule sans valeur numérique reste `null` (pas de 0 silencieux).",
+              "fieldName": "aggregate"
+            },
+            {
+              "name": "column-order",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Ordre des colonnes générées : vide = ordre d'apparition dans les données,\n`asc` / `desc` = tri des valeurs (numérique si elles le sont toutes).",
+              "fieldName": "columnOrder"
+            },
+            {
+              "name": "column-format",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Gabarit des noms de colonnes générées, `{value}` = valeur brute.\nEx : `\"annee_{value}\"` donne `annee_2023` — un identifiant utilisable dans\n`compute`. Défaut : la valeur brute (`2023`).",
+              "fieldName": "columnFormat"
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellés des colonnes générées, par valeur brute : `\"2022:Année 2022 | 2023:Année 2023\"`.\nUne valeur libellée prend son libellé pour nom de colonne (prime sur column-format).\nUn `:` ou `|` littéral s'échappe en `%3A` / `%7C`.",
+              "fieldName": "labels"
+            },
+            {
+              "name": "max-columns",
+              "default": "PIVOT_DEFAULT_MAX_COLUMNS",
+              "description": "Plafond de colonnes générées (défaut 50). Au-delà, erreur de configuration\nexplicite : un pivot sur un champ à 10 000 valeurs distinctes est une erreur\nde page, pas un tableau.",
+              "fieldName": "maxColumns"
+            }
+          ],
+          "mixins": [
+            {
+              "name": "TransformerMixin",
+              "module": "/packages/core/src/utils/transformer-mixin.js"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "dsfr-data-pivot",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DsfrDataPivot",
+          "declaration": {
+            "name": "DsfrDataPivot",
+            "module": "packages/core/src/components/dsfr-data-pivot.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dsfr-data-pivot",
+          "declaration": {
+            "name": "DsfrDataPivot",
+            "module": "packages/core/src/components/dsfr-data-pivot.ts"
           }
         }
       ]

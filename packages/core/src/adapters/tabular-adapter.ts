@@ -94,11 +94,22 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
+   * L'API Tabular n'a pas de comptage distinct (#672) : `champ__distinct`
+   * repondrait 400. La delegation est refusee, dsfr-data-query calcule
+   * `distinct` client-side sur les lignes recues.
+   */
+  supportsServerAggregate(fn: string): boolean {
+    return fn !== 'distinct';
+  }
+
+  /**
    * True si le group-by/aggregate de params est entierement delegable
    * (tous les champs surs pour la syntaxe a suffixe `colonne__op`, #289).
    */
   private _canServerProcessGroupBy(params: AdapterParams): boolean {
     if (!params.groupBy && !params.aggregate) return true;
+    const aggregates = parseAggregates(params.aggregate || '');
+    if (!aggregates.every((a) => this.supportsServerAggregate(a.function))) return false;
     const fields = [
       ...(params.groupBy
         ? params.groupBy
@@ -106,9 +117,14 @@ export class TabularAdapter implements ApiAdapter {
             .map((f) => f.trim())
             .filter(Boolean)
         : []),
-      ...parseAggregates(params.aggregate || '').map((a) => a.field),
+      ...aggregates.map((a) => a.field),
     ];
     return this.supportsServerFields(fields);
+  }
+
+  /** True si l'expression d'agrégat contient un `distinct` (#672). */
+  private _hasDistinct(params: AdapterParams): boolean {
+    return parseAggregates(params.aggregate || '').some((a) => a.function === 'distinct');
   }
 
   /**
@@ -123,7 +139,13 @@ export class TabularAdapter implements ApiAdapter {
     // Champs non delegables (#289) : prevenu une fois, lignes brutes +
     // needsClientProcessing — l'aval (query) retraite client-side
     const canServerProcess = this._canServerProcessGroupBy(params);
-    if (!canServerProcess && (params.groupBy || params.aggregate)) {
+    const distinctRefused = !canServerProcess && this._hasDistinct(params);
+    if (distinctRefused) {
+      console.warn(
+        `[dsfr-data] tabular: "distinct" n'est pas délégable à l'API Tabular (aggregate="${params.aggregate}") — ` +
+          `lignes brutes renvoyées, comptage distinct calculé côté client`
+      );
+    } else if (!canServerProcess && (params.groupBy || params.aggregate)) {
       console.warn(
         `[dsfr-data] tabular: group-by/aggregate non delegables (champ avec espaces/ponctuation : ` +
           `"${params.groupBy || params.aggregate}") — lignes brutes renvoyees, traitement client requis`
@@ -190,6 +212,17 @@ export class TabularAdapter implements ApiAdapter {
       console.warn(
         `[dsfr-data] tabular: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
           `(limite de securite: ${TABULAR_MAX_PAGES} pages de ${TABULAR_PAGE_SIZE})`
+      );
+    }
+
+    // `distinct` calculé côté client sur des lignes TRONQUÉES (limit,
+    // plafond de pages) : le chiffre est partiel, comme `count` derrière un
+    // limit (#659) — on le dit, avec le total annoncé par l'API.
+    if (distinctRefused && totalCount > allResults.length) {
+      console.warn(
+        `[dsfr-data] tabular: "distinct" calculé sur ${allResults.length} lignes reçues ` +
+          `alors que l'API en détient ${totalCount} (meta.total) — comptage distinct partiel ` +
+          `(limit, max-records ou plafond de ${TABULAR_MAX_PAGES} pages)`
       );
     }
 

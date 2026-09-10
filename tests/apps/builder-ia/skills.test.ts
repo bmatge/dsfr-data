@@ -6,8 +6,8 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 30 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(30);
+  it('should have 31 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(31);
   });
 
   it('should have expected skill IDs', () => {
@@ -34,6 +34,8 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrDataMap');
     expect(SKILLS).toHaveProperty('troubleshooting');
     expect(SKILLS).toHaveProperty('dsfrDataJoin');
+    expect(SKILLS).toHaveProperty('dsfrDataUnpivot');
+    expect(SKILLS).toHaveProperty('dsfrDataPivot');
     expect(SKILLS).toHaveProperty('dsfrDataPodium');
     expect(SKILLS).toHaveProperty('dsfrDataBeacon');
     expect(SKILLS).toHaveProperty('attributeGrammars');
@@ -258,7 +260,7 @@ describe('builder-ia skills', () => {
 
     describe('aggregation functions coverage', () => {
       // Must match the AggregateFunction type in dsfr-data-query.ts
-      const AGG_FUNCTIONS: AggregateFunction[] = ['count', 'sum', 'avg', 'min', 'max'];
+      const AGG_FUNCTIONS: AggregateFunction[] = ['count', 'sum', 'avg', 'min', 'max', 'distinct'];
 
       it('dsfrDataQuery skill documents all aggregation functions', () => {
         const content = SKILLS.dsfrDataQuery.content;
@@ -294,6 +296,7 @@ describe('builder-ia skills', () => {
         DsfrDataA11y: 'dsfrDataA11y',
         DsfrDataJoin: 'dsfrDataJoin',
         DsfrDataUnpivot: 'dsfrDataUnpivot',
+        DsfrDataPivot: 'dsfrDataPivot',
         DsfrDataPodium: 'dsfrDataPodium',
         DsfrDataContext: 'dsfrDataContext',
         DsfrDataContextFilter: 'dsfrDataContextFilter',

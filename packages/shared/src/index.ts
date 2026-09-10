@@ -26,12 +26,35 @@ export type { JoinType, JoinKey, JoinOptions, JoinStats, JoinResult } from './ut
 export { parseJoinKeys, performJoin, performJoinWithStats } from './utils/join.js';
 export type { UnpivotOptions } from './utils/unpivot.js';
 export { performUnpivot, compileColsPattern } from './utils/unpivot.js';
+export type {
+  PivotOptions,
+  PivotStats,
+  PivotResult,
+  PivotAggregate,
+  PivotErrorCode,
+} from './utils/pivot.js';
+export {
+  performPivot,
+  parsePivotLabels,
+  isPivotAggregate,
+  PivotError,
+  PIVOT_AGGREGATES,
+  PIVOT_DEFAULT_MAX_COLUMNS,
+} from './utils/pivot.js';
 export type { CompiledCompute, CompiledAssignment } from './utils/compute.js';
-export { compileCompute, applyCompute } from './utils/compute.js';
+export {
+  compileCompute,
+  applyCompute,
+  computeTargets,
+  COMPUTE_FUNCTIONS,
+  COMPUTE_MAX_DEPTH,
+  COMPUTE_MAX_EXPRESSION_LENGTH,
+} from './utils/compute.js';
 export { isUnsafeKey } from './utils/security.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';
 export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
+export { toBoolean } from './utils/to-boolean.js';
 export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
 
@@ -66,7 +89,12 @@ export { DSFR_TAG_MAP, MAP_LEVEL_MAP } from './charts/chart-types.js';
 export type { DSFRChartType } from './charts/chart-types.js';
 
 // Query / Filters
-export { filterToOdsql, applyLocalFilter } from './query/filter-translator.js';
+export {
+  filterToOdsql,
+  applyLocalFilter,
+  validateColonFilter,
+  COLON_FILTER_OPERATORS,
+} from './query/filter-translator.js';
 export type { ContextFilterLike } from './query/context-filter.js';
 
 // API / Proxy
