@@ -36,7 +36,7 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | labelField | String | selon type | Champ pour les labels / axe X |
 | valueField | String | oui | Champ pour les valeurs / axe Y |
 | valueField2 | String | non | 2e série (bar-line, comparaisons) |
-| codeField | String | non | Champ code : departement (map), region (map-reg : code INSEE, cle ISO IDF/20R/971 ou nom), academie (map-aca : nom accentue ou non, avec ou sans « Academie de »), code pays ISO (map-monde) |
+| codeField | String | non | Champ code : departement (map), region (map-reg : code INSEE, cle ISO IDF/20R/971 ou nom), academie (map-aca : nom accentue ou non, avec ou sans « Academie de »), code pays ISO ou nom de pays en francais (map-monde) |
 | aggregation | String | non | Fonction : sum, avg, count, min, max |
 | where | String | non | Filtre pre-agrégation (voir syntaxe ci-dessous) |
 | limit | Number | non | Nombre max de resultats |
@@ -66,7 +66,7 @@ Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
 | map | non (codeField) | oui | Données par departement francais |
 | map-reg | non (codeField) | oui | Données par region francaise (code INSEE 11/84, cle IDF/20R/971 ou nom) |
 | map-aca | non (codeField) | oui | Données par academie (nom accentue ou non : « Academie de Besancon », BESANCON, Orleans-Tours) |
-| map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) |
+| map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) ou nom francais (Allemagne, Pays-Bas) |
 | datalist | non | non (colonnes) | Tableau de données filtrable |
 
 IMPORTANT :

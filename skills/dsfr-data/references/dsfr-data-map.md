@@ -2,7 +2,7 @@
 
 > Carte interactive Leaflet multi-couches avec POI, geoshape, cercles, clustering et chargement par viewport
 >
-> Déclencheurs : carte, map, leaflet, poi, marker, geoshape, geojson, clustering, bbox, viewport, tuiles, ign, geoplateforme, cercles proportionnels, heatmap, carte interactive, geo_point, geo_shape, choropleth carte, map layer, timeline, animation temporelle, carte animee, evolution temporelle, color-map, couleur catégorielle, couleur par valeur, souverainete, sovereign-only, osm-fr, tiles-attribution, fond de carte, clé api tuiles, légende, legende carte, map-legend, classes, bornes, fond atténué, tiles-style, fit-zone, contours, fonds administratifs, geo/regions, geo/departements, refine-on-click, map-select, clic sur la carte, carte comme filtre, annuaire
+> Déclencheurs : carte, map, leaflet, poi, marker, geoshape, geojson, clustering, bbox, viewport, tuiles, ign, geoplateforme, cercles proportionnels, heatmap, carte interactive, geo_point, geo_shape, choropleth carte, map layer, timeline, animation temporelle, carte animee, evolution temporelle, color-map, couleur catégorielle, couleur par valeur, souverainete, sovereign-only, osm-fr, tiles-attribution, fond de carte, clé api tuiles, légende, legende carte, map-legend, classes, bornes, fond atténué, tiles-style, tiles-switcher, changer de fond, selecteur de fond, vue aérienne, fit-zone, contours, fonds administratifs, geo/regions, geo/departements, refine-on-click, map-select, clic sur la carte, carte comme filtre, annuaire
 
 ## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
 
@@ -33,6 +33,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | tiles | String | `"ign-plan"` | Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias : `osm`), `osm-standard`, `opentopomap`, ou URL template. Deprecies (redirigent vers `ign-plan` avec warning) : `ign-topo`, `carto-positron`, `carto-dark` |
 | tiles-attribution | String | `""` | Mention d'attribution quand `tiles` est une URL custom. Obligatoire (ODbL + CGU du fournisseur) ; ignore sur un preset connu |
 | tiles-style | String | `""` | Fond attenue pour une carte thematique : `muted` (gris + 55 % d'opacite) ou `grey` (niveaux de gris). Fond « neutre » = `ign-plan` + `tiles-style="muted"`. Les encarts heritent du reglage |
+| tiles-switcher | String | `""` | Fonds proposes au LECTEUR, separes par des virgules (`"ign-plan,ign-ortho"`). Rend un menu deroulant « Fond de carte » en haut a droite, utilisable au clavier ; les encarts suivent. Au moins deux presets connus, sinon rien ne s'affiche. Sans effet avec `locked` ou `no-controls` |
 | sovereign-only | Boolean | `false` | Restreint `tiles` aux presets IGN souverains. Tout autre preset (`osm-fr`, `osm-standard`, `opentopomap`...) ou URL custom est refuse avec `console.warn` et remplace par `ign-plan`. |
 | no-controls | Boolean | `false` | Masque les controles de zoom |
 | locked | Boolean | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
@@ -110,6 +111,26 @@ Presets deprecies (resolvent vers `ign-plan` avec un `console.warn`) :
 - `carto-positron`, `carto-dark` : CARTO exige desormais une clé API et filigrane les tuiles anonymes ("API KEY REQUIRED") en HTTP 200
 
 **Il n'y a pas de fond sombre souverain.** Ne pas proposer `carto-dark` : il ne fonctionne plus.
+
+### Laisser le lecteur choisir son fond (tiles-switcher)
+
+`tiles` fixe le fond pour toute la page ; `tiles-switcher` ouvre le choix au lecteur.
+
+```html
+<dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" tiles-switcher="ign-plan,ign-ortho">
+  <dsfr-data-map-layer source="sites" type="marker" geo-field="geo"></dsfr-data-map-layer>
+</dsfr-data-map>
+```
+
+- Menu deroulant natif etiquete « Fond de carte », en haut a droite de la carte : atteint au clavier
+  avant la carte (juste apres le lien d'evitement), valeur annoncee par les lecteurs d'ecran.
+- Les entrees sont des **presets** (`ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr`, `osm-standard`,
+  `opentopomap`, alias compris) ; une URL custom ou un nom inconnu est ecarte avec un `console.warn`.
+- Il faut au moins deux fonds differents apres resolution, sinon aucun selecteur n'est rendu.
+  Avec `sovereign-only`, ne declarer que des presets IGN — les autres retombent tous sur `ign-plan`.
+- Le fond courant est ajoute en tete s'il manque a la liste. Les encarts (`insets`) suivent le choix.
+- Evenement `dsfr-data-map-tiles-change` `{ tiles }` (bubbles, composed) a chaque bascule du lecteur.
+- Sans effet avec `locked` ou `no-controls`.
 
 ### Fond de carte custom (URL + clé API)
 
@@ -218,8 +239,9 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 Template avec `<template>` et interpolation `{{champ}}` (même moteur que dsfr-data-display,
 toujours échappé, `{{{champ}}}` traité comme `{{champ}}`) : `{{champ.sous.clé}}`,
 `{{champ:number}}`, `{{champ:date}}`, `{{tags:join: / }}`, `{{lien:url}}` (à utiliser
-dans tout `href`), `{{champ|défaut}}`, blocs `{{#if champ}}…{{/if}}` / `{{#unless}}`.
-Sans template, tableau auto.
+dans tout `href`), `{{champ|défaut}}`, blocs `{{#if champ}}…{{/if}}` / `{{#unless}}` et
+`{{#each champ}}…{{/each}}` (répétition sur un champ tableau, `{{.}}` = l'élément, `{{$index}}`
+= son rang). Sans template, tableau auto.
 
 ```html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
@@ -414,6 +436,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `tiles` | `string` | `'ign-plan'` | Fond de carte : `ign-plan`, `ign-ortho`, `ign-cadastre`, `osm-fr` (alias `osm`), `osm-standard`, `opentopomap`, ou une URL template. Presets deprecies (redirigent vers `ign-plan` avec un warning) : `ign-topo`, `carto-positron`, `carto-dark`. |
 | `tiles-attribution` | `string` | `""` (vide) | Mention d'attribution affichée sur la carte quand `tiles` est une URL custom (obligatoire pour respecter l'ODbL et les CGU du fournisseur). Ignoré sur un preset connu, qui porte déjà son attribution. Accepte du HTML (liens). |
 | `tiles-style` | `'' \| 'muted' \| 'grey'` | `""` (vide) | Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style="muted"` (#686). |
+| `tiles-switcher` | `string` | `""` (vide) | Fonds proposés au LECTEUR, séparés par des virgules (ex. `"ign-plan,ign-ortho"`). Vide (défaut) : aucun sélecteur, seul `tiles` décide. Rend un menu déroulant étiqueté « Fond de carte » en haut à droite de la carte, utilisable au clavier ; changer de fond met à jour la carte et ses encarts. Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux pour que le sélecteur apparaisse. Sans effet avec `locked` ou `no-controls` (#744). |
 | `zoom` | `number` | `6` | Niveau de zoom initial (1-18). |
 
 
@@ -495,7 +518,6 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 |---|---|---|
 | `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
 | `getRenderedCount()` | `number` | Nombre d'éléments effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
-| `getSelectedRecord()` | `Record<string, unknown> \| null` | Objet actuellement sélectionné (null hors sélection) |
 | `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnées ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
@@ -509,9 +531,9 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
-| `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). |
 | `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
 | `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
+| `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 
 

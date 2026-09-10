@@ -2246,6 +2246,16 @@
             },
             {
               "kind": "field",
+              "name": "yearStartMonth",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "description": "Mois de debut de l'annee pour `year-of` et `current-year` (#735) —\n1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable\nbritannique, 7 = exercice australien, 10 = saison. La clause reste une\nplage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle\nautre, aucun adaptateur n'est concerne.\n\n`year-of` avec `year-start-month=\"9\"` et la valeur « 2024 » filtre\n`[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.\nUne valeur plus precise (« 2025-03-10 ») designe l'annee qui la\nCONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur\nd'un contrôle de type date.\n\nCote client seul, une colonne d'annee scolaire se derive aussi avec\n`compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux\nqu'on ne veut pas rapatrier.",
+              "attribute": "year-start-month"
+            },
+            {
+              "kind": "field",
               "name": "applyTo",
               "type": {
                 "text": "string"
@@ -2322,6 +2332,27 @@
               "privacy": "private",
               "default": "false",
               "description": "Valeur de date inexploitable déjà signalee (#646) — un warn par filtre, pas par frappe"
+            },
+            {
+              "kind": "field",
+              "name": "_yearStartMonthIgnoredWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "`year-start-month` sans effet déjà signale (#735) — un warn par filtre"
+            },
+            {
+              "kind": "method",
+              "name": "_startMonth",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Mois de debut effectif (#735) : 1 (annee civile) hors des opérateurs\nd'annee ou quand la valeur est hors bornes — la clause reste alors\nexactement celle d'avant."
             },
             {
               "kind": "method",
@@ -2510,6 +2541,15 @@
               "default": "'eq'",
               "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
               "fieldName": "operator"
+            },
+            {
+              "name": "year-start-month",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "description": "Mois de debut de l'annee pour `year-of` et `current-year` (#735) —\n1 (defaut) = annee civile, 9 = annee scolaire, 4 = exercice comptable\nbritannique, 7 = exercice australien, 10 = saison. La clause reste une\nplage `gte` + `lt` : elle se delegue au serveur comme n'importe quelle\nautre, aucun adaptateur n'est concerne.\n\n`year-of` avec `year-start-month=\"9\"` et la valeur « 2024 » filtre\n`[2024-09-01, 2025-09-01)` et s'affiche « 2024-2025 » dans les tags.\nUne valeur plus precise (« 2025-03-10 ») designe l'annee qui la\nCONTIENT — soit 2024-2025 ici — ce qui permet de nourrir l'opérateur\nd'un contrôle de type date.\n\nCote client seul, une colonne d'annee scolaire se derive aussi avec\n`compute` sur dsfr-data-normalize ; l'attribut existe pour les jeux\nqu'on ne veut pas rapatrier.",
+              "fieldName": "yearStartMonth"
             },
             {
               "name": "apply-to",
@@ -2740,6 +2780,220 @@
           "declaration": {
             "name": "DsfrDataContextTags",
             "module": "packages/core/src/components/dsfr-data-context-tags.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "packages/core/src/components/dsfr-data-context-value.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "&lt;dsfr-data-context-value&gt; — la valeur courante d'un filtre, dans une phrase (#742).\n\n`dsfr-data-context-tags` LISTE les filtres actifs ; il ne s'insere pas\ndans un titre. Ce composant rend la valeur d'un filtre du contexte comme\ndu texte, seule ou interpolee dans un gabarit :\n\n```html\n&lt;h2&gt;\n  &lt;dsfr-data-context-value for=\"ctx\"\n    template=\"Résultats pour {{departement}}\"\n    fallback=\"Résultats pour toute la France\" live&gt;\n  &lt;/dsfr-data-context-value&gt;\n&lt;/h2&gt;\n```\n\nAccessibilite : `live` fait du composant une region live discrete\n(`aria-live=\"polite\"`), pour qu'un titre qui suit le filtre annonce le\nchangement de contenu. A poser sur UN seul element de la page — trois\nlibelles qui parlent en meme temps sont un bruit, pas une aide.\n\nLe texte rendu est du TEXTE : la valeur d'un filtre traverse le rendu Lit,\njamais l'analyseur HTML.",
+          "name": "DsfrDataContextValue",
+          "members": [
+            {
+              "kind": "field",
+              "name": "for",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id du dsfr-data-context observe",
+              "attribute": "for"
+            },
+            {
+              "kind": "field",
+              "name": "field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur est rendue — raccourci de `template=\"{{champ}}\"`.\nIgnore quand `template` est pose.",
+              "attribute": "field"
+            },
+            {
+              "kind": "field",
+              "name": "template",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Gabarit texte : chaque `{{champ}}` est remplace par la valeur courante\ndu filtre de ce champ (« Résultats pour {{departement}} »).",
+              "attribute": "template"
+            },
+            {
+              "kind": "field",
+              "name": "fallback",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Texte rendu tant qu'un champ cite n'a aucune valeur — le repli declare\nde #742. Vide : le composant ne rend rien du tout.",
+              "attribute": "fallback"
+            },
+            {
+              "kind": "field",
+              "name": "live",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Region live polie : le titre annonce le changement de contenu aux\nlecteurs d'écran. A poser sur UN seul element de la page.",
+              "attribute": "live"
+            },
+            {
+              "kind": "field",
+              "name": "_context",
+              "type": {
+                "text": "ContextReader | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_onContextChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_onContextConnected",
+              "privacy": "private",
+              "description": "Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678)"
+            },
+            {
+              "kind": "method",
+              "name": "_unbind",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_bind",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_effectiveTemplate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Gabarit effectif : `template` s'il est pose, sinon le raccourci `field`"
+            },
+            {
+              "kind": "method",
+              "name": "_valueOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Valeur humaine courante d'un champ — la premiere du contexte, comme les\ntags. `null` quand aucun filtre actif ne porte ce champ."
+            },
+            {
+              "kind": "method",
+              "name": "_resolveText",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Texte rendu. Un seul champ cite sans valeur suffit a basculer sur le\nrepli : « Résultats pour  » serait pire qu'une phrase de repli."
+            }
+          ],
+          "attributes": [
+            {
+              "type": {
+                "text": "string"
+              },
+              "description": "Id du dsfr-data-context observe",
+              "name": "for",
+              "default": "''",
+              "fieldName": "for"
+            },
+            {
+              "type": {
+                "text": "string"
+              },
+              "description": "Champ dont la valeur est rendue — raccourci de `template=\"{{champ}}\"`.\nIgnore quand `template` est pose.",
+              "name": "field",
+              "default": "''",
+              "fieldName": "field"
+            },
+            {
+              "type": {
+                "text": "string"
+              },
+              "description": "Gabarit texte : chaque `{{champ}}` est remplace par la valeur courante\ndu filtre de ce champ (« Résultats pour {{departement}} »).",
+              "name": "template",
+              "default": "''",
+              "fieldName": "template"
+            },
+            {
+              "type": {
+                "text": "string"
+              },
+              "description": "Texte rendu tant qu'un champ cite n'a aucune valeur — le repli declare\nde #742. Vide : le composant ne rend rien du tout.",
+              "name": "fallback",
+              "default": "''",
+              "fieldName": "fallback"
+            },
+            {
+              "type": {
+                "text": "boolean"
+              },
+              "description": "Region live polie : le titre annonce le changement de contenu aux\nlecteurs d'écran. A poser sur UN seul element de la page.",
+              "name": "live",
+              "default": "false",
+              "fieldName": "live"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "dsfr-data-context-value",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DsfrDataContextValue",
+          "declaration": {
+            "name": "DsfrDataContextValue",
+            "module": "packages/core/src/components/dsfr-data-context-value.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dsfr-data-context-value",
+          "declaration": {
+            "name": "DsfrDataContextValue",
+            "module": "packages/core/src/components/dsfr-data-context-value.ts"
           }
         }
       ]
@@ -3259,6 +3513,36 @@
             },
             {
               "kind": "field",
+              "name": "refineOnClick",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur de l'élément cliqué devient un filtre `eq` (#734).\nPremier clic = filtre, second clic sur le même élément = retrait, clic sur\nun autre élément = remplacement. Chaque élément reçoit un bouton\n« Filtrer sur … », atteignable au clavier et dont l'état est annoncé\n(`aria-pressed`) : la mise en avant de l'élément sélectionné n'est jamais\nla seule marque. Avec `context=\"id\"` (recommandé), le composant\ns'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses\nsources cibles au dialecte de chacune, tag dans dsfr-data-context-tags,\nURL portée par le contexte. Sans `context`, la clause part directement à\n`source` (whereKey `display-select-ID`) — sans tag ni URL, et la liste se\nfiltre elle-même (seul l'élément cliqué reste, jusqu'au second clic).",
+              "attribute": "refine-on-click"
+            },
+            {
+              "kind": "field",
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Identifiant du dsfr-data-context auquel s'enregistrer en\n`refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le\ncomposant dans la page. Vide = commande directe à `source` (chemin dégradé).",
+              "attribute": "context"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé du tag de contexte en `refine-on-click` (#734). Vide = le nom du\nchamp filtré.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
               "name": "_data",
               "type": {
                 "text": "Record<string, unknown>[]"
@@ -3387,6 +3671,39 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "selectionWhereKeyPrefix",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "whereKey du chemin dégradé : `display-select-ID`"
+            },
+            {
+              "kind": "method",
+              "name": "selectionUid",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Repli d'identifiant : le préfixe d'ids DOM de l'instance (#304)"
+            },
+            {
+              "kind": "method",
+              "name": "onSelectionChange",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "La sélection a changé : redessiner l'état des éléments et l'annoncer"
             },
             {
               "kind": "method",
@@ -3597,6 +3914,53 @@
             },
             {
               "kind": "method",
+              "name": "_renderSelectButton",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "index",
+                  "type": {
+                    "text": "number"
+                  }
+                },
+                {
+                  "name": "selected",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Bouton de sélection d'un élément (#734) : c'est lui le chemin clavier et\nle porteur de l'état annoncé (`aria-pressed`). Son libellé change avec\nl'état — la mise en avant de la carte n'est jamais la seule marque."
+            },
+            {
+              "kind": "field",
+              "name": "_handleGridClick",
+              "privacy": "private",
+              "description": "Clic délégué sur la grille : le bouton de sélection ou n'importe où sur\nl'élément (confort à la souris), sans voler le clic d'un lien ou d'un\ncontrôle rendu par le template."
+            },
+            {
+              "kind": "field",
+              "name": "_renderedItems",
+              "type": {
+                "text": "Record<string, unknown>[]"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Éléments du dernier rendu — l'index délégué y renvoie"
+            },
+            {
+              "kind": "method",
               "name": "_renderPagination",
               "privacy": "private",
               "parameters": [
@@ -3607,6 +3971,16 @@
                   }
                 }
               ]
+            }
+          ],
+          "events": [
+            {
+              "description": "`{ record, elementId, selected }` sur le composant (bubbles, composed) — au clic sur un élément en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur le même élément, ou croix du tag de contexte).",
+              "name": "dsfr-data-select"
+            },
+            {
+              "description": "`{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `display-select-ID`. Avec `context`, c'est le contexte qui diffuse.",
+              "name": "dsfr-data-source-command"
             }
           ],
           "attributes": [
@@ -3687,9 +4061,40 @@
               "default": "IDLE_MESSAGE_DEFAULT",
               "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
               "fieldName": "idleMessage"
+            },
+            {
+              "name": "refine-on-click",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur de l'élément cliqué devient un filtre `eq` (#734).\nPremier clic = filtre, second clic sur le même élément = retrait, clic sur\nun autre élément = remplacement. Chaque élément reçoit un bouton\n« Filtrer sur … », atteignable au clavier et dont l'état est annoncé\n(`aria-pressed`) : la mise en avant de l'élément sélectionné n'est jamais\nla seule marque. Avec `context=\"id\"` (recommandé), le composant\ns'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses\nsources cibles au dialecte de chacune, tag dans dsfr-data-context-tags,\nURL portée par le contexte. Sans `context`, la clause part directement à\n`source` (whereKey `display-select-ID`) — sans tag ni URL, et la liste se\nfiltre elle-même (seul l'élément cliqué reste, jusqu'au second clic).",
+              "fieldName": "refineOnClick"
+            },
+            {
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Identifiant du dsfr-data-context auquel s'enregistrer en\n`refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le\ncomposant dans la page. Vide = commande directe à `source` (chemin dégradé).",
+              "fieldName": "context"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé du tag de contexte en `refine-on-click` (#734). Vide = le nom du\nchamp filtré.",
+              "fieldName": "label"
             }
           ],
           "mixins": [
+            {
+              "name": "SelectionFilterMixin",
+              "module": "/packages/core/src/utils/selection-filter.js"
+            },
             {
               "name": "SourceSubscriberMixin",
               "module": "/packages/core/src/utils/source-subscriber.js"
@@ -3788,7 +4193,7 @@
                 "text": "string"
               },
               "default": "'count'",
-              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (défaut) : du plus fréquent au plus rare\n- `count:asc` : du plus rare au plus fréquent\n- `alpha:asc` : A -> Z (collation française)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
+              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (défaut) : du plus fréquent au plus rare\n- `count:asc` : du plus rare au plus fréquent\n- `alpha:asc` : A -> Z (collation française)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.\n\nTri PAR CHAMP (#741), même grammaire à barre verticale que `labels`,\n`display` et `cols` : `champ:critere[:sens]`, par exemple\n`sort=\"annee:alpha:asc | categorie:count:desc\"`. Une facette d'années se\nrange alphabétiquement pendant qu'une facette de catégories reste rangée\npar fréquence, sans dupliquer le composant. Un champ non nommé garde le\ntri par défaut ; l'entrée `*:critere[:sens]` change ce défaut\n(`sort=\"*:alpha | annee:count:desc\"`).",
               "attribute": "sort"
             },
             {
@@ -3880,6 +4285,35 @@
               "default": "false",
               "description": "Masquer les compteurs a cote de chaque valeur de facette",
               "attribute": "hide-counts"
+            },
+            {
+              "kind": "field",
+              "name": "weightField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ numérique dont la SOMME remplace le nombre de lignes dans les\ncompteurs (#739). Sur une table de mesures, « 1 240 » relevés ne dit rien\nau lecteur : `weight-field=\"effectif\"` annonce la somme des effectifs.\nLe tri `count` porte alors sur cette somme.\n\nCLIENT UNIQUEMENT, et c'est assume : en mode `server-facets`, la reponse\nde l'API facettes ne porte qu'un nombre de lignes, jamais la somme d'une\nmesure. Plutot qu'afficher un nombre de lignes sous un libellé de somme,\nles compteurs y sont MASQUÉS, une erreur de configuration est posee\n(console + `data-dsfr-config-error`) et un avertissement DSFR est rendu\nau-dessus des facettes. Meme chose en `static-values`, ou les compteurs\nsont déjà masques faute de données.\n\nUne valeur non numérique compte pour zero ; si le champ est absent de\ntoutes les lignes, un avertissement console le signale.",
+              "attribute": "weight-field"
+            },
+            {
+              "kind": "field",
+              "name": "_weightField",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "description": "Champ de ponderation demande, normalise (#739)",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_weightUnsupported",
+              "type": {
+                "text": "boolean"
+              },
+              "description": "`weight-field` demande la ou la somme n'existe pas (#739) : mode\n`server-facets`. Les compteurs sont masques et l'auteur est prevenu.",
+              "readonly": true
             },
             {
               "kind": "field",
@@ -4115,6 +4549,16 @@
               "default": "false"
             },
             {
+              "kind": "field",
+              "name": "_weightUnsupportedReported",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "L'erreur `weight-field` + `server-facets` n'est journalisee qu'une fois (#739)"
+            },
+            {
               "kind": "method",
               "name": "transformerReinitProps",
               "privacy": "protected",
@@ -4244,6 +4688,43 @@
                 }
               ],
               "description": "Reinjecte les selections orphelines dans les groupes (#310) : après un\nrefetch, une valeur selectionnee disparue des données restait dans\n_activeSelections — la checkbox n'etait plus rendue mais le filtre\nrestait actif (résultats vides inexplicables). Elle est rendue cochee,\nmarquee indisponible, donc desactivable."
+            },
+            {
+              "kind": "method",
+              "name": "_formatCount",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "count",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Compteur affiche : nombre de lignes tel quel (historique), ou somme\nponderee formatee a la francaise (#739) — une somme d'effectifs se lit\n« 12 340 », pas « 12340 »."
+            },
+            {
+              "kind": "method",
+              "name": "_countSrText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "count",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Texte lu par les lecteurs d'écran a cote d'une valeur de facette"
             },
             {
               "kind": "method",
@@ -4452,6 +4933,38 @@
               "description": "Auto-detect categorical fields: string type, 2-50 unique values, not all unique (ID-like)"
             },
             {
+              "kind": "field",
+              "name": "_weightFieldMissingWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "`weight-field` absent des données : signale une fois par champ (#739)"
+            },
+            {
+              "kind": "method",
+              "name": "_rowWeight",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "row",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "weightField",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Poids d'une ligne : 1 par défaut, la valeur de `weight-field` sinon\n(#739). Une cellule non numérique pese zero — la somme reste lisible,\net un champ entierement absent est signale en console."
+            },
+            {
               "kind": "method",
               "name": "_computeFacetValues",
               "return": {
@@ -4497,14 +5010,52 @@
             },
             {
               "kind": "method",
+              "name": "_resolveSortCriterion",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FacetSort"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Resout un critère de tri isole (`count`, `alpha`, `count:asc`…) en\n(critère, sens) — grammaire `critere:sens` de `order-by` (#645). Les\nformes `-count` / `-alpha` restent acceptees avec leur sens historique\nmais sont signalees : le tiret y voulait dire « inverse du défaut »\n(croissant pour count, decroissant pour alpha), une convention ambigue\nqu'aucune forme explicite ne partage."
+            },
+            {
+              "kind": "method",
+              "name": "_parseSort",
+              "return": {
+                "type": {
+                  "text": "{ fallback: FacetSort; byField: Map<string, FacetSort> }"
+                }
+              },
+              "description": "Decoupe l'attribut `sort` en un tri par défaut et un tri par champ\n(#741). Une entrée est « par champ » des qu'elle porte trois segments\n(`annee:alpha:asc`) ou qu'elle en porte deux dont le premier n'est pas\nun critère (`annee:alpha`) : la forme globale historique (`count`,\n`alpha:desc`, `-count`) ne peut jamais prendre ces formes. Le champ `*`\npose le tri par défaut des champs non nommes."
+            },
+            {
+              "kind": "method",
               "name": "_resolveSort",
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "{ by: 'count' | 'alpha'; dir: 'asc' | 'desc' }"
+                  "text": "FacetSort"
                 }
               },
-              "description": "Resout l'attribut `sort` en (critère, sens) — grammaire `critere:sens`\nde `order-by` (#645). Les formes `-count` / `-alpha` restent acceptees\navec leur sens historique mais sont signalees : le tiret y voulait dire\n« inverse du défaut » (croissant pour count, decroissant pour alpha),\nune convention ambigue qu'aucune forme explicite ne partage."
+              "parameters": [
+                {
+                  "name": "field",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Tri effectif d'un champ : son entrée nommee, sinon le tri par défaut de\nl'attribut (#741). Sans champ, seul le tri par défaut s'applique."
             },
             {
               "kind": "method",
@@ -4519,6 +5070,13 @@
                   "name": "values",
                   "type": {
                     "text": "FacetValue[]"
+                  }
+                },
+                {
+                  "name": "field",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
                   }
                 }
               ]
@@ -5296,7 +5854,7 @@
                 "text": "string"
               },
               "default": "'count'",
-              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (défaut) : du plus fréquent au plus rare\n- `count:asc` : du plus rare au plus fréquent\n- `alpha:asc` : A -> Z (collation française)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.",
+              "description": "Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur\n`order-by` de dsfr-data-query (#645) :\n- `count:desc` (défaut) : du plus fréquent au plus rare\n- `count:asc` : du plus rare au plus fréquent\n- `alpha:asc` : A -> Z (collation française)\n- `alpha:desc` : Z -> A\nRaccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`.\nFormes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique\n(`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console\ninvite a passer a la forme explicite ; retrait dans une version majeure.\n\nTri PAR CHAMP (#741), même grammaire à barre verticale que `labels`,\n`display` et `cols` : `champ:critere[:sens]`, par exemple\n`sort=\"annee:alpha:asc | categorie:count:desc\"`. Une facette d'années se\nrange alphabétiquement pendant qu'une facette de catégories reste rangée\npar fréquence, sans dupliquer le composant. Un champ non nommé garde le\ntri par défaut ; l'entrée `*:critere[:sens]` change ce défaut\n(`sort=\"*:alpha | annee:count:desc\"`).",
               "fieldName": "sort"
             },
             {
@@ -5379,6 +5937,15 @@
               "default": "false",
               "description": "Masquer les compteurs a cote de chaque valeur de facette",
               "fieldName": "hideCounts"
+            },
+            {
+              "name": "weight-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ numérique dont la SOMME remplace le nombre de lignes dans les\ncompteurs (#739). Sur une table de mesures, « 1 240 » relevés ne dit rien\nau lecteur : `weight-field=\"effectif\"` annonce la somme des effectifs.\nLe tri `count` porte alors sur cette somme.\n\nCLIENT UNIQUEMENT, et c'est assume : en mode `server-facets`, la reponse\nde l'API facettes ne porte qu'un nombre de lignes, jamais la somme d'une\nmesure. Plutot qu'afficher un nombre de lignes sous un libellé de somme,\nles compteurs y sont MASQUÉS, une erreur de configuration est posee\n(console + `data-dsfr-config-error`) et un avertissement DSFR est rendu\nau-dessus des facettes. Meme chose en `static-values`, ou les compteurs\nsont déjà masques faute de données.\n\nUne valeur non numérique compte pour zero ; si le champ est absent de\ntoutes les lignes, un avertissement console le signale.",
+              "fieldName": "weightField"
             },
             {
               "name": "cols",
@@ -6877,6 +7444,46 @@
             },
             {
               "kind": "field",
+              "name": "cellClass",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Classe CSS d'une cellule pilotée par une colonne calculée (#740) :\n`\"colonne:colonne_classe\"`, plusieurs paires séparées par des virgules ;\n`\"colonne\"` seul classe la cellule par sa propre valeur. La valeur de la\ncolonne de classe DEVIENT la classe de la cellule (plusieurs classes\nséparées par des espaces) : produisez-la avec le `compute` de\ndsfr-data-normalize, par exemple\n`compute=\"alerte = when taux >= 50 then 'seuil-ok' else 'seuil-bas'\"`,\npuis stylez `.seuil-bas` dans la page. Seuls les identifiants CSS sont\nretenus, le reste est ignoré. Quand la colonne de classe n'est pas\naffichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs\nd'écran : l'information n'est jamais portée par la seule couleur.",
+              "attribute": "cell-class"
+            },
+            {
+              "kind": "field",
+              "name": "refineOnClick",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur de la ligne cliquée devient un filtre `eq` (#734).\nPremier clic = filtre, second clic sur la même ligne = retrait, clic sur\nune autre ligne = remplacement. Une colonne de sélection est ajoutée en\ntête du tableau : un bouton par ligne, atteignable au clavier, dont\nl'état est annoncé (`aria-pressed`) — la couleur de la ligne\nsélectionnée n'est jamais la seule marque. Avec `context=\"id\"`\n(recommandé), le tableau s'enregistre comme filtre du dsfr-data-context :\ndiffusion à toutes ses sources cibles au dialecte de chacune, tag dans\ndsfr-data-context-tags, URL portée par le contexte. Sans `context`, la\nclause part directement à `source` (whereKey `list-select-ID`) — sans tag\nni URL, et le tableau se filtre lui-même (seule la ligne cliquée reste,\njusqu'au second clic).",
+              "attribute": "refine-on-click"
+            },
+            {
+              "kind": "field",
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Identifiant du dsfr-data-context auquel s'enregistrer en\n`refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le\ntableau dans la page. Vide = commande directe à `source` (chemin dégradé).",
+              "attribute": "context"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé du tag de contexte en `refine-on-click` (#734). Vide = le libellé\nde la colonne filtrée, à défaut le nom du champ.",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
               "name": "_data",
               "type": {
                 "text": "Record<string, unknown>[]"
@@ -7020,6 +7627,69 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "selectionWhereKeyPrefix",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "whereKey du chemin dégradé : `list-select-ID`"
+            },
+            {
+              "kind": "method",
+              "name": "selectionUid",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Repli d'identifiant : le préfixe d'ids DOM de l'instance (#304)"
+            },
+            {
+              "kind": "method",
+              "name": "selectionLabel",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Libellé du tag : `label`, à défaut le libellé de la colonne, à défaut le champ"
+            },
+            {
+              "kind": "method",
+              "name": "onSelectionChange",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "La sélection a changé : redessiner l'état des lignes et l'annoncer"
+            },
+            {
+              "kind": "method",
+              "name": "_handleRowClick",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "event",
+                  "type": {
+                    "text": "Event"
+                  }
+                },
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ],
+              "description": "Clic n'importe où sur la ligne : même bascule que le bouton de sélection,\nsans le doubler (le clic du bouton remonte jusqu'ici) ni voler le clic\nd'un lien ou d'un contrôle rendu dans une cellule."
             },
             {
               "kind": "method",
@@ -7346,6 +8016,105 @@
             },
             {
               "kind": "method",
+              "name": "_renderRow",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "columns",
+                  "type": {
+                    "text": "ColumnDef[]"
+                  }
+                },
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "refine",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Une ligne du tableau. En `refine-on-click`, elle porte le geste de clic\n(confort à la souris) et, en tête, une cellule de sélection avec un vrai\nbouton : c'est lui le chemin clavier et le porteur de l'état annoncé\n(`aria-pressed`). La ligne sélectionnée porte aussi `aria-current` et une\nmarque visuelle qui ne se réduit pas à une couleur (barre latérale +\nicône dans le bouton)."
+            },
+            {
+              "kind": "method",
+              "name": "_renderSelectCell",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "selected",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Cellule de sélection : un bouton par ligne, atteignable au clavier (#734)"
+            },
+            {
+              "kind": "method",
+              "name": "_renderCell",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "col",
+                  "type": {
+                    "text": "ColumnDef"
+                  }
+                },
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ],
+              "description": "Une cellule, avec la classe éventuellement pilotée par une colonne\ncalculée (`cell-class`, #740). Quand la colonne de classe n'est pas\naffichée, sa valeur est restituée en texte masqué visuellement : sans\ncela l'information ne tiendrait plus qu'à la couleur (RGAA 1.4.1)."
+            },
+            {
+              "kind": "method",
+              "name": "_cellClassRules",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Map<string, CellClassRule>"
+                }
+              },
+              "description": "Règles `cell-class` indexées par colonne (relues quand l'attribut change)"
+            },
+            {
+              "kind": "field",
+              "name": "_cellClassExpr",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_cellClassCache",
+              "privacy": "private",
+              "default": "new Map<string, CellClassRule>()"
+            },
+            {
+              "kind": "field",
+              "name": "_displayedColumnKeys",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Colonnes réellement rendues, pour savoir si la colonne de classe est visible"
+            },
+            {
+              "kind": "method",
               "name": "_renderPagination",
               "privacy": "private",
               "parameters": [
@@ -7356,6 +8125,16 @@
                   }
                 }
               ]
+            }
+          ],
+          "events": [
+            {
+              "description": "`{ record, elementId, selected }` sur le tableau (bubbles, composed) — au clic sur une ligne en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur la même ligne, ou croix du tag de contexte).",
+              "name": "dsfr-data-select"
+            },
+            {
+              "description": "`{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `list-select-ID`. Avec `context`, c'est le contexte qui diffuse.",
+              "name": "dsfr-data-source-command"
             }
           ],
           "attributes": [
@@ -7526,9 +8305,49 @@
               "default": "IDLE_MESSAGE_DEFAULT",
               "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
               "fieldName": "idleMessage"
+            },
+            {
+              "name": "cell-class",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Classe CSS d'une cellule pilotée par une colonne calculée (#740) :\n`\"colonne:colonne_classe\"`, plusieurs paires séparées par des virgules ;\n`\"colonne\"` seul classe la cellule par sa propre valeur. La valeur de la\ncolonne de classe DEVIENT la classe de la cellule (plusieurs classes\nséparées par des espaces) : produisez-la avec le `compute` de\ndsfr-data-normalize, par exemple\n`compute=\"alerte = when taux >= 50 then 'seuil-ok' else 'seuil-bas'\"`,\npuis stylez `.seuil-bas` dans la page. Seuls les identifiants CSS sont\nretenus, le reste est ignoré. Quand la colonne de classe n'est pas\naffichée, sa valeur est ajoutée à la cellule en texte pour les lecteurs\nd'écran : l'information n'est jamais portée par la seule couleur.",
+              "fieldName": "cellClass"
+            },
+            {
+              "name": "refine-on-click",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur de la ligne cliquée devient un filtre `eq` (#734).\nPremier clic = filtre, second clic sur la même ligne = retrait, clic sur\nune autre ligne = remplacement. Une colonne de sélection est ajoutée en\ntête du tableau : un bouton par ligne, atteignable au clavier, dont\nl'état est annoncé (`aria-pressed`) — la couleur de la ligne\nsélectionnée n'est jamais la seule marque. Avec `context=\"id\"`\n(recommandé), le tableau s'enregistre comme filtre du dsfr-data-context :\ndiffusion à toutes ses sources cibles au dialecte de chacune, tag dans\ndsfr-data-context-tags, URL portée par le contexte. Sans `context`, la\nclause part directement à `source` (whereKey `list-select-ID`) — sans tag\nni URL, et le tableau se filtre lui-même (seule la ligne cliquée reste,\njusqu'au second clic).",
+              "fieldName": "refineOnClick"
+            },
+            {
+              "name": "context",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Identifiant du dsfr-data-context auquel s'enregistrer en\n`refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le\ntableau dans la page. Vide = commande directe à `source` (chemin dégradé).",
+              "fieldName": "context"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé du tag de contexte en `refine-on-click` (#734). Vide = le libellé\nde la colonne filtrée, à défaut le nom du champ.",
+              "fieldName": "label"
             }
           ],
           "mixins": [
+            {
+              "name": "SelectionFilterMixin",
+              "module": "/packages/core/src/utils/selection-filter.js"
+            },
             {
               "name": "SourceSubscriberMixin",
               "module": "/packages/core/src/utils/source-subscriber.js"
@@ -8437,128 +9256,23 @@
               "default": "-1"
             },
             {
-              "kind": "field",
-              "name": "_selectedRecord",
-              "type": {
-                "text": "Record<string, unknown> | null"
-              },
-              "privacy": "private",
-              "default": "null",
-              "description": "Objet sélectionné (null hors sélection ; null aussi si la sélection vient de l'URL)"
-            },
-            {
-              "kind": "field",
-              "name": "_selectedKey",
-              "type": {
-                "text": "string | Record<string, unknown> | null"
-              },
-              "privacy": "private",
-              "default": "null",
-              "description": "Identité de la sélection : la valeur du champ `refine-on-click` (stable\nd'un rendu à l'autre — la couche se re-dessine avec de nouveaux objets\nquand sa source re-émet), sinon l'objet lui-même."
-            },
-            {
-              "kind": "field",
-              "name": "_selectedFieldValue",
-              "type": {
-                "text": "string"
-              },
-              "privacy": "private",
-              "default": "''",
-              "description": "Valeur filtrée (mode refine) — conservée même sans objet (pré-remplie depuis l'URL)"
-            },
-            {
-              "kind": "field",
-              "name": "_context",
-              "type": {
-                "text": "ContextHost | null"
-              },
-              "privacy": "private",
-              "default": "null",
-              "description": "Contexte résolu (mode `context`, #681)"
-            },
-            {
-              "kind": "field",
-              "name": "_contextFilter",
-              "type": {
-                "text": "MapSelectFilter | null"
-              },
-              "privacy": "private",
-              "default": "null",
-              "description": "Le filtre unique enregistré auprès du contexte (#681)"
-            },
-            {
-              "kind": "field",
-              "name": "_lastPushedWhere",
-              "type": {
-                "text": "string"
-              },
-              "privacy": "private",
-              "default": "''",
-              "description": "Dernière clause confiée au contexte ou à la source — ne re-diffuse pas une clause inchangée"
-            },
-            {
-              "kind": "field",
-              "name": "_onContextConnected",
-              "privacy": "private",
-              "description": "Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre (#681)"
-            },
-            {
-              "kind": "field",
-              "name": "_refineMode",
-              "type": {
-                "text": "boolean"
-              },
-              "privacy": "private",
-              "description": "Mode `refine-on-click` demandé",
-              "readonly": true
-            },
-            {
-              "kind": "field",
-              "name": "_contextMode",
-              "type": {
-                "text": "boolean"
-              },
-              "privacy": "private",
-              "description": "Mode `context` demandé (que le contexte soit déjà résolu ou non)",
-              "readonly": true
-            },
-            {
-              "kind": "field",
-              "name": "_directWhereKey",
-              "type": {
-                "text": "string"
-              },
-              "privacy": "private",
-              "description": "whereKey du chemin dégradé (commande directe à `source`)",
-              "readonly": true
-            },
-            {
               "kind": "method",
-              "name": "_selectedValue",
+              "name": "selectionEventName",
+              "privacy": "protected",
               "return": {
                 "type": {
                   "text": "string"
                 }
               },
-              "description": "Valeur courante du filtre de sélection (lue par le filtre de contexte)"
+              "description": "Nom historique de l'événement de sélection de la carte (#681)"
             },
             {
               "kind": "method",
-              "name": "getSelectedRecord",
+              "name": "selectionEventDetail",
+              "privacy": "protected",
               "return": {
                 "type": {
-                  "text": "Record<string, unknown> | null"
-                }
-              },
-              "description": "Objet actuellement sélectionné (null hors sélection)"
-            },
-            {
-              "kind": "method",
-              "name": "_selectionKeyOf",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "string | Record<string, unknown>"
+                  "text": "Record<string, unknown>"
                 }
               },
               "parameters": [
@@ -8567,9 +9281,37 @@
                   "type": {
                     "text": "Record<string, unknown>"
                   }
+                },
+                {
+                  "name": "selected",
+                  "type": {
+                    "text": "boolean"
+                  }
                 }
               ],
-              "description": "Identité d'un objet pour la sélection : valeur du champ en mode refine, l'objet sinon"
+              "description": "Détail historique : `layerId`, pas `elementId` (#681)"
+            },
+            {
+              "kind": "method",
+              "name": "selectionWhereKeyPrefix",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "whereKey du chemin dégradé : `map-select-ID` (#681)"
+            },
+            {
+              "kind": "method",
+              "name": "selectionUid",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Repli d'identifiant : la clé de bounds de la couche (#294)"
             },
             {
               "kind": "method",
@@ -8595,126 +9337,6 @@
                 }
               ],
               "description": "Branche le clic de sélection sur un objet Leaflet (marqueur, forme, cercle)"
-            },
-            {
-              "kind": "method",
-              "name": "_onFeatureClick",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "record",
-                  "type": {
-                    "text": "Record<string, unknown>"
-                  }
-                }
-              ],
-              "description": "Clic sur un objet : bascule la sélection (premier clic = sélection,\nsecond clic sur le même objet = retrait, autre objet = remplacement),\német `dsfr-data-map-select`, puis diffuse le filtre en mode refine."
-            },
-            {
-              "kind": "method",
-              "name": "_clearSelection",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "description": "Retire la sélection courante par le même chemin qu'un second clic (appelé par le tag du contexte)"
-            },
-            {
-              "kind": "method",
-              "name": "_setSelection",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "record",
-                  "type": {
-                    "text": "Record<string, unknown> | null"
-                  }
-                },
-                {
-                  "name": "key",
-                  "type": {
-                    "text": "string | Record<string, unknown> | null"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_emitSelect",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "record",
-                  "type": {
-                    "text": "Record<string, unknown>"
-                  }
-                },
-                {
-                  "name": "selected",
-                  "type": {
-                    "text": "boolean"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_pushSelection",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "description": "Diffuse la sélection courante : au contexte (qui traduit, porte l'URL et\nle tag) ou, sans `context`, directement à `source` sous un whereKey\nstable. Dédupliqué : une clause inchangée ne repart pas."
-            },
-            {
-              "kind": "method",
-              "name": "_bindContext",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "description": "Résout le contexte visé par `context=\"id\"` et y enregistre le filtre.\nLe contexte peut arriver plus tard (déclaré après dans la page) :\nl'erreur de config est posée en attendant et levée à sa connexion."
-            },
-            {
-              "kind": "method",
-              "name": "_unbindContext",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "description": "Libère le filtre auprès du contexte (disconnect, changement de contexte)"
-            },
-            {
-              "kind": "method",
-              "name": "_releaseDirectSelection",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "void"
-                }
-              },
-              "description": "Libère la clause du chemin dégradé poussée sur `source` (disconnect, changement de mode)"
             },
             {
               "kind": "method",
@@ -9362,13 +9984,6 @@
           ],
           "events": [
             {
-              "name": "dsfr-data-map-select",
-              "type": {
-                "text": "CustomEvent"
-              },
-              "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte)."
-            },
-            {
               "name": "dsfr-data-map-layer-time-ready",
               "type": {
                 "text": "CustomEvent"
@@ -9381,6 +9996,10 @@
                 "text": "CustomEvent"
               },
               "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
+            },
+            {
+              "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).",
+              "name": "dsfr-data-map-select"
             },
             {
               "description": "`{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse.",
@@ -9759,6 +10378,10 @@
             }
           ],
           "mixins": [
+            {
+              "name": "SelectionFilterMixin",
+              "module": "/packages/core/src/utils/selection-filter.js"
+            },
             {
               "name": "SourceSubscriberMixin",
               "module": "/packages/core/src/utils/source-subscriber.js"
@@ -10728,6 +11351,32 @@
         },
         {
           "kind": "function",
+          "name": "resolveTilesChoices",
+          "return": {
+            "type": {
+              "text": "{ choices: TileChoice[]; warnings: string[] }"
+            }
+          },
+          "parameters": [
+            {
+              "name": "switcher",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "current",
+              "default": "'ign-plan'"
+            },
+            {
+              "name": "sovereignOnly",
+              "default": "false"
+            }
+          ],
+          "description": "Fonds proposés au lecteur par le sélecteur (#744) : liste `tiles-switcher`\nrésolue en presets canoniques, dans l'ordre déclaré, sans doublon.\n\nLe fond courant est ajouté en tête s'il manque à la liste, pour que le\nsélecteur affiche toujours ce qui est réellement dessiné. Une entrée qui\nn'est pas un preset connu (URL, faute de frappe) est écartée avec un\navertissement : le sélecteur ne sait pas nommer un fond inconnu, et\n`tiles-attribution` ne vaudrait que pour un seul d'entre eux. Un seul fond\nretenu ne donne aucun sélecteur — il n'y aurait rien à choisir.\n\nFonction pure, testable sans Leaflet. Exposée pour les tests."
+        },
+        {
+          "kind": "function",
           "name": "clipBoundsForFit",
           "return": {
             "type": {
@@ -10849,6 +11498,16 @@
               "default": "''",
               "description": "Atténuation du fond de carte pour les cartes thématiques : `muted` (gris + 55 % d'opacité), `grey` (niveaux de gris). Vide (défaut) : fond tel quel. Filtre CSS sur le volet des tuiles de cette carte seulement ; les encarts héritent du réglage. Un fond « neutre » = `ign-plan` + `tiles-style=\"muted\"` (#686).",
               "attribute": "tiles-style"
+            },
+            {
+              "kind": "field",
+              "name": "tilesSwitcher",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Fonds proposés au LECTEUR, séparés par des virgules (ex. `\"ign-plan,ign-ortho\"`). Vide (défaut) : aucun sélecteur, seul `tiles` décide. Rend un menu déroulant étiqueté « Fond de carte » en haut à droite de la carte, utilisable au clavier ; changer de fond met à jour la carte et ses encarts. Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux pour que le sélecteur apparaisse. Sans effet avec `locked` ou `no-controls` (#744).",
+              "attribute": "tiles-switcher"
             },
             {
               "kind": "field",
@@ -11020,6 +11679,35 @@
             },
             {
               "kind": "field",
+              "name": "_tilesSwitcherRoot",
+              "type": {
+                "text": "HTMLDivElement | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Sélecteur de fond (#744) : bloc conteneur et menu déroulant."
+            },
+            {
+              "kind": "field",
+              "name": "_tilesSelect",
+              "type": {
+                "text": "HTMLSelectElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_tilesSwitcherWarned",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur de `tiles-switcher` déjà signalée en console (un avertissement par liste)."
+            },
+            {
+              "kind": "field",
               "name": "_visibilityObserver",
               "type": {
                 "text": "IntersectionObserver | null"
@@ -11066,6 +11754,12 @@
               "name": "_deferInitUntilVisible",
               "privacy": "private",
               "description": "Defer map initialization until the élément is near the viewport.\nThis avoids loading hundreds of tiles for off-screen maps."
+            },
+            {
+              "kind": "method",
+              "name": "_propagateTilesToInsets",
+              "privacy": "private",
+              "description": "Aligne les encarts sur le fond de la carte hote (#744) : ils copient\n`tiles` a leur construction (dsfr-data-map-inset), un changement posterieur\n— le lecteur qui bascule de fond — les laisserait sur l'ancien plan."
             },
             {
               "kind": "method",
@@ -11203,6 +11897,18 @@
             },
             {
               "kind": "method",
+              "name": "_renderTilesSwitcher",
+              "privacy": "private",
+              "description": "(Re)construit le sélecteur de fond (#744).\n\nUn menu déroulant natif étiqueté, posé en light DOM AVANT le conteneur\nLeaflet : il est donc atteint au clavier avant la carte (juste après le\nlien d'évitement), le lecteur d'écran annonce son libellé et sa valeur\nsans code de rôle maison, et le changement de fond passe par le même\nchemin que l'attribut `tiles`. Rien sur une carte verrouillée ou sans\ncontrôles (encarts) : il n'y a rien à piloter."
+            },
+            {
+              "kind": "field",
+              "name": "_onTilesChoice",
+              "privacy": "private",
+              "description": "Le lecteur a choisi un fond : applique, annonce, notifie la page (#744)."
+            },
+            {
+              "kind": "method",
               "name": "_updateTiles",
               "privacy": "private"
             },
@@ -11336,6 +12042,15 @@
               "fieldName": "tilesStyle"
             },
             {
+              "name": "tiles-switcher",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Fonds proposés au LECTEUR, séparés par des virgules (ex. `\"ign-plan,ign-ortho\"`). Vide (défaut) : aucun sélecteur, seul `tiles` décide. Rend un menu déroulant étiqueté « Fond de carte » en haut à droite de la carte, utilisable au clavier ; changer de fond met à jour la carte et ses encarts. Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux pour que le sélecteur apparaisse. Sans effet avec `locked` ou `no-controls` (#744).",
+              "fieldName": "tilesSwitcher"
+            },
+            {
               "name": "sovereign-only",
               "type": {
                 "text": "boolean"
@@ -11439,6 +12154,14 @@
           "name": "buildTileLayerConfig",
           "declaration": {
             "name": "buildTileLayerConfig",
+            "module": "packages/core/src/components/dsfr-data-map.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "resolveTilesChoices",
+          "declaration": {
+            "name": "resolveTilesChoices",
             "module": "packages/core/src/components/dsfr-data-map.ts"
           }
         },
@@ -13076,8 +13799,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"",
+              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.",
               "attribute": "aggregate"
+            },
+            {
+              "kind": "field",
+              "name": "explode",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champs multivalués à éclater avant le regroupement (séparés par virgule).\n\nSans cet attribut, une cellule tableau est ramenée en chaîne pour la clé\nde groupe : `[\"a\", \"b\"]` devient la modalité `\"a,b\"`, une COMBINAISON\ncomptée comme une valeur — là où `dsfr-data-facets` éclate le même champ\n(#421). Les deux composants branchés sur le même champ donnaient donc des\nchiffres différents, sans rien signaler (#736).\n\nAvec `explode=\"tags\"`, chaque élément de la cellule produit sa propre\nligne : les modalités du regroupement sont exactement celles de la\nfacette du même champ, et une ligne portant N valeurs compte dans N\ngroupes (les agrégats la comptent donc N fois).\n\nRègles, alignées sur les facettes : les éléments vides sont ignorés, et\nune cellule sans aucune valeur (tableau vide, `null`, chaîne vide)\nne produit AUCUNE ligne — pas de groupe « non renseigné », comme la\nfacette n'a pas de modalité vide. Une cellule scalaire est inchangée.\n\nChaque champ listé doit figurer dans `group-by` (sinon erreur de\nconfiguration et champ ignoré : éclater un champ hors regroupement\ndupliquerait les lignes et gonflerait les sommes).\n\nL'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline\nne sait éclater un champ multivalué, déléguer produirait à nouveau des\ncombinaisons. Sur une source volumineuse, penser au plafond de lignes\nrapatriées.\n\nPar défaut vide : le comportement historique est conservé.",
+              "attribute": "explode"
             },
             {
               "kind": "field",
@@ -13601,6 +14334,103 @@
             },
             {
               "kind": "method",
+              "name": "_explodeFields",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Champs listés dans `explode`, trimés (#736)."
+            },
+            {
+              "kind": "method",
+              "name": "_validateExplode",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "description": "Vérifie que chaque champ d'`explode` est bien un champ de regroupement\n(#736). Retourne un message lisible (destiné à reportConfigError), ou\nnull si la configuration est cohérente."
+            },
+            {
+              "kind": "method",
+              "name": "_explodedValuesOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "unknown[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "val",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes\n(`_facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non\nvides, une cellule vide n'en fournit aucune, un scalaire fournit sa\nvaleur."
+            },
+            {
+              "kind": "method",
+              "name": "_rowWithFieldValue",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "row",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Copie d'une ligne avec une valeur de remplacement sur un champ (#736).\nLa colonne vertébrale du chemin est clonée : `setByPath` sur une copie\nde surface écrirait dans l'objet imbriqué PARTAGÉ avec la ligne source."
+            },
+            {
+              "kind": "method",
+              "name": "_explodeRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ],
+              "description": "Éclate les champs multivalués demandés (#736) : une ligne portant N\nvaleurs devient N lignes, une pour chaque valeur. Les lignes d'origine\nne sont jamais mutées."
+            },
+            {
+              "kind": "method",
               "name": "_applyGroupByAndAggregate",
               "privacy": "private",
               "return": {
@@ -13635,6 +14465,64 @@
                 }
               ],
               "description": "Delegue au parseur partage (convention d'alias unique field__fn, #269)"
+            },
+            {
+              "kind": "method",
+              "name": "_groupAggregates",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ParsedAggregate[]"
+                }
+              },
+              "description": "Agregats reducteurs : ceux qui replient un groupe en une valeur (#738)."
+            },
+            {
+              "kind": "method",
+              "name": "_runningAggregates",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ParsedAggregate[]"
+                }
+              },
+              "description": "Agregats cumules, appliques apres le tri sur les lignes de sortie (#738)."
+            },
+            {
+              "kind": "method",
+              "name": "_warnRunningWithoutOrder",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Avertit qu'un cumul est demandé sans `order-by` (#738) : le résultat suit\nalors l'ordre des lignes reçues, qui n'est pas un contrat (pagination,\nordre d'insertion de l'API). Un `order-by` posé sur la source amont reste\nlégitime, d'où un avertissement et non une erreur de configuration."
+            },
+            {
+              "kind": "method",
+              "name": "_applyRunningAggregates",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                },
+                {
+                  "name": "aggregates",
+                  "type": {
+                    "text": "ParsedAggregate[]"
+                  }
+                }
+              ],
+              "description": "Applique les agrégats cumulés sur les lignes de sortie (#738), dans leur\nordre courant : chaque ligne porte la somme des valeurs des lignes\nprécédentes, la sienne comprise. Les valeurs non numériques sont ignorées\n(même règle que `sum`, #301) et la ligne porte alors le cumul en cours.\nLes lignes ne sont jamais mutées : sans group-by, ce sont les objets de\nla source."
             },
             {
               "kind": "method",
@@ -13846,8 +14734,17 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"",
+              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.",
               "fieldName": "aggregate"
+            },
+            {
+              "name": "explode",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champs multivalués à éclater avant le regroupement (séparés par virgule).\n\nSans cet attribut, une cellule tableau est ramenée en chaîne pour la clé\nde groupe : `[\"a\", \"b\"]` devient la modalité `\"a,b\"`, une COMBINAISON\ncomptée comme une valeur — là où `dsfr-data-facets` éclate le même champ\n(#421). Les deux composants branchés sur le même champ donnaient donc des\nchiffres différents, sans rien signaler (#736).\n\nAvec `explode=\"tags\"`, chaque élément de la cellule produit sa propre\nligne : les modalités du regroupement sont exactement celles de la\nfacette du même champ, et une ligne portant N valeurs compte dans N\ngroupes (les agrégats la comptent donc N fois).\n\nRègles, alignées sur les facettes : les éléments vides sont ignorés, et\nune cellule sans aucune valeur (tableau vide, `null`, chaîne vide)\nne produit AUCUNE ligne — pas de groupe « non renseigné », comme la\nfacette n'a pas de modalité vide. Une cellule scalaire est inchangée.\n\nChaque champ listé doit figurer dans `group-by` (sinon erreur de\nconfiguration et champ ignoré : éclater un champ hors regroupement\ndupliquerait les lignes et gonflerait les sommes).\n\nL'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline\nne sait éclater un champ multivalué, déléguer produirait à nouveau des\ncombinaisons. Sur une source volumineuse, penser au plafond de lignes\nrapatriées.\n\nPar défaut vide : le comportement historique est conservé.",
+              "fieldName": "explode"
             },
             {
               "name": "order-by",
