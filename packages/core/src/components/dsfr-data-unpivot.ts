@@ -1,6 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { performUnpivot } from '@dsfr-data/shared/lib';
+import { performUnpivot, parseAliasedColumns } from '@dsfr-data/shared/lib';
 import type { UnpivotOptions } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getDataCache, type PaginationMeta } from '../utils/data-bridge.js';
@@ -44,7 +44,12 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   @property({ type: String, attribute: 'id-cols' })
   idCols = '';
 
-  /** Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern. */
+  /**
+   * Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.
+   * Alias inline `col:Libellé` (#668) : `value-cols="gazole_prix:Gazole, sp95_prix:SP95"` émet
+   * « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral
+   * dans un nom ou un libellé s'échappe en `%3A` (escapeColonValue).
+   */
   @property({ type: String, attribute: 'value-cols' })
   valueCols = '';
 
@@ -195,7 +200,8 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
 
     return {
       idCols: splitList(this.idCols),
-      valueCols: this.valueCols ? splitList(this.valueCols) : undefined,
+      // Alias inline col:Libellé (#668) : la clé dépliée est le libellé
+      valueCols: this.valueCols ? parseAliasedColumns(this.valueCols) : undefined,
       valueColsPattern: this.valueColsPattern || undefined,
       varName: this.varName || undefined,
       varFormat: this.varFormat || undefined,

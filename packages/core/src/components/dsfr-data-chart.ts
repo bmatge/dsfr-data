@@ -43,6 +43,9 @@ import {
   isValidDeptCode,
   normalizeDeptCode,
   formatDate,
+  parseAliasedColumn,
+  parseAliasedColumns,
+  type AliasedColumn,
 } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 
@@ -136,15 +139,24 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'code-field' })
   codeField = '';
 
-  /** Chemin vers le champ valeur */
+  /**
+   * Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) :
+   * `value-field="Panier_moyen:Panier moyen"` affiche « Panier moyen » dans la
+   * légende à la place du nom technique. Un `name` explicite prime sur l'alias.
+   * Un `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue).
+   */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
-  /** Chemin vers un second champ de valeur (pour bar-line: y-bar) */
+  /** Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668). */
   @property({ type: String, attribute: 'value-field-2' })
   valueField2 = '';
 
-  /** Champs de valeur supplementaires, separes par des virgules (ex: 'budget,score') */
+  /**
+   * Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score').
+   * Alias inline `champ:Libellé` par série (#668) : `value-fields="budget:Budget, score:Score"`.
+   * Un `name` explicite (tableau JSON) prime sur les alias.
+   */
   @property({ type: String, attribute: 'value-fields' })
   valueFields = '';
 
@@ -161,7 +173,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * Nom(s) de série. Chaîne simple recommandée (`name="Taux"`), enveloppée
    * automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries
    * (`name='["Réalisé","Objectif"]'`). Sur les cartes (`map*`), un seul nom :
-   * le premier élément d'un JSON est retenu (#653).
+   * le premier élément d'un JSON est retenu (#653). Priorité (#668) : `name`
+   * explicite, sinon l'alias inline `champ:Libellé` de value-field(s), sinon le
+   * nom du champ (ou les valeurs de series-field en mode tidy).
    */
   @property({ type: String })
   name = '';
@@ -395,32 +409,46 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   // --- Data processing ---
 
-  /** Parse all value field names (value-field, value-field-2, value-fields) */
-  private _getAllValueFields(): string[] {
+  /**
+   * Chemin de `value-field` sans son alias inline (#668) : `Panier_moyen:Panier
+   * moyen` → `Panier_moyen`. Toute lecture de la valeur passe par ici.
+   */
+  private _valueFieldKey(): string {
+    return this.valueField ? parseAliasedColumn(this.valueField).key : '';
+  }
+
+  /**
+   * Champs de valeur (chemin + libellé), dans l'ordre de rendu : value-field,
+   * puis value-fields (sinon value-field-2). Le libellé est l'alias inline
+   * `champ:Libellé` quand il est donné, sinon le chemin lui-même (#668).
+   */
+  private _getValueFieldSpecs(): AliasedColumn[] {
     // value-fields SANS value-field (#305) : l'ancien code incluait
     // toujours '' en tete -> getByPath(record, '') retournait l'objet
     // entier, premiere serie a zero + nom de serie vide dans la legende
-    const fields: string[] = [];
-    if (this.valueField) fields.push(this.valueField);
+    const specs: AliasedColumn[] = [];
+    if (this.valueField) specs.push(parseAliasedColumn(this.valueField));
     if (this.valueFields) {
-      fields.push(
-        ...this.valueFields
-          .split(',')
-          .map((f) => f.trim())
-          .filter(Boolean)
-      );
+      specs.push(...parseAliasedColumns(this.valueFields));
     } else if (this.valueField2) {
-      fields.push(this.valueField2);
+      specs.push(parseAliasedColumn(this.valueField2));
     }
+    return specs;
+  }
+
+  /** Parse all value field paths (value-field, value-field-2, value-fields) */
+  private _getAllValueFields(): string[] {
+    const fields = this._getValueFieldSpecs().map((s) => s.key);
     // Sans aucun champ : comportement historique conserve (les chemins
     // lisent allSeries[0])
-    return fields.length > 0 ? fields : [this.valueField];
+    return fields.length > 0 ? fields : [this._valueFieldKey()];
   }
 
   /**
    * Series names, in render order.
    * - tidy mode (series-field) : distinct values of seriesField, in first-seen order
-   * - wide mode : the value field names (value-field, value-field-2, value-fields)
+   * - wide mode : the value field labels (alias inline `champ:Libellé`, #668)
+   *   or paths (value-field, value-field-2, value-fields)
    */
   private _getSeriesNames(): string[] {
     if (this.seriesField) {
@@ -435,7 +463,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }
       return names;
     }
-    return this._getAllValueFields();
+    const labels = this._getValueFieldSpecs().map((s) => s.label);
+    return labels.length > 0 ? labels : [this._valueFieldKey()];
   }
 
   /**
@@ -482,7 +511,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const li = labelIndex.get(l);
       const si = seriesIndex.get(s);
       if (li !== undefined && si !== undefined) {
-        allSeries[si][li] = toNumber(getByPath(record, this.valueField));
+        allSeries[si][li] = toNumber(getByPath(record, this._valueFieldKey()));
       }
     }
 
@@ -598,7 +627,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           continue;
         }
       }
-      const value = toNumber(getByPath(record, this.valueField));
+      const value = toNumber(getByPath(record, this._valueFieldKey()));
       mapData[code] = Math.round(value * 100) / 100;
     }
 
@@ -639,9 +668,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     } else if (this.valueField) {
       const isMap = this.type in MAP_LEVEL;
       if (isMap) {
-        attrs['name'] = this.valueField;
+        // Libellé de l'alias inline si présent, sinon le chemin (#668)
+        attrs['name'] = parseAliasedColumn(this.valueField).label;
       } else {
-        // Series names : distinct series-field values (tidy) or value field names (wide).
+        // Series names : distinct series-field values (tidy) or value field
+        // labels/names (wide).
         attrs['name'] = JSON.stringify(this._getSeriesNames());
       }
     }
@@ -697,6 +728,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (typeof target.series === 'string') {
       let i = this._getDisplaySeriesNames().indexOf(target.series);
       if (i < 0) i = this._getSeriesNames().indexOf(target.series);
+      // Une cible peut viser le chemin du champ même quand la série est
+      // affichée sous son alias inline (#668)
+      if (i < 0) i = this._getAllValueFields().indexOf(target.series);
       return i >= 0 ? i : 0;
     }
     return 0;
@@ -731,7 +765,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       case 'gauge': {
         const gaugeVal =
           this.gaugeValue ??
-          (this._data.length > 0 ? toNumber(getByPath(this._data[0], this.valueField)) : 0);
+          (this._data.length > 0 ? toNumber(getByPath(this._data[0], this._valueFieldKey())) : 0);
         attrs['percent'] = String(Math.round(gaugeVal));
         attrs['init'] = '0';
         attrs['target'] = '100';
@@ -754,7 +788,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         attrs['y-line'] = JSON.stringify(
           paddedSeries.length > 1 ? paddedSeries[1] : (paddedSeries[0] ?? values)
         );
-        // BarLineChart uses name-bar/name-line (not name)
+        // BarLineChart uses name-bar/name-line (not name). Sans `name`, la
+        // légende était vide : les libellés dérivés des champs (alias inline
+        // `champ:Libellé` ou chemin, #668) prennent le relais, comme pour les
+        // autres types.
         if (this.name) {
           try {
             const trimmed = this.name.trim();
@@ -764,6 +801,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           } catch {
             /* ignore parse errors */
           }
+        } else if (this.valueField) {
+          const names = this._getSeriesNames();
+          if (names[0]) attrs['name-bar'] = names[0];
+          if (names[1]) attrs['name-line'] = names[1];
         }
         // BarLineChart uses unit-tooltip-bar / unit-tooltip-line (not unit-tooltip)
         if (this.unitTooltipBar) attrs['unit-tooltip-bar'] = this.unitTooltipBar;
@@ -793,7 +834,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
           let total = 0;
           let count = 0;
           for (const record of this._data) {
-            const v = toNumber(getByPath(record, this.valueField), true);
+            const v = toNumber(getByPath(record, this._valueFieldKey()), true);
             if (v !== null) {
               total += v;
               count++;
@@ -1458,19 +1499,22 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      // Build table from data (like dsfr-data-a11y)
-      const columns = [this.labelField, this.valueField].filter(Boolean);
+      // Build table from data (like dsfr-data-a11y). En-tête = libellé de
+      // l'alias inline s'il existe, cellules lues sur le chemin (#668).
+      const columns: AliasedColumn[] = [];
+      if (this.labelField) columns.push({ key: this.labelField, label: this.labelField });
+      if (this.valueField) columns.push(parseAliasedColumn(this.valueField));
       if (columns.length === 0) return;
       const rows = this._data.slice(0, 100);
 
       const headerCells = columns
-        .map((c) => `<th scope="col">${escapeHtml(String(c))}</th>`)
+        .map((c) => `<th scope="col">${escapeHtml(c.label)}</th>`)
         .join('');
       const bodyRows = rows
         .map((row) => {
           const cells = columns
             .map((col) => {
-              const val = getByPath(row, col);
+              const val = getByPath(row, col.key);
               return `<td>${escapeHtml(String(val ?? ''))}</td>`;
             })
             .join('');
