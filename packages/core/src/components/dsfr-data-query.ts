@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { toNumber } from '@dsfr-data/shared/lib';
+import { isUnsafeKey, toNumber } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
@@ -153,6 +153,39 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   @property({ type: String })
   aggregate = '';
+
+  /**
+   * Champs multivalués à éclater avant le regroupement (séparés par virgule).
+   *
+   * Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé
+   * de groupe : `["a", "b"]` devient la modalité `"a,b"`, une COMBINAISON
+   * comptée comme une valeur — là où `dsfr-data-facets` éclate le même champ
+   * (#421). Les deux composants branchés sur le même champ donnaient donc des
+   * chiffres différents, sans rien signaler (#736).
+   *
+   * Avec `explode="tags"`, chaque élément de la cellule produit sa propre
+   * ligne : les modalités du regroupement sont exactement celles de la
+   * facette du même champ, et une ligne portant N valeurs compte dans N
+   * groupes (les agrégats la comptent donc N fois).
+   *
+   * Règles, alignées sur les facettes : les éléments vides sont ignorés, et
+   * une cellule sans aucune valeur (tableau vide, `null`, chaîne vide)
+   * ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la
+   * facette n'a pas de modalité vide. Une cellule scalaire est inchangée.
+   *
+   * Chaque champ listé doit figurer dans `group-by` (sinon erreur de
+   * configuration et champ ignoré : éclater un champ hors regroupement
+   * dupliquerait les lignes et gonflerait les sommes).
+   *
+   * L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline
+   * ne sait éclater un champ multivalué, déléguer produirait à nouveau des
+   * combinaisons. Sur une source volumineuse, penser au plafond de lignes
+   * rapatriées.
+   *
+   * Par défaut vide : le comportement historique est conservé.
+   */
+  @property({ type: String })
+  explode = '';
 
   /**
    * Tri des résultats
@@ -308,6 +341,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       'where',
       'filter',
       'groupBy',
+      'explode',
       'aggregate',
       'orderBy',
       'limit',
@@ -342,6 +376,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     this._aggregateError = aggError ? `aggregate="${this.aggregate}" : ${aggError}` : null;
     if (this._aggregateError) {
       reportConfigError(this, `dsfr-data-query[${this.id}]`, this._aggregateError);
+    }
+
+    // Éclatement d'un champ hors regroupement (#736) : la ligne serait
+    // dupliquée sans changer de groupe, et toutes les sommes gonfleraient.
+    // Signalé, puis le champ est ignoré (le reste de la requête tourne).
+    const explodeError = this._validateExplode();
+    if (explodeError) {
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, explodeError);
     }
 
     // Negotiate server-side delegation BEFORE subscribing to data.
@@ -493,12 +535,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
       // Delegate group-by + aggregate together (they're coupled).
       // Don't override if source already has its own groupBy or aggregate.
+      // `explode` (#736) reste client-side : aucune API du pipeline ne sait
+      // éclater un champ multivalué, un group_by serveur regrouperait à
+      // nouveau par combinaison.
       if (
         this.groupBy &&
         caps.serverGroupBy &&
         !sourceGroupBy &&
         !sourceAggregate &&
-        !this._aggregateError
+        !this._aggregateError &&
+        !this.explode
       ) {
         // Le where conditionne la délégation du group-by (#275) : un filtre
         // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
@@ -941,6 +987,100 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
   }
 
+  /** Champs listés dans `explode`, trimés (#736). */
+  private _explodeFields(): string[] {
+    return this.explode
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Vérifie que chaque champ d'`explode` est bien un champ de regroupement
+   * (#736). Retourne un message lisible (destiné à reportConfigError), ou
+   * null si la configuration est cohérente.
+   */
+  private _validateExplode(): string | null {
+    const explodeFields = this._explodeFields();
+    if (explodeFields.length === 0) return null;
+
+    const groupFields = this.groupBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const orphans = explodeFields.filter((f) => !groupFields.includes(f));
+    if (orphans.length === 0) return null;
+
+    return (
+      `explode="${this.explode}" : ${orphans.map((f) => `"${f}"`).join(', ')} ` +
+      `${orphans.length > 1 ? 'ne sont pas des champs' : "n'est pas un champ"} de group-by — ` +
+      `l'éclatement ne s'applique qu'aux champs de regroupement ` +
+      `(ajoutez-les à group-by, sinon les lignes seraient dupliquées et les sommes gonflées)`
+    );
+  }
+
+  /**
+   * Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes
+   * (`_facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non
+   * vides, une cellule vide n'en fournit aucune, un scalaire fournit sa
+   * valeur.
+   */
+  private _explodedValuesOf(val: unknown): unknown[] {
+    if (val === null || val === undefined || val === '') return [];
+    if (Array.isArray(val)) {
+      return val.filter((v) => v !== null && v !== undefined && v !== '');
+    }
+    return [val];
+  }
+
+  /**
+   * Copie d'une ligne avec une valeur de remplacement sur un champ (#736).
+   * La colonne vertébrale du chemin est clonée : `setByPath` sur une copie
+   * de surface écrirait dans l'objet imbriqué PARTAGÉ avec la ligne source.
+   */
+  private _rowWithFieldValue(
+    row: Record<string, unknown>,
+    field: string,
+    value: unknown
+  ): Record<string, unknown> {
+    const clone: Record<string, unknown> = { ...row };
+    const keys = field.replace(/\[(\d+)\]/g, '.$1').split('.');
+    let current = clone;
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (isUnsafeKey(key)) return clone;
+      const child = current[key];
+      if (!child || typeof child !== 'object' || Array.isArray(child)) break;
+      const childClone = { ...(child as Record<string, unknown>) };
+      current[key] = childClone;
+      current = childClone;
+    }
+    setByPath(clone, field, value);
+    return clone;
+  }
+
+  /**
+   * Éclate les champs multivalués demandés (#736) : une ligne portant N
+   * valeurs devient N lignes, une pour chaque valeur. Les lignes d'origine
+   * ne sont jamais mutées.
+   */
+  private _explodeRows(
+    data: Record<string, unknown>[],
+    fields: string[]
+  ): Record<string, unknown>[] {
+    let rows = data;
+    for (const field of fields) {
+      const out: Record<string, unknown>[] = [];
+      for (const row of rows) {
+        for (const value of this._explodedValuesOf(getByPath(row, field))) {
+          out.push(this._rowWithFieldValue(row, field, value));
+        }
+      }
+      rows = out;
+    }
+    return rows;
+  }
+
   /**
    * Applique le GROUP BY et les agrégations
    */
@@ -951,10 +1091,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       .filter(Boolean);
     const aggregates = this._parseAggregates(this.aggregate);
 
+    // Éclatement des champs multivalués demandés (#736), AVANT la clé de
+    // groupe : sans lui, `["a","b"]` serait la modalité « a,b ». Les champs
+    // hors group-by sont ignorés (erreur de configuration déjà signalée).
+    const explodeFields = this._explodeFields().filter((f) => groupFields.includes(f));
+    const rows = explodeFields.length > 0 ? this._explodeRows(data, explodeFields) : data;
+
     // Créer les groupes
     const groups = new Map<string, Record<string, unknown>[]>();
 
-    for (const item of data) {
+    for (const item of rows) {
       const key = groupFields.map((f) => String(getByPath(item, f) ?? '')).join('|||');
       if (!groups.has(key)) {
         groups.set(key, []);

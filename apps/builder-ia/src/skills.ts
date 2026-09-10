@@ -401,6 +401,7 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | where | String | \`""\` | non | Filtres (voir syntaxe ci-dessous) |
 | filter | String | \`""\` | non | Alias de where (compatibilite) |
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
+| explode | String | \`""\` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans \`group-by\`. Force le regroupement côté client. |
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
@@ -447,6 +448,31 @@ renseigné produit un groupe \`null\` (jamais \`""\`), que dsfr-data-chart libel
 EXCLURE ces lignes comme le fait ods-chart, filtrer explicitement en amont :
 \`where="champ:isnotnull"\` sur dsfr-data-query, ou \`where="champ is not null"\`
 (ODSQL) sur dsfr-data-source.
+
+### Champs multivalués (explode)
+Une cellule tableau (\`besoins: ["audit", "formation"]\`, ChoiceList Grist, facette
+multi-valeurs ODS) est ramenée en chaîne pour la clé de groupe : la COMBINAISON
+« audit,formation » devient une modalité, alors que \`dsfr-data-facets\` éclate le même
+champ et compte « audit » et « formation » séparément. Les deux composants branchés sur
+le même champ donnaient donc des chiffres différents (#736).
+
+\`explode="besoins"\` éclate le champ avant le regroupement : une ligne portant N valeurs
+compte dans N groupes, et les modalités sont exactement celles de la facette du même champ.
+Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vide, \`null\`)
+ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
+modalité vide.
+
+Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
+champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
+et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ
+multivalué. Sur un gros jeu, surveiller \`max-records\` (chiffre partiel silencieux).
+
+\`\`\`html
+<dsfr-data-query id="par-besoin" source="orgs"
+  group-by="besoins" explode="besoins" aggregate="id:count"
+  order-by="id__count:desc">
+</dsfr-data-query>
+\`\`\`
 
 ### Fonctions d'agrégation
 Format : \`"champ:fonction"\` ou \`"champ:fonction:alias"\`
