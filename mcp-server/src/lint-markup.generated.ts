@@ -55,6 +55,7 @@ const REEMETTEURS = [
   'dsfr-data-normalize',
   'dsfr-data-join',
   'dsfr-data-unpivot',
+  'dsfr-data-pivot',
   'dsfr-data-facets',
   'dsfr-data-search',
 ];

@@ -10,15 +10,19 @@ Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut `source`.
 
 ### Format des données
-Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut `colonnes`
-au format `"cle_json:Label affiche, cle2:Label2"`. Si `colonnes` est omis, toutes
-les clés du premier objet sont utilisees comme colonnes.
+Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut `columns`
+au format `"cle_json:Label affiche, cle2:Label2"`. Si `columns` est omis, toutes
+les clés présentes dans les données deviennent colonnes (ordre d'apparition, libellé = clé) :
+le tableau suit un schéma dynamique — c'est le consommateur naturel d'un `dsfr-data-pivot`
+dont les colonnes suivent une facette (#255, #640). `columns-auto` combine les deux :
+les colonnes déclarées (libellées, en tête) puis celles des données.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | `""` | oui | ID de la source ou query |
-| columns | String | `""` | non | Definition des colonnes : `"key:Label, key2:Label2"`. Alias deprecie : `colonnes` |
+| columns | String | `""` | non | Definition des colonnes : `"key:Label, key2:Label2"`. Omis : toutes les clés des données (ordre d'apparition). Alias deprecie : `colonnes` |
+| columns-auto | Boolean | `false` | non | Complète `columns` avec les clés des données absentes de la liste (libellé = clé) : colonnes figées en tête, dynamiques ensuite (#640) |
 | search | Boolean | `false` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : `recherche` |
 | filters | String | `""` | non | Colonnes filtrables (dropdown) : `"col1,col2"`. Alias deprecie : `filtres` |
 | sort | String | `""` | non | Tri par défaut : `"col:asc"` ou `"col:desc"`. Alias deprecie : `tri` |
@@ -85,7 +89,8 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 |---|---|---|---|
 | `caption` | `string` | `""` (vide) | Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les lecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`. |
 | `colonnes` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `columns` (#300) |
-| `columns` | `string` | `""` (vide) | Définition des colonnes: "clé:Label, cle2:Label2" |
+| `columns` | `string` | `""` (vide) | Définition des colonnes : `"clé:Label, cle2:Label2"`. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255). |
+| `columns-auto` | `boolean` | `false` | Complète `columns` avec les clés des données qui n'y figurent pas (ordre d'apparition, libellé = clé) : les premières colonnes sont libellées et figées, les suivantes suivent les données (#640). |
 | `decimals` | `number \| null` | `null` | Nombre de décimales des cellules numériques (#666). Absent : au plus 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés. |
 | `export` | `string` | `""` (vide) | Formats d'export disponibles: "csv", "html" (separables par virgule) |
 | `filters` | `string` | `""` (vide) | Colonnes filtrables: "ministere,statut" |

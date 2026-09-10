@@ -95,9 +95,16 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | avg | Moyenne | `"prix:avg"` |
 | min | Minimum | `"temperature:min"` |
 | max | Maximum | `"score:max"` |
+| distinct | Nombre de valeurs distinctes (alias `count-distinct`) — null et chaîne vide exclus, `75` et `"75"` comptent pour une seule valeur | `"commune:distinct"` → colonne `commune__distinct` |
+
+Délégation de `distinct` : ODS `count(distinct champ)`, Grist SQL `COUNT(DISTINCT champ)` ;
+**Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
+détient davantage — chiffre partiel derrière un `max-records` ou un `limit`).
 
 Toute autre fonction (`somme`, `moyenne`, `median`…) est une **erreur de configuration**
 visible (console + `data-dsfr-config-error`, composants aval en erreur) — jamais un 0 silencieux.
+`count-if` est refusé : filtrer avec `where` puis `champ:count` (sur le KPI :
+`value="count:champ:valeur"`).
 
 ### Exemples
 ```html

@@ -1,8 +1,8 @@
 # Grammaires d’attributs et voies natives
 
-> Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, fond de carte neutre ou administratif, nom de serie, treemap
+> Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap
 >
-> Déclencheurs : grammaire, voie native, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
+> Déclencheurs : grammaire, voie native, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, colonne calculee, compute, when, recoder, tranche, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
 
 ## Grammaires d’attributs et voies natives
 
@@ -199,6 +199,30 @@ Deux dialectes selon l’endroit :
 
 Un groupe « (vide) » dans un graphique vient presque toujours de lignes a valeur
 nulle : filtrer avec `isnotnull` plutot que de post-traiter les donnees.
+Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
+`dsfr-data-normalize compute="type = coalesce(type, 'Non renseigné')"`.
+
+### Colonne derivee, recodage par ligne : compute (when / then / else, fonctions)
+
+`dsfr-data-normalize compute` : `"cible = expression; cible2 = expression2"`, par ligne,
+en dernier. Arithmetique, concatenation, fonctions en liste blanche (`year month day
+round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
+contains`) et conditions `when COND then EXPR … else EXPR` (`else` obligatoire ;
+comparaisons `= != < <= > >=`, `and or not`). Meme egalite lache que `where` : la
+condition `when dept = 75` garde les memes lignes que `where="dept:eq:75"`.
+
+```html
+<dsfr-data-normalize id="calc" source="raw" numeric="montant"
+  compute="tranche = when montant >= 1000000 then 'Grand' when montant >= 100000 then 'Moyen' else 'Petit';
+           annee = year(date_notification); solde = actif - passif">
+</dsfr-data-normalize>
+```
+
+Pas de script pour « une colonne annee », « une tranche selon un seuil », « un solde »,
+« null → Non renseigné » : c'est `compute`. Une fonction hors liste ou un `when` sans
+`else` est une erreur de configuration visible (console + `data-dsfr-config-error`).
+Les agregats (somme, distinct, part) restent dans `dsfr-data-query` / `dsfr-data-kpi` ;
+l'affichage conditionnel d'un fragment, dans les templates (`{{#if}}`).
 
 ### Fond de carte neutre, grise, niveaux de gris
 
