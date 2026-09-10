@@ -9,7 +9,16 @@ import { isUnsafeKey } from '@dsfr-data/shared/lib';
 import { joinWhere } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
 
-type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio';
+type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio' | 'radio-inline';
+
+/** Modes d'affichage reconnus par `display` (toute autre valeur est ignoree) */
+const FACET_DISPLAY_MODES: ReadonlySet<string> = new Set<FacetDisplayMode>([
+  'checkbox',
+  'select',
+  'multiselect',
+  'radio',
+  'radio-inline',
+]);
 
 interface FacetValue {
   value: string;
@@ -88,7 +97,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'hide-empty' })
   hideEmpty = false;
 
-  /** Mode d'affichage par facette : "field:select | field2:multiselect". Défaut = checkbox */
+  /**
+   * Mode d'affichage par facette : "champ:mode | champ2:mode". Défaut = checkbox.
+   * - `checkbox` : cases à cocher visibles dans un fieldset DSFR (sélection multiple)
+   * - `select` : liste déroulante native fr-select (sélection unique)
+   * - `multiselect` : menu déroulant repliable avec cases à cocher et recherche (sélection multiple)
+   * - `radio` : menu déroulant repliable contenant des boutons radio et une recherche
+   *   (sélection unique) — sera renommé `radio-dropdown` dans une version majeure
+   * - `radio-inline` : boutons radio DSFR visibles en ligne, précédés d'une option « Tous »
+   *   qui retire la sélection (sélection unique, #684)
+   */
   @property({ type: String })
   display = '';
 
@@ -427,17 +445,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     `;
   }
 
-  /** Element checkbox/radio complet — etait copie 3x */
+  /** Element checkbox/radio complet — etait copie 3x. `inline` : element en ligne (radio-inline, #684) */
   private _renderToggleItem(
     group: FacetGroup,
     fv: FacetValue,
     inputId: string,
     kind: 'checkbox' | 'radio',
-    radioName?: string
+    radioName?: string,
+    inline = false
   ) {
     const isChecked = (this._activeSelections[group.field] ?? new Set()).has(fv.value);
     return html`
-      <div class="fr-fieldset__element">
+      <div class="fr-fieldset__element${inline ? ' fr-fieldset__element--inline' : ''}">
         <div class="fr-${kind}-group fr-${kind}-group--sm">
           <input
             type="${kind}"
@@ -910,11 +929,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       if (colonIndex === -1) continue;
       const key = pair.substring(0, colonIndex).trim();
       const value = pair.substring(colonIndex + 1).trim();
-      if (
-        key &&
-        (value === 'checkbox' || value === 'select' || value === 'multiselect' || value === 'radio')
-      ) {
-        map.set(key, value);
+      if (key && FACET_DISPLAY_MODES.has(value)) {
+        map.set(key, value as FacetDisplayMode);
       }
     }
     return map;
@@ -989,7 +1005,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     this._afterSelectionChange();
 
     // Announce selection change for all interactive modes
-    if (displayMode === 'multiselect' || displayMode === 'radio' || displayMode === 'checkbox') {
+    if (
+      displayMode === 'multiselect' ||
+      displayMode === 'radio' ||
+      displayMode === 'radio-inline' ||
+      displayMode === 'checkbox'
+    ) {
       const action = wasSelected ? 'désélectionnée' : 'sélectionnée';
       this._announce(
         `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
@@ -1481,6 +1502,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         return this._renderMultiselectGroup(group);
       case 'radio':
         return this._renderRadioGroup(group);
+      case 'radio-inline':
+        return this._renderRadioInlineGroup(group);
       default:
         return this._renderCheckboxGroup(group);
     }
@@ -1668,6 +1691,46 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
             : nothing
         }
       </div>
+    `;
+  }
+
+  /**
+   * Boutons radio DSFR visibles en ligne (#684) : fieldset dont la legende est
+   * le libelle de la facette, une option « Tous » (cochee quand rien n'est
+   * selectionne) qui retire la selection, puis une radio par valeur. Toutes
+   * les valeurs sont rendues (pas de « Voir plus » : un choix unique visible
+   * d'un coup d'oeil, comme `select`).
+   */
+  private _renderRadioInlineGroup(group: FacetGroup) {
+    const uid = `${this._instanceUid}-${group.field}`;
+    const selected = this._activeSelections[group.field] ?? new Set();
+    const hasSelection = selected.size > 0;
+    const radioName = `${uid}-radio`;
+
+    return html`
+      <fieldset
+        class="fr-fieldset dsfr-data-facets__group dsfr-data-facets__radio-inline"
+        aria-labelledby="${uid}-legend"
+        data-field="${group.field}"
+      >
+        <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
+        <div class="fr-fieldset__element fr-fieldset__element--inline">
+          <div class="fr-radio-group fr-radio-group--sm">
+            <input
+              type="radio"
+              id="${uid}-all"
+              name="${radioName}"
+              value=""
+              .checked="${!hasSelection}"
+              @change="${() => this._clearFieldSelections(group.field)}"
+            />
+            <label class="fr-label" for="${uid}-all">Tous</label>
+          </div>
+        </div>
+        ${group.values.map((fv, fvIndex) =>
+          this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'radio', radioName, true)
+        )}
+      </fieldset>
     `;
   }
 

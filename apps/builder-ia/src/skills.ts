@@ -722,7 +722,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
-| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio |
+| display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
 | hide-counts | Boolean | \`false\` | non | Masquer les compteurs (N) a cote de chaque valeur de facette |
 | url-params | Boolean | \`false\` | non | Active la lecture des parametres d'URL comme pre-selections de facettes |
 | url-param-map | String | \`""\` | non | Mapping URL param -> champ : \`"r:region \\| t:type"\`. Si vide, correspondance directe |
@@ -735,10 +735,11 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 - **checkbox** (défaut) : fieldset DSFR avec checkboxes, compteurs, "Voir plus/moins", recherche optionnelle
 - **select** : liste deroulante DSFR standard, selection exclusive (une seule valeur)
 - **multiselect** : dropdown collapsible avec checkboxes DSFR, recherche integree, bouton "Tout sélectionner/deselectionner"
-- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive
+- **radio** : dropdown collapsible avec radio buttons DSFR, recherche integree, selection exclusive (sera renomme \`radio-dropdown\` dans une version majeure)
+- **radio-inline** : boutons radio DSFR visibles en ligne dans un fieldset, precedes d'une option « Tous » qui retire la selection ; selection exclusive, toutes les valeurs affichees (#684)
 
 Le mode \`select\` rend la facette automatiquement exclusive.
-Le mode \`radio\` rend la facette automatiquement exclusive.
+Le mode \`radio\` rend la facette automatiquement exclusive, \`radio-inline\` aussi.
 Le mode \`multiselect\` rend la facette automatiquement disjonctive (multi-selection OU).
 
 ### Logique de filtrage
@@ -3495,11 +3496,14 @@ Les modes et ce qu’ils rendent :
 | \`checkbox\` (defaut) | cases a cocher en ligne | multiple (OU intra-facette) |
 | \`select\` | \`<select class="fr-select">\` natif, en ligne | **unique** |
 | \`radio\` | **dropdown** repliable contenant des boutons radio + recherche | unique |
+| \`radio-inline\` | boutons radio **visibles en ligne** (fieldset DSFR), option « Tous » en tete | unique |
 | \`multiselect\` | dropdown repliable avec cases a cocher + « tout selectionner » | multiple |
 
-Donc : « un choix unique visible directement » = \`champ:select\`. \`radio\` n’est pas
-une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente, pas un
-bug. Une facette en \`select\` ou \`radio\` est exclusive d’office, sans \`disjunctive\`.
+Donc : « un choix unique visible directement » = \`champ:select\` (liste deroulante) ou
+\`champ:radio-inline\` (boutons radio en ligne, « Tous » pour retirer le choix). \`radio\`
+n’est pas une rangee de boutons radio en ligne mais un menu deroulant ; c’est documente,
+pas un bug — il sera renomme \`radio-dropdown\` dans une version majeure. Une facette en
+\`select\`, \`radio\` ou \`radio-inline\` est exclusive d’office, sans \`disjunctive\`.
 
 ### Facettes en cascade (server-facets)
 
