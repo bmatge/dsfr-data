@@ -1533,15 +1533,19 @@ Affiche un tableau DSFR filtrable, triable, paginable avec export CSV et/ou HTML
 Se connecte a une dsfr-data-source ou dsfr-data-query via l'attribut \`source\`.
 
 ### Format des données
-Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`colonnes\`
-au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`colonnes\` est omis, toutes
-les clés du premier objet sont utilisees comme colonnes.
+Attend un tableau d'objets plats. Les colonnes sont définies par l'attribut \`columns\`
+au format \`"cle_json:Label affiche, cle2:Label2"\`. Si \`columns\` est omis, toutes
+les clés présentes dans les données deviennent colonnes (ordre d'apparition, libellé = clé) :
+le tableau suit un schéma dynamique — c'est le consommateur naturel d'un \`dsfr-data-pivot\`
+dont les colonnes suivent une facette (#255, #640). \`columns-auto\` combine les deux :
+les colonnes déclarées (libellées, en tête) puis celles des données.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
-| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Alias deprecie : \`colonnes\` |
+| columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Omis : toutes les clés des données (ordre d'apparition). Alias deprecie : \`colonnes\` |
+| columns-auto | Boolean | \`false\` | non | Complète \`columns\` avec les clés des données absentes de la liste (libellé = clé) : colonnes figées en tête, dynamiques ensuite (#640) |
 | search | Boolean | \`false\` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : \`recherche\` |
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
@@ -3448,6 +3452,113 @@ Tout autre \`{nom}\` matche un segment générique. Le motif est ancré (début 
 - Plusieurs id-cols sont portées sur chaque ligne émise.
 - Recalcule automatiquement quand la source amont émet de nouvelles données.` +
       reference('dsfr-data-unpivot'),
+  },
+
+  dsfrDataPivot: {
+    id: 'dsfrDataPivot',
+    name: 'dsfr-data-pivot',
+    description:
+      'Replie un tableau "long" en "wide" (tableau croisé) : une colonne par valeur distincte d\'un champ',
+    trigger: [
+      'pivot',
+      'tableau croisé',
+      'tableau croise',
+      'crosstab',
+      'cross-tab',
+      'lignes en colonnes',
+      'une colonne par année',
+      'une colonne par annee',
+      'une colonne par valeur',
+      'long vers wide',
+      'écart entre deux séries',
+      'ecart entre deux series',
+      'différence entre deux années',
+      'difference entre deux annees',
+      'comparer deux années',
+    ],
+    content:
+      `## <dsfr-data-pivot> - Repli "long" → "wide" (tableau croisé)
+
+Composant invisible, pur transformateur (aucun fetch HTTP), symétrique exact de
+dsfr-data-unpivot. Un jeu "long" porte une observation par ligne
+(\`commune | annee | montant\`) ; le pivot en fait un tableau croisé : une ligne par
+valeur de \`row\`, une colonne par valeur distincte de \`column\`, et dans chaque cellule
+l'agrégat des valeurs de \`value\`.
+
+### Position dans le pipeline
+\`\`\`
+dsfr-data-source (long) ──► [dsfr-data-query : filtre / facette] ──► dsfr-data-pivot ──► dsfr-data-list
+                                                                              └──► dsfr-data-normalize (compute) ──► chart / kpi
+\`\`\`
+
+### Attributs
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| id | String | - | oui | Identifiant unique de la sortie. |
+| source | String | "" | oui | ID de la source amont (format long). |
+| row | String | "" | oui | Champs formant l'identité de ligne, virgule-séparés. Ex: \`"commune"\`, \`"etab, dep"\`. |
+| column | String | "" | oui | Champ dont chaque valeur distincte devient une colonne. Ex: \`"annee"\`. |
+| value | String | "" | oui | Champ dont les valeurs remplissent les cellules. Ex: \`"montant"\`. |
+| aggregate | String | "sum" | non | Réduction quand plusieurs lignes tombent dans la même cellule : \`sum\`, \`count\`, \`avg\`, \`min\`, \`max\`, \`first\`, \`last\` (grammaire commune du pipeline). |
+| column-order | String | "" | non | Ordre des colonnes générées : vide = ordre d'apparition, \`asc\` / \`desc\` (tri numérique si toutes les valeurs le sont). |
+| column-format | String | "" | non | Gabarit des noms de colonnes, \`{value}\` = valeur brute. Ex: \`"annee_{value}"\` → \`annee_2023\` (identifiant sûr pour \`compute\`). |
+| labels | String | "" | non | Libellés par valeur brute : \`"2022:Année 2022 \\| 2023:Année 2023"\` (prime sur column-format ; \`:\` et \`\\|\` littéraux échappés en \`%3A\` / \`%7C\`). |
+| max-columns | Number | 50 | non | Plafond de colonnes générées. Au-delà : erreur de configuration explicite, pas un tableau. |
+
+### Règles
+- **Cellule sans observation = \`null\`**, jamais 0 (#301). \`sum\`/\`avg\` sans valeur numérique → \`null\` aussi.
+- Toutes les lignes émises portent **toutes** les colonnes générées (schéma uniforme).
+- Le **schéma de sortie dépend des données** : une nouvelle valeur de \`column\` dans la source
+  crée une nouvelle colonne sans changer le HTML. Un \`dsfr-data-list\` sans \`columns\` (ou avec
+  \`columns-auto\`) suit ce schéma ; un \`dsfr-data-chart\` en \`value-fields\` doit nommer les colonnes
+  qu'il attend (utiliser \`column-format\` pour des noms prévisibles).
+- Les lignes dont le champ \`column\` est vide/null sont ignorées (comptées dans la trace).
+- Une valeur de \`column\` qui porte le nom d'un champ de \`row\` est une erreur (collision) :
+  poser \`column-format\`.
+- Plus de \`max-columns\` valeurs distinctes (50 par défaut) → \`data-dsfr-config-error\` : un pivot
+  sur un identifiant (10 000 valeurs) est une erreur de page. Filtrer en amont ou changer de champ.
+- La trace du volet Diagnostic (#604) affiche le nombre de colonnes générées et de cellules vides.
+
+### Exemple 1 : tableau croisé dont les colonnes suivent une facette (#640)
+\`\`\`html
+<dsfr-data-source id="tarifs" api-type="tabular" resource="…"></dsfr-data-source>
+<!-- la facette filtre les services ; les colonnes de la grille suivent la sélection -->
+<dsfr-data-facets id="svc" source="tarifs" fields="service"></dsfr-data-facets>
+<dsfr-data-pivot id="large" source="svc"
+  row="etab, dep" column="service" value="tarif" aggregate="first">
+</dsfr-data-pivot>
+<dsfr-data-list source="large"
+  columns="etab:Établissement, dep:Département" columns-auto
+  sort="etab:asc" export="csv">
+</dsfr-data-list>
+\`\`\`
+
+### Exemple 2 : écart entre deux séries (pivot puis compute)
+\`\`\`html
+<dsfr-data-source id="long" data='[
+  {"commune":"Lyon","annee":2022,"montant":10},
+  {"commune":"Lyon","annee":2023,"montant":12},
+  {"commune":"Nice","annee":2022,"montant":7},
+  {"commune":"Nice","annee":2023,"montant":9}
+]'></dsfr-data-source>
+<dsfr-data-pivot id="wide" source="long"
+  row="commune" column="annee" value="montant" column-format="annee_{value}">
+</dsfr-data-pivot>
+<dsfr-data-normalize id="ecart" source="wide"
+  compute="ecart = annee_2023 - annee_2022">
+</dsfr-data-normalize>
+<dsfr-data-chart source="ecart" type="bar" label-field="commune" value-field="ecart:Écart 2023 − 2022">
+</dsfr-data-chart>
+\`\`\`
+
+### Pièges
+- Sans \`column-format\`, les colonnes s'appellent \`2022\`, \`2023\` : un \`compute\` lit alors
+  un nombre, pas un champ. Toujours \`column-format="annee_{value}"\` avant un calcul.
+- \`aggregate\` par défaut = \`sum\` : pour des tarifs ou des libellés (une valeur par cellule),
+  préférer \`first\`.
+- Ne pas pivoter pour alimenter un graphique multi-séries : \`dsfr-data-chart series-field\`
+  consomme le format long directement. Le pivot sert au **tableau croisé** et au **calcul
+  entre colonnes**.` + reference('dsfr-data-pivot'),
   },
 
   dsfrDataPodium: {

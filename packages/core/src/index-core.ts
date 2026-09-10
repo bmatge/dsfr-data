@@ -10,6 +10,7 @@ export { DsfrDataSource } from './components/dsfr-data-source.js';
 export { DsfrDataQuery } from './components/dsfr-data-query.js';
 export { DsfrDataJoin } from './components/dsfr-data-join.js';
 export { DsfrDataUnpivot } from './components/dsfr-data-unpivot.js';
+export { DsfrDataPivot } from './components/dsfr-data-pivot.js';
 export { DsfrDataContext } from './components/dsfr-data-context.js';
 export { DsfrDataContextFilter } from './components/dsfr-data-context-filter.js';
 export { DsfrDataContextTags } from './components/dsfr-data-context-tags.js';

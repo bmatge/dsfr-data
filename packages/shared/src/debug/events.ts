@@ -14,6 +14,7 @@
  */
 
 import type { JoinStats } from '../utils/join.js';
+import type { PivotStats } from '../utils/pivot.js';
 
 export const BUS_EVENTS = {
   LOADED: 'dsfr-data-loaded',
@@ -37,6 +38,8 @@ export interface BusPaginationMeta {
   truncated?: boolean;
   /** Taux d'appariement posé par un dsfr-data-join (#660). */
   join?: JoinStats;
+  /** Colonnes générées et cellules vides posées par un dsfr-data-pivot (#255). */
+  pivot?: PivotStats;
 }
 
 /** Commande remontante (pagination, recherche, tri, délégation). */

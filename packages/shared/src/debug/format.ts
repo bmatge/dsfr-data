@@ -113,6 +113,29 @@ function formatJoinStats(meta: NonNullable<StageState['meta']>): string[] {
   return lines;
 }
 
+/**
+ * Ce qu'un pivot long → wide a produit (#255) : le schéma aval dépend des
+ * données, c'est ici qu'on lit combien de colonnes sont sorties et combien de
+ * cellules sont restées vides (null, jamais un 0 silencieux).
+ */
+function formatPivotStats(meta: NonNullable<StageState['meta']>): string[] {
+  const pivot = meta.pivot;
+  if (!pivot) return [];
+  const shown = pivot.columnNames.slice(0, 8).join(', ');
+  const more = pivot.columnNames.length > 8 ? `, … (+${pivot.columnNames.length - 8})` : '';
+  const lines = [
+    `     pivot : ${formatInt(pivot.columns)} colonne${pivot.columns > 1 ? 's' : ''} générée${pivot.columns > 1 ? 's' : ''}` +
+      (pivot.columns > 0 ? ` (${shown}${more})` : '') +
+      `, ${formatInt(pivot.emptyCells)} cellule${pivot.emptyCells > 1 ? 's' : ''} vide${pivot.emptyCells > 1 ? 's' : ''}`,
+  ];
+  if (pivot.skippedRows > 0) {
+    lines.push(
+      `       ${formatInt(pivot.skippedRows)} ligne${pivot.skippedRows > 1 ? 's' : ''} ignorée${pivot.skippedRows > 1 ? 's' : ''} (champ de colonne vide).`
+    );
+  }
+  return lines;
+}
+
 function formatMeta(node: StageNode, state: StageState): string[] {
   const meta = state.meta;
   if (!meta) return [];
@@ -137,6 +160,7 @@ function formatMeta(node: StageNode, state: StageState): string[] {
     );
   }
   lines.push(...formatJoinStats(meta));
+  lines.push(...formatPivotStats(meta));
   return lines;
 }
 

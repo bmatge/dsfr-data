@@ -22,6 +22,7 @@ src/
 | `dsfr-data-query` | Filtrage, regroupement, agregation, tri (transformateur pur) |
 | `dsfr-data-join` | Jointure de deux sources sur cle(s) pivot |
 | `dsfr-data-unpivot` | Bascule wide → long/tidy (melt) |
+| `dsfr-data-pivot` | Repli long → wide (tableau croise, symetrique d'unpivot) |
 | `dsfr-data-normalize` | Nettoyage (conversion, renommage, trim, flatten, `compute`) |
 | `dsfr-data-context` | Orchestrateur de filtres transverses multi-sources |
 | `dsfr-data-context-filter` | Un filtre du contexte (lie a un controle d'UI natif) |

@@ -26,6 +26,21 @@ export type { JoinType, JoinKey, JoinOptions, JoinStats, JoinResult } from './ut
 export { parseJoinKeys, performJoin, performJoinWithStats } from './utils/join.js';
 export type { UnpivotOptions } from './utils/unpivot.js';
 export { performUnpivot, compileColsPattern } from './utils/unpivot.js';
+export type {
+  PivotOptions,
+  PivotStats,
+  PivotResult,
+  PivotAggregate,
+  PivotErrorCode,
+} from './utils/pivot.js';
+export {
+  performPivot,
+  parsePivotLabels,
+  isPivotAggregate,
+  PivotError,
+  PIVOT_AGGREGATES,
+  PIVOT_DEFAULT_MAX_COLUMNS,
+} from './utils/pivot.js';
 export type { CompiledCompute, CompiledAssignment } from './utils/compute.js';
 export {
   compileCompute,
