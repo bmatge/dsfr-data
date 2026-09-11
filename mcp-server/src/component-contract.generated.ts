@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 26 balises, 323 attributs.
+ * 26 balises, 324 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -234,6 +234,7 @@ export const COMPONENT_CONTRACT = {
       "fit-bounds",
       "fit-max-zoom",
       "fit-zone",
+      "fullscreen",
       "height",
       "insets",
       "locked",

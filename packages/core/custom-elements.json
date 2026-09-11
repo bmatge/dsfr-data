@@ -11751,6 +11751,16 @@
             },
             {
               "kind": "field",
+              "name": "fullscreen",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Bouton de plein écran (#780), posé à droite des boutons de zoom : la carte\n(couches, légende, encarts et sélecteur de fond compris) occupe tout\nl'écran, et en revient par le même bouton ou la touche Échap. Utilisable\nau clavier, état porté par `aria-pressed` et par le libellé, et annoncé.\nAbsent si le navigateur n'offre pas le plein écran d'un élément (Safari\nsur iPhone), et sans effet avec `locked` ou `no-controls`.",
+              "attribute": "fullscreen"
+            },
+            {
+              "kind": "field",
               "name": "sovereignOnly",
               "type": {
                 "text": "boolean"
@@ -11935,6 +11945,16 @@
               },
               "privacy": "private",
               "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_fullscreenButton",
+              "type": {
+                "text": "HTMLButtonElement | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Bouton de plein écran (#780)."
             },
             {
               "kind": "field",
@@ -12142,6 +12162,40 @@
               "description": "(Re)construit le sélecteur de fond (#744).\n\nUn menu déroulant natif étiqueté, posé en light DOM AVANT le conteneur\nLeaflet : il est donc atteint au clavier avant la carte (juste après le\nlien d'évitement), le lecteur d'écran annonce son libellé et sa valeur\nsans code de rôle maison, et le changement de fond passe par le même\nchemin que l'attribut `tiles`. Rien sur une carte verrouillée ou sans\ncontrôles (encarts) : il n'y a rien à piloter."
             },
             {
+              "kind": "method",
+              "name": "_isFullscreen",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La carte est-elle l'élément en plein écran ?"
+            },
+            {
+              "kind": "method",
+              "name": "_renderFullscreenButton",
+              "privacy": "private",
+              "description": "(Re)construit le bouton de plein écran (#780). Un vrai `<button>` en\nlight DOM, AVANT le conteneur Leaflet comme le sélecteur de fond : il est\natteint au clavier avant la carte. Le redimensionnement, vraie difficulté\nd'un changement de taille avec Leaflet, est déjà assuré par le\nResizeObserver et `invalidateSize()`."
+            },
+            {
+              "kind": "method",
+              "name": "_syncFullscreenButton",
+              "privacy": "private",
+              "description": "Libellé et `aria-pressed` du bouton, d'après l'état réel."
+            },
+            {
+              "kind": "field",
+              "name": "_toggleFullscreen",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_onFullscreenChange",
+              "privacy": "private",
+              "description": "Entrée ou sortie du plein écran, quelle qu'en soit la cause (bouton,\nÉchap, geste du navigateur) : met le bouton à jour, annonce, recalcule la\ntaille de la carte et notifie la page."
+            },
+            {
               "kind": "field",
               "name": "_onTilesChoice",
               "privacy": "private",
@@ -12289,6 +12343,15 @@
               "default": "''",
               "description": "Fonds proposés au LECTEUR, séparés par des virgules (ex. `\"ign-plan,ign-ortho\"`). Vide (défaut) : aucun sélecteur, seul `tiles` décide. Rend un menu déroulant étiqueté « Fond de carte » en haut à droite de la carte, utilisable au clavier ; changer de fond met à jour la carte et ses encarts. Les entrées hors presets connus sont écartées avec un avertissement, et il en faut au moins deux pour que le sélecteur apparaisse. Sans effet avec `locked` ou `no-controls` (#744).",
               "fieldName": "tilesSwitcher"
+            },
+            {
+              "name": "fullscreen",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Bouton de plein écran (#780), posé à droite des boutons de zoom : la carte\n(couches, légende, encarts et sélecteur de fond compris) occupe tout\nl'écran, et en revient par le même bouton ou la touche Échap. Utilisable\nau clavier, état porté par `aria-pressed` et par le libellé, et annoncé.\nAbsent si le navigateur n'offre pas le plein écran d'un élément (Safari\nsur iPhone), et sans effet avec `locked` ou `no-controls`.",
+              "fieldName": "fullscreen"
             },
             {
               "name": "sovereign-only",

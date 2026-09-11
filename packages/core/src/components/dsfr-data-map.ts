@@ -12,6 +12,7 @@
  * est présent, #687) ou à défaut par `max-bounds`.
  *
  * @fires dsfr-data-map-tiles-change - `{ tiles }` sur la carte (bubbles, composed) — le lecteur a changé de fond avec le sélecteur `tiles-switcher`. Jamais émis quand `tiles` est changé par la page.
+ * @fires dsfr-data-map-fullscreen-change - `{ fullscreen }` sur la carte (bubbles, composed) — la carte entre en plein écran ou en sort (bouton `fullscreen`, touche Échap ou geste du navigateur) (#780).
  */
 import { LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -367,6 +368,17 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String, attribute: 'tiles-switcher' })
   tilesSwitcher = '';
 
+  /**
+   * Bouton de plein écran (#780), posé à droite des boutons de zoom : la carte
+   * (couches, légende, encarts et sélecteur de fond compris) occupe tout
+   * l'écran, et en revient par le même bouton ou la touche Échap. Utilisable
+   * au clavier, état porté par `aria-pressed` et par le libellé, et annoncé.
+   * Absent si le navigateur n'offre pas le plein écran d'un élément (Safari
+   * sur iPhone), et sans effet avec `locked` ou `no-controls`.
+   */
+  @property({ type: Boolean })
+  fullscreen = false;
+
   /** Restreint `tiles` aux presets IGN souverains : tout autre preset ou URL custom est refuse (console.warn) et remplace par `ign-plan`. */
   @property({ type: Boolean, attribute: 'sovereign-only' })
   sovereignOnly = false;
@@ -418,6 +430,8 @@ export class DsfrDataMap extends LitElement {
   /** Sélecteur de fond (#744) : bloc conteneur et menu déroulant. */
   private _tilesSwitcherRoot: HTMLDivElement | null = null;
   private _tilesSelect: HTMLSelectElement | null = null;
+  /** Bouton de plein écran (#780). */
+  private _fullscreenButton: HTMLButtonElement | null = null;
   /** Valeur de `tiles-switcher` déjà signalée en console (un avertissement par liste). */
   private _tilesSwitcherWarned: string | null = null;
   private _visibilityObserver: IntersectionObserver | null = null;
@@ -507,6 +521,9 @@ export class DsfrDataMap extends LitElement {
     this._tilesSwitcherRoot?.remove();
     this._tilesSwitcherRoot = null;
     this._tilesSelect = null;
+    this._fullscreenButton?.remove();
+    this._fullscreenButton = null;
+    document.removeEventListener('fullscreenchange', this._onFullscreenChange);
   }
 
   updated(changedProperties: Map<string, unknown>) {
@@ -546,6 +563,15 @@ export class DsfrDataMap extends LitElement {
         changedProperties.has('locked'))
     ) {
       this._renderTilesSwitcher();
+    }
+
+    if (
+      this._container &&
+      (changedProperties.has('fullscreen') ||
+        changedProperties.has('noControls') ||
+        changedProperties.has('locked'))
+    ) {
+      this._renderFullscreenButton();
     }
   }
 
@@ -799,6 +825,9 @@ export class DsfrDataMap extends LitElement {
     // Selecteur de fond pour le lecteur (#744)
     this._renderTilesSwitcher();
 
+    // Plein ecran (#780)
+    this._renderFullscreenButton();
+
     // Viewport events → notify layers
     this._leafletMap.on('moveend', () => this._notifyLayers());
     this._leafletMap.on('zoomend', () => this._notifyLayers());
@@ -887,6 +916,86 @@ export class DsfrDataMap extends LitElement {
     }
     select.value = current;
   }
+
+  /** La carte est-elle l'élément en plein écran ? */
+  private _isFullscreen(): boolean {
+    return typeof document !== 'undefined' && document.fullscreenElement === this;
+  }
+
+  /**
+   * (Re)construit le bouton de plein écran (#780). Un vrai `<button>` en
+   * light DOM, AVANT le conteneur Leaflet comme le sélecteur de fond : il est
+   * atteint au clavier avant la carte. Le redimensionnement, vraie difficulté
+   * d'un changement de taille avec Leaflet, est déjà assuré par le
+   * ResizeObserver et `invalidateSize()`.
+   */
+  private _renderFullscreenButton() {
+    const available =
+      typeof document !== 'undefined' &&
+      document.fullscreenEnabled === true &&
+      typeof this.requestFullscreen === 'function';
+    if (!this.fullscreen || !available || this.noControls || this.locked) {
+      this._fullscreenButton?.remove();
+      this._fullscreenButton = null;
+      document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+      return;
+    }
+    if (!this._fullscreenButton) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'fr-btn fr-btn--tertiary fr-btn--sm dsfr-data-map__fullscreen';
+      button.addEventListener('click', this._toggleFullscreen);
+      this.insertBefore(button, this._container);
+      this._fullscreenButton = button;
+      document.addEventListener('fullscreenchange', this._onFullscreenChange);
+    }
+    this._syncFullscreenButton();
+  }
+
+  /** Libellé et `aria-pressed` du bouton, d'après l'état réel. */
+  private _syncFullscreenButton() {
+    const button = this._fullscreenButton;
+    if (!button) return;
+    const on = this._isFullscreen();
+    button.setAttribute('aria-pressed', String(on));
+    button.textContent = on ? 'Quitter le plein écran' : 'Plein écran';
+    const target = this.name ? ` : ${this.name}` : '';
+    button.title = on
+      ? `Quitter le plein écran${target}`
+      : `Afficher la carte en plein écran${target}`;
+  }
+
+  private _toggleFullscreen = () => {
+    if (this._isFullscreen()) {
+      void document.exitFullscreen?.();
+    } else {
+      this.requestFullscreen?.().catch((error: unknown) => {
+        console.warn('[dsfr-data-map] plein écran refusé par le navigateur', error);
+      });
+    }
+  };
+
+  /**
+   * Entrée ou sortie du plein écran, quelle qu'en soit la cause (bouton,
+   * Échap, geste du navigateur) : met le bouton à jour, annonce, recalcule la
+   * taille de la carte et notifie la page.
+   */
+  private _onFullscreenChange = () => {
+    if (!this._fullscreenButton) return;
+    const on = this._isFullscreen();
+    const wasOn = this._fullscreenButton.getAttribute('aria-pressed') === 'true';
+    this._syncFullscreenButton();
+    if (on === wasOn) return;
+    this._leafletMap?.invalidateSize();
+    this.announceToScreenReader(on ? 'Carte en plein écran.' : 'Plein écran quitté.');
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-fullscreen-change', {
+        detail: { fullscreen: on },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  };
 
   /** Le lecteur a choisi un fond : applique, annonce, notifie la page (#744). */
   private _onTilesChoice = (e: Event) => {
@@ -1061,6 +1170,28 @@ export class DsfrDataMap extends LitElement {
       .dsfr-data-map__tiles-switcher select {
         max-width: 100%;
         font-size: 0.875rem;
+      }
+      /* Plein ecran (#780) : bouton a droite des boutons de zoom (le coin
+         haut-droit est pris par le selecteur de fond). En plein ecran, la
+         carte remplit l'ecran : la hauteur posee en style inline sur le
+         conteneur cede a la regle !important. */
+      .dsfr-data-map__fullscreen {
+        position: absolute;
+        top: 10px;
+        left: 50px;
+        z-index: 1000;
+        margin: 0;
+        background: var(--background-default-grey, #fff);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      }
+      dsfr-data-map:fullscreen {
+        display: flex;
+        flex-direction: column;
+        background: var(--background-default-grey, #fff);
+      }
+      dsfr-data-map:fullscreen > .dsfr-data-map__container {
+        flex: 1 1 auto;
+        height: 100% !important;
       }
       /* Fix DSFR vs Leaflet conflicts — DSFR styles all [href] with underlines, background-image and ::before/::after */
       .dsfr-data-map__container a,
