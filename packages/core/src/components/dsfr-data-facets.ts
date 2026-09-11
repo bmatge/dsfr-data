@@ -11,10 +11,11 @@ import { joinWhere, escapeColonValue } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
 import { warnSuspectSeparator } from '../utils/attr-separators.js';
 import {
-  parsePerRow,
-  spanForPerRow,
+  parseScale,
+  scaleToClasses,
   legacyConflictMessage,
   syncLayoutError,
+  type Scale,
 } from '../utils/grid-layout.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
@@ -1695,47 +1696,83 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * sur téléphone (mesuré dans Chromium, DSFR 1.14.4).
    */
   _getColClass(field: string): string {
-    const width = this._widthFor(field);
-    if (width === null) return '';
+    const scale = this._scaleFor(field);
+    if (scale) return scaleToClasses(scale);
+    // Ancien `cols` (#790) : grammaire et rendu historiques, sans échelle.
+    const cols = this._parseCols();
+    if (!cols) return '';
+    const width = 'global' in cols ? cols.global : (cols.map.get(field) ?? cols.fallback);
     return Number(width) >= 12 ? 'fr-col-12' : `fr-col-12 fr-col-md-${width}`;
   }
 
   /**
-   * Largeur sur 12 d'une facette (#790) : `span` (global ou par champ), sinon
-   * `per-row`, sinon — si aucun des deux n'est posé — l'ancien `cols`.
-   * `null` : grille automatique.
+   * `span` lu en échelles (#789) : global (`"12 md:3"`) ou par facette
+   * (`"annee:12 md:3 | type:12 md:6"`). Dans un segment, une clé qui n'est
+   * pas un point de rupture est un nom de champ : `annee:3` reste la largeur
+   * 3 de la facette « annee », exactement comme avec `cols`.
    */
-  private _widthFor(field: string): number | null {
-    const span = this._parseWidths(this.span);
-    const perRow = parsePerRow(this.perRow, 12).value;
-    if (span || perRow !== null) {
-      if (span && 'global' in span) return span.global;
-      const named = span && 'map' in span ? span.map.get(field) : undefined;
-      if (named !== undefined) return named;
-      if (perRow !== null) return spanForPerRow(perRow);
-      return span && 'map' in span ? span.fallback : null;
+  private _parseSpanScales(): {
+    global: Scale | null;
+    byField: Map<string, Scale>;
+    error: string | null;
+  } {
+    const byField = new Map<string, Scale>();
+    const raw = String(this.span ?? '').trim();
+    if (!raw) return { global: null, byField, error: null };
+    const segments = raw
+      .split('|')
+      .map((seg) => seg.trim())
+      .filter(Boolean);
+    let global: Scale | null = null;
+    for (const segment of segments) {
+      const first = segment.split(/\s+/)[0];
+      const colon = first.indexOf(':');
+      const key = colon === -1 ? '' : first.slice(0, colon);
+      const isField = colon !== -1 && !['sm', 'md', 'lg', 'xl'].includes(key);
+      const scaleText = isField ? segment.slice(key.length + 1).trim() : segment;
+      const parsed = parseScale(scaleText, 'span');
+      if (parsed.error) {
+        return {
+          global: null,
+          byField,
+          error: parsed.error.replace(/^span="[^"]*"/, `span="${raw}"`),
+        };
+      }
+      if (!parsed.scale) continue;
+      if (isField) byField.set(key.trim(), parsed.scale);
+      else global = parsed.scale;
     }
-    const cols = this._parseCols();
-    if (!cols) return null;
-    return 'global' in cols ? cols.global : (cols.map.get(field) ?? cols.fallback);
+    return { global, byField, error: null };
   }
 
-  /** `per-row` ou `span` invalides, ou posés avec `cols` (#790). */
+  /**
+   * Échelle d'une facette (#790, #789) : `span` global, sinon `span` de la
+   * facette, sinon `per-row`, sinon — carte `span` sans entrée pour ce champ
+   * et sans `per-row` — la moitié de ligne historique. `null` : ni `span` ni
+   * `per-row` (ancien `cols`, ou grille automatique).
+   */
+  private _scaleFor(field: string): Scale | null {
+    const spans = this._parseSpanScales();
+    const perRow = parseScale(this.perRow, 'per-row').scale;
+    if (spans.error) return perRow;
+    if (spans.global) return spans.global;
+    const named = spans.byField.get(field);
+    if (named) return named;
+    if (perRow) return perRow;
+    if (spans.byField.size > 0)
+      return { base: 12, steps: [{ bp: 'md', width: 6 }], mobileExplicit: false };
+    return null;
+  }
+
+  /** `per-row` ou `span` invalides, ou posés avec `cols` (#790, #789). */
   private _syncLayoutError(): void {
-    const perRow = parsePerRow(this.perRow, 12);
-    const span = this._parseWidths(this.span);
-    const widths = span ? ('global' in span ? [span.global] : [...span.map.values()]) : [];
-    const badSpan = widths.find((w) => !Number.isInteger(w) || w < 1 || w > 12);
-    const modern = perRow.value !== null || span !== null;
+    const perRow = parseScale(this.perRow, 'per-row');
+    const spans = this._parseSpanScales();
+    const modern = perRow.scale !== null || spans.global !== null || spans.byField.size > 0;
     const message =
       perRow.error ??
-      (this.span && !span
-        ? `span="${this.span}" : attendu une largeur de 1 à 12, ou "champ:4 | champ2:6"`
-        : badSpan !== undefined
-          ? `span="${this.span}" : largeur ${badSpan} hors de la grille (1 à 12 colonnes)`
-          : modern && this.cols
-            ? legacyConflictMessage('cols', this.span ? 'span' : 'per-row')
-            : null);
+      spans.error ??
+      (modern && this.cols ? legacyConflictMessage('cols', this.span ? 'span' : 'per-row') : null);
     this._layoutError = syncLayoutError(this, 'dsfr-data-facets', message, this._layoutError);
   }
 
