@@ -181,6 +181,37 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
           lecteur est écarté comme il le serait sur <code>tiles</code>.
         </p>
 
+        <h3 class="fr-mt-3w">Plein écran</h3>
+        <p>
+          Une carte dense se lit mal dans une colonne de page. <code>fullscreen</code> ajoute, à droite des
+          boutons de zoom, un bouton « Plein écran » : la carte, avec ses couches, sa légende, ses encarts et
+          son sélecteur de fond, occupe tout l'écran, et en revient par le même bouton ou la touche Échap.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map fields="fullscreen" -->
+                <tr><td><code>fullscreen</code></td><td>Boolean</td><td><code>false</code></td><td>Bouton de plein écran (#780), posé à droite des boutons de zoom : la carte (couches, légende, encarts et sélecteur de fond compris) occupe tout l'écran, et en revient par le même bouton ou la touche Échap. Utilisable au clavier, état porté par <code>aria-pressed</code> et par le libellé, et annoncé. Absent si le navigateur n'offre pas le plein écran d'un élément (Safari sur iPhone), et sans effet avec <code>locked</code> ou <code>no-controls</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-map center="46.6,2.5" zoom="6" fullscreen name="Bornes de recharge"&gt;
+  &lt;dsfr-data-map-layer source="bornes" type="marker" cluster&gt;&lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          C'est un vrai bouton, atteint au clavier avant la carte. Son état passe par
+          <code>aria-pressed</code> et par son libellé (« Plein écran », « Quitter le plein écran »), et
+          chaque bascule est annoncée aux lecteurs d'écran. La page est notifiée par l'événement
+          <code>dsfr-data-map-fullscreen-change</code> (<code>detail.fullscreen</code>). Le bouton
+          n'apparaît pas quand le navigateur ne sait pas mettre un élément en plein écran (Safari sur
+          iPhone), ni avec <code>locked</code> ou <code>no-controls</code>. La capture d'image de la carte
+          reste hors périmètre : tuiles d'origines croisées et légende hors du canevas.
+        </p>
+
         <!-- ============================================================ -->
         <!-- Événements / API -->
         <!-- ============================================================ -->
