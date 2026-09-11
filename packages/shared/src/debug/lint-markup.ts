@@ -42,6 +42,7 @@ const REEMETTEURS = [
   'dsfr-data-query',
   'dsfr-data-normalize',
   'dsfr-data-join',
+  'dsfr-data-concat',
   'dsfr-data-unpivot',
   'dsfr-data-pivot',
   'dsfr-data-facets',
@@ -248,9 +249,14 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
     // muette — le composant attend un evenement qui ne viendra jamais.
     const amonts = DEUX_AMONTS.includes(b.tag)
       ? [b.attrs.left, b.attrs.right].filter(Boolean)
-      : b.attrs.source
-        ? [b.attrs.source]
-        : [];
+      : b.tag === 'dsfr-data-concat'
+        ? (b.attrs.sources ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : b.attrs.source
+          ? [b.attrs.source]
+          : [];
     for (const amont of amonts) {
       if (!ids.has(amont)) {
         findings.push(

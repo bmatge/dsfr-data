@@ -47,6 +47,7 @@ import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
 import { DsfrDataSearch } from '@/components/dsfr-data-search.js';
 import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
 import { DsfrDataJoin } from '@/components/dsfr-data-join.js';
+import { DsfrDataConcat } from '@/components/dsfr-data-concat.js';
 import { DsfrDataContext } from '@/components/dsfr-data-context.js';
 import { DsfrDataContextFilter } from '@/components/dsfr-data-context-filter.js';
 import { DsfrDataContextTags } from '@/components/dsfr-data-context-tags.js';
@@ -78,6 +79,7 @@ const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
     ['dsfr-data-display', DsfrDataDisplay],
     ['dsfr-data-facets', DsfrDataFacets],
     ['dsfr-data-join', DsfrDataJoin],
+    ['dsfr-data-concat', DsfrDataConcat],
     ['dsfr-data-kpi', DsfrDataKpi],
     ['dsfr-data-kpi-group', DsfrDataKpiGroup],
     ['dsfr-data-list', DsfrDataList],
@@ -156,6 +158,7 @@ const SKILL_TAGS: Record<string, string[]> = {
   dsfrDataContextTags: ['dsfr-data-context-tags'],
   dsfrDataContextValue: ['dsfr-data-context-value'],
   dsfrDataJoin: ['dsfr-data-join'],
+  dsfrDataConcat: ['dsfr-data-concat'],
   dsfrDataUnpivot: ['dsfr-data-unpivot'],
   dsfrDataPivot: ['dsfr-data-pivot'],
   dsfrDataPodium: ['dsfr-data-podium'],

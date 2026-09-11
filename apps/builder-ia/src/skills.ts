@@ -3807,6 +3807,62 @@ et alerte sous 50 %. Pas d'attribut : ouvrir le volet quand les valeurs droites 
 - Le composant emet \`dsfr-data-error\` si l'une des sources est en erreur` +
       reference('dsfr-data-join'),
   },
+  dsfrDataConcat: {
+    id: 'dsfrDataConcat',
+    name: 'dsfr-data-concat',
+    description: 'Empile les lignes de plusieurs sources de même schéma (union)',
+    trigger: [
+      'concat',
+      'empiler',
+      'union',
+      'concatener',
+      'concaténer',
+      'plusieurs series',
+      'plusieurs séries',
+      'plusieurs annees',
+      'plusieurs années',
+      'meme schema',
+      'même schéma',
+    ],
+    content:
+      `## <dsfr-data-concat> - Empiler des sources de même schéma
+
+L'opération inverse de \`dsfr-data-join\` : le join juxtapose des COLONNES (même clé, deux
+tables), concat met des LIGNES bout à bout (mêmes colonnes, plusieurs tables). Cas type : une
+source par millésime, par région ou par série, à rassembler dans un seul graphique.
+
+\`\`\`html
+<dsfr-data-source id="v2023" api-type="opendatasoft" base-url="…" dataset-id="ventes-2023"></dsfr-data-source>
+<dsfr-data-source id="v2024" api-type="opendatasoft" base-url="…" dataset-id="ventes-2024"></dsfr-data-source>
+
+<dsfr-data-concat id="ventes" sources="v2023, v2024"
+  origin-field="millesime" origin-labels="v2023:2023 | v2024:2024">
+</dsfr-data-concat>
+
+<!-- Format long : une courbe par millésime, sans pivot ni jointure -->
+<dsfr-data-chart source="ventes" type="line"
+  label-field="mois" value-field="montant" series-field="millesime">
+</dsfr-data-chart>
+\`\`\`
+
+### Règles
+- **\`sources\`** : ids séparés par des virgules, au moins deux, dans l'ordre d'empilement.
+  Émission quand TOUTES ont répondu.
+- **\`origin-field\`** (facultatif) : colonne ajoutée à chaque ligne, qui dit de quelle source elle
+  vient — l'id, ou le libellé d'\`origin-labels\` (\`"id:libellé | id2:libellé2"\`). C'est ce qui
+  remplace les empilements par pivots et jointures : le résultat se branche tel quel sur
+  \`series-field\`. Un nom de colonne déjà présent dans les données est refusé.
+- **Schéma divergent = erreur de configuration** nommant, par source, les colonnes en trop et en
+  moins, et RIEN n'est émis. Aligner en amont (\`dsfr-data-normalize rename\`, \`select\` de la
+  source). Une source vide n'impose rien.
+- **Aucune commande n'est relayée** (page, where, tri) : on ne saurait à quelle source l'adresser.
+  Filtrer ou regrouper DERRIÈRE un concat se fait côté client (une \`dsfr-data-query\` aval ne
+  délègue pas) ; pour filtrer côté serveur, poser le filtre sur CHAQUE source.
+- Meta : \`total\` invalidé ; si UNE source est tronquée (\`max-records\`), le résultat est marqué
+  tronqué au volet Diagnostic.
+- Pas de \`type="union"\` sur \`dsfr-data-join\` : c'est ce composant.` +
+      reference('dsfr-data-concat'),
+  },
 
   dsfrDataUnpivot: {
     id: 'dsfrDataUnpivot',

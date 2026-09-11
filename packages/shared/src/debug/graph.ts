@@ -38,6 +38,7 @@ export type StageRole = 'source' | 'transform' | 'display';
 export const STAGE_ROLES: Record<string, StageRole> = {
   'dsfr-data-source': 'source',
 
+  'dsfr-data-concat': 'transform',
   'dsfr-data-facets': 'transform',
   'dsfr-data-join': 'transform',
   'dsfr-data-normalize': 'transform',
@@ -105,6 +106,7 @@ export const SHAPE_ATTRS: Record<string, string[]> = {
     'compute',
   ],
   'dsfr-data-join': ['left', 'right', 'on', 'type', 'prefix-left', 'prefix-right'],
+  'dsfr-data-concat': ['sources', 'origin-field'],
   'dsfr-data-unpivot': ['id-cols', 'value-cols', 'value-cols-pattern', 'var-name', 'value-name'],
   'dsfr-data-pivot': ['row', 'column', 'value', 'aggregate', 'column-order', 'column-format'],
   'dsfr-data-facets': ['fields', 'server-facets', 'context'],
@@ -212,6 +214,13 @@ function readUpstream(el: Element, tag: string): string[] {
     // transformerSources() renvoie [left, right] — un join sans les deux est
     // invalide, mais on relaie ce qui est déclaré pour que l'erreur se voie.
     return [el.getAttribute('left') ?? '', el.getAttribute('right') ?? ''].filter(Boolean);
+  }
+  if (tag === 'dsfr-data-concat') {
+    // `sources` : liste d'ids séparés par des virgules (#777).
+    return (el.getAttribute('sources') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
   const source = el.getAttribute('source');
   return source ? [source] : [];
