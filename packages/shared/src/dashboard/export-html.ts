@@ -19,6 +19,7 @@
  */
 
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
+import { filterToOdsql } from '../query/filter-translator.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -58,6 +59,14 @@ export interface SourceEmitOptions {
   serverSide?: boolean;
   /** Taille de page demandee, quand `serverSide` est actif. */
   pageSize?: number;
+  /**
+   * Clauses ODSQL posees sur une source Opendatasoft (#810) : la source
+   * dediee d'un KPI fait calculer son agregat par le serveur
+   * (`select="sum(montant) as montant__sum"`) et porte son filtre propre.
+   * Ignorees par les autres branches.
+   */
+  select?: string;
+  where?: string;
 }
 
 /** Attributs de pagination serveur, ou chaine vide. */
@@ -116,10 +125,13 @@ export function generateSourceHTML(
     } catch {
       baseUrl = apiUrl;
     }
+    const clauses =
+      (options.select ? `\n${indent}  select="${escapeHtml(options.select)}"` : '') +
+      (options.where ? `\n${indent}  where="${escapeHtml(options.where)}"` : '');
     return (
       `${indent}<dsfr-data-source id="${id}" api-type="opendatasoft"\n` +
       `${indent}  base-url="${escapeHtml(baseUrl)}"\n` +
-      `${indent}  dataset-id="${escapeHtml(resourceIds.datasetId)}"${serverAttrs}></dsfr-data-source>\n`
+      `${indent}  dataset-id="${escapeHtml(resourceIds.datasetId)}"${serverAttrs}${clauses}></dsfr-data-source>\n`
     );
   }
   if (provider === 'tabular' && typeof resourceIds.resourceId === 'string') {
@@ -179,12 +191,15 @@ function filterTargetIds(config: FiltersWidgetConfig, dashboard: DashboardData):
  */
 function filterEmittedTargetIds(config: FiltersWidgetConfig, dashboard: DashboardData): string[] {
   const plan = dedicatedSourcePlan(dashboard);
+  const emitted = collectUsedSourceIds(dashboard);
   const out: string[] = [];
   for (const id of filterTargetIds(config, dashboard)) {
-    out.push(id);
-    for (const dedicated of plan.values()) {
-      if (dedicated.baseId === id) out.push(dedicated.id);
-    }
+    const derived = [...plan.values()].filter((d) => d.baseId === id).map((d) => d.id);
+    // Une source REMPLACEE par des sources dediees, et que plus aucun widget
+    // ne lit, n'est pas emise (#810) : on vise ses remplacantes. Une cible
+    // explicite sans lecteur, elle, est conservee telle quelle.
+    if (emitted.has(id) || derived.length === 0) out.push(id);
+    out.push(...derived);
   }
   return out;
 }
@@ -305,14 +320,23 @@ function generateBuilderChartHTML(
   const isKpi = c.type === 'kpi';
   const aggregation = !isKpi && c.aggregation && c.labelField ? c.aggregation : undefined;
   const valueOut = aggregation ? aggregatedAlias(c.valueField, aggregation) : c.valueField;
-  const needsQuery = Boolean(c.where || aggregation || c.limit || c.sortOrder);
+  // Un KPI a source dediee (#810) porte son filtre sur la source (ODSQL) :
+  // pas de query intermediaire.
+  const kpiServer = dedicated?.kpi;
+  const needsQuery = !kpiServer && Boolean(c.where || aggregation || c.limit || c.sortOrder);
   const queryId = `q-${widget.id}`;
   const dataId = needsQuery ? queryId : sourceId;
 
   let html = '';
   if (dedicated) {
     const base = dashboard.sources.find((src) => src.id === baseSourceId);
-    if (base) html += generateSourceHTML({ ...base, id: dedicated.id }, indent);
+    if (base) {
+      html += generateSourceHTML(
+        { ...base, id: dedicated.id },
+        indent,
+        kpiServer ? { select: kpiServer.select, where: kpiServer.where } : {}
+      );
+    }
   }
   if (needsQuery) {
     const attrs: string[] = [`source="${escapeHtml(sourceId)}"`];
@@ -330,7 +354,20 @@ function generateBuilderChartHTML(
 
   switch (c.type) {
     case 'kpi': {
-      const value = `${c.valueField}:${c.aggregation ?? 'sum'}`;
+      // Source dediee : le serveur a calcule l'agregat, le KPI lit la colonne.
+      // Comptage sur Tabular, filtre propre excepte : le total annonce par
+      // l'API (`meta:total`), et non les lignes chargees, plafonnees (#810).
+      const base = dashboard.sources.find((s2) => s2.id === baseSourceId);
+      const tabularCount =
+        !kpiServer &&
+        !c.where &&
+        (c.aggregation ?? 'sum') === 'count' &&
+        base?.provider === 'tabular';
+      const value = kpiServer
+        ? kpiServer.alias
+        : tabularCount
+          ? 'meta:total'
+          : `${c.valueField}:${c.aggregation ?? 'sum'}`;
       const attrs = [
         src,
         `value="${escapeHtml(value)}"`,
@@ -680,6 +717,43 @@ interface DedicatedSource {
   id: string;
   /** Source partagee dont elle reprend le jeu. */
   baseId: string;
+  /**
+   * Source d'un KPI (#810) : l'agregat est calcule par le serveur. `select`
+   * et `where` sont les clauses ODSQL posees sur la source, `alias` la
+   * colonne que le KPI lit.
+   */
+  kpi?: { select: string; alias: string; where?: string };
+}
+
+/** Identifiant ODSQL nu, sinon entre backquotes (meme regle que l'adaptateur, #767). */
+function odsqlIdentifier(name: string): string {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : '`' + name.replace(/`/g, '') + '`';
+}
+
+/** Fonctions d'agregat d'un KPI traduisibles en ODSQL. */
+const ODSQL_KPI_FUNCTIONS = new Set(['count', 'sum', 'avg', 'min', 'max']);
+
+/**
+ * Source dediee d'un KPI sur Opendatasoft (#810), ou null.
+ *
+ * Sur la source partagee, un KPI comptait ou sommait les lignes chargees,
+ * plafonnees a `max-records` (1 000 par defaut) : 1 000 « projets » au lieu de
+ * 3 080, mesure dans un navigateur. Le serveur, lui, calcule l'agregat sur le
+ * jeu entier en une requete d'une ligne, et suit les filtres du contexte (le
+ * `where` est delegue a la source visee).
+ */
+function kpiDedicated(c: ChartConfig, base: DashboardSource): DedicatedSource['kpi'] | null {
+  const resourceIds = (base.resourceIds ?? {}) as Record<string, unknown>;
+  if (base.provider !== 'opendatasoft' || typeof resourceIds.datasetId !== 'string') return null;
+  const fn = c.aggregation ?? 'sum';
+  if (!ODSQL_KPI_FUNCTIONS.has(fn) || (fn !== 'count' && !c.valueField)) return null;
+  const alias = aggregatedAlias(c.valueField || 'lignes', fn);
+  const expr = fn === 'count' ? 'count(*)' : `${fn}(${odsqlIdentifier(c.valueField)})`;
+  return {
+    select: `${expr} as ${odsqlIdentifier(alias)}`,
+    alias,
+    ...(c.where ? { where: filterToOdsql(c.where) } : {}),
+  };
 }
 
 /**
@@ -701,10 +775,21 @@ interface DedicatedSource {
  */
 function dedicatedSourcePlan(dashboard: DashboardData): Map<string, DedicatedSource> {
   const plan = new Map<string, DedicatedSource>();
-  const graph = collectSourceConsumers(dashboard);
   const byId = new Map(dashboard.sources.map((s) => [s.id, s]));
 
-  // Graphiques agreges eligibles, par source partagee, dans l'ordre du document.
+  // 1. KPI sur Opendatasoft (#810) : TOUJOURS une source dediee a agregat
+  //    serveur, meme seul lecteur — la source partagee plafonne ses lignes.
+  for (const w of dashboard.widgets) {
+    if (w.type !== 'chart' || !isBuilderChart(w.config) || w.config.chart.type !== 'kpi') continue;
+    const baseId = w.config.sourceId || dashboard.sources[0]?.id || '';
+    const base = byId.get(baseId);
+    const kpi = base ? kpiDedicated(w.config.chart, base) : null;
+    if (kpi) plan.set(w.id, { id: `${baseId}--${w.id}`, baseId, kpi });
+  }
+
+  // 2. Graphiques agreges eligibles (#765), par source partagee, dans l'ordre
+  //    du document. Les KPI deja dedies ne lisent plus la source partagee.
+  const graph = collectSourceConsumers(dashboard, new Set(plan.keys()));
   const eligible = new Map<string, string[]>();
   for (const w of dashboard.widgets) {
     if (w.type !== 'chart' || !isBuilderChart(w.config)) continue;
@@ -768,7 +853,14 @@ function serverPaginatedSources(dashboard: DashboardData): Map<string, number> {
 
 /** Ids de sources effectivement references par au moins un widget. */
 function collectUsedSourceIds(dashboard: DashboardData): Set<string> {
-  return new Set(effectiveSourceConsumers(dashboard).keys());
+  // Emise si au moins un widget en LIT les lignes : un bloc de filtres seul
+  // ne fait qu'y envoyer un where (#810 — une source partagee dont tous les
+  // lecteurs ont leur source dediee chargerait le jeu pour rien).
+  const used = new Set<string>();
+  for (const [id, consumers] of effectiveSourceConsumers(dashboard)) {
+    if (consumers.some((consumer) => consumer.need !== 'contexte')) used.add(id);
+  }
+  return used;
 }
 
 /** Le bundle core suffit sauf si un widget rend une carte (composants Leaflet). */

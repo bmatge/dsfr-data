@@ -186,6 +186,10 @@ export class DsfrDataSource extends LitElement {
    * de champ qui n'est pas un identifiant nu (espace, accent, chiffre
    * initial comme `1_uai`) est backquoté automatiquement (#767). Une virgule
    * à l'intérieur d'une fonction ou d'une chaîne ne sépare pas.
+   * Un `select` fait UNIQUEMENT d'agrégats, sans `group-by`
+   * (`select="sum(montant) as total"`) se charge en une requête d'une ligne,
+   * la valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre
+   * ne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.
    */
   @property({ type: String })
   select = '';
