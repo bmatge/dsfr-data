@@ -81,6 +81,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * part de SOMMES — le filtre ne vaut que pour son côté du ratio, là où
    * `where` filtre les deux. Marche aussi pour `count{…}` et les autres
    * fonctions ; un filtre non reconnu est une erreur de configuration.
+   * `champ:first` / `champ:last` : valeur du champ sur la première / la
+   * dernière ligne, DANS L'ORDRE COURANT — poser un `order-by` en amont
+   * (ex. dernière valeur d'une série datée). Propres au KPI : absentes de
+   * l'`aggregate` de `dsfr-data-query`.
    * `champ:evolution` (#675) : (dernière − première) / première sur les
    * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
    * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,

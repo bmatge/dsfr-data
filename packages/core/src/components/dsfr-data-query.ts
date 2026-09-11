@@ -142,7 +142,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   filter = '';
 
   /**
-   * Champs de regroupement (séparés par virgule)
+   * Champs de regroupement (séparés par virgule).
+   * Ordre d'application : le filtre (`where` de la query, de la source ou
+   * d'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi
+   * l'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne
+   * peut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne
+   * n'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,
+   * poser une seconde `dsfr-data-query` en aval avec son propre `where`.
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';

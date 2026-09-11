@@ -48,6 +48,10 @@ visuellement — l'information n'est jamais portee par la seule couleur.
 
 La valeur de la colonne de classe devient la classe (plusieurs classes separees par des
 espaces) ; seuls les identifiants CSS sont retenus, le reste est ignore.
+**Elle peut donc etre une phrase, pas seulement un slug** : une colonne qui vaut « occupation
+saturée » produit les deux classes `occupation` et `saturée` (accents acceptes), ET le texte
+restitue aux lecteurs d'ecran est la valeur entiere, telle quelle. Inutile de fabriquer un code
+technique a cote du libelle : cibler `.saturée` dans la feuille de style suffit.
 
 ```html
 <dsfr-data-normalize id="avec-seuil" source="brut"
