@@ -14506,7 +14506,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.",
+              "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.\nDélégation au serveur seulement si la query est la SEULE lectrice de sa\nsource (#765) : la source n'a qu'un regroupement, servi à tous ses\nabonnés. Source partagée (un KPI, un autre graphique…) : calcul côté\nclient sur les lignes chargées, avec un avertissement. Pour garder\nl'agrégation serveur, donner à la query sa propre `dsfr-data-source`.",
               "attribute": "group-by"
             },
             {
@@ -14790,6 +14790,51 @@
               "name": "_negotiateServerSide",
               "privacy": "private",
               "description": "Check upstream adapter capabilities and delegate operations server-side\nwhen possible. Sends commands to dsfr-data-source with groupBy/aggregate/orderBy\nso the adapter handles them in the API request.\n\nFalls back to client-side for operations the adapter can't handle,\nor when dsfr-data-source already has its own groupBy/aggregate attributes."
+            },
+            {
+              "kind": "method",
+              "name": "_otherChainReaders",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Autres lecteurs de la chaine de delegation (#765) : les composants qui\nlisent la source visee, ou l'un des transformateurs par lesquels la\ncommande remonte (normalize, search, join gauche…), hors cette query et\nhors le maillon lui-meme. Lu dans le DOM — le bus n'a pas de registre\nd'abonnes — ce qui est exact pour une page statique, la forme de tout\nexport ; un lecteur ajoute plus tard declenche une renegociation\n(DELEGATION_CONTESTED_EVENT)."
+            },
+            {
+              "kind": "field",
+              "name": "_sharedWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Dernier partage signale : un avertissement par situation (#765)."
+            },
+            {
+              "kind": "method",
+              "name": "_warnSharedSource",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sharedWith",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "_onDelegationContested",
+              "privacy": "private",
+              "description": "Un autre composant a trouve la chaine partagee (#765) : si cette query\ny delegue encore, elle renegocie — ses overlays sont liberes et elle\nrepasse cote client. Couvre le lecteur ajoute apres coup."
             },
             {
               "kind": "method",
@@ -15442,7 +15487,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.",
+              "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.\nDélégation au serveur seulement si la query est la SEULE lectrice de sa\nsource (#765) : la source n'a qu'un regroupement, servi à tous ses\nabonnés. Source partagée (un KPI, un autre graphique…) : calcul côté\nclient sur les lignes chargées, avec un avertissement. Pour garder\nl'agrégation serveur, donner à la query sa propre `dsfr-data-source`.",
               "fieldName": "groupBy"
             },
             {

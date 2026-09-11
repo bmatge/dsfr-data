@@ -160,6 +160,11 @@ describe('#394 — order-by en aval d’un unpivot : jamais de tri serveur', () 
   });
 
   it('contrôle (non-régression) : query branchée directement sur la source délègue toujours', () => {
+    // La query directe doit être SEULE lectrice de la source : sinon elle ne
+    // délègue plus, par construction (#765 — un tri serveur réordonnerait les
+    // lignes de l'unpivot voisin). On retire l'unpivot du DOM pour ce contrôle,
+    // dont l'objet est la garde transformsSchema (#394), pas le partage.
+    unpivot.remove();
     const direct = new DsfrDataQuery();
     direct.id = 'g394-direct';
     direct.source = 'g394-src';

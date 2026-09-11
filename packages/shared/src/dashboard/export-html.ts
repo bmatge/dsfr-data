@@ -172,6 +172,23 @@ function filterTargetIds(config: FiltersWidgetConfig, dashboard: DashboardData):
   return dashboard.sources.map((s) => s.id);
 }
 
+/**
+ * Cibles EMISES d'un bloc de filtres (#765) : chaque source visee, plus les
+ * sources dediees derivees d'elle — sans quoi le graphique agrege sur sa
+ * source dediee ignorerait les filtres partages.
+ */
+function filterEmittedTargetIds(config: FiltersWidgetConfig, dashboard: DashboardData): string[] {
+  const plan = dedicatedSourcePlan(dashboard);
+  const out: string[] = [];
+  for (const id of filterTargetIds(config, dashboard)) {
+    out.push(id);
+    for (const dedicated of plan.values()) {
+      if (dedicated.baseId === id) out.push(dedicated.id);
+    }
+  }
+  return out;
+}
+
 function generateFilterControl(
   widgetId: string,
   spec: DashboardFilterSpec,
@@ -203,7 +220,7 @@ function generateFiltersHTML(
   const config = widget.config;
   if (config.filters.length === 0) return '';
   const ctxId = `ctx-${widget.id}`;
-  const targets = filterTargetIds(config, dashboard).map(escapeHtml).join(' ');
+  const targets = filterEmittedTargetIds(config, dashboard).map(escapeHtml).join(' ');
 
   const controls = config.filters.map((f) => generateFilterControl(widget.id, f, indent + '  '));
   const filters = config.filters
@@ -272,10 +289,16 @@ function generateBuilderChartHTML(
   serverPaginated: Map<string, number>
 ): string {
   const c = config.chart;
-  const sourceId = config.sourceId || dashboard.sources[0]?.id || '';
-  if (!sourceId) {
+  const baseSourceId = config.sourceId || dashboard.sources[0]?.id || '';
+  if (!baseSourceId) {
     return `${indent}<!-- Widget « ${escapeHtml(widget.title)} » : aucune source associee -->\n`;
   }
+  // Source dediee (#765) : un graphique agrege sur une source que d'autres
+  // widgets lisent recoit sa PROPRE balise de source, meme jeu, id propre.
+  // Sa query peut ainsi deleguer le regroupement au serveur (agregats justes
+  // et complets) sans reecrire les lignes des voisins.
+  const dedicated = dedicatedSourcePlan(dashboard).get(widget.id);
+  const sourceId = dedicated ? dedicated.id : baseSourceId;
 
   // Le KPI agrege lui-meme via sa grammaire value="champ:fn" : la query ne
   // sert qu'au filtre/limite.
@@ -287,6 +310,10 @@ function generateBuilderChartHTML(
   const dataId = needsQuery ? queryId : sourceId;
 
   let html = '';
+  if (dedicated) {
+    const base = dashboard.sources.find((src) => src.id === baseSourceId);
+    if (base) html += generateSourceHTML({ ...base, id: dedicated.id }, indent);
+  }
   if (needsQuery) {
     const attrs: string[] = [`source="${escapeHtml(sourceId)}"`];
     if (c.where) attrs.push(`where="${escapeHtml(c.where)}"`);
@@ -582,7 +609,10 @@ interface SourceConsumer {
  * au moment d'emettre une balise de source, combien de widgets la lisent et
  * ce qu'ils en font.
  */
-function collectSourceConsumers(dashboard: DashboardData): Map<string, SourceConsumer[]> {
+function collectSourceConsumers(
+  dashboard: DashboardData,
+  skipWidgets: ReadonlySet<string> = new Set()
+): Map<string, SourceConsumer[]> {
   const graph = new Map<string, SourceConsumer[]>();
   const add = (id: string | undefined, consumer: SourceConsumer): void => {
     if (!id) return;
@@ -608,6 +638,8 @@ function collectSourceConsumers(dashboard: DashboardData): Map<string, SourceCon
       const cfg = w.config;
       if (isFavoriteChart(cfg)) continue;
       if (isBuilderChart(cfg)) {
+        // Un widget a source dediee (#765) ne lit plus la source partagee.
+        if (skipWidgets.has(w.id)) continue;
         const id = cfg.sourceId || dashboard.sources[0]?.id || '';
         add(id, builderChartConsumer(cfg.chart));
         continue;
@@ -642,6 +674,66 @@ function builderChartConsumer(c: ChartConfig): SourceConsumer {
     : { need: 'jeu-entier', pageSize: 0 };
 }
 
+/** Source dediee d'un widget (#765). */
+interface DedicatedSource {
+  /** Id de la balise emise pour ce seul widget. */
+  id: string;
+  /** Source partagee dont elle reprend le jeu. */
+  baseId: string;
+}
+
+/**
+ * Widgets qui recoivent leur propre source (#765).
+ *
+ * Une `dsfr-data-query` qui delegue son `group-by` a une source pose un
+ * regroupement UNIQUE sur cette source, et la source sert ses lignes agregees
+ * a TOUS ses abonnes. Mesure en conditions reelles sur un export du Studio
+ * (plan-de-relance, bibliotheque 0.28.1) : KPI « projets » a 11 (le nombre de
+ * groupes) au lieu de 3 080, et le graphique « par region » affichant les
+ * groupes du graphique « par type ». Depuis #785, les sources Opendatasoft et
+ * Tabular de l'export sont declaratives : la delegation joue, le defaut aussi.
+ *
+ * Critere : un graphique de l'assistant AGREGE (group-by), sur une source a
+ * adaptateur (la seule qui delegue), que d'autres widgets lisent aussi. Les
+ * blocs de filtres ne comptent pas : ils envoient un filtre, ils ne lisent
+ * pas les lignes. Seul consommateur de sa source, le graphique la garde.
+ * Les sources embarquees ne sont jamais dupliquees : elles ne deleguent rien.
+ */
+function dedicatedSourcePlan(dashboard: DashboardData): Map<string, DedicatedSource> {
+  const plan = new Map<string, DedicatedSource>();
+  const graph = collectSourceConsumers(dashboard);
+  const byId = new Map(dashboard.sources.map((s) => [s.id, s]));
+
+  // Graphiques agreges eligibles, par source partagee, dans l'ordre du document.
+  const eligible = new Map<string, string[]>();
+  for (const w of dashboard.widgets) {
+    if (w.type !== 'chart' || !isBuilderChart(w.config)) continue;
+    const c = w.config.chart;
+    const aggregated = c.type !== 'kpi' && Boolean(c.aggregation && c.labelField);
+    if (!aggregated) continue;
+    const baseId = w.config.sourceId || dashboard.sources[0]?.id || '';
+    const base = byId.get(baseId);
+    if (!base || !supportsServerPagination(base)) continue;
+    eligible.set(baseId, [...(eligible.get(baseId) ?? []), w.id]);
+  }
+
+  for (const [baseId, widgetIds] of eligible) {
+    const readers = (graph.get(baseId) ?? []).filter((consumer) => consumer.need !== 'contexte');
+    if (readers.length < 2) continue;
+    // Si TOUS les lecteurs sont des graphiques agreges, le premier garde la
+    // source partagee : la dedier aussi la laisserait sans lecteur, et la
+    // page ferait une requete pour rien.
+    const dedicate = readers.length > widgetIds.length ? widgetIds : widgetIds.slice(1);
+    for (const id of dedicate) plan.set(id, { id: `${baseId}--${id}`, baseId });
+  }
+  return plan;
+}
+
+/** Consommateurs apres attribution des sources dediees (#765). */
+function effectiveSourceConsumers(dashboard: DashboardData): Map<string, SourceConsumer[]> {
+  return collectSourceConsumers(dashboard, new Set(dedicatedSourcePlan(dashboard).keys()));
+}
+
 /**
  * Sources que le document peut paginer cote serveur, avec leur taille de page
  * (ADR-109, #717).
@@ -650,13 +742,18 @@ function builderChartConsumer(c: ChartConfig): SourceConsumer {
  * et ce consommateur est une liste paginee**. Une source n'etant emise qu'UNE
  * FOIS et partagee par tous les widgets, poser `server-side` sur une source
  * partagee ne ferait plus parvenir qu'une page de dix lignes au graphique ou
- * au KPI d'a cote : une agregation fausse, sans la moindre erreur. Le cas de
- * la source partagee garde donc sa reponse existante, `fetch-mode="export"`
- * (#689, ADR-106) : une requete au lieu de trente, et le jeu entier.
+ * au KPI d'a cote : une agregation fausse, sans la moindre erreur.
+ *
+ * ATTENTION, contrairement a ce qu'affirmait ce commentaire : l'export
+ * n'emet PAS `fetch-mode="export"`. Une source partagee charge ses lignes par
+ * `/records`, plafonnees a `max-records` (1 000 par defaut) : un KPI de
+ * comptage ou de somme pose dessus est faux au-dela, avec le seul signal
+ * `truncated` (#658). Suivi a part. Les graphiques agreges, eux, ont leur
+ * source dediee (#765) et font calculer l'agregat par le serveur.
  */
 function serverPaginatedSources(dashboard: DashboardData): Map<string, number> {
   const paginated = new Map<string, number>();
-  const graph = collectSourceConsumers(dashboard);
+  const graph = effectiveSourceConsumers(dashboard);
   const byId = new Map(dashboard.sources.map((s) => [s.id, s]));
   for (const [id, consumers] of graph) {
     if (consumers.length !== 1) continue;
@@ -671,7 +768,7 @@ function serverPaginatedSources(dashboard: DashboardData): Map<string, number> {
 
 /** Ids de sources effectivement references par au moins un widget. */
 function collectUsedSourceIds(dashboard: DashboardData): Set<string> {
-  return new Set(collectSourceConsumers(dashboard).keys());
+  return new Set(effectiveSourceConsumers(dashboard).keys());
 }
 
 /** Le bundle core suffit sauf si un widget rend une carte (composants Leaflet). */
