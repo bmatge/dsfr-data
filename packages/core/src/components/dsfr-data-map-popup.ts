@@ -49,7 +49,7 @@ export class DsfrDataMapPopup extends LitElement {
   @property({ type: String, attribute: 'title-field' })
   titleField = '';
 
-  /** Largeur du panneau lateral (modes `panel-*`). */
+  /** Largeur du panneau lateral (modes `panel-*`). Bornée à la largeur de la carte : sur un écran étroit le panneau l'occupe entièrement au lieu de déborder. */
   @property({ type: String })
   width = '350px';
 
@@ -372,6 +372,16 @@ export class DsfrDataMapPopup extends LitElement {
         top: 0;
         bottom: 0;
         z-index: 1001;
+        /* La largeur demandee (attribut width, style en ligne) est bornee a
+           celle de la carte. Le panneau est ancre a droite dans un
+           conteneur en overflow:hidden : une largeur superieure a la carte ne
+           deborde pas visuellement, elle sort par la GAUCHE et se fait rogner,
+           les debuts de lignes disparaissent. C'est le cas nominal sur mobile
+           (375-393 px de viewport, gouttieres DSFR : la carte fait 343 a 361 px)
+           face aux 350-400 px que proposent la doc et le builder. Borne ici
+           plutot que dans le style en ligne : une page qui veut un panneau
+           plus large que sa carte peut encore relever ce max-width. */
+        max-width: 100%;
         background: var(--background-default-grey, #fff);
         box-shadow: 0 0 12px rgba(0,0,0,0.15);
         overflow-y: auto;

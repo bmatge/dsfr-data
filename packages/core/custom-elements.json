@@ -10590,7 +10590,7 @@
                 "text": "string"
               },
               "default": "'350px'",
-              "description": "Largeur du panneau lateral (modes `panel-*`).",
+              "description": "Largeur du panneau lateral (modes `panel-*`). Bornée à la largeur de la carte : sur un écran étroit le panneau l'occupe entièrement au lieu de déborder.",
               "attribute": "width"
             },
             {
@@ -10883,7 +10883,7 @@
                 "text": "string"
               },
               "default": "'350px'",
-              "description": "Largeur du panneau lateral (modes `panel-*`).",
+              "description": "Largeur du panneau lateral (modes `panel-*`). Bornée à la largeur de la carte : sur un écran étroit le panneau l'occupe entièrement au lieu de déborder.",
               "fieldName": "width"
             },
             {

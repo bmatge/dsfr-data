@@ -39,7 +39,7 @@
               <!-- ATTRS:dsfr-data-map-popup fields="mode,title-field,width,for" -->
                 <tr><td><code>mode</code></td><td>PopupMode</td><td><code>popup</code></td><td>Mode d'affichage : <code>popup</code> (bulle sur la carte), <code>modal</code>, <code>panel-right</code>, <code>panel-left</code>.</td></tr>
                 <tr><td><code>title-field</code></td><td>String</td><td><code>""</code></td><td>Champ utilise comme titre du panneau ou de la modale.</td></tr>
-                <tr><td><code>width</code></td><td>String</td><td><code>350px</code></td><td>Largeur du panneau lateral (modes <code>panel-*</code>).</td></tr>
+                <tr><td><code>width</code></td><td>String</td><td><code>350px</code></td><td>Largeur du panneau lateral (modes <code>panel-*</code>). Bornée à la largeur de la carte : sur un écran étroit le panneau l'occupe entièrement au lieu de déborder.</td></tr>
                 <tr><td><code>for</code></td><td>String</td><td><code>""</code></td><td>Id du layer cible. Vide = tous les layers de la carte.</td></tr>
               <!-- /ATTRS -->
             </tbody>
