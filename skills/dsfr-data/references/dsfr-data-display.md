@@ -76,7 +76,8 @@ masquer en CSS quand l'attribut est vide — `a[href=""] { display: none; }`.
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | `""` | oui | ID de la source, query ou normalize |
-| cols | Number | `1` | non | Nombre de colonnes dans la grille (1-6) |
+| per-row | String | `""` | non | Nombre d'éléments par ligne (1, 2, 3, 4, 6), prime sur `cols` (#790) |
+| cols | Number | `1` | non | Ancien nom de `per-row`, même sens — toujours accepté |
 | pagination | Number | `0` | non | Elements par page (0 = tout afficher) |
 | empty | String | `"Aucun resultat"` | non | Message quand le tableau est vide |
 | idle-message | String | `"Choisissez un filtre pour afficher les données"` | non | Message rendu quand l'amont attend un filtre (`require-where`, #690) — distinct de `empty`, qui répond à une requête revenue vide. |
@@ -110,7 +111,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 ### Exemples
 ```html
 <!-- Cartes DSFR en grille 3 colonnes avec pagination -->
-<dsfr-data-display source="data" cols="3" pagination="12">
+<dsfr-data-display source="data" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -127,7 +128,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 </dsfr-data-display>
 
 <!-- Tuiles DSFR simples -->
-<dsfr-data-display source="data" cols="4">
+<dsfr-data-display source="data" per-row="4">
   <template>
     <div class="fr-tile">
       <div class="fr-tile__body">
@@ -141,7 +142,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 </dsfr-data-display>
 
 <!-- Montants avec separateurs de milliers -->
-<dsfr-data-display source="data" cols="3" pagination="12">
+<dsfr-data-display source="data" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -155,7 +156,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 </dsfr-data-display>
 
 <!-- Cartes avec identifiants uniques et ancrage URL (ex: page.html#item-42) -->
-<dsfr-data-display source="data" cols="3" pagination="12" uid-field="id">
+<dsfr-data-display source="data" per-row="3" pagination="12" uid-field="id">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -179,13 +180,14 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `cols` | `number` | `1` | Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur) |
+| `cols` | `number` | `1` | Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur). Même rôle que `per-row`, qui est préféré : `cols` désigne une LARGEUR sur `dsfr-data-facets` (#790). Toujours accepté, avec le même sens. |
 | `context` | `string` | `""` (vide) | Identifiant du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#734, ADR-104). Le contexte peut être déclaré après le composant dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `empty` | `string` | `'Aucun resultat'` | Message quand aucune donnee |
 | `gap` | `string` | `'fr-grid-row--gutters'` | Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters) |
 | `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `label` | `string` | `""` (vide) | Libellé du tag de contexte en `refine-on-click` (#734). Vide = le nom du champ filtré. |
 | `pagination` | `number` | `0` | Nombre d'éléments par page (0 = tout afficher) |
+| `per-row` | `string` | `""` (vide) | Nombre d'éléments par ligne à partir de 768 px (en dessous : un par ligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes. Remplace `cols`, même sens, sans l'ambiguïté du mot sur les autres composants (#790). Prime sur `cols` s'ils sont posés ensemble. |
 | `refine-on-click` | `string` | `""` (vide) | Champ dont la valeur de l'élément cliqué devient un filtre `eq` (#734). Premier clic = filtre, second clic sur le même élément = retrait, clic sur un autre élément = remplacement. Chaque élément reçoit un bouton « Filtrer sur … », atteignable au clavier et dont l'état est annoncé (`aria-pressed`) : la mise en avant de l'élément sélectionné n'est jamais la seule marque. Avec `context="id"` (recommandé), le composant s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la clause part directement à `source` (whereKey `display-select-ID`) — sans tag ni URL, et la liste se filtre elle-même (seul l'élément cliqué reste, jusqu'au second clic). |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les données. |
 | `uid-field` | `string` | `""` (vide) | Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index |

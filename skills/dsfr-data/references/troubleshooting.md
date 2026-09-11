@@ -11,7 +11,7 @@ Les sections suivantes partent d'un symptôme visible. La famille la plus coûte
 aucun : la page rend un résultat plausible et faux. Ce qui reste muet aujourd'hui, une fois
 déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730, #731) :
 - **Grammaire d'attribut ignorée** : le séparateur d'entrées change d'un attribut à l'autre
-  (`|` pour `labels`, `display`, `cols` ; `,` pour `split`, `round`, `fields` ; `;` pour
+  (`|` pour `labels`, `display`, `span` ; `,` pour `split`, `round`, `fields` ; `;` pour
   `compute`). Une entrée mal séparée est ignorée sans un mot — seul `dsfr-data-facets` avertit
   (#731). Vérifier la grammaire dans la skill `attributeGrammars`, jamais de mémoire.
 - **Virgule ou deux-points DANS une valeur** (libellé métier, heure « 10:00 ») : la paire est

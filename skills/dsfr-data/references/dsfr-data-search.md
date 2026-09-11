@@ -65,7 +65,7 @@ contradictoires (#654).
 <dsfr-data-search id="searched" source="clean"
   placeholder="Rechercher..." count>
 </dsfr-data-search>
-<dsfr-data-display source="searched" cols="2" pagination="12">
+<dsfr-data-display source="searched" per-row="2" pagination="12">
   <template>...</template>
 </dsfr-data-display>
 
@@ -82,7 +82,7 @@ contradictoires (#654).
 <!-- Recherche avec highlight -->
 <dsfr-data-search id="searched" source="clean" highlight count>
 </dsfr-data-search>
-<dsfr-data-display source="searched" cols="1">
+<dsfr-data-display source="searched" per-row="1">
   <template>
     <h3>{{nom}}</h3>
     <p>{{{_highlight}}}</p>

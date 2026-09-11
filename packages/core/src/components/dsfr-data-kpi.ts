@@ -28,6 +28,7 @@ import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
+import { parseSpan, legacyConflictMessage } from '../utils/grid-layout.js';
 import { applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
 
 type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
@@ -218,9 +219,21 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   couleur: KpiColor | '' = '';
 
-  /** Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>. */
+  /**
+   * Largeur en colonnes DSFR (1-12). Significatif uniquement dans un
+   * <dsfr-data-kpi-group>. Même rôle que `span`, qui est préféré (#790) ;
+   * toujours accepté.
+   */
   @property({ type: Number, reflect: true })
   col?: number;
+
+  /**
+   * Largeur sur la grille de 12 colonnes (1-12), dans un
+   * <dsfr-data-kpi-group> : `span="6"` occupe la moitié de la ligne. Remplace
+   * `col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.
+   */
+  @property({ type: String, reflect: true })
+  span = '';
 
   /**
    * Message rendu quand l'amont attend un filtre (`require-where`, #690).
@@ -459,6 +472,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       message =
         `format="${received}" inconnu${hint} ; ` + `formats acceptés : ${FORMAT_TYPES.join(', ')}`;
       this._blockingConfigError = message;
+    }
+
+    // Largeur dans un kpi-group (#790) : non bloquant, la grille retombe sur
+    // sa largeur par défaut.
+    if (!message && this.span) {
+      const span = parseSpan(this.span);
+      if (span.error) message = span.error;
+      else if (this.col !== undefined && this.col !== null && this.hasAttribute('col')) {
+        message = legacyConflictMessage('col', 'span');
+      }
     }
 
     if (!message && this.lines && parseKpiLines(this.lines) === null) {

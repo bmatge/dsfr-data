@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 27 balises, 327 attributs.
+ * 27 balises, 332 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -130,6 +130,7 @@ export const COMPONENT_CONTRACT = {
       "idle-message",
       "label",
       "pagination",
+      "per-row",
       "refine-on-click",
       "source",
       "uid-field",
@@ -149,10 +150,12 @@ export const COMPONENT_CONTRACT = {
       "labels",
       "max-values",
       "no-reset",
+      "per-row",
       "searchable",
       "server-facets",
       "sort",
       "source",
+      "span",
       "static-values",
       "url-param-map",
       "url-params",
@@ -183,6 +186,7 @@ export const COMPONENT_CONTRACT = {
       "label",
       "lines",
       "source",
+      "span",
       "threshold-green",
       "threshold-orange",
       "trend",
@@ -203,7 +207,8 @@ export const COMPONENT_CONTRACT = {
   "dsfr-data-kpi-group": {
     "attributes": [
       "cols",
-      "gap"
+      "gap",
+      "per-row"
     ]
   },
   "dsfr-data-list": {

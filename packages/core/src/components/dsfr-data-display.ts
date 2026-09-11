@@ -18,6 +18,12 @@ import {
 } from '../utils/status-templates.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
+import {
+  parsePerRow,
+  spanForPerRow,
+  legacyConflictMessage,
+  syncLayoutError,
+} from '../utils/grid-layout.js';
 
 /**
  * <dsfr-data-display> - Affichage dynamique de données via template HTML
@@ -77,9 +83,25 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   @property({ type: String })
   source = '';
 
-  /** Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur) */
+  /**
+   * Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur). Même
+   * rôle que `per-row`, qui est préféré : `cols` désigne une LARGEUR sur
+   * `dsfr-data-facets` (#790). Toujours accepté, avec le même sens.
+   */
   @property({ type: Number })
   cols = 1;
+
+  /**
+   * Nombre d'éléments par ligne à partir de 768 px (en dessous : un par
+   * ligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.
+   * Remplace `cols`, même sens, sans l'ambiguïté du mot sur les autres
+   * composants (#790). Prime sur `cols` s'ils sont posés ensemble.
+   */
+  @property({ type: String, attribute: 'per-row' })
+  perRow = '';
+
+  /** Erreur de colonnage posée par ce composant (#790). */
+  private _layoutError: string | null = null;
 
   /** Nombre d'éléments par page (0 = tout afficher) */
   @property({ type: Number })
@@ -241,6 +263,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   }
 
   updated(changedProperties: Map<string, unknown>) {
+    if (changedProperties.has('perRow') || changedProperties.has('cols')) this._syncLayoutError();
     super.updated(changedProperties);
     if (!this._hashScrollDone && this._data.length > 0 && window.location.hash) {
       this._hashScrollDone = true;
@@ -329,9 +352,22 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   // --- Grid ---
 
   private _getColClass(): string {
+    const perRow = parsePerRow(this.perRow, 6).value;
+    if (perRow !== null) return `fr-col-12 fr-col-md-${spanForPerRow(perRow)}`;
     const cols = Math.max(1, Math.min(6, this.cols));
     const colSize = Math.floor(12 / cols);
     return `fr-col-12 fr-col-md-${colSize}`;
+  }
+
+  /** `per-row` invalide, ou posé avec `cols` (#790). */
+  private _syncLayoutError(): void {
+    const perRow = parsePerRow(this.perRow, 6);
+    const message =
+      perRow.error ??
+      (perRow.value !== null && this.hasAttribute('cols')
+        ? legacyConflictMessage('cols', 'per-row')
+        : null);
+    this._layoutError = syncLayoutError(this, 'dsfr-data-display', message, this._layoutError);
   }
 
   // --- Render ---

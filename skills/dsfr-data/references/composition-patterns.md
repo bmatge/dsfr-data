@@ -158,7 +158,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
   labels="catégorie:Catégorie | region:Region">
 </dsfr-data-facets>
 
-<dsfr-data-display source="filtered" cols="3" pagination="12">
+<dsfr-data-display source="filtered" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -192,7 +192,7 @@ Les noms de champs doivent etre les noms APLATIS (ex: `Departement`) et non les 
   fields="catégorie, region">
 </dsfr-data-facets>
 
-<dsfr-data-display source="filtered" cols="3" pagination="12">
+<dsfr-data-display source="filtered" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
