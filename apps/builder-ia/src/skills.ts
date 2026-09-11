@@ -1219,6 +1219,9 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
 \`\`\`
 - \`count:champ:valeur\` accepte un champ **tableau** (tags) : la ligne compte si l'un des
   éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
+- **Seul \`count\` accepte une valeur de filtre** : \`sum:montant:ouvert\` est une erreur de
+  configuration (il rendait autrefois le total non filtré). Pour sommer un sous-ensemble, filtrer
+  en amont (\`where\` du KPI, ou une \`dsfr-data-query\`).
 - Un ratio marche aussi dans \`trend\` (rendu en %) et dans \`lines\` (format pourcentage par défaut).
 - Pas de \`count-if\` sur dsfr-data-query : filtrer avec \`where\` puis compter.
 - **Les deux côtés viennent de LA MÊME source** : \`source\` est un identifiant unique. Un indicateur

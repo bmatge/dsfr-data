@@ -108,7 +108,9 @@ let legacyGrammarWarned = false;
  * - "field:fn"         -> grammaire commune (population:sum)
  * - "fn:field"         -> ancienne grammaire kpi (dépréciée)
  * - "count"            -> compte tous les enregistrements
- * - "count:field:value"-> compte les occurrences où field == value (lâche)
+ * - "count:field:value"-> compte les occurrences où field == value (lâche) ;
+ *                         forme recommandée, jamais dépréciée. Toute autre
+ *                         fonction suivie d'une valeur est `invalid` (#764)
  * - "field:distinct"   -> nombre de valeurs distinctes (alias "count-distinct", #672)
  * - "field:evolution"  -> (dernière − première) / première, dans l'ordre courant (#675)
  * - "meta:total"       -> total publié par l'amont (#659), via le contexte
@@ -182,27 +184,47 @@ export function parseExpression(expression: string): ParsedExpression {
     };
   }
 
+  const type = parts[0] as AggregationType;
+  const field = parts[1];
+
+  // Forme filtrée "count:champ:valeur" (#764). Traitée AVANT l'avertissement
+  // de dépréciation : c'est la forme recommandée depuis le ratio (#673), elle
+  // n'a pas d'équivalent en grammaire commune et ne doit pas se déclarer
+  // obsolète à chaque page. La valeur est relue depuis l'expression brute :
+  // elle peut contenir un deux-points (`count:heure:12:30`) et ne doit pas
+  // passer par la résolution d'alias des segments de fonction.
+  if (parts.length >= 3) {
+    // Seul `count` honore un filtre. `sum:champ:valeur` rendait le total NON
+    // filtré, sans un mot : une erreur vaut mieux qu'un chiffre faux.
+    if (type !== 'count') {
+      return {
+        type: 'invalid',
+        field,
+        error:
+          `filtre "${expression}" non pris en charge — seule la fonction count accepte ` +
+          `une valeur de filtre ("count:champ:valeur") ; "${type}" rendrait le total ` +
+          `non filtré. Pour agréger un sous-ensemble, filtrer en amont (where du KPI ` +
+          `ou dsfr-data-query)`,
+      };
+    }
+
+    let filterValue: string | boolean | number = trimmed.split(':').slice(2).join(':');
+
+    // Parse boolean/number values
+    if (filterValue === 'true') filterValue = true;
+    else if (filterValue === 'false') filterValue = false;
+    else if (filterValue.trim() !== '' && !isNaN(Number(filterValue)))
+      filterValue = Number(filterValue);
+
+    return { type, field, filterField: field, filterValue };
+  }
+
   if (!legacyGrammarWarned) {
     legacyGrammarWarned = true;
     console.warn(
       `dsfr-data-kpi: la grammaire "${parts[0]}:${parts[1]}" (fn:champ) est dépréciée — ` +
         `utilisez la grammaire commune du pipeline "champ:fn" (ex. "population:sum") (#303)`
     );
-  }
-
-  const type = parts[0] as AggregationType;
-  const field = parts[1];
-
-  if (parts.length === 3) {
-    // count:field:value
-    let filterValue: string | boolean | number = parts[2];
-
-    // Parse boolean/number values
-    if (filterValue === 'true') filterValue = true;
-    else if (filterValue === 'false') filterValue = false;
-    else if (!isNaN(Number(filterValue))) filterValue = Number(filterValue);
-
-    return { type, field, filterField: field, filterValue };
   }
 
   return { type, field };
