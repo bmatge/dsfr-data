@@ -233,7 +233,7 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 |----------|------|--------|-------------|
 | mode | String | `"popup"` | `popup`, `modal`, `panel-right`, `panel-left` |
 | title-field | String | `""` | Champ pour le titre panneau/modale |
-| width | String | `"350px"` | Largeur du panneau lateral |
+| width | String | `"350px"` | Largeur du panneau latéral, bornée à la largeur de la carte |
 | for | String | `""` | ID du layer cible (vide = tous) |
 
 Template avec `<template>` et interpolation `{{champ}}` (même moteur que dsfr-data-display,
@@ -242,6 +242,11 @@ toujours échappé, `{{{champ}}}` traité comme `{{champ}}`) : `{{champ.sous.cl�
 dans tout `href`), `{{champ|défaut}}`, blocs `{{#if champ}}…{{/if}}` / `{{#unless}}` et
 `{{#each champ}}…{{/each}}` (répétition sur un champ tableau, `{{.}}` = l'élément, `{{$index}}`
 = son rang). Sans template, tableau auto.
+
+Le panneau latéral est ancré dans la carte, pas dans la fenêtre : sa largeur est bornée à
+celle de la carte. Sur téléphone (viewport 375-393 px, gouttières DSFR : carte ~340 px) un
+`width` de 350 à 400 px donne donc un panneau pleine largeur, sans rognage — inutile de
+prévoir une largeur responsive.
 
 ```html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
@@ -553,7 +558,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `for` | `string` | `""` (vide) | Id du layer cible. Vide = tous les layers de la carte. |
 | `mode` | `PopupMode` | `'popup'` | Mode d'affichage : `popup` (bulle sur la carte), `modal`, `panel-right`, `panel-left`. |
 | `title-field` | `string` | `""` (vide) | Champ utilise comme titre du panneau ou de la modale. |
-| `width` | `string` | `'350px'` | Largeur du panneau lateral (modes `panel-*`). |
+| `width` | `string` | `'350px'` | Largeur du panneau lateral (modes `panel-*`). Bornée à la largeur de la carte : sur un écran étroit le panneau l'occupe entièrement au lieu de déborder. |
 
 
 **Méthodes publiques**

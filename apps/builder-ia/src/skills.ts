@@ -3110,7 +3110,7 @@ Composant compagnon optionnel qui definit un template et un mode d'affichage pou
 |----------|------|--------|-------------|
 | mode | String | \`"popup"\` | \`popup\`, \`modal\`, \`panel-right\`, \`panel-left\` |
 | title-field | String | \`""\` | Champ pour le titre panneau/modale |
-| width | String | \`"350px"\` | Largeur du panneau lateral |
+| width | String | \`"350px"\` | Largeur du panneau latéral, bornée à la largeur de la carte |
 | for | String | \`""\` | ID du layer cible (vide = tous) |
 
 Template avec \`<template>\` et interpolation \`{{champ}}\` (même moteur que dsfr-data-display,
@@ -3119,6 +3119,11 @@ toujours échappé, \`{{{champ}}}\` traité comme \`{{champ}}\`) : \`{{champ.sou
 dans tout \`href\`), \`{{champ|défaut}}\`, blocs \`{{#if champ}}…{{/if}}\` / \`{{#unless}}\` et
 \`{{#each champ}}…{{/each}}\` (répétition sur un champ tableau, \`{{.}}\` = l'élément, \`{{$index}}\`
 = son rang). Sans template, tableau auto.
+
+Le panneau latéral est ancré dans la carte, pas dans la fenêtre : sa largeur est bornée à
+celle de la carte. Sur téléphone (viewport 375-393 px, gouttières DSFR : carte ~340 px) un
+\`width\` de 350 à 400 px donne donc un panneau pleine largeur, sans rognage — inutile de
+prévoir une largeur responsive.
 
 \`\`\`html
 <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
