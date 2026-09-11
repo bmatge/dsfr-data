@@ -3875,8 +3875,28 @@
                 "text": "number"
               },
               "default": "1",
-              "description": "Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur)",
+              "description": "Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur). Même\nrôle que `per-row`, qui est préféré : `cols` désigne une LARGEUR sur\n`dsfr-data-facets` (#790). Toujours accepté, avec le même sens.",
               "attribute": "cols"
+            },
+            {
+              "kind": "field",
+              "name": "perRow",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre d'éléments par ligne à partir de 768 px (en dessous : un par\nligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.\nRemplace `cols`, même sens, sans l'ambiguïté du mot sur les autres\ncomposants (#790). Prime sur `cols` s'ils sont posés ensemble.",
+              "attribute": "per-row"
+            },
+            {
+              "kind": "field",
+              "name": "_layoutError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de colonnage posée par ce composant (#790)."
             },
             {
               "kind": "field",
@@ -4311,6 +4331,17 @@
             },
             {
               "kind": "method",
+              "name": "_syncLayoutError",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "`per-row` invalide, ou posé avec `cols` (#790)."
+            },
+            {
+              "kind": "method",
               "name": "_getItemUid",
               "return": {
                 "type": {
@@ -4433,8 +4464,17 @@
                 "text": "number"
               },
               "default": "1",
-              "description": "Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur)",
+              "description": "Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur). Même\nrôle que `per-row`, qui est préféré : `cols` désigne une LARGEUR sur\n`dsfr-data-facets` (#790). Toujours accepté, avec le même sens.",
               "fieldName": "cols"
+            },
+            {
+              "name": "per-row",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre d'éléments par ligne à partir de 768 px (en dessous : un par\nligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.\nRemplace `cols`, même sens, sans l'ambiguïté du mot sur les autres\ncomposants (#790). Prime sur `cols` s'ils sont posés ensemble.",
+              "fieldName": "perRow"
             },
             {
               "name": "pagination",
@@ -4767,6 +4807,36 @@
               "default": "''",
               "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette), en\ncolonnes de la grille de 12 — une LARGEUR, pas un nombre de facettes par ligne.\nAppliqué à partir de 768 px ; en dessous, chaque facette occupe toute la ligne\n(`fr-col-12 fr-col-md-N`, #788). Sans `cols`, grille automatique qui se replie seule.",
               "attribute": "cols"
+            },
+            {
+              "kind": "field",
+              "name": "span",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Largeur des facettes sur la grille de 12 colonnes, à partir de 768 px :\n`\"6\"` pour toutes, ou `\"annee:3 | categorie:6\"` par facette. Remplace\n`cols`, même sens et même grammaire, sans l'ambiguïté du mot : sur\n`dsfr-data-display` et `dsfr-data-kpi-group`, `cols` compte des éléments\npar ligne (#790). Prime sur `cols` s'ils sont posés ensemble.",
+              "attribute": "span"
+            },
+            {
+              "kind": "field",
+              "name": "perRow",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre de facettes par ligne à partir de 768 px (en dessous : une par\nligne) — 1, 2, 3, 4, 6 ou 12. Se combine avec `span` par facette : une\nfacette nommée dans `span` garde sa largeur, les autres se partagent la\nligne selon `per-row` (#790).",
+              "attribute": "per-row"
+            },
+            {
+              "kind": "field",
+              "name": "_layoutError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de colonnage posée par ce composant (#790)."
             },
             {
               "kind": "field",
@@ -5902,6 +5972,25 @@
             },
             {
               "kind": "method",
+              "name": "_parseWidths",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ global: number } | { map: Map<string, number>; fallback: number } | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Grammaire commune de `cols` et `span` : global ou carte par champ."
+            },
+            {
+              "kind": "method",
               "name": "_getColClass",
               "return": {
                 "type": {
@@ -5917,6 +6006,36 @@
                 }
               ],
               "description": "Classe de colonne DSFR d'un champ. Pleine largeur sous 768 px, largeur\ndemandée au point de rupture `md` (#788) — comme `dsfr-data-display`.\n`.fr-col-N` est définie HORS de toute media query dans le DSFR : la\nclasse nue valait 25 % à 320 px comme à 1440 px, soit 76 px par facette\nsur téléphone (mesuré dans Chromium, DSFR 1.14.4)."
+            },
+            {
+              "kind": "method",
+              "name": "_widthFor",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Largeur sur 12 d'une facette (#790) : `span` (global ou par champ), sinon\n`per-row`, sinon — si aucun des deux n'est posé — l'ancien `cols`.\n`null` : grille automatique."
+            },
+            {
+              "kind": "method",
+              "name": "_syncLayoutError",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "`per-row` ou `span` invalides, ou posés avec `cols` (#790)."
             },
             {
               "kind": "method",
@@ -6432,6 +6551,24 @@
               "default": "''",
               "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette), en\ncolonnes de la grille de 12 — une LARGEUR, pas un nombre de facettes par ligne.\nAppliqué à partir de 768 px ; en dessous, chaque facette occupe toute la ligne\n(`fr-col-12 fr-col-md-N`, #788). Sans `cols`, grille automatique qui se replie seule.",
               "fieldName": "cols"
+            },
+            {
+              "name": "span",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Largeur des facettes sur la grille de 12 colonnes, à partir de 768 px :\n`\"6\"` pour toutes, ou `\"annee:3 | categorie:6\"` par facette. Remplace\n`cols`, même sens et même grammaire, sans l'ambiguïté du mot : sur\n`dsfr-data-display` et `dsfr-data-kpi-group`, `cols` compte des éléments\npar ligne (#790). Prime sur `cols` s'ils sont posés ensemble.",
+              "fieldName": "span"
+            },
+            {
+              "name": "per-row",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre de facettes par ligne à partir de 768 px (en dessous : une par\nligne) — 1, 2, 3, 4, 6 ou 12. Se combine avec `span` par facette : une\nfacette nommée dans `span` garde sa largeur, les autres se partagent la\nligne selon `per-row` (#790).",
+              "fieldName": "perRow"
             },
             {
               "name": "context",
@@ -6979,7 +7116,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-kpi-group> - Groupe de KPIs en grille responsive\n\nDispose plusieurs <dsfr-data-kpi> enfants dans une grille CSS 12 colonnes.\nChaque KPI peut specifier sa largeur via l'attribut `col` (1-12).",
+          "description": "<dsfr-data-kpi-group> - Groupe de KPIs en grille responsive\n\nDispose plusieurs <dsfr-data-kpi> enfants dans une grille CSS 12 colonnes.\n`per-row` fixe le nombre de KPI par ligne ; un KPI peut préciser sa largeur\npar `span` (1-12). `cols` et `col` restent acceptés, avec le même sens (#790).",
           "name": "DsfrDataKpiGroup",
           "cssProperties": [
             {
@@ -7002,8 +7139,39 @@
                 "text": "number"
               },
               "default": "3",
-              "description": "Nombre de colonnes par défaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes.",
+              "description": "Nombre de KPI par ligne par défaut (1-12). Chaque enfant occupe\nMath.floor(12/cols) colonnes. Même rôle que `per-row`, qui est préféré :\n`cols` désigne une LARGEUR sur `dsfr-data-facets` (#790). Toujours\naccepté, avec le même sens.",
               "attribute": "cols"
+            },
+            {
+              "kind": "field",
+              "name": "perRow",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —\n1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Remplace `cols`, même\nsens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte\n`span` (ou `col`) garde sa propre largeur.",
+              "attribute": "per-row"
+            },
+            {
+              "kind": "field",
+              "name": "_layoutError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de colonnage posée par ce composant (#790)."
+            },
+            {
+              "kind": "method",
+              "name": "_defaultSpan",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Largeur par défaut d'un enfant : `per-row` valide, sinon `cols`."
             },
             {
               "kind": "field",
@@ -7023,8 +7191,17 @@
                 "text": "number"
               },
               "default": "3",
-              "description": "Nombre de colonnes par défaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes.",
+              "description": "Nombre de KPI par ligne par défaut (1-12). Chaque enfant occupe\nMath.floor(12/cols) colonnes. Même rôle que `per-row`, qui est préféré :\n`cols` désigne une LARGEUR sur `dsfr-data-facets` (#790). Toujours\naccepté, avec le même sens.",
               "fieldName": "cols"
+            },
+            {
+              "name": "per-row",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —\n1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Remplace `cols`, même\nsens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte\n`span` (ou `col`) garde sa propre largeur.",
+              "fieldName": "perRow"
             },
             {
               "name": "gap",
@@ -7293,8 +7470,19 @@
               "type": {
                 "text": "number | undefined"
               },
-              "description": "Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>.",
+              "description": "Largeur en colonnes DSFR (1-12). Significatif uniquement dans un\n<dsfr-data-kpi-group>. Même rôle que `span`, qui est préféré (#790) ;\ntoujours accepté.",
               "attribute": "col",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "span",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Largeur sur la grille de 12 colonnes (1-12), dans un\n<dsfr-data-kpi-group> : `span=\"6\"` occupe la moitié de la ligne. Remplace\n`col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.",
+              "attribute": "span",
               "reflects": true
             },
             {
@@ -7701,8 +7889,17 @@
               "type": {
                 "text": "number | undefined"
               },
-              "description": "Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>.",
+              "description": "Largeur en colonnes DSFR (1-12). Significatif uniquement dans un\n<dsfr-data-kpi-group>. Même rôle que `span`, qui est préféré (#790) ;\ntoujours accepté.",
               "fieldName": "col"
+            },
+            {
+              "name": "span",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Largeur sur la grille de 12 colonnes (1-12), dans un\n<dsfr-data-kpi-group> : `span=\"6\"` occupe la moitié de la ligne. Remplace\n`col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.",
+              "fieldName": "span"
             },
             {
               "name": "idle-message",

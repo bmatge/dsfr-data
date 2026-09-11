@@ -923,7 +923,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | \`""\` | non | Labels custom : \`"field:Label \\| field2:Label 2"\` (pipe-separe) |
 | max-values | Number | \`6\` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | \`""\` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. **Par champ** (#741) : \`"annee:alpha:asc \\| categorie:count:desc"\` (pipe-separe, comme labels/display/cols) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree \`"*:alpha"\` change ce défaut. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
+| sort | String | \`"count"\` | non | Tri des valeurs, grammaire \`critere:sens\` (comme order-by) : \`count:desc\` (défaut, plus frequent d'abord), \`count:asc\`, \`alpha:asc\` (A-Z), \`alpha:desc\` (Z-A). Raccourcis : \`count\` = count:desc, \`alpha\` = alpha:asc. **Par champ** (#741) : \`"annee:alpha:asc \\| categorie:count:desc"\` (pipe-separe, comme labels/display/span) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree \`"*:alpha"\` change ce défaut. \`-count\` / \`-alpha\` deprecies (warn console) — ne plus les generer |
 | searchable | String | \`""\` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | \`false\` | non | Masquer les facettes avec une seule valeur |
 | display | String | \`""\` | non | Mode d'affichage par facette : \`"field:select \\| field2:multiselect"\`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
@@ -934,7 +934,9 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | url-sync | Boolean | \`false\` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
 | server-facets | Boolean | \`false\` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | \`""\` | non | Valeurs de facettes pre-calculees en JSON : \`'{"region":["IDF","PACA"],"type":["Commune"]}')\`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
-| cols | String | \`""\` | non | Colonnage DSFR : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut fr-col-6 pour non-specifies) |
+| span | String | \`""\` | non | **Largeur** des facettes sur la grille de 12 (#790) : \`"6"\` (global, 2/ligne), \`"4"\` (3/ligne), ou par facette \`"region:4 \\| type:6"\` (défaut 6 pour les non nommées). Pleine largeur sous 768 px |
+| per-row | String | \`""\` | non | **Nombre** de facettes par ligne (1, 2, 3, 4, 6, 12) ; combinable avec \`span\` par facette (la facette nommée garde sa largeur) |
+| cols | String | \`""\` | non | Ancien nom de \`span\`, même sens (une LARGEUR) — toujours accepté. Ne plus le générer : sur display et kpi-group, \`cols\` compte des éléments, d'où l'ambiguïté |
 | context | String | \`""\` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur \`source\`. Vide = mode autonome (commande directe a \`source\`) |
 | no-reset | Boolean | \`false\` | non | Masque le bouton local « Réinitialiser les filtres » (#679, #640) : a poser quand un context-tags clear-all fait office de « tout effacer », ou pour qu'une colonne de facettes ne change pas de hauteur a la premiere selection |
 
@@ -1011,12 +1013,12 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 <!-- Colonnage DSFR des facettes -->
 <dsfr-data-facets id="filtered" source="clean"
   fields="region, departement, statut"
-  cols="region:6 | departement:4 | statut:12">
+  span="region:6 | departement:4 | statut:12">
 </dsfr-data-facets>
 
 <!-- Colonnage global (toutes en col-6 = 2 par ligne) -->
 <dsfr-data-facets id="filtered" source="clean"
-  fields="region, type, statut" cols="6">
+  fields="region, type, statut" span="6">
 </dsfr-data-facets>
 
 <!-- Facettes serveur ODS (server-facets) -->
@@ -1030,7 +1032,7 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   fields="region, catégorie"
   labels="region:Region | catégorie:Catégorie">
 </dsfr-data-facets>
-<dsfr-data-display source="filtered" cols="3" pagination="20">
+<dsfr-data-display source="filtered" per-row="3" pagination="20">
   <template>...</template>
 </dsfr-data-display>
 \`\`\`` + reference('dsfr-data-facets'),
@@ -1110,7 +1112,7 @@ contradictoires (#654).
 <dsfr-data-search id="searched" source="clean"
   placeholder="Rechercher..." count>
 </dsfr-data-search>
-<dsfr-data-display source="searched" cols="2" pagination="12">
+<dsfr-data-display source="searched" per-row="2" pagination="12">
   <template>...</template>
 </dsfr-data-display>
 
@@ -1127,7 +1129,7 @@ contradictoires (#654).
 <!-- Recherche avec highlight -->
 <dsfr-data-search id="searched" source="clean" highlight count>
 </dsfr-data-search>
-<dsfr-data-display source="searched" cols="1">
+<dsfr-data-display source="searched" per-row="1">
   <template>
     <h3>{{nom}}</h3>
     <p>{{{_highlight}}}</p>
@@ -1197,7 +1199,8 @@ Attend un tableau d'objets. L'attribut \`valeur\` determine comment extraire/agr
 | color-token | String | \`""\` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : \`color\`, \`couleur\` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : \`seuil-vert\` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : \`seuil-orange\` |
-| col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` |
+| span | String | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un \`<dsfr-data-kpi-group>\` (#790) |
+| col | Number | - | non | Ancien nom de \`span\`, même sens — toujours accepté, ne plus le générer |
 
 Fonctions acceptées dans \`value\`, \`trend\` et \`lines\` : avg, sum, count, min, max, first, last,
 distinct (alias \`count-distinct\`), evolution.
@@ -1283,13 +1286,13 @@ avant \`limit\` derrière un query, nombre de lignes sur une source non paginée
 ### Grouper des KPIs : \`<dsfr-data-kpi-group>\`
 Utiliser \`<dsfr-data-kpi-group>\` pour disposer plusieurs KPIs en grille responsive :
 \`\`\`html
-<dsfr-data-kpi-group cols="3">
-  <dsfr-data-kpi source="data" valeur="sum:population" label="Population totale" col="6"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="avg:score" label="Score moyen" col="3"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="count" label="Nombre" col="3"></dsfr-data-kpi>
+<dsfr-data-kpi-group per-row="3">
+  <dsfr-data-kpi source="data" valeur="sum:population" label="Population totale" span="6"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="avg:score" label="Score moyen" span="3"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="count" label="Nombre" span="3"></dsfr-data-kpi>
 </dsfr-data-kpi-group>
 \`\`\`
-- \`cols\` : nombre de colonnes par défaut (chaque KPI occupe 12/cols colonnes)
+- \`per-row\` : nombre de KPI par ligne (chaque KPI occupe 12/per-row colonnes) ; \`span\` sur un KPI fixe sa largeur. \`cols\` / \`col\` : anciens noms, même sens, toujours acceptés (#790)
 - \`col\` sur chaque dsfr-data-kpi : override individuel (1-12)
 - \`gap\` : espacement entre KPIs (sm, md, lg)
 - Responsive automatique : empile en mobile
@@ -1375,13 +1378,14 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
-| cols | Number | \`3\` | non | Nombre de colonnes par défaut (1-12) |
+| per-row | String | \`""\` | non | Nombre de KPI par ligne (1, 2, 3, 4, 6, 12), prime sur \`cols\` (#790) |
+| cols | Number | \`3\` | non | Ancien nom de \`per-row\`, même sens (un NOMBRE) — toujours accepté |
 | gap | String | \`"md"\` | non | Espacement : sm (0.5rem), md (1rem), lg (1.5rem) |
 | aria-label | String | \`""\` | non | Label accessible pour le groupe |
 
 ### Fonctionnement
 - Grille CSS 12 colonnes (systeme DSFR)
-- Chaque enfant occupe \`Math.floor(12 / cols)\` colonnes par défaut
+- Chaque enfant occupe \`12 / per-row\` colonnes par défaut (\`span\` sur un KPI pour une autre largeur)
 - L'attribut \`col\` sur un enfant \`<dsfr-data-kpi>\` override la largeur (1-12)
 - Responsive : empile en mobile (<768px), grille complete en desktop
 - \`role="group"\` automatique pour l'accessibilité
@@ -1389,7 +1393,7 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
 ### Exemples
 \`\`\`html
 <!-- 3 KPIs egaux -->
-<dsfr-data-kpi-group cols="3">
+<dsfr-data-kpi-group per-row="3">
   <dsfr-data-kpi source="data" valeur="count" label="Total"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" valeur="avg:score" label="Moyenne"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" valeur="max:score" label="Maximum"></dsfr-data-kpi>
@@ -1397,13 +1401,13 @@ Conteneur qui dispose plusieurs \`<dsfr-data-kpi>\` dans une grille CSS 12 colon
 
 <!-- KPIs avec largeurs differentes -->
 <dsfr-data-kpi-group>
-  <dsfr-data-kpi source="data" valeur="sum:ca" label="CA total" col="6"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="avg:marge" label="Marge moyenne" col="3"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="count" label="Transactions" col="3"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="sum:ca" label="CA total" span="6"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="avg:marge" label="Marge moyenne" span="3"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="count" label="Transactions" span="3"></dsfr-data-kpi>
 </dsfr-data-kpi-group>
 
 <!-- 4 KPIs avec espacement large -->
-<dsfr-data-kpi-group cols="4" gap="lg">
+<dsfr-data-kpi-group per-row="4" gap="lg">
   <dsfr-data-kpi source="data" valeur="sum:population" label="Population" format="nombre"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" valeur="avg:score" label="Score moyen" format="pourcentage"></dsfr-data-kpi>
   <dsfr-data-kpi source="data" valeur="min:prix" label="Prix min" format="euro"></dsfr-data-kpi>
@@ -1863,7 +1867,8 @@ masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
 | Attribut | Type | Défaut | Requis | Description |
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source, query ou normalize |
-| cols | Number | \`1\` | non | Nombre de colonnes dans la grille (1-6) |
+| per-row | String | \`""\` | non | Nombre d'éléments par ligne (1, 2, 3, 4, 6), prime sur \`cols\` (#790) |
+| cols | Number | \`1\` | non | Ancien nom de \`per-row\`, même sens — toujours accepté |
 | pagination | Number | \`0\` | non | Elements par page (0 = tout afficher) |
 | empty | String | \`"Aucun resultat"\` | non | Message quand le tableau est vide |
 | idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690) — distinct de \`empty\`, qui répond à une requête revenue vide. |
@@ -1897,7 +1902,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 ### Exemples
 \`\`\`html
 <!-- Cartes DSFR en grille 3 colonnes avec pagination -->
-<dsfr-data-display source="data" cols="3" pagination="12">
+<dsfr-data-display source="data" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -1914,7 +1919,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 </dsfr-data-display>
 
 <!-- Tuiles DSFR simples -->
-<dsfr-data-display source="data" cols="4">
+<dsfr-data-display source="data" per-row="4">
   <template>
     <div class="fr-tile">
       <div class="fr-tile__body">
@@ -1928,7 +1933,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 </dsfr-data-display>
 
 <!-- Montants avec separateurs de milliers -->
-<dsfr-data-display source="data" cols="3" pagination="12">
+<dsfr-data-display source="data" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -1942,7 +1947,7 @@ Quand la page est 1, le parametre est supprime de l'URL. Compatible avec les aut
 </dsfr-data-display>
 
 <!-- Cartes avec identifiants uniques et ancrage URL (ex: page.html#item-42) -->
-<dsfr-data-display source="data" cols="3" pagination="12" uid-field="id">
+<dsfr-data-display source="data" per-row="3" pagination="12" uid-field="id">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -2216,7 +2221,7 @@ L'adapter choisit entre mode Records (filter/sort/pagination) et mode SQL (group
   labels="catégorie:Catégorie | region:Region">
 </dsfr-data-facets>
 
-<dsfr-data-display source="filtered" cols="3" pagination="12">
+<dsfr-data-display source="filtered" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -2250,7 +2255,7 @@ Les noms de champs doivent etre les noms APLATIS (ex: \`Departement\`) et non le
   fields="catégorie, region">
 </dsfr-data-facets>
 
-<dsfr-data-display source="filtered" cols="3" pagination="12">
+<dsfr-data-display source="filtered" per-row="3" pagination="12">
   <template>
     <div class="fr-card">
       <div class="fr-card__body">
@@ -3359,7 +3364,7 @@ Les sections suivantes partent d'un symptôme visible. La famille la plus coûte
 aucun : la page rend un résultat plausible et faux. Ce qui reste muet aujourd'hui, une fois
 déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730, #731) :
 - **Grammaire d'attribut ignorée** : le séparateur d'entrées change d'un attribut à l'autre
-  (\`|\` pour \`labels\`, \`display\`, \`cols\` ; \`,\` pour \`split\`, \`round\`, \`fields\` ; \`;\` pour
+  (\`|\` pour \`labels\`, \`display\`, \`span\` ; \`,\` pour \`split\`, \`round\`, \`fields\` ; \`;\` pour
   \`compute\`). Une entrée mal séparée est ignorée sans un mot — seul \`dsfr-data-facets\` avertit
   (#731). Vérifier la grammaire dans la skill \`attributeGrammars\`, jamais de mémoire.
 - **Virgule ou deux-points DANS une valeur** (libellé métier, heure « 10:00 ») : la paire est
@@ -4793,7 +4798,7 @@ la méthode. C'est le gabarit par défaut d'une page publiée.
     group-by="region" aggregate="nb_bornes:sum" order-by="nb_bornes__sum:desc"></dsfr-data-query>
 
   <!-- 3. Chiffres clefs : kpi-group fait SA grille, pas de fr-col autour -->
-  <dsfr-data-kpi-group cols="4" gap="md" class="fr-mb-8v">
+  <dsfr-data-kpi-group per-row="4" gap="md" class="fr-mb-8v">
     <dsfr-data-kpi source="src" value="count" label="Communes équipées"></dsfr-data-kpi>
     <dsfr-data-kpi source="src" value="nb_bornes:sum" label="Bornes installées"></dsfr-data-kpi>
     <dsfr-data-kpi source="src" value="nb_bornes:avg" label="Moyenne par commune" decimals="1"></dsfr-data-kpi>
@@ -4906,8 +4911,8 @@ quand la colonne rétrécit, ce qu'une hauteur en pixels ne fait pas. Défaut : 
     </dsfr-data-map>
   </div>
   <div class="fr-col-12 fr-col-lg-4">
-    <!-- cols="1" : un indicateur par ligne dans une colonne etroite -->
-    <dsfr-data-kpi-group cols="1" gap="md">
+    <!-- per-row="1" : un indicateur par ligne dans une colonne etroite -->
+    <dsfr-data-kpi-group per-row="1" gap="md">
       <dsfr-data-kpi source="src" value="valeur:sum" label="Total"></dsfr-data-kpi>
       <dsfr-data-kpi source="src" value="valeur:avg" label="Moyenne" decimals="1"></dsfr-data-kpi>
     </dsfr-data-kpi-group>
@@ -4918,7 +4923,7 @@ quand la colonne rétrécit, ce qu'une hauteur en pixels ne fait pas. Défaut : 
 ### Pièges de mise en page
 
 - **\`dsfr-data-kpi-group\` fait sa propre grille.** Il dispose ses enfants dans une grille
-  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut \`cols\` et par l'attribut
+  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut \`per-row\` et par l'attribut
   \`col\` de chaque \`dsfr-data-kpi\`. Ne pas l'envelopper dans des \`fr-col-*\`, et ne pas poser
   de classe \`fr-col-*\` sur les KPI enfants : ces classes n'atteignent pas sa grille et ne
   font rien. Tous les autres composants \`dsfr-data-*\` rendent en DOM clair, où les classes

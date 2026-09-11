@@ -42,9 +42,10 @@
               <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-display fields="source,cols,pagination,empty,gap,uid-field,url-sync,url-page-param,idle-message" -->
+              <!-- ATTRS:dsfr-data-display fields="source,per-row,cols,pagination,empty,gap,uid-field,url-sync,url-page-param,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
-                <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur)</td></tr>
+                <tr><td><code>per-row</code></td><td>String</td><td>Nombre d'éléments par ligne à partir de 768 px (en dessous : un par ligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes. Remplace <code>cols</code>, même sens, sans l'ambiguïté du mot sur les autres composants (#790). Prime sur <code>cols</code> s'ils sont posés ensemble.</td></tr>
+                <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur). Même rôle que <code>per-row</code>, qui est préféré : <code>cols</code> désigne une LARGEUR sur <code>dsfr-data-facets</code> (#790). Toujours accepté, avec le même sens.</td></tr>
                 <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'éléments par page (0 = tout afficher)</td></tr>
                 <tr><td><code>empty</code></td><td>String</td><td>Message quand aucune donnee</td></tr>
                 <tr><td><code>gap</code></td><td>String</td><td>Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters)</td></tr>

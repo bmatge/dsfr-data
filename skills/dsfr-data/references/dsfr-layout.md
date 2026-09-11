@@ -233,7 +233,7 @@ la méthode. C'est le gabarit par défaut d'une page publiée.
     group-by="region" aggregate="nb_bornes:sum" order-by="nb_bornes__sum:desc"></dsfr-data-query>
 
   <!-- 3. Chiffres clefs : kpi-group fait SA grille, pas de fr-col autour -->
-  <dsfr-data-kpi-group cols="4" gap="md" class="fr-mb-8v">
+  <dsfr-data-kpi-group per-row="4" gap="md" class="fr-mb-8v">
     <dsfr-data-kpi source="src" value="count" label="Communes équipées"></dsfr-data-kpi>
     <dsfr-data-kpi source="src" value="nb_bornes:sum" label="Bornes installées"></dsfr-data-kpi>
     <dsfr-data-kpi source="src" value="nb_bornes:avg" label="Moyenne par commune" decimals="1"></dsfr-data-kpi>
@@ -346,8 +346,8 @@ quand la colonne rétrécit, ce qu'une hauteur en pixels ne fait pas. Défaut : 
     </dsfr-data-map>
   </div>
   <div class="fr-col-12 fr-col-lg-4">
-    <!-- cols="1" : un indicateur par ligne dans une colonne etroite -->
-    <dsfr-data-kpi-group cols="1" gap="md">
+    <!-- per-row="1" : un indicateur par ligne dans une colonne etroite -->
+    <dsfr-data-kpi-group per-row="1" gap="md">
       <dsfr-data-kpi source="src" value="valeur:sum" label="Total"></dsfr-data-kpi>
       <dsfr-data-kpi source="src" value="valeur:avg" label="Moyenne" decimals="1"></dsfr-data-kpi>
     </dsfr-data-kpi-group>
@@ -358,7 +358,7 @@ quand la colonne rétrécit, ce qu'une hauteur en pixels ne fait pas. Défaut : 
 ### Pièges de mise en page
 
 - **`dsfr-data-kpi-group` fait sa propre grille.** Il dispose ses enfants dans une grille
-  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut `cols` et par l'attribut
+  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut `per-row` et par l'attribut
   `col` de chaque `dsfr-data-kpi`. Ne pas l'envelopper dans des `fr-col-*`, et ne pas poser
   de classe `fr-col-*` sur les KPI enfants : ces classes n'atteignent pas sa grille et ne
   font rien. Tous les autres composants `dsfr-data-*` rendent en DOM clair, où les classes

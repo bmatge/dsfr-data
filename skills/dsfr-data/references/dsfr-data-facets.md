@@ -28,7 +28,7 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | labels | String | `""` | non | Labels custom : `"field:Label \| field2:Label 2"` (pipe-separe) |
 | max-values | Number | `6` | non | Nb de valeurs visibles par facette avant "Voir plus" |
 | disjunctive | String | `""` | non | Champs en mode multi-selection OU (virgule-separes) |
-| sort | String | `"count"` | non | Tri des valeurs, grammaire `critere:sens` (comme order-by) : `count:desc` (défaut, plus frequent d'abord), `count:asc`, `alpha:asc` (A-Z), `alpha:desc` (Z-A). Raccourcis : `count` = count:desc, `alpha` = alpha:asc. **Par champ** (#741) : `"annee:alpha:asc \| categorie:count:desc"` (pipe-separe, comme labels/display/cols) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree `"*:alpha"` change ce défaut. `-count` / `-alpha` deprecies (warn console) — ne plus les generer |
+| sort | String | `"count"` | non | Tri des valeurs, grammaire `critere:sens` (comme order-by) : `count:desc` (défaut, plus frequent d'abord), `count:asc`, `alpha:asc` (A-Z), `alpha:desc` (Z-A). Raccourcis : `count` = count:desc, `alpha` = alpha:asc. **Par champ** (#741) : `"annee:alpha:asc \| categorie:count:desc"` (pipe-separe, comme labels/display/span) — une facette d'annees rangee A-Z pendant qu'une facette de categories reste rangee par frequence, sans dupliquer le composant. Un champ non nomme garde le défaut ; l'entree `"*:alpha"` change ce défaut. `-count` / `-alpha` deprecies (warn console) — ne plus les generer |
 | searchable | String | `""` | non | Champs avec barre de recherche (virgule-separes) |
 | hide-empty | Boolean | `false` | non | Masquer les facettes avec une seule valeur |
 | display | String | `""` | non | Mode d'affichage par facette : `"field:select \| field2:multiselect"`. Modes : checkbox (défaut), select, multiselect, radio (dropdown a radios), radio-inline (radios visibles en ligne + « Tous ») |
@@ -39,7 +39,9 @@ Sortie : même tableau, filtre selon les selections de l'utilisateur.
 | url-sync | Boolean | `false` | non | Synchronise l'URL quand l'utilisateur change les facettes (replaceState) |
 | server-facets | Boolean | `false` | non | Active le mode facettes serveur ODS. Fetch les valeurs depuis l'API ODS /facets. Requiert une source dsfr-data-source api-type="opendatasoft" server-side (directement ou via un dsfr-data-query, qui relaie automatiquement). Sans fields, les facettes declarees par le jeu sont decouvertes au premier cycle (ODS : metadonnees du jeu ; Grist : colonnes Choice/ChoiceList) ; une facette de type date (valeurs par annee) est filtree par intervalle (#680, #676) |
 | static-values | String | `""` | non | Valeurs de facettes pre-calculees en JSON : `'{"region":["IDF","PACA"],"type":["Commune"]}')`. Les selections envoient des commandes WHERE en colon syntax au dsfr-data-query. Compteurs masques automatiquement. Utile pour Tabular/Grist/generique qui n'ont pas d'API facettes serveur |
-| cols | String | `""` | non | Colonnage DSFR : `"6"` (global, 2/ligne), `"4"` (3/ligne), ou par facette `"region:4 \| type:6"` (défaut fr-col-6 pour non-specifies) |
+| span | String | `""` | non | **Largeur** des facettes sur la grille de 12 (#790) : `"6"` (global, 2/ligne), `"4"` (3/ligne), ou par facette `"region:4 \| type:6"` (défaut 6 pour les non nommées). Pleine largeur sous 768 px |
+| per-row | String | `""` | non | **Nombre** de facettes par ligne (1, 2, 3, 4, 6, 12) ; combinable avec `span` par facette (la facette nommée garde sa largeur) |
+| cols | String | `""` | non | Ancien nom de `span`, même sens (une LARGEUR) — toujours accepté. Ne plus le générer : sur display et kpi-group, `cols` compte des éléments, d'où l'ambiguïté |
 | context | String | `""` | non | Id d'un dsfr-data-context (#678, ADR-104) : la facette devient un filtre du contexte, un par champ. Le contexte diffuse a toutes ses sources cibles (au dialecte de chacune), porte l'URL (url-sync / url-params de la facette ignores) et alimente context-tags. Valeurs, compteurs et cascade restent calcules sur `source`. Vide = mode autonome (commande directe a `source`) |
 | no-reset | Boolean | `false` | non | Masque le bouton local « Réinitialiser les filtres » (#679, #640) : a poser quand un context-tags clear-all fait office de « tout effacer », ou pour qu'une colonne de facettes ne change pas de hauteur a la premiere selection |
 
@@ -116,12 +118,12 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 <!-- Colonnage DSFR des facettes -->
 <dsfr-data-facets id="filtered" source="clean"
   fields="region, departement, statut"
-  cols="region:6 | departement:4 | statut:12">
+  span="region:6 | departement:4 | statut:12">
 </dsfr-data-facets>
 
 <!-- Colonnage global (toutes en col-6 = 2 par ligne) -->
 <dsfr-data-facets id="filtered" source="clean"
-  fields="region, type, statut" cols="6">
+  fields="region, type, statut" span="6">
 </dsfr-data-facets>
 
 <!-- Facettes serveur ODS (server-facets) -->
@@ -135,7 +137,7 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   fields="region, catégorie"
   labels="region:Region | catégorie:Catégorie">
 </dsfr-data-facets>
-<dsfr-data-display source="filtered" cols="3" pagination="20">
+<dsfr-data-display source="filtered" per-row="3" pagination="20">
   <template>...</template>
 </dsfr-data-display>
 ```
@@ -158,10 +160,12 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 | `labels` | `string` | `""` (vide) | Labels custom : "field:Label \| field2:Label 2" |
 | `max-values` | `number` | `6` | Nb de valeurs visibles par facette avant "Voir plus" |
 | `no-reset` | `boolean` | `false` | Masque le bouton local « Réinitialiser les filtres » (#679, #640 pt 9). À poser quand un dsfr-data-context-tags clear-all fait office de « tout effacer » pour la page (mode `context`), ou pour qu'une colonne de facettes ne change pas de hauteur à la première sélection. |
+| `per-row` | `string` | `""` (vide) | Nombre de facettes par ligne à partir de 768 px (en dessous : une par ligne) — 1, 2, 3, 4, 6 ou 12. Se combine avec `span` par facette : une facette nommée dans `span` garde sa largeur, les autres se partagent la ligne selon `per-row` (#790). |
 | `searchable` | `string` | `""` (vide) | Champs avec barre de recherche (virgule-séparés) |
 | `server-facets` | `boolean` | `false` | Active le mode facettes serveur ODS. Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement. Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side. Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type date (valeurs par année) sont filtrées par intervalle et non par égalité (#676). |
 | `sort` | `string` | `'count'` | Tri des valeurs de chaque facette, grammaire `critere:sens` alignée sur `order-by` de dsfr-data-query (#645) : - `count:desc` (défaut) : du plus fréquent au plus rare - `count:asc` : du plus rare au plus fréquent - `alpha:asc` : A -> Z (collation française) - `alpha:desc` : Z -> A Raccourcis : `count` = `count:desc`, `alpha` = `alpha:asc`. Formes `-count` / `-alpha` DÉPRÉCIÉES : conservées à l'identique (`-count` = rare d'abord, `-alpha` = Z -> A) mais un avertissement console invite a passer a la forme explicite ; retrait dans une version majeure. Tri PAR CHAMP (#741), même grammaire à barre verticale que `labels`, `display` et `cols` : `champ:critere[:sens]`, par exemple `sort="annee:alpha:asc \| categorie:count:desc"`. Une facette d'années se range alphabétiquement pendant qu'une facette de catégories reste rangée par fréquence, sans dupliquer le composant. Un champ non nommé garde le tri par défaut ; l'entrée `*:critere[:sens]` change ce défaut (`sort="*:alpha \| annee:count:desc"`). |
 | `source` | `string` | `""` (vide) | ID de la source de données a ecouter |
+| `span` | `string` | `""` (vide) | Largeur des facettes sur la grille de 12 colonnes, à partir de 768 px : `"6"` pour toutes, ou `"annee:3 \| categorie:6"` par facette. Remplace `cols`, même sens et même grammaire, sans l'ambiguïté du mot : sur `dsfr-data-display` et `dsfr-data-kpi-group`, `cols` compte des éléments par ligne (#790). Prime sur `cols` s'ils sont posés ensemble. |
 | `static-values` | `string` | `""` (vide) | Valeurs de facettes pre-calculees (JSON). Format: {"field": ["val1", "val2"], "field2": ["a", "b"]} Quand cet attribut est défini, les facettes utilisent ces valeurs sans les calculer depuis les données. Les selections envoient des commandes WHERE en colon syntax (compatible Tabular / generique) au dsfr-data-query en amont. Attribut fields requis (pas d'auto-detection). |
 | `url-param-map` | `string` | `""` (vide) | Mapping URL param -> champ facette : "param:field \| param2:field2". Si vide, correspondance directe |
 | `url-params` | `boolean` | `false` | Active la lecture des paramètres d'URL comme pré-sélections de facettes. Sans `url-param-map`, seuls les paramètres qui portent le nom d'une facette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) — jamais n'importe quelle colonne des données (#773). Dès qu'un `dsfr-data-context` est présent, préférer `context="id"` : le contexte porte alors l'URL, un paramètre par champ, et `url-params` est ignoré. Un paramètre lu à la fois par une facette autonome et par un contexte à `url-sync` est une erreur de configuration. |

@@ -32,7 +32,8 @@ Attend un tableau d'objets. L'attribut `valeur` determine comment extraire/agré
 | color-token | String | `""` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : `color`, `couleur` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : `seuil-vert` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : `seuil-orange` |
-| col | Number | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un `<dsfr-data-kpi-group>` |
+| span | String | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un `<dsfr-data-kpi-group>` (#790) |
+| col | Number | - | non | Ancien nom de `span`, même sens — toujours accepté, ne plus le générer |
 
 Fonctions acceptées dans `value`, `trend` et `lines` : avg, sum, count, min, max, first, last,
 distinct (alias `count-distinct`), evolution.
@@ -118,13 +119,13 @@ avant `limit` derrière un query, nombre de lignes sur une source non paginée.
 ### Grouper des KPIs : `<dsfr-data-kpi-group>`
 Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsive :
 ```html
-<dsfr-data-kpi-group cols="3">
-  <dsfr-data-kpi source="data" valeur="sum:population" label="Population totale" col="6"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="avg:score" label="Score moyen" col="3"></dsfr-data-kpi>
-  <dsfr-data-kpi source="data" valeur="count" label="Nombre" col="3"></dsfr-data-kpi>
+<dsfr-data-kpi-group per-row="3">
+  <dsfr-data-kpi source="data" valeur="sum:population" label="Population totale" span="6"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="avg:score" label="Score moyen" span="3"></dsfr-data-kpi>
+  <dsfr-data-kpi source="data" valeur="count" label="Nombre" span="3"></dsfr-data-kpi>
 </dsfr-data-kpi-group>
 ```
-- `cols` : nombre de colonnes par défaut (chaque KPI occupe 12/cols colonnes)
+- `per-row` : nombre de KPI par ligne (chaque KPI occupe 12/per-row colonnes) ; `span` sur un KPI fixe sa largeur. `cols` / `col` : anciens noms, même sens, toujours acceptés (#790)
 - `col` sur chaque dsfr-data-kpi : override individuel (1-12)
 - `gap` : espacement entre KPIs (sm, md, lg)
 - Responsive automatique : empile en mobile
@@ -196,7 +197,7 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `col` | `number \| undefined` | — | Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>. |
+| `col` | `number \| undefined` | — | Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>. Même rôle que `span`, qui est préféré (#790) ; toujours accepté. |
 | `color` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias de `color-token` (#367) — le nom `color` évoque l'attribut de présentation HTML déprécié (faux positif d'audit RGAA 10.1.2) |
 | `color-token` | `KpiColor \| ''` | `""` (vide) | Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu |
 | `couleur` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `color-token` (#300) |
@@ -212,6 +213,7 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `seuil-orange` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-orange` (#300) |
 | `seuil-vert` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-green` (#300) |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si `value` est un littéral (`value="=667"`). |
+| `span` | `string` | `""` (vide) | Largeur sur la grille de 12 colonnes (1-12), dans un <dsfr-data-kpi-group> : `span="6"` occupe la moitié de la ligne. Remplace `col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble. |
 | `tendance` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `trend` (#300) |
 | `threshold-green` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est verte |
 | `threshold-orange` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est orange |

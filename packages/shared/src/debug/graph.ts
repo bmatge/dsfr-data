@@ -115,7 +115,7 @@ export const SHAPE_ATTRS: Record<string, string[]> = {
   'dsfr-data-list': ['columns', 'columns-auto', 'search', 'pagination', 'server-sort'],
   'dsfr-data-kpi': ['value', 'label', 'format', 'unit'],
   'dsfr-data-podium': ['label-field', 'value-field', 'max-items'],
-  'dsfr-data-display': ['cols', 'pagination', 'uid-field'],
+  'dsfr-data-display': ['per-row', 'cols', 'pagination', 'uid-field'],
   'dsfr-data-map-layer': ['type', 'lat-field', 'lon-field', 'geo-field'],
   'dsfr-data-a11y': ['label-field', 'value-field', 'for', 'table'],
 };

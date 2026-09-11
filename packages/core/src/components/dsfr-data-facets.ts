@@ -10,6 +10,12 @@ import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { joinWhere, escapeColonValue } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
 import { warnSuspectSeparator } from '../utils/attr-separators.js';
+import {
+  parsePerRow,
+  spanForPerRow,
+  legacyConflictMessage,
+  syncLayoutError,
+} from '../utils/grid-layout.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
@@ -302,6 +308,28 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   cols = '';
 
   /**
+   * Largeur des facettes sur la grille de 12 colonnes, à partir de 768 px :
+   * `"6"` pour toutes, ou `"annee:3 | categorie:6"` par facette. Remplace
+   * `cols`, même sens et même grammaire, sans l'ambiguïté du mot : sur
+   * `dsfr-data-display` et `dsfr-data-kpi-group`, `cols` compte des éléments
+   * par ligne (#790). Prime sur `cols` s'ils sont posés ensemble.
+   */
+  @property({ type: String })
+  span = '';
+
+  /**
+   * Nombre de facettes par ligne à partir de 768 px (en dessous : une par
+   * ligne) — 1, 2, 3, 4, 6 ou 12. Se combine avec `span` par facette : une
+   * facette nommée dans `span` garde sa largeur, les autres se partagent la
+   * ligne selon `per-row` (#790).
+   */
+  @property({ type: String, attribute: 'per-row' })
+  perRow = '';
+
+  /** Erreur de colonnage posée par ce composant (#790). */
+  private _layoutError: string | null = null;
+
+  /**
    * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette
    * devient alors un filtre du contexte, un par champ : c'est le contexte
    * qui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et
@@ -492,6 +520,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   updated(changed: Map<PropertyKey, unknown>) {
     super.updated(changed);
     this._checkUrlParamConflicts();
+    if (changed.has('span') || changed.has('perRow') || changed.has('cols')) {
+      this._syncLayoutError();
+    }
     if (this._weightUnsupported) {
       const message =
         `weight-field="${this._weightField}" n'est pas disponible en mode server-facets ` +
@@ -531,6 +562,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       'searchable',
       'display',
       'cols',
+      'span',
+      'perRow',
     ];
   }
 
@@ -1625,8 +1658,15 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   /** Parse cols attribute: returns global col size or per-field map */
   _parseCols(): { global: number } | { map: Map<string, number>; fallback: number } | null {
-    if (!this.cols) return null;
-    const trimmed = this.cols.trim();
+    return this._parseWidths(this.cols);
+  }
+
+  /** Grammaire commune de `cols` et `span` : global ou carte par champ. */
+  private _parseWidths(
+    raw: string
+  ): { global: number } | { map: Map<string, number>; fallback: number } | null {
+    if (!raw) return null;
+    const trimmed = String(raw).trim();
     // Single number = global
     if (/^\d+$/.test(trimmed)) {
       return { global: parseInt(trimmed, 10) };
@@ -1654,10 +1694,48 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * sur téléphone (mesuré dans Chromium, DSFR 1.14.4).
    */
   _getColClass(field: string): string {
-    const cols = this._parseCols();
-    if (!cols) return '';
-    const width = 'global' in cols ? cols.global : (cols.map.get(field) ?? cols.fallback);
+    const width = this._widthFor(field);
+    if (width === null) return '';
     return Number(width) >= 12 ? 'fr-col-12' : `fr-col-12 fr-col-md-${width}`;
+  }
+
+  /**
+   * Largeur sur 12 d'une facette (#790) : `span` (global ou par champ), sinon
+   * `per-row`, sinon — si aucun des deux n'est posé — l'ancien `cols`.
+   * `null` : grille automatique.
+   */
+  private _widthFor(field: string): number | null {
+    const span = this._parseWidths(this.span);
+    const perRow = parsePerRow(this.perRow, 12).value;
+    if (span || perRow !== null) {
+      if (span && 'global' in span) return span.global;
+      const named = span && 'map' in span ? span.map.get(field) : undefined;
+      if (named !== undefined) return named;
+      if (perRow !== null) return spanForPerRow(perRow);
+      return span && 'map' in span ? span.fallback : null;
+    }
+    const cols = this._parseCols();
+    if (!cols) return null;
+    return 'global' in cols ? cols.global : (cols.map.get(field) ?? cols.fallback);
+  }
+
+  /** `per-row` ou `span` invalides, ou posés avec `cols` (#790). */
+  private _syncLayoutError(): void {
+    const perRow = parsePerRow(this.perRow, 12);
+    const span = this._parseWidths(this.span);
+    const widths = span ? ('global' in span ? [span.global] : [...span.map.values()]) : [];
+    const badSpan = widths.find((w) => !Number.isInteger(w) || w < 1 || w > 12);
+    const modern = perRow.value !== null || span !== null;
+    const message =
+      perRow.error ??
+      (this.span && !span
+        ? `span="${this.span}" : attendu une largeur de 1 à 12, ou "champ:4 | champ2:6"`
+        : badSpan !== undefined
+          ? `span="${this.span}" : largeur ${badSpan} hors de la grille (1 à 12 colonnes)`
+          : modern && this.cols
+            ? legacyConflictMessage('cols', this.span ? 'span' : 'per-row')
+            : null);
+    this._layoutError = syncLayoutError(this, 'dsfr-data-facets', message, this._layoutError);
   }
 
   // --- User interaction ---
@@ -2183,7 +2261,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
         `
       : nothing;
 
-    const useDsfrGrid = !!this.cols;
+    const useDsfrGrid = !!(this.cols || this.span || this.perRow);
 
     return html`
       <style>
