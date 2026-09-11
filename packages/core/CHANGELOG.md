@@ -1,5 +1,19 @@
 # dsfr-data
 
+## 0.29.1
+
+### Patch Changes
+
+- [#823](https://github.com/bmatge/dsfr-data/pull/823) [`9f0fdc4`](https://github.com/bmatge/dsfr-data/commit/9f0fdc494d211acf70830929d4f95119210748e8) Thanks [@bmatge](https://github.com/bmatge)! - Corrige une régression de la 0.29.0 : dans un `dsfr-data-kpi-group`, tous les KPI
+  retombaient en `grid-column: auto` au-dessus de 768 px, soit une colonne sur douze
+  chacun (douze par ligne, ~70 px de large). `per-row` comme `cols` (historique)
+  étaient touchés ; le rendu mobile, lui, restait correct.
+  
+  La propriété `span` de `dsfr-data-kpi` ([#790](https://github.com/bmatge/dsfr-data/issues/790)) était reflétée avec une valeur
+  initiale vide : chaque KPI portait donc `span=""`, ce qui désactivait la règle de
+  largeur par défaut du groupe (`::slotted(*:not([col]):not([span]))`). Elle n'a plus
+  de valeur par défaut, comme `col`. ([#822](https://github.com/bmatge/dsfr-data/issues/822))
+
 ## 0.29.0
 
 ### Minor Changes
