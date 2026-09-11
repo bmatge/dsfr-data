@@ -1,7 +1,7 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
-import { dispatchSourceCommand } from '../utils/data-bridge.js';
+import { dispatchSourceCommand, getDataCache } from '../utils/data-bridge.js';
 import { filterToOdsql } from '../utils/where.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
@@ -208,11 +208,96 @@ export class DsfrDataContext extends LitElement {
    */
   _applyFilter(filter: ContextFilterLike, colonWhere: string): void {
     const whereKey = this._registerFilter(filter);
-    for (const sourceId of this._targetsFor(filter)) {
+    const targets = this._targetsFor(filter);
+    // Champ absent d'une source cible (#805) : seulement quand on SAIT — la
+    // liberation d'un filtre (where vide) part toujours vers toutes les cibles.
+    const missing = colonWhere
+      ? targets.filter((id) => this._fieldMissingOn(id, filter.field))
+      : [];
+    const reached = targets.filter((id) => !missing.includes(id));
+    this._reportMissingField(filter, missing, reached.length === 0 && missing.length > 0);
+    for (const sourceId of reached) {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
       dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
     }
+    // Une cible exclue garde le where precedent de ce filtre s'il y en avait
+    // un : on le libere, pour qu'elle ne reste pas filtree sur une valeur
+    // perimee.
+    for (const sourceId of missing) {
+      dispatchSourceCommand(sourceId, { where: '', whereKey, origin: this.id });
+    }
     if (!this._batching) this._notifyChange();
+  }
+
+  /**
+   * Le champ est-il ABSENT de la source, a coup sur (#805) ?
+   *
+   * On ne le sait que pour une `dsfr-data-source` sans `select`, `group-by`
+   * ni `aggregate` : ses lignes portent alors tout le schema. Avec une
+   * selection de colonnes, un champ absent des lignes peut exister cote API
+   * (Opendatasoft filtre sur une colonne non selectionnee) : on ne tranche
+   * pas. Tant que la source n'a rien emis, on ne sait rien non plus : le
+   * filtre est diffuse et l'API repondra — un retour franc plutot qu'une
+   * attente qui pourrait figer la page.
+   */
+  private _fieldMissingOn(sourceId: string, field: string): boolean {
+    if (!field) return false;
+    const el = document.getElementById(sourceId);
+    if (!el || el.tagName.toLowerCase() !== 'dsfr-data-source') return false;
+    const restricted = ['select', 'group-by', 'aggregate'].some((attr) => {
+      const prop = attr === 'group-by' ? 'groupBy' : attr;
+      const value = (el as unknown as Record<string, unknown>)[prop] ?? el.getAttribute(attr);
+      return typeof value === 'string' && value.trim() !== '';
+    });
+    if (restricted) return false;
+    const data = getDataCache(sourceId);
+    const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+    if (rows.length === 0) return false;
+    const root = field.split('.')[0];
+    for (const row of rows.slice(0, 200)) {
+      if (row && typeof row === 'object' && root in row) return false;
+    }
+    return true;
+  }
+
+  /** Champs deja signales en console, par filtre et source (un message par situation). */
+  private _missingWarned = new Set<string>();
+  /** Erreur « champ absent de toutes les cibles » posee par filtre. */
+  private _missingErrors = new Map<ContextFilterLike, string>();
+
+  /**
+   * Signale un champ absent (#805) :
+   * - d'UNE partie des cibles : la cible est exclue, avec un message console ;
+   * - de TOUTES les cibles : erreur de configuration nommee, sur l'element
+   *   du filtre (ou le contexte, pour un filtre sans element) — au lieu du
+   *   HTTP 400 que l'API aurait renvoye.
+   */
+  private _reportMissingField(filter: ContextFilterLike, missing: string[], all: boolean): void {
+    for (const sourceId of missing) {
+      const key = `${filter.field}@${sourceId}`;
+      if (all || this._missingWarned.has(key)) continue;
+      this._missingWarned.add(key);
+      console.warn(
+        `dsfr-data-context[${this.id}]: le champ "${filter.field}" n'existe pas sur la source ` +
+          `"${sourceId}" — cette source n'est pas filtrée par lui (les autres cibles le sont).`
+      );
+    }
+    const host = filter instanceof HTMLElement ? filter : this;
+    const previous = this._missingErrors.get(filter);
+    if (all) {
+      const message =
+        `le champ "${filter.field}" n'existe sur aucune des sources visées par le contexte ` +
+        `"${this.id}" (${missing.join(', ')}) — colonne calculée en aval (compute) ? Un filtre de ` +
+        `contexte est délégué aux sources : le poser sur une colonne qu'elles portent, ou filtrer ` +
+        `en aval (facette autonome chaînée, bornée par url-param-map).`;
+      if (host.getAttribute('data-dsfr-config-error') !== message) {
+        reportConfigError(host, 'dsfr-data-context', message);
+      }
+      this._missingErrors.set(filter, message);
+    } else if (previous) {
+      if (host.getAttribute('data-dsfr-config-error') === previous) clearConfigError(host);
+      this._missingErrors.delete(filter);
+    }
   }
 
   /** URL (si url-sync) puis notification des observateurs (dsfr-data-context-tags, #232) */

@@ -339,7 +339,8 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * Le contexte délègue chaque sélection aux sources qu'il vise : le champ
    * doit donc exister SUR CES SOURCES. Une facette sur une colonne calculée
    * en aval (`compute` d'un normalize) ne peut pas passer par le contexte —
-   * l'API répondrait 400 ; la garder autonome, chaînée en aval, avec un
+   * c'est une erreur de configuration nommée quand le contexte le sait (#805),
+   * un HTTP 400 de l'API sinon ; la garder autonome, chaînée en aval, avec un
    * `url-param-map` qui borne sa lecture d'URL (#773).
    */
   @property({ type: String })

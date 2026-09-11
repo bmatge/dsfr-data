@@ -2655,7 +2655,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la\nconnaît. Le filtre y est délégué et s'applique avant tout regroupement\n(ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat\n(`montant__sum`), ni une colonne calculée en aval (`compute` d'un\n`dsfr-data-normalize`) n'existent à ce stade — l'API répond 400.",
+              "description": "Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la\nconnaît. Le filtre y est délégué et s'applique avant tout regroupement\n(ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat\n(`montant__sum`), ni une colonne calculée en aval (`compute` d'un\n`dsfr-data-normalize`) n'existent à ce stade. Quand le contexte sait\nque la colonne manque (source sans `select` ni `group-by`, déjà chargée,\n#805) : absente de toutes les sources visées, erreur de configuration\nnommée et rien n'est diffusé ; absente de certaines seulement, ces\nsources sont exclues du filtre, avec un message console. Sinon le\nfiltre part, et l'API répond (HTTP 400 si la colonne n'existe pas).",
               "attribute": "field"
             },
             {
@@ -2955,7 +2955,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la\nconnaît. Le filtre y est délégué et s'applique avant tout regroupement\n(ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat\n(`montant__sum`), ni une colonne calculée en aval (`compute` d'un\n`dsfr-data-normalize`) n'existent à ce stade — l'API répond 400.",
+              "description": "Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la\nconnaît. Le filtre y est délégué et s'applique avant tout regroupement\n(ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat\n(`montant__sum`), ni une colonne calculée en aval (`compute` d'un\n`dsfr-data-normalize`) n'existent à ce stade. Quand le contexte sait\nque la colonne manque (source sans `select` ni `group-by`, déjà chargée,\n#805) : absente de toutes les sources visées, erreur de configuration\nnommée et rien n'est diffusé ; absente de certaines seulement, ces\nsources sont exclues du filtre, avec un message console. Sinon le\nfiltre part, et l'API répond (HTTP 400 si la colonne n'existe pas).",
               "fieldName": "field"
             },
             {
@@ -3597,6 +3597,76 @@
                 }
               ],
               "description": "Diffusion d'un filtre : recompose le where AU DIALECTE de chaque source\n(colon natif ; traduit en ODSQL via la couche partagée #275 quand\nl'adapter l'exige) et l'émet sur le whereKey du filtre."
+            },
+            {
+              "kind": "method",
+              "name": "_fieldMissingOn",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Le champ est-il ABSENT de la source, a coup sur (#805) ?\n\nOn ne le sait que pour une `dsfr-data-source` sans `select`, `group-by`\nni `aggregate` : ses lignes portent alors tout le schema. Avec une\nselection de colonnes, un champ absent des lignes peut exister cote API\n(Opendatasoft filtre sur une colonne non selectionnee) : on ne tranche\npas. Tant que la source n'a rien emis, on ne sait rien non plus : le\nfiltre est diffuse et l'API repondra — un retour franc plutot qu'une\nattente qui pourrait figer la page."
+            },
+            {
+              "kind": "field",
+              "name": "_missingWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Champs deja signales en console, par filtre et source (un message par situation)."
+            },
+            {
+              "kind": "field",
+              "name": "_missingErrors",
+              "privacy": "private",
+              "default": "new Map<ContextFilterLike, string>()",
+              "description": "Erreur « champ absent de toutes les cibles » posee par filtre."
+            },
+            {
+              "kind": "method",
+              "name": "_reportMissingField",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "filter",
+                  "type": {
+                    "text": "ContextFilterLike"
+                  }
+                },
+                {
+                  "name": "missing",
+                  "type": {
+                    "text": "string[]"
+                  }
+                },
+                {
+                  "name": "all",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Signale un champ absent (#805) :\n- d'UNE partie des cibles : la cible est exclue, avec un message console ;\n- de TOUTES les cibles : erreur de configuration nommee, sur l'element\n  du filtre (ou le contexte, pour un filtre sans element) — au lieu du\n  HTTP 400 que l'API aurait renvoye."
             },
             {
               "kind": "method",
@@ -4855,7 +4925,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).\nLe contexte délègue chaque sélection aux sources qu'il vise : le champ\ndoit donc exister SUR CES SOURCES. Une facette sur une colonne calculée\nen aval (`compute` d'un normalize) ne peut pas passer par le contexte —\nl'API répondrait 400 ; la garder autonome, chaînée en aval, avec un\n`url-param-map` qui borne sa lecture d'URL (#773).",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).\nLe contexte délègue chaque sélection aux sources qu'il vise : le champ\ndoit donc exister SUR CES SOURCES. Une facette sur une colonne calculée\nen aval (`compute` d'un normalize) ne peut pas passer par le contexte —\nc'est une erreur de configuration nommée quand le contexte le sait (#805),\nun HTTP 400 de l'API sinon ; la garder autonome, chaînée en aval, avec un\n`url-param-map` qui borne sa lecture d'URL (#773).",
               "attribute": "context"
             },
             {
@@ -6586,7 +6656,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).\nLe contexte délègue chaque sélection aux sources qu'il vise : le champ\ndoit donc exister SUR CES SOURCES. Une facette sur une colonne calculée\nen aval (`compute` d'un normalize) ne peut pas passer par le contexte —\nl'API répondrait 400 ; la garder autonome, chaînée en aval, avec un\n`url-param-map` qui borne sa lecture d'URL (#773).",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).\nLe contexte délègue chaque sélection aux sources qu'il vise : le champ\ndoit donc exister SUR CES SOURCES. Une facette sur une colonne calculée\nen aval (`compute` d'un normalize) ne peut pas passer par le contexte —\nc'est une erreur de configuration nommée quand le contexte le sait (#805),\nun HTTP 400 de l'API sinon ; la garder autonome, chaînée en aval, avec un\n`url-param-map` qui borne sa lecture d'URL (#773).",
               "fieldName": "context"
             },
             {

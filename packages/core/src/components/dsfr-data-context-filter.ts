@@ -194,7 +194,12 @@ export class DsfrDataContextFilter extends LitElement {
    * connaît. Le filtre y est délégué et s'applique avant tout regroupement
    * (ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat
    * (`montant__sum`), ni une colonne calculée en aval (`compute` d'un
-   * `dsfr-data-normalize`) n'existent à ce stade — l'API répond 400.
+   * `dsfr-data-normalize`) n'existent à ce stade. Quand le contexte sait
+   * que la colonne manque (source sans `select` ni `group-by`, déjà chargée,
+   * #805) : absente de toutes les sources visées, erreur de configuration
+   * nommée et rien n'est diffusé ; absente de certaines seulement, ces
+   * sources sont exclues du filtre, avec un message console. Sinon le
+   * filtre part, et l'API répond (HTTP 400 si la colonne n'existe pas).
    */
   @property({ type: String })
   field = '';
