@@ -11,6 +11,7 @@ import {
   jsStringLiteral,
   DSFR_COLORS,
   isValidDeptCode,
+  normalizeDeptCode,
   LIB_URL,
   CDN_URLS,
   detectProvider,
@@ -356,8 +357,9 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
       // aca : noms d'academie majuscules ; monde : ISO alpha-2
       // (la conversion a3/num est faite par dsfr-data-chart, pas ici)
       code = code.toUpperCase();
-    } else if (/^\d+$/.test(code) && code.length < 3) {
-      code = code.padStart(2, '0');
+    } else {
+      // Normalisation partagee (#610, #766) : padding et zero de tete en trop.
+      code = normalizeDeptCode(code);
     }
     const value = d.value || 0;
     if (config.type === 'map' ? isValidDeptCode(code) : code !== '') {

@@ -223,6 +223,23 @@ describe('#648 — dsfr-data-chart : cartes map* comptent les codes invalides', 
     expect(chart.getSkippedCount()).toBe(1);
   });
 
+  it('#766 — des codes à zéro de tête en trop sont dessinés, pas comptés', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Un jeu qui publie ses départements sur trois caractères vidait la carte.
+    const chart = mapChart('map', [
+      { code: '059', val: 1 },
+      { code: '02A', val: 2 },
+      { code: '0971', val: 3 },
+      { code: '075', val: 4 },
+    ]);
+
+    const data = JSON.parse((chart as unknown as ChartInternals)._processMapData());
+
+    expect(Object.keys(data).sort()).toEqual(['2A', '59', '75', '971']);
+    expect(chart.getSkippedCount()).toBe(0);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   it('tout valide : zéro et aucun warn', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const chart = mapChart('map', [{ code: '75', val: 1 }]);
