@@ -6997,7 +6997,7 @@
                   }
                 }
               ],
-              "description": "Des lignes du cote CONSERVE n'ont pas de correspondance (#792). Le volet\nDiagnostic affiche le taux depuis #660, mais n'alertait que sous 50 % : a\n98 lignes sur 101, un `inner` rendait un total plausible et faux, sans un\nmot. Avertit :\n- toujours pour `inner`, qui RETIRE ces lignes du resultat ;\n- pour `left` / `right` / `full` seulement si l'ecart est un ecart de\n  graphie (`1` face a `01`) : ailleurs, une ligne sans correspondance est\n  souvent legitime (enrichissement partiel) et le taux suffit."
+              "description": "Des lignes du cote CONSERVE n'ont pas de correspondance (#792). Le volet\nDiagnostic affiche le taux depuis #660, mais n'alertait que sous 50 % : a\n98 lignes sur 101, un `inner` rendait un total plausible et faux, sans un\nmot. Avertit :\n- pour `inner`, qui RETIRE ces lignes du resultat — sauf jointure-filtre\n  contre une source d'une ligne (#816), ou retirer est le but ;\n- pour `left` / `right` / `full` seulement si l'ecart est un ecart de\n  graphie (`1` face a `01`) : ailleurs, une ligne sans correspondance est\n  souvent legitime (enrichissement partiel) et le taux suffit."
             },
             {
               "kind": "method",

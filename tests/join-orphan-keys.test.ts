@@ -134,7 +134,8 @@ describe('#792 — avertissement console du composant', () => {
     const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mount('inner', 'c');
     dispatchDataLoaded('es', [{ c: 'A' }, { c: 'B' }]);
-    dispatchDataLoaded('popdep', [{ c: 'A' }]);
+    // Deux lignes à droite : une ligne unique ferait une jointure-filtre (#816).
+    dispatchDataLoaded('popdep', [{ c: 'A' }, { c: 'Z' }]);
 
     const warns = joinWarns(spy);
     expect(warns).toHaveLength(1);
@@ -202,5 +203,78 @@ describe('#792 — trace du volet Diagnostic', () => {
     expect(text).toContain('clés droite sans correspondance : "01", "02"');
     expect(text).toContain('à la graphie près');
     expect(summarizeTrace(trace).alerts).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('#816 — jointure-filtre contre une source d’une ligne', () => {
+  // Constat AM-080 du banc (portrait de fédération, data.sports.gouv.fr) :
+  // « ne garder que le dernier millésime » s'écrit par une source d'une ligne
+  // (`select="max(year(annee)) as an"`) et un inner join. Retirer les autres
+  // années est le but ; #792 le présentait comme une perte de données.
+  const IDS = ['toutes', 'derniere', 'jf'];
+  let el: DsfrDataJoin | undefined;
+  afterEach(() => {
+    el?.remove();
+    el = undefined;
+    for (const id of IDS) {
+      clearDataCache(id);
+      clearDataMeta(id);
+    }
+  });
+  const annees = () =>
+    ['2022', '2023', '2024'].flatMap((an) => [
+      { an, dep: '01' },
+      { an, dep: '02' },
+    ]);
+
+  function mountFilter(): DsfrDataJoin {
+    el = new DsfrDataJoin();
+    el.id = 'jf';
+    el.left = 'toutes';
+    el.right = 'derniere';
+    el.on = 'an';
+    el.type = 'inner';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  it('aucun avertissement, et seules les lignes du dernier millésime restent', () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const join = mountFilter();
+    dispatchDataLoaded('toutes', annees());
+    dispatchDataLoaded('derniere', [{ an: '2024' }]);
+    expect(join.getData()).toHaveLength(2);
+    expect(spy.mock.calls.filter((c) => String(c[0]).startsWith('dsfr-data-join'))).toHaveLength(0);
+  });
+
+  it('un écart de graphie reste signalé, même contre une ligne', () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mountFilter();
+    dispatchDataLoaded('toutes', [{ an: '1' }, { an: '2' }]);
+    dispatchDataLoaded('derniere', [{ an: '01' }]);
+    const warns = spy.mock.calls.filter((c) => String(c[0]).startsWith('dsfr-data-join'));
+    expect(warns).toHaveLength(1);
+    expect(String(warns[0][0])).toContain('zéro de tête');
+  });
+
+  it('le volet Diagnostic ne compte pas d’alerte et nomme la jointure-filtre', () => {
+    const host = document.createElement('div');
+    host.innerHTML = `
+      <dsfr-data-source id="toutes" api-type="opendatasoft" dataset-id="a"></dsfr-data-source>
+      <dsfr-data-source id="derniere" api-type="opendatasoft" dataset-id="a"></dsfr-data-source>
+      <dsfr-data-join id="jf" left="toutes" right="derniere" on="an" type="inner"></dsfr-data-join>`;
+    document.body.appendChild(host);
+    const recorder = new DataflowRecorder({ root: document.body });
+    recorder.start();
+    dispatchDataLoaded('toutes', annees());
+    dispatchDataLoaded('derniere', [{ an: '2024' }]);
+    const trace = recorder.snapshot();
+    recorder.stop();
+    host.remove();
+    const text = formatTrace(trace);
+    expect(text).toContain('appariement : 2 / 6');
+    expect(text).toContain('jointure-filtre');
+    expect(text).not.toContain('⚠ 2 / 6');
+    expect(summarizeTrace(trace).alerts).toBe(0);
   });
 });
