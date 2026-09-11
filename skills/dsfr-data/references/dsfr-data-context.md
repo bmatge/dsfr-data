@@ -66,6 +66,7 @@ connexion. whereKey stable indexe sur `uid + champ` (insertion tardive sans deca
 |---|---|---|
 | `activeFilters()` | `ContextFilterLike[]` | Filtres actifs du contexte (#232) — pour les composants d'affichage (tags). Un filtre est actif si sa clause courante est non vide. Tout type de filtre confondu (#678) : filter, facettes, recherche. |
 | `clearAll()` | `number` | Retire tous les filtres actifs d'un coup (#679, « Tout effacer » de dsfr-data-context-tags). Chaque filtre est vidé par son propre `clear()` (même chemin qu'un geste utilisateur : son UI se vide), mais l'URL n'est écrite et `dsfr-data-context-change` émis qu'UNE fois. Retourne le nombre de filtres retirés. |
+| `getUrlParamNames()` | `string[]` | Paramètres d'URL que ce contexte PORTE (#773) : un par champ filtré, sous son nom `url-param-map`. Vide sans `url-sync`. Lu par une facette autonome voisine pour signaler qu'elle lirait le même paramètre — deux lecteurs pour un paramètre, et la sélection de l'un écrase celle de l'autre. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

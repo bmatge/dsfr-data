@@ -274,6 +274,21 @@ export class DsfrDataContext extends LitElement {
   }
 
   /**
+   * Paramètres d'URL que ce contexte PORTE (#773) : un par champ filtré, sous
+   * son nom `url-param-map`. Vide sans `url-sync`. Lu par une facette autonome
+   * voisine pour signaler qu'elle lirait le même paramètre — deux lecteurs
+   * pour un paramètre, et la sélection de l'un écrase celle de l'autre.
+   */
+  getUrlParamNames(): string[] {
+    if (!this.urlSync) return [];
+    const names = new Set<string>();
+    for (const filter of this._filters) {
+      if (filter.field) names.add(this._paramNameFor(filter.field));
+    }
+    return [...names];
+  }
+
+  /**
    * Valeurs URL pour un champ (consultées par les filtres à leur bind) —
    * encodage lisible ADR-031 : valeurs jointes par virgule. null si absent
    * ou si url-sync est OFF.
