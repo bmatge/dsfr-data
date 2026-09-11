@@ -16685,7 +16685,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.",
+              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.",
               "attribute": "select"
             },
             {
@@ -17386,7 +17386,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.",
+              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.",
               "fieldName": "select"
             },
             {

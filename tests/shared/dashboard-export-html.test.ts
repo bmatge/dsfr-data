@@ -544,17 +544,18 @@ describe('export-html — une source dediee par graphique agrege partage (#765)'
   const sourcesOf = (html: string) =>
     [...html.matchAll(/<dsfr-data-source id="([^"]+)"/g)].map((m) => m[1]);
 
-  it('KPI + deux graphiques agreges : chaque graphique a sa source, le KPI garde la partagee', () => {
+  it('KPI + deux graphiques agreges : le KPI et le second graphique ont leur source, le premier garde la partagee', () => {
+    // Le KPI a sa source a agregat serveur (#810) ; restent deux graphiques
+    // sur la partagee, dont le premier la garde (#765).
     const html = generateDashboardHTML(
       dashboardWith([kpi, chart('reg', 'region'), chart('typ', 'type')], [ODS])
     );
-    expect(sourcesOf(html).sort()).toEqual(['ods', 'ods--reg', 'ods--typ']);
-    expect(html).toContain('<dsfr-data-kpi source="ods"');
-    expect(html).toContain('<dsfr-data-query id="q-reg" source="ods--reg"');
+    expect(sourcesOf(html).sort()).toEqual(['ods', 'ods--k', 'ods--typ']);
+    expect(html).toContain('<dsfr-data-query id="q-reg" source="ods"');
     expect(html).toContain('<dsfr-data-query id="q-typ" source="ods--typ"');
     // Meme jeu : la source dediee reprend la connexion de la partagee
     expect(html).toMatch(
-      /id="ods--reg" api-type="opendatasoft"\s+base-url="https:\/\/data\.example\.com"\s+dataset-id="mon-jeu"/
+      /id="ods--typ" api-type="opendatasoft"\s+base-url="https:\/\/data\.example\.com"\s+dataset-id="mon-jeu"/
     );
   });
 
@@ -582,7 +583,9 @@ describe('export-html — une source dediee par graphique agrege partage (#765)'
     const html = generateDashboardHTML(
       dashboardWith([filtres, kpi, chart('reg', 'region')], [ODS])
     );
-    expect(html).toContain('<dsfr-data-context id="ctx-f1" sources="ods ods--reg">');
+    // Le KPI a sa source dediee (#810), le graphique seul lecteur garde la
+    // partagee : le contexte vise les deux.
+    expect(html).toContain('<dsfr-data-context id="ctx-f1" sources="ods ods--k">');
   });
 
   it('une source embarquee n’est jamais dupliquee (elle ne delegue rien)', () => {
@@ -614,5 +617,105 @@ describe('export-html — page complete', () => {
     const html = generateDashboardHTML(dash);
     expect(html).toContain('<h1>Mon &lt;dashboard&gt;</h1>');
     expect(html).toContain('<p class="fr-text--lead">Chapô &amp; contexte</p>');
+  });
+});
+
+describe('export-html — KPI calculé par le serveur (#810)', () => {
+  // Mesuré dans un navigateur (export Studio, plan-de-relance, 3 080 lignes) :
+  // un KPI de comptage sur la source partagée affichait 1 000, le plafond de
+  // max-records, puisqu'il comptait les lignes chargées par /records.
+  const ODS = {
+    id: 'ods',
+    name: 'Jeu ODS',
+    provider: 'opendatasoft',
+    apiUrl: 'https://data.example.com/api/explore/v2.1/catalog/datasets/mon-jeu/records',
+    resourceIds: { datasetId: 'mon-jeu' },
+  };
+  const TABULAR = {
+    id: 'tab',
+    name: 'Jeu Tabular',
+    provider: 'tabular',
+    apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc/data/',
+    resourceIds: { resourceId: 'abc' },
+  };
+  const kpiOn = (sourceId: string, chart: Partial<ChartConfig>, id = 'k'): Widget => ({
+    id,
+    type: 'chart',
+    title: 'KPI',
+    position: { row: 0, col: 0 },
+    config: {
+      fromBuilder: true,
+      sourceId,
+      chart: { type: 'kpi', valueField: 'montant', ...chart },
+    },
+  });
+  const sourcesOf = (html: string) =>
+    [...html.matchAll(/<dsfr-data-source id="([^"]+)"/g)].map((m) => m[1]);
+
+  it('comptage ODS : count(*) par le serveur, le KPI lit la colonne', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { valueField: 'entreprise', aggregation: 'count' })], [ODS])
+    );
+    expect(html).toContain('select="count(*) as entreprise__count"');
+    expect(html).toContain('<dsfr-data-kpi source="ods--k" value="entreprise__count"');
+    // Seul lecteur remplacé : la source partagée n'est plus émise (pas de requête pour rien)
+    expect(sourcesOf(html)).toEqual(['ods--k']);
+  });
+
+  it('somme, moyenne, min, max : l’agrégat est aussi calculé par le serveur', () => {
+    for (const fn of ['sum', 'avg', 'min', 'max'] as const) {
+      const html = generateDashboardHTML(dashboardWith([kpiOn('ods', { aggregation: fn })], [ODS]));
+      expect(html, fn).toContain(`select="${fn}(montant) as montant__${fn}"`);
+      expect(html, fn).toContain(`value="montant__${fn}"`);
+    }
+  });
+
+  it('le filtre propre du KPI passe sur sa source, traduit en ODSQL, sans query', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { aggregation: 'sum', where: 'statut:eq:ouvert' })], [ODS])
+    );
+    expect(html).toContain('where="statut = &quot;ouvert&quot;"');
+    expect(html).not.toContain('<dsfr-data-query');
+  });
+
+  it('un champ à espaces est échappé dans le select', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { valueField: 'Montant total', aggregation: 'sum' })], [ODS])
+    );
+    expect(html).toContain('select="sum(`Montant total`) as `Montant total__sum`"');
+    expect(html).toContain('value="Montant total__sum"');
+  });
+
+  it('la source partagée reste émise quand un autre widget en lit les lignes', () => {
+    const liste: Widget = {
+      id: 'l',
+      type: 'chart',
+      title: 'Liste',
+      position: { row: 1, col: 0 },
+      config: {
+        fromBuilder: true,
+        sourceId: 'ods',
+        chart: { type: 'datalist', labelField: 'x', valueField: 'y' },
+      },
+    };
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { aggregation: 'sum' }), liste], [ODS])
+    );
+    expect(sourcesOf(html).sort()).toEqual(['ods', 'ods--k']);
+  });
+
+  it('comptage Tabular : le total annoncé par l’API (meta:total)', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('tab', { aggregation: 'count' })], [TABULAR])
+    );
+    expect(html).toContain('<dsfr-data-kpi source="tab" value="meta:total"');
+  });
+
+  it('une source embarquée garde son KPI tel quel (les lignes sont toutes là)', () => {
+    const EMB = { id: 'emb', name: 'Saisie', data: [{ montant: 1 }] };
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('emb', { aggregation: 'sum' })], [EMB])
+    );
+    expect(html).toContain('<dsfr-data-kpi source="emb" value="montant:sum"');
   });
 });

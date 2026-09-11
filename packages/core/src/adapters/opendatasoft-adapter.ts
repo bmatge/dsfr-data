@@ -190,6 +190,40 @@ function escapeOdsqlSelect(select: string): string {
   return splitOdsqlList(select).map(escapeOdsqlListItem).join(', ');
 }
 
+/** Colonne d'agrégat d'un `select` : fonction et alias rendu par l'API. */
+interface AggregateAlias {
+  fn: string;
+  alias: string;
+}
+
+/**
+ * Le `select` n'est-il QUE des agrégats, sans `group_by` (#810) ? Rend les
+ * colonnes (fonction + alias), ou null. Chaque élément doit être de la forme
+ * `fn(…) as alias` avec fn ∈ count, sum, avg, min, max : un seul champ nu
+ * suffit à en faire une requête de lignes ordinaire.
+ */
+function aggregateOnlySelect(params: AdapterParams): AggregateAlias[] | null {
+  if (!params.select || params.groupBy) return null;
+  const aliases: AggregateAlias[] = [];
+  for (const item of splitOdsqlList(params.select)) {
+    // Découpage sans expression régulière (entrée venue de la page) :
+    // `fn(` en tête, puis le DERNIER ` as ` après la parenthèse fermante.
+    const lower = item.toLowerCase();
+    const open = lower.indexOf('(');
+    const fn = open > 0 ? lower.slice(0, open).trim() : '';
+    const asAt = lower.lastIndexOf(' as ');
+    if (!['count', 'sum', 'avg', 'min', 'max'].includes(fn)) return null;
+    if (asAt === -1 || lower.lastIndexOf(')', asAt) < open) return null;
+    const alias = item
+      .slice(asAt + 4)
+      .trim()
+      .replace(/^`|`$/g, '');
+    if (!alias) return null;
+    aliases.push({ fn, alias });
+  }
+  return aliases.length > 0 ? aliases : null;
+}
+
 export class OpenDataSoftAdapter implements ApiAdapter {
   readonly type = 'opendatasoft';
 
@@ -239,6 +273,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       const exported = await this._fetchViaExport(params, signal);
       if (exported) return exported;
     }
+
+    const aggregateOnly = aggregateOnlySelect(params);
+    if (aggregateOnly) return this._fetchAggregateOnly(params, aggregateOnly, signal);
 
     const fetchAllRecords = params.limit <= 0;
     const isGrouped = Boolean(params.groupBy);
@@ -317,6 +354,35 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       needsClientProcessing: false,
       ...(groupedAtCap ? { truncated: true } : {}),
     };
+  }
+
+  /**
+   * `select` purement agrégé, sans `group_by` (#810) : UNE requête d'une
+   * ligne. Opendatasoft renvoie la valeur agrégée RÉPÉTÉE sur chaque ligne du
+   * jeu (`select=count(*)` : 3 080 lignes valant 3 080) avec `total_count` =
+   * nombre de lignes — la pagination courait donc jusqu'au plafond pour des
+   * copies. Et un filtre qui ne garde rien renvoie `results: []` au lieu
+   * d'une ligne à zéro : la ligne est alors synthétisée, `count` à 0, les
+   * autres fonctions à `null` (une somme ou une moyenne d'aucune ligne n'est
+   * pas un nombre). `totalCount` reste inconnu : ce n'est pas un nombre de
+   * lignes, et un « tronqué » serait une fausse alerte.
+   */
+  private async _fetchAggregateOnly(
+    params: AdapterParams,
+    aliases: AggregateAlias[],
+    signal: AbortSignal
+  ): Promise<FetchResult> {
+    const apiUrl = this.buildUrl(params, 1, 0);
+    const response = await fetch(
+      getProxiedUrl(apiUrl, params.proxyUrl),
+      buildFetchOptions(params, apiUrl, signal)
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    const json = await response.json();
+    const first = Array.isArray(json.results) ? json.results[0] : undefined;
+    const row =
+      first ?? Object.fromEntries(aliases.map((a) => [a.alias, a.fn === 'count' ? 0 : null]));
+    return { data: [row], totalCount: undefined, needsClientProcessing: false };
   }
 
   /**
