@@ -9,6 +9,7 @@ import { isUnsafeKey, toNumber } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { joinWhere, escapeColonValue } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
+import { warnSuspectSeparator } from '../utils/attr-separators.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
@@ -1035,6 +1036,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     const byField = new Map<string, FacetSort>();
     const raw = (this.sort || '').trim();
     if (!raw) return { fallback: DEFAULT_FACET_SORT, byField };
+    this._warnSeparatorIfSuspect('sort', raw);
 
     let fallback: FacetSort = DEFAULT_FACET_SORT;
     for (const entry of raw.split('|')) {
@@ -1537,15 +1539,21 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * par une virgule ne déclenche rien. Dans `display`, dont les valeurs sont
    * une liste fermée de modes, toute virgule est suspecte.
    */
-  private _warnSeparatorIfSuspect(attr: 'display' | 'labels', raw: string): void {
-    if (raw.includes('|') || !raw.includes(',')) return;
-    if (attr === 'labels' && !/,\s*[^,:|]+:/.test(raw)) return;
-    this._warnGrammar(
-      attr,
-      raw,
-      'les entrées semblent séparées par une virgule, or le séparateur attendu est la barre ' +
-        'verticale. Forme attendue : "champ:valeur | champ2:valeur2" (la virgule sépare les ' +
-        'entrées de "fields", "split" et "round"). En l\'état, une seule entrée est lue.'
+  private _warnSeparatorIfSuspect(attr: 'display' | 'labels' | 'sort', raw: string): void {
+    // Utilitaire partagé avec dsfr-data-normalize (#772) ; même ensemble que
+    // `_warnGrammar` : un seul avertissement par attribut et par valeur.
+    warnSuspectSeparator(
+      {
+        component: 'dsfr-data-facets',
+        id: this.id,
+        attr,
+        raw,
+        expected: '|',
+        example:
+          attr === 'sort' ? '"champ:alpha | champ2:count:desc"' : '"champ:valeur | champ2:valeur2"',
+        humanValues: attr === 'labels',
+      },
+      this._grammarWarned
     );
   }
 

@@ -5476,7 +5476,7 @@
                 {
                   "name": "attr",
                   "type": {
-                    "text": "'display' | 'labels'"
+                    "text": "'display' | 'labels' | 'sort'"
                   }
                 },
                 {
@@ -12900,14 +12900,20 @@
               "description": "Découpe une cellule multivaluee : éléments trimes, vides écartés"
             },
             {
+              "kind": "field",
+              "name": "_separatorWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Séparateurs suspects déjà signalés, par attribut et valeur (#772)."
+            },
+            {
               "kind": "method",
               "name": "_parseFold",
               "return": {
                 "type": {
                   "text": "ParsedFold"
                 }
-              },
-              "description": "Parse l'attribut fold en règles `{ cible, motifs }` (#677). Format : \"motif:cible, motif2:cible2\".\nEntrées séparées par virgule ; le premier `:` sépare le motif de la cible (échappement percent\ndécodé après découpage). Le joker `*` n'est accepté qu'en début ou en fin de motif ; une\nentrée malformée (sans `:`, motif ou cible vide, joker au milieu ou multiple) est rendue dans\n`errors` et ignorée. Plusieurs motifs visant la même cible sont regroupés, dans l'ordre déclaré."
+              }
             },
             {
               "kind": "method",
