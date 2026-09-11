@@ -1385,6 +1385,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     });
   }
 
+  /** Dernier desaccord pastilles / couleurs signale (#813). */
+  private _legendMismatchWarned = '';
+
   /** Applique les couleurs sur l'instance et la légende. False si pas prête. */
   private _applyColorMap(colorMap: Map<string, string>): boolean {
     const hosts = this._resolveOverlayHosts();
@@ -1394,7 +1397,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     const applied = applyColorMap(chart as ColorableChart, colorMap, this._getDisplaySeriesNames());
     if (!applied.applied) return true;
-    this._paintLegendDots(hosts.chartEl, applied.legendColors);
+    // Les pastilles se cherchent dans le COMPOSANT, pas dans l'element de
+    // graphique interne (#813) : avec `databox`, DSFR Chart rend canvas et
+    // legende dans `data-box`, et l'element `bar-chart` retenu reste vide —
+    // le graphique etait recolore (canvas trouve par repli), sa legende non.
+    this._paintLegendDots(this, applied.legendColors);
     return true;
   }
 
@@ -1404,9 +1411,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * (camembert) : sans ce report, la légende annoncerait la couleur de la
    * palette sous un graphique recoloré.
    */
-  private _paintLegendDots(chartEl: HTMLElement, colors: (string | undefined)[]) {
-    const dots = chartEl.querySelectorAll<HTMLElement>('.legend_dot');
-    if (dots.length !== colors.length) return;
+  private _paintLegendDots(root: HTMLElement, colors: (string | undefined)[]) {
+    const dots = root.querySelectorAll<HTMLElement>('.legend_dot');
+    if (dots.length !== colors.length) {
+      // Une legende qui ne suit pas color-map MENT sur les couleurs : on le
+      // dit, une fois par situation, au lieu de sortir en silence (#813).
+      const key = `${dots.length}/${colors.length}`;
+      if (dots.length > 0 && key !== this._legendMismatchWarned) {
+        this._legendMismatchWarned = key;
+        console.warn(
+          `dsfr-data-chart[${this.id}]: color-map — ${dots.length} pastille(s) de légende pour ` +
+            `${colors.length} couleur(s) : la légende n'a pas été recolorée et peut contredire ` +
+            `le graphique.`
+        );
+      }
+      return;
+    }
+    this._legendMismatchWarned = '';
     dots.forEach((dot, i) => {
       const color = colors[i];
       if (color) dot.style.backgroundColor = color;

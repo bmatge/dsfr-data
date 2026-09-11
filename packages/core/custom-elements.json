@@ -1525,6 +1525,16 @@
               "description": "Poll rAF jusqu'a ce que l'instance Chart.js soit prête."
             },
             {
+              "kind": "field",
+              "name": "_legendMismatchWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Dernier desaccord pastilles / couleurs signale (#813)."
+            },
+            {
               "kind": "method",
               "name": "_applyColorMap",
               "privacy": "private",
@@ -1549,7 +1559,7 @@
               "privacy": "private",
               "parameters": [
                 {
-                  "name": "chartEl",
+                  "name": "root",
                   "type": {
                     "text": "HTMLElement"
                   }
