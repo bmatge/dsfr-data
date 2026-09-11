@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { warnSuspectSeparator } from '../utils/attr-separators.js';
 import {
   toNumber,
   looksLikeNumber,
@@ -386,6 +387,21 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
 
       const numericFields = this._parseNumericFields();
       const roundFields = this._parseRoundFields();
+      if (this.rename) {
+        // `rename` prend la barre, `fold` la virgule, sur la même balise (#772)
+        warnSuspectSeparator(
+          {
+            component: 'dsfr-data-normalize',
+            id: this.id,
+            attr: 'rename',
+            raw: this.rename,
+            expected: '|',
+            example: '"ancien:Nouveau nom | ancien2:Autre nom"',
+            humanValues: true,
+          },
+          this._separatorWarned
+        );
+      }
       const renameMap = this._parsePipeMap(this.rename);
       const replaceMap = this._parsePipeMap(this.replace);
       const replaceFieldsMap = this._parseReplaceFields(this.replaceFields);
@@ -607,10 +623,24 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * entrée malformée (sans `:`, motif ou cible vide, joker au milieu ou multiple) est rendue dans
    * `errors` et ignorée. Plusieurs motifs visant la même cible sont regroupés, dans l'ordre déclaré.
    */
+  /** Séparateurs suspects déjà signalés, par attribut et valeur (#772). */
+  private _separatorWarned = new Set<string>();
+
   _parseFold(): ParsedFold {
     const rules: FoldRule[] = [];
     const errors: string[] = [];
     if (!this.fold) return { rules, errors };
+    warnSuspectSeparator(
+      {
+        component: 'dsfr-data-normalize',
+        id: this.id,
+        attr: 'fold',
+        raw: this.fold,
+        expected: ',',
+        example: '"handicap_*:handicaps, acces_*:acces"',
+      },
+      this._separatorWarned
+    );
 
     const byTarget = new Map<string, FoldRule>();
     for (const entry of this.fold.split(',')) {
