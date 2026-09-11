@@ -202,6 +202,42 @@ dsfr-data-source (B)  ──────┘</pre></div>
             filtre, pagination), la jointure est recalculee automatiquement.
           </p>
         </div>
+
+        <h2 id="concat" class="fr-mt-4w">Empiler plutôt que joindre : <code>dsfr-data-concat</code></h2>
+        <p>
+          La jointure juxtapose des <strong>colonnes</strong> : deux tables, une clé commune. Quand les
+          sources ont les <strong>mêmes colonnes</strong> et qu'il faut mettre leurs <strong>lignes</strong>
+          bout à bout (une source par millésime, par région, par série), c'est
+          <code>&lt;dsfr-data-concat&gt;</code>. Il attend que toutes ses sources aient répondu, et
+          <code>origin-field</code> garde la trace de la source de chaque ligne : le résultat se branche
+          tel quel sur le <code>series-field</code> d'un graphique, sans pivot ni jointure.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Format / Valeurs</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-concat fields="sources,origin-field,origin-labels" -->
+                <tr><td><code>sources</code></td><td>String</td><td>—</td><td>Ids des sources (ou transformateurs) à empiler, séparés par des virgules, dans l'ordre d'empilement. Au moins deux.</td></tr>
+                <tr><td><code>origin-field</code></td><td>String</td><td>—</td><td>Colonne ajoutée à chaque ligne, qui dit de quelle source elle vient (facultatif). Sa valeur est l'id de la source, ou le libellé que lui donne <code>origin-labels</code>. Un nom de colonne déjà présent dans les données est une erreur de configuration : on écraserait une donnée.</td></tr>
+                <tr><td><code>origin-labels</code></td><td>String</td><td>—</td><td>Valeur écrite dans <code>origin-field</code> pour chaque source : <code>"id:libellé | id2:libellé2"</code>. Une source non citée garde son id. Un <code>:</code> ou un <code>|</code> littéral dans un libellé s'échappe en <code>%3A</code> / <code>%7C</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-concat</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"ventes"</span> <span class="tok-attr">sources</span><span class="tok-punct">=</span><span class="tok-string">"v2023, v2024"</span>
+  <span class="tok-attr">origin-field</span><span class="tok-punct">=</span><span class="tok-string">"millesime"</span> <span class="tok-attr">origin-labels</span><span class="tok-punct">=</span><span class="tok-string">"v2023:2023 | v2024:2024"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-concat</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"ventes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"line"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"mois"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"montant"</span> <span class="tok-attr">series-field</span><span class="tok-punct">=</span><span class="tok-string">"millesime"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span></pre></div>
+        <p class="fr-text--sm fr-text--light">
+          Des schémas divergents sont une erreur de configuration qui liste, par source, les colonnes en
+          trop et en moins : rien n'est empilé plutôt qu'un tableau aux colonnes vides. Aucune commande
+          aval (page, filtre, tri) n'est relayée aux sources, faute de savoir à laquelle l'adresser :
+          derrière un empilement, un filtre ou un regroupement s'exécute côté client, et un filtre serveur
+          se pose sur chaque source. Si une seule source est tronquée (<code>max-records</code>), le
+          résultat est marqué tronqué au volet Diagnostic.
+        </p>
     </div>
   </app-layout-demo>
 

@@ -2276,6 +2276,361 @@
     },
     {
       "kind": "javascript-module",
+      "path": "packages/core/src/components/dsfr-data-concat.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "<dsfr-data-concat> — Empile les lignes de plusieurs sources de même schéma\n\nL'opération inverse de `dsfr-data-join`, qui juxtapose des colonnes : ici\nles lignes des sources se suivent, dans l'ordre de `sources`. Empiler quatre\nséries de même schéma demandait sinon quatre pivots, trois jointures et un\ndépliage (#777). Avec `origin-field`, chaque ligne garde la trace de sa\nsource : c'est le format long que `series-field` consomme directement.\n\nAttend que TOUTES les sources aient émis. Un schéma divergent est une\nerreur de configuration nommée, jamais une troncature ni une colonne vide\nmuette. Ne relaie aucune commande aval (page, where, tri) : on ne saurait à\nquelle source l'adresser. Un filtre ou un regroupement posé derrière un\nempilement s'exécute côté client ; pour filtrer côté serveur, filtrer\nchaque source.\n\nNe fait aucun fetch HTTP — c'est un pur transformateur de données.",
+          "name": "DsfrDataConcat",
+          "members": [
+            {
+              "kind": "field",
+              "name": "sources",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Ids des sources (ou transformateurs) à empiler, séparés par des\nvirgules, dans l'ordre d'empilement. Au moins deux.",
+              "attribute": "sources"
+            },
+            {
+              "kind": "field",
+              "name": "originField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Colonne ajoutée à chaque ligne, qui dit de quelle source elle vient\n(facultatif). Sa valeur est l'id de la source, ou le libellé que lui\ndonne `origin-labels`. Un nom de colonne déjà présent dans les données\nest une erreur de configuration : on écraserait une donnée.",
+              "attribute": "origin-field"
+            },
+            {
+              "kind": "field",
+              "name": "originLabels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur écrite dans `origin-field` pour chaque source :\n`\"id:libellé | id2:libellé2\"`. Une source non citée garde son id. Un\n`:` ou un `|` littéral dans un libellé s'échappe en `%3A` / `%7C`.",
+              "attribute": "origin-labels"
+            },
+            {
+              "kind": "field",
+              "name": "_received",
+              "type": {
+                "text": "Array<Row[] | null>"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Lignes reçues par source (index = position dans `sources`), null tant qu'absentes."
+            },
+            {
+              "kind": "field",
+              "name": "_data",
+              "type": {
+                "text": "Row[]"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "_schemaError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de schéma de la dernière tentative, pour ne la signaler qu'une fois."
+            },
+            {
+              "kind": "method",
+              "name": "getData",
+              "return": {
+                "type": {
+                  "text": "Row[]"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "transformerName",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "transformerSources",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "transformerCommandTarget",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "description": "Aucun relais : une commande aval n'a pas de source naturelle ici."
+            },
+            {
+              "kind": "method",
+              "name": "validateTransformerConfig",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "beforeTransformerSubscribe",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "onTransformerData",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "unknown"
+                  }
+                },
+                {
+                  "name": "_sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "sourceIndex",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "transformerReinitProps",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "transformerReprocessProps",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "onTransformerReprocess",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "transformMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "meta",
+                  "type": {
+                    "text": "PaginationMeta"
+                  }
+                }
+              ],
+              "description": "Meta aval : `total` invalidé (le nombre de lignes change) et `truncated`\nlevé si UNE des sources l'est — un total faux sur une seule série doit se\nvoir au volet Diagnostic."
+            },
+            {
+              "kind": "method",
+              "name": "transformerOwnMeta",
+              "privacy": "protected",
+              "return": {
+                "type": {
+                  "text": "PaginationMeta | null"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_anyTruncated",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_parseOriginLabels",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Map<string, string>"
+                }
+              },
+              "description": "Libellés d'origine par id de source (`origin-labels`)."
+            },
+            {
+              "kind": "method",
+              "name": "_schemaOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Set<string>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "rows",
+                  "type": {
+                    "text": "Row[]"
+                  }
+                }
+              ],
+              "description": "Schéma d'une source : union des clés de ses lignes."
+            },
+            {
+              "kind": "method",
+              "name": "_checkSchemas",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "ids",
+                  "type": {
+                    "text": "string[]"
+                  }
+                },
+                {
+                  "name": "received",
+                  "type": {
+                    "text": "Row[][]"
+                  }
+                }
+              ],
+              "description": "Compare les schémas à celui de la première source non vide. Rend le\nmessage d'erreur nommant, par source, les colonnes en trop et en moins,\nou null. Une source vide n'impose rien."
+            },
+            {
+              "kind": "method",
+              "name": "_tryConcat",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "sources",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Ids des sources (ou transformateurs) à empiler, séparés par des\nvirgules, dans l'ordre d'empilement. Au moins deux.",
+              "fieldName": "sources"
+            },
+            {
+              "name": "origin-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Colonne ajoutée à chaque ligne, qui dit de quelle source elle vient\n(facultatif). Sa valeur est l'id de la source, ou le libellé que lui\ndonne `origin-labels`. Un nom de colonne déjà présent dans les données\nest une erreur de configuration : on écraserait une donnée.",
+              "fieldName": "originField"
+            },
+            {
+              "name": "origin-labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur écrite dans `origin-field` pour chaque source :\n`\"id:libellé | id2:libellé2\"`. Une source non citée garde son id. Un\n`:` ou un `|` littéral dans un libellé s'échappe en `%3A` / `%7C`.",
+              "fieldName": "originLabels"
+            }
+          ],
+          "mixins": [
+            {
+              "name": "TransformerMixin",
+              "module": "/packages/core/src/utils/transformer-mixin.js"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "dsfr-data-concat",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DsfrDataConcat",
+          "declaration": {
+            "name": "DsfrDataConcat",
+            "module": "packages/core/src/components/dsfr-data-concat.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dsfr-data-concat",
+          "declaration": {
+            "name": "DsfrDataConcat",
+            "module": "packages/core/src/components/dsfr-data-concat.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "packages/core/src/components/dsfr-data-context-filter.ts",
       "declarations": [
         {

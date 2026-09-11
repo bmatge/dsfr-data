@@ -6,12 +6,13 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 33 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(33);
+  it('should have 34 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(34);
   });
 
   it('should have expected skill IDs', () => {
     expect(SKILLS).toHaveProperty('createChartAction');
+    expect(SKILLS).toHaveProperty('dsfrDataConcat');
     expect(SKILLS).toHaveProperty('reloadDataAction');
     expect(SKILLS).toHaveProperty('dsfrDataSource');
     expect(SKILLS).toHaveProperty('dsfrDataQuery');

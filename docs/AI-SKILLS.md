@@ -92,7 +92,7 @@ Le `--skills-file` local exige un `npm run build` à la racine (il produit `pack
 
 ## 3. `skills.json`
 
-Tableau JSON des 33 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
+Tableau JSON des 34 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
 `sections` (`guide` / `reference` / `exemples` / `pieges`) et `availableSections`. Servi par toute
 instance déployée sur `/dist/skills.json`.
 
