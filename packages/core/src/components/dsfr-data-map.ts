@@ -1129,6 +1129,34 @@ export class DsfrDataMap extends LitElement {
         width: 10rem;
         padding: 0.5rem 0.5rem 0 0;
       }
+      /* Largeur en echelle (#818, attribut width="50% md:20%") : un style
+         inline ne porte pas de media query, l'encart pose donc des variables
+         que ces regles consomment. Toujours en :where() — une regle de page
+         prime a toutes les largeurs (#643). Un palier absent reprend le
+         precedent, puis la base, puis 10rem. */
+      :where(dsfr-data-map-inset[data-width-scale]) {
+        width: var(--dsfr-data-inset-w, 10rem);
+      }
+      @media (min-width: 36em) {
+        :where(dsfr-data-map-inset[data-width-scale]) {
+          width: var(--dsfr-data-inset-w-sm, var(--dsfr-data-inset-w, 10rem));
+        }
+      }
+      @media (min-width: 48em) {
+        :where(dsfr-data-map-inset[data-width-scale]) {
+          width: var(--dsfr-data-inset-w-md, var(--dsfr-data-inset-w-sm, var(--dsfr-data-inset-w, 10rem)));
+        }
+      }
+      @media (min-width: 62em) {
+        :where(dsfr-data-map-inset[data-width-scale]) {
+          width: var(--dsfr-data-inset-w-lg, var(--dsfr-data-inset-w-md, var(--dsfr-data-inset-w-sm, var(--dsfr-data-inset-w, 10rem))));
+        }
+      }
+      @media (min-width: 78em) {
+        :where(dsfr-data-map-inset[data-width-scale]) {
+          width: var(--dsfr-data-inset-w-xl, var(--dsfr-data-inset-w-lg, var(--dsfr-data-inset-w-md, var(--dsfr-data-inset-w-sm, var(--dsfr-data-inset-w, 10rem)))));
+        }
+      }
       .dsfr-data-map__container {
         z-index: 0;
         overflow: hidden;
