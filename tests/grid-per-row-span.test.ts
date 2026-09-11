@@ -168,6 +168,19 @@ describe('#790 — dsfr-data-kpi-group et dsfr-data-kpi', () => {
     expect(k.getAttribute('span')).toBe('6');
   });
 
+  it('un KPI sans largeur ne porte AUCUN attribut span, sinon la largeur par défaut du groupe saute (#822)', async () => {
+    const k = new DsfrDataKpi();
+    k.value = '=12';
+    document.body.appendChild(k);
+    mounted.push(k);
+    await k.updateComplete;
+    // `span` est reflété : une valeur initiale '' poserait span="" sur chaque
+    // KPI, et `::slotted(*:not([col]):not([span]))` cesserait de matcher — tous
+    // les KPI retombent alors en grid-column: auto, `cols` legacy compris.
+    expect(k.hasAttribute('span')).toBe(false);
+    expect(k.matches('*:not([col]):not([span])')).toBe(true);
+  });
+
   it('KPI : col et span ensemble, ou span invalide, sont signalés sans bloquer', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const k = new DsfrDataKpi();

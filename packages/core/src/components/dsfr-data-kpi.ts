@@ -231,9 +231,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * Largeur sur la grille de 12 colonnes (1-12), dans un
    * <dsfr-data-kpi-group> : `span="6"` occupe la moitié de la ligne. Remplace
    * `col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.
+   *
+   * Sans valeur par défaut, et pour la même raison que `col` : la propriété
+   * est reflétée, donc une valeur initiale `''` poserait `span=""` sur CHAQUE
+   * KPI. La largeur par défaut du groupe est portée par une règle
+   * `::slotted(*:not([col]):not([span]))` — un attribut vide, mais présent,
+   * la désactive et tous les KPI retombent en `grid-column: auto` (#822).
    */
   @property({ type: String, reflect: true })
-  span = '';
+  span?: string;
 
   /**
    * Message rendu quand l'amont attend un filtre (`require-where`, #690).
