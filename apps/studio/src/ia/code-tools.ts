@@ -18,6 +18,8 @@
  * valeurs du volet Diagnostic.
  */
 
+import { lireBalises } from '@dsfr-data/shared';
+
 /** Taille maximale du code rendu au modèle (le budget d'Albert est partagé). */
 const MAX_CODE_CHARS = 12_000;
 
@@ -54,20 +56,18 @@ function countEmbeddedRows(raw: string): number | null {
   }
 }
 
-/** Valeur d'un attribut dans une balise ouvrante, ou null. */
-function attr(tag: string, name: string): string | null {
-  const re = new RegExp(`\\s${name}=(?:"([^"]*)"|'([^']*)')`);
-  const m = re.exec(tag);
-  return m ? (m[1] ?? m[2] ?? '') : null;
-}
-
-/** Une ligne de résumé par `<dsfr-data-source>` du code. */
+/**
+ * Une ligne de résumé par `<dsfr-data-source>` du code. Les attributs sont
+ * lus par l'analyseur LINÉAIRE du lint de balisage (`lireBalises`), jamais
+ * par une expression régulière construite à partir d'un nom d'attribut.
+ */
 function describeSources(html: string): string[] {
   const lines: string[] = [];
-  for (const m of html.matchAll(/<dsfr-data-source\b[^>]*>/g)) {
-    const tag = m[0];
-    const id = attr(tag, 'id') ?? '(sans id)';
-    const data = attr(tag, 'data');
+  for (const balise of lireBalises(html)) {
+    if (balise.tag !== 'dsfr-data-source') continue;
+    const attr = (name: string): string | null => balise.attrs[name] ?? null;
+    const id = attr('id') ?? '(sans id)';
+    const data = attr('data');
     if (data !== null) {
       const rows = countEmbeddedRows(data);
       lines.push(
@@ -77,9 +77,8 @@ function describeSources(html: string): string[] {
       );
       continue;
     }
-    const apiType = attr(tag, 'api-type');
-    const target =
-      attr(tag, 'dataset-id') ?? attr(tag, 'resource') ?? attr(tag, 'url') ?? attr(tag, 'base-url');
+    const apiType = attr('api-type');
+    const target = attr('dataset-id') ?? attr('resource') ?? attr('url') ?? attr('base-url');
     lines.push(
       `- source « ${id} » : requête ${apiType ? `${apiType} ` : ''}à l'API${
         target ? ` (${target})` : ''
