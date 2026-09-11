@@ -3296,6 +3296,16 @@
             },
             {
               "kind": "method",
+              "name": "getUrlParamNames",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Paramètres d'URL que ce contexte PORTE (#773) : un par champ filtré, sous\nson nom `url-param-map`. Vide sans `url-sync`. Lu par une facette autonome\nvoisine pour signaler qu'elle lirait le même paramètre — deux lecteurs\npour un paramètre, et la sélection de l'un écrase celle de l'autre."
+            },
+            {
+              "kind": "method",
               "name": "_urlValuesFor",
               "return": {
                 "type": {
@@ -4302,7 +4312,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.",
               "attribute": "url-params"
             },
             {
@@ -4410,7 +4420,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).\nLe contexte délègue chaque sélection aux sources qu'il vise : le champ\ndoit donc exister SUR CES SOURCES. Une facette sur une colonne calculée\nen aval (`compute` d'un normalize) ne peut pas passer par le contexte —\nl'API répondrait 400 ; la garder autonome, chaînée en aval, avec un\n`url-param-map` qui borne sa lecture d'URL (#773).",
               "attribute": "context"
             },
             {
@@ -5782,6 +5792,49 @@
             },
             {
               "kind": "method",
+              "name": "_urlReadableFields",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Set<string>"
+                }
+              },
+              "description": "Champs dont un paramètre d'URL homonyme devient une sélection (#773) :\nles facettes EFFECTIVES, calculées AVANT la lecture d'URL — `_applyUrlParams()`\npasse avant `_buildFacetGroups()`, `_facetGroups` peut donc être vide.\n`_getFields()` rend les champs de `fields`, sinon ceux que détecterait\n`_buildFacetGroups()` sur les lignes reçues ; `static-values` ajoute ses\nclés. Jamais toutes les colonnes des données : `?annee=2023` captait sinon\nle paramètre d'un contexte voisin."
+            },
+            {
+              "kind": "method",
+              "name": "_urlParamNamesRead",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Paramètres que cette facette autonome LIRAIT depuis l'URL (#773)."
+            },
+            {
+              "kind": "field",
+              "name": "_urlParamConflict",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Dernier conflit signalé (un message par situation, pas par rendu)."
+            },
+            {
+              "kind": "method",
+              "name": "_checkUrlParamConflicts",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Un paramètre lu par cette facette AUTONOME est aussi porté par un\n`dsfr-data-context` à `url-sync` (#773) : les deux s'écrasent\nmutuellement. Vue structurelle sur le contexte (`getUrlParamNames`), sans\nimporter son module — même précaution que #681. Vérifié à chaque rendu :\nles filtres du contexte s'enregistrent en différé."
+            },
+            {
+              "kind": "method",
               "name": "_applyUrlParams",
               "description": "Read URL search params and apply as facet pré-sélections"
             },
@@ -5959,7 +6012,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.",
               "fieldName": "urlParams"
             },
             {
@@ -6031,7 +6084,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104). La facette\ndevient alors un filtre du contexte, un par champ : c'est le contexte\nqui diffuse a ses sources cibles et qui porte l'URL (`url-sync` et\n`url-params` de la facette sont ignorés — reporter `url-param-map` sur\nle contexte). Le contexte peut être déclaré après la facette dans la\npage. Vide = comportement autonome historique (commande directe à `source`).\nLe contexte délègue chaque sélection aux sources qu'il vise : le champ\ndoit donc exister SUR CES SOURCES. Une facette sur une colonne calculée\nen aval (`compute` d'un normalize) ne peut pas passer par le contexte —\nl'API répondrait 400 ; la garder autonome, chaînée en aval, avec un\n`url-param-map` qui borne sa lecture d'URL (#773).",
               "fieldName": "context"
             },
             {
