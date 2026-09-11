@@ -20,7 +20,7 @@ charger que l'utile.
 Installation par outil (Claude Code, Codex, Cursor, Gemini CLI, Copilot…) : voir
 [`skills/dsfr-data/README.md`](../skills/dsfr-data/README.md).
 
-Format standard « Agent Skills » : un `SKILL.md` (index : principe du pipeline, table des 30
+Format standard « Agent Skills » : un `SKILL.md` (index : principe du pipeline, table des 33
 références avec leurs déclencheurs, règles transverses) et `references/<composant>.md` (contenu
 complet de chaque skill, chargé à la demande). Claude Code lit le `SKILL.md` quand la demande
 correspond à sa description, puis ouvre la référence du composant concerné.
@@ -92,7 +92,7 @@ Le `--skills-file` local exige un `npm run build` à la racine (il produit `pack
 
 ## 3. `skills.json`
 
-Tableau JSON des 30 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
+Tableau JSON des 33 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
 `sections` (`guide` / `reference` / `exemples` / `pieges`) et `availableSections`. Servi par toute
 instance déployée sur `/dist/skills.json`.
 

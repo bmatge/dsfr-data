@@ -78,7 +78,14 @@ const GROUPS: Array<[string, string[]]> = [
   ['APIs et requêtes', ['apiProviders', 'odsql', 'odsApiVersions']],
   [
     'Guides transverses',
-    ['compositionPatterns', 'chartTypes', 'dsfrColors', 'dsfrChartNative', 'troubleshooting'],
+    [
+      'compositionPatterns',
+      'dsfrLayout',
+      'chartTypes',
+      'dsfrColors',
+      'dsfrChartNative',
+      'troubleshooting',
+    ],
   ],
   ['Assistant IA (actions JSON du builder-IA)', ['createChartAction', 'reloadDataAction']],
 ];

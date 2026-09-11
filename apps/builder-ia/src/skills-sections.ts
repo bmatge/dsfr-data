@@ -75,9 +75,18 @@ function splitIntoBlocks(markdown: string): Array<{ heading: string; text: strin
   return blocks;
 }
 
+/**
+ * Les motifs de `CLASSIFIERS` sont ecrits SANS accent : « Pieges », « Regle ».
+ * Un titre accentue (« ### Pièges ») ne les rencontrait donc pas et retombait
+ * dans `guide` — c'etait le cas de `dsfrDataPivot`, dont `get_skill(id,
+ * "pieges")` repondait « cette skill n'a pas de section pieges » alors qu'elle
+ * en a une. On compare sur la forme sans diacritiques, comme le moteur de
+ * matching (`packages/shared/src/ia/skill-matching.ts`).
+ */
 function classify(heading: string): SkillSectionId {
+  const plain = heading.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   for (const [section, re] of CLASSIFIERS) {
-    if (re.test(heading)) return section;
+    if (re.test(plain)) return section;
   }
   return 'guide';
 }
