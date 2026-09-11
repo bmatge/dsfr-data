@@ -6,8 +6,8 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 32 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(32);
+  it('should have 33 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(33);
   });
 
   it('should have expected skill IDs', () => {
@@ -25,6 +25,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrDataDisplay');
     expect(SKILLS).toHaveProperty('dsfrChartNative');
     expect(SKILLS).toHaveProperty('compositionPatterns');
+    expect(SKILLS).toHaveProperty('dsfrLayout');
     expect(SKILLS).toHaveProperty('odsql');
     expect(SKILLS).toHaveProperty('odsApiVersions');
     expect(SKILLS).toHaveProperty('chartTypes');
@@ -138,6 +139,37 @@ describe('builder-ia skills', () => {
       const result = getRelevantSkills('filtre par departement', null);
       const ids = result.map((s) => s.id);
       expect(ids).toContain('dsfrDataQuery');
+    });
+
+    // La mise en page d'une page complete (grille DSFR, espacements, gabarits)
+    // est une fiche a part : compositionPatterns dit quoi brancher, dsfrLayout
+    // dit ou le poser. Les deux doivent remonter sur une demande de page.
+    it.each([
+      'mes deux graphiques côte à côte sur la même ligne',
+      'comment faire du colonnage avec la grille DSFR',
+      'aligner verticalement les blocs du tableau de bord',
+      'quel espacement entre deux sections',
+      'un encadré gris avec les sources, il n’existe pas de composant',
+      'la page est cassée sur mobile',
+      'un gabarit éditorial pour un observatoire',
+    ])('« %s » remonte dsfrLayout', (question) => {
+      const ids = getRelevantSkills(question, null).map((s) => s.id);
+      expect(ids).toContain('dsfrLayout');
+    });
+
+    it('une demande de tableau de bord remonte la composition ET la mise en page', () => {
+      const ids = getRelevantSkills('fais-moi un tableau de bord complet', null).map((s) => s.id);
+      expect(ids).toContain('compositionPatterns');
+      expect(ids).toContain('dsfrLayout');
+    });
+
+    // Garde-fou de bruit : une question sur une colonne de DONNEES ne doit pas
+    // reveiller la fiche de mise en page (« colonne » est un mot du pipeline).
+    it('une question sur une colonne de donnees ne remonte pas dsfrLayout', () => {
+      const ids = getRelevantSkills('découper une colonne sur le séparateur |', null).map(
+        (s) => s.id
+      );
+      expect(ids).not.toContain('dsfrLayout');
     });
 
     // #657 — chaque voie native ratee par le banc d'essai doit remonter la
