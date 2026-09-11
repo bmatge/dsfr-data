@@ -1268,21 +1268,40 @@ describe('DsfrDataFacets', () => {
         expect(facets._getColClass('region')).toBe('');
       });
 
-      it('returns global col class for all fields', () => {
+      it('returns global col class for all fields, full width below md (#788)', () => {
         facets.cols = '4';
-        expect(facets._getColClass('region')).toBe('fr-col-4');
-        expect(facets._getColClass('type')).toBe('fr-col-4');
+        expect(facets._getColClass('region')).toBe('fr-col-12 fr-col-md-4');
+        expect(facets._getColClass('type')).toBe('fr-col-12 fr-col-md-4');
       });
 
       it('returns per-field col class', () => {
         facets.cols = 'region:4 | type:12';
-        expect(facets._getColClass('region')).toBe('fr-col-4');
+        expect(facets._getColClass('region')).toBe('fr-col-12 fr-col-md-4');
         expect(facets._getColClass('type')).toBe('fr-col-12');
       });
 
-      it('returns fallback fr-col-6 for unmapped fields', () => {
+      it('returns fallback fr-col-md-6 for unmapped fields', () => {
         facets.cols = 'region:4';
-        expect(facets._getColClass('type')).toBe('fr-col-6');
+        expect(facets._getColClass('type')).toBe('fr-col-12 fr-col-md-6');
+      });
+
+      /**
+       * Cas 320 px (#788). jsdom ne calcule pas de mise en page : on fixe le
+       * CONTRAT DE CLASSES. Dans le DSFR, `.fr-col-N` s'applique à toutes les
+       * largeurs, `.fr-col-md-N` seulement à partir de 48em (768 px). Une
+       * classe nue `fr-col-N` (N < 12) donnait donc 76 px par facette à
+       * 320 px ; avec `fr-col-12` en base, la facette occupe toute la ligne.
+       */
+      it('à 320 px, aucune facette ne reçoit une largeur fractionnaire', () => {
+        for (const cols of ['3', '4', '6', 'region:3 | type:4', 'region:2']) {
+          facets.cols = cols;
+          for (const field of ['region', 'type']) {
+            const classes = facets._getColClass(field).split(' ');
+            expect(classes, `${cols} / ${field}`).toContain('fr-col-12');
+            const mobile = classes.filter((c) => /^fr-col-\d+$/.test(c));
+            expect(mobile, `${cols} / ${field}`).toEqual(['fr-col-12']);
+          }
+        }
       });
     });
   });

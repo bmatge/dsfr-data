@@ -282,7 +282,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return this.hideCounts || !!this.staticValues || this._weightUnsupported;
   }
 
-  /** Colonnage DSFR des facettes : "6" (global) ou "field:4 | field2:6" (par facette) */
+  /**
+   * Colonnage DSFR des facettes : "6" (global) ou "field:4 | field2:6" (par facette), en
+   * colonnes de la grille de 12 — une LARGEUR, pas un nombre de facettes par ligne.
+   * Appliqué à partir de 768 px ; en dessous, chaque facette occupe toute la ligne
+   * (`fr-col-12 fr-col-md-N`, #788). Sans `cols`, grille automatique qui se replie seule.
+   */
   @property({ type: String })
   cols = '';
 
@@ -1618,12 +1623,18 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return map.size > 0 ? { map, fallback: 6 } : null;
   }
 
-  /** Get DSFR col class for a specific field */
+  /**
+   * Classe de colonne DSFR d'un champ. Pleine largeur sous 768 px, largeur
+   * demandée au point de rupture `md` (#788) — comme `dsfr-data-display`.
+   * `.fr-col-N` est définie HORS de toute media query dans le DSFR : la
+   * classe nue valait 25 % à 320 px comme à 1440 px, soit 76 px par facette
+   * sur téléphone (mesuré dans Chromium, DSFR 1.14.4).
+   */
   _getColClass(field: string): string {
     const cols = this._parseCols();
     if (!cols) return '';
-    if ('global' in cols) return `fr-col-${cols.global}`;
-    return `fr-col-${cols.map.get(field) ?? cols.fallback}`;
+    const width = 'global' in cols ? cols.global : (cols.map.get(field) ?? cols.fallback);
+    return Number(width) >= 12 ? 'fr-col-12' : `fr-col-12 fr-col-md-${width}`;
   }
 
   // --- User interaction ---
