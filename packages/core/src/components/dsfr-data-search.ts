@@ -147,6 +147,16 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   count = false;
 
   /**
+   * Nom compté par le compteur de `count`, à la place de « résultat » :
+   * `count-label="établissement"` affiche « 12 345 établissements ». Une
+   * forme seule prend un « s » au pluriel ; pour un pluriel irrégulier,
+   * donner les deux formes séparées par une barre verticale :
+   * `count-label="cheval|chevaux"`, `count-label="prix|prix"`.
+   */
+  @property({ type: String, attribute: 'count-label' })
+  countLabel = '';
+
+  /**
    * Message rendu quand l'amont attend un filtre (`require-where`, #690).
    * Distinct de « aucune donnée » : aucune requête n'a été faite. Vide,
    * le libellé par défaut est utilisé.
@@ -779,6 +789,14 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     return false;
   }
 
+  /** Nom compté, accordé au nombre (`count-label`, sinon « résultat »). */
+  private _countNoun(n: number): string {
+    const [singular, plural] = (this.countLabel.trim() || 'résultat')
+      .split('|')
+      .map((form) => form.trim());
+    if (n === 1) return singular;
+    return plural || `${singular}s`;
+  }
   render() {
     if (this._configError) {
       return html`
@@ -868,7 +886,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
       `;
     }
 
-    const label = `${formatNumber(this._resultCount)} résultat${this._resultCount !== 1 ? 's' : ''}`;
+    const label = `${formatNumber(this._resultCount)} ${this._countNoun(this._resultCount)}`;
     const deferToDownstream = this._hasDownstreamLiveRegion();
 
     if (this.count) {

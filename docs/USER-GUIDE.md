@@ -1209,6 +1209,76 @@ depuis 2019, il faut tout rapatrier — c'est exactement ce que `year-start-mont
 
 ---
 
+## Encastrer une dataviz dans un site tiers
+
+> **En tant que** producteur d'une dataviz, **je veux** qu'un autre site la reprenne,
+> **je dois** savoir ce qu'il advient de l'accessibilite, des mentions obligatoires et des donnees
+> personnelles selon la maniere dont il l'integre.
+
+Deux manieres de reprendre une dataviz, qui ne portent pas les memes obligations.
+
+### La balise, dans la page hote (recommande)
+
+Le site hote colle le code genere (`<script>` de la bibliotheque + balises `dsfr-data-*`) dans sa
+propre page. Le graphique fait alors **partie de la page** : meme arbre d'accessibilite, meme
+feuille de style, meme responsive.
+
+- **Accessibilite** : la declaration d'accessibilite du site hote couvre le graphique, comme le
+  reste de sa page. Les composants sont concus pour le RGAA (tableau de donnees alternatif, textes
+  de remplacement, regions live), mais c'est la page hote qui est auditee : un graphique pose dans
+  une colonne trop etroite ou sans titre de section reste un defaut de la page.
+- **Licence des donnees** : la Licence Ouverte impose de citer la source et la date de mise a jour.
+  La balise le fait si on le lui demande (`databox-source`, `databox-date` ou `databox-date-field`
+  sur `dsfr-data-chart`) ; un graphique repris sans ces attributs perd son attribution.
+- **Cookies et traceurs** : la bibliotheque ne depose **aucun cookie** et n'ecrit rien dans le
+  stockage du navigateur. Le beacon de suivi est **desactive par defaut** ; active (opt-in), il
+  n'envoie que le nom du composant et l'adresse de la page, sans parametres.
+- **Requetes vers des tiers** : le navigateur du visiteur interroge directement l'API des donnees
+  (ou le proxy du producteur), le CDN qui sert la bibliotheque et, pour une carte, le serveur de
+  tuiles (Geoplateforme de l'IGN par defaut, OpenStreetMap en option). Ces domaines recoivent
+  l'adresse IP du visiteur : a mentionner dans la politique de confidentialite du site hote, au
+  meme titre que ses autres ressources externes. A verifier avec le referent donnees personnelles
+  du site.
+
+**Hote hors DSFR.** Les composants s'appuient sur la feuille de style du DSFR. Or cette feuille est
+**globale** : chargee sur un site qui ne l'utilise pas, elle modifie sa typographie, ses titres et
+ses liens. C'est le cas ou l'integration par balise coute le plus, et ou l'iframe devient une option
+defendable. Si le site hote accepte le DSFR sur la page concernee (page dediee, rubrique « donnees »),
+la balise reste preferable.
+
+### L'iframe, qui pointe vers une page du producteur
+
+Le site hote affiche dans un cadre une page hebergee chez le producteur. Le cadre isole la
+dataviz : aucun conflit de style, et c'est aussi ce qui fait perdre le reste.
+
+- **Accessibilite** : le cadre doit porter un `title` qui decrit son contenu (RGAA, criteres 2.1
+  et 2.2), et la page encadree doit etre accessible pour son propre compte. La declaration
+  d'accessibilite du producteur couvre le contenu du cadre, mais le visiteur du site hote ne la
+  voit pas : le site hote doit la mentionner ou y renvoyer.
+- **Mentions obligatoires** : mentions legales, conditions d'utilisation, politique de cookies et
+  licence des donnees restent celles de la page encadree, et **disparaissent de la vue** du
+  visiteur. Le banc d'essai l'a mesure sur un cas reel : le site hote heritait de 48 requetes d'API
+  et perdait la declaration d'accessibilite, la politique de cookies, les conditions d'utilisation
+  et la licence. Un lien visible sous le cadre (« Source : … — mentions, accessibilite ») retablit
+  l'essentiel.
+- **Taille** : un cadre a une hauteur fixe ; un graphique dont la hauteur varie (filtres, tableau
+  deplie) y est rogne ou entoure de vide.
+
+### En pratique
+
+| | Balise | iframe |
+|---|---|---|
+| Declaration d'accessibilite | celle du site hote | celle du producteur, a signaler |
+| Mentions et licence | a porter par les attributs (`databox-source`) | invisibles sans lien sous le cadre |
+| Styles | herites (DSFR requis) | isoles |
+| Hauteur | naturelle | fixe |
+| Hote hors DSFR | feuille DSFR globale : a arbitrer | sans conflit |
+
+Le comparatif avec les plateformes de tableaux de bord, qui n'integrent que par iframe, est dans la
+[fiche technique](DATASHEET.md).
+
+---
+
 ## Ressources
 
 - **[Evaluer une reproduction](EVALUER-UNE-REPRODUCTION.md)** — la methode a suivre avant de conclure
