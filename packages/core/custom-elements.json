@@ -4400,7 +4400,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette)",
+              "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette), en\ncolonnes de la grille de 12 — une LARGEUR, pas un nombre de facettes par ligne.\nAppliqué à partir de 768 px ; en dessous, chaque facette occupe toute la ligne\n(`fr-col-12 fr-col-md-N`, #788). Sans `cols`, grille automatique qui se replie seule.",
               "attribute": "cols"
             },
             {
@@ -5551,7 +5551,7 @@
                   }
                 }
               ],
-              "description": "Get DSFR col class for a specific field"
+              "description": "Classe de colonne DSFR d'un champ. Pleine largeur sous 768 px, largeur\ndemandée au point de rupture `md` (#788) — comme `dsfr-data-display`.\n`.fr-col-N` est définie HORS de toute media query dans le DSFR : la\nclasse nue valait 25 % à 320 px comme à 1440 px, soit 76 px par facette\nsur téléphone (mesuré dans Chromium, DSFR 1.14.4)."
             },
             {
               "kind": "method",
@@ -6022,7 +6022,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette)",
+              "description": "Colonnage DSFR des facettes : \"6\" (global) ou \"field:4 | field2:6\" (par facette), en\ncolonnes de la grille de 12 — une LARGEUR, pas un nombre de facettes par ligne.\nAppliqué à partir de 768 px ; en dessous, chaque facette occupe toute la ligne\n(`fr-col-12 fr-col-md-N`, #788). Sans `cols`, grille automatique qui se replie seule.",
               "fieldName": "cols"
             },
             {
