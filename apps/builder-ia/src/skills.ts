@@ -4433,7 +4433,7 @@ marche pas ».`,
   },
 
   // ---------------------------------------------------------------------------
-  // Mise en page : grille DSFR, espacements, gabarits editoriaux (#763)
+  // Mise en page : grille DSFR, espacements, gabarits editoriaux (#784)
   // ---------------------------------------------------------------------------
 
   dsfrLayout: {
