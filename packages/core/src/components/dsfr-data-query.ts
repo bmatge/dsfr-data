@@ -159,6 +159,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * avertissement console le signale. Le cumul reste toujours côté client.
    * Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"`
    * avec `order-by="mois:asc"`.
+   *
+   * `diff` (#775) en est l'inverse : l'écart de chaque ligne avec la
+   * précédente, pour retrouver le flux d'une série publiée déjà cumulée
+   * (`aggregate="cumul:diff"` → colonne `cumul__diff`). Mêmes règles : après
+   * `order-by`, jamais délégué, avertissement sans `order-by`. La première
+   * ligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément
+   * nul ; une valeur non numérique donne `null` pour elle et pour la suivante.
    */
   @property({ type: String })
   aggregate = '';
@@ -1196,8 +1203,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _warnRunningWithoutOrder(): void {
     if (this.orderBy || this._runningAggregates().length === 0) return;
     console.warn(
-      `dsfr-data-query[${this.id}]: aggregate="${this.aggregate}" cumule sans "order-by" — ` +
-        `le cumul suit l'ordre des lignes reçues, qui n'est pas garanti. ` +
+      `dsfr-data-query[${this.id}]: aggregate="${this.aggregate}" cumule ou compare à la ligne ` +
+        `précédente sans "order-by" — le résultat suit l'ordre des lignes reçues, qui n'est pas garanti. ` +
         `Ajoutez order-by (ex. order-by="mois:asc") ou assurez-vous que la source amont est triée.`
     );
   }
@@ -1215,10 +1222,23 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     aggregates: ParsedAggregate[]
   ): Record<string, unknown>[] {
     const totals = new Map<string, number>();
+    // `diff` (#775) : valeur de la ligne precedente. `undefined` = premiere
+    // ligne, `null` = precedente non numerique ; les deux rendent `null`.
+    const previous = new Map<string, number | null>();
     return data.map((row) => {
       let out = row;
       for (const agg of aggregates) {
-        const value = toNumber(getByPath(row, agg.field), true);
+        // Lu sur `out` : un agregat cumule peut porter sur la colonne produite
+        // par le precedent dans la meme liste (`x:running_sum, x__running_sum:diff`).
+        const value = toNumber(getByPath(out, agg.field), true);
+        if (agg.function === 'diff') {
+          const before = previous.get(agg.alias);
+          previous.set(agg.alias, value);
+          const delta =
+            value === null || before === undefined || before === null ? null : value - before;
+          out = this._rowWithFieldValue(out, agg.alias, delta);
+          continue;
+        }
         const total = (totals.get(agg.alias) ?? 0) + (value ?? 0);
         totals.set(agg.alias, total);
         out = this._rowWithFieldValue(out, agg.alias, total);

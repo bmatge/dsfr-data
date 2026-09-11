@@ -12486,7 +12486,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme\nchaîne de la valeur : une colonne numérique est concernée aussi (#730). Pour un recodage\nplus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
+              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme\nchaîne de la valeur : une colonne numérique est concernée aussi (#730). Un champ TABLEAU\n(multivalué venu de la source) est remplacé élément par élément, longueur conservée et sans\ndédoublonnage (#774). Limite : le remplacement s'exécute AVANT `split`, il ne voit donc pas les\ntableaux fabriqués par `split` — il agit sur la chaîne entière avant la découpe. Pour un\nrecodage plus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()`\nou `year()`.",
               "attribute": "replace"
             },
             {
@@ -12496,7 +12496,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
+              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730). Sur un champ tableau venu\nde la source, élément par élément ; pas sur un tableau fabriqué par `split`, découpé après\n(#774, même limite que `replace`).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
               "attribute": "replace-fields"
             },
             {
@@ -13077,7 +13077,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme\nchaîne de la valeur : une colonne numérique est concernée aussi (#730). Pour un recodage\nplus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.",
+              "description": "Remplacement de valeurs, sur tous les champs. Format : \"pattern:remplacement | pattern2:remplacement2\".\nLe pattern est comparé à la valeur entière (égalité stricte, pas de regex) ; un remplacement\nvide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement\ns'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :\n`replace=\"10%3A00:10h\"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme\nchaîne de la valeur : une colonne numérique est concernée aussi (#730). Un champ TABLEAU\n(multivalué venu de la source) est remplacé élément par élément, longueur conservée et sans\ndédoublonnage (#774). Limite : le remplacement s'exécute AVANT `split`, il ne voit donc pas les\ntableaux fabriqués par `split` — il agit sur la chaîne entière avant la découpe. Pour un\nrecodage plus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()`\nou `year()`.",
               "fieldName": "replace"
             },
             {
@@ -13086,7 +13086,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
+              "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730). Sur un champ tableau venu\nde la source, élément par élément ; pas sur un tableau fabriqué par `split`, découpé après\n(#774, même limite que `replace`).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
               "fieldName": "replaceFields"
             },
             {
@@ -14010,7 +14010,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.",
+              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.\n\n`diff` (#775) en est l'inverse : l'écart de chaque ligne avec la\nprécédente, pour retrouver le flux d'une série publiée déjà cumulée\n(`aggregate=\"cumul:diff\"` → colonne `cumul__diff`). Mêmes règles : après\n`order-by`, jamais délégué, avertissement sans `order-by`. La première\nligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément\nnul ; une valeur non numérique donne `null` pour elle et pour la suivante.",
               "attribute": "aggregate"
             },
             {
@@ -14945,7 +14945,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.",
+              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.\n\n`diff` (#775) en est l'inverse : l'écart de chaque ligne avec la\nprécédente, pour retrouver le flux d'une série publiée déjà cumulée\n(`aggregate=\"cumul:diff\"` → colonne `cumul__diff`). Mêmes règles : après\n`order-by`, jamais délégué, avertissement sans `order-by`. La première\nligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément\nnul ; une valeur non numérique donne `null` pour elle et pour la suivante.",
               "fieldName": "aggregate"
             },
             {
