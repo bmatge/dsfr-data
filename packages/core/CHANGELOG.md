@@ -1,5 +1,63 @@
 # dsfr-data
 
+## 0.28.1
+
+### Patch Changes
+
+- [#782](https://github.com/bmatge/dsfr-data/pull/782) [`4f5fdd8`](https://github.com/bmatge/dsfr-data/commit/4f5fdd8f837a599dcb0bfd11f74d20ef4368ac4e) Thanks [@bmatge](https://github.com/bmatge)! - fix(map-popup) : le volet latéral ne déborde plus de la carte sur écran étroit
+  
+  La largeur demandée par l'attribut `width` était appliquée telle quelle, sans borne. Or le volet
+  est ancré à droite dans le conteneur de la carte, qui est en `overflow: hidden` : une largeur
+  supérieure à celle de la carte ne débordait pas vers la droite, elle sortait par la **gauche** et
+  se faisait rogner — les débuts de lignes disparaissaient (titre, libellés, valeurs), sans même que
+  la page défile horizontalement pour le signaler.
+  
+  C'était le cas nominal sur téléphone : à 393 px de viewport, gouttières DSFR comprises, la carte
+  fait 361 px, quand les exemples de la documentation proposent `width="400px"` (specs) et
+  `width="380px"` (guide builder-IA) — soit 39 px et 19 px rognés.
+  
+  La largeur est désormais bornée à celle de la carte (`max-width: 100%` sur le volet) : sur un
+  écran étroit le panneau l'occupe entièrement au lieu d'être coupé, et `width` continue de faire
+  foi tant qu'elle tient dans la carte. Le mode `modal` était déjà responsive (`90vw`, plafonné à
+  640 px) ; le mode `panel-*` était le seul à ne pas l'être.
+
+- [#785](https://github.com/bmatge/dsfr-data/pull/785) [`065593c`](https://github.com/bmatge/dsfr-data/commit/065593c97b4c88b5ed92e9ecdf19c7c0f7b2a2b8) Thanks [@bmatge](https://github.com/bmatge)! - fix(studio, dashboard) : le code généré déclare la source API au lieu de figer ses lignes
+  
+  `generateSourceHTML` testait les données chargées **avant** la connexion. Or une source venue de
+  l'app Sources porte toujours les deux : sa connexion (`apiUrl`, `provider`, `resourceIds`) *et* les
+  lignes rapatriées dans le navigateur. Le test des données venant en premier, la branche
+  OpenDataSoft n'était jamais atteinte pour ces sources-là : le Studio et le tableau de bord
+  émettaient un `<dsfr-data-source data='[…]'>` de plusieurs milliers de lignes là où l'utilisateur
+  attendait `api-type="opendatasoft" base-url="…" dataset-id="…"`.
+  
+  Ce n'était pas qu'une question de poids de page. `state.tableData` est ce que l'explorateur a
+  effectivement paginé, quand `recordCount` porte le total annoncé par l'API — l'écart est un cas
+  **normal**, l'explorateur l'affiche lui-même (« … sur N »). Un jeu partiellement chargé puis
+  embarqué tel quel donne un tableau de bord dont chaque agrégat est faux, et faux en silence :
+  exactement le défaut que `ConsumerNeed` cherche à éviter quelques lignes plus bas dans le même
+  fichier. La page était par ailleurs morte — plus aucun rafraîchissement, quoi qu'il arrive au jeu
+  source.
+  
+  La connexion déclarative passe donc en premier, et les données embarquées deviennent le **repli**,
+  pour les sources qu'un document public ne peut pas atteindre seul : Grist (clé d'API, réponse
+  imbriquée `records[].fields`), toute source à en-têtes d'authentification, et les sources manuelles
+  JSON/CSV qui n'ont aucune URL. Aucun secret n'est jamais émis. Corollaire : une source ODS ou
+  Tabular chargée sait de nouveau paginer côté serveur, `supportsServerPagination` n'étant plus
+  disqualifié par la présence de `data`.
+  
+  Les deux tests existants n'exerçaient qu'une moitié du cas chacun — une source avec *seulement* des
+  données, une avec *seulement* une connexion. Aucun ne couvrait celle qui porte les deux, qui est
+  pourtant la seule que produise l'app Sources. Six cas s'ajoutent, dont le repli Grist et le repli
+  en-têtes.
+  
+  Au passage, l'état vide du panneau d'aperçu (« Discutez avec l'assistant pour composer votre
+  tableau de bord ») restait affiché **au-dessus** du tableau de bord une fois celui-ci rendu. Son
+  `display: flex` est une règle d'auteur : il bat le `[hidden] { display: none }` du navigateur quelle
+  que soit la spécificité. Le Studio et l'Assistant IA masquent tous deux par l'attribut
+  (`el.hidden = true`) et étaient donc touchés ; seul le Builder y échappait, parce qu'il pose un
+  `style.display` en ligne. La garde posée en [#629](https://github.com/bmatge/dsfr-data/issues/629) ne couvrait que l'iframe — le même piège valait
+  pour l'état vide lui-même.
+
 ## 0.28.0
 
 ### Minor Changes
