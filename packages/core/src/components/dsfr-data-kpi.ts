@@ -74,6 +74,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
    * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
    * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
+   * Seul `count` accepte une valeur de filtre : `sum:champ:valeur` est une
+   * erreur de configuration (#764) — filtrer en amont par `where`.
    * `champ:evolution` (#675) : (dernière − première) / première sur les
    * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
    * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,
