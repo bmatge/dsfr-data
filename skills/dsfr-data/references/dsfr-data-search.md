@@ -31,6 +31,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
 | count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en `server-search`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (`require-where`), le compteur cède la place au message d'attente |
+| count-label | String | `""` | non | Nom compté à la place de « résultat » : `count-label="établissement"` → « 12 345 établissements ». Pluriel irrégulier : les deux formes, `count-label="cheval|chevaux"` |
 | idle-message | String | "Choisissez un filtre pour afficher les données" | non | Message rendu à la place du compteur quand l'amont attend un filtre (`require-where`). Nécessite `count` |
 | url-search-param | String | "" | non | Nom du parametre d'URL a lire comme terme de recherche initial |
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
@@ -114,6 +115,7 @@ contradictoires (#654).
 |---|---|---|---|
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est nommé d'après le champ, ou via `url-param-map` du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. |
 | `count` | `boolean` | `false` | Affiche un compteur de résultats sous le champ (compte serveur `meta.total` en `server-search`), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (`require-where`), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide. |
+| `count-label` | `string` | `""` (vide) | Nom compté par le compteur de `count`, à la place de « résultat » : `count-label="établissement"` affiche « 12 345 établissements ». Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier, donner les deux formes séparées par une barre verticale : `count-label="cheval\|chevaux"`, `count-label="prix\|prix"`. |
 | `debounce` | `number` | `300` | Délai en ms avant déclenchement du filtre après la dernière frappe |
 | `fields` | `string` | `""` (vide) | Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs |
 | `highlight` | `boolean` | `false` | Ajoute un champ _highlight a chaque record avec les termes trouves marques en <mark> |

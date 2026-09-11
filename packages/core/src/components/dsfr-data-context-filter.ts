@@ -189,7 +189,13 @@ type YearOperator = (typeof YEAR_OPERATORS)[number];
  */
 @customElement('dsfr-data-context-filter')
 export class DsfrDataContextFilter extends LitElement {
-  /** Colonne filtrée */
+  /**
+   * Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la
+   * connaît. Le filtre y est délégué et s'applique avant tout regroupement
+   * (ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat
+   * (`montant__sum`), ni une colonne calculée en aval (`compute` d'un
+   * `dsfr-data-normalize`) n'existent à ce stade — l'API répond 400.
+   */
   @property({ type: String })
   field = '';
 

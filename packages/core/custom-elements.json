@@ -2290,7 +2290,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne filtrée",
+              "description": "Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la\nconnaît. Le filtre y est délégué et s'applique avant tout regroupement\n(ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat\n(`montant__sum`), ni une colonne calculée en aval (`compute` d'un\n`dsfr-data-normalize`) n'existent à ce stade — l'API répond 400.",
               "attribute": "field"
             },
             {
@@ -2590,7 +2590,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne filtrée",
+              "description": "Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la\nconnaît. Le filtre y est délégué et s'applique avant tout regroupement\n(ordre ODSQL : `where` puis `group_by`) : ni un alias d'agrégat\n(`montant__sum`), ni une colonne calculée en aval (`compute` d'un\n`dsfr-data-normalize`) n'existent à ce stade — l'API répond 400.",
               "fieldName": "field"
             },
             {
@@ -6681,7 +6681,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\nSeul `count` accepte une valeur de filtre : `sum:champ:valeur` est une\nerreur de configuration (#764).\nFiltre propre à une expression (#776), dialecte du `where` entre\naccolades : `value=\"effectif:sum{sexe:eq:F} / effectif:sum\"` rend une\npart de SOMMES — le filtre ne vaut que pour son côté du ratio, là où\n`where` filtre les deux. Marche aussi pour `count{…}` et les autres\nfonctions ; un filtre non reconnu est une erreur de configuration.\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
+              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\nSeul `count` accepte une valeur de filtre : `sum:champ:valeur` est une\nerreur de configuration (#764).\nFiltre propre à une expression (#776), dialecte du `where` entre\naccolades : `value=\"effectif:sum{sexe:eq:F} / effectif:sum\"` rend une\npart de SOMMES — le filtre ne vaut que pour son côté du ratio, là où\n`where` filtre les deux. Marche aussi pour `count{…}` et les autres\nfonctions ; un filtre non reconnu est une erreur de configuration.\n`champ:first` / `champ:last` : valeur du champ sur la première / la\ndernière ligne, DANS L'ORDRE COURANT — poser un `order-by` en amont\n(ex. dernière valeur d'une série datée). Propres au KPI : absentes de\nl'`aggregate` de `dsfr-data-query`.\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
               "attribute": "value"
             },
             {
@@ -7110,7 +7110,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\nSeul `count` accepte une valeur de filtre : `sum:champ:valeur` est une\nerreur de configuration (#764).\nFiltre propre à une expression (#776), dialecte du `where` entre\naccolades : `value=\"effectif:sum{sexe:eq:F} / effectif:sum\"` rend une\npart de SOMMES — le filtre ne vaut que pour son côté du ratio, là où\n`where` filtre les deux. Marche aussi pour `count{…}` et les autres\nfonctions ; un filtre non reconnu est une erreur de configuration.\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
+              "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues.\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\nSeul `count` accepte une valeur de filtre : `sum:champ:valeur` est une\nerreur de configuration (#764).\nFiltre propre à une expression (#776), dialecte du `where` entre\naccolades : `value=\"effectif:sum{sexe:eq:F} / effectif:sum\"` rend une\npart de SOMMES — le filtre ne vaut que pour son côté du ratio, là où\n`where` filtre les deux. Marche aussi pour `count{…}` et les autres\nfonctions ; un filtre non reconnu est une erreur de configuration.\n`champ:first` / `champ:last` : valeur du champ sur la première / la\ndernière ligne, DANS L'ORDRE COURANT — poser un `order-by` en amont\n(ex. dernière valeur d'une série datée). Propres au KPI : absentes de\nl'`aggregate` de `dsfr-data-query`.\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
               "fieldName": "value"
             },
             {
@@ -14035,7 +14035,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de regroupement (séparés par virgule)",
+              "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.",
               "attribute": "group-by"
             },
             {
@@ -14971,7 +14971,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs de regroupement (séparés par virgule)",
+              "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.",
               "fieldName": "groupBy"
             },
             {
@@ -15169,6 +15169,16 @@
               "default": "false",
               "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`), séparateur de milliers français (#728). Ce compteur\nreste visible dès qu'une donnée a circulé ; seule sa nature de région live\ndépend de la chaîne aval (#654). Tant que l'amont attend un filtre\n(`require-where`), il cède la place au message d'attente : annoncer\n« 0 résultats » avant toute requête laisserait croire à une page vide.",
               "attribute": "count"
+            },
+            {
+              "kind": "field",
+              "name": "countLabel",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom compté par le compteur de `count`, à la place de « résultat » :\n`count-label=\"établissement\"` affiche « 12 345 établissements ». Une\nforme seule prend un « s » au pluriel ; pour un pluriel irrégulier,\ndonner les deux formes séparées par une barre verticale :\n`count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.",
+              "attribute": "count-label"
             },
             {
               "kind": "field",
@@ -15744,6 +15754,25 @@
             },
             {
               "kind": "method",
+              "name": "_countNoun",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "n",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Nom compté, accordé au nombre (`count-label`, sinon « résultat »)."
+            },
+            {
+              "kind": "method",
               "name": "_renderCount",
               "privacy": "private",
               "description": "Compteur de résultats. Une seule region live par chaîne (#654) : si un\nafficheur aval (list, display) annonce déjà son compte, ce composant\nn'annonce rien — le compteur visible de `count` est conserve, mais\nsans `aria-live`, et le compteur sr-only n'est pas rendu."
@@ -15849,6 +15878,15 @@
               "default": "false",
               "description": "Affiche un compteur de résultats sous le champ (compte serveur `meta.total`\nen `server-search`), séparateur de milliers français (#728). Ce compteur\nreste visible dès qu'une donnée a circulé ; seule sa nature de région live\ndépend de la chaîne aval (#654). Tant que l'amont attend un filtre\n(`require-where`), il cède la place au message d'attente : annoncer\n« 0 résultats » avant toute requête laisserait croire à une page vide.",
               "fieldName": "count"
+            },
+            {
+              "name": "count-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom compté par le compteur de `count`, à la place de « résultat » :\n`count-label=\"établissement\"` affiche « 12 345 établissements ». Une\nforme seule prend un « s » au pluriel ; pour un pluriel irrégulier,\ndonner les deux formes séparées par une barre verticale :\n`count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.",
+              "fieldName": "countLabel"
             },
             {
               "name": "idle-message",

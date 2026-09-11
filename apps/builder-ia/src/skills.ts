@@ -1076,6 +1076,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | operator | String | "contains" | non | Mode : contains, starts, words |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
 | count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (\`require-where\`), le compteur cède la place au message d'attente |
+| count-label | String | \`""\` | non | Nom compté à la place de « résultat » : \`count-label="établissement"\` → « 12 345 établissements ». Pluriel irrégulier : les deux formes, \`count-label="cheval|chevaux"\` |
 | idle-message | String | "Choisissez un filtre pour afficher les données" | non | Message rendu à la place du compteur quand l'amont attend un filtre (\`require-where\`). Nécessite \`count\` |
 | url-search-param | String | "" | non | Nom du parametre d'URL a lire comme terme de recherche initial |
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
@@ -1689,6 +1690,10 @@ visuellement — l'information n'est jamais portee par la seule couleur.
 
 La valeur de la colonne de classe devient la classe (plusieurs classes separees par des
 espaces) ; seuls les identifiants CSS sont retenus, le reste est ignore.
+**Elle peut donc etre une phrase, pas seulement un slug** : une colonne qui vaut « occupation
+saturée » produit les deux classes \`occupation\` et \`saturée\` (accents acceptes), ET le texte
+restitue aux lecteurs d'ecran est la valeur entiere, telle quelle. Inutile de fabriquer un code
+technique a cote du libelle : cibler \`.saturée\` dans la feuille de style suffit.
 
 \`\`\`html
 <dsfr-data-normalize id="avec-seuil" source="brut"
