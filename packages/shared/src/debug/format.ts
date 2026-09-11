@@ -139,7 +139,16 @@ export const JOIN_MATCH_ALERT_RATIO = 0.5;
  */
 export function isJoinAlert(join: NonNullable<NonNullable<StageState['meta']>['join']>): boolean {
   if (join.keyFormatMismatch) return true;
+  // Jointure-filtre (#816) : contre une source d'UNE ligne (valeur calculee
+  // par l'API, `max(annee)`), ecarter les autres lignes est le but — un faible
+  // taux d'appariement n'est pas une panne.
+  if (isFilterJoin(join)) return false;
   return join.leftTotal > 0 && join.leftMatched / join.leftTotal < JOIN_MATCH_ALERT_RATIO;
+}
+
+/** Le cote droit n'a qu'une ligne : la jointure filtre plus qu'elle n'enrichit (#816). */
+function isFilterJoin(join: NonNullable<NonNullable<StageState['meta']>['join']>): boolean {
+  return join.rightTotal === 1;
 }
 
 function formatJoinStats(meta: NonNullable<StageState['meta']>): string[] {
@@ -159,6 +168,11 @@ function formatJoinStats(meta: NonNullable<StageState['meta']>): string[] {
   }
   if (join.keyFormatMismatch && join.rightOrphans?.length) {
     lines.push(`       clés droite sans correspondance : ${samples(join.rightOrphans)}`);
+  }
+  if (isFilterJoin(join) && !join.keyFormatMismatch && join.leftMatched < join.leftTotal) {
+    lines.push(
+      "       jointure-filtre : le côté droit n'a qu'une ligne, les lignes sans correspondance sont écartées volontairement."
+    );
   }
   if (join.keyFormatMismatch) {
     lines.push(

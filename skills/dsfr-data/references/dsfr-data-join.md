@@ -123,6 +123,21 @@ jointure le signale (avertissement console citant les clés orphelines, alerte d
 dès que les clés ne diffèrent qu'à la graphie près) — le lire avant de publier un chiffre. Si une
 seule des deux sources connaît le territoire, le ratio n'est pas exprimable.
 
+### Jointure-filtre : garder les lignes égales à une valeur calculée par l'API
+Aucun opérateur de `where` ne sait dire « la dernière année publiée ». La voie : une source d'UNE
+ligne qui fait calculer la valeur par le serveur, puis une jointure `inner` qui ne garde que les lignes
+égales. Rien n'est écrit en dur : la page suit le jeu quand un nouveau millésime paraît.
+```html
+<dsfr-data-source id="derniere" api-type="opendatasoft" base-url="…" dataset-id="clubs_dep"
+  select="max(year(annee)) as an"></dsfr-data-source>
+<dsfr-data-source id="toutes" api-type="opendatasoft" base-url="…" dataset-id="clubs_dep"
+  select="year(annee) as an, dep, n_actifs"></dsfr-data-source>
+<dsfr-data-join id="dernier-millesime" left="toutes" right="derniere" on="an" type="inner"></dsfr-data-join>
+```
+Contre une source d'une ligne, écarter les autres lignes est le but : ni avertissement console ni alerte
+au volet Diagnostic, qui la nomme « jointure-filtre ». Un écart de graphie (`2024` face à `"2024 "`)
+reste signalé.
+
 ### Comparaison des clés : en chaîne, sans trim ni complétion
 Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
 - `201` (nombre) et `"201"` (chaîne) **se joignent** ;

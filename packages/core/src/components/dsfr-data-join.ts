@@ -250,7 +250,8 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
    * Diagnostic affiche le taux depuis #660, mais n'alertait que sous 50 % : a
    * 98 lignes sur 101, un `inner` rendait un total plausible et faux, sans un
    * mot. Avertit :
-   * - toujours pour `inner`, qui RETIRE ces lignes du resultat ;
+   * - pour `inner`, qui RETIRE ces lignes du resultat — sauf jointure-filtre
+   *   contre une source d'une ligne (#816), ou retirer est le but ;
    * - pour `left` / `right` / `full` seulement si l'ecart est un ecart de
    *   graphie (`1` face a `01`) : ailleurs, une ligne sans correspondance est
    *   souvent legitime (enrichissement partiel) et le taux suffit.
@@ -261,7 +262,13 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
       ? stats.leftTotal - stats.leftMatched
       : stats.rightTotal - stats.rightMatched;
     const total = keptIsLeft ? stats.leftTotal : stats.rightTotal;
-    const shouldWarn = lost > 0 && (this.type === 'inner' || stats.keyFormatMismatch === true);
+    // Jointure-FILTRE (#816) : un `inner` contre une source d'UNE ligne sert
+    // a ne garder que les lignes egales a une valeur calculee par l'API (la
+    // derniere annee publiee, `max(annee)`). Retirer les autres est le but :
+    // aucun avertissement, sauf ecart de graphie, toujours signale.
+    const filterJoin = this.type === 'inner' && stats.rightTotal === 1;
+    const shouldWarn =
+      lost > 0 && ((this.type === 'inner' && !filterJoin) || stats.keyFormatMismatch === true);
     const signature = shouldWarn ? `${this.type}:${lost}/${total}:${this.on}` : '';
     if (signature === this._lostRowsWarned) return;
     this._lostRowsWarned = signature;
