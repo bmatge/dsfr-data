@@ -171,7 +171,9 @@ describe('OpenDataSoftAdapter', () => {
         overlay()
       );
       const params = new URL(url).searchParams;
-      expect(params.get('select')).toBe('nom, date, catégorie');
+      // Un nom non ASCII n'est pas un identifiant ODSQL nu : il est backquoté
+      // comme dans le group_by (#767) — le backquote est toujours sûr.
+      expect(params.get('select')).toBe('nom, date, `catégorie`');
     });
 
     it('includes group_by when specified', () => {
@@ -484,6 +486,91 @@ describe('OpenDataSoftAdapter', () => {
     it('cas de bascule : un nom à parenthèses est traité comme une expression (non échappé)', () => {
       const url = new URL(adapter.buildUrl(makeParams({ groupBy: 'Date (jour)' })));
       expect(url.searchParams.get('group_by')).toBe('Date (jour)');
+    });
+
+    describe('#767 — découpeur ODSQL et échappement du select', () => {
+      const groupByOf = (groupBy: string) =>
+        new URL(adapter.buildUrl(makeParams({ groupBy }))).searchParams.get('group_by');
+      const selectOf = (select: string) =>
+        new URL(adapter.buildUrl(makeParams({ select }))).searchParams.get('select');
+
+      it('BUG-010 : un alias sans fonction n’est pas backquoté', () => {
+        expect(groupByOf('periode as an')).toBe('periode as an');
+        expect(groupByOf('periode AS an, region')).toBe('periode AS an,region');
+      });
+
+      it('BUG-011 : une virgule dans une fonction ne coupe pas l’élément', () => {
+        expect(groupByOf("date_format(d, 'yyyy-MM') as m")).toBe("date_format(d, 'yyyy-MM') as m");
+        expect(groupByOf("date_format(d, 'yyyy-MM') as m, region")).toBe(
+          "date_format(d, 'yyyy-MM') as m,region"
+        );
+      });
+
+      it('une virgule dans une chaîne quotée ne coupe pas non plus', () => {
+        expect(selectOf("concat(nom, ', ', prenom) as libelle, age")).toBe(
+          "concat(nom, ', ', prenom) as libelle, age"
+        );
+      });
+
+      it('select : les expressions des builders et de la documentation sont inchangées', () => {
+        expect(selectOf('count(*) as total, region')).toBe('count(*) as total, region');
+        expect(selectOf('*')).toBe('*');
+        expect(selectOf('sum(montant) as montant__sum, dep')).toBe(
+          'sum(montant) as montant__sum, dep'
+        );
+        expect(selectOf('geo.lat, geo.lon')).toBe('geo.lat, geo.lon');
+        expect(selectOf('prix * quantite as total')).toBe('prix * quantite as total');
+      });
+
+      it('select : un champ à espaces est échappé', () => {
+        expect(selectOf('count(*) as total, Date - Journée gazière')).toBe(
+          'count(*) as total, `Date - Journée gazière`'
+        );
+      });
+
+      it('PG-027 : un nom à chiffre initial est échappé, le reste intact', () => {
+        // Canari du banc d'essai (jeu fr-en-cnr-base-nefle) : `1_uai` nu rend
+        // HTTP 400, backquoté 200. Il satisfait [A-Za-z0-9_]+ non ancré.
+        expect(selectOf('1_uai, etab_verif')).toBe('`1_uai`, etab_verif');
+        expect(groupByOf('1_uai')).toBe('`1_uai`');
+      });
+
+      it('un élément déjà backquoté par l’auteur n’est pas réécrit', () => {
+        // Le contournement en dur des pages du banc doit continuer de marcher.
+        expect(selectOf('`1_uai`, etab_verif')).toBe('`1_uai`, etab_verif');
+      });
+
+      it('le select dérivé d’un agrégat applique la même règle au group-by', () => {
+        const url = new URL(
+          adapter.buildUrl(
+            makeParams({ groupBy: 'periode as an, 1_uai', aggregate: 'montant:sum' })
+          )
+        );
+        expect(url.searchParams.get('select')).toBe(
+          'sum(montant) as montant__sum, periode as an, `1_uai`'
+        );
+        expect(url.searchParams.get('group_by')).toBe('periode as an,`1_uai`');
+      });
+
+      it('un agrégat sur un champ à chiffre initial est échappé', () => {
+        const url = new URL(
+          adapter.buildUrl(makeParams({ groupBy: 'region', aggregate: '1_effectif:sum' }))
+        );
+        expect(url.searchParams.get('select')).toBe(
+          'sum(`1_effectif`) as `1_effectif__sum`, region'
+        );
+      });
+
+      it('la pagination serveur applique le même échappement', () => {
+        const url = new URL(
+          adapter.buildServerSideUrl(makeParams({ select: '1_uai, nom' }), {
+            page: 1,
+            effectiveWhere: '',
+            orderBy: '',
+          })
+        );
+        expect(url.searchParams.get('select')).toBe('`1_uai`, nom');
+      });
     });
   });
 

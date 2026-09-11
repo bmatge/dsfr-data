@@ -179,14 +179,24 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   where = '';
 
-  /** Clause SELECT (pour ODS) */
+  /**
+   * Clause SELECT (pour ODS), liste séparée par des virgules :
+   * `select="count(*) as total, region"`. Une expression (fonction, alias
+   * `as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom
+   * de champ qui n'est pas un identifiant nu (espace, accent, chiffre
+   * initial comme `1_uai`) est backquoté automatiquement (#767). Une virgule
+   * à l'intérieur d'une fonction ou d'une chaîne ne sépare pas.
+   */
   @property({ type: String })
   select = '';
 
   /**
    * Group-by (pour les APIs qui le supportent server-side). ODS : un élément
-   * peut être une expression aliasée (`year(date) as annee`), transmise telle
-   * quelle — l'alias `as` est obligatoire cote ODS (#641).
+   * peut être une expression aliasée, avec ou sans fonction
+   * (`year(date) as annee`, `periode as an`), transmise telle quelle —
+   * l'alias `as` est obligatoire cote ODS (#641). Même découpe et même
+   * échappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m`
+   * reste d'un seul tenant.
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
