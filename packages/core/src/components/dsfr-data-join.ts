@@ -242,6 +242,52 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
     }
   }
 
+  /** Signature de la derniere perte signalee : un warn par situation, pas par emission. */
+  private _lostRowsWarned = '';
+
+  /**
+   * Des lignes du cote CONSERVE n'ont pas de correspondance (#792). Le volet
+   * Diagnostic affiche le taux depuis #660, mais n'alertait que sous 50 % : a
+   * 98 lignes sur 101, un `inner` rendait un total plausible et faux, sans un
+   * mot. Avertit :
+   * - toujours pour `inner`, qui RETIRE ces lignes du resultat ;
+   * - pour `left` / `right` / `full` seulement si l'ecart est un ecart de
+   *   graphie (`1` face a `01`) : ailleurs, une ligne sans correspondance est
+   *   souvent legitime (enrichissement partiel) et le taux suffit.
+   */
+  private _warnLostRows(stats: JoinStats): void {
+    const keptIsLeft = this.type !== 'right';
+    const lost = keptIsLeft
+      ? stats.leftTotal - stats.leftMatched
+      : stats.rightTotal - stats.rightMatched;
+    const total = keptIsLeft ? stats.leftTotal : stats.rightTotal;
+    const shouldWarn = lost > 0 && (this.type === 'inner' || stats.keyFormatMismatch === true);
+    const signature = shouldWarn ? `${this.type}:${lost}/${total}:${this.on}` : '';
+    if (signature === this._lostRowsWarned) return;
+    this._lostRowsWarned = signature;
+    if (!shouldWarn) return;
+
+    const side = keptIsLeft ? 'gauche' : 'droite';
+    const other = keptIsLeft ? this.right : this.left;
+    const orphans = (keptIsLeft ? stats.leftOrphans : stats.rightOrphans) ?? [];
+    const quoted = orphans.map((k) => `"${k}"`).join(', ');
+    const effect =
+      this.type === 'inner'
+        ? 'type="inner" les retire du résultat : un total calculé sur la jointure les perd'
+        : 'leurs champs de l’autre côté restent vides';
+    const cause = stats.keyFormatMismatch
+      ? ` La même clé existe de l'autre côté à la graphie près (zéro de tête, espaces) : ` +
+        `harmoniser les clés avant la jointure, par un dsfr-data-normalize (replace-fields) ` +
+        `ou à la source.`
+      : '';
+    console.warn(
+      `dsfr-data-join[${this.id}]: ${lost} ligne(s) ${side} sur ${total} sans correspondance dans ` +
+        `"${other}" (on="${this.on}") — ${effect}.` +
+        (quoted ? ` Clés orphelines : ${quoted}${orphans.length < lost ? '…' : ''}.` : '') +
+        cause
+    );
+  }
+
   private _toRows(data: unknown): Row[] {
     if (Array.isArray(data)) return data as Row[];
     if (data && typeof data === 'object') return [data as Row];
@@ -263,6 +309,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
         prefixRight: this.prefixRight,
       });
       this._lastStats = stats;
+      this._warnLostRows(stats);
       this._data = rows;
       this.emitTransformedData(this._data);
     } catch (error) {
