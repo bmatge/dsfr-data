@@ -119,6 +119,43 @@
         <a href="dsfr-data-map-layer.html">dsfr-data-map-layer</a>.
       </p>
 
+      <h3 class="fr-mt-3w">Résumé des cartes</h3>
+      <p>
+        Une carte (<code>type="map"</code> et ses variantes) affiche sous son titre une valeur de
+        synthèse. Par défaut, c'est la <strong>moyenne non pondérée</strong> des valeurs dessinées :
+        chaque territoire pèse autant, quelle que soit sa taille. Pour un taux, ce n'est pas le taux
+        national. La moyenne des taux de personnels des collèges par département vaut 4,27 %, le taux
+        national 5,6 %. Sur un indicateur homogène, l'écart est faible et passe inaperçu ; sur un
+        indicateur dispersé, il atteint le quart de la valeur, et rien à l'écran ne distingue les deux cas.
+      </p>
+      <div class="fr-table">
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+              <!-- ATTRS:dsfr-data-chart fields="map-summary-weight,map-summary-value" -->
+                <tr><td><code>map-summary-weight</code></td><td>String</td><td>Champ d'effectif pour un résumé de carte PONDÉRÉ (#763) : Σ(valeur × effectif) / Σ(effectif) sur les lignes dessinées. Pour un taux de personnels par élève, <code>map-summary-weight="nb_eleves"</code> rend le taux national, là où la moyenne des taux départementaux s'en écarte. Les lignes dont l'effectif n'est pas numérique sont écartées du calcul ; si aucune n'en porte, erreur de configuration et pas de résumé.</td></tr>
+                <tr><td><code>map-summary-value</code></td><td>String</td><td>Valeur du résumé affiché sous le titre des cartes (<code>type="map*"</code>), à la place de la moyenne calculée (#763). Nombre littéral, décimales à la française acceptées (<code>map-summary-value="5,6"</code>) : la valeur nationale publiée par ailleurs, qui fait autorité. Prime sur <code>map-summary-weight</code>. Une valeur non numérique est une erreur de configuration, et aucun résumé n'est affiché plutôt qu'un chiffre faux. Sans cet attribut ni <code>map-summary-weight</code>, le résumé est la moyenne NON PONDÉRÉE des valeurs dessinées sur la carte. Pour un taux, ce n'est pas le taux national dès que les territoires ont des tailles différentes : l'écart mesuré atteint le quart de la valeur sur un indicateur dispersé, et reste invisible sur un indicateur homogène.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <pre>&lt;!-- Taux national : moyenne des taux pondérée par l'effectif --&gt;
+&lt;dsfr-data-chart
+  source="personnels"
+  type="map"
+  code-field="code_dep"
+  value-field="taux_personnels"
+  map-summary-weight="nb_eleves"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+      </div>
+      <p class="fr-text--sm fr-text--light">
+        Choisir l'effectif qui a servi de dénominateur au taux : pondérer un taux par élève par le nombre
+        d'élèves rend exactement le rapport des deux sommes. Quand la valeur nationale est publiée par
+        ailleurs et fait autorité, <code>map-summary-value</code> la reprend telle quelle. Seules les
+        lignes dessinées entrent dans le calcul : une ligne au code géographique invalide ne pèse pas.
+      </p>
+
       <h3 class="fr-mt-3w">Attributs DataBox</h3>
       <p>L'attribut <code>databox</code> active l'habillage DataBox DSFR autour du graphique :
         cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,

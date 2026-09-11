@@ -1479,6 +1479,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
 | code-field | String | \`""\` | types map* | Champ contenant le code : departement (map), region (map-reg : code INSEE, cle DSFR Chart IDF/20R/971 ou nom, traduits), academie (map-aca : nom accentue ou non, prefixe « Academie de » retire), code pays ISO 3166-1 alpha-2/alpha-3/numerique OU nom de pays en francais (map-monde : « Allemagne », « l'Allemagne », « Pays-Bas », converti en alpha-2) — prioritaire sur label-field. Une cle hors referentiel est ignoree ET comptee (console + volet Diagnostic) |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
+| map-summary-weight | String | \`""\` | types map* | Champ d'effectif : le resume affiche sous le titre de la carte devient la moyenne PONDEREE (somme valeur x effectif / somme effectif). **A poser pour tout taux** : sans lui, le resume est la moyenne NON ponderee des territoires, qui n'est pas le taux national (ecart mesure : -24 %). Ex : \`map-summary-weight="nb_eleves"\` |
+| map-summary-value | String | \`""\` | types map* | Valeur nationale fournie par la page, nombre litteral (\`"5,6"\`), prime sur map-summary-weight |
 | reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
 | targets | String | \`""\` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : \`{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }\`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : \`targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'\`. |
 | targets-zone | String | \`"on"\` | non | Bande grisee + frontiere pointillee realise/projete. \`"off"\` desactive. |
@@ -1494,10 +1496,10 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | scatter | source, type, label-field, value-field | x-min, x-max, y-min, y-max |
 | gauge | source, type, gauge-value | - |
 | bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar |
-| map | source, type, code-field, value-field | selected-palette, map-highlight |
-| map-reg | source, type, code-field, value-field | selected-palette, map-highlight |
-| map-aca | source, type, code-field, value-field | selected-palette, map-highlight |
-| map-monde | source, type, code-field, value-field | selected-palette, map-highlight |
+| map | source, type, code-field, value-field | selected-palette, map-highlight, map-summary-weight, map-summary-value |
+| map-reg | source, type, code-field, value-field | selected-palette, map-highlight, map-summary-weight, map-summary-value |
+| map-aca | source, type, code-field, value-field | selected-palette, map-highlight, map-summary-weight, map-summary-value |
+| map-monde | source, type, code-field, value-field | selected-palette, map-highlight, map-summary-weight, map-summary-value |
 
 ### Exemples
 \`\`\`html
