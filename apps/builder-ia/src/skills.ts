@@ -4212,6 +4212,12 @@ compte pas (peut etre place apres les composants).
     trigger: [
       'grammaire',
       'voie native',
+      'colonnes',
+      'par ligne',
+      'responsive',
+      'mobile',
+      'per-row',
+      'span',
       'decouper',
       'separateur',
       'multivalu',
@@ -4533,6 +4539,30 @@ categorie, le substitut conforme est le graphique en barres horizontales, trie :
 \`\`\`
 
 Ne pas importer une bibliotheque tierce pour un treemap dans une page DSFR.
+
+### Colonnage : per-row (nombre par ligne) et span (largeur sur 12)
+
+Deux attributs, deux grandeurs (#790) — ne pas les confondre :
+- \`per-row\` = **nombre** d'elements par ligne (1, 2, 3, 4, 6, 12 : les diviseurs de 12), sur
+  \`dsfr-data-display\`, \`dsfr-data-kpi-group\` et \`dsfr-data-facets\` ;
+- \`span\` = **largeur** sur la grille de 12, sur \`dsfr-data-facets\` (\`"6"\` ou
+  \`"annee:3 | type:6"\`) et sur un \`dsfr-data-kpi\` dans un groupe.
+\`cols\` / \`col\` sont les anciens noms, toujours acceptes — mais \`cols\` est une largeur sur les
+facettes et un nombre ailleurs : ne plus les generer.
+
+**Echelle responsive, mobile-first** (#789), termes separes par des espaces, sur \`per-row\` et
+\`span\` seulement :
+\`\`\`html
+<dsfr-data-kpi-group per-row="2 md:4">…</dsfr-data-kpi-group>     <!-- 2 × 2 sur telephone, 4 a partir de 768 px -->
+<dsfr-data-display source="d" per-row="1 sm:2 lg:3">…</dsfr-data-display>
+<dsfr-data-facets source="d" span="annee:12 md:3 | type:12 md:6"></dsfr-data-facets>
+\`\`\`
+- Premier terme nu : sous le premier point de rupture ; puis \`bp:valeur\` a partir de \`sm\` (576 px),
+  \`md\` (768), \`lg\` (992), \`xl\` (1248).
+- Une valeur **nue** garde le sens historique : pleine largeur sous 768 px, la valeur a partir de \`md\`.
+- Separateurs : \`|\` entre facettes, espace entre points de rupture. Point de rupture inconnu
+  (\`xxl\`) ou valeur hors grille : erreur de configuration nommee.
+- Sur un \`dsfr-data-kpi\`, \`span\` reste une largeur unique (pas d'echelle par enfant).
 
 ### Regle generale
 
@@ -4938,8 +4968,9 @@ quand la colonne rétrécit, ce qu'une hauteur en pixels ne fait pas. Défaut : 
 ### Pièges de mise en page
 
 - **\`dsfr-data-kpi-group\` fait sa propre grille.** Il dispose ses enfants dans une grille
-  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut \`per-row\` et par l'attribut
-  \`col\` de chaque \`dsfr-data-kpi\`. Ne pas l'envelopper dans des \`fr-col-*\`, et ne pas poser
+  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut \`per-row\` (échelle responsive
+  possible : \`per-row="2 md:4"\` pour 2 × 2 sur téléphone) et par l'attribut \`span\` de chaque
+  \`dsfr-data-kpi\`. Ne pas l'envelopper dans des \`fr-col-*\`, et ne pas poser
   de classe \`fr-col-*\` sur les KPI enfants : ces classes n'atteignent pas sa grille et ne
   font rien. Tous les autres composants \`dsfr-data-*\` rendent en DOM clair, où les classes
   \`fr-*\` s'appliquent normalement.

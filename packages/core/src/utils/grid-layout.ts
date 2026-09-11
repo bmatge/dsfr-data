@@ -101,3 +101,131 @@ export function syncLayoutError(
   if (previous && shown === previous) clearConfigError(el);
   return null;
 }
+
+// --- Échelle responsive (#789) -------------------------------------------
+
+/**
+ * Points de rupture du DSFR, dans l'ordre (mobile-first) : les classes
+ * `fr-col-{bp}-N` s'appliquent à partir de ces largeurs.
+ */
+export const BREAKPOINTS = { sm: '36em', md: '48em', lg: '62em', xl: '78em' } as const;
+export type Breakpoint = keyof typeof BREAKPOINTS;
+const BREAKPOINT_ORDER: readonly Breakpoint[] = ['sm', 'md', 'lg', 'xl'];
+
+/**
+ * Échelle de largeurs sur 12 : `base` sous le premier point de rupture, puis
+ * un palier par point de rupture. `mobileExplicit` : l'auteur a fixé la
+ * disposition mobile (terme de base ou palier `sm`) ; sinon c'est la valeur
+ * nue historique, pleine largeur sous 768 px.
+ */
+export interface Scale {
+  base: number;
+  steps: Array<{ bp: Breakpoint; width: number }>;
+  mobileExplicit: boolean;
+}
+
+function isBreakpoint(key: string): key is Breakpoint {
+  return (BREAKPOINT_ORDER as readonly string[]).includes(key);
+}
+
+/**
+ * Lit une échelle mobile-first (#789), séparée par des espaces :
+ * - `"3"`, valeur nue : sens historique inchangé — pleine largeur sous 768 px,
+ *   la valeur à partir de `md` ;
+ * - `"1 md:3 lg:4"` : le premier terme vaut sous le premier palier, chaque
+ *   `bp:valeur` à partir de son point de rupture (sm 576, md 768, lg 992,
+ *   xl 1248 px) ;
+ * - `"md:3 lg:4"` : sans terme de base, pleine largeur en dessous.
+ *
+ * `kind` : `per-row` compte des éléments par ligne (diviseurs de 12, jusqu'à
+ * `max`), `span` donne une largeur (1 à 12). Les valeurs sont rendues en
+ * LARGEURS sur 12 dans les deux cas. Un point de rupture inconnu, un terme
+ * de base mal placé ou une valeur hors grille donnent une erreur nommée.
+ */
+export function parseScale(
+  raw: unknown,
+  kind: 'per-row' | 'span',
+  max = 12
+): { scale: Scale | null; error: string | null } {
+  const text = raw === null || raw === undefined ? '' : String(raw).trim();
+  if (!text) return { scale: null, error: null };
+  const attr = kind === 'per-row' ? 'per-row' : 'span';
+  const toWidth = (value: string): { width: number | null; error: string | null } => {
+    if (kind === 'per-row') {
+      const parsed = parsePerRow(value, max);
+      if (parsed.error)
+        return {
+          width: null,
+          error: parsed.error.replace(/^per-row="[^"]*"/, `per-row="${text}"`),
+        };
+      return { width: parsed.value === null ? null : spanForPerRow(parsed.value), error: null };
+    }
+    const parsed = parseSpan(value);
+    if (parsed.error)
+      return { width: null, error: parsed.error.replace(/^span="[^"]*"/, `span="${text}"`) };
+    return { width: parsed.value, error: null };
+  };
+
+  const tokens = text.split(/\s+/);
+  if (tokens.length === 1 && !tokens[0].includes(':')) {
+    const w = toWidth(tokens[0]);
+    if (w.error || w.width === null) return { scale: null, error: w.error };
+    return {
+      scale: { base: 12, steps: [{ bp: 'md', width: w.width }], mobileExplicit: false },
+      error: null,
+    };
+  }
+
+  let base = 12;
+  let mobileExplicit = false;
+  const steps = new Map<Breakpoint, number>();
+  for (const [i, token] of tokens.entries()) {
+    const colon = token.indexOf(':');
+    if (colon === -1) {
+      if (i !== 0) {
+        return {
+          scale: null,
+          error: `${attr}="${text}" : « ${token} » sans point de rupture — seul le premier terme peut être nu (ex. "1 md:3 lg:4")`,
+        };
+      }
+      const w = toWidth(token);
+      if (w.error || w.width === null) return { scale: null, error: w.error };
+      base = w.width;
+      mobileExplicit = true;
+      continue;
+    }
+    const bp = token.slice(0, colon);
+    if (!isBreakpoint(bp)) {
+      return {
+        scale: null,
+        error: `${attr}="${text}" : point de rupture inconnu « ${bp} » — points de rupture DSFR : ${BREAKPOINT_ORDER.join(', ')}`,
+      };
+    }
+    const w = toWidth(token.slice(colon + 1));
+    if (w.error || w.width === null) return { scale: null, error: w.error };
+    steps.set(bp, w.width);
+    if (bp === 'sm') mobileExplicit = true;
+  }
+  const ordered = BREAKPOINT_ORDER.filter((bp) => steps.has(bp)).map((bp) => ({
+    bp,
+    width: steps.get(bp)!,
+  }));
+  return { scale: { base, steps: ordered, mobileExplicit }, error: null };
+}
+
+/**
+ * Classes de colonne DSFR d'une échelle : `fr-col-{base}` puis
+ * `fr-col-{bp}-{largeur}`. Un palier qui ne change rien au précédent est
+ * omis ; une valeur nue donne exactement les classes historiques
+ * (`fr-col-12 fr-col-md-4`).
+ */
+export function scaleToClasses(scale: Scale): string {
+  const classes = [`fr-col-${scale.base}`];
+  let current = scale.base;
+  for (const step of scale.steps) {
+    if (step.width === current) continue;
+    classes.push(`fr-col-${step.bp}-${step.width}`);
+    current = step.width;
+  }
+  return classes.join(' ');
+}

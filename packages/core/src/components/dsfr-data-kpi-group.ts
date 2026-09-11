@@ -2,8 +2,8 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
-  parsePerRow,
-  spanForPerRow,
+  parseScale,
+  BREAKPOINTS,
   legacyConflictMessage,
   syncLayoutError,
 } from '../utils/grid-layout.js';
@@ -45,7 +45,10 @@ export class DsfrDataKpiGroup extends LitElement {
 
   /**
    * Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —
-   * 1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Remplace `cols`, même
+   * 1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Échelle mobile-first
+   * (#789) : `per-row="2 md:4"` — deux KPI par ligne sur téléphone, quatre à
+   * partir de 768 px ; avec un terme de base ou un palier `sm`, le repli
+   * forcé sur une colonne ne s'applique plus. Remplace `cols`, même
    * sens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte
    * `span` (ou `col`) garde sa propre largeur.
    */
@@ -57,8 +60,8 @@ export class DsfrDataKpiGroup extends LitElement {
 
   /** Largeur par défaut d'un enfant : `per-row` valide, sinon `cols`. */
   private _defaultSpan(): number {
-    const perRow = parsePerRow(this.perRow, 12).value;
-    if (perRow !== null) return spanForPerRow(perRow);
+    const perRow = parseScale(this.perRow, 'per-row').scale;
+    if (perRow) return perRow.steps[perRow.steps.length - 1]?.width ?? perRow.base;
     return Math.max(1, Math.floor(12 / Math.max(1, Math.min(12, this.cols))));
   }
 
@@ -168,12 +171,13 @@ export class DsfrDataKpiGroup extends LitElement {
       grid-column: span 12;
     }
 
-    /* Responsive: stack on mobile */
+    /* Responsive: stack on mobile — sauf si l'auteur a fixé la disposition
+       mobile par une échelle per-row (#789, attribut data-mobile-layout). */
     @media (max-width: 767px) {
-      :host {
+      :host(:not([data-mobile-layout])) {
         grid-template-columns: 1fr;
       }
-      ::slotted(*) {
+      :host(:not([data-mobile-layout])) ::slotted(*) {
         grid-column: span 1 !important;
       }
     }
@@ -183,10 +187,11 @@ export class DsfrDataKpiGroup extends LitElement {
     super.updated(changedProperties);
     if (changedProperties.has('cols') || changedProperties.has('perRow')) {
       this.style.setProperty('--_kpi-default-span', String(this._defaultSpan()));
-      const perRow = parsePerRow(this.perRow, 12);
+      const perRow = parseScale(this.perRow, 'per-row');
+      this.toggleAttribute('data-mobile-layout', perRow.scale?.mobileExplicit === true);
       const message =
         perRow.error ??
-        (perRow.value !== null && this.hasAttribute('cols')
+        (perRow.scale !== null && this.hasAttribute('cols')
           ? legacyConflictMessage('cols', 'per-row')
           : null);
       this._layoutError = syncLayoutError(this, 'dsfr-data-kpi-group', message, this._layoutError);
@@ -195,11 +200,21 @@ export class DsfrDataKpiGroup extends LitElement {
 
   render() {
     const defaultSpan = this._defaultSpan();
+    const scale = parseScale(this.perRow, 'per-row').scale;
+    // Échelle per-row (#789) : largeur de base, puis une règle par palier.
+    // Sans échelle, la largeur unique historique (cols ou per-row nu).
+    const rules = scale
+      ? [
+          `::slotted(*:not([col]):not([span])) { grid-column: span ${scale.base}; }`,
+          ...scale.steps.map(
+            (step) =>
+              `@media (min-width: ${BREAKPOINTS[step.bp]}) { ::slotted(*:not([col]):not([span])) { grid-column: span ${step.width}; } }`
+          ),
+        ].join('\n')
+      : `::slotted(*:not([col]):not([span])) { grid-column: span ${defaultSpan}; }`;
     return html`
       <style>
-        ::slotted(*:not([col]):not([span])) {
-          grid-column: span ${defaultSpan};
-        }
+        ${rules}
       </style>
       <slot></slot>
     `;

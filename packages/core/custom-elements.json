@@ -3895,7 +3895,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nombre d'éléments par ligne à partir de 768 px (en dessous : un par\nligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.\nRemplace `cols`, même sens, sans l'ambiguïté du mot sur les autres\ncomposants (#790). Prime sur `cols` s'ils sont posés ensemble.",
+              "description": "Nombre d'éléments par ligne à partir de 768 px (en dessous : un par\nligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.\nÉchelle mobile-first (#789) : `per-row=\"1 sm:2 lg:3\"` — le premier terme\nsous 576 px, puis un palier par point de rupture DSFR (sm 576, md 768,\nlg 992, xl 1248 px).\nRemplace `cols`, même sens, sans l'ambiguïté du mot sur les autres\ncomposants (#790). Prime sur `cols` s'ils sont posés ensemble.",
               "attribute": "per-row"
             },
             {
@@ -4483,7 +4483,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nombre d'éléments par ligne à partir de 768 px (en dessous : un par\nligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.\nRemplace `cols`, même sens, sans l'ambiguïté du mot sur les autres\ncomposants (#790). Prime sur `cols` s'ils sont posés ensemble.",
+              "description": "Nombre d'éléments par ligne à partir de 768 px (en dessous : un par\nligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.\nÉchelle mobile-first (#789) : `per-row=\"1 sm:2 lg:3\"` — le premier terme\nsous 576 px, puis un palier par point de rupture DSFR (sm 576, md 768,\nlg 992, xl 1248 px).\nRemplace `cols`, même sens, sans l'ambiguïté du mot sur les autres\ncomposants (#790). Prime sur `cols` s'ils sont posés ensemble.",
               "fieldName": "perRow"
             },
             {
@@ -6019,11 +6019,22 @@
             },
             {
               "kind": "method",
-              "name": "_widthFor",
+              "name": "_parseSpanScales",
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "number | null"
+                  "text": "{\n    global: Scale | null;\n    byField: Map<string, Scale>;\n    error: string | null;\n  }"
+                }
+              },
+              "description": "`span` lu en échelles (#789) : global (`\"12 md:3\"`) ou par facette\n(`\"annee:12 md:3 | type:12 md:6\"`). Dans un segment, une clé qui n'est\npas un point de rupture est un nom de champ : `annee:3` reste la largeur\n3 de la facette « annee », exactement comme avec `cols`."
+            },
+            {
+              "kind": "method",
+              "name": "_scaleFor",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Scale | null"
                 }
               },
               "parameters": [
@@ -6034,7 +6045,7 @@
                   }
                 }
               ],
-              "description": "Largeur sur 12 d'une facette (#790) : `span` (global ou par champ), sinon\n`per-row`, sinon — si aucun des deux n'est posé — l'ancien `cols`.\n`null` : grille automatique."
+              "description": "Échelle d'une facette (#790, #789) : `span` global, sinon `span` de la\nfacette, sinon `per-row`, sinon — carte `span` sans entrée pour ce champ\net sans `per-row` — la moitié de ligne historique. `null` : ni `span` ni\n`per-row` (ancien `cols`, ou grille automatique)."
             },
             {
               "kind": "method",
@@ -6045,7 +6056,7 @@
                   "text": "void"
                 }
               },
-              "description": "`per-row` ou `span` invalides, ou posés avec `cols` (#790)."
+              "description": "`per-row` ou `span` invalides, ou posés avec `cols` (#790, #789)."
             },
             {
               "kind": "method",
@@ -7159,7 +7170,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —\n1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Remplace `cols`, même\nsens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte\n`span` (ou `col`) garde sa propre largeur.",
+              "description": "Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —\n1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Échelle mobile-first\n(#789) : `per-row=\"2 md:4\"` — deux KPI par ligne sur téléphone, quatre à\npartir de 768 px ; avec un terme de base ou un palier `sm`, le repli\nforcé sur une colonne ne s'applique plus. Remplace `cols`, même\nsens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte\n`span` (ou `col`) garde sa propre largeur.",
               "attribute": "per-row"
             },
             {
@@ -7210,7 +7221,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —\n1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Remplace `cols`, même\nsens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte\n`span` (ou `col`) garde sa propre largeur.",
+              "description": "Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) —\n1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Échelle mobile-first\n(#789) : `per-row=\"2 md:4\"` — deux KPI par ligne sur téléphone, quatre à\npartir de 768 px ; avec un terme de base ou un palier `sm`, le repli\nforcé sur une colonne ne s'applique plus. Remplace `cols`, même\nsens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte\n`span` (ou `col`) garde sa propre largeur.",
               "fieldName": "perRow"
             },
             {
