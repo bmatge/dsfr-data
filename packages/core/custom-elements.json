@@ -15885,7 +15885,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (pour ODS)",
+              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.",
               "attribute": "select"
             },
             {
@@ -15895,7 +15895,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
+              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée, avec ou sans fonction\n(`year(date) as annee`, `periode as an`), transmise telle quelle —\nl'alias `as` est obligatoire cote ODS (#641). Même découpe et même\néchappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m`\nreste d'un seul tenant.",
               "attribute": "group-by"
             },
             {
@@ -16586,7 +16586,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (pour ODS)",
+              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.",
               "fieldName": "select"
             },
             {
@@ -16595,7 +16595,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée (`year(date) as annee`), transmise telle\nquelle — l'alias `as` est obligatoire cote ODS (#641).",
+              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée, avec ou sans fonction\n(`year(date) as annee`, `periode as an`), transmise telle quelle —\nl'alias `as` est obligatoire cote ODS (#641). Même découpe et même\néchappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m`\nreste d'un seul tenant.",
               "fieldName": "groupBy"
             },
             {

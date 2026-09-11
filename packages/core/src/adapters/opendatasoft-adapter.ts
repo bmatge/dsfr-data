@@ -82,6 +82,16 @@ const ODS_PAGE_SIZE = 100;
 const ODS_MAX_PAGES = 10;
 
 /**
+ * Identifiant ODSQL utilisable nu (#767). L'ANCRAGE et l'initiale non
+ * numerique ne sont pas cosmetiques : un identifiant peut contenir un chiffre
+ * mais pas COMMENCER par un chiffre. Mesure par le banc d'essai sur le jeu
+ * `fr-en-cnr-base-nefle` : `select=1_uai` rend HTTP 400 « unexpected _uai at
+ * position 1 », `` select=`1_uai` `` rend 200. L'ancienne classe
+ * `[A-Za-z0-9_]+` laissait ce nom nu (PG-027) — ne pas la « simplifier ».
+ */
+const ODSQL_BARE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
  * Echappe un identifiant ODSQL (#289) : les noms simples passent tels quels
  * (lisibilite des URLs), les champs avec espaces/ponctuation sont entoures
  * de backquotes — "Date - Journee gaziere" cassait l'ODSQL (Grist echappe
@@ -89,43 +99,95 @@ const ODS_MAX_PAGES = 10;
  * les noms de champs ODS).
  */
 function escapeOdsqlIdentifier(field: string): string {
-  if (/^[A-Za-z0-9_]+$/.test(field)) return field;
+  if (ODSQL_BARE_IDENTIFIER.test(field)) return field;
   return '`' + field.replace(/`/g, '') + '`';
 }
 
 /**
- * Un element de group-by est soit un nom de champ, soit une expression ODSQL
- * (`year(d) as annee`, #641). Une expression contient une parenthese ouvrante
- * et passe telle quelle : la backquoter en ferait un nom de champ inconnu
- * (HTTP 400 "Unknown field"). Un nom de champ a espaces (#289) reste echappe.
+ * Un element de liste `select` / `group_by` est soit un nom de champ, soit une
+ * expression ODSQL a transmettre telle quelle — la backquoter en ferait un nom
+ * de champ inconnu (HTTP 400). Est une expression (#641, #767) :
+ * - `*` (`select="*"`) ou un litteral numerique ;
+ * - un element portant une parenthese (`year(d) as annee`, `count(*)`), une
+ *   quote ou une backquote (deja echappe par l'auteur : `` `1_uai` ``) ;
+ * - un alias ` as `, AVEC OU SANS fonction (`periode as an`, BUG-010 : le
+ *   correctif #641 ne voyait que les parentheses) ;
+ * - un chemin pointe (`geo.lat`) ;
+ * - un operateur `+ * / % < > =`. PAS le tiret : « Date - Journee gaziere »
+ *   est un vrai nom de champ a espaces (#289), qui doit rester echappe.
+ *
+ * Tout le reste qui n'est pas un identifiant nu est backquote : champ a
+ * espaces, a accents, a chiffre initial.
  *
  * Cas de bascule assume : un nom de champ contenant lui-meme une parenthese
- * ("Date (jour)") est traite comme une expression et n'est plus echappe. ODS
- * impose des noms techniques de champ en `[a-z0-9_]` (les libelles a espaces
- * ou parentheses sont des labels, pas des identifiants ODSQL) — un tel cas
- * ne se rencontre pas en pratique, et une expression avec `(` est le cas
- * reel a servir.
+ * ("Date (jour)") est traite comme une expression et n'est pas echappe. Les
+ * noms techniques ODS sont en `[a-z0-9_]` (les libelles a parentheses sont des
+ * labels, pas des identifiants ODSQL) ; l'auteur peut backquoter lui-meme.
  */
-function isOdsqlExpression(field: string): boolean {
-  return field.includes('(');
+function isOdsqlExpression(item: string): boolean {
+  return (
+    item === '*' ||
+    /^\d+(\.\d+)?$/.test(item) ||
+    /[()'"`]/.test(item) ||
+    /\sas\s/i.test(item) ||
+    /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$/.test(item) ||
+    /[+*/%<>=]/.test(item)
+  );
 }
 
-/** Echappe un element de group-by : identifiant echappe, expression brute */
-function escapeOdsqlGroupField(field: string): string {
-  return isOdsqlExpression(field) ? field : escapeOdsqlIdentifier(field);
+/** Echappe un element de liste : identifiant nu ou expression brute, sinon backquote */
+function escapeOdsqlListItem(item: string): string {
+  if (ODSQL_BARE_IDENTIFIER.test(item) || isOdsqlExpression(item)) return item;
+  return escapeOdsqlIdentifier(item);
 }
 
-/** Decoupe une liste group-by "a, b" en elements non vides */
-function splitGroupBy(groupBy: string): string[] {
-  return groupBy
-    .split(',')
-    .map((f) => f.trim())
-    .filter(Boolean);
+/**
+ * Decoupe une liste ODSQL `select` / `group_by` en elements de premier niveau
+ * (#767) : une virgule ne separe que HORS parentheses et HORS quotes.
+ * `date_format(d, 'yyyy-MM') as m, region` donne deux elements, pas trois — le
+ * `split(',')` brut coupait la fonction en deux et backquotait sa seconde
+ * moitie (BUG-011). Une parenthese fermante orpheline ne fait pas descendre
+ * la profondeur sous zero : l'element reste d'un tenant et part tel quel a
+ * l'API, qui en dira l'erreur.
+ */
+function splitOdsqlList(list: string): string[] {
+  const items: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let current = '';
+  for (const char of list) {
+    if (quote) {
+      if (char === quote) quote = null;
+    } else if (char === "'" || char === '"' || char === '`') {
+      quote = char;
+    } else if (char === '(') {
+      depth++;
+    } else if (char === ')') {
+      depth = Math.max(0, depth - 1);
+    } else if (char === ',' && depth === 0) {
+      items.push(current);
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  items.push(current);
+  return items.map((item) => item.trim()).filter(Boolean);
 }
 
-/** Echappe chaque champ d'une liste group-by "a, b" → "a,`b c`" */
+/** Echappe chaque element d'un `group_by` "a, b c" → "a,`b c`" */
 function escapeOdsqlGroupBy(groupBy: string): string {
-  return splitGroupBy(groupBy).map(escapeOdsqlGroupField).join(',');
+  return splitOdsqlList(groupBy).map(escapeOdsqlListItem).join(',');
+}
+
+/**
+ * Echappe chaque element d'un `select` explicite (PG-027 : il n'etait jamais
+ * echappe, a la difference du `group_by`). Les expressions — `count(*) as
+ * total`, genere par les deux builders et ecrit dans la documentation — passent
+ * intactes : seul un nom de champ non nu est backquote.
+ */
+function escapeOdsqlSelect(select: string): string {
+  return splitOdsqlList(select).map(escapeOdsqlListItem).join(', ');
 }
 
 export class OpenDataSoftAdapter implements ApiAdapter {
@@ -341,7 +403,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     // SELECT
     if (params.select) {
-      url.searchParams.set('select', params.select);
+      url.searchParams.set('select', escapeOdsqlSelect(params.select));
     } else if (params.aggregate && params.groupBy) {
       url.searchParams.set('select', this._buildSelectFromAggregate(params));
     }
@@ -536,7 +598,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     this._applyExtraParams(url, params);
 
     if (params.select) {
-      url.searchParams.set('select', params.select);
+      url.searchParams.set('select', escapeOdsqlSelect(params.select));
     } else if (params.aggregate && params.groupBy) {
       url.searchParams.set('select', this._buildSelectFromAggregate(params));
     }
@@ -653,10 +715,11 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       selectParts.push(`${odsFunc} as ${escapeOdsqlIdentifier(alias)}`);
     }
 
-    // Une expression (`year(d) as annee`) est reprise telle quelle dans le
-    // select : ODS accepte l'expression aliasee des deux cotes (#641)
-    for (const gf of splitGroupBy(params.groupBy)) {
-      selectParts.push(escapeOdsqlGroupField(gf));
+    // Une expression (`year(d) as annee`, `periode as an`) est reprise telle
+    // quelle dans le select : ODS accepte l'expression aliasee des deux cotes
+    // (#641). Meme decoupe et meme classement que le group_by (#767).
+    for (const gf of splitOdsqlList(params.groupBy)) {
+      selectParts.push(escapeOdsqlListItem(gf));
     }
 
     return selectParts.join(', ');
