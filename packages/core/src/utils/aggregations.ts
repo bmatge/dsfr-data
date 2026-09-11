@@ -1,4 +1,4 @@
-import { toNumber } from '@dsfr-data/shared/lib';
+import { toNumber, applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
 import { getByPath } from './json-path.js';
 
 /**
@@ -37,6 +37,12 @@ export interface ParsedExpression {
   error?: string;
   numerator?: ParsedExpression;
   denominator?: ParsedExpression;
+  /**
+   * Filtre des lignes propre à CETTE expression (#776), dialecte colon :
+   * `ecoles:sum{sexe:eq:F}`. Appliqué avant l'agrégat, à ce seul côté d'un
+   * ratio — le `where` du KPI filtre, lui, les deux côtés.
+   */
+  rowFilter?: string;
 }
 
 /**
@@ -115,6 +121,8 @@ let legacyGrammarWarned = false;
  * - "field:evolution"  -> (dernière − première) / première, dans l'ordre courant (#675)
  * - "meta:total"       -> total publié par l'amont (#659), via le contexte
  * - "<expr> / <expr>"  -> ratio de deux expressions ci-dessus (#673)
+ * - "<expr>{filtre}"   -> l'expression sur les seules lignes qui passent le
+ *                         filtre colon (#776), ex. "ecoles:sum{sexe:eq:F}"
  *
  * Une expression à 2+ segments dont AUCUN segment de fonction n'est dans la
  * liste blanche (ex. `x:somme`) est renvoyée en `type: 'invalid'` avec un
@@ -143,6 +151,14 @@ export function parseExpression(expression: string): ParsedExpression {
     const invalid = [numerator, denominator].find((side) => side.type === 'invalid');
     if (invalid) return { type: 'invalid', field: '', error: invalid.error };
     return { type: 'ratio', field: '', numerator, denominator };
+  }
+
+  // Filtre par expression (#776) : `expr{champ:op:valeur, …}`. L'accolade
+  // n'ajoute aucune ambiguïté au découpage par deux-points, contrairement à
+  // une quatrième partie colon ; le filtre est le dialecte du `where`.
+  const brace = trimmed.indexOf('{');
+  if (brace !== -1) {
+    return parseFilteredExpression(expression, trimmed, brace);
   }
 
   if (trimmed === META_TOTAL_EXPR) return { type: 'meta', field: 'total' };
@@ -203,8 +219,8 @@ export function parseExpression(expression: string): ParsedExpression {
         error:
           `filtre "${expression}" non pris en charge — seule la fonction count accepte ` +
           `une valeur de filtre ("count:champ:valeur") ; "${type}" rendrait le total ` +
-          `non filtré. Pour agréger un sous-ensemble, filtrer en amont (where du KPI ` +
-          `ou dsfr-data-query)`,
+          `non filtré. Pour agréger un sous-ensemble : "${field}:${type}{champ:eq:valeur}" ` +
+          `(#776), ou le where du KPI`,
       };
     }
 
@@ -228,6 +244,49 @@ export function parseExpression(expression: string): ParsedExpression {
   }
 
   return { type, field };
+}
+
+/** `expr{filtre}` (#776) : l'expression de base, porteuse du filtre de lignes. */
+function parseFilteredExpression(
+  expression: string,
+  trimmed: string,
+  brace: number
+): ParsedExpression {
+  const invalid = (error: string): ParsedExpression => ({ type: 'invalid', field: '', error });
+  if (!trimmed.endsWith('}') || trimmed.indexOf('{', brace + 1) !== -1) {
+    return invalid(
+      `filtre "${expression}" mal formé — attendu "expression{champ:opérateur:valeur}" ` +
+        `(ex. "ecoles:sum{sexe:eq:F}"), une seule paire d'accolades, en fin d'expression`
+    );
+  }
+  const baseExpr = trimmed.slice(0, brace).trim();
+  const rowFilter = trimmed.slice(brace + 1, -1).trim();
+  if (!baseExpr) {
+    return invalid(
+      `filtre "${expression}" sans expression devant l'accolade (ex. "ecoles:sum{sexe:eq:F}")`
+    );
+  }
+  if (!rowFilter) {
+    return invalid(`filtre vide dans "${expression}" — retirer les accolades ou poser une clause`);
+  }
+  const filterError = validateColonFilter(rowFilter);
+  if (filterError) return invalid(`filtre de "${expression}" : ${filterError}`);
+
+  const base = parseExpression(baseExpr);
+  if (base.type === 'invalid') return base;
+  if (base.type === 'meta') {
+    return invalid(
+      `"${expression}" : meta:total est le total publié par l'amont, il ne se filtre pas ` +
+        `— compter les lignes filtrées avec "count{…}"`
+    );
+  }
+  if (base.type === 'direct') {
+    return invalid(
+      `"${expression}" : un filtre porte sur un agrégat ("champ:fn{…}" ou "count{…}"), ` +
+        `pas sur un accès direct au champ "${base.field}"`
+    );
+  }
+  return { ...base, rowFilter };
 }
 
 /**
@@ -269,6 +328,18 @@ function evaluateParsed(
   parsed: ParsedExpression,
   context: AggregationContext
 ): number | string | null {
+  // Filtre propre à l'expression (#776) : restreint les lignes, puis évalue
+  // l'expression de base sur ce sous-ensemble.
+  if (parsed.rowFilter) {
+    const rows: Record<string, unknown>[] = Array.isArray(data)
+      ? (data as Record<string, unknown>[])
+      : data && typeof data === 'object'
+        ? [data as Record<string, unknown>]
+        : [];
+    const filtered = applyLocalFilter(rows, parsed.rowFilter, getByPath);
+    return evaluateParsed(filtered, { ...parsed, rowFilter: undefined }, context);
+  }
+
   // Accès direct sur un objet seul (pas un tableau) : getByPath (#303) gère
   // les chemins imbriques — valeur="fields.score" echouait silencieusement.
   if (parsed.type === 'direct' && !Array.isArray(data)) {

@@ -1220,8 +1220,12 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
 - \`count:champ:valeur\` accepte un champ **tableau** (tags) : la ligne compte si l'un des
   éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
 - **Seul \`count\` accepte une valeur de filtre** : \`sum:montant:ouvert\` est une erreur de
-  configuration (il rendait autrefois le total non filtré). Pour sommer un sous-ensemble, filtrer
-  en amont (\`where\` du KPI, ou une \`dsfr-data-query\`).
+  configuration (il rendait autrefois le total non filtré).
+- **Part de SOMMES : filtre entre accolades sur un côté** (\`expr{champ:op:valeur}\`, dialecte du
+  \`where\`). Sur une source pré-agrégée (une ligne par école et par sexe avec un effectif) :
+  \`value="effectif:sum{sexe:eq:F} / effectif:sum" format="pourcentage"\`. Le filtre ne vaut que pour
+  son côté ; le \`where\` du KPI, lui, filtre les deux. Plusieurs clauses : \`{sexe:eq:F, secteur:eq:public}\`.
+  Marche aussi pour \`count{…}\`, \`avg\`, \`min\`, \`max\`. Pas sur \`meta:total\` ni sur un accès direct.
 - Un ratio marche aussi dans \`trend\` (rendu en %) et dans \`lines\` (format pourcentage par défaut).
 - Pas de \`count-if\` sur dsfr-data-query : filtrer avec \`where\` puis compter.
 - **Les deux côtés viennent de LA MÊME source** : \`source\` est un identifiant unique. Un indicateur

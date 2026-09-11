@@ -75,7 +75,12 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
    * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
    * Seul `count` accepte une valeur de filtre : `sum:champ:valeur` est une
-   * erreur de configuration (#764) — filtrer en amont par `where`.
+   * erreur de configuration (#764).
+   * Filtre propre à une expression (#776), dialecte du `where` entre
+   * accolades : `value="effectif:sum{sexe:eq:F} / effectif:sum"` rend une
+   * part de SOMMES — le filtre ne vaut que pour son côté du ratio, là où
+   * `where` filtre les deux. Marche aussi pour `count{…}` et les autres
+   * fonctions ; un filtre non reconnu est une erreur de configuration.
    * `champ:evolution` (#675) : (dernière − première) / première sur les
    * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
    * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,
