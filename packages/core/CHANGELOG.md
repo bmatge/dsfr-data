@@ -1,5 +1,443 @@
 # dsfr-data
 
+## 0.29.0
+
+### Minor Changes
+
+- [#804](https://github.com/bmatge/dsfr-data/pull/804) [`1024256`](https://github.com/bmatge/dsfr-data/commit/1024256ba60b529c9f2bf4cf5c6ef6fea578b345) Thanks [@bmatge](https://github.com/bmatge)! - feat(map) : un bouton de plein écran pour la carte
+  
+  Une carte dense se lit mal dans une colonne de page. `<dsfr-data-map fullscreen>` ajoute, à droite
+  des boutons de zoom, un bouton « Plein écran » : la carte, avec ses couches, sa légende, ses encarts
+  et son sélecteur de fond, occupe tout l'écran, et en revient par le même bouton ou la touche Échap.
+  
+  C'est un vrai bouton, atteint au clavier avant la carte. Son état passe par `aria-pressed` et par
+  son libellé, et chaque bascule est annoncée aux lecteurs d'écran. La carte recalcule sa taille à
+  l'entrée comme à la sortie, sans bande de tuiles grises, et la page est notifiée par l'événement
+  `dsfr-data-map-fullscreen-change`. Le bouton n'apparaît pas quand le navigateur ne sait pas mettre
+  un élément en plein écran (Safari sur iPhone), ni avec `locked` ou `no-controls`.
+  
+  La capture d'image de la carte reste hors périmètre : tuiles d'origines croisées, légende hors du
+  canevas.
+  
+  Résout le volet plein écran du constat AM-061 du banc d'essai ([#780](https://github.com/bmatge/dsfr-data/issues/780)).
+
+- [#819](https://github.com/bmatge/dsfr-data/pull/819) [`d4ece75`](https://github.com/bmatge/dsfr-data/commit/d4ece75656804770c1381a461b0398a58c6c52d2) Thanks [@bmatge](https://github.com/bmatge)! - feat(core) : colonnage responsive, une échelle mobile-first sur `per-row` et `span`
+  
+  Le repli mobile était binaire et câblé : quatre KPI donnaient quatre colonnes au-dessus de 768 px
+  et quatre lignes empilées en dessous, alors que sur téléphone 2 × 2 se lit mieux. `per-row` et
+  `span` acceptent désormais une échelle mobile-first, en termes séparés par des espaces :
+  
+  ```html
+  <dsfr-data-kpi-group per-row="2 md:4">…</dsfr-data-kpi-group>
+  <dsfr-data-display source="d" per-row="1 sm:2 lg:3">…</dsfr-data-display>
+  <dsfr-data-facets source="d" span="annee:12 md:3 | type:12 md:6"></dsfr-data-facets>
+  ```
+  
+  Le premier terme vaut sous le premier point de rupture, puis chaque `bp:valeur` à partir du sien :
+  `sm` (576 px), `md` (768), `lg` (992), `xl` (1248). Les points de rupture sont ceux du DSFR, rendus
+  par ses classes `fr-col-{bp}-N` sur `display` et `facets`, et par des règles générées sur
+  `kpi-group`. **Une valeur nue garde exactement son rendu actuel.** Sur les facettes, `|` sépare les
+  facettes et l'espace sépare les paliers. Un point de rupture inconnu ou une valeur hors de la grille
+  est une erreur de configuration nommée.
+  
+  `cols` et `col` ne prennent pas l'échelle et gardent leur sens (ADR-112). La largeur des encarts de
+  carte suivra à part.
+  
+  Suite de [#789](https://github.com/bmatge/dsfr-data/issues/789).
+
+- [#807](https://github.com/bmatge/dsfr-data/pull/807) [`6007c92`](https://github.com/bmatge/dsfr-data/commit/6007c92b84ee6b6e82e52d5f60c03cf83832c974) Thanks [@bmatge](https://github.com/bmatge)! - feat(core) : `dsfr-data-concat`, empiler des sources de même schéma
+  
+  Aucun composant ne savait mettre des lignes bout à bout : `dsfr-data-join` juxtapose des colonnes.
+  Empiler quatre séries de même schéma demandait quatre pivots, trois jointures et un dépliage, et le
+  banc d'essai en comptait 28 sur une seule page.
+  
+  ```html
+  <dsfr-data-concat id="ventes" sources="v2023, v2024, v2025"
+    origin-field="millesime" origin-labels="v2023:2023 | v2024:2024 | v2025:2025">
+  </dsfr-data-concat>
+  <dsfr-data-chart source="ventes" type="line"
+    label-field="mois" value-field="montant" series-field="millesime">
+  </dsfr-data-chart>
+  ```
+  
+  - `sources` : les ids à empiler, dans l'ordre, au moins deux. L'émission attend que toutes aient
+    répondu.
+  - `origin-field` : une colonne qui dit de quelle source vient chaque ligne, l'id ou le libellé
+    d'`origin-labels`. C'est le format long que `series-field` consomme directement.
+  - Des **schémas divergents** sont une erreur de configuration qui liste, par source, les colonnes
+    en trop et en moins, et rien n'est émis. Jamais de tableau aux colonnes vides muettes.
+  - Aucune commande aval (page, filtre, tri) n'est relayée aux sources, faute de savoir à laquelle
+    l'adresser : derrière un empilement, filtre et regroupement sont côté client. Le résultat est
+    marqué tronqué au volet Diagnostic si une seule source l'est.
+  
+  Le composant est dans les bundles complet et core, dans le volet Diagnostic, le lint de balisage et
+  une nouvelle fiche de skill.
+  
+  Résout le constat AM-074 du banc d'essai ([#777](https://github.com/bmatge/dsfr-data/issues/777)).
+
+- [#821](https://github.com/bmatge/dsfr-data/pull/821) [`9242fe2`](https://github.com/bmatge/dsfr-data/commit/9242fe29a0ee0a60d962d50d771c0a57539d7c1c) Thanks [@bmatge](https://github.com/bmatge)! - feat(map-inset) : largeur responsive des encarts territoriaux
+  
+  `width` acceptait une seule longueur, posée en style inline, qui ne peut pas porter de media query.
+  Cinq encarts à 20 % tenaient sur une ligne en bureau, pas sur téléphone. `width` accepte désormais
+  la même échelle mobile-first que `per-row` et `span` :
+  
+  ```html
+  <dsfr-data-map-inset territory="guadeloupe" width="50% md:20%"></dsfr-data-map-inset>
+  ```
+  
+  Deux encarts par ligne sous 768 px, cinq au-delà : vérifié dans un navigateur, 200 px sur un écran
+  de 400 px comme de 1 000 px. **Une valeur nue garde exactement son rendu actuel.** En échelle, une
+  règle de page `dsfr-data-map-inset { width: … }` prime toujours, à toutes les largeurs. Un point de
+  rupture inconnu ou une longueur illisible est une erreur de configuration nommée.
+  
+  Suite de [#789](https://github.com/bmatge/dsfr-data/issues/789) ([#818](https://github.com/bmatge/dsfr-data/issues/818)).
+
+- [#800](https://github.com/bmatge/dsfr-data/pull/800) [`9190df1`](https://github.com/bmatge/dsfr-data/commit/9190df159828f7b169add6ca3e2bf278c5c56e32) Thanks [@bmatge](https://github.com/bmatge)! - feat(join) : une jointure qui perd des lignes à la graphie près le dit, clés orphelines à l'appui
+  
+  Le taux d'appariement de `dsfr-data-join` était publié depuis la 0.22 dans le volet Diagnostic,
+  mais l'alerte ne partait que sous 50 %. Or le cas dangereux est la jointure **presque** pleine. Le
+  banc d'essai l'a mesuré : une source publie ses départements en `1`…`9`, l'autre en `01`…`09`, la
+  jointure `inner` apparie 98 lignes sur 101, et le ratio calculé en aval reste plausible, faux de
+  1,5 %.
+  
+  - Les statistiques de jointure citent désormais **quelques clés orphelines** de chaque côté. C'est
+    l'exemple `1` face à `01` qui fait trouver la cause, pas le pourcentage.
+  - Elles détectent l'**écart de graphie** : des clés orphelines qui ne diffèrent que par des zéros
+    de tête ou des espaces. Le volet Diagnostic alerte alors quel que soit le taux, et nomme la cause.
+  - Un **avertissement console** part quand une jointure `inner` retire des lignes, et, sur `left`,
+    `right` ou `full`, quand l'écart est un écart de graphie. Une ligne sans correspondance y est
+    souvent légitime, le taux suffit alors.
+  
+  La jointure elle-même ne normalise rien : `1` et `01` ne s'apparient toujours pas, harmoniser les
+  clés reste un choix de l'auteur. Le guide du motif « agréger, joindre, diviser » le dit.
+  
+  Suit le commentaire du banc d'essai sur AM-075 ([#792](https://github.com/bmatge/dsfr-data/issues/792)).
+
+- [#797](https://github.com/bmatge/dsfr-data/pull/797) [`20ddcb2`](https://github.com/bmatge/dsfr-data/commit/20ddcb2d10f87e5e7f79e1a79e45a818f314e8a9) Thanks [@bmatge](https://github.com/bmatge)! - feat(kpi) : filtrer un côté du ratio entre accolades — une part de sommes devient exprimable
+  
+  Le ratio (0.24.0) exprimait une part de **comptages** avec `count:champ:valeur`, jamais une part
+  de **sommes** : sur une source pré-agrégée, une ligne par école et par sexe avec un effectif, la
+  part des filles n'avait pas d'écriture. Le `where` du KPI ne répond pas au besoin, puisqu'il filtre
+  les deux côtés à la fois.
+  
+  Une expression accepte désormais un filtre de lignes entre accolades, dans le dialecte du `where` :
+  
+  ```html
+  <dsfr-data-kpi source="effectifs" format="pourcentage"
+    value="effectif:sum{sexe:eq:F} / effectif:sum" label="Part des filles">
+  </dsfr-data-kpi>
+  ```
+  
+  Le filtre ne vaut que pour son côté. Plusieurs clauses se séparent par des virgules
+  (`{sexe:eq:F, secteur:eq:public}`), les douze opérateurs du `where` sont acceptés, et la forme
+  marche aussi pour `count{…}`, `avg`, `min`, `max`, dans `value`, `trend` et `lines`. La grammaire
+  colon existante est inchangée. Un filtre non reconnu, des accolades mal formées, un filtre sur
+  `meta:total` ou sur un accès direct sont des erreurs de configuration nommées.
+  
+  Résout le constat AM-070 du banc d'essai ([#776](https://github.com/bmatge/dsfr-data/issues/776)).
+
+- [#814](https://github.com/bmatge/dsfr-data/pull/814) [`7a8071e`](https://github.com/bmatge/dsfr-data/commit/7a8071e737db9c4a3c223288e8ed3d5b9e9e0933) Thanks [@bmatge](https://github.com/bmatge)! - feat(core) : `per-row` et `span`, deux noms sans ambiguïté pour le colonnage, `cols` gardé tel quel
+  
+  Le même attribut `cols` désignait deux grandeurs opposées. Sur `dsfr-data-facets`, c'est une
+  **largeur** sur la grille de 12 (`cols="4"` donne 3 facettes par ligne). Sur `dsfr-data-display` et
+  `dsfr-data-kpi-group`, c'est un **nombre** d'éléments par ligne (`cols="4"` donne 4 éléments).
+  Deux noms le disent désormais sans détour :
+  
+  - **`per-row`**, le nombre d'éléments par ligne, sur `dsfr-data-display`, `dsfr-data-kpi-group` et,
+    nouveauté, `dsfr-data-facets` ;
+  - **`span`**, la largeur sur la grille de 12 colonnes, sur `dsfr-data-facets` (global ou par
+    facette, `span="annee:3 | type:6"`) et sur `dsfr-data-kpi` à l'intérieur d'un groupe.
+  
+  **Aucune page ne change de rendu.** `cols` et `col` gardent leur sens sur chaque composant, sans
+  échéance. Posés avec leur remplaçant, ils cèdent la place et une erreur de configuration non
+  bloquante le signale. `per-row` n'accepte que les diviseurs de 12 : `per-row="5"` aurait donné
+  six éléments par ligne en silence. Sur les facettes, `per-row` et `span` se combinent : une facette
+  nommée dans `span` garde sa largeur, les autres se partagent la ligne. La documentation et les
+  fiches de skill utilisent les nouveaux noms.
+  
+  Suite de [#790](https://github.com/bmatge/dsfr-data/issues/790) (ADR-112). Le colonnage responsive ([#789](https://github.com/bmatge/dsfr-data/issues/789)) portera sur `per-row` et `span`.
+
+- [#795](https://github.com/bmatge/dsfr-data/pull/795) [`3037fcc`](https://github.com/bmatge/dsfr-data/commit/3037fcce24a274194dd7982d8369ae5ae1009059) Thanks [@bmatge](https://github.com/bmatge)! - feat(chart) : résumé des cartes pondéré (`map-summary-weight`) ou fourni par la page (`map-summary-value`)
+  
+  Une carte (`type="map"` et ses variantes) affiche sous son titre une valeur de synthèse. C'était la
+  **moyenne non pondérée** des valeurs territoriales, calculée par `dsfr-data-chart` et non par DSFR
+  Chart, qui se contente d'afficher ce qu'on lui passe. Pour un taux, ce n'est pas le taux national
+  dès que les territoires ont des tailles différentes. Le banc d'essai l'a mesuré sur trois pages en
+  production : 4,27 % affiché pour 5,6 % réel sur les collèges (−24 %), 14,96 % pour 19,3 % sur les
+  lycées (−22 %), et −1,6 % seulement sur les écoles, là où le taux est homogène et le défaut
+  invisible.
+  
+  - `map-summary-weight="nb_eleves"` rend la moyenne **pondérée** Σ(valeur × effectif) / Σ(effectif).
+    Pondérer un taux par son dénominateur rend exactement le rapport des deux sommes.
+  - `map-summary-value="5,6"` reprend une valeur nationale publiée par ailleurs, qui fait autorité.
+    Elle prime sur la pondération.
+  - Une valeur non numérique, ou un champ d'effectif absent de toutes les lignes, est une erreur de
+    configuration, et aucun résumé n'est affiché plutôt qu'un chiffre faux.
+  
+  Le calcul par défaut reste la moyenne non pondérée, désormais documentée avec son piège. Il ne porte
+  plus que sur les lignes **dessinées** : une ligne au code géographique invalide, ignorée par la
+  carte, pesait encore dans son résumé.
+  
+  Résout le constat LIM-014 du banc d'essai ([#763](https://github.com/bmatge/dsfr-data/issues/763)).
+
+- [#798](https://github.com/bmatge/dsfr-data/pull/798) [`4bb6660`](https://github.com/bmatge/dsfr-data/commit/4bb66609e2198527dc772d13e0c8e08041404523) Thanks [@bmatge](https://github.com/bmatge)! - feat(map) : trois silences de la carte deviennent des signaux, et les cercles savent faire une choroplèthe
+  
+  - **`fill-field` sur une couche de cercles** ([#768](https://github.com/bmatge/dsfr-data/issues/768)). `fill-field`, `classes`, `method`, `breaks` et
+    `selected-palette` étaient ignorés sans un mot sur `type="circle"` : les cercles restaient de la
+    couleur de couche. Ils sont désormais colorés par classes, et la légende de couche décrit ces
+    classes. Posé avec `color-field`, `fill-field` donne le remplissage et `color-field` le contour,
+    comme sur une couche `geoshape`.
+  - **Une couche dont tous les points sont confondus** ([#770](https://github.com/bmatge/dsfr-data/issues/770)). Une colonne de géolocalisation
+    constante ou mal jointe donnait 43 479 coordonnées valides identiques : rien n'était ignoré, la
+    couche se déclarait complète et la carte montrait un point. Au plus deux positions distinctes
+    pour au moins dix points par position, la couche le signale en console et dans le volet
+    Diagnostic (`getStackedPositions()`). Le seuil laisse passer les adresses partagées.
+  - **Une légende dont le `for` désigne autre chose qu'une couche** ([#771](https://github.com/bmatge/dsfr-data/issues/771)). Le `for` de
+    `dsfr-data-a11y` désigne la carte, celui de la légende la couche : la confusion rendait une
+    légende masquée, sans message. Un avertissement nomme l'élément trouvé et les couches disponibles.
+    Le repli par `source` reste inchangé.
+  
+  Résout les constats AM-066, AM-069 et PG-024 du banc d'essai ([#768](https://github.com/bmatge/dsfr-data/issues/768), [#770](https://github.com/bmatge/dsfr-data/issues/770), [#771](https://github.com/bmatge/dsfr-data/issues/771)).
+
+- [#799](https://github.com/bmatge/dsfr-data/pull/799) [`53d72b2`](https://github.com/bmatge/dsfr-data/commit/53d72b2e04982dce48189716df56b36818daa175) Thanks [@bmatge](https://github.com/bmatge)! - feat(query, normalize, templates) : l'écart avec la ligne précédente (`diff`), les champs multivalués nettoyés, et les gabarits imbriqués signalés
+  
+  - **`diff`, inverse de `running_sum`** ([#775](https://github.com/bmatge/dsfr-data/issues/775)). Les compteurs publiés déjà cumulés sont courants en
+    open data institutionnel, et leur incrément est la seule question qui compte. `aggregate="cumul:diff"`
+    ajoute la colonne `cumul__diff`, écart de chaque ligne avec la précédente, après `order-by`,
+    jamais délégué, avec l'avertissement du cumul quand `order-by` manque. La première ligne vaut
+    `null`, jamais 0 : un incrément inconnu n'est pas un incrément nul. Au passage, un agrégat cumulé
+    peut porter sur la colonne produite par le précédent dans la même liste
+    (`flux:running_sum, flux__running_sum:diff`).
+  - **`replace` et `replace-fields` sur un champ tableau** ([#774](https://github.com/bmatge/dsfr-data/issues/774)). Un champ multivalué traversait
+    intact, sans message, alors que ce sont justement les colonnes aux libellés hétérogènes. Il est
+    désormais remplacé élément par élément, longueur conservée, sans dédoublonnage. Limite
+    documentée : le remplacement s'exécute avant `split` et ne voit donc pas les tableaux qu'il
+    fabrique.
+  - **Un bloc de gabarit imbriqué est signalé** ([#769](https://github.com/bmatge/dsfr-data/issues/769)). L'imbrication reste non prise en charge,
+    mais un `{{#each}}` placé dans un `{{#if}}` rendait un texte tronqué sans erreur, visible
+    seulement en ouvrant l'infobulle. Un avertissement unique par gabarit nomme le composant et
+    propose la forme à plat. Le rendu est inchangé.
+  
+  Résout les constats AM-068, AM-071 et AM-072 du banc d'essai ([#775](https://github.com/bmatge/dsfr-data/issues/775), [#774](https://github.com/bmatge/dsfr-data/issues/774), [#769](https://github.com/bmatge/dsfr-data/issues/769)).
+
+### Patch Changes
+
+- [#820](https://github.com/bmatge/dsfr-data/pull/820) [`2f46728`](https://github.com/bmatge/dsfr-data/commit/2f467280eea8000d9239ee563226199fd21f6d12) Thanks [@bmatge](https://github.com/bmatge)! - feat(context) : un filtre sur un champ absent de la source visée est nommé, au lieu d'un HTTP 400
+  
+  Une facette ou un filtre de contexte posé sur une colonne que la source ne porte pas, typiquement
+  une colonne calculée en aval par un `compute`, était diffusé tel quel à l'API, qui répondait 400
+  sans dire ni quel filtre ni quelle colonne. Le contexte vérifie désormais le champ contre les
+  lignes des sources qu'il vise :
+  
+  - **absent de toutes les sources visées** : erreur de configuration nommée (champ, sources,
+    contexte, piste de correction) sur l'élément du filtre, et rien n'est diffusé ;
+  - **absent de certaines seulement** : ces sources sont exclues du filtre, avec un message console,
+    et les autres sont filtrées normalement ;
+  - **schéma inconnu** (source pas encore chargée, ou colonnes restreintes par `select` / `group-by`,
+    qui ne prouvent pas l'absence côté API) : le filtre part comme avant, et l'API répond. Pas
+    d'attente qui risquerait de figer la page.
+  
+  L'erreur se lève dès que le filtre est vidé.
+  
+  Suite du commentaire du banc d'essai sur BUG-013 ([#805](https://github.com/bmatge/dsfr-data/issues/805)).
+
+- [#811](https://github.com/bmatge/dsfr-data/pull/811) [`69bf6d3`](https://github.com/bmatge/dsfr-data/commit/69bf6d38ea9773e7b8bc5f3fd5fec19f57e7d1dc) Thanks [@bmatge](https://github.com/bmatge)! - fix(query, export) : un regroupement délégué ne réécrit plus les données des autres widgets de la même source
+  
+  Une source ne porte qu'**un** regroupement serveur, et elle sert ses lignes à tous ses abonnés.
+  Quand une `dsfr-data-query` lui déléguait son `group-by`, tous les composants branchés sur la même
+  source recevaient les lignes agrégées. Mesuré en conditions réelles sur un tableau de bord exporté
+  par le Studio (jeu plan-de-relance, bibliothèque 0.28.1) : une seule requête
+  `group_by=type_entreprise`, un KPI « projets » à **11** (le nombre de groupes) au lieu de 3 080, et
+  le graphique « par région » affichant les groupes du graphique « par type ». Depuis la 0.28.1, les
+  sources Opendatasoft et Tabular de l'export sont déclaratives : tout tableau de bord qui combinait
+  un graphique agrégé et un autre widget sur la même source était touché.
+  
+  - **Bibliothèque** : une query ne délègue son regroupement, son agrégat et son tri que si elle est
+    la **seule** lectrice de sa source, y compris à travers un transformateur qui relaie. Sinon le
+    calcul se fait côté client sur les lignes chargées, et un avertissement nomme la source, ses
+    autres lecteurs et la voie à suivre : une source dédiée. Un lecteur ajouté après coup fait
+    renégocier la query qui déléguait.
+  - **Export du tableau de bord et du Studio** : un graphique agrégé sur une source Opendatasoft ou
+    Tabular partagée reçoit sa **propre** `dsfr-data-source` (même jeu, id distinct), que les blocs
+    de filtres visent aussi. Chaque graphique garde ainsi un agrégat calculé par le serveur, juste et
+    complet, et les KPI gardent les lignes brutes.
+  
+  Les pages dont les queries passent par des facettes n'étaient pas touchées (vérifié sur les
+  reproductions du banc d'essai) : les facettes n'exposent pas d'adaptateur, la délégation n'y a
+  jamais lieu.
+  
+  Résout le constat BUG-009 du banc d'essai ([#765](https://github.com/bmatge/dsfr-data/issues/765)).
+
+- [#791](https://github.com/bmatge/dsfr-data/pull/791) [`037fb32`](https://github.com/bmatge/dsfr-data/commit/037fb3262ae95f8e1ccc96025fb351f8feb669f3) Thanks [@bmatge](https://github.com/bmatge)! - fix(chart) : un code de département sur trois caractères ne vide plus la carte
+  
+  `normalizeDeptCode` savait **ajouter** un zéro de tête (`1` → `01`), jamais en **retirer** un. Un
+  jeu qui publie ses départements sur trois caractères (`059`) ou son outre-mer sur quatre (`0971`)
+  voyait chaque ligne comptée puis jetée : la carte se vidait. Le zéro de tête en trop est désormais
+  retiré, `059` désigne le Nord, `02A` la Corse-du-Sud, `0971` la Guadeloupe.
+  
+  Le zéro n'est retiré que si le reste est un code valide : `000` ou `096` restent invalides et
+  continuent d'être comptés dans les lignes ignorées, plutôt que de devenir un autre code faux. Les
+  formes déjà valides sont inchangées. La même règle s'applique au code généré par le Builder et le
+  Builder IA.
+  
+  Résout le constat BUG-014 du banc d'essai ([#766](https://github.com/bmatge/dsfr-data/issues/766)).
+
+- [#801](https://github.com/bmatge/dsfr-data/pull/801) [`e24b628`](https://github.com/bmatge/dsfr-data/commit/e24b628ca1fc4cee48d66c76f576983525024d77) Thanks [@bmatge](https://github.com/bmatge)! - fix(facets) : le colonnage `cols` se replie enfin sur téléphone
+  
+  `cols` émettait une classe de colonne DSFR sans variante de point de rupture (`fr-col-3`). Or le
+  DSFR définit `.fr-col-N` hors de toute media query : `cols="3"` valait 25 % de la ligne à 320 px
+  comme à 1440 px, soit 76 px par facette sur téléphone, 60 px utiles pour un menu déroulant. Les
+  facettes émettent désormais `fr-col-12 fr-col-md-N` : pleine largeur sous 768 px, largeur demandée
+  au-dessus, comme `dsfr-data-display` et `dsfr-data-kpi-group`.
+  
+  Rien ne change au-dessus de 768 px, ni sans l'attribut `cols` (grille automatique, déjà repliable).
+  Effet assumé : une page qui posait `cols="6"` pour obtenir deux facettes par ligne sur téléphone
+  aussi en affiche désormais une par ligne sous 768 px, comme le prévoit la grille DSFR. Le palier
+  intermédiaire relèvera de l'échelle responsive ([#789](https://github.com/bmatge/dsfr-data/issues/789)).
+
+- [#806](https://github.com/bmatge/dsfr-data/pull/806) [`7ca1e0d`](https://github.com/bmatge/dsfr-data/commit/7ca1e0dc198b4967d64f7a440dfb0ce068c1d41e) Thanks [@bmatge](https://github.com/bmatge)! - fix(facets) : `url-params` ne lit plus que les facettes effectives, et signale un paramètre partagé avec un contexte
+  
+  Sans `url-param-map`, une facette autonome acceptait comme paramètre d'URL **toute colonne de ses
+  données**. Sur une page qui portait aussi un `dsfr-data-context` à `url-sync`, `?annee=2023` était
+  capté par la facette, même sans facette « année », et posait une sélection fantôme : KPI à 0,
+  carte vide.
+  
+  - Seules les facettes **effectives** lisent l'URL : les champs de `fields`, sinon les facettes que
+    le composant détecte lui-même. Le cas `fields` vide continue de fonctionner.
+  - Un paramètre lu à la fois par une facette autonome et par un contexte à `url-sync` est une
+    erreur de configuration, qui nomme le paramètre et le contexte, et propose `context="id"` ou
+    `url-param-map`.
+  - La documentation de `url-params` recommande `context="id"` dès qu'un contexte est présent, et
+    celle de `context` précise que le mode contexte suppose des champs portés par la source visée :
+    une colonne calculée en aval ne peut pas y passer.
+  
+  Le contexte expose `getUrlParamNames()`, la liste des paramètres qu'il porte.
+  
+  Résout le constat BUG-013 du banc d'essai ([#773](https://github.com/bmatge/dsfr-data/issues/773)).
+
+- [#817](https://github.com/bmatge/dsfr-data/pull/817) [`f5a7242`](https://github.com/bmatge/dsfr-data/commit/f5a7242e9f803d41ad18328d4dec3d9dce6efe23) Thanks [@bmatge](https://github.com/bmatge)! - fix(join) : une jointure-filtre contre une source d'une ligne ne déclenche plus d'avertissement
+  
+  L'avertissement de jointure `inner` ajouté dans cette même version partait dès que des lignes
+  étaient retirées. Or une jointure `inner` contre une source d'**une seule ligne** sert à filtrer
+  sur une valeur calculée par l'API : « ne garder que la dernière année publiée », avec
+  `select="max(year(annee)) as an"` d'un côté. Retirer les autres lignes est alors le but. Le banc
+  d'essai recevait deux avertissements injustifiés par chargement, sur une page aux chiffres justes.
+  
+  Contre une source d'une ligne, ni avertissement console ni alerte au volet Diagnostic : la trace
+  nomme la « jointure-filtre ». Un écart de graphie des clés (zéro de tête, espaces) reste signalé
+  dans tous les cas. Le motif est décrit dans le guide de la jointure.
+  
+  Résout le constat AM-080 du banc d'essai ([#816](https://github.com/bmatge/dsfr-data/issues/816)).
+
+- [#812](https://github.com/bmatge/dsfr-data/pull/812) [`abf0fb3`](https://github.com/bmatge/dsfr-data/commit/abf0fb3607bcde596bd995888db186c7b8db271d) Thanks [@bmatge](https://github.com/bmatge)! - fix(export, adapter-ods) : un KPI de tableau de bord fait calculer son chiffre par le serveur, sur tout le jeu
+  
+  Dans un tableau de bord exporté (Studio ou app Tableau de bord), un KPI lisait la source partagée,
+  qui charge ses lignes par pages jusqu'au plafond `max-records` (1 000 par défaut). Il comptait ou
+  sommait donc au plus 1 000 lignes. Mesuré dans un navigateur sur le jeu plan-de-relance : **1 000**
+  projets au lieu de 3 080. Le défaut était masqué jusqu'ici par celui de [#765](https://github.com/bmatge/dsfr-data/issues/765).
+  
+  - **Opendatasoft** : un KPI (comptage, somme, moyenne, minimum, maximum) reçoit sa propre source,
+    qui fait calculer l'agrégat par le serveur (`select="sum(montant) as montant__sum"`), avec son
+    filtre propre traduit en ODSQL. Le chiffre porte sur le jeu entier et suit les filtres partagés
+    du tableau de bord.
+  - **Tabular** : un KPI de comptage lit le total annoncé par l'API (`meta:total`).
+  - Une source partagée dont plus aucun widget ne lit les lignes n'est plus chargée pour rien.
+  - **Adaptateur Opendatasoft** : un `select` fait uniquement d'agrégats, sans `group-by`, part en
+    **une** requête d'une ligne. L'API répète la valeur agrégée sur chaque ligne du jeu, et la
+    pagination courait jusqu'au plafond pour des copies. Quand le filtre ne garde aucune ligne, un
+    comptage vaut 0 et non « — ».
+  
+  Vérifié en navigateur contre l'API réelle : KPI à 3 080, KPI filtré à 1 890 (identique à l'API),
+  0 pour un filtre sans correspondance, en 4 requêtes au lieu de 12.
+
+- [#793](https://github.com/bmatge/dsfr-data/pull/793) [`04688b3`](https://github.com/bmatge/dsfr-data/commit/04688b3dd599fb2898e896582580b16bb67464b9) Thanks [@bmatge](https://github.com/bmatge)! - fix(kpi) : `count:champ:valeur` n'est plus déclaré obsolète, et `sum:champ:valeur` ne ment plus
+  
+  Deux défauts du parseur d'expressions du KPI.
+  
+  **Un faux avertissement de dépréciation.** `count:champ:valeur` est la forme recommandée depuis le
+  ratio (0.24.0), exemple canonique compris (`count:statut:ouvert / count`). Le parseur posait
+  pourtant l'avertissement de la grammaire `fn:champ` ([#303](https://github.com/bmatge/dsfr-data/issues/303)) avant de traiter les trois parties :
+  chaque page qui suivait la documentation se voyait dire que son écriture était obsolète. La forme
+  filtrée est désormais traitée avant ; seule la grammaire à deux parties (`sum:population`) reste
+  dépréciée. La valeur de filtre est lue en entier, deux-points compris (`count:heure:12:30`).
+  
+  **Un filtre ignoré en silence.** `sum:montant:ouvert` était accepté, mais seul `count` honore une
+  valeur de filtre : le KPI affichait le total **non filtré**, plausible et faux. C'est désormais une
+  erreur de configuration nommée, pour toutes les fonctions autres que `count`. Pour agréger un
+  sous-ensemble, filtrer en amont par le `where` du KPI ou une `dsfr-data-query`.
+  
+  Résout le constat BUG-012 du banc d'essai ([#764](https://github.com/bmatge/dsfr-data/issues/764)).
+
+- [#815](https://github.com/bmatge/dsfr-data/pull/815) [`19ec006`](https://github.com/bmatge/dsfr-data/commit/19ec006de3d9e62299caf2a5ce056d914cef87c4) Thanks [@bmatge](https://github.com/bmatge)! - fix(chart) : avec `databox`, la légende suit enfin `color-map`
+  
+  Avec `databox`, `color-map` recolorait le graphique mais pas sa légende : les pastilles gardaient
+  la palette par défaut et contredisaient les barres ou les parts, sans le moindre message (un
+  camembert annonçait « Féminin » en bleu ciel pour une part saumon). La cause : DSFR Chart rend
+  alors canvas et légende dans `data-box`, et les pastilles étaient cherchées dans un élément de
+  graphique resté vide. Elles sont désormais cherchées dans le composant entier. Le cas sans
+  `databox` ne change pas.
+  
+  Quand le nombre de pastilles ne correspond pas au nombre de couleurs, un avertissement le dit, au
+  lieu d'une sortie silencieuse : une légende qui ne suit pas `color-map` ment sur les couleurs.
+  
+  Résout le constat BUG-016 du banc d'essai ([#813](https://github.com/bmatge/dsfr-data/issues/813)).
+
+- [#796](https://github.com/bmatge/dsfr-data/pull/796) [`f74965a`](https://github.com/bmatge/dsfr-data/commit/f74965a235b6b0df701e251efb3610c03928259c) Thanks [@bmatge](https://github.com/bmatge)! - fix(adapter-ods) : un découpeur ODSQL qui respecte les parenthèses, et un `select` enfin échappé
+  
+  Trois demandes du banc d'essai, une seule cause : `group-by` et `select` étaient traités comme des
+  listes de noms de champs, avec la présence d'une parenthèse pour seul indice d'expression.
+  
+  - **Un alias sans fonction n'est plus backquoté** : `group-by="periode as an"` partait en
+    `` `periode as an` `` et l'API répondait 400. Le correctif de la 0.21.1 ne voyait que les
+    expressions à parenthèses.
+  - **Une virgule à l'intérieur d'une fonction ne coupe plus l'élément** :
+    `date_format(d, 'yyyy-MM') as m` restait en deux morceaux, dont le second était backquoté. Le
+    découpage ignore désormais les virgules entre parenthèses et entre quotes.
+  - **Le `select` explicite est échappé** comme le `group_by`, ce qu'il n'était jamais. Un nom de
+    champ à chiffre initial (`1_uai`), qui rend HTTP 400 nu et 200 backquoté, est backquoté ; un nom à
+    espaces ou à accents aussi.
+  
+  Les expressions passent intactes : `count(*) as total`, `*`, les chemins pointés, les opérateurs,
+  un élément déjà backquoté par l'auteur. Le `select` généré par les deux builders et celui de la
+  documentation ne changent pas. Un identifiant n'est laissé nu que s'il commence par une lettre ou
+  un souligné, ce qui règle aussi l'agrégat sur un champ à chiffre initial.
+  
+  Résout les constats BUG-010, BUG-011 et PG-027 du banc d'essai ([#767](https://github.com/bmatge/dsfr-data/issues/767)).
+
+- [#802](https://github.com/bmatge/dsfr-data/pull/802) [`3c03748`](https://github.com/bmatge/dsfr-data/commit/3c03748354d22bdd0f25f76503f82df4a6a6d0d6) Thanks [@bmatge](https://github.com/bmatge)! - docs et `count-label` : quatre précisions relevées par le banc d'essai, et une position sur l'iframe
+  
+  - **`count-label` sur `dsfr-data-search`** : le compteur dit « résultat » quel que soit ce qu'on
+    cherche. `count-label="établissement"` affiche « 12 345 établissements » ; un pluriel irrégulier
+    prend les deux formes, `count-label="cheval|chevaux"`.
+  - **`first` et `last` dans la référence du KPI** : ils figuraient dans le guide, pas dans le JSDoc de
+    `value`, donc pas dans la section de référence générée.
+  - **L'ordre `where` puis `group_by` est écrit** dans le JSDoc de `group-by` (`dsfr-data-query`) et
+    de `field` (`dsfr-data-context-filter`) : un filtre ne peut viser ni un alias d'agrégat ni une
+    colonne calculée en aval, l'API répond 400.
+  - **Une colonne de classe peut porter une phrase** : « occupation saturée » produit deux classes et
+    le texte entier reste restitué aux lecteurs d'écran. Le guide le dit.
+  - **Encastrer une dataviz dans un site tiers** : nouvelle section du guide utilisateur. Balise ou
+    iframe, ce qu'il advient de la déclaration d'accessibilité, des mentions, de la licence des
+    données et des requêtes vers des tiers, et le cas de l'hôte hors DSFR.
+  
+  Résout les constats AM-076, PG-025, AM-044, AM-073 et AM-062 du banc d'essai ([#779](https://github.com/bmatge/dsfr-data/issues/779), [#778](https://github.com/bmatge/dsfr-data/issues/778)).
+
+- [#803](https://github.com/bmatge/dsfr-data/pull/803) [`8607400`](https://github.com/bmatge/dsfr-data/commit/860740034593f1dbd5bcc08eeab6b5614a9266fc) Thanks [@bmatge](https://github.com/bmatge)! - feat(core) : l'avertissement de séparateur couvre `sort`, `rename` et `fold`
+  
+  La 0.26.0 signalait une virgule posée à la place de la barre verticale sur `display` et `labels`
+  des facettes. Trois autres attributs multi-entrées restaient muets : un attribut écrit avec le
+  mauvais séparateur est lu comme une seule entrée, et la page n'applique que la première règle.
+  
+  - `sort` de `dsfr-data-facets`, qui prend la barre verticale ;
+  - `rename` (barre) et `fold` (virgule) de `dsfr-data-normalize` : deux séparateurs opposés sur la
+    même balise, le piège exact décrit par le banc.
+  
+  L'avertissement nomme l'attribut, le séparateur attendu et la forme attendue, une fois par instance
+  et par valeur reçue. Une virgule à l'intérieur d'un nouveau nom de `rename` (« Département, région »)
+  ne déclenche rien. `cols` attend l'échelle responsive ([#789](https://github.com/bmatge/dsfr-data/issues/789)), qui en change la grammaire.
+  
+  Résout le constat PG-022 du banc d'essai ([#772](https://github.com/bmatge/dsfr-data/issues/772)).
+
 ## 0.28.1
 
 ### Patch Changes
