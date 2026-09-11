@@ -20,9 +20,54 @@
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { BREAKPOINTS, syncLayoutError, type Breakpoint } from '../utils/grid-layout.js';
 import { TERRITORY_PRESETS } from '../utils/territories.js';
 
 export { TERRITORY_PRESETS, TERRITORY_GROUPS } from '../utils/territories.js';
+
+/** Variables CSS de l'echelle de largeur (#818), posees sur l'encart. */
+const INSET_WIDTH_VARS = [
+  '--dsfr-data-inset-w',
+  ...(Object.keys(BREAKPOINTS) as Breakpoint[]).map((bp) => `--dsfr-data-inset-w-${bp}`),
+];
+
+/** Longueur CSS lisible pour une largeur d'encart. */
+const LENGTH = /^\d+(\.\d+)?(px|rem|em|%|vw)$/;
+
+/**
+ * Lit une echelle de longueurs (#818) : `"50% md:20%"`, `"md:20%"`. Rend la
+ * base (ou null) et les paliers, ou une erreur nommee. Meme grammaire que
+ * `parseScale` (#789), sur des longueurs CSS.
+ */
+export function parseLengthScale(text: string): {
+  base: string | null;
+  steps: Array<[Breakpoint, string]>;
+  error: string | null;
+} {
+  const steps: Array<[Breakpoint, string]> = [];
+  let base: string | null = null;
+  const fail = (why: string) => ({ base: null, steps: [], error: `width="${text}" : ${why}` });
+  for (const [i, token] of text.split(/\s+/).entries()) {
+    const colon = token.indexOf(':');
+    if (colon === -1) {
+      if (i !== 0)
+        return fail(`« ${token} » sans point de rupture — seul le premier terme peut être nu`);
+      if (!LENGTH.test(token)) return fail(`longueur « ${token} » illisible (px, rem, em, %, vw)`);
+      base = token;
+      continue;
+    }
+    const bp = token.slice(0, colon);
+    const value = token.slice(colon + 1);
+    if (!(bp in BREAKPOINTS)) {
+      return fail(
+        `point de rupture inconnu « ${bp} » — points de rupture DSFR : ${Object.keys(BREAKPOINTS).join(', ')}`
+      );
+    }
+    if (!LENGTH.test(value)) return fail(`longueur « ${value} » illisible (px, rem, em, %, vw)`);
+    steps.push([bp as Breakpoint, value]);
+  }
+  return { base, steps, error: null };
+}
 
 @customElement('dsfr-data-map-inset')
 export class DsfrDataMapInset extends LitElement {
@@ -53,9 +98,18 @@ export class DsfrDataMapInset extends LitElement {
    * carte hote : `width="20%"` repartit cinq encarts sur une ligne. Sans
    * attribut, la feuille injectee par la carte pose `10rem` — une regle de
    * page `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).
+   * Echelle mobile-first (#818), comme `per-row` et `span` (#789) :
+   * `width="50% md:20%"` — le premier terme sous le premier point de
+   * rupture, puis un palier par point de rupture DSFR (sm 576, md 768,
+   * lg 992, xl 1248 px) ; un palier absent reprend le precedent. En echelle,
+   * une regle de page prime aussi, a toutes les largeurs. Un point de
+   * rupture inconnu ou une longueur illisible est une erreur de configuration.
    */
   @property({ type: String })
   width = '';
+
+  /** Erreur de largeur posee par ce composant (#818). */
+  private _widthError: string | null = null;
 
   private _built = false;
   private _innerMap: HTMLElement | null = null;
@@ -91,9 +145,30 @@ export class DsfrDataMapInset extends LitElement {
     }
   }
 
-  /** Attribut `width` explicite → style inline ; vide → la feuille injectee decide. */
+  /**
+   * Attribut `width` : valeur nue → style inline, comme toujours ; echelle
+   * (#818) → variables CSS consommees par la feuille de la carte, un style
+   * inline ne pouvant pas porter de media query. Vide → la feuille decide.
+   */
   private _applyWidth() {
-    this.style.width = this.width;
+    const text = this.width.trim();
+    const isScale = /\s/.test(text);
+    for (const name of INSET_WIDTH_VARS) this.style.removeProperty(name);
+    this.removeAttribute('data-width-scale');
+    if (!isScale) {
+      this.style.width = text;
+      this._widthError = syncLayoutError(this, 'dsfr-data-map-inset', null, this._widthError);
+      return;
+    }
+    this.style.width = '';
+    const parsed = parseLengthScale(text);
+    this._widthError = syncLayoutError(this, 'dsfr-data-map-inset', parsed.error, this._widthError);
+    if (parsed.error) return;
+    this.setAttribute('data-width-scale', '');
+    if (parsed.base) this.style.setProperty('--dsfr-data-inset-w', parsed.base);
+    for (const [bp, value] of parsed.steps) {
+      this.style.setProperty(`--dsfr-data-inset-w-${bp}`, value);
+    }
   }
 
   private _build() {

@@ -304,6 +304,9 @@ facettes et un nombre ailleurs : ne plus les generer.
 - Separateurs : `|` entre facettes, espace entre points de rupture. Point de rupture inconnu
   (`xxl`) ou valeur hors grille : erreur de configuration nommee.
 - Sur un `dsfr-data-kpi`, `span` reste une largeur unique (pas d'echelle par enfant).
+- Meme grammaire sur la **largeur des encarts** de carte, en longueurs CSS :
+  `<dsfr-data-map-inset width="50% md:20%">` (deux encarts par ligne sur telephone, cinq en bureau).
+  Une regle de page `dsfr-data-map-inset { width: … }` prime toujours.
 
 ### Regle generale
 

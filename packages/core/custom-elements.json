@@ -9179,6 +9179,24 @@
       "path": "packages/core/src/components/dsfr-data-map-inset.ts",
       "declarations": [
         {
+          "kind": "function",
+          "name": "parseLengthScale",
+          "return": {
+            "type": {
+              "text": "{\n  base: string | null;\n  steps: Array<[Breakpoint, string]>;\n  error: string | null;\n}"
+            }
+          },
+          "parameters": [
+            {
+              "name": "text",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Lit une echelle de longueurs (#818) : `\"50% md:20%\"`, `\"md:20%\"`. Rend la\nbase (ou null) et les paliers, ou une erreur nommee. Meme grammaire que\n`parseScale` (#789), sur des longueurs CSS."
+        },
+        {
           "kind": "class",
           "description": "",
           "name": "DsfrDataMapInset",
@@ -9240,8 +9258,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la\ncarte hote : `width=\"20%\"` repartit cinq encarts sur une ligne. Sans\nattribut, la feuille injectee par la carte pose `10rem` — une regle de\npage `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).",
+              "description": "Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la\ncarte hote : `width=\"20%\"` repartit cinq encarts sur une ligne. Sans\nattribut, la feuille injectee par la carte pose `10rem` — une regle de\npage `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).\nEchelle mobile-first (#818), comme `per-row` et `span` (#789) :\n`width=\"50% md:20%\"` — le premier terme sous le premier point de\nrupture, puis un palier par point de rupture DSFR (sm 576, md 768,\nlg 992, xl 1248 px) ; un palier absent reprend le precedent. En echelle,\nune regle de page prime aussi, a toutes les largeurs. Un point de\nrupture inconnu ou une longueur illisible est une erreur de configuration.",
               "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "_widthError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de largeur posee par ce composant (#818)."
             },
             {
               "kind": "field",
@@ -9265,7 +9293,7 @@
               "kind": "method",
               "name": "_applyWidth",
               "privacy": "private",
-              "description": "Attribut `width` explicite → style inline ; vide → la feuille injectee decide."
+              "description": "Attribut `width` : valeur nue → style inline, comme toujours ; echelle\n(#818) → variables CSS consommees par la feuille de la carte, un style\ninline ne pouvant pas porter de media query. Vide → la feuille decide."
             },
             {
               "kind": "method",
@@ -9325,7 +9353,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la\ncarte hote : `width=\"20%\"` repartit cinq encarts sur une ligne. Sans\nattribut, la feuille injectee par la carte pose `10rem` — une regle de\npage `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).",
+              "description": "Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la\ncarte hote : `width=\"20%\"` repartit cinq encarts sur une ligne. Sans\nattribut, la feuille injectee par la carte pose `10rem` — une regle de\npage `dsfr-data-map-inset { width: … }` prime toujours dessus (#643).\nEchelle mobile-first (#818), comme `per-row` et `span` (#789) :\n`width=\"50% md:20%\"` — le premier terme sous le premier point de\nrupture, puis un palier par point de rupture DSFR (sm 576, md 768,\nlg 992, xl 1248 px) ; un palier absent reprend le precedent. En echelle,\nune regle de page prime aussi, a toutes les largeurs. Un point de\nrupture inconnu ou une longueur illisible est une erreur de configuration.",
               "fieldName": "width"
             }
           ],
@@ -9352,6 +9380,14 @@
           "declaration": {
             "name": "TERRITORY_GROUPS",
             "module": "../utils/territories.js"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "parseLengthScale",
+          "declaration": {
+            "name": "parseLengthScale",
+            "module": "packages/core/src/components/dsfr-data-map-inset.ts"
           }
         },
         {
