@@ -28,6 +28,7 @@ export const AGGREGATE_FUNCTIONS = [
   'max',
   'distinct',
   'running_sum',
+  'diff',
 ] as const;
 
 export function isAggregateFunction(fn: string): fn is QueryAggregate['function'] {
@@ -47,8 +48,11 @@ export function isAggregateFunction(fn: string): fn is QueryAggregate['function'
  *   adaptateur qui n'implémente pas `supportsServerAggregate` accepterait
  *   silencieusement une fonction qu'il ne connaît pas (l'API répondrait en
  *   erreur pour tous les abonnés de la source).
+ *
+ * `diff` (#775) est l'inverse de `running_sum` : l'écart avec la ligne
+ * précédente, pour retrouver le flux d'une série publiée déjà cumulée.
  */
-export const RUNNING_AGGREGATE_FUNCTIONS = ['running_sum'] as const;
+export const RUNNING_AGGREGATE_FUNCTIONS = ['running_sum', 'diff'] as const;
 
 /** La fonction est-elle un agrégat cumulé, donc client-only et ordonné (#738) ? */
 export function isRunningAggregate(fn: string): boolean {

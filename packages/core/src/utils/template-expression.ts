@@ -274,6 +274,54 @@ export interface RenderTemplateOptions {
   raw?: boolean;
   /** Variables spéciales (`$index`, `$uid`...) résolues avant les champs. */
   vars?: Record<string, () => string>;
+  /**
+   * Qui rend ce gabarit (ex. `dsfr-data-display#fiches`) : nommé dans
+   * l'avertissement d'imbrication (#769) pour que la page fautive se trouve.
+   */
+  origin?: string;
+}
+
+const BLOCK_TAG_RE = /\{\{([#/])(if|unless|each)\b[^}]*\}\}/g;
+
+/** Gabarits déjà signalés comme imbriqués : un avertissement par gabarit (#769). */
+const nestedBlocksWarned = new Set<string>();
+
+/**
+ * Le gabarit contient-il un bloc dans un bloc (#769) ? Analyse du TEXTE,
+ * indépendante des données : un `{{#each}}` dans un `{{#if}}` dont la
+ * condition est fausse n'en est pas moins cassé pour la ligne suivante.
+ */
+export function hasNestedTemplateBlocks(templateHtml: string): boolean {
+  if (!templateHtml.includes('{{#')) return false;
+  let depth = 0;
+  for (const match of templateHtml.matchAll(BLOCK_TAG_RE)) {
+    if (match[1] === '#') {
+      depth++;
+      if (depth > 1) return true;
+    } else {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+  return false;
+}
+
+/**
+ * Avertit, une fois par gabarit, qu'un bloc est imbriqué (#769). La limite
+ * est documentée et ASSUMÉE — `BLOCK_RE` étant paresseux, un bloc dans un bloc
+ * de même type se fermerait sur la mauvaise balise, et une récursion naïve ne
+ * marcherait que pour des types différents. Ce qui manquait est le signal :
+ * les balises intérieures survivaient à la pré-passe, la substitution les
+ * vidait, et le texte se refermait sur lui-même (`[DEBUTFIN]`) sans erreur.
+ */
+function warnNestedBlocks(templateHtml: string, origin: string | undefined): void {
+  if (nestedBlocksWarned.has(templateHtml) || !hasNestedTemplateBlocks(templateHtml)) return;
+  nestedBlocksWarned.add(templateHtml);
+  const excerpt = templateHtml.trim().replace(/\s+/g, ' ').slice(0, 80);
+  console.warn(
+    `${origin ?? 'dsfr-data'}: gabarit à blocs imbriqués ({{#if}}, {{#unless}} ou {{#each}} ` +
+      `placé dans un autre) — non pris en charge, le rendu sera tronqué. Écrire les blocs ` +
+      `côte à côte : {{#each liste}}…{{/each}}{{#unless liste}}…{{/unless}}. Gabarit : « ${excerpt}… »`
+  );
 }
 
 /**
@@ -291,7 +339,8 @@ export function renderTemplate(
   item: Record<string, unknown>,
   options: RenderTemplateOptions = {}
 ): string {
-  const { raw = false, vars: callerVars } = options;
+  const { raw = false, vars: callerVars, origin } = options;
+  warnNestedBlocks(templateHtml, origin);
   const eachVars: Record<string, () => string> = {};
   const withBlocks = resolveTemplateBlocks(templateHtml, item, eachVars);
   const vars = { ...callerVars, ...eachVars };

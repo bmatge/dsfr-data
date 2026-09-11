@@ -487,6 +487,7 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | max | Maximum | \`"score:max"\` |
 | distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
 | running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | \`"montant:running_sum"\` → colonne \`montant__running_sum\` |
+| diff | **Écart avec la ligne précédente**, inverse du cumul (#775) : retrouve le flux d'une série publiée déjà cumulée. Première ligne \`null\` | \`"cumul:diff"\` → colonne \`cumul__diff\` |
 
 Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
@@ -516,6 +517,23 @@ elle s'applique APRÈS \`order-by\`, sur les lignes de sortie, et garde une lign
   surveiller \`max-records\` et \`limit\`.
 - Le cumul n'existe pas sur \`dsfr-data-kpi\` (qui rend une valeur, pas une série) ni dans
   \`compute\` de \`dsfr-data-normalize\` (par ligne, sans inter-lignes — ADR-105).
+
+### Écart avec la ligne précédente (diff, #775)
+\`diff\` est l'inverse de \`running_sum\`, avec les mêmes règles (après \`order-by\`, jamais
+délégué, avertissement sans \`order-by\`). Cas type : un compteur publié **déjà cumulé**
+(vaccinations, inscriptions depuis l'ouverture), dont on veut le flux mensuel :
+
+\`\`\`html
+<dsfr-data-query id="flux" source="compteur"
+  aggregate="total_cumule:diff" order-by="date:asc">
+</dsfr-data-query>
+<!-- colonne ajoutée : total_cumule__diff -->
+\`\`\`
+
+- **La première ligne vaut \`null\`, jamais 0** : un incrément inconnu n'est pas un incrément nul
+  (le graphique la laisse vide, un \`sum\` aval l'exclut).
+- Une valeur non numérique rend \`null\` pour sa ligne **et pour la suivante**, qui n'a pas de
+  précédente connue : l'écart n'enjambe jamais un trou.
 
 Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
 visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.

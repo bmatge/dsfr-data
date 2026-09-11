@@ -124,6 +124,7 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | max | Maximum | `"score:max"` |
 | distinct | Nombre de valeurs distinctes (alias `count-distinct`) — null et chaîne vide exclus, `75` et `"75"` comptent pour une seule valeur | `"commune:distinct"` → colonne `commune__distinct` |
 | running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | `"montant:running_sum"` → colonne `montant__running_sum` |
+| diff | **Écart avec la ligne précédente**, inverse du cumul (#775) : retrouve le flux d'une série publiée déjà cumulée. Première ligne `null` | `"cumul:diff"` → colonne `cumul__diff` |
 
 Délégation de `distinct` : ODS `count(distinct champ)`, Grist SQL `COUNT(DISTINCT champ)` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
@@ -153,6 +154,23 @@ elle s'applique APRÈS `order-by`, sur les lignes de sortie, et garde une ligne 
   surveiller `max-records` et `limit`.
 - Le cumul n'existe pas sur `dsfr-data-kpi` (qui rend une valeur, pas une série) ni dans
   `compute` de `dsfr-data-normalize` (par ligne, sans inter-lignes — ADR-105).
+
+### Écart avec la ligne précédente (diff, #775)
+`diff` est l'inverse de `running_sum`, avec les mêmes règles (après `order-by`, jamais
+délégué, avertissement sans `order-by`). Cas type : un compteur publié **déjà cumulé**
+(vaccinations, inscriptions depuis l'ouverture), dont on veut le flux mensuel :
+
+```html
+<dsfr-data-query id="flux" source="compteur"
+  aggregate="total_cumule:diff" order-by="date:asc">
+</dsfr-data-query>
+<!-- colonne ajoutée : total_cumule__diff -->
+```
+
+- **La première ligne vaut `null`, jamais 0** : un incrément inconnu n'est pas un incrément nul
+  (le graphique la laisse vide, un `sum` aval l'exclut).
+- Une valeur non numérique rend `null` pour sa ligne **et pour la suivante**, qui n'a pas de
+  précédente connue : l'écart n'enjambe jamais un trou.
 
 Toute autre fonction (`somme`, `moyenne`, `median`…) est une **erreur de configuration**
 visible (console + `data-dsfr-config-error`, composants aval en erreur) — jamais un 0 silencieux.
@@ -236,7 +254,7 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL : il produit une ligne par ligne de sortie, chacune portant la somme des précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des lignes reçues fait foi et le résultat n'a en général pas de sens : un avertissement console le signale. Le cumul reste toujours côté client. Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"` avec `order-by="mois:asc"`. |
+| `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL : il produit une ligne par ligne de sortie, chacune portant la somme des précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des lignes reçues fait foi et le résultat n'a en général pas de sens : un avertissement console le signale. Le cumul reste toujours côté client. Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"` avec `order-by="mois:asc"`. `diff` (#775) en est l'inverse : l'écart de chaque ligne avec la précédente, pour retrouver le flux d'une série publiée déjà cumulée (`aggregate="cumul:diff"` → colonne `cumul__diff`). Mêmes règles : après `order-by`, jamais délégué, avertissement sans `order-by`. La première ligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément nul ; une valeur non numérique donne `null` pour elle et pour la suivante. |
 | `explode` | `string` | `""` (vide) | Champs multivalués à éclater avant le regroupement (séparés par virgule). Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé de groupe : `["a", "b"]` devient la modalité `"a,b"`, une COMBINAISON comptée comme une valeur — là où `dsfr-data-facets` éclate le même champ (#421). Les deux composants branchés sur le même champ donnaient donc des chiffres différents, sans rien signaler (#736). Avec `explode="tags"`, chaque élément de la cellule produit sa propre ligne : les modalités du regroupement sont exactement celles de la facette du même champ, et une ligne portant N valeurs compte dans N groupes (les agrégats la comptent donc N fois). Règles, alignées sur les facettes : les éléments vides sont ignorés, et une cellule sans aucune valeur (tableau vide, `null`, chaîne vide) ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de modalité vide. Une cellule scalaire est inchangée. Chaque champ listé doit figurer dans `group-by` (sinon erreur de configuration et champ ignoré : éclater un champ hors regroupement dupliquerait les lignes et gonflerait les sommes). L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline ne sait éclater un champ multivalué, déléguer produirait à nouveau des combinaisons. Sur une source volumineuse, penser au plafond de lignes rapatriées. Par défaut vide : le comportement historique est conservé. |
 | `filter` | `string` | `""` (vide) | Alias pour where (compatibilite) |
 | `group-by` | `string` | `""` (vide) | Champs de regroupement (séparés par virgule) |

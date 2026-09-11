@@ -161,7 +161,10 @@ export class DsfrDataMapPopup extends LitElement {
     // Même moteur que <dsfr-data-display> (#426, #694) : blocs {{#if}},
     // champ:format:arg, champ|défaut, chemins imbriqués. Toujours échappé
     // (pas de {{{raw}}} dans les popups : raw=false).
-    return renderTemplate(tpl.innerHTML, record, { raw: false });
+    return renderTemplate(tpl.innerHTML, record, {
+      raw: false,
+      origin: `dsfr-data-map-popup${this.id ? `#${this.id}` : ''}`,
+    });
   }
 
   private _buildAutoTable(record: Record<string, unknown>): string {

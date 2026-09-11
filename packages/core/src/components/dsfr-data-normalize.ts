@@ -36,6 +36,42 @@ export interface ParsedFold {
 }
 
 /**
+ * Remplacements d'une valeur scalaire (#730, #774) : d'abord `replace-fields`
+ * du champ, puis `replace` global — premier motif égal gagnant dans chaque
+ * table. Comparaison sur la forme chaîne des chaînes, nombres et booléens ;
+ * toute autre valeur (null, objet) est rendue telle quelle.
+ */
+function applyReplacements(
+  value: unknown,
+  fieldReplacements: Map<string, string> | undefined,
+  globalReplacements: Map<string, string>
+): unknown {
+  if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+    return value;
+  }
+  let result: unknown = value;
+  if (fieldReplacements) {
+    const asString = String(result);
+    for (const [pattern, replacement] of fieldReplacements) {
+      if (asString === pattern) {
+        result = replacement;
+        break;
+      }
+    }
+  }
+  if (globalReplacements.size > 0) {
+    const asString = String(result);
+    for (const [pattern, replacement] of globalReplacements) {
+      if (asString === pattern) {
+        result = replacement;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+/**
  * <dsfr-data-normalize> - Composant de normalisation de données
  *
  * S'insere entre une source (dsfr-data-source) et un consommateur (dsfr-data-query, dsfr-data-chart, etc.)
@@ -92,8 +128,12 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * vide supprime la valeur. Un `:`, `|`, `,` ou `%` littéral dans le pattern ou le remplacement
    * s'échappe en percent (`%3A`, `%7C`, `%2C`, `%25`), comme dans `where` (#676) :
    * `replace="10%3A00:10h"` récrit « 10:00 » en « 10h ». La comparaison porte sur la forme
-   * chaîne de la valeur : une colonne numérique est concernée aussi (#730). Pour un recodage
-   * plus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()` ou `year()`.
+   * chaîne de la valeur : une colonne numérique est concernée aussi (#730). Un champ TABLEAU
+   * (multivalué venu de la source) est remplacé élément par élément, longueur conservée et sans
+   * dédoublonnage (#774). Limite : le remplacement s'exécute AVANT `split`, il ne voit donc pas les
+   * tableaux fabriqués par `split` — il agit sur la chaîne entière avant la découpe. Pour un
+   * recodage plus riche (sous-chaîne, année d'une date ISO), utiliser `compute` avec `replace()`
+   * ou `year()`.
    */
   @property({ type: String })
   replace = '';
@@ -104,7 +144,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * Un `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`
    * et `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields="h:10%3A00:10h"`.
    * La comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée
-   * aussi, `replace-fields="annee:2024:2024-2025"` fonctionne (#730).
+   * aussi, `replace-fields="annee:2024:2024-2025"` fonctionne (#730). Sur un champ tableau venu
+   * de la source, élément par élément ; pas sur un tableau fabriqué par `split`, découpé après
+   * (#774, même limite que `replace`).
    * Pas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).
    */
   @property({ type: String, attribute: 'replace-fields' })
@@ -451,33 +493,20 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       // L'égalité reste STRICTE sur cette forme : un nombre n'est jamais
       // transformé par accident, et `null` / `undefined` / objets restent hors
       // jeu (« null » n'est pas une valeur qu'on écrit dans `replace`).
-      const replaceable =
-        typeof normalizedValue === 'string' ||
-        typeof normalizedValue === 'number' ||
-        typeof normalizedValue === 'boolean';
-
-      // 3a. Field-specific replace (replace-fields)
-      if (replaceFieldsMap.size > 0 && replaceable) {
+      //
+      // Un champ TABLEAU (multivalué d'Opendatasoft) est remplacé élément par
+      // élément (#774) : il traversait intact, sans message, alors que ce sont
+      // justement les colonnes aux libellés hétérogènes. La longueur est
+      // conservée et rien n'est dédoublonné — deux libellés ramenés au même
+      // restent deux éléments.
+      if (replaceFieldsMap.size > 0 || replaceMap.size > 0) {
         const fieldReplacements = replaceFieldsMap.get(key);
-        if (fieldReplacements) {
-          const asString = String(normalizedValue);
-          for (const [pattern, replacement] of fieldReplacements) {
-            if (asString === pattern) {
-              normalizedValue = replacement;
-              break;
-            }
-          }
-        }
-      }
-
-      // 3b. Global replace
-      if (replaceMap.size > 0 && replaceable) {
-        const asString = String(normalizedValue);
-        for (const [pattern, replacement] of replaceMap) {
-          if (asString === pattern) {
-            normalizedValue = replacement;
-            break;
-          }
+        if (Array.isArray(normalizedValue)) {
+          normalizedValue = normalizedValue.map((element: unknown) =>
+            applyReplacements(element, fieldReplacements, replaceMap)
+          );
+        } else {
+          normalizedValue = applyReplacements(normalizedValue, fieldReplacements, replaceMap);
         }
       }
 

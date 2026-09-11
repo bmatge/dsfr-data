@@ -271,6 +271,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
     return renderTemplate(this._templateContent, item, {
       raw: true,
       vars: this._templateVars(item, index),
+      origin: `dsfr-data-display${this.id ? `#${this.id}` : ''}`,
     });
   }
 

@@ -512,7 +512,7 @@ describe('DsfrDataNormalize', () => {
       expect(result[0].count).toBe('Three');
     });
 
-    it('leaves a value of another type untouched, and of the same type', () => {
+    it('leaves a value of another type untouched; an array is replaced element-wise (#774)', () => {
       normalize.id = 'test-normalize';
       normalize.source = 'test-source';
       normalize.replaceFields = 'count:3:Three';
@@ -523,7 +523,9 @@ describe('DsfrDataNormalize', () => {
       const result = getDataCache('test-normalize') as Record<string, unknown>[];
       expect(result[0].count).toBe(30);
       expect(result[1].count).toBeNull();
-      expect(result[2].count).toEqual([3]);
+      // Un tableau n'est plus « hors jeu » : ses éléments sont visés un par un
+      // (#774) — le tableau traversait intact, sans message.
+      expect(result[2].count).toEqual(['Three']);
     });
 
     it('works with trim (trimmed key used for field lookup)', () => {
