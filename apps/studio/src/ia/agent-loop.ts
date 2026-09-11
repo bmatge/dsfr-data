@@ -36,6 +36,7 @@ import {
   runDiagnosticTool,
   type DiagnosticContext,
 } from './diagnostic-tools.js';
+import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
 import type { PostChat } from './transport.js';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import type { DashboardData, Field } from '../state.js';
@@ -163,6 +164,12 @@ export interface StudioLoopOptions {
    * boucle garde son budget de composition.
    */
   diagnostic?: DiagnosticContext;
+  /**
+   * Code réellement généré pour la page (#787) — l'`exportHtml` de l'aperçu.
+   * Présent = outil `read_generated_code`, indépendant du volet Diagnostic :
+   * le code existe toujours, qu'on sache observer le rendu ou non.
+   */
+  generatedCode?: () => string;
   extra?: Record<string, unknown>;
 }
 
@@ -201,6 +208,8 @@ function humanizeStep(name: string, args: Record<string, unknown>): string {
       return 'Je repars de zéro…';
     case 'finish':
       return 'Je finalise…';
+    case 'read_generated_code':
+      return 'Je relis le code généré…';
     default:
       return humanizeDiagnosticStep(name, args) ?? `Outil : ${name}`;
   }
@@ -220,7 +229,12 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   const ctx: DocumentContext = { data: opts.data, fields: opts.fields, sourceId: opts.sourceId };
 
   const diagnostic = opts.diagnostic;
-  const tools = diagnostic ? [...ALL_TOOLS, ...DIAGNOSTIC_TOOLS] : ALL_TOOLS;
+  const generatedCode = opts.generatedCode;
+  const tools = [
+    ...ALL_TOOLS,
+    ...(diagnostic ? DIAGNOSTIC_TOOLS : []),
+    ...(generatedCode ? CODE_TOOLS : []),
+  ];
   const maxRounds = diagnostic ? MAX_ROUNDS_DEBUG : MAX_ROUNDS;
 
   const messages: ChatMessage[] = [
@@ -351,6 +365,12 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
       let content: string;
       if (DOCUMENT_TOOL_NAMES.has(name)) {
         content = applyDocumentTool(name, args);
+      } else if (CODE_TOOL_NAMES.has(name)) {
+        // Jamais dédupliqué : le code change à chaque action de document, et
+        // le relire après une contestation est précisément ce qu'on attend.
+        content = generatedCode
+          ? describeGeneratedCode(generatedCode())
+          : "La lecture du code n'est pas disponible ici.";
       } else if (REPEATABLE_TOOLS.has(name)) {
         // Anti-boucle DÉLIBÉRÉMENT contournée : ces outils observent un état
         // mutable. Rejouer la même observation après un correctif, c'est

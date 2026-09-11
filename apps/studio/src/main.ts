@@ -28,7 +28,7 @@ import {
   showThinking,
   updateThinkingSteps,
 } from './ui/chat.js';
-import { renderPreview, schedulePreviewRender } from './ui/preview.js';
+import { currentExportHtml, renderPreview, schedulePreviewRender } from './ui/preview.js';
 import { runStudioLoop } from './ia/agent-loop.js';
 import { buildSystemPrompt } from './ia/system-prompt.js';
 import { resolveTransport } from './ia/transport.js';
@@ -95,6 +95,9 @@ async function sendMessage(): Promise<void> {
             redactValues: () => diagnosticMonte?.panel.redactValues ?? false,
           }
         : undefined,
+      // Le code COPIÉ par l'utilisateur, relu par l'assistant avant d'en
+      // parler (#787) — jamais décrit de mémoire.
+      generatedCode: currentExportHtml,
       extra: { max_completion_tokens: 4096 },
     });
 
