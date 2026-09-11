@@ -207,7 +207,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   @property({ type: String })
   display = '';
 
-  /** Active la lecture des paramètres d'URL comme pré-sélections de facettes */
+  /**
+   * Active la lecture des paramètres d'URL comme pré-sélections de facettes.
+   * Sans `url-param-map`, seuls les paramètres qui portent le nom d'une
+   * facette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —
+   * jamais n'importe quelle colonne des données (#773).
+   * Dès qu'un `dsfr-data-context` est présent, préférer `context="id"` :
+   * le contexte porte alors l'URL, un paramètre par champ, et `url-params`
+   * est ignoré. Un paramètre lu à la fois par une facette autonome et par un
+   * contexte à `url-sync` est une erreur de configuration.
+   */
   @property({ type: Boolean, attribute: 'url-params' })
   urlParams = false;
 
@@ -299,6 +308,11 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * `url-params` de la facette sont ignorés — reporter `url-param-map` sur
    * le contexte). Le contexte peut être déclaré après la facette dans la
    * page. Vide = comportement autonome historique (commande directe à `source`).
+   * Le contexte délègue chaque sélection aux sources qu'il vise : le champ
+   * doit donc exister SUR CES SOURCES. Une facette sur une colonne calculée
+   * en aval (`compute` d'un normalize) ne peut pas passer par le contexte —
+   * l'API répondrait 400 ; la garder autonome, chaînée en aval, avec un
+   * `url-param-map` qui borne sa lecture d'URL (#773).
    */
   @property({ type: String })
   context = '';
@@ -477,6 +491,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    */
   updated(changed: Map<PropertyKey, unknown>) {
     super.updated(changed);
+    this._checkUrlParamConflicts();
     if (this._weightUnsupported) {
       const message =
         `weight-field="${this._weightField}" n'est pas disponible en mode server-facets ` +
@@ -1969,6 +1984,80 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     return map;
   }
 
+  /**
+   * Champs dont un paramètre d'URL homonyme devient une sélection (#773) :
+   * les facettes EFFECTIVES, calculées AVANT la lecture d'URL — `_applyUrlParams()`
+   * passe avant `_buildFacetGroups()`, `_facetGroups` peut donc être vide.
+   * `_getFields()` rend les champs de `fields`, sinon ceux que détecterait
+   * `_buildFacetGroups()` sur les lignes reçues ; `static-values` ajoute ses
+   * clés. Jamais toutes les colonnes des données : `?annee=2023` captait sinon
+   * le paramètre d'un contexte voisin.
+   */
+  private _urlReadableFields(): Set<string> {
+    const fields = new Set<string>([
+      ...this._getFields(),
+      ...this._facetGroups.map((g) => g.field),
+    ]);
+    if (!this.fields && this.staticValues) {
+      try {
+        for (const key of Object.keys(JSON.parse(this.staticValues) as object)) fields.add(key);
+      } catch {
+        // static-values invalide : déjà signalé par _buildStaticFacetGroups
+      }
+    }
+    return fields;
+  }
+
+  /** Paramètres que cette facette autonome LIRAIT depuis l'URL (#773). */
+  private _urlParamNamesRead(): string[] {
+    const paramMap = this._parseUrlParamMap();
+    return paramMap.size > 0 ? [...paramMap.keys()] : [...this._urlReadableFields()];
+  }
+
+  /** Dernier conflit signalé (un message par situation, pas par rendu). */
+  private _urlParamConflict: string | null = null;
+
+  /**
+   * Un paramètre lu par cette facette AUTONOME est aussi porté par un
+   * `dsfr-data-context` à `url-sync` (#773) : les deux s'écrasent
+   * mutuellement. Vue structurelle sur le contexte (`getUrlParamNames`), sans
+   * importer son module — même précaution que #681. Vérifié à chaque rendu :
+   * les filtres du contexte s'enregistrent en différé.
+   */
+  private _checkUrlParamConflicts(): void {
+    if (!this._ownUrlParams) return;
+    const read = new Set(this._urlParamNamesRead());
+    const conflicts: string[] = [];
+    let contextId = '';
+    for (const el of document.querySelectorAll('dsfr-data-context')) {
+      const names = (el as unknown as { getUrlParamNames?: () => string[] }).getUrlParamNames?.();
+      for (const name of names ?? []) {
+        if (read.has(name) && !conflicts.includes(name)) {
+          conflicts.push(name);
+          contextId ||= el.id;
+        }
+      }
+    }
+    if (conflicts.length === 0) {
+      if (this._urlParamConflict) {
+        this._urlParamConflict = null;
+        clearConfigError(this);
+      }
+      return;
+    }
+    const message =
+      `url-params : ${conflicts.map((c) => `"${c}"`).join(', ')} est aussi porté par ` +
+      `dsfr-data-context${contextId ? `#${contextId}` : ''} (url-sync) — les deux lecteurs ` +
+      `s'écrasent. Brancher la facette sur le contexte (context="${contextId || 'id'}"), ou ` +
+      `borner sa lecture d'URL avec url-param-map.`;
+    if (message !== this._urlParamConflict) {
+      this._urlParamConflict = message;
+      reportConfigError(this, 'dsfr-data-facets', message);
+    } else if (!this.hasAttribute('data-dsfr-config-error')) {
+      this.setAttribute('data-dsfr-config-error', message);
+    }
+  }
+
   /** Read URL search params and apply as facet pré-sélections */
   _applyUrlParams() {
     const params = new URLSearchParams(window.location.search);
@@ -1978,11 +2067,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     // Sans url-param-map, seuls les params correspondant aux champs CONNUS
     // deviennent des selections (#312) : ?utm_source=newsletter filtrait
     // sur un champ inexistant -> 0 resultat inexplicable
-    const knownFields = new Set<string>([
-      ..._parseCSV(this.fields),
-      ...this._facetGroups.map((g) => g.field),
-      ...(this._rawData.length > 0 ? Object.keys(this._rawData[0]) : []),
-    ]);
+    const knownFields = this._urlReadableFields();
 
     for (const [paramName, paramValue] of params.entries()) {
       // Determine the target field name
