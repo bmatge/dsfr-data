@@ -259,6 +259,34 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'map-highlight' })
   mapHighlight = '';
 
+  /**
+   * Valeur du résumé affiché sous le titre des cartes (`type="map*"`), à la
+   * place de la moyenne calculée (#763). Nombre littéral, décimales à la
+   * française acceptées (`map-summary-value="5,6"`) : la valeur nationale
+   * publiée par ailleurs, qui fait autorité. Prime sur `map-summary-weight`.
+   * Une valeur non numérique est une erreur de configuration, et aucun résumé
+   * n'est affiché plutôt qu'un chiffre faux.
+   *
+   * Sans cet attribut ni `map-summary-weight`, le résumé est la moyenne
+   * NON PONDÉRÉE des valeurs dessinées sur la carte. Pour un taux, ce n'est
+   * pas le taux national dès que les territoires ont des tailles différentes :
+   * l'écart mesuré atteint le quart de la valeur sur un indicateur dispersé,
+   * et reste invisible sur un indicateur homogène.
+   */
+  @property({ type: String, attribute: 'map-summary-value' })
+  mapSummaryValue = '';
+
+  /**
+   * Champ d'effectif pour un résumé de carte PONDÉRÉ (#763) :
+   * Σ(valeur × effectif) / Σ(effectif) sur les lignes dessinées. Pour un taux
+   * de personnels par élève, `map-summary-weight="nb_eleves"` rend le taux
+   * national, là où la moyenne des taux départementaux s'en écarte. Les lignes
+   * dont l'effectif n'est pas numérique sont écartées du calcul ; si aucune
+   * n'en porte, erreur de configuration et pas de résumé.
+   */
+  @property({ type: String, attribute: 'map-summary-weight' })
+  mapSummaryWeight = '';
+
   /** Envelopper le chart dans une DataBox DSFR native */
   @property({ type: Boolean })
   databox = false;
@@ -620,6 +648,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   private _skippedWarnedData: unknown[] | null = null;
 
   /**
+   * Lignes effectivement dessinees par le dernier `_processMapData` : le
+   * resume de la carte porte sur elles, pas sur les lignes ignorees (#763).
+   */
+  private _mapRows: unknown[] = [];
+
+  /** Erreur de configuration du resume de carte (#763), jointe aux overlays. */
+  private _mapSummaryError: string | null = null;
+
+  /**
    * Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) :
    * code geographique absent, vide, invalide ou hors du referentiel du
    * decoupage (academie inconnue, region inconnue, #729). 0 hors carte.
@@ -630,6 +667,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   private _processMapData(): string {
     this._skippedGeoCount = 0;
+    this._mapRows = [];
     if (!this._data || this._data.length === 0) return '{}';
 
     const field = this.codeField || this.labelField;
@@ -671,6 +709,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       }
       const value = toNumber(getByPath(record, this._valueFieldKey()));
       mapData[code] = Math.round(value * 100) / 100;
+      this._mapRows.push(record);
     }
 
     // Un warn par jeu de donnees (#648) : _processMapData est rappele a
@@ -683,6 +722,65 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       );
     }
     return JSON.stringify(mapData);
+  }
+
+  /**
+   * Resume affiche sous le titre d'une carte (#763). A appeler APRES
+   * `_processMapData`, dont il lit les lignes dessinees.
+   *
+   * Ordre : valeur fournie par la page (`map-summary-value`), sinon moyenne
+   * ponderee par `map-summary-weight`, sinon moyenne NON ponderee — le calcul
+   * historique, qui n'est un taux national que si les territoires pesent
+   * pareil. `value: null` : pas de resume, jamais un chiffre de repli faux.
+   */
+  private _computeMapSummary(): { value: number | null; error: string | null } {
+    const literal = this.mapSummaryValue.trim();
+    if (literal) {
+      const value = toNumber(literal, true);
+      if (value === null) {
+        return {
+          value: null,
+          error: `map-summary-value="${literal}" : attendu un nombre (ex. "5,6")`,
+        };
+      }
+      return { value, error: null };
+    }
+
+    const valueKey = this._valueFieldKey();
+    const weightField = this.mapSummaryWeight.trim();
+    if (weightField) {
+      let weighted = 0;
+      let totalWeight = 0;
+      let weightedRows = 0;
+      for (const record of this._mapRows) {
+        const v = toNumber(getByPath(record, valueKey), true);
+        const w = toNumber(getByPath(record, weightField), true);
+        if (v === null || w === null) continue;
+        weighted += v * w;
+        totalWeight += w;
+        weightedRows++;
+      }
+      if (weightedRows === 0 && this._mapRows.length > 0) {
+        return {
+          value: null,
+          error:
+            `map-summary-weight="${weightField}" : aucun effectif numérique sur les ` +
+            `${this._mapRows.length} ligne(s) dessinée(s) — champ absent ou mal nommé`,
+        };
+      }
+      return { value: totalWeight !== 0 ? weighted / totalWeight : null, error: null };
+    }
+
+    let total = 0;
+    let count = 0;
+    for (const record of this._mapRows) {
+      const v = toNumber(getByPath(record, valueKey), true);
+      if (v !== null) {
+        total += v;
+        count++;
+      }
+    }
+    return { value: count > 0 ? total / count : null, error: null };
   }
 
   // --- Attribute builders ---
@@ -872,20 +970,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         const mapData = this._processMapData();
         attrs['data'] = mapData;
         deferred['data'] = mapData;
-        if (this._data.length > 0) {
-          let total = 0;
-          let count = 0;
-          for (const record of this._data) {
-            const v = toNumber(getByPath(record, this._valueFieldKey()), true);
-            if (v !== null) {
-              total += v;
-              count++;
-            }
-          }
-          if (count > 0) {
-            const avg = Math.round((total / count) * 100) / 100;
-            deferred['value'] = String(avg);
-          }
+        const summary = this._computeMapSummary();
+        this._mapSummaryError = summary.error;
+        if (summary.value !== null) {
+          deferred['value'] = String(Math.round(summary.value * 100) / 100);
         }
         // Plus de new Date() (#305) : la date du JOUR etait presentee comme
         // date de la donnee sur les cartes — n'envoyer date que si fournie
@@ -1026,15 +1114,24 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       this._overlayRaf = null;
     }
 
+    // Resume de carte (#763) : son erreur partage le canal des overlays, qui
+    // sinon l'effacerait au premier rendu sans ligne de reference.
+    const summaryError = this.type.startsWith('map') ? this._mapSummaryError : null;
+
     const hasRefLines = !!this.referenceLines.trim();
     const hasTargets = !!this.targets.trim();
     if (!hasRefLines && !hasTargets) {
       this._cleanupChartOverlays();
-      clearConfigError(this);
+      // updated() passe a chaque rendu : une seule console.error par message.
+      if (summaryError) {
+        if (this.getAttribute('data-dsfr-config-error') !== summaryError) {
+          reportConfigError(this, 'dsfr-data-chart', summaryError);
+        }
+      } else clearConfigError(this);
       return;
     }
 
-    const errors: string[] = [];
+    const errors: string[] = summaryError ? [summaryError] : [];
     let lines: ReferenceLine[] = [];
     if (hasRefLines) {
       const parsed = parseReferenceLines(this.referenceLines);

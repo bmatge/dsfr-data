@@ -781,6 +781,26 @@
             },
             {
               "kind": "field",
+              "name": "mapSummaryValue",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur du résumé affiché sous le titre des cartes (`type=\"map*\"`), à la\nplace de la moyenne calculée (#763). Nombre littéral, décimales à la\nfrançaise acceptées (`map-summary-value=\"5,6\"`) : la valeur nationale\npubliée par ailleurs, qui fait autorité. Prime sur `map-summary-weight`.\nUne valeur non numérique est une erreur de configuration, et aucun résumé\nn'est affiché plutôt qu'un chiffre faux.\n\nSans cet attribut ni `map-summary-weight`, le résumé est la moyenne\nNON PONDÉRÉE des valeurs dessinées sur la carte. Pour un taux, ce n'est\npas le taux national dès que les territoires ont des tailles différentes :\nl'écart mesuré atteint le quart de la valeur sur un indicateur dispersé,\net reste invisible sur un indicateur homogène.",
+              "attribute": "map-summary-value"
+            },
+            {
+              "kind": "field",
+              "name": "mapSummaryWeight",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ d'effectif pour un résumé de carte PONDÉRÉ (#763) :\nΣ(valeur × effectif) / Σ(effectif) sur les lignes dessinées. Pour un taux\nde personnels par élève, `map-summary-weight=\"nb_eleves\"` rend le taux\nnational, là où la moyenne des taux départementaux s'en écarte. Les lignes\ndont l'effectif n'est pas numérique sont écartées du calcul ; si aucune\nn'en porte, erreur de configuration et pas de résumé.",
+              "attribute": "map-summary-weight"
+            },
+            {
+              "kind": "field",
               "name": "databox",
               "type": {
                 "text": "boolean"
@@ -1183,6 +1203,26 @@
               "description": "Jeu de données pour lequel le warn a déjà ete emis (un warn par cycle)"
             },
             {
+              "kind": "field",
+              "name": "_mapRows",
+              "type": {
+                "text": "unknown[]"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Lignes effectivement dessinees par le dernier `_processMapData` : le\nresume de la carte porte sur elles, pas sur les lignes ignorees (#763)."
+            },
+            {
+              "kind": "field",
+              "name": "_mapSummaryError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Erreur de configuration du resume de carte (#763), jointe aux overlays."
+            },
+            {
               "kind": "method",
               "name": "getSkippedCount",
               "return": {
@@ -1201,6 +1241,17 @@
                   "text": "string"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_computeMapSummary",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ value: number | null; error: string | null }"
+                }
+              },
+              "description": "Resume affiche sous le titre d'une carte (#763). A appeler APRES\n`_processMapData`, dont il lit les lignes dessinees.\n\nOrdre : valeur fournie par la page (`map-summary-value`), sinon moyenne\nponderee par `map-summary-weight`, sinon moyenne NON ponderee — le calcul\nhistorique, qui n'est un taux national que si les territoires pesent\npareil. `value: null` : pas de resume, jamais un chiffre de repli faux."
             },
             {
               "kind": "method",
@@ -1990,6 +2041,24 @@
               "default": "''",
               "description": "ID du département/région à mettre en avant (map chart)",
               "fieldName": "mapHighlight"
+            },
+            {
+              "name": "map-summary-value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur du résumé affiché sous le titre des cartes (`type=\"map*\"`), à la\nplace de la moyenne calculée (#763). Nombre littéral, décimales à la\nfrançaise acceptées (`map-summary-value=\"5,6\"`) : la valeur nationale\npubliée par ailleurs, qui fait autorité. Prime sur `map-summary-weight`.\nUne valeur non numérique est une erreur de configuration, et aucun résumé\nn'est affiché plutôt qu'un chiffre faux.\n\nSans cet attribut ni `map-summary-weight`, le résumé est la moyenne\nNON PONDÉRÉE des valeurs dessinées sur la carte. Pour un taux, ce n'est\npas le taux national dès que les territoires ont des tailles différentes :\nl'écart mesuré atteint le quart de la valeur sur un indicateur dispersé,\net reste invisible sur un indicateur homogène.",
+              "fieldName": "mapSummaryValue"
+            },
+            {
+              "name": "map-summary-weight",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ d'effectif pour un résumé de carte PONDÉRÉ (#763) :\nΣ(valeur × effectif) / Σ(effectif) sur les lignes dessinées. Pour un taux\nde personnels par élève, `map-summary-weight=\"nb_eleves\"` rend le taux\nnational, là où la moyenne des taux départementaux s'en écarte. Les lignes\ndont l'effectif n'est pas numérique sont écartées du calcul ; si aucune\nn'en porte, erreur de configuration et pas de résumé.",
+              "fieldName": "mapSummaryWeight"
             },
             {
               "name": "databox",
