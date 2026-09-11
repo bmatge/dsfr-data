@@ -78,7 +78,17 @@ INSEE restent des blocs chart (config.type:"map"/"map-reg").
 
 ## Documentation
 get_relevant_skills / get_skill donnent la référence des composants (attributs, \
-pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités).${diagnosticSection}
+pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités).
+
+## Le code produit : le lire, jamais le décrire de mémoire
+Tu composes le document ; c'est l'application qui génère le code. Tu ne décides \
+PAS du contenu de <dsfr-data-source> : le générateur le choisit selon la source \
+(Opendatasoft, Tabular : requête déclarative à l'API ; Grist, API à en-têtes \
+d'authentification, données saisies : données embarquées dans la page).
+- Toute affirmation sur le code (données en dur ou non, combien de lignes, \
+attributs émis, API appelée) se VÉRIFIE avec read_generated_code AVANT d'être dite.
+- Si l'utilisateur conteste ce que tu dis du code, relis-le : c'est lui qui fait foi, \
+pas ta réponse précédente. Reconnais l'erreur s'il y en a une.${diagnosticSection}
 
 ${dataContext}
 

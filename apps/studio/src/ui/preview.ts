@@ -17,6 +17,15 @@ export function schedulePreviewRender(): void {
   renderTimer = setTimeout(renderPreview, 150);
 }
 
+/**
+ * Le code que l'utilisateur copierait, pour le document courant — lu par
+ * l'outil `read_generated_code` de l'assistant (#787) : il décrit le code
+ * qu'il a produit en le LISANT, jamais de mémoire.
+ */
+export function currentExportHtml(): string {
+  return state.document.widgets.length > 0 ? generateDashboardHTML(state.document) : '';
+}
+
 export function renderPreview(): void {
   renderTimer = null;
 
