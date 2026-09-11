@@ -140,6 +140,35 @@ describe('rien ne squatte la place de l’etat vide', () => {
       '.preview-frame[hidden] { display: none; }'
     );
   });
+
+  it('l’etat vide respecte son propre attribut hidden', () => {
+    // T6 — mutation : retirer `.empty-state[hidden]`. Le `display: flex` de la
+    // regle de base est une regle d'AUTEUR : il bat le `[hidden] { display:
+    // none }` de la feuille du navigateur quelle que soit la specificite.
+    // L'etat vide restait alors affiche AU-DESSUS de l'apercu une fois le
+    // tableau de bord rendu. La garde posee en #629 ne couvrait que l'iframe ;
+    // le meme piege valait pour l'etat vide lui-meme.
+    const css = sansCommentaires(lire('packages/app-ui/src/app-preview-panel.ts')).replace(
+      /\s+/g,
+      ' '
+    );
+
+    expect(css, 'display: flex bat hidden sans garde').toContain(
+      '.preview-panel-tab-content .empty-state[hidden] { display: none; }'
+    );
+  });
+
+  it.each(['studio', 'builder-ia'])(
+    '%s masque l’etat vide par l’attribut, pas par un style en ligne',
+    (app) => {
+      // C'est CE choix qui rend la garde CSS indispensable : `el.hidden = true`
+      // ne pose aucun style en ligne, il ne peut donc pas battre la feuille du
+      // panneau. Le Builder, lui, ecrit `style.display` et masquait par
+      // accident — ce qui avait laissé le bug invisible de son cote.
+      const source = lire(`apps/${app}/src/ui/preview.ts`);
+      expect(source).toMatch(/empty\w*\.hidden\s*=/i);
+    }
+  );
 });
 
 describe('les apps ne stylent plus les classes internes du panneau', () => {

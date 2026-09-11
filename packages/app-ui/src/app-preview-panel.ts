@@ -407,6 +407,18 @@ export class AppPreviewPanel extends LitElement {
           text-align: center;
         }
 
+        /* Le display: flex ci-dessus est une regle d'AUTEUR : il bat le
+           [hidden] { display: none } de la feuille du navigateur, quelle que
+           soit la specificite. Sans cette garde, l'etat vide restait affiche
+           AU-DESSUS de l'apercu une fois le document rendu — le Studio et
+           l'Assistant IA le masquent tous deux par l'attribut (el.hidden =
+           true), et seul le Builder y echappait, parce qu'il pose un
+           style.display en ligne. Meme piege que .preview-frame[hidden]
+           (#629), qui n'avait ete referme que du cote de l'iframe. */
+        .preview-panel-tab-content .empty-state[hidden] {
+          display: none;
+        }
+
         .preview-panel-tab-content .empty-state i {
           font-size: 3rem;
           margin-bottom: 1rem;

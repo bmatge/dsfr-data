@@ -61,6 +61,102 @@ describe('export-html — sources', () => {
     expect(html).toContain('transform="results"');
   });
 
+  // Le cas REEL, et celui qu'aucun test ne couvrait : une source venue de
+  // l'app Sources porte TOUJOURS sa connexion ET les lignes rapatriees. Les
+  // deux tests ci-dessus n'exercent qu'une moitie chacun, et c'est ce qui a
+  // laissé passer l'inversion de priorite (le Studio figeait un data='[…]').
+  it('une source ODS DEJA CHARGEE reste declarative, sans figer ses lignes', () => {
+    const html = generateSourceHTML({
+      id: 'prix-ct',
+      name: 'Prix CT',
+      type: 'api',
+      provider: 'opendatasoft',
+      apiUrl: 'https://data.example.com/api/explore/v2.1/catalog/datasets/prix-ct/records',
+      resourceIds: { datasetId: 'prix-ct' },
+      data: [{ cct_siret: '98525263400011', prix_visite: 78 }],
+      recordCount: 12000,
+    });
+
+    expect(html).toContain('api-type="opendatasoft"');
+    expect(html).toContain('dataset-id="prix-ct"');
+    expect(html, 'les lignes chargees ne doivent pas etre figees').not.toContain('data=');
+    expect(html).not.toContain('98525263400011');
+  });
+
+  it('une source Tabular deja chargee reste declarative', () => {
+    const html = generateSourceHTML({
+      id: 'tab',
+      name: 'Tabular',
+      type: 'api',
+      provider: 'tabular',
+      apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc/data/',
+      resourceIds: { resourceId: 'abc' },
+      data: [{ a: 1 }],
+    });
+
+    expect(html).toContain('api-type="tabular"');
+    expect(html).not.toContain('data=');
+  });
+
+  it('une source Grist chargee reste embarquee — son URL exige une cle', () => {
+    // Le repli assumé : emettre l'URL ferait une page publique qui 401.
+    const html = generateSourceHTML({
+      id: 'grist',
+      name: 'Grist',
+      type: 'grist',
+      provider: 'grist',
+      apiUrl: 'https://docs.getgrist.com/api/docs/DOC/tables/T/records',
+      apiKey: 'secret-a-ne-jamais-emettre',
+      data: [{ a: 1 }],
+    });
+
+    expect(html).toContain('data=\'[{"a":1}]\'');
+    expect(html, 'la cle ne doit jamais sortir').not.toContain('secret-a-ne-jamais-emettre');
+    expect(html).not.toContain('docs.getgrist.com');
+  });
+
+  it("une API a en-tetes d'authentification reste embarquee", () => {
+    // Les en-tetes ne sont jamais emis ; sans eux la requete echouerait.
+    const html = generateSourceHTML({
+      id: 'privee',
+      name: 'API privée',
+      type: 'api',
+      provider: 'generic',
+      apiUrl: 'https://api.example.com/items',
+      headers: '{"Authorization":"Bearer tok"}',
+      data: [{ a: 1 }],
+    });
+
+    expect(html).toContain('data=');
+    expect(html).not.toContain('Bearer');
+  });
+
+  it('une API publique generique deja chargee passe en url= dynamique', () => {
+    const html = generateSourceHTML({
+      id: 'pub',
+      name: 'API publique',
+      type: 'api',
+      provider: 'generic',
+      apiUrl: 'https://api.example.com/items',
+      dataPath: 'results',
+      data: [{ a: 1 }],
+    });
+
+    expect(html).toContain('url="https://api.example.com/items"');
+    expect(html).toContain('transform="results"');
+    expect(html).not.toContain('data=');
+  });
+
+  it('une source manuelle JSON/CSV reste embarquee — elle n’a aucune URL', () => {
+    const html = generateSourceHTML({
+      id: 'm',
+      name: 'Manuelle',
+      type: 'manual',
+      data: [{ a: 1 }],
+    });
+    expect(html).toContain('data=\'[{"a":1}]\'');
+  });
+
   it("n'emet les sources que si un widget les reference", () => {
     const chart: ChartConfig = { type: 'bar', valueField: 'population' };
     const html = generateDashboardHTML(

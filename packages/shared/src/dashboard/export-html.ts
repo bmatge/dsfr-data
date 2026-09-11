@@ -70,9 +70,26 @@ function serverPaginationAttrs(options: SourceEmitOptions, indent: string): stri
 /**
  * Emet la balise `<dsfr-data-source>` d'une source du dashboard.
  *
- * La source est un objet `Source` unifie (ou un sous-ensemble) : donnees
- * chargees embarquees en priorite (fonctionne partout, y compris Grist sans
- * exposer de cle), sinon connexion API declarative.
+ * PRIORITE A LA CONNEXION DECLARATIVE, pas aux donnees chargees.
+ *
+ * L'inverse etait fait, et une source venue de l'app Sources porte TOUJOURS
+ * les deux : sa connexion (`apiUrl`, `provider`, `resourceIds`) ET les lignes
+ * rapatriees dans le navigateur. Le test des donnees venant en premier, la
+ * branche ODS n'etait jamais atteinte pour ces sources-la : le document
+ * exporte figeait un `data='[…]'` de plusieurs milliers de lignes au lieu de
+ * declarer `api-type="opendatasoft"`.
+ *
+ * Ce n'est pas qu'une question de poids. `state.tableData` est ce que
+ * l'explorateur a effectivement pagine, quand `recordCount` porte le total
+ * annonce par l'API — l'ecart est un cas NORMAL, l'explorateur l'affiche
+ * (« … sur N »). Un jeu partiellement charge embarque tel quel donne un
+ * tableau de bord dont chaque agregat est faux, et faux en silence : c'est
+ * exactement le defaut que `ConsumerNeed` ci-dessous cherche a eviter.
+ *
+ * Les donnees embarquees restent le REPLI, pour les sources qu'un document
+ * public ne peut pas atteindre seul : Grist (cle d'API, reponse imbriquee),
+ * toute source a en-tetes d'authentification, et les sources manuelles
+ * JSON/CSV qui n'ont aucune URL.
  */
 export function generateSourceHTML(
   source: DashboardSource,
@@ -81,15 +98,16 @@ export function generateSourceHTML(
 ): string {
   const id = escapeHtml(source.id);
   const data = source.data;
-  if (Array.isArray(data) && data.length > 0) {
-    return `${indent}<dsfr-data-source id="${id}" data='${jsonAttr(data)}'></dsfr-data-source>\n`;
-  }
+  const hasData = Array.isArray(data) && data.length > 0;
 
   const apiUrl = typeof source.apiUrl === 'string' ? source.apiUrl : '';
   const provider = typeof source.provider === 'string' ? source.provider : '';
   const resourceIds = (source.resourceIds ?? {}) as Record<string, unknown>;
   const dataPath = typeof source.dataPath === 'string' ? source.dataPath : '';
   const serverAttrs = serverPaginationAttrs(options, indent);
+
+  const inline = () =>
+    `${indent}<dsfr-data-source id="${id}" data='${jsonAttr(data)}'></dsfr-data-source>\n`;
 
   if (provider === 'opendatasoft' && typeof resourceIds.datasetId === 'string') {
     let baseUrl: string;
@@ -110,6 +128,19 @@ export function generateSourceHTML(
       `${indent}  resource="${escapeHtml(resourceIds.resourceId)}"${serverAttrs}></dsfr-data-source>\n`
     );
   }
+  // URL nue : dynamique aussi, mais seulement si le document exporte peut
+  // l'atteindre SEUL. Des en-tetes ou une cle d'API ne sont jamais emis (ils
+  // fuiteraient dans une page publique) : sans eux la requete echouerait, donc
+  // ces sources-la restent embarquees. Grist idem — son URL exige la cle, et
+  // sa reponse est imbriquee (`records[].fields`) sans `dataPath` pour le dire.
+  const besoinDeSecret = Boolean(source.headers) || Boolean(source.apiKey);
+  if (apiUrl && provider !== 'grist' && !besoinDeSecret) {
+    const transform = dataPath ? `\n${indent}  transform="${escapeHtml(dataPath)}"` : '';
+    return `${indent}<dsfr-data-source id="${id}" url="${escapeHtml(apiUrl)}"${transform}></dsfr-data-source>\n`;
+  }
+
+  if (hasData) return inline();
+
   if (apiUrl) {
     const transform = dataPath ? `\n${indent}  transform="${escapeHtml(dataPath)}"` : '';
     return `${indent}<dsfr-data-source id="${id}" url="${escapeHtml(apiUrl)}"${transform}></dsfr-data-source>\n`;
@@ -119,14 +150,15 @@ export function generateSourceHTML(
 
 /**
  * Une source ne sait paginer cote serveur que si elle parle a un adaptateur :
- * les donnees embarquees sont deja la, et le mode `url=` d'une API quelconque
- * ne sait pas serialiser une page (voir dsfr-data-source, mode URL).
+ * le mode `url=` d'une API quelconque ne sait pas serialiser une page (voir
+ * dsfr-data-source, mode URL), et des donnees embarquees sont deja la.
  *
  * Le predicat suit exactement les branches de `generateSourceHTML` qui posent
- * un `api-type` : si l'une change, celui-ci doit changer avec elle.
+ * un `api-type` : si l'une change, celui-ci doit changer avec elle. La
+ * presence de `data` ne disqualifie plus rien — elle ne l'emporte plus sur la
+ * connexion declarative, donc une source ODS chargee pagine bien cote serveur.
  */
 function supportsServerPagination(source: DashboardSource): boolean {
-  if (Array.isArray(source.data) && source.data.length > 0) return false;
   const provider = typeof source.provider === 'string' ? source.provider : '';
   const resourceIds = (source.resourceIds ?? {}) as Record<string, unknown>;
   if (provider === 'opendatasoft') return typeof resourceIds.datasetId === 'string';
