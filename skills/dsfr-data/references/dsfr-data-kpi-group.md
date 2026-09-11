@@ -58,7 +58,7 @@ Conteneur qui dispose plusieurs `<dsfr-data-kpi>` dans une grille CSS 12 colonne
 |---|---|---|---|
 | `cols` | `number` | `3` | Nombre de KPI par ligne par défaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes. Même rôle que `per-row`, qui est préféré : `cols` désigne une LARGEUR sur `dsfr-data-facets` (#790). Toujours accepté, avec le même sens. |
 | `gap` | `'sm' \| 'md' \| 'lg'` | `'md'` | Espacement entre KPIs : sm (0.5rem), md (1rem), lg (1.5rem) |
-| `per-row` | `string` | `""` (vide) | Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) — 1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Remplace `cols`, même sens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte `span` (ou `col`) garde sa propre largeur. |
+| `per-row` | `string` | `""` (vide) | Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) — 1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Échelle mobile-first (#789) : `per-row="2 md:4"` — deux KPI par ligne sur téléphone, quatre à partir de 768 px ; avec un terme de base ou un palier `sm`, le repli forcé sur une colonne ne s'applique plus. Remplace `cols`, même sens (#790) ; prime sur `cols` s'ils sont posés ensemble. Un KPI qui porte `span` (ou `col`) garde sa propre largeur. |
 
 
 

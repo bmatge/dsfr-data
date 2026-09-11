@@ -129,7 +129,7 @@ describe('#790 — dsfr-data-facets', () => {
     f.removeAttribute('cols');
     f.setAttribute('span', 'a:13');
     await f.updateComplete;
-    expect(f.getAttribute('data-dsfr-config-error')).toContain('largeur 13 hors de la grille');
+    expect(f.getAttribute('data-dsfr-config-error')).toContain('span="a:13"');
   });
 });
 

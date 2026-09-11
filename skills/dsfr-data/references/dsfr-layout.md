@@ -358,8 +358,9 @@ quand la colonne rétrécit, ce qu'une hauteur en pixels ne fait pas. Défaut : 
 ### Pièges de mise en page
 
 - **`dsfr-data-kpi-group` fait sa propre grille.** Il dispose ses enfants dans une grille
-  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut `per-row` et par l'attribut
-  `col` de chaque `dsfr-data-kpi`. Ne pas l'envelopper dans des `fr-col-*`, et ne pas poser
+  CSS 12 colonnes à lui (shadow DOM), pilotée par son attribut `per-row` (échelle responsive
+  possible : `per-row="2 md:4"` pour 2 × 2 sur téléphone) et par l'attribut `span` de chaque
+  `dsfr-data-kpi`. Ne pas l'envelopper dans des `fr-col-*`, et ne pas poser
   de classe `fr-col-*` sur les KPI enfants : ces classes n'atteignent pas sa grille et ne
   font rien. Tous les autres composants `dsfr-data-*` rendent en DOM clair, où les classes
   `fr-*` s'appliquent normalement.

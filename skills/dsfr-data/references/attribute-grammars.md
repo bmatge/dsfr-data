@@ -2,7 +2,7 @@
 
 > Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap
 >
-> Déclencheurs : grammaire, voie native, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, colonne calculee, compute, when, recoder, tranche, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
+> Déclencheurs : grammaire, voie native, colonnes, par ligne, responsive, mobile, per-row, span, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, colonne calculee, compute, when, recoder, tranche, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
 
 ## Grammaires d’attributs et voies natives
 
@@ -280,6 +280,30 @@ categorie, le substitut conforme est le graphique en barres horizontales, trie :
 ```
 
 Ne pas importer une bibliotheque tierce pour un treemap dans une page DSFR.
+
+### Colonnage : per-row (nombre par ligne) et span (largeur sur 12)
+
+Deux attributs, deux grandeurs (#790) — ne pas les confondre :
+- `per-row` = **nombre** d'elements par ligne (1, 2, 3, 4, 6, 12 : les diviseurs de 12), sur
+  `dsfr-data-display`, `dsfr-data-kpi-group` et `dsfr-data-facets` ;
+- `span` = **largeur** sur la grille de 12, sur `dsfr-data-facets` (`"6"` ou
+  `"annee:3 | type:6"`) et sur un `dsfr-data-kpi` dans un groupe.
+`cols` / `col` sont les anciens noms, toujours acceptes — mais `cols` est une largeur sur les
+facettes et un nombre ailleurs : ne plus les generer.
+
+**Echelle responsive, mobile-first** (#789), termes separes par des espaces, sur `per-row` et
+`span` seulement :
+```html
+<dsfr-data-kpi-group per-row="2 md:4">…</dsfr-data-kpi-group>     <!-- 2 × 2 sur telephone, 4 a partir de 768 px -->
+<dsfr-data-display source="d" per-row="1 sm:2 lg:3">…</dsfr-data-display>
+<dsfr-data-facets source="d" span="annee:12 md:3 | type:12 md:6"></dsfr-data-facets>
+```
+- Premier terme nu : sous le premier point de rupture ; puis `bp:valeur` a partir de `sm` (576 px),
+  `md` (768), `lg` (992), `xl` (1248).
+- Une valeur **nue** garde le sens historique : pleine largeur sous 768 px, la valeur a partir de `md`.
+- Separateurs : `|` entre facettes, espace entre points de rupture. Point de rupture inconnu
+  (`xxl`) ou valeur hors grille : erreur de configuration nommee.
+- Sur un `dsfr-data-kpi`, `span` reste une largeur unique (pas d'echelle par enfant).
 
 ### Regle generale
 

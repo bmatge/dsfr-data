@@ -19,8 +19,8 @@ import {
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 import {
-  parsePerRow,
-  spanForPerRow,
+  parseScale,
+  scaleToClasses,
   legacyConflictMessage,
   syncLayoutError,
 } from '../utils/grid-layout.js';
@@ -94,6 +94,9 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   /**
    * Nombre d'éléments par ligne à partir de 768 px (en dessous : un par
    * ligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes.
+   * Échelle mobile-first (#789) : `per-row="1 sm:2 lg:3"` — le premier terme
+   * sous 576 px, puis un palier par point de rupture DSFR (sm 576, md 768,
+   * lg 992, xl 1248 px).
    * Remplace `cols`, même sens, sans l'ambiguïté du mot sur les autres
    * composants (#790). Prime sur `cols` s'ils sont posés ensemble.
    */
@@ -352,8 +355,8 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   // --- Grid ---
 
   private _getColClass(): string {
-    const perRow = parsePerRow(this.perRow, 6).value;
-    if (perRow !== null) return `fr-col-12 fr-col-md-${spanForPerRow(perRow)}`;
+    const perRow = parseScale(this.perRow, 'per-row', 6).scale;
+    if (perRow) return scaleToClasses(perRow);
     const cols = Math.max(1, Math.min(6, this.cols));
     const colSize = Math.floor(12 / cols);
     return `fr-col-12 fr-col-md-${colSize}`;
@@ -361,10 +364,10 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
 
   /** `per-row` invalide, ou posé avec `cols` (#790). */
   private _syncLayoutError(): void {
-    const perRow = parsePerRow(this.perRow, 6);
+    const perRow = parseScale(this.perRow, 'per-row', 6);
     const message =
       perRow.error ??
-      (perRow.value !== null && this.hasAttribute('cols')
+      (perRow.scale !== null && this.hasAttribute('cols')
         ? legacyConflictMessage('cols', 'per-row')
         : null);
     this._layoutError = syncLayoutError(this, 'dsfr-data-display', message, this._layoutError);
