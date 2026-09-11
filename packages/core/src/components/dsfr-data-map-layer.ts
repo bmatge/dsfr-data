@@ -196,7 +196,13 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
-  /** Champ numérique utilisé pour le remplissage en choroplèthe. */
+  /**
+   * Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche
+   * `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et
+   * `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ;
+   * `color-field` / `color` donnent alors le contour, et la légende décrit les
+   * classes. Sans effet sur `marker` et `heatmap`.
+   */
   @property({ type: String, attribute: 'fill-field' })
   fillField = '';
 
@@ -351,6 +357,16 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   /** Dernier compte journalise — evite de repeter le warn a chaque re-rendu (pan en bbox client) */
   private _skippedWarned = -1;
 
+  /**
+   * Positions distinctes des points dessines au dernier rendu (#770), cles
+   * arrondies au 1e-5 degre (~1 m). Seuls les types ponctuels (marker,
+   * circle, heatmap) en posent.
+   */
+  private _positionKeys = new Set<string>();
+
+  /** Signature du dernier empilement journalise (warn unique tant qu'il ne change pas) */
+  private _stackedWarned = '';
+
   /** Compagnon popup resolu une fois par rendu (#297) */
   private _popupCompanion: import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null = null;
   private _colorMapParsed: Map<string, string> | null = null;
@@ -406,6 +422,26 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   // Grammaire partagee avec dsfr-data-chart (#732) : `utils/color-map.ts`,
   // echappement percent des separateurs compris (#676).
 
+  /**
+   * La couche est-elle une choroplèthe ? `fill-field` sur une forme ou un
+   * cercle (#768) : les deux gardes `type === 'geoshape'` (classes et
+   * légende) rendaient des cercles monochromes sans un mot.
+   */
+  private _isChoropleth(): boolean {
+    return !!this.fillField && (this.type === 'geoshape' || this.type === 'circle');
+  }
+
+  /** Couleur de classe d'un enregistrement, ou null (hors choroplèthe, valeur non numérique). */
+  private _choroplethFill(
+    record: Record<string, unknown>,
+    breaks: number[],
+    palette: readonly string[]
+  ): string | null {
+    if (!this.fillField || breaks.length === 0) return null;
+    const val = Number(getByPath(record, this.fillField));
+    return isNaN(val) ? null : getColorForValue(val, breaks, palette);
+  }
+
   /** Resolve color for a record: color-field + color-map, or fallback to this.color */
   private _resolveColor(record: Record<string, unknown>): string {
     if (!this.colorField || !this._colorMapParsed?.size) return this.color;
@@ -428,7 +464,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   /** Recalcule les entrees de legende a partir de l'etat du dernier rendu. */
   private _buildLegendEntries(breaks: number[], palette: readonly string[], values: number[]) {
-    if (this.fillField && this.type === 'geoshape' && breaks.length > 0) {
+    if (this._isChoropleth() && breaks.length > 0) {
       let min = Infinity;
       let max = -Infinity;
       for (const v of values) {
@@ -464,6 +500,27 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
    * (coordonnées ou geometrie absentes ou invalides). Journalise une fois par
    * rendu et remonte dans la trace du volet Diagnostic (#648, #604).
    */
+  /**
+   * Points EMPILES au dernier rendu (#770) : au plus deux positions
+   * distinctes pour au moins dix points par position. C'est le mode d'echec
+   * d'une colonne de geolocalisation constante ou mal jointe : 43 479
+   * coordonnees valides identiques ne sont ignorees nulle part, le compteur
+   * d'exclusions vaut 0 et la couche se declare complete en montrant un
+   * point. Le seuil laisse passer les adresses partagees, legitimes.
+   * `null` quand la couche n'est pas dans ce cas.
+   */
+  getStackedPositions(): { positions: number; items: number } | null {
+    const positions = this._positionKeys.size;
+    const items = this._renderedCount;
+    if (positions === 0 || positions > 2 || items < positions * 10) return null;
+    return { positions, items };
+  }
+
+  /** Note la position d'un point dessine (#770). */
+  private _notePosition(coords: { lat: number; lon: number }): void {
+    this._positionKeys.add(`${coords.lat.toFixed(5)},${coords.lon.toFixed(5)}`);
+  }
+
   getSkippedCount(): number {
     return this._skippedGeoCount;
   }
@@ -836,13 +893,13 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     this._colorMapParsed = this.colorField && this.colorMap ? parseColorMap(this.colorMap) : null;
     this._colorFallbackUsed = false;
 
-    // Choropleth setup (for geoshape with fill-field) — classes parametrables
+    // Choropleth setup (geoshape ou circle avec fill-field, #768) — classes parametrables
     // (#685) : classes/method/breaks, défaut inchange (quantiles, autant de
     // classes que de couleurs dans l'echelle)
     let breaks: number[] = [];
     let palette: readonly string[] = [];
     let fillValues: number[] = [];
-    if (this.fillField && this.type === 'geoshape') {
+    if (this._isChoropleth()) {
       fillValues = items.map((r) => Number(getByPath(r, this.fillField))).filter((v) => !isNaN(v));
       const scale =
         CHOROPLETH_SCALES[this.selectedPalette] || CHOROPLETH_SCALES['sequentialAscending'];
@@ -915,6 +972,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // Render each item
     this._skippedGeoCount = 0;
     this._renderedCount = 0;
+    this._positionKeys = new Set();
     for (const record of items) {
       switch (this.type) {
         case 'marker':
@@ -924,7 +982,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
           this._addGeoshape(record, Leaf, targetGroup, breaks, palette);
           break;
         case 'circle':
-          this._addCircle(record, Leaf, targetGroup);
+          this._addCircle(record, Leaf, targetGroup, breaks, palette);
           break;
         case 'heatmap':
           // Collected below, not per-item
@@ -951,6 +1009,21 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
                 `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
             : `${who}: ${this._skippedGeoCount} ligne(s) sur ${items.length} sans coordonnées exploitables ` +
                 `(${this._describeCoordFields()}) — lignes ignorées`
+        );
+      }
+    }
+
+    // Points empiles (#770) : meme doctrine que les lignes ignorees, un warn
+    // par situation, pas a chaque re-rendu.
+    const stacked = this.getStackedPositions();
+    const stackedKey = stacked ? `${stacked.positions}/${stacked.items}` : '';
+    if (stackedKey !== this._stackedWarned) {
+      this._stackedWarned = stackedKey;
+      if (stacked) {
+        console.warn(
+          `dsfr-data-map-layer[${this.id || this.source}]: ${stacked.items} point(s) sur ` +
+            `${stacked.positions} seule(s) position(s) distincte(s) — coordonnées constantes ` +
+            `ou mal jointes (${this._describeCoordFields()}) ? La carte n'en montre que ${stacked.positions}.`
         );
       }
     }
@@ -1039,6 +1112,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       this._skippedGeoCount++;
       return;
     }
+    this._notePosition(coords);
 
     const markerColor = this._resolveColor(record);
     const icon = Leaf.divIcon({
@@ -1079,13 +1153,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     }
 
     const recordColor = this._resolveColor(record);
-    let fillColor = recordColor;
-    if (this.fillField && breaks.length > 0) {
-      const val = Number(getByPath(record, this.fillField));
-      if (!isNaN(val)) {
-        fillColor = getColorForValue(val, breaks, palette);
-      }
-    }
+    const fillColor = this._choroplethFill(record, breaks, palette) ?? recordColor;
 
     const geoJson =
       geoData && typeof geoData === 'object' && 'type' in (geoData as object) ? geoData : null;
@@ -1127,12 +1195,19 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   // --- Circle ---
 
-  private _addCircle(record: Record<string, unknown>, Leaf: LeafletModule, group: LayerGroup) {
+  private _addCircle(
+    record: Record<string, unknown>,
+    Leaf: LeafletModule,
+    group: LayerGroup,
+    breaks: number[],
+    palette: readonly string[]
+  ) {
     const coords = this._extractCoords(record);
     if (!coords) {
       this._skippedGeoCount++;
       return;
     }
+    this._notePosition(coords);
 
     let r = this.radius;
     if (this.radiusField) {
@@ -1148,7 +1223,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     const circleOptions = {
       radius: r,
       color: circleColor,
-      fillColor: circleColor,
+      fillColor: this._choroplethFill(record, breaks, palette) ?? circleColor,
       fillOpacity: this.fillOpacity,
       weight: 1,
       interactive: !this.noInteractive,
@@ -1190,6 +1265,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
         this._skippedGeoCount++;
         continue;
       }
+      this._notePosition(coords);
       let intensity = 1;
       if (this.heatField) {
         const val = Number(getByPath(record, this.heatField));

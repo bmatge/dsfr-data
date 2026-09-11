@@ -552,6 +552,7 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 - `origin` sur `dsfr-data-source-command` — le bus etant plat, une trace ne pourrait sinon pas dire *qui* demande une delegation. Renseigne par `TransformerMixin` (relais aval → amont), `dsfr-data-query`, `-search`, `-facets`, `-context`, `-map-layer` et `PaginationController`.
 - `dsfr-data-query.getDelegation()` — quelles operations tournent cote serveur. Un `group-by` non delegue s'execute sur les seules lignes rapatriees : des totaux justes en apparence, faux en realite.
 - `dsfr-data-normalize.getComputedColumns()` (#671) — les colonnes derivees par `compute` avec la valeur de la premiere ligne. Meme doctrine que `getSkippedCount()` des afficheurs (#648) : `graph.ts` lit une methode publique du composant rehausse (`StageNode.computedColumns`), `formatTrace` rend « calculees (compute) : solde = 1100, … » (noms seuls sous `redactValues`). Le bus transporte les lignes, pas la provenance des colonnes : sans ce hook, un recodage resterait une boite noire.
+- `dsfr-data-map-layer.getStackedPositions()` (#770) — une couche ponctuelle dont les points s'empilent (au plus deux positions distinctes, au moins dix points par position) : colonne de geolocalisation constante ou mal jointe. Rien n'y est « ignore », `getSkippedCount()` vaut 0 : sans ce hook la couche se declare complete en montrant un point. Meme doctrine (`StageNode.stackedPositions`, une alerte dans `summarizeTrace`).
 
 #### Une meta honnete sur les plafonds silencieux (epic #693)
 

@@ -107,6 +107,7 @@ function makeLayer(attrs: Partial<DsfrDataMapLayer> = {}) {
 
 afterEach(() => {
   document.body.innerHTML = '';
+  vi.restoreAllMocks();
 });
 
 // ---------------------------------------------------------------------------
@@ -333,6 +334,81 @@ describe('dsfr-data-map-layer — classes et legende', () => {
     });
   });
 
+  it('#768 — une couche circle avec fill-field colore ses cercles selon les classes', async () => {
+    const { layer, mock, internals } = makeLayer({
+      color: '#E1000F',
+      fillField: 'val',
+      selectedPalette: 'sequentialAscending',
+      classes: 3,
+      method: 'manual',
+      breaks: '10,20',
+    });
+    layer.type = 'circle';
+    layer.latField = 'lat';
+    layer.lonField = 'lon';
+    const fills: string[] = [];
+    const strokes: string[] = [];
+    mock.L.circleMarker = ((_ll: unknown, opts: { fillColor: string; color: string }) => {
+      fills.push(opts.fillColor);
+      strokes.push(opts.color);
+      return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) };
+    }) as typeof mock.L.circleMarker;
+    internals._data = [
+      { lat: 48, lon: 2, val: 5 },
+      { lat: 45, lon: 4, val: 15 },
+      { lat: 43, lon: 5, val: 25 },
+    ];
+    await internals._renderLayer();
+
+    // Trois classes distinctes, et non plus trois cercles de la couleur de couche
+    expect(new Set(fills).size).toBe(3);
+    expect(fills).not.toContain(layer.color);
+    // Le contour garde la couleur de couche
+    expect(strokes).toEqual([layer.color, layer.color, layer.color]);
+    // La légende de couche décrit les classes
+    const entries = layer.getLegendEntries();
+    expect(entries).toHaveLength(3);
+    expect(entries.map((e) => e.color)).toEqual(fills);
+  });
+
+  it('#768 — avec color-field, fill-field gagne pour le remplissage, color-map garde le contour', async () => {
+    const { layer, mock, internals } = makeLayer({
+      fillField: 'val',
+      method: 'manual',
+      breaks: '10',
+      colorField: 's',
+      colorMap: 'a:#111111',
+    });
+    layer.type = 'circle';
+    layer.latField = 'lat';
+    layer.lonField = 'lon';
+    const calls: Array<{ fillColor: string; color: string }> = [];
+    mock.L.circleMarker = ((_ll: unknown, opts: { fillColor: string; color: string }) => {
+      calls.push(opts);
+      return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) };
+    }) as typeof mock.L.circleMarker;
+    internals._data = [{ lat: 48, lon: 2, val: 50, s: 'a' }];
+    await internals._renderLayer();
+
+    expect(calls[0].color).toBe('#111111');
+    expect(calls[0].fillColor).not.toBe('#111111');
+  });
+
+  it('#768 — sans fill-field, un cercle reste de la couleur de couche', async () => {
+    const { layer, mock, internals } = makeLayer({ color: '#000091' });
+    layer.type = 'circle';
+    layer.latField = 'lat';
+    layer.lonField = 'lon';
+    const fills: string[] = [];
+    mock.L.circleMarker = ((_ll: unknown, opts: { fillColor: string }) => {
+      fills.push(opts.fillColor);
+      return { bindPopup: () => ({}), bindTooltip: () => ({}), on: () => ({}) };
+    }) as typeof mock.L.circleMarker;
+    internals._data = [{ lat: 48, lon: 2 }];
+    await internals._renderLayer();
+    expect(fills).toEqual(['#000091']);
+  });
+
   it('changer classes / method / breaks redessine la couche', () => {
     const { layer } = makeLayer();
     const props = (layer.constructor as unknown as { RENDER_PROPS: Set<string> }).RENDER_PROPS;
@@ -433,6 +509,43 @@ describe('dsfr-data-map-legend', () => {
     await nextFrame();
     expect(legend.querySelector('ul')).toBeNull();
     expect((legend.querySelector('[role="group"]') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('#771 — for qui désigne autre chose qu’une couche : un avertissement explicite', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { host, legend } = mount({ color: '#000091' }, {});
+    // Le piège du voisinage : dsfr-data-a11y for="carte" désigne l'hôte.
+    host.id = 'carte';
+    legend.setAttribute('for', 'carte');
+    await nextFrame();
+    legend.refresh();
+    legend.refresh();
+
+    const warns = warnSpy.mock.calls.filter((c) => String(c[0]).includes('dsfr-data-map-legend'));
+    expect(warns).toHaveLength(1);
+    expect(warns[0][0]).toContain('for="carte" désigne un <div>');
+    expect(warns[0][0]).toContain('for="couche"');
+    expect((legend.querySelector('[role="group"]') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('#771 — le repli par source reste silencieux et fonctionne', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { layer, internals, legend } = mount({ color: '#000091' }, {});
+    layer.setAttribute('source', 'donnees');
+    // Un élément (non couche) porte le même id que la source visée.
+    const src = document.createElement('dsfr-data-source');
+    src.id = 'donnees';
+    document.body.appendChild(src);
+    legend.setAttribute('for', 'donnees');
+    legend.setAttribute('label', 'Bornes');
+    internals._data = [{ geo: POLY }];
+    await internals._renderLayer();
+    await nextFrame();
+
+    expect(items(legend).map((i) => i.text)).toEqual(['Bornes']);
+    expect(warnSpy.mock.calls.some((c) => String(c[0]).includes('dsfr-data-map-legend'))).toBe(
+      false
+    );
   });
 
   it('for vide dans une dsfr-data-map : toutes les couches directes', async () => {
