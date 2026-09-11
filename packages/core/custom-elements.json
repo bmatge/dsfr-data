@@ -8841,7 +8841,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ numérique utilisé pour le remplissage en choroplèthe.",
+              "description": "Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche\n`geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et\n`selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ;\n`color-field` / `color` donnent alors le contour, et la légende décrit les\nclasses. Sans effet sur `marker` et `heatmap`.",
               "attribute": "fill-field"
             },
             {
@@ -9260,6 +9260,23 @@
             },
             {
               "kind": "field",
+              "name": "_positionKeys",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Positions distinctes des points dessines au dernier rendu (#770), cles\narrondies au 1e-5 degre (~1 m). Seuls les types ponctuels (marker,\ncircle, heatmap) en posent."
+            },
+            {
+              "kind": "field",
+              "name": "_stackedWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Signature du dernier empilement journalise (warn unique tant qu'il ne change pas)"
+            },
+            {
+              "kind": "field",
               "name": "_popupCompanion",
               "type": {
                 "text": "import('./dsfr-data-map-popup.js').DsfrDataMapPopup | null"
@@ -9409,6 +9426,48 @@
             },
             {
               "kind": "method",
+              "name": "_isChoropleth",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La couche est-elle une choroplèthe ? `fill-field` sur une forme ou un\ncercle (#768) : les deux gardes `type === 'geoshape'` (classes et\nlégende) rendaient des cercles monochromes sans un mot."
+            },
+            {
+              "kind": "method",
+              "name": "_choroplethFill",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "breaks",
+                  "type": {
+                    "text": "number[]"
+                  }
+                },
+                {
+                  "name": "palette",
+                  "type": {
+                    "text": "readonly string[]"
+                  }
+                }
+              ],
+              "description": "Couleur de classe d'un enregistrement, ou null (hors choroplèthe, valeur non numérique)."
+            },
+            {
+              "kind": "method",
               "name": "_resolveColor",
               "privacy": "private",
               "return": {
@@ -9474,13 +9533,41 @@
             },
             {
               "kind": "method",
+              "name": "getStackedPositions",
+              "return": {
+                "type": {
+                  "text": "{ positions: number; items: number } | null"
+                }
+              },
+              "description": "Points EMPILES au dernier rendu (#770) : au plus deux positions\ndistinctes pour au moins dix points par position. C'est le mode d'echec\nd'une colonne de geolocalisation constante ou mal jointe : 43 479\ncoordonnees valides identiques ne sont ignorees nulle part, le compteur\nd'exclusions vaut 0 et la couche se declare complete en montrant un\npoint. Le seuil laisse passer les adresses partagees, legitimes.\n`null` quand la couche n'est pas dans ce cas."
+            },
+            {
+              "kind": "method",
+              "name": "_notePosition",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "coords",
+                  "type": {
+                    "text": "{ lat: number; lon: number }"
+                  }
+                }
+              ],
+              "description": "Note la position d'un point dessine (#770)."
+            },
+            {
+              "kind": "method",
               "name": "getSkippedCount",
               "return": {
                 "type": {
                   "text": "number"
                 }
-              },
-              "description": "Nombre de lignes ignorees au dernier rendu faute de position exploitable\n(coordonnées ou geometrie absentes ou invalides). Journalise une fois par\nrendu et remonte dans la trace du volet Diagnostic (#648, #604)."
+              }
             },
             {
               "kind": "field",
@@ -9761,6 +9848,18 @@
                   "name": "group",
                   "type": {
                     "text": "LayerGroup"
+                  }
+                },
+                {
+                  "name": "breaks",
+                  "type": {
+                    "text": "number[]"
+                  }
+                },
+                {
+                  "name": "palette",
+                  "type": {
+                    "text": "readonly string[]"
                   }
                 }
               ]
@@ -10226,7 +10325,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ numérique utilisé pour le remplissage en choroplèthe.",
+              "description": "Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche\n`geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et\n`selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ;\n`color-field` / `color` donnent alors le contour, et la légende décrit les\nclasses. Sans effet sur `marker` et `heatmap`.",
               "fieldName": "fillField"
             },
             {
@@ -10462,6 +10561,14 @@
           },
           "tagName": "dsfr-data-map-layer",
           "customElement": true
+        },
+        {
+          "kind": "variable",
+          "name": "breaks",
+          "type": {
+            "text": "number[]"
+          },
+          "default": "[]"
         }
       ],
       "exports": [
@@ -10536,6 +10643,41 @@
                 }
               },
               "description": "Couches decrites par cette legende (voir `for`)."
+            },
+            {
+              "kind": "field",
+              "name": "_warnedFor",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur de `for` deja signalee : un avertissement par valeur, pas par rendu."
+            },
+            {
+              "kind": "method",
+              "name": "_warnNotALayer",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "found",
+                  "type": {
+                    "text": "Element"
+                  }
+                },
+                {
+                  "name": "scope",
+                  "type": {
+                    "text": "ParentNode"
+                  }
+                }
+              ],
+              "description": "`for` designe un element qui existe mais n'est pas une couche (#771) :\nle piege vient du voisinage, le `for` de `dsfr-data-a11y` designe le\ncomposant HOTE (la carte), celui de la legende la COUCHE. La legende se\nrendait masquee, sans un mot."
             },
             {
               "kind": "method",

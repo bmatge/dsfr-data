@@ -91,10 +91,36 @@ export class DsfrDataMapLegend extends LitElement {
       for (const layer of scope.querySelectorAll('dsfr-data-map-layer')) {
         if (layer.getAttribute('source') === this.for) return [layer as LegendSourceLayer];
       }
+      if (byId) this._warnNotALayer(byId, scope);
       return [];
     }
     if (!host) return [];
     return [...host.querySelectorAll(':scope > dsfr-data-map-layer')] as LegendSourceLayer[];
+  }
+
+  /** Valeur de `for` deja signalee : un avertissement par valeur, pas par rendu. */
+  private _warnedFor: string | null = null;
+
+  /**
+   * `for` designe un element qui existe mais n'est pas une couche (#771) :
+   * le piege vient du voisinage, le `for` de `dsfr-data-a11y` designe le
+   * composant HOTE (la carte), celui de la legende la COUCHE. La legende se
+   * rendait masquee, sans un mot.
+   */
+  private _warnNotALayer(found: Element, scope: ParentNode): void {
+    if (this._warnedFor === this.for) return;
+    this._warnedFor = this.for;
+    const layerIds = [...scope.querySelectorAll('dsfr-data-map-layer')]
+      .map((layer) => layer.id)
+      .filter(Boolean);
+    const hint = layerIds.length
+      ? ` — couche(s) disponible(s) : ${layerIds.map((id) => `for="${id}"`).join(', ')}`
+      : ' — donner un id à la couche à décrire et le reprendre dans for';
+    console.warn(
+      `dsfr-data-map-legend: for="${this.for}" désigne un <${found.tagName.toLowerCase()}>, ` +
+        `pas un <dsfr-data-map-layer> : la légende reste vide. Son for attend l'id de la ` +
+        `COUCHE (celui de dsfr-data-a11y attend la carte)${hint}`
+    );
   }
 
   private _handleRender(e: Event) {

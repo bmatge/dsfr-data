@@ -63,7 +63,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | `"#000091"` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | `""` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | `""` | Paires `valeur:#couleur` separees par virgule. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Virgule ou deux-points dans une valeur : `%2C` / `%3A` (`"Commerce%2C transport:#000091"`). Meme grammaire sur dsfr-data-chart |
-| fill-field | String | `""` | Champ numérique pour choropleth (geoshape) |
+| fill-field | String | `""` | Champ numérique pour choropleth (geoshape ET circle : cercles colorés par classes). Avec color-field, fill-field donne le remplissage et color-field le contour |
 | fill-opacity | Number | `0.6` | Opacite remplissage |
 | selected-palette | String | `""` | Palette choropleth : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical` |
 | classes | Number | `0` | Nombre de classes de la choropleth ; `0` = autant que de couleurs dans l'echelle (9) |
@@ -485,7 +485,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `color-field` | `string` | `""` (vide) | Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). |
 | `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. |
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
-| `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe. |
+| `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ; `color-field` / `color` donnent alors le contour, et la légende décrit les classes. Sans effet sur `marker` et `heatmap`. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
 | `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) |
 | `heat-blur` | `number` | `15` | Flou applique a la heatmap, en pixels. |
@@ -523,7 +523,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 |---|---|---|
 | `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
 | `getRenderedCount()` | `number` | Nombre d'éléments effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
-| `getSkippedCount()` | `number` | Nombre de lignes ignorees au dernier rendu faute de position exploitable (coordonnées ou geometrie absentes ou invalides). Journalise une fois par rendu et remonte dans la trace du volet Diagnostic (#648, #604). |
+| `getSkippedCount()` | `number` | — |
+| `getStackedPositions()` | `{ positions: number; items: number } \| null` | Points EMPILES au dernier rendu (#770) : au plus deux positions distinctes pour au moins dix points par position. C'est le mode d'echec d'une colonne de geolocalisation constante ou mal jointe : 43 479 coordonnees valides identiques ne sont ignorees nulle part, le compteur d'exclusions vaut 0 et la couche se declare complete en montrant un point. Le seuil laisse passer les adresses partagees, legitimes. `null` quand la couche n'est pas dans ce cas. |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
 | `setTimelineFrame(index: number)` | `void` | Called by dsfr-data-map-timeline to set current frame |

@@ -340,6 +340,19 @@ function formatSkippedRows(node: StageNode): string[] {
   return [`     ⚠ ${plural(n, 'ligne')} ignorée${n > 1 ? 's' : ''} (${cause})`];
 }
 
+/**
+ * Points empilés d'une couche (#770) : la couche se déclare complète — rien
+ * n'est ignoré — et la carte montre un point pour des milliers de lignes.
+ */
+function formatStackedPositions(node: StageNode): string[] {
+  const stacked = node.stackedPositions;
+  if (!stacked) return [];
+  return [
+    `     ⚠ ${plural(stacked.items, 'point')} sur ${plural(stacked.positions, 'position')} ` +
+      `distincte${stacked.positions > 1 ? 's' : ''} (coordonnées constantes ou mal jointes ?)`,
+  ];
+}
+
 /** Valeur d'exemple compacte : JSON tronqué, pour tenir sur la ligne. */
 function formatSampleValue(value: unknown, max = 40): string {
   let text: string;
@@ -423,6 +436,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
     out.push(statusLine(node, state, upstreamHasData, upstreamWaiting));
     out.push(...formatSkippedRows(node));
+    out.push(...formatStackedPositions(node));
     out.push(...formatFieldIssues(champsIntrouvables[node.id]));
     out.push(...formatComputedColumns(node, opts));
 
@@ -511,6 +525,7 @@ export function summarizeTrace(trace: Trace): {
     const state = trace.states[node.id];
     if (node.configError) alerts += 1;
     if (node.skippedRows) alerts += 1;
+    if (node.stackedPositions) alerts += 1;
     // Un champ nommé pour rien et un attribut que le bundle ignore sont deux
     // pannes muettes : elles doivent peser sur le compte du rail replié,
     // sinon « aucune alerte » s'affiche au-dessus d'un graphique vide (#727).

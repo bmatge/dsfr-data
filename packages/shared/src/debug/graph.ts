@@ -179,6 +179,13 @@ export interface StageNode {
    */
   skippedRows?: number;
   /**
+   * Points empilés par une couche ponctuelle (#770) : au plus deux positions
+   * distinctes pour au moins dix points par position — colonne de
+   * géolocalisation constante ou mal jointe. Lu sur `getStackedPositions()`
+   * du composant rehaussé ; absent quand la couche n'est pas dans ce cas.
+   */
+  stackedPositions?: { positions: number; items: number };
+  /**
    * Colonnes dérivées par l'attribut `compute` d'un normalize (#671), avec
    * la valeur de la première ligne en exemple — ce qu'un recodage a produit,
    * visible sans ouvrir l'échantillon. Lu sur `getComputedColumns()` du
@@ -229,6 +236,24 @@ function readSkippedRows(el: Element): number | undefined {
   try {
     const n = counting.getSkippedCount();
     return typeof n === 'number' && n > 0 ? n : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
+}
+
+/** Couche qui sait dire si ses points sont empilés (#770). */
+interface StackReportingElement extends Element {
+  getStackedPositions?: () => { positions: number; items: number } | null;
+}
+
+/** Points empilés, même doctrine que `readSkippedRows`. */
+function readStackedPositions(el: Element): { positions: number; items: number } | undefined {
+  const reporting = el as StackReportingElement;
+  if (typeof reporting.getStackedPositions !== 'function') return undefined;
+  try {
+    const stacked = reporting.getStackedPositions();
+    return stacked && stacked.positions > 0 ? stacked : undefined;
   } catch {
     // Un composant à moitié initialisé ne doit jamais casser la trace.
     return undefined;
@@ -317,6 +342,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       .map((a) => a.trim())
       .filter(Boolean);
     const skippedRows = role === 'display' ? readSkippedRows(el) : undefined;
+    const stackedPositions = role === 'display' ? readStackedPositions(el) : undefined;
     const computedColumns = role === 'transform' ? readComputedColumns(el) : undefined;
 
     nodes.push({
@@ -330,6 +356,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       ...(configError ? { configError } : {}),
       ...(unknownAttrs.length > 0 ? { unknownAttrs } : {}),
       ...(skippedRows !== undefined ? { skippedRows } : {}),
+      ...(stackedPositions !== undefined ? { stackedPositions } : {}),
       ...(computedColumns !== undefined ? { computedColumns } : {}),
     });
   }

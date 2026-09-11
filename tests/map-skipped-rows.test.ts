@@ -315,3 +315,80 @@ describe('#648 — remontée dans la trace du volet Diagnostic (#604)', () => {
     expect(formatTrace(trace)).not.toContain('ignorée');
   });
 });
+
+describe('#770 — une couche dont tous les points sont confondus', () => {
+  const same = (n: number, lat = 48.8566, lon = 2.3522) =>
+    Array.from({ length: n }, (_, i) => ({ nom: `P${i}`, lat, lon }));
+
+  it('une couche à position unique le signale : getStackedPositions et un warn', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const layer = readyLayer('marker');
+    const internals = layer as unknown as LayerInternals;
+    internals._data = same(43);
+
+    await internals._renderLayer();
+    await internals._renderLayer();
+
+    expect(layer.getSkippedCount()).toBe(0);
+    expect(layer.getStackedPositions()).toEqual({ positions: 1, items: 43 });
+    const stackedWarns = warnSpy.mock.calls.filter((c) => String(c[0]).includes('position'));
+    expect(stackedWarns).toHaveLength(1);
+    expect(stackedWarns[0][0]).toContain('43 point(s) sur 1 seule(s) position(s)');
+  });
+
+  it('deux immeubles à la même adresse ne déclenchent rien', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const layer = readyLayer('marker');
+    const internals = layer as unknown as LayerInternals;
+    internals._data = [...same(2), { lat: 45.76, lon: 4.83 }, { lat: 43.3, lon: 5.37 }];
+
+    await internals._renderLayer();
+
+    expect(layer.getStackedPositions()).toBeNull();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('peu de points empilés sur une position : sous le seuil, rien', async () => {
+    const layer = readyLayer('circle');
+    const internals = layer as unknown as LayerInternals;
+    internals._data = same(9);
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await internals._renderLayer();
+    expect(layer.getStackedPositions()).toBeNull();
+  });
+
+  it('deux positions pour vingt points : signalé ; trois positions : non', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const layer = readyLayer('circle');
+    const internals = layer as unknown as LayerInternals;
+    internals._data = [...same(10), ...same(10, 45.76, 4.83)];
+    await internals._renderLayer();
+    expect(layer.getStackedPositions()).toEqual({ positions: 2, items: 20 });
+
+    internals._data = [...same(10), ...same(10, 45.76, 4.83), ...same(10, 43.3, 5.37)];
+    await internals._renderLayer();
+    expect(layer.getStackedPositions()).toBeNull();
+  });
+
+  it('la trace du volet Diagnostic le dit, et compte une alerte', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const host = document.createElement('div');
+    host.innerHTML = `<dsfr-data-map-layer id="empile" source="src" type="marker" lat-field="lat" lon-field="lon"></dsfr-data-map-layer>`;
+    document.body.appendChild(host);
+    const layer = document.getElementById('empile') as DsfrDataMapLayer;
+    const internals = layer as unknown as LayerInternals;
+    internals._leafletMap = fakeMap();
+    internals._L = L;
+    internals._layerGroup = L.featureGroup();
+    internals._data = same(30);
+    await internals._renderLayer();
+
+    const trace = new DataflowRecorder({ root: document.body }).snapshot();
+    expect(trace.graph.nodes.find((n) => n.id === 'empile')?.stackedPositions).toEqual({
+      positions: 1,
+      items: 30,
+    });
+    expect(formatTrace(trace)).toContain('30 points sur 1 position distincte');
+    expect(summarizeTrace(trace).alerts).toBeGreaterThanOrEqual(1);
+  });
+});
