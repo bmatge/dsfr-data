@@ -2144,6 +2144,11 @@ async function loadMap() {
     if (/^\\d+$/.test(code) && code.length < 3) {
       code = code.padStart(2, '0');
     }
+    // Zero de tete en trop : 059, 02A, 0971 (#766).
+    var padded = /^0(\\d{2}|2[AB]|97\\d)$/i.exec(code);
+    if (padded && isValidDeptCode(padded[1].toUpperCase())) {
+      code = padded[1].toUpperCase();
+    }
     const value = d.value || 0;
     if (isValidDeptCode(code)) {
       mapData[code] = Math.round(value * 100) / 100;

@@ -166,6 +166,32 @@ describe('les codes non padés ne déclenchent plus de faux avertissement', () =
     expect(normalizeDeptCode(null)).toBe('');
   });
 
+  it('retire un zéro de tête en trop (#766)', () => {
+    // Critères d'acceptation de l'issue.
+    expect(normalizeDeptCode('059')).toBe('59');
+    expect(normalizeDeptCode('02A')).toBe('2A');
+    expect(normalizeDeptCode('0971')).toBe('971');
+    // Casse de la Corse ramenée au format de rendu.
+    expect(normalizeDeptCode('02b')).toBe('2B');
+    expect(normalizeDeptCode(' 001 ')).toBe('01');
+    // Les formes déjà valides sont inchangées.
+    for (const code of ['01', '59', '2A', '2B', '971', '976']) {
+      expect(normalizeDeptCode(code), code).toBe(code);
+    }
+  });
+
+  it('ne retire le zéro que si le reste est un code valide (#766)', () => {
+    // Retirer le zéro fabriquerait un autre code faux : on laisse la valeur
+    // brute, que isValidDeptCode refusera et que la carte comptera.
+    expect(normalizeDeptCode('000')).toBe('000');
+    expect(normalizeDeptCode('096')).toBe('096');
+    expect(normalizeDeptCode('0977')).toBe('0977');
+    expect(normalizeDeptCode('0059')).toBe('0059');
+    for (const code of ['000', '096', '0977', '0059']) {
+      expect(isValidDeptCode(normalizeDeptCode(code)), code).toBe(false);
+    }
+  });
+
   it('la règle de rendu reste stricte — on normalise, on n’assouplit pas', () => {
     // DSFR Chart attend le format INSEE zero-pade : assouplir isValidDeptCode
     // laisserait passer des codes invalides jusqu'au rendu.
