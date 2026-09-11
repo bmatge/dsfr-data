@@ -34,7 +34,26 @@ export interface JoinStats {
   rightMatched: number;
   /** Lignes droite en entrée. */
   rightTotal: number;
+  /**
+   * Quelques clés gauche SANS correspondance (#792), distinctes, dans l'ordre
+   * rencontré — au plus `ORPHAN_SAMPLE_SIZE`. Absent quand tout apparie. Une
+   * clé multi-champs est rendue `a|b`. C'est l'exemple (`1` face à `01`) qui
+   * fait trouver la cause, pas le pourcentage.
+   */
+  leftOrphans?: string[];
+  /** Idem côté droit (#792). */
+  rightOrphans?: string[];
+  /**
+   * Des clés orphelines des deux côtés ne diffèrent QUE par la graphie
+   * (#792) : zéros de tête d'un segment numérique, espaces autour — `1` et
+   * `01`, `" 75"` et `75`. Cause mesurée par le banc d'essai : 98 lignes sur
+   * 101 appariées, un total plausible et faux de 1,5 %. Absent sinon.
+   */
+  keyFormatMismatch?: boolean;
 }
+
+/** Nombre maximal de clés orphelines citées par côté (#792). */
+export const ORPHAN_SAMPLE_SIZE = 5;
 
 export interface JoinResult {
   rows: Row[];
@@ -134,6 +153,7 @@ export function performJoinWithStats(
     leftTotal: leftData.length,
     rightMatched,
     rightTotal: rightData.length,
+    ...describeOrphans(leftData, leftKeyFields, rightIndex, matchedRightKeys),
   };
 
   const result: Row[] = [];
@@ -192,6 +212,57 @@ export function performJoinWithStats(
 }
 
 // --- Internal helpers (not exported) ---
+
+/**
+ * Forme canonique d'une clé pour comparer la GRAPHIE (#792) : chaque segment
+ * trimé, zéros de tête retirés d'un segment entièrement numérique. Ne sert
+ * qu'au diagnostic — la jointure elle-même compare la clé brute, et c'est
+ * voulu : normaliser en silence ferait apparier des codes que l'auteur tient
+ * pour distincts.
+ */
+function canonicalKey(key: string): string {
+  return key
+    .split('|')
+    .map((segment) => {
+      const trimmed = segment.trim();
+      return /^\d+$/.test(trimmed) ? trimmed.replace(/^0+(?=\d)/, '') : trimmed;
+    })
+    .join('|');
+}
+
+/** Clés orphelines de chaque côté et écart de graphie (#792). */
+function describeOrphans(
+  leftData: Row[],
+  leftKeyFields: string[],
+  rightIndex: Map<string, Row[]>,
+  matchedRightKeys: Set<string>
+): Pick<JoinStats, 'leftOrphans' | 'rightOrphans' | 'keyFormatMismatch'> {
+  const leftOrphanKeys = new Set<string>();
+  for (const row of leftData) {
+    const k = buildKey(row, leftKeyFields);
+    if (!rightIndex.has(k)) leftOrphanKeys.add(k);
+  }
+  const rightOrphanKeys = [...rightIndex.keys()].filter((k) => !matchedRightKeys.has(k));
+  if (leftOrphanKeys.size === 0 && rightOrphanKeys.length === 0) return {};
+
+  const rightCanonical = new Set(rightOrphanKeys.map(canonicalKey));
+  let keyFormatMismatch = false;
+  for (const k of leftOrphanKeys) {
+    if (rightCanonical.has(canonicalKey(k))) {
+      keyFormatMismatch = true;
+      break;
+    }
+  }
+  return {
+    ...(leftOrphanKeys.size > 0
+      ? { leftOrphans: [...leftOrphanKeys].slice(0, ORPHAN_SAMPLE_SIZE) }
+      : {}),
+    ...(rightOrphanKeys.length > 0
+      ? { rightOrphans: rightOrphanKeys.slice(0, ORPHAN_SAMPLE_SIZE) }
+      : {}),
+    ...(keyFormatMismatch ? { keyFormatMismatch } : {}),
+  };
+}
 
 function buildKey(row: Row, fields: string[]): string {
   return fields.map((f) => String(row[f] ?? '')).join('|');

@@ -45,7 +45,7 @@ describe('#660 — performJoinWithStats compte l’appariement des deux côtés'
   it('237 / 1 065 gauche, 237 / 300 droite, quel que soit le type', () => {
     for (const type of ['left', 'inner', 'right', 'full'] as const) {
       const { stats } = performJoinWithStats(benchLeft(), benchRight(), { on: 'code', type });
-      expect(stats, type).toEqual({
+      expect(stats, type).toMatchObject({
         leftMatched: 237,
         leftTotal: 1065,
         rightMatched: 237,
@@ -70,11 +70,11 @@ describe('#660 — performJoinWithStats compte l’appariement des deux côtés'
       { code: 'Z', v: 3 },
     ];
     const { stats } = performJoinWithStats(left, right, { on: 'code', type: 'left' });
-    expect(stats).toEqual({ leftMatched: 1, leftTotal: 2, rightMatched: 2, rightTotal: 3 });
+    expect(stats).toMatchObject({ leftMatched: 1, leftTotal: 2, rightMatched: 2, rightTotal: 3 });
   });
 
   it('entrées vides : zéro partout, sans division', () => {
-    expect(performJoinWithStats([], [{ code: 'A' }], { on: 'code' }).stats).toEqual({
+    expect(performJoinWithStats([], [{ code: 'A' }], { on: 'code' }).stats).toMatchObject({
       leftMatched: 0,
       leftTotal: 0,
       rightMatched: 0,
@@ -136,9 +136,14 @@ describe('#660 — dsfr-data-join pose le taux d’appariement dans sa meta', ()
       page: 1,
       pageSize: 0,
       serverSide: false,
-      join: { leftMatched: 237, leftTotal: 1065, rightMatched: 237, rightTotal: 300 },
+      join: expect.objectContaining({
+        leftMatched: 237,
+        leftTotal: 1065,
+        rightMatched: 237,
+        rightTotal: 300,
+      }),
     });
-    expect(el.getJoinStats()).toEqual({
+    expect(el.getJoinStats()).toMatchObject({
       leftMatched: 237,
       leftTotal: 1065,
       rightMatched: 237,
@@ -165,7 +170,12 @@ describe('#660 — dsfr-data-join pose le taux d’appariement dans sa meta', ()
       serverSide: false,
       needsClientProcessing: true,
       total: undefined,
-      join: { leftMatched: 237, leftTotal: 1065, rightMatched: 237, rightTotal: 300 },
+      join: expect.objectContaining({
+        leftMatched: 237,
+        leftTotal: 1065,
+        rightMatched: 237,
+        rightTotal: 300,
+      }),
     });
   });
 

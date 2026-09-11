@@ -131,17 +131,40 @@ function truncationCause(node: StageNode): string {
  */
 export const JOIN_MATCH_ALERT_RATIO = 0.5;
 
+/**
+ * La jointure mérite-t-elle une alerte ? Sous 50 % d'appariement (#660), ou
+ * dès qu'un écart de GRAPHIE des clés est détecté (#792) — `1` face à `01` :
+ * c'est une panne certaine, quel que soit le taux (98 / 101 chez le banc
+ * d'essai, un total faux de 1,5 % que 97 % d'appariement ne signalait pas).
+ */
+export function isJoinAlert(join: NonNullable<NonNullable<StageState['meta']>['join']>): boolean {
+  if (join.keyFormatMismatch) return true;
+  return join.leftTotal > 0 && join.leftMatched / join.leftTotal < JOIN_MATCH_ALERT_RATIO;
+}
+
 function formatJoinStats(meta: NonNullable<StageState['meta']>): string[] {
   const join = meta.join;
   if (!join) return [];
   const ratio = join.leftTotal > 0 ? join.leftMatched / join.leftTotal : 1;
   const pct = Math.round(ratio * 100);
-  const alert = join.leftTotal > 0 && ratio < JOIN_MATCH_ALERT_RATIO;
+  const alert = isJoinAlert(join);
   const lines = [
     `     ${alert ? '⚠' : 'appariement :'} ${formatInt(join.leftMatched)} / ${formatInt(join.leftTotal)} lignes gauche appariées (${pct} %)` +
       `, ${formatInt(join.rightMatched)} / ${formatInt(join.rightTotal)} lignes droite`,
   ];
-  if (alert) {
+  // Exemples de clés orphelines (#792) : ce sont eux qui font trouver la cause.
+  const samples = (keys: string[] | undefined) => (keys ?? []).map((k) => `"${k}"`).join(', ');
+  if (join.leftOrphans?.length) {
+    lines.push(`       clés gauche sans correspondance : ${samples(join.leftOrphans)}`);
+  }
+  if (join.keyFormatMismatch && join.rightOrphans?.length) {
+    lines.push(`       clés droite sans correspondance : ${samples(join.rightOrphans)}`);
+  }
+  if (join.keyFormatMismatch) {
+    lines.push(
+      '       Les mêmes clés existent des deux côtés à la graphie près (zéro de tête, espaces) : harmonisez-les avant la jointure.'
+    );
+  } else if (alert) {
     lines.push(
       '       Clés comparées en chaîne, sans trim ni complétion (201 = "201", "0201" ≠ "201") : vérifiez le référentiel des deux côtés.'
     );
@@ -550,9 +573,7 @@ export function summarizeTrace(trace: Trace): {
     if (state.meta?.needsClientProcessing) alerts += 1;
     if (state.meta?.truncated) alerts += 1;
     const join = state.meta?.join;
-    if (join && join.leftTotal > 0 && join.leftMatched / join.leftTotal < JOIN_MATCH_ALERT_RATIO) {
-      alerts += 1;
-    }
+    if (join && isJoinAlert(join)) alerts += 1;
   }
 
   return {

@@ -6416,6 +6416,35 @@
               }
             },
             {
+              "kind": "field",
+              "name": "_lostRowsWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Signature de la derniere perte signalee : un warn par situation, pas par emission."
+            },
+            {
+              "kind": "method",
+              "name": "_warnLostRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "stats",
+                  "type": {
+                    "text": "JoinStats"
+                  }
+                }
+              ],
+              "description": "Des lignes du cote CONSERVE n'ont pas de correspondance (#792). Le volet\nDiagnostic affiche le taux depuis #660, mais n'alertait que sous 50 % : a\n98 lignes sur 101, un `inner` rendait un total plausible et faux, sans un\nmot. Avertit :\n- toujours pour `inner`, qui RETIRE ces lignes du resultat ;\n- pour `left` / `right` / `full` seulement si l'ecart est un ecart de\n  graphie (`1` face a `01`) : ailleurs, une ligne sans correspondance est\n  souvent legitime (enrichissement partiel) et le taux suffit."
+            },
+            {
               "kind": "method",
               "name": "_toRows",
               "privacy": "private",

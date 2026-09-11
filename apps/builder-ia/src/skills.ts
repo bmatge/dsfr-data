@@ -3773,10 +3773,13 @@ un chart sur la colonne calculée.
 **Limite à énoncer à l'utilisateur** : ce motif exige une CLÉ DE MAILLE COMMUNE aux deux sources —
 même niveau territorial et même codage de la clé. Mailles différentes (adresse contre département) :
 ramener d'abord la source fine à la maille grossière par \`group-by\`. Codages différents (code INSEE
-contre nom, \`01\` contre \`1\`) : normaliser la clé avec \`dsfr-data-normalize\` AVANT la jointure —
-une jointure sur des clés qui ne s'égalent pas rend zéro ligne, en silence (voir le taux
-d'appariement du volet Diagnostic). Si une seule des deux sources connaît le territoire, le ratio
-n'est pas exprimable.
+contre nom, \`01\` contre \`1\`) : normaliser la clé avec \`dsfr-data-normalize\` AVANT la jointure.
+**Le cas dangereux n'est pas la jointure vide, c'est la jointure PRESQUE pleine** : même nom de
+colonne ne veut pas dire même graphie. Une source en \`1\`…\`9\`, l'autre en \`01\`…\`09\` : 98 lignes
+sur 101 s'apparient, neuf départements tombent, et le ratio reste plausible (−1,5 % mesuré). La
+jointure le signale (avertissement console citant les clés orphelines, alerte du volet Diagnostic
+dès que les clés ne diffèrent qu'à la graphie près) — le lire avant de publier un chiffre. Si une
+seule des deux sources connaît le territoire, le ratio n'est pas exprimable.
 
 ### Comparaison des clés : en chaîne, sans trim ni complétion
 Les clés sont converties en chaîne avant comparaison — le type ne compte pas, la forme oui :
