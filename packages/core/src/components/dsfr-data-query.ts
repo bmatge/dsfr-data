@@ -71,6 +71,70 @@ export interface QuerySort {
 }
 
 /**
+ * Événement document émis quand une query découvre qu'une chaîne de
+ * délégation est partagée (#765) : les queries qui y délèguent renégocient.
+ */
+const DELEGATION_CONTESTED_EVENT = 'dsfr-data-delegation-contested';
+
+/**
+ * Valeur d'un attribut de liaison, lue sur la PROPRIÉTÉ d'abord : Lit ne
+ * reflète pas `source` en attribut, un composant construit en JavaScript
+ * (`q.source = "src"`) n'a donc pas d'attribut. L'attribut sert de repli pour
+ * un élément pas encore rehaussé.
+ */
+function linkOf(el: Element, prop: string, attr = prop): string {
+  const value = (el as unknown as Record<string, unknown>)[prop];
+  if (typeof value === 'string' && value) return value;
+  return el.getAttribute(attr) ?? '';
+}
+
+/** Composants `dsfr-data-*` qui lisent l'id donné (source, join, concat). */
+function readersOf(id: string): Element[] {
+  const out: Element[] = [];
+  for (const el of document.querySelectorAll('*')) {
+    const tag = el.tagName.toLowerCase();
+    if (!tag.startsWith('dsfr-data-') || tag === 'dsfr-data-context') continue;
+    let ups: string[];
+    if (tag === 'dsfr-data-join') ups = [linkOf(el, 'left'), linkOf(el, 'right')];
+    else if (tag === 'dsfr-data-concat')
+      ups = linkOf(el, 'sources')
+        .split(',')
+        .map((v) => v.trim());
+    else ups = [linkOf(el, 'source')];
+    if (ups.includes(id)) out.push(el);
+  }
+  return out;
+}
+
+/** Libellé d'un lecteur pour l'avertissement : `kpi`, `chart#g-region`… */
+function describeReader(el: Element): string {
+  const tag = el.tagName.toLowerCase().replace('dsfr-data-', '');
+  return el.id ? `${tag}#${el.id}` : tag;
+}
+
+/**
+ * Maillon suivant d'une commande de délégation : un transformateur relaie
+ * vers sa source (join : la gauche) ; une source ou un composant inconnu
+ * arrête la remontée.
+ */
+function relayTargetOf(el: Element): string | null {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'dsfr-data-join') return linkOf(el, 'left') || null;
+  if (
+    [
+      'dsfr-data-normalize',
+      'dsfr-data-search',
+      'dsfr-data-facets',
+      'dsfr-data-unpivot',
+      'dsfr-data-pivot',
+    ].includes(tag)
+  ) {
+    return linkOf(el, 'source') || null;
+  }
+  return null;
+}
+
+/**
  * <dsfr-data-query> - Composant de transformation de données
  *
  * Transforme, filtre, agrégé et trie des données provenant d'une source
@@ -149,6 +213,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * peut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne
    * n'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,
    * poser une seconde `dsfr-data-query` en aval avec son propre `where`.
+   * Délégation au serveur seulement si la query est la SEULE lectrice de sa
+   * source (#765) : la source n'a qu'un regroupement, servi à tous ses
+   * abonnés. Source partagée (un KPI, un autre graphique…) : calcul côté
+   * client sur les lignes chargées, avec un avertissement. Pour garder
+   * l'agrégation serveur, donner à la query sa propre `dsfr-data-source`.
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
@@ -305,6 +374,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   connectedCallback() {
     super.connectedCallback();
+    document.addEventListener(DELEGATION_CONTESTED_EVENT, this._onDelegationContested);
     sendWidgetBeacon('dsfr-data-query');
     this._warnRemovedAttributes();
   }
@@ -340,6 +410,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   disconnectedCallback() {
+    document.removeEventListener(DELEGATION_CONTESTED_EVENT, this._onDelegationContested);
     // Clear server-side overlays on dsfr-data-source before cleanup
     this._clearServerDelegation();
     super.disconnectedCallback();
@@ -541,6 +612,24 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // source ferait tomber TOUS ses abonnés. Tout reste alors client-side.
     const upstreamTransformsSchema = sourceEl?.transformsSchema?.() === true;
 
+    // #765 : la source n'a qu'UN regroupement, UN agregat et UN tri serveur
+    // (overlays sans cle, a la difference du where d'ADR-031), et elle sert
+    // ses lignes a TOUS ses abonnes. Deleguer ces operations quand d'autres
+    // composants lisent la chaine reecrit leurs donnees : mesure sur un
+    // export du Studio (0.28.1), un KPI a 11 au lieu de 3 080 et deux
+    // graphiques affichant le meme regroupement. Tout reste alors cote
+    // client ; le where, cle par emetteur, reste delegable.
+    const sharedWith = sourceEl ? this._otherChainReaders() : [];
+    const exclusive = sharedWith.length === 0;
+    // Avertir seulement quand une delegation aurait ete tentee : un agregat
+    // global (sans group-by) reste cote client de toute facon.
+    if (!exclusive && (this.groupBy || this.orderBy)) {
+      this._warnSharedSource(sharedWith);
+      document.dispatchEvent(
+        new CustomEvent(DELEGATION_CONTESTED_EVENT, { detail: { sourceId: this.source } })
+      );
+    }
+
     if (sourceEl && adapter && caps && !upstreamTransformsSchema) {
       // Don't override if dsfr-data-source already has its own groupBy/aggregate
       // (user explicitly configured them on the source — respect that)
@@ -577,6 +666,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       // nouveau par combinaison.
       if (
         this.groupBy &&
+        exclusive &&
         caps.serverGroupBy &&
         !sourceGroupBy &&
         !sourceAggregate &&
@@ -617,7 +707,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
       // Delegate order-by
       const sourceOrderBy = sourceEl.orderBy || '';
-      if (this.orderBy && caps.serverOrderBy && !sourceOrderBy) {
+      if (this.orderBy && exclusive && caps.serverOrderBy && !sourceOrderBy) {
         const orderField = this.orderBy.split(':')[0] || '';
         if (canDelegateFields([orderField])) {
           cmd.orderBy = this.orderBy;
@@ -663,6 +753,69 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     this._sourceEmittedSinceCommand = false;
     dispatchSourceCommand(this.source, { ...cmd, origin: this.id });
   }
+
+  /**
+   * Autres lecteurs de la chaine de delegation (#765) : les composants qui
+   * lisent la source visee, ou l'un des transformateurs par lesquels la
+   * commande remonte (normalize, search, join gauche…), hors cette query et
+   * hors le maillon lui-meme. Lu dans le DOM — le bus n'a pas de registre
+   * d'abonnes — ce qui est exact pour une page statique, la forme de tout
+   * export ; un lecteur ajoute plus tard declenche une renegociation
+   * (DELEGATION_CONTESTED_EVENT).
+   */
+  private _otherChainReaders(): string[] {
+    const readers: string[] = [];
+    const seen = new Set<string>();
+    let targetId = this.source;
+    let cameFrom: Element | null = null;
+    for (let hop = 0; hop < 10 && targetId && !seen.has(targetId); hop++) {
+      seen.add(targetId);
+      for (const el of readersOf(targetId)) {
+        if (el !== this && el !== cameFrom) readers.push(describeReader(el));
+      }
+      const target = document.getElementById(targetId);
+      if (!target) break;
+      const next = relayTargetOf(target);
+      if (!next) break;
+      cameFrom = target;
+      targetId = next;
+    }
+    return readers;
+  }
+
+  /** Dernier partage signale : un avertissement par situation (#765). */
+  private _sharedWarned = '';
+
+  private _warnSharedSource(sharedWith: string[]): void {
+    const signature = `${this.source}|${sharedWith.join(',')}`;
+    if (signature === this._sharedWarned) return;
+    this._sharedWarned = signature;
+    console.warn(
+      `dsfr-data-query[${this.id}]: group-by, aggregate et order-by restent calculés côté ` +
+        `client — la source "${this.source}" est lue aussi par ${sharedWith.join(', ')}, qui ` +
+        `recevraient sinon des lignes agrégées (#765). Le calcul porte sur les lignes chargées ` +
+        `(max-records). Pour garder l'agrégation par le serveur, donner à cette query sa propre ` +
+        `<dsfr-data-source>, même jeu, id distinct.`
+    );
+  }
+
+  /**
+   * Un autre composant a trouve la chaine partagee (#765) : si cette query
+   * y delegue encore, elle renegocie — ses overlays sont liberes et elle
+   * repasse cote client. Couvre le lecteur ajoute apres coup.
+   */
+  private _onDelegationContested = (e: Event) => {
+    const { sourceId } = (e as CustomEvent<{ sourceId: string }>).detail;
+    if (!this._delegatedSourceId || this._delegatedSourceId !== sourceId) return;
+    if (
+      !this._serverDelegated.groupBy &&
+      !this._serverDelegated.aggregate &&
+      !this._serverDelegated.orderBy
+    ) {
+      return;
+    }
+    this._negotiateServerSide();
+  };
 
   /**
    * Envoie les commandes de liberation des operations deleguees a une

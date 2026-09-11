@@ -404,15 +404,21 @@ describe('export-html — strategie de chargement (ADR-109, #717)', () => {
     expect(html).not.toContain('fetch-mode');
   });
 
-  it('une source PARTAGEE ne pagine jamais cote serveur, quel que soit le volume', () => {
-    // LA REGRESSION QUE LA REGLE INTERDIT PAR CONSTRUCTION. Une source n'est
-    // emise qu'une fois : `server-side` sur la balise partagee ne ferait plus
-    // parvenir qu'une page de 25 lignes au graphique d'a cote, qui afficherait
-    // une somme FAUSSE, sans erreur, sur un HTML parfaitement bien forme.
+  it('un graphique agrege a cote d’une liste recoit sa propre source : la liste pagine, jamais le graphique', () => {
+    // L'invariant d'ADR-109 tient toujours : AUCUN graphique agrege ne lit
+    // une source paginee cote serveur (il sommerait une page de 25 lignes).
+    // Depuis #765, le graphique recoit sa source dediee ; la liste reste seule
+    // sur la source partagee, qui devient le cas « un consommateur, une liste
+    // paginee » qu'ADR-109 autorise.
     const html = generateDashboardHTML(dashboardWith([listeWidget(), graphiqueWidget()], [ODS]));
-    expect(html).not.toContain('server-side');
-    expect(html).not.toContain('server-sort');
-    expect(html).toContain(' search');
+    const balises = html.split('<dsfr-data-source').slice(1);
+    const partagee = balises.find((b) => b.includes('id="ods"'));
+    const dediee = balises.find((b) => b.includes('id="ods--w-graphe"'));
+    expect(partagee).toContain('server-side');
+    expect(dediee).toBeDefined();
+    expect(dediee).not.toContain('server-side');
+    expect(html).toContain('<dsfr-data-query id="q-w-graphe" source="ods--w-graphe"');
+    expect(html).toContain('server-sort');
   });
 
   it('une source dont le seul consommateur agrege ne pagine pas cote serveur', () => {
@@ -486,9 +492,7 @@ describe('export-html — strategie de chargement (ADR-109, #717)', () => {
     expect(html).not.toContain(' search');
   });
 
-  it('deux sources cote a cote : seule celle qui n’est pas partagee pagine', () => {
-    // Deux documents visuellement proches, deux strategies : c'est la
-    // consequence assumee d'ADR-109, et elle est documentee.
+  it('deux sources cote a cote : chaque liste seule sur sa source pagine, le graphique a la sienne', () => {
     const AUTRE = { ...ODS, id: 'ods-2' };
     const html = generateDashboardHTML(
       dashboardWith(
@@ -496,11 +500,97 @@ describe('export-html — strategie de chargement (ADR-109, #717)', () => {
         [ODS, AUTRE]
       )
     );
-    const balises = html.split('<dsfr-data-source');
-    const premiere = balises.find((b) => b.includes('id="ods"'));
-    const seconde = balises.find((b) => b.includes('id="ods-2"'));
-    expect(premiere).toContain('server-side');
-    expect(seconde).not.toContain('server-side');
+    const balises = html.split('<dsfr-data-source').slice(1);
+    expect(balises.find((b) => b.includes('id="ods"'))).toContain('server-side');
+    expect(balises.find((b) => b.includes('id="ods-2"'))).toContain('server-side');
+    expect(balises.find((b) => b.includes('id="ods-2--w-graphe"'))).not.toContain('server-side');
+  });
+});
+
+describe('export-html — une source dediee par graphique agrege partage (#765)', () => {
+  // Mesure en conditions reelles (export Studio, plan-de-relance, 0.28.1) :
+  // une query group-by deleguee reecrivait la source partagee — KPI a 11 au
+  // lieu de 3 080, et le graphique « par region » affichait les groupes du
+  // graphique « par type ».
+  const ODS = {
+    id: 'ods',
+    name: 'Jeu ODS',
+    provider: 'opendatasoft',
+    apiUrl: 'https://data.example.com/api/explore/v2.1/catalog/datasets/mon-jeu/records',
+    resourceIds: { datasetId: 'mon-jeu' },
+  };
+  const chart = (id: string, labelField: string, extra: Partial<ChartConfig> = {}): Widget => ({
+    id,
+    type: 'chart',
+    title: id,
+    position: { row: 0, col: 0 },
+    config: {
+      fromBuilder: true,
+      sourceId: 'ods',
+      chart: { type: 'bar', labelField, valueField: 'population', aggregation: 'sum', ...extra },
+    },
+  });
+  const kpi: Widget = {
+    id: 'k',
+    type: 'chart',
+    title: 'Total',
+    position: { row: 0, col: 0 },
+    config: {
+      fromBuilder: true,
+      sourceId: 'ods',
+      chart: { type: 'kpi', valueField: 'population', aggregation: 'sum' },
+    },
+  };
+  const sourcesOf = (html: string) =>
+    [...html.matchAll(/<dsfr-data-source id="([^"]+)"/g)].map((m) => m[1]);
+
+  it('KPI + deux graphiques agreges : chaque graphique a sa source, le KPI garde la partagee', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([kpi, chart('reg', 'region'), chart('typ', 'type')], [ODS])
+    );
+    expect(sourcesOf(html).sort()).toEqual(['ods', 'ods--reg', 'ods--typ']);
+    expect(html).toContain('<dsfr-data-kpi source="ods"');
+    expect(html).toContain('<dsfr-data-query id="q-reg" source="ods--reg"');
+    expect(html).toContain('<dsfr-data-query id="q-typ" source="ods--typ"');
+    // Meme jeu : la source dediee reprend la connexion de la partagee
+    expect(html).toMatch(
+      /id="ods--reg" api-type="opendatasoft"\s+base-url="https:\/\/data\.example\.com"\s+dataset-id="mon-jeu"/
+    );
+  });
+
+  it('deux graphiques agreges seuls : le premier garde la source partagee (pas de requete inutile)', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([chart('reg', 'region'), chart('typ', 'type')], [ODS])
+    );
+    expect(sourcesOf(html).sort()).toEqual(['ods', 'ods--typ']);
+    expect(html).toContain('<dsfr-data-query id="q-reg" source="ods"');
+  });
+
+  it('un graphique agrege seul sur sa source la garde', () => {
+    const html = generateDashboardHTML(dashboardWith([chart('reg', 'region')], [ODS]));
+    expect(sourcesOf(html)).toEqual(['ods']);
+  });
+
+  it('les filtres partages visent aussi les sources dediees', () => {
+    const filtres: Widget = {
+      id: 'f1',
+      type: 'filters',
+      title: 'Filtres',
+      position: { row: 0, col: 0 },
+      config: { filters: [{ field: 'region', operator: 'eq', options: ['IDF'] }] },
+    };
+    const html = generateDashboardHTML(
+      dashboardWith([filtres, kpi, chart('reg', 'region')], [ODS])
+    );
+    expect(html).toContain('<dsfr-data-context id="ctx-f1" sources="ods ods--reg">');
+  });
+
+  it('une source embarquee n’est jamais dupliquee (elle ne delegue rien)', () => {
+    const EMBARQUEE = { id: 'ods', name: 'Saisie', data: [{ region: 'IDF', population: 1 }] };
+    const html = generateDashboardHTML(
+      dashboardWith([kpi, chart('reg', 'region'), chart('typ', 'type')], [EMBARQUEE])
+    );
+    expect(sourcesOf(html)).toEqual(['ods']);
   });
 });
 
