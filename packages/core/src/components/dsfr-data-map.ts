@@ -432,6 +432,8 @@ export class DsfrDataMap extends LitElement {
   private _tilesSelect: HTMLSelectElement | null = null;
   /** Bouton de plein écran (#780). */
   private _fullscreenButton: HTMLButtonElement | null = null;
+  /** Hauteur inline du conteneur avant le plein écran, à rétablir en sortant (#825). */
+  private _heightBeforeFullscreen: string | null = null;
   /** Valeur de `tiles-switcher` déjà signalée en console (un avertissement par liste). */
   private _tilesSwitcherWarned: string | null = null;
   private _visibilityObserver: IntersectionObserver | null = null;
@@ -986,6 +988,7 @@ export class DsfrDataMap extends LitElement {
     const wasOn = this._fullscreenButton.getAttribute('aria-pressed') === 'true';
     this._syncFullscreenButton();
     if (on === wasOn) return;
+    this._applyFullscreenLayout(on);
     this._leafletMap?.invalidateSize();
     this.announceToScreenReader(on ? 'Carte en plein écran.' : 'Plein écran quitté.');
     this.dispatchEvent(
@@ -996,6 +999,36 @@ export class DsfrDataMap extends LitElement {
       })
     );
   };
+
+  /**
+   * Hauteur du volet principal en plein écran (#825). Les encarts (#643) sont
+   * des flottants qui s'écoulent SOUS le volet ; en plein écran, le volet doit
+   * donc prendre la hauteur de l'écran moins la rangée d'encarts, sans quoi
+   * celle-ci déborde et se fait rogner par l'`overflow: hidden` de l'hôte.
+   *
+   * La hauteur des encarts ne dépend pas de celle du volet — seule leur
+   * ordonnée bouge — on peut donc la mesurer avant de reposer le volet. On
+   * prend l'enveloppe (du plus haut au plus bas) plutôt que le maximum des
+   * hauteurs : sur une carte étroite, les encarts passent à la ligne.
+   */
+  private _applyFullscreenLayout(on: boolean) {
+    const container = this._container;
+    if (!container) return;
+    if (!on) {
+      container.style.height = this._heightBeforeFullscreen ?? '';
+      this._heightBeforeFullscreen = null;
+      return;
+    }
+    const insets = [...this.querySelectorAll<HTMLElement>(':scope > dsfr-data-map-inset')];
+    let insetsHeight = 0;
+    if (insets.length > 0) {
+      const top = Math.min(...insets.map((inset) => inset.offsetTop));
+      const bottom = Math.max(...insets.map((inset) => inset.offsetTop + inset.offsetHeight));
+      insetsHeight = Math.max(0, bottom - top);
+    }
+    this._heightBeforeFullscreen = container.style.height;
+    container.style.height = `${Math.max(0, this.clientHeight - insetsHeight)}px`;
+  }
 
   /** Le lecteur a choisi un fond : applique, annonce, notifie la page (#744). */
   private _onTilesChoice = (e: Event) => {
@@ -1212,14 +1245,15 @@ export class DsfrDataMap extends LitElement {
         background: var(--background-default-grey, #fff);
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
       }
+      /* L'hote ne change PAS de mode de disposition en plein ecran : les
+         encarts sont des flottants (#643), et un conteneur flex ignore le
+         float — chaque encart devenait un item empile en colonne, dont la
+         somme des hauteurs ecrasait la carte a 0 px (#825). La hauteur du
+         volet principal est posee en JS (_applyFullscreenLayout) : hauteur de
+         l'ecran moins la rangee d'encarts, qui reste en dessous comme au
+         repos. Sans encart, c'est exactement la hauteur de l'ecran. */
       dsfr-data-map:fullscreen {
-        display: flex;
-        flex-direction: column;
         background: var(--background-default-grey, #fff);
-      }
-      dsfr-data-map:fullscreen > .dsfr-data-map__container {
-        flex: 1 1 auto;
-        height: 100% !important;
       }
       /* Fix DSFR vs Leaflet conflicts — DSFR styles all [href] with underlines, background-image and ::before/::after */
       .dsfr-data-map__container a,

@@ -160,3 +160,66 @@ describe('#780 — bouton de plein écran', () => {
     expect(buttonOf(map)).toBeNull();
   });
 });
+
+/**
+ * #825 — la carte principale tombait a 0 px en plein ecran des que la carte
+ * portait des encarts. La regle de #780 mettait l'hote en `display: flex`,
+ * or les encarts sont des FLOTTANTS (#643) : un conteneur flex ignore le
+ * float, chaque encart devenait un item empile en colonne, et la somme de
+ * leurs hauteurs ecrasait le volet principal.
+ */
+describe('#825 — plein écran avec des encarts', () => {
+  const stub = (el: HTMLElement, props: Record<string, number>) => {
+    for (const [name, value] of Object.entries(props)) {
+      Object.defineProperty(el, name, { configurable: true, get: () => value });
+    }
+  };
+
+  const addInsets = (map: DsfrDataMap, count: number, top: number, height: number) => {
+    for (let i = 0; i < count; i++) {
+      const inset = document.createElement('dsfr-data-map-inset');
+      inset.setAttribute('territory', `t${i}`);
+      map.appendChild(inset);
+      stub(inset as HTMLElement, { offsetTop: top, offsetHeight: height });
+    }
+  };
+
+  it("l'hôte ne passe PAS en flex : le float des encarts doit rester actif", () => {
+    const css = document.querySelector('style[data-dsfr-data-map]')?.textContent ?? '';
+    expect(css).toContain('dsfr-data-map:fullscreen');
+    const regle = css.slice(css.indexOf('dsfr-data-map:fullscreen'));
+    expect(regle.slice(0, regle.indexOf('}'))).not.toContain('display: flex');
+  });
+
+  it('le volet principal prend la hauteur de l’écran moins la rangée d’encarts', async () => {
+    const map = await readyMap({ fullscreen: '' });
+    const container = map.querySelector('.dsfr-data-map__container') as HTMLElement;
+    container.style.height = '400px';
+    stub(map, { clientHeight: 900 });
+    addInsets(map, 5, 713, 187);
+
+    enterFullscreen(map);
+    expect(container.style.height).toBe('713px');
+
+    await (document as unknown as { exitFullscreen: () => Promise<void> }).exitFullscreen();
+    expect(container.style.height).toBe('400px');
+  });
+
+  it('sans encart, le volet prend toute la hauteur de l’écran', async () => {
+    const map = await readyMap({ fullscreen: '' });
+    const container = map.querySelector('.dsfr-data-map__container') as HTMLElement;
+    stub(map, { clientHeight: 900 });
+    enterFullscreen(map);
+    expect(container.style.height).toBe('900px');
+  });
+
+  it('des encarts sur DEUX rangées sont comptés en entier (carte étroite)', async () => {
+    const map = await readyMap({ fullscreen: '' });
+    const container = map.querySelector('.dsfr-data-map__container') as HTMLElement;
+    stub(map, { clientHeight: 900 });
+    addInsets(map, 3, 526, 187);
+    addInsets(map, 2, 713, 187);
+    enterFullscreen(map);
+    expect(container.style.height).toBe('526px');
+  });
+});
