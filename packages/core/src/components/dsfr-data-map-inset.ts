@@ -149,10 +149,16 @@ export class DsfrDataMapInset extends LitElement {
    * Attribut `width` : valeur nue → style inline, comme toujours ; echelle
    * (#818) → variables CSS consommees par la feuille de la carte, un style
    * inline ne pouvant pas porter de media query. Vide → la feuille decide.
+   *
+   * Est une echelle tout texte qui porte un espace OU un point de rupture :
+   * `width="md:20%"` est un seul jeton, donc sans espace, et partait en
+   * `style.width = 'md:20%'` — rejete par le navigateur, erreur effacee,
+   * l'encart restait a 10rem sans un mot (revue du 2026-09-13). Une longueur
+   * CSS nue ne contient jamais de deux-points.
    */
   private _applyWidth() {
     const text = this.width.trim();
-    const isScale = /\s/.test(text);
+    const isScale = /[\s:]/.test(text);
     for (const name of INSET_WIDTH_VARS) this.style.removeProperty(name);
     this.removeAttribute('data-width-scale');
     if (!isScale) {
