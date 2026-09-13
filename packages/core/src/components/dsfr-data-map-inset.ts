@@ -32,6 +32,9 @@ const INSET_WIDTH_VARS = [
 ];
 
 /** Longueur CSS lisible pour une largeur d'encart. */
+// Lineaire : chiffres, point, puis une unite parmi cinq — aucun quantificateur
+// imbrique sur une meme classe, pas de retour arriere exponentiel.
+// eslint-disable-next-line security/detect-unsafe-regex
 const LENGTH = /^\d+(\.\d+)?(px|rem|em|%|vw)$/;
 
 /**

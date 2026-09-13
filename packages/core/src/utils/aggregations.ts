@@ -1,4 +1,9 @@
-import { toNumber, applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
+import {
+  toNumber,
+  applyLocalFilter,
+  validateColonFilter,
+  isIsoDateString,
+} from '@dsfr-data/shared/lib';
 import { getByPath } from './json-path.js';
 
 /**
@@ -486,14 +491,6 @@ export function countDistinct(items: Record<string, unknown>[], field: string): 
 }
 
 /**
- * Date ISO 8601 : `AAAA-MM-JJ`, ou datetime `AAAA-MM-JJThh:mm[:ss[.mmm]][Z|+hh:mm]`
- * (separateur `T` ou espace). Validation de FORME seulement : l'ordre
- * lexicographique de ces chaines est l'ordre chronologique.
- */
-const ISO_DATE_RE =
-  /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
-
-/**
  * Cle de comparaison d'une date ISO : le separateur espace est ramene a `T`
  * pour que `2026-09-09 17:30` et `2026-09-09T08:00` se comparent entre eux.
  * Les decalages horaires ne sont PAS normalises (comparaison textuelle).
@@ -502,10 +499,8 @@ function isoKey(value: string): string {
   return value.replace(' ', 'T');
 }
 
-/** Une valeur est-elle une chaine de date ISO (#667) ? */
-export function isIsoDateString(value: unknown): value is string {
-  return typeof value === 'string' && ISO_DATE_RE.test(value.trim());
-}
+/** Une valeur est-elle une chaine de date ISO (#667) ? Definition unique dans shared. */
+export { isIsoDateString };
 
 /**
  * Valeurs d'un champ quand la colonne est une colonne de DATES ISO (#667) :

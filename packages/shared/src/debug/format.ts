@@ -106,7 +106,16 @@ function formatSample(state: StageState, opts: FormatOptions): string[] {
 
 /** Milliers séparés par une espace — « 1 065 », lisible et collable tel quel. */
 export function formatInt(n: number): string {
-  return String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  // Groupement par tranches de trois, sans expression reguliere a
+  // anticipation (signalee par ESLint) : une boucle lineaire suffit.
+  const digits = String(Math.abs(Math.trunc(n)));
+  let out = '';
+  for (let i = 0; i < digits.length; i++) {
+    const fromEnd = digits.length - i;
+    if (i > 0 && fromEnd % 3 === 0) out += ' ';
+    out += digits[i];
+  }
+  return (n < 0 && digits !== '0' ? '-' : '') + out;
 }
 
 /**

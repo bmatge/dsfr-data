@@ -43,9 +43,18 @@ import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
 import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
 import { getDataCache, clearDataCache, clearDataMeta } from '@/utils/data-bridge.js';
 
-const settle = async () => {
-  for (let i = 0; i < 25; i++) await new Promise((r) => setTimeout(r, 5));
+/**
+ * Attend une CONDITION, pas une durée : 25 × 5 ms de sommeil passaient en
+ * local et devenaient le premier point flaky sous charge (revue du
+ * 2026-09-13). On attend l'état visé (jusqu'à 2 s), puis deux tours de
+ * macro-tâches pour laisser retomber les effets qui suivent.
+ */
+const until = async (cond: () => boolean) => {
+  await vi.waitFor(() => expect(cond()).toBe(true), { timeout: 2_000, interval: 5 });
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
 };
+const hasRows = (id: string) => Array.isArray(getDataCache(id)) && getDataCache(id)!.length > 0;
 
 let seq = 0;
 const mounted: Element[] = [];
@@ -103,7 +112,7 @@ describe('#765 — source partagée : pas de délégation', () => {
     // Page statique : tous les éléments présents avant l'initialisation.
     const kpi = reader(src.id);
     mount(src, kpi, qRegion, qType);
-    await settle();
+    await until(() => hasRows(qRegion.id) && hasRows(qType.id));
 
     expect(urls.some((u) => u.includes('group_by'))).toBe(false);
     expect(getDataCache(src.id)).toEqual(RAW);
@@ -122,7 +131,7 @@ describe('#765 — source partagée : pas de délégation', () => {
     const src = source();
     const qRegion = query('q-region', src.id, 'region');
     mount(src, reader(src.id), qRegion);
-    await settle();
+    await until(() => warn.mock.calls.some((c) => String(c[0]).includes('#765')));
     const message = warn.mock.calls.map((c) => String(c[0])).find((m) => m.includes('#765')) ?? '';
     expect(message).toContain(`dsfr-data-query[${qRegion.id}]`);
     expect(message).toContain(`"${src.id}"`);
@@ -134,7 +143,7 @@ describe('#765 — source partagée : pas de délégation', () => {
     const src = source();
     const q = query('q-seule', src.id, 'region');
     mount(src, q);
-    await settle();
+    await until(() => hasRows(q.id));
     expect(urls.some((u) => u.includes('group_by=region'))).toBe(true);
     expect(getDataCache(q.id)).toEqual([
       { region: 'IDF', population__sum: 30 },
@@ -150,7 +159,7 @@ describe('#765 — source partagée : pas de délégation', () => {
     ids.push(norm.id);
     const q = query('q-norm', norm.id, 'region');
     mount(src, norm, reader(src.id), q);
-    await settle();
+    await until(() => hasRows(q.id));
     expect(urls.some((u) => u.includes('group_by'))).toBe(false);
     expect(getDataCache(src.id)).toEqual(RAW);
   });
@@ -159,14 +168,14 @@ describe('#765 — source partagée : pas de délégation', () => {
     const src = source();
     const qRegion = query('q-region', src.id, 'region');
     mount(src, qRegion);
-    await settle();
+    await until(() => hasRows(qRegion.id));
     expect(urls.some((u) => u.includes('group_by=region'))).toBe(true);
 
     // Arrivent ensuite un lecteur et une seconde query : la seconde trouve la
     // chaîne partagée et le signale, la première libère ses overlays.
     const qType = query('q-type', src.id, 'type');
     mount(reader(src.id), qType);
-    await settle();
+    await until(() => hasRows(qType.id) && !urls[urls.length - 1].includes('group_by'));
 
     expect(urls[urls.length - 1]).not.toContain('group_by');
     expect(getDataCache(src.id)).toEqual(RAW);

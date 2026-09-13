@@ -603,8 +603,6 @@ export class DsfrDataMap extends LitElement {
    * Other CSS units (px, vh, rem, etc.) are applied directly.
    */
   private _applyHeight() {
-    // Linear: \d and literal '.' / '%' don't overlap → no catastrophic backtracking.
-
     // La hauteur s'applique au conteneur Leaflet, pas au host : le host reste
     // en flux auto pour laisser leur place aux compagnons hors-carte
     // (dsfr-data-map-inset). Visuellement identique sans encart.
@@ -612,6 +610,9 @@ export class DsfrDataMap extends LitElement {
       if (this._container) this._container.style.height = px;
       this.style.height = '';
     };
+    // Lineaire : \d et les litteraux '.' / '%' ne se recouvrent pas, pas de
+    // retour arriere exponentiel.
+    // eslint-disable-next-line security/detect-unsafe-regex
     const pctMatch = this.height.match(/^(\d+(?:\.\d+)?)%$/);
     if (pctMatch) {
       const ratio = parseFloat(pctMatch[1]) / 100;
