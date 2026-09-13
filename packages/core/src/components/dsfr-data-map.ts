@@ -434,6 +434,12 @@ export class DsfrDataMap extends LitElement {
   private _fullscreenButton: HTMLButtonElement | null = null;
   /** Hauteur inline du conteneur avant le plein écran, à rétablir en sortant (#825). */
   private _heightBeforeFullscreen: string | null = null;
+
+  /**
+   * Recalcul de hauteur hors plein écran (ratio de `height="60%"`), mémorisé
+   * pour le rejouer à la sortie du plein écran.
+   */
+  private _onHostResize: (() => void) | null = null;
   /** Valeur de `tiles-switcher` déjà signalée en console (un avertissement par liste). */
   private _tilesSwitcherWarned: string | null = null;
   private _visibilityObserver: IntersectionObserver | null = null;
@@ -634,12 +640,20 @@ export class DsfrDataMap extends LitElement {
    */
   private _observeResize(onResize?: () => void) {
     this._resizeObserver?.disconnect();
+    this._onHostResize = onResize ?? null;
     if (typeof ResizeObserver === 'undefined') {
       this._resizeObserver = null;
       return;
     }
     this._resizeObserver = new ResizeObserver(() => {
-      onResize?.();
+      // En plein écran, la hauteur du volet est dictée par l'écran moins les
+      // encarts (#825), pas par le ratio de `height="60%"` : l'entrée en plein
+      // écran redimensionne l'hôte, et `applyRatio` reposait aussitôt
+      // largeur × ratio (1152 px sur un 1920×1080), les encarts sortant du
+      // cadre. Une rotation ou un changement d'écran PENDANT le plein écran
+      // passe par ici aussi, et recalcule le même contrat.
+      if (this._isFullscreen()) this._layoutFullscreenPane();
+      else onResize?.();
       this._leafletMap?.invalidateSize();
     });
     this._resizeObserver.observe(this);
@@ -1017,8 +1031,24 @@ export class DsfrDataMap extends LitElement {
     if (!on) {
       container.style.height = this._heightBeforeFullscreen ?? '';
       this._heightBeforeFullscreen = null;
+      // En mode ratio, la hauteur rendue depend de la largeur courante : la
+      // valeur sauvee a l'entree peut etre perimee si la fenetre a change
+      // pendant le plein ecran. On laisse le ratio trancher.
+      this._onHostResize?.();
       return;
     }
+    this._heightBeforeFullscreen = container.style.height;
+    this._layoutFullscreenPane();
+  }
+
+  /**
+   * Pose la hauteur du volet en plein écran : écran moins l'enveloppe des
+   * encarts. Rappelée à chaque redimensionnement de l'hôte tant que le plein
+   * écran dure (rotation, changement d'écran, entrée elle-même).
+   */
+  private _layoutFullscreenPane() {
+    const container = this._container;
+    if (!container) return;
     const insets = [...this.querySelectorAll<HTMLElement>(':scope > dsfr-data-map-inset')];
     let insetsHeight = 0;
     if (insets.length > 0) {
@@ -1026,7 +1056,6 @@ export class DsfrDataMap extends LitElement {
       const bottom = Math.max(...insets.map((inset) => inset.offsetTop + inset.offsetHeight));
       insetsHeight = Math.max(0, bottom - top);
     }
-    this._heightBeforeFullscreen = container.style.height;
     container.style.height = `${Math.max(0, this.clientHeight - insetsHeight)}px`;
   }
 

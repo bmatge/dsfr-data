@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — plein écran d'une carte à encarts (#825, revue 2026-09-13)</title>
+  <!--
+    Page servie par le serveur de dev (`/e2e/map-fullscreen.html`), la lib
+    depuis la SOURCE (redirection /dist -> packages/core/src, vite.config.ts).
+    Aucune source de données : le test mesure la MISE EN PAGE, ce que les
+    tests unitaires (happy-dom, sans layout) ne peuvent pas voir. Les tuiles
+    sont coupées par le test (page.route), la carte s'initialise sans elles.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { max-width: 1000px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Carte à encarts, hauteur en ratio</h1>
+
+    <!-- height="60%" : l'exemple du guide IA, et le cas où le ResizeObserver
+         reposait largeur × ratio en plein écran. -->
+    <!-- Un encart ne se construit qu'avec au moins une couche à cloner :
+         une source inline d'un point suffit. -->
+    <dsfr-data-source id="pts" data='[{"lat":48.85,"lon":2.35,"nom":"Paris"}]'></dsfr-data-source>
+
+    <dsfr-data-map id="carte" name="France et DROM" height="60%" fullscreen tiles="osm">
+      <dsfr-data-map-layer source="pts" lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+      <dsfr-data-map-inset territory="guadeloupe" zoom="8" width="20%"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="martinique" zoom="8" width="20%"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="guyane" width="20%"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="la-reunion" zoom="8" width="20%"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="mayotte" zoom="8" width="20%"></dsfr-data-map-inset>
+    </dsfr-data-map>
+
+    <h2>Encart à un seul point de rupture</h2>
+    <!-- width="md:20%" : un seul jeton, sans espace — partait en style inline
+         invalide, l'encart restait à 10rem. -->
+    <dsfr-data-map id="carte-jeton" name="Jeton seul" height="300px" tiles="osm">
+      <dsfr-data-map-layer source="pts" lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+      <dsfr-data-map-inset id="encart-jeton" territory="corse" width="md:20%"></dsfr-data-map-inset>
+    </dsfr-data-map>
+  </main>
+</body>
+</html>

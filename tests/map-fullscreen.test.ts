@@ -223,3 +223,84 @@ describe('#825 — plein écran avec des encarts', () => {
     expect(container.style.height).toBe('526px');
   });
 });
+
+/**
+ * Revue du 2026-09-13 — le correctif #825 posait la hauteur UNE fois, a
+ * l'entree. Or en mode ratio (`height="60%"`, l'exemple du guide IA), le
+ * ResizeObserver de `_applyHeight` reposait largeur × ratio a chaque
+ * redimensionnement de l'hote — donc des l'entree en plein ecran, qui
+ * redimensionne l'hote : 1152 px sur un 1920×1080, les encarts hors cadre.
+ *
+ * happy-dom n'a pas de ResizeObserver : on en installe un faux qui expose
+ * ses rappels, et on le declenche comme le ferait le navigateur.
+ */
+describe('#825 (suite) — le plein écran survit au ResizeObserver', () => {
+  const callbacks: Array<() => void> = [];
+  class FakeResizeObserver {
+    constructor(cb: () => void) {
+      callbacks.push(cb);
+    }
+    observe() {}
+    disconnect() {}
+    unobserve() {}
+  }
+  const fireResize = () => {
+    for (const cb of [...callbacks]) cb();
+  };
+  const stub = (el: HTMLElement, props: Record<string, number>) => {
+    for (const [name, value] of Object.entries(props)) {
+      Object.defineProperty(el, name, { configurable: true, get: () => value });
+    }
+  };
+
+  beforeEach(() => {
+    callbacks.length = 0;
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResizeObserver;
+  });
+
+  afterEach(() => {
+    delete (globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver;
+  });
+
+  it('height="60%" : l’entrée en plein écran ne réapplique pas le ratio', async () => {
+    const map = await readyMap({ fullscreen: '', height: '60%' });
+    const container = map.querySelector('.dsfr-data-map__container') as HTMLElement;
+    stub(map, { clientWidth: 1000, clientHeight: 400 });
+    fireResize();
+    expect(container.style.height).toBe('600px');
+
+    // Entrée : l'hôte passe à l'écran (1920×1080), le navigateur notifie le RO.
+    stub(map, { clientWidth: 1920, clientHeight: 1080 });
+    enterFullscreen(map);
+    fireResize();
+    expect(container.style.height).toBe('1080px');
+  });
+
+  it('une rotation PENDANT le plein écran recalcule la hauteur du volet', async () => {
+    const map = await readyMap({ fullscreen: '', height: '400px' });
+    const container = map.querySelector('.dsfr-data-map__container') as HTMLElement;
+    stub(map, { clientWidth: 1080, clientHeight: 1920 });
+    enterFullscreen(map);
+    expect(container.style.height).toBe('1920px');
+
+    stub(map, { clientWidth: 1920, clientHeight: 1080 });
+    fireResize();
+    expect(container.style.height).toBe('1080px');
+  });
+
+  it('à la sortie, le ratio reprend la main sur la largeur courante', async () => {
+    const map = await readyMap({ fullscreen: '', height: '60%' });
+    const container = map.querySelector('.dsfr-data-map__container') as HTMLElement;
+    stub(map, { clientWidth: 1000, clientHeight: 400 });
+    fireResize();
+    stub(map, { clientWidth: 1920, clientHeight: 1080 });
+    enterFullscreen(map);
+    fireResize();
+
+    // La fenêtre a été réduite pendant le plein écran : la valeur sauvée à
+    // l'entrée (600px) est périmée, le ratio doit tirer 480px de 800px.
+    stub(map, { clientWidth: 800, clientHeight: 300 });
+    await (document as unknown as { exitFullscreen: () => Promise<void> }).exitFullscreen();
+    expect(container.style.height).toBe('480px');
+  });
+});

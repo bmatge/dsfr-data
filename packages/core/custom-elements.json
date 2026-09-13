@@ -9291,7 +9291,7 @@
               "kind": "method",
               "name": "_applyWidth",
               "privacy": "private",
-              "description": "Attribut `width` : valeur nue → style inline, comme toujours ; echelle\n(#818) → variables CSS consommees par la feuille de la carte, un style\ninline ne pouvant pas porter de media query. Vide → la feuille decide."
+              "description": "Attribut `width` : valeur nue → style inline, comme toujours ; echelle\n(#818) → variables CSS consommees par la feuille de la carte, un style\ninline ne pouvant pas porter de media query. Vide → la feuille decide.\n\nEst une echelle tout texte qui porte un espace OU un point de rupture :\n`width=\"md:20%\"` est un seul jeton, donc sans espace, et partait en\n`style.width = 'md:20%'` — rejete par le navigateur, erreur effacee,\nl'encart restait a 10rem sans un mot (revue du 2026-09-13). Une longueur\nCSS nue ne contient jamais de deux-points."
             },
             {
               "kind": "method",
@@ -12698,6 +12698,16 @@
             },
             {
               "kind": "field",
+              "name": "_onHostResize",
+              "type": {
+                "text": "(() => void) | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Recalcul de hauteur hors plein écran (ratio de `height=\"60%\"`), mémorisé\npour le rejouer à la sortie du plein écran."
+            },
+            {
+              "kind": "field",
               "name": "_tilesSwitcherWarned",
               "type": {
                 "text": "string | null"
@@ -12948,6 +12958,12 @@
                 }
               ],
               "description": "Hauteur du volet principal en plein écran (#825). Les encarts (#643) sont\ndes flottants qui s'écoulent SOUS le volet ; en plein écran, le volet doit\ndonc prendre la hauteur de l'écran moins la rangée d'encarts, sans quoi\ncelle-ci déborde et se fait rogner par l'`overflow: hidden` de l'hôte.\n\nLa hauteur des encarts ne dépend pas de celle du volet — seule leur\nordonnée bouge — on peut donc la mesurer avant de reposer le volet. On\nprend l'enveloppe (du plus haut au plus bas) plutôt que le maximum des\nhauteurs : sur une carte étroite, les encarts passent à la ligne."
+            },
+            {
+              "kind": "method",
+              "name": "_layoutFullscreenPane",
+              "privacy": "private",
+              "description": "Pose la hauteur du volet en plein écran : écran moins l'enveloppe des\nencarts. Rappelée à chaque redimensionnement de l'hôte tant que le plein\nécran dure (rotation, changement d'écran, entrée elle-même)."
             },
             {
               "kind": "field",

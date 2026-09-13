@@ -62,6 +62,18 @@ describe('#818 — encart', () => {
     expect(el.style.getPropertyValue('--dsfr-data-inset-w-md')).toBe('20%');
   });
 
+  it('AC : width="md:20%" (un seul jeton) est une échelle, pas un style inline', async () => {
+    // Revue du 2026-09-13 : `isScale` ne regardait que l'espace, un jeton
+    // seul partait en `style.width = 'md:20%'`, rejeté par le navigateur,
+    // sans erreur — l'encart restait à 10rem en silence.
+    const el = await inset('md:20%');
+    expect(el.style.width).toBe('');
+    expect(el.hasAttribute('data-width-scale')).toBe(true);
+    expect(el.style.getPropertyValue('--dsfr-data-inset-w')).toBe('');
+    expect(el.style.getPropertyValue('--dsfr-data-inset-w-md')).toBe('20%');
+    expect(el.hasAttribute('data-dsfr-config-error')).toBe(false);
+  });
+
   it('repasser à une valeur nue retire l’échelle', async () => {
     const el = await inset('50% md:20%');
     el.setAttribute('width', '12rem');
