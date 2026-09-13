@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — colonnage mesuré (kpi-group, display, facets)</title>
+  <!--
+    Contrepartie NAVIGATEUR des tests unitaires qui lisent le texte des
+    feuilles CSS (grid-per-row-span, grid-responsive-scale, facets #788).
+    happy-dom ne calcule pas de mise en page : #822 (span="" reflété) est
+    passé au vert sous ses tests. Ici on mesure getBoundingClientRect().
+    Lib servie depuis la source par le serveur de dev.
+  -->
+  <!-- display et facets posent des classes de grille DSFR (fr-grid-row, fr-col-md-N)
+       que seule la feuille DSFR sait rendre : chargée du CDN avec SRI, comme les
+       pages specs. Le spec VÉRIFIE qu'elle est chargée (sinon échec explicite). -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { max-width: 1200px; }
+    dsfr-data-kpi { display: block; min-height: 40px; }
+  </style>
+</head>
+<body>
+  <main>
+    <dsfr-data-source id="rows" data='[
+      {"cat":"A","nom":"Paris","v":10},
+      {"cat":"B","nom":"Lyon","v":20},
+      {"cat":"A","nom":"Lille","v":30},
+      {"cat":"C","nom":"Nice","v":40},
+      {"cat":"B","nom":"Brest","v":50},
+      {"cat":"C","nom":"Metz","v":60}
+    ]'></dsfr-data-source>
+
+    <h2>kpi-group cols="3" (historique, #822)</h2>
+    <dsfr-data-kpi-group id="grp-cols" cols="3">
+      <dsfr-data-kpi value="=1" label="un"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=2" label="deux"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=3" label="trois"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=4" label="quatre" span="6"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+
+    <h2>kpi-group per-row="1 md:2 lg:4" (échelle, #789)</h2>
+    <dsfr-data-kpi-group id="grp-scale" per-row="1 md:2 lg:4">
+      <dsfr-data-kpi value="=1" label="un"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=2" label="deux"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=3" label="trois"></dsfr-data-kpi>
+      <dsfr-data-kpi value="=4" label="quatre"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+
+    <h2>display per-row="1 md:3"</h2>
+    <dsfr-data-display id="disp" source="rows" per-row="1 md:3">
+      <template><div class="fr-card fr-p-2w">{{nom}}</div></template>
+    </dsfr-data-display>
+
+    <h2>facets cols="4" (#788 : pleine largeur sous 768 px)</h2>
+    <dsfr-data-facets id="fac" source="rows" fields="cat, nom" cols="4"></dsfr-data-facets>
+  </main>
+</body>
+</html>

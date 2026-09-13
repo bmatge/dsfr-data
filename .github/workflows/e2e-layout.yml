@@ -1,0 +1,69 @@
+name: E2E layout
+
+# Mise en page MESUREE dans un vrai navigateur, sur chaque PR.
+#
+# Deux regressions livrees en 0.29.0 et 0.29.1 (#822 : colonnage KPI, #825 :
+# carte a 0 px en plein ecran) sont passees au vert sous happy-dom : les
+# tests unitaires lisaient le TEXTE des feuilles CSS, jamais un style calcule
+# — happy-dom ne calcule ni float, ni flex, ni hauteur. Ces specs lisent des
+# rectangles (`getBoundingClientRect`) et deux largeurs d'ecran.
+#
+# DETERMINISTE, donc sur PR (a la difference de guide-examples.yml, planifie) :
+# aucune API tierce — tuiles coupees par `page.route`, DSFR Chart charge depuis
+# node_modules, lib servie depuis la source par le serveur de dev.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-layout:
+    name: Mise en page mesurée (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Le serveur de dev sert la lib depuis packages/core/src (vite.config.ts,
+      # redirection /dist), mais les apps chargent packages/app-ui/dist et le
+      # typage lit packages/shared/dist (ARCHITECTURE.md §12) : les deux
+      # doivent exister avant `npm run dev`.
+      - name: Build shared + app-ui
+        run: npm run build:shared && npm run build:app-ui
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Playwright demarre `npm run dev` lui-meme (webServer dans
+      # e2e/playwright.config.ts) et attend le port 5173.
+      - name: Layout specs
+        run: >-
+          npx playwright test --config e2e/playwright.config.ts
+          e2e/map-fullscreen.spec.ts
+          e2e/layout-grid.spec.ts
+          e2e/layout-map.spec.ts
+          e2e/chart-legend.spec.ts
+          e2e/mobile-chrome.spec.ts
+          --project=chromium
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-layout-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

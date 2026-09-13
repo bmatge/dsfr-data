@@ -768,7 +768,9 @@ releases GitHub `v0.4.1` a `v0.16.0`.
 
 ## 7. Tests
 
-Les tests utilisent Vitest avec l'environnement jsdom. La configuration se trouve dans `vitest.config.ts`.
+Les tests utilisent Vitest avec l'environnement happy-dom (fuseau épinglé sur `Europe/Paris`). La configuration se trouve dans `vitest.config.ts`.
+
+**Ce que happy-dom ne voit pas : la mise en page.** Ni float, ni flex, ni grille, ni hauteur ne sont calculés. Deux régressions livrées (#822 : colonnage KPI, #825 : carte à 0 px en plein écran) sont passées au vert parce que leurs tests lisaient le **texte** des feuilles CSS (`cssText`, `textContent` d'un `<style>`). Règle depuis la revue du 2026-09-13 : **toute fonctionnalité visuelle a une contrepartie Playwright qui lit des rectangles** (`getBoundingClientRect`, éléments par rangée, deux largeurs d'écran). Elles vivent dans `e2e/` avec une page de fixture servie par le serveur de dev (`e2e/*.html`, lib depuis la source) et tournent **sur chaque PR** par `.github/workflows/e2e-layout.yml` — déterministes : tuiles coupées par `page.route`, DSFR Chart depuis `node_modules`. Specs : `map-fullscreen` (#825, `%` + ResizeObserver, encart `md:20%`), `layout-grid` (kpi-group `cols` / `span` / `per-row`, display, facets #788), `layout-map` (sélecteur de fonds, encarts flottants, légende, volet #782), `chart-legend` (#813 sur le vrai DSFR Chart : échoue si `.legend_dot` disparaît), `mobile-chrome` (chrome des apps). Les tests jsdom sur le texte des feuilles restent, comme contrat de classes. Chaque spec a été vérifié **en échec** sur le défaut qu'il garde (mutation `span = ''`, retrait du correctif plein écran).
 
 ### Structure
 
@@ -818,7 +820,7 @@ tests/
 ### Configuration notable
 
 - Les dependances `lit` et `@lit` sont inlinees par le serveur de test pour eviter les problemes de resolution ESM dans jsdom.
-- La couverture inclut tous les fichiers `src/**/*.ts` sauf `src/index.ts` et `src/components/layout/**`.
+- La couverture inclut `packages/core/src/**/*.ts` et `packages/shared/src/**/*.ts` (sauf les barrels et `components/layout/**`), seuils 85 / 77 / 82 / 85 (#829).
 
 ### 7.1 Tests exhaustifs du Builder (Playwright E2E)
 
