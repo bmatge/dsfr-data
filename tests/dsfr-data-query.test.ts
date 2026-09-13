@@ -13,6 +13,50 @@ globalThis.fetch = mockFetch;
 
 // We need to import after setting up fetch mock
 import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
+import type { QueryFilter, QueryAggregate } from '@/components/dsfr-data-query.js';
+
+type Rows = Record<string, unknown>[];
+
+/**
+ * Vue interne de la query pour les tests (convention CLAUDE.md : une
+ * interface nommée plutôt que des `as any` dispersés — revue du 2026-09-13).
+ * Chaque membre est déclaré avec la signature du composant ou du mixin.
+ */
+interface QueryInternals {
+  _data: Rows;
+  _rawData: Rows;
+  _serverDelegated: { groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean };
+  _transformerUnsubs: Array<() => void>;
+  _transformerUnsubCommands: (() => void) | null;
+  _transformerMountCycleDone: boolean;
+  _transformerLoading: boolean;
+  _transformerError: Error | null;
+  _initialize(): void;
+  _cleanup(): void;
+  reinitTransformer(): void;
+  _handleSourceData(): void;
+  _negotiateServerSide(): void;
+  _processClientSide(): void;
+  _parseFilters(expr: string): QueryFilter[];
+  /** Les tests sondent aussi des opérateurs et fonctions INVALIDES : forme large, volontaire. */
+  _matchesFilter(
+    item: Record<string, unknown>,
+    filter: { field: string; operator: string; value?: unknown }
+  ): boolean;
+  _applyFilters(data: Rows, expr: string): Rows;
+  _parseAggregates(expr: string): Array<QueryAggregate & Record<string, unknown>>;
+  _computeAggregate(items: Rows, agg: { field: string; function: string; alias?: string }): number;
+  _applyGroupByAndAggregate(data: Rows): Rows;
+  _applySort(data: Rows): Rows;
+}
+const internals = (q: DsfrDataQuery) => q as unknown as QueryInternals;
+
+/** Source factice : un élément qui expose les deux crochets lus par la query. */
+interface SourceStub extends HTMLElement {
+  getEffectiveWhere?: (excludeKey?: string) => string;
+  getAdapter?: () => unknown;
+}
+const stub = (el: HTMLElement) => el as SourceStub;
 import {
   clearDataCache,
   clearDataMeta,
@@ -49,7 +93,7 @@ describe('DsfrDataQuery', () => {
 
   afterEach(() => {
     // Always clean up listeners (even if query is not connected to DOM)
-    (query as any)._cleanup?.();
+    internals(query)._cleanup?.();
     if (query.isConnected) {
       query.disconnectedCallback();
     }
@@ -57,7 +101,7 @@ describe('DsfrDataQuery', () => {
 
   describe('Filter parsing', () => {
     it('parses simple equality filter', () => {
-      const filters = (query as any)._parseFilters('status:eq:active');
+      const filters = internals(query)._parseFilters('status:eq:active');
       expect(filters).toHaveLength(1);
       expect(filters[0]).toEqual({
         field: 'status',
@@ -67,30 +111,30 @@ describe('DsfrDataQuery', () => {
     });
 
     it('parses numeric filter values', () => {
-      const filters = (query as any)._parseFilters('score:gte:80');
+      const filters = internals(query)._parseFilters('score:gte:80');
       expect(filters[0].value).toBe(80);
     });
 
     it('parses boolean filter values', () => {
-      const filters = (query as any)._parseFilters('isActive:eq:true');
+      const filters = internals(query)._parseFilters('isActive:eq:true');
       expect(filters[0].value).toBe(true);
     });
 
     it('parses multiple filters', () => {
-      const filters = (query as any)._parseFilters('status:eq:active, score:gte:80');
+      const filters = internals(query)._parseFilters('status:eq:active, score:gte:80');
       expect(filters).toHaveLength(2);
       expect(filters[0].field).toBe('status');
       expect(filters[1].field).toBe('score');
     });
 
     it('parses in operator with multiple values', () => {
-      const filters = (query as any)._parseFilters('region:in:IDF|PACA|ARA');
+      const filters = internals(query)._parseFilters('region:in:IDF|PACA|ARA');
       expect(filters[0].operator).toBe('in');
       expect(filters[0].value).toEqual(['IDF', 'PACA', 'ARA']);
     });
 
     it('handles values containing colons', () => {
-      const filters = (query as any)._parseFilters('time:eq:12:30:00');
+      const filters = internals(query)._parseFilters('time:eq:12:30:00');
       expect(filters[0].value).toBe('12:30:00');
     });
   });
@@ -106,61 +150,77 @@ describe('DsfrDataQuery', () => {
 
     it('matches equality filter', () => {
       const filter = { field: 'region', operator: 'eq' as const, value: 'IDF' };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('matches inequality filter', () => {
       const filter = { field: 'region', operator: 'neq' as const, value: 'PACA' };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('matches greater than filter', () => {
-      const filter = { field: 'population', operator: 'gt' as const, value: 1000000 };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      const filter = {
+        field: 'population',
+        operator: 'gt' as const,
+        value: 1000000,
+      };
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('matches less than or equal filter', () => {
-      const filter = { field: 'population', operator: 'lte' as const, value: 2200000 };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      const filter = {
+        field: 'population',
+        operator: 'lte' as const,
+        value: 2200000,
+      };
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('matches contains filter (case insensitive)', () => {
-      const filter = { field: 'description', operator: 'contains' as const, value: 'capitale' };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      const filter = {
+        field: 'description',
+        operator: 'contains' as const,
+        value: 'capitale',
+      };
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('matches in filter', () => {
-      const filter = { field: 'region', operator: 'in' as const, value: ['IDF', 'PACA'] };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      const filter = {
+        field: 'region',
+        operator: 'in' as const,
+        value: ['IDF', 'PACA'],
+      };
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('matches isnotnull filter', () => {
       const filter = { field: 'name', operator: 'isnotnull' as const };
-      expect((query as any)._matchesFilter(testItem, filter)).toBe(true);
+      expect(internals(query)._matchesFilter(testItem, filter)).toBe(true);
     });
 
     it('eq matches with type coercion (string "84" == number 84)', () => {
       const item = { code_region: '84', name: 'Auvergne-Rhone-Alpes' };
       const filter = { field: 'code_region', operator: 'eq' as const, value: 84 };
-      expect((query as any)._matchesFilter(item, filter)).toBe(true);
+      expect(internals(query)._matchesFilter(item, filter)).toBe(true);
     });
 
     it('eq matches with type coercion (number 84 == string "84")', () => {
       const item = { code_region: 84, name: 'Auvergne-Rhone-Alpes' };
       const filter = { field: 'code_region', operator: 'eq' as const, value: '84' };
-      expect((query as any)._matchesFilter(item, filter)).toBe(true);
+      expect(internals(query)._matchesFilter(item, filter)).toBe(true);
     });
 
     it('neq rejects with type coercion (string "84" == number 84)', () => {
       const item = { code_region: '84', name: 'Auvergne-Rhone-Alpes' };
       const filter = { field: 'code_region', operator: 'neq' as const, value: 84 };
-      expect((query as any)._matchesFilter(item, filter)).toBe(false);
+      expect(internals(query)._matchesFilter(item, filter)).toBe(false);
     });
   });
 
   describe('Aggregation parsing', () => {
     it('parses single aggregation', () => {
-      const aggregates = (query as any)._parseAggregates('population:sum');
+      const aggregates = internals(query)._parseAggregates('population:sum');
       expect(aggregates).toHaveLength(1);
       expect(aggregates[0]).toEqual({
         field: 'population',
@@ -171,12 +231,14 @@ describe('DsfrDataQuery', () => {
     });
 
     it('parses aggregation with alias', () => {
-      const aggregates = (query as any)._parseAggregates('population:sum:total_pop');
+      const aggregates = internals(query)._parseAggregates('population:sum:total_pop');
       expect(aggregates[0].alias).toBe('total_pop');
     });
 
     it('parses multiple aggregations', () => {
-      const aggregates = (query as any)._parseAggregates('population:sum, score:avg, count:count');
+      const aggregates = internals(query)._parseAggregates(
+        'population:sum, score:avg, count:count'
+      );
       expect(aggregates).toHaveLength(3);
       expect(aggregates[0].function).toBe('sum');
       expect(aggregates[1].function).toBe('avg');
@@ -193,31 +255,31 @@ describe('DsfrDataQuery', () => {
 
     it('computes sum aggregation', () => {
       const agg = { field: 'population', function: 'sum' as const };
-      const result = (query as any)._computeAggregate(testItems, agg);
+      const result = internals(query)._computeAggregate(testItems, agg);
       expect(result).toBe(3500);
     });
 
     it('computes avg aggregation', () => {
       const agg = { field: 'score', function: 'avg' as const };
-      const result = (query as any)._computeAggregate(testItems, agg);
+      const result = internals(query)._computeAggregate(testItems, agg);
       expect(result).toBe(80);
     });
 
     it('computes count aggregation', () => {
       const agg = { field: 'population', function: 'count' as const };
-      const result = (query as any)._computeAggregate(testItems, agg);
+      const result = internals(query)._computeAggregate(testItems, agg);
       expect(result).toBe(3);
     });
 
     it('computes min aggregation', () => {
       const agg = { field: 'population', function: 'min' as const };
-      const result = (query as any)._computeAggregate(testItems, agg);
+      const result = internals(query)._computeAggregate(testItems, agg);
       expect(result).toBe(500);
     });
 
     it('computes max aggregation', () => {
       const agg = { field: 'population', function: 'max' as const };
-      const result = (query as any)._computeAggregate(testItems, agg);
+      const result = internals(query)._computeAggregate(testItems, agg);
       expect(result).toBe(2000);
     });
   });
@@ -226,7 +288,7 @@ describe('DsfrDataQuery', () => {
     beforeEach(() => {
       query.groupBy = 'region';
       query.aggregate = 'population:sum';
-      (query as any)._rawData = [
+      internals(query)._rawData = [
         { region: 'IDF', population: 1000 },
         { region: 'IDF', population: 2000 },
         { region: 'PACA', population: 500 },
@@ -235,58 +297,58 @@ describe('DsfrDataQuery', () => {
     });
 
     it('groups data by field', () => {
-      const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      const result = internals(query)._applyGroupByAndAggregate(internals(query)._rawData);
       expect(result).toHaveLength(2);
-      expect(result.find((r: any) => r.region === 'IDF')).toBeDefined();
-      expect(result.find((r: any) => r.region === 'PACA')).toBeDefined();
+      expect(result.find((r) => r.region === 'IDF')).toBeDefined();
+      expect(result.find((r) => r.region === 'PACA')).toBeDefined();
     });
 
     it('computes aggregation per group', () => {
-      const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
-      const idf = result.find((r: any) => r.region === 'IDF');
-      const paca = result.find((r: any) => r.region === 'PACA');
+      const result = internals(query)._applyGroupByAndAggregate(internals(query)._rawData);
+      const idf = result.find((r) => r.region === 'IDF');
+      const paca = result.find((r) => r.region === 'PACA');
 
-      expect(idf['population__sum']).toBe(3000);
-      expect(paca['population__sum']).toBe(800);
+      expect(idf!['population__sum']).toBe(3000);
+      expect(paca!['population__sum']).toBe(800);
     });
 
     // #647 : un groupe vide ressort en null (pas ""), regroupement stable
     it('keeps null (not "") as the group value for empty keys', () => {
-      (query as any)._rawData = [
+      internals(query)._rawData = [
         { region: 'IDF', population: 1000 },
         { region: null, population: 10 },
         { population: 20 },
         { region: '', population: 30 },
       ];
 
-      const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      const result = internals(query)._applyGroupByAndAggregate(internals(query)._rawData);
       expect(result).toHaveLength(2);
-      const empty = result.find((r: any) => r.region === null);
+      const empty = result.find((r) => r.region === null);
       expect(empty).toBeDefined();
-      expect(empty.region).toBeNull();
-      expect(empty['population__sum']).toBe(60);
-      expect(result.find((r: any) => r.region === '')).toBeUndefined();
+      expect(empty!.region).toBeNull();
+      expect(empty!['population__sum']).toBe(60);
+      expect(result.find((r) => r.region === '')).toBeUndefined();
     });
 
     it('a downstream isnull filter catches the empty group', () => {
-      (query as any)._rawData = [
+      internals(query)._rawData = [
         { region: 'IDF', population: 1000 },
         { region: null, population: 10 },
       ];
-      const grouped = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
-      const kept = (query as any)._applyFilters(grouped, 'region:isnotnull');
-      expect(kept.map((r: any) => r.region)).toEqual(['IDF']);
+      const grouped = internals(query)._applyGroupByAndAggregate(internals(query)._rawData);
+      const kept = internals(query)._applyFilters(grouped, 'region:isnotnull');
+      expect(kept.map((r) => r.region)).toEqual(['IDF']);
     });
 
     it('handles multiple group by fields', () => {
       query.groupBy = 'region, year';
-      (query as any)._rawData = [
+      internals(query)._rawData = [
         { region: 'IDF', year: 2023, population: 1000 },
         { region: 'IDF', year: 2024, population: 1100 },
         { region: 'PACA', year: 2023, population: 500 },
       ];
 
-      const result = (query as any)._applyGroupByAndAggregate((query as any)._rawData);
+      const result = internals(query)._applyGroupByAndAggregate(internals(query)._rawData);
       expect(result).toHaveLength(3);
     });
   });
@@ -300,21 +362,21 @@ describe('DsfrDataQuery', () => {
 
     it('sorts ascending by numeric field', () => {
       query.orderBy = 'value:asc';
-      const result = (query as any)._applySort(testData);
+      const result = internals(query)._applySort(testData);
       expect(result[0].name).toBe('Paris');
       expect(result[2].name).toBe('Lyon');
     });
 
     it('sorts descending by numeric field', () => {
       query.orderBy = 'value:desc';
-      const result = (query as any)._applySort(testData);
+      const result = internals(query)._applySort(testData);
       expect(result[0].name).toBe('Lyon');
       expect(result[2].name).toBe('Paris');
     });
 
     it('sorts by string field', () => {
       query.orderBy = 'name:asc';
-      const result = (query as any)._applySort(testData);
+      const result = internals(query)._applySort(testData);
       expect(result[0].name).toBe('Lyon');
       expect(result[2].name).toBe('Paris');
     });
@@ -330,7 +392,7 @@ describe('DsfrDataQuery', () => {
       query.orderBy = 'population__sum:desc';
       query.limit = 5;
 
-      (query as any)._rawData = [
+      internals(query)._rawData = [
         { region: 'IDF', population: 1000 },
         { region: 'IDF', population: 2000 },
         { region: 'PACA', population: 500 },
@@ -340,9 +402,9 @@ describe('DsfrDataQuery', () => {
     });
 
     it('applies filter -> group -> aggregate -> sort -> limit', () => {
-      (query as any)._processClientSide();
+      internals(query)._processClientSide();
 
-      const result = query.getData() as any[];
+      const result = query.getData() as Rows;
       expect(result).toHaveLength(2); // IDF and PACA (ARA filtered out)
       expect(result[0].region).toBe('IDF'); // Highest sum
       expect(result[0]['population__sum']).toBe(3000);
@@ -358,7 +420,7 @@ describe('DsfrDataQuery', () => {
       query.groupBy = 'region';
       query.aggregate = 'value:sum';
 
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       // Simulate source emitting data
       dispatchDataLoaded('test-source', [
@@ -384,7 +446,7 @@ describe('DsfrDataQuery', () => {
         { name: 'B', value: 30 },
       ]);
 
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       const data = query.getData() as Record<string, unknown>[];
       expect(data).toHaveLength(2);
@@ -402,7 +464,7 @@ describe('DsfrDataQuery', () => {
         received.push(cmd);
       });
 
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       dispatchSourceCommand('test-query', { page: 3 });
       expect(received).toHaveLength(1);
@@ -425,8 +487,8 @@ describe('DsfrDataQuery', () => {
         received.push(cmd);
       });
 
-      (query as any)._initialize();
-      expect((query as any)._transformerUnsubCommands).toBeTypeOf('function');
+      internals(query)._initialize();
+      expect(internals(query)._transformerUnsubCommands).toBeTypeOf('function');
 
       dispatchSourceCommand('test-query', { where: 'region = "IDF"', whereKey: 'facets-1' });
       expect(received).toHaveLength(1);
@@ -439,11 +501,11 @@ describe('DsfrDataQuery', () => {
       query.id = 'test-query';
       query.source = 'upstream-source';
 
-      (query as any)._initialize();
-      expect((query as any)._transformerUnsubCommands).toBeTypeOf('function');
+      internals(query)._initialize();
+      expect(internals(query)._transformerUnsubCommands).toBeTypeOf('function');
 
-      (query as any)._cleanup();
-      expect((query as any)._transformerUnsubCommands).toBeNull();
+      internals(query)._cleanup();
+      expect(internals(query)._transformerUnsubCommands).toBeNull();
     });
   });
 
@@ -456,8 +518,8 @@ describe('DsfrDataQuery', () => {
       // (list, display) a besoin du total serveur pour paginer (#659).
       setDataMeta('test-source', { page: 2, pageSize: 20, total: 100, serverSide: true });
 
-      (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
-      (query as any)._processClientSide();
+      internals(query)._rawData = [{ name: 'A' }, { name: 'B' }];
+      internals(query)._processClientSide();
 
       const meta = getDataMeta('test-query');
       expect(meta).toBeDefined();
@@ -478,8 +540,8 @@ describe('DsfrDataQuery', () => {
         needsClientProcessing: false,
       });
 
-      (query as any)._rawData = [{ name: 'A' }, { name: 'B' }];
-      (query as any)._processClientSide();
+      internals(query)._rawData = [{ name: 'A' }, { name: 'B' }];
+      internals(query)._processClientSide();
 
       const meta = getDataMeta('test-query');
       expect(meta).toMatchObject({ page: 1, pageSize: 0, serverSide: false, total: 2 });
@@ -492,8 +554,8 @@ describe('DsfrDataQuery', () => {
       clearDataMeta('test-source');
       clearDataMeta('test-query');
 
-      (query as any)._rawData = [{ name: 'A' }];
-      (query as any)._processClientSide();
+      internals(query)._rawData = [{ name: 'A' }];
+      internals(query)._processClientSide();
 
       expect(getDataMeta('test-query')).toEqual({
         page: 1,
@@ -509,7 +571,7 @@ describe('DsfrDataQuery', () => {
       // Create mock source element
       const mockSource = document.createElement('div');
       mockSource.id = 'mock-source';
-      (mockSource as any).getEffectiveWhere = (excludeKey?: string) => {
+      stub(mockSource).getEffectiveWhere = (excludeKey?: string) => {
         if (excludeKey === 'facets') return 'search("test")';
         return 'search("test") AND region = "IDF"';
       };
@@ -542,7 +604,7 @@ describe('DsfrDataQuery', () => {
     it('delegates to source element when available', () => {
       const mockSource = document.createElement('div');
       mockSource.id = 'mock-source';
-      (mockSource as any).getAdapter = () => ({
+      stub(mockSource).getAdapter = () => ({
         type: 'opendatasoft',
         capabilities: { serverGroupBy: true, whereFormat: 'odsql' },
       });
@@ -570,7 +632,7 @@ describe('DsfrDataQuery', () => {
     function setupSource(supportsServerFields?: (fields: string[]) => boolean) {
       mockSource = document.createElement('div');
       mockSource.id = 'neg-source';
-      (mockSource as any).getAdapter = () => ({
+      stub(mockSource).getAdapter = () => ({
         type: 'tabular',
         capabilities: {
           serverGroupBy: true,
@@ -595,10 +657,10 @@ describe('DsfrDataQuery', () => {
       query.groupBy = 'region';
       query.aggregate = 'population:sum';
 
-      (query as any)._negotiateServerSide();
+      internals(query)._negotiateServerSide();
 
-      expect((query as any)._serverDelegated.groupBy).toBe(true);
-      expect((query as any)._serverDelegated.aggregate).toBe(true);
+      expect(internals(query)._serverDelegated.groupBy).toBe(true);
+      expect(internals(query)._serverDelegated.aggregate).toBe(true);
       expect(commands.some((c) => c.groupBy === 'region')).toBe(true);
     });
 
@@ -607,10 +669,10 @@ describe('DsfrDataQuery', () => {
       query.groupBy = 'Date - Journée gazière';
       query.aggregate = 'Inventaire LNG (m3 LNG):sum';
 
-      (query as any)._negotiateServerSide();
+      internals(query)._negotiateServerSide();
 
-      expect((query as any)._serverDelegated.groupBy).toBe(false);
-      expect((query as any)._serverDelegated.aggregate).toBe(false);
+      expect(internals(query)._serverDelegated.groupBy).toBe(false);
+      expect(internals(query)._serverDelegated.aggregate).toBe(false);
       expect(commands.length).toBe(0);
     });
 
@@ -619,35 +681,35 @@ describe('DsfrDataQuery', () => {
       query.groupBy = 'Date - Journée gazière';
       query.aggregate = 'Inventaire LNG (m3 LNG):sum';
 
-      (query as any)._negotiateServerSide();
+      internals(query)._negotiateServerSide();
 
-      expect((query as any)._serverDelegated.groupBy).toBe(true);
+      expect(internals(query)._serverDelegated.groupBy).toBe(true);
     });
 
     it('does not delegate order-by on an unsafe field name', () => {
       setupSource((fields) => fields.every((f) => /^[\p{L}\p{N}_]+$/u.test(f)));
       query.orderBy = 'Inventaire LNG (m3 LNG):desc';
 
-      (query as any)._negotiateServerSide();
+      internals(query)._negotiateServerSide();
 
-      expect((query as any)._serverDelegated.orderBy).toBe(false);
+      expect(internals(query)._serverDelegated.orderBy).toBe(false);
     });
   });
 
   describe('Public API', () => {
     it('getData returns current data', () => {
-      (query as any)._data = [{ test: 1 }];
+      internals(query)._data = [{ test: 1 }];
       expect(query.getData()).toEqual([{ test: 1 }]);
     });
 
     it('isLoading returns loading state', () => {
-      (query as any)._transformerLoading = true;
+      internals(query)._transformerLoading = true;
       expect(query.isLoading()).toBe(true);
     });
 
     it('getError returns error state', () => {
       const error = new Error('Test error');
-      (query as any)._transformerError = error;
+      internals(query)._transformerError = error;
       expect(query.getError()).toBe(error);
     });
   });
@@ -668,7 +730,7 @@ describe('DsfrDataQuery', () => {
       query.id = 'test-query';
       query.source = 'test-source';
       query.connectedCallback();
-      expect((query as any)._transformerUnsubs.length).toBe(1);
+      expect(internals(query)._transformerUnsubs.length).toBe(1);
     });
 
     it('disconnectedCallback cleans up', () => {
@@ -676,9 +738,9 @@ describe('DsfrDataQuery', () => {
       query.source = 'test-source';
       query.connectedCallback();
 
-      expect((query as any)._transformerUnsubs.length).toBe(1);
+      expect(internals(query)._transformerUnsubs.length).toBe(1);
       query.disconnectedCallback();
-      expect((query as any)._transformerUnsubs.length).toBe(0);
+      expect(internals(query)._transformerUnsubs.length).toBe(0);
     });
 
     it('disconnectedCallback clears data cache', () => {
@@ -699,8 +761,8 @@ describe('DsfrDataQuery', () => {
       query.source = 'test-source';
       query.connectedCallback();
 
-      const initSpy = vi.spyOn(query as any, 'reinitTransformer');
-      (query as any)._transformerMountCycleDone = true; // cycle de montage consomme
+      const initSpy = vi.spyOn(internals(query), 'reinitTransformer');
+      internals(query)._transformerMountCycleDone = true; // cycle de montage consomme
       lifecycle(query).willUpdate(new Map([['source', 'old-source']]));
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
@@ -711,8 +773,8 @@ describe('DsfrDataQuery', () => {
       query.source = 'test-source';
       query.connectedCallback();
 
-      const initSpy = vi.spyOn(query as any, 'reinitTransformer');
-      (query as any)._transformerMountCycleDone = true;
+      const initSpy = vi.spyOn(internals(query), 'reinitTransformer');
+      internals(query)._transformerMountCycleDone = true;
       lifecycle(query).willUpdate(new Map([['groupBy', '']]));
       expect(initSpy).toHaveBeenCalled();
       initSpy.mockRestore();
@@ -723,7 +785,7 @@ describe('DsfrDataQuery', () => {
     it('forwards loading from source subscription', () => {
       query.id = 'test-query';
       query.source = 'test-source';
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       // Simulate source emitting loading
       dispatchDataLoading('test-source');
@@ -734,7 +796,7 @@ describe('DsfrDataQuery', () => {
     it('forwards error from source subscription', () => {
       query.id = 'test-query';
       query.source = 'test-source';
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       // Simulate source emitting error
       dispatchDataError('test-source', new Error('test error'));
@@ -757,7 +819,7 @@ describe('DsfrDataQuery', () => {
         { name: 'B', value: 30 },
       ]);
 
-      (query as any)._initialize();
+      internals(query)._initialize();
       const data1 = query.getData() as Record<string, unknown>[];
       expect(data1[0].name).toBe('B');
 
@@ -794,7 +856,7 @@ describe('DsfrDataQuery', () => {
       query.groupBy = 'region';
       query.aggregate = 'x:somme';
 
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       const marker = query.getAttribute('data-dsfr-config-error') || '';
       expect(marker).toContain('aggregate="x:somme"');
@@ -810,7 +872,7 @@ describe('DsfrDataQuery', () => {
       query.source = 'test-source';
       query.groupBy = 'region';
       query.aggregate = 'x:somme';
-      (query as any)._initialize();
+      internals(query)._initialize();
 
       const downstreamErrors: Error[] = [];
       const unsub = subscribeToSource('q-bad-fn-2', {
@@ -835,18 +897,18 @@ describe('DsfrDataQuery', () => {
       query.source = 'test-source';
       query.groupBy = 'region';
       query.aggregate = 'x:somme';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(query.hasAttribute('data-dsfr-config-error')).toBe(true);
 
       query.aggregate = 'x:sum';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(query.hasAttribute('data-dsfr-config-error')).toBe(false);
       dispatchDataLoaded('test-source', [
         { region: 'A', x: 10 },
         { region: 'A', x: 20 },
       ]);
       expect(query.getError()).toBeNull();
-      expect((query.getData() as any[])[0]['x__sum']).toBe(30);
+      expect((query.getData() as Rows)[0]['x__sum']).toBe(30);
       errorSpy.mockRestore();
     });
 
@@ -854,7 +916,7 @@ describe('DsfrDataQuery', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const mockSource = document.createElement('div');
       mockSource.id = 'neg-bad-fn';
-      (mockSource as any).getAdapter = () => ({
+      stub(mockSource).getAdapter = () => ({
         type: 'tabular',
         capabilities: { serverGroupBy: true, serverOrderBy: true, whereFormat: 'colon' },
       });
@@ -866,10 +928,10 @@ describe('DsfrDataQuery', () => {
       query.source = 'neg-bad-fn';
       query.groupBy = 'region';
       query.aggregate = 'x:somme';
-      (query as any)._initialize();
+      internals(query)._initialize();
 
-      expect((query as any)._serverDelegated.groupBy).toBe(false);
-      expect((query as any)._serverDelegated.aggregate).toBe(false);
+      expect(internals(query)._serverDelegated.groupBy).toBe(false);
+      expect(internals(query)._serverDelegated.aggregate).toBe(false);
       expect(commands.some((c) => c.aggregate === 'x:somme')).toBe(false);
 
       unsub();
@@ -879,7 +941,7 @@ describe('DsfrDataQuery', () => {
 
     it('_computeAggregate throws (never returns 0) on an unknown function', () => {
       expect(() =>
-        (query as any)._computeAggregate([{ x: 1 }], { field: 'x', function: 'somme' })
+        internals(query)._computeAggregate([{ x: 1 }], { field: 'x', function: 'somme' })
       ).toThrow(/somme/);
     });
   });
@@ -892,12 +954,12 @@ describe('DsfrDataQuery', () => {
       // Force an error by setting invalid groupBy with bad data
       query.groupBy = 'field';
       query.aggregate = 'bad:invalid';
-      (query as any)._rawData = [{ field: 'A' }];
+      internals(query)._rawData = [{ field: 'A' }];
 
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // Even with bad aggregate function, it should catch gracefully
-      (query as any)._handleSourceData();
+      internals(query)._handleSourceData();
       expect(query.isLoading()).toBe(false);
 
       errorSpy.mockRestore();
@@ -908,7 +970,7 @@ describe('DsfrDataQuery', () => {
     it('logs error and sets data-dsfr-config-error when no id', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.source = 'test-source';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "id" requis'));
       expect(query.getAttribute('data-dsfr-config-error')).toMatch(/id/);
       errorSpy.mockRestore();
@@ -918,7 +980,7 @@ describe('DsfrDataQuery', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.id = 'test-query';
       query.source = '';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
       expect(query.getAttribute('data-dsfr-config-error')).toMatch(/source/);
       errorSpy.mockRestore();
@@ -928,9 +990,9 @@ describe('DsfrDataQuery', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.id = 'test-query';
       query.source = '';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('attribut "source" requis'));
-      expect((query as any)._transformerUnsubs.length).toBe(0);
+      expect(internals(query)._transformerUnsubs.length).toBe(0);
       errorSpy.mockRestore();
     });
 
@@ -938,11 +1000,11 @@ describe('DsfrDataQuery', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       query.id = '';
       query.source = '';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(query.hasAttribute('data-dsfr-config-error')).toBe(true);
       query.id = 'test-query';
       query.source = 'test-source';
-      (query as any)._initialize();
+      internals(query)._initialize();
       expect(query.hasAttribute('data-dsfr-config-error')).toBe(false);
       errorSpy.mockRestore();
     });
@@ -959,78 +1021,78 @@ describe('DsfrDataQuery', () => {
     it('unsubscribes commands on re-initialization', () => {
       query.id = 'test-query';
       query.source = 'test-source';
-      (query as any)._initialize();
-      const oldCmdUnsub = (query as any)._transformerUnsubCommands;
+      internals(query)._initialize();
+      const oldCmdUnsub = internals(query)._transformerUnsubCommands;
       expect(oldCmdUnsub).toBeTypeOf('function');
 
       // Re-initialize
-      (query as any)._initialize();
+      internals(query)._initialize();
       // Should have new command listener
-      expect((query as any)._transformerUnsubCommands).toBeTypeOf('function');
+      expect(internals(query)._transformerUnsubCommands).toBeTypeOf('function');
     });
   });
 
   describe('Additional filter operators', () => {
     it('matches gte (greater than or equal)', () => {
       const filter = { field: 'score', operator: 'gte', value: 80 };
-      expect((query as any)._matchesFilter({ score: 80 }, filter)).toBe(true);
-      expect((query as any)._matchesFilter({ score: 79 }, filter)).toBe(false);
+      expect(internals(query)._matchesFilter({ score: 80 }, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({ score: 79 }, filter)).toBe(false);
     });
 
     it('matches lt (less than)', () => {
       const filter = { field: 'score', operator: 'lt', value: 50 };
-      expect((query as any)._matchesFilter({ score: 49 }, filter)).toBe(true);
-      expect((query as any)._matchesFilter({ score: 50 }, filter)).toBe(false);
+      expect(internals(query)._matchesFilter({ score: 49 }, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({ score: 50 }, filter)).toBe(false);
     });
 
     it('matches notcontains', () => {
       const filter = { field: 'desc', operator: 'notcontains', value: 'test' };
-      expect((query as any)._matchesFilter({ desc: 'hello world' }, filter)).toBe(true);
-      expect((query as any)._matchesFilter({ desc: 'hello test world' }, filter)).toBe(false);
+      expect(internals(query)._matchesFilter({ desc: 'hello world' }, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({ desc: 'hello test world' }, filter)).toBe(false);
     });
 
     it('matches notin', () => {
       const filter = { field: 'region', operator: 'notin', value: ['IDF', 'PACA'] };
-      expect((query as any)._matchesFilter({ region: 'ARA' }, filter)).toBe(true);
-      expect((query as any)._matchesFilter({ region: 'IDF' }, filter)).toBe(false);
+      expect(internals(query)._matchesFilter({ region: 'ARA' }, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({ region: 'IDF' }, filter)).toBe(false);
     });
 
     it('matches isnull', () => {
       const filter = { field: 'name', operator: 'isnull' };
-      expect((query as any)._matchesFilter({ name: null }, filter)).toBe(true);
-      expect((query as any)._matchesFilter({}, filter)).toBe(true);
-      expect((query as any)._matchesFilter({ name: 'hello' }, filter)).toBe(false);
+      expect(internals(query)._matchesFilter({ name: null }, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({}, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({ name: 'hello' }, filter)).toBe(false);
     });
 
     it('unknown operator returns true', () => {
       const filter = { field: 'x', operator: 'unknown', value: 1 };
-      expect((query as any)._matchesFilter({ x: 999 }, filter)).toBe(true);
+      expect(internals(query)._matchesFilter({ x: 999 }, filter)).toBe(true);
     });
   });
 
   describe('Aggregation edge cases', () => {
     it('returns 0 for avg of empty values', () => {
       const agg = { field: 'val', function: 'avg' };
-      expect((query as any)._computeAggregate([], agg)).toBe(0);
+      expect(internals(query)._computeAggregate([], agg)).toBe(0);
     });
 
     it('returns 0 for min of empty values', () => {
       const agg = { field: 'val', function: 'min' };
-      expect((query as any)._computeAggregate([], agg)).toBe(0);
+      expect(internals(query)._computeAggregate([], agg)).toBe(0);
     });
 
     it('returns 0 for max of empty values', () => {
       const agg = { field: 'val', function: 'max' };
-      expect((query as any)._computeAggregate([], agg)).toBe(0);
+      expect(internals(query)._computeAggregate([], agg)).toBe(0);
     });
 
     it('throws on an unknown function instead of returning 0 (#649)', () => {
       const agg = { field: 'val', function: 'median' };
-      expect(() => (query as any)._computeAggregate([{ val: 10 }], agg)).toThrow(/median/);
+      expect(() => internals(query)._computeAggregate([{ val: 10 }], agg)).toThrow(/median/);
     });
 
     it('returns empty for empty aggregate expression', () => {
-      expect((query as any)._parseAggregates('')).toEqual([]);
+      expect(internals(query)._parseAggregates('')).toEqual([]);
     });
   });
 });

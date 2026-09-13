@@ -13,6 +13,7 @@
  */
 
 import { toNumber, looksLikeNumber } from './number-parser.js';
+import { isIsoDateString } from './iso-date.js';
 import { unescapeColonValue } from './colon-escape.js';
 import { isUnsafeKey } from './security.js';
 
@@ -132,16 +133,12 @@ function isBlank(v: unknown): boolean {
   return v === null || v === undefined || v === '';
 }
 
-/** Chaîne de date ISO (même motif que `aggregations.ts`, #667). */
-const ISO_DATE_RE =
-  /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
-
 /** Non-blank values, all ISO date strings — or null when any is not. */
 function isoDateValues(values: unknown[]): string[] | null {
   const out: string[] = [];
   for (const v of values) {
     if (isBlank(v)) continue;
-    if (typeof v !== 'string' || !ISO_DATE_RE.test(v.trim())) return null;
+    if (!isIsoDateString(v)) return null;
     out.push(v.trim());
   }
   return out.length > 0 ? out : null;
