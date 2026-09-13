@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — légende color-map sous databox, sur le VRAI DSFR Chart</title>
+  <!--
+    Le test unitaire de #813 reconstruit à la main le DOM « que produit DSFR
+    Chart » (`data-box` > canvas + `.legend_dot`) : il prouve que le
+    recoloriage marche sur ce DOM-là, pas que DSFR Chart le produit. Ici la
+    vraie bibliothèque est chargée depuis node_modules (pas de CDN : le test
+    doit être déterministe), et le test échoue si `.legend_dot` disparaît.
+  -->
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { max-width: 800px; }
+  </style>
+</head>
+<body>
+  <main>
+    <dsfr-data-source id="rows" data='[
+      {"nom":"Paris","v":10},
+      {"nom":"Lyon","v":20},
+      {"nom":"Lille","v":30}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-chart id="camembert" source="rows" type="pie" label-field="nom" value-field="v"
+      color-map="Paris:#ff0000,Lyon:#0000ff" databox databox-title="Parts">
+    </dsfr-data-chart>
+  </main>
+</body>
+</html>

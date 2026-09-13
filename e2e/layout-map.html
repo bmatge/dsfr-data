@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — carte : volet, sélecteur de fonds, légende, encarts mesurés</title>
+  <!--
+    Contrepartie NAVIGATEUR des tests unitaires qui lisent le texte de la
+    feuille de la carte (map-popup-panel-width #782, map-tiles-switcher #744,
+    map-legend `clear: both`, map-inset float/10rem #643). Tuiles coupées
+    par le test ; la lib est servie depuis la source par le serveur de dev.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { max-width: 1000px; }
+  </style>
+</head>
+<body>
+  <main>
+    <dsfr-data-source id="pts" data='[
+      {"lat":48.85,"lon":2.35,"nom":"Paris","cat":"A"},
+      {"lat":45.76,"lon":4.83,"nom":"Lyon","cat":"B"}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-map id="carte" name="Carte mesurée" center="46.6,2.3" zoom="6" height="400px"
+      tiles="osm" tiles-switcher="osm,ign-plan">
+      <dsfr-data-map-layer id="couche" source="pts" lat-field="lat" lon-field="lon"
+        color-field="cat" color-map="A:#ff0000,B:#0000ff">
+        <dsfr-data-map-popup mode="panel-right" title-field="nom" width="380px">
+          <template><p>{{nom}}</p></template>
+        </dsfr-data-map-popup>
+      </dsfr-data-map-layer>
+      <dsfr-data-map-inset territory="guadeloupe" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="martinique" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="la-reunion" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-legend for="couche" label="Catégorie"></dsfr-data-map-legend>
+    </dsfr-data-map>
+  </main>
+</body>
+</html>
