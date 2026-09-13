@@ -516,7 +516,7 @@ export class DsfrDataContextFilter extends LitElement {
     const startMonth = this._startMonth();
     if (this.operator === 'current-year') {
       if (startMonth === 1) return 'année en cours';
-      return fiscalYearLabel(isoDate(new Date()), startMonth) ?? 'année en cours';
+      return fiscalYearLabel(localIsoDate(new Date()), startMonth) ?? 'année en cours';
     }
     if (this.operator === 'current-month') return 'mois en cours';
     if (this.operator === 'last-n-days') return `${raw} derniers jours`;
@@ -643,21 +643,27 @@ export class DsfrDataContextFilter extends LitElement {
       if (!bound) return '';
       return `${this.field}:lt:${bound}`;
     }
+    // Bornes dynamiques : « aujourd'hui » est le JOUR CIVIL LOCAL, comme
+    // `default="today"` (#682). Elles etaient restees en UTC : a 00:30 a
+    // Paris le 1er du mois, `current-month` filtrait le mois precedent
+    // pendant que le tag affichait « mois en cours » (revue du 2026-09-13).
+    // Le calcul de la borne, lui, reste en UTC sur la date ISO obtenue :
+    // une date civile n'a pas de fuseau.
     if (this.operator === 'last-n-days') {
       const n = Number(raw);
       if (!Number.isInteger(n) || n <= 0) return '';
-      const start = new Date();
+      const start = new Date(`${localIsoDate(new Date())}T00:00:00Z`);
       start.setUTCDate(start.getUTCDate() - n);
       return `${this.field}:gte:${isoDate(start)}`;
     }
     if (this.operator === 'current-year') {
-      const range = yearRange(isoDate(new Date()), this._startMonth());
+      const range = yearRange(localIsoDate(new Date()), this._startMonth());
       if (!range) return '';
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }
     if (this.operator === 'current-month') {
-      // Symetrique de current-year (#682) : meme horloge UTC, meme plage [1er, 1er suivant)
-      const range = monthRange(isoDate(new Date()));
+      // Symetrique de current-year (#682) : meme jour civil, meme plage [1er, 1er suivant)
+      const range = monthRange(localIsoDate(new Date()));
       if (!range) return '';
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;
     }

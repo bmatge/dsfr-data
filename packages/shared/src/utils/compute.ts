@@ -14,9 +14,15 @@
  *
  * Equality is LOOSE and identical to the `where` attribute (`looseEquals`,
  * number ↔ numeric string): `when cat = 'A'` and `where="cat:eq:A"` keep the
- * same rows. Ordering comparisons are numeric when both sides parse as a
- * number (`toNumber`, French decimals included), lexicographic otherwise
- * (ISO dates compare correctly); null, undefined and '' never match.
+ * same rows — and a blank cell never equals a number (`'' = 0` is false, as
+ * `where="x:eq:0"` would not match it). Ordering comparisons are numeric when
+ * both sides parse as a number (`toNumber`, French decimals included),
+ * lexicographic otherwise (ISO dates compare correctly); null, undefined and
+ * '' never match.
+ *
+ * Arithmetic `- * /` and unary minus: a missing or non-numeric operand
+ * yields null (never a plausible 0), and a division by zero yields null
+ * (never Infinity) — the same doctrine as the numeric functions.
  *
  * Still out of scope: aggregated values (query / kpi), windowing (previous
  * row, cumulative sum), user-defined functions.
@@ -718,12 +724,28 @@ function compareOrder(a: unknown, b: unknown): number | null {
   return as < bs ? -1 : as > bs ? 1 : 0;
 }
 
+/**
+ * Equality for `=` / `!=`: `looseEquals` of `where`, with one guard that
+ * `where` gets for free and `compute` does not. In `where` both sides are
+ * strings (`'' == '0'` is false); here a literal is a NUMBER, and
+ * `'' == 0` is true in JavaScript — `when montant = 0 then 'Nul'` was
+ * classing every blank cell as a zero (review of 2026-09-13). A blank
+ * string equals only another blank string — not null either: `''` is a
+ * value for `coalesce`, and `is_empty` exists to catch both.
+ */
+function computeEquals(l: unknown, r: unknown): boolean {
+  const lBlank = typeof l === 'string' && l.trim() === '';
+  const rBlank = typeof r === 'string' && r.trim() === '';
+  if (lBlank || rBlank) return lBlank && rBlank;
+  return looseEquals(l, r);
+}
+
 function evalCmp(op: CmpOp, l: unknown, r: unknown): boolean {
   switch (op) {
     case '=':
-      return looseEquals(l, r);
+      return computeEquals(l, r);
     case '!=':
-      return !looseEquals(l, r);
+      return !computeEquals(l, r);
     default: {
       const cmp = compareOrder(l, r);
       if (cmp === null) return false;
@@ -753,8 +775,10 @@ function evalNode(node: Node, row: Row): unknown {
       return node.value;
     case 'field':
       return Object.prototype.hasOwnProperty.call(row, node.name) ? row[node.name] : undefined;
-    case 'neg':
-      return -toNumber(evalNode(node.operand, row));
+    case 'neg': {
+      const n = numberish(evalNode(node.operand, row));
+      return n === null ? null : -n;
+    }
     case 'not':
       return !truthy(evalNode(node.operand, row));
     case 'and':
@@ -781,15 +805,20 @@ function evalNode(node: Node, row: Row): unknown {
         if (ln !== null && rn !== null) return ln + rn;
         return `${l ?? ''}${r ?? ''}`;
       }
-      const a = toNumber(l);
-      const b = toNumber(r);
+      // Same doctrine as the whitelisted functions (`numericFn`): a missing
+      // or non-numeric operand yields null, never a plausible 0. `toNumber`
+      // turned `actif - passif` with `passif: null` into `actif`, and
+      // `a / 0` into Infinity (review of 2026-09-13, same family as #301).
+      const a = numberish(l);
+      const b = numberish(r);
+      if (a === null || b === null) return null;
       switch (node.op) {
         case '-':
           return a - b;
         case '*':
           return a * b;
         case '/':
-          return a / b;
+          return b === 0 ? null : a / b;
       }
     }
   }

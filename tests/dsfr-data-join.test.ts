@@ -345,8 +345,11 @@ describe('DsfrDataJoin', () => {
         on: 'code',
         type: 'inner',
       });
-      // null == null → match
-      expect(result).toHaveLength(2);
+      // Sémantique SQL (revue du 2026-09-13) : une clé nulle n'apparie RIEN,
+      // pas même une autre clé nulle — « null == null → match » appariait
+      // toute ligne sans code à toute ligne sans code de l'autre côté.
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ code: '75', region: 'IDF', budget: 500 });
     });
 
     it('handles missing key fields', () => {

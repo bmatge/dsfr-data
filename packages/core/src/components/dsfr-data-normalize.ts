@@ -221,12 +221,16 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les
    *   signes usuels — grammaire complète dans le guide « Colonnes calculées » de la skill),
    *   `and`, `or`, `not`. L'égalité est lâche comme celle de `where` (nombre ↔ chaîne
-   *   numérique) : `when cat = 'A'` et `where="cat:eq:A"` gardent les mêmes lignes.
-   *   Les comparaisons d'ordre se font en nombre quand les deux côtés sont numériques,
-   *   en texte sinon (dates ISO comprises) ; null, undefined et '' ne matchent jamais.
+   *   numérique) : `when cat = 'A'` et `where="cat:eq:A"` gardent les mêmes lignes ;
+   *   une cellule vide n'égale jamais un nombre (`montant = 0` ne classe pas les
+   *   montants non renseignés en zéro). Les comparaisons d'ordre se font en nombre
+   *   quand les deux côtés sont numériques, en texte sinon (dates ISO comprises) ;
+   *   null, undefined et '' ne matchent jamais.
+   * - arithmétique `- * /` et moins unaire : un opérande absent ou non numérique rend
+   *   null (jamais un 0 plausible), une division par zéro rend null (jamais Infinity).
    *
-   * Exemples : `solde = actif - passif`,
-   * `tranche = when montant = 0 then 'Nul' when is_null(montant) then 'Inconnu' else 'Renseigné'`,
+   * Exemples : `solde = actif - passif` (null si l'un des deux manque),
+   * `tranche = when montant = 0 then 'Nul' when is_empty(montant) then 'Inconnu' else 'Renseigné'`,
    * `type = coalesce(type_entreprise, 'Non renseigné')`, `annee = year(date_notification)`,
    * `pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme` ; une tranche
    * par seuils s'écrit avec les opérateurs d'ordre (voir le guide).

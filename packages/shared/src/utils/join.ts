@@ -129,8 +129,13 @@ export function performJoinWithStats(
 
   // Index the right side by key
   const rightIndex = new Map<string, Row[]>();
+  let rightBlank = 0;
   for (const row of rightData) {
     const k = buildKey(row, rightKeyFields);
+    if (k === null) {
+      rightBlank += 1;
+      continue;
+    }
     if (!rightIndex.has(k)) rightIndex.set(k, []);
     rightIndex.get(k)!.push(row);
   }
@@ -141,7 +146,7 @@ export function performJoinWithStats(
   const matchedRightKeys = new Set<string>();
   for (const leftRow of leftData) {
     const k = buildKey(leftRow, leftKeyFields);
-    if (rightIndex.has(k)) {
+    if (k !== null && rightIndex.has(k)) {
       leftMatched += 1;
       matchedRightKeys.add(k);
     }
@@ -153,7 +158,7 @@ export function performJoinWithStats(
     leftTotal: leftData.length,
     rightMatched,
     rightTotal: rightData.length,
-    ...describeOrphans(leftData, leftKeyFields, rightIndex, matchedRightKeys),
+    ...describeOrphans(leftData, leftKeyFields, rightIndex, matchedRightKeys, rightBlank),
   };
 
   const result: Row[] = [];
@@ -161,7 +166,7 @@ export function performJoinWithStats(
   if (joinType === 'inner' || joinType === 'left') {
     for (const leftRow of leftData) {
       const k = buildKey(leftRow, leftKeyFields);
-      const matches = rightIndex.get(k);
+      const matches = k === null ? undefined : rightIndex.get(k);
       if (matches) {
         for (const rightRow of matches) {
           result.push(mergeRow(leftRow, rightRow, keys, collisions, prefixLeft, prefixRight));
@@ -174,12 +179,13 @@ export function performJoinWithStats(
     const leftIndex = new Map<string, Row[]>();
     for (const row of leftData) {
       const k = buildKey(row, leftKeyFields);
+      if (k === null) continue;
       if (!leftIndex.has(k)) leftIndex.set(k, []);
       leftIndex.get(k)!.push(row);
     }
     for (const rightRow of rightData) {
       const k = buildKey(rightRow, rightKeyFields);
-      const matches = leftIndex.get(k);
+      const matches = k === null ? undefined : leftIndex.get(k);
       if (matches) {
         for (const leftRow of matches) {
           result.push(mergeRow(leftRow, rightRow, keys, collisions, prefixLeft, prefixRight));
@@ -191,7 +197,7 @@ export function performJoinWithStats(
   } else if (joinType === 'full') {
     for (const leftRow of leftData) {
       const k = buildKey(leftRow, leftKeyFields);
-      const matches = rightIndex.get(k);
+      const matches = k === null ? undefined : rightIndex.get(k);
       if (matches) {
         for (const rightRow of matches) {
           result.push(mergeRow(leftRow, rightRow, keys, collisions, prefixLeft, prefixRight));
@@ -202,7 +208,7 @@ export function performJoinWithStats(
     }
     for (const rightRow of rightData) {
       const k = buildKey(rightRow, rightKeyFields);
-      if (!matchedRightKeys.has(k)) {
+      if (k === null || !matchedRightKeys.has(k)) {
         result.push(mergeRow(null, rightRow, keys, collisions, prefixLeft, prefixRight));
       }
     }
@@ -235,20 +241,29 @@ function describeOrphans(
   leftData: Row[],
   leftKeyFields: string[],
   rightIndex: Map<string, Row[]>,
-  matchedRightKeys: Set<string>
+  matchedRightKeys: Set<string>,
+  rightBlank: number
 ): Pick<JoinStats, 'leftOrphans' | 'rightOrphans' | 'keyFormatMismatch'> {
   const leftOrphanKeys = new Set<string>();
   for (const row of leftData) {
     const k = buildKey(row, leftKeyFields);
-    if (!rightIndex.has(k)) leftOrphanKeys.add(k);
+    // Une clé vide est orpheline par définition : elle apparaît une fois
+    // dans l'échantillon, sous son libellé, pour que le lecteur la voie.
+    if (k === null) leftOrphanKeys.add(BLANK_KEY_LABEL);
+    else if (!rightIndex.has(k)) leftOrphanKeys.add(k);
   }
   const rightOrphanKeys = [...rightIndex.keys()].filter((k) => !matchedRightKeys.has(k));
+  if (rightBlank > 0) rightOrphanKeys.push(BLANK_KEY_LABEL);
   if (leftOrphanKeys.size === 0 && rightOrphanKeys.length === 0) return {};
 
-  const rightCanonical = new Set(rightOrphanKeys.map(canonicalKey));
+  // Le libellé de clé vide n'est pas une graphie : deux côtés sans code ne
+  // sont pas « la même clé écrite autrement ».
+  const rightCanonical = new Set(
+    rightOrphanKeys.filter((k) => k !== BLANK_KEY_LABEL).map(canonicalKey)
+  );
   let keyFormatMismatch = false;
   for (const k of leftOrphanKeys) {
-    if (rightCanonical.has(canonicalKey(k))) {
+    if (k !== BLANK_KEY_LABEL && rightCanonical.has(canonicalKey(k))) {
       keyFormatMismatch = true;
       break;
     }
@@ -264,9 +279,27 @@ function describeOrphans(
   };
 }
 
-function buildKey(row: Row, fields: string[]): string {
-  return fields.map((f) => String(row[f] ?? '')).join('|');
+/**
+ * Clé d'appariement d'une ligne, ou null si un segment est absent, null ou
+ * vide — sémantique SQL : une clé vide n'apparie RIEN, pas même une autre
+ * clé vide. `String(row[f] ?? '')` appariait toute ligne sans code à toute
+ * ligne sans code de l'autre côté, et ces lignes n'étaient jamais comptées
+ * orphelines (revue du 2026-09-13, sur le diagnostic de #792).
+ */
+function buildKey(row: Row, fields: string[]): string | null {
+  const segments: string[] = [];
+  for (const f of fields) {
+    const v = row[f];
+    if (v === null || v === undefined) return null;
+    const s = String(v);
+    if (s.trim() === '') return null;
+    segments.push(s);
+  }
+  return segments.join('|');
 }
+
+/** Libellé d'une clé vide dans les échantillons d'orphelins. */
+const BLANK_KEY_LABEL = '(clé vide)';
 
 function detectCollisions(
   leftRow: Row | null,
