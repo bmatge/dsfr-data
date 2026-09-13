@@ -162,6 +162,9 @@ describe('les codes non padés ne déclenchent plus de faux avertissement', () =
     expect(normalizeDeptCode(13)).toBe('13');
     // Ne touche ni a la Corse ni a l'outre-mer.
     expect(normalizeDeptCode('2A')).toBe('2A');
+    // `2a` minuscule : `02a` devenait `2A` mais `2a` restait `2a`, invalide (revue 2026-09-13)
+    expect(normalizeDeptCode('2a')).toBe('2A');
+    expect(normalizeDeptCode(' 2b ')).toBe('2B');
     expect(normalizeDeptCode('971')).toBe('971');
     expect(normalizeDeptCode(null)).toBe('');
   });

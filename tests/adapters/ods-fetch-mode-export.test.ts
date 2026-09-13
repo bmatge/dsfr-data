@@ -263,6 +263,40 @@ describe('#689 — AC : repli sur /records quand l’export echoue', () => {
     expect(calledUrl(0)).toContain('/records');
   });
 
+  it('429 ou 5xx : repli cette fois-ci, mais l’export est retente au chargement suivant (revue 2026-09-13)', async () => {
+    const adapter = new OpenDataSoftAdapter();
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 429, statusText: 'Too Many Requests' });
+    mockRecordsPage(30, 30);
+    await adapter.fetchAll(makeParams({ fetchMode: 'export' }), new AbortController().signal);
+    expect(calledUrl(0)).toContain('/exports/json');
+    expect(calledUrl(1)).toContain('/records');
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('sera retente'));
+
+    // Un 429 est transitoire : la session ne condamne pas l'export pour ce jeu.
+    mockFetch.mockClear();
+    mockExport(30);
+    await adapter.fetchAll(makeParams({ fetchMode: 'export' }), new AbortController().signal);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(calledUrl(0)).toContain('/exports/json');
+  });
+
+  it('un select purement agrege passe par /records en une ligne, jamais par l’export (revue 2026-09-13)', async () => {
+    // L'export telechargeait cap + 1 copies de la meme valeur et signalait une troncature a tort.
+    const adapter = new OpenDataSoftAdapter();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ results: [{ n: 42 }], total_count: 1000 }),
+    });
+    const result = await adapter.fetchAll(
+      makeParams({ fetchMode: 'export', select: 'count(*) as n' }),
+      new AbortController().signal
+    );
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(calledUrl(0)).toContain('/records');
+    expect(calledUrl(0)).not.toContain('/exports/json');
+    expect(result.truncated).toBeFalsy();
+  });
+
   it('400 de clause : meme repli', async () => {
     const adapter = new OpenDataSoftAdapter();
     mockFetch.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'Bad Request' });

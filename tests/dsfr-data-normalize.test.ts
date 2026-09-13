@@ -1118,6 +1118,28 @@ describe('DsfrDataNormalize', () => {
       });
     });
 
+    it('signale une entree malformee UNE fois par valeur, et efface l’erreur une fois corrigee (revue 2026-09-13)', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      normalize.id = 'test-normalize';
+      normalize.source = 'test-source';
+      normalize.fold = 'han*cap:h, handicap_*:handicaps';
+      normalize.connectedCallback();
+
+      dispatchDataLoaded('test-source', HANDICAP_ROWS);
+      dispatchDataLoaded('test-source', HANDICAP_ROWS);
+      dispatchDataLoaded('test-source', HANDICAP_ROWS);
+      // Trois lots, un seul signalement : l'attribut n'a pas change.
+      const foldErrors = errorSpy.mock.calls.filter((c) => String(c[0]).includes('han*cap'));
+      expect(foldErrors).toHaveLength(1);
+      expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(true);
+
+      // L'attribut est corrige : l'erreur disparait au lot suivant.
+      normalize.fold = 'handicap_*:handicaps';
+      dispatchDataLoaded('test-source', HANDICAP_ROWS);
+      expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(false);
+      errorSpy.mockRestore();
+    });
+
     it('folds four Oui/Non columns into one array of labels (variable part of the pattern)', () => {
       normalize.id = 'test-normalize';
       normalize.source = 'test-source';

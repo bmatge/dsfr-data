@@ -308,10 +308,18 @@ describe('DsfrDataFacets', () => {
         ]);
       });
 
-      it('une valeur inconnue retombe sur count:desc', () => {
+      it('une valeur inconnue retombe sur count:desc, et le dit une fois (revue 2026-09-13)', () => {
         facets.sort = 'bidule';
         const sorted = facets._sortValues(testValues);
         expect(sorted.map((v) => v.value)).toEqual(['Abricot', 'Banane', 'Cerise']);
+        // `sort="alpah"` retombait en silence sur count : une faute de frappe
+        // doit se voir, une seule fois par valeur.
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        const message = String(warnSpy.mock.calls[0][0]);
+        expect(message).toContain('sort="bidule"');
+        expect(message).toContain('« bidule » inconnu');
+        facets._sortValues(testValues);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
       });
 
       it("-count (deprecie) conserve son sens historique (rare d'abord) et avertit une seule fois", () => {
@@ -427,7 +435,6 @@ describe('DsfrDataFacets', () => {
           ['alpha', { by: 'alpha', dir: 'asc' }],
           ['count:asc', { by: 'count', dir: 'asc' }],
           ['alpha:desc', { by: 'alpha', dir: 'desc' }],
-          ['bidule', { by: 'count', dir: 'desc' }],
         ] as const) {
           facets.sort = raw;
           const parsed = facets._parseSort();
@@ -435,6 +442,15 @@ describe('DsfrDataFacets', () => {
           expect(parsed.fallback, `sort="${raw}"`).toEqual(expected);
         }
         expect(warnSpy).not.toHaveBeenCalled();
+
+        // Un critere inconnu reste global et retombe sur count:desc, mais ne
+        // se tait plus (revue 2026-09-13).
+        facets.sort = 'bidule';
+        const parsed = facets._parseSort();
+        expect(parsed.byField.size).toBe(0);
+        expect(parsed.fallback).toEqual({ by: 'count', dir: 'desc' });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(String(warnSpy.mock.calls[0][0])).toContain('« bidule » inconnu');
       });
 
       it('la forme depreciee -count reste globale et avertit', () => {

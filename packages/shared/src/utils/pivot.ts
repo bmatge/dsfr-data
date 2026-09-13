@@ -158,7 +158,9 @@ function reduceCell(values: unknown[], aggregate: PivotAggregate): unknown {
   if (values.length === 0) return null;
   switch (aggregate) {
     case 'count':
-      return values.length;
+      // Comme `countDistinct` et `sum` : une cellule vide ne compte pas
+      // (revue du 2026-09-13).
+      return values.filter((v) => !isBlank(v)).length;
     case 'first':
       return values[0] === undefined ? null : values[0];
     case 'last':

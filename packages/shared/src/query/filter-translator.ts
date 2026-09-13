@@ -99,6 +99,17 @@ export function looseEquals(a: unknown, b: unknown): boolean {
   return String(a) === String(b);
 }
 
+/**
+ * Variante « tableau contient » (#673) : un champ TABLEAU (tags, catégories
+ * multiples) matche si l'un de ses éléments est égal — `count:tags:urgent`
+ * compte les lignes dont les tags contiennent « urgent ». Réservée aux
+ * agrégations du KPI ; `where` et `compute` gardent l'égalité stricte.
+ */
+export function looseEqualsOrContains(a: unknown, b: unknown): boolean {
+  if (Array.isArray(a)) return a.some((el) => looseEqualsOrContains(el, b));
+  return looseEquals(a, b);
+}
+
 function isNumericValue(v: unknown): boolean {
   if (typeof v === 'number') return !isNaN(v);
   if (typeof v === 'string') return v.trim() !== '' && !isNaN(Number(v));

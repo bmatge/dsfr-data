@@ -269,13 +269,16 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * de l'export retombe une fois sur la pagination `/records` ci-dessous.
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
+    // Un `select` purement agrégé se lit en UNE ligne : il passe AVANT le
+    // chemin export, qui telechargerait `cap + 1` copies de la meme valeur
+    // et signalerait une troncature a tort (revue du 2026-09-13).
+    const aggregateOnly = aggregateOnlySelect(params);
+    if (aggregateOnly) return this._fetchAggregateOnly(params, aggregateOnly, signal);
+
     if (params.fetchMode === 'export' && !this._exportUnavailable.has(this._datasetKey(params))) {
       const exported = await this._fetchViaExport(params, signal);
       if (exported) return exported;
     }
-
-    const aggregateOnly = aggregateOnlySelect(params);
-    if (aggregateOnly) return this._fetchAggregateOnly(params, aggregateOnly, signal);
 
     const fetchAllRecords = params.limit <= 0;
     const isGrouped = Boolean(params.groupBy);
@@ -731,11 +734,17 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
     if (!response.ok) {
-      this._exportUnavailable.add(this._datasetKey(params));
+      // Seule une reponse 4xx (hors 429) dit que l'export n'existe pas pour ce
+      // jeu : un 429 ou un 5xx est transitoire, on replie cette fois-ci sans
+      // condamner l'export pour la session (revue du 2026-09-13).
+      const definitive = response.status >= 400 && response.status < 500 && response.status !== 429;
+      if (definitive) this._exportUnavailable.add(this._datasetKey(params));
       console.warn(
         `[dsfr-data] opendatasoft: export JSON indisponible pour "${params.datasetId}" ` +
-          `(HTTP ${response.status} ${response.statusText}) — repli sur /records pour cette source, ` +
-          `l'export ne sera plus retente (fetch-mode="export", #689)`
+          `(HTTP ${response.status} ${response.statusText}) — repli sur /records pour cette source` +
+          (definitive
+            ? `, l'export ne sera plus retente (fetch-mode="export", #689)`
+            : `, l'export sera retente au prochain chargement`)
       );
       return null;
     }

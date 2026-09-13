@@ -3,6 +3,7 @@ import {
   applyLocalFilter,
   validateColonFilter,
   isIsoDateString,
+  looseEqualsOrContains,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from './json-path.js';
 
@@ -519,15 +520,7 @@ function collectIsoDates(items: Record<string, unknown>[], field: string): strin
 }
 
 /**
- * Egalite lache alignee sur dsfr-data-query (#278/#303). Un champ TABLEAU
- * (tags, catégories multiples) matche si l'un de ses éléments est égal
- * (sémantique contains, #673) : `count:tags:urgent` compte les lignes dont
- * les tags contiennent « urgent ».
+ * Egalite lache alignee sur dsfr-data-query (#278/#303), variante « tableau
+ * contient » (#673) : definition unique dans shared (revue du 2026-09-13).
  */
-function looseEquals(a: unknown, b: unknown): boolean {
-  if (Array.isArray(a)) return a.some((el) => looseEquals(el, b));
-  if (a === null || a === undefined) return b === null || b === undefined;
-  // eslint-disable-next-line eqeqeq -- coercition lache intentionnelle
-  if (a == b) return true;
-  return String(a) === String(b);
-}
+const looseEquals = looseEqualsOrContains;

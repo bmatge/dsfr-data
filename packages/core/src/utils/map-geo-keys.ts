@@ -17,6 +17,7 @@
  * aucune traduction ne peut les faire apparaître, ils sont comptés comme
  * ignorés. Demande à porter chez GouvernementFR/dsfr-chart.
  */
+import { stripAccents } from '@dsfr-data/shared/lib';
 
 /** Les 30 académies du découpage `aca` de DSFR Chart 2.1. */
 const ACADEMY_KEYS: ReadonlySet<string> = new Set([
@@ -142,9 +143,7 @@ const ACADEMY_PREFIX = /^ACADEMIE\s+(?:DE\s+LA\s+|DE\s+L'|DES\s+|DE\s+|DU\s+|D')
  * une seule normalisation pour tous les référentiels géographiques.
  */
 export function normalizeGeoLabel(raw: string): string {
-  return raw
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return stripAccents(raw)
     .replace(/[\u2019\u02bc\u00b4`]/g, "'")
     .toUpperCase()
     .replace(/\s+/g, ' ')

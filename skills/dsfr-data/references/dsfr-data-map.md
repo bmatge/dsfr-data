@@ -289,7 +289,7 @@ Recette annuaire (la carte filtre la liste) :
     tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune">
   </dsfr-data-map-layer>
 </dsfr-data-map>
-<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+<dsfr-data-list source="etablissements" columns="nom,adresse,commune"></dsfr-data-list>
 ```
 
 Piege : si la source de la carte est AUSSI dans `sources` du contexte, la carte se filtre

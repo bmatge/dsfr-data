@@ -124,6 +124,17 @@ describe('performPivot (logique pure)', () => {
     expect(lyon['2023']).toBe(expected);
   });
 
+  it('count ignore les cellules vides, comme sum et count-distinct (revue 2026-09-13)', () => {
+    const data: Row[] = [
+      { commune: 'Lyon', annee: 2023, montant: 3 },
+      { commune: 'Lyon', annee: 2023, montant: null },
+      { commune: 'Lyon', annee: 2023, montant: '' },
+      { commune: 'Lyon', annee: 2023, montant: 'NC' }, // non numérique mais renseigné : compte
+    ];
+    const { rows } = performPivot(data, { ...BASE, aggregate: 'count' });
+    expect(rows[0]['2023']).toBe(2);
+  });
+
   it('min / max sur des valeurs non numériques : ordre lexicographique (dates ISO)', () => {
     const data = [
       { k: 'a', c: 'x', d: '2026-03-01' },

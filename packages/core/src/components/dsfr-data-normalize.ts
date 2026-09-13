@@ -413,8 +413,16 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       // Fold (#677) : parse une fois par lot ; une entree malformee est signalee
       // (console + data-dsfr-config-error) et ignoree, les autres s'appliquent.
       const { rules: foldRules, errors: foldErrors } = this._parseFold();
-      for (const message of foldErrors) {
-        reportConfigError(this, `dsfr-data-normalize[${this.id}]`, message);
+      // Signalees UNE fois par valeur de l'attribut (pas a chaque lot), et
+      // effacees quand l'attribut est corrige (revue du 2026-09-13).
+      if (foldErrors.length > 0 && this._foldErrorsReportedFor !== this.fold) {
+        this._foldErrorsReportedFor = this.fold;
+        for (const message of foldErrors) {
+          reportConfigError(this, `dsfr-data-normalize[${this.id}]`, message);
+        }
+      } else if (foldErrors.length === 0 && this._foldErrorsReportedFor !== null) {
+        this._foldErrorsReportedFor = null;
+        if (!this._computeConfigError) clearConfigError(this);
       }
       // Compile once per batch (not per row). Compute runs LAST, on already-typed
       // values, so `valeur * 100` sees a number and `a + ' / ' + b` concatenates.
@@ -629,6 +637,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    */
   /** Séparateurs suspects déjà signalés, par attribut et valeur (#772). */
   private _separatorWarned = new Set<string>();
+
+  /** Valeur de `fold` dont les erreurs ont deja ete signalees, ou null. */
+  private _foldErrorsReportedFor: string | null = null;
 
   _parseFold(): ParsedFold {
     const rules: FoldRule[] = [];

@@ -81,7 +81,7 @@ est emis a chaque bascule (bubbles, composed). Meme chose sur `dsfr-data-display
 <dsfr-data-context id="ctx" sources="details" url-sync></dsfr-data-context>
 <dsfr-data-list source="communes" columns="commune:Commune, population:Population"
   refine-on-click="commune" context="ctx"></dsfr-data-list>
-<dsfr-data-context-tags context="ctx"></dsfr-data-context-tags>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
 <dsfr-data-chart source="details" type="bar" label-field="annee" value-field="valeur"></dsfr-data-chart>
 ```
 
