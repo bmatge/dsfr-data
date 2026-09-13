@@ -14,6 +14,7 @@
  * Partagé (lib-safe) : `fold` de `dsfr-data-normalize`, et tout composant qui
  * doit lire une colonne booléenne sans connaître sa convention d'écriture.
  */
+import { stripAccents } from './strip-accents.js';
 
 /** Formes écrites de « non » (comparées après trim, minuscules, sans accents). */
 const FALSY_TOKENS: ReadonlySet<string> = new Set([
@@ -68,11 +69,7 @@ export function toBoolean(value: unknown): boolean {
   if (Array.isArray(value)) return value.length > 0;
   if (typeof value !== 'string') return true;
 
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  const normalized = stripAccents(value.trim().toLowerCase());
   if (FALSY_TOKENS.has(normalized)) return false;
   if (SIMPLE_NUMBER_RE.test(normalized)) {
     return parseFloat(normalized.replace(',', '.')) !== 0;

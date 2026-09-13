@@ -41,6 +41,8 @@ export function isValidDeptCode(code: string | null | undefined): boolean {
 export function normalizeDeptCode(raw: string | number | null | undefined): string {
   if (raw === null || raw === undefined) return '';
   const code = String(raw).trim();
+  // `2a` / `2b` : seule la majuscule est un code valide, comme `02a` → `2A`.
+  if (/^2[ab]$/i.test(code)) return code.toUpperCase();
   if (/^\d+$/.test(code) && code.length < 3) return code.padStart(2, '0');
   const padded = /^0(\d{2}|2[AB]|97\d)$/i.exec(code);
   if (padded) {

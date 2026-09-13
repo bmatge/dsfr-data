@@ -1067,7 +1067,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       return { by, dir };
     }
     const [byPart, dirPart] = raw.split(':');
-    const by = byPart.trim() === 'alpha' ? 'alpha' : 'count';
+    const byKey = byPart.trim();
+    if (byKey !== 'alpha' && byKey !== 'count' && !this._deprecatedSortWarned.has(raw)) {
+      // Une faute de frappe retombait en silence sur `count` (revue 2026-09-13).
+      this._deprecatedSortWarned.add(raw);
+      console.warn(
+        `dsfr-data-facets: sort="${raw}" — critère « ${byKey} » inconnu, ` +
+          `tri par fréquence appliqué. Critères : count, alpha (ex. sort="alpha:asc").`
+      );
+    }
+    const by = byKey === 'alpha' ? 'alpha' : 'count';
     const defaultDir = by === 'count' ? 'desc' : 'asc';
     const trimmedDir = (dirPart ?? '').trim();
     const dir = trimmedDir === 'asc' || trimmedDir === 'desc' ? trimmedDir : defaultDir;

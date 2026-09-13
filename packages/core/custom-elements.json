@@ -13740,6 +13740,16 @@
               "description": "Séparateurs suspects déjà signalés, par attribut et valeur (#772)."
             },
             {
+              "kind": "field",
+              "name": "_foldErrorsReportedFor",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur de `fold` dont les erreurs ont deja ete signalees, ou null."
+            },
+            {
               "kind": "method",
               "name": "_parseFold",
               "return": {
@@ -15362,31 +15372,6 @@
                   }
                 }
               ]
-            },
-            {
-              "kind": "method",
-              "name": "_looseEquals",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "boolean"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "a",
-                  "type": {
-                    "text": "unknown"
-                  }
-                },
-                {
-                  "name": "b",
-                  "type": {
-                    "text": "unknown"
-                  }
-                }
-              ],
-              "description": "Egalite unique du pipeline de filtres (#278) : coercition lache\nstring/number (`\"75\" == 75`), repli `String === String` pour les\nbooleens (`true` vs `\"true\"` — le `==` JS les déclaré differents).\nUtilisée par eq, neq, in, notin : meme entree, memes lignes gardees."
             },
             {
               "kind": "method",

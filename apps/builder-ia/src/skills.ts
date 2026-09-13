@@ -1732,7 +1732,7 @@ est emis a chaque bascule (bubbles, composed). Meme chose sur \`dsfr-data-displa
 <dsfr-data-context id="ctx" sources="details" url-sync></dsfr-data-context>
 <dsfr-data-list source="communes" columns="commune:Commune, population:Population"
   refine-on-click="commune" context="ctx"></dsfr-data-list>
-<dsfr-data-context-tags context="ctx"></dsfr-data-context-tags>
+<dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
 <dsfr-data-chart source="details" type="bar" label-field="annee" value-field="valeur"></dsfr-data-chart>
 \`\`\`
 
@@ -3208,7 +3208,7 @@ Recette annuaire (la carte filtre la liste) :
     tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune">
   </dsfr-data-map-layer>
 </dsfr-data-map>
-<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+<dsfr-data-list source="etablissements" columns="nom,adresse,commune"></dsfr-data-list>
 \`\`\`
 
 Piege : si la source de la carte est AUSSI dans \`sources\` du contexte, la carte se filtre

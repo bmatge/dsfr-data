@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { isUnsafeKey, toNumber } from '@dsfr-data/shared/lib';
+import { isUnsafeKey, toNumber, looseEquals } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
@@ -1093,19 +1093,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return val;
   }
 
-  /**
-   * Egalite unique du pipeline de filtres (#278) : coercition lache
-   * string/number (`"75" == 75`), repli `String === String` pour les
-   * booleens (`true` vs `"true"` — le `==` JS les déclaré differents).
-   * Utilisée par eq, neq, in, notin : meme entree, memes lignes gardees.
-   */
-  private _looseEquals(a: unknown, b: unknown): boolean {
-    if (a === null || a === undefined) return b === null || b === undefined;
-    // eslint-disable-next-line eqeqeq -- coercition lache intentionnelle
-    if (a == b) return true;
-    return String(a) === String(b);
-  }
-
   /** True si la valeur est interpretable comme nombre (hors null/''). */
   private _isNumericValue(v: unknown): boolean {
     if (typeof v === 'number') return !isNaN(v);
@@ -1132,9 +1119,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
     switch (filter.operator) {
       case 'eq':
-        return this._looseEquals(value, filter.value);
+        return looseEquals(value, filter.value);
       case 'neq':
-        return !this._looseEquals(value, filter.value);
+        return !looseEquals(value, filter.value);
       case 'gt': {
         const cmp = this._compareForRange(value, filter.value);
         return cmp !== null && cmp > 0;
@@ -1171,14 +1158,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           value !== null &&
           value !== undefined &&
           Array.isArray(filter.value) &&
-          filter.value.some((v) => this._looseEquals(value, v))
+          filter.value.some((v) => looseEquals(value, v))
         );
       case 'notin':
         return (
           value === null ||
           value === undefined ||
           !Array.isArray(filter.value) ||
-          !filter.value.some((v) => this._looseEquals(value, v))
+          !filter.value.some((v) => looseEquals(value, v))
         );
       case 'isnull':
         return value === null || value === undefined;

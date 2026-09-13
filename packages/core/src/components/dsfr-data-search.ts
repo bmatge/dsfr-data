@@ -1,6 +1,6 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { escapeHtml, formatNumber } from '@dsfr-data/shared/lib';
+import { escapeHtml, formatNumber, stripAccents } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeColonValue } from '../utils/where.js';
@@ -671,11 +671,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   _normalize(str: string): string {
-    return String(str)
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .trim();
+    return stripAccents(String(str)).toLowerCase().trim();
   }
 
   _getFields(): string[] {

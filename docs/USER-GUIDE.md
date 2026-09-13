@@ -820,7 +820,7 @@ Avec `refine-on-click="champ"` et `context="id"`, la couche devient un **filtre 
   <dsfr-data-map-layer source="etablissements-carte" type="marker" geo-field="geo_point_2d"
     tooltip-field="commune" refine-on-click="commune" context="ctx" label="Commune"></dsfr-data-map-layer>
 </dsfr-data-map>
-<dsfr-data-list source="etablissements" fields="nom,adresse,commune"></dsfr-data-list>
+<dsfr-data-list source="etablissements" columns="nom,adresse,commune"></dsfr-data-list>
 ```
 
 Points d'attention :
