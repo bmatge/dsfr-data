@@ -213,7 +213,7 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `seuil-orange` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-orange` (#300) |
 | `seuil-vert` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-green` (#300) |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si `value` est un littéral (`value="=667"`). |
-| `span` | `string` | `""` (vide) | Largeur sur la grille de 12 colonnes (1-12), dans un <dsfr-data-kpi-group> : `span="6"` occupe la moitié de la ligne. Remplace `col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble. |
+| `span` | `string \| undefined` | — | Largeur sur la grille de 12 colonnes (1-12), dans un <dsfr-data-kpi-group> : `span="6"` occupe la moitié de la ligne. Remplace `col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble. Sans valeur par défaut, et pour la même raison que `col` : la propriété est reflétée, donc une valeur initiale `''` poserait `span=""` sur CHAQUE KPI. La largeur par défaut du groupe est portée par une règle `::slotted(*:not([col]):not([span]))` — un attribut vide, mais présent, la désactive et tous les KPI retombent en `grid-column: auto` (#822). |
 | `tendance` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `trend` (#300) |
 | `threshold-green` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est verte |
 | `threshold-orange` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est orange |
