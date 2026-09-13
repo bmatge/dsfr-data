@@ -7569,10 +7569,9 @@
               "kind": "field",
               "name": "span",
               "type": {
-                "text": "string"
+                "text": "string | undefined"
               },
-              "default": "''",
-              "description": "Largeur sur la grille de 12 colonnes (1-12), dans un\n<dsfr-data-kpi-group> : `span=\"6\"` occupe la moitié de la ligne. Remplace\n`col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.",
+              "description": "Largeur sur la grille de 12 colonnes (1-12), dans un\n<dsfr-data-kpi-group> : `span=\"6\"` occupe la moitié de la ligne. Remplace\n`col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.\n\nSans valeur par défaut, et pour la même raison que `col` : la propriété\nest reflétée, donc une valeur initiale `''` poserait `span=\"\"` sur CHAQUE\nKPI. La largeur par défaut du groupe est portée par une règle\n`::slotted(*:not([col]):not([span]))` — un attribut vide, mais présent,\nla désactive et tous les KPI retombent en `grid-column: auto` (#822).",
               "attribute": "span",
               "reflects": true
             },
@@ -7986,10 +7985,9 @@
             {
               "name": "span",
               "type": {
-                "text": "string"
+                "text": "string | undefined"
               },
-              "default": "''",
-              "description": "Largeur sur la grille de 12 colonnes (1-12), dans un\n<dsfr-data-kpi-group> : `span=\"6\"` occupe la moitié de la ligne. Remplace\n`col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.",
+              "description": "Largeur sur la grille de 12 colonnes (1-12), dans un\n<dsfr-data-kpi-group> : `span=\"6\"` occupe la moitié de la ligne. Remplace\n`col`, même sens (#790) ; prime sur `col` s'ils sont posés ensemble.\n\nSans valeur par défaut, et pour la même raison que `col` : la propriété\nest reflétée, donc une valeur initiale `''` poserait `span=\"\"` sur CHAQUE\nKPI. La largeur par défaut du groupe est portée par une règle\n`::slotted(*:not([col]):not([span]))` — un attribut vide, mais présent,\nla désactive et tous les KPI retombent en `grid-column: auto` (#822).",
               "fieldName": "span"
             },
             {
@@ -12690,6 +12688,16 @@
             },
             {
               "kind": "field",
+              "name": "_heightBeforeFullscreen",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Hauteur inline du conteneur avant le plein écran, à rétablir en sortant (#825)."
+            },
+            {
+              "kind": "field",
               "name": "_tilesSwitcherWarned",
               "type": {
                 "text": "string | null"
@@ -12926,6 +12934,20 @@
               "name": "_onFullscreenChange",
               "privacy": "private",
               "description": "Entrée ou sortie du plein écran, quelle qu'en soit la cause (bouton,\nÉchap, geste du navigateur) : met le bouton à jour, annonce, recalcule la\ntaille de la carte et notifie la page."
+            },
+            {
+              "kind": "method",
+              "name": "_applyFullscreenLayout",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "on",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Hauteur du volet principal en plein écran (#825). Les encarts (#643) sont\ndes flottants qui s'écoulent SOUS le volet ; en plein écran, le volet doit\ndonc prendre la hauteur de l'écran moins la rangée d'encarts, sans quoi\ncelle-ci déborde et se fait rogner par l'`overflow: hidden` de l'hôte.\n\nLa hauteur des encarts ne dépend pas de celle du volet — seule leur\nordonnée bouge — on peut donc la mesurer avant de reposer le volet. On\nprend l'enveloppe (du plus haut au plus bas) plutôt que le maximum des\nhauteurs : sur une carte étroite, les encarts passent à la ligne."
             },
             {
               "kind": "field",

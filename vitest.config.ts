@@ -29,11 +29,17 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['packages/core/src/**/*.ts'],
+      // `packages/shared/src` etait hors seuil alors que la lib y vit autant que
+      // dans core (debug/, compute, pivot, join, export-html) : rien n'empechait
+      // sa couverture de s'eroder (revue du 2026-09-13). Mesure a l'ajout :
+      // 89.6 / 83.7 / 91.8 / 91.2 — les seuils tiennent sans etre abaisses.
+      include: ['packages/core/src/**/*.ts', 'packages/shared/src/**/*.ts'],
       exclude: [
         'packages/core/src/index.ts',
         'packages/core/src/index-*.ts',
         'packages/core/src/components/layout/**',
+        'packages/shared/src/index.ts',
+        'packages/shared/src/lib.ts',
       ],
       reporter: ['text', 'html'],
       thresholds: {

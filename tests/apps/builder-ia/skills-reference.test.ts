@@ -21,8 +21,9 @@
  * (2) ; le renommer sans toucher au JSDoc fait echouer (1).
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import type { LitElement } from 'lit';
 
 import { SKILLS } from '../../../apps/builder-ia/src/skills';
 import {
@@ -35,69 +36,40 @@ import {
   type CemManifest,
 } from '../../../scripts/lib/cem-reference';
 
-import { DsfrDataSource } from '@/components/dsfr-data-source.js';
-import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
-import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
-import { DsfrDataKpiGroup } from '@/components/dsfr-data-kpi-group.js';
-import { DsfrDataList } from '@/components/dsfr-data-list.js';
-import { DsfrDataChart } from '@/components/dsfr-data-chart.js';
-import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
-import { DsfrDataFacets } from '@/components/dsfr-data-facets.js';
-import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
-import { DsfrDataSearch } from '@/components/dsfr-data-search.js';
-import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
-import { DsfrDataJoin } from '@/components/dsfr-data-join.js';
-import { DsfrDataConcat } from '@/components/dsfr-data-concat.js';
-import { DsfrDataContext } from '@/components/dsfr-data-context.js';
-import { DsfrDataContextFilter } from '@/components/dsfr-data-context-filter.js';
-import { DsfrDataContextTags } from '@/components/dsfr-data-context-tags.js';
-import { DsfrDataContextValue } from '@/components/dsfr-data-context-value.js';
-import { DsfrDataUnpivot } from '@/components/dsfr-data-unpivot.js';
-import { DsfrDataPivot } from '@/components/dsfr-data-pivot.js';
-import { DsfrDataMap } from '@/components/dsfr-data-map.js';
-import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
-import { DsfrDataMapPopup } from '@/components/dsfr-data-map-popup.js';
-import { DsfrDataMapInset } from '@/components/dsfr-data-map-inset.js';
-import { DsfrDataMapLegend } from '@/components/dsfr-data-map-legend.js';
-import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
-import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
-import { DsfrDataBeacon } from '@/components/dsfr-data-beacon.js';
-
 /** `id` est un attribut HTML standard : Lit ne le declare pas, le manifeste non plus. */
 const IGNORED_ATTRS = new Set(['id']);
 
-/** Les 25 composants `dsfr-data-*` et leur classe Lit. */
-const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
-  [
-    ['dsfr-data-a11y', DsfrDataA11y],
-    ['dsfr-data-beacon', DsfrDataBeacon],
-    ['dsfr-data-chart', DsfrDataChart],
-    ['dsfr-data-context', DsfrDataContext],
-    ['dsfr-data-context-filter', DsfrDataContextFilter],
-    ['dsfr-data-context-tags', DsfrDataContextTags],
-    ['dsfr-data-context-value', DsfrDataContextValue],
-    ['dsfr-data-display', DsfrDataDisplay],
-    ['dsfr-data-facets', DsfrDataFacets],
-    ['dsfr-data-join', DsfrDataJoin],
-    ['dsfr-data-concat', DsfrDataConcat],
-    ['dsfr-data-kpi', DsfrDataKpi],
-    ['dsfr-data-kpi-group', DsfrDataKpiGroup],
-    ['dsfr-data-list', DsfrDataList],
-    ['dsfr-data-map', DsfrDataMap],
-    ['dsfr-data-map-inset', DsfrDataMapInset],
-    ['dsfr-data-map-legend', DsfrDataMapLegend],
-    ['dsfr-data-map-layer', DsfrDataMapLayer],
-    ['dsfr-data-map-popup', DsfrDataMapPopup],
-    ['dsfr-data-map-timeline', DsfrDataMapTimeline],
-    ['dsfr-data-normalize', DsfrDataNormalize],
-    ['dsfr-data-pivot', DsfrDataPivot],
-    ['dsfr-data-podium', DsfrDataPodium],
-    ['dsfr-data-query', DsfrDataQuery],
-    ['dsfr-data-search', DsfrDataSearch],
-    ['dsfr-data-source', DsfrDataSource],
-    ['dsfr-data-unpivot', DsfrDataUnpivot],
-  ] as Array<[string, unknown]>
-).map(([tag, cls]) => [tag, cls as typeof DsfrDataSource]);
+const COMPONENTS_DIR = resolve(__dirname, '../../../packages/core/src/components');
+
+/**
+ * Charge TOUS les modules de composants, sans liste a tenir a la main.
+ *
+ * L'ancienne liste de 27 imports explicites etait exhaustive par discipline,
+ * pas par construction : une classe ajoutee sans etre inscrite ici echappait
+ * au controle (1) sans rien faire echouer (revue du 2026-09-13). Le barrel de
+ * la lib importe chaque composant (c'est ce qu'un integrateur charge), donc
+ * chacun s'enregistre dans `customElements` avant la decouverte des tags.
+ */
+import '@/index.js';
+
+type ComponentClass = typeof LitElement;
+
+/**
+ * Les composants `dsfr-data-*` et leur classe Lit, decouverts par le
+ * repertoire (meme motif que `tests/transformer-mixin.test.ts`) : le tag est
+ * lu dans le decorateur `@customElement`, la classe dans le registre.
+ */
+const COMPONENTS: Array<[string, ComponentClass]> = readdirSync(COMPONENTS_DIR)
+  .filter((file) => /^dsfr-data-.*\.ts$/.test(file))
+  .map((file): [string, ComponentClass] => {
+    const source = readFileSync(resolve(COMPONENTS_DIR, file), 'utf-8');
+    const m = /@customElement\('([a-z0-9-]+)'\)/.exec(source);
+    if (!m) throw new Error(`${file} : pas de decorateur @customElement`);
+    const cls = customElements.get(m[1]);
+    if (!cls) throw new Error(`<${m[1]}> : classe absente du registre apres import`);
+    return [m[1], cls as ComponentClass];
+  })
+  .sort(([a], [b]) => a.localeCompare(b));
 
 /**
  * Attributs HTML reels d'un composant Lit, lus dans `elementProperties`.
@@ -105,7 +77,7 @@ const COMPONENTS: Array<[string, typeof DsfrDataSource]> = (
  * - `attribute: 'x'`   -> mapping explicite ;
  * - sinon              -> Lit minuscule le nom de la propriete.
  */
-function runtimeAttributes(ComponentClass: typeof DsfrDataSource): Set<string> {
+function runtimeAttributes(ComponentClass: ComponentClass): Set<string> {
   const attrs = new Set<string>();
   const props = (
     ComponentClass as unknown as { elementProperties?: Map<string, { attribute?: string | false }> }
@@ -195,7 +167,8 @@ describe('reference generee des skills (#512)', () => {
     ) as CemManifest;
     const expected = buildReferences(manifest);
 
-    it('couvre exactement les 25 composants dsfr-data-*', () => {
+    it('couvre exactement les composants dsfr-data-* du repertoire', () => {
+      expect(COMPONENTS.length).toBeGreaterThanOrEqual(27);
       expect(Object.keys(COMPONENT_REFERENCES).sort()).toEqual(COMPONENTS.map(([t]) => t).sort());
     });
 

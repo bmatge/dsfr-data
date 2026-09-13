@@ -72,6 +72,21 @@ jobs:
       # importe `@dsfr-data/shared` : il lui faut donc `packages/shared/dist`,
       # d'ou sa place APRES `Build shared package` (sinon ERR_MODULE_NOT_FOUND,
       # cf. le meme piege sur les tests de bundles).
+      # Le manifeste custom-elements est COMMITE et tout en aval le lit tel quel
+      # (check:specs-tables, skills-reference.test, skills.json servi en prod) :
+      # un JSDoc modifie sans `npm run build:skills` passait donc tous les
+      # controles au vert et la fiche servie documentait l'ancien defaut
+      # (revue du 2026-09-13 : `span` encore a `""` en prod apres #823).
+      # `cem analyze` est deterministe (verifie sur deux passes identiques).
+      - name: Check custom-elements manifest freshness
+        run: |
+          npm run build:cem
+          if ! git diff --quiet -- packages/core/custom-elements.json; then
+            git --no-pager diff --stat -- packages/core/custom-elements.json
+            echo "::error::packages/core/custom-elements.json est perime : lancer 'npm run build:skills' et committer les artefacts generes."
+            exit 1
+          fi
+
       - name: Check French accents on UI strings
         run: npm run check:accents
 
