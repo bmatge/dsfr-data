@@ -1,6 +1,12 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
+// Fuseau FIXE pour toute la suite : les bornes de date (« aujourd'hui »,
+// « mois en cours ») sont definies sur le jour civil LOCAL, et un test qui le
+// distingue de l'UTC ne prouve rien sur une CI en UTC. Paris est le fuseau
+// des utilisateurs : a 00:30 le 1er du mois, l'UTC est encore la veille.
+process.env.TZ = 'Europe/Paris';
+
 export default defineConfig({
   resolve: {
     alias: {

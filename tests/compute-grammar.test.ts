@@ -331,6 +331,21 @@ describe('compute v2 — comparaisons', () => {
     expect(run('a != null', { a: 'x' })).toBe(true);
   });
 
+  it('une cellule vide n’est jamais égale à un nombre (comme where="x:eq:0")', () => {
+    // Revue du 2026-09-13 : dans `where` les deux côtés sont des chaînes
+    // ('' == '0' faux) ; ici le littéral est un NOMBRE et '' == 0 est vrai en
+    // JavaScript : `when montant = 0 then 'Nul'` classait chaque cellule vide
+    // en zéro. Une chaîne vide n'égale qu'une chaîne vide.
+    expect(run('a = 0', { a: '' })).toBe(false);
+    expect(run('a = 0', { a: '  ' })).toBe(false);
+    expect(run('a != 0', { a: '' })).toBe(true);
+    expect(run('a = 0', { a: 0 })).toBe(true);
+    expect(run('a = 0', { a: '0' })).toBe(true);
+    expect(run("a = ''", { a: '' })).toBe(true);
+    expect(run("a = ''", { a: null })).toBe(false);
+    expect(run("when a = 0 then 'zero' else 'autre'", { a: '' })).toBe('autre');
+  });
+
   it('< <= > >= numériques quand les deux côtés sont numériques (décimales FR comprises)', () => {
     expect(run('a < 10', { a: 9 })).toBe(true);
     expect(run('a < 10', { a: '9' })).toBe(true); // pas « "9" > "10" » lexicographique

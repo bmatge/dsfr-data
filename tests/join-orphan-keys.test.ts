@@ -48,6 +48,40 @@ describe('#792 — statistiques : orphelins et écart de graphie', () => {
     expect(stats.rightOrphans).toEqual(['01', '02', '03', '04', '05']);
   });
 
+  it('une clé vide ou nulle n’apparie rien et compte comme orpheline (revue 2026-09-13)', () => {
+    // `String(row[f] ?? '')` appariait `{k: null}` et `{k: ''}` à toute ligne
+    // droite sans code, et ces lignes n'étaient jamais orphelines.
+    const { rows, stats } = performJoinWithStats(
+      [
+        { k: null, v: 1 },
+        { k: '', v: 2 },
+        { k: 'A', v: 3 },
+      ],
+      [
+        { k: '', w: 10 },
+        { k: 'A', w: 30 },
+      ],
+      { on: 'k', type: 'inner' }
+    );
+    expect(rows).toEqual([{ k: 'A', v: 3, w: 30 }]);
+    expect(stats.leftMatched).toBe(1);
+    expect(stats.rightMatched).toBe(1);
+    expect(stats.leftOrphans).toEqual(['(clé vide)']);
+    expect(stats.rightOrphans).toEqual(['(clé vide)']);
+    expect(stats.keyFormatMismatch).toBeUndefined();
+  });
+
+  it('en left / full, une ligne à clé vide est conservée seule, jamais appariée', () => {
+    const left = performJoinWithStats([{ k: '', v: 1 }], [{ k: '', w: 10 }], { on: 'k' });
+    expect(left.rows).toEqual([{ k: '', v: 1 }]);
+    const full = performJoinWithStats([{ k: null, v: 1 }], [{ k: '', w: 10 }], {
+      on: 'k',
+      type: 'full',
+    });
+    expect(full.rows).toHaveLength(2);
+    expect(full.rows.some((r) => 'v' in r && 'w' in r)).toBe(false);
+  });
+
   it('les espaces autour d’une clé sont aussi un écart de graphie', () => {
     const { stats } = performJoinWithStats([{ c: ' 75' }], [{ c: '75' }], { on: 'c' });
     expect(stats.keyFormatMismatch).toBe(true);

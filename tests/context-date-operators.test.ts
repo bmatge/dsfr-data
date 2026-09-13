@@ -214,6 +214,71 @@ describe('#230 — current-year : borne dynamique année en cours', () => {
   });
 });
 
+/**
+ * Revue du 2026-09-13 — les bornes dynamiques restaient en UTC alors que
+ * `default="today"` (#682) est en jour civil LOCAL. La suite tourne en
+ * Europe/Paris (vitest.config.ts) : à 00:30 le 1er juin, l'UTC est encore le
+ * 31 mai, et `current-month` filtrait mai pendant que le tag disait « mois
+ * en cours ».
+ */
+describe('bornes dynamiques en jour civil local (revue 2026-09-13)', () => {
+  it('current-month à 00:30 heure locale le 1er : le mois qui commence, pas le précédent', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 5, 1, 0, 30));
+    expect(new Date().toISOString().slice(0, 10)).toBe('2026-05-31'); // l'UTC est encore hier
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cm-local';
+    document.body.appendChild(checkbox);
+
+    await mount(`
+      <dsfr-data-context id="dctx-cm-local" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="current-month" ui="ui-cm-local">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-06-01, d:lt:2026-07-01');
+    unsub();
+  });
+
+  it('current-year et last-n-days suivent le même jour civil local', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 1, 0, 30)); // 1er janvier 00:30 à Paris
+
+    fakeSource('d-src');
+    const { box, unsub } = captureLast('d-src');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = 'ui-cy-local';
+    document.body.appendChild(checkbox);
+    const input = document.createElement('input');
+    input.id = 'ui-n-local';
+    document.body.appendChild(input);
+
+    await mount(`
+      <dsfr-data-context id="dctx-cy-local" sources="d-src">
+        <dsfr-data-context-filter field="d" operator="current-year" ui="ui-cy-local">
+        </dsfr-data-context-filter>
+        <dsfr-data-context-filter field="e" operator="last-n-days" ui="ui-n-local">
+        </dsfr-data-context-filter>
+      </dsfr-data-context>
+    `);
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(box.where).toBe('d:gte:2026-01-01, d:lt:2027-01-01');
+
+    input.value = '7';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(box.where).toContain('e:gte:2025-12-25');
+    unsub();
+  });
+});
+
 describe('#230 — AC : génération selon whereFormat (ODSQL vs colon)', () => {
   it('month-of vers une source ODS → clause ODSQL', async () => {
     fakeSource('d-src', 'odsql');

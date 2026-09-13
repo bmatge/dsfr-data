@@ -746,9 +746,14 @@ parentheses possibles). Un \`when\` peut s'imbriquer dans une arithmetique ou da
 branche — le mettre entre parentheses quand il est suivi d'un operateur.
 
 **Meme semantique que \`where\`, syntaxe infixe** : l'egalite est lache (nombre ↔ chaine
-numerique : \`dept = 75\` matche \`"75"\`), \`< <= > >=\` comparent en nombre quand les deux
-cotes sont numeriques et en texte sinon (dates ISO comprises), null / absent / vide ne
-matchent jamais une comparaison d'ordre. Correspondance :
+numerique : \`dept = 75\` matche \`"75"\`), mais une cellule VIDE n'egale jamais un nombre
+(\`montant = 0\` ne classe pas les montants non renseignes en zero — tester \`is_empty\`
+a part), \`< <= > >=\` comparent en nombre quand les deux cotes sont numeriques et en
+texte sinon (dates ISO comprises), null / absent / vide ne matchent jamais une
+comparaison d'ordre. **Arithmetique** \`- * /\` et moins unaire : un operande absent ou
+non numerique rend \`null\` (jamais un 0 plausible : \`actif - passif\` avec \`passif\`
+manquant rend \`null\`, pas \`actif\`), une division par zero rend \`null\` (jamais
+\`Infinity\`) ; \`+\` concatene des qu'un cote n'est pas numerique. Correspondance :
 
 | \`where\` (dialecte colon, attribut) | \`when\` (infixe, dans compute) |
 |------|------|

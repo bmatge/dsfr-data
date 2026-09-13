@@ -50,8 +50,14 @@ describe('compute — évaluateur pur', () => {
     expect(run('a + b', { a: 'x', b: 'y' })).toBe('xy'); // non-numériques → concat
   });
 
-  it('champ inexistant : 0 en arithmétique, vide en concat', () => {
-    expect(run('absent * 2', {})).toBe(0);
+  it('champ inexistant : null en arithmétique (jamais un 0 plausible), vide en concat', () => {
+    // Revue du 2026-09-13 : `absent * 2` rendait 0 et `actif - passif` rendait
+    // `actif` quand `passif` manquait — un solde faux et plausible (#301).
+    // Même doctrine que les fonctions numériques : non numérique → null.
+    expect(run('absent * 2', {})).toBeNull();
+    expect(run('actif - passif', { actif: 100 })).toBeNull();
+    expect(run('a / b', { a: 1, b: 0 })).toBeNull(); // jamais Infinity
+    expect(run('-absent', {})).toBeNull();
     expect(run("'p_' + absent", {})).toBe('p_');
   });
 
