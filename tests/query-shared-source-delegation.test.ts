@@ -54,7 +54,10 @@ const until = async (cond: () => boolean) => {
   await new Promise((r) => setTimeout(r, 0));
   await new Promise((r) => setTimeout(r, 0));
 };
-const hasRows = (id: string) => Array.isArray(getDataCache(id)) && getDataCache(id)!.length > 0;
+const hasRows = (id: string) => {
+  const rows = getDataCache(id);
+  return Array.isArray(rows) && rows.length > 0;
+};
 
 let seq = 0;
 const mounted: Element[] = [];
