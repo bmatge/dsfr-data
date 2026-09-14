@@ -71,6 +71,28 @@ export interface RawSource {
   where?: string;
 }
 
+/**
+ * Source BRUTE générique : une URL appelée TELLE QUELLE.
+ *
+ * `RawSource` ne sait interroger qu'un portail Opendatasoft. Les autres API du
+ * banc n'ont ni la même racine ni la même enveloppe — Tabular rend
+ * `{ data, links: { next } }`, INSEE Melodi `{ observations, paging }` — et un
+ * contrôle vivant sur leur adaptateur est impossible sans une alimentation qui
+ * sache lire ces deux formes. D'où cette variante : l'URL et ses clauses sont
+ * écrites À LA MAIN dans le manifeste, jamais traduites par la lib, et
+ * l'oracle n'extrait que le tableau de lignes.
+ */
+export interface RawUrlSource {
+  /** URL complète de la première page, clauses comprises. */
+  url: string;
+  /** Chemin pointé du tableau de lignes (`data`, `observations`) ; défaut : la racine. */
+  rowsPath?: string;
+  /** Chemin pointé de l'URL de page suivante (`links.next`, `paging.next`). */
+  nextPath?: string;
+  /** Plafond de pages suivies — une pagination qui boucle ne doit pas pendre. */
+  maxPages?: number;
+}
+
 /** Nom du jeu principal quand le contrôle n'en désigne pas d'autre. */
 export const JEU_PRINCIPAL = 'main';
 
@@ -83,7 +105,8 @@ export const JEU_PRINCIPAL = 'main';
  * dépend d'une API tierce et ne tourne que la nuit ou à la demande.
  */
 export type Feed =
-  { kind: 'raw'; source: RawSource } | { kind: 'fixture'; datasets: Record<string, Row[]> };
+  | { kind: 'raw'; source: RawSource | RawUrlSource }
+  | { kind: 'fixture'; datasets: Record<string, Row[]> };
 
 /**
  * Une étape du recalcul. La suite des étapes décrit CE QUE LA PAGE DOIT
