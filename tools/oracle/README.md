@@ -38,7 +38,11 @@ le contrôle, et l'écart désigne alors le mauvais coupable.
 tests/verif-donnees/     LES CONTRÔLES, par domaine
   banc.ts                  contrôles vivants (reproductions du banc open-data-viz)
   query.ts                 contrôles déterministes (calcul : filtre, group-by, tri, jointure…)
+  delegation.ts            l'invariant de délégation : mêmes chiffres, serveur ou client
+  export-studio.ts         les tableaux de bord produits par l'export du Studio
   fixtures.ts              les lignes servies à la page ET données à l'oracle
+  fixtures-delegation.ts     les balisages du lot délégation (paires avec / sans server-side)
+  fixtures-export-studio.ts  les documents exportés — SEUL fichier autorisé à importer la lib
   index.ts                 la liste des manifestes
 
 tools/oracle/            LE MOTEUR
@@ -66,6 +70,17 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireGraphique` | les attributs `x` / `y` / `name` de l'élément DSFR Chart **rendu**, pas le cache amont |
 | `lireLegende` | les entrées de `getLegendEntries()` d'une `dsfr-data-map-layer` |
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
+| `lireUrls` | les URL d'API réellement appelées, décodées, dans l'ordre |
+
+`lireUrls` est le seul qui ne porte pas sur un chiffre : deux balisages peuvent
+montrer les mêmes chiffres en demandant au serveur des choses opposées, et
+qu'une `dsfr-data-query` délègue ou non son `group_by` ne se voit que là. Son
+`expect` énonce un verdict (`none` · `some` · `all` · `last` · `notLast`) sur la
+présence d'un fragment, éventuellement restreint aux URL qui en portent un autre
+(`among`) ; le journal est tenu par la page, qui enveloppe `fetch` avant le
+chargement de la bibliothèque. Un contrôle d'URL se place **en dernier** dans
+`expects` : les observations sont lues dans l'ordre, et les chiffres qu'il
+explique doivent être arrivés.
 
 Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'exécuter dans la
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
@@ -108,6 +123,19 @@ Mutations éprouvées sur ce socle :
 | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-765` | KPI affiché 7, recalculé 137 — exactement #765 |
 | `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
 | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
+| `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
+| `_onDelegationContested` sort sans renégocier (`dsfr-data-query.ts`) | `query-tardive-renegociation` | la seconde query rend 1 ligne au lieu de 7, le KPI 8 au lieu de 137 |
+| `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | 5 contrôles d'`export-studio` | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
+| `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
+
+## Un contrôle que la bibliothèque ne passe pas
+
+Un contrôle légitime qui tombe sur un DÉFAUT de la lib ne se supprime pas et ne
+s'adoucit pas : les deux reviennent à écrire dans le dépôt que le défaut
+n'existe pas. Il se met en attente, en nommant ce qu'il attend et les deux
+chiffres — `Check.skip` porte la raison, le spec la rend par `test.skip`, et la
+liste des `skip` est celle des défauts connus. Ils sont ouverts en issue par la
+supervision, pas corrigés dans le lot qui les trouve.
 
 ## Le rapport
 
