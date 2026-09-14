@@ -19,6 +19,10 @@ import { join } from 'node:path';
  *
  * Le test de la DoD (« aucune valeur de chrome hors chrome-breakpoints.ts »)
  * n'est PAS ici : il demande un cadrage a lui.
+ *
+ * Contrat de CLASSES et de REGLES : ces tests lisent le TEXTE de la feuille
+ * emise (ou du HTML servi). Ils ne prouvent AUCUNE mise en page calculee —
+ * happy-dom n'en calcule pas ; elle est MESUREE par `e2e/mobile-chrome.spec.ts` (#845).
  */
 
 const RACINE = join(__dirname, '../../..');

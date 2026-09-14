@@ -151,6 +151,9 @@ describe('#790 — dsfr-data-kpi-group et dsfr-data-kpi', () => {
     expect(legacy.style.getPropertyValue('--_kpi-default-span')).toBe('3');
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-grid.spec.ts` (#845).
   it('les règles span existent pour chaque largeur, après celles de col', () => {
     const css = (DsfrDataKpiGroup.styles as unknown as { cssText: string }).cssText;
     for (let n = 1; n <= 12; n++) expect(css).toContain(`::slotted([span='${n}'])`);

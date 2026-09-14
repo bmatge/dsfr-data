@@ -61,6 +61,9 @@ describe('largeur du volet lateral sur ecran etroit', () => {
     expect(panel.style.width).toBe('350px');
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-map.spec.ts` (#845).
   it('le volet est borne a la largeur de la carte', () => {
     mountPanel('400px');
     expect(ruleBody('.dsfr-data-map-popup__panel')).toContain('max-width: 100%');

@@ -33,6 +33,9 @@ describe('tiles-style (#686)', () => {
     expect(new DsfrDataMap().tilesStyle).toBe('');
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // Sans contrepartie mesuree a ce jour : aucun spec ne lit le filtre rendu (#845).
   it('la feuille injectee porte les deux filtres, scopes par attribut sur la carte', () => {
     (new DsfrDataMap() as unknown as MapInternals)._injectStyles();
     const css = document.head.querySelector('style[data-dsfr-data-map]')?.textContent ?? '';

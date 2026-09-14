@@ -127,6 +127,9 @@ describe('#789 — dsfr-data-kpi-group', () => {
   }
   const css = (g: DsfrDataKpiGroup) => (g.shadowRoot?.innerHTML ?? '').replace(/<!---->/g, '');
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-grid.spec.ts` (#845).
   it('per-row="2 md:4" : 2 × 2 sur téléphone, 4 par ligne à partir de 768 px', async () => {
     const g = await group('2 md:4');
     expect(css(g)).toContain('grid-column: span 6;');
@@ -136,12 +139,18 @@ describe('#789 — dsfr-data-kpi-group', () => {
     expect(g.hasAttribute('data-mobile-layout')).toBe(true);
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-grid.spec.ts` (#845).
   it('per-row nu : repli mobile historique conservé', async () => {
     const g = await group('4');
     expect(g.hasAttribute('data-mobile-layout')).toBe(false);
     expect(css(g)).toContain('@media (min-width: 48em)');
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-grid.spec.ts` (#845).
   it('le repli forcé ne vise que les groupes sans disposition mobile explicite', () => {
     const text = (DsfrDataKpiGroup.styles as unknown as { cssText: string }).cssText;
     expect(text).toContain(':host(:not([data-mobile-layout]))');

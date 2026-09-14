@@ -179,6 +179,9 @@ describe('largeur des encarts (#643)', () => {
     return document.querySelector('style[data-dsfr-data-map]')?.textContent ?? '';
   }
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-map.spec.ts` (#845).
   it('sans attribut : aucun style inline, la feuille injectee pose 10rem', async () => {
     const host = makeHost();
     const inset = document.createElement('dsfr-data-map-inset') as DsfrDataMapInset;

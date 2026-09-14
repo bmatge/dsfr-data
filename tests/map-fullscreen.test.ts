@@ -184,6 +184,9 @@ describe('#825 — plein écran avec des encarts', () => {
     }
   };
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/map-fullscreen.spec.ts` (#845).
   it("l'hôte ne passe PAS en flex : le float des encarts doit rester actif", () => {
     const css = document.querySelector('style[data-dsfr-data-map]')?.textContent ?? '';
     expect(css).toContain('dsfr-data-map:fullscreen');
