@@ -47,8 +47,10 @@ npm run test:run      # Vitest une fois
 npm run test:coverage # Couverture
 npm run test:e2e      # Playwright E2E
 npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
-npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exhaustifs Builder
-                      #   (requiert `npm run dev` actif en parallele — voir ARCHITECTURE.md §Tests)
+npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
+                      # RECETTE MANUELLE du Builder, hors CI et pas verte (#844) : etat mesure
+                      #   par spec dans tests/builder-e2e/README.md. Requiert `npm run dev`.
+                      #   Un spec a la fois : le dossier entier depasse l'heure.
 
 # Verification des donnees (ADR-122) — tout chiffre affiche est recalcule par un oracle
 #   independant (`tools/oracle/`), qui n'importe rien de la lib. Doc : tools/oracle/README.md.
