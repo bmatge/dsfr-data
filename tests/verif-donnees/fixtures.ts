@@ -29,6 +29,7 @@ import {
   repondreOdsRecords,
   repondreTabular,
 } from '../builder-e2e/api-fixtures.js';
+import { repondreAdaptateurs } from './fixtures-adaptateurs.js';
 import { repondreContexte } from './fixtures-contexte.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 
@@ -181,6 +182,8 @@ export function repondreOdsSelectAgrege(
 export function repondre(url: URL): unknown | null {
   // Les jeux d'un lot vivent dans SON fichier de fixtures : ce point de
   // branchement évite que chaque domaine vienne éditer celui des autres.
+  const desAdaptateurs = repondreAdaptateurs(url);
+  if (desAdaptateurs !== null) return desAdaptateurs;
   const duContexte = repondreContexte(url);
   if (duContexte !== null) return duContexte;
   if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS)) {

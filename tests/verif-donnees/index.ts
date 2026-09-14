@@ -6,13 +6,23 @@
  * ligne ici) — jamais toucher au moteur, qui vit dans `tools/oracle`.
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
+import { ADAPTATEURS } from './adaptateurs.js';
 import { BANC } from './banc.js';
+import { BANC_ADAPTATEURS } from './banc-adaptateurs.js';
 import { CONTEXTE } from './contexte.js';
 import { DELEGATION } from './delegation.js';
 import { EXPORT_STUDIO } from './export-studio.js';
 import { QUERY } from './query.js';
 
-export const MANIFESTES: Manifest[] = [QUERY, DELEGATION, EXPORT_STUDIO, CONTEXTE, BANC];
+export const MANIFESTES: Manifest[] = [
+  QUERY,
+  ADAPTATEURS,
+  DELEGATION,
+  EXPORT_STUDIO,
+  CONTEXTE,
+  BANC,
+  BANC_ADAPTATEURS,
+];
 
 /** Tous les contrôles d'un mode, à plat, avec leur domaine. */
 export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; check: Check }> {
@@ -25,4 +35,4 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
   return out;
 }
 
-export { BANC, CONTEXTE, DELEGATION, EXPORT_STUDIO, QUERY };
+export { ADAPTATEURS, BANC, BANC_ADAPTATEURS, CONTEXTE, DELEGATION, EXPORT_STUDIO, QUERY };
