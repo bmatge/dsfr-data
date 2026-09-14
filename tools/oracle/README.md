@@ -20,6 +20,28 @@ déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 | Déclenchement | chaque PR, **bloquant** (`verif-donnees.yml`) | nuit / à la demande / label `oracle`, jamais bloquant (`oracle.yml`) |
 | Réseau | aucun (toute sortie inattendue fait échouer) | requis |
 
+Une alimentation vivante prend **deux formes**, selon l'API visée. `RawSource`
+(`baseUrl`, `dataset`, `where`) appelle l'export JSON d'un portail Opendatasoft.
+`RawUrlSource` appelle une **URL quelconque, écrite à la main dans le
+manifeste** : `url` porte la première page et ses clauses, `rowsPath` nomme le
+chemin pointé du tableau de lignes dans l'enveloppe (`data` pour Tabular,
+`observations` pour INSEE Melodi ; absent, la réponse est le tableau),
+`nextPath` celui de l'URL de page suivante (`links.next`, `paging.next` —
+résolue contre la page courante si elle est relative), et `maxPages` borne le
+nombre de pages suivies (50 par défaut) pour qu'une pagination qui boucle
+s'arrête au lieu de pendre. C'est la seule façon d'écrire un contrôle vivant
+sur une API dont l'enveloppe n'est pas celle d'Opendatasoft ; l'oracle
+n'emprunte toujours rien à l'adaptateur correspondant.
+
+```ts
+// Tabular : filtre délégué à la main, pages suivies par links.next
+feed: { kind: 'raw', source: {
+  url: 'https://tabular-api.data.gouv.fr/api/resources/<id>/data/?DEP__exact=09&page_size=100',
+  rowsPath: 'data',
+  nextPath: 'links.next',
+} }
+```
+
 ```bash
 npm run verif            # déterministe — ce qu'il faut lancer en local
 npm run verif:live       # vivant : verif:expected puis le spec en VERIF_MODE=live
@@ -77,8 +99,9 @@ lecteur. Leur contrat est fixé sur un DOM minimal par `tests/oracle/observe.tes
 1. Choisir le domaine (`tests/verif-donnees/banc.ts` si le cas vit contre une vraie API,
    `query.ts` s'il se joue sur des fixtures) — ou créer un fichier et l'ajouter à `index.ts`.
 2. Écrire le `Check` : `mode`, `origin` (d'où vient le cas, quelle issue le motive), `feed`,
-   `markup`, `expects`. Les clauses ODSQL d'un contrôle vivant s'écrivent **à la main** dans le
-   manifeste, jamais traduites par la lib.
+   `markup`, `expects`. Les clauses d'un contrôle vivant s'écrivent **à la main** dans le
+   manifeste, jamais traduites par la lib — clause ODSQL d'une `RawSource`, URL complète et
+   chemins d'extraction d'une `RawUrlSource` (voir « Les deux modes » ci-dessus).
 3. Si le calcul attendu demande une opération que `compute.ts` ne sait pas faire, l'ajouter là —
    en tableaux nus, sans rien emprunter à la lib — et l'éprouver dans `tests/oracle/compute.test.ts`.
 4. `npm run verif`, puis **prouver la mutation** (ci-dessous). Un contrôle qui ne peut pas échouer

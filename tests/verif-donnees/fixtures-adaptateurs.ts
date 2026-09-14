@@ -214,12 +214,30 @@ export function repondreJsonEnveloppe(): Record<string, unknown> {
 const PARAMS_DE_CLE = ['apikey', 'api_key', 'api-key', 'x-api-key', 'authorization', 'token'];
 
 /**
+ * Les origines servies par CE lot. La garde de fuite ne s'applique qu'à
+ * elles : `repondre` appelle `repondreAdaptateurs` pour toute URL, et une
+ * garde sans borne compterait comme une fuite un `?token=` qu'un autre lot
+ * poserait légitimement sur son propre faux hôte.
+ */
+const ORIGINES_DU_LOT: ReadonlySet<string> = new Set([
+  HOTE_ODS_ADAPT,
+  HOTE_TABULAR,
+  HOTE_GRIST,
+  HOTE_JSON,
+  new URL(HOTE_INSEE).origin,
+]);
+
+/**
  * Une clé d'authentification voyage en EN-TÊTE, jamais en query string : une
  * URL journalisée (proxy, `access.log`, rapport d'erreur) ne doit pas la
  * porter. Une URL fautive n'est pas servie — elle est comptée comme une fuite
  * par le spec, et le contrôle tombe.
+ *
+ * La règle ne vaut QUE pour les hôtes de ce lot : elle exprime ce que ses
+ * propres contrôles attendent, pas une convention imposée aux autres.
  */
 export function urlFaitFuirUneCle(url: URL): boolean {
+  if (!ORIGINES_DU_LOT.has(url.origin)) return false;
   if (url.href.includes(CLE_ODS)) return true;
   for (const nom of PARAMS_DE_CLE) {
     if (url.searchParams.has(nom)) return true;
