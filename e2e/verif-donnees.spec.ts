@@ -9,12 +9,18 @@ import type { Check, Expect } from '../tools/oracle/manifest.js';
 import { computeExpectedFor, cleAttendu, type ExpectedCheck } from '../tools/oracle/expected.js';
 import { comparer, type Constat, type Observation } from '../tools/oracle/compare.js';
 import {
+  lireAttribut,
   lireCache,
+  lireClasses,
+  lireExportCsv,
   lireGraphique,
   lireKpi,
   lireLegende,
   lireListe,
+  lirePastilles,
+  lireTextes,
 } from '../tools/oracle/observe.js';
+import { toRgb } from '../tools/oracle/compute.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
 
 /**
@@ -84,7 +90,9 @@ function ecrireFixture(domaine: string, check: Check): string {
 ${check.markup}
 </body></html>`
   );
-  return `/e2e/verif-donnees/${nom}`;
+  // Un lien profond (`?page=2`) est un chemin d'affichage à part entière
+  // (`url-sync`) : la page s'ouvre où le contrôle veut la lire, sans pilotage.
+  return `/e2e/verif-donnees/${nom}${check.query ? `?${check.query}` : ''}`;
 }
 
 /** Le faux réseau du mode déterministe : les fixtures, et rien d'autre. */
@@ -141,6 +149,20 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(lireListe, e.id);
       case 'legend':
         return await page.evaluate(lireLegende, e.id);
+      case 'texts':
+        return await page.evaluate(lireTextes, { id: e.id, selecteur: e.selector });
+      case 'class':
+        return await page.evaluate(lireClasses, {
+          id: e.id,
+          selecteur: e.selector,
+          pret: e.ready,
+        });
+      case 'attr':
+        return await page.evaluate(lireAttribut, { id: e.id, attribut: e.attr });
+      case 'csv':
+        return await page.evaluate(lireExportCsv, e.id);
+      case 'dots':
+        return await page.evaluate(lirePastilles, e.id);
     }
   } catch (erreur) {
     if (/Execution context was destroyed|Target (page|closed)/.test(String(erreur))) return null;
@@ -164,6 +186,25 @@ function prete(e: Expect, obs: Observation): boolean {
       return (obs as { rows: string[][] }).rows.length > 0;
     case 'legend':
       return Array.isArray(obs) && obs.length > 0;
+    case 'texts':
+      return Array.isArray(obs) && obs.length > 0;
+    case 'class':
+      return (obs as { classes: string[] }).classes.length > 0;
+    case 'attr':
+      return typeof obs === 'string' && obs.trim() !== '';
+    case 'csv':
+      // Un export lancé avant l'arrivée des données rend l'en-tête seule :
+      // ce n'est pas un fichier vide à constater, c'est un fichier pas encore
+      // exportable. Tant qu'il n'a pas de ligne, l'observation n'a pas eu lieu.
+      return typeof obs === 'string' && obs.includes('\n');
+    case 'dots': {
+      // Les pastilles apparaissent AVANT d'être recolorées (le report attend
+      // que l'aire du graphique existe). Tant qu'aucune couleur déclarée n'est
+      // posée, on lit une légende à mi-rendu, pas une légende fausse.
+      const couleurs = (obs as string[]).map(toRgb);
+      const voulues = Object.values(e.colorMap).map(toRgb);
+      return couleurs.length > 0 && voulues.some((c) => c !== null && couleurs.includes(c));
+    }
   }
 }
 
@@ -190,7 +231,7 @@ const attendusVivants = MODE === 'live' ? chargerAttendus() : null;
  * l'autre, et cette liste lui donne son ordre.
  */
 const ORDRE = controles.flatMap(({ domaine, check }) =>
-  check.expects.map((e) => `${domaine}/${check.id}/${e.kind}:${e.id}`)
+  check.expects.map((e) => `${domaine}/${check.id}/${cleAttendu(e)}`)
 );
 
 test.afterAll(() => {

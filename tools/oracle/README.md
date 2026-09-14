@@ -38,7 +38,10 @@ le contrôle, et l'écart désigne alors le mauvais coupable.
 tests/verif-donnees/     LES CONTRÔLES, par domaine
   banc.ts                  contrôles vivants (reproductions du banc open-data-viz)
   query.ts                 contrôles déterministes (calcul : filtre, group-by, tri, jointure…)
+  affichages.ts            contrôles déterministes (rendu : formats fr-FR, seuils, classes
+                             de choroplèthe, pagination, export CSV, résumé de carte)
   fixtures.ts              les lignes servies à la page ET données à l'oracle
+  fixtures-affichages.ts   les jeux du lot affichages (communes, série, libellés, format long)
   index.ts                 la liste des manifestes
 
 tools/oracle/            LE MOTEUR
@@ -66,6 +69,11 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireGraphique` | les attributs `x` / `y` / `name` de l'élément DSFR Chart **rendu**, pas le cache amont |
 | `lireLegende` | les entrées de `getLegendEntries()` d'une `dsfr-data-map-layer` |
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
+| `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
+| `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
+| `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, bornes d'axes) ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
+| `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
+| `lireExportCsv` | le contenu du fichier produit par le bouton d'export — le téléchargement est intercepté, puis rendu tel qu'il était |
 
 Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'exécuter dans la
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
@@ -108,6 +116,21 @@ Mutations éprouvées sur ce socle :
 | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-765` | KPI affiché 7, recalculé 137 — exactement #765 |
 | `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
 | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
+| `formatPercentage` cesse de poser `%` (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite` | « 41,0 » au lieu de « 41,0 % » : le chiffre est juste, la forme ne l'est pas |
+| `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` | résumé 41,02 au lieu de 43,07 — exactement #763 |
+| `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/dsfr-palettes.ts`) | `carte-classes-quantiles` | première borne 27,5 au lieu de 26,5 |
+| `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 |
+| `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du lot affichages | mutation large : tout ce qui affiche un nombre recalculé tombe |
+
+**Une pagination fausse ne se voit jamais sur la page 1** : le contrôle ouvre donc la page de
+fixture sur `?page=2` (`Check.query` + `url-sync`), un lien profond étant un chemin d'affichage à
+part entière.
+
+**Plusieurs worktrees en parallèle** : `e2e/playwright.config.ts` a `reuseExistingServer: true` sur
+le port 5173. Si un autre checkout y sert déjà le dev server, `npm run verif` éprouve SES sources —
+et les preuves de mutation passent au vert à tort. Vérifier `lsof -i :5173` avant de lancer, sinon
+démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la
+configuration Playwright.
 
 ## Le rapport
 

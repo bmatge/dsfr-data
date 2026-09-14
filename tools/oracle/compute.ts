@@ -122,6 +122,56 @@ export function weightedAverage(rows: Row[], field: string, weight: string): num
   return den === 0 ? null : num / den;
 }
 
+/**
+ * Taux d'évolution d'un champ : (dernière − première) / première, sur les
+ * seules valeurs numériques renseignées, DANS L'ORDRE REÇU. Moins de deux
+ * valeurs, ou première nulle : `null` — un taux sans point de départ n'est
+ * pas un taux de zéro.
+ */
+export function evolution(rows: Row[], field: string): number | null {
+  const nums = rows.map((r) => toNum(r[field])).filter((n): n is number => n !== null);
+  if (nums.length < 2) return null;
+  const premiere = nums[0];
+  if (premiere === 0) return null;
+  return (nums[nums.length - 1] - premiere) / premiere;
+}
+
+/**
+ * Valeur BRUTE d'un champ sur la première ou la dernière ligne, dans l'ordre
+ * reçu — sans conversion : une date ISO reste une chaîne.
+ */
+export function edgeValue(rows: Row[], field: string, bout: 'first' | 'last'): unknown {
+  if (rows.length === 0) return null;
+  return rows[bout === 'first' ? 0 : rows.length - 1][field];
+}
+
+/**
+ * Agrégat rendu en TEXTE, pour les colonnes que la page n'affiche pas comme
+ * des nombres (dates ISO) : `first` / `last` prennent le bout de la table
+ * dans l'ordre reçu, `min` / `max` comparent en chaîne — l'ordre
+ * lexicographique d'une date ISO est son ordre chronologique.
+ */
+export function aggregateText(rows: Row[], agg: Agg, field: string): string | null {
+  if (agg === 'first' || agg === 'last') {
+    const v = edgeValue(rows, field, agg);
+    return absent(v) ? null : String(v);
+  }
+  const valeurs = rows
+    .map((r) => r[field])
+    .filter((v) => !absent(v))
+    .map(String);
+  if (valeurs.length === 0) return null;
+  if (agg === 'min') return valeurs.reduce((a, b) => (b < a ? b : a));
+  if (agg === 'max') return valeurs.reduce((a, b) => (b > a ? b : a));
+  throw new Error(`${agg} ne rend pas un texte`);
+}
+
+/** Date ISO (AAAA-MM-JJ…) en JJ/MM/AAAA, la forme rendue par la lib (#667). */
+export function isoToFrDate(value: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  return m === null ? null : `${m[3]}/${m[2]}/${m[1]}`;
+}
+
 export function aggregate(rows: Row[], agg: Agg, field?: string, weight?: string): number | null {
   if (agg === 'count') {
     // count sans champ : lignes ; avec champ : valeurs non vides.
@@ -134,6 +184,8 @@ export function aggregate(rows: Row[], agg: Agg, field?: string, weight?: string
     if (!weight) throw new Error('wavg exige un champ de pondération');
     return weightedAverage(rows, field, weight);
   }
+  if (agg === 'evolution') return evolution(rows, field);
+  if (agg === 'first' || agg === 'last') return toNum(edgeValue(rows, field, agg));
   const nums = rows.map((r) => toNum(r[field])).filter((n): n is number => n !== null);
   if (nums.length === 0) return null;
   switch (agg) {
@@ -149,7 +201,7 @@ export function aggregate(rows: Row[], agg: Agg, field?: string, weight?: string
 }
 
 function appliquer(rows: Row[], spec: AggSpec): number | null {
-  return aggregate(rows, spec.agg, spec.field, spec.weight);
+  return aggregate(applyFilter(rows, spec.filter), spec.agg, spec.field, spec.weight);
 }
 
 /** Group-by en tableaux nus : une ligne par valeur distincte de `by`. */
@@ -221,6 +273,24 @@ export function diff(rows: Row[], from: string, as: string): Row[] {
   });
 }
 
+/**
+ * Quotient de deux colonnes, ligne à ligne — la FRACTION qu'un ratio de KPI
+ * affiche (#673). Dénominateur nul, absent ou non numérique : `null`, jamais
+ * l'infini ni un zéro de complaisance.
+ */
+export function ratioColumn(
+  rows: Row[],
+  numerator: string,
+  denominator: string,
+  as: string
+): Row[] {
+  return rows.map((r) => {
+    const num = toNum(r[numerator]);
+    const den = toNum(r[denominator]);
+    return { ...r, [as]: num === null || den === null || den === 0 ? null : num / den };
+  });
+}
+
 /** Clé de jointure : absente ou vide = pas de clé (une ligne sans clé n'apparie rien). */
 export function joinKey(row: Row, field: string): string | null {
   const v = row[field];
@@ -284,13 +354,48 @@ export function equalIntervalBreaks(values: number[], steps: number): number[] {
   return bornes;
 }
 
+/**
+ * Bornes d'une discrétisation par QUANTILES : chaque classe couvre le même
+ * nombre de valeurs. Sur la suite triée de `n` valeurs, la borne supérieure de
+ * la classe `i` est la valeur d'indice `⌊i·n / steps⌋` (bornée au dernier
+ * rang) — `steps - 1` bornes, comme les intervalles égaux.
+ */
+export function quantileBreaks(values: number[], steps: number): number[] {
+  if (values.length === 0 || steps < 2) return [];
+  const triees = [...values].sort((a, b) => a - b);
+  const bornes: number[] = [];
+  for (let i = 1; i < steps; i++) {
+    const rang = Math.floor((i / steps) * triees.length);
+    bornes.push(triees[Math.min(rang, triees.length - 1)]);
+  }
+  return bornes;
+}
+
+/** Discrétisation d'une choroplèthe, selon la méthode déclarée par la page. */
+export type MethodeClasses = 'equal' | 'quantile' | 'manual';
+
+export function discretiser(
+  values: number[],
+  steps: number,
+  method: MethodeClasses = 'equal',
+  manuelles?: number[]
+): number[] {
+  if (method === 'manual') {
+    const bornes = (manuelles ?? []).filter((n) => Number.isFinite(n));
+    return [...new Set(bornes)].sort((a, b) => a - b);
+  }
+  return method === 'quantile' ? quantileBreaks(values, steps) : equalIntervalBreaks(values, steps);
+}
+
 /** Classes attendues d'une choroplèthe : bornes chiffrées, extrémités comprises. */
 export function legendClasses(
   values: number[],
-  steps: number
+  steps: number,
+  method: MethodeClasses = 'equal',
+  manuelles?: number[]
 ): Array<{ from: number | null; to: number | null }> {
-  const bornes = equalIntervalBreaks(values, steps);
-  if (bornes.length === 0) return [];
+  const bornes = discretiser(values, steps, method, manuelles);
+  if (bornes.length === 0 || values.length === 0) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const classes: Array<{ from: number | null; to: number | null }> = [];
@@ -328,11 +433,17 @@ export function runPipeline(
       case 'limit':
         rows = rows.slice(0, step.n);
         break;
+      case 'page':
+        rows = rows.slice((step.number - 1) * step.size, step.number * step.size);
+        break;
       case 'running':
         rows =
           step.kind === 'running_sum'
             ? runningSum(rows, step.from, step.as)
             : diff(rows, step.from, step.as);
+        break;
+      case 'ratio':
+        rows = ratioColumn(rows, step.numerator, step.denominator, step.as);
         break;
       case 'join': {
         const droite = datasets[step.right];
@@ -364,6 +475,77 @@ export function parseDisplayedNumber(text: string): number | null {
   if (cleaned === '' || cleaned === '-') return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Relit un CSV en tableau de cellules : BOM retiré, guillemets RFC 4180
+ * (doublés à l'intérieur), séparateur `;` par défaut. Écrit ici plutôt
+ * qu'emprunté au constructeur de la lib — c'est tout l'intérêt de le relire.
+ */
+export function parseCsv(text: string, separator = ';'): string[][] {
+  const sansBom = text.replace(/^\uFEFF/, '');
+  const lignes: string[][] = [];
+  let cellule = '';
+  let ligne: string[] = [];
+  let dansGuillemets = false;
+  for (let i = 0; i < sansBom.length; i++) {
+    const c = sansBom[i];
+    if (dansGuillemets) {
+      if (c === '"') {
+        if (sansBom[i + 1] === '"') {
+          cellule += '"';
+          i++;
+        } else dansGuillemets = false;
+      } else cellule += c;
+      continue;
+    }
+    if (c === '"') dansGuillemets = true;
+    else if (c === separator) {
+      ligne.push(cellule);
+      cellule = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && sansBom[i + 1] === '\n') i++;
+      ligne.push(cellule);
+      lignes.push(ligne);
+      cellule = '';
+      ligne = [];
+    } else cellule += c;
+  }
+  if (cellule !== '' || ligne.length > 0) {
+    ligne.push(cellule);
+    lignes.push(ligne);
+  }
+  return lignes;
+}
+
+/**
+ * Couleur ramenée à `r,g,b` : le navigateur rend `rgb(0, 0, 145)` là où la
+ * page déclare `#000091`. Rien d'autre n'est reconnu (une couleur nommée rend
+ * `null` : mieux vaut ne pas comparer que comparer à tort).
+ */
+export function toRgb(color: string): string | null {
+  const t = color.trim().toLowerCase();
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(t);
+  if (hex) {
+    const h =
+      hex[1].length === 3
+        ? hex[1]
+            .split('')
+            .map((c) => c + c)
+            .join('')
+        : hex[1];
+    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)).join(',');
+  }
+  const rgb = /^rgba?\(([^)]+)\)$/.exec(t);
+  if (rgb) {
+    const parts = rgb[1].split(/[\s,/]+/).filter((s) => s !== '');
+    if (parts.length < 3) return null;
+    return parts
+      .slice(0, 3)
+      .map((p) => String(Math.round(Number(p))))
+      .join(',');
+  }
+  return null;
 }
 
 /** Égalité à la précision affichée (± un demi-pas de la dernière décimale), sinon exacte. */

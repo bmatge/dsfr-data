@@ -48,6 +48,12 @@ export interface ObservationListe {
   rows: string[][];
 }
 
+/** Une classe est un habillage : on lit la liste, pas une couleur calculée. */
+export interface ObservationClasses {
+  /** Classes de l'élément désigné, dans l'ordre du DOM. */
+  classes: string[];
+}
+
 /**
  * Valeur AFFICHÉE d'un `dsfr-data-kpi` : le texte de `.dsfr-data-kpi__value`
  * (le composant rend en shadow DOM ; le repli sur la lumière sert au DOM
@@ -197,4 +203,119 @@ export function lireListe(id: string): ObservationListe | null {
     rows.push(cells.map(texte));
   }
   return { headers, rows };
+}
+
+/**
+ * Textes RENDUS par les éléments que `selecteur` désigne dans le composant :
+ * lignes secondaires d'un KPI, tendance, valeurs d'un podium, cellules d'un
+ * `dsfr-data-display`. Les espaces sont normalisés comme un lecteur les voit.
+ */
+export function lireTextes({ id, selecteur }: { id: string; selecteur: string }): string[] | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  const racine: ParentNode = hote.shadowRoot ?? hote;
+  const trouves = Array.from(racine.querySelectorAll(selecteur));
+  const elements = trouves.length > 0 ? trouves : Array.from(hote.querySelectorAll(selecteur));
+  return elements.map((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
+}
+
+/**
+ * CLASSES de l'élément désigné : c'est par là qu'un KPI dit « bon »,
+ * « attention » ou « critique ». Un habillage qui ne suit pas le chiffre ment
+ * autant qu'un chiffre faux, et aucune lecture de valeur ne l'attrape.
+ */
+export function lireClasses({
+  id,
+  selecteur,
+  pret,
+}: {
+  id: string;
+  selecteur: string;
+  /** Tant que ce sélecteur n'a rien, le composant n'a pas fini d'afficher. */
+  pret?: string;
+}): ObservationClasses | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  const racine: ParentNode = hote.shadowRoot ?? hote;
+  if (pret && !(racine.querySelector(pret) ?? hote.querySelector(pret))) return null;
+  const el = racine.querySelector(selecteur) ?? hote.querySelector(selecteur);
+  if (!el) return null;
+  return { classes: Array.from(el.classList) };
+}
+
+/**
+ * ATTRIBUT posé sur l'élément DSFR Chart RENDU (résumé d'une carte, bornes
+ * d'axes relayées). Même règle que `lireGraphique` : ce qui est passé à
+ * l'afficheur, jamais l'état amont.
+ *
+ * Jamais de repli sur le composant hôte : il porte l'attribut ÉCRIT PAR LA
+ * PAGE, et le relire reviendrait à comparer le manifeste à lui-même — un
+ * contrôle qui reste vert même quand la lib cesse de relayer la borne.
+ */
+export function lireAttribut({ id, attribut }: { id: string; attribut: string }): string | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  for (const candidat of Array.from(hote.querySelectorAll('*'))) {
+    if (/-chart$/.test(candidat.tagName.toLowerCase())) {
+      return candidat.getAttribute(attribut);
+    }
+  }
+  return null;
+}
+
+/**
+ * Couleurs des PASTILLES de légende (`span.legend_dot`) que DSFR Chart rend à
+ * côté du graphique, telles que le navigateur les calcule.
+ */
+export function lirePastilles(id: string): string[] | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  return Array.from(hote.querySelectorAll('.legend_dot')).map((dot) => {
+    const el = dot as HTMLElement;
+    const calcule =
+      typeof getComputedStyle === 'function' ? getComputedStyle(el).backgroundColor : '';
+    return calcule || el.style.backgroundColor || '';
+  });
+}
+
+/**
+ * Contenu du FICHIER CSV que l'export du composant produit — pas le tableau
+ * dont il part : c'est le fichier qu'un lecteur ouvrira.
+ *
+ * Le téléchargement est intercepté au plus près du navigateur
+ * (`URL.createObjectURL` et le clic de l'ancre), le temps d'un clic sur le
+ * bouton, puis rendu tel qu'il était : rien ne sort de la page, rien n'y reste
+ * modifié.
+ */
+export async function lireExportCsv(id: string): Promise<string | null> {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  const racine: ParentNode = hote.shadowRoot ?? hote;
+  const bouton = Array.from(racine.querySelectorAll('button')).find((b) =>
+    /csv/i.test(b.textContent ?? '')
+  );
+  if (!bouton) return null;
+
+  const objetUrl = URL as unknown as {
+    createObjectURL: (b: Blob) => string;
+    revokeObjectURL: (u: string) => void;
+  };
+  const creerOrigine = objetUrl.createObjectURL;
+  const revoquerOrigine = objetUrl.revokeObjectURL;
+  const clicOrigine = HTMLAnchorElement.prototype.click;
+  const captures: Blob[] = [];
+  objetUrl.createObjectURL = (blob: Blob): string => {
+    captures.push(blob);
+    return 'blob:verification-des-donnees';
+  };
+  objetUrl.revokeObjectURL = (): void => {};
+  HTMLAnchorElement.prototype.click = function neRienTelecharger(): void {};
+  try {
+    bouton.click();
+  } finally {
+    objetUrl.createObjectURL = creerOrigine;
+    objetUrl.revokeObjectURL = revoquerOrigine;
+    HTMLAnchorElement.prototype.click = clicOrigine;
+  }
+  return captures.length === 0 ? null : await captures[0].text();
 }

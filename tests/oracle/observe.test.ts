@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  lireAttribut,
   lireCache,
+  lireClasses,
   lireGraphique,
   lireKpi,
   lireLegende,
   lireListe,
+  lirePastilles,
+  lireTextes,
 } from '../../tools/oracle/observe.js';
 
 /**
@@ -119,5 +123,68 @@ describe('vérification des données — lecteurs d’observation', () => {
     });
     expect(lireListe('vide')!.rows).toEqual([]);
     expect(lireListe('absent')).toBeNull();
+  });
+
+  // --- Lot AFFICHAGES (L5) ------------------------------------------------
+
+  it('textes : un par élément désigné, espaces normalisés', () => {
+    document.body.innerHTML = `
+      <div id="k">
+        <span class="dsfr-data-kpi__line">+40 %
+          vs janvier</span>
+        <span class="dsfr-data-kpi__line">n.d.</span>
+        <span class="dsfr-data-kpi__label">Volume</span>
+      </div>`;
+    expect(lireTextes({ id: 'k', selecteur: '.dsfr-data-kpi__line' })).toEqual([
+      '+40 % vs janvier',
+      'n.d.',
+    ]);
+    expect(lireTextes({ id: 'k', selecteur: '.absente' })).toEqual([]);
+    expect(lireTextes({ id: 'ailleurs', selecteur: 'span' })).toBeNull();
+  });
+
+  it('classes : celles de l’élément désigné, et rien tant que l’affichage n’est pas prêt', () => {
+    document.body.innerHTML = `
+      <div id="k1"><div class="dsfr-data-kpi dsfr-data-kpi--success">
+        <span class="dsfr-data-kpi__value">41,0</span></div></div>
+      <div id="k2"><div class="dsfr-data-kpi dsfr-data-kpi--info">
+        <span class="dsfr-data-kpi__loading">Chargement</span></div></div>`;
+    expect(lireClasses({ id: 'k1', selecteur: '.dsfr-data-kpi' })).toEqual({
+      classes: ['dsfr-data-kpi', 'dsfr-data-kpi--success'],
+    });
+    expect(
+      lireClasses({ id: 'k1', selecteur: '.dsfr-data-kpi', pret: '.dsfr-data-kpi__value' })
+    ).not.toBeNull();
+    // L'état de chargement porte la classe neutre : le lire serait une erreur.
+    expect(
+      lireClasses({ id: 'k2', selecteur: '.dsfr-data-kpi', pret: '.dsfr-data-kpi__value' })
+    ).toBeNull();
+    expect(lireClasses({ id: 'absent', selecteur: '.dsfr-data-kpi' })).toBeNull();
+  });
+
+  it('attribut : celui de l’élément DSFR Chart rendu, jamais celui de l’hôte', () => {
+    document.body.innerHTML = `
+      <div id="g" x-min="0" value="12">
+        <line-chart x-min="3" value="43.07"></line-chart>
+      </div>
+      <div id="sans-chart" x-min="0"></div>`;
+    expect(lireAttribut({ id: 'g', attribut: 'x-min' })).toBe('3');
+    expect(lireAttribut({ id: 'g', attribut: 'value' })).toBe('43.07');
+    expect(lireAttribut({ id: 'g', attribut: 'y-max' })).toBeNull();
+    // Sans élément rendu, rien — sinon on relirait l'attribut écrit par la page.
+    expect(lireAttribut({ id: 'sans-chart', attribut: 'x-min' })).toBeNull();
+    expect(lireAttribut({ id: 'absent', attribut: 'x-min' })).toBeNull();
+  });
+
+  it('pastilles de légende : la couleur de chacune, dans l’ordre', () => {
+    document.body.innerHTML = `
+      <div id="g">
+        <span class="legend_dot" style="background-color: rgb(0, 0, 145)"></span>
+        <span class="legend_dot" style="background-color: rgb(225, 0, 15)"></span>
+      </div>
+      <div id="nu"></div>`;
+    expect(lirePastilles('g')).toEqual(['rgb(0, 0, 145)', 'rgb(225, 0, 15)']);
+    expect(lirePastilles('nu')).toEqual([]);
+    expect(lirePastilles('absent')).toBeNull();
   });
 });

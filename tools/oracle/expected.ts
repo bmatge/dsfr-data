@@ -7,14 +7,26 @@
  * même forme des deux côtés, et le spec Playwright n'a qu'une comparaison à
  * écrire.
  */
-import type { Check, Expect, Row } from './manifest.js';
+import type { CouleurKpi, Check, Expect, Row } from './manifest.js';
 import { JEU_PRINCIPAL } from './manifest.js';
-import { aggregate, applyFilter, legendClasses, runPipeline, toNum } from './compute.js';
+import {
+  aggregate,
+  aggregateText,
+  applyFilter,
+  isoToFrDate,
+  legendClasses,
+  runPipeline,
+  toNum,
+} from './compute.js';
 
 export interface AttenduKpi {
   kind: 'kpi';
   value: number | null;
   decimals: number;
+  /** Texte attendu quand la valeur n'est pas un nombre (date, #667). */
+  texte?: string | null;
+  /** Motif de forme que le texte affiché doit vérifier. */
+  pattern?: string;
 }
 
 export interface AttenduLignes {
@@ -38,11 +50,96 @@ export interface AttenduLegende {
   classes: Array<{ from: number | null; to: number | null }>;
 }
 
-export type Attendu = AttenduKpi | AttenduLignes | AttenduGraphique | AttenduListe | AttenduLegende;
+export interface AttenduTextes {
+  kind: 'texts';
+  /** Une valeur attendue par élément, dans l'ordre du DOM. */
+  valeurs: Array<string | number | null>;
+  numeric: boolean;
+  decimals: number;
+  pattern?: string;
+}
 
-/** Clé d'un attendu dans le rapport : le genre et l'id observé. */
+export interface AttenduClasse {
+  kind: 'class';
+  /** Classe que la valeur recalculée impose. */
+  classe: string;
+  /** Classes concurrentes : aucune ne doit être présente. */
+  concurrentes: string[];
+  /** La valeur qui a décidé, pour le rapport. */
+  valeur: number | null;
+}
+
+export interface AttenduAttr {
+  kind: 'attr';
+  literal: string | null;
+  value: number | null;
+  decimals: number;
+}
+
+export interface AttenduCsv {
+  kind: 'csv';
+  /** En-tête puis lignes, cellules en chaînes. */
+  lignes: string[][];
+}
+
+export interface AttenduPastilles {
+  kind: 'dots';
+  /** Couleur attendue par pastille (`null` : la palette garde la main). */
+  couleurs: Array<string | null>;
+}
+
+export type Attendu =
+  | AttenduKpi
+  | AttenduLignes
+  | AttenduGraphique
+  | AttenduListe
+  | AttenduLegende
+  | AttenduTextes
+  | AttenduClasse
+  | AttenduAttr
+  | AttenduCsv
+  | AttenduPastilles;
+
+/**
+ * Couleur d'un KPI d'après ses seuils, énoncée en toutes lettres plutôt
+ * qu'empruntée à la lib : au-dessus du seuil vert c'est vert, au-dessus du
+ * seuil orange c'est orange, en dessous d'un seuil posé c'est rouge, et sans
+ * aucun seuil c'est le bleu neutre.
+ */
+function couleurParSeuils(
+  valeur: number | null,
+  seuils: { green?: number; orange?: number } | undefined
+): CouleurKpi {
+  if (valeur === null) return 'bleu';
+  if (seuils?.green !== undefined && valeur >= seuils.green) return 'vert';
+  if (seuils?.orange !== undefined && valeur >= seuils.orange) return 'orange';
+  if (seuils?.green !== undefined || seuils?.orange !== undefined) return 'rouge';
+  return 'bleu';
+}
+
+/** Valeur scalaire d'un recalcul mené à une seule ligne (`global`). */
+function scalaire(
+  rows: Row[],
+  column: string | undefined,
+  scale: number | undefined
+): number | null {
+  if (!column || rows.length === 0) return null;
+  const v = toNum(rows[0][column]);
+  return v === null ? null : v * (scale ?? 1);
+}
+
+/**
+ * Clé d'un attendu dans le rapport : le genre et l'id observé — plus ce qui
+ * distingue DEUX observations du même genre sur le MÊME composant (quatre
+ * bornes d'axes sur un graphique, les libellés et les valeurs d'un podium).
+ * Sans ce suffixe, la seconde écrasait la première et le contrôle comparait
+ * une observation à l'attendu d'une autre.
+ */
 export function cleAttendu(e: Expect): string {
-  return `${e.kind}:${e.id}`;
+  const base = `${e.kind}:${e.id}`;
+  if (e.kind === 'attr') return `${base}:${e.attr}`;
+  if (e.kind === 'texts' || e.kind === 'class') return `${base}:${e.selector}`;
+  return base;
 }
 
 export interface ExpectedCheck {
@@ -64,10 +161,23 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
     switch (e.kind) {
       case 'kpi': {
         const filtrees = applyFilter(rows, e.filter);
+        if (e.as === 'date') {
+          const brute = aggregateText(filtrees, e.agg, e.field ?? '');
+          values[cleAttendu(e)] = {
+            kind: 'kpi',
+            value: null,
+            decimals: 0,
+            texte: brute === null ? null : isoToFrDate(brute),
+            pattern: e.pattern,
+          };
+          break;
+        }
+        const brute = aggregate(filtrees, e.agg, e.field, e.weight);
         values[cleAttendu(e)] = {
           kind: 'kpi',
-          value: aggregate(filtrees, e.agg, e.field, e.weight),
+          value: brute === null ? null : brute * (e.scale ?? 1),
           decimals: e.decimals ?? 0,
+          pattern: e.pattern,
         };
         break;
       }
@@ -86,9 +196,69 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
         break;
       case 'legend': {
         const valeurs = rows.map((r) => toNum(r[e.field])).filter((n): n is number => n !== null);
-        values[cleAttendu(e)] = { kind: 'legend', classes: legendClasses(valeurs, e.classes) };
+        values[cleAttendu(e)] = {
+          kind: 'legend',
+          classes: legendClasses(valeurs, e.classes, e.method, e.breaks),
+        };
         break;
       }
+      case 'texts': {
+        const facteur = e.scale ?? 1;
+        values[cleAttendu(e)] = {
+          kind: 'texts',
+          valeurs: rows.map((r) => {
+            const brute = r[e.column];
+            if (!e.numeric) return brute === null || brute === undefined ? '' : String(brute);
+            const n = toNum(brute);
+            return n === null ? null : n * facteur;
+          }),
+          numeric: e.numeric === true,
+          decimals: e.decimals ?? 0,
+          pattern: e.pattern,
+        };
+        break;
+      }
+      case 'class': {
+        const valeur = e.forced ? null : scalaire(rows, e.column, e.scale);
+        const couleur: CouleurKpi = e.forced ?? couleurParSeuils(valeur, e.thresholds);
+        values[cleAttendu(e)] = {
+          kind: 'class',
+          classe: e.classes[couleur],
+          concurrentes: (Object.keys(e.classes) as CouleurKpi[])
+            .filter((c) => c !== couleur)
+            .map((c) => e.classes[c]),
+          valeur,
+        };
+        break;
+      }
+      case 'attr':
+        values[cleAttendu(e)] = {
+          kind: 'attr',
+          literal: e.literal ?? null,
+          value: e.literal !== undefined ? null : scalaire(rows, e.column, e.scale),
+          decimals: e.decimals ?? 0,
+        };
+        break;
+      case 'csv':
+        values[cleAttendu(e)] = {
+          kind: 'csv',
+          lignes: [
+            e.columns.map((c) => c.label),
+            ...rows.map((r) =>
+              e.columns.map((c) => {
+                const v = r[c.column];
+                return v === null || v === undefined ? '' : String(v);
+              })
+            ),
+          ],
+        };
+        break;
+      case 'dots':
+        values[cleAttendu(e)] = {
+          kind: 'dots',
+          couleurs: rows.map((r) => e.colorMap[String(r[e.labelColumn] ?? '')] ?? null),
+        };
+        break;
     }
   }
   return {
