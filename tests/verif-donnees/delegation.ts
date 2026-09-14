@@ -206,11 +206,6 @@ const FORMES_TABULAR: Array<{ forme: Forme; urls: Expect[] }> = [
         'Meme regroupement, meme somme, meme tri — sur Tabular : une autre syntaxe de delegation, le meme chiffre.',
       query: 'group-by="academie" aggregate="population:sum" order-by="population__sum:desc"',
       colonnes: 'academie:Académie, population__sum:Population',
-      skipServeur:
-        'DEFAUT LIB — TabularAdapter.buildServerSideUrl n’emet ni `champ__groupby` ni ' +
-        '`champ__sum` (contrairement a buildUrl) : la query croit avoir delegue, saute son ' +
-        'calcul client, et la page rend des lignes BRUTES comme si c’etaient des groupes. ' +
-        'Mesure : 40 lignes affichees, 8 groupes recalcules.',
       expects: [
         {
           kind: 'rows',
@@ -252,9 +247,6 @@ const FORMES_TABULAR: Array<{ forme: Forme; urls: Expect[] }> = [
       query:
         'where="pays_iso2:eq:FR" group-by="code_reg" aggregate="population:sum" order-by="population__sum:desc" limit="5"',
       colonnes: 'code_reg:Région, population__sum:Population',
-      skipServeur:
-        'DEFAUT LIB — meme cause : `population__sum` n’existe pas dans la reponse paginee, la ' +
-        'colonne s’affiche vide. Mesure : ligne 0 (region 11) lib « — », oracle 1 909 000.',
       expects: [
         {
           kind: 'rows',
