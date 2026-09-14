@@ -635,7 +635,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // export du Studio (0.28.1), un KPI a 11 au lieu de 3 080 et deux
     // graphiques affichant le meme regroupement. Tout reste alors cote
     // client ; le where, cle par emetteur, reste delegable.
-    const sharedWith = sourceEl ? this._otherChainReaders() : [];
+    // La remontee de chaine est faite MEME quand l'amont n'expose pas encore
+    // d'adaptateur (#855) : c'est elle qui pose `_chainIds`, donc ce que
+    // l'ecoute du registre doit surveiller pour REFAIRE cette negociation
+    // quand le maillon manquant sera rehausse.
+    const chainReaders = this._otherChainReaders();
+    const sharedWith = sourceEl ? chainReaders : [];
     const exclusive = sharedWith.length === 0;
     // Avertir seulement quand une delegation aurait ete tentee : un agregat
     // global (sans group-by) reste cote client de toute facon.
@@ -811,15 +816,26 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _unsubscribeInstances: (() => void) | null = null;
 
   /**
-   * Un composant `dsfr-data-*` vient de s'inscrire au registre (#853).
+   * Un composant `dsfr-data-*` vient de s'inscrire au registre. Deux cas,
+   * une seule reponse — renegocier :
    *
-   * S'il lit cette chaine — KPI, liste, graphique, facettes, autre query — la
-   * chaine devient partagee et cette query doit liberer son regroupement
-   * serveur : sans quoi le nouveau venu compte les GROUPES (mesure : 8 au
-   * lieu de 137). C'est #765 dans sa forme tardive, que le commentaire de
-   * `_otherChainReaders` disait couverte alors que
-   * `dsfr-data-delegation-contested` n'avait qu'un seul emetteur, une AUTRE
-   * query pendant sa propre negociation.
+   *   - un LECTEUR de plus sur la chaine (KPI, liste, graphique, facettes,
+   *     autre query, #853) : la chaine devient partagee, cette query doit
+   *     liberer son regroupement serveur, sans quoi le nouveau venu compte
+   *     les GROUPES (mesure : 8 au lieu de 137). C'est #765 dans sa forme
+   *     tardive, que le commentaire de `_otherChainReaders` disait couverte
+   *     alors que `dsfr-data-delegation-contested` n'avait qu'un seul
+   *     emetteur, une AUTRE query pendant sa propre negociation.
+   *
+   *   - un MAILLON de la chaine qui vient d'etre REHAUSSE (#855) : l'ordre
+   *     des `customElements.define` (l'ordre des exports de `index.ts`) fait
+   *     qu'une `dsfr-data-query` est rehaussee AVANT un
+   *     `dsfr-data-normalize` ecrit dans la meme page. Sa premiere
+   *     negociation ne voyait alors ni `getAdapter()` ni `transformsSchema()`
+   *     sur son amont, et ne deleguait rien — definitivement. La
+   *     renegociation a lieu dans la MEME tache que l'evaluation du module,
+   *     donc avant le premier fetch (differe d'une macro-tache par
+   *     `dsfr-data-source`) : une seule requete part, deja groupee.
    */
   private _onInstanceRegistered = (el: Element) => {
     if (el === this || this._chainIds.size === 0) return;
