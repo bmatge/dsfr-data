@@ -149,7 +149,39 @@ export interface ExpectLegend extends ExpectBase {
   method: 'equal';
 }
 
-export type Expect = ExpectKpi | ExpectRows | ExpectChart | ExpectList | ExpectLegend;
+/**
+ * Les URL d'API RÉELLEMENT appelées par la page (#836, #838).
+ *
+ * Seul lecteur qui ne porte pas sur un chiffre affiché, et il est indispensable
+ * au lot « délégation » : deux balisages peuvent montrer les mêmes chiffres en
+ * demandant au serveur des choses opposées. Qu'une `dsfr-data-query` délègue ou
+ * non son `group_by` ne se voit QUE là — un total juste calculé sur des lignes
+ * agrégées par erreur reste juste tant que personne d'autre ne lit la source.
+ *
+ * Le journal est tenu par la page elle-même (le `fetch` est enveloppé avant le
+ * chargement de la bibliothèque) ; l'oracle ne juge que la présence d'un
+ * fragment, il ne reconstruit aucune URL — il ne saurait pas le faire sans
+ * emprunter les constructeurs d'URL de la lib, ce qui lui est interdit.
+ */
+export interface ExpectUrls {
+  kind: 'urls';
+  /** Nom du constat dans le rapport (`urls:group-by-delegue`) : pas un id d'élément. */
+  id: string;
+  /** Ne retient que les URL portant ce fragment (défaut : toutes celles appelées). */
+  among?: string;
+  /** Fragment dont on juge la présence dans les URL retenues (`group_by=`). */
+  contains: string;
+  /**
+   * `none` aucune ne le porte · `some` au moins une · `all` toutes ·
+   * `last` la dernière retenue le porte · `notLast` la dernière ne le porte pas.
+   * `last` / `notLast` disent l'état où la page s'est ARRÊTÉE : c'est ce qui
+   * distingue une délégation retirée en cours de route d'une délégation jamais
+   * tentée (renégociation `dsfr-data-delegation-contested`, #765).
+   */
+  verdict: 'none' | 'some' | 'all' | 'last' | 'notLast';
+}
+
+export type Expect = ExpectKpi | ExpectRows | ExpectChart | ExpectList | ExpectLegend | ExpectUrls;
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
 export type CheckMode = 'deterministic' | 'live';
@@ -165,6 +197,16 @@ export interface Check {
   /** Balisage complet rendu par Playwright (sources, queries, KPI, …). */
   markup: string;
   expects: Expect[];
+  /**
+   * Contrôle LÉGITIME que la bibliothèque ne passe pas encore : la raison, avec
+   * le chiffre lib et le chiffre oracle.
+   *
+   * Un contrôle qui tombe sur un défaut de la lib ne se supprime pas et ne
+   * s'adoucit pas — les deux reviennent à écrire dans le dépôt que le défaut
+   * n'existe pas. Il se met en attente, en NOMMANT ce qu'il attend : c'est la
+   * liste des défauts connus, et elle se lit dans le rapport.
+   */
+  skip?: string;
 }
 
 /** Un manifeste : un domaine, ses contrôles. */

@@ -169,6 +169,30 @@ export function lireLegende(id: string): ObservationLegende[] | null {
 }
 
 /**
+ * URL d'API RÉELLEMENT appelées par la page, dans l'ordre, sous leur forme
+ * DÉCODÉE — `URLSearchParams` encode l'espace en `+` et les parenthèses d'un
+ * agrégat ODSQL, un fragment cherché sur l'URL brute ne trouverait rien.
+ *
+ * Le journal est posé par la page de fixture avant le chargement de la
+ * bibliothèque (`window.__verifUrls`) : un observateur installé après coup
+ * arriverait systématiquement trop tard, les premières requêtes partent dès le
+ * `connectedCallback` des sources.
+ */
+export function lireUrls(): string[] {
+  const w = window as unknown as { __verifUrls?: unknown };
+  const brut = w.__verifUrls;
+  if (!Array.isArray(brut)) return [];
+  return brut.map((u) => {
+    const texte = String(u);
+    try {
+      return decodeURIComponent(texte.replace(/\+/g, ' '));
+    } catch {
+      return texte;
+    }
+  });
+}
+
+/**
  * Lignes du TABLEAU rendu par `dsfr-data-list` : en-têtes et cellules, texte
  * tel qu'affiché. La colonne de sélection (`refine-on-click`) et la ligne
  * « aucune donnée » sont écartées — elles ne portent pas de chiffre.

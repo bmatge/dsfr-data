@@ -19,6 +19,28 @@ const RACINE = resolve(__dirname, '../..');
 /** Points d'entrée : le moteur, et les manifestes qui s'en servent. */
 const ENTREES = ['tools/oracle', 'tests/verif-donnees'];
 
+/**
+ * L'UNIQUE dérogation, et sa raison.
+ *
+ * Un tableau de bord exporté n'est pas un balisage qu'on écrit : c'est
+ * `generateDashboardHTML` qui le produit, et c'est précisément lui que le lot
+ * « export Studio » met à l'épreuve (sources dédiées #765, agrégat serveur d'un
+ * KPI #810). Le recopier à la main dans le manifeste reviendrait à contrôler la
+ * copie plutôt que le générateur.
+ *
+ * Ce que la dérogation ne permet pas : elle vaut pour le SEUL fichier de
+ * fixtures qui construit ce balisage, et le garde ne descend pas dans le graphe
+ * de la lib depuis lui (les spécifieurs `packages/` ne sont pas suivis). Rien
+ * du calcul ne passe par là — l'oracle recalcule toujours depuis les lignes
+ * brutes, en tableaux nus.
+ */
+const DEROGATIONS: Array<{ fichier: string; specifieur: RegExp }> = [
+  {
+    fichier: 'tests/verif-donnees/fixtures-export-studio.ts',
+    specifieur: /^\.\.\/\.\.\/packages\/shared\/src\/dashboard\//,
+  },
+];
+
 const INTERDITS = [
   { test: (s: string) => s.includes('packages/'), nom: 'packages/' },
   { test: (s: string) => s.startsWith('@dsfr-data/'), nom: '@dsfr-data/*' },
@@ -74,10 +96,13 @@ describe('vérification des données — garde d’indépendance', () => {
       if (vus.has(fichier)) continue;
       vus.add(fichier);
       const source = readFileSync(fichier, 'utf-8');
+      const relatif = relative(RACINE, fichier);
+      const derogation = DEROGATIONS.find((d) => d.fichier === relatif);
       for (const specifieur of importsDe(source)) {
+        if (derogation?.specifieur.test(specifieur)) continue;
         const interdit = INTERDITS.find((i) => i.test(specifieur));
         if (interdit) {
-          fautifs.push(`${relative(RACINE, fichier)} → ${specifieur} (${interdit.nom})`);
+          fautifs.push(`${relatif} → ${specifieur} (${interdit.nom})`);
           continue;
         }
         const suivant = resoudre(fichier, specifieur);
@@ -88,5 +113,21 @@ describe('vérification des données — garde d’indépendance', () => {
     expect(fautifs).toEqual([]);
     // Le garde ne prouve rien s'il n'a rien parcouru.
     expect(vus.size).toBeGreaterThan(5);
+  });
+
+  it('la dérogation vise un fichier qui existe, et lui seul', () => {
+    // Une dérogation devenue sans objet est une porte laissée ouverte : elle
+    // s'enlève avec le fichier qu'elle couvrait.
+    for (const { fichier } of DEROGATIONS) {
+      expect(existsSync(resolve(RACINE, fichier)), `${fichier} absent`).toBe(true);
+    }
+    expect(DEROGATIONS.map((d) => d.fichier)).toEqual([
+      'tests/verif-donnees/fixtures-export-studio.ts',
+    ]);
+    // Et elle ne couvre que le générateur d'export, pas la lib entière.
+    const { specifieur } = DEROGATIONS[0];
+    expect(specifieur.test('../../packages/shared/src/dashboard/export-html.js')).toBe(true);
+    expect(specifieur.test('../../packages/core/src/utils/aggregations.js')).toBe(false);
+    expect(specifieur.test('../../packages/shared/src/query/filter-translator.js')).toBe(false);
   });
 });

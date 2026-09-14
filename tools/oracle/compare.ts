@@ -7,7 +7,7 @@
  * qu'on veut voir quand un contrôle tombe.
  */
 import type { CheckMode, Expect, Row } from './manifest.js';
-import type { Attendu } from './expected.js';
+import type { Attendu, AttenduUrls } from './expected.js';
 import type {
   ObservationChart,
   ObservationKpi,
@@ -43,6 +43,7 @@ export type Observation =
   | ObservationChart
   | ObservationListe
   | ObservationLegende[]
+  | string[]
   | null;
 
 interface Contexte {
@@ -140,7 +141,60 @@ export function comparer(
       const obs = observation as ObservationLegende[];
       return comparerLegende(base, attendu.classes, obs);
     }
+
+    case 'urls': {
+      const obs = observation as string[];
+      return comparerUrls(base, attendu, obs);
+    }
   }
+}
+
+/**
+ * Les URL appelées contre le verdict énoncé. `comparaisons` vaut le nombre
+ * d'URL RETENUES : un contrôle qui n'en retient aucune ne prouve rien, et le
+ * spec refuse déjà un constat à zéro comparaison.
+ */
+function comparerUrls(base: Base, attendu: AttenduUrls, appelees: string[]): Constat {
+  const retenues = attendu.among ? appelees.filter((u) => u.includes(attendu.among!)) : appelees;
+  const porteuses = retenues.filter((u) => u.includes(attendu.contains));
+  const derniere = retenues[retenues.length - 1] ?? '';
+  const lib =
+    `${porteuses.length}/${retenues.length} URL portent « ${attendu.contains} »` +
+    (retenues.length > 0
+      ? ` (dernière : ${derniere.includes(attendu.contains) ? 'oui' : 'non'})`
+      : '');
+  const oracle = `${attendu.verdict} « ${attendu.contains} »${attendu.among ? ` parmi « ${attendu.among} »` : ''}`;
+
+  if (retenues.length === 0) {
+    return {
+      ...base,
+      lib: 'aucune URL retenue',
+      oracle,
+      message: attendu.among
+        ? `aucune URL appelée ne porte « ${attendu.among} » — le contrôle ne juge rien`
+        : `aucune URL appelée — le contrôle ne juge rien`,
+    };
+  }
+
+  const ok =
+    attendu.verdict === 'none'
+      ? porteuses.length === 0
+      : attendu.verdict === 'some'
+        ? porteuses.length > 0
+        : attendu.verdict === 'all'
+          ? porteuses.length === retenues.length
+          : attendu.verdict === 'last'
+            ? derniere.includes(attendu.contains)
+            : !derniere.includes(attendu.contains);
+
+  return {
+    ...base,
+    lib,
+    oracle,
+    comparaisons: retenues.length,
+    ok,
+    message: ok ? '' : `attendu « ${attendu.verdict} » — dernière URL retenue : ${derniere}`,
+  };
 }
 
 type Base = Omit<Constat, never>;
