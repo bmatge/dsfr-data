@@ -41,6 +41,7 @@ globalThis.fetch = vi.fn(async (u: RequestInfo | URL) => {
 import { DsfrDataSource } from '@/components/dsfr-data-source.js';
 import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
 import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
+import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
 import { getDataCache, clearDataCache, clearDataMeta } from '@/utils/data-bridge.js';
 
 /**
@@ -83,10 +84,14 @@ function query(id: string, sourceId: string, groupBy: string): DsfrDataQuery {
   return q;
 }
 function reader(sourceId: string): HTMLElement {
-  // Un lecteur quelconque de la source (un KPI dans l'export du Studio) :
-  // seul l'attribut `source` compte pour la négociation.
-  const el = document.createElement('dsfr-data-kpi-stub');
+  // Un lecteur quelconque de la source (un KPI dans l'export du Studio).
+  // C'est un VRAI composant : depuis le registre d'instances (#836), un
+  // lecteur se fait connaître en s'inscrivant à connectedCallback — un
+  // élément inerte au bon `source` ne lit rien et ne compte pas.
+  const el = new DsfrDataKpi();
+  el.source = sourceId;
   el.setAttribute('source', sourceId);
+  el.value = 'count';
   return el;
 }
 function mount(...els: Element[]) {
@@ -138,7 +143,7 @@ describe('#765 — source partagée : pas de délégation', () => {
     const message = warn.mock.calls.map((c) => String(c[0])).find((m) => m.includes('#765')) ?? '';
     expect(message).toContain(`dsfr-data-query[${qRegion.id}]`);
     expect(message).toContain(`"${src.id}"`);
-    expect(message).toContain('kpi-stub');
+    expect(message).toContain('kpi');
     expect(message).toContain('sa propre');
   });
 

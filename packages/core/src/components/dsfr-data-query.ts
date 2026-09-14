@@ -18,6 +18,7 @@ import {
 import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
+import { dsfrDataInstances, onDsfrDataInstance } from '../utils/instance-registry.js';
 
 /**
  * Opérateurs de filtre supportes
@@ -88,20 +89,30 @@ function linkOf(el: Element, prop: string, attr = prop): string {
   return el.getAttribute(attr) ?? '';
 }
 
-/** Composants `dsfr-data-*` qui lisent l'id donné (source, join, concat). */
+/** Ids lus en amont par un composant : `source`, ou les deux côtés d'un join. */
+function upstreamLinksOf(el: Element): string[] {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'dsfr-data-join') return [linkOf(el, 'left'), linkOf(el, 'right')];
+  if (tag === 'dsfr-data-concat')
+    return linkOf(el, 'sources')
+      .split(',')
+      .map((v) => v.trim());
+  return [linkOf(el, 'source')];
+}
+
+/**
+ * Composants `dsfr-data-*` qui lisent l'id donné (source, join, concat).
+ *
+ * Lu dans le REGISTRE D'INSTANCES (#836), pas dans le document : le balayage
+ * `document.querySelectorAll('*')` qu'il remplace était refait à chaque saut
+ * de chaîne, à chaque négociation et à chaque contestation — vingt queries sur
+ * quelques milliers de nœuds, autant de balayages complets à l'init.
+ */
 function readersOf(id: string): Element[] {
   const out: Element[] = [];
-  for (const el of document.querySelectorAll('*')) {
-    const tag = el.tagName.toLowerCase();
-    if (!tag.startsWith('dsfr-data-') || tag === 'dsfr-data-context') continue;
-    let ups: string[];
-    if (tag === 'dsfr-data-join') ups = [linkOf(el, 'left'), linkOf(el, 'right')];
-    else if (tag === 'dsfr-data-concat')
-      ups = linkOf(el, 'sources')
-        .split(',')
-        .map((v) => v.trim());
-    else ups = [linkOf(el, 'source')];
-    if (ups.includes(id)) out.push(el);
+  for (const el of dsfrDataInstances()) {
+    if (el.tagName.toLowerCase() === 'dsfr-data-context') continue;
+    if (upstreamLinksOf(el).includes(id)) out.push(el);
   }
   return out;
 }
@@ -193,8 +204,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    *
    * La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de
    * dsfr-data-source) : une clause non parsable est signalee via
-   * reportConfigError (#277). En délégation serveur, la clause est traduite
-   * au dialecte de l'adapter (#275).
+   * reportConfigError (#277).
+   *
+   * **La clause part au serveur** dès lors que l'amont a un adaptateur qui
+   * sait la traduire et que cette requête est seule lectrice de sa chaîne
+   * (#856) — avec ou sans `group-by`. Elle est traduite au dialecte de
+   * l'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :
+   * elle se fusionne avec les clauses des facettes, de la recherche et du
+   * contexte au lieu de les écraser, et elle lève l'attente d'un
+   * `require-where` posé sur la source (#854). Elle reste calculée dans le
+   * navigateur quand la chaîne est partagée (#765), quand un transformateur
+   * amont renomme des colonnes (#394), quand une clause est intraduisible,
+   * ou avec `explode` (#736).
    */
   @property({ type: String })
   where = '';
@@ -375,6 +396,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     document.addEventListener(DELEGATION_CONTESTED_EVENT, this._onDelegationContested);
+    // Arrivees d'instances (#853) : tout lecteur qui s'inscrit sur cette
+    // chaine conteste une delegation deja posee, pas seulement une query.
+    this._unsubscribeInstances ??= onDsfrDataInstance(this._onInstanceRegistered);
     sendWidgetBeacon('dsfr-data-query');
     this._warnRemovedAttributes();
   }
@@ -411,6 +435,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   disconnectedCallback() {
     document.removeEventListener(DELEGATION_CONTESTED_EVENT, this._onDelegationContested);
+    this._unsubscribeInstances?.();
+    this._unsubscribeInstances = null;
     // Clear server-side overlays on dsfr-data-source before cleanup
     this._clearServerDelegation();
     super.disconnectedCallback();
@@ -619,7 +645,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // export du Studio (0.28.1), un KPI a 11 au lieu de 3 080 et deux
     // graphiques affichant le meme regroupement. Tout reste alors cote
     // client ; le where, cle par emetteur, reste delegable.
-    const sharedWith = sourceEl ? this._otherChainReaders() : [];
+    // La remontee de chaine est faite MEME quand l'amont n'expose pas encore
+    // d'adaptateur (#855) : c'est elle qui pose `_chainIds`, donc ce que
+    // l'ecoute du registre doit surveiller pour REFAIRE cette negociation
+    // quand le maillon manquant sera rehausse.
+    const chainReaders = this._otherChainReaders();
+    const sharedWith = sourceEl ? chainReaders : [];
     const exclusive = sharedWith.length === 0;
     // Avertir seulement quand une delegation aurait ete tentee : un agregat
     // global (sans group-by) reste cote client de toute facon.
@@ -705,6 +736,36 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         }
       }
 
+      // Delegation du `where` SEUL (#856, #854) : sans regroupement, la
+      // clause part quand meme au serveur — c'est la moins chere a traduire
+      // et celle qui evite le plus de lignes (137 rapatriees pour en garder
+      // 20, mesure du banc d'essai). L'overlay est CLE PAR EMETTEUR
+      // (ADR-031) : il se fusionne avec ceux des facettes, de la recherche et
+      // du contexte au lieu de les ecraser, a la difference du regroupement.
+      //
+      // Conditionne a `exclusive` comme le reste (#765) : la source sert ses
+      // lignes FILTREES a tous ses abonnes, un KPI voisin ne compterait que
+      // les lignes retenues par cette query.
+      //
+      // C'est aussi ce qui libere `require-where` comme sa documentation le
+      // promet (#854) : la clause deleguee EST le filtre attendu.
+      //
+      // `explode` (#736) reste hors du marche : la clause s'appliquerait aux
+      // lignes AVANT eclatement cote serveur et APRES cote client.
+      if (
+        !this._serverDelegated.where &&
+        exclusive &&
+        !this.explode &&
+        (this.filter || this.where)
+      ) {
+        const whereOnly = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
+        if (whereOnly.ok && whereOnly.where && canDelegateFields(whereOnly.fields)) {
+          cmd.where = whereOnly.where;
+          cmd.whereKey = this._whereOverlayKey();
+          this._serverDelegated.where = true;
+        }
+      }
+
       // Delegate order-by
       const sourceOrderBy = sourceEl.orderBy || '';
       if (this.orderBy && exclusive && caps.serverOrderBy && !sourceOrderBy) {
@@ -758,10 +819,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Autres lecteurs de la chaine de delegation (#765) : les composants qui
    * lisent la source visee, ou l'un des transformateurs par lesquels la
    * commande remonte (normalize, search, join gauche…), hors cette query et
-   * hors le maillon lui-meme. Lu dans le DOM — le bus n'a pas de registre
-   * d'abonnes — ce qui est exact pour une page statique, la forme de tout
-   * export ; un lecteur ajoute plus tard declenche une renegociation
-   * (DELEGATION_CONTESTED_EVENT).
+   * hors le maillon lui-meme. Lu dans le REGISTRE D'INSTANCES (#836) : chaque
+   * composant qui s'abonne a une chaine s'y inscrit a connectedCallback. Un
+   * lecteur arrive plus tard s'inscrit a son tour, ce qui refait cette
+   * negociation (#853) ; une autre query qui trouve la chaine partagee emet
+   * en plus DELEGATION_CONTESTED_EVENT.
    */
   private _otherChainReaders(): string[] {
     const readers: string[] = [];
@@ -780,8 +842,61 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       cameFrom = target;
       targetId = next;
     }
+    this._chainIds = seen;
     return readers;
   }
+
+  /**
+   * Ids des maillons visites par la derniere remontee de chaine (`source`,
+   * puis les relais). Sert de filtre a l'ecoute du registre : seule l'arrivee
+   * d'un composant qui TOUCHE cette chaine vaut renegociation.
+   */
+  private _chainIds = new Set<string>();
+
+  private _unsubscribeInstances: (() => void) | null = null;
+
+  /**
+   * Un composant `dsfr-data-*` vient de s'inscrire au registre. Deux cas,
+   * une seule reponse — renegocier :
+   *
+   *   - un LECTEUR de plus sur la chaine (KPI, liste, graphique, facettes,
+   *     autre query, #853) : la chaine devient partagee, cette query doit
+   *     liberer son regroupement serveur, sans quoi le nouveau venu compte
+   *     les GROUPES (mesure : 8 au lieu de 137). C'est #765 dans sa forme
+   *     tardive, que le commentaire de `_otherChainReaders` disait couverte
+   *     alors que `dsfr-data-delegation-contested` n'avait qu'un seul
+   *     emetteur, une AUTRE query pendant sa propre negociation.
+   *
+   *   - un MAILLON de la chaine qui vient d'etre REHAUSSE (#855) : l'ordre
+   *     des `customElements.define` (l'ordre des exports de `index.ts`) fait
+   *     qu'une `dsfr-data-query` est rehaussee AVANT un
+   *     `dsfr-data-normalize` ecrit dans la meme page. Sa premiere
+   *     negociation ne voyait alors ni `getAdapter()` ni `transformsSchema()`
+   *     sur son amont, et ne deleguait rien — definitivement. La
+   *     renegociation a lieu dans la MEME tache que l'evaluation du module,
+   *     donc avant le premier fetch (differe d'une macro-tache par
+   *     `dsfr-data-source`) : une seule requete part, deja groupee.
+   *
+   * COUPLAGE NON EVIDENT — l'inscription a lieu APRES l'initialisation du
+   * composant (donc apres sa negociation, cf. les deux mixins). Sur une page
+   * a deux queries, la premiere renegocie a l'inscription d'un lecteur SANS
+   * voir encore la seconde query — et redelegue ; c'est l'inscription de la
+   * seconde qui libere pour de bon. Aucun fetch delegue ne s'echappe entre
+   * les deux UNIQUEMENT parce que tout cet enchainement tient dans une seule
+   * tache, le fetch etant differe d'une macro-tache par `_scheduleFetch`. Si
+   * l'inscription passait dans une autre tache (rehaussement asynchrone,
+   * `queueMicrotask` dans un mixin) ou si le fetch cessait d'etre differe, un
+   * `group_by` TRANSITOIRE partirait au serveur et les voisins liraient des
+   * lignes agregees le temps d'un aller-retour.
+   */
+  private _onInstanceRegistered = (el: Element) => {
+    if (el === this || this._chainIds.size === 0) return;
+    if (el.tagName.toLowerCase() === 'dsfr-data-context') return;
+    const touchesChain =
+      (el.id !== '' && this._chainIds.has(el.id)) ||
+      upstreamLinksOf(el).some((up) => up !== '' && this._chainIds.has(up));
+    if (touchesChain) this._negotiateServerSide();
+  };
 
   /** Dernier partage signale : un avertissement par situation (#765). */
   private _sharedWarned = '';
@@ -802,7 +917,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * Un autre composant a trouve la chaine partagee (#765) : si cette query
    * y delegue encore, elle renegocie — ses overlays sont liberes et elle
-   * repasse cote client. Couvre le lecteur ajoute apres coup.
+   * repasse cote client.
+   *
+   * Ne couvre PAS le lecteur ajoute apres coup, contrairement a ce qui etait
+   * ecrit ici : c'est `_onInstanceRegistered` (le registre, #853) qui le
+   * couvre, et l'evenement seul ne fait plus tomber aucun contrôle de
+   * verification. Il reste le signal INTER-QUERY d'un partage decouvert sans
+   * qu'aucune instance ne s'inscrive — une query qui change de `source` au
+   * runtime.
    */
   private _onDelegationContested = (e: Event) => {
     const { sourceId } = (e as CustomEvent<{ sourceId: string }>).detail;
@@ -810,7 +932,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (
       !this._serverDelegated.groupBy &&
       !this._serverDelegated.aggregate &&
-      !this._serverDelegated.orderBy
+      !this._serverDelegated.orderBy &&
+      // Un `where` delegue seul (#856) est lui aussi a liberer : la source
+      // sert ses lignes FILTREES a tous ses abonnes.
+      !this._serverDelegated.where
     ) {
       return;
     }
