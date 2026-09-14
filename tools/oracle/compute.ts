@@ -5,8 +5,9 @@
  * le graphe atteignable depuis `tools/oracle` et `tests/verif-donnees`. Si la
  * lib et ce fichier se trompent, ce n'est pas de la même façon.
  */
-import type { Agg, AggSpec, Row, RowFilter, Step } from './manifest.js';
+import type { Agg, AggSpec, PivotAgg, Row, RowFilter, Step } from './manifest.js';
 import { JEU_PRINCIPAL } from './manifest.js';
+import { deriver } from './expression.js';
 
 export type { Row } from './manifest.js';
 
@@ -45,17 +46,23 @@ export function egal(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Comparaison d'ordre : numérique si les DEUX côtés le sont, lexicale si aucun
- * ne l'est (dates ISO), et INCOMPARABLE si un seul l'est — « NC » n'est ni
- * au-dessus ni au-dessous de 100. Le repli lexicographique sur une paire mixte
- * range les non-nombres par le hasard de leur première lettre.
+ * Comparaison d'ordre, sur le contrat DOCUMENTÉ de la bibliothèque (JSDoc de
+ * `where`, de `compute`, et de `compareForRange` dans `shared`) : numérique
+ * quand les DEUX côtés le sont (décimales françaises comprises),
+ * LEXICOGRAPHIQUE sinon — et une valeur absente ou vide ne matche jamais,
+ * quel que soit l'opérateur.
+ *
+ * Le repli lexicographique sur une paire mixte range « NC » par le hasard de
+ * sa première lettre, et c'est discutable ; mais c'est le comportement écrit,
+ * donc celui que l'oracle doit tenir. L'oracle ne vérifie pas ce qu'on aurait
+ * aimé, il vérifie ce qui est promis : le débat sur le comportement lui-même
+ * se tranche dans la bibliothèque, pas ici (doctrine, README).
  */
 function compare(a: unknown, b: unknown): number | null {
   if (absent(a) || absent(b)) return null;
   const na = toNum(a);
   const nb = toNum(b);
   if (na !== null && nb !== null) return na - nb;
-  if (na !== null || nb !== null) return null;
   return String(a).localeCompare(String(b));
 }
 
@@ -81,10 +88,18 @@ export function passeFiltre(row: Row, filter: RowFilter): boolean {
       return !absent(v);
     case 'isnull':
       return absent(v);
+    // Absent SEULEMENT : une chaîne vide est une valeur renseignée, comme
+    // pour le `where` de la bibliothèque.
+    case 'isnull-strict':
+      return v === null || v === undefined;
+    case 'isnotnull-strict':
+      return v !== null && v !== undefined;
     case 'in':
       // Une valeur vide n'appartient à rien, pas même à un ensemble qui
       // contiendrait une chaîne vide : c'est la règle d'`egal`.
       return filter.values.some((candidat) => egal(v, candidat));
+    case 'notin':
+      return !filter.values.some((candidat) => egal(v, candidat));
     case 'eq':
       return filter.fold ? replier(v) === replier(filter.value) : egal(v, filter.value);
     case 'neq':
@@ -93,6 +108,14 @@ export function passeFiltre(row: Row, filter: RowFilter): boolean {
       return filter.fold
         ? replier(v).includes(replier(filter.value))
         : String(v ?? '')
+            .toLowerCase()
+            .includes(String(filter.value).toLowerCase());
+    case 'notcontains':
+      // Complément exact de `contains`, repliement compris : une valeur
+      // absente ne contient rien, donc elle passe.
+      return filter.fold
+        ? !replier(v).includes(replier(filter.value))
+        : !String(v ?? '')
             .toLowerCase()
             .includes(String(filter.value).toLowerCase());
     default: {
@@ -172,17 +195,35 @@ function appliquer(rows: Row[], spec: AggSpec): number | null {
   return aggregate(rows, spec.agg, spec.field, spec.weight);
 }
 
-/** Group-by en tableaux nus : une ligne par valeur distincte de `by`. */
-export function groupBy(rows: Row[], by: string, columns: Record<string, AggSpec>): Row[] {
-  const groupes = new Map<string, Row[]>();
+/**
+ * Séparateur d'une clé composite : le caractère de contrôle « unit separator »,
+ * qu'aucune donnée ne porte. CONSTRUIT et non écrit : un octet de contrôle posé
+ * dans le source ferait classer ce fichier comme binaire par le suivi de
+ * version — diff illisible et rebase insoluble.
+ */
+const SEPARATEUR_CLE = String.fromCharCode(31);
+
+/**
+ * Group-by en tableaux nus : une ligne par combinaison distincte de `by`.
+ * Un champ à plusieurs valeurs fait une clé composite, dans l'ordre déclaré.
+ */
+export function groupBy(
+  rows: Row[],
+  by: string | string[],
+  columns: Record<string, AggSpec>
+): Row[] {
+  const champs = Array.isArray(by) ? by : [by];
+  const groupes = new Map<string, { cles: string[]; membres: Row[] }>();
   for (const r of rows) {
-    const key = r[by] === null || r[by] === undefined ? '' : String(r[by]);
+    const cles = champs.map((f) => (r[f] === null || r[f] === undefined ? '' : String(r[f])));
+    const key = cles.join(SEPARATEUR_CLE);
     const seau = groupes.get(key);
-    if (seau) seau.push(r);
-    else groupes.set(key, [r]);
+    if (seau) seau.membres.push(r);
+    else groupes.set(key, { cles, membres: [r] });
   }
-  return [...groupes.entries()].map(([key, membres]) => {
-    const row: Row = { [by]: key };
+  return [...groupes.values()].map(({ cles, membres }) => {
+    const row: Row = {};
+    champs.forEach((f, i) => (row[f] = cles[i]));
     for (const [nom, spec] of Object.entries(columns)) row[nom] = appliquer(membres, spec);
     return row;
   });
@@ -197,18 +238,36 @@ export function globalAggregate(rows: Row[], columns: Record<string, AggSpec>): 
 
 /** Tri stable sur une colonne, nombres d'abord puis chaînes ; vides en queue. */
 export function orderBy(rows: Row[], column: string, dir: 'asc' | 'desc'): Row[] {
-  const signe = dir === 'desc' ? -1 : 1;
+  return orderByKeys(rows, [{ column, dir }]);
+}
+
+/**
+ * Tri stable à plusieurs clés : la première départage, la suivante ne
+ * tranche que les ex æquo. Même comparaison qu'à une clé — vides en queue.
+ *
+ * Réserve : la bibliothèque TRIE sur un ordre total à trois rangs (vide <
+ * nombre < chaîne), qui n'est pas celui de ses comparaisons de filtre. Un tri
+ * sur une colonne mêlant nombres et non-nombres n'est donc pas comparable
+ * d'un côté à l'autre, et aucun contrôle ne doit s'y appuyer.
+ */
+export function orderByKeys(
+  rows: Row[],
+  keys: Array<{ column: string; dir: 'asc' | 'desc' }>
+): Row[] {
   return rows
     .map((row, i) => ({ row, i }))
     .sort((a, b) => {
-      const c = compare(a.row[column], b.row[column]);
-      if (c === null || c === 0) {
-        const va = absent(a.row[column]);
-        const vb = absent(b.row[column]);
-        if (va !== vb) return va ? 1 : -1;
-        return a.i - b.i;
+      for (const { column, dir } of keys) {
+        const c = compare(a.row[column], b.row[column]);
+        if (c === null || c === 0) {
+          const va = absent(a.row[column]);
+          const vb = absent(b.row[column]);
+          if (va !== vb) return va ? 1 : -1;
+          continue;
+        }
+        return (dir === 'desc' ? -1 : 1) * c;
       }
-      return signe * c;
+      return a.i - b.i;
     })
     .map((e) => e.row);
 }
@@ -242,49 +301,315 @@ export function diff(rows: Row[], from: string, as: string): Row[] {
 }
 
 /** Clé de jointure : absente ou vide = pas de clé (une ligne sans clé n'apparie rien). */
-export function joinKey(row: Row, field: string): string | null {
-  const v = row[field];
-  if (absent(v)) return null;
-  return String(v);
+export function joinKey(row: Row, field: string | string[]): string | null {
+  const champs = Array.isArray(field) ? field : [field];
+  const segments: string[] = [];
+  for (const f of champs) {
+    const v = row[f];
+    if (absent(v)) return null;
+    segments.push(String(v));
+  }
+  return segments.join('|');
+}
+
+/** Type de jointure, dans la grammaire de `dsfr-data-join`. */
+export type TypeJointure = 'inner' | 'left' | 'right' | 'full';
+
+/**
+ * Découpe un `on` en paires de champs : `"code"`, `"code=code_insee"`, ou
+ * une clé composite `"annee, code=code_insee"`.
+ */
+export function joinFields(on: string): Array<{ gauche: string; droite: string }> {
+  return on.split(',').map((part) => {
+    const [gauche, droite = gauche] = part.split('=').map((s) => s.trim());
+    return { gauche, droite };
+  });
 }
 
 /**
- * Jointure simple par clé, en tableaux nus. `on` s'écrit `"code"` ou
- * `"code=code_insee"`. Les clés sont comparées EN CHAÎNE, sans trim ni
- * complétion (`201` et `"201"` s'apparient, `"0201"` et `"201"` non), et une
- * clé vide n'apparie rien — pas même une autre clé vide.
+ * Jointure par clé, en tableaux nus. `on` s'écrit `"code"`,
+ * `"code=code_insee"` ou, pour une clé composite, `"annee, code"`. Les clés
+ * sont comparées EN CHAÎNE, sans trim ni complétion (`201` et `"201"`
+ * s'apparient, `"0201"` et `"201"` non), et une clé vide n'apparie rien — pas
+ * même une autre clé vide.
+ *
+ * Les quatre types : `inner` (les seules paires), `left` (toute ligne gauche),
+ * `right` (toute ligne droite, dans l'ordre de la droite), `full` (les lignes
+ * gauche puis les lignes droite restées seules). Une colonne non-clé portée
+ * des DEUX côtés est préfixée côté droit.
  */
 export function joinRows(
   left: Row[],
   right: Row[],
   on: string,
-  type: 'inner' | 'left' = 'left',
+  type: TypeJointure = 'left',
   prefixRight = 'right_'
 ): Row[] {
-  const [champGauche, champDroite = champGauche] = on.split('=').map((s) => s.trim());
-  const index = new Map<string, Row[]>();
-  for (const r of right) {
-    const k = joinKey(r, champDroite);
-    if (k === null) continue;
-    const seau = index.get(k);
-    if (seau) seau.push(r);
-    else index.set(k, [r]);
+  const paires = joinFields(on);
+  const champsGauche = paires.map((p) => p.gauche);
+  const champsDroite = paires.map((p) => p.droite);
+  const champsCles = new Set([...champsGauche, ...champsDroite]);
+
+  // Collisions relevées une fois, sur la première ligne de chaque côté —
+  // le schéma d'un jeu ne change pas d'une ligne à l'autre.
+  const collisions = new Set<string>();
+  if (left.length > 0 && right.length > 0) {
+    for (const nom of Object.keys(right[0])) {
+      if (nom in left[0] && !champsCles.has(nom)) collisions.add(nom);
+    }
   }
+
+  const fusionner = (l: Row | null, r: Row | null): Row => {
+    const out: Row = {};
+    if (l) for (const [nom, valeur] of Object.entries(l)) out[nom] = valeur;
+    if (r) {
+      for (const [nom, valeur] of Object.entries(r)) {
+        const paire = paires.find((p) => p.droite === nom);
+        if (paire) {
+          // La clé n'est jamais dupliquée : elle prend le nom du champ gauche,
+          // et n'est portée par la droite que si la gauche manque.
+          if (!l) out[paire.gauche] = valeur;
+          continue;
+        }
+        out[collisions.has(nom) ? `${prefixRight}${nom}` : nom] = valeur;
+      }
+    }
+    return out;
+  };
+
+  const indexer = (rows: Row[], champs: string[]): Map<string, Row[]> => {
+    const index = new Map<string, Row[]>();
+    for (const r of rows) {
+      const k = joinKey(r, champs);
+      if (k === null) continue;
+      const seau = index.get(k);
+      if (seau) seau.push(r);
+      else index.set(k, [r]);
+    }
+    return index;
+  };
+
+  const indexDroite = indexer(right, champsDroite);
   const out: Row[] = [];
+
+  if (type === 'right') {
+    const indexGauche = indexer(left, champsGauche);
+    for (const r of right) {
+      const k = joinKey(r, champsDroite);
+      const apparies = k === null ? undefined : indexGauche.get(k);
+      if (!apparies) {
+        out.push(fusionner(null, r));
+        continue;
+      }
+      for (const l of apparies) out.push(fusionner(l, r));
+    }
+    return out;
+  }
+
+  const clesDroiteApparees = new Set<string>();
   for (const l of left) {
-    const k = joinKey(l, champGauche);
-    const apparies = k === null ? undefined : index.get(k);
-    if (!apparies || apparies.length === 0) {
-      if (type === 'left') out.push({ ...l });
+    const k = joinKey(l, champsGauche);
+    const apparies = k === null ? undefined : indexDroite.get(k);
+    if (!apparies) {
+      if (type === 'left' || type === 'full') out.push(fusionner(l, null));
       continue;
     }
-    for (const r of apparies) {
-      const fusion: Row = { ...l };
-      for (const [nom, valeur] of Object.entries(r)) {
-        if (nom === champDroite) continue;
-        fusion[nom in l ? `${prefixRight}${nom}` : nom] = valeur;
-      }
-      out.push(fusion);
+    clesDroiteApparees.add(k as string);
+    for (const r of apparies) out.push(fusionner(l, r));
+  }
+  if (type === 'full') {
+    for (const r of right) {
+      const k = joinKey(r, champsDroite);
+      if (k === null || !clesDroiteApparees.has(k)) out.push(fusionner(null, r));
+    }
+  }
+  return out;
+}
+
+/** Une valeur qui ne peut pas devenir une colonne de pivot. */
+function celluleVide(v: unknown): boolean {
+  return v === null || v === undefined || v === '';
+}
+
+/**
+ * Réduction d'une cellule de pivot. Une cellule sans valeur exploitable rend
+ * `null`, jamais 0. `min` / `max` rangent des dates ISO dans l'ordre
+ * lexicographique quand aucune valeur n'est numérique.
+ */
+function reduireCellule(valeurs: unknown[], agg: PivotAgg): unknown {
+  if (valeurs.length === 0) return null;
+  if (agg === 'count') return valeurs.filter((v) => !celluleVide(v)).length;
+  if (agg === 'first') return valeurs[0] ?? null;
+  if (agg === 'last') return valeurs[valeurs.length - 1] ?? null;
+  const nombres = valeurs.map(toNum).filter((n): n is number => n !== null);
+  if (agg === 'sum') return nombres.length > 0 ? nombres.reduce((a, b) => a + b, 0) : null;
+  if (agg === 'avg') {
+    return nombres.length > 0 ? nombres.reduce((a, b) => a + b, 0) / nombres.length : null;
+  }
+  if (nombres.length > 0) return agg === 'min' ? Math.min(...nombres) : Math.max(...nombres);
+  const textes = valeurs.filter((v) => !celluleVide(v)).map((v) => String(v));
+  if (textes.length === 0) return null;
+  return textes.reduce((acc, s) => (agg === 'min' ? (s < acc ? s : acc) : s > acc ? s : acc));
+}
+
+export interface OptionsPivot {
+  row: string | string[];
+  column: string;
+  value: string;
+  aggregate?: PivotAgg;
+  columnFormat?: string;
+  columnOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Repli long → large : une ligne par identité, une colonne par valeur
+ * distincte du champ pivoté, toutes les colonnes portées par toutes les
+ * lignes. Une ligne dont le champ pivoté est vide est écartée.
+ */
+export function pivotRows(rows: Row[], options: OptionsPivot): Row[] {
+  const champsLigne = Array.isArray(options.row) ? options.row : [options.row];
+  const agg = options.aggregate ?? 'sum';
+  const gabarit = options.columnFormat || '{value}';
+
+  const brutes: string[] = [];
+  const groupes = new Map<string, { porte: Row; cellules: Map<string, unknown[]> }>();
+  for (const r of rows) {
+    const brut = r[options.column];
+    if (celluleVide(brut)) continue;
+    const col = String(brut);
+    if (!brutes.includes(col)) brutes.push(col);
+    const cle = JSON.stringify(champsLigne.map((f) => r[f] ?? null));
+    let groupe = groupes.get(cle);
+    if (!groupe) {
+      const porte: Row = {};
+      for (const f of champsLigne) porte[f] = r[f] ?? null;
+      groupe = { porte, cellules: new Map() };
+      groupes.set(cle, groupe);
+    }
+    const cellule = groupe.cellules.get(col);
+    if (cellule) cellule.push(r[options.value]);
+    else groupe.cellules.set(col, [r[options.value]]);
+  }
+
+  let ordonnees = brutes;
+  if (options.columnOrder) {
+    const toutNumerique = brutes.every((v) => toNum(v) !== null);
+    ordonnees = [...brutes].sort((a, b) =>
+      toutNumerique ? (toNum(a) as number) - (toNum(b) as number) : a.localeCompare(b, 'fr')
+    );
+    if (options.columnOrder === 'desc') ordonnees.reverse();
+  }
+  const nomDe = new Map<string, string>();
+  for (const brut of ordonnees) {
+    const nom = gabarit.split('{value}').join(brut);
+    // Une collision de noms est une ERREUR de configuration, pas un tableau
+    // plausible : la bibliothèque refuse d'émettre, l'oracle refuse de
+    // recalculer — sinon il produirait un attendu que rien ne peut afficher.
+    if (champsLigne.includes(nom)) {
+      throw new Error(`pivot : la colonne générée « ${nom} » porte le nom d'un champ de « row »`);
+    }
+    if ([...nomDe.values()].includes(nom)) {
+      throw new Error(
+        `pivot : deux valeurs de « ${options.column} » produisent la colonne « ${nom} »`
+      );
+    }
+    nomDe.set(brut, nom);
+  }
+
+  return [...groupes.values()].map(({ porte, cellules }) => {
+    const ligne: Row = { ...porte };
+    for (const brut of ordonnees) {
+      const valeurs = cellules.get(brut);
+      ligne[nomDe.get(brut) as string] = valeurs ? reduireCellule(valeurs, agg) : null;
+    }
+    return ligne;
+  });
+}
+
+export interface OptionsUnpivot {
+  idCols: string[];
+  valueCols: Array<{ column: string; as?: string }>;
+  varName?: string;
+  valueName?: string;
+  dropEmpty?: boolean;
+}
+
+/**
+ * Dépliage large → long : une ligne par (ligne d'entrée × colonne dépliée).
+ * La valeur est laissée BRUTE — le typage est l'affaire de la normalisation.
+ */
+export function unpivotRows(rows: Row[], options: OptionsUnpivot): Row[] {
+  const varName = options.varName || 'variable';
+  const valueName = options.valueName || 'value';
+  const out: Row[] = [];
+  for (const r of rows) {
+    const porte: Row = {};
+    for (const f of options.idCols) porte[f] = r[f];
+    for (const { column, as } of options.valueCols) {
+      const cellule = r[column];
+      if (options.dropEmpty && celluleVide(cellule)) continue;
+      out.push({ ...porte, [varName]: as ?? column, [valueName]: cellule });
+    }
+  }
+  return out;
+}
+
+/** Colonnes d'un jeu, toutes lignes confondues. */
+function schemaDe(rows: Row[]): Set<string> {
+  const cles = new Set<string>();
+  for (const r of rows) for (const c of Object.keys(r)) cles.add(c);
+  return cles;
+}
+
+/**
+ * Un empilement de schémas DIVERGENTS n'émet rien du tout côté bibliothèque :
+ * c'est une erreur de configuration nommée, jamais une colonne vide muette.
+ * L'oracle lève donc lui aussi, plutôt que de rendre un attendu plausible que
+ * la page ne montrera jamais. Même règle pour une colonne de provenance qui
+ * écraserait une colonne des données.
+ */
+function verifierSchemas(
+  datasets: Record<string, Row[]>,
+  sources: string[],
+  originField?: string
+): void {
+  const jeux = sources.map((nom) => datasets[nom] ?? []);
+  const reference = jeux.findIndex((rows) => rows.length > 0);
+  if (reference === -1) return;
+  const attendu = schemaDe(jeux[reference]);
+  jeux.forEach((rows, i) => {
+    if (i === reference || rows.length === 0) return;
+    const schema = schemaDe(rows);
+    const manquantes = [...attendu].filter((c) => !schema.has(c));
+    const surnumeraires = [...schema].filter((c) => !attendu.has(c));
+    if (manquantes.length === 0 && surnumeraires.length === 0) return;
+    throw new Error(
+      `empilement : schémas divergents entre « ${sources[reference]} » et « ${sources[i]} » ` +
+        `(manquantes : ${manquantes.join(', ') || 'aucune'} ; ` +
+        `en trop : ${surnumeraires.join(', ') || 'aucune'})`
+    );
+  });
+  if (originField && jeux.some((rows) => rows.some((r) => originField in r))) {
+    throw new Error(
+      `empilement : la colonne de provenance « ${originField} » écraserait une colonne des données`
+    );
+  }
+}
+
+/** Empilement de plusieurs jeux, dans l'ordre, chaque ligne pouvant dire d'où elle vient. */
+export function concatRows(
+  datasets: Record<string, Row[]>,
+  sources: string[],
+  originField?: string,
+  originLabels: Record<string, string> = {}
+): Row[] {
+  verifierSchemas(datasets, sources, originField);
+  const out: Row[] = [];
+  for (const nom of sources) {
+    const jeu = datasets[nom];
+    if (!jeu) throw new Error(`empilement : jeu « ${nom} » absent du feed`);
+    for (const r of jeu) {
+      out.push(originField ? { ...r, [originField]: originLabels[nom] ?? nom } : { ...r });
     }
   }
   return out;
@@ -344,6 +669,21 @@ export function runPipeline(
         break;
       case 'order-by':
         rows = orderBy(rows, step.column, step.dir);
+        break;
+      case 'order-by-keys':
+        rows = orderByKeys(rows, step.keys);
+        break;
+      case 'derive':
+        rows = deriver(rows, step.expr);
+        break;
+      case 'pivot':
+        rows = pivotRows(rows, step);
+        break;
+      case 'unpivot':
+        rows = unpivotRows(rows, step);
+        break;
+      case 'concat':
+        rows = concatRows(datasets, step.sources, step.originField, step.originLabels);
         break;
       case 'limit':
         rows = rows.slice(0, step.n);

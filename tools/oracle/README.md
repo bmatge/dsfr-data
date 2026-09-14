@@ -11,6 +11,39 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
+## Doctrine : l'oracle tient le contrat ÉCRIT
+
+Indépendant ne veut pas dire arbitraire. Là où la bibliothèque **documente** un
+comportement — JSDoc d'un attribut, guide des skills, en-tête d'un utilitaire de
+`shared` — l'oracle suit le contrat documenté, et recalcule ce qui est
+**promis**. Il ne s'en écarte que sur ce que la documentation ne dit pas, ou sur
+ce qui la contredit : un écart entre le code et sa doc est un défaut, et c'est
+exactement ce qu'un contrôle doit faire tomber.
+
+Un oracle qui « corrigerait » au passage un comportement qu'il juge discutable
+ne vérifierait plus rien : il mesurerait l'écart entre la bibliothèque et l'avis
+de son auteur, pas entre deux implémentations du même contrat. Le débat sur le
+comportement lui-même se tranche dans la bibliothèque (une issue, une ADR), pas
+dans `tools/oracle`.
+
+Trois applications, qui se lisent dans le code :
+
+| Contrat documenté | Où l'oracle le tient |
+|---|---|
+| Véracité d'une condition : `false`, `null`, `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai | `vrai()` — `expression.ts` (`when`, `and`, `or`, `not`) |
+| Comparaison d'ordre : numérique quand les DEUX côtés le sont (décimales françaises comprises), lexicographique sinon ; `null`, `undefined` et `''` ne matchent jamais | `compare()` — `compute.ts`, et `ordre()` — `expression.ts` |
+| Égalité : lâche entre un nombre et une chaîne numérique, mais une cellule VIDE n'égale jamais un nombre | `egal()` — `compute.ts` |
+
+La comparaison d'ordre est le cas parlant : sur une paire mixte, « NC » face à
+100, le repli lexicographique range « NC » **après** « 100 ». C'est discutable,
+et c'est écrit ; le contrôle `where-paire-mixte-nombre-et-texte` le tient pour
+vrai, et tomberait si la bibliothèque cessait de le faire sans changer sa doc.
+
+Corollaire, pour ce que la bibliothèque **refuse** : une erreur de configuration
+(collision de colonnes d'un pivot, schémas divergents d'un empilement) n'émet
+aucune ligne. L'oracle **lève** dans ces cas au lieu de recalculer un tableau
+plausible — sinon il fabriquerait un attendu que la page ne montrera jamais.
+
 ## Les deux modes
 
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
@@ -60,6 +93,8 @@ le contrôle, et l'écart désigne alors le mauvais coupable.
 tests/verif-donnees/     LES CONTRÔLES, par domaine
   banc.ts                  contrôles vivants (reproductions du banc open-data-viz)
   query.ts                 contrôles déterministes (calcul : filtre, group-by, tri, jointure…)
+  transformations.ts       contrôles déterministes des opérateurs et des agrégations
+                             (where, aggregate, normalize, compute, pivot, unpivot, join, concat)
   contexte.ts              contrôles déterministes joués AU CLAVIER ET À LA SOURIS
                              (contexte, facettes, recherche, synchro d'URL)
   adaptateurs.ts           contrôles déterministes des CHEMINS D'ENTRÉE (ODS, Tabular,
@@ -68,15 +103,18 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   export-studio.ts         les tableaux de bord produits par l'export du Studio
   banc-adaptateurs.ts      contrôles vivants, un par adaptateur public
   fixtures.ts              les lignes servies à la page ET données à l'oracle
-  fixtures-contexte.ts       les lignes et le faux serveur ODS du domaine `contexte`
-  fixtures-adaptateurs.ts    les lignes plates et les faux serveurs du domaine `adaptateurs`
-  fixtures-delegation.ts     les balisages du lot délégation (paires avec / sans server-side)
-  fixtures-export-studio.ts  les documents exportés — SEUL fichier autorisé à importer la lib
+  fixtures-contexte.ts         les lignes et le faux serveur ODS du domaine `contexte`
+  fixtures-adaptateurs.ts      les lignes plates et les faux serveurs du domaine `adaptateurs`
+  fixtures-transformations.ts  idem, servies en `data` inline (aucun faux serveur)
+  fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
+  fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   index.ts                 la liste des manifestes
 
 tools/oracle/            LE MOTEUR
   manifest.ts              la grammaire (types seuls) : Feed, Step, Expect, Check
   compute.ts               le recalcul en tableaux nus
+  expression.ts            l'évaluation des colonnes calculées, RÉÉCRITE à part
+                             (seconde implémentation de la grammaire ADR-105)
   observe.ts               les lecteurs d'observation, exécutés DANS la page
   expected.ts              l'attendu d'un contrôle, depuis ses lignes brutes
   stabilite.ts             attendre qu'une observation ne bouge plus (pas de sommeil fixe)
@@ -204,6 +242,14 @@ Mutations éprouvées sur ce socle :
 | `_onDelegationContested` sort sans renégocier (`dsfr-data-query.ts`) | `query-tardive-renegociation` | la seconde query rend 1 ligne au lieu de 7, le KPI 8 au lieu de 137 |
 | `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | 5 contrôles d'`export-studio` | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
 | `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
+| `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
+| `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
+| `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
+| `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
+| `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
+| `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
+| `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
+| repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
 
 ## Un contrôle que la bibliothèque ne passe pas
 

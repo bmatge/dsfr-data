@@ -13,10 +13,12 @@ import { CONTEXTE } from './contexte.js';
 import { DELEGATION } from './delegation.js';
 import { EXPORT_STUDIO } from './export-studio.js';
 import { QUERY } from './query.js';
+import { TRANSFORMATIONS } from './transformations.js';
 
 export const MANIFESTES: Manifest[] = [
   QUERY,
   ADAPTATEURS,
+  TRANSFORMATIONS,
   DELEGATION,
   EXPORT_STUDIO,
   CONTEXTE,
@@ -35,4 +37,13 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
   return out;
 }
 
-export { ADAPTATEURS, BANC, BANC_ADAPTATEURS, CONTEXTE, DELEGATION, EXPORT_STUDIO, QUERY };
+export {
+  ADAPTATEURS,
+  BANC,
+  BANC_ADAPTATEURS,
+  CONTEXTE,
+  DELEGATION,
+  EXPORT_STUDIO,
+  QUERY,
+  TRANSFORMATIONS,
+};

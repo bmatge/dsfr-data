@@ -219,9 +219,12 @@ function comparerTableau(
   base: Base,
   attendues: Row[],
   observees: Array<Record<string, unknown>>,
-  key: string,
+  key: string | string[],
   columns: string[]
 ): Constat {
+  const champsCle = Array.isArray(key) ? key : [key];
+  const cleDe = (row: Record<string, unknown>): string =>
+    champsCle.map((f) => String(row[f] ?? '')).join(' | ');
   const lib = `${observees.length} lignes`;
   const oracle = `${attendues.length} lignes × ${columns.length} col.`;
   if (observees.length !== attendues.length) {
@@ -235,8 +238,8 @@ function comparerTableau(
   }
   let comparaisons = 0;
   for (let i = 0; i < attendues.length; i++) {
-    const cleAttendue = String(attendues[i][key] ?? '');
-    const cleObservee = String(observees[i][key] ?? '');
+    const cleAttendue = cleDe(attendues[i]);
+    const cleObservee = cleDe(observees[i]);
     comparaisons++;
     if (cleAttendue !== cleObservee) {
       return {
