@@ -214,3 +214,51 @@ describe('#839 — table de référence des refus', () => {
     expect(parsed.error).toContain(fragment);
   });
 });
+describe('#839 — corrections de conception nommées par la revue', () => {
+  it('un filtre qui contient " / " ne coupe plus le ratio', () => {
+    // AVANT : la coupe ratio précédait le découpage des accolades, les trois
+    // morceaux « a:sum{b:eq:x », « y} » et « c:sum » donnaient « mal formé ».
+    expect(parseExpression('a:sum{b:eq:x / y} / c:sum')).toEqual({
+      type: 'ratio',
+      field: '',
+      numerator: { type: 'sum', field: 'a', rowFilter: 'b:eq:x / y' },
+      denominator: { type: 'sum', field: 'c' },
+    });
+  });
+
+  it('un filtre seul qui contient " / " reste une expression entière', () => {
+    expect(parseExpression('a:sum{b:eq:x / y}')).toEqual({
+      type: 'sum',
+      field: 'a',
+      rowFilter: 'b:eq:x / y',
+    });
+  });
+
+  it("l'alias de fonction ne réécrit pas un nom de champ", () => {
+    // AVANT : `split(':').map(canonicalAggregation)` ramenait le CHAMP
+    // « count-distinct » à « distinct », dans les trois grammaires.
+    expect(parseExpression('count-distinct')).toEqual({
+      type: 'direct',
+      field: 'count-distinct',
+    });
+    expect(parseExpression('count-distinct:sum')).toEqual({
+      type: 'sum',
+      field: 'count-distinct',
+    });
+    expect(parseExpression('sum:count-distinct')).toEqual({
+      type: 'sum',
+      field: 'count-distinct',
+    });
+    expect(parseExpression('count:count-distinct:3')).toEqual({
+      type: 'count',
+      field: 'count-distinct',
+      filterField: 'count-distinct',
+      filterValue: 3,
+    });
+  });
+
+  it("l'alias reste appliqué à la fonction", () => {
+    expect(parseExpression('nom:count-distinct')).toEqual({ type: 'distinct', field: 'nom' });
+    expect(parseExpression('count-distinct:sum').type).toBe('sum');
+  });
+});
