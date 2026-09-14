@@ -137,6 +137,9 @@ export function comparer(
       const chiffreOk = closeEnough(lib, arrondi, attendu.decimals);
       // Le motif garde la FORME fr-FR (« 12,5 % », « 1 749 € », « 14,8 M ») :
       // le bon nombre dans la mauvaise unité reste un chiffre faux à l'écran.
+      // `pattern` vient du manifeste de l'oracle, versionné dans le dépôt :
+      // `detect-non-literal-regexp` est un faux positif (#843).
+      // eslint-disable-next-line security/detect-non-literal-regexp
       const formeOk = attendu.pattern === undefined || new RegExp(attendu.pattern).test(obs.text);
       return {
         ...base,
@@ -485,6 +488,8 @@ function comparerTextes(base: Base, attendu: AttenduTextes, obs: string[]): Cons
       message: `${obs.length} élément(s) rendu(s), ${attendu.valeurs.length} recalculé(s)`,
     };
   }
+  // Même manifeste versionné (#843).
+  // eslint-disable-next-line security/detect-non-literal-regexp
   const motif = attendu.pattern === undefined ? null : new RegExp(attendu.pattern);
   let comparaisons = 0;
   for (let i = 0; i < obs.length; i++) {

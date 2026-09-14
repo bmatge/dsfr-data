@@ -1633,7 +1633,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const raw = getByPath(record, field);
       const value =
         raw instanceof Date ? raw.toISOString() : typeof raw === 'string' ? raw.trim() : '';
-      if (!/^\d{4}-\d{2}-\d{2}([T ].*)?$/.test(value)) continue;
+      // Préfixe `AAAA-MM-JJ` puis, s'il reste quelque chose, un séparateur
+      // d'heure. Deux tests linéaires plutôt qu'un motif à quantificateur
+      // imbriqué, déclaré « unsafe » par eslint-plugin-security (#843).
+      if (!/^\d{4}-\d{2}-\d{2}/.test(value)) continue;
+      if (value.length > 10 && value[10] !== 'T' && value[10] !== ' ') continue;
       if (!Number.isFinite(Date.parse(value))) continue;
       if (latest === null || value > latest) latest = value;
     }

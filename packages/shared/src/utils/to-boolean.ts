@@ -47,8 +47,26 @@ const FALSY_TOKENS: ReadonlySet<string> = new Set([
   '–',
 ]);
 
-/** Nombre décimal simple (point ou virgule), signe optionnel. */
-const SIMPLE_NUMBER_RE = /^[+-]?\d+(?:[.,]\d+)?$/;
+/**
+ * Nombre décimal simple (point ou virgule), signe optionnel.
+ *
+ * Parcours linéaire plutôt que `/^[+-]?\d+(?:[.,]\d+)?$/` : un quantificateur
+ * imbriqué dans le groupe décimal suffit à faire déclarer le motif « unsafe »
+ * (#843). Cette version lit la chaîne caractère par caractère, sans retour
+ * arrière possible.
+ */
+function isSimpleNumber(s: string): boolean {
+  let i = s.charCodeAt(0) === 43 /* + */ || s.charCodeAt(0) === 45 /* - */ ? 1 : 0;
+  const intStart = i;
+  while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+  if (i === intStart) return false; // aucun chiffre avant le séparateur
+  if (i === s.length) return true; // entier signé
+  if (s[i] !== '.' && s[i] !== ',') return false;
+  i++;
+  const fracStart = i;
+  while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+  return i > fracStart && i === s.length;
+}
 
 /**
  * Convertit une valeur de cellule en booléen.
@@ -71,7 +89,7 @@ export function toBoolean(value: unknown): boolean {
 
   const normalized = stripAccents(value.trim().toLowerCase());
   if (FALSY_TOKENS.has(normalized)) return false;
-  if (SIMPLE_NUMBER_RE.test(normalized)) {
+  if (isSimpleNumber(normalized)) {
     return parseFloat(normalized.replace(',', '.')) !== 0;
   }
   return true;

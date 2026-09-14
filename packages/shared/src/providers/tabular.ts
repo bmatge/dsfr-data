@@ -9,9 +9,13 @@ const TABULAR_API_RE = /tabular-api\.data\.gouv\.fr\/api\/resources\/([^/?#]+)/;
  * different host — tabular-api.data.gouv.fr — handled in resolveSourceUrl).
  * NB: a data.gouv DATASET page (/datasets/{slug}/) is NOT matched here: a
  * dataset holds N resources, so picking one requires a network lookup (Phase 1).
+ *
+ * Le segment de langue s'ecrit `[a-z][a-z]` et non `[a-z]{2}` : un
+ * quantificateur imbrique dans le groupe optionnel suffit a faire declarer le
+ * motif « unsafe » (#843), alors que deux classes litterales sont lineaires.
  */
 const TABULAR_PERMALINK_RE =
-  /data\.gouv\.fr\/(?:[a-z]{2}\/)?datasets\/r\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+  /data\.gouv\.fr\/(?:[a-z][a-z]\/)?datasets\/r\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
 
 export const TABULAR_CONFIG: ProviderConfig = {
   id: 'tabular',

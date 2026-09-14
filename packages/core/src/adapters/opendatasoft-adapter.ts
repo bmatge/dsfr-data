@@ -127,12 +127,37 @@ function escapeOdsqlIdentifier(field: string): string {
 function isOdsqlExpression(item: string): boolean {
   return (
     item === '*' ||
-    /^\d+(\.\d+)?$/.test(item) ||
+    isNumberLiteral(item) ||
     /[()'"`]/.test(item) ||
     /\sas\s/i.test(item) ||
-    /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$/.test(item) ||
+    isDottedIdentifier(item) ||
     /[+*/%<>=]/.test(item)
   );
+}
+
+/**
+ * Litteral numerique nu : `12`, `12.5`.
+ *
+ * Decoupage plutot que `/^\d+(\.\d+)?$/` : un quantificateur imbrique dans le
+ * groupe decimal suffit a faire declarer le motif « unsafe » (#843). Les deux
+ * sous-motifs employes ici sont lineaires.
+ */
+function isNumberLiteral(item: string): boolean {
+  const dot = item.indexOf('.');
+  if (dot === -1) return /^\d+$/.test(item);
+  if (item.indexOf('.', dot + 1) !== -1) return false; // un seul point
+  return /^\d+$/.test(item.slice(0, dot)) && /^\d+$/.test(item.slice(dot + 1));
+}
+
+/**
+ * Chemin pointe d'identifiants : `table.champ`, `a.b.c` (au moins un point).
+ *
+ * Meme motivation que `isNumberLiteral` : `/^[A-Za-z_]\w*(\.[A-Za-z_]\w*)+$/`
+ * imbrique deux quantificateurs (#843).
+ */
+function isDottedIdentifier(item: string): boolean {
+  const parts = item.split('.');
+  return parts.length > 1 && parts.every((p) => /^[A-Za-z_]\w*$/.test(p));
 }
 
 /** Echappe un element de liste : identifiant nu ou expression brute, sinon backquote */

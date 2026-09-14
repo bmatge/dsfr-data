@@ -33,7 +33,7 @@
     "verif:expected": "vite-node tools/oracle/run.ts",
     "verif:live": "npm run verif:expected && VERIF_RUN=$$ VERIF_MODE=live playwright test --config e2e/playwright.config.ts e2e/verif-donnees.spec.ts --project=chromium",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
-    "lint": "eslint 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts' 'tools/**/*.ts' 'e2e/**/*.ts'",
+    "lint": "eslint --max-warnings 0 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts' 'tools/**/*.ts' 'e2e/**/*.ts'",
     "lint:fix": "eslint --fix 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts' 'tools/**/*.ts' 'e2e/**/*.ts'",
     "format:check": "prettier --check 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
     "format": "prettier --write 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts'",
