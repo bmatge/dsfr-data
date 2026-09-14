@@ -71,11 +71,39 @@ export async function fetchUrlRows(source: RawUrlSource): Promise<Row[]> {
   return lignes;
 }
 
+/**
+ * Les téléchargements déjà faits DANS CE RUN, par URL de départ.
+ *
+ * Plusieurs contrôles reprennent le même jeu du banc — c'est même le cas
+ * normal, une page du banc portant plusieurs constats. Sans mémoire, le run
+ * retélécharge l'export à chaque contrôle : autant d'appels identiques à une
+ * API publique, pour des lignes qui doivent de toute façon être les MÊMES des
+ * deux côtés. La clé est l'URL effectivement appelée, clauses comprises : deux
+ * `where` différents restent deux téléchargements.
+ *
+ * La mémoire vit le temps du processus `verif:expected`, jamais sur le disque :
+ * rien n'est figé, un jeu qui change entre deux runs change les deux côtés.
+ */
+const DEJA_TELECHARGE = new Map<string, Promise<Row[]>>();
+
+/** Lignes brutes d'une source, une seule fois par URL et par run. */
+export function fetchSourceRows(source: RawSource | RawUrlSource): Promise<Row[]> {
+  const cle = estUrlBrute(source) ? source.url : exportUrl(source);
+  const connu = DEJA_TELECHARGE.get(cle);
+  if (connu !== undefined) return connu;
+  const promesse = estUrlBrute(source) ? fetchUrlRows(source) : fetchRawRows(source);
+  DEJA_TELECHARGE.set(cle, promesse);
+  return promesse;
+}
+
 /** Les jeux de lignes brutes d'un contrôle, quelle que soit son alimentation. */
 export async function resoudreFeed(feed: Feed): Promise<Record<string, Row[]>> {
   if (feed.kind === 'fixture') return feed.datasets;
-  const source = feed.source;
-  return {
-    [JEU_PRINCIPAL]: estUrlBrute(source) ? await fetchUrlRows(source) : await fetchRawRows(source),
+  const datasets: Record<string, Row[]> = {
+    [JEU_PRINCIPAL]: await fetchSourceRows(feed.source),
   };
+  for (const [nom, source] of Object.entries(feed.sources ?? {})) {
+    datasets[nom] = await fetchSourceRows(source);
+  }
+  return datasets;
 }

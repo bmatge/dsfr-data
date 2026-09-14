@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Constat } from './compare.js';
+import { ecrireRapportBanc } from './banc.js';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 
@@ -116,5 +117,8 @@ export function ecrireRapport(constats: Constat[], ordre: string[]): string {
   mkdirSync(DOSSIER_SORTIE, { recursive: true });
   writeFileSync(CHEMIN_JSON, JSON.stringify(rapport, null, 2));
   writeFileSync(resolve(DOSSIER_SORTIE, 'report.txt'), `${texte}\n`);
+  // Second rendu des MÊMES constats, rangé par page reproduite et par constat
+  // du registre : c'est dans ces termes-là que le banc relit (voir `banc.ts`).
+  ecrireRapportBanc(fusionnes, DOSSIER_SORTIE);
   return texte;
 }
