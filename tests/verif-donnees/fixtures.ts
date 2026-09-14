@@ -21,16 +21,30 @@
  */
 import {
   JEU,
+  RESSOURCES,
+  filtrerOdsql,
   repondreOdsExport,
   repondreOdsFacets,
   repondreOdsMetadonnees,
   repondreOdsRecords,
+  repondreTabular,
 } from '../builder-e2e/api-fixtures.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 
 /** Hôtes fictifs — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_ODS = 'https://donnees.verif.invalid';
 export const HOTE_API = 'https://api.verif.invalid';
+
+/**
+ * Hôte Tabular : le VRAI, comme dans le harnais de recette. L'adaptateur
+ * n'accepte pas de `base-url` pour cette variante et retombe sur
+ * `TABULAR_CONFIG.defaultBaseUrl` — la fixture doit donc intercepter ce nom-là.
+ * Rien n'en sort pour autant : `page.route` refuse tout ce qui n'est pas servi.
+ */
+export const HOTE_TABULAR = 'https://tabular-api.data.gouv.fr';
+
+/** Ressource Tabular de la vérification (celle du harnais de recette). */
+export const RESSOURCE_TABULAR = RESSOURCES.resourceId;
 
 /** Jeu ODS de la vérification. */
 export const DATASET = 'jeu-de-verif';
@@ -96,6 +110,69 @@ export function urlJeu(nom: keyof typeof JEUX): string {
 
 const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET}`;
 
+/** Un agrégat ODSQL aliasé d'un `select` : `sum(population) as population__sum`. */
+const AGREGAT_ALIAS = /^(sum|avg|min|max|count)\s*\(\s*(.*?)\s*\)\s+as\s+(.+)$/i;
+
+/**
+ * `select` PUREMENT agrégé, sans `group_by` (#810) : la réponse d'Opendatasoft
+ * à `select=sum(montant) as total` n'est pas une ligne de plus dans un jeu,
+ * c'est LA valeur calculée par le serveur sur le jeu entier — répétée sur
+ * chaque ligne, avec `total_count` = nombre de lignes.
+ *
+ * Le faux serveur reproduit ce comportement contre-intuitif plutôt que
+ * d'ignorer le `select` : sans lui, une source à agrégat serveur rendrait des
+ * lignes brutes et le KPI qui lit l'alias afficherait du vide — l'échec
+ * désignerait la lib pour un défaut de la fixture.
+ *
+ * Rend `null` si le `select` n'est pas purement agrégé : la requête retombe
+ * alors sur `/records` ordinaire.
+ */
+export function repondreOdsSelectAgrege(
+  url: URL,
+  jeu: Row[]
+): { total_count: number; results: Row[] } | null {
+  const select = url.searchParams.get('select') ?? '';
+  if (!select.trim() || url.searchParams.get('group_by')) return null;
+  const elements = select.split(/,(?![^()]*\))/).map((e) => e.trim());
+  const analyses = elements.map((e) => AGREGAT_ALIAS.exec(e));
+  if (analyses.some((a) => a === null)) return null;
+
+  const lignes = filtrerOdsql(jeu, url.searchParams.get('where') ?? '') as Row[];
+  const denuder = (s: string) => (s.startsWith('`') && s.endsWith('`') ? s.slice(1, -1) : s);
+  const ligne: Row = {};
+  for (const trouve of analyses) {
+    const [, fonction, argumentBrut, aliasBrut] = trouve!;
+    const champ = denuder(argumentBrut.trim());
+    const alias = denuder(aliasBrut.trim());
+    const nombres = lignes.map((l) => Number(l[champ])).filter((n) => Number.isFinite(n));
+    switch (fonction.toLowerCase()) {
+      case 'count':
+        ligne[alias] = lignes.length;
+        break;
+      case 'sum':
+        ligne[alias] = nombres.reduce((a, b) => a + b, 0);
+        break;
+      case 'avg':
+        ligne[alias] =
+          nombres.length === 0 ? null : nombres.reduce((a, b) => a + b, 0) / nombres.length;
+        break;
+      case 'min':
+        ligne[alias] = nombres.length === 0 ? null : Math.min(...nombres);
+        break;
+      default:
+        ligne[alias] = nombres.length === 0 ? null : Math.max(...nombres);
+    }
+  }
+  // Un filtre qui ne garde rien : `results` VIDE, pas une ligne a zero — c'est
+  // ce que rend le vrai portail, et ce que l'adaptateur synthetise ensuite.
+  const limite = Number(url.searchParams.get('limit') ?? '1');
+  const copies = Math.min(Math.max(limite, 0), lignes.length);
+  return {
+    total_count: lignes.length,
+    results: Array.from({ length: copies }, () => ({ ...ligne })),
+  };
+}
+
 /**
  * Le faux serveur : une URL, une réponse — ou `null` si l'URL n'est pas
  * prévue, auquel cas l'appelant la REFUSE plutôt que de la laisser sortir.
@@ -103,10 +180,18 @@ const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET}`;
 export function repondre(url: URL): unknown | null {
   if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS)) {
     const reste = url.pathname.slice(PREFIXE_ODS.length);
-    if (reste === '/records') return repondreOdsRecords(url, TERRITOIRES);
+    if (reste === '/records') {
+      return repondreOdsSelectAgrege(url, TERRITOIRES) ?? repondreOdsRecords(url, TERRITOIRES);
+    }
     if (reste === '/exports/json') return repondreOdsExport(url, TERRITOIRES);
     if (reste === '/facets') return repondreOdsFacets(url, TERRITOIRES);
     if (reste === '') return repondreOdsMetadonnees();
+    return null;
+  }
+  if (url.origin === HOTE_TABULAR) {
+    if (url.pathname === `/api/resources/${RESSOURCE_TABULAR}/data/`) {
+      return repondreTabular(url, TERRITOIRES);
+    }
     return null;
   }
   if (url.origin === HOTE_API) {
