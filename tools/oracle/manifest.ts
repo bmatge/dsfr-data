@@ -36,7 +36,15 @@ export type RowFilter =
       field: string;
       op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains';
       value: string | number;
+      /**
+       * Compare sans accents ni casse (`eq` et `contains`) — ce que fait une
+       * recherche plein texte quand « ecole » doit trouver « École ». Le
+       * repliement est écrit dans `compute.ts`, jamais emprunté à la lib.
+       */
+      fold?: boolean;
     }
+  /** Appartenance à un ensemble — le OU multi-valeurs d'un `in` ou d'une facette. */
+  | { field: string; op: 'in'; values: Array<string | number> }
   | { field: string; op: 'isnotnull' | 'isnull' };
 
 /** Une colonne agrégée : `{ agg: 'sum', field: 'population' }`. */
@@ -149,10 +157,93 @@ export interface ExpectLegend extends ExpectBase {
   method: 'equal';
 }
 
-export type Expect = ExpectKpi | ExpectRows | ExpectChart | ExpectList | ExpectLegend;
+/**
+ * Valeurs et COMPTEURS affichés d'un groupe de `dsfr-data-facets` — ce que
+ * l'utilisateur lit à côté de chaque case, dans l'ordre où il le lit.
+ */
+export interface ExpectFacets extends ExpectBase {
+  kind: 'facets';
+  pipeline: Step[];
+  /** Libellé affiché du groupe observé (légende du fieldset, ou label du select). */
+  group: string;
+  /** Colonne du recalcul qui porte la valeur affichée. */
+  valueColumn: string;
+  /** Colonne du recalcul qui porte le compteur affiché. */
+  countColumn: string;
+}
+
+/**
+ * Un TEXTE affiché — libellé d'un `dsfr-data-context-value`, tag d'un
+ * `dsfr-data-context-tags`, compteur d'un `dsfr-data-search`.
+ *
+ * L'attendu reste un RECALCUL : la valeur vient du `pipeline`, soit d'une
+ * colonne d'une ligne recalculée (`column`), soit d'un agrégat global
+ * (`agg`). Le manifeste ne fournit que l'habillage fixe autour d'elle
+ * (`prefix` / `suffix`), pas le chiffre.
+ */
+export interface ExpectText extends ExpectBase {
+  kind: 'text';
+  /** Sélecteur CSS DANS l'élément observé — absent : l'élément lui-même. */
+  selector?: string;
+  /** Comparer le NOMBRE lu dans le texte (fr-FR) plutôt que le texte. */
+  numeric?: boolean;
+  /** Décimales affichées, quand la comparaison est numérique. */
+  decimals?: number;
+  /** Agrégat global appliqué aux lignes recalculées (`numeric` seulement). */
+  agg?: Agg;
+  /** Champ de l'agrégat. */
+  field?: string;
+  /** Colonne de la ligne recalculée dont la valeur est attendue. */
+  column?: string;
+  /** Rang de la ligne recalculée lue (défaut : la première). */
+  row?: number;
+  /** Texte fixe avant la valeur (gabarit du composant). */
+  prefix?: string;
+  /** Texte fixe après la valeur. */
+  suffix?: string;
+}
+
+export type Expect =
+  ExpectKpi | ExpectRows | ExpectChart | ExpectList | ExpectLegend | ExpectFacets | ExpectText;
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
 export type CheckMode = 'deterministic' | 'live';
+
+/**
+ * Un GESTE joué dans la page avant l'observation.
+ *
+ * Les filtres qui viennent de l'utilisateur ne se vérifient pas sur un
+ * rendu figé : c'est le geste qui produit le chiffre, et l'ordre des
+ * événements compte (d'où le navigateur, pas un DOM simulé).
+ *
+ * `selector` est un sélecteur Playwright (CSS, ou `text=…`). `goto` sans
+ * `value` RECHARGE l'URL courante de la page — celle que la synchro d'URL
+ * vient d'écrire : c'est le contrôle en deux navigations.
+ */
+export interface Action {
+  kind: 'click' | 'fill' | 'select' | 'goto';
+  /** Élément visé (click, fill, select). */
+  selector?: string;
+  /** Texte saisi (fill), option choisie (select), URL relative ou absolue (goto). */
+  value?: string;
+  /** Options d'un `<select multiple>` (select). */
+  values?: string[];
+}
+
+/**
+ * Horloge de la page : un instant FIXE et un fuseau.
+ *
+ * Les bornes dynamiques (`today`, `current-month`, `last-n-days`) se
+ * calculent en jour civil LOCAL. Sans horloge posée, un contrôle qui les
+ * met en jeu serait vert 364 jours sur 365 et rouge le bon jour — ou
+ * l'inverse.
+ */
+export interface Clock {
+  /** Instant fixe, en ISO avec décalage explicite (`2026-06-01T00:30:00+02:00`). */
+  now: string;
+  /** Fuseau du navigateur (défaut : `UTC`). */
+  timezone?: string;
+}
 
 export interface Check {
   id: string;
@@ -164,6 +255,10 @@ export interface Check {
   head?: string;
   /** Balisage complet rendu par Playwright (sources, queries, KPI, …). */
   markup: string;
+  /** Horloge et fuseau de la page, pour les bornes de date dynamiques. */
+  clock?: Clock;
+  /** Gestes joués dans la page AVANT l'observation (filtres, facettes, URL). */
+  actions?: Action[];
   expects: Expect[];
 }
 

@@ -5,15 +5,17 @@ import { fileURLToPath } from 'node:url';
 
 import { controlesDuMode } from '../tests/verif-donnees/index.js';
 import { repondre } from '../tests/verif-donnees/fixtures.js';
-import type { Check, Expect } from '../tools/oracle/manifest.js';
+import type { Action, Check, Expect } from '../tools/oracle/manifest.js';
 import { computeExpectedFor, cleAttendu, type ExpectedCheck } from '../tools/oracle/expected.js';
 import { comparer, type Constat, type Observation } from '../tools/oracle/compare.js';
 import {
   lireCache,
+  lireFacettes,
   lireGraphique,
   lireKpi,
   lireLegende,
   lireListe,
+  lireTexte,
 } from '../tools/oracle/observe.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
 
@@ -141,6 +143,10 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(lireListe, e.id);
       case 'legend':
         return await page.evaluate(lireLegende, e.id);
+      case 'facets':
+        return await page.evaluate(lireFacettes, e.id);
+      case 'text':
+        return await page.evaluate(lireTexte, { id: e.id, selector: e.selector });
     }
   } catch (erreur) {
     if (/Execution context was destroyed|Target (page|closed)/.test(String(erreur))) return null;
@@ -163,7 +169,10 @@ function prete(e: Expect, obs: Observation): boolean {
     case 'list':
       return (obs as { rows: string[][] }).rows.length > 0;
     case 'legend':
+    case 'facets':
       return Array.isArray(obs) && obs.length > 0;
+    case 'text':
+      return (obs as { text: string }).text.trim() !== '';
   }
 }
 
@@ -190,7 +199,7 @@ const attendusVivants = MODE === 'live' ? chargerAttendus() : null;
  * l'autre, et cette liste lui donne son ordre.
  */
 const ORDRE = controles.flatMap(({ domaine, check }) =>
-  check.expects.map((e) => `${domaine}/${check.id}/${e.kind}:${e.id}`)
+  check.expects.map((e) => `${domaine}/${check.id}/${cleAttendu(e)}`)
 );
 
 test.afterAll(() => {
@@ -216,43 +225,94 @@ if (controles.length === 0) {
   });
 }
 
+/**
+ * Les GESTES joués dans la page avant l'observation (#L4).
+ *
+ * Un filtre qui vient de l'utilisateur ne se vérifie pas sur un rendu figé :
+ * c'est le clic ou la frappe qui produit le chiffre, et l'ordre des
+ * événements compte. `goto` sans valeur recharge l'URL courante — celle que
+ * la synchro d'URL vient d'écrire.
+ */
+async function jouerActions(page: Page, actions: Action[]): Promise<void> {
+  for (const action of actions) {
+    switch (action.kind) {
+      case 'goto':
+        await page.goto(action.value ? new URL(action.value, page.url()).href : page.url(), {
+          waitUntil: 'domcontentloaded',
+        });
+        break;
+      case 'click':
+        await page.click(action.selector!);
+        break;
+      case 'fill':
+        await page.fill(action.selector!, action.value ?? '');
+        break;
+      case 'select':
+        await page.selectOption(action.selector!, action.values ?? [action.value ?? '']);
+        break;
+    }
+  }
+  // Un geste déclenche un re-fetch (délégation serveur) ou un simple rendu
+  // Lit : on laisse retomber les deux avant de lire. `prete()` attend qu'il y
+  // ait quelque chose à lire, pas que ce soit la valeur d'APRÈS le geste.
+  await page.waitForLoadState('networkidle').catch(() => undefined);
+  await page.waitForTimeout(200);
+}
+
+async function executer(domaine: string, check: Check, page: Page): Promise<void> {
+  const fuites: string[] = [];
+  if (MODE === 'deterministic') await installerReseau(page, fuites);
+
+  const attendu =
+    MODE === 'live'
+      ? attendusVivants!.get(check.id)
+      : computeExpectedFor(check, check.feed.kind === 'fixture' ? check.feed.datasets : {});
+  expect(attendu, `pas d'attendu pour ${check.id} : relancer verif:expected`).toBeDefined();
+
+  // Horloge FIXE avant toute navigation : les bornes dynamiques
+  // (`today`, `current-month`, `last-n-days`) se calculent au montage.
+  if (check.clock) await page.clock.setFixedTime(new Date(check.clock.now));
+
+  await page.goto(pages.get(check.id)!, { waitUntil: 'domcontentloaded' });
+  if (check.actions?.length) await jouerActions(page, check.actions);
+
+  const delai = MODE === 'live' ? 120_000 : 30_000;
+  const echecs: string[] = [];
+  for (const e of check.expects) {
+    const observation = await attendreObservation(page, e, delai);
+    const valeurAttendue = attendu!.values[cleAttendu(e)];
+    expect(valeurAttendue, `attendu manquant pour ${cleAttendu(e)}`).toBeDefined();
+    const constat = comparer(
+      { domaine, controle: check.id, mode: check.mode, rawRows: attendu!.rawRows },
+      e,
+      valeurAttendue,
+      observation
+    );
+    constats.push(constat);
+    if (!constat.ok) {
+      echecs.push(`${constat.observation} : ${constat.message}`);
+      continue;
+    }
+    // Un contrôle vert qui n'a rien comparé ne garde rien.
+    expect(constat.comparaisons, `${cleAttendu(e)} : aucune valeur comparée`).toBeGreaterThan(0);
+  }
+
+  if (MODE === 'deterministic') {
+    expect(fuites, `requêtes sorties du faux réseau : ${fuites.join(', ')}`).toEqual([]);
+  }
+  expect(echecs, echecs.join('\n')).toEqual([]);
+}
+
 for (const { domaine, check } of controles) {
-  test(`${domaine}/${check.id} — ${check.origin}`, async ({ page }) => {
-    const fuites: string[] = [];
-    if (MODE === 'deterministic') await installerReseau(page, fuites);
-
-    const attendu =
-      MODE === 'live'
-        ? attendusVivants!.get(check.id)
-        : computeExpectedFor(check, check.feed.kind === 'fixture' ? check.feed.datasets : {});
-    expect(attendu, `pas d'attendu pour ${check.id} : relancer verif:expected`).toBeDefined();
-
-    await page.goto(pages.get(check.id)!, { waitUntil: 'domcontentloaded' });
-
-    const delai = MODE === 'live' ? 120_000 : 30_000;
-    const echecs: string[] = [];
-    for (const e of check.expects) {
-      const observation = await attendreObservation(page, e, delai);
-      const valeurAttendue = attendu!.values[cleAttendu(e)];
-      expect(valeurAttendue, `attendu manquant pour ${cleAttendu(e)}`).toBeDefined();
-      const constat = comparer(
-        { domaine, controle: check.id, mode: check.mode, rawRows: attendu!.rawRows },
-        e,
-        valeurAttendue,
-        observation
-      );
-      constats.push(constat);
-      if (!constat.ok) {
-        echecs.push(`${constat.observation} : ${constat.message}`);
-        continue;
-      }
-      // Un contrôle vert qui n'a rien comparé ne garde rien.
-      expect(constat.comparaisons, `${cleAttendu(e)} : aucune valeur comparée`).toBeGreaterThan(0);
-    }
-
-    if (MODE === 'deterministic') {
-      expect(fuites, `requêtes sorties du faux réseau : ${fuites.join(', ')}`).toEqual([]);
-    }
-    expect(echecs, echecs.join('\n')).toEqual([]);
-  });
+  const titre = `${domaine}/${check.id} — ${check.origin}`;
+  // Le fuseau est une option de CONTEXTE, pas de page : un contrôle qui pose
+  // une horloge locale s'isole dans son propre describe pour le déclarer.
+  if (check.clock) {
+    test.describe(check.id, () => {
+      test.use({ timezoneId: check.clock!.timezone ?? 'UTC' });
+      test(titre, async ({ page }) => executer(domaine, check, page));
+    });
+  } else {
+    test(titre, async ({ page }) => executer(domaine, check, page));
+  }
 }
