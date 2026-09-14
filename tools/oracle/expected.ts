@@ -38,10 +38,39 @@ export interface AttenduLegende {
   classes: Array<{ from: number | null; to: number | null }>;
 }
 
-export type Attendu = AttenduKpi | AttenduLignes | AttenduGraphique | AttenduListe | AttenduLegende;
+export interface AttenduFacettes {
+  kind: 'facets';
+  /** Valeurs et compteurs attendus, dans l'ordre d'affichage. */
+  values: Array<{ value: string; count: number | null }>;
+}
 
-/** Clé d'un attendu dans le rapport : le genre et l'id observé. */
+export interface AttenduTexte {
+  kind: 'text';
+  /** Texte attendu (comparaison textuelle), ou `null` si la comparaison est numérique. */
+  text: string | null;
+  /** Nombre attendu (comparaison numérique), ou `null` si elle est textuelle. */
+  value: number | null;
+  decimals: number;
+}
+
+export type Attendu =
+  | AttenduKpi
+  | AttenduLignes
+  | AttenduGraphique
+  | AttenduListe
+  | AttenduLegende
+  | AttenduFacettes
+  | AttenduTexte;
+
+/**
+ * Clé d'un attendu dans le rapport : le genre et l'id observé — plus ce qui
+ * distingue DEUX observations du même élément. Une page à deux facettes n'a
+ * qu'un `dsfr-data-facets` : sans le nom du groupe, la seconde attente
+ * écraserait la première et le contrôle porterait sur une seule des deux.
+ */
 export function cleAttendu(e: Expect): string {
+  if (e.kind === 'facets') return `facets:${e.id}:${e.group}`;
+  if (e.kind === 'text' && e.selector) return `text:${e.id}:${e.selector}`;
   return `${e.kind}:${e.id}`;
 }
 
@@ -87,6 +116,40 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
       case 'legend': {
         const valeurs = rows.map((r) => toNum(r[e.field])).filter((n): n is number => n !== null);
         values[cleAttendu(e)] = { kind: 'legend', classes: legendClasses(valeurs, e.classes) };
+        break;
+      }
+      case 'facets':
+        values[cleAttendu(e)] = {
+          kind: 'facets',
+          values: rows.map((r) => ({
+            value: String(r[e.valueColumn] ?? ''),
+            count: toNum(r[e.countColumn]),
+          })),
+        };
+        break;
+      case 'text': {
+        // Le manifeste ne fournit que l'habillage fixe : le chiffre ou le
+        // libellé viennent du recalcul, jamais d'un littéral.
+        if (e.numeric) {
+          const valeur = e.agg
+            ? aggregate(rows, e.agg, e.field)
+            : toNum(rows[e.row ?? 0]?.[e.column ?? '']);
+          values[cleAttendu(e)] = {
+            kind: 'text',
+            text: null,
+            value: valeur,
+            decimals: e.decimals ?? 0,
+          };
+          break;
+        }
+        const brut = e.column === undefined ? undefined : rows[e.row ?? 0]?.[e.column];
+        const milieu = brut === undefined || brut === null ? '' : String(brut);
+        values[cleAttendu(e)] = {
+          kind: 'text',
+          text: `${e.prefix ?? ''}${milieu}${e.suffix ?? ''}`,
+          value: null,
+          decimals: 0,
+        };
         break;
       }
     }

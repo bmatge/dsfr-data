@@ -9,6 +9,7 @@ import {
   egal,
   equalIntervalBreaks,
   groupBy,
+  replier,
   joinRows,
   legendClasses,
   orderBy,
@@ -191,6 +192,31 @@ describe('oracle — recalcul indépendant', () => {
     expect(parseDisplayedNumber('1 234,5 €')).toBe(1234.5);
     expect(parseDisplayedNumber('−3')).toBe(-3);
     expect(parseDisplayedNumber('—')).toBeNull();
+  });
+
+  it('appartenance à un ensemble : une valeur vide n’appartient à rien', () => {
+    const rows = [{ r: 'Occitanie' }, { r: 'Bretagne' }, { r: 'Normandie' }, { r: '' }, {}];
+    expect(
+      applyFilter(rows, [{ field: 'r', op: 'in', values: ['Occitanie', 'Bretagne'] }])
+    ).toEqual([{ r: 'Occitanie' }, { r: 'Bretagne' }]);
+    // Une chaîne vide dans l'ensemble n'apparie QUE les lignes vides.
+    expect(applyFilter(rows, [{ field: 'r', op: 'in', values: [''] }])).toEqual([{ r: '' }, {}]);
+    expect(applyFilter(rows, [{ field: 'r', op: 'in', values: [] }])).toEqual([]);
+  });
+
+  it('repliement : sans accents ni casse — « ecole » trouve « École »', () => {
+    expect(replier('École de Sète')).toBe('ecole de sete');
+    expect(replier('  ÉCOLE  ')).toBe('ecole');
+    expect(replier(null)).toBe('');
+    const rows = [{ l: 'École de Sète' }, { l: 'Collège de Brest' }];
+    expect(applyFilter(rows, [{ field: 'l', op: 'contains', value: 'sete', fold: true }])).toEqual([
+      { l: 'École de Sète' },
+    ]);
+    // Sans repliement, la même saisie ne trouve rien : c'est la distinction.
+    expect(applyFilter(rows, [{ field: 'l', op: 'contains', value: 'sete' }])).toEqual([]);
+    expect(
+      applyFilter(rows, [{ field: 'l', op: 'eq', value: 'ecole de sete', fold: true }])
+    ).toEqual([{ l: 'École de Sète' }]);
   });
 
   it('égalité à la précision affichée', () => {

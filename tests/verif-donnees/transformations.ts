@@ -197,7 +197,7 @@ ${kpi('k-nin', 'q-nin')}`,
         id: 'k-in',
         agg: 'count',
         pipeline: [
-          { op: 'filter', filters: [{ field: 'zone', op: 'in', value: ['nord', 'est'] }] },
+          { op: 'filter', filters: [{ field: 'zone', op: 'in', values: ['nord', 'est'] }] },
         ],
       },
       {
@@ -205,7 +205,7 @@ ${kpi('k-nin', 'q-nin')}`,
         id: 'k-nin',
         agg: 'count',
         pipeline: [
-          { op: 'filter', filters: [{ field: 'zone', op: 'notin', value: ['nord', 'est'] }] },
+          { op: 'filter', filters: [{ field: 'zone', op: 'notin', values: ['nord', 'est'] }] },
         ],
       },
     ],

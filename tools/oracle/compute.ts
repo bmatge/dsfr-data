@@ -66,6 +66,20 @@ function compare(a: unknown, b: unknown): number | null {
   return String(a).localeCompare(String(b));
 }
 
+/**
+ * Repliement d'un texte : sans accents, sans casse, sans blancs de bord.
+ * Écrit ici plutôt qu'emprunté à la lib — c'est le point de l'oracle. La
+ * décomposition NFD sépare la lettre de son diacritique, que la classe
+ * unicode des marques combinantes retire ensuite.
+ */
+export function replier(v: unknown): string {
+  return String(v ?? '')
+    .normalize('NFD')
+    .replace(/\p{Mn}/gu, '')
+    .toLowerCase()
+    .trim();
+}
+
 /** Un filtre ligne à ligne. */
 export function passeFiltre(row: Row, filter: RowFilter): boolean {
   const v = row[filter.field];
@@ -80,22 +94,30 @@ export function passeFiltre(row: Row, filter: RowFilter): boolean {
       return v === null || v === undefined;
     case 'isnotnull-strict':
       return v !== null && v !== undefined;
+    case 'in':
+      // Une valeur vide n'appartient à rien, pas même à un ensemble qui
+      // contiendrait une chaîne vide : c'est la règle d'`egal`.
+      return filter.values.some((candidat) => egal(v, candidat));
+    case 'notin':
+      return !filter.values.some((candidat) => egal(v, candidat));
     case 'eq':
-      return egal(v, filter.value);
+      return filter.fold ? replier(v) === replier(filter.value) : egal(v, filter.value);
     case 'neq':
       return !egal(v, filter.value);
-    case 'in':
-      return filter.value.some((candidat) => egal(v, candidat));
-    case 'notin':
-      return !filter.value.some((candidat) => egal(v, candidat));
     case 'contains':
-      return String(v ?? '')
-        .toLowerCase()
-        .includes(String(filter.value).toLowerCase());
+      return filter.fold
+        ? replier(v).includes(replier(filter.value))
+        : String(v ?? '')
+            .toLowerCase()
+            .includes(String(filter.value).toLowerCase());
     case 'notcontains':
-      return !String(v ?? '')
-        .toLowerCase()
-        .includes(String(filter.value).toLowerCase());
+      // Complément exact de `contains`, repliement compris : une valeur
+      // absente ne contient rien, donc elle passe.
+      return filter.fold
+        ? !replier(v).includes(replier(filter.value))
+        : !String(v ?? '')
+            .toLowerCase()
+            .includes(String(filter.value).toLowerCase());
     default: {
       const c = compare(v, filter.value);
       if (c === null) return false;

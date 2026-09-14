@@ -22,9 +22,9 @@ describe('oracle / filtres ajoutés', () => {
   const ligne: Row = { zone: 'nord', code: '01', vide: '', absent: null };
 
   it('in et notin sont complémentaires', () => {
-    expect(passeFiltre(ligne, { field: 'zone', op: 'in', value: ['nord', 'sud'] })).toBe(true);
-    expect(passeFiltre(ligne, { field: 'zone', op: 'notin', value: ['nord', 'sud'] })).toBe(false);
-    expect(passeFiltre(ligne, { field: 'zone', op: 'in', value: ['est'] })).toBe(false);
+    expect(passeFiltre(ligne, { field: 'zone', op: 'in', values: ['nord', 'sud'] })).toBe(true);
+    expect(passeFiltre(ligne, { field: 'zone', op: 'notin', values: ['nord', 'sud'] })).toBe(false);
+    expect(passeFiltre(ligne, { field: 'zone', op: 'in', values: ['est'] })).toBe(false);
   });
 
   it('notcontains est le complément de contains, absence comprise', () => {

@@ -7,10 +7,11 @@
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 import { BANC } from './banc.js';
+import { CONTEXTE } from './contexte.js';
 import { QUERY } from './query.js';
 import { TRANSFORMATIONS } from './transformations.js';
 
-export const MANIFESTES: Manifest[] = [QUERY, TRANSFORMATIONS, BANC];
+export const MANIFESTES: Manifest[] = [QUERY, TRANSFORMATIONS, CONTEXTE, BANC];
 
 /** Tous les contrôles d'un mode, à plat, avec leur domaine. */
 export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; check: Check }> {
@@ -23,4 +24,4 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
   return out;
 }
 
-export { BANC, QUERY, TRANSFORMATIONS };
+export { BANC, CONTEXTE, QUERY, TRANSFORMATIONS };
