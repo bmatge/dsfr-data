@@ -49,6 +49,7 @@ tools/oracle/            LE MOTEUR
   compute.ts               le recalcul en tableaux nus
   observe.ts               les lecteurs d'observation, exécutés DANS la page
   expected.ts              l'attendu d'un contrôle, depuis ses lignes brutes
+  stabilite.ts             attendre qu'une observation ne bouge plus (pas de sommeil fixe)
   compare.ts               observé contre attendu → un Constat
   raw.ts                   les deux alimentations
   report.ts                le rapport (out/report.json + out/report.txt)
@@ -96,6 +97,14 @@ actions: [
 observation ; `selector` est un sélecteur Playwright. `goto` sans valeur
 RECHARGE l'URL courante : c'est le contrôle en deux navigations — filtrer,
 puis revenir par l'URL produite et retrouver exactement les mêmes chiffres.
+
+Après les gestes, chaque observation est lue en DEUX temps (`stabilite.ts`) :
+d'abord « y a-t-il quelque chose à lire ? », puis « est-ce que ça a fini de
+bouger ? » — deux lectures identiques espacées de 150 ms, bornées à 10 s.
+Aucun sommeil fixe : un filtre client ne touche pas au réseau, `networkidle`
+est donc immédiat, et le rendu Lit qui suit le geste est asynchrone. Lire
+trop tôt, c'est lire la valeur d'AVANT le geste — et comparer cette
+valeur-là, c'est être vert ou rouge au hasard de la machine.
 
 `clock` fixe l'instant (`page.clock.setFixedTime`) ET le fuseau du navigateur
 (`timezoneId` du contexte). Sans elle, un contrôle sur `today`,

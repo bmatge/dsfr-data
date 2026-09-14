@@ -18,6 +18,7 @@ import {
   lireTexte,
 } from '../tools/oracle/observe.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
+import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 
 /**
  * VÉRIFICATION DES DONNÉES — un seul spec, deux alimentations (ADR-122).
@@ -176,6 +177,19 @@ function prete(e: Expect, obs: Observation): boolean {
   }
 }
 
+/**
+ * Observe en DEUX temps, parce que ce sont deux questions différentes.
+ *
+ * 1. Y a-t-il quelque chose à lire ? (borne `delai` — le chargement initial
+ *    d'une source peut être long, et il l'est vraiment en mode vivant.)
+ * 2. Ce qu'on lit a-t-il fini de bouger ? (borne `LIMITE_STABILITE` — deux
+ *    lectures identiques espacées de `PAUSE_STABILITE`.)
+ *
+ * La seconde question est celle que posent les GESTES : un filtre client ne
+ * touche pas au réseau, `networkidle` est donc immédiat, et le rendu Lit qui
+ * suit le geste est asynchrone. Sans elle, on lirait la valeur d'AVANT le
+ * geste — et le contrôle serait vert ou rouge au hasard de la machine.
+ */
 async function attendreObservation(page: Page, e: Expect, delai: number): Promise<Observation> {
   let derniere: Observation = null;
   await expect
@@ -187,7 +201,17 @@ async function attendreObservation(page: Page, e: Expect, delai: number): Promis
       { timeout: delai, message: `#${e.id} (${e.kind}) n'a rien affiché` }
     )
     .toBe(true);
-  return derniere;
+
+  return await lireJusquAStabilite<Observation>(
+    async () => {
+      const obs = await observer(page, e);
+      return prete(e, obs) ? obs : null;
+    },
+    {
+      dormir: (ms) => page.waitForTimeout(ms),
+      quoi: `#${e.id} (${e.kind})`,
+    }
+  );
 }
 
 const controles = controlesDuMode(MODE);
@@ -252,11 +276,12 @@ async function jouerActions(page: Page, actions: Action[]): Promise<void> {
         break;
     }
   }
-  // Un geste déclenche un re-fetch (délégation serveur) ou un simple rendu
-  // Lit : on laisse retomber les deux avant de lire. `prete()` attend qu'il y
-  // ait quelque chose à lire, pas que ce soit la valeur d'APRÈS le geste.
+  // Un geste peut déclencher un re-fetch (délégation serveur) : on laisse
+  // retomber le réseau. Pour le reste — un filtre client ne touche à rien et
+  // `networkidle` est immédiat — c'est `attendreObservation` qui constate que
+  // la valeur lue ne bouge plus, observation par observation. Pas de sommeil
+  // fixe : une attente qui ne vérifie rien ne garantit rien.
   await page.waitForLoadState('networkidle').catch(() => undefined);
-  await page.waitForTimeout(200);
 }
 
 async function executer(domaine: string, check: Check, page: Page): Promise<void> {
