@@ -2,6 +2,10 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: '.',
+  // `api-fixtures.test.ts` vit dans ce dossier mais releve de vitest : sans ce
+  // filtre, Playwright le ramasse et la commande documentee plante avant le
+  // premier test (« Cannot read properties of undefined (reading 'config') »).
+  testMatch: /.*\.spec\.ts$/,
   timeout: 120_000,
   retries: 0,
   workers: 1, // Sequential: shared results array + avoid port conflicts

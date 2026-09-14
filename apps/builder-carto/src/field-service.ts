@@ -53,8 +53,28 @@ function looksGeo(v: unknown): boolean {
   return false;
 }
 
+/**
+ * Forme ISO tolérante : `AAAA`, `AAAA-MM`, `AAAA-MM-JJ`, suffixe horaire libre
+ * après `T` ou espace.
+ *
+ * Parcours linéaire plutôt que `/^\d{4}(-\d{2})?(-\d{2})?([T ].*)?$/` : les
+ * quantificateurs imbriqués suffisent à faire déclarer le motif « unsafe »
+ * (#843). Ici chaque caractère est lu une fois, sans retour arrière.
+ */
 function looksIsoDate(v: unknown): boolean {
-  return typeof v === 'string' && /^\d{4}(-\d{2})?(-\d{2})?([T ].*)?$/.test(v.trim());
+  if (typeof v !== 'string') return false;
+  const s = v.trim();
+  const digitAt = (k: number) => k < s.length && s[k] >= '0' && s[k] <= '9';
+  if (s.length < 4) return false;
+  for (let d = 0; d < 4; d++) if (!digitAt(d)) return false;
+  let i = 4;
+  // Jusqu'à deux segments `-MM` (mois puis jour).
+  for (let seg = 0; seg < 2; seg++) {
+    if (s[i] !== '-') break;
+    if (!digitAt(i + 1) || !digitAt(i + 2)) return false;
+    i += 3;
+  }
+  return i === s.length || s[i] === 'T' || s[i] === ' ';
 }
 
 function nameMatches(name: string, hints: string[]): boolean {

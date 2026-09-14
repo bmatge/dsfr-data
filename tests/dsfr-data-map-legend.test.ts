@@ -592,6 +592,9 @@ describe('dsfr-data-map-legend', () => {
     expect(legend.querySelector('[role="group"]')).toBeNull();
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-map.spec.ts` (#845).
   it('injecte une feuille de style unique qui passe la legende sous les encarts flottants', () => {
     mount({ color: '#000091' }, { for: 'couche' });
     mount({ color: '#000091' }, { for: 'couche' });

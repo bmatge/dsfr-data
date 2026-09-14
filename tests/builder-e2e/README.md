@@ -1,120 +1,102 @@
-# Tests de validation du Builder
+# tests/builder-e2e — OUTIL DE RECETTE MANUELLE
 
-Ce dossier contient une suite complète de tests E2E Playwright pour vérifier que **tous les paramètres** du builder dsfr-data fonctionnent correctement et génèrent le code attendu.
+> **Cette suite ne tourne dans AUCUN workflow CI, et ce n'est pas un oubli : elle n'est pas
+> verte.** Elle se lance à la main, avec `npm run dev` à côté, quand on veut inspecter le
+> Builder ou l'Assistant IA dans un vrai navigateur. Les garde-fous qui BLOQUENT une PR sont
+> ailleurs : `vitest` (unitaires), `e2e-layout.yml` (mise en page mesurée),
+> `verif-donnees.yml` (tout chiffre affiché recalculé par un oracle).
+>
+> L'état ci-dessous est **mesuré**, pas déclaré (relevé du 2026-09-14, #844). Les pourcentages
+> de l'ancienne version de ce fichier (« 11/12 passent », « 7/8 passent ») dataient d'avant
+> plusieurs refontes de l'UI du Builder et ne valaient plus rien.
 
-## 📁 Fichiers
+## État réel, spec par spec
 
-### Tests principaux
-- **`quick-audit.spec.ts`** : Tests critiques de validation (11/12 passent) - agrégations, graphiques, palettes, tri
-- **`simple-test.spec.ts`** : Tests de base des éléments UI (7/8 passent)
-- **`inspect-builder.spec.ts`** : Outil de diagnostic de la structure du builder
-- **`comprehensive-test.spec.ts`** : Tests exhaustifs de toutes les combinaisons (~100 tests)
-- **`aggregation-consistency.spec.ts`** : Tests de cohérence des données (source vs rendu)
-- **`builder-ia-recette.spec.ts`** : Recette des 16 types de l'Assistant IA (#615) — le code
-  généré est produit **et rend**, sur source locale (variante embarquée). Depuis #609 l'aperçu
-  EST l'export : ce spec est donc la seule vérification qu'un type ne rend pas dans le vide.
-  La forme du code des variantes API est vérifiée hors ligne, en CI, par
-  `tests/apps/builder-ia/code-generator-recette.test.ts` ; leur **rendu** l'est par
-  `export-html-api-recette.spec.ts` ci-dessous (#625).
-- **`export-html-api-recette.spec.ts`** : Recette des **16 types × 3 variantes API** par
-  interception de route (#625, arbitrage ADR-106). Écrite contre l'**export HTML partagé**
-  (`packages/shared/src/dashboard/export-html.ts`), qui sert le Studio *et* l'Assistant IA —
-  pas contre l'Assistant seul, voué au décommissionnement (ADR-099 §4).
-  Voir « Recette des variantes API » plus bas.
-- **`layout-diagnostic-recette.spec.ts`** : Recette de clôture de l'epic #614 — sur les 5 apps
+Relevé sur un serveur de dev local, `npx playwright test --config tests/builder-e2e/playwright.config.ts <spec>`.
+
+| Spec | Serveur de dev | Résultat mesuré | Ce qu'il faut en penser |
+|---|---|---|---|
+| `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | **58 vert / 3 rouge** | Le plus solide du dossier : déterministe, sans réseau, 30 s. Les 3 rouges portent tous sur ODS (2ᵉ page `offset=100`, KPI sur source partagée, `fetch-mode="export"`) et **pré-existent** — ils tombent à l'identique sur `main`. Demande `npm run build` avant. |
+| `builder-ia-recette.spec.ts` | oui | **vert** | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
+| `layout-diagnostic-recette.spec.ts` | oui | **vert** | Idem. |
+| `quick-audit.spec.ts` | oui | **10 vert / 2 rouge** | Dérive de sélecteurs : « Filtre avancé » et « Série 2 » ne trouvent plus leur contrôle. |
+| `simple-test.spec.ts` | oui | **6 vert / 2 rouge** | Idem (« Bouton générer », « Zone de code généré »). |
+| `aggregation-consistency.spec.ts` | oui | **0 vert / 15 rouge** | Entièrement rouge. Le harnais pilote le Builder par ses `id` HTML ; l'UI a bougé, le harnais non. |
+| `comprehensive-test.spec.ts` | oui | **0 vert / 37 rouge** | Même harnais, mêmes causes. Run très long : chaque cas va au bout de son délai avant d'expirer. |
+| `inspect-builder.spec.ts` | oui | **aucune assertion** | Ce n'est pas un test : c'est un inspecteur qui imprime la structure du Builder. Le lancer `--headed`. |
+| `builder-exhaustive.spec.ts` | oui | **aucune assertion** (110 cas) | Ce n'est pas un test non plus : c'est un **générateur de rapport** (`RESULTS.md` + `screenshots/`, tous deux ignorés par git). Il passe toujours au vert, même quand il journalise `code=false` — autrement dit quand le Builder n'a rien généré. Compter ses 110 « tests » comme de la couverture est une illusion. |
+
+**Pourquoi c'est rouge, en une phrase** : les specs les plus anciens conduisent le Builder par
+ses identifiants HTML et par des `waitForTimeout` fixes ; chaque refonte de l'UI les décale, et
+rien en CI ne le signalait. Les remettre au vert est un travail à part entière — ce n'est pas
+une question de fixtures à rafraîchir.
+
+**Ce qui pourrait être câblé en CI plus tard** : `builder-ia-recette` + `layout-diagnostic-recette`
+(43 cas, 16 s, verts et sans réseau) et `export-html-api-recette` une fois ses 3 rouges traités.
+Le modèle de workflow existe : `.github/workflows/e2e-layout.yml`.
+
+## Fichiers
+
+### Specs
+- **`export-html-api-recette.spec.ts`** : recette des **16 types × 3 variantes API** de l'export
+  HTML partagé, par interception de route (#625, ADR-106). Voir « Recette des variantes API ».
+- **`builder-ia-recette.spec.ts`** : recette des 16 types de l'Assistant IA (#615) — le code
+  généré est produit **et rend**, sur source locale. Depuis #609 l'aperçu EST l'export : ce spec
+  est la seule vérification qu'un type ne rend pas dans le vide. La forme du code des variantes
+  API est vérifiée hors ligne, en CI, par `tests/apps/builder-ia/code-generator-recette.test.ts`.
+- **`layout-diagnostic-recette.spec.ts`** : recette de clôture de l'epic #614 — sur les 5 apps
   (Builder, Assistant IA, Playground, Studio, Carto) : pas de défilement horizontal, mode de
   hauteur déclaré, fin de document bordant le rail, et volet Diagnostic qui **reçoit réellement
-  le clic** (balayage sur toute la largeur — une sonde centrale passait à côté de #612).
+  le clic**.
+- **`quick-audit.spec.ts`**, **`simple-test.spec.ts`**, **`comprehensive-test.spec.ts`**,
+  **`aggregation-consistency.spec.ts`** : les specs historiques du Builder (agrégations, types,
+  palettes, tri, filtres). Partiellement à entièrement rouges — voir le tableau ci-dessus.
+
+### Outils (sans assertion)
+- **`inspect-builder.spec.ts`** : imprime la structure du Builder.
+- **`builder-exhaustive.spec.ts`** : génère `RESULTS.md` et `screenshots/` pour 4 sources ×
+  11 types × modes.
 
 ### Utilitaires
-- **`data-consistency-checker.ts`** : Fonctions de calcul et vérification de cohérence
-- **`api-fixtures.ts`** : Les quatre faux serveurs de la recette des variantes API (ODS
+- **`data-consistency-checker.ts`** : fonctions de calcul et vérification de cohérence.
+- **`api-fixtures.ts`** : les quatre faux serveurs de la recette des variantes API (ODS
   `records` / `exports/json` / `facets`, Tabular, API générique) — **sans Playwright**, donc
-  éprouvés hors ligne par `api-fixtures.test.ts` (21 tests, en CI avec vitest).
-- **`api-harness.ts`** : Le harnais `page.route()` : sert la page, les actifs CDN et les trois
+  éprouvés hors ligne par `api-fixtures.test.ts` (en CI avec vitest).
+- **`api-harness.ts`** : le harnais `page.route()` : sert la page, les actifs CDN et les trois
   API, refuse tout le reste.
 
-### Documentation
-- **`README.md`** : Ce fichier - guide d'utilisation
-- **`RESULTAT_TESTS.md`** : Résultats détaillés des tests (5/5 agrégations validées)
-- **`QUICK_START.md`** : Démarrage rapide et troubleshooting
-- **`FIX_TESTS.md`** : Guide de résolution des problèmes
-- **`SYNTHESE.md`** : Synthèse et vue d'ensemble
-- **`TESTING_MATRIX.md`** : Matrice complète des paramètres à tester
+### Documentation et configuration
+- **`README.md`** : ce fichier.
+- **`TESTING_MATRIX.md`** : matrice des paramètres à tester.
+- **`playwright.config.ts`** : configuration Playwright. `testMatch` y est restreint à
+  `*.spec.ts` — sans quoi Playwright ramasse `api-fixtures.test.ts`, qui relève de vitest, et
+  plante avant le premier test.
 
-### Configuration
-- **`playwright.config.ts`** : Configuration Playwright
-
-## 🚀 Lancement rapide
-
-### Pré-requis
+## Lancement
 
 ```bash
-# 1. Serveur de dev doit tourner (port 5173)
+# 1. Serveur de dev (port 5173) — requis par tous les specs SAUF export-html-api-recette
 npm run dev
 
-# 2. Playwright doit être installé
-npx playwright install
+# 2. Playwright
+npx playwright install chromium
+
+# 3. Un spec, depuis la racine du dépôt
+npx playwright test --config tests/builder-e2e/playwright.config.ts builder-ia-recette.spec.ts
+
+# export-html-api-recette est le seul à ne demander aucun serveur, mais il demande
+# `npm run build` (le bundle packages/core/dist est servi à la place du CDN) :
+npm run build
+npx playwright test --config tests/builder-e2e/playwright.config.ts export-html-api-recette.spec.ts
+
+# Debug
+npx playwright test --config tests/builder-e2e/playwright.config.ts quick-audit.spec.ts --headed
+npx playwright test --config tests/builder-e2e/playwright.config.ts quick-audit.spec.ts --ui
 ```
 
-> `export-html-api-recette.spec.ts` est la **seule exception** : elle ne demande aucun serveur
-> (elle sert sa page par `page.route()`), mais elle demande `npm run build`. Voir ci-dessous.
+Lancer **tout** le dossier prend plus d'une heure (les specs historiques enchaînent les délais
+d'attente fixes puis expirent) et finit rouge : préférer un spec à la fois.
 
-### Lancer les tests critiques (recommandé)
-
-```bash
-# Aller dans le dossier des tests
-cd tests/builder-e2e
-
-# Tests critiques - 12 tests de validation (11/12 passent)
-npx playwright test quick-audit.spec.ts
-
-# Tests de base - éléments UI (7/8 passent)
-npx playwright test simple-test.spec.ts
-
-# Inspection de la structure - diagnostic
-npx playwright test inspect-builder.spec.ts --headed
-```
-
-### Lancer tous les tests
-
-```bash
-# Depuis la racine du projet
-npx playwright test --config tests/builder-e2e/playwright.config.ts
-
-# Ou depuis tests/builder-e2e/
-cd tests/builder-e2e
-npx playwright test
-```
-
-### Lancer des tests spécifiques
-
-```bash
-# Seulement les tests d'agrégation
-npx playwright test quick-audit.spec.ts -g "calcul correct"
-
-# Seulement un type de graphique
-npx playwright test quick-audit.spec.ts -g "HorizontalBar"
-
-# Seulement les palettes
-npx playwright test quick-audit.spec.ts -g "Palette"
-
-# Test du tri
-npx playwright test quick-audit.spec.ts -g "Tri"
-```
-
-### Mode interactif (debug)
-
-```bash
-# Lancer avec l'UI Playwright pour voir les tests en direct
-npx playwright test quick-audit.spec.ts --ui
-
-# Lancer avec le navigateur visible
-npx playwright test quick-audit.spec.ts --headed
-
-# Lancer avec le debugger
-npx playwright test quick-audit.spec.ts --debug
-```
 
 ## 🌐 Recette des variantes API (#625, ADR-106)
 
@@ -177,63 +159,30 @@ rendu est posé sur `pagePartagee()`, et pas par hasard : `fetch-mode` et `serve
 par construction, et la source partagée est justement celle qu'ADR-109 laisse en chargement
 complet — donc la seule où l'export a un sens.
 
-## 📊 Couverture des tests
+## Paramètres visés par les specs historiques
 
-### ✅ Tests critiques validés (quick-audit.spec.ts)
+Ce que `comprehensive-test.spec.ts` et `quick-audit.spec.ts` cherchent à couvrir. C'est une
+**intention**, pas un état : voir le tableau « État réel, spec par spec » en tête de fichier pour
+ce qui passe aujourd'hui.
 
-**Résultat : 11/12 tests passent (91.7%)**
+| Catégorie | Paramètres visés |
+|-----------|------------------|
+| Agrégations | avg, sum, count, min, max |
+| Types de graphiques | bar, horizontalBar, line, pie, doughnut, radar, scatter, gauge, kpi, map, datalist |
+| Palettes | default, categorical, sequential, divergent, neutral |
+| Tri | asc, desc |
+| Séries | simple, double |
+| Mode avancé | filtres, group-by, aggregate |
 
-| Test | Statut | Description |
-|------|--------|-------------|
-| **SUM** | ✅ | Calcul de somme correct (valeur attendue: 23300) |
-| **AVG** | ✅ | Calcul de moyenne correct (valeur attendue: 5825) |
-| **MIN** | ✅ | Calcul de minimum correct (valeur attendue: 3000) |
-| **MAX** | ✅ | Calcul de maximum correct (valeur attendue: 12000) |
-| **COUNT** | ✅ | Comptage correct (valeur attendue: 4) |
-| **HorizontalBar** | ✅ | Attribut `horizontal` présent dans le code |
-| **Pie** | ✅ | Attribut `fill` présent dans le code |
-| **KPI** | ✅ | Type kpi génère le bon composant |
-| **Tri DESC** | ✅ | Attribut `order-by` avec `:desc` |
-| **Filtre avancé** | ✅ | Mode avancé activable |
-| **Palette** | ✅ | Attribut `chart-palette` appliqué |
-| **Série 2** | ❌ | value-field-2 non visible (nécessite source chargée) |
+### Jamais couvert, ni ici ni ailleurs dans ce dossier
 
-### ✅ Tests de base validés (simple-test.spec.ts)
+- KPI : variants (info, success, warning, error) et unités
+- Map : attributs deferred (value, date)
+- Datalist : colonnes configurables, recherche, export
+- `dsfr-data-normalize` : flatten, trim, rename
+- `dsfr-data-facets`
+- Mode de génération (embedded vs dynamic), intervalle de rafraîchissement, bascule données brutes
 
-**Résultat : 7/8 tests passent**
-
-- Page builder charge correctement ✅
-- Sélection des champs disponibles ✅
-- Fonctions d'agrégation disponibles ✅
-- Types de graphiques disponibles ✅
-- Palettes de couleurs disponibles ✅
-- Bouton générer cliquable ✅
-- Zone de code généré existe ✅
-- Preview canvas existe (test basique) ⚠️
-
-### 📋 Paramètres testés par les tests exhaustifs (comprehensive-test.spec.ts)
-
-| Catégorie | Paramètres testés | Nombre |
-|-----------|-------------------|--------|
-| **Agrégations** | avg, sum, count, min, max | 5 |
-| **Types de graphiques** | bar, horizontalBar, line, pie, doughnut, radar, scatter, gauge, kpi, map, datalist | 11 |
-| **Palettes** | default, categorical, sequential (2), divergent (2), neutral | 7 |
-| **Tri** | asc, desc | 2 |
-| **Séries** | simple, double | 2 |
-| **Mode avancé** | filtres, group-by, aggregate | 3 |
-
-**Total : ~100 combinaisons à tester**
-
-### ⚠️ Paramètres à valider manuellement
-
-- [ ] KPI : variants (info, success, warning, error) et unités
-- [ ] Map : attributs deferred (value, date)
-- [ ] Datalist : colonnes configurables, recherche, export
-- [ ] Normalization (dsfr-data-normalize) : flatten, trim, rename
-- [ ] Facettes (dsfr-data-facets)
-- [ ] Mode de génération (embedded vs dynamic)
-- [ ] Refresh interval
-- [ ] Raw data toggle
 
 ## 🧪 Tests de cohérence des données
 
@@ -254,15 +203,18 @@ Les tests utilisent un dataset avec valeurs connues pour permettre la vérificat
 
 ### Valeurs attendues et résultats
 
-**Pour le champ `population` (testé dans quick-audit.spec.ts) :**
+**Pour le champ `population` (attendu de `quick-audit.spec.ts`) :**
 
-| Agrégation | Valeur attendue | Résultat test | Statut |
-|------------|-----------------|---------------|--------|
-| **SUM** | 23300 | 23300 | ✅ PASSE |
-| **AVG** | 5825 | 5825 | ✅ PASSE |
-| **MIN** | 3000 | 3000 | ✅ PASSE |
-| **MAX** | 12000 | 12000 | ✅ PASSE |
-| **COUNT** | 4 | 4 | ✅ PASSE |
+| Agrégation | Valeur attendue |
+|------------|-----------------|
+| **SUM** | 23300 |
+| **AVG** | 5825 |
+| **MIN** | 3000 |
+| **MAX** | 12000 |
+| **COUNT** | 4 |
+
+Ces valeurs sont l'ATTENDU du spec, pas un résultat constaté : l'ancienne colonne « ✅ PASSE »
+laissait croire à un relevé. Pour ce qui passe aujourd'hui, voir le tableau en tête de fichier.
 
 **Pour le champ `budget` (valeurs de référence) :**
 
@@ -274,21 +226,22 @@ Les tests utilisent un dataset avec valeurs connues pour permettre la vérificat
 | **MAX** | 500 |
 | **COUNT** | 4 |
 
-### Exposition du state pour les tests (REQUIS)
+### Exposition du state pour les tests
 
-Les tests nécessitent que le state du builder soit exposé globalement. Cette modification a été apportée dans `apps/builder/src/main.ts` :
+Les specs historiques injectent leurs données dans le state du Builder, exposé globalement.
+**Vérifié le 2026-09-14 : l'exposition est bien en place**, dans `apps/builder/src/main.ts`
+(près de la ligne 59, depuis #115) :
 
 ```typescript
 // Expose state for E2E tests
-(window as any).__BUILDER_STATE__ = state;
+(window as Window & { __BUILDER_STATE__?: typeof state }).__BUILDER_STATE__ = state;
 ```
 
-**Pourquoi c'est nécessaire ?**
-- Permet aux tests d'injecter des données de test directement dans le state
-- Permet de vérifier que les agrégations calculent les bonnes valeurs
-- Permet de comparer les résultats affichés avec les valeurs attendues
+Ce n'est donc PAS la cause des échecs du tableau en tête de fichier : l'objet est bien là et les
+specs le lisent. Ce qui a bougé, ce sont les identifiants HTML des contrôles qu'ils pilotent
+ensuite.
 
-**Note** : Cette exposition n'est utilisée QUE par les tests E2E et n'affecte pas le fonctionnement normal du builder.
+Cette exposition n'est utilisée que par ces specs et n'affecte pas le fonctionnement du Builder.
 
 ### Exemple d'utilisation
 
@@ -397,18 +350,13 @@ npx playwright test --config tests/builder-e2e/playwright.config.ts --reporter=h
 npx playwright show-report
 ```
 
-## 🎯 Checklist avant release
+## 🎯 Checklist de recette manuelle
 
-Avant chaque release, vérifier :
+Rien de ce dossier n'est un garde-fou de release : les garde-fous bloquants sont `vitest`,
+`e2e-layout.yml` et `verif-donnees.yml`. Ce qui suit est une liste de points à regarder de ses
+propres yeux quand on ouvre le Builder.
 
-### Tests automatisés
-- [ ] Tous les tests d'agrégation passent
-- [ ] Tous les types de graphiques se génèrent
-- [ ] Toutes les palettes s'appliquent
-- [ ] Les tris fonctionnent (asc, desc)
-- [ ] Les filtres avancés marchent
-
-### Tests manuels critiques
+### À vérifier à la main
 - [ ] KPI : variants et unités
 - [ ] Map : attributs deferred (value, date)
 - [ ] Datalist : colonnes configurables
@@ -425,9 +373,9 @@ Avant chaque release, vérifier :
 
 ### Performance
 
-- Les tests sont parallélisés par défaut (Playwright)
-- Pour accélérer, utiliser `--workers=4` (nombre de CPUs)
-- Pour debug, utiliser `--workers=1`
+- `playwright.config.ts` impose `workers: 1` (tableau de résultats partagé par
+  `builder-exhaustive.spec.ts`) : les specs de ce dossier ne sont PAS parallélisés.
+- Lancer un spec à la fois ; le dossier entier dépasse l'heure.
 
 ### Stabilité
 
@@ -455,7 +403,7 @@ await page.pause();
 - [Documentation Playwright](https://playwright.dev/)
 - [CLAUDE.md - Architecture du projet](../../CLAUDE.md)
 - [TESTING_MATRIX.md - Matrice complète](./TESTING_MATRIX.md)
-- [Tests E2E existants](./builder-e2e-test.spec.ts)
+- [e2e-layout.yml — le modèle de workflow déterministe](../../.github/workflows/e2e-layout.yml)
 
 ## 🤝 Contribuer
 

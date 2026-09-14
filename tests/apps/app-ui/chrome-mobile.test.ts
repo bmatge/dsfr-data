@@ -22,6 +22,10 @@ import { STACK_MAX_PX, PINNED } from '../../../packages/app-ui/src/chrome-breakp
  *
  * L'invariant a tenir : `--app-header-h` est inconditionnel en HAUTEUR, mais
  * en DECALAGE D'EPINGLAGE (`top:`) il est derive et doit porter `PINNED`.
+ *
+ * Contrat de CLASSES et de REGLES : ces tests lisent le TEXTE de la feuille
+ * emise (ou du HTML servi). Ils ne prouvent AUCUNE mise en page calculee —
+ * happy-dom n'en calcule pas ; elle est MESUREE par `e2e/mobile-chrome.spec.ts` (#845).
  */
 
 const RACINE = join(__dirname, '../../..');

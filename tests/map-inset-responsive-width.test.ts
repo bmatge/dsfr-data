@@ -92,6 +92,9 @@ describe('#818 — encart', () => {
 });
 
 describe('#818 — feuille de la carte', () => {
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/map-fullscreen.spec.ts` (#845).
   it('AC : règles en :where() (une règle de page prime), paliers chaînés jusqu’à 10rem', () => {
     document.querySelector('style[data-dsfr-data-map]')?.remove();
     const map = new DsfrDataMap();

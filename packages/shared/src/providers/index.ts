@@ -213,6 +213,10 @@ export function normalizeProviderAuthHeaders(
     out[name] = value;
   }
 
+  // Faux positif `detect-possible-timing-attacks` (#843) : on teste la PRESENCE
+  // d'une clé trouvée dans les en-têtes de l'utilisateur, jamais l'égalité de
+  // deux secrets — il n'y a ici rien à deviner par chronométrage.
+  // eslint-disable-next-line security/detect-possible-timing-attacks
   if (apikey === null) return { headers, changed: false };
   out['Authorization'] = `Apikey ${apikey}`;
   return { headers: out, changed: true };
