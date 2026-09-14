@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   lireCache,
+  lireFacettes,
   lireGraphique,
   lireKpi,
   lireLegende,
   lireListe,
+  lireTexte,
 } from '../../tools/oracle/observe.js';
 
 /**
@@ -119,5 +121,73 @@ describe('vérification des données — lecteurs d’observation', () => {
     });
     expect(lireListe('vide')!.rows).toEqual([]);
     expect(lireListe('absent')).toBeNull();
+  });
+
+  it('facettes : valeurs et compteurs affichés, cases à cocher et liste déroulante', () => {
+    document.body.innerHTML = `
+      <div id="f">
+        <fieldset>
+          <legend>Région</legend>
+          <div class="fr-fieldset__element">
+            <input type="checkbox" id="a">
+            <label for="a">Occitanie<span class="dsfr-data-facets__count">8</span><span class="fr-sr-only">, 8 resultats</span></label>
+          </div>
+          <div class="fr-fieldset__element">
+            <input type="checkbox" id="b">
+            <label for="b">Normandie<span class="dsfr-data-facets__count">1 240</span></label>
+          </div>
+          <div class="fr-fieldset__element">
+            <button type="button">Voir plus (3)</button>
+          </div>
+        </fieldset>
+        <div class="fr-select-group" data-field="categorie">
+          <label class="fr-label" for="s">Catégorie</label>
+          <select id="s">
+            <option value="">Tous</option>
+            <option value="École">École (10)</option>
+            <option value="Lycée">Lycée (8)</option>
+          </select>
+        </div>
+      </div>
+      <div id="vide"></div>`;
+    expect(lireFacettes('f')).toEqual([
+      {
+        group: 'Région',
+        values: [
+          { value: 'Occitanie', count: 8 },
+          { value: 'Normandie', count: 1240 },
+        ],
+      },
+      {
+        group: 'Catégorie',
+        values: [
+          { value: 'École', count: 10 },
+          { value: 'Lycée', count: 8 },
+        ],
+      },
+    ]);
+    // Un fieldset sans légende (panneau déroulant) et l'option « Tous » ne
+    // sont pas des valeurs de facette.
+    expect(lireFacettes('vide')).toEqual([]);
+    expect(lireFacettes('absent')).toBeNull();
+  });
+
+  it('texte : le libellé affiché, blancs normalisés, et le nombre qu’on y lit', () => {
+    document.body.innerHTML = `
+      <div id="v">Résultats pour
+        Occitanie</div>
+      <div id="t">
+        <p class="fr-sr-only">Filtre retiré</p>
+        <ul><li><button class="fr-tag">Région\u00a0: Occitanie</button></li></ul>
+      </div>
+      <div id="r"><p class="dsfr-data-search-count">1 240 résultats</p></div>`;
+    expect(lireTexte({ id: 'v' })).toEqual({ text: 'Résultats pour Occitanie', value: null });
+    expect(lireTexte({ id: 't', selector: '.fr-tag' })!.text).toBe('Région : Occitanie');
+    expect(lireTexte({ id: 'r', selector: '.dsfr-data-search-count' })).toEqual({
+      text: '1 240 résultats',
+      value: 1240,
+    });
+    expect(lireTexte({ id: 'r', selector: '.absent' })).toBeNull();
+    expect(lireTexte({ id: 'absent' })).toBeNull();
   });
 });
