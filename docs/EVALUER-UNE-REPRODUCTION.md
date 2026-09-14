@@ -104,6 +104,36 @@ lignes reçues par étape, troncature (`TRONQUÉ`), taux d'appariement d'une joi
 configuration, champs nommés qui n'existent pas dans les données. C'est l'outil à ouvrir avant de
 conclure qu'un chiffre est faux — et avant d'en publier un.
 
+### Avant de conclure à un chiffre faux : regarder si un contrôle le couvre déjà
+
+Le dépôt recalcule ses chiffres par un **oracle indépendant** (ADR-122, `tools/oracle/`) : une
+seconde implémentation qui repart des lignes brutes et compare à ce que la page **affiche**. Un
+chiffre couvert par un contrôle vert n'est pas faux au moment du dernier run — et si vous en tenez
+un qui l'est, c'est que le contrôle manque, ce qui est une information bien plus utile qu'un
+constat isolé.
+
+1. **Chercher la page dans les contrôles vivants** : `tests/verif-donnees/banc.ts` porte les
+   reproductions du banc contre les vraies API, `banc-adaptateurs.ts` un contrôle par adaptateur
+   public. Le champ `origin` de chaque `Check` dit d'où vient le cas et quelle issue le motive —
+   c'est par là qu'on retrouve une page.
+2. **Regarder le dernier run vivant** : le workflow `oracle.yml` tourne la nuit et à la demande, et
+   dépose `tools/oracle/out/report.json` en artefact. Il donne, par observation, la valeur lib, la
+   valeur oracle et l'écart. Un chiffre qui y figure sans écart a été vérifié contre l'API réelle.
+3. **Vérifier qu'il ne s'agit pas d'une attente déclarée** : un contrôle en `skip` porte la raison
+   et les **deux chiffres**, en disant s'il s'agit d'un défaut de la bibliothèque ou d'une
+   amélioration que la documentation ne promet pas. Redéposer un `skip` déjà écrit coûte ce que
+   #746 a mesuré.
+
+**Ajouter un contrôle vivant depuis une reproduction** — c'est le meilleur retour que puisse faire
+un banc d'essai, et cela tient en une entrée de manifeste. Dans `tests/verif-donnees/banc.ts` :
+`mode: 'live'`, `origin` citant l'identifiant de registre (`AM-0XX`, `BUG-0XX`) ou l'issue, le
+`markup` de la page réduit au strict nécessaire, et une alimentation brute qui appelle l'API **à la
+main** — clause ODSQL d'une `RawSource` pour un portail Opendatasoft, URL complète et chemins
+d'extraction (`rowsPath`, `nextPath`) d'une `RawUrlSource` pour toute autre enveloppe. Les clauses
+ne sont jamais traduites par la bibliothèque : c'est précisément ce qui rend le recalcul
+indépendant. Puis `npm run verif:live`. La procédure complète est dans
+[`tools/oracle/README.md`](../tools/oracle/README.md).
+
 ## 6. Une recette qui crie au loup cesse d'être crue
 
 Un harnais de non-régression doit distinguer ce qui est fiable de ce qui ne l'est pas :
