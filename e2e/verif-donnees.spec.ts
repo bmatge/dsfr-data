@@ -291,7 +291,13 @@ const ORDRE = controles.flatMap(({ domaine, check }) =>
 
 test.afterAll(() => {
   if (constats.length === 0) return;
-  process.stdout.write(`\n${ecrireRapport(constats, ORDRE)}\n`);
+  process.stdout.write(
+    `\n${ecrireRapport(
+      constats,
+      ORDRE,
+      controles.map(({ check }) => check)
+    )}\n`
+  );
 });
 
 // Les pages de fixture sont RÉGÉNÉRÉES à chaque run (dossier gitignoré) — un

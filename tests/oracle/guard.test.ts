@@ -47,6 +47,28 @@ const INTERDITS = [
   { test: (s: string) => s.startsWith('@/'), nom: 'alias @/' },
 ];
 
+/**
+ * Le SENS de la dépendance, et pas seulement son contenu.
+ *
+ * `tools/oracle` est le moteur, `tests/verif-donnees` sont ses données : les
+ * manifestes importent le moteur, jamais l'inverse. Un moteur qui irait lire
+ * les manifestes lui-même ne serait plus appelable sur autre chose qu'eux —
+ * un test unitaire devrait alors charger tous les contrôles du dépôt pour
+ * éprouver une fonction de rendu — et le graphe deviendrait circulaire.
+ * Ce qu'il faut savoir des contrôles se PASSE en paramètre (`FicheBanc`).
+ *
+ * Une exception, et une seule : `tools/oracle/run.ts` n'est pas un module du
+ * moteur mais le POINT D'ENTRÉE de `npm run verif:expected` — la racine de
+ * composition, dont le travail est précisément de rapprocher le moteur et les
+ * manifestes. Comme le spec Playwright, et pour la même raison.
+ */
+const RACINES_DE_COMPOSITION = ['tools/oracle/run.ts'];
+
+function importeSesDonnees(depuisRelatif: string, cibleRelative: string): boolean {
+  if (RACINES_DE_COMPOSITION.includes(depuisRelatif)) return false;
+  return depuisRelatif.startsWith('tools/oracle/') && cibleRelative.startsWith('tests/');
+}
+
 function fichiersTs(dir: string): string[] {
   const out: string[] = [];
   for (const entree of readdirSync(dir)) {
@@ -106,13 +128,35 @@ describe('vérification des données — garde d’indépendance', () => {
           continue;
         }
         const suivant = resoudre(fichier, specifieur);
-        if (suivant) aVoir.push(suivant);
+        if (!suivant) continue;
+        const cible = relative(RACINE, suivant);
+        if (importeSesDonnees(relatif, cible)) {
+          fautifs.push(`${relatif} → ${specifieur} (le moteur importe ses données : ${cible})`);
+          continue;
+        }
+        aVoir.push(suivant);
       }
     }
 
     expect(fautifs).toEqual([]);
     // Le garde ne prouve rien s'il n'a rien parcouru.
     expect(vus.size).toBeGreaterThan(5);
+  });
+
+  it('refuse un import de `tests/verif-donnees` depuis `tools/oracle`', () => {
+    // La règle porte sur le SENS : le manifeste importe le moteur, jamais
+    // l'inverse. Éprouvée ici sur la fonction elle-même, pour qu'elle ne puisse
+    // pas se relâcher en silence le jour où plus aucun fichier ne la déclenche.
+    expect(importeSesDonnees('tools/oracle/banc.ts', 'tests/verif-donnees/index.ts')).toBe(true);
+    expect(importeSesDonnees('tests/oracle/banc.test.ts', 'tests/verif-donnees/banc.ts')).toBe(
+      false
+    );
+    // La racine de composition, elle, a le droit — c'est son rôle.
+    expect(importeSesDonnees('tools/oracle/run.ts', 'tests/verif-donnees/index.ts')).toBe(false);
+    expect(importeSesDonnees('tests/verif-donnees/banc.ts', 'tools/oracle/manifest.ts')).toBe(
+      false
+    );
+    expect(importeSesDonnees('tools/oracle/report.ts', 'tools/oracle/banc.ts')).toBe(false);
   });
 
   it('la dérogation vise un fichier qui existe, et lui seul', () => {
