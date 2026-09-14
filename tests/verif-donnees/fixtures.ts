@@ -27,6 +27,7 @@ import {
   repondreOdsRecords,
 } from '../builder-e2e/api-fixtures.js';
 import type { Row } from '../../tools/oracle/manifest.js';
+import { repondreAffichages } from './fixtures-affichages.js';
 
 /** Hôtes fictifs — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_ODS = 'https://donnees.verif.invalid';
@@ -113,5 +114,7 @@ export function repondre(url: URL): unknown | null {
     const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX;
     return JEUX[nom] ?? null;
   }
-  return null;
+  // Les jeux du lot AFFICHAGES vivent dans leur propre fichier, sur leur
+  // propre hôte fictif : un domaine, ses lignes.
+  return repondreAffichages(url);
 }
