@@ -319,3 +319,116 @@ export async function lireExportCsv(id: string): Promise<string | null> {
   }
   return captures.length === 0 ? null : await captures[0].text();
 }
+
+/** Un groupe de facettes tel qu'il est AFFICHÉ : son libellé, ses valeurs, ses compteurs. */
+export interface ObservationFacette {
+  /** Libellé affiché du groupe (légende du fieldset, ou label de la liste). */
+  group: string;
+  /** Valeurs affichées, dans l'ordre où elles sont rendues. */
+  values: Array<{ value: string; count: number | null }>;
+}
+
+/**
+ * Valeurs et COMPTEURS affichés par une `dsfr-data-facets` — ce qu'un
+ * lecteur voit à côté de chaque case, pas l'état interne qui l'a produit.
+ *
+ * Les deux formes rendues par le composant sont lues : le fieldset de cases
+ * à cocher / boutons radio (libellé + `.dsfr-data-facets__count`) et la liste
+ * déroulante (`data-field`, option « valeur (compteur) »). L'option « Tous »
+ * et le fieldset sans légende d'un panneau déroulant ne sont pas des valeurs.
+ */
+export function lireFacettes(id: string): ObservationFacette[] | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  const racine: ParentNode = hote.shadowRoot ?? hote;
+
+  const texte = (el: Element | null): string => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const nombre = (brut: string): number | null => {
+    const nettoye = brut
+      .replace(/[\u202f\u00a0\s]/g, '')
+      .replace(/[^0-9,.\-−]/g, '')
+      .replace('−', '-')
+      .replace(',', '.');
+    if (nettoye === '' || nettoye === '-') return null;
+    const n = Number(nettoye);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const groupes: ObservationFacette[] = [];
+
+  for (const fieldset of Array.from(racine.querySelectorAll('fieldset'))) {
+    const legende = fieldset.querySelector('legend');
+    if (!legende) continue;
+    const values: ObservationFacette['values'] = [];
+    for (const element of Array.from(fieldset.querySelectorAll('.fr-fieldset__element'))) {
+      const input = element.querySelector('input[type="checkbox"], input[type="radio"]');
+      const label = element.querySelector('label');
+      if (!input || !label) continue;
+      const compteur = label.querySelector('.dsfr-data-facets__count');
+      const clone = label.cloneNode(true) as HTMLElement;
+      for (const bruit of Array.from(
+        clone.querySelectorAll('.dsfr-data-facets__count, .fr-sr-only, .fr-hint-text')
+      )) {
+        bruit.remove();
+      }
+      const valeur = (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (valeur === '' || valeur === 'Tous') continue;
+      values.push({ value: valeur, count: compteur ? nombre(texte(compteur)) : null });
+    }
+    if (values.length > 0) groupes.push({ group: texte(legende), values });
+  }
+
+  for (const bloc of Array.from(racine.querySelectorAll('[data-field]'))) {
+    const select = bloc.querySelector('select');
+    if (!select) continue;
+    const values: ObservationFacette['values'] = [];
+    for (const option of Array.from(select.querySelectorAll('option'))) {
+      if ((option.getAttribute('value') ?? '') === '') continue;
+      const brut = texte(option);
+      const avecCompteur = /^(.*)\s\(([^()]*)\)$/.exec(brut);
+      values.push(
+        avecCompteur
+          ? { value: avecCompteur[1].trim(), count: nombre(avecCompteur[2]) }
+          : { value: brut, count: null }
+      );
+    }
+    if (values.length > 0) groupes.push({ group: texte(bloc.querySelector('label')), values });
+  }
+
+  return groupes;
+}
+
+/** Un texte affiché, et le nombre qu'un lecteur y lit s'il y en a un. */
+export interface ObservationTexte {
+  text: string;
+  value: number | null;
+}
+
+/**
+ * Le TEXTE affiché par un élément, ou par un élément qu'il contient
+ * (`selector`) : libellé d'un `dsfr-data-context-value`, tag d'un
+ * `dsfr-data-context-tags`, compteur d'une `dsfr-data-search`.
+ *
+ * Les blancs sont normalisés — l'espace insécable d'un tag DSFR et le retour
+ * à la ligne d'un gabarit Lit ne sont pas des différences visibles.
+ */
+export function lireTexte(cible: { id: string; selector?: string }): ObservationTexte | null {
+  const hote = document.getElementById(cible.id);
+  if (!hote) return null;
+  const racine: ParentNode = hote.shadowRoot ?? hote;
+  const el = cible.selector
+    ? (racine.querySelector(cible.selector) ?? hote.querySelector(cible.selector))
+    : hote;
+  if (!el) return null;
+  const text = (el.textContent ?? '')
+    .replace(/[\u202f\u00a0]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const nettoye = text
+    .replace(/[\u202f\u00a0\s]/g, '')
+    .replace(/[^0-9,.\-−]/g, '')
+    .replace('−', '-')
+    .replace(',', '.');
+  const n = nettoye === '' || nettoye === '-' ? NaN : Number(nettoye);
+  return { text, value: Number.isFinite(n) ? n : null };
+}

@@ -26,6 +26,8 @@ import {
   repondreOdsMetadonnees,
   repondreOdsRecords,
 } from '../builder-e2e/api-fixtures.js';
+import { repondreAdaptateurs } from './fixtures-adaptateurs.js';
+import { repondreContexte } from './fixtures-contexte.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 import { repondreAffichages } from './fixtures-affichages.js';
 
@@ -102,6 +104,12 @@ const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET}`;
  * prévue, auquel cas l'appelant la REFUSE plutôt que de la laisser sortir.
  */
 export function repondre(url: URL): unknown | null {
+  // Les jeux d'un lot vivent dans SON fichier de fixtures : ce point de
+  // branchement évite que chaque domaine vienne éditer celui des autres.
+  const desAdaptateurs = repondreAdaptateurs(url);
+  if (desAdaptateurs !== null) return desAdaptateurs;
+  const duContexte = repondreContexte(url);
+  if (duContexte !== null) return duContexte;
   if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS)) {
     const reste = url.pathname.slice(PREFIXE_ODS.length);
     if (reste === '/records') return repondreOdsRecords(url, TERRITOIRES);

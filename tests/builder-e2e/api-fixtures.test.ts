@@ -127,6 +127,52 @@ describe('OpenDataSoft — /records', () => {
     // pipeline. Mieux vaut echouer bruyamment ici.
     expect(() => filtrerOdsql(JEU, 'region LIKE "Val%"')).toThrow(/non geree/);
   });
+
+  it('lit les PARENTHESES et les guillemets imbriques d’un where ODSQL (#767)', () => {
+    // Le portail lit cette grammaire ; si la fixture ne la lisait pas, un
+    // `where` correctement transmis par la lib serait refuse ici et l’echec
+    // accuserait le mauvais coupable.
+    const groupe = filtrerOdsql(
+      JEU,
+      '((region = "Val-d\'Oise") and (pays_iso2 = "FR")) and (population > 500000)'
+    );
+    expect(groupe).toHaveLength(1);
+    expect(groupe[0].region).toBe("Val-d'Oise");
+
+    // Le OR ne se distribue pas sur le AND voisin : la parenthese decide.
+    const ou = filtrerOdsql(JEU, '(pays_iso2 = "FR" or pays_iso2 = "DE") and population > 990000');
+    const attendu = JEU.filter(
+      (l) => (l.pays_iso2 === 'FR' || l.pays_iso2 === 'DE') && l.population > 990000
+    );
+    expect(ou).toHaveLength(attendu.length);
+    expect(ou.length).toBeGreaterThan(0);
+
+    // Un guillemet echappe reste une donnee, pas une fin de litteral.
+    expect(filtrerOdsql(JEU, 'region = "Val-d\\"Oise"')).toHaveLength(0);
+
+    expect(() => filtrerOdsql(JEU, '(region = "Val-d\'Oise"')).toThrow(/non geree/);
+    expect(() => filtrerOdsql(JEU, "date_maj >= date'2024-01-01'")).toThrow(/non geree/);
+  });
+
+  it('rend UNE ligne pour un select d’agregats seuls, AUCUNE si le filtre ne garde rien (#810)', () => {
+    const global = repondreOdsRecords(
+      url(RECORDS, 'select=count(*) as n, sum(population) as pop&limit=1')
+    );
+    expect(global.results).toHaveLength(1);
+    expect(global.results[0]).toEqual({ n: NOMBRE_DE_LIGNES, pop: SOMME_TOTALE });
+
+    // Le vrai portail ne synthetise PAS une ligne de zeros : c’est a
+    // l’adaptateur de le faire. La fixture ment donc comme le vrai.
+    const vide = repondreOdsRecords(
+      url(RECORDS, 'select=count(*) as n&where=pays_iso2 = "ZZ"&limit=1')
+    );
+    expect(vide.results).toEqual([]);
+
+    // Un champ nu dans la liste annule le chemin agregat-seul.
+    const mixte = repondreOdsRecords(url(RECORDS, 'select=count(*) as n, region&limit=2'));
+    expect(mixte.results).toHaveLength(2);
+    expect(mixte.results[0].n).toBeUndefined();
+  });
 });
 
 describe('OpenDataSoft — /exports/json (#689, ADR-106)', () => {

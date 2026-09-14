@@ -7,13 +7,15 @@
  * qu'on veut voir quand un contrôle tombe.
  */
 import type { CheckMode, Expect, Row } from './manifest.js';
-import { cleAttendu, type Attendu, type AttenduTextes } from './expected.js';
+import { cleAttendu, type Attendu, type AttenduTexte, type AttenduTextes } from './expected.js';
 import type {
   ObservationChart,
   ObservationClasses,
+  ObservationFacette,
   ObservationKpi,
   ObservationLegende,
   ObservationListe,
+  ObservationTexte,
 } from './observe.js';
 import { closeEnough, parseCsv, parseDisplayedNumber, roundTo, toNum, toRgb } from './compute.js';
 
@@ -45,6 +47,8 @@ export type Observation =
   | ObservationListe
   | ObservationLegende[]
   | ObservationClasses
+  | ObservationFacette[]
+  | ObservationTexte
   | string[]
   | string
   | null;
@@ -226,6 +230,16 @@ export function comparer(
 
     case 'dots':
       return comparerPastilles(base, attendu.couleurs, observation as string[]);
+    case 'facets': {
+      const e = expect as Extract<Expect, { kind: 'facets' }>;
+      const obs = observation as ObservationFacette[];
+      return comparerFacettes(base, attendu.values, obs, e.group);
+    }
+
+    case 'text': {
+      const obs = observation as ObservationTexte;
+      return comparerTexte(base, attendu, obs);
+    }
   }
 }
 
@@ -567,4 +581,101 @@ function comparerLegende(
     }
   }
   return { ...base, lib, oracle, comparaisons, ok: true };
+}
+
+function comparerFacettes(
+  base: Base,
+  attendues: Array<{ value: string; count: number | null }>,
+  observes: ObservationFacette[],
+  groupe: string
+): Constat {
+  const obs = observes.find((g) => g.group === groupe);
+  if (!obs) {
+    return {
+      ...base,
+      lib: observes.map((g) => g.group).join(' | ') || '—',
+      oracle: `${attendues.length} valeur(s)`,
+      message: `aucun groupe de facettes intitulé « ${groupe} » dans la page`,
+    };
+  }
+  const lib = `${obs.values.length} valeur(s) affichée(s)`;
+  const oracle = `${attendues.length} valeur(s) recalculée(s)`;
+  if (obs.values.length !== attendues.length) {
+    return {
+      ...base,
+      lib,
+      oracle,
+      ecart: obs.values.length - attendues.length,
+      message:
+        `${obs.values.length} valeurs affichées (${obs.values.map((v) => v.value).join(', ')}), ` +
+        `${attendues.length} recalculées (${attendues.map((v) => v.value).join(', ')})`,
+    };
+  }
+  let comparaisons = 0;
+  for (let i = 0; i < attendues.length; i++) {
+    comparaisons++;
+    if (obs.values[i].value !== attendues[i].value) {
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        message:
+          `rang ${i} : valeur « ${obs.values[i].value} » affichée, ` +
+          `« ${attendues[i].value} » recalculée (l'ordre affiché fait partie du contrôle)`,
+      };
+    }
+    comparaisons++;
+    const w = attendues[i].count;
+    const o = obs.values[i].count;
+    if (w === null && o === null) continue;
+    if (w === null || o === null || !closeEnough(o, w, DECIMALES_LIGNES)) {
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ecart: w !== null && o !== null ? o - w : null,
+        message: `« ${attendues[i].value} » : compteur affiché ${nombre(o)}, recalculé ${nombre(w)}`,
+      };
+    }
+  }
+  return { ...base, lib, oracle, comparaisons, ok: true };
+}
+
+function comparerTexte(base: Base, attendu: AttenduTexte, obs: ObservationTexte): Constat {
+  if (attendu.value !== null || attendu.text === null) {
+    const want = attendu.value;
+    if (want === null) {
+      return { ...base, lib: obs.text || '—', message: `l'oracle ne calcule aucune valeur` };
+    }
+    if (obs.value === null) {
+      return {
+        ...base,
+        lib: obs.text || '—',
+        oracle: nombre(want),
+        message: `aucun nombre lisible dans « ${obs.text} »`,
+      };
+    }
+    const arrondi = roundTo(want, attendu.decimals);
+    const ok = closeEnough(obs.value, arrondi, attendu.decimals);
+    return {
+      ...base,
+      lib: obs.text,
+      oracle: nombre(arrondi),
+      ecart: obs.value - arrondi,
+      comparaisons: 1,
+      ok,
+      message: ok ? '' : `affiché « ${obs.text} » (${obs.value}), recalculé ${nombre(arrondi)}`,
+    };
+  }
+  const ok = obs.text === attendu.text;
+  return {
+    ...base,
+    lib: obs.text || '—',
+    oracle: attendu.text,
+    comparaisons: 1,
+    ok,
+    message: ok ? '' : `affiché « ${obs.text} », recalculé « ${attendu.text} »`,
+  };
 }

@@ -69,9 +69,24 @@ export interface AttenduClasse {
   valeur: number | null;
 }
 
+export interface AttenduFacettes {
+  kind: 'facets';
+  /** Valeurs et compteurs attendus, dans l'ordre d'affichage. */
+  values: Array<{ value: string; count: number | null }>;
+}
+
 export interface AttenduAttr {
   kind: 'attr';
   literal: string | null;
+  value: number | null;
+  decimals: number;
+}
+
+export interface AttenduTexte {
+  kind: 'text';
+  /** Texte attendu (comparaison textuelle), ou `null` si la comparaison est numérique. */
+  text: string | null;
+  /** Nombre attendu (comparaison numérique), ou `null` si elle est textuelle. */
   value: number | null;
   decimals: number;
 }
@@ -98,7 +113,9 @@ export type Attendu =
   | AttenduClasse
   | AttenduAttr
   | AttenduCsv
-  | AttenduPastilles;
+  | AttenduPastilles
+  | AttenduFacettes
+  | AttenduTexte;
 
 /**
  * Couleur d'un KPI d'après ses seuils, énoncée en toutes lettres plutôt
@@ -130,14 +147,17 @@ function scalaire(
 
 /**
  * Clé d'un attendu dans le rapport : le genre et l'id observé — plus ce qui
- * distingue DEUX observations du même genre sur le MÊME composant (quatre
- * bornes d'axes sur un graphique, les libellés et les valeurs d'un podium).
- * Sans ce suffixe, la seconde écrasait la première et le contrôle comparait
- * une observation à l'attendu d'une autre.
+ * distingue DEUX observations du même genre sur le MÊME composant. Une page à
+ * deux facettes n'a qu'un `dsfr-data-facets` ; un graphique porte quatre
+ * bornes d'axes ; un podium montre des libellés ET des valeurs. Sans ce
+ * suffixe, la seconde attente écrase la première et le contrôle compare une
+ * observation à l'attendu d'une autre.
  */
 export function cleAttendu(e: Expect): string {
   const base = `${e.kind}:${e.id}`;
+  if (e.kind === 'facets') return `${base}:${e.group}`;
   if (e.kind === 'attr') return `${base}:${e.attr}`;
+  if (e.kind === 'text' && e.selector) return `${base}:${e.selector}`;
   if (e.kind === 'texts' || e.kind === 'class') return `${base}:${e.selector}`;
   return base;
 }
@@ -259,6 +279,40 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
           couleurs: rows.map((r) => e.colorMap[String(r[e.labelColumn] ?? '')] ?? null),
         };
         break;
+      case 'facets':
+        values[cleAttendu(e)] = {
+          kind: 'facets',
+          values: rows.map((r) => ({
+            value: String(r[e.valueColumn] ?? ''),
+            count: toNum(r[e.countColumn]),
+          })),
+        };
+        break;
+      case 'text': {
+        // Le manifeste ne fournit que l'habillage fixe : le chiffre ou le
+        // libellé viennent du recalcul, jamais d'un littéral.
+        if (e.numeric) {
+          const valeur = e.agg
+            ? aggregate(rows, e.agg, e.field)
+            : toNum(rows[e.row ?? 0]?.[e.column ?? '']);
+          values[cleAttendu(e)] = {
+            kind: 'text',
+            text: null,
+            value: valeur,
+            decimals: e.decimals ?? 0,
+          };
+          break;
+        }
+        const brut = e.column === undefined ? undefined : rows[e.row ?? 0]?.[e.column];
+        const milieu = brut === undefined || brut === null ? '' : String(brut);
+        values[cleAttendu(e)] = {
+          kind: 'text',
+          text: `${e.prefix ?? ''}${milieu}${e.suffix ?? ''}`,
+          value: null,
+          decimals: 0,
+        };
+        break;
+      }
     }
   }
   return {

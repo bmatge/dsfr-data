@@ -40,7 +40,15 @@ export type RowFilter =
       field: string;
       op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains';
       value: string | number;
+      /**
+       * Compare sans accents ni casse (`eq` et `contains`) — ce que fait une
+       * recherche plein texte quand « ecole » doit trouver « École ». Le
+       * repliement est écrit dans `compute.ts`, jamais emprunté à la lib.
+       */
+      fold?: boolean;
     }
+  /** Appartenance à un ensemble — le OU multi-valeurs d'un `in` ou d'une facette. */
+  | { field: string; op: 'in'; values: Array<string | number> }
   | { field: string; op: 'isnotnull' | 'isnull' };
 
 /** Une colonne agrégée : `{ agg: 'sum', field: 'population' }`. */
@@ -66,6 +74,28 @@ export interface RawSource {
   where?: string;
 }
 
+/**
+ * Source BRUTE générique : une URL appelée TELLE QUELLE.
+ *
+ * `RawSource` ne sait interroger qu'un portail Opendatasoft. Les autres API du
+ * banc n'ont ni la même racine ni la même enveloppe — Tabular rend
+ * `{ data, links: { next } }`, INSEE Melodi `{ observations, paging }` — et un
+ * contrôle vivant sur leur adaptateur est impossible sans une alimentation qui
+ * sache lire ces deux formes. D'où cette variante : l'URL et ses clauses sont
+ * écrites À LA MAIN dans le manifeste, jamais traduites par la lib, et
+ * l'oracle n'extrait que le tableau de lignes.
+ */
+export interface RawUrlSource {
+  /** URL complète de la première page, clauses comprises. */
+  url: string;
+  /** Chemin pointé du tableau de lignes (`data`, `observations`) ; défaut : la racine. */
+  rowsPath?: string;
+  /** Chemin pointé de l'URL de page suivante (`links.next`, `paging.next`). */
+  nextPath?: string;
+  /** Plafond de pages suivies — une pagination qui boucle ne doit pas pendre. */
+  maxPages?: number;
+}
+
 /** Nom du jeu principal quand le contrôle n'en désigne pas d'autre. */
 export const JEU_PRINCIPAL = 'main';
 
@@ -78,7 +108,8 @@ export const JEU_PRINCIPAL = 'main';
  * dépend d'une API tierce et ne tourne que la nuit ou à la demande.
  */
 export type Feed =
-  { kind: 'raw'; source: RawSource } | { kind: 'fixture'; datasets: Record<string, Row[]> };
+  | { kind: 'raw'; source: RawSource | RawUrlSource }
+  | { kind: 'fixture'; datasets: Record<string, Row[]> };
 
 /**
  * Une étape du recalcul. La suite des étapes décrit CE QUE LA PAGE DOIT
@@ -307,12 +338,60 @@ export interface ExpectDots extends ExpectBase {
   colorMap: Record<string, string>;
 }
 
+/**
+ * Valeurs et COMPTEURS affichés d'un groupe de `dsfr-data-facets` — ce que
+ * l'utilisateur lit à côté de chaque case, dans l'ordre où il le lit.
+ */
+export interface ExpectFacets extends ExpectBase {
+  kind: 'facets';
+  pipeline: Step[];
+  /** Libellé affiché du groupe observé (légende du fieldset, ou label du select). */
+  group: string;
+  /** Colonne du recalcul qui porte la valeur affichée. */
+  valueColumn: string;
+  /** Colonne du recalcul qui porte le compteur affiché. */
+  countColumn: string;
+}
+
+/**
+ * Un TEXTE affiché — libellé d'un `dsfr-data-context-value`, tag d'un
+ * `dsfr-data-context-tags`, compteur d'un `dsfr-data-search`.
+ *
+ * L'attendu reste un RECALCUL : la valeur vient du `pipeline`, soit d'une
+ * colonne d'une ligne recalculée (`column`), soit d'un agrégat global
+ * (`agg`). Le manifeste ne fournit que l'habillage fixe autour d'elle
+ * (`prefix` / `suffix`), pas le chiffre.
+ */
+export interface ExpectText extends ExpectBase {
+  kind: 'text';
+  /** Sélecteur CSS DANS l'élément observé — absent : l'élément lui-même. */
+  selector?: string;
+  /** Comparer le NOMBRE lu dans le texte (fr-FR) plutôt que le texte. */
+  numeric?: boolean;
+  /** Décimales affichées, quand la comparaison est numérique. */
+  decimals?: number;
+  /** Agrégat global appliqué aux lignes recalculées (`numeric` seulement). */
+  agg?: Agg;
+  /** Champ de l'agrégat. */
+  field?: string;
+  /** Colonne de la ligne recalculée dont la valeur est attendue. */
+  column?: string;
+  /** Rang de la ligne recalculée lue (défaut : la première). */
+  row?: number;
+  /** Texte fixe avant la valeur (gabarit du composant). */
+  prefix?: string;
+  /** Texte fixe après la valeur. */
+  suffix?: string;
+}
+
 export type Expect =
   | ExpectKpi
   | ExpectRows
   | ExpectChart
   | ExpectList
   | ExpectLegend
+  | ExpectFacets
+  | ExpectText
   | ExpectTexts
   | ExpectClass
   | ExpectAttr
@@ -321,6 +400,42 @@ export type Expect =
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
 export type CheckMode = 'deterministic' | 'live';
+
+/**
+ * Un GESTE joué dans la page avant l'observation.
+ *
+ * Les filtres qui viennent de l'utilisateur ne se vérifient pas sur un
+ * rendu figé : c'est le geste qui produit le chiffre, et l'ordre des
+ * événements compte (d'où le navigateur, pas un DOM simulé).
+ *
+ * `selector` est un sélecteur Playwright (CSS, ou `text=…`). `goto` sans
+ * `value` RECHARGE l'URL courante de la page — celle que la synchro d'URL
+ * vient d'écrire : c'est le contrôle en deux navigations.
+ */
+export interface Action {
+  kind: 'click' | 'fill' | 'select' | 'goto';
+  /** Élément visé (click, fill, select). */
+  selector?: string;
+  /** Texte saisi (fill), option choisie (select), URL relative ou absolue (goto). */
+  value?: string;
+  /** Options d'un `<select multiple>` (select). */
+  values?: string[];
+}
+
+/**
+ * Horloge de la page : un instant FIXE et un fuseau.
+ *
+ * Les bornes dynamiques (`today`, `current-month`, `last-n-days`) se
+ * calculent en jour civil LOCAL. Sans horloge posée, un contrôle qui les
+ * met en jeu serait vert 364 jours sur 365 et rouge le bon jour — ou
+ * l'inverse.
+ */
+export interface Clock {
+  /** Instant fixe, en ISO avec décalage explicite (`2026-06-01T00:30:00+02:00`). */
+  now: string;
+  /** Fuseau du navigateur (défaut : `UTC`). */
+  timezone?: string;
+}
 
 export interface Check {
   id: string;
@@ -338,6 +453,10 @@ export interface Check {
    * piloter la page au clavier pour vérifier ce qu'elle montre en page 2.
    */
   query?: string;
+  /** Horloge et fuseau de la page, pour les bornes de date dynamiques. */
+  clock?: Clock;
+  /** Gestes joués dans la page AVANT l'observation (filtres, facettes, URL). */
+  actions?: Action[];
   expects: Expect[];
 }
 
