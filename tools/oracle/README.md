@@ -115,3 +115,10 @@ En fin de run, `tools/oracle/out/report.json` et `out/report.txt` : par observat
 **lib**, la valeur **oracle**, l'écart, le nombre de lignes brutes, le mode — et le nombre de
 valeurs comparées, parce qu'un contrôle vert qui n'a rien comparé ne garde rien. Le résumé texte
 est aussi écrit sur la sortie standard, et les deux fichiers partent en artefact CI en cas d'échec.
+
+Playwright **redémarre le worker après un échec** : le worker suivant n'a plus en mémoire les
+constats de son prédécesseur, précisément ceux qui portent l'échec. Le rapport se fusionne donc d'un
+worker à l'autre, en ne retenant que les constats du même run — c'est à quoi sert le `VERIF_RUN=$$`
+des scripts npm. Lancé à la main sans cette variable (`npx playwright test … -g "<contrôle>"`, comme
+pour une preuve de mutation), le fichier ne porte que ce que le dernier worker a vu ; le résumé sur
+la sortie standard, lui, est complet dans les deux cas.

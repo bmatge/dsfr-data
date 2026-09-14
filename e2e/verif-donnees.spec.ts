@@ -45,7 +45,10 @@ const MODE = process.env.VERIF_MODE === 'live' ? 'live' : 'deterministic';
 /** Hôtes de tuiles : une carte en demande, personne ne les sert, ce n'est pas une fuite. */
 const TUILES = /tile\.|openstreetmap|geopf\.fr|basemaps|cartocdn|ign\.fr/i;
 
-test.describe.configure({ mode: 'serial' });
+// Pas de `mode: 'serial'` : il ferait sauter tous les contrôles suivant le
+// premier échec, et le rapport serait tronqué là où il est le plus utile. Les
+// tests d'un fichier tournent déjà dans l'ordre sur un seul worker, ce dont le
+// `beforeAll` qui écrit les pages de fixture a besoin — rien de plus.
 test.setTimeout(MODE === 'live' ? 180_000 : 90_000);
 
 const constats: Constat[] = [];
@@ -178,13 +181,22 @@ async function attendreObservation(page: Page, e: Expect, delai: number): Promis
   return derniere;
 }
 
-test.afterAll(() => {
-  if (constats.length === 0) return;
-  process.stdout.write(`\n${ecrireRapport(constats)}\n`);
-});
-
 const controles = controlesDuMode(MODE);
 const attendusVivants = MODE === 'live' ? chargerAttendus() : null;
+
+/**
+ * Les clés attendues du rapport, dans l'ordre des manifestes. Playwright
+ * redémarre le worker après un échec : le rapport se fusionne d'un worker à
+ * l'autre, et cette liste lui donne son ordre.
+ */
+const ORDRE = controles.flatMap(({ domaine, check }) =>
+  check.expects.map((e) => `${domaine}/${check.id}/${e.kind}:${e.id}`)
+);
+
+test.afterAll(() => {
+  if (constats.length === 0) return;
+  process.stdout.write(`\n${ecrireRapport(constats, ORDRE)}\n`);
+});
 
 // Les pages de fixture sont RÉGÉNÉRÉES à chaque run (dossier gitignoré) — un
 // balisage modifié dans un manifeste doit être celui qui est rendu — et toutes
