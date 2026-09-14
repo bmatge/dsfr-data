@@ -10,9 +10,12 @@
  * pas de la même façon.
  *
  * Ce fichier ne porte QUE la grammaire. Les contrôles eux-mêmes vivent par
- * domaine dans `tests/verif-donnees/` :
- *   - `banc.ts`  — contrôles VIVANTS, contre les vraies API du banc d'essai ;
- *   - `query.ts` — contrôles DÉTERMINISTES, sur les fixtures du harnais.
+ * domaine dans `tests/verif-donnees/` — dix aujourd'hui, énumérés dans l'ordre
+ * de `MANIFESTES` (`index.ts`), qui est aussi celui du rapport : `query`,
+ * `adaptateurs`, `transformations`, `affichages`, `delegation`,
+ * `export-studio`, `contexte` sur fixtures, puis `banc`, `banc-adaptateurs` et
+ * `banc-pages` contre les vraies API. Ce que couvre chacun est décrit dans
+ * `tools/oracle/README.md` §L'arborescence, qui reste la liste de référence.
  *
  * Deux alimentations, une seule grammaire : un contrôle déterministe donne ses
  * lignes (`feed.kind === 'fixture'`, les mêmes que celles servies à la page par
