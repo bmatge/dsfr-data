@@ -38,12 +38,17 @@ le contrôle, et l'écart désigne alors le mauvais coupable.
 tests/verif-donnees/     LES CONTRÔLES, par domaine
   banc.ts                  contrôles vivants (reproductions du banc open-data-viz)
   query.ts                 contrôles déterministes (calcul : filtre, group-by, tri, jointure…)
+  transformations.ts       contrôles déterministes des opérateurs et des agrégations
+                             (where, aggregate, normalize, compute, pivot, unpivot, join, concat)
   fixtures.ts              les lignes servies à la page ET données à l'oracle
+  fixtures-transformations.ts  idem, servies en `data` inline (aucun faux serveur)
   index.ts                 la liste des manifestes
 
 tools/oracle/            LE MOTEUR
   manifest.ts              la grammaire (types seuls) : Feed, Step, Expect, Check
   compute.ts               le recalcul en tableaux nus
+  expression.ts            l'évaluation des colonnes calculées, RÉÉCRITE à part
+                             (seconde implémentation de la grammaire ADR-105)
   observe.ts               les lecteurs d'observation, exécutés DANS la page
   expected.ts              l'attendu d'un contrôle, depuis ses lignes brutes
   compare.ts               observé contre attendu → un Constat
@@ -108,6 +113,13 @@ Mutations éprouvées sur ce socle :
 | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-765` | KPI affiché 7, recalculé 137 — exactement #765 |
 | `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
 | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
+| `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
+| `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
+| `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
+| `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
+| `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
+| `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
+| `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
 
 ## Le rapport
 

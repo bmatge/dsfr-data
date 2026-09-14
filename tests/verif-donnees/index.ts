@@ -8,8 +8,9 @@
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 import { BANC } from './banc.js';
 import { QUERY } from './query.js';
+import { TRANSFORMATIONS } from './transformations.js';
 
-export const MANIFESTES: Manifest[] = [QUERY, BANC];
+export const MANIFESTES: Manifest[] = [QUERY, TRANSFORMATIONS, BANC];
 
 /** Tous les contrôles d'un mode, à plat, avec leur domaine. */
 export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; check: Check }> {
@@ -22,4 +23,4 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
   return out;
 }
 
-export { BANC, QUERY };
+export { BANC, QUERY, TRANSFORMATIONS };
