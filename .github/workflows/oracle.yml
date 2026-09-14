@@ -1,0 +1,65 @@
+name: Oracle numérique (contrôles vivants)
+
+# Volet VIVANT de la verification des donnees (ADR-122) : les lignes brutes des
+# jeux du banc d'essai sont retelechargees et recalculees en tableaux nus
+# (`tools/oracle`), puis la lib rend le meme balisage contre la vraie API et
+# l'on compare a la precision affichee. Rien n'est fige : un jeu qui vit change
+# les deux cotes en meme temps.
+#
+# Depend des API tierces, donc JAMAIS sur chaque PR et JAMAIS bloquant : la
+# nuit, a la demande, et sur une PR portant le label `oracle` (une PR de
+# refactor, typiquement). Le volet DETERMINISTE, lui, est bloquant sur chaque
+# PR — voir verif-donnees.yml.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 6 * * *'
+  pull_request:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  oracle:
+    name: Recalcul indépendant vs affichage (vraies API)
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'oracle')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Pas de `continue-on-error` : ce job n'est requis sur aucune PR (il se
+    # declenche par label, par cron ou a la main), donc « jamais bloquant » est
+    # deja acquis. L'ajouter rendrait vert un run nocturne en ecart — c'est-a-dire
+    # invisible, ce qui est exactement ce que la verification vient empecher.
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared + app-ui
+        run: npm run build:shared && npm run build:app-ui
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Les deux cotes lisent l'API au meme moment : `verif:expected` produit
+      # l'attendu juste avant le rendu, jamais la veille.
+      - name: Vérification (mode vivant)
+        run: npm run verif:live -- --retries=1
+
+      - name: Upload expected/observed on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: oracle-results
+          path: |
+            tools/oracle/out/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

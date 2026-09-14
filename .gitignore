@@ -58,3 +58,5 @@ audit-ui-*/
 node_modules
 packages/app-ui/dist
 vitest.wt.config.ts
+tools/oracle/out/
+e2e/verif-donnees/
