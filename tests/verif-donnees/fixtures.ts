@@ -21,7 +21,6 @@
  */
 import {
   JEU,
-  RESSOURCES,
   filtrerOdsql,
   repondreOdsExport,
   repondreOdsFacets,
@@ -45,8 +44,18 @@ export const HOTE_API = 'https://api.verif.invalid';
  */
 export const HOTE_TABULAR = 'https://tabular-api.data.gouv.fr';
 
-/** Ressource Tabular de la vérification (celle du harnais de recette). */
-export const RESSOURCE_TABULAR = RESSOURCES.resourceId;
+/**
+ * Ressource Tabular de CE domaine.
+ *
+ * Volontairement distincte de celle du domaine `adaptateurs`, qui intercepte le
+ * MÊME hôte (l'adaptateur Tabular n'accepte pas de `base-url` et retombe sur son
+ * hôte par défaut) et dont le routeur passe en premier dans `repondre()`. Deux
+ * domaines qui partageraient le chemin partageraient les LIGNES : l'un des deux
+ * recevrait le jeu de l'autre, et son oracle — qui repart des siennes — le
+ * signalerait comme un écart de la bibliothèque. Une ressource par domaine, et
+ * le faux serveur reste lisible.
+ */
+export const RESSOURCE_TABULAR = 'ea1b5c3d-0000-4000-8000-verifdonnees01';
 
 /** Jeu ODS de la vérification. */
 export const DATASET = 'jeu-de-verif';
