@@ -26,9 +26,13 @@ export type Row = Record<string, unknown>;
 
 /**
  * Agrégats recalculés par l'oracle. `distinct` est le `count(distinct x)`
- * (null et chaîne vide exclus) ; `wavg` la moyenne pondérée (`weight`).
+ * (null et chaîne vide exclus) ; `wavg` la moyenne pondérée (`weight`) ;
+ * `first` / `last` la valeur du champ sur la première / la dernière ligne
+ * DANS L'ORDRE COURANT ; `evolution` le taux (dernière − première) / première
+ * sur les valeurs numériques renseignées, dans ce même ordre.
  */
-export type Agg = 'count' | 'distinct' | 'sum' | 'avg' | 'min' | 'max' | 'wavg';
+export type Agg =
+  'count' | 'distinct' | 'sum' | 'avg' | 'min' | 'max' | 'wavg' | 'first' | 'last' | 'evolution';
 
 /**
  * Un filtre ligne à ligne côté oracle, volontairement minimal et explicite.
@@ -60,6 +64,12 @@ export interface AggSpec {
   field?: string;
   /** Champ de pondération, pour `wavg` seulement. */
   weight?: string;
+  /**
+   * Filtre PROPRE à cette colonne, appliqué avant l'agrégat — le miroir du
+   * filtre entre accolades d'une expression de KPI (`ecoles:sum{sexe:eq:F}`,
+   * #776), qui ne vaut que pour son côté d'un ratio.
+   */
+  filter?: RowFilter[];
 }
 
 /** Source BRUTE d'un contrôle vivant (export JSON Opendatasoft). */
@@ -125,7 +135,27 @@ export type Step =
   /** Tri à plusieurs clés, dans l'ordre déclaré (la première départage). */
   | { op: 'order-by-keys'; keys: Array<{ column: string; dir: 'asc' | 'desc' }> }
   | { op: 'limit'; n: number }
+  | {
+      /**
+       * La PAGE que l'afficheur montre : `number` (1 pour la première) de
+       * `size` lignes. Une pagination fausse ne se voit pas sur la page 1.
+       */
+      op: 'page';
+      size: number;
+      number: number;
+    }
   | { op: 'running'; from: string; as: string; kind: 'running_sum' | 'diff' }
+  | {
+      /**
+       * Quotient de deux colonnes, ligne à ligne : la FRACTION qu'un ratio de
+       * KPI affiche (`count:statut:ouvert / count`, #673). Dénominateur nul ou
+       * non numérique : `null`, jamais 0 ni l'infini.
+       */
+      op: 'ratio';
+      numerator: string;
+      denominator: string;
+      as: string;
+    }
   | {
       op: 'join';
       /** Nom du jeu de droite dans `feed.datasets`. */
@@ -198,6 +228,24 @@ export interface ExpectKpi extends ExpectBase {
   filter?: RowFilter[];
   /** Décimales affichées : la comparaison se fait à cette précision. */
   decimals?: number;
+  /**
+   * Facteur appliqué à la valeur RECALCULÉE avant comparaison, quand la page
+   * n'affiche pas la même unité que la donnée : `100` pour une fraction rendue
+   * en pourcentage (#673), `1e-6` pour un total rendu en compact (« 14,8 M »).
+   */
+  scale?: number;
+  /**
+   * Motif que le TEXTE affiché doit vérifier, en plus du chiffre : c'est lui
+   * qui distingue « 12,5 % » de « 12,5 », « 1 749 € » de « 1749 ». Le motif
+   * décrit la FORME fr-FR attendue, jamais la valeur — sinon il ne garderait
+   * plus rien du calcul.
+   */
+  pattern?: string;
+  /**
+   * Nature de la valeur affichée. `date` : la colonne porte des chaînes ISO,
+   * l'oracle compare le texte JJ/MM/AAAA et non un nombre (#667).
+   */
+  as?: 'number' | 'date';
 }
 
 /** Lignes du cache de données d'un id (query, normalize, join, pivot, concat). */
@@ -224,6 +272,12 @@ export interface ExpectList extends ExpectBase {
   pipeline: Step[];
   /** Colonnes du tableau, dans l'ordre d'affichage. */
   columns: Array<{ column: string; numeric?: boolean }>;
+  /**
+   * Décimales AFFICHÉES par les cellules numériques (`decimals` du composant,
+   * ou son défaut : deux au plus). La comparaison se fait à cette précision —
+   * une moyenne rendue « 41,33 » ne vaut pas 41,333333 à six décimales.
+   */
+  decimals?: number;
 }
 
 /** Entrées de légende d'une couche choroplèthe (`getLegendEntries()`). */
@@ -233,8 +287,112 @@ export interface ExpectLegend extends ExpectBase {
   field: string;
   /** Nombre de classes (`classes` de la couche). */
   classes: number;
-  /** Seule méthode recalculable sans dupliquer la lib : intervalles égaux. */
-  method: 'equal';
+  /**
+   * Discrétisation : `equal` (intervalles de même largeur), `quantile`
+   * (effectifs égaux — la borne de rang `i` est la valeur triée d'indice
+   * `⌊i·n/classes⌋`), `manual` (les bornes de `breaks`, données ici).
+   */
+  method: 'equal' | 'quantile' | 'manual';
+  /** Bornes supérieures, pour `manual` — les mêmes que l'attribut `breaks`. */
+  breaks?: number[];
+}
+
+/**
+ * Textes RENDUS par les éléments que `selector` désigne dans le composant :
+ * les lignes secondaires d'un KPI, les valeurs d'un podium, les cellules d'un
+ * `dsfr-data-display`, une tendance. Une observation par élément, comparée à
+ * la colonne `column` du recalcul, ligne à ligne.
+ */
+export interface ExpectTexts extends ExpectBase {
+  kind: 'texts';
+  /** Sélecteur CSS cherché DANS le composant (light DOM ou shadow root). */
+  selector: string;
+  pipeline: Step[];
+  /** Colonne du recalcul comparée aux textes, dans l'ordre. */
+  column: string;
+  /** Relire chaque texte comme un nombre fr-FR (défaut : comparer les chaînes). */
+  numeric?: boolean;
+  /** Décimales de la comparaison numérique. */
+  decimals?: number;
+  /** Facteur appliqué à la valeur recalculée (fraction → pourcentage…). */
+  scale?: number;
+  /** Motif que CHAQUE texte doit vérifier — la forme, pas la valeur. */
+  pattern?: string;
+}
+
+/** Couleurs sémantiques d'un KPI (seuils), telles que le DOM les porte. */
+export type CouleurKpi = 'vert' | 'orange' | 'rouge' | 'bleu';
+
+/**
+ * CLASSE appliquée selon la valeur : les seuils d'un KPI décident d'un
+ * habillage, et un habillage qui ne suit pas le chiffre ment autant qu'un
+ * chiffre faux.
+ */
+export interface ExpectClass extends ExpectBase {
+  kind: 'class';
+  /** Sélecteur CSS de l'élément porteur de la classe. */
+  selector: string;
+  /**
+   * Sélecteur dont la PRÉSENCE dit que le composant a fini d'afficher ses
+   * données (`.dsfr-data-kpi__value`). Sans lui, on lirait l'habillage de
+   * l'état de chargement, qui porte la classe neutre — et le contrôle
+   * passerait ou tomberait selon l'instant de la lecture.
+   */
+  ready?: string;
+  /** Recalcul menant à UNE ligne (terminer par `global`). */
+  pipeline?: Step[];
+  /** Colonne de cette ligne portant la valeur qui décide de la couleur. */
+  column?: string;
+  /** Facteur appliqué à la valeur recalculée avant les seuils. */
+  scale?: number;
+  /** Seuils déclarés sur le composant (`threshold-green`, `threshold-orange`). */
+  thresholds?: { green?: number; orange?: number };
+  /** Classe DOM attendue pour chacune des quatre couleurs. */
+  classes: Record<CouleurKpi, string>;
+  /** Couleur forcée (`color-token`) : la valeur ne décide plus. */
+  forced?: CouleurKpi;
+}
+
+/**
+ * ATTRIBUT posé sur l'élément d'affichage rendu (l'élément DSFR Chart), là où
+ * ce qui est montré n'est pas du texte : le résumé d'une carte (#763), les
+ * bornes d'axes relayées.
+ */
+export interface ExpectAttr extends ExpectBase {
+  kind: 'attr';
+  /** Nom de l'attribut lu sur l'élément rendu. */
+  attr: string;
+  /** Valeur littérale attendue (une borne d'axe relayée telle quelle). */
+  literal?: string;
+  /** … ou un recalcul menant à UNE ligne (terminer par `global`). */
+  pipeline?: Step[];
+  /** Colonne de cette ligne, quand la valeur est recalculée. */
+  column?: string;
+  /** Décimales de la comparaison numérique. */
+  decimals?: number;
+  /** Facteur appliqué à la valeur recalculée. */
+  scale?: number;
+}
+
+/** Contenu du fichier CSV que l'export du composant produit. */
+export interface ExpectCsv extends ExpectBase {
+  kind: 'csv';
+  pipeline: Step[];
+  /** Colonnes exportées, dans l'ordre, avec l'en-tête attendu. */
+  columns: Array<{ column: string; label: string }>;
+}
+
+/**
+ * Couleurs des PASTILLES de légende d'un graphique (#732 / #813) : la légende
+ * qui ne suit pas `color-map` ment sur les couleurs du tracé.
+ */
+export interface ExpectDots extends ExpectBase {
+  kind: 'dots';
+  pipeline: Step[];
+  /** Colonne dont la valeur est la modalité colorée (part, série). */
+  labelColumn: string;
+  /** Modalité → couleur, telle que la page la déclare (hexadécimal). */
+  colorMap: Record<string, string>;
 }
 
 /**
@@ -323,6 +481,11 @@ export type Expect =
   | ExpectLegend
   | ExpectFacets
   | ExpectText
+  | ExpectTexts
+  | ExpectClass
+  | ExpectAttr
+  | ExpectCsv
+  | ExpectDots
   | ExpectUrls;
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
@@ -374,6 +537,12 @@ export interface Check {
   head?: string;
   /** Balisage complet rendu par Playwright (sources, queries, KPI, …). */
   markup: string;
+  /**
+   * Chaîne de requête ajoutée à l'URL de la page (`page=2`) : un lien profond
+   * est un chemin d'affichage à part entière (`url-sync`), et il évite de
+   * piloter la page au clavier pour vérifier ce qu'elle montre en page 2.
+   */
+  query?: string;
   /** Horloge et fuseau de la page, pour les bornes de date dynamiques. */
   clock?: Clock;
   /** Gestes joués dans la page AVANT l'observation (filtres, facettes, URL). */

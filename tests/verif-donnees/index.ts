@@ -7,6 +7,7 @@
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 import { ADAPTATEURS } from './adaptateurs.js';
+import { AFFICHAGES } from './affichages.js';
 import { BANC } from './banc.js';
 import { BANC_ADAPTATEURS } from './banc-adaptateurs.js';
 import { CONTEXTE } from './contexte.js';
@@ -19,6 +20,7 @@ export const MANIFESTES: Manifest[] = [
   QUERY,
   ADAPTATEURS,
   TRANSFORMATIONS,
+  AFFICHAGES,
   DELEGATION,
   EXPORT_STUDIO,
   CONTEXTE,
@@ -39,6 +41,7 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
 
 export {
   ADAPTATEURS,
+  AFFICHAGES,
   BANC,
   BANC_ADAPTATEURS,
   CONTEXTE,

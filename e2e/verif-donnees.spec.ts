@@ -9,15 +9,21 @@ import type { Action, Check, Expect } from '../tools/oracle/manifest.js';
 import { computeExpectedFor, cleAttendu, type ExpectedCheck } from '../tools/oracle/expected.js';
 import { comparer, type Constat, type Observation } from '../tools/oracle/compare.js';
 import {
+  lireAttribut,
   lireCache,
+  lireClasses,
+  lireExportCsv,
   lireFacettes,
   lireGraphique,
   lireKpi,
   lireLegende,
   lireListe,
+  lirePastilles,
   lireTexte,
+  lireTextes,
   lireUrls,
 } from '../tools/oracle/observe.js';
+import { toRgb } from '../tools/oracle/compute.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
 import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 
@@ -103,7 +109,9 @@ function ecrireFixture(domaine: string, check: Check): string {
 ${check.markup}
 </body></html>`
   );
-  return `/e2e/verif-donnees/${nom}`;
+  // Un lien profond (`?page=2`) est un chemin d'affichage à part entière
+  // (`url-sync`) : la page s'ouvre où le contrôle veut la lire, sans pilotage.
+  return `/e2e/verif-donnees/${nom}${check.query ? `?${check.query}` : ''}`;
 }
 
 /** Le faux réseau du mode déterministe : les fixtures, et rien d'autre. */
@@ -164,6 +172,20 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(lireFacettes, e.id);
       case 'text':
         return await page.evaluate(lireTexte, { id: e.id, selector: e.selector });
+      case 'texts':
+        return await page.evaluate(lireTextes, { id: e.id, selecteur: e.selector });
+      case 'class':
+        return await page.evaluate(lireClasses, {
+          id: e.id,
+          selecteur: e.selector,
+          pret: e.ready,
+        });
+      case 'attr':
+        return await page.evaluate(lireAttribut, { id: e.id, attribut: e.attr });
+      case 'csv':
+        return await page.evaluate(lireExportCsv, e.id);
+      case 'dots':
+        return await page.evaluate(lirePastilles, e.id);
       case 'urls':
         return await page.evaluate(lireUrls);
     }
@@ -192,6 +214,25 @@ function prete(e: Expect, obs: Observation): boolean {
       return Array.isArray(obs) && obs.length > 0;
     case 'text':
       return (obs as { text: string }).text.trim() !== '';
+    case 'texts':
+      return Array.isArray(obs) && obs.length > 0;
+    case 'class':
+      return (obs as { classes: string[] }).classes.length > 0;
+    case 'attr':
+      return typeof obs === 'string' && obs.trim() !== '';
+    case 'csv':
+      // Un export lancé avant l'arrivée des données rend l'en-tête seule :
+      // ce n'est pas un fichier vide à constater, c'est un fichier pas encore
+      // exportable. Tant qu'il n'a pas de ligne, l'observation n'a pas eu lieu.
+      return typeof obs === 'string' && obs.includes('\n');
+    case 'dots': {
+      // Les pastilles apparaissent AVANT d'être recolorées (le report attend
+      // que l'aire du graphique existe). Tant qu'aucune couleur déclarée n'est
+      // posée, on lit une légende à mi-rendu, pas une légende fausse.
+      const couleurs = (obs as string[]).map(toRgb);
+      const voulues = Object.values(e.colorMap).map(toRgb);
+      return couleurs.length > 0 && voulues.some((c) => c !== null && couleurs.includes(c));
+    }
     // Un contrôle d'URL se lit APRÈS les chiffres qu'il explique : les expects
     // d'un check sont observés dans l'ordre, il se place en dernier.
     case 'urls':

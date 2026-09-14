@@ -7,17 +7,23 @@
  * qu'on veut voir quand un contrôle tombe.
  */
 import type { CheckMode, Expect, Row } from './manifest.js';
-import type { Attendu, AttenduTexte, AttenduUrls } from './expected.js';
-import { cleAttendu } from './expected.js';
+import {
+  cleAttendu,
+  type Attendu,
+  type AttenduTexte,
+  type AttenduTextes,
+  type AttenduUrls,
+} from './expected.js';
 import type {
   ObservationChart,
+  ObservationClasses,
   ObservationFacette,
   ObservationKpi,
   ObservationLegende,
   ObservationListe,
   ObservationTexte,
 } from './observe.js';
-import { closeEnough, parseDisplayedNumber, roundTo, toNum } from './compute.js';
+import { closeEnough, parseCsv, parseDisplayedNumber, roundTo, toNum, toRgb } from './compute.js';
 
 export interface Constat {
   domaine: string;
@@ -46,9 +52,11 @@ export type Observation =
   | ObservationChart
   | ObservationListe
   | ObservationLegende[]
+  | ObservationClasses
   | ObservationFacette[]
   | ObservationTexte
   | string[]
+  | string
   | null;
 
 interface Contexte {
@@ -95,6 +103,21 @@ export function comparer(
       const obs = observation as ObservationKpi;
       const want = attendu.value;
       const lib = obs.value;
+      // Valeur non chiffrée (date, #667) : c'est le TEXTE qui est comparé.
+      if (attendu.texte !== undefined) {
+        if (attendu.texte === null) {
+          return { ...base, lib: obs.text || '—', message: `l'oracle ne calcule aucun texte` };
+        }
+        const ok = obs.text === attendu.texte;
+        return {
+          ...base,
+          lib: obs.text,
+          oracle: attendu.texte,
+          comparaisons: 1,
+          ok,
+          message: ok ? '' : `affiché « ${obs.text} », recalculé « ${attendu.texte} »`,
+        };
+      }
       if (want === null) {
         return {
           ...base,
@@ -111,17 +134,22 @@ export function comparer(
         };
       }
       const arrondi = roundTo(want, attendu.decimals);
-      const ok = closeEnough(lib, arrondi, attendu.decimals);
+      const chiffreOk = closeEnough(lib, arrondi, attendu.decimals);
+      // Le motif garde la FORME fr-FR (« 12,5 % », « 1 749 € », « 14,8 M ») :
+      // le bon nombre dans la mauvaise unité reste un chiffre faux à l'écran.
+      const formeOk = attendu.pattern === undefined || new RegExp(attendu.pattern).test(obs.text);
       return {
         ...base,
         lib: obs.text,
         oracle: nombre(arrondi),
         ecart: lib - arrondi,
-        comparaisons: 1,
-        ok,
-        message: ok
-          ? ''
-          : `affiché ${obs.text} (${lib}), recalculé ${nombre(arrondi)} — écart ${nombre(lib - arrondi)}`,
+        comparaisons: attendu.pattern === undefined ? 1 : 2,
+        ok: chiffreOk && formeOk,
+        message: !chiffreOk
+          ? `affiché ${obs.text} (${lib}), recalculé ${nombre(arrondi)} — écart ${nombre(lib - arrondi)}`
+          : formeOk
+            ? ''
+            : `le chiffre est juste mais la forme ne l'est pas : « ${obs.text} » ne vérifie pas /${attendu.pattern}/`,
       };
     }
 
@@ -134,7 +162,7 @@ export function comparer(
     case 'list': {
       const e = expect as Extract<Expect, { kind: 'list' }>;
       const obs = observation as ObservationListe;
-      return comparerListe(base, attendu.rows, obs, e.columns);
+      return comparerListe(base, attendu.rows, obs, e.columns, e.decimals);
     }
 
     case 'chart': {
@@ -147,6 +175,67 @@ export function comparer(
       return comparerLegende(base, attendu.classes, obs);
     }
 
+    case 'texts':
+      return comparerTextes(base, attendu, observation as string[]);
+
+    case 'class': {
+      const obs = observation as ObservationClasses;
+      const presentes = new Set(obs.classes);
+      const intruse = attendu.concurrentes.find((c) => presentes.has(c));
+      const ok = presentes.has(attendu.classe) && intruse === undefined;
+      return {
+        ...base,
+        lib: obs.classes.join(' ') || '—',
+        oracle: attendu.classe,
+        comparaisons: 1 + attendu.concurrentes.length,
+        ok,
+        message: ok
+          ? ''
+          : intruse !== undefined
+            ? `classe « ${intruse} » appliquée alors que la valeur ${nombre(attendu.valeur)} appelle « ${attendu.classe} »`
+            : `« ${attendu.classe} » attendue pour ${nombre(attendu.valeur)}, classes rendues : ${obs.classes.join(' ') || '(aucune)'}`,
+      };
+    }
+
+    case 'attr': {
+      const brut = observation as string | null;
+      const e = expect as Extract<Expect, { kind: 'attr' }>;
+      if (brut === null) {
+        return { ...base, message: `attribut « ${e.attr} » absent de l'élément rendu` };
+      }
+      if (attendu.literal !== null) {
+        const ok = brut.trim() === attendu.literal;
+        return {
+          ...base,
+          lib: brut,
+          oracle: attendu.literal,
+          comparaisons: 1,
+          ok,
+          message: ok ? '' : `${e.attr} = « ${brut} », attendu « ${attendu.literal} »`,
+        };
+      }
+      if (attendu.value === null) {
+        return { ...base, lib: brut, message: `l'oracle ne calcule aucune valeur pour ${e.attr}` };
+      }
+      const lu = parseDisplayedNumber(brut);
+      const arrondi = roundTo(attendu.value, attendu.decimals);
+      const ok = lu !== null && closeEnough(lu, arrondi, attendu.decimals);
+      return {
+        ...base,
+        lib: brut,
+        oracle: nombre(arrondi),
+        ecart: lu === null ? null : lu - arrondi,
+        comparaisons: 1,
+        ok,
+        message: ok ? '' : `${e.attr} = ${brut}, recalculé ${nombre(arrondi)}`,
+      };
+    }
+
+    case 'csv':
+      return comparerCsv(base, attendu.lignes, observation as string);
+
+    case 'dots':
+      return comparerPastilles(base, attendu.couleurs, observation as string[]);
     case 'facets': {
       const e = expect as Extract<Expect, { kind: 'facets' }>;
       const obs = observation as ObservationFacette[];
@@ -274,7 +363,8 @@ function comparerListe(
   base: Base,
   attendues: Row[],
   obs: ObservationListe,
-  columns: Array<{ column: string; numeric?: boolean }>
+  columns: Array<{ column: string; numeric?: boolean }>,
+  decimals = DECIMALES_LIGNES
 ): Constat {
   const lib = `${obs.rows.length} lignes rendues`;
   const oracle = `${attendues.length} lignes recalculées`;
@@ -297,7 +387,7 @@ function comparerListe(
         const o = parseDisplayedNumber(cellule);
         const w = toNum(attendue);
         if (w === null && o === null) continue;
-        if (w === null || o === null || !closeEnough(o, w, DECIMALES_LIGNES)) {
+        if (w === null || o === null || !closeEnough(o, w, decimals)) {
           return {
             ...base,
             lib,
@@ -378,6 +468,140 @@ function comparerGraphique(
           message: `série ${s}, point ${i} (${labels[i]}) : graphique ${nombre(o)}, oracle ${nombre(w)}`,
         };
       }
+    }
+  }
+  return { ...base, lib, oracle, comparaisons, ok: true };
+}
+
+function comparerTextes(base: Base, attendu: AttenduTextes, obs: string[]): Constat {
+  const lib = `${obs.length} texte(s)`;
+  const oracle = `${attendu.valeurs.length} valeur(s)`;
+  if (obs.length !== attendu.valeurs.length) {
+    return {
+      ...base,
+      lib,
+      oracle,
+      ecart: obs.length - attendu.valeurs.length,
+      message: `${obs.length} élément(s) rendu(s), ${attendu.valeurs.length} recalculé(s)`,
+    };
+  }
+  const motif = attendu.pattern === undefined ? null : new RegExp(attendu.pattern);
+  let comparaisons = 0;
+  for (let i = 0; i < obs.length; i++) {
+    const texte = obs[i];
+    const w = attendu.valeurs[i];
+    comparaisons++;
+    if (attendu.numeric) {
+      const lu = parseDisplayedNumber(texte);
+      const attendue = typeof w === 'number' ? w : null;
+      if (attendue === null && lu === null) continue;
+      if (attendue === null || lu === null || !closeEnough(lu, attendue, attendu.decimals)) {
+        return {
+          ...base,
+          lib,
+          oracle,
+          comparaisons,
+          ecart: attendue !== null && lu !== null ? lu - attendue : null,
+          message: `élément ${i} : affiché « ${texte} » (${nombre(lu)}), recalculé ${nombre(attendue)}`,
+        };
+      }
+    } else if (texte !== String(w ?? '')) {
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        message: `élément ${i} : affiché « ${texte} », recalculé « ${String(w ?? '')} »`,
+      };
+    }
+    if (motif !== null) {
+      comparaisons++;
+      if (!motif.test(texte)) {
+        return {
+          ...base,
+          lib,
+          oracle,
+          comparaisons,
+          message: `élément ${i} : « ${texte} » ne vérifie pas la forme /${attendu.pattern}/`,
+        };
+      }
+    }
+  }
+  return { ...base, lib, oracle, comparaisons, ok: true };
+}
+
+function comparerCsv(base: Base, attendues: string[][], texte: string): Constat {
+  const lues = parseCsv(texte);
+  const lib = `${Math.max(0, lues.length - 1)} ligne(s) exportée(s)`;
+  const oracle = `${Math.max(0, attendues.length - 1)} ligne(s) recalculée(s)`;
+  // Le BOM UTF-8 du fichier n'est pas observable ici : `Blob.text()` décode en
+  // UTF-8 et le retire. `parseCsv` l'enlèverait de toute façon — ce qui est
+  // comparé, ce sont les cellules.
+  if (lues.length !== attendues.length) {
+    return {
+      ...base,
+      lib,
+      oracle,
+      ecart: lues.length - attendues.length,
+      message: `${lues.length} ligne(s) dans le fichier, ${attendues.length} recalculée(s) (en-tête comprise)`,
+    };
+  }
+  let comparaisons = 0;
+  for (let i = 0; i < attendues.length; i++) {
+    if (lues[i].length !== attendues[i].length) {
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        message: `ligne ${i} : ${lues[i].length} cellule(s), ${attendues[i].length} recalculée(s)`,
+      };
+    }
+    for (let c = 0; c < attendues[i].length; c++) {
+      comparaisons++;
+      if (lues[i][c] !== attendues[i][c]) {
+        return {
+          ...base,
+          lib,
+          oracle,
+          comparaisons,
+          message: `ligne ${i}, cellule ${c} : « ${lues[i][c]} » exportée, « ${attendues[i][c]} » recalculée`,
+        };
+      }
+    }
+  }
+  return { ...base, lib, oracle, comparaisons, ok: true };
+}
+
+function comparerPastilles(base: Base, attendues: Array<string | null>, obs: string[]): Constat {
+  const lib = `${obs.length} pastille(s)`;
+  const oracle = `${attendues.length} modalité(s)`;
+  if (obs.length !== attendues.length) {
+    return {
+      ...base,
+      lib,
+      oracle,
+      ecart: obs.length - attendues.length,
+      message: `${obs.length} pastille(s) de légende, ${attendues.length} modalité(s) recalculée(s)`,
+    };
+  }
+  let comparaisons = 0;
+  for (let i = 0; i < attendues.length; i++) {
+    const w = attendues[i];
+    // Modalité non citée par color-map : la palette DSFR garde la main, il n'y
+    // a rien à comparer — mais la pastille doit exister, ce qui est déjà lu.
+    if (w === null) continue;
+    comparaisons++;
+    const veut = toRgb(w);
+    const a = toRgb(obs[i]);
+    if (veut === null || a === null || veut !== a) {
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        message: `pastille ${i} : rendue « ${obs[i]} », déclarée « ${w} »`,
+      };
     }
   }
   return { ...base, lib, oracle, comparaisons, ok: true };

@@ -44,6 +44,18 @@ Corollaire, pour ce que la bibliothèque **refuse** : une erreur de configuratio
 aucune ligne. L'oracle **lève** dans ces cas au lieu de recalculer un tableau
 plausible — sinon il fabriquerait un attendu que la page ne montrera jamais.
 
+**Et là où la documentation ne dit rien, c'est l'oracle qui ÉNONCE — et la
+mutation qui garde.** La discrétisation par **quantiles** en est le cas net : la
+bibliothèque ne la documente que par « effectifs égaux par classe », ce qui ne
+dit pas quelle valeur tombe sur la borne. L'oracle écrit donc la convention en
+toutes lettres (`quantileBreaks`, `compute.ts`) — sur la suite triée de `n`
+valeurs, la borne supérieure de la classe `i` est la valeur d'indice
+`⌊i·n / classes⌋`, bornée au dernier rang — et `carte-classes-quantiles` la
+tient : remplacer les quantiles par des intervalles égaux fait tomber le
+contrôle sur la première borne (27,5 au lieu de 26,5). Une convention énoncée
+d'un seul côté et éprouvée en échec vaut mieux qu'une convention implicite des
+deux côtés, qui ne prouverait rien.
+
 ## Les deux modes
 
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
@@ -99,6 +111,8 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                              (contexte, facettes, recherche, synchro d'URL)
   adaptateurs.ts           contrôles déterministes des CHEMINS D'ENTRÉE (ODS, Tabular,
                              INSEE Melodi, Grist, JSON générique)
+  affichages.ts            contrôles déterministes du RENDU (formats fr-FR, seuils,
+                             classes de choroplèthe, pagination, export CSV, résumé de carte)
   delegation.ts            l'invariant de délégation : mêmes chiffres, serveur ou client
   export-studio.ts         les tableaux de bord produits par l'export du Studio
   banc-adaptateurs.ts      contrôles vivants, un par adaptateur public
@@ -106,6 +120,7 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   fixtures-contexte.ts         les lignes et le faux serveur ODS du domaine `contexte`
   fixtures-adaptateurs.ts      les lignes plates et les faux serveurs du domaine `adaptateurs`
   fixtures-transformations.ts  idem, servies en `data` inline (aucun faux serveur)
+  fixtures-affichages.ts       les jeux du domaine `affichages` (communes, série, libellés, long)
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   index.ts                 la liste des manifestes
@@ -140,6 +155,11 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
 | `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
 | `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`), avec le nombre qu'on y lit |
+| `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
+| `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
+| `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, bornes d'axes) ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
+| `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
+| `lireExportCsv` | le contenu du fichier produit par le bouton d'export — le téléchargement est intercepté, puis rendu tel qu'il était |
 | `lireUrls` | les URL d'API réellement appelées, décodées, dans l'ordre |
 
 `lireUrls` est le seul qui ne porte pas sur un chiffre : deux balisages peuvent
@@ -238,6 +258,11 @@ Mutations éprouvées sur ce socle :
 | `isDisjunctive` privé de `disjunctive` (`dsfr-data-facets.ts`) | `facettes-disjonctives` | 7 au lieu de 15 : la seconde valeur remplace la première |
 | `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
 | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » |
+| `formatPercentage` cesse de poser `%` (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite` | « 41,0 » au lieu de « 41,0 % » : le chiffre est juste, la forme ne l'est pas |
+| `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` | résumé 41,02 au lieu de 43,07 — exactement #763 |
+| `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/dsfr-palettes.ts`) | `carte-classes-quantiles` | première borne 27,5 au lieu de 26,5 |
+| `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 |
+| `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du lot affichages | mutation large : tout ce qui affiche un nombre recalculé tombe |
 | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
 | `_onDelegationContested` sort sans renégocier (`dsfr-data-query.ts`) | `query-tardive-renegociation` | la seconde query rend 1 ligne au lieu de 7, le KPI 8 au lieu de 137 |
 | `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | 5 contrôles d'`export-studio` | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
@@ -270,6 +295,16 @@ même suite :
 Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
+
+**Une pagination fausse ne se voit jamais sur la page 1** : le contrôle ouvre donc la page de
+fixture sur `?page=2` (`Check.query` + `url-sync`), un lien profond étant un chemin d'affichage à
+part entière.
+
+**Plusieurs worktrees en parallèle** : `e2e/playwright.config.ts` a `reuseExistingServer: true` sur
+le port 5173. Si un autre checkout y sert déjà le dev server, `npm run verif` éprouve SES sources —
+et les preuves de mutation passent au vert à tort. Vérifier `lsof -i :5173` avant de lancer, sinon
+démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la
+configuration Playwright.
 
 ## Le rapport
 

@@ -2,22 +2,29 @@ import { describe, it, expect } from 'vitest';
 import {
   absent,
   aggregate,
+  aggregateText,
   applyFilter,
   closeEnough,
   countDistinct,
   diff,
   egal,
   equalIntervalBreaks,
+  evolution,
   groupBy,
+  isoToFrDate,
   replier,
   joinRows,
   legendClasses,
   orderBy,
+  parseCsv,
   parseDisplayedNumber,
+  quantileBreaks,
+  ratioColumn,
   roundTo,
   runPipeline,
   runningSum,
   toNum,
+  toRgb,
   weightedAverage,
 } from '../../tools/oracle/compute.js';
 
@@ -225,5 +232,110 @@ describe('oracle — recalcul indépendant', () => {
     expect(closeEnough(104.7, 104.76, 1)).toBe(false);
     expect(closeEnough(6971, 6971.4)).toBe(true);
     expect(closeEnough(6971, 6972)).toBe(false);
+  });
+
+  // --- Lot AFFICHAGES (L5) : ce que ce lot a dû ajouter au moteur ----------
+
+  it('first / last : le bout de la table dans l’ordre reçu, pas le minimum', () => {
+    const serie = [{ v: 120 }, { v: 200 }, { v: 168 }];
+    expect(aggregate(serie, 'first', 'v')).toBe(120);
+    expect(aggregate(serie, 'last', 'v')).toBe(168);
+    expect(aggregate([], 'first', 'v')).toBeNull();
+  });
+
+  it('evolution : (dernière − première) / première, null si première nulle', () => {
+    expect(evolution([{ v: 120 }, { v: 168 }], 'v')).toBeCloseTo(0.4, 10);
+    expect(evolution([{ v: 100 }, { v: 'NC' }, { v: 80 }], 'v')).toBeCloseTo(-0.2, 10);
+    expect(evolution([{ v: 120 }], 'v')).toBeNull();
+    expect(evolution([{ v: 0 }, { v: 5 }], 'v')).toBeNull();
+  });
+
+  it('date ISO rendue à la française', () => {
+    expect(isoToFrDate('2026-12-15')).toBe('15/12/2026');
+    expect(isoToFrDate('2026-01-05T08:30:00Z')).toBe('05/01/2026');
+    expect(isoToFrDate('hier')).toBeNull();
+    expect(aggregateText([{ d: '2026-03-01' }, { d: '2026-01-09' }], 'min', 'd')).toBe(
+      '2026-01-09'
+    );
+    expect(aggregateText([{ d: '2026-03-01' }, { d: '2026-01-09' }], 'last', 'd')).toBe(
+      '2026-01-09'
+    );
+  });
+
+  it('filtre par colonne agrégée : chaque côté d’un ratio a le sien', () => {
+    const lignes = [
+      { z: 'nord', v: 10 },
+      { z: 'sud', v: 30 },
+      { z: 'nord', v: 20 },
+    ];
+    const out = runPipeline({ main: lignes }, [
+      {
+        op: 'global',
+        columns: {
+          nord: { agg: 'sum', field: 'v', filter: [{ field: 'z', op: 'eq', value: 'nord' }] },
+          tout: { agg: 'sum', field: 'v' },
+        },
+      },
+      { op: 'ratio', numerator: 'nord', denominator: 'tout', as: 'part' },
+    ]);
+    expect(out).toEqual([{ nord: 30, tout: 60, part: 0.5 }]);
+  });
+
+  it('ratio : dénominateur nul ou illisible donne null, jamais l’infini', () => {
+    expect(ratioColumn([{ a: 3, b: 0 }], 'a', 'b', 'r')[0].r).toBeNull();
+    expect(ratioColumn([{ a: 3, b: 'NC' }], 'a', 'b', 'r')[0].r).toBeNull();
+    expect(ratioColumn([{ a: 3, b: 4 }], 'a', 'b', 'r')[0].r).toBe(0.75);
+  });
+
+  it('page : la tranche affichée, pas les premières lignes', () => {
+    const lignes = Array.from({ length: 25 }, (_, i) => ({ i }));
+    expect(runPipeline({ main: lignes }, [{ op: 'page', size: 10, number: 2 }])).toEqual(
+      lignes.slice(10, 20)
+    );
+    expect(runPipeline({ main: lignes }, [{ op: 'page', size: 10, number: 3 }])).toHaveLength(5);
+  });
+
+  it('quantiles : chaque classe couvre le même nombre de valeurs', () => {
+    const valeurs = [1, 2, 3, 4, 5, 6, 7, 8];
+    expect(quantileBreaks(valeurs, 4)).toEqual([3, 5, 7]);
+    expect(quantileBreaks(valeurs, 2)).toEqual([5]);
+    expect(quantileBreaks([], 4)).toEqual([]);
+    // … et ce ne sont PAS les bornes des intervalles égaux sur un jeu tassé.
+    expect(quantileBreaks([1, 2, 3, 100], 2)).toEqual([3]);
+    expect(equalIntervalBreaks([1, 2, 3, 100], 2)).toEqual([50.5]);
+  });
+
+  it('classes de légende : la méthode déclarée décide des bornes', () => {
+    const valeurs = [1, 2, 3, 100];
+    expect(legendClasses(valeurs, 2, 'quantile')).toEqual([
+      { from: 1, to: 3 },
+      { from: 3, to: 100 },
+    ]);
+    expect(legendClasses(valeurs, 4, 'manual', [2, 50])).toEqual([
+      { from: 1, to: 2 },
+      { from: 2, to: 50 },
+      { from: 50, to: 100 },
+    ]);
+    expect(legendClasses([], 4, 'equal')).toEqual([]);
+  });
+
+  it('CSV relu : BOM retiré, guillemets RFC 4180, séparateur point-virgule', () => {
+    expect(parseCsv('﻿a;b\n1;2')).toEqual([
+      ['a', 'b'],
+      ['1', '2'],
+    ]);
+    expect(parseCsv('"Nord; et Sud";2\n"Dit ""oui""";3')).toEqual([
+      ['Nord; et Sud', '2'],
+      ['Dit "oui"', '3'],
+    ]);
+    expect(parseCsv('')).toEqual([]);
+  });
+
+  it('couleur ramenée à r,g,b — sinon null plutôt qu’une comparaison à tort', () => {
+    expect(toRgb('#000091')).toBe('0,0,145');
+    expect(toRgb('#FFF')).toBe('255,255,255');
+    expect(toRgb('rgb(0, 0, 145)')).toBe('0,0,145');
+    expect(toRgb('rgba(225, 0, 15, 0.5)')).toBe('225,0,15');
+    expect(toRgb('rebeccapurple')).toBeNull();
   });
 });
