@@ -50,6 +50,17 @@ npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
 npx playwright test --config tests/builder-e2e/playwright.config.ts  # Tests exhaustifs Builder
                       #   (requiert `npm run dev` actif en parallele — voir ARCHITECTURE.md §Tests)
 
+# Verification des donnees (ADR-122) — tout chiffre affiche est recalcule par un oracle
+#   independant (`tools/oracle/`), qui n'importe rien de la lib. Doc : tools/oracle/README.md.
+npm run verif         # Mode DETERMINISTE : fixtures du depot servies par page.route, zero reseau.
+                      #   BLOQUANT sur chaque PR (.github/workflows/verif-donnees.yml).
+                      #   Lancer `npm run build:shared && npm run build:app-ui` AVANT (la page
+                      #   charge packages/shared/dist, pas src — ARCHITECTURE.md §12).
+npm run verif:live    # Mode VIVANT : vraies API du banc d'essai, attendu produit juste avant le
+                      #   rendu. Jamais bloquant (oracle.yml : nuit, workflow_dispatch, ou PR
+                      #   portant le label `oracle`).
+npm run verif:expected  # Seulement l'attendu vivant (tools/oracle/out/expected.json)
+
 # Lint / garde-fous
 npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique
                       #   (scripts/check-french-accents.sh, lexique : docs/ux/actions.md)
@@ -212,6 +223,14 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
   `npm run check:specs-tables` est bloquant en CI (#757).
 - Apres modif d'un **type de graphique / operateur / agregation** : mettre a jour le guide redige a la main
   dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
+- **Tout chiffre affiche a un controle** (ADR-122). Tout nouvel attribut, operateur, agregation,
+  format ou composant qui **produit ou transforme un nombre** entre dans un manifeste de
+  `tests/verif-donnees/` (le domaine correspondant : `query`, `adaptateurs`, `transformations`,
+  `contexte`, `delegation`, `export-studio`, `affichages`, `banc`), avec sa **preuve de mutation** —
+  le controle vu ROUGE sur un defaut injecte dans la lib, puis le defaut retire. Un controle qui ne
+  peut pas echouer ne garde rien. Un controle legitime qu'on ne sait pas faire passer ne se supprime
+  pas et ne s'adoucit pas : il reste en `skip` avec la RAISON (defaut de la lib, ou amelioration non
+  promise par la doc) et **les deux chiffres**, lib et oracle. Procedure : `tools/oracle/README.md`.
 - Ajouter un export lib-safe dans **les deux** barrels (`packages/shared/src/lib.ts` ET `src/index.ts`).
 - Lancer `npm run build` apres modification des composants.
 - Creer un changeset si `packages/core/src/` ou `packages/shared/` sont modifies.
@@ -235,6 +254,13 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
   copie tel quel dans le serveur MCP, qui est hors workspace npm (test-garde + garde-fou
   a la generation).
 - **Jamais** importer des modules app-side (`auth/`, `storage/`, `ui/`, `tour/`) depuis `packages/core/src` (frontiere lib/app #319).
+- **Jamais** d'`import` de `packages/`, de `@dsfr-data/*` ou de l'alias `@/` dans `tools/oracle/`,
+  dans un manifeste de `tests/verif-donnees/` ou dans un recalcul : l'oracle serait alors la lib, et
+  ne verifierait plus rien (ADR-122, test-garde `tests/oracle/guard.test.ts` sur tout le graphe
+  d'imports). Si un recalcul a besoin d'une operation, on l'ecrit dans `tools/oracle/compute.ts`, en
+  tableaux nus. Seule exception declaree : `tests/verif-donnees/fixtures-export-studio.ts`.
+- **Jamais** de `rebase` pour integrer `main` sur une branche de travail : `git merge origin/main`
+  uniquement (les branches sont partagees, une reecriture d'historique casse les PR ouvertes).
 - **Jamais** de `subscribeToSource` manuel dans un composant (utiliser `TransformerMixin` / `SourceSubscriberMixin` — test-garde statique).
 - **Jamais** regenerer en place les secrets de prod (`ENCRYPTION_KEY`, `JWT_SECRET`, `DB_*`) dans `/opt/apps/<app>/.env` sur le VPS.
 - **Jamais** retirer `esbuild: { keepNames: true }` de `vite.config.ts` (casse les composants Lit minifies).
