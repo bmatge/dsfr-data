@@ -303,10 +303,14 @@ export interface Check {
    * Contrôle LÉGITIME que la bibliothèque ne passe pas encore : la raison, avec
    * le chiffre lib et le chiffre oracle.
    *
-   * Un contrôle qui tombe sur un défaut de la lib ne se supprime pas et ne
-   * s'adoucit pas — les deux reviennent à écrire dans le dépôt que le défaut
-   * n'existe pas. Il se met en attente, en NOMMANT ce qu'il attend : c'est la
-   * liste des défauts connus, et elle se lit dans le rapport.
+   * Il ne se supprime pas et ne s'adoucit pas — les deux reviennent à écrire
+   * dans le dépôt qu'il n'y avait rien à voir. Il se met en attente, en
+   * NOMMANT ce qu'il attend et LEQUEL des deux cas c'est, parce qu'ils
+   * n'appellent pas la même suite : un DÉFAUT contredit ce que la
+   * documentation promet, et s'ouvre en issue ; une AMÉLIORATION attendue ne
+   * contredit rien, le chiffre affiché est juste, et le contrôle est écrit
+   * pour que le jour où la capacité arrive, elle arrive juste. Réclamer ce que
+   * personne n'a promis coûte ce que #746 a mesuré, dans l'autre sens.
    */
   skip?: string;
 }
