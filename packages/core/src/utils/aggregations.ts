@@ -134,117 +134,148 @@ let legacyGrammarWarned = false;
  * liste blanche (ex. `x:somme`) est renvoyée en `type: 'invalid'` avec un
  * message nommant la fonction reçue et les fonctions acceptées (#649) — elle
  * était lue comme fn="x" et produisait un KPI vide en silence.
+ *
+ * ORDRE DE LECTURE (#839), un parseur par grammaire :
+ * 1. le filtre `{…}` est un TOKEN — la coupe du ratio ne voit que le niveau
+ *    zéro, un filtre peut donc contenir ` / ` (`a:sum{b:eq:x / y} / c:sum`) ;
+ * 2. le ratio ` / ` coupe l'expression en deux côtés mono-expression ;
+ * 3. `meta:total`, puis les segments `:` — grammaire commune, puis historique.
+ *
+ * L'alias de fonction (`count-distinct` -> `distinct`, #672) est résolu sur les
+ * seuls segments de FONCTION : un CHAMP nommé `count-distinct` garde son nom.
  */
 export function parseExpression(expression: string): ParsedExpression {
   const trimmed = expression.trim();
 
-  // Ratio (#673) : deux côtés séparés par ` / `, chacun parsé avec la
-  // grammaire mono-expression. Un côté invalide invalide le tout, avec le
-  // message du côté fautif ; plus d'un séparateur est refusé.
-  const sides = trimmed.replace(/\s+/g, ' ').split(RATIO_SEPARATOR);
-  if (sides.length > 1) {
-    if (sides.length > 2 || sides.some((side) => side === '')) {
-      return {
-        type: 'invalid',
-        field: '',
-        error:
-          `ratio "${expression}" mal formé — attendu exactement deux expressions ` +
-          `séparées par " / " (ex. "count:statut:ouvert / count")`,
-      };
+  // Ordre de découpage (#839) : le filtre entre accolades est un TOKEN, la
+  // coupe du ratio ne regarde donc que le niveau zéro. L'inverse — couper sur
+  // " / " d'abord — cassait `a:sum{b:eq:x / y} / c:sum`, dont le filtre porte
+  // une barre oblique entourée d'espaces.
+  const sides = splitOutsideBraces(collapseSpaces(trimmed), RATIO_SEPARATOR);
+  if (sides.length > 1) return parseRatioGrammar(expression, sides);
+
+  if (trimmed.includes('{')) return parseFilteredExpression(expression, trimmed);
+
+  return parseMonoExpression(expression, trimmed);
+}
+
+/**
+ * Replie les suites d'espaces en un seul (regex linéaire) avant la coupe
+ * LITTÉRALE du ratio — pas de `\s+\/\s+`, polynomial sur une longue suite
+ * d'espaces (CodeQL js/polynomial-redos).
+ */
+function collapseSpaces(text: string): string {
+  return text.replace(/\s+/g, ' ');
+}
+
+/**
+ * Découpe `text` sur `separator` aux seules positions de NIVEAU ZÉRO, hors de
+ * toute paire d'accolades (#839) : même résultat que `String.split` quand il
+ * n'y a pas de filtre, et un filtre porteur du séparateur reste entier.
+ */
+function splitOutsideBraces(text: string, separator: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  let i = 0;
+  while (i <= text.length - separator.length) {
+    const char = text[i];
+    if (char === '{') depth++;
+    else if (char === '}') depth = Math.max(0, depth - 1);
+    if (depth === 0 && text.startsWith(separator, i)) {
+      parts.push(text.slice(start, i));
+      i += separator.length;
+      start = i;
+      continue;
     }
-    const numerator = parseExpression(sides[0]);
-    const denominator = parseExpression(sides[1]);
-    const invalid = [numerator, denominator].find((side) => side.type === 'invalid');
-    if (invalid) return { type: 'invalid', field: '', error: invalid.error };
-    return { type: 'ratio', field: '', numerator, denominator };
+    i++;
   }
+  parts.push(text.slice(start));
+  return parts;
+}
 
-  // Filtre par expression (#776) : `expr{champ:op:valeur, …}`. L'accolade
-  // n'ajoute aucune ambiguïté au découpage par deux-points, contrairement à
-  // une quatrième partie colon ; le filtre est le dialecte du `where`.
-  const brace = trimmed.indexOf('{');
-  if (brace !== -1) {
-    return parseFilteredExpression(expression, trimmed, brace);
-  }
-
-  if (trimmed === META_TOTAL_EXPR) return { type: 'meta', field: 'total' };
-
-  // Alias de fonction (`count-distinct` -> `distinct`, #672) résolus sur
-  // chaque segment : la grammaire commune et l'ancienne les acceptent.
-  const parts = trimmed.split(':').map(canonicalAggregation);
-
-  if (parts.length === 1) {
-    // "count" seul = compter tous les enregistrements
-    if (parts[0] === 'count') {
-      return { type: 'count', field: '' };
-    }
-    return { type: 'direct', field: parts[0] };
-  }
-
-  // Grammaire commune "field:fn" : parts[1] est une fonction connue et
-  // parts[0] n'est pas une fonction de l'ancienne grammaire (un champ nommé
-  // 'count' — colonne d'un group-by — garde la lecture historique `sum:count`).
-  // Les fonctions ajoutées après la dépréciation (`distinct`, `evolution`)
-  // n'ont JAMAIS eu de forme inversée : `evolution:avg` est la moyenne de la
-  // colonne "evolution" (exemple documenté partout), pas l'évolution d'une
-  // colonne "avg" (#675).
-  if (parts.length === 2 && AGG_TYPES.has(parts[1]) && !LEGACY_AGG_TYPES.has(parts[0])) {
-    return { type: parts[1] as AggregationType, field: parts[0] };
-  }
-
-  // Ni grammaire commune ("champ:fn") ni grammaire historique ("fn:champ",
-  // "count:champ:valeur") : la fonction reçue est inconnue (#649).
-  if (!LEGACY_AGG_TYPES.has(parts[0])) {
-    const received = parts.length === 2 ? parts[1] : parts[0];
+/**
+ * Ratio (#673) : deux côtés séparés par ` / `, chacun reparsé dans la
+ * grammaire mono-expression. Un côté invalide invalide le tout, avec le
+ * message du côté fautif ; plus d'un séparateur est refusé.
+ */
+function parseRatioGrammar(expression: string, sides: string[]): ParsedExpression {
+  if (sides.length > 2 || sides.some((side) => side === '')) {
     return {
       type: 'invalid',
-      field: parts.length === 2 ? parts[0] : parts[1],
+      field: '',
       error:
-        `fonction d'agrégat "${received}" inconnue dans "${expression}" — ` +
-        `attendu "champ:fn" (ex. "population:sum") ; ` +
-        `fonctions acceptées : ${KPI_AGGREGATION_TYPES.join(', ')}`,
+        `ratio "${expression}" mal formé — attendu exactement deux expressions ` +
+        `séparées par " / " (ex. "count:statut:ouvert / count")`,
     };
   }
+  const numerator = parseExpression(sides[0]);
+  const denominator = parseExpression(sides[1]);
+  const invalid = [numerator, denominator].find((side) => side.type === 'invalid');
+  if (invalid) return { type: 'invalid', field: '', error: invalid.error };
+  return { type: 'ratio', field: '', numerator, denominator };
+}
 
-  const type = parts[0] as AggregationType;
-  const field = parts[1];
+/**
+ * Expression SANS ratio ni accolade : `meta:total`, puis les segments séparés
+ * par des deux-points, lus par la grammaire commune "champ:fn" et, à défaut,
+ * par la grammaire historique "fn:champ".
+ */
+function parseMonoExpression(expression: string, trimmed: string): ParsedExpression {
+  if (trimmed === META_TOTAL_EXPR) return { type: 'meta', field: 'total' };
 
-  // Forme filtrée "count:champ:valeur" (#764). Traitée AVANT l'avertissement
-  // de dépréciation : c'est la forme recommandée depuis le ratio (#673), elle
-  // n'a pas d'équivalent en grammaire commune et ne doit pas se déclarer
-  // obsolète à chaque page. La valeur est relue depuis l'expression brute :
-  // elle peut contenir un deux-points (`count:heure:12:30`) et ne doit pas
-  // passer par la résolution d'alias des segments de fonction.
-  if (parts.length >= 3) {
-    // Seul `count` honore un filtre. `sum:champ:valeur` rendait le total NON
-    // filtré, sans un mot : une erreur vaut mieux qu'un chiffre faux.
-    if (type !== 'count') {
-      return {
-        type: 'invalid',
-        field,
-        error:
-          `filtre "${expression}" non pris en charge — seule la fonction count accepte ` +
-          `une valeur de filtre ("count:champ:valeur") ; "${type}" rendrait le total ` +
-          `non filtré. Pour agréger un sous-ensemble : "${field}:${type}{champ:eq:valeur}" ` +
-          `(#776), ou le where du KPI`,
-      };
-    }
-
-    let filterValue: string | boolean | number = trimmed.split(':').slice(2).join(':');
-
-    // Parse boolean/number values
-    if (filterValue === 'true') filterValue = true;
-    else if (filterValue === 'false') filterValue = false;
-    else if (filterValue.trim() !== '' && !isNaN(Number(filterValue)))
-      filterValue = Number(filterValue);
-
-    return { type, field, filterField: field, filterValue };
+  const segments = trimmed.split(':');
+  if (segments.length === 1) return parseBareSegment(segments[0]);
+  if (segments.length === 2) {
+    const common = parseCommonGrammar(segments[0], segments[1]);
+    if (common) return common;
   }
+  return parseLegacyGrammar(expression, segments);
+}
+
+/** Un seul segment : `count` compte les lignes, tout le reste est un champ. */
+function parseBareSegment(segment: string): ParsedExpression {
+  if (canonicalAggregation(segment) === 'count') return { type: 'count', field: '' };
+  return { type: 'direct', field: segment };
+}
+
+/**
+ * Grammaire COMMUNE "champ:fn" (#303), celle de query et de tous les adapters.
+ * L'alias (#672) est résolu sur le seul segment de FONCTION : un champ nommé
+ * `count-distinct` garde son nom (#839). Rendue seulement si la lecture tient,
+ * `null` sinon — la grammaire historique reprend alors la main.
+ *
+ * Un champ dont le nom est une fonction de l'ANCIENNE grammaire (`count`,
+ * colonne d'un group-by) garde la lecture historique `sum:count`. Les fonctions
+ * ajoutées après la dépréciation (`distinct`, `evolution`) n'ont JAMAIS eu de
+ * forme inversée : `evolution:avg` est la moyenne de la colonne « evolution »
+ * (exemple documenté partout), pas l'évolution d'une colonne « avg » (#675).
+ */
+function parseCommonGrammar(field: string, fn: string): ParsedExpression | null {
+  const canonical = canonicalAggregation(fn);
+  if (!AGG_TYPES.has(canonical)) return null;
+  if (LEGACY_AGG_TYPES.has(canonicalAggregation(field))) return null;
+  return { type: canonical as AggregationType, field };
+}
+
+/**
+ * Grammaire HISTORIQUE "fn:champ" (#303, dépréciée) et sa forme filtrée
+ * "count:champ:valeur" (#764). Hors de ces deux lectures, la fonction reçue est
+ * inconnue (#649).
+ */
+function parseLegacyGrammar(expression: string, segments: string[]): ParsedExpression {
+  const fn = canonicalAggregation(segments[0]);
+  if (!LEGACY_AGG_TYPES.has(fn)) return unknownFunction(expression, segments);
+
+  const type = fn as AggregationType;
+  const field = segments[1];
+
+  if (segments.length >= 3) return parseCountFilterGrammar(expression, segments, type, field);
 
   if (!legacyGrammarWarned) {
     legacyGrammarWarned = true;
     console.warn(
-      `dsfr-data-kpi: la grammaire "${parts[0]}:${parts[1]}" (fn:champ) est dépréciée — ` +
+      `dsfr-data-kpi: la grammaire "${segments[0]}:${segments[1]}" (fn:champ) est dépréciée — ` +
         `utilisez la grammaire commune du pipeline "champ:fn" (ex. "population:sum") (#303)`
     );
   }
@@ -252,12 +283,69 @@ export function parseExpression(expression: string): ParsedExpression {
   return { type, field };
 }
 
-/** `expr{filtre}` (#776) : l'expression de base, porteuse du filtre de lignes. */
-function parseFilteredExpression(
+/**
+ * Forme filtrée "count:champ:valeur" (#764), traitée AVANT l'avertissement de
+ * dépréciation : c'est la forme recommandée depuis le ratio (#673), elle n'a
+ * pas d'équivalent en grammaire commune et ne doit pas se déclarer obsolète à
+ * chaque page.
+ */
+function parseCountFilterGrammar(
   expression: string,
-  trimmed: string,
-  brace: number
+  segments: string[],
+  type: AggregationType,
+  field: string
 ): ParsedExpression {
+  // Seul `count` honore un filtre. `sum:champ:valeur` rendait le total NON
+  // filtré, sans un mot : une erreur vaut mieux qu'un chiffre faux.
+  if (type !== 'count') {
+    return {
+      type: 'invalid',
+      field,
+      error:
+        `filtre "${expression}" non pris en charge — seule la fonction count accepte ` +
+        `une valeur de filtre ("count:champ:valeur") ; "${type}" rendrait le total ` +
+        `non filtré. Pour agréger un sous-ensemble : "${field}:${type}{champ:eq:valeur}" ` +
+        `(#776), ou le where du KPI`,
+    };
+  }
+  return { type, field, filterField: field, filterValue: parseFilterValue(segments) };
+}
+
+/**
+ * Valeur de "count:champ:valeur", recollée depuis les segments restants : elle
+ * peut contenir un deux-points (`count:heure:12:30`) et ne passe PAS par la
+ * résolution d'alias, réservée aux fonctions (#839).
+ */
+function parseFilterValue(segments: string[]): string | boolean | number {
+  const raw = segments.slice(2).join(':');
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (raw.trim() !== '' && !isNaN(Number(raw))) return Number(raw);
+  return raw;
+}
+
+/**
+ * Une expression à 2+ segments dont AUCUN segment de fonction n'est dans la
+ * liste blanche (ex. `x:somme`) : `invalid` nommant la fonction reçue et les
+ * fonctions acceptées (#649) — elle était lue comme fn="x" et produisait un KPI
+ * vide en silence.
+ */
+function unknownFunction(expression: string, segments: string[]): ParsedExpression {
+  const twoSegments = segments.length === 2;
+  const received = canonicalAggregation(twoSegments ? segments[1] : segments[0]);
+  return {
+    type: 'invalid',
+    field: twoSegments ? segments[0] : segments[1],
+    error:
+      `fonction d'agrégat "${received}" inconnue dans "${expression}" — ` +
+      `attendu "champ:fn" (ex. "population:sum") ; ` +
+      `fonctions acceptées : ${KPI_AGGREGATION_TYPES.join(', ')}`,
+  };
+}
+
+/** `expr{filtre}` (#776) : l'expression de base, porteuse du filtre de lignes. */
+function parseFilteredExpression(expression: string, trimmed: string): ParsedExpression {
+  const brace = trimmed.indexOf('{');
   const invalid = (error: string): ParsedExpression => ({ type: 'invalid', field: '', error });
   if (!trimmed.endsWith('}') || trimmed.indexOf('{', brace + 1) !== -1) {
     return invalid(
@@ -337,12 +425,7 @@ function evaluateParsed(
   // Filtre propre à l'expression (#776) : restreint les lignes, puis évalue
   // l'expression de base sur ce sous-ensemble.
   if (parsed.rowFilter) {
-    const rows: Record<string, unknown>[] = Array.isArray(data)
-      ? (data as Record<string, unknown>[])
-      : data && typeof data === 'object'
-        ? [data as Record<string, unknown>]
-        : [];
-    const filtered = applyLocalFilter(rows, parsed.rowFilter, getByPath);
+    const filtered = applyLocalFilter(toRows(data), parsed.rowFilter, getByPath);
     return evaluateParsed(filtered, { ...parsed, rowFilter: undefined }, context);
   }
 
@@ -357,17 +440,33 @@ function evaluateParsed(
   // enregistrement emis sans wrapper tableau) est normalisee en tableau a 1
   // element — l'acces direct ci-dessus accepte deja l'objet seul, sinon la
   // valeur s'affichait mais pas la tendance/agregat (#338).
-  const items: Record<string, unknown>[] = Array.isArray(data)
-    ? (data as Record<string, unknown>[])
-    : data && typeof data === 'object'
-      ? [data as Record<string, unknown>]
-      : [];
+  const items = toRows(data);
 
   // Ni tableau ni objet exploitable (null, chaine, nombre) : rien a agreger.
   if (!Array.isArray(data) && items.length === 0) {
     return null;
   }
 
+  return evaluateOnItems(data, items, parsed, context);
+}
+
+/**
+ * Lignes exploitables d'une donnee reçue : un tableau tel quel, un objet seul
+ * normalise en tableau a 1 element (#338), rien d'autre.
+ */
+function toRows(data: unknown): Record<string, unknown>[] {
+  if (Array.isArray(data)) return data as Record<string, unknown>[];
+  if (data && typeof data === 'object') return [data as Record<string, unknown>];
+  return [];
+}
+
+/** Applique la fonction de l'arbre aux lignes retenues. */
+function evaluateOnItems(
+  data: unknown,
+  items: Record<string, unknown>[],
+  parsed: ParsedExpression,
+  context: AggregationContext
+): number | string | null {
   switch (parsed.type) {
     case 'meta':
       // Total de l'amont (#659) ; sans meta, les lignes reçues.
@@ -409,44 +508,17 @@ function evaluateParsed(
     case 'distinct':
       return countDistinct(items, parsed.field);
 
-    case 'evolution': {
-      // (dernière − première) / première (#675) sur les valeurs numériques
-      // renseignées, DANS L'ORDRE COURANT de la source : c'est à l'amont
-      // (order-by d'une query, tri de la source) de garantir l'ordre
-      // chronologique. Moins de deux valeurs ou première = 0 -> null.
-      const values = collectNumericValues(items, parsed.field);
-      if (values.length < 2) return null;
-      const first = values[0];
-      const last = values[values.length - 1];
-      if (first === 0) return null;
-      return (last - first) / first;
-    }
+    case 'evolution':
+      return computeEvolution(items, parsed.field);
 
-    case 'avg': {
-      // Moyenne sur les seules valeurs numeriques — diviser par
-      // items.length comptait les non-numeriques comme des zeros (#301)
-      const values = collectNumericValues(items, parsed.field);
-      if (values.length === 0) return null;
-      return values.reduce((acc, v) => acc + v, 0) / values.length;
-    }
+    case 'avg':
+      return computeAverage(items, parsed.field);
 
-    case 'min': {
-      // Colonne de dates ISO (#667) : ordre lexicographique, AVANT le chemin
-      // numerique — toNumber('2026-09-09') vaudrait 2026.
-      const dates = collectIsoDates(items, parsed.field);
-      if (dates) return dates.reduce((acc, d) => (isoKey(d) < isoKey(acc) ? d : acc));
-      // Le garde portait sur items.length, pas sur le tableau filtre :
-      // aucune valeur numerique -> Math.min(...[]) = Infinity (#301)
-      const values = collectNumericValues(items, parsed.field);
-      return values.length > 0 ? Math.min(...values) : null;
-    }
+    case 'min':
+      return computeExtremum(items, parsed.field, 'min');
 
-    case 'max': {
-      const dates = collectIsoDates(items, parsed.field);
-      if (dates) return dates.reduce((acc, d) => (isoKey(d) > isoKey(acc) ? d : acc));
-      const values = collectNumericValues(items, parsed.field);
-      return values.length > 0 ? Math.max(...values) : null;
-    }
+    case 'max':
+      return computeExtremum(items, parsed.field, 'max');
 
     case 'invalid':
     default:
@@ -454,6 +526,54 @@ function evaluateParsed(
       // reportée par le composant (dsfr-data-kpi) via parseExpression (#649).
       return null;
   }
+}
+
+/**
+ * (dernière − première) / première (#675) sur les valeurs numériques
+ * renseignées, DANS L'ORDRE COURANT de la source : c'est à l'amont (order-by
+ * d'une query, tri de la source) de garantir l'ordre chronologique. Moins de
+ * deux valeurs ou première = 0 -> null.
+ */
+function computeEvolution(items: Record<string, unknown>[], field: string): number | null {
+  const values = collectNumericValues(items, field);
+  if (values.length < 2) return null;
+  const first = values[0];
+  const last = values[values.length - 1];
+  if (first === 0) return null;
+  return (last - first) / first;
+}
+
+/**
+ * Moyenne sur les seules valeurs numeriques — diviser par items.length
+ * comptait les non-numeriques comme des zeros (#301).
+ */
+function computeAverage(items: Record<string, unknown>[], field: string): number | null {
+  const values = collectNumericValues(items, field);
+  if (values.length === 0) return null;
+  return values.reduce((acc, v) => acc + v, 0) / values.length;
+}
+
+/**
+ * Minimum ou maximum d'une colonne. Colonne de dates ISO (#667) : ordre
+ * lexicographique, AVANT le chemin numerique — toNumber('2026-09-09') vaudrait
+ * 2026. Le garde porte sur le tableau FILTRE, pas sur items.length : aucune
+ * valeur numerique -> Math.min(...[]) = Infinity (#301).
+ */
+function computeExtremum(
+  items: Record<string, unknown>[],
+  field: string,
+  bound: 'min' | 'max'
+): number | string | null {
+  const dates = collectIsoDates(items, field);
+  if (dates) {
+    return dates.reduce((acc, d) => {
+      const keep = bound === 'min' ? isoKey(d) < isoKey(acc) : isoKey(d) > isoKey(acc);
+      return keep ? d : acc;
+    });
+  }
+  const values = collectNumericValues(items, field);
+  if (values.length === 0) return null;
+  return bound === 'min' ? Math.min(...values) : Math.max(...values);
 }
 
 /**
