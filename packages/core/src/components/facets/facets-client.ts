@@ -7,9 +7,10 @@ import type { FacetGroup, FacetRow, FacetSelections, FacetValue } from './facets
  * aucun `console.warn` — pour que l'oracle de la verification des donnees
  * (ADR-122) et les tests unitaires puissent les eprouver isolement.
  *
- * Le composant garde les methodes du meme nom, qui delèguent ici : les
- * mutations du banc de preuve (`_rowWeight`, `_getDataFilteredExcluding`)
- * restent posables au meme endroit.
+ * Une mutation du banc de preuve se pose la ou vit la logique : `rowWeight`
+ * ICI (l'ancien `_rowWeight` du composant n'avait plus d'appelant et a ete
+ * retire), `_getDataFilteredExcluding` dans le composant, qui l'appelle
+ * encore depuis `_computeFacetValues`. Voir `tools/oracle/README.md`.
  */
 
 /** Resolve a possibly dotted field path on a row (e.g. "fields.Region") */
