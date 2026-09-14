@@ -915,7 +915,7 @@ tests/                       Vitest (happy-dom, fuseau Europe/Paris)
   oracle/                      Le MOTEUR de la verification des donnees : guard (independance),
                                compute, expression, observe, compare-urls, raw, stabilite
   verif-donnees/               Les MANIFESTES de controles, par domaine, + leurs fixtures
-  builder-e2e/                 Playwright a part (§7.1, §7.2) — config et resultats dedies
+  builder-e2e/                 Playwright a part — recette MANUELLE, hors CI (§7.1)
 
 e2e/                         Playwright (config e2e/playwright.config.ts, serveur de dev 5173)
   *.spec.ts                    Parcours applicatifs, accessibilite, captures
@@ -944,41 +944,40 @@ e2e/                         Playwright (config e2e/playwright.config.ts, serveu
 - Les dependances `lit` et `@lit` sont inlinees par le serveur de test pour eviter les problemes de resolution ESM dans jsdom.
 - La couverture inclut `packages/core/src/**/*.ts` et `packages/shared/src/**/*.ts` (sauf les barrels et `components/layout/**`), seuils 85 / 77 / 82 / 85 (#829).
 
-### 7.1 Tests exhaustifs du Builder (Playwright E2E)
+### 7.1 `tests/builder-e2e/` — outil de recette MANUELLE
 
-> Procédure déplacée depuis `CLAUDE.md`. Tests dans `tests/builder-e2e/`.
+> Ce dossier ne tourne dans aucun workflow. Ce n'est pas un oubli : la suite n'est pas verte.
+> État mesuré par spec, causes, et ce qui pourrait être câblé : `tests/builder-e2e/README.md`
+> (relevé du 2026-09-14, #844). Ne pas s'y fier comme à un garde-fou.
 
-Vérifient la génération de code pour toutes les combinaisons source × type de graphique × mode (embedded/dynamic/dynamic+facettes).
+Les garde-fous BLOQUANTS sont ailleurs : `vitest` (unitaires), `e2e-layout.yml` (mise en page
+mesurée, §7 ci-dessus), `verif-donnees.yml` (ADR-122).
 
-**Pré-requis** : le serveur de dev principal doit tourner (port 5173) car les sources API (ODS, Tabular) ont besoin du proxy Vite. Playwright doit être installé.
+**Pré-requis** : serveur de dev sur le port 5173 (`npm run dev`), sauf pour
+`export-html-api-recette.spec.ts` qui sert tout par `page.route()` mais demande `npm run build`.
 
 ```bash
 npm run dev   # terminal séparé
-npx playwright test --config tests/builder-e2e/playwright.config.ts
+npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
 ```
 
-- **110 tests** : 4 sources (locale, ODS, Tabular, Grist) × 11 types de graphique × modes.
-- Résultats : `tests/builder-e2e/RESULTS.md` · screenshots par combinaison : `tests/builder-e2e/screenshots/`.
-- Sources de test : locale (embarquées), ODS et Tabular (APIs distantes via proxy), Grist (embarquées, pas de proxy en dev).
+Lancer le dossier entier dépasse l'heure et finit rouge : un spec à la fois.
 
-### 7.2 Validation des paramètres Builder (Playwright E2E)
+Deux fichiers y portent l'extension `.spec.ts` sans contenir **aucune assertion** — ce sont des
+outils, pas des tests : `inspect-builder.spec.ts` (imprime la structure du Builder) et
+`builder-exhaustive.spec.ts` (génère `RESULTS.md` et `screenshots/`, tous deux ignorés par git,
+pour 4 sources × 11 types × modes). Ce dernier passe toujours au vert, y compris quand il
+journalise `code=false` : ses 110 cas ne sont pas de la couverture.
 
-Valident que tous les paramètres du builder génèrent le code attendu avec des données de test connues. Pré-requis : `npm run dev` actif (port 5173).
+**Exposition du state** : les specs historiques injectent leurs données dans
+`(window as …).__BUILDER_STATE__`, exposé par `apps/builder/src/main.ts` (vérifié en place). Ce
+n'est pas la cause de leurs échecs — ce sont les identifiants HTML des contrôles qui ont bougé.
 
-```bash
-cd tests/builder-e2e
-npx playwright test quick-audit.spec.ts      # validation des paramètres
-npx playwright test simple-test.spec.ts      # éléments UI de base
-npx playwright test inspect-builder.spec.ts --headed   # diagnostic structure
-```
-
-Couverture : agrégations (SUM, AVG, MIN, MAX, COUNT), types (bar, horizontalBar, pie, kpi), palettes, tri asc/desc, mode avancé (filtres/conditions).
-
-**Données de test** (`field: population`) : `[Ile-de-France 12000, Provence 5000, Bretagne 3000, Normandie 3300]` → SUM=23300, AVG=5825, MIN=3000, MAX=12000, COUNT=4.
-
-**Exposition du state** : le builder expose son state globalement via `(window as any).__BUILDER_STATE__ = state` dans `apps/builder/src/main.ts`, ce qui permet aux tests d'injecter des données et de vérifier les calculs d'agrégation. Doc : `tests/builder-e2e/README.md`, `tests/builder-e2e/TESTING_MATRIX.md`.
+**Données de test** (`field: population`) : `[Ile-de-France 12000, Provence 5000, Bretagne 3000,
+Normandie 3300]` → SUM=23300, AVG=5825, MIN=3000, MAX=12000, COUNT=4.
 
 ---
+
 
 ## 8. Beacon de tracking
 

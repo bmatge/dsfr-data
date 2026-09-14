@@ -202,6 +202,9 @@ describe('#744 — le contrôle dans la carte', () => {
     expect(map.querySelector('.dsfr-data-map__tiles-switcher')).toBeNull();
   });
 
+  // Contrat de CLASSES et de REGLES : ce test lit le TEXTE de la feuille emise.
+  // Il ne prouve AUCUNE mise en page calculee — happy-dom n'en calcule pas.
+  // La mise en page, elle, est MESUREE par `e2e/layout-map.spec.ts` (#845).
   it('la feuille injectée pose le contrôle en surimpression de la carte', () => {
     (new DsfrDataMap() as unknown as MapInternals)._injectStyles();
     const css = document.head.querySelector('style[data-dsfr-data-map]')?.textContent ?? '';

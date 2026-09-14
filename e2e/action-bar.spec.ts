@@ -171,6 +171,9 @@ test.describe('AppActionBar v2 (docs/ux/actions.md §5)', () => {
       const primaries = page.locator(PRIMARY_SELECTOR);
       await expect(primaries).toHaveCount(1);
       await expect(primaries).toHaveId(ed.primary);
+      // `primaryLabel` vient du tableau de cas littéral ci-dessus, pas d'une
+      // entrée externe : `detect-non-literal-regexp` est un faux positif (#843).
+      // eslint-disable-next-line security/detect-non-literal-regexp
       await expect(primaries).toHaveText(new RegExp(ed.primaryLabel));
       const visibleIds = await toolbar.evaluate((tb) =>
         Array.from(tb.querySelectorAll<HTMLElement>('button, a'))
@@ -246,6 +249,8 @@ test.describe('AppActionBar v2 (docs/ux/actions.md §5)', () => {
 
       const primary = page.locator(`#${ed.primary}`);
       await expect(primary).toBeVisible();
+      // Même tableau de cas littéral (#843).
+      // eslint-disable-next-line security/detect-non-literal-regexp
       await expect(primary).toHaveText(new RegExp(ed.primaryLabel));
       const box = (await primary.boundingBox())!;
       expect(box.y + box.height).toBeLessThanOrEqual(812);

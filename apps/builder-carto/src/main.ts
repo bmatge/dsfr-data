@@ -1770,6 +1770,9 @@ let viewportWatchToken = 0;
 function watchViewport() {
   const token = ++viewportWatchToken;
   const tryAttach = (attempt: number) => {
+    // Faux positif `detect-possible-timing-attacks` (#843) : `token` est un
+    // compteur d'annulation local, pas un secret — la règle ne réagit qu'au nom.
+    // eslint-disable-next-line security/detect-possible-timing-attacks
     if (token !== viewportWatchToken) return;
     const mapEl = document.querySelector('#map-canvas dsfr-data-map') as DsfrDataMapElement | null;
     const lmap = mapEl?.getLeafletMap?.();
