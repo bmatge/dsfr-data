@@ -11,6 +11,11 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
+État du dépôt : **191 contrôles déterministes** et **31 contrôles vivants**, répartis en dix
+domaines, pour 445 observations. Sept sont en attente (voir « Un contrôle que la bibliothèque ne
+passe pas »). Les contrôles vivants rejouent **15 reproductions** du banc d'essai et citent
+**25 constats** de son registre.
+
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
 Indépendant ne veut pas dire arbitraire. Là où la bibliothèque **documente** un
@@ -62,8 +67,14 @@ deux côtés, qui ne prouverait rien.
 |---|---|---|
 | Alimentation | fixtures du dépôt, servies par `page.route` | vraies API, retéléchargées |
 | Attendu | recalculé dans le run, depuis les **mêmes** lignes | `out/expected.json`, produit juste avant |
-| Déclenchement | chaque PR, **bloquant** (`verif-donnees.yml`) | nuit / à la demande / label `oracle`, jamais bloquant (`oracle.yml`) |
+| Déclenchement | chaque PR, **bloquant** (`.github/workflows/verif-donnees.yml`) | nuit / à la demande / label `oracle`, jamais bloquant (`.github/workflows/oracle.yml`) |
 | Réseau | aucun (toute sortie inattendue fait échouer) | requis |
+
+```bash
+npm run verif            # déterministe — ce qu'il faut lancer en local
+npm run verif:live       # vivant : verif:expected puis le spec en VERIF_MODE=live
+npm run verif:expected   # seulement l'attendu vivant (tools/oracle/out/expected.json)
+```
 
 Une alimentation vivante prend **deux formes**, selon l'API visée. `RawSource`
 (`baseUrl`, `dataset`, `where`) appelle l'export JSON d'un portail Opendatasoft.
@@ -103,45 +114,47 @@ contrôles, et le même export ne part qu'une fois. Deux clauses différentes
 restent deux URL, donc deux téléchargements ; la mémoire ne survit pas au
 processus, rien n'est figé.
 
-```bash
-npm run verif            # déterministe — ce qu'il faut lancer en local
-npm run verif:live       # vivant : verif:expected puis le spec en VERIF_MODE=live
-npm run verif:expected   # seulement l'attendu vivant (tools/oracle/out/expected.json)
-```
+**Avant tout run** : `npm run build:shared && npm run build:app-ui`. Le serveur de dev est démarré
+par Playwright (`webServer` de `e2e/playwright.config.ts`) et sert la lib depuis
+`packages/core/src`, mais `@dsfr-data/shared` se résout par les `exports` du package, c'est-à-dire
+`packages/shared/dist` (ARCHITECTURE.md §12). Un `dist/` périmé fait mentir le contrôle, et l'écart
+désigne alors le mauvais coupable.
 
-Le serveur de dev est démarré par Playwright (`webServer` de `e2e/playwright.config.ts`). Comme
-pour les specs de mise en page, **`npm run build:shared && npm run build:app-ui` d'abord** : la lib
-est servie depuis `packages/core/src`, mais `@dsfr-data/shared` se résout par les `exports` du
-package, c'est-à-dire `packages/shared/dist` (ARCHITECTURE.md §12). Un `dist/` périmé fait mentir
-le contrôle, et l'écart désigne alors le mauvais coupable.
+**Plusieurs worktrees en parallèle** : `e2e/playwright.config.ts` a `reuseExistingServer: true` sur
+le port 5173. Si un autre checkout y sert déjà le dev server, `npm run verif` éprouve SES sources —
+et les preuves de mutation passent au vert à tort. Vérifier `lsof -i :5173` avant de lancer, sinon
+démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la
+configuration Playwright.
 
 ## L'arborescence
 
 ```
 tests/verif-donnees/     LES CONTRÔLES, par domaine
-  banc.ts                  contrôles vivants (reproductions du banc open-data-viz)
-  query.ts                 contrôles déterministes (calcul : filtre, group-by, tri, jointure…)
-  transformations.ts       contrôles déterministes des opérateurs et des agrégations
-                             (where, aggregate, normalize, compute, pivot, unpivot, join, concat)
-  contexte.ts              contrôles déterministes joués AU CLAVIER ET À LA SOURIS
-                             (contexte, facettes, recherche, synchro d'URL)
-  adaptateurs.ts           contrôles déterministes des CHEMINS D'ENTRÉE (ODS, Tabular,
-                             INSEE Melodi, Grist, JSON générique)
-  affichages.ts            contrôles déterministes du RENDU (formats fr-FR, seuils,
-                             classes de choroplèthe, pagination, export CSV, résumé de carte)
+  index.ts                 la liste des manifestes
+  query.ts                 le CALCUL : filtre, group-by, tri, jointure, limite
+  adaptateurs.ts           les CHEMINS D'ENTRÉE (ODS, Tabular, INSEE Melodi, Grist, JSON générique)
+  transformations.ts       les opérateurs et les agrégations (where, aggregate, normalize,
+                             compute, pivot, unpivot, join, concat)
+  contexte.ts              contexte, facettes, recherche, synchro d'URL — joués AU CLAVIER
+                             ET À LA SOURIS
   delegation.ts            l'invariant de délégation : mêmes chiffres, serveur ou client
   export-studio.ts         les tableaux de bord produits par l'export du Studio
-  banc-adaptateurs.ts      contrôles vivants, un par adaptateur public
-  banc-pages.ts            contrôles vivants repris des PAGES du banc, un ou plusieurs par
+  affichages.ts            le RENDU : formats fr-FR, seuils, classes de choroplèthe,
+                             pagination, export CSV, résumé de carte
+  banc.ts                  contrôles VIVANTS de cas venus du banc open-data-viz, hors
+                             reprise de balisage d'une page
+  banc-adaptateurs.ts      contrôles VIVANTS, un par adaptateur public
+  banc-pages.ts            contrôles VIVANTS repris des PAGES du banc, un ou plusieurs par
                              reproduction, chacun citant les constats du registre qu'il rejoue
-  fixtures.ts              les lignes servies à la page ET données à l'oracle
-  fixtures-contexte.ts         les lignes et le faux serveur ODS du domaine `contexte`
+                             (champs `page` et `constats` du Check)
+
+  fixtures.ts                  les lignes servies à la page ET données à l'oracle
   fixtures-adaptateurs.ts      les lignes plates et les faux serveurs du domaine `adaptateurs`
   fixtures-transformations.ts  idem, servies en `data` inline (aucun faux serveur)
-  fixtures-affichages.ts       les jeux du domaine `affichages` (communes, série, libellés, long)
+  fixtures-contexte.ts         les lignes et le faux serveur ODS du domaine `contexte`
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
-  index.ts                 la liste des manifestes
+  fixtures-affichages.ts       les jeux du domaine `affichages` (communes, série, libellés, long)
 
 tools/oracle/            LE MOTEUR
   manifest.ts              la grammaire (types seuls) : Feed, Step, Expect, Check
@@ -152,13 +165,23 @@ tools/oracle/            LE MOTEUR
   expected.ts              l'attendu d'un contrôle, depuis ses lignes brutes
   stabilite.ts             attendre qu'une observation ne bouge plus (pas de sommeil fixe)
   compare.ts               observé contre attendu → un Constat
-  raw.ts                   les deux alimentations
+  raw.ts                   les deux alimentations, et le cache de téléchargement par run
   report.ts                le rapport (out/report.json + out/report.txt)
   banc.ts                  le MÊME rapport rangé par page reproduite et par constat du
                              registre du banc (out/banc.md)
   run.ts                   `verif:expected` — l'attendu du mode vivant
 
-e2e/verif-donnees.spec.ts  le seul spec : charge les manifestes, rend, observe, compare
+tests/oracle/            LES TESTS DU MOTEUR (Vitest)
+  guard.test.ts            l'indépendance, sur tout le graphe d'imports
+  compute.test.ts · expression.test.ts · transformations.test.ts   le recalcul
+  observe.test.ts          le contrat des lecteurs, sur un DOM minimal
+  banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
+  compare-urls.test.ts · raw.test.ts · stabilite.test.ts
+
+e2e/verif-donnees.spec.ts  le seul spec : charge les manifestes, rend, observe, compare,
+                             et passe au moteur les fiches dont `tools/oracle/banc.ts` a
+                             besoin pour rendre out/banc.md (le moteur
+                             n'importe JAMAIS les manifestes — garde d'indépendance)
 e2e/verif-donnees/         les pages de fixture générées (gitignoré)
 ```
 
@@ -231,12 +254,16 @@ valeur-là, c'est être vert ou rouge au hasard de la machine.
 — et rouge le jour où la borne compte. Les bornes attendues s'écrivent alors
 EN CLAIR dans le `pipeline` : ce qu'il faut montrer à cet instant-là.
 
+**Une pagination fausse ne se voit jamais sur la page 1** : le contrôle ouvre donc la page de
+fixture sur `?page=2` (`Check.query` + `url-sync`), un lien profond étant un chemin d'affichage à
+part entière.
+
 ## Ajouter un contrôle
 
-1. Choisir le domaine (`tests/verif-donnees/banc.ts` si le cas vit contre une vraie API,
-   `banc-pages.ts` s'il reprend le balisage d'une reproduction du banc — il porte alors
-   `page` et `constats` —, `query.ts` s'il se joue sur des fixtures) — ou créer un fichier et
-   l'ajouter à `index.ts`.
+1. Choisir le domaine : `tests/verif-donnees/banc-pages.ts` si le contrôle reprend le balisage
+   d'une reproduction du banc — il porte alors `page` et `constats` —, `banc.ts` ou
+   `banc-adaptateurs.ts` si le cas vit contre une vraie API sans venir d'une page du banc, sinon
+   le fichier du domaine déterministe concerné. Ou créer un fichier et l'ajouter à `index.ts`.
 2. Écrire le `Check` : `mode`, `origin` (d'où vient le cas, quelle issue le motive), `feed`,
    `markup`, `expects`. Les clauses d'un contrôle vivant s'écrivent **à la main** dans le
    manifeste, jamais traduites par la lib — clause ODSQL d'une `RawSource`, URL complète et
@@ -252,7 +279,7 @@ Un contrôle vert ne dit rien tant qu'on ne l'a pas vu rouge sur le défaut qu'i
 
 ```bash
 # 1. injecter le défaut dans la lib
-#    (exemples éprouvés pour ce socle, voir plus bas)
+#    (exemples éprouvés pour chaque domaine, voir le tableau plus bas)
 # 2. rejouer le seul contrôle visé
 npx playwright test --config e2e/playwright.config.ts e2e/verif-donnees.spec.ts \
   --project=chromium -g "<id du contrôle>"
@@ -263,47 +290,70 @@ git checkout -- <fichier>
 Un défaut posé dans `packages/shared/src` demande un **`npm run build:shared`** avant de rejouer :
 la page charge `packages/shared/dist`, pas `src`.
 
-Mutations éprouvées sur ce socle :
+### Mutations éprouvées, par domaine
 
-| Mutation | Contrôle qui tombe | Ce qu'il dit |
-|---|---|---|
-| `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-765` | KPI affiché 7, recalculé 137 — exactement #765 |
-| `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
-| `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
-| whereKey réduit à `this._uid` (`dsfr-data-context.ts`) | `ctx-deux-filtres-and` | 8 au lieu de 3 : deux filtres partagent une clé, le dernier gagne (ADR-031) |
-| `localIsoDate` → `isoDate` dans `current-month` (`dsfr-data-context-filter.ts`) | `ctx-current-month` | 5 au lieu de 4 : à 00 h 30 à Paris le 1er juin, l'UTC filtre encore mai |
-| `dayAfter` sans `+1` (`dsfr-data-context-filter.ts`) | `ctx-lt-day-after` | 8 au lieu de 9 : le jour choisi n'est plus inclus |
-| `_fieldMissingOn` rend `false` (`dsfr-data-context.ts`) | `ctx-champ-absent-805` | 0 au lieu de 4 : la source sans la colonne est vidée au lieu d'être exclue |
-| `_syncUrl` n'écrit que le premier filtre (`dsfr-data-context.ts`) | `ctx-url-deux-navigations` | 8 au lieu de 3 : l'URL ne rejoue pas tout le filtre |
-| `_getDataFilteredExcluding` rend `_rawData` (`dsfr-data-facets.ts`) | `facettes-croisees` | l'ordre et les compteurs de la seconde facette ne suivent plus la sélection |
-| `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `facettes-poids` | compteur 8 au lieu de 339 : un nombre de lignes sous un libellé de somme |
-| `isDisjunctive` privé de `disjunctive` (`dsfr-data-facets.ts`) | `facettes-disjonctives` | 7 au lieu de 15 : la seconde valeur remplace la première |
-| `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
-| `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » |
-| `formatPercentage` cesse de poser `%` (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite` | « 41,0 » au lieu de « 41,0 % » : le chiffre est juste, la forme ne l'est pas |
-| `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` | résumé 41,02 au lieu de 43,07 — exactement #763 |
-| `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/dsfr-palettes.ts`) | `carte-classes-quantiles` | première borne 27,5 au lieu de 26,5 |
-| `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 |
-| `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du lot affichages | mutation large : tout ce qui affiche un nombre recalculé tombe |
-| `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
-| `_onInstanceRegistered` sort sans renégocier (`dsfr-data-query.ts`) | `query-tardive-renegociation`, `lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer` | la seconde query rend 1 ligne au lieu de 7, le KPI 8 au lieu de 137 ; le lecteur tardif compte 8 groupes ; la délégation ne franchit plus le relais |
-| le bloc « `where` seul » de `_negotiateServerSide` neutralisé (`dsfr-data-query.ts`) | `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation` | 0 URL sur 2 portent `where=` ; la source `require-where` n'affiche jamais rien (30 s de scrutation) |
-| `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | 5 contrôles d'`export-studio` | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
-| `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
-| `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
-| `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
-| `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
-| `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
-| `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
-| `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
-| `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
-| repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
-| troncature retirée de `_fetchViaExport` (`opendatasoft-adapter.ts`) | `plan-de-relance-plafond-max-records` | 1 001 projets chargés au lieu de 1 000 : `max-records` ne borne plus rien |
-| `meta:total` rend `items.length` (`core/utils/aggregations.ts`) | `bofip-total-publie-par-la-source-serveur` | 10 au lieu de 9 148 : le compteur annonce la page, pas le jeu |
-| `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `ips-ecoles-facettes-ponderees` | l'ordre des départements change (Dordogne en tête au lieu de la Gironde) : une facette sur source pré-agrégée recompte des lignes, pas des écoles |
-| `_parseOriginLabels` altère le libellé (`dsfr-data-concat.ts`) | `portrait-federation-union-de-deux-sources` | clé « OLYMPIQUES » empilée là où le manifeste déclare « Olympiques » |
-| `buildKey` distingue nombre et chaîne (`shared/utils/join.ts`) | `barometre-jointure-couverture` | 0 question appariée au lieu de 119 : `code_unifie` est un nombre à gauche, une chaîne à droite (#792) |
-| `diff` calculé à l'envers (`dsfr-data-query.ts`) | `tne-audiences-ecart-mensuel` | écart de −3 539 là où l'oracle lit +3 539 |
+Chaque ligne a été constatée en échec, puis le défaut retiré.
+
+| Domaine | Mutation injectée | Contrôle(s) qui tombent | Ce que dit l'échec |
+|---|---|---|---|
+| query | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-765` | KPI affiché 7, recalculé 137 — exactement #765 |
+| query | `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
+| query | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
+| adaptateurs | `break` après la première page (`opendatasoft-adapter.ts`) | `ods-records-pagination` | affiché 100, recalculé 137 — écart −37 |
+| adaptateurs | `max-records` ignoré, plafond fixe à 1 000 (`opendatasoft-adapter.ts`) | `ods-plafond-max-records` | affiché 137, recalculé 120 — écart 17 |
+| transformations | `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
+| transformations | repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
+| transformations | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
+| transformations | `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
+| transformations | `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
+| transformations | `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
+| transformations | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
+| transformations | `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
+| contexte | whereKey réduit à `this._uid` (`dsfr-data-context.ts`) | `ctx-deux-filtres-and` | 8 au lieu de 3 : deux filtres partagent une clé, le dernier gagne (ADR-031) |
+| contexte | `localIsoDate` → `isoDate` dans `current-month` (`dsfr-data-context-filter.ts`) | `ctx-current-month` | 5 au lieu de 4 : à 00 h 30 à Paris le 1er juin, l'UTC filtre encore mai |
+| contexte | `dayAfter` sans `+1` (`dsfr-data-context-filter.ts`) | `ctx-lt-day-after` | 8 au lieu de 9 : le jour choisi n'est plus inclus |
+| contexte | `_fieldMissingOn` rend `false` (`dsfr-data-context.ts`) | `ctx-champ-absent-805` | 0 au lieu de 4 : la source sans la colonne est vidée au lieu d'être exclue |
+| contexte | `_syncUrl` n'écrit que le premier filtre (`dsfr-data-context.ts`) | `ctx-url-deux-navigations` | 8 au lieu de 3 : l'URL ne rejoue pas tout le filtre |
+| contexte | `_getDataFilteredExcluding` rend `_rawData` (`dsfr-data-facets.ts`) | `facettes-croisees` | l'ordre et les compteurs de la seconde facette ne suivent plus la sélection |
+| contexte | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `facettes-poids` | compteur 8 au lieu de 339 : un nombre de lignes sous un libellé de somme |
+| contexte | `isDisjunctive` privé de `disjunctive` (`dsfr-data-facets.ts`) | `facettes-disjonctives` | 7 au lieu de 15 : la seconde valeur remplace la première |
+| contexte | `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
+| contexte | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents`, `recherche-compte` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » ; et « 0 résultats » au lieu de 10 |
+| delegation | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
+| delegation | `_onInstanceRegistered` sort sans renégocier (`dsfr-data-query.ts`) | `query-tardive-renegociation`, `lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer` | la seconde query rend 1 ligne au lieu de 7 et le KPI 8 au lieu de 137 ; le lecteur tardif compte 8 groupes ; la délégation ne franchit plus le relais (#836, #853, #855) |
+| delegation | le bloc « `where` seul » de `_negotiateServerSide` neutralisé (`dsfr-data-query.ts`) | `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation` | 0 URL sur 2 portent `where=` ; la source `require-where` n'affiche jamais rien, 30 s de scrutation (#856, #854) |
+| delegation | `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
+| export-studio | `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | les 5 contrôles de source dédiée | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
+| affichages | `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du domaine | mutation large : tout ce qui affiche un nombre recalculé tombe |
+| affichages | `formatNumberFr` ignore `decimals` (`shared/utils/formatters.ts`) | `liste-decimales-des-cellules` | « 43,25 » ne vérifie plus `^-?\d+,\d{3}$` |
+| affichages | `formatPercentage` cesse de poser `%` (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite`, `kpi-evolution-en-pourcentage`, `kpi-tendance`, `kpi-lignes-secondaires` | « 41,0 » au lieu de « 41,0 % » : le chiffre est juste, la forme ne l'est pas |
+| affichages | `formatCompact` perd `notation: 'compact'` | `format-compact` | affiché 15 909 531, recalculé 15,9 — écart 15 909 515 |
+| affichages | `formatDate` rend la chaîne ISO | `format-date` | affiché « 2026-12-15 », recalculé « 15/12/2026 » |
+| affichages | `evolution` divise par la dernière valeur | `kpi-evolution-en-pourcentage` | affiché 28,6 %, recalculé 40 |
+| affichages | `countDistinct` rend `size + 1` | `kpi-distinct-et-count-filtre` | affiché 5, recalculé 4 |
+| affichages | `last` lit la première ligne | `kpi-premiere-et-derniere-ligne` | affiché 120, recalculé 168 |
+| affichages | `evaluateParsed` ignore `rowFilter` | `kpi-filtre-entre-accolades-776` | affiché 100,00 %, recalculé 23,46 (#776) |
+| affichages | `meta:total` rend les lignes reçues | `kpi-meta-total-contre-count` | affiché 20, recalculé 137 — #659 |
+| affichages | `getColorBySeuil` teste le seuil orange avant le vert | `kpi-seuils-de-couleur` | classe « --warning » alors que 41,02 appelle « --success » |
+| affichages | `_getColor` ignore `color-token` | `kpi-couleur-forcee` | classe « --success » alors que la couleur est forcée |
+| affichages | `_processTidyData` décale l'index de série | `graphique-series-field-format-long` | série 0, point 0 (Janvier) : graphique 310, oracle 120 |
+| affichages | `_applyColorMap` ne repeint plus la légende (`dsfr-data-chart.ts`) | `graphique-color-map-pastilles-databox` | aucune pastille ne porte de couleur déclarée — #813 |
+| affichages | `attrs['x-min']` (ou `horizontal`) n'est plus relayé | `graphique-bornes-des-axes`, `graphique-barres-horizontales-empilees` | l'attribut manque sur l'élément rendu |
+| affichages | `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` (le non pondéré reste vert) | résumé 41,02 au lieu de 43,07 — exactement #763 |
+| affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/dsfr-palettes.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
+| affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |
+| affichages | `parseManualBreaks` perd la première borne | `carte-bornes-manuelles` | 3 entrées de légende, 4 classes recalculées |
+| affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |
+| affichages | le tri de `dsfr-data-list` rend toujours 0 | `liste-tri-numerique`, `liste-tri-croissant` | ligne 0 : affiché « Arles », recalculé « Vichy » |
+| affichages | `localeCompare` remplacé par une comparaison de codes | `liste-tri-texte-accentue` | ligne 2 : affiché « Ussel », recalculé « Écully » |
+| affichages | `parseColumns` ignore `columns-auto` | `liste-colonnes-auto` | ligne 0 / pop : affiché « », recalculé 4 187 254 |
+| affichages | `buildCsv` met la clé en en-tête au lieu du libellé | `liste-export-csv` | ligne 0, cellule 0 : « zone » exportée, « Zone » recalculée |
+| banc-pages | troncature retirée de `_fetchViaExport` (`opendatasoft-adapter.ts`) | `plan-de-relance-plafond-max-records` | 1 001 projets chargés au lieu de 1 000 : `max-records` ne borne plus rien |
+| banc-pages | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) | `bofip-total-publie-par-la-source-serveur` | 10 au lieu de 9 148 : le compteur annonce la page, pas le jeu |
+| banc-pages | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `ips-ecoles-facettes-ponderees` | l'ordre des départements change (Dordogne en tête au lieu de la Gironde) : une facette sur source pré-agrégée recompte des lignes, pas des écoles |
+| banc-pages | `_parseOriginLabels` altère le libellé (`dsfr-data-concat.ts`) | `portrait-federation-union-de-deux-sources` | clé « OLYMPIQUES » empilée là où le manifeste déclare « Olympiques » |
+| banc-pages | `buildKey` distingue nombre et chaîne (`shared/utils/join.ts`) | `barometre-jointure-couverture` | 0 question appariée au lieu de 119 : `code_unifie` est un nombre à gauche, une chaîne à droite (#792) |
+| banc-pages | `diff` calculé à l'envers (`dsfr-data-query.ts`) | `tne-audiences-ecart-mensuel` | écart de −3 539 là où l'oracle lit +3 539 |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
@@ -325,15 +375,21 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**Une pagination fausse ne se voit jamais sur la page 1** : le contrôle ouvre donc la page de
-fixture sur `?page=2` (`Check.query` + `url-sync`), un lien profond étant un chemin d'affichage à
-part entière.
+**Ce que la catégorie a rapporté.** Les sept contrôles en attente à ce jour ont tous une issue
+ouverte à leur nom — c'est le rendement de la vérification, et la raison pour laquelle un `skip`
+n'est pas un contrôle perdu :
 
-**Plusieurs worktrees en parallèle** : `e2e/playwright.config.ts` a `reuseExistingServer: true` sur
-le port 5173. Si un autre checkout y sert déjà le dev server, `npm run verif` éprouve SES sources —
-et les preuves de mutation passent au vert à tort. Vérifier `lsof -i :5173` avant de lancer, sinon
-démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la
-configuration Playwright.
+| Contrôle en attente | Domaine | Issue |
+|---|---|---|
+| `tabular-groupe-somme-serveur`, `tabular-filtre-limite-serveur` | delegation | [#852](https://github.com/bmatge/dsfr-data/issues/852) — `buildServerSideUrl` ignore `group-by` et `aggregate` délégués |
+| `lecteur-tardif-renegociation` | delegation | [#853](https://github.com/bmatge/dsfr-data/issues/853) — un lecteur non-query ajouté après l'initialisation ne conteste pas la délégation (#765, forme tardive) |
+| `require-where-filtre-par-delegation` | delegation | [#854](https://github.com/bmatge/dsfr-data/issues/854) — `require-where` ne libère jamais l'attente sur un `where` seul, contrairement à sa doc |
+| `relais-normalize-devrait-deleguer` | delegation | [#855](https://github.com/bmatge/dsfr-data/issues/855) — la délégation ne franchit pas `dsfr-data-normalize` : overlay posé, jamais appliqué |
+| `where-seul-devrait-etre-delegue` | delegation | [#856](https://github.com/bmatge/dsfr-data/issues/856) — **amélioration**, non promise par la doc : déléguer un `where` seul |
+| `qualite-tourisme-group-by-delegue-garde-son-alias` | banc-pages | [#859](https://github.com/bmatge/dsfr-data/issues/859) — sur une source ODS à `select` explicite, l'adaptateur garde le `select` et perd les colonnes d'`aggregate` (KPI à 0) |
+
+Six issues, dont cinq défauts et une amélioration : aucune n'aurait été vue par un test unitaire,
+puisque chacune porte sur ce que la page **affiche** au bout d'une chaîne, pas sur une fonction.
 
 ## Le rapport
 

@@ -93,6 +93,15 @@ npm run test:run      # Tests Vitest
 npm run build:all     # Build lib + apps
 ```
 
+**Tout chiffre affiche a un controle.** Au-dela des tests unitaires, la bibliotheque est verifiee
+**numeriquement** contre un oracle **independant** : une seconde implementation, ecrite a part et
+qui n'importe rien de la lib, repart des lignes brutes et recalcule en tableaux nus ce que la page
+affiche — KPI, graphiques, cartes, tableaux, exports. Un ecart a la precision affichee est un echec,
+et chaque controle a ete vu en echec sur un defaut injecte. Deux modes : **deterministe** sur
+fixtures, bloquant sur chaque PR (`npm run verif`), et **vivant** contre les vraies API
+(`npm run verif:live`). Le detail — doctrine, grammaire d'un controle, preuves de mutation — est
+dans [`tools/oracle/README.md`](tools/oracle/README.md).
+
 Pour le detail du monorepo, des conventions, du workflow de release Changesets et de la baseline securite : voir [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 ## Documentation
@@ -102,6 +111,7 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - [Guide utilisateur (markdown)](docs/USER-GUIDE.md) — meme contenu en markdown, navigable depuis GitHub
 - [Evaluer une reproduction](docs/EVALUER-UNE-REPRODUCTION.md) — methode d'evaluation : les quatre verdicts, le chronometrage, la verification au navigateur
 - [Architecture](docs/ARCHITECTURE.md) — pipeline, adapters, bundles, build
+- [Verification des donnees](tools/oracle/README.md) — l'oracle independant : doctrine, deux modes, ajouter un controle, prouver une mutation
 - [Guide de deploiement](docs/DEPLOYMENT.md) — Docker, 4 scenarios self-hosted, validation
 - [Contribuer](docs/CONTRIBUTING.md) — monorepo, conventions, release Changesets
 - [Skills IA pour les développeurs](docs/AI-SKILLS.md) — skill Claude Code (`npm run skills:install`), serveur MCP, `skills.json`
