@@ -18,7 +18,7 @@ import {
 import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
-import { dsfrDataInstances } from '../utils/instance-registry.js';
+import { dsfrDataInstances, onDsfrDataInstance } from '../utils/instance-registry.js';
 
 /**
  * Opérateurs de filtre supportes
@@ -386,6 +386,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     document.addEventListener(DELEGATION_CONTESTED_EVENT, this._onDelegationContested);
+    // Arrivees d'instances (#853) : tout lecteur qui s'inscrit sur cette
+    // chaine conteste une delegation deja posee, pas seulement une query.
+    this._unsubscribeInstances ??= onDsfrDataInstance(this._onInstanceRegistered);
     sendWidgetBeacon('dsfr-data-query');
     this._warnRemovedAttributes();
   }
@@ -422,6 +425,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   disconnectedCallback() {
     document.removeEventListener(DELEGATION_CONTESTED_EVENT, this._onDelegationContested);
+    this._unsubscribeInstances?.();
+    this._unsubscribeInstances = null;
     // Clear server-side overlays on dsfr-data-source before cleanup
     this._clearServerDelegation();
     super.disconnectedCallback();
@@ -771,8 +776,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * commande remonte (normalize, search, join gauche…), hors cette query et
    * hors le maillon lui-meme. Lu dans le REGISTRE D'INSTANCES (#836) : chaque
    * composant qui s'abonne a une chaine s'y inscrit a connectedCallback. Un
-   * lecteur ajoute plus tard declenche une renegociation
-   * (DELEGATION_CONTESTED_EVENT).
+   * lecteur arrive plus tard s'inscrit a son tour, ce qui refait cette
+   * negociation (#853) ; une autre query qui trouve la chaine partagee emet
+   * en plus DELEGATION_CONTESTED_EVENT.
    */
   private _otherChainReaders(): string[] {
     const readers: string[] = [];
@@ -791,8 +797,38 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       cameFrom = target;
       targetId = next;
     }
+    this._chainIds = seen;
     return readers;
   }
+
+  /**
+   * Ids des maillons visites par la derniere remontee de chaine (`source`,
+   * puis les relais). Sert de filtre a l'ecoute du registre : seule l'arrivee
+   * d'un composant qui TOUCHE cette chaine vaut renegociation.
+   */
+  private _chainIds = new Set<string>();
+
+  private _unsubscribeInstances: (() => void) | null = null;
+
+  /**
+   * Un composant `dsfr-data-*` vient de s'inscrire au registre (#853).
+   *
+   * S'il lit cette chaine — KPI, liste, graphique, facettes, autre query — la
+   * chaine devient partagee et cette query doit liberer son regroupement
+   * serveur : sans quoi le nouveau venu compte les GROUPES (mesure : 8 au
+   * lieu de 137). C'est #765 dans sa forme tardive, que le commentaire de
+   * `_otherChainReaders` disait couverte alors que
+   * `dsfr-data-delegation-contested` n'avait qu'un seul emetteur, une AUTRE
+   * query pendant sa propre negociation.
+   */
+  private _onInstanceRegistered = (el: Element) => {
+    if (el === this || this._chainIds.size === 0) return;
+    if (el.tagName.toLowerCase() === 'dsfr-data-context') return;
+    const touchesChain =
+      (el.id !== '' && this._chainIds.has(el.id)) ||
+      upstreamLinksOf(el).some((up) => up !== '' && this._chainIds.has(up));
+    if (touchesChain) this._negotiateServerSide();
+  };
 
   /** Dernier partage signale : un avertissement par situation (#765). */
   private _sharedWarned = '';
