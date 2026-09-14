@@ -17054,7 +17054,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.",
+              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.\n\nQuand une `dsfr-data-query` délègue son regroupement à cette source, le\n`select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes\nd'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon\nla colonne d'alias n'existerait pas dans la réponse et le chiffre affiché\nserait faux (#859). S'il définit une colonne par une expression aliasée\n(`year(date) as annee`) que le regroupement vise, la délégation est\nrefusée — avertissement en console, regroupement calculé côté client.",
               "attribute": "select"
             },
             {
@@ -17094,7 +17094,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Mode pagination serveur (datalist, tableaux)",
+              "description": "Mode pagination serveur (datalist, tableaux).\n\nCe qui est délégué ne change pas avec ce mode : une page porte les mêmes\nfiltres, le même regroupement et les mêmes agrégats qu'un chargement\ncomplet — seule la façon dont les lignes arrivent change (#852). Un\nadaptateur qui ne sait pas déléguer une opération rend les lignes brutes\net le signale, et l'aval la calcule côté client.",
               "attribute": "server-side"
             },
             {
@@ -17755,7 +17755,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.",
+              "description": "Clause SELECT (pour ODS), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.\n\nQuand une `dsfr-data-query` délègue son regroupement à cette source, le\n`select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes\nd'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon\nla colonne d'alias n'existerait pas dans la réponse et le chiffre affiché\nserait faux (#859). S'il définit une colonne par une expression aliasée\n(`year(date) as annee`) que le regroupement vise, la délégation est\nrefusée — avertissement en console, regroupement calculé côté client.",
               "fieldName": "select"
             },
             {
@@ -17791,7 +17791,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Mode pagination serveur (datalist, tableaux)",
+              "description": "Mode pagination serveur (datalist, tableaux).\n\nCe qui est délégué ne change pas avec ce mode : une page porte les mêmes\nfiltres, le même regroupement et les mêmes agrégats qu'un chargement\ncomplet — seule la façon dont les lignes arrivent change (#852). Un\nadaptateur qui ne sait pas déléguer une opération rend les lignes brutes\net le signale, et l'aval la calcule côté client.",
               "fieldName": "serverSide"
             },
             {

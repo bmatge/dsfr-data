@@ -190,6 +190,14 @@ export class DsfrDataSource extends LitElement {
    * (`select="sum(montant) as total"`) se charge en une requête d'une ligne,
    * la valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre
    * ne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.
+   *
+   * Quand une `dsfr-data-query` délègue son regroupement à cette source, le
+   * `select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes
+   * d'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon
+   * la colonne d'alias n'existerait pas dans la réponse et le chiffre affiché
+   * serait faux (#859). S'il définit une colonne par une expression aliasée
+   * (`year(date) as annee`) que le regroupement vise, la délégation est
+   * refusée — avertissement en console, regroupement calculé côté client.
    */
   @property({ type: String })
   select = '';
@@ -213,7 +221,15 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'order-by' })
   orderBy = '';
 
-  /** Mode pagination serveur (datalist, tableaux) */
+  /**
+   * Mode pagination serveur (datalist, tableaux).
+   *
+   * Ce qui est délégué ne change pas avec ce mode : une page porte les mêmes
+   * filtres, le même regroupement et les mêmes agrégats qu'un chargement
+   * complet — seule la façon dont les lignes arrivent change (#852). Un
+   * adaptateur qui ne sait pas déléguer une opération rend les lignes brutes
+   * et le signale, et l'aval la calcule côté client.
+   */
   @property({ type: Boolean, attribute: 'server-side' })
   serverSide = false;
 
