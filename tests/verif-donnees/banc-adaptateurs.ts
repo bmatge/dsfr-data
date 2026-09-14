@@ -59,6 +59,8 @@ const CHECKS: Check[] = [
   {
     id: 'ods-export-where-parenthese-vivant',
     mode: 'live',
+    page: 'education/dataviz-ips-colleges',
+    constats: ['AM-011'],
     origin:
       'education/dataviz-ips-colleges — `fetch-mode="export"` et un `where` ODSQL à parenthèses contre le portail réel (#689, #767) : ce que la fixture promet, le portail le fait-il encore ?',
     feed: {

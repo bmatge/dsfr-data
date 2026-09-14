@@ -10,6 +10,7 @@ import { ADAPTATEURS } from './adaptateurs.js';
 import { AFFICHAGES } from './affichages.js';
 import { BANC } from './banc.js';
 import { BANC_ADAPTATEURS } from './banc-adaptateurs.js';
+import { BANC_PAGES } from './banc-pages.js';
 import { CONTEXTE } from './contexte.js';
 import { DELEGATION } from './delegation.js';
 import { EXPORT_STUDIO } from './export-studio.js';
@@ -26,6 +27,7 @@ export const MANIFESTES: Manifest[] = [
   CONTEXTE,
   BANC,
   BANC_ADAPTATEURS,
+  BANC_PAGES,
 ];
 
 /** Tous les contrôles d'un mode, à plat, avec leur domaine. */
@@ -44,6 +46,7 @@ export {
   AFFICHAGES,
   BANC,
   BANC_ADAPTATEURS,
+  BANC_PAGES,
   CONTEXTE,
   DELEGATION,
   EXPORT_STUDIO,
