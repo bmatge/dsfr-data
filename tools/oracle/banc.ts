@@ -36,8 +36,23 @@ function controlesParId(): Map<string, Check> {
   return out;
 }
 
+/**
+ * Rend un texte inoffensif dans une CELLULE de tableau Markdown.
+ *
+ * Deux choses cassent une ligne de tableau : une barre verticale, qui ouvre une
+ * colonne de plus, et un saut de ligne, qui termine la ligne au milieu d'une
+ * phrase. Les deux arrivent pour de vrai — un message d'écart cite des valeurs
+ * venues de l'API, et une raison de mise en attente tient sur plusieurs lignes.
+ *
+ * L'antislash est échappé EN PREMIER : le faire ensuite reviendrait à échapper
+ * les antislashes que l'on vient soi-même d'ajouter, et un texte finissant par
+ * un antislash échapperait alors la barre suivante au lieu d'être neutralisé.
+ */
 function echapper(texte: string): string {
-  return texte.replace(/\|/g, '\\|');
+  return texte
+    .replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/\s*\n\s*/g, ' ');
 }
 
 /**
