@@ -1,12 +1,15 @@
-name: Oracle numérique
+name: Oracle numérique (contrôles vivants)
 
-# Non-regression NUMERIQUE par recalcul independant (tools/oracle) : les lignes
-# brutes de chaque jeu sont retelechargees et recalculees en tableaux nus, puis
-# la lib rend le meme balisage contre la vraie API et l'on compare a la
-# precision affichee. Rien n'est fige : un jeu qui vit change les deux cotes.
+# Volet VIVANT de la verification des donnees (ADR-122) : les lignes brutes des
+# jeux du banc d'essai sont retelechargees et recalculees en tableaux nus
+# (`tools/oracle`), puis la lib rend le meme balisage contre la vraie API et
+# l'on compare a la precision affichee. Rien n'est fige : un jeu qui vit change
+# les deux cotes en meme temps.
 #
-# Depend des API tierces, donc JAMAIS sur chaque PR : la nuit, a la demande, et
-# sur une PR portant le label `oracle` (une PR de refactor, typiquement).
+# Depend des API tierces, donc JAMAIS sur chaque PR et JAMAIS bloquant : la
+# nuit, a la demande, et sur une PR portant le label `oracle` (une PR de
+# refactor, typiquement). Le volet DETERMINISTE, lui, est bloquant sur chaque
+# PR — voir verif-donnees.yml.
 
 on:
   workflow_dispatch:
@@ -20,10 +23,13 @@ permissions:
 
 jobs:
   oracle:
-    name: Recalcul indépendant vs affichage
+    name: Recalcul indépendant vs affichage (vraies API)
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'oracle')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Une API tierce indisponible n'est pas une regression de la lib : le job
+    # signale, il ne bloque pas.
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v7
@@ -41,9 +47,10 @@ jobs:
       - name: Install Playwright (chromium)
         run: npx playwright install --with-deps chromium
 
-      # Les deux cotes lisent l'API au meme moment (expected juste avant le rendu).
-      - name: Oracle
-        run: npm run oracle -- --retries=1
+      # Les deux cotes lisent l'API au meme moment : `verif:expected` produit
+      # l'attendu juste avant le rendu, jamais la veille.
+      - name: Vérification (mode vivant)
+        run: npm run verif:live -- --retries=1
 
       - name: Upload expected/observed on failure
         if: failure()

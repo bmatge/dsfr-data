@@ -772,6 +772,23 @@ Les tests utilisent Vitest avec l'environnement happy-dom (fuseau épinglé sur 
 
 **Ce que happy-dom ne voit pas : la mise en page.** Ni float, ni flex, ni grille, ni hauteur ne sont calculés. Deux régressions livrées (#822 : colonnage KPI, #825 : carte à 0 px en plein écran) sont passées au vert parce que leurs tests lisaient le **texte** des feuilles CSS (`cssText`, `textContent` d'un `<style>`). Règle depuis la revue du 2026-09-13 : **toute fonctionnalité visuelle a une contrepartie Playwright qui lit des rectangles** (`getBoundingClientRect`, éléments par rangée, deux largeurs d'écran). Elles vivent dans `e2e/` avec une page de fixture servie par le serveur de dev (`e2e/*.html`, lib depuis la source) et tournent **sur chaque PR** par `.github/workflows/e2e-layout.yml` — déterministes : tuiles coupées par `page.route`, DSFR Chart depuis `node_modules`. Specs : `map-fullscreen` (#825, `%` + ResizeObserver, encart `md:20%`), `layout-grid` (kpi-group `cols` / `span` / `per-row`, display, facets #788), `layout-map` (sélecteur de fonds, encarts flottants, légende, volet #782), `chart-legend` (#813 sur le vrai DSFR Chart : échoue si `.legend_dot` disparaît), `mobile-chrome` (chrome des apps). Les tests jsdom sur le texte des feuilles restent, comme contrat de classes. Chaque spec a été vérifié **en échec** sur le défaut qu'il garde (mutation `span = ''`, retrait du correctif plein écran).
 
+**Tout chiffre affiché a un contrôle** (ADR-122). Les tests unitaires éprouvent des fonctions, pas
+des chiffres : ils ne disent pas qu'un KPI de la page montre bien la somme du jeu qu'il a reçu.
+Une SECONDE implémentation, écrite à part et qui n'importe rien de `packages/` ni de
+`@dsfr-data/*` (`tools/oracle`, test-garde `tests/oracle/guard.test.ts` sur tout le graphe
+d'imports), repart des lignes **brutes** et recalcule en tableaux nus ; la lib rend le même
+balisage et l'on lit ce qu'elle **affiche** — texte fr-FR du KPI, cache de données d'un id,
+attributs `x`/`y`/`name` de l'élément DSFR Chart rendu, `getLegendEntries()` d'une couche, lignes
+du tableau. Un écart à la précision affichée est un échec. Deux alimentations, un seul spec
+(`e2e/verif-donnees.spec.ts`) : **déterministe** — fixtures servies par `page.route`, l'oracle
+recalcule depuis les mêmes lignes, zéro réseau, bloquant sur chaque PR
+(`.github/workflows/verif-donnees.yml`, `npm run verif`) — et **vivant** — vraies API du banc
+d'essai, attendu produit juste avant le rendu, jamais bloquant (`oracle.yml`, `npm run verif:live`).
+Les contrôles vivent par domaine dans `tests/verif-donnees/`, le moteur dans `tools/oracle/`
+(README dédié : ajouter un contrôle, prouver une mutation). Chaque contrôle déterministe a été
+vérifié **en échec** sur un défaut injecté dans la lib — un contrôle qui ne peut pas échouer ne
+garde rien.
+
 ### Structure
 
 ```

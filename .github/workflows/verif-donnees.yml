@@ -1,0 +1,66 @@
+name: Vérification des données
+
+# Chaque chiffre affiche par la lib est recalcule par une SECONDE
+# implementation (`tools/oracle`), ecrite a part et qui n'importe rien de
+# `packages/` (ADR-122, test-garde `tests/oracle/guard.test.ts`). Un ecart a la
+# precision affichee est un echec.
+#
+# Ce workflow ne fait tourner que les controles DETERMINISTES : les reponses
+# d'API sont servies par `page.route` depuis `tests/verif-donnees/fixtures.ts`,
+# et l'oracle recalcule depuis les MEMES lignes. Aucune API tierce, donc
+# BLOQUANT sur chaque PR (meme modele que e2e-layout.yml).
+#
+# Les controles VIVANTS, qui dependent des vraies API du banc d'essai, vivent
+# dans oracle.yml : la nuit, a la demande, jamais bloquant.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verif-donnees:
+    name: Chiffres affichés vs recalcul indépendant
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Le serveur de dev sert la lib depuis packages/core/src (vite.config.ts,
+      # redirection /dist), mais `@dsfr-data/shared` se resout par les exports
+      # du package — donc packages/shared/dist (ARCHITECTURE.md §12). Les deux
+      # doivent exister avant `npm run dev`, sinon la page rend une lib a
+      # moitie perimee et les ecarts designent le mauvais coupable.
+      - name: Build shared + app-ui
+        run: npm run build:shared && npm run build:app-ui
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Playwright demarre `npm run dev` lui-meme (webServer dans
+      # e2e/playwright.config.ts) et attend le port 5173.
+      - name: Vérification (mode déterministe)
+        run: npm run verif
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verif-donnees-results
+          path: |
+            tools/oracle/out/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
