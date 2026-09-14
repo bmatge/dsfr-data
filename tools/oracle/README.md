@@ -141,7 +141,8 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   export-studio.ts         les tableaux de bord produits par l'export du Studio
   affichages.ts            le RENDU : formats fr-FR, seuils, classes de choroplèthe,
                              pagination, export CSV, résumé de carte
-  banc.ts                  contrôles VIVANTS (reproductions du banc open-data-viz)
+  banc.ts                  contrôles VIVANTS de cas venus du banc open-data-viz, hors
+                             reprise de balisage d'une page
   banc-adaptateurs.ts      contrôles VIVANTS, un par adaptateur public
   banc-pages.ts            contrôles VIVANTS repris des PAGES du banc, un ou plusieurs par
                              reproduction, chacun citant les constats du registre qu'il rejoue
@@ -178,7 +179,8 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   compare-urls.test.ts · raw.test.ts · stabilite.test.ts
 
 e2e/verif-donnees.spec.ts  le seul spec : charge les manifestes, rend, observe, compare,
-                             et passe au moteur les fiches dont banc.ts a besoin (le moteur
+                             et passe au moteur les fiches dont `tools/oracle/banc.ts` a
+                             besoin pour rendre out/banc.md (le moteur
                              n'importe JAMAIS les manifestes — garde d'indépendance)
 e2e/verif-donnees/         les pages de fixture générées (gitignoré)
 ```
