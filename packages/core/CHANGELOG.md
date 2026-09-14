@@ -1,5 +1,116 @@
 # dsfr-data
 
+## 0.30.0
+
+### Minor Changes
+
+- [#863](https://github.com/bmatge/dsfr-data/pull/863) [`6d0eb47`](https://github.com/bmatge/dsfr-data/commit/6d0eb47ed64a1dbde71ab896c6257d6b7219a291) Thanks [@bmatge](https://github.com/bmatge)! - Négociation de délégation : un registre d'instances, une contestation par tout lecteur, un relais franchi et un `where` seul délégué.
+  
+  - **[#836](https://github.com/bmatge/dsfr-data/issues/836)** — `readersOf()` faisait un `document.querySelectorAll('*')` par saut de chaîne, à chaque négociation et à chaque contestation : sur un tableau de bord de vingt requêtes et quelques milliers de nœuds, autant de balayages complets du DOM à l'initialisation. Un **registre d'instances** (`utils/instance-registry.ts`) le remplace : chaque composant qui s'abonne à une chaîne s'y inscrit à `connectedCallback` et s'en retire à `disconnectedCallback`, la lecture est en O(composants). Un élément `dsfr-data-*` qu'aucune définition ne rehausse n'est plus compté comme lecteur — il n'affiche rien et ne lit rien.
+  
+  - **[#853](https://github.com/bmatge/dsfr-data/issues/853)** — un KPI, une liste ou un graphique ajouté APRÈS l'initialisation ne contestait pas la délégation : `dsfr-data-delegation-contested` n'avait qu'un seul émetteur, une autre `dsfr-data-query` pendant sa propre négociation. L'overlay `group_by` restait posé et le nouveau venu comptait les GROUPES (mesuré : 8 au lieu de 137). Tout abonné qui s'inscrit sur une chaîne déjà déléguée la fait désormais renégocier. **Résout le constat BUG-009 (forme tardive) du banc d'essai open-data-viz.**
+  
+  - **[#855](https://github.com/bmatge/dsfr-data/issues/855)** — la délégation ne franchissait pas un `dsfr-data-normalize` : 0 URL sur 2 portaient `group_by`, le jeu entier était rapatrié puis regroupé dans le navigateur. La cause était l'ordre des `customElements.define` (`dsfr-data-query` est définie avant `dsfr-data-normalize`) : au moment où la query négociait, son amont était un `HTMLElement` nu, sans `getAdapter()`. Le signal du registre refait la négociation au rehaussement du maillon, avant le premier fetch : une seule requête part, déjà groupée.
+  
+  - **[#856](https://github.com/bmatge/dsfr-data/issues/856) / [#854](https://github.com/bmatge/dsfr-data/issues/854)** — une requête à `where` seul (sans `group-by`) délègue désormais sa clause quand elle est seule lectrice de sa chaîne : l'overlay est clé par émetteur (ADR-031) et se fusionne avec ceux des facettes, de la recherche et du contexte. C'est ce qui libère `require-where` comme sa documentation le promettait — une source `require-where` derrière une telle requête restait en attente pour toujours, page vide et sans message. JSDoc de `where` (plus de conditionnel) et de `require-where` mis à jour.
+  
+  Limite connue, hors périmètre de ces issues : la délégation ne revient pas quand la chaîne redevient exclusive (lecteur retiré de la page) — la requête reste côté client jusqu'à la prochaine renégociation.
+  
+  Les quatre contrôles de vérification correspondants (`lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer`, `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation`) passent de `skip` à vert, avec leurs attendus inchangés.
+
+### Patch Changes
+
+- [#862](https://github.com/bmatge/dsfr-data/pull/862) [`4b9d71b`](https://github.com/bmatge/dsfr-data/commit/4b9d71b0fecc867d1763d02afa549ee1b894c9fa) Thanks [@bmatge](https://github.com/bmatge)! - Délégation du regroupement : la pagination serveur Tabular émet enfin ses agrégats, et le `select` ODS est composé depuis l'agrégat.
+  
+  Deux chemins rendaient un chiffre faux et plausible, sans erreur, parce que la query — voyant l'adaptateur se déclarer capable de regrouper côté serveur — marquait la délégation et sautait son calcul client.
+  
+  - **Tabular en `server-side` ([#852](https://github.com/bmatge/dsfr-data/issues/852))** : `buildServerSideUrl` n'émettait ni `champ__groupby` ni `champ__sum`, contrairement au chargement complet. La page rendait 40 lignes brutes comme s'il s'agissait des 8 groupes attendus, et la colonne d'agrégat, absente de la réponse, s'affichait « — » là où la somme valait 1 909 000. Les deux constructeurs d'URL partagent désormais le même émetteur : filtres, `champ__groupby`, `champ__fonction` et `champ__sort` partent dans les deux modes. Quand la délégation n'est pas possible (champ à espaces, `distinct`), la page revient en lignes brutes et le signale, au lieu de les faire passer pour des groupes.
+  - **Opendatasoft, source à `select` explicite ([#859](https://github.com/bmatge/dsfr-data/issues/859))** : quand une `dsfr-data-query group-by` est seule lectrice d'une source qui déclare un `select`, ce `select` écrasait les colonnes d'agrégat — l'URL partait sans `count(nom_du_professionnel) as nb` et le KPI affichait 0 pour 3 458 et 224. Le `select` est maintenant composé depuis l'agrégat (colonnes d'agrégat + colonnes du `group-by`), dans `/records`, `/exports/json` et la pagination serveur. Si le `select` de la source définit par une expression aliasée (`year(date) as annee`) une colonne que le regroupement vise, la délégation est explicitement refusée : avertissement nommé en console, regroupement calculé côté client. Résout les constats BUG-009 et PG-015 du banc d'essai.
+  
+  Les deux défauts étaient trouvés par la vérification des données (ADR-122) ; leurs contrôles, jusqu'ici en `skip`, sont désormais mesurés.
+
+- [#865](https://github.com/bmatge/dsfr-data/pull/865) [`880a8e1`](https://github.com/bmatge/dsfr-data/commit/880a8e164ecd830a60dd7a1147219df4bc25b935) Thanks [@bmatge](https://github.com/bmatge)! - Un seul tronc de liaison à un contexte, et un seul appel `/facets` par clic ([#837](https://github.com/bmatge/dsfr-data/issues/837), [#840](https://github.com/bmatge/dsfr-data/issues/840)).
+  
+  La résolution d'un `dsfr-data-context` par id — écouter sa connexion, différer la
+  première liaison d'un tick, poser puis lever l'erreur de configuration, libérer à la
+  déconnexion, refaire la liaison quand l'attribut change à chaud — était écrite trois
+  fois (`dsfr-data-facets`, `dsfr-data-search`, le mixin de sélection des afficheurs),
+  avec une variante dans `dsfr-data-context-value`. Elle vit désormais dans un seul
+  mixin (`ContextBindingMixin`) ; chaque composant ne garde que ce qui lui est propre :
+  un filtre unique pour la recherche et la sélection, un filtre par champ pour les
+  facettes, aucun pour `context-value`. Effet visible : une facette dont le `context`
+  est introuvable pose maintenant le même marqueur de configuration que la recherche,
+  au lieu de rester muette. Même mouvement pour la construction de l'URL de page
+  (`currentUrl` / `replaceUrl`, la leçon [#683](https://github.com/bmatge/dsfr-data/issues/683) en un seul endroit) et pour la délégation
+  `getAdapter` / `getEffectiveWhere` / `getAdapterParams` vers l'amont, remontée dans
+  `TransformerMixin`. Aucun attribut, aucun événement, aucun comportement de filtrage
+  ne change.
+  
+  Facettes en mode `context` avec `server-facets` : chaque sélection déclenchait deux
+  requêtes de facettes — une relance directe, puis celle du refetch provoqué par le
+  contexte. La première était annulée en vol, donc invisible, mais payée à chaque clic.
+  La relance directe n'a plus lieu que lorsque la source de la facette n'est pas une
+  cible du contexte, c'est-à-dire quand rien d'autre ne la rafraîchirait.
+
+- [#870](https://github.com/bmatge/dsfr-data/pull/870) [`81368da`](https://github.com/bmatge/dsfr-data/commit/81368da3b1c7dc9c671c8b934f9be6cb7b178701) Thanks [@bmatge](https://github.com/bmatge)! - Refactor interne, comportement inchangé ([#838](https://github.com/bmatge/dsfr-data/issues/838)) : les fonctions de plus de 150 lignes sont découpées en méthodes nommées — `_negotiateServerSide` de `dsfr-data-query`, `_fetchViaAdapter` de `dsfr-data-source`, `_getTypeSpecificAttributes` de `dsfr-data-chart`, et le `render()` de `dsfr-data-facets` et de `dsfr-data-list`. `dsfr-data-facets` passe de 2 736 à 2 177 lignes : ses blocs client (comptage, tri, filtrage), serveur (découverte, paramètres, fetch des facettes), statique (`static-values`), attributs et URL sortent dans `components/facets/`, testés unitairement — en fonctions pures, à l'exception de la détection des conflits d'URL (`facets-url.ts`), qui lit les `dsfr-data-context` du document. Aucun attribut, événement, rendu ni JSDoc public ne change ; la vérification des données passe à l'identique (191 contrôles).
+
+- [#830](https://github.com/bmatge/dsfr-data/pull/830) [`fc54519`](https://github.com/bmatge/dsfr-data/commit/fc5451927040b0a0fa1a9d8ec4a7b88ba7b4fd4e) Thanks [@bmatge](https://github.com/bmatge)! - Carte : le plein écran tient face au redimensionnement, et un encart accepte un seul point de rupture.
+  
+  - `dsfr-data-map` : avec `height="60%"` (l'exemple du guide), le `ResizeObserver` reposait largeur × ratio dès l'entrée en plein écran, ce qui annulait le correctif de [#825](https://github.com/bmatge/dsfr-data/issues/825) (volet de 1152 px sur un écran de 1080, encarts hors cadre). En plein écran, chaque redimensionnement de l'hôte (entrée, rotation, changement d'écran) recalcule désormais « écran moins la rangée d'encarts » ; à la sortie, le ratio reprend la main sur la largeur courante. Complète la résolution du constat AM-061 du banc d'essai.
+  - `dsfr-data-map-inset` : `width="md:20%"` (un seul jeton, sans espace) partait en style inline invalide et l'encart restait à 10rem sans erreur, alors que la grammaire le documente comme valide. Tout texte portant un point de rupture est une échelle.
+  - Premier test Playwright de mise en page pour la carte (`e2e/map-fullscreen.spec.ts`) : volet et cinq encarts mesurés dans l'écran après l'entrée en plein écran, sortie par le bouton, largeur d'encart à 20 % de la carte. Les tests unitaires ne voient pas la mise en page ; ceux-ci ont été passés au vert par [#822](https://github.com/bmatge/dsfr-data/issues/822) puis [#825](https://github.com/bmatge/dsfr-data/issues/825).
+
+- [#832](https://github.com/bmatge/dsfr-data/pull/832) [`173879d`](https://github.com/bmatge/dsfr-data/commit/173879dcf32b0f0aca8773c731a0bdeeea16bd90) Thanks [@bmatge](https://github.com/bmatge)! - Données : trois chiffres faux et plausibles corrigés (revue du 2026-09-13).
+  
+  - `compute` (`dsfr-data-normalize`) : une cellule vide n'égale plus un nombre — `when montant = 0 then 'Nul'` classait chaque montant non renseigné en zéro, là où `where="montant:eq:0"` ne le retenait pas. Et l'arithmétique `- * /` suit désormais la doctrine des fonctions numériques : opérande absent ou non numérique → `null` (`actif - passif` avec `passif` manquant rendait `actif`), division par zéro → `null` (jamais `Infinity`). `+` concatène toujours dès qu'un côté n'est pas numérique.
+  - `dsfr-data-join` : une clé nulle ou vide n'apparie plus rien, pas même une autre clé vide (sémantique SQL) — une ligne sans code était jointe à toute ligne sans code de l'autre côté, et n'était jamais comptée orpheline dans le diagnostic de [#792](https://github.com/bmatge/dsfr-data/issues/792). Elle apparaît désormais dans l'échantillon d'orphelins sous « (clé vide) ».
+  - `dsfr-data-context-filter` : `current-month`, `current-year` et `last-n-days` sont calculés sur le jour civil local, comme `default="today"` ([#682](https://github.com/bmatge/dsfr-data/issues/682)). Ils restaient en UTC : à 00:30 à Paris le 1er du mois, « mois en cours » filtrait le mois précédent.
+  - Suite de tests épinglée sur le fuseau Europe/Paris pour que ces cas se prouvent aussi en CI.
+
+- [#835](https://github.com/bmatge/dsfr-data/pull/835) [`a7ccc77`](https://github.com/bmatge/dsfr-data/commit/a7ccc77a76310d5201fdde81c06506b731d2c535) Thanks [@bmatge](https://github.com/bmatge)! - Hygiène interne (revue du 2026-09-13, lot F) : une seule définition de la forme « date ISO » dans `@dsfr-data/shared` (`isIsoDateString`, jusqu'ici recopiée dans les agrégations et le pivot), formatage des entiers du volet Diagnostic sans expression régulière à anticipation, et regex linéaires justifiées dans la carte et ses encarts. Aucun changement de comportement.
+
+- [#846](https://github.com/bmatge/dsfr-data/pull/846) [`fae935a`](https://github.com/bmatge/dsfr-data/commit/fae935a2fb646a34f900a2168661c958c59742c4) Thanks [@bmatge](https://github.com/bmatge)! - Dette et petits défauts (revue du 2026-09-13, lot G) :
+  
+  - Opendatasoft : un `select` purement agrégé passe par `/records` en une ligne AVANT le chemin `fetch-mode="export"`, qui téléchargeait `cap + 1` copies de la même valeur et signalait une troncature à tort ; un 429 ou un 5xx sur l'export replie sur `/records` cette fois-ci sans condamner l'export pour la session (seul un 4xx est définitif).
+  - `dsfr-data-pivot` : `count` ne compte plus les cellules vides, comme `sum` et `count-distinct`.
+  - `dsfr-data-normalize` : une entrée `fold` malformée est signalée une fois par valeur de l'attribut (plus à chaque lot) et l'erreur de configuration s'efface quand l'attribut est corrigé.
+  - `dsfr-data-facets` : un critère de tri inconnu (`sort="alpah"`) retombe toujours sur la fréquence, mais le dit une fois au lieu de se taire.
+  - Codes département : `2a` / `2b` en minuscules sont ramenés à `2A` / `2B`, comme `02a` l'était déjà.
+  - Une seule définition de l'égalité lâche (`looseEquals`, variante « tableau contient » `looseEqualsOrContains` pour les agrégations) et du retrait des accents (`stripAccents`) dans `@dsfr-data/shared`, au lieu de trois et quatre copies.
+  - Guides : `<dsfr-data-context-tags for="…">` (et non `context`), `<dsfr-data-list columns="…">` (et non `fields`).
+
+- [#864](https://github.com/bmatge/dsfr-data/pull/864) [`b692c31`](https://github.com/bmatge/dsfr-data/commit/b692c31daf9973c8e21e8436719d2111c1a9324c) Thanks [@bmatge](https://github.com/bmatge)! - Hygiène interne : les motifs à quantificateur imbriqué signalés « unsafe » par
+  eslint-plugin-security sont réécrits en parcours linéaire, à comportement
+  identique ([#843](https://github.com/bmatge/dsfr-data/issues/843)).
+  
+  - `opendatasoft-adapter` : la reconnaissance d'un littéral numérique nu et d'un
+    chemin pointé (`table.champ`) passe par un découpage plutôt que par un motif
+    imbriqué.
+  - `dsfr-data-chart` : la détection d'une date ISO devient un test de préfixe
+    `AAAA-MM-JJ` suivi d'un contrôle du séparateur d'heure.
+  - `shared/utils/to-boolean` : la reconnaissance d'un nombre décimal simple lit
+    la chaîne caractère par caractère.
+  - `shared/providers/tabular` : le segment de langue optionnel du permalien
+    data.gouv.fr s'écrit sans quantificateur imbriqué.
+  
+  Aucun changement d'API ni de rendu.
+
+- [#861](https://github.com/bmatge/dsfr-data/pull/861) [`e4e0db3`](https://github.com/bmatge/dsfr-data/commit/e4e0db3273e9efd1c1a6bcb12d10e3685e18dc76) Thanks [@bmatge](https://github.com/bmatge)! - `parseExpression` : un parseur par grammaire ([#839](https://github.com/bmatge/dsfr-data/issues/839)). La fonction qui lit les
+  expressions de `value` du KPI entrelaçait quatre grammaires — commune
+  `champ:fn`, historique `fn:champ`, ratio ` / `, filtre entre accolades — en une
+  seule suite de conditions. Elle est découpée en un tokenizer (coupe du
+  séparateur de ratio hors des accolades) et un parseur par grammaire. Refactor
+  interne : tout ce que la documentation promet rend exactement le même arbre,
+  sous une table de référence de cinquante expressions et leurs pièges.
+  
+  Deux défauts de conception disparaissent au passage :
+  
+  - un filtre qui contient une barre oblique entourée d'espaces ne coupe plus le
+    ratio — `a:sum{b:eq:x / y} / c:sum` se lisait « mal formé » ;
+  - l'alias `count-distinct` n'est plus appliqué aux NOMS DE CHAMP, seulement aux
+    fonctions — une colonne nommée `count-distinct` était renommée `distinct` et
+    l'agrégat portait sur une colonne inexistante.
+
 ## 0.29.2
 
 ### Patch Changes
