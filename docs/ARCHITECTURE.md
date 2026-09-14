@@ -772,57 +772,126 @@ Les tests utilisent Vitest avec l'environnement happy-dom (fuseau épinglé sur 
 
 **Ce que happy-dom ne voit pas : la mise en page.** Ni float, ni flex, ni grille, ni hauteur ne sont calculés. Deux régressions livrées (#822 : colonnage KPI, #825 : carte à 0 px en plein écran) sont passées au vert parce que leurs tests lisaient le **texte** des feuilles CSS (`cssText`, `textContent` d'un `<style>`). Règle depuis la revue du 2026-09-13 : **toute fonctionnalité visuelle a une contrepartie Playwright qui lit des rectangles** (`getBoundingClientRect`, éléments par rangée, deux largeurs d'écran). Elles vivent dans `e2e/` avec une page de fixture servie par le serveur de dev (`e2e/*.html`, lib depuis la source) et tournent **sur chaque PR** par `.github/workflows/e2e-layout.yml` — déterministes : tuiles coupées par `page.route`, DSFR Chart depuis `node_modules`. Specs : `map-fullscreen` (#825, `%` + ResizeObserver, encart `md:20%`), `layout-grid` (kpi-group `cols` / `span` / `per-row`, display, facets #788), `layout-map` (sélecteur de fonds, encarts flottants, légende, volet #782), `chart-legend` (#813 sur le vrai DSFR Chart : échoue si `.legend_dot` disparaît), `mobile-chrome` (chrome des apps). Les tests jsdom sur le texte des feuilles restent, comme contrat de classes. Chaque spec a été vérifié **en échec** sur le défaut qu'il garde (mutation `span = ''`, retrait du correctif plein écran).
 
-**Tout chiffre affiché a un contrôle** (ADR-122). Les tests unitaires éprouvent des fonctions, pas
-des chiffres : ils ne disent pas qu'un KPI de la page montre bien la somme du jeu qu'il a reçu.
-Une SECONDE implémentation, écrite à part et qui n'importe rien de `packages/` ni de
-`@dsfr-data/*` (`tools/oracle`, test-garde `tests/oracle/guard.test.ts` sur tout le graphe
-d'imports), repart des lignes **brutes** et recalcule en tableaux nus ; la lib rend le même
-balisage et l'on lit ce qu'elle **affiche** — texte fr-FR du KPI, cache de données d'un id,
-attributs `x`/`y`/`name` de l'élément DSFR Chart rendu, `getLegendEntries()` d'une couche, lignes
-du tableau. Un écart à la précision affichée est un échec. Deux alimentations, un seul spec
-(`e2e/verif-donnees.spec.ts`) : **déterministe** — fixtures servies par `page.route`, l'oracle
-recalcule depuis les mêmes lignes, zéro réseau, bloquant sur chaque PR
-(`.github/workflows/verif-donnees.yml`, `npm run verif`) — et **vivant** — vraies API du banc
-d'essai, attendu produit juste avant le rendu, jamais bloquant (`oracle.yml`, `npm run verif:live`).
-Les contrôles vivent par domaine dans `tests/verif-donnees/`, le moteur dans `tools/oracle/`
-(README dédié : ajouter un contrôle, prouver une mutation). Chaque contrôle déterministe a été
-vérifié **en échec** sur un défaut injecté dans la lib — un contrôle qui ne peut pas échouer ne
-garde rien.
+### Vérification des données — tout chiffre affiché a un contrôle (ADR-122)
+
+**Le principe.** Les tests unitaires éprouvent des fonctions, pas des chiffres : ils ne disent pas
+qu'un KPI de la page montre bien la somme du jeu qu'il a reçu. Deux implémentations indépendantes
+doivent donner **le même chiffre au même instant**. D'un côté la bibliothèque rend un balisage
+`dsfr-data-*` et l'on lit ce qu'elle **affiche** ; de l'autre, une SECONDE implémentation
+(`tools/oracle/`) repart des lignes **brutes** et recalcule en tableaux nus. Un écart à la
+**précision affichée** est un échec. L'indépendance est le tout du dispositif : `tools/oracle` et
+`tests/verif-donnees` n'importent rien de `packages/`, de `@dsfr-data/*` ni de l'alias `@/`
+(test-garde `tests/oracle/guard.test.ts`, qui parcourt tout le graphe d'imports atteignable depuis
+les deux dossiers — un fichier neuf y entre sans avoir rien à déclarer). Si la lib et l'oracle se
+trompent, ce n'est pas de la même façon.
+
+**Deux modes, un seul spec** (`e2e/verif-donnees.spec.ts`, qui charge les manifestes, rend, observe
+et compare) :
+
+| | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
+|---|---|---|
+| Alimentation | fixtures du dépôt, servies par `page.route` | vraies API du banc d'essai, retéléchargées |
+| Attendu | recalculé dans le run, depuis les **mêmes** lignes | `tools/oracle/out/expected.json`, produit juste avant le rendu |
+| Commande | `npm run verif` | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
+| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
+| Réseau | aucun (toute sortie inattendue fait échouer) | requis |
+
+**Le moteur** — `tools/oracle/`, hors du périmètre de la lib : `manifest.ts` (la grammaire, types
+seuls : `Feed`, `Step`, `Expect`, `Check`), `compute.ts` (le recalcul en tableaux nus),
+`expression.ts` (les colonnes calculées, seconde implémentation de la grammaire ADR-105, écrite à
+partir du JSDoc de `compute` et jamais importée), `observe.ts` (les lecteurs d'observation,
+sérialisés par Playwright pour s'exécuter DANS la page), `expected.ts`, `stabilite.ts`,
+`compare.ts`, `raw.ts` (les deux alimentations), `report.ts`, `run.ts`.
+
+**Les contrôles** — `tests/verif-donnees/`, un fichier par domaine, enregistré dans `index.ts` :
+`query`, `adaptateurs`, `transformations`, `contexte`, `delegation`, `export-studio`, `affichages`
+(déterministes), `banc` et `banc-adaptateurs` (vivants). Ajouter un contrôle, c'est ajouter une
+entrée à `checks` — jamais toucher au moteur.
+
+**Ce qu'on observe** : jamais l'état interne qui a servi à produire un chiffre, ce que la page
+**montre**. Texte fr-FR d'un KPI, lignes du cache de données d'un id, attributs `x`/`y`/`name` de
+l'élément DSFR Chart **rendu**, `getLegendEntries()` d'une couche, lignes du tableau, valeurs et
+compteurs d'une facette, classes décidées par un seuil, contenu du CSV exporté. Un seul lecteur ne
+porte pas sur un chiffre, `lireUrls` : deux balisages peuvent montrer les mêmes chiffres en
+demandant au serveur des choses opposées, et qu'une `dsfr-data-query` délègue ou non son `group_by`
+ne se voit que là. Tableau complet des lecteurs : `tools/oracle/README.md`.
+
+**Un contrôle tient en une quinzaine de lignes** — un `id`, son `origin` (d'où vient le cas, quelle
+issue le motive), son alimentation, le balisage rendu, et ce qu'on attend :
+
+```ts
+{
+  id: 'where-gt-gte', mode: 'deterministic', origin: 'opérateurs de filtre',
+  feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+  markup: `<dsfr-data-source id="s" data='…'></dsfr-data-source>
+           <dsfr-data-query id="q" source="s" where="population:gte:5000"></dsfr-data-query>
+           <dsfr-data-kpi id="k" source="q" aggregation="count"></dsfr-data-kpi>`,
+  expects: [{ kind: 'kpi', id: 'k', agg: 'count',
+              pipeline: [{ op: 'filter', filters: [{ field: 'population', op: 'gte', value: 5000 }] }] }],
+}
+```
+
+Un `Check` peut aussi porter une horloge fixe (`clock`, pour les bornes `today` /
+`current-month` / `last-n-days`, sinon le contrôle serait vert 364 jours sur 365), des gestes joués
+avant l'observation (`actions` : `click`, `fill`, `select`, `goto` — dont le `goto` sans valeur qui
+recharge l'URL que la synchro d'URL vient d'écrire), et une chaîne de requête (`query`, pour ouvrir
+la page de fixture sur `?page=2` : une pagination fausse ne se voit jamais sur la page 1).
+
+**La preuve de mutation.** Un contrôle vert ne dit rien tant qu'on ne l'a pas vu **rouge** sur le
+défaut qu'il garde : on injecte le défaut dans la lib, on rejoue le seul contrôle visé, on constate
+les deux chiffres, on retire le défaut. Chaque contrôle déterministe du dépôt a été vérifié en
+échec ; les mutations éprouvées sont consignées dans `tools/oracle/README.md`. Un contrôle légitime
+que la bibliothèque ne passe pas ne se supprime pas et ne s'adoucit pas — il reste en `skip`, en
+nommant les deux chiffres et LEQUEL des deux cas c'est : un **défaut** (le comportement contredit la
+documentation, une issue s'ouvre) ou une **amélioration attendue** (la doc ne promet rien, le chiffre
+affiché est juste, et le contrôle est écrit pour que le jour où la capacité arrive, elle arrive
+juste). Confondre les deux coûte ce que #746 a mesuré.
+
+**Le rapport** — `tools/oracle/out/report.json` et `out/report.txt` : par observation, la valeur
+lib, la valeur oracle, l'écart, le nombre de lignes brutes, le mode, et le **nombre de valeurs
+comparées**, parce qu'un contrôle vert qui n'a rien comparé ne garde rien. Le résumé texte part sur
+la sortie standard, et les deux fichiers en artefact CI en cas d'échec.
+
+**Doctrine : l'oracle tient le contrat ÉCRIT.** Indépendant ne veut pas dire arbitraire. Là où la
+bibliothèque **documente** un comportement (JSDoc d'un attribut, guide des skills, en-tête d'un
+utilitaire de `shared`), l'oracle recalcule ce qui est **promis** ; un écart entre le code et sa doc
+est un défaut, et c'est exactement ce qu'un contrôle doit faire tomber. Un oracle qui « corrigerait »
+au passage un comportement qu'il juge discutable mesurerait l'écart entre la bibliothèque et l'avis
+de son auteur, pas entre deux implémentations du même contrat — le débat sur le comportement se
+tranche dans la lib (une issue, une ADR), pas dans `tools/oracle`. Et là où la documentation ne dit
+rien, c'est l'oracle qui **énonce**, en toutes lettres, et la mutation qui garde.
+
+> Procédure complète — ajouter un contrôle, écrire une alimentation vivante, prouver une mutation,
+> lire le rapport : **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
 
 ### Structure
 
 ```
-tests/
-  aggregations.test.ts         Tests des fonctions d'aggregation
-  chart-data.test.ts           Tests du traitement des donnees graphiques
-  data-bridge.test.ts          Tests du bus d'evenements
-  formatters.test.ts           Tests du formatage (src/utils)
-  json-path.test.ts            Tests de l'acces par chemin JSON
-  dsfr-data-source.test.ts          Tests du composant dsfr-data-source
-  dsfr-data-query.test.ts           Tests du composant dsfr-data-query
-  dsfr-data-normalize.test.ts       Tests du composant dsfr-data-normalize
-  dsfr-data-facets.test.ts          Tests du composant dsfr-data-facets
-  dsfr-data-list.test.ts        Tests du composant dsfr-data-list
-  integration.test.ts          Tests d'integration inter-composants
-  source-subscriber.test.ts    Tests du mixin SourceSubscriber
-  shared/                      Tests du package @dsfr-data/shared
-    dept-codes.test.ts
-    dsfr-palettes.test.ts
-    escape-html.test.ts
-    formatters.test.ts
-    local-storage.test.ts
-    modal.test.ts
-    navigation.test.ts
-    number-parser.test.ts
-    proxy-config.test.ts
-    toast.test.ts
-  apps/                        Tests des applications
-    builder/
-    builder-ia/
-    dashboard/
-    favorites/
-    playground/
-    sources/
+tests/                       Vitest (happy-dom, fuseau Europe/Paris)
+  *.test.ts                    ~130 fichiers a plat : un par composant dsfr-data-*, par
+                               utilitaire et par comportement transverse (kpi-*, facets-*,
+                               map-*, query-*, context-*, template-*, *-guard…)
+  adapters/                    Les adaptateurs de sources (ODS, Tabular, Grist, INSEE…)
+  shared/                      Le package @dsfr-data/shared
+  utils/  components/  data/   Utilitaires, composants et jeux de test partages
+  helpers/                     Outillage commun aux tests (montage, DOM, faux serveurs)
+  debug/                       Le collecteur de trace et le volet Diagnostic (§3.6)
+  server/  mcp/                Express + MariaDB, et le serveur MCP
+  types/                       Types de test
+  apps/                        Les applications (builder, builder-ia, builder-carto, studio,
+                               dashboard, sources, playground, favorites, pipeline-helper, app-ui)
+  oracle/                      Le MOTEUR de la verification des donnees : guard (independance),
+                               compute, expression, observe, compare-urls, raw, stabilite
+  verif-donnees/               Les MANIFESTES de controles, par domaine, + leurs fixtures
+  builder-e2e/                 Playwright a part (§7.1, §7.2) — config et resultats dedies
+
+e2e/                         Playwright (config e2e/playwright.config.ts, serveur de dev 5173)
+  *.spec.ts                    Parcours applicatifs, accessibilite, captures
+  layout-*.spec.ts             Mise en page MESUREE en navigateur (rectangles), + les pages
+  map-fullscreen.spec.ts       de fixture *.html qui les accompagnent
+  chart-legend.spec.ts
+  verif-donnees.spec.ts        Le spec unique de la verification des donnees
+  verif-donnees/               Les pages de fixture generees (gitignore)
 ```
 
 ### Commandes
@@ -833,6 +902,10 @@ tests/
 | `npm run test:run`      | Execution unique                               |
 | `npm run test:coverage` | Couverture de code (provider v8, format text+html) |
 | `npm run test:e2e`      | Tests E2E Playwright                               |
+| `npm run typecheck:tests` | Typage de la suite de tests (`tsconfig.tests.json`) |
+| `npm run verif`         | Vérification des données, mode déterministe (bloquant sur PR) |
+| `npm run verif:live`    | Vérification des données, mode vivant (vraies API)  |
+| `npm run verif:expected` | L'attendu du mode vivant seul (`tools/oracle/out/expected.json`) |
 
 ### Configuration notable
 
@@ -996,6 +1069,10 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 - **`reflect: true` reflète aussi la valeur initiale** (#822, 0.29.0 → 0.29.1) — `packages/core/src/components/dsfr-data-kpi.ts:227` (`col`) et `:241` (`span`), les DEUX seules propriétés reflétées de la lib. Une valeur initiale `''` posait `span=""` sur chaque KPI, et la largeur par défaut du groupe — `::slotted(*:not([col]):not([span]))`, `dsfr-data-kpi-group.ts:208-214` — cessait de s'appliquer : tous les KPI en `grid-column: auto`, `per-row` et `cols` historique compris. Sous 768 px, le `!important` de `kpi-group.ts:181` masquait tout. **Règle** : une propriété reflétée n'a pas de valeur initiale (`string | undefined`), et **tout test de colonnage s'exécute à ≥ 768 px et lit le style calculé ou l'attribut**, jamais le texte de la feuille (`cssText`) — c'est ce que les tests de #790 faisaient, vert sincère et inutile.
 
 - **`cols` a deux sens, `per-row` et `span` priment** ([ADR-112], #790, #789) — `packages/core/src/utils/grid-layout.ts:111` (`BREAKPOINTS`) et `:145` (`parseScale`, grammaire commune `"1 md:2 lg:3"`). Sur `dsfr-data-facets` (`:309`) `cols` est une **largeur** en colonnes DSFR ; sur `dsfr-data-display` et `dsfr-data-kpi-group` c'est un **nombre par ligne**. Les deux harmonisations possibles cassaient un des deux camps en silence : d'où deux noms neufs, `per-row` (nombre par ligne, `kpi-group.ts:55`, `display.ts:103`, `facets.ts:327`) et `span` (largeur d'un KPI), l'ancien gardé sans échéance et sans avertissement. `per-row` prime sur `cols` s'ils sont posés ensemble (message de conflit commun). Bornes différentes et assumées : `display` ≤ 6, `kpi-group` diviseurs de 12. `dsfr-data-map-inset.width` réutilise `BREAKPOINTS` avec des longueurs CSS (`parseLengthScale`, `map-inset.ts`) : un texte portant un espace **ou** un point de rupture est une échelle (`"md:20%"` seul est valide, #830).
+
+- **L'adaptateur Tabular ne pagine que depuis son hôte par défaut** (appris au lot L2 de la vérification des données, #849 / #850) — `packages/core/src/adapters/tabular-adapter.ts:185`. `_getBaseUrl` (`:424`) honore bien `params.baseUrl`, mais la page suivante est résolue par `new URL(json.links.next, 'https://tabular-api.data.gouv.fr')` : l'hôte est **écrit en dur** à cet endroit. Une source Tabular pointée sur un hôte fictif charge donc sa première page et **retombe sur le vrai domaine** dès la seconde — au mieux une sortie réseau que le mode déterministe fait échouer, au pire une pagination silencieusement tronquée. Conséquence pour les fixtures : là où chaque lot ODS s'isole sur son propre hôte réservé (`*.invalid`, RFC 2606), **toutes** les fixtures Tabular du dépôt se disputent le même hôte `tabular-api.data.gouv.fr` (`tests/builder-e2e/api-fixtures.ts:65`, réutilisé par `fixtures-adaptateurs.ts` et `fixtures-delegation.ts`). Deux jeux Tabular ne se distinguent donc que par le **chemin** (identifiant de ressource) et par la route posée pour le contrôle courant, jamais par l'hôte. Ne pas ajouter de `base-url` à une source Tabular de fixture en croyant l'isoler : c'est ce qui la casse.
+
+- **`reuseExistingServer` fait tester le worktree du voisin** (appris aux lots de la vérification des données) — `e2e/playwright.config.ts:16`, port 5173 (`:15`). Playwright démarre `npm run dev` lui-même, **sauf** si le port répond déjà : il réutilise alors ce serveur, quel que soit le checkout qui le sert. Avec plusieurs worktrees ouverts en parallèle (le cas normal d'un plan en lots), `npm run verif`, `npm run test:e2e` et les specs de mise en page éprouvent les **sources d'un autre worktree** — et une preuve de mutation passe au vert à tort, puisque le défaut injecté ici n'est pas dans le code servi là-bas. Le symptôme est muet : tout est vert. **Réflexe** : `lsof -i :5173` avant de lancer ; si le port est pris par un autre checkout, démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la configuration Playwright.
 
 - **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission d'un ancien domaine (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
 
