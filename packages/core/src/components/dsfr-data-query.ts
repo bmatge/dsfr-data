@@ -6,7 +6,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import type { AdapterCapabilities } from '../adapters/api-adapter.js';
+import type { AdapterCapabilities, ApiAdapter } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import {
   AGGREGATE_FUNCTIONS,
@@ -19,6 +19,16 @@ import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
 import { dsfrDataInstances, onDsfrDataInstance } from '../utils/instance-registry.js';
+
+/**
+ * Amont delegable resolu une fois par negociation (#838) : l'element
+ * `dsfr-data-source` vise, son adaptateur et les capacites de celui-ci.
+ */
+interface DelegationTarget {
+  sourceEl: SourceElement;
+  adapter: ApiAdapter;
+  caps: AdapterCapabilities;
+}
 
 /**
  * Opérateurs de filtre supportes
@@ -624,19 +634,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
 
     const cmd: Record<string, string> = {};
-
     const rawEl = document.getElementById(this.source);
     const sourceEl = rawEl && 'getAdapter' in rawEl ? (rawEl as unknown as SourceElement) : null;
-    const adapter = sourceEl?.getAdapter?.();
-    const caps: AdapterCapabilities | undefined = adapter?.capabilities;
-
-    // #394 : si un transformateur entre cette query et la source qui fetch
-    // crée/renomme des colonnes (unpivot, normalize rename/compute…), les
-    // opérations de la query s'expriment dans le schéma POST-transformation.
-    // Les déléguer au serveur enverrait des noms de colonnes inconnus de
-    // l'API (Grist Records : 500 "unknown key annee") — et l'erreur de la
-    // source ferait tomber TOUS ses abonnés. Tout reste alors client-side.
-    const upstreamTransformsSchema = sourceEl?.transformsSchema?.() === true;
+    const target = this._delegationTarget(sourceEl);
 
     // #765 : la source n'a qu'UN regroupement, UN agregat et UN tri serveur
     // (overlays sans cle, a la difference du where d'ADR-031), et elle sert
@@ -645,10 +645,53 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // export du Studio (0.28.1), un KPI a 11 au lieu de 3 080 et deux
     // graphiques affichant le meme regroupement. Tout reste alors cote
     // client ; le where, cle par emetteur, reste delegable.
-    // La remontee de chaine est faite MEME quand l'amont n'expose pas encore
-    // d'adaptateur (#855) : c'est elle qui pose `_chainIds`, donc ce que
-    // l'ecoute du registre doit surveiller pour REFAIRE cette negociation
-    // quand le maillon manquant sera rehausse.
+    //
+    // ATTENTION — l'appel est INCONDITIONNEL : la remontee de chaine est
+    // faite MEME quand l'amont n'expose pas encore d'adaptateur (#855),
+    // c'est elle qui pose `_chainIds`, donc ce que l'ecoute du registre doit
+    // surveiller pour REFAIRE cette negociation quand le maillon manquant
+    // sera rehausse. Ne jamais la deplacer derriere une garde sur `target`.
+    const exclusive = this._isChainExclusive(sourceEl);
+
+    if (target) {
+      this._delegateGroupByAndAggregate(cmd, target, exclusive);
+      this._delegateWhereOnly(cmd, target, exclusive);
+      this._delegateOrderBy(cmd, target, exclusive);
+    }
+
+    this._appendDelegationDiff(cmd, prev, prevSourceId);
+    this._delegatedSourceId = this._hasServerDelegation() ? this.source : null;
+    this._sendDelegationCommand(cmd);
+  }
+
+  /**
+   * Source amont delegable : l'element vise par `source` quand il expose un
+   * adaptateur ET ne transforme pas le schema.
+   *
+   * #394 : si un transformateur entre cette query et la source qui fetch
+   * crée/renomme des colonnes (unpivot, normalize rename/compute…), les
+   * opérations de la query s'expriment dans le schéma POST-transformation.
+   * Les déléguer au serveur enverrait des noms de colonnes inconnus de
+   * l'API (Grist Records : 500 "unknown key annee") — et l'erreur de la
+   * source ferait tomber TOUS ses abonnés. Tout reste alors client-side.
+   */
+  private _delegationTarget(sourceEl: SourceElement | null): DelegationTarget | null {
+    if (!sourceEl) return null;
+    if (sourceEl.transformsSchema?.() === true) return null;
+    const adapter = sourceEl.getAdapter?.();
+    const caps: AdapterCapabilities | undefined = adapter?.capabilities;
+    if (!adapter || !caps) return null;
+    return { sourceEl, adapter, caps };
+  }
+
+  /**
+   * Cette query est-elle SEULE lectrice de la chaine de relais (#765) ?
+   * Avertit et conteste la delegation quand elle ne l'est pas.
+   *
+   * `_otherChainReaders()` est appele meme sans cible delegable : c'est lui
+   * qui pose `_chainIds` (#855).
+   */
+  private _isChainExclusive(sourceEl: SourceElement | null): boolean {
     const chainReaders = this._otherChainReaders();
     const sharedWith = sourceEl ? chainReaders : [];
     const exclusive = sharedWith.length === 0;
@@ -660,148 +703,178 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         new CustomEvent(DELEGATION_CONTESTED_EVENT, { detail: { sourceId: this.source } })
       );
     }
+    return exclusive;
+  }
 
-    if (sourceEl && adapter && caps && !upstreamTransformsSchema) {
-      // Don't override if dsfr-data-source already has its own groupBy/aggregate
-      // (user explicitly configured them on the source — respect that)
-      const sourceGroupBy = sourceEl.groupBy || '';
-      const sourceAggregate = sourceEl.aggregate || '';
+  /**
+   * Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
+   * contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
+   * interroge avant de deleguer ; sinon on retombe sur le client-side.
+   */
+  private _canDelegateFields(adapter: ApiAdapter, fields: string[]): boolean {
+    const clean = fields.map((f) => f.trim()).filter(Boolean);
+    return adapter.supportsServerFields?.(clean) !== false;
+  }
 
-      // Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
-      // contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
-      // interroge avant de deleguer ; sinon on retombe sur le client-side.
-      const canDelegateFields = (fields: string[]): boolean => {
-        const clean = fields.map((f) => f.trim()).filter(Boolean);
-        return adapter.supportsServerFields?.(clean) !== false;
-      };
-      // Fonction non traduisible par l'adapter (Tabular n'a pas de
-      // `distinct`, #672) : tout le group-by reste client-side, sur les
-      // lignes brutes — comme pour un champ non delegable.
-      //
-      // Un agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :
-      // aucun ne le traduit, et ceux qui n'implementent pas
-      // `supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc
-      // « delegable » — l'API recevrait `running_sum` et repondrait en erreur
-      // pour tous les abonnes de la source.
-      const canDelegateAggregates = (aggs: ParsedAggregate[]): boolean =>
-        aggs.every(
-          (a) =>
-            !isRunningAggregate(a.function) &&
-            adapter.supportsServerAggregate?.(a.function) !== false
-        );
+  /**
+   * Fonction non traduisible par l'adapter (Tabular n'a pas de `distinct`,
+   * #672) : tout le group-by reste client-side, sur les lignes brutes —
+   * comme pour un champ non delegable.
+   *
+   * Un agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :
+   * aucun ne le traduit, et ceux qui n'implementent pas
+   * `supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc
+   * « delegable » — l'API recevrait `running_sum` et repondrait en erreur
+   * pour tous les abonnes de la source.
+   */
+  private _canDelegateAggregates(adapter: ApiAdapter, aggs: ParsedAggregate[]): boolean {
+    return aggs.every(
+      (a) =>
+        !isRunningAggregate(a.function) && adapter.supportsServerAggregate?.(a.function) !== false
+    );
+  }
 
-      // Delegate group-by + aggregate together (they're coupled).
-      // Don't override if source already has its own groupBy or aggregate.
-      // `explode` (#736) reste client-side : aucune API du pipeline ne sait
-      // éclater un champ multivalué, un group_by serveur regrouperait à
-      // nouveau par combinaison.
-      if (
-        this.groupBy &&
-        exclusive &&
-        caps.serverGroupBy &&
-        !sourceGroupBy &&
-        !sourceAggregate &&
-        !this._aggregateError &&
-        !this.explode
-      ) {
-        // Le where conditionne la délégation du group-by (#275) : un filtre
-        // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
-        // donc avant un group-by qui reste alors client-side lui aussi.
-        // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
-        // les champs bruts n'existent plus → toutes les lignes éliminées.
-        const whereDelegation = this._buildWhereDelegation(
-          this.filter || this.where,
-          caps.whereFormat
-        );
-        const aggregates = this._parseAggregates(this.aggregate);
-        const fields = [
-          ...this.groupBy.split(','),
-          ...aggregates.map((a) => a.field),
-          ...whereDelegation.fields,
-        ];
-        if (whereDelegation.ok && canDelegateFields(fields) && canDelegateAggregates(aggregates)) {
-          cmd.groupBy = this.groupBy;
-          this._serverDelegated.groupBy = true;
-
-          if (this.aggregate) {
-            cmd.aggregate = this.aggregate;
-            this._serverDelegated.aggregate = true;
-          }
-
-          if (whereDelegation.where) {
-            cmd.where = whereDelegation.where;
-            cmd.whereKey = this._whereOverlayKey();
-            this._serverDelegated.where = true;
-          }
-        }
-      }
-
-      // Delegation du `where` SEUL (#856, #854) : sans regroupement, la
-      // clause part quand meme au serveur — c'est la moins chere a traduire
-      // et celle qui evite le plus de lignes (137 rapatriees pour en garder
-      // 20, mesure du banc d'essai). L'overlay est CLE PAR EMETTEUR
-      // (ADR-031) : il se fusionne avec ceux des facettes, de la recherche et
-      // du contexte au lieu de les ecraser, a la difference du regroupement.
-      //
-      // Conditionne a `exclusive` comme le reste (#765) : la source sert ses
-      // lignes FILTREES a tous ses abonnes, un KPI voisin ne compterait que
-      // les lignes retenues par cette query.
-      //
-      // C'est aussi ce qui libere `require-where` comme sa documentation le
-      // promet (#854) : la clause deleguee EST le filtre attendu.
-      //
-      // `explode` (#736) reste hors du marche : la clause s'appliquerait aux
-      // lignes AVANT eclatement cote serveur et APRES cote client.
-      if (
-        !this._serverDelegated.where &&
-        exclusive &&
-        !this.explode &&
-        (this.filter || this.where)
-      ) {
-        const whereOnly = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
-        if (whereOnly.ok && whereOnly.where && canDelegateFields(whereOnly.fields)) {
-          cmd.where = whereOnly.where;
-          cmd.whereKey = this._whereOverlayKey();
-          this._serverDelegated.where = true;
-        }
-      }
-
-      // Delegate order-by
-      const sourceOrderBy = sourceEl.orderBy || '';
-      if (this.orderBy && exclusive && caps.serverOrderBy && !sourceOrderBy) {
-        const orderField = this.orderBy.split(':')[0] || '';
-        if (canDelegateFields([orderField])) {
-          cmd.orderBy = this.orderBy;
-          this._serverDelegated.orderBy = true;
-        }
-      }
+  /**
+   * Delegate group-by + aggregate together (they're coupled).
+   * Don't override if source already has its own groupBy or aggregate
+   * (user explicitly configured them on the source — respect that).
+   * `explode` (#736) reste client-side : aucune API du pipeline ne sait
+   * éclater un champ multivalué, un group_by serveur regrouperait à
+   * nouveau par combinaison.
+   */
+  private _delegateGroupByAndAggregate(
+    cmd: Record<string, string>,
+    { sourceEl, adapter, caps }: DelegationTarget,
+    exclusive: boolean
+  ): void {
+    if (
+      !this.groupBy ||
+      !exclusive ||
+      !caps.serverGroupBy ||
+      sourceEl.groupBy ||
+      sourceEl.aggregate ||
+      this._aggregateError ||
+      this.explode
+    ) {
+      return;
     }
 
-    // Diff same-source : liberer les operations qui ne sont plus deleguees
-    // (retrait de group-by, where disparu…) — envoye dans la MEME commande
-    // que les nouvelles delegations pour un seul refetch (#276).
-    if (prevSourceId && prevSourceId === this.source) {
-      if (prev.groupBy && !this._serverDelegated.groupBy) cmd.groupBy = '';
-      if (prev.aggregate && !this._serverDelegated.aggregate) cmd.aggregate = '';
-      if (prev.orderBy && !this._serverDelegated.orderBy) cmd.orderBy = '';
-      if (prev.where && !this._serverDelegated.where) {
-        cmd.where = '';
-        cmd.whereKey = this._whereOverlayKey();
-      }
+    // Le where conditionne la délégation du group-by (#275) : un filtre
+    // intraduisible doit s'appliquer client-side sur les lignes BRUTES,
+    // donc avant un group-by qui reste alors client-side lui aussi.
+    // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
+    // les champs bruts n'existent plus → toutes les lignes éliminées.
+    const whereDelegation = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
+    const aggregates = this._parseAggregates(this.aggregate);
+    const fields = [
+      ...this.groupBy.split(','),
+      ...aggregates.map((a) => a.field),
+      ...whereDelegation.fields,
+    ];
+    if (
+      !whereDelegation.ok ||
+      !this._canDelegateFields(adapter, fields) ||
+      !this._canDelegateAggregates(adapter, aggregates)
+    ) {
+      return;
     }
 
-    this._delegatedSourceId = this._hasServerDelegation() ? this.source : null;
+    cmd.groupBy = this.groupBy;
+    this._serverDelegated.groupBy = true;
 
+    if (this.aggregate) {
+      cmd.aggregate = this.aggregate;
+      this._serverDelegated.aggregate = true;
+    }
+
+    if (whereDelegation.where) {
+      cmd.where = whereDelegation.where;
+      cmd.whereKey = this._whereOverlayKey();
+      this._serverDelegated.where = true;
+    }
+  }
+
+  /**
+   * Delegation du `where` SEUL (#856, #854) : sans regroupement, la clause
+   * part quand meme au serveur — c'est la moins chere a traduire et celle
+   * qui evite le plus de lignes (137 rapatriees pour en garder 20, mesure du
+   * banc d'essai). L'overlay est CLE PAR EMETTEUR (ADR-031) : il se fusionne
+   * avec ceux des facettes, de la recherche et du contexte au lieu de les
+   * ecraser, a la difference du regroupement.
+   *
+   * Conditionne a `exclusive` comme le reste (#765) : la source sert ses
+   * lignes FILTREES a tous ses abonnes, un KPI voisin ne compterait que les
+   * lignes retenues par cette query.
+   *
+   * C'est aussi ce qui libere `require-where` comme sa documentation le
+   * promet (#854) : la clause deleguee EST le filtre attendu.
+   *
+   * `explode` (#736) reste hors du marche : la clause s'appliquerait aux
+   * lignes AVANT eclatement cote serveur et APRES cote client.
+   */
+  private _delegateWhereOnly(
+    cmd: Record<string, string>,
+    { adapter, caps }: DelegationTarget,
+    exclusive: boolean
+  ): void {
+    if (this._serverDelegated.where || !exclusive || this.explode) return;
+    if (!this.filter && !this.where) return;
+
+    const whereOnly = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
+    if (!whereOnly.ok || !whereOnly.where || !this._canDelegateFields(adapter, whereOnly.fields)) {
+      return;
+    }
+    cmd.where = whereOnly.where;
+    cmd.whereKey = this._whereOverlayKey();
+    this._serverDelegated.where = true;
+  }
+
+  /** Delegate order-by */
+  private _delegateOrderBy(
+    cmd: Record<string, string>,
+    { sourceEl, adapter, caps }: DelegationTarget,
+    exclusive: boolean
+  ): void {
+    if (!this.orderBy || !exclusive || !caps.serverOrderBy || sourceEl.orderBy) return;
+    const orderField = this.orderBy.split(':')[0] || '';
+    if (!this._canDelegateFields(adapter, [orderField])) return;
+    cmd.orderBy = this.orderBy;
+    this._serverDelegated.orderBy = true;
+  }
+
+  /**
+   * Diff same-source : liberer les operations qui ne sont plus deleguees
+   * (retrait de group-by, where disparu…) — envoye dans la MEME commande
+   * que les nouvelles delegations pour un seul refetch (#276).
+   */
+  private _appendDelegationDiff(
+    cmd: Record<string, string>,
+    prev: { groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean },
+    prevSourceId: string | null
+  ): void {
+    if (!prevSourceId || prevSourceId !== this.source) return;
+    if (prev.groupBy && !this._serverDelegated.groupBy) cmd.groupBy = '';
+    if (prev.aggregate && !this._serverDelegated.aggregate) cmd.aggregate = '';
+    if (prev.orderBy && !this._serverDelegated.orderBy) cmd.orderBy = '';
+    if (prev.where && !this._serverDelegated.where) {
+      cmd.where = '';
+      cmd.whereKey = this._whereOverlayKey();
+    }
+  }
+
+  /**
+   * Dedup cote query (#276) : commande identique a la derniere envoyee a
+   * la meme cible → la source est deja dans cet etat, son cache est
+   * valide. Redispatchcer ferait sauter le cache a _subscribeToSourceData
+   * en attendant une emission que la source (qui deduplique aussi) ne
+   * renverrait qu'en async — gel evitable.
+   */
+  private _sendDelegationCommand(cmd: Record<string, string>): void {
     if (Object.keys(cmd).length === 0) {
       this._lastDelegation = null;
       return;
     }
 
-    // Dedup cote query (#276) : commande identique a la derniere envoyee a
-    // la meme cible → la source est deja dans cet etat, son cache est
-    // valide. Redispatchcer ferait sauter le cache a _subscribeToSourceData
-    // en attendant une emission que la source (qui deduplique aussi) ne
-    // renverrait qu'en async — gel evitable.
     const cmdJson = JSON.stringify(cmd);
     if (
       this._lastDelegation?.sourceId === this.source &&

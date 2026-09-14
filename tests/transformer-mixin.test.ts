@@ -41,7 +41,9 @@ const COMPONENTS_DIR = join(__dirname, '../packages/core/src/components');
 describe('#280 — AC : plus aucun subscribeToSource/subscribeToSourceCommands manuel hors mixins', () => {
   it('aucun composant ne souscrit directement au data-bridge', () => {
     const offenders: string[] = [];
-    for (const file of readdirSync(COMPONENTS_DIR)) {
+    // Parcours RECURSIF (#838) : les modules de `components/facets/` et
+    // `components/list/` echappaient a une lecture du seul premier niveau.
+    for (const file of readdirSync(COMPONENTS_DIR, { recursive: true, encoding: 'utf8' })) {
       if (!file.endsWith('.ts')) continue;
       const content = readFileSync(join(COMPONENTS_DIR, file), 'utf8');
       // dsfr-data-source est le producteur : il ECOUTE les commandes (c'est
