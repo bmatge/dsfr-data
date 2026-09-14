@@ -12,4 +12,6 @@ Négociation de délégation : un registre d'instances, une contestation par tou
 
 - **#856 / #854** — une requête à `where` seul (sans `group-by`) délègue désormais sa clause quand elle est seule lectrice de sa chaîne : l'overlay est clé par émetteur (ADR-031) et se fusionne avec ceux des facettes, de la recherche et du contexte. C'est ce qui libère `require-where` comme sa documentation le promettait — une source `require-where` derrière une telle requête restait en attente pour toujours, page vide et sans message. JSDoc de `where` (plus de conditionnel) et de `require-where` mis à jour.
 
+Limite connue, hors périmètre de ces issues : la délégation ne revient pas quand la chaîne redevient exclusive (lecteur retiré de la page) — la requête reste côté client jusqu'à la prochaine renégociation.
+
 Les quatre contrôles de vérification correspondants (`lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer`, `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation`) passent de `skip` à vert, avec leurs attendus inchangés.

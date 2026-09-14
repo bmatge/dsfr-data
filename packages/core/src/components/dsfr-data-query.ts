@@ -876,6 +876,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    *     renegociation a lieu dans la MEME tache que l'evaluation du module,
    *     donc avant le premier fetch (differe d'une macro-tache par
    *     `dsfr-data-source`) : une seule requete part, deja groupee.
+   *
+   * COUPLAGE NON EVIDENT — l'inscription a lieu APRES l'initialisation du
+   * composant (donc apres sa negociation, cf. les deux mixins). Sur une page
+   * a deux queries, la premiere renegocie a l'inscription d'un lecteur SANS
+   * voir encore la seconde query — et redelegue ; c'est l'inscription de la
+   * seconde qui libere pour de bon. Aucun fetch delegue ne s'echappe entre
+   * les deux UNIQUEMENT parce que tout cet enchainement tient dans une seule
+   * tache, le fetch etant differe d'une macro-tache par `_scheduleFetch`. Si
+   * l'inscription passait dans une autre tache (rehaussement asynchrone,
+   * `queueMicrotask` dans un mixin) ou si le fetch cessait d'etre differe, un
+   * `group_by` TRANSITOIRE partirait au serveur et les voisins liraient des
+   * lignes agregees le temps d'un aller-retour.
    */
   private _onInstanceRegistered = (el: Element) => {
     if (el === this || this._chainIds.size === 0) return;
@@ -905,7 +917,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * Un autre composant a trouve la chaine partagee (#765) : si cette query
    * y delegue encore, elle renegocie — ses overlays sont liberes et elle
-   * repasse cote client. Couvre le lecteur ajoute apres coup.
+   * repasse cote client.
+   *
+   * Ne couvre PAS le lecteur ajoute apres coup, contrairement a ce qui etait
+   * ecrit ici : c'est `_onInstanceRegistered` (le registre, #853) qui le
+   * couvre, et l'evenement seul ne fait plus tomber aucun contrôle de
+   * verification. Il reste le signal INTER-QUERY d'un partage decouvert sans
+   * qu'aucune instance ne s'inscrive — une query qui change de `source` au
+   * runtime.
    */
   private _onDelegationContested = (e: Event) => {
     const { sourceId } = (e as CustomEvent<{ sourceId: string }>).detail;
