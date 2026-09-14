@@ -9,7 +9,12 @@ import {
   buildCorsProxyRequest,
   normalizeProviderAuthHeaders,
 } from '@dsfr-data/shared/lib';
-import type { ApiAdapter, AdapterParams, ServerSideOverlay } from '../adapters/api-adapter.js';
+import type {
+  ApiAdapter,
+  AdapterParams,
+  ServerSideOverlay,
+  FetchResult,
+} from '../adapters/api-adapter.js';
 import { getAdapter } from '../adapters/adapter-registry.js';
 import { getCacheProvider, cacheKeyFor } from '../utils/cache-provider.js';
 import { logFetchError } from '../utils/fetch-diagnostics.js';
@@ -812,9 +817,69 @@ export class DsfrDataSource extends LitElement {
   // --- Adapter mode (new) ---
 
   private async _fetchViaAdapter() {
+    const resolved = this._resolveAdapterFetch();
+    if (!resolved) return;
+    const { adapter, params } = resolved;
+
+    if (this._abortController) {
+      this._abortController.abort();
+    }
+    this._abortController = new AbortController();
+    const generation = ++this._fetchGeneration;
+
+    this._loading = true;
+    this._error = null;
+    dispatchDataLoading(this.id);
+
+    // Declare hors du try : le catch reconstitue l'URL appelee a partir de
+    // l'overlay pour le diagnostic (#598). Reste assigne dans la branche
+    // server-side, pour ne pas appeler getEffectiveWhere() en mode fetchAll.
+    let overlay: ServerSideOverlay | undefined;
+
+    try {
+      let result;
+
+      if (this.serverSide) {
+        overlay = {
+          page: this._currentPage,
+          effectiveWhere: this.getEffectiveWhere(),
+          orderBy: this._orderByOverlay || this.orderBy,
+        };
+        result = await adapter.fetchPage(params, overlay, this._abortController.signal);
+        this._publishPageMeta(result);
+      } else {
+        result = await adapter.fetchAll(params, this._abortController.signal);
+        this._publishFetchAllMeta(result);
+      }
+
+      this._data = result.data;
+      dispatchDataLoaded(this.id, this._data);
+
+      // Cache externe via hook (fire-and-forget, #307)
+      if (this.cacheTtl > 0 && getCacheProvider()) {
+        this._putCache(this._data).catch(() => {});
+      }
+    } catch (error) {
+      await this._handleAdapterFetchError(error, adapter, params, overlay);
+    } finally {
+      if (generation === this._fetchGeneration) {
+        this._loading = false;
+      }
+    }
+  }
+
+  /**
+   * Prealables d'un fetch par adaptateur : identite de la source, adaptateur
+   * connu, parametres valides, et les deux diagnostics NON bloquants
+   * (fetch-mode/server-side #689, passe-plat `params` fautif #726).
+   *
+   * `null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et
+   * diffusee a l'aval.
+   */
+  private _resolveAdapterFetch(): { adapter: ApiAdapter; params: AdapterParams } | null {
     if (!this.id) {
       reportConfigError(this, 'dsfr-data-source', 'attribut "id" requis pour identifier la source');
-      return;
+      return null;
     }
 
     const adapter = this.getAdapter();
@@ -826,7 +891,7 @@ export class DsfrDataSource extends LitElement {
       reportConfigError(this, `dsfr-data-source[${this.id}]`, message);
       this._error = new Error(message);
       dispatchDataError(this.id, this._error);
-      return;
+      return null;
     }
 
     // Validate params
@@ -837,7 +902,7 @@ export class DsfrDataSource extends LitElement {
       reportConfigError(this, `dsfr-data-source[${this.id}]`, validationError);
       this._error = new Error(validationError);
       dispatchDataError(this.id, this._error);
-      return;
+      return null;
     }
 
     clearConfigError(this);
@@ -862,102 +927,78 @@ export class DsfrDataSource extends LitElement {
       reportConfigError(this, `dsfr-data-source[${this.id}]`, extraParamsError);
     }
 
-    if (this._abortController) {
-      this._abortController.abort();
+    return { adapter, params };
+  }
+
+  /**
+   * Pagination serveur : une page a la fois. `serverSide:true` est le signal
+   * d'activation de la pagination serveur en aval (contrat #270).
+   */
+  private _publishPageMeta(result: FetchResult): void {
+    setDataMeta(this.id, {
+      page: this._currentPage,
+      pageSize: this.pageSize,
+      total: result.totalCount,
+      serverSide: true,
+      needsClientProcessing: result.needsClientProcessing,
+    });
+  }
+
+  /**
+   * Fetch complet (auto-pagination). `serverSide:false` — l'aval ne doit PAS
+   * activer sa pagination serveur sur un fetchAll (pageSize 0 produisait des
+   * totaux de pages Infinity, #270).
+   *
+   * `truncated` (#658) : le jeu livre est un sous-ensemble — total connu et
+   * superieur aux lignes recues (plafond max-records ou limit), ou plafond
+   * atteint sur une page pleine quand le total est inconnu (group_by ODS,
+   * #641 — signal pose par l'adapter). Le warn console existait deja ; ce
+   * champ rend la troncature lisible par le volet Diagnostic.
+   */
+  private _publishFetchAllMeta(result: FetchResult): void {
+    const received = Array.isArray(result.data) ? result.data.length : 0;
+    const truncated =
+      result.truncated === true ||
+      (typeof result.totalCount === 'number' && result.totalCount > received);
+    setDataMeta(this.id, {
+      page: 1,
+      pageSize: 0,
+      total: result.totalCount,
+      serverSide: false,
+      needsClientProcessing: result.needsClientProcessing,
+      ...(truncated ? { truncated: true } : {}),
+    });
+  }
+
+  /**
+   * Echec d'un fetch par adaptateur : abort silencieux, repli offline par le
+   * hook de cache (#307), sinon erreur diffusee avec l'URL de diagnostic
+   * (#598).
+   */
+  private async _handleAdapterFetchError(
+    error: unknown,
+    adapter: ApiAdapter,
+    params: AdapterParams,
+    overlay: ServerSideOverlay | undefined
+  ): Promise<void> {
+    if ((error as Error).name === 'AbortError') {
+      return;
     }
-    this._abortController = new AbortController();
-    const generation = ++this._fetchGeneration;
 
-    this._loading = true;
-    this._error = null;
-    dispatchDataLoading(this.id);
-
-    // Declare hors du try : le catch reconstitue l'URL appelee a partir de
-    // l'overlay pour le diagnostic (#598). Reste assigne dans la branche
-    // server-side, pour ne pas appeler getEffectiveWhere() en mode fetchAll.
-    let overlay: ServerSideOverlay | undefined;
-
-    try {
-      let result;
-
-      if (this.serverSide) {
-        // Server-side pagination: fetch one page at a time
-        overlay = {
-          page: this._currentPage,
-          effectiveWhere: this.getEffectiveWhere(),
-          orderBy: this._orderByOverlay || this.orderBy,
-        };
-        result = await adapter.fetchPage(params, overlay, this._abortController.signal);
-
-        // Publish pagination meta — serverSide:true est le signal d'activation
-        // de la pagination serveur en aval (contrat #270)
-        setDataMeta(this.id, {
-          page: this._currentPage,
-          pageSize: this.pageSize,
-          total: result.totalCount,
-          serverSide: true,
-          needsClientProcessing: result.needsClientProcessing,
-        });
-      } else {
-        // Fetch all with auto-pagination
-        result = await adapter.fetchAll(params, this._abortController.signal);
-
-        // Publish meta with needsClientProcessing flag. serverSide:false —
-        // l'aval ne doit PAS activer sa pagination serveur sur un fetchAll
-        // (pageSize 0 produisait des totaux de pages Infinity, #270)
-        //
-        // `truncated` (#658) : le jeu livre est un sous-ensemble — total
-        // connu et superieur aux lignes recues (plafond max-records ou
-        // limit), ou plafond atteint sur une page pleine quand le total est
-        // inconnu (group_by ODS, #641 — signal pose par l'adapter). Le warn
-        // console existait deja ; ce champ rend la troncature lisible par le
-        // volet Diagnostic.
-        const received = Array.isArray(result.data) ? result.data.length : 0;
-        const truncated =
-          result.truncated === true ||
-          (typeof result.totalCount === 'number' && result.totalCount > received);
-        setDataMeta(this.id, {
-          page: 1,
-          pageSize: 0,
-          total: result.totalCount,
-          serverSide: false,
-          needsClientProcessing: result.needsClientProcessing,
-          ...(truncated ? { truncated: true } : {}),
-        });
-      }
-
-      this._data = result.data;
-      dispatchDataLoaded(this.id, this._data);
-
-      // Cache externe via hook (fire-and-forget, #307)
-      if (this.cacheTtl > 0 && getCacheProvider()) {
-        this._putCache(this._data).catch(() => {});
-      }
-    } catch (error) {
-      if ((error as Error).name === 'AbortError') {
+    if (this.cacheTtl > 0 && getCacheProvider()) {
+      const cached = await this._getCache();
+      if (cached) {
+        this._data = cached;
+        dispatchDataLoaded(this.id, this._data);
+        this.dispatchEvent(new CustomEvent('cache-fallback', { detail: { sourceId: this.id } }));
         return;
       }
-
-      // Fallback offline via le hook de cache (#307)
-      if (this.cacheTtl > 0 && getCacheProvider()) {
-        const cached = await this._getCache();
-        if (cached) {
-          this._data = cached;
-          dispatchDataLoaded(this.id, this._data);
-          this.dispatchEvent(new CustomEvent('cache-fallback', { detail: { sourceId: this.id } }));
-          return;
-        }
-      }
-
-      this._error = error as Error;
-      const diagnosticUrl = this._diagnosticUrl(adapter, params, overlay);
-      dispatchDataError(this.id, this._error, diagnosticUrl);
-      logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, diagnosticUrl);
-    } finally {
-      if (generation === this._fetchGeneration) {
-        this._loading = false;
-      }
     }
+
+    this._error = error as Error;
+    const diagnosticUrl = this._diagnosticUrl(adapter, params, overlay);
+    dispatchDataError(this.id, this._error, diagnosticUrl);
+    logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, diagnosticUrl);
   }
 
   /**
