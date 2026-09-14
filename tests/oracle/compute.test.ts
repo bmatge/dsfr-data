@@ -92,7 +92,16 @@ describe('oracle — recalcul indépendant', () => {
     expect(applyFilter(rows, { field: 's', op: 'eq', value: 'privé' })).toHaveLength(3);
     expect(applyFilter(rows, { field: 's', op: 'neq', value: 'privé' })).toHaveLength(2);
     expect(applyFilter(rows, { field: 'ips', op: 'isnotnull' })).toHaveLength(4);
-    expect(applyFilter(rows, { field: 'ips', op: 'gte', value: 100 })).toHaveLength(2);
+    // Trois, et non deux : « 104,2 », 119,4 — et « NC », que le repli
+    // LEXICOGRAPHIQUE range après « 100 ». C'est le contrat documenté de la
+    // bibliothèque (numérique si les deux côtés le sont, texte sinon) ; une
+    // paire mixte n'est pas écartée, elle est comparée en chaîne. L'oracle
+    // tient le comportement promis, il ne le corrige pas (doctrine, README).
+    expect(applyFilter(rows, { field: 'ips', op: 'gte', value: 100 })).toHaveLength(3);
+    // La valeur ABSENTE, elle, ne matche jamais : `null` reste dehors.
+    expect(
+      applyFilter(rows, { field: 'ips', op: 'gte', value: 100 }).every((r) => r.ips !== null)
+    ).toBe(true);
     expect(applyFilter(rows, { field: 's', op: 'contains', value: 'PUB' })).toHaveLength(2);
   });
 

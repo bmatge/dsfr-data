@@ -11,8 +11,16 @@ import { BANC } from './banc.js';
 import { BANC_ADAPTATEURS } from './banc-adaptateurs.js';
 import { CONTEXTE } from './contexte.js';
 import { QUERY } from './query.js';
+import { TRANSFORMATIONS } from './transformations.js';
 
-export const MANIFESTES: Manifest[] = [QUERY, ADAPTATEURS, CONTEXTE, BANC, BANC_ADAPTATEURS];
+export const MANIFESTES: Manifest[] = [
+  QUERY,
+  ADAPTATEURS,
+  TRANSFORMATIONS,
+  CONTEXTE,
+  BANC,
+  BANC_ADAPTATEURS,
+];
 
 /** Tous les contrôles d'un mode, à plat, avec leur domaine. */
 export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; check: Check }> {
@@ -25,4 +33,4 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
   return out;
 }
 
-export { ADAPTATEURS, BANC, BANC_ADAPTATEURS, CONTEXTE, QUERY };
+export { ADAPTATEURS, BANC, BANC_ADAPTATEURS, CONTEXTE, QUERY, TRANSFORMATIONS };
