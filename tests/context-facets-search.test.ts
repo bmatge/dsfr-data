@@ -22,6 +22,7 @@ import '@/components/dsfr-data-context-filter.js';
 import '@/components/dsfr-data-context-tags.js';
 import '@/components/dsfr-data-facets.js';
 import '@/components/dsfr-data-search.js';
+import '@/components/dsfr-data-query.js';
 import {
   subscribeToSourceCommands,
   dispatchDataLoaded,
@@ -592,6 +593,35 @@ describe('#840 — un seul appel /facets par clic', () => {
 
     expect(charges.fetchFacets.mock.calls.length - before).toBe(1);
     // La cascade a bien eu lieu : le where de la source porte la sélection
+    expect(charges.effectiveWhere()).toBe('region = "BRE"');
+  });
+
+  it('source EN AVAL d’une cible (query intermédiaire) : la chaîne est remontée, un seul appel', async () => {
+    // Ce cas est celui qu'un simple test d'appartenance rate : `cg-charges`
+    // est cible du contexte, la facette lit `q`, qui n'en est pas une. La
+    // query refetche pourtant, puisque son amont refetche — et `_onData`
+    // relance la cascade. Sans remontée de chaîne, la facette relancerait
+    // aussi en direct : deux appels par clic, exactement #840.
+    const charges = fakeOdsSource('cg-charges');
+    unsubs.push(charges.unsub);
+    mount(`
+      <dsfr-data-query id="q" source="cg-charges"></dsfr-data-query>
+      <dsfr-data-facets id="f-aval" context="ctx" source="q" server-facets
+        fields="region" display="region:select"></dsfr-data-facets>
+      <dsfr-data-context id="ctx" sources="cg-charges"></dsfr-data-context>
+    `);
+    await settle();
+    const facets = document.getElementById('f-aval') as DsfrDataFacets;
+    await facets.updateComplete;
+    // La facette a bien été peuplée à travers la query (délégation d'adapter)
+    expect(optionValues(selectOf(facets, 'region')).sort()).toEqual(['BRE', 'IDF', 'PAC']);
+
+    const before = charges.fetchFacets.mock.calls.length;
+    choose(selectOf(facets, 'region'), 'BRE');
+    await settle();
+    await facets.updateComplete;
+
+    expect(charges.fetchFacets.mock.calls.length - before).toBe(1);
     expect(charges.effectiveWhere()).toBe('region = "BRE"');
   });
 
