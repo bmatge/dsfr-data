@@ -2183,6 +2183,21 @@ la page chargee (compteurs faux), et le composant les desactive avec un avertiss
 C'est aussi le critere qu'applique l'export HTML d'un document du Studio : deux documents
 visuellement identiques peuvent charger differemment selon qu'une source y est partagee ou non.
 
+**Ce que \`dsfr-data-query\` delegue toute seule.** Quand sa source a un adaptateur (ODS, Tabular,
+Grist, INSEE) et que la query est **seule lectrice de sa chaine**, elle fait calculer par le serveur
+son \`group-by\`, son \`aggregate\`, son \`order-by\` et son \`where\` — le \`where\` **avec ou sans
+group-by** (#856), et c'est lui qui leve l'attente d'une source \`require-where\`. La delegation
+traverse un relais (\`dsfr-data-normalize\`, \`search\`, \`facets\`, \`unpivot\`, \`pivot\`, la gauche
+d'un \`join\`) jusqu'a la source qui fetch.
+
+Des qu'un AUTRE composant lit la meme chaine — un KPI, une liste, un graphique, une seconde query,
+meme ajoute apres coup — la query repasse tout cote client et le dit en console (#765) : la source
+n'a qu'UN regroupement serveur et sert ses lignes a tout le monde. Rien a poser dans le balisage
+pour cela ; pour GARDER l'agregation serveur d'un bloc, lui donner sa propre \`dsfr-data-source\`
+(meme jeu, id distinct). Restent aussi cote client : un transformateur amont qui renomme des
+colonnes (\`rename\`, \`compute\`, \`flatten\`, \`fold\`), une clause intraduisible, un agregat cumule,
+\`explode\`.
+
 ### Chainabilite des queries
 \`\`\`html
 <dsfr-data-source id="raw" url="..." transform="data"></dsfr-data-source>

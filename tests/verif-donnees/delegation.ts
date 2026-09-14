@@ -370,12 +370,6 @@ const PARTAGE: Check[] = [
   {
     id: 'lecteur-tardif-renegociation',
     mode: 'deterministic',
-    skip:
-      'DEFAUT LIB — `dsfr-data-delegation-contested` n’est emis que par une AUTRE ' +
-      'dsfr-data-query pendant sa propre negociation. Un KPI (ou une liste, un graphique) ' +
-      'ajoute apres l’initialisation ne conteste rien : l’overlay group_by reste pose et le KPI ' +
-      'compte les GROUPES. Mesure : KPI affiche 8, recalcule 137 — c’est #765 dans sa forme ' +
-      '« lecteur tardif », que le commentaire de _otherChainReaders dit pourtant couverte.',
     origin:
       '#765 — le lecteur arrive APRES l’initialisation : la query avait deja delegue. L’evenement `dsfr-data-delegation-contested` doit liberer l’overlay, et la source revenir a des lignes brutes.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -465,24 +459,17 @@ const PARTAGE: Check[] = [
   <dsfr-data-query id="q-norm" source="n-norm" group-by="academie"
     aggregate="population:sum:pop" order-by="pop:desc"></dsfr-data-query>`,
     expects: [
+      // L'INVARIANT a travers un relais : les chiffres sont les memes que sans
+      // relais, quelle que soit la façon dont les lignes arrivent. Que la
+      // commande atteigne bien la source est controle juste en dessous, sur
+      // les URL (#855) — ici on garde les chiffres.
       { kind: 'rows', id: 'q-norm', key: 'academie', columns: ['pop'], pipeline: GROUPE_ACADEMIE },
-      // Le fait tel qu'il est AUJOURD'HUI : la commande n'arrive pas jusqu'a la
-      // source, tout reste cote client. Les chiffres, eux, sont justes — c'est
-      // ce que ce contrôle-ci garde. Ce qui devrait se passer est ecrit juste
-      // en dessous, en attente.
-      urlsDe('relais-sans-delegation', 'ods', 'group_by=', 'none'),
     ],
   },
 
   {
     id: 'relais-normalize-devrait-deleguer',
     mode: 'deterministic',
-    skip:
-      'DEFAUT LIB — la delegation ne franchit pas un relais. `dsfr-data-normalize` expose ' +
-      'pourtant getAdapter() et relaie les commandes (TransformerMixin), et le commentaire de ' +
-      '_otherChainReaders decrit une remontee par les transformateurs : la query est seule ' +
-      'lectrice, rien ne transforme le schema, et aucune URL ne porte group_by. Mesure : ' +
-      '0 URL sur 2, deux /records nus (limit=100, offset=100).',
     origin:
       'La commande de delegation devrait remonter a travers un `dsfr-data-normalize` jusqu’a la source qui fetch.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -608,23 +595,12 @@ const ATTENTE: Check[] = [
         agg: 'count',
         pipeline: [{ op: 'filter', filters: [{ field: 'pays_iso2', op: 'eq', value: 'FR' }] }],
       },
-      // Le fait tel qu'il est aujourd'hui : le jeu entier est rapatrie, la
-      // clause reste dans le navigateur. Le chiffre, lui, est juste.
-      urlsDe('where-seul-reste-client', 'ods', 'where=', 'none'),
     ],
   },
 
   {
     id: 'where-seul-devrait-etre-delegue',
     mode: 'deterministic',
-    skip:
-      'AMELIORATION attendue, non promise par la doc — rien n’engage la bibliotheque a deleguer ' +
-      'un `where` seul : le JSDoc de l’attribut est au conditionnel, et la specification renvoie ' +
-      'aux attributs de la source pour les gros volumes. Le chiffre affiche est juste. Le fait ' +
-      'mesure : `cmd.where` n’est pose QUE dans la branche `if (this.groupBy && …)` de ' +
-      '_negotiateServerSide, donc 0 URL sur 2 portent `where=` et la page rapatrie 137 lignes ' +
-      'pour en garder 20. Le contrôle reste ecrit pour que le jour ou la delegation arrive, elle ' +
-      'arrive JUSTE — ce n’est pas un defaut a corriger, c’est une capacite a gagner.',
     origin:
       'Un `where` sans regroupement pourrait partir au serveur : c’est la clause la moins chere a deleguer, et celle qui evite le plus de lignes.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -647,15 +623,6 @@ const ATTENTE: Check[] = [
   {
     id: 'require-where-filtre-par-delegation',
     mode: 'deterministic',
-    skip:
-      'DEFAUT LIB — contradiction entre la documentation de `require-where` et le comportement. ' +
-      'Le JSDoc de l’attribut enumere ce qui compte comme filtre et y range explicitement la ' +
-      '« delegation d’un dsfr-data-query » : ce balisage est donc celui que la doc decrit. Or ' +
-      'l’attente n’est JAMAIS liberee — aucune requete ne part, aucun message ne dit pourquoi, ' +
-      'et la page reste sur « choisissez un filtre » indefiniment. Mesure : le KPI n’affiche ' +
-      'jamais rien (30 s de scrutation, aucune valeur). Deux issues possibles, toutes deux ' +
-      'acceptables pour ce contrôle : que la query delegue sa clause, ou que la documentation ' +
-      'cesse de le promettre et que l’attente sans issue soit signalee.',
     origin:
       '#690 — la source ne charge rien tant qu’aucun filtre n’est arrive. Le `where` delegue par la query EST ce filtre : toutes les requetes partent filtrees, aucune ne rapatrie le jeu entier.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
