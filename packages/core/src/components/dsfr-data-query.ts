@@ -1481,11 +1481,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Delegue a la source amont si disponible.
    */
   getEffectiveWhere(excludeKey?: string): string {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
-      }
+    const upstream = this.upstreamSourceElement();
+    if (upstream && 'getEffectiveWhere' in upstream) {
+      return upstream.getEffectiveWhere(excludeKey);
     }
     return this.where || this.filter || '';
   }
@@ -1494,13 +1492,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Retourne l'adapter courant (delegue a la source amont)
    */
   public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapter();
-      }
-    }
-    return null;
+    return this.delegateGetAdapter();
   }
 
   /**
@@ -1508,13 +1500,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapterParams' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
-      }
-    }
-    return null;
+    return this.delegateGetAdapterParams();
   }
 
   /**

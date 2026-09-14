@@ -18,8 +18,9 @@ import {
   type Scale,
 } from '../utils/grid-layout.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
-import type { DsfrDataContext } from './dsfr-data-context.js';
+import { ContextBindingMixin } from '../utils/context-binding.js';
+import type { ContextHost } from '../utils/context-registry.js';
+import { currentUrl, replaceUrl } from '../utils/page-url.js';
 
 type FacetDisplayMode = 'checkbox' | 'select' | 'multiselect' | 'radio' | 'radio-inline';
 
@@ -145,7 +146,7 @@ class FacetFieldFilter implements ContextFilterLike {
 let facetsInstanceSeq = 0;
 
 @customElement('dsfr-data-facets')
-export class DsfrDataFacets extends TransformerMixin(LitElement) {
+export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElement)) {
   /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
@@ -384,9 +385,6 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   private _popstateHandler: (() => void) | null = null;
 
-  /** Contexte resolu (mode `context`, #678) */
-  private _context: DsfrDataContext | null = null;
-
   /**
    * Un filtre de contexte par champ, avec son whereKey et la dernière clause
    * confiee au contexte (mode `context`, #678) — un champ inchange n'est pas
@@ -396,17 +394,6 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     string,
     { filter: FacetFieldFilter; whereKey: string; pushed: string }
   >();
-
-  /** Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678) */
-  private _onContextConnected = (e: Event) => {
-    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
-    if (this.context && id === this.context) this._bindContext();
-  };
-
-  /** Mode `context` demande (que le contexte soit déjà resolu ou non) */
-  private get _contextMode(): boolean {
-    return this.context.trim() !== '';
-  }
 
   /** Lecture de l'URL par la facette elle-meme — desactivee en mode `context` (l'URL est au contexte) */
   private get _ownUrlParams(): boolean {
@@ -431,27 +418,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
    * sans connaitre la structure du pipeline.
    */
   public getAdapter(): ApiAdapter | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapter();
-      }
-    }
-    return null;
+    return this.delegateGetAdapter();
   }
 
   /**
    * Retourne le where effectif de la source amont (délégation transparente).
    */
   public getEffectiveWhere(excludeKey?: string | string[]): string {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
-      }
-    }
-    return '';
+    return this.delegateGetEffectiveWhere(excludeKey);
   }
+
   private _urlParamsApplied = false;
 
   createRenderRoot() {
@@ -470,18 +446,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       };
       window.addEventListener('popstate', this._popstateHandler);
     }
-    if (this._contextMode) {
-      document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-      // Bind differe d'un tick : dans un meme fragment innerHTML, le contexte
-      // declare apres la facette n'est pas encore upgrade
-      queueMicrotask(() => this._bindContext());
-    }
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-    this._unbindContext();
     // Abandonne le fetch de facettes en vol (#309)
     this._facetsAbort?.abort();
     this._facetsAbort = null;
@@ -498,25 +466,10 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
     }
   }
 
-  willUpdate(changed: Map<PropertyKey, unknown>) {
-    super.willUpdate(changed);
-    // Changement de contexte a chaud (#678) : on libere l'ancien, on rejoint le nouveau
-    if (changed.has('context') && this.hasUpdated) {
-      this._unbindContext();
-      document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-      if (this._contextMode) {
-        document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-        this._bindContext();
-      } else {
-        clearConfigError(this);
-      }
-    }
-  }
-
   /**
    * `weight-field` en mode `server-facets` : erreur de configuration posee
-   * APRES le rendu (#739). `_bindContext()` appelle `clearConfigError()` en
-   * cas de succes, et il tourne dans `willUpdate` : poser le marqueur ici
+   * APRES le rendu (#739). La liaison au contexte appelle `clearConfigError()`
+   * en cas de succes, et elle tourne dans `willUpdate` : poser le marqueur ici
    * garantit qu'il survit au cycle.
    */
   updated(changed: Map<PropertyKey, unknown>) {
@@ -1449,29 +1402,16 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
 
   // --- Mode context (#678, ADR-104) ---
 
+  /** Le contexte etait deja le notre : les champs apparus depuis prennent leur filtre */
+  protected onContextAlreadyBound(): void {
+    this._syncContextFilters();
+  }
+
   /**
-   * Resout le contexte vise par `context="id"` et y enregistre un filtre par
-   * champ connu. Le contexte peut arriver plus tard (déclaré après dans la
-   * page) : l'erreur de config est posee en attendant et levee a sa connexion.
+   * Contexte resolu (#837, tronc dans ContextBindingMixin) : un filtre par
+   * champ connu s'y enregistre.
    */
-  private _bindContext(): void {
-    if (!this.isConnected || !this._contextMode) return;
-    const context = findContextById(this.context);
-    if (context === this._context) {
-      if (context) this._syncContextFilters();
-      return;
-    }
-    this._unbindContext();
-    if (!context) {
-      reportConfigError(
-        this,
-        'dsfr-data-facets',
-        `dsfr-data-context introuvable : "${this.context}"`
-      );
-      return;
-    }
-    clearConfigError(this);
-    this._context = context;
+  protected onContextBound(context: ContextHost): void {
     this._syncContextFilters();
 
     // Pre-selection depuis l'URL du contexte (#231, ADR-031) : les valeurs
@@ -1497,13 +1437,12 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   }
 
   /** Libere les filtres aupres du contexte (disconnect, changement de contexte) */
-  private _unbindContext(): void {
-    if (this._context) {
+  protected onContextUnbound(context: ContextHost | null): void {
+    if (context) {
       for (const { filter } of this._contextFilters.values()) {
-        this._context._unregisterFilter(filter);
+        context._unregisterFilter(filter);
       }
     }
-    this._context = null;
     this._contextFilters.clear();
   }
 
@@ -2228,11 +2167,9 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
   private _syncUrl() {
     // Partir des params EXISTANTS (#312) : repartir de zero effacait le
     // parametre du dsfr-data-search voisin et tout autre param de la page
-    // a chaque clic (search preserve, lui). Construite par l'API URL (#683) :
-    // concatener pathname produisait, sur une page servie sous `//chemin`,
-    // une URL relative au schema (autre hote) et replaceState levait
-    // SecurityError — sync perdue en silence
-    const url = new URL(window.location.href);
+    // a chaque clic (search preserve, lui). Construction de l'URL et
+    // ecriture dans `utils/page-url.ts` (#683, #837)
+    const url = currentUrl();
     const params = url.searchParams;
     const paramMap = this._parseUrlParamMap();
     // Build reverse map: field -> URL param name
@@ -2255,7 +2192,7 @@ export class DsfrDataFacets extends TransformerMixin(LitElement) {
       params.set(paramName, [...values].join(','));
     }
 
-    window.history.replaceState(null, '', url.href);
+    replaceUrl(url);
   }
 
   // --- Rendering ---

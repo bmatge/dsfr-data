@@ -13,7 +13,6 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { getDataCache, type PaginationMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
 
@@ -139,35 +138,17 @@ export class DsfrDataPivot extends TransformerMixin(LitElement) {
    * facets / search en aval atteignent l'adapter à travers ce transformateur.
    */
   public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapter();
-      }
-    }
-    return null;
+    return this.delegateGetAdapter();
   }
 
   /** Retourne le where effectif de la source amont (délégation transparente). */
   public getEffectiveWhere(excludeKey?: string): string {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
-      }
-    }
-    return '';
+    return this.delegateGetEffectiveWhere(excludeKey);
   }
 
   /** Retourne les paramètres adapter résolus de la source amont (délégation, #274). */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapterParams' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
-      }
-    }
-    return null;
+    return this.delegateGetAdapterParams();
   }
 
   /**

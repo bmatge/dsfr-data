@@ -32,8 +32,7 @@ import type { LitElement } from 'lit';
 import { getByPath } from './json-path.js';
 import { escapeColonValue, filterToOdsql } from './where.js';
 import { dispatchSourceCommand } from './data-bridge.js';
-import { reportConfigError, clearConfigError } from './config-error.js';
-import { CONTEXT_CONNECTED_EVENT, findContextHostById } from './context-registry.js';
+import { ContextBindingMixin } from './context-binding.js';
 import type { ContextHost } from './context-registry.js';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import type { SourceElement } from './source-element.js';
@@ -118,7 +117,7 @@ export interface SelectionFilterInterface {
 let selectionUidSeq = 0;
 
 export function SelectionFilterMixin<T extends Constructor<LitElement>>(superClass: T) {
-  class SelectionFilterElement extends superClass {
+  class SelectionFilterElement extends ContextBindingMixin(superClass) {
     /** Déclarées par l'hôte (`@property`), pas par le mixin : chacune porte sa JSDoc */
     declare refineOnClick: string;
     declare context: string;
@@ -141,20 +140,11 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
     /** Valeur filtrée — conservée même sans élément (pré-remplie depuis l'URL) */
     private _selectedFieldValue = '';
 
-    /** Contexte résolu (mode `context`) */
-    private _context: ContextHost | null = null;
-
     /** Le filtre unique enregistré auprès du contexte */
     private _contextFilter: SelectionContextFilter | null = null;
 
     /** Dernière clause confiée au contexte ou à la source — ne re-diffuse pas une clause inchangée */
     private _lastPushedWhere = '';
-
-    /** Un contexte visé par id vient d'être connecté : (re)bind si c'est le nôtre */
-    private _onContextConnected = (e: Event) => {
-      const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
-      if (this.context && id === this.context) this._bindContext();
-    };
 
     // --- Points de personnalisation de l'hôte ---
 
@@ -203,9 +193,18 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
       return this.selectionField !== '';
     }
 
-    /** Mode `context` demandé (que le contexte soit déjà résolu ou non) */
-    protected get _contextMode(): boolean {
+    /**
+     * Mode `context` demandé (que le contexte soit déjà résolu ou non) —
+     * resserre le contrat du mixin (#837) : sans `refine-on-click`, il n'y a
+     * rien à enregistrer auprès du contexte.
+     */
+    get _contextMode(): boolean {
       return this._refineMode && (this.context || '').trim() !== '';
+    }
+
+    /** Le champ filtré change à chaud comme le contexte : la liaison est refaite */
+    protected contextRebindProps(): PropertyKey[] {
+      return ['context', 'refineOnClick'];
     }
 
     /** whereKey du chemin dégradé (commande directe à `source`) */
@@ -322,26 +321,8 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
       });
     }
 
-    /**
-     * Résout le contexte visé par `context="id"` et y enregistre le filtre.
-     * Le contexte peut arriver plus tard (déclaré après dans la page) :
-     * l'erreur de config est posée en attendant et levée à sa connexion.
-     */
-    protected _bindContext(): void {
-      if (!this.isConnected || !this._contextMode) return;
-      const context = findContextHostById(this.context);
-      if (context && context === this._context) return;
-      this._unbindContext();
-      if (!context) {
-        reportConfigError(
-          this,
-          this.tagName.toLowerCase(),
-          `dsfr-data-context introuvable : "${this.context}"`
-        );
-        return;
-      }
-      clearConfigError(this);
-      this._context = context;
+    /** Contexte résolu (#837, tronc dans ContextBindingMixin) : le filtre unique s'y enregistre */
+    protected onContextBound(context: ContextHost): void {
       this._contextFilter = new SelectionContextFilter(this);
       context._registerFilter(this._contextFilter);
 
@@ -357,13 +338,21 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
     }
 
     /** Libère le filtre auprès du contexte (disconnect, changement de contexte) */
-    protected _unbindContext(): void {
-      if (this._context && this._contextFilter) {
-        this._context._unregisterFilter(this._contextFilter);
+    protected onContextUnbound(context: ContextHost | null): void {
+      if (context && this._contextFilter) {
+        context._unregisterFilter(this._contextFilter);
       }
-      this._context = null;
       this._contextFilter = null;
       this._lastPushedWhere = '';
+    }
+
+    /**
+     * Re-liaison à chaud : la sélection est vidée AVANT le désenregistrement
+     * — le contexte relit `urlValue()` du filtre en libérant sa clause.
+     */
+    protected beforeContextRebind(): void {
+      this._setSelection(null, null);
+      this._releaseDirectSelection();
     }
 
     /** Libère la clause du chemin dégradé poussée sur `source` (disconnect, changement de mode) */
@@ -379,42 +368,12 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
 
     // --- Cycle de vie ---
 
-    connectedCallback() {
-      super.connectedCallback();
-      if (this._contextMode) {
-        document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-        // Bind différé d'un tick : dans un même fragment innerHTML, le contexte
-        // déclaré après l'afficheur n'est pas encore upgradé
-        queueMicrotask(() => this._bindContext());
-      }
-    }
-
     disconnectedCallback() {
-      super.disconnectedCallback();
-      document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
+      // La clause directe est libérée AVANT que le mixin ne vide `_context` :
+      // `_releaseDirectSelection()` ne part qu'en l'absence de contexte
       this._setSelection(null, null);
       this._releaseDirectSelection();
-      this._unbindContext();
-    }
-
-    willUpdate(changed: Map<PropertyKey, unknown>) {
-      super.willUpdate(changed);
-      // Changement de contexte ou de champ à chaud : la sélection courante est
-      // libérée sur l'ancien chemin, le nouveau est rejoint
-      if ((changed.has('context') || changed.has('refineOnClick')) && this.hasUpdated) {
-        // Sélection vidée AVANT le désenregistrement : le contexte relit
-        // urlValue() du filtre en libérant sa clause (synchro d'URL)
-        this._setSelection(null, null);
-        this._releaseDirectSelection();
-        this._unbindContext();
-        document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-        if (this._contextMode) {
-          document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-          this._bindContext();
-        } else {
-          clearConfigError(this);
-        }
-      }
+      super.disconnectedCallback();
     }
   }
 
