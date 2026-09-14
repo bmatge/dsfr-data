@@ -31,6 +31,7 @@ const CHECKS: Check[] = [
   {
     id: 'ips-colleges-kpis',
     mode: 'live',
+    page: 'education/dataviz-ips-colleges',
     origin:
       'education/dataviz-ips-colleges — KPI count / avg / min / max sur un export de ~7 000 lignes',
     feed: { kind: 'raw', source: IPS },
@@ -49,6 +50,8 @@ const CHECKS: Check[] = [
   {
     id: 'ips-colleges-group-by-partage',
     mode: 'live',
+    page: 'education/dataviz-ips-colleges',
+    constats: ['BUG-009'],
     origin:
       'education/dataviz-ips-colleges — BUG-009 / #765 : deux group-by sur une source partagée, le KPI doit garder le compte total (il tombait à 2)',
     feed: { kind: 'raw', source: IPS },
@@ -100,6 +103,7 @@ const CHECKS: Check[] = [
   {
     id: 'sports-carence-kpi-where',
     mode: 'live',
+    page: 'education/portrait-de-territoire-sports',
     origin:
       'education/portrait-de-territoire-sports — KPI somme avec where sur une source agrégée côté serveur (group-by + select) ; l’oracle repart des communes brutes',
     feed: {

@@ -225,8 +225,9 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
   dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
 - **Tout chiffre affiche a un controle** (ADR-122). Tout nouvel attribut, operateur, agregation,
   format ou composant qui **produit ou transforme un nombre** entre dans un manifeste de
-  `tests/verif-donnees/` (le domaine correspondant : `query`, `adaptateurs`, `transformations`,
-  `contexte`, `delegation`, `export-studio`, `affichages`, `banc`), avec sa **preuve de mutation** —
+  `tests/verif-donnees/` (l'un des dix domaines : `query`, `adaptateurs`, `transformations`,
+  `affichages`, `delegation`, `export-studio`, `contexte` en deterministe ; `banc`,
+  `banc-adaptateurs`, `banc-pages` en vivant), avec sa **preuve de mutation** —
   le controle vu ROUGE sur un defaut injecte dans la lib, puis le defaut retire. Un controle qui ne
   peut pas echouer ne garde rien. Un controle legitime qu'on ne sait pas faire passer ne se supprime
   pas et ne s'adoucit pas : il reste en `skip` avec la RAISON (defaut de la lib, ou amelioration non

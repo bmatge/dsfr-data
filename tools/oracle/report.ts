@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Constat } from './compare.js';
+import { ecrireRapportBanc, type FicheBanc } from './banc.js';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 
@@ -92,8 +93,16 @@ const CHEMIN_JSON = resolve(DOSSIER_SORTIE, 'report.json');
  *
  * `ordre` est la liste des clés attendues, dans l'ordre des manifestes : elle
  * range le rapport et écarte les constats d'un contrôle qui n'est plus déclaré.
+ *
+ * `fiches` décrit les contrôles joués — page reproduite, constats du registre,
+ * mise en attente —, et sert au SECOND rendu (`out/banc.md`). Elles viennent de
+ * l'appelant : le moteur ne va pas lire les manifestes lui-même.
  */
-export function ecrireRapport(constats: Constat[], ordre: string[]): string {
+export function ecrireRapport(
+  constats: Constat[],
+  ordre: string[],
+  fiches: readonly FicheBanc[]
+): string {
   const parCle = new Map<string, Constat>();
   if (RUN !== '' && existsSync(CHEMIN_JSON)) {
     try {
@@ -116,5 +125,8 @@ export function ecrireRapport(constats: Constat[], ordre: string[]): string {
   mkdirSync(DOSSIER_SORTIE, { recursive: true });
   writeFileSync(CHEMIN_JSON, JSON.stringify(rapport, null, 2));
   writeFileSync(resolve(DOSSIER_SORTIE, 'report.txt'), `${texte}\n`);
+  // Second rendu des MÊMES constats, rangé par page reproduite et par constat
+  // du registre : c'est dans ces termes-là que le banc relit (voir `banc.ts`).
+  ecrireRapportBanc(fusionnes, fiches, DOSSIER_SORTIE);
   return texte;
 }

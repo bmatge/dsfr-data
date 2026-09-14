@@ -10,9 +10,12 @@
  * pas de la même façon.
  *
  * Ce fichier ne porte QUE la grammaire. Les contrôles eux-mêmes vivent par
- * domaine dans `tests/verif-donnees/` :
- *   - `banc.ts`  — contrôles VIVANTS, contre les vraies API du banc d'essai ;
- *   - `query.ts` — contrôles DÉTERMINISTES, sur les fixtures du harnais.
+ * domaine dans `tests/verif-donnees/` — dix aujourd'hui, énumérés dans l'ordre
+ * de `MANIFESTES` (`index.ts`), qui est aussi celui du rapport : `query`,
+ * `adaptateurs`, `transformations`, `affichages`, `delegation`,
+ * `export-studio`, `contexte` sur fixtures, puis `banc`, `banc-adaptateurs` et
+ * `banc-pages` contre les vraies API. Ce que couvre chacun est décrit dans
+ * `tools/oracle/README.md` §L'arborescence, qui reste la liste de référence.
  *
  * Deux alimentations, une seule grammaire : un contrôle déterministe donne ses
  * lignes (`feed.kind === 'fixture'`, les mêmes que celles servies à la page par
@@ -115,7 +118,20 @@ export const JEU_PRINCIPAL = 'main';
  * dépend d'une API tierce et ne tourne que la nuit ou à la demande.
  */
 export type Feed =
-  | { kind: 'raw'; source: RawSource | RawUrlSource }
+  | {
+      kind: 'raw';
+      /** Le jeu PRINCIPAL (`main`), celui d'où partent les attentes sans `from`. */
+      source: RawSource | RawUrlSource;
+      /**
+       * Jeux BRUTS supplémentaires, nommés — un par table de droite d'une
+       * jointure, un par pile d'un empilement. Sans eux, un contrôle vivant ne
+       * pourrait porter que sur une source unique, et les deux opérations du
+       * pipeline qui mettent DEUX jeux en regard (`join`, `concat`) — celles
+       * qui portent justement le constat AM-074 et l'écart de graphie #792 —
+       * resteraient hors du mode vivant.
+       */
+      sources?: Record<string, RawSource | RawUrlSource>;
+    }
   | { kind: 'fixture'; datasets: Record<string, Row[]> };
 
 /**
@@ -532,6 +548,19 @@ export interface Check {
   mode: CheckMode;
   /** D'où vient le cas, et le constat / l'issue qui le motive. */
   origin: string;
+  /**
+   * Reproduction du banc d'essai dont le contrôle reprend le balisage
+   * (`education/dataviz-ips-colleges`). Le rapport `out/banc.md` groupe par
+   * cette valeur : c'est ce que le banc relit, page par page.
+   */
+  page?: string;
+  /**
+   * Identifiants du registre du banc couverts par le contrôle (`BUG-009`,
+   * `AM-063`). `origin` les cite déjà en prose ; ce champ les rend LISIBLES
+   * sans analyser une phrase, pour que le rapport puisse dire « ce constat a
+   * été rejoué, et voici le chiffre ».
+   */
+  constats?: string[];
   feed: Feed;
   /** Balises supplémentaires du `<head>` (DSFR Chart depuis node_modules…). */
   head?: string;

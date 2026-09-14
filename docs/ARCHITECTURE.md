@@ -790,7 +790,7 @@ et compare) :
 
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
 |---|---|---|
-| Alimentation | fixtures du dépôt, servies par `page.route` | vraies API du banc d'essai, retéléchargées |
+| Alimentation | fixtures du dépôt, servies par `page.route` | vraies API du banc d'essai, retéléchargées (mises en cache par URL pour la durée du run) |
 | Attendu | recalculé dans le run, depuis les **mêmes** lignes | `tools/oracle/out/expected.json`, produit juste avant le rendu |
 | Commande | `npm run verif` | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
 | Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
@@ -801,12 +801,21 @@ seuls : `Feed`, `Step`, `Expect`, `Check`), `compute.ts` (le recalcul en tableau
 `expression.ts` (les colonnes calculées, seconde implémentation de la grammaire ADR-105, écrite à
 partir du JSDoc de `compute` et jamais importée), `observe.ts` (les lecteurs d'observation,
 sérialisés par Playwright pour s'exécuter DANS la page), `expected.ts`, `stabilite.ts`,
-`compare.ts`, `raw.ts` (les deux alimentations), `report.ts`, `run.ts`.
+`compare.ts`, `raw.ts` (les deux alimentations, avec le cache de téléchargement par URL et par run),
+`report.ts`, `banc.ts` (le même rapport rangé par page du banc et par constat de son registre),
+`run.ts`. Le moteur **n'importe jamais les manifestes** : le spec lui passe les fiches, le
+test-garde d'indépendance le vérifie dans ce sens aussi.
 
 **Les contrôles** — `tests/verif-donnees/`, un fichier par domaine, enregistré dans `index.ts` :
-`query`, `adaptateurs`, `transformations`, `contexte`, `delegation`, `export-studio`, `affichages`
-(déterministes), `banc` et `banc-adaptateurs` (vivants). Ajouter un contrôle, c'est ajouter une
-entrée à `checks` — jamais toucher au moteur.
+`query`, `adaptateurs`, `transformations`, `affichages`, `delegation`, `export-studio`, `contexte`
+(déterministes), `banc`, `banc-adaptateurs` et `banc-pages` (vivants) — dix domaines, 191 contrôles
+déterministes et 31 vivants, 445 observations. Ajouter un contrôle, c'est ajouter une entrée à
+`checks` — jamais toucher au moteur. `banc-pages.ts` reprend le **balisage des reproductions** du
+banc open-data-viz : chaque `Check` y porte `page` (la reproduction dont il vient) et `constats`
+(les identifiants de registre qu'il rejoue), ce qui permet de rendre le résultat dans les termes du
+banc. Un contrôle vivant peut nommer **plusieurs jeux bruts** (`Feed.source` pour le jeu principal,
+`Feed.sources` pour les autres) : sans quoi la jointure et l'empilement, qui mettent deux jeux en
+regard, resteraient hors du mode vivant.
 
 **Ce qu'on observe** : jamais l'état interne qui a servi à produire un chiffre, ce que la page
 **montre**. Texte fr-FR d'un KPI, lignes du cache de données d'un id, attributs `x`/`y`/`name` de
@@ -850,7 +859,20 @@ juste). Confondre les deux coûte ce que #746 a mesuré.
 **Le rapport** — `tools/oracle/out/report.json` et `out/report.txt` : par observation, la valeur
 lib, la valeur oracle, l'écart, le nombre de lignes brutes, le mode, et le **nombre de valeurs
 comparées**, parce qu'un contrôle vert qui n'a rien comparé ne garde rien. Le résumé texte part sur
-la sortie standard, et les deux fichiers en artefact CI en cas d'échec.
+la sortie standard, et les fichiers en artefact CI en cas d'échec. Un **troisième** fichier,
+`out/banc.md`, range le même run non par contrôle mais par **page reproduite** et par **constat du
+registre** (`AM-0XX`, `BUG-0XX`, `PG-0XX`) : le banc d'essai ne connaît ni nos domaines ni nos
+identifiants de contrôle, et c'est le seul endroit qui relie un de ses constats à un chiffre mesuré
+— le changeset dit « résout AM-0XX », `banc.md` dit à quel écart, sur quelle page, à quelle date.
+
+**Ce que la catégorie rapporte.** Les contrôles en attente ne sont pas des contrôles perdus : chacun
+a une issue à son nom. Les lots ont ouvert six issues que nul test unitaire n'aurait vues, toutes
+portant sur ce que la page **affiche** au bout d'une chaîne — #852 (Tabular `server-side` ignore le
+`group-by` et l'`aggregate` délégués), #853 (un lecteur non-query ajouté après l'initialisation ne
+conteste pas la délégation), #854 (`require-where` en contradiction avec son JSDoc), #855 (la
+délégation ne franchit pas `dsfr-data-normalize`), #859 (sur une source ODS à `select` explicite,
+l'adaptateur perd les colonnes d'`aggregate`, KPI à 0), et #856 comme **amélioration** non promise
+par la documentation (déléguer un `where` seul).
 
 **Doctrine : l'oracle tient le contrat ÉCRIT.** Indépendant ne veut pas dire arbitraire. Là où la
 bibliothèque **documente** un comportement (JSDoc d'un attribut, guide des skills, en-tête d'un

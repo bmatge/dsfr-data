@@ -11,9 +11,10 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **191 contrôles déterministes** (dont 6 en attente, voir « Un contrôle que la
-bibliothèque ne passe pas ») et **6 contrôles vivants**, répartis en neuf domaines, pour 379
-observations.
+État du dépôt : **191 contrôles déterministes** et **31 contrôles vivants**, répartis en dix
+domaines, pour 445 observations. Sept sont en attente (voir « Un contrôle que la bibliothèque ne
+passe pas »). Les contrôles vivants rejouent **15 reproductions** du banc d'essai et citent
+**25 constats** de son registre.
 
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
@@ -97,6 +98,22 @@ feed: { kind: 'raw', source: {
 } }
 ```
 
+Un contrôle vivant peut nommer **plusieurs jeux bruts** : `source` porte le jeu
+principal (`main`), `sources` les autres, un par nom. C'est ce qu'exigent les
+deux opérations du pipeline qui mettent deux jeux en regard — la jointure et
+l'empilement — et qui, sans cela, resteraient hors du mode vivant.
+
+```ts
+feed: { kind: 'raw', source: REPONSES, sources: { corr: CORRESPONDANCE } },
+// puis, dans un expect : pipeline: [{ op: 'join', right: 'corr', on: 'code', type: 'left' }]
+```
+
+Les téléchargements sont **mis en cache par URL pour la durée du run**
+(`raw.ts`) : une page du banc porte plusieurs constats, donc plusieurs
+contrôles, et le même export ne part qu'une fois. Deux clauses différentes
+restent deux URL, donc deux téléchargements ; la mémoire ne survit pas au
+processus, rien n'est figé.
+
 **Avant tout run** : `npm run build:shared && npm run build:app-ui`. Le serveur de dev est démarré
 par Playwright (`webServer` de `e2e/playwright.config.ts`) et sert la lib depuis
 `packages/core/src`, mais `@dsfr-data/shared` se résout par les `exports` du package, c'est-à-dire
@@ -126,6 +143,9 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                              pagination, export CSV, résumé de carte
   banc.ts                  contrôles VIVANTS (reproductions du banc open-data-viz)
   banc-adaptateurs.ts      contrôles VIVANTS, un par adaptateur public
+  banc-pages.ts            contrôles VIVANTS repris des PAGES du banc, un ou plusieurs par
+                             reproduction, chacun citant les constats du registre qu'il rejoue
+                             (champs `page` et `constats` du Check)
 
   fixtures.ts                  les lignes servies à la page ET données à l'oracle
   fixtures-adaptateurs.ts      les lignes plates et les faux serveurs du domaine `adaptateurs`
@@ -144,17 +164,22 @@ tools/oracle/            LE MOTEUR
   expected.ts              l'attendu d'un contrôle, depuis ses lignes brutes
   stabilite.ts             attendre qu'une observation ne bouge plus (pas de sommeil fixe)
   compare.ts               observé contre attendu → un Constat
-  raw.ts                   les deux alimentations
+  raw.ts                   les deux alimentations, et le cache de téléchargement par run
   report.ts                le rapport (out/report.json + out/report.txt)
+  banc.ts                  le MÊME rapport rangé par page reproduite et par constat du
+                             registre du banc (out/banc.md)
   run.ts                   `verif:expected` — l'attendu du mode vivant
 
 tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   guard.test.ts            l'indépendance, sur tout le graphe d'imports
   compute.test.ts · expression.test.ts · transformations.test.ts   le recalcul
   observe.test.ts          le contrat des lecteurs, sur un DOM minimal
+  banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · raw.test.ts · stabilite.test.ts
 
-e2e/verif-donnees.spec.ts  le seul spec : charge les manifestes, rend, observe, compare
+e2e/verif-donnees.spec.ts  le seul spec : charge les manifestes, rend, observe, compare,
+                             et passe au moteur les fiches dont banc.ts a besoin (le moteur
+                             n'importe JAMAIS les manifestes — garde d'indépendance)
 e2e/verif-donnees/         les pages de fixture générées (gitignoré)
 ```
 
@@ -233,8 +258,10 @@ part entière.
 
 ## Ajouter un contrôle
 
-1. Choisir le domaine (`tests/verif-donnees/banc.ts` si le cas vit contre une vraie API,
-   sinon le fichier du domaine concerné) — ou créer un fichier et l'ajouter à `index.ts`.
+1. Choisir le domaine : `tests/verif-donnees/banc-pages.ts` si le contrôle reprend le balisage
+   d'une reproduction du banc — il porte alors `page` et `constats` —, `banc.ts` ou
+   `banc-adaptateurs.ts` si le cas vit contre une vraie API sans venir d'une page du banc, sinon
+   le fichier du domaine déterministe concerné. Ou créer un fichier et l'ajouter à `index.ts`.
 2. Écrire le `Check` : `mode`, `origin` (d'où vient le cas, quelle issue le motive), `feed`,
    `markup`, `expects`. Les clauses d'un contrôle vivant s'écrivent **à la main** dans le
    manifeste, jamais traduites par la lib — clause ODSQL d'une `RawSource`, URL complète et
@@ -318,6 +345,12 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `localeCompare` remplacé par une comparaison de codes | `liste-tri-texte-accentue` | ligne 2 : affiché « Ussel », recalculé « Écully » |
 | affichages | `parseColumns` ignore `columns-auto` | `liste-colonnes-auto` | ligne 0 / pop : affiché « », recalculé 4 187 254 |
 | affichages | `buildCsv` met la clé en en-tête au lieu du libellé | `liste-export-csv` | ligne 0, cellule 0 : « zone » exportée, « Zone » recalculée |
+| banc-pages | troncature retirée de `_fetchViaExport` (`opendatasoft-adapter.ts`) | `plan-de-relance-plafond-max-records` | 1 001 projets chargés au lieu de 1 000 : `max-records` ne borne plus rien |
+| banc-pages | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) | `bofip-total-publie-par-la-source-serveur` | 10 au lieu de 9 148 : le compteur annonce la page, pas le jeu |
+| banc-pages | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `ips-ecoles-facettes-ponderees` | l'ordre des départements change (Dordogne en tête au lieu de la Gironde) : une facette sur source pré-agrégée recompte des lignes, pas des écoles |
+| banc-pages | `_parseOriginLabels` altère le libellé (`dsfr-data-concat.ts`) | `portrait-federation-union-de-deux-sources` | clé « OLYMPIQUES » empilée là où le manifeste déclare « Olympiques » |
+| banc-pages | `buildKey` distingue nombre et chaîne (`shared/utils/join.ts`) | `barometre-jointure-couverture` | 0 question appariée au lieu de 119 : `code_unifie` est un nombre à gauche, une chaîne à droite (#792) |
+| banc-pages | `diff` calculé à l'envers (`dsfr-data-query.ts`) | `tne-audiences-ecart-mensuel` | écart de −3 539 là où l'oracle lit +3 539 |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
@@ -339,18 +372,45 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-Les six contrôles en attente à ce jour sont tous dans `delegation.ts` : cinq
-défauts (délégation Tabular qui n'émet ni `__groupby` ni `__sum`, renégociation
-qui n'est déclenchée que par une autre `dsfr-data-query`, délégation qui ne
-franchit pas un relais `dsfr-data-normalize`, `require-where` en contradiction
-avec son JSDoc) et une amélioration non promise (déléguer un `where` seul).
+**Ce que la catégorie a rapporté.** Les sept contrôles en attente à ce jour ont tous une issue
+ouverte à leur nom — c'est le rendement de la vérification, et la raison pour laquelle un `skip`
+n'est pas un contrôle perdu :
+
+| Contrôle en attente | Domaine | Issue |
+|---|---|---|
+| `tabular-groupe-somme-serveur`, `tabular-filtre-limite-serveur` | delegation | [#852](https://github.com/bmatge/dsfr-data/issues/852) — `buildServerSideUrl` ignore `group-by` et `aggregate` délégués |
+| `lecteur-tardif-renegociation` | delegation | [#853](https://github.com/bmatge/dsfr-data/issues/853) — un lecteur non-query ajouté après l'initialisation ne conteste pas la délégation (#765, forme tardive) |
+| `require-where-filtre-par-delegation` | delegation | [#854](https://github.com/bmatge/dsfr-data/issues/854) — `require-where` ne libère jamais l'attente sur un `where` seul, contrairement à sa doc |
+| `relais-normalize-devrait-deleguer` | delegation | [#855](https://github.com/bmatge/dsfr-data/issues/855) — la délégation ne franchit pas `dsfr-data-normalize` : overlay posé, jamais appliqué |
+| `where-seul-devrait-etre-delegue` | delegation | [#856](https://github.com/bmatge/dsfr-data/issues/856) — **amélioration**, non promise par la doc : déléguer un `where` seul |
+| `qualite-tourisme-group-by-delegue-garde-son-alias` | banc-pages | [#859](https://github.com/bmatge/dsfr-data/issues/859) — sur une source ODS à `select` explicite, l'adaptateur garde le `select` et perd les colonnes d'`aggregate` (KPI à 0) |
+
+Six issues, dont cinq défauts et une amélioration : aucune n'aurait été vue par un test unitaire,
+puisque chacune porte sur ce que la page **affiche** au bout d'une chaîne, pas sur une fonction.
 
 ## Le rapport
 
-En fin de run, `tools/oracle/out/report.json` et `out/report.txt` : par observation, la valeur
+En fin de run, `tools/oracle/out/report.json`, `out/report.txt` et `out/banc.md` (ci-dessous) : par observation, la valeur
 **lib**, la valeur **oracle**, l'écart, le nombre de lignes brutes, le mode — et le nombre de
 valeurs comparées, parce qu'un contrôle vert qui n'a rien comparé ne garde rien. Le résumé texte
 est aussi écrit sur la sortie standard, et les deux fichiers partent en artefact CI en cas d'échec.
+
+### `out/banc.md` — la vue du banc d'essai
+
+Le même run rend un **troisième** fichier, rangé non par contrôle mais par
+**page reproduite** et par **constat du registre** (`AM-0XX`, `BUG-0XX`,
+`PG-0XX`). Le banc open-data-viz ne connaît ni nos domaines ni nos identifiants
+de contrôle : il connaît ses pages et ses constats, et sans une vue dans ses
+termes, la seule façon pour lui de savoir si une de ses demandes tient encore
+serait de relire le code des contrôles.
+
+Un contrôle y entre dès qu'il porte `page` (la reproduction dont il reprend le
+balisage) ; `constats` liste les identifiants qu'il rejoue. Le fichier donne,
+par page, une ligne par observation — chiffre lib, chiffre oracle, verdict —
+puis les contrôles **en attente** avec leur raison, puis un index par
+identifiant de registre. C'est le seul endroit qui relie un constat à un chiffre
+mesuré : le changeset dit « résout AM-0XX », `banc.md` dit à quel écart, sur
+quelle page, à quelle date.
 
 Playwright **redémarre le worker après un échec** : le worker suivant n'a plus en mémoire les
 constats de son prédécesseur, précisément ceux qui portent l'échec. Le rapport se fusionne donc d'un

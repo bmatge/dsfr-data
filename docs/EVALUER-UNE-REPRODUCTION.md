@@ -112,26 +112,33 @@ chiffre couvert par un contrôle vert n'est pas faux au moment du dernier run �
 un qui l'est, c'est que le contrôle manque, ce qui est une information bien plus utile qu'un
 constat isolé.
 
-1. **Chercher la page dans les contrôles vivants** : `tests/verif-donnees/banc.ts` porte les
-   reproductions du banc contre les vraies API, `banc-adaptateurs.ts` un contrôle par adaptateur
-   public. Le champ `origin` de chaque `Check` dit d'où vient le cas et quelle issue le motive —
-   c'est par là qu'on retrouve une page.
-2. **Regarder le dernier run vivant** : le workflow `oracle.yml` tourne la nuit et à la demande, et
-   dépose `tools/oracle/out/report.json` en artefact. Il donne, par observation, la valeur lib, la
-   valeur oracle et l'écart. Un chiffre qui y figure sans écart a été vérifié contre l'API réelle.
+1. **Chercher la page dans `tests/verif-donnees/banc-pages.ts`** : ce manifeste reprend le balisage
+   des reproductions du banc, et chaque `Check` y porte `page` (la reproduction) et `constats` (les
+   identifiants de registre qu'il rejoue). Quinze reproductions et vingt-cinq constats y sont
+   couverts. `banc.ts` et `banc-adaptateurs.ts` complètent avec des cas qui ne viennent pas d'une
+   page.
+2. **Lire `out/banc.md` du dernier run vivant** : le workflow `oracle.yml` tourne la nuit et à la
+   demande, et dépose `tools/oracle/out/` en artefact. `banc.md` est rangé dans **vos** termes —
+   par page reproduite, puis par constat — et donne, par observation, le chiffre lib, le chiffre
+   oracle et le verdict, puis les contrôles en attente avec leur raison, puis un index par
+   identifiant de registre. C'est le seul endroit qui relie un constat à un chiffre mesuré : un
+   constat qui y figure sans écart a été vérifié contre l'API réelle, à la date du run.
+   (`out/report.json` donne la même chose rangée par domaine et par contrôle.)
 3. **Vérifier qu'il ne s'agit pas d'une attente déclarée** : un contrôle en `skip` porte la raison
    et les **deux chiffres**, en disant s'il s'agit d'un défaut de la bibliothèque ou d'une
-   amélioration que la documentation ne promet pas. Redéposer un `skip` déjà écrit coûte ce que
-   #746 a mesuré.
+   amélioration que la documentation ne promet pas, et il est déjà rattaché à une issue. Redéposer
+   un `skip` déjà écrit coûte ce que #746 a mesuré.
 
 **Ajouter un contrôle vivant depuis une reproduction** — c'est le meilleur retour que puisse faire
-un banc d'essai, et cela tient en une entrée de manifeste. Dans `tests/verif-donnees/banc.ts` :
-`mode: 'live'`, `origin` citant l'identifiant de registre (`AM-0XX`, `BUG-0XX`) ou l'issue, le
-`markup` de la page réduit au strict nécessaire, et une alimentation brute qui appelle l'API **à la
-main** — clause ODSQL d'une `RawSource` pour un portail Opendatasoft, URL complète et chemins
-d'extraction (`rowsPath`, `nextPath`) d'une `RawUrlSource` pour toute autre enveloppe. Les clauses
-ne sont jamais traduites par la bibliothèque : c'est précisément ce qui rend le recalcul
-indépendant. Puis `npm run verif:live`. La procédure complète est dans
+un banc d'essai, et cela tient en une entrée de manifeste. Dans
+`tests/verif-donnees/banc-pages.ts` : `mode: 'live'`, `page` (la reproduction) et `constats` (les
+identifiants `AM-0XX` / `BUG-0XX` / `PG-0XX` rejoués, qui feront entrer le contrôle dans
+`out/banc.md`), `origin`, le `markup` de la page réduit au strict nécessaire, et une alimentation
+brute qui appelle l'API **à la main** — clause ODSQL d'une `RawSource` pour un portail
+Opendatasoft, URL complète et chemins d'extraction (`rowsPath`, `nextPath`) d'une `RawUrlSource`
+pour toute autre enveloppe, `Feed.sources` quand le cas met deux jeux en regard (jointure,
+empilement). Les clauses ne sont jamais traduites par la bibliothèque : c'est précisément ce qui
+rend le recalcul indépendant. Puis `npm run verif:live`. La procédure complète est dans
 [`tools/oracle/README.md`](../tools/oracle/README.md).
 
 ## 6. Une recette qui crie au loup cesse d'être crue

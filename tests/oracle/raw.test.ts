@@ -3,9 +3,11 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import {
   estUrlBrute,
   exportUrl,
+  fetchSourceRows,
   fetchUrlRows,
   resoudreFeed,
   suivreChemin,
+  viderCacheBrut,
 } from '../../tools/oracle/raw';
 
 /**
@@ -24,6 +26,8 @@ const vraiFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = vraiFetch;
   vi.restoreAllMocks();
+  // Le cache de téléchargement vit le temps d'un RUN : chaque test en est un.
+  viderCacheBrut();
 });
 
 /** Un faux réseau : une URL, une charge JSON. Toute autre URL est un échec. */
@@ -145,5 +149,87 @@ describe('resoudreFeed', () => {
     await expect(
       resoudreFeed({ kind: 'raw', source: { url: 'https://exemple.invalid/nu' } })
     ).resolves.toEqual({ main: [{ a: 1 }] });
+  });
+
+  it('résout les jeux SUPPLÉMENTAIRES sous les noms déclarés', async () => {
+    // Sans cela, aucune jointure ni aucun empilement ne serait vérifiable en
+    // vivant : ce sont les deux seules opérations qui mettent deux jeux en
+    // regard, et le `right` d'un `join` désigne un nom de `sources`.
+    const vues = reseau({
+      'https://exemple.invalid/gauche': [{ code: 1 }],
+      'https://exemple.invalid/droite': [{ code: 1, libelle: 'un' }],
+      'https://portail.invalid/api/explore/v2.1/catalog/datasets/jeu/exports/json': [{ z: 9 }],
+    });
+    const datasets = await resoudreFeed({
+      kind: 'raw',
+      source: { url: 'https://exemple.invalid/gauche' },
+      sources: {
+        corr: { url: 'https://exemple.invalid/droite' },
+        ods: { baseUrl: 'https://portail.invalid', dataset: 'jeu' },
+      },
+    });
+    expect(Object.keys(datasets).sort()).toEqual(['corr', 'main', 'ods']);
+    expect(datasets.main).toEqual([{ code: 1 }]);
+    expect(datasets.corr).toEqual([{ code: 1, libelle: 'un' }]);
+    expect(datasets.ods).toEqual([{ z: 9 }]);
+    expect(vues).toHaveLength(3);
+  });
+});
+
+describe('fetchSourceRows — un téléchargement par URL et par run', () => {
+  it('ne rappelle pas l’API pour la même URL dans un run', async () => {
+    // Une page du banc porte plusieurs constats, donc plusieurs contrôles sur
+    // le même jeu. Sans mémoire, le run rappelle l'export autant de fois pour
+    // des lignes qui doivent de toute façon être les mêmes des deux côtés.
+    const url = 'https://exemple.invalid/jeu';
+    const vues = reseau({ [url]: [{ a: 1 }] });
+    const un = await fetchSourceRows({ url });
+    const deux = await fetchSourceRows({ url });
+    expect(vues).toEqual([url]);
+    // Le même tableau, pas une copie : c'est bien la réponse mémorisée.
+    expect(deux).toBe(un);
+  });
+
+  it('mémorise aussi la source Opendatasoft, par son URL d’export', async () => {
+    const url = 'https://portail.invalid/api/explore/v2.1/catalog/datasets/jeu/exports/json';
+    const vues = reseau({ [url]: [{ a: 1 }] });
+    await fetchSourceRows({ baseUrl: 'https://portail.invalid', dataset: 'jeu' });
+    await fetchSourceRows({ baseUrl: 'https://portail.invalid', dataset: 'jeu' });
+    expect(vues).toEqual([url]);
+  });
+
+  it('garde deux téléchargements pour deux clauses différentes', async () => {
+    // La clé est l'URL appelée, clauses comprises : deux `where` sont deux jeux
+    // de lignes, et les confondre ferait comparer un contrôle aux lignes d'un
+    // autre.
+    const racine = 'https://portail.invalid/api/explore/v2.1/catalog/datasets/jeu/exports/json';
+    const vues = reseau({
+      [`${racine}?where=a+%3D+1`]: [{ a: 1 }],
+      [`${racine}?where=a+%3D+2`]: [{ a: 2 }],
+    });
+    const un = await fetchSourceRows({
+      baseUrl: 'https://portail.invalid',
+      dataset: 'jeu',
+      where: 'a = 1',
+    });
+    const deux = await fetchSourceRows({
+      baseUrl: 'https://portail.invalid',
+      dataset: 'jeu',
+      where: 'a = 2',
+    });
+    expect(un).toEqual([{ a: 1 }]);
+    expect(deux).toEqual([{ a: 2 }]);
+    expect(vues).toHaveLength(2);
+  });
+
+  it('retélécharge au run SUIVANT — rien n’est figé', async () => {
+    // La mémoire ne survit pas au processus : un jeu qui vit change les deux
+    // côtés au même instant, et c'est tout l'intérêt du mode vivant.
+    const url = 'https://exemple.invalid/jeu';
+    const vues = reseau({ [url]: [{ a: 1 }] });
+    await fetchSourceRows({ url });
+    viderCacheBrut();
+    await fetchSourceRows({ url });
+    expect(vues).toEqual([url, url]);
   });
 });
