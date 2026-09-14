@@ -1,0 +1,57 @@
+name: Oracle numérique
+
+# Non-regression NUMERIQUE par recalcul independant (tools/oracle) : les lignes
+# brutes de chaque jeu sont retelechargees et recalculees en tableaux nus, puis
+# la lib rend le meme balisage contre la vraie API et l'on compare a la
+# precision affichee. Rien n'est fige : un jeu qui vit change les deux cotes.
+#
+# Depend des API tierces, donc JAMAIS sur chaque PR : la nuit, a la demande, et
+# sur une PR portant le label `oracle` (une PR de refactor, typiquement).
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 6 * * *'
+  pull_request:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  oracle:
+    name: Recalcul indépendant vs affichage
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'oracle')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build shared + app-ui
+        run: npm run build:shared && npm run build:app-ui
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Les deux cotes lisent l'API au meme moment (expected juste avant le rendu).
+      - name: Oracle
+        run: npm run oracle -- --retries=1
+
+      - name: Upload expected/observed on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: oracle-results
+          path: |
+            tools/oracle/out/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
