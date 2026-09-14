@@ -1,53 +1,37 @@
 /**
- * `npm run oracle:expected` — télécharge les lignes brutes de chaque contrôle
- * et écrit les valeurs ATTENDUES dans tools/oracle/out/expected.json.
- * Le spec Playwright `e2e/oracle.spec.ts` rend ensuite le balisage et compare.
+ * `npm run verif:expected` — télécharge les lignes brutes de chaque contrôle
+ * VIVANT et écrit les valeurs ATTENDUES dans `tools/oracle/out/expected.json`.
+ * Le spec Playwright `e2e/verif-donnees.spec.ts` rend ensuite le balisage et
+ * compare. Les deux côtés lisent l'API au même moment : l'attendu est produit
+ * juste avant le rendu, jamais la veille.
+ *
+ * Les contrôles déterministes n'ont pas besoin de ce passage : leurs lignes
+ * sont dans le dépôt, le spec les recalcule lui-même.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { CHECKS } from './manifest.js';
-import { fetchRawRows } from './raw.js';
-import { aggregate, applyFilter, groupBy, type Row } from './compute.js';
-
-export interface ExpectedCheck {
-  id: string;
-  rawRows: number;
-  fetchedAt: string;
-  kpis: Record<string, number | null>;
-  groups: Record<string, Row[]>;
-}
+import { resolve } from 'node:path';
+import { controlesDuMode } from '../../tests/verif-donnees/index.js';
+import { resoudreFeed } from './raw.js';
+import { computeExpectedFor, type ExpectedCheck } from './expected.js';
+import { DOSSIER_SORTIE } from './report.js';
 
 export async function computeExpected(): Promise<ExpectedCheck[]> {
   const out: ExpectedCheck[] = [];
-  for (const check of CHECKS) {
-    const rows = await fetchRawRows(check.source);
-    const expected: ExpectedCheck = {
-      id: check.id,
-      rawRows: rows.length,
-      fetchedAt: new Date().toISOString(),
-      kpis: {},
-      groups: {},
-    };
-    for (const e of check.expects) {
-      if (e.kind === 'kpi') {
-        expected.kpis[e.id] = aggregate(applyFilter(rows, e.filter), e.agg, e.field);
-      } else {
-        expected.groups[e.id] = groupBy(rows, e);
-      }
-    }
-    out.push(expected);
+  for (const { domaine, check } of controlesDuMode('live')) {
+    const datasets = await resoudreFeed(check.feed);
+    const attendu = computeExpectedFor(check, datasets);
+    out.push(attendu);
     process.stdout.write(
-      `${check.id}: ${rows.length} lignes brutes, ${check.expects.length} attendu(s)\n`
+      `${domaine}/${check.id}: ${attendu.rawRows} lignes brutes, ` +
+        `${Object.keys(attendu.values).length} attendu(s)\n`
     );
   }
   return out;
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
-const OUT = resolve(here, 'out/expected.json');
+const OUT = resolve(DOSSIER_SORTIE, 'expected.json');
 
 const expected = await computeExpected();
-mkdirSync(dirname(OUT), { recursive: true });
+mkdirSync(DOSSIER_SORTIE, { recursive: true });
 writeFileSync(OUT, JSON.stringify(expected, null, 2));
 process.stdout.write(`→ ${OUT}\n`);

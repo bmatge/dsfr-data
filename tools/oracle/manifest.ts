@@ -1,26 +1,53 @@
 /**
- * Oracle de non-régression numérique — le MANIFESTE des contrôles.
+ * Vérification des données — la GRAMMAIRE des contrôles (types seuls).
  *
- * Principe : deux implémentations indépendantes doivent donner le même chiffre
- * au même instant. D'un côté la bibliothèque rend un balisage `dsfr-data-*`
- * contre la vraie API ; de l'autre, `tools/oracle` télécharge les lignes
- * BRUTES du même jeu (export JSON, clause ODSQL écrite à la main ici, jamais
- * traduite par la lib) et recalcule en tableaux nus (`compute.ts`). Rien
- * n'est figé : un jeu qui vit change les deux côtés en même temps.
+ * Principe (ADR-122) : deux implémentations indépendantes doivent donner le
+ * même chiffre au même instant. D'un côté la bibliothèque rend un balisage
+ * `dsfr-data-*` et l'on lit ce qu'elle AFFICHE ; de l'autre, `tools/oracle`
+ * repart des lignes BRUTES et recalcule en tableaux nus (`compute.ts`), sans
+ * rien importer de `packages/` ni de `@dsfr-data/*` (test-garde
+ * `tests/oracle/guard.test.ts`). Si la lib et l'oracle se trompent, ce n'est
+ * pas de la même façon.
  *
- * Chaque contrôle porte : la source brute, le balisage à rendre, ce qu'on
- * observe dans la page (valeur d'un KPI, lignes d'une query) et le calcul
- * attendu. Un contrôle vient toujours d'une reproduction réelle du banc
- * open-data-viz, de préférence un cas qui a déjà menti (#765, #810, #763,
- * #792).
+ * Ce fichier ne porte QUE la grammaire. Les contrôles eux-mêmes vivent par
+ * domaine dans `tests/verif-donnees/` :
+ *   - `banc.ts`  — contrôles VIVANTS, contre les vraies API du banc d'essai ;
+ *   - `query.ts` — contrôles DÉTERMINISTES, sur les fixtures du harnais.
+ *
+ * Deux alimentations, une seule grammaire : un contrôle déterministe donne ses
+ * lignes (`feed.kind === 'fixture'`, les mêmes que celles servies à la page par
+ * `page.route`), un contrôle vivant donne une source brute à retélécharger
+ * (`feed.kind === 'raw'`). Rien n'est figé : un jeu qui vit change les deux
+ * côtés en même temps.
  */
 
-export type Agg = 'count' | 'sum' | 'avg' | 'min' | 'max';
+/** Une ligne de données, telle qu'elle sort d'une API ou d'une fixture. */
+export type Row = Record<string, unknown>;
+
+/**
+ * Agrégats recalculés par l'oracle. `distinct` est le `count(distinct x)`
+ * (null et chaîne vide exclus) ; `wavg` la moyenne pondérée (`weight`).
+ */
+export type Agg = 'count' | 'distinct' | 'sum' | 'avg' | 'min' | 'max' | 'wavg';
 
 /** Un filtre ligne à ligne côté oracle, volontairement minimal et explicite. */
 export type RowFilter =
-  { field: string; op: 'eq'; value: string | number } | { field: string; op: 'isnotnull' };
+  | {
+      field: string;
+      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains';
+      value: string | number;
+    }
+  | { field: string; op: 'isnotnull' | 'isnull' };
 
+/** Une colonne agrégée : `{ agg: 'sum', field: 'population' }`. */
+export interface AggSpec {
+  agg: Agg;
+  field?: string;
+  /** Champ de pondération, pour `wavg` seulement. */
+  weight?: string;
+}
+
+/** Source BRUTE d'un contrôle vivant (export JSON Opendatasoft). */
 export interface RawSource {
   /** Hôte Opendatasoft, sans slash final. */
   baseUrl: string;
@@ -29,121 +56,120 @@ export interface RawSource {
   where?: string;
 }
 
-export interface ExpectKpi {
-  kind: 'kpi';
-  /** id du `dsfr-data-kpi` dans le balisage. */
+/** Nom du jeu principal quand le contrôle n'en désigne pas d'autre. */
+export const JEU_PRINCIPAL = 'main';
+
+/**
+ * Comment l'oracle obtient ses lignes brutes.
+ *
+ * `fixture` : les lignes sont dans le dépôt, et ce sont EXACTEMENT celles que
+ * `page.route` sert à la page — zéro réseau, le contrôle est bloquant sur PR.
+ * `raw` : les lignes sont retéléchargées au moment du contrôle — le contrôle
+ * dépend d'une API tierce et ne tourne que la nuit ou à la demande.
+ */
+export type Feed =
+  { kind: 'raw'; source: RawSource } | { kind: 'fixture'; datasets: Record<string, Row[]> };
+
+/**
+ * Une étape du recalcul. La suite des étapes décrit CE QUE LA PAGE DOIT
+ * MONTRER, pas comment la lib s'y prend : les deux chemins restent indépendants.
+ */
+export type Step =
+  | { op: 'filter'; filters: RowFilter[] }
+  | { op: 'group-by'; by: string; columns: Record<string, AggSpec> }
+  | { op: 'global'; columns: Record<string, AggSpec> }
+  | { op: 'order-by'; column: string; dir: 'asc' | 'desc' }
+  | { op: 'limit'; n: number }
+  | { op: 'running'; from: string; as: string; kind: 'running_sum' | 'diff' }
+  | {
+      op: 'join';
+      /** Nom du jeu de droite dans `feed.datasets`. */
+      right: string;
+      /** Champ de jointure (`"code"`) ou paire (`"code=code_insee"`). */
+      on: string;
+      type: 'inner' | 'left';
+      prefixRight?: string;
+    };
+
+interface ExpectBase {
+  /** id de l'élément `dsfr-data-*` observé dans la page. */
   id: string;
+  /** Jeu de départ dans `feed.datasets` (défaut : `main`). */
+  from?: string;
+  /** Recalcul appliqué aux lignes brutes avant comparaison. */
+  pipeline?: Step[];
+}
+
+/** Valeur affichée par un `dsfr-data-kpi` (texte fr-FR de `.dsfr-data-kpi__value`). */
+export interface ExpectKpi extends ExpectBase {
+  kind: 'kpi';
   agg: Agg;
   field?: string;
+  weight?: string;
   /** Filtre appliqué par l'oracle avant l'agrégat (miroir du `where` du KPI). */
-  filter?: RowFilter;
-  /** Décimales affichées par le KPI : la comparaison se fait à cette précision. */
+  filter?: RowFilter[];
+  /** Décimales affichées : la comparaison se fait à cette précision. */
   decimals?: number;
 }
 
-export interface ExpectGroupBy {
-  kind: 'group-by';
-  /** id de la `dsfr-data-query` dont on lit les lignes (cache de données). */
-  id: string;
-  by: string;
-  /** Colonnes attendues : nom de sortie → agrégat sur un champ brut. */
-  columns: Record<string, { agg: Agg; field?: string }>;
-  /** Ordre attendu des groupes (champ de tri, sens), pour comparer ligne à ligne. */
-  orderBy?: { column: string; dir: 'asc' | 'desc' };
-  limit?: number;
+/** Lignes du cache de données d'un id (query, normalize, join, pivot, concat). */
+export interface ExpectRows extends ExpectBase {
+  kind: 'rows';
+  pipeline: Step[];
+  /** Colonne-clé, comparée en chaîne ligne à ligne. */
+  key: string;
+  /** Colonnes numériques comparées ligne à ligne. */
+  columns: string[];
 }
 
-export type Expect = ExpectKpi | ExpectGroupBy;
+/** Libellés et valeurs RÉELLEMENT passés à l'élément DSFR Chart rendu. */
+export interface ExpectChart extends ExpectBase {
+  kind: 'chart';
+  pipeline: Step[];
+  labelColumn: string;
+  valueColumns: string[];
+}
+
+/** Lignes du tableau rendu par `dsfr-data-list`. */
+export interface ExpectList extends ExpectBase {
+  kind: 'list';
+  pipeline: Step[];
+  /** Colonnes du tableau, dans l'ordre d'affichage. */
+  columns: Array<{ column: string; numeric?: boolean }>;
+}
+
+/** Entrées de légende d'une couche choroplèthe (`getLegendEntries()`). */
+export interface ExpectLegend extends ExpectBase {
+  kind: 'legend';
+  /** Champ numérique de `fill-field`. */
+  field: string;
+  /** Nombre de classes (`classes` de la couche). */
+  classes: number;
+  /** Seule méthode recalculable sans dupliquer la lib : intervalles égaux. */
+  method: 'equal';
+}
+
+export type Expect = ExpectKpi | ExpectRows | ExpectChart | ExpectList | ExpectLegend;
+
+/** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
+export type CheckMode = 'deterministic' | 'live';
 
 export interface Check {
   id: string;
-  /** Page du banc d'où vient le cas, et constat/issue qui le motive. */
+  mode: CheckMode;
+  /** D'où vient le cas, et le constat / l'issue qui le motive. */
   origin: string;
-  source: RawSource;
+  feed: Feed;
+  /** Balises supplémentaires du `<head>` (DSFR Chart depuis node_modules…). */
+  head?: string;
   /** Balisage complet rendu par Playwright (sources, queries, KPI, …). */
   markup: string;
   expects: Expect[];
 }
 
-const IPS: RawSource = {
-  baseUrl: 'https://data.education.gouv.fr',
-  dataset: 'donnees-ips-colleges',
-  where: "rentree_scolaire = '2023-2024' and position is not null",
-};
-
-const IPS_SOURCE = `
-  <dsfr-data-source id="ips" api-type="opendatasoft"
-    base-url="https://data.education.gouv.fr" dataset-id="donnees-ips-colleges"
-    fetch-mode="export" max-records="8000"
-    where="rentree_scolaire = '2023-2024' and position is not null"></dsfr-data-source>`;
-
-export const CHECKS: Check[] = [
-  {
-    id: 'ips-colleges-kpis',
-    origin:
-      'education/dataviz-ips-colleges — KPI count / avg / min / max sur un export de 6 971 lignes',
-    source: IPS,
-    markup: `${IPS_SOURCE}
-  <dsfr-data-kpi id="k-count" source="ips" value="count" format="nombre"></dsfr-data-kpi>
-  <dsfr-data-kpi id="k-avg" source="ips" value="ips:avg" format="decimal" decimals="1"></dsfr-data-kpi>
-  <dsfr-data-kpi id="k-min" source="ips" value="ips:min" format="decimal" decimals="1"></dsfr-data-kpi>
-  <dsfr-data-kpi id="k-max" source="ips" value="ips:max" format="decimal" decimals="1"></dsfr-data-kpi>`,
-    expects: [
-      { kind: 'kpi', id: 'k-count', agg: 'count' },
-      { kind: 'kpi', id: 'k-avg', agg: 'avg', field: 'ips', decimals: 1 },
-      { kind: 'kpi', id: 'k-min', agg: 'min', field: 'ips', decimals: 1 },
-      { kind: 'kpi', id: 'k-max', agg: 'max', field: 'ips', decimals: 1 },
-    ],
-  },
-  {
-    id: 'ips-colleges-group-by-partage',
-    origin:
-      'education/dataviz-ips-colleges — BUG-009 / #765 : deux group-by sur une source partagée, le KPI doit garder le compte total (il tombait à 2)',
-    source: IPS,
-    markup: `${IPS_SOURCE}
-  <dsfr-data-query id="q-secteur" source="ips" group-by="secteur"
-    aggregate="ips:avg:ips_moyen, uai:count:nb" order-by="ips_moyen:desc"></dsfr-data-query>
-  <dsfr-data-query id="q-academie" source="ips" group-by="libelle_academie"
-    aggregate="ips:avg:ips_moyen, uai:count:nb" order-by="ips_moyen:desc" limit="12"></dsfr-data-query>
-  <dsfr-data-kpi id="k-total" source="ips" value="count" format="nombre"></dsfr-data-kpi>`,
-    expects: [
-      { kind: 'kpi', id: 'k-total', agg: 'count' },
-      {
-        kind: 'group-by',
-        id: 'q-secteur',
-        by: 'secteur',
-        columns: { ips_moyen: { agg: 'avg', field: 'ips' }, nb: { agg: 'count', field: 'uai' } },
-        orderBy: { column: 'ips_moyen', dir: 'desc' },
-      },
-      {
-        kind: 'group-by',
-        id: 'q-academie',
-        by: 'libelle_academie',
-        columns: { ips_moyen: { agg: 'avg', field: 'ips' }, nb: { agg: 'count', field: 'uai' } },
-        orderBy: { column: 'ips_moyen', dir: 'desc' },
-        limit: 12,
-      },
-    ],
-  },
-  {
-    id: 'sports-carence-kpi-where',
-    origin:
-      'education/portrait-de-territoire-sports — KPI somme avec where sur une source agrégée côté serveur (group-by + select) ; l’oracle repart des communes brutes',
-    source: {
-      baseUrl: 'https://equipements.sports.gouv.fr',
-      dataset: 'insee-2020-geoapi-2023',
-      where: "zrr = 'zrr'",
-    },
-    markup: `
-  <dsfr-data-source id="s-carence" api-type="opendatasoft"
-    base-url="https://equipements.sports.gouv.fr" dataset-id="insee-2020-geoapi-2023"
-    group-by="zrr, zfrr, typo_rurb_crte, commune_loi_montagne, vas"
-    select="count(*) as n, sum(population) as pop" max-records="200"></dsfr-data-source>
-  <dsfr-data-kpi id="k-zrr-n" source="s-carence" value="n:sum" where="zrr:eq:zrr" format="nombre"></dsfr-data-kpi>
-  <dsfr-data-kpi id="k-zrr-pop" source="s-carence" value="pop:sum" where="zrr:eq:zrr" format="nombre"></dsfr-data-kpi>`,
-    expects: [
-      { kind: 'kpi', id: 'k-zrr-n', agg: 'count' },
-      { kind: 'kpi', id: 'k-zrr-pop', agg: 'sum', field: 'population' },
-    ],
-  },
-];
+/** Un manifeste : un domaine, ses contrôles. */
+export interface Manifest {
+  /** Nom court du domaine, repris dans le rapport. */
+  domain: string;
+  checks: Check[];
+}
