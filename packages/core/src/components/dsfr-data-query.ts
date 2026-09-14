@@ -204,8 +204,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    *
    * La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de
    * dsfr-data-source) : une clause non parsable est signalee via
-   * reportConfigError (#277). En délégation serveur, la clause est traduite
-   * au dialecte de l'adapter (#275).
+   * reportConfigError (#277).
+   *
+   * **La clause part au serveur** des lors que l'amont a un adaptateur qui
+   * sait la traduire et que cette query est seule lectrice de sa chaine
+   * (#856) — avec ou sans `group-by`. Elle est traduite au dialecte de
+   * l'adaptateur (#275) et posee en overlay CLE PAR EMETTEUR (ADR-031) :
+   * elle se fusionne avec les clauses des facettes, de la recherche et du
+   * contexte au lieu de les ecraser, et elle leve l'attente d'un
+   * `require-where` pose sur la source (#854). Elle reste calculee dans le
+   * navigateur quand la chaine est partagee (#765), quand un transformateur
+   * amont renomme des colonnes (#394), quand une clause est intraduisible,
+   * ou avec `explode` (#736).
    */
   @property({ type: String })
   where = '';
@@ -726,6 +736,36 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         }
       }
 
+      // Delegation du `where` SEUL (#856, #854) : sans regroupement, la
+      // clause part quand meme au serveur — c'est la moins chere a traduire
+      // et celle qui evite le plus de lignes (137 rapatriees pour en garder
+      // 20, mesure du banc d'essai). L'overlay est CLE PAR EMETTEUR
+      // (ADR-031) : il se fusionne avec ceux des facettes, de la recherche et
+      // du contexte au lieu de les ecraser, a la difference du regroupement.
+      //
+      // Conditionne a `exclusive` comme le reste (#765) : la source sert ses
+      // lignes FILTREES a tous ses abonnes, un KPI voisin ne compterait que
+      // les lignes retenues par cette query.
+      //
+      // C'est aussi ce qui libere `require-where` comme sa documentation le
+      // promet (#854) : la clause deleguee EST le filtre attendu.
+      //
+      // `explode` (#736) reste hors du marche : la clause s'appliquerait aux
+      // lignes AVANT eclatement cote serveur et APRES cote client.
+      if (
+        !this._serverDelegated.where &&
+        exclusive &&
+        !this.explode &&
+        (this.filter || this.where)
+      ) {
+        const whereOnly = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
+        if (whereOnly.ok && whereOnly.where && canDelegateFields(whereOnly.fields)) {
+          cmd.where = whereOnly.where;
+          cmd.whereKey = this._whereOverlayKey();
+          this._serverDelegated.where = true;
+        }
+      }
+
       // Delegate order-by
       const sourceOrderBy = sourceEl.orderBy || '';
       if (this.orderBy && exclusive && caps.serverOrderBy && !sourceOrderBy) {
@@ -873,7 +913,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (
       !this._serverDelegated.groupBy &&
       !this._serverDelegated.aggregate &&
-      !this._serverDelegated.orderBy
+      !this._serverDelegated.orderBy &&
+      // Un `where` delegue seul (#856) est lui aussi a liberer : la source
+      // sert ses lignes FILTREES a tous ses abonnes.
+      !this._serverDelegated.where
     ) {
       return;
     }
