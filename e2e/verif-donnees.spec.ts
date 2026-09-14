@@ -21,6 +21,7 @@ import {
   lirePastilles,
   lireTexte,
   lireTextes,
+  lireUrls,
 } from '../tools/oracle/observe.js';
 import { toRgb } from '../tools/oracle/compute.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
@@ -82,7 +83,22 @@ function ecrireFixture(domaine: string, check: Check): string {
 <html lang="fr"><head><meta charset="utf-8"><title>vérif — ${check.id}</title>
 <!-- Proxy désactivé : les URL des fixtures sont appelées telles quelles,
      aucune réécriture /…-proxy/ du serveur de dev ne s'interpose. -->
-<script>window.DSFR_DATA_PROXY = false;</script>${check.head ?? ''}
+<script>window.DSFR_DATA_PROXY = false;</script>
+<!-- Journal des URL appelées, pose AVANT la bibliothèque : les premières
+     requêtes partent des le connectedCallback des sources, un observateur
+     installe apres le chargement arriverait toujours trop tard (expect urls). -->
+<script>
+  window.__verifUrls = [];
+  (function () {
+    var brut = window.fetch;
+    window.fetch = function (entree) {
+      try {
+        window.__verifUrls.push(typeof entree === 'string' ? entree : entree.url);
+      } catch (e) { /* une entree exotique ne doit pas casser la page */ }
+      return brut.apply(this, arguments);
+    };
+  })();
+</script>${check.head ?? ''}
 <script type="module">
   import { getDataCache } from '/dist/dsfr-data.esm.js';
   window.__verif = { getDataCache };
@@ -170,6 +186,8 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(lireExportCsv, e.id);
       case 'dots':
         return await page.evaluate(lirePastilles, e.id);
+      case 'urls':
+        return await page.evaluate(lireUrls);
     }
   } catch (erreur) {
     if (/Execution context was destroyed|Target (page|closed)/.test(String(erreur))) return null;
@@ -215,6 +233,10 @@ function prete(e: Expect, obs: Observation): boolean {
       const voulues = Object.values(e.colorMap).map(toRgb);
       return couleurs.length > 0 && voulues.some((c) => c !== null && couleurs.includes(c));
     }
+    // Un contrôle d'URL se lit APRÈS les chiffres qu'il explique : les expects
+    // d'un check sont observés dans l'ordre, il se place en dernier.
+    case 'urls':
+      return Array.isArray(obs) && obs.length > 0;
   }
 }
 
@@ -326,6 +348,11 @@ async function jouerActions(page: Page, actions: Action[]): Promise<void> {
 }
 
 async function executer(domaine: string, check: Check, page: Page): Promise<void> {
+  // Contrôle légitime que la bibliothèque ne passe pas encore : il reste écrit,
+  // il reste lisible, il ne se mesure pas. Le supprimer ou l'adoucir
+  // reviendrait à écrire dans le dépôt qu'il n'y avait rien à voir.
+  test.skip(Boolean(check.skip), check.skip ?? '');
+
   const fuites: string[] = [];
   if (MODE === 'deterministic') await installerReseau(page, fuites);
 

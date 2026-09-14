@@ -34,11 +34,18 @@ export type Row = Record<string, unknown>;
 export type Agg =
   'count' | 'distinct' | 'sum' | 'avg' | 'min' | 'max' | 'wavg' | 'first' | 'last' | 'evolution';
 
-/** Un filtre ligne à ligne côté oracle, volontairement minimal et explicite. */
+/**
+ * Un filtre ligne à ligne côté oracle, volontairement minimal et explicite.
+ *
+ * `isnull` / `isnotnull` disent VIDE au sens large (absent ou chaîne vide).
+ * `isnull-strict` / `isnotnull-strict` disent absent SEULEMENT (null ou
+ * undefined) : c'est la distinction que fait le `where` de la bibliothèque,
+ * pour qui une chaîne vide est une valeur renseignée.
+ */
 export type RowFilter =
   | {
       field: string;
-      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains';
+      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notcontains';
       value: string | number;
       /**
        * Compare sans accents ni casse (`eq` et `contains`) — ce que fait une
@@ -48,8 +55,8 @@ export type RowFilter =
       fold?: boolean;
     }
   /** Appartenance à un ensemble — le OU multi-valeurs d'un `in` ou d'une facette. */
-  | { field: string; op: 'in'; values: Array<string | number> }
-  | { field: string; op: 'isnotnull' | 'isnull' };
+  | { field: string; op: 'in' | 'notin'; values: Array<string | number> }
+  | { field: string; op: 'isnotnull' | 'isnull' | 'isnull-strict' | 'isnotnull-strict' };
 
 /** Une colonne agrégée : `{ agg: 'sum', field: 'population' }`. */
 export interface AggSpec {
@@ -117,9 +124,16 @@ export type Feed =
  */
 export type Step =
   | { op: 'filter'; filters: RowFilter[] }
-  | { op: 'group-by'; by: string; columns: Record<string, AggSpec> }
+  | {
+      op: 'group-by';
+      /** Un champ, ou plusieurs pour un regroupement composite. */
+      by: string | string[];
+      columns: Record<string, AggSpec>;
+    }
   | { op: 'global'; columns: Record<string, AggSpec> }
   | { op: 'order-by'; column: string; dir: 'asc' | 'desc' }
+  /** Tri à plusieurs clés, dans l'ordre déclaré (la première départage). */
+  | { op: 'order-by-keys'; keys: Array<{ column: string; dir: 'asc' | 'desc' }> }
   | { op: 'limit'; n: number }
   | {
       /**
@@ -146,11 +160,54 @@ export type Step =
       op: 'join';
       /** Nom du jeu de droite dans `feed.datasets`. */
       right: string;
-      /** Champ de jointure (`"code"`) ou paire (`"code=code_insee"`). */
+      /**
+       * Champ de jointure (`"code"`), paire (`"code=code_insee"`) ou clé
+       * composite (`"annee, code"` — chaque segment pouvant être une paire).
+       */
       on: string;
-      type: 'inner' | 'left';
+      type: 'inner' | 'left' | 'right' | 'full';
       prefixRight?: string;
+    }
+  /** Colonnes calculées : la MÊME expression que l'attribut `compute`, réévaluée à part. */
+  | { op: 'derive'; expr: string }
+  /** Repli long → large, symétrique de `unpivot` (`dsfr-data-pivot`). */
+  | {
+      op: 'pivot';
+      row: string | string[];
+      column: string;
+      value: string;
+      aggregate?: PivotAgg;
+      /** Gabarit des noms de colonnes, `{value}` = valeur brute. */
+      columnFormat?: string;
+      /** Ordre des colonnes : par défaut celui de leur première apparition. */
+      columnOrder?: 'asc' | 'desc';
+    }
+  /** Dépliage large → long (`dsfr-data-unpivot`), colonnes citées une à une. */
+  | {
+      op: 'unpivot';
+      idCols: string[];
+      /** Colonnes dépliées, avec la clé émise quand elle diffère du nom. */
+      valueCols: Array<{ column: string; as?: string }>;
+      varName?: string;
+      valueName?: string;
+      dropEmpty?: boolean;
+    }
+  /**
+   * Empilement de jeux (`dsfr-data-concat`). Les lignes courantes sont
+   * REMPLACÉES par la pile des jeux cités, dans l'ordre.
+   */
+  | {
+      op: 'concat';
+      /** Noms des jeux de `feed.datasets`, dans l'ordre d'empilement. */
+      sources: string[];
+      /** Colonne portant la provenance de chaque ligne. */
+      originField?: string;
+      /** Valeur écrite dans `originField` par jeu ; à défaut, le nom du jeu. */
+      originLabels?: Record<string, string>;
     };
+
+/** Réductions de cellule d'un pivot (grammaire commune du pipeline). */
+export type PivotAgg = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'first' | 'last';
 
 interface ExpectBase {
   /** id de l'élément `dsfr-data-*` observé dans la page. */
@@ -195,8 +252,8 @@ export interface ExpectKpi extends ExpectBase {
 export interface ExpectRows extends ExpectBase {
   kind: 'rows';
   pipeline: Step[];
-  /** Colonne-clé, comparée en chaîne ligne à ligne. */
-  key: string;
+  /** Colonne-clé, comparée en chaîne ligne à ligne ; plusieurs pour une clé composite. */
+  key: string | string[];
   /** Colonnes numériques comparées ligne à ligne. */
   columns: string[];
 }
@@ -384,6 +441,38 @@ export interface ExpectText extends ExpectBase {
   suffix?: string;
 }
 
+/**
+ * Les URL d'API RÉELLEMENT appelées par la page (#836, #838).
+ *
+ * Seul lecteur qui ne porte pas sur un chiffre affiché, et il est indispensable
+ * au lot « délégation » : deux balisages peuvent montrer les mêmes chiffres en
+ * demandant au serveur des choses opposées. Qu'une `dsfr-data-query` délègue ou
+ * non son `group_by` ne se voit QUE là — un total juste calculé sur des lignes
+ * agrégées par erreur reste juste tant que personne d'autre ne lit la source.
+ *
+ * Le journal est tenu par la page elle-même (le `fetch` est enveloppé avant le
+ * chargement de la bibliothèque) ; l'oracle ne juge que la présence d'un
+ * fragment, il ne reconstruit aucune URL — il ne saurait pas le faire sans
+ * emprunter les constructeurs d'URL de la lib, ce qui lui est interdit.
+ */
+export interface ExpectUrls {
+  kind: 'urls';
+  /** Nom du constat dans le rapport (`urls:group-by-delegue`) : pas un id d'élément. */
+  id: string;
+  /** Ne retient que les URL portant ce fragment (défaut : toutes celles appelées). */
+  among?: string;
+  /** Fragment dont on juge la présence dans les URL retenues (`group_by=`). */
+  contains: string;
+  /**
+   * `none` aucune ne le porte · `some` au moins une · `all` toutes ·
+   * `last` la dernière retenue le porte · `notLast` la dernière ne le porte pas.
+   * `last` / `notLast` disent l'état où la page s'est ARRÊTÉE : c'est ce qui
+   * distingue une délégation retirée en cours de route d'une délégation jamais
+   * tentée (renégociation `dsfr-data-delegation-contested`, #765).
+   */
+  verdict: 'none' | 'some' | 'all' | 'last' | 'notLast';
+}
+
 export type Expect =
   | ExpectKpi
   | ExpectRows
@@ -396,7 +485,8 @@ export type Expect =
   | ExpectClass
   | ExpectAttr
   | ExpectCsv
-  | ExpectDots;
+  | ExpectDots
+  | ExpectUrls;
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
 export type CheckMode = 'deterministic' | 'live';
@@ -458,6 +548,20 @@ export interface Check {
   /** Gestes joués dans la page AVANT l'observation (filtres, facettes, URL). */
   actions?: Action[];
   expects: Expect[];
+  /**
+   * Contrôle LÉGITIME que la bibliothèque ne passe pas encore : la raison, avec
+   * le chiffre lib et le chiffre oracle.
+   *
+   * Il ne se supprime pas et ne s'adoucit pas — les deux reviennent à écrire
+   * dans le dépôt qu'il n'y avait rien à voir. Il se met en attente, en
+   * NOMMANT ce qu'il attend et LEQUEL des deux cas c'est, parce qu'ils
+   * n'appellent pas la même suite : un DÉFAUT contredit ce que la
+   * documentation promet, et s'ouvre en issue ; une AMÉLIORATION attendue ne
+   * contredit rien, le chiffre affiché est juste, et le contrôle est écrit
+   * pour que le jour où la capacité arrive, elle arrive juste. Réclamer ce que
+   * personne n'a promis coûte ce que #746 a mesuré, dans l'autre sens.
+   */
+  skip?: string;
 }
 
 /** Un manifeste : un domaine, ses contrôles. */

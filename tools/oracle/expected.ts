@@ -82,6 +82,19 @@ export interface AttenduAttr {
   decimals: number;
 }
 
+/**
+ * Le seul attendu qui ne se CALCULE pas depuis les lignes : la présence d'un
+ * fragment dans les URL appelées est énoncée par le contrôle lui-même. Il est
+ * recopié ici pour que le mode vivant, qui relit `expected.json`, dispose de la
+ * même information que le mode déterministe.
+ */
+export interface AttenduUrls {
+  kind: 'urls';
+  among?: string;
+  contains: string;
+  verdict: 'none' | 'some' | 'all' | 'last' | 'notLast';
+}
+
 export interface AttenduTexte {
   kind: 'text';
   /** Texte attendu (comparaison textuelle), ou `null` si la comparaison est numérique. */
@@ -115,7 +128,8 @@ export type Attendu =
   | AttenduCsv
   | AttenduPastilles
   | AttenduFacettes
-  | AttenduTexte;
+  | AttenduTexte
+  | AttenduUrls;
 
 /**
  * Couleur d'un KPI d'après ses seuils, énoncée en toutes lettres plutôt
@@ -176,6 +190,17 @@ export interface ExpectedCheck {
 export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>): ExpectedCheck {
   const values: Record<string, Attendu> = {};
   for (const e of check.expects) {
+    // Les URL appelées ne se recalculent pas depuis les lignes : le contrôle
+    // énonce lui-même ce que la page doit avoir demandé.
+    if (e.kind === 'urls') {
+      values[cleAttendu(e)] = {
+        kind: 'urls',
+        contains: e.contains,
+        verdict: e.verdict,
+        ...(e.among ? { among: e.among } : {}),
+      };
+      continue;
+    }
     const from = e.from ?? JEU_PRINCIPAL;
     const rows = e.pipeline ? runPipeline(datasets, e.pipeline, from) : (datasets[from] ?? []);
     switch (e.kind) {
