@@ -315,7 +315,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | contexte | `_fieldMissingOn` rend `false` (`dsfr-data-context.ts`) | `ctx-champ-absent-805` | 0 au lieu de 4 : la source sans la colonne est vidée au lieu d'être exclue |
 | contexte | `_syncUrl` n'écrit que le premier filtre (`dsfr-data-context.ts`) | `ctx-url-deux-navigations` | 8 au lieu de 3 : l'URL ne rejoue pas tout le filtre |
 | contexte | `_getDataFilteredExcluding` rend `_rawData` (`dsfr-data-facets.ts`) | `facettes-croisees` | l'ordre et les compteurs de la seconde facette ne suivent plus la sélection |
-| contexte | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `facettes-poids` | compteur 8 au lieu de 339 : un nombre de lignes sous un libellé de somme |
+| contexte | `rowWeight` rend `1` (`components/facets/facets-client.ts` — ex-`_rowWeight` de `dsfr-data-facets.ts`, #838) | `facettes-poids` | compteur 8 au lieu de 339 : un nombre de lignes sous un libellé de somme |
 | contexte | `isDisjunctive` privé de `disjunctive` (`dsfr-data-facets.ts`) | `facettes-disjonctives` | 7 au lieu de 15 : la seconde valeur remplace la première |
 | contexte | `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
 | contexte | relance directe rétablie sans condition dans `_afterSelectionChange` (`dsfr-data-facets.ts`, retirer `if (!this._sourceRefetchedByContext())`) | `tests/context-facets-search.test.ts` › `#840 — un seul appel /facets par clic` (vitest, pas un contrôle du filet : ce que compte la mutation est un nombre de requêtes, pas un chiffre affiché) | 2 appels `/facets` par clic au lieu de 1 — le premier annulé par `_facetsAbort`, donc invisible, mais payé |
