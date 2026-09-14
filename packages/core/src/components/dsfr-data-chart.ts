@@ -902,88 +902,21 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     }
 
     switch (this.type) {
-      case 'gauge': {
-        const gaugeVal =
-          this.gaugeValue ??
-          (this._data.length > 0 ? toNumber(getByPath(this._data[0], this._valueFieldKey())) : 0);
-        attrs['percent'] = String(Math.round(gaugeVal));
-        attrs['init'] = '0';
-        attrs['target'] = '100';
+      case 'gauge':
+        this._applyGaugeAttrs(attrs);
         break;
-      }
       case 'pie':
-        attrs['x'] = x;
-        attrs['y'] = y;
-        // For pie charts, DSFR Chart expects one name per slice (category),
-        // not one per séries. Use labels as legend entries.
-        if (!this.name && labels.length > 0) {
-          attrs['name'] = JSON.stringify(labels);
-        }
+        this._applyPieAttrs(attrs, x, y, labels);
         break;
-      case 'bar-line': {
-        // DSFR BarLineChart expects flat arrays (not double-wrapped [[values]])
-        // unlike BarChart which uses xparse[0] to unwrap.
-        attrs['x'] = JSON.stringify(paddedLabels);
-        attrs['y-bar'] = JSON.stringify(paddedSeries[0] ?? values);
-        attrs['y-line'] = JSON.stringify(
-          paddedSeries.length > 1 ? paddedSeries[1] : (paddedSeries[0] ?? values)
-        );
-        // BarLineChart uses name-bar/name-line (not name). Sans `name`, la
-        // légende était vide : les libellés dérivés des champs (alias inline
-        // `champ:Libellé` ou chemin, #668) prennent le relais, comme pour les
-        // autres types.
-        if (this.name) {
-          try {
-            const trimmed = this.name.trim();
-            const names: string[] = trimmed.startsWith('[') ? JSON.parse(trimmed) : [trimmed];
-            if (names[0]) attrs['name-bar'] = names[0];
-            if (names[1]) attrs['name-line'] = names[1];
-          } catch {
-            /* ignore parse errors */
-          }
-        } else if (this.valueField) {
-          const names = this._getSeriesNames();
-          if (names[0]) attrs['name-bar'] = names[0];
-          if (names[1]) attrs['name-line'] = names[1];
-        }
-        // BarLineChart uses unit-tooltip-bar / unit-tooltip-line (not unit-tooltip)
-        if (this.unitTooltipBar) attrs['unit-tooltip-bar'] = this.unitTooltipBar;
-        if (this.unitTooltip) attrs['unit-tooltip-line'] = this.unitTooltip;
+      case 'bar-line':
+        this._applyBarLineAttrs(attrs, paddedLabels, paddedSeries, values);
         break;
-      }
       case 'map':
       case 'map-reg':
       case 'map-aca':
-      case 'map-monde': {
-        // Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —
-        // statique : Vue le lit au montage et ne l'ecrase pas
-        attrs['level'] = MAP_LEVEL[this.type];
-        // `value` et `date` vont dans `deferred` : le composant Vue de DSFR
-        // Chart ecrase au montage les props qui ont un defaut (`value: ""`,
-        // `date: ""`). Les differes sont re-poses via setTimeout(500ms) apres
-        // le montage, ce qui declenche le watcher $props -> createChart().
-        // `data` est `required` SANS defaut (MapChart.js) : rien ne l'ecrase.
-        // Elle est donc posee immediatement — sinon `mounted()` fait
-        // `JSON.parse(undefined)` et logge « Erreur lors du parsing des
-        // données data » a chaque montage de carte (#651) — ET conservee
-        // dans `deferred` (double pose) pour garder le cycle de re-pose.
-        const mapData = this._processMapData();
-        attrs['data'] = mapData;
-        deferred['data'] = mapData;
-        const summary = this._computeMapSummary();
-        this._mapSummaryError = summary.error;
-        if (summary.value !== null) {
-          deferred['value'] = String(Math.round(summary.value * 100) / 100);
-        }
-        // Plus de new Date() (#305) : la date du JOUR etait presentee comme
-        // date de la donnee sur les cartes — n'envoyer date que si fournie
-        // (explicite ou lue dans la donnee via databox-date-field, #661)
-        const mapDate = this._resolveDataboxDate();
-        if (mapDate) {
-          deferred['date'] = mapDate;
-        }
+      case 'map-monde':
+        this._applyMapAttrs(attrs, deferred);
         break;
-      }
       default:
         if (activeTargets.length && this._data.length > 0) {
           // Re-sérialise depuis les tableaux paddés (mêmes valeurs sinon)
@@ -1000,51 +933,157 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         break;
     }
 
-    // Bornes Y élargies automatiquement pour que le losange de cible reste
-    // dans la zone traçable — seulement si l'utilisateur n'a pas fixé les
-    // siennes (#377). Le bar-line a deux axes séparés (y-bar-* / y-line-*).
     if (activeTargets.length && this._data.length > 0) {
-      const setBound = (
-        attr: string,
-        kind: 'max' | 'min',
-        data: number[],
-        targetVals: number[]
-      ) => {
-        const finite = data.filter((v) => Number.isFinite(v));
-        if (!finite.length || !targetVals.length) return;
-        if (kind === 'max') {
-          const t = Math.max(...targetVals);
-          if (t > Math.max(...finite)) attrs[attr] = String(t);
-        } else {
-          const t = Math.min(...targetVals);
-          if (t < Math.min(...finite)) attrs[attr] = String(t);
-        }
-      };
-      if (this.type === 'bar-line') {
-        const barVals = allSeries[0] ?? [];
-        const lineVals = allSeries.length > 1 ? allSeries[1] : (allSeries[0] ?? []);
-        const barTargets = activeTargets
-          .filter((t) => this._targetSeriesIndex(t) === 0)
-          .map((t) => t.value);
-        const lineTargets = activeTargets
-          .filter((t) => this._targetSeriesIndex(t) !== 0)
-          .map((t) => t.value);
-        if (!this.yMax) {
-          setBound('y-bar-max', 'max', barVals, barTargets);
-          setBound('y-line-max', 'max', lineVals, lineTargets);
-        }
-        if (!this.yMin) {
-          setBound('y-bar-min', 'min', barVals, barTargets);
-          setBound('y-line-min', 'min', lineVals, lineTargets);
-        }
-      } else {
-        const dataValues = allSeries.flat();
-        const targetValues = activeTargets.map((t) => t.value);
-        if (!this.yMax) setBound('y-max', 'max', dataValues, targetValues);
-        if (!this.yMin) setBound('y-min', 'min', dataValues, targetValues);
-      }
+      this._applyTargetBounds(attrs, allSeries, activeTargets);
     }
+    this._applyTypeOptions(attrs);
 
+    return { attrs, deferred };
+  }
+
+  private _applyGaugeAttrs(attrs: Record<string, string>): void {
+    const gaugeVal =
+      this.gaugeValue ??
+      (this._data.length > 0 ? toNumber(getByPath(this._data[0], this._valueFieldKey())) : 0);
+    attrs['percent'] = String(Math.round(gaugeVal));
+    attrs['init'] = '0';
+    attrs['target'] = '100';
+  }
+
+  private _applyPieAttrs(
+    attrs: Record<string, string>,
+    x: string,
+    y: string,
+    labels: string[]
+  ): void {
+    attrs['x'] = x;
+    attrs['y'] = y;
+    // For pie charts, DSFR Chart expects one name per slice (category),
+    // not one per séries. Use labels as legend entries.
+    if (!this.name && labels.length > 0) {
+      attrs['name'] = JSON.stringify(labels);
+    }
+  }
+
+  /**
+   * DSFR BarLineChart expects flat arrays (not double-wrapped [[values]])
+   * unlike BarChart which uses xparse[0] to unwrap, and uses
+   * name-bar/name-line + unit-tooltip-bar/unit-tooltip-line.
+   *
+   * Sans `name`, la légende était vide : les libellés dérivés des champs
+   * (alias inline `champ:Libellé` ou chemin, #668) prennent le relais, comme
+   * pour les autres types.
+   */
+  private _applyBarLineAttrs(
+    attrs: Record<string, string>,
+    paddedLabels: unknown[],
+    paddedSeries: Array<Array<number | null>>,
+    values: number[]
+  ): void {
+    attrs['x'] = JSON.stringify(paddedLabels);
+    attrs['y-bar'] = JSON.stringify(paddedSeries[0] ?? values);
+    attrs['y-line'] = JSON.stringify(
+      paddedSeries.length > 1 ? paddedSeries[1] : (paddedSeries[0] ?? values)
+    );
+    if (this.name) {
+      try {
+        const trimmed = this.name.trim();
+        const names: string[] = trimmed.startsWith('[') ? JSON.parse(trimmed) : [trimmed];
+        if (names[0]) attrs['name-bar'] = names[0];
+        if (names[1]) attrs['name-line'] = names[1];
+      } catch {
+        /* ignore parse errors */
+      }
+    } else if (this.valueField) {
+      const names = this._getSeriesNames();
+      if (names[0]) attrs['name-bar'] = names[0];
+      if (names[1]) attrs['name-line'] = names[1];
+    }
+    if (this.unitTooltipBar) attrs['unit-tooltip-bar'] = this.unitTooltipBar;
+    if (this.unitTooltip) attrs['unit-tooltip-line'] = this.unitTooltip;
+  }
+
+  /**
+   * Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —
+   * statique : Vue le lit au montage et ne l'ecrase pas.
+   *
+   * `value` et `date` vont dans `deferred` : le composant Vue de DSFR Chart
+   * ecrase au montage les props qui ont un defaut (`value: ""`, `date: ""`).
+   * Les differes sont re-poses via setTimeout(500ms) apres le montage, ce qui
+   * declenche le watcher $props -> createChart(). `data` est `required` SANS
+   * defaut (MapChart.js) : rien ne l'ecrase. Elle est donc posee
+   * immediatement — sinon `mounted()` fait `JSON.parse(undefined)` et logge
+   * « Erreur lors du parsing des données data » a chaque montage de carte
+   * (#651) — ET conservee dans `deferred` (double pose) pour garder le cycle
+   * de re-pose.
+   */
+  private _applyMapAttrs(attrs: Record<string, string>, deferred: Record<string, string>): void {
+    attrs['level'] = MAP_LEVEL[this.type];
+    const mapData = this._processMapData();
+    attrs['data'] = mapData;
+    deferred['data'] = mapData;
+    const summary = this._computeMapSummary();
+    this._mapSummaryError = summary.error;
+    if (summary.value !== null) {
+      deferred['value'] = String(Math.round(summary.value * 100) / 100);
+    }
+    // Plus de new Date() (#305) : la date du JOUR etait presentee comme
+    // date de la donnee sur les cartes — n'envoyer date que si fournie
+    // (explicite ou lue dans la donnee via databox-date-field, #661)
+    const mapDate = this._resolveDataboxDate();
+    if (mapDate) {
+      deferred['date'] = mapDate;
+    }
+  }
+
+  /**
+   * Bornes Y élargies automatiquement pour que le losange de cible reste
+   * dans la zone traçable — seulement si l'utilisateur n'a pas fixé les
+   * siennes (#377). Le bar-line a deux axes séparés (y-bar-* / y-line-*).
+   */
+  private _applyTargetBounds(
+    attrs: Record<string, string>,
+    allSeries: number[][],
+    activeTargets: ChartTarget[]
+  ): void {
+    const setBound = (attr: string, kind: 'max' | 'min', data: number[], targetVals: number[]) => {
+      const finite = data.filter((v) => Number.isFinite(v));
+      if (!finite.length || !targetVals.length) return;
+      if (kind === 'max') {
+        const t = Math.max(...targetVals);
+        if (t > Math.max(...finite)) attrs[attr] = String(t);
+      } else {
+        const t = Math.min(...targetVals);
+        if (t < Math.min(...finite)) attrs[attr] = String(t);
+      }
+    };
+    if (this.type === 'bar-line') {
+      const barVals = allSeries[0] ?? [];
+      const lineVals = allSeries.length > 1 ? allSeries[1] : (allSeries[0] ?? []);
+      const barTargets = activeTargets
+        .filter((t) => this._targetSeriesIndex(t) === 0)
+        .map((t) => t.value);
+      const lineTargets = activeTargets
+        .filter((t) => this._targetSeriesIndex(t) !== 0)
+        .map((t) => t.value);
+      if (!this.yMax) {
+        setBound('y-bar-max', 'max', barVals, barTargets);
+        setBound('y-line-max', 'max', lineVals, lineTargets);
+      }
+      if (!this.yMin) {
+        setBound('y-bar-min', 'min', barVals, barTargets);
+        setBound('y-line-min', 'min', lineVals, lineTargets);
+      }
+    } else {
+      const dataValues = allSeries.flat();
+      const targetValues = activeTargets.map((t) => t.value);
+      if (!this.yMax) setBound('y-max', 'max', dataValues, targetValues);
+      if (!this.yMin) setBound('y-min', 'min', dataValues, targetValues);
+    }
+  }
+
+  /** Options propres a un type, posees apres les attributs de donnees. */
+  private _applyTypeOptions(attrs: Record<string, string>): void {
     if (this.type === 'radar') {
       // Échelle radiale (issue maturity-model#9) : relaie y-min/y-max vers
       // l'API upstream scale-min/scale-max de <radar-chart> (suggestedMin/Max)
@@ -1065,8 +1104,6 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (this.type in MAP_LEVEL && this.mapHighlight) {
       attrs['highlight'] = this.mapHighlight;
     }
-
-    return { attrs, deferred };
   }
 
   /**
