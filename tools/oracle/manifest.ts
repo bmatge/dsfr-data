@@ -30,14 +30,22 @@ export type Row = Record<string, unknown>;
  */
 export type Agg = 'count' | 'distinct' | 'sum' | 'avg' | 'min' | 'max' | 'wavg';
 
-/** Un filtre ligne à ligne côté oracle, volontairement minimal et explicite. */
+/**
+ * Un filtre ligne à ligne côté oracle, volontairement minimal et explicite.
+ *
+ * `isnull` / `isnotnull` disent VIDE au sens large (absent ou chaîne vide).
+ * `isnull-strict` / `isnotnull-strict` disent absent SEULEMENT (null ou
+ * undefined) : c'est la distinction que fait le `where` de la bibliothèque,
+ * pour qui une chaîne vide est une valeur renseignée.
+ */
 export type RowFilter =
   | {
       field: string;
-      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains';
+      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notcontains';
       value: string | number;
     }
-  | { field: string; op: 'isnotnull' | 'isnull' };
+  | { field: string; op: 'in' | 'notin'; value: Array<string | number> }
+  | { field: string; op: 'isnotnull' | 'isnull' | 'isnull-strict' | 'isnotnull-strict' };
 
 /** Une colonne agrégée : `{ agg: 'sum', field: 'population' }`. */
 export interface AggSpec {
@@ -76,20 +84,70 @@ export type Feed =
  */
 export type Step =
   | { op: 'filter'; filters: RowFilter[] }
-  | { op: 'group-by'; by: string; columns: Record<string, AggSpec> }
+  | {
+      op: 'group-by';
+      /** Un champ, ou plusieurs pour un regroupement composite. */
+      by: string | string[];
+      columns: Record<string, AggSpec>;
+    }
   | { op: 'global'; columns: Record<string, AggSpec> }
   | { op: 'order-by'; column: string; dir: 'asc' | 'desc' }
+  /** Tri à plusieurs clés, dans l'ordre déclaré (la première départage). */
+  | { op: 'order-by-keys'; keys: Array<{ column: string; dir: 'asc' | 'desc' }> }
   | { op: 'limit'; n: number }
   | { op: 'running'; from: string; as: string; kind: 'running_sum' | 'diff' }
   | {
       op: 'join';
       /** Nom du jeu de droite dans `feed.datasets`. */
       right: string;
-      /** Champ de jointure (`"code"`) ou paire (`"code=code_insee"`). */
+      /**
+       * Champ de jointure (`"code"`), paire (`"code=code_insee"`) ou clé
+       * composite (`"annee, code"` — chaque segment pouvant être une paire).
+       */
       on: string;
-      type: 'inner' | 'left';
+      type: 'inner' | 'left' | 'right' | 'full';
       prefixRight?: string;
+    }
+  /** Colonnes calculées : la MÊME expression que l'attribut `compute`, réévaluée à part. */
+  | { op: 'derive'; expr: string }
+  /** Repli long → large, symétrique de `unpivot` (`dsfr-data-pivot`). */
+  | {
+      op: 'pivot';
+      row: string | string[];
+      column: string;
+      value: string;
+      aggregate?: PivotAgg;
+      /** Gabarit des noms de colonnes, `{value}` = valeur brute. */
+      columnFormat?: string;
+      /** Ordre des colonnes : par défaut celui de leur première apparition. */
+      columnOrder?: 'asc' | 'desc';
+    }
+  /** Dépliage large → long (`dsfr-data-unpivot`), colonnes citées une à une. */
+  | {
+      op: 'unpivot';
+      idCols: string[];
+      /** Colonnes dépliées, avec la clé émise quand elle diffère du nom. */
+      valueCols: Array<{ column: string; as?: string }>;
+      varName?: string;
+      valueName?: string;
+      dropEmpty?: boolean;
+    }
+  /**
+   * Empilement de jeux (`dsfr-data-concat`). Les lignes courantes sont
+   * REMPLACÉES par la pile des jeux cités, dans l'ordre.
+   */
+  | {
+      op: 'concat';
+      /** Noms des jeux de `feed.datasets`, dans l'ordre d'empilement. */
+      sources: string[];
+      /** Colonne portant la provenance de chaque ligne. */
+      originField?: string;
+      /** Valeur écrite dans `originField` par jeu ; à défaut, le nom du jeu. */
+      originLabels?: Record<string, string>;
     };
+
+/** Réductions de cellule d'un pivot (grammaire commune du pipeline). */
+export type PivotAgg = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'first' | 'last';
 
 interface ExpectBase {
   /** id de l'élément `dsfr-data-*` observé dans la page. */
@@ -116,8 +174,8 @@ export interface ExpectKpi extends ExpectBase {
 export interface ExpectRows extends ExpectBase {
   kind: 'rows';
   pipeline: Step[];
-  /** Colonne-clé, comparée en chaîne ligne à ligne. */
-  key: string;
+  /** Colonne-clé, comparée en chaîne ligne à ligne ; plusieurs pour une clé composite. */
+  key: string | string[];
   /** Colonnes numériques comparées ligne à ligne. */
   columns: string[];
 }
