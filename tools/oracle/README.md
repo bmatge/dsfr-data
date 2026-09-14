@@ -130,12 +130,23 @@ Mutations éprouvées sur ce socle :
 
 ## Un contrôle que la bibliothèque ne passe pas
 
-Un contrôle légitime qui tombe sur un DÉFAUT de la lib ne se supprime pas et ne
-s'adoucit pas : les deux reviennent à écrire dans le dépôt que le défaut
-n'existe pas. Il se met en attente, en nommant ce qu'il attend et les deux
-chiffres — `Check.skip` porte la raison, le spec la rend par `test.skip`, et la
-liste des `skip` est celle des défauts connus. Ils sont ouverts en issue par la
-supervision, pas corrigés dans le lot qui les trouve.
+Un contrôle légitime que la bibliothèque ne passe pas ne se supprime pas et ne
+s'adoucit pas : les deux reviennent à écrire dans le dépôt qu'il n'y avait rien
+à voir. Il se met en attente, en nommant ce qu'il attend et les deux chiffres —
+`Check.skip` porte la raison, le spec la rend par `test.skip`.
+
+La raison doit dire LEQUEL des deux cas c'est, parce qu'ils n'appellent pas la
+même suite :
+
+- un **défaut** — le comportement contredit ce que la documentation promet ;
+  il s'ouvre en issue, et le contrôle reverdit quand il est corrigé ;
+- une **amélioration attendue** — la documentation ne promet rien, le chiffre
+  affiché est juste, et le contrôle est écrit pour que le jour où la capacité
+  arrive, elle arrive juste.
+
+Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
+pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
+ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
 ## Le rapport
 

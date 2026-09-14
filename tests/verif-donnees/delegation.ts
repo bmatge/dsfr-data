@@ -626,11 +626,15 @@ const ATTENTE: Check[] = [
     id: 'where-seul-devrait-etre-delegue',
     mode: 'deterministic',
     skip:
-      'DEFAUT LIB — `cmd.where` n’est pose QUE dans la branche `if (this.groupBy && …)` de ' +
-      '_negotiateServerSide : une query sans regroupement ne delegue jamais sa clause. La page ' +
-      'rapatrie les 137 lignes pour en garder 20. Mesure : 0 URL sur 2 portent `where=`.',
+      'AMELIORATION attendue, non promise par la doc — rien n’engage la bibliotheque a deleguer ' +
+      'un `where` seul : le JSDoc de l’attribut est au conditionnel, et la specification renvoie ' +
+      'aux attributs de la source pour les gros volumes. Le chiffre affiche est juste. Le fait ' +
+      'mesure : `cmd.where` n’est pose QUE dans la branche `if (this.groupBy && …)` de ' +
+      '_negotiateServerSide, donc 0 URL sur 2 portent `where=` et la page rapatrie 137 lignes ' +
+      'pour en garder 20. Le contrôle reste ecrit pour que le jour ou la delegation arrive, elle ' +
+      'arrive JUSTE — ce n’est pas un defaut a corriger, c’est une capacite a gagner.',
     origin:
-      'Un `where` sans regroupement devrait partir au serveur : c’est la clause la moins chere a deleguer, et celle qui evite le plus de lignes.',
+      'Un `where` sans regroupement pourrait partir au serveur : c’est la clause la moins chere a deleguer, et celle qui evite le plus de lignes.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
     markup: `
   ${sourceOds('s-where2')}
@@ -652,10 +656,14 @@ const ATTENTE: Check[] = [
     id: 'require-where-filtre-par-delegation',
     mode: 'deterministic',
     skip:
-      'DEFAUT LIB, consequence du precedent — la documentation de `require-where` compte la ' +
-      '« delegation d’un dsfr-data-query » parmi les filtres qui liberent l’attente, mais une ' +
-      'query sans group-by ne delegue pas son where. La source reste en attente pour toujours : ' +
-      'le KPI n’affiche jamais rien (30 s de scrutation, aucune valeur).',
+      'DEFAUT LIB — contradiction entre la documentation de `require-where` et le comportement. ' +
+      'Le JSDoc de l’attribut enumere ce qui compte comme filtre et y range explicitement la ' +
+      '« delegation d’un dsfr-data-query » : ce balisage est donc celui que la doc decrit. Or ' +
+      'l’attente n’est JAMAIS liberee — aucune requete ne part, aucun message ne dit pourquoi, ' +
+      'et la page reste sur « choisissez un filtre » indefiniment. Mesure : le KPI n’affiche ' +
+      'jamais rien (30 s de scrutation, aucune valeur). Deux issues possibles, toutes deux ' +
+      'acceptables pour ce contrôle : que la query delegue sa clause, ou que la documentation ' +
+      'cesse de le promettre et que l’attente sans issue soit signalee.',
     origin:
       '#690 — la source ne charge rien tant qu’aucun filtre n’est arrive. Le `where` delegue par la query EST ce filtre : toutes les requetes partent filtrees, aucune ne rapatrie le jeu entier.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
