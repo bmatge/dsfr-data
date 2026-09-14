@@ -829,14 +829,23 @@ ne se voit que là. Tableau complet des lecteurs : `tools/oracle/README.md`.
 issue le motive), son alimentation, le balisage rendu, et ce qu'on attend :
 
 ```ts
+// tests/verif-donnees/transformations.ts — le contrôle `where-gt-gte`, abrégé à une borne
 {
-  id: 'where-gt-gte', mode: 'deterministic', origin: 'opérateurs de filtre',
-  feed: { kind: 'fixture', datasets: { main: COMMUNES } },
-  markup: `<dsfr-data-source id="s" data='…'></dsfr-data-source>
-           <dsfr-data-query id="q" source="s" where="population:gte:5000"></dsfr-data-query>
-           <dsfr-data-kpi id="k" source="q" aggregation="count"></dsfr-data-kpi>`,
-  expects: [{ kind: 'kpi', id: 'k', agg: 'count',
-              pipeline: [{ op: 'filter', filters: [{ field: 'population', op: 'gte', value: 5000 }] }] }],
+  id: 'where-gt-gte',
+  mode: 'deterministic',
+  origin: 'gt et gte sur une population : la borne elle-même fait la différence entre les deux…',
+  feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+  markup: `<dsfr-data-source id="s-terr" data='[…les mêmes lignes…]'></dsfr-data-source>
+  <dsfr-data-query id="q-gte" source="s-terr" where="population:gte:1400000"></dsfr-data-query>
+  <dsfr-data-kpi id="k-gte" source="q-gte" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>`,
+  expects: [
+    {
+      kind: 'kpi',
+      id: 'k-gte',
+      agg: 'count',
+      pipeline: [{ op: 'filter', filters: [{ field: 'population', op: 'gte', value: 1400000 }] }],
+    },
+  ],
 }
 ```
 
