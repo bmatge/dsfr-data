@@ -21,18 +21,31 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { MANIFESTES } from '../../tests/verif-donnees/index.js';
-import type { Check } from './manifest.js';
 import type { Constat } from './compare.js';
+
+/**
+ * Ce que le rendu a besoin de savoir d'un contrôle — un sous-ensemble
+ * structurel de `Check`, pour qu'un `Check` s'y passe tel quel.
+ *
+ * Le moteur n'importe PAS les manifestes : c'est l'appelant (le spec, qui les
+ * charge déjà) qui les lui tend. L'import inverse ferait dépendre `tools/oracle`
+ * de `tests/verif-donnees`, c'est-à-dire le moteur de ses données — et le garde
+ * d'indépendance le refuse désormais explicitement.
+ */
+export interface FicheBanc {
+  id: string;
+  origin: string;
+  page?: string;
+  constats?: string[];
+  skip?: string;
+}
 
 const SANS_PAGE = '(hors reproduction du banc)';
 
-/** Les contrôles déclarés, par identifiant — pour retrouver page et constats. */
-function controlesParId(): Map<string, Check> {
-  const out = new Map<string, Check>();
-  for (const manifeste of MANIFESTES) {
-    for (const check of manifeste.checks) out.set(check.id, check);
-  }
+/** Les fiches, par identifiant de contrôle — pour retrouver page et constats. */
+function fichesParId(fiches: readonly FicheBanc[]): Map<string, FicheBanc> {
+  const out = new Map<string, FicheBanc>();
+  for (const fiche of fiches) out.set(fiche.id, fiche);
   return out;
 }
 
@@ -58,12 +71,18 @@ function echapper(texte: string): string {
 /**
  * Écrit `banc.md` dans `dossier` et rend son chemin.
  *
- * Le dossier est un PARAMÈTRE plutôt qu'un import de `report.ts` : c'est
- * `report.ts` qui appelle ce rendu, une fois les constats des différents
- * workers fusionnés, et l'import inverse fermerait le cycle.
+ * `fiches` décrit les contrôles JOUÉS dans ce run — c'est l'appelant qui les
+ * fournit, le moteur n'allant pas les chercher dans les manifestes. Le dossier
+ * est un paramètre pour la même raison côté `report.ts`, qui appelle ce rendu
+ * une fois les constats des différents workers fusionnés : l'import inverse
+ * fermerait le cycle.
  */
-export function ecrireRapportBanc(constats: Constat[], dossier: string): string {
-  const checks = controlesParId();
+export function ecrireRapportBanc(
+  constats: Constat[],
+  fiches: readonly FicheBanc[],
+  dossier: string
+): string {
+  const checks = fichesParId(fiches);
 
   // Ne retenir que ce qui vient d'une reproduction : un contrôle sur fixture
   // sans page n'a rien à dire au banc, et le noyer dedans le rendrait illisible.
