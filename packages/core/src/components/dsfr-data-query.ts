@@ -18,6 +18,7 @@ import {
 import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
+import { dsfrDataInstances } from '../utils/instance-registry.js';
 
 /**
  * Opérateurs de filtre supportes
@@ -88,20 +89,30 @@ function linkOf(el: Element, prop: string, attr = prop): string {
   return el.getAttribute(attr) ?? '';
 }
 
-/** Composants `dsfr-data-*` qui lisent l'id donné (source, join, concat). */
+/** Ids lus en amont par un composant : `source`, ou les deux côtés d'un join. */
+function upstreamLinksOf(el: Element): string[] {
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'dsfr-data-join') return [linkOf(el, 'left'), linkOf(el, 'right')];
+  if (tag === 'dsfr-data-concat')
+    return linkOf(el, 'sources')
+      .split(',')
+      .map((v) => v.trim());
+  return [linkOf(el, 'source')];
+}
+
+/**
+ * Composants `dsfr-data-*` qui lisent l'id donné (source, join, concat).
+ *
+ * Lu dans le REGISTRE D'INSTANCES (#836), pas dans le document : le balayage
+ * `document.querySelectorAll('*')` qu'il remplace était refait à chaque saut
+ * de chaîne, à chaque négociation et à chaque contestation — vingt queries sur
+ * quelques milliers de nœuds, autant de balayages complets à l'init.
+ */
 function readersOf(id: string): Element[] {
   const out: Element[] = [];
-  for (const el of document.querySelectorAll('*')) {
-    const tag = el.tagName.toLowerCase();
-    if (!tag.startsWith('dsfr-data-') || tag === 'dsfr-data-context') continue;
-    let ups: string[];
-    if (tag === 'dsfr-data-join') ups = [linkOf(el, 'left'), linkOf(el, 'right')];
-    else if (tag === 'dsfr-data-concat')
-      ups = linkOf(el, 'sources')
-        .split(',')
-        .map((v) => v.trim());
-    else ups = [linkOf(el, 'source')];
-    if (ups.includes(id)) out.push(el);
+  for (const el of dsfrDataInstances()) {
+    if (el.tagName.toLowerCase() === 'dsfr-data-context') continue;
+    if (upstreamLinksOf(el).includes(id)) out.push(el);
   }
   return out;
 }
@@ -758,9 +769,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Autres lecteurs de la chaine de delegation (#765) : les composants qui
    * lisent la source visee, ou l'un des transformateurs par lesquels la
    * commande remonte (normalize, search, join gauche…), hors cette query et
-   * hors le maillon lui-meme. Lu dans le DOM — le bus n'a pas de registre
-   * d'abonnes — ce qui est exact pour une page statique, la forme de tout
-   * export ; un lecteur ajoute plus tard declenche une renegociation
+   * hors le maillon lui-meme. Lu dans le REGISTRE D'INSTANCES (#836) : chaque
+   * composant qui s'abonne a une chaine s'y inscrit a connectedCallback. Un
+   * lecteur ajoute plus tard declenche une renegociation
    * (DELEGATION_CONTESTED_EVENT).
    */
   private _otherChainReaders(): string[] {

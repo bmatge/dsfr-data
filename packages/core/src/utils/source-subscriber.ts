@@ -7,6 +7,7 @@
 import type { LitElement } from 'lit';
 import { subscribeToSource, getDataCache, isDataIdle } from './data-bridge.js';
 import { checkUnknownAttributes } from './unknown-attributes.js';
+import { registerDsfrDataInstance, unregisterDsfrDataInstance } from './instance-registry.js';
 
 // Pattern Lit mixin canonique : le constructor doit être callable avec
 // n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
@@ -87,10 +88,16 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
       // enregistrée et le balisage écrit par l'intégrateur.
       checkUnknownAttributes(this);
       this._subscribeToSource();
+      // Registre des instances (#836), APRÈS l'abonnement : un afficheur EST
+      // un lecteur de la chaîne, et c'est son inscription qui conteste une
+      // délégation posée par une query montée avant lui (#853) — il doit
+      // alors être en mesure de recevoir les lignes rebrutes.
+      registerDsfrDataInstance(this);
     }
 
     disconnectedCallback() {
       super.disconnectedCallback();
+      unregisterDsfrDataInstance(this);
       this._cleanupSubscription();
     }
 
