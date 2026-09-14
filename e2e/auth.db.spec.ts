@@ -6,7 +6,7 @@
  *
  * Run: npx playwright test e2e/auth.db.spec.ts --project=chromium-db
  */
-import { test, expect, type APIRequestContext } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 const API = 'http://localhost:3002';
 

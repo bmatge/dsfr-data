@@ -27,9 +27,10 @@ jobs:
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'oracle')
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Une API tierce indisponible n'est pas une regression de la lib : le job
-    # signale, il ne bloque pas.
-    continue-on-error: true
+    # Pas de `continue-on-error` : ce job n'est requis sur aucune PR (il se
+    # declenche par label, par cron ou a la main), donc « jamais bloquant » est
+    # deja acquis. L'ajouter rendrait vert un run nocturne en ecart — c'est-a-dire
+    # invisible, ce qui est exactement ce que la verification vient empecher.
 
     steps:
       - uses: actions/checkout@v7
