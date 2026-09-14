@@ -86,6 +86,18 @@ export async function fetchUrlRows(source: RawUrlSource): Promise<Row[]> {
  */
 const DEJA_TELECHARGE = new Map<string, Promise<Row[]>>();
 
+/**
+ * Oublie les téléchargements de ce run — ce que fait naturellement la fin du
+ * processus.
+ *
+ * Exporté pour que l'on puisse éprouver la règle dans les DEUX sens : un run
+ * ne retélécharge pas, deux runs retéléchargent. Sans ce geste, un test ne
+ * pourrait montrer que la moitié qui arrange.
+ */
+export function viderCacheBrut(): void {
+  DEJA_TELECHARGE.clear();
+}
+
 /** Lignes brutes d'une source, une seule fois par URL et par run. */
 export function fetchSourceRows(source: RawSource | RawUrlSource): Promise<Row[]> {
   const cle = estUrlBrute(source) ? source.url : exportUrl(source);
