@@ -38,7 +38,10 @@ le contrôle, et l'écart désigne alors le mauvais coupable.
 tests/verif-donnees/     LES CONTRÔLES, par domaine
   banc.ts                  contrôles vivants (reproductions du banc open-data-viz)
   query.ts                 contrôles déterministes (calcul : filtre, group-by, tri, jointure…)
+  contexte.ts              contrôles déterministes joués AU CLAVIER ET À LA SOURIS
+                             (contexte, facettes, recherche, synchro d'URL)
   fixtures.ts              les lignes servies à la page ET données à l'oracle
+  fixtures-contexte.ts     les lignes et le faux serveur ODS du domaine `contexte`
   index.ts                 la liste des manifestes
 
 tools/oracle/            LE MOTEUR
@@ -46,6 +49,7 @@ tools/oracle/            LE MOTEUR
   compute.ts               le recalcul en tableaux nus
   observe.ts               les lecteurs d'observation, exécutés DANS la page
   expected.ts              l'attendu d'un contrôle, depuis ses lignes brutes
+  stabilite.ts             attendre qu'une observation ne bouge plus (pas de sommeil fixe)
   compare.ts               observé contre attendu → un Constat
   raw.ts                   les deux alimentations
   report.ts                le rapport (out/report.json + out/report.txt)
@@ -66,11 +70,47 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireGraphique` | les attributs `x` / `y` / `name` de l'élément DSFR Chart **rendu**, pas le cache amont |
 | `lireLegende` | les entrées de `getLegendEntries()` d'une `dsfr-data-map-layer` |
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
+| `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
+| `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`), avec le nombre qu'on y lit |
 
 Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'exécuter dans la
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
 not a function` dans le navigateur — d'où la lecture d'un nombre fr-FR réécrite dans chaque
 lecteur. Leur contrat est fixé sur un DOM minimal par `tests/oracle/observe.test.ts`.
+
+## Les gestes et l'horloge
+
+Certains chiffres n'existent qu'APRÈS un geste : un filtre de contexte, une
+case de facette cochée, un terme saisi. Un `Check` peut donc porter :
+
+```ts
+clock: { now: '2026-06-01T00:30:00+02:00', timezone: 'Europe/Paris' },
+actions: [
+  { kind: 'select', selector: '#ui-region', value: 'Occitanie' },
+  { kind: 'fill',   selector: '#r-lib input', value: 'ecole' },
+  { kind: 'click',  selector: '#f-region label:has-text("Bretagne")' },
+  { kind: 'goto' },   // recharge l'URL que la synchro d'URL vient d'écrire
+],
+```
+
+`actions` est joué par Playwright juste après la navigation, avant toute
+observation ; `selector` est un sélecteur Playwright. `goto` sans valeur
+RECHARGE l'URL courante : c'est le contrôle en deux navigations — filtrer,
+puis revenir par l'URL produite et retrouver exactement les mêmes chiffres.
+
+Après les gestes, chaque observation est lue en DEUX temps (`stabilite.ts`) :
+d'abord « y a-t-il quelque chose à lire ? », puis « est-ce que ça a fini de
+bouger ? » — deux lectures identiques espacées de 150 ms, bornées à 10 s.
+Aucun sommeil fixe : un filtre client ne touche pas au réseau, `networkidle`
+est donc immédiat, et le rendu Lit qui suit le geste est asynchrone. Lire
+trop tôt, c'est lire la valeur d'AVANT le geste — et comparer cette
+valeur-là, c'est être vert ou rouge au hasard de la machine.
+
+`clock` fixe l'instant (`page.clock.setFixedTime`) ET le fuseau du navigateur
+(`timezoneId` du contexte). Sans elle, un contrôle sur `today`,
+`current-month`, `current-year` ou `last-n-days` serait vert 364 jours sur 365
+— et rouge le jour où la borne compte. Les bornes attendues s'écrivent alors
+EN CLAIR dans le `pipeline` : ce qu'il faut montrer à cet instant-là.
 
 ## Ajouter un contrôle
 
@@ -108,6 +148,16 @@ Mutations éprouvées sur ce socle :
 | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-765` | KPI affiché 7, recalculé 137 — exactement #765 |
 | `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
 | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
+| whereKey réduit à `this._uid` (`dsfr-data-context.ts`) | `ctx-deux-filtres-and` | 8 au lieu de 3 : deux filtres partagent une clé, le dernier gagne (ADR-031) |
+| `localIsoDate` → `isoDate` dans `current-month` (`dsfr-data-context-filter.ts`) | `ctx-current-month` | 5 au lieu de 4 : à 00 h 30 à Paris le 1er juin, l'UTC filtre encore mai |
+| `dayAfter` sans `+1` (`dsfr-data-context-filter.ts`) | `ctx-lt-day-after` | 8 au lieu de 9 : le jour choisi n'est plus inclus |
+| `_fieldMissingOn` rend `false` (`dsfr-data-context.ts`) | `ctx-champ-absent-805` | 0 au lieu de 4 : la source sans la colonne est vidée au lieu d'être exclue |
+| `_syncUrl` n'écrit que le premier filtre (`dsfr-data-context.ts`) | `ctx-url-deux-navigations` | 8 au lieu de 3 : l'URL ne rejoue pas tout le filtre |
+| `_getDataFilteredExcluding` rend `_rawData` (`dsfr-data-facets.ts`) | `facettes-croisees` | l'ordre et les compteurs de la seconde facette ne suivent plus la sélection |
+| `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `facettes-poids` | compteur 8 au lieu de 339 : un nombre de lignes sous un libellé de somme |
+| `isDisjunctive` privé de `disjunctive` (`dsfr-data-facets.ts`) | `facettes-disjonctives` | 7 au lieu de 15 : la seconde valeur remplace la première |
+| `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
+| `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » |
 
 ## Le rapport
 
