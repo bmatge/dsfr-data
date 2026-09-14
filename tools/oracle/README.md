@@ -99,11 +99,15 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                              (contexte, facettes, recherche, synchro d'URL)
   adaptateurs.ts           contrôles déterministes des CHEMINS D'ENTRÉE (ODS, Tabular,
                              INSEE Melodi, Grist, JSON générique)
+  delegation.ts            l'invariant de délégation : mêmes chiffres, serveur ou client
+  export-studio.ts         les tableaux de bord produits par l'export du Studio
   banc-adaptateurs.ts      contrôles vivants, un par adaptateur public
   fixtures.ts              les lignes servies à la page ET données à l'oracle
+  fixtures-contexte.ts         les lignes et le faux serveur ODS du domaine `contexte`
+  fixtures-adaptateurs.ts      les lignes plates et les faux serveurs du domaine `adaptateurs`
   fixtures-transformations.ts  idem, servies en `data` inline (aucun faux serveur)
-  fixtures-contexte.ts     les lignes et le faux serveur ODS du domaine `contexte`
-  fixtures-adaptateurs.ts  les lignes plates et les faux serveurs du domaine `adaptateurs`
+  fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
+  fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   index.ts                 la liste des manifestes
 
 tools/oracle/            LE MOTEUR
@@ -136,6 +140,17 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
 | `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
 | `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`), avec le nombre qu'on y lit |
+| `lireUrls` | les URL d'API réellement appelées, décodées, dans l'ordre |
+
+`lireUrls` est le seul qui ne porte pas sur un chiffre : deux balisages peuvent
+montrer les mêmes chiffres en demandant au serveur des choses opposées, et
+qu'une `dsfr-data-query` délègue ou non son `group_by` ne se voit que là. Son
+`expect` énonce un verdict (`none` · `some` · `all` · `last` · `notLast`) sur la
+présence d'un fragment, éventuellement restreint aux URL qui en portent un autre
+(`among`) ; le journal est tenu par la page, qui enveloppe `fetch` avant le
+chargement de la bibliothèque. Un contrôle d'URL se place **en dernier** dans
+`expects` : les observations sont lues dans l'ordre, et les chiffres qu'il
+explique doivent être arrivés.
 
 Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'exécuter dans la
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
@@ -223,6 +238,10 @@ Mutations éprouvées sur ce socle :
 | `isDisjunctive` privé de `disjunctive` (`dsfr-data-facets.ts`) | `facettes-disjonctives` | 7 au lieu de 15 : la seconde valeur remplace la première |
 | `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
 | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » |
+| `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
+| `_onDelegationContested` sort sans renégocier (`dsfr-data-query.ts`) | `query-tardive-renegociation` | la seconde query rend 1 ligne au lieu de 7, le KPI 8 au lieu de 137 |
+| `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | 5 contrôles d'`export-studio` | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
+| `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
 | `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
 | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
 | `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
@@ -231,6 +250,26 @@ Mutations éprouvées sur ce socle :
 | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
 | `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
 | repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
+
+## Un contrôle que la bibliothèque ne passe pas
+
+Un contrôle légitime que la bibliothèque ne passe pas ne se supprime pas et ne
+s'adoucit pas : les deux reviennent à écrire dans le dépôt qu'il n'y avait rien
+à voir. Il se met en attente, en nommant ce qu'il attend et les deux chiffres —
+`Check.skip` porte la raison, le spec la rend par `test.skip`.
+
+La raison doit dire LEQUEL des deux cas c'est, parce qu'ils n'appellent pas la
+même suite :
+
+- un **défaut** — le comportement contredit ce que la documentation promet ;
+  il s'ouvre en issue, et le contrôle reverdit quand il est corrigé ;
+- une **amélioration attendue** — la documentation ne promet rien, le chiffre
+  affiché est juste, et le contrôle est écrit pour que le jour où la capacité
+  arrive, elle arrive juste.
+
+Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
+pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
+ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
 ## Le rapport
 

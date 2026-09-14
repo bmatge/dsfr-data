@@ -10,6 +10,8 @@ import { ADAPTATEURS } from './adaptateurs.js';
 import { BANC } from './banc.js';
 import { BANC_ADAPTATEURS } from './banc-adaptateurs.js';
 import { CONTEXTE } from './contexte.js';
+import { DELEGATION } from './delegation.js';
+import { EXPORT_STUDIO } from './export-studio.js';
 import { QUERY } from './query.js';
 import { TRANSFORMATIONS } from './transformations.js';
 
@@ -17,6 +19,8 @@ export const MANIFESTES: Manifest[] = [
   QUERY,
   ADAPTATEURS,
   TRANSFORMATIONS,
+  DELEGATION,
+  EXPORT_STUDIO,
   CONTEXTE,
   BANC,
   BANC_ADAPTATEURS,
@@ -33,4 +37,13 @@ export function controlesDuMode(mode: Check['mode']): Array<{ domaine: string; c
   return out;
 }
 
-export { ADAPTATEURS, BANC, BANC_ADAPTATEURS, CONTEXTE, QUERY, TRANSFORMATIONS };
+export {
+  ADAPTATEURS,
+  BANC,
+  BANC_ADAPTATEURS,
+  CONTEXTE,
+  DELEGATION,
+  EXPORT_STUDIO,
+  QUERY,
+  TRANSFORMATIONS,
+};
