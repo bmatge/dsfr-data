@@ -452,7 +452,8 @@ Les beacon logs sont persistes via un volume Docker (`beacon-logs:/var/log/nginx
 A l'interieur d'une meme page, les Web Components communiquent par un bus d'evenements custom (`data-bridge.ts`). Le composant `<dsfr-data-source>` emet des `CustomEvent` lorsque des donnees sont chargees. Les composants consommateurs (`<dsfr-data-chart>`, `<dsfr-data-kpi>`, `<dsfr-data-query>`, `<dsfr-data-normalize>`, `<dsfr-data-facets>`, `<dsfr-data-list>`) s'y abonnent via le mixin `SourceSubscriberMixin`.
 
 ```
-<dsfr-data-source src="...">          Charge les donnees, emet DATA_EVENTS.LOADED
+<dsfr-data-source api-type="..." dataset-id="...">   Charge les donnees, emet DATA_EVENTS.LOADED
+                                       (ou `resource`, `url`, `data` inline selon l'adaptateur)
     |
     |-- CustomEvent sur document
     v
