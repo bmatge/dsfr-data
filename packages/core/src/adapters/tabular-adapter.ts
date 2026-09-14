@@ -122,6 +122,72 @@ export class TabularAdapter implements ApiAdapter {
     return this.supportsServerFields(fields);
   }
 
+  /**
+   * Flags nus de delegation (`champ__groupby`, `champ__sum`) d'une requete.
+   *
+   * Partages par `buildUrl` et `buildServerSideUrl` (#852) : la pagination
+   * serveur ne les emettait pas, alors que la query, voyant
+   * `capabilities.serverGroupBy = true`, marquait `_serverDelegated.groupBy`
+   * et sautait son calcul client — la page rendait des lignes BRUTES comme si
+   * c'etaient des groupes (40 lignes pour 8 groupes attendus), et la colonne
+   * d'agregat, absente de la reponse, s'affichait « — ». Un seul emetteur
+   * pour les deux modes : ils ne peuvent plus diverger.
+   *
+   * Group by + agregations : seulement si TOUS les champs sont surs (#289).
+   * Le garde-fou isTabularServerFieldSafe n'etait consulte que par la
+   * delegation query (#275) — un group-by pose directement sur la source
+   * (mode documente) avec un champ a espaces produisait le "Malformed
+   * query" que la fonction pretend eviter. Champs non surs → lignes brutes
+   * (needsClientProcessing signale par fetchAll / fetchPage).
+   */
+  private _groupByFlags(params: AdapterParams): string[] {
+    const flags: string[] = [];
+    if (!this._canServerProcessGroupBy(params)) return flags;
+
+    if (params.groupBy) {
+      const groupFields = params.groupBy
+        .split(',')
+        .map((f) => f.trim())
+        .filter(Boolean);
+      for (const field of groupFields) {
+        flags.push(`${encodeURIComponent(field)}__groupby`);
+      }
+    }
+
+    // Agrégations — l'API Tabular nomme la colonne retournee `field__func`,
+    // ce qui correspond a la convention d'alias unique du pipeline (#269).
+    // Les alias personnalises (3e segment) ne sont pas supportes server-side.
+    if (params.aggregate) {
+      for (const agg of parseAggregates(params.aggregate)) {
+        flags.push(`${encodeURIComponent(agg.field)}__${encodeURIComponent(agg.function)}`);
+      }
+    }
+
+    return flags;
+  }
+
+  /**
+   * Avertit une fois quand un group-by/aggregate demande n'est PAS delegable
+   * (#289, #672) : les lignes brutes reviennent et l'aval retraite.
+   * Rend `true` quand la delegation a bien eu lieu.
+   */
+  private _warnUndelegable(params: AdapterParams, canServerProcess: boolean): boolean {
+    const asked = !!(params.groupBy || params.aggregate);
+    if (!asked || canServerProcess) return asked;
+    if (this._hasDistinct(params)) {
+      console.warn(
+        `[dsfr-data] tabular: "distinct" n'est pas délégable à l'API Tabular (aggregate="${params.aggregate}") — ` +
+          `lignes brutes renvoyées, comptage distinct calculé côté client`
+      );
+    } else {
+      console.warn(
+        `[dsfr-data] tabular: group-by/aggregate non delegables (champ avec espaces/ponctuation : ` +
+          `"${params.groupBy || params.aggregate}") — lignes brutes renvoyees, traitement client requis`
+      );
+    }
+    return false;
+  }
+
   /** True si l'expression d'agrégat contient un `distinct` (#672). */
   private _hasDistinct(params: AdapterParams): boolean {
     return parseAggregates(params.aggregate || '').some((a) => a.function === 'distinct');
@@ -139,18 +205,10 @@ export class TabularAdapter implements ApiAdapter {
     // Champs non delegables (#289) : prevenu une fois, lignes brutes +
     // needsClientProcessing — l'aval (query) retraite client-side
     const canServerProcess = this._canServerProcessGroupBy(params);
+    // Quand l'API a reellement execute groupBy/aggregate, les données sont
+    // déjà traitees — pas quand le garde-fou #289 a retire les parametres
+    const serverHandled = this._warnUndelegable(params, canServerProcess);
     const distinctRefused = !canServerProcess && this._hasDistinct(params);
-    if (distinctRefused) {
-      console.warn(
-        `[dsfr-data] tabular: "distinct" n'est pas délégable à l'API Tabular (aggregate="${params.aggregate}") — ` +
-          `lignes brutes renvoyées, comptage distinct calculé côté client`
-      );
-    } else if (!canServerProcess && (params.groupBy || params.aggregate)) {
-      console.warn(
-        `[dsfr-data] tabular: group-by/aggregate non delegables (champ avec espaces/ponctuation : ` +
-          `"${params.groupBy || params.aggregate}") — lignes brutes renvoyees, traitement client requis`
-      );
-    }
     let allResults: unknown[] = [];
     let totalCount = -1;
     let currentPage = 1;
@@ -226,10 +284,6 @@ export class TabularAdapter implements ApiAdapter {
       );
     }
 
-    // Quand l'API a reellement execute groupBy/aggregate, les données sont
-    // déjà traitees — pas quand le garde-fou #289 a retire les parametres
-    const serverHandled = !!(params.groupBy || params.aggregate) && canServerProcess;
-
     return {
       data: allResults,
       totalCount: totalCount >= 0 ? totalCount : allResults.length,
@@ -239,6 +293,11 @@ export class TabularAdapter implements ApiAdapter {
 
   /**
    * Fetch une seule page en mode server-side.
+   *
+   * Le group-by/aggregate demande est delegue comme en fetch complet (#852) ;
+   * quand il ne l'est pas (champ non sur, `distinct`), la page revient en
+   * lignes brutes et `needsClientProcessing` le dit — l'aval retraite, au lieu
+   * de prendre des lignes brutes pour des groupes.
    */
   async fetchPage(
     params: AdapterParams,
@@ -246,6 +305,8 @@ export class TabularAdapter implements ApiAdapter {
     signal: AbortSignal
   ): Promise<FetchResult> {
     const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
+    const asked = !!(params.groupBy || params.aggregate);
+    const serverHandled = this._warnUndelegable(params, this._canServerProcessGroupBy(params));
 
     const response = await fetch(url, buildFetchOptions(params, signal));
     if (!response.ok) {
@@ -259,7 +320,7 @@ export class TabularAdapter implements ApiAdapter {
     return {
       data,
       totalCount,
-      needsClientProcessing: false,
+      needsClientProcessing: asked && !serverHandled,
       rawJson: json,
     };
   }
@@ -283,34 +344,7 @@ export class TabularAdapter implements ApiAdapter {
 
     // Flags nus : emis hors de `url.searchParams`, qui ajouterait un `=` que
     // l'API rejette (#596). L'ordre des parametres est indifferent cote API.
-    const bareFlags: string[] = [];
-
-    // Group by + agregations : seulement si TOUS les champs sont surs (#289).
-    // Le garde-fou isTabularServerFieldSafe n'etait consulte que par la
-    // delegation query (#275) — un group-by pose directement sur la source
-    // (mode documente) avec un champ a espaces produisait le "Malformed
-    // query" que la fonction pretend eviter. Champs non surs → lignes brutes
-    // (needsClientProcessing signale par fetchAll).
-    if (this._canServerProcessGroupBy(params)) {
-      if (params.groupBy) {
-        const groupFields = params.groupBy
-          .split(',')
-          .map((f) => f.trim())
-          .filter(Boolean);
-        for (const field of groupFields) {
-          bareFlags.push(`${encodeURIComponent(field)}__groupby`);
-        }
-      }
-
-      // Agrégations — l'API Tabular nomme la colonne retournee `field__func`,
-      // ce qui correspond a la convention d'alias unique du pipeline (#269).
-      // Les alias personnalises (3e segment) ne sont pas supportes server-side.
-      if (params.aggregate) {
-        for (const agg of parseAggregates(params.aggregate)) {
-          bareFlags.push(`${encodeURIComponent(agg.field)}__${encodeURIComponent(agg.function)}`);
-        }
-      }
-    }
+    const bareFlags = this._groupByFlags(params);
 
     // Tri
     if (params.orderBy) {
@@ -337,6 +371,11 @@ export class TabularAdapter implements ApiAdapter {
 
   /**
    * Construit l'URL Tabular en mode server-side (une seule page).
+   *
+   * Emet les MEMES parametres delegues que `buildUrl` (#852) : filtres,
+   * `champ__groupby`, `champ__fonction`, `champ__sort`. La difference entre
+   * les deux modes tient a la pagination (une page), au `where` effectif de
+   * l'overlay et a son tri — pas a ce qui est delegue.
    */
   buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string {
     const base = this._getBaseUrl(params);
@@ -352,6 +391,11 @@ export class TabularAdapter implements ApiAdapter {
       this._applyColonFilters(url, filterExpr);
     }
 
+    // Flags nus de delegation (group-by + agregations), comme en fetch
+    // complet : la query qui a delegue saute son calcul client, la reponse
+    // doit donc porter des GROUPES et la colonne d'agregat (#852).
+    const bareFlags = this._groupByFlags(params);
+
     // ORDER BY: overlay prioritaire, fallback statique
     const effectiveOrderBy = overlay.orderBy;
     if (effectiveOrderBy) {
@@ -365,7 +409,7 @@ export class TabularAdapter implements ApiAdapter {
     url.searchParams.set('page_size', String(params.pageSize));
     url.searchParams.set('page', String(overlay.page));
 
-    return url.toString();
+    return appendBareFlags(url, bareFlags);
   }
 
   /**
