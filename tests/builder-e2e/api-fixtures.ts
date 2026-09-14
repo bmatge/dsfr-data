@@ -225,28 +225,104 @@ function appliquerAgregat(element: ElementSelect, lignes: Ligne[]): unknown {
   }
 }
 
-/**
- * Sous-ensemble d'ODSQL reellement emis par le pipeline : egalites sur chaine
- * (`champ = "valeur"`) et comparaisons numeriques, jointes par `AND`. Toute
- * autre forme est ignoree — et signalee par le harnais, qui refuse une clause
- * qu'il n'a pas su lire plutot que de rendre un jeu complet en silence.
- */
-const CLAUSE_ODSQL = /^\s*(`[^`]+`|[\w.]+)\s*(=|!=|>=|<=|>|<)\s*(?:"([^"]*)"|([\d.]+))\s*$/;
+/** Un predicat ODSQL compile : une ligne, un booleen. */
+type PredicatOdsql = (ligne: Ligne) => boolean;
 
-export function filtrerOdsql(lignes: Ligne[], where: string): Ligne[] {
-  if (!where.trim()) return lignes;
-  const clauses = where.split(/\s+AND\s+/i);
-  return lignes.filter((ligne) =>
-    clauses.every((clause) => {
-      const trouve = CLAUSE_ODSQL.exec(clause);
-      if (!trouve) throw new Error(`clause ODSQL non geree par la fixture : « ${clause} »`);
-      const [, champBrut, operateur, chaine, numerique] = trouve;
-      const gauche = ligne[denuder(champBrut)];
-      if (chaine !== undefined) {
-        return operateur === '=' ? String(gauche) === chaine : String(gauche) !== chaine;
+/** Tout refus du parseur porte le meme prefixe : le harnais ne ment jamais en silence. */
+function refus(where: string, position: number, raison: string): Error {
+  return new Error(
+    `clause ODSQL non geree par la fixture : « ${where} » — ${raison} (position ${position})`
+  );
+}
+
+/**
+ * Sous-ensemble d'ODSQL reellement emis par le pipeline : comparaisons
+ * (`champ = "valeur"`, `champ >= 12`) combinees par `AND` / `OR` et
+ * regroupees par des PARENTHESES, avec les guillemets echappes `\"` dans les
+ * litteraux chaine. Le vrai portail lit cette grammaire ; le harnais aussi,
+ * sans quoi un `where` a parentheses (#767) serait rejete par la fixture alors
+ * que la bibliotheque l'a correctement transmis — et l'echec accuserait le
+ * mauvais coupable.
+ *
+ * Toute autre forme (`LIKE`, `date'…'`, fonctions) est REFUSEE, jamais ignoree :
+ * rendre le jeu complet en silence transformerait un filtre perdu en succes.
+ */
+function analyserOdsql(where: string): PredicatOdsql {
+  let i = 0;
+
+  const blancs = (): void => {
+    while (i < where.length && /\s/.test(where[i])) i++;
+  };
+
+  /** Consomme un mot-cle (`and`, `or`) s'il vient ensuite, sans couper un identifiant. */
+  const motCle = (mot: string): boolean => {
+    blancs();
+    if (where.slice(i, i + mot.length).toLowerCase() !== mot) return false;
+    const apres = where[i + mot.length];
+    if (apres !== undefined && /[\w.]/.test(apres)) return false;
+    i += mot.length;
+    return true;
+  };
+
+  const identifiant = (): string => {
+    blancs();
+    if (where[i] === '`') {
+      const fin = where.indexOf('`', i + 1);
+      if (fin === -1) throw refus(where, i, 'identifiant echappe non ferme');
+      const nom = where.slice(i + 1, fin);
+      i = fin + 1;
+      return nom;
+    }
+    const debut = i;
+    while (i < where.length && /[\w.]/.test(where[i])) i++;
+    if (i === debut) throw refus(where, i, 'identifiant attendu');
+    return denuder(where.slice(debut, i));
+  };
+
+  /** Litteral chaine `"…"` ou `'…'` — ODSQL accepte les deux —, `\"` compris. */
+  const chaine = (): string => {
+    const guillemet = where[i];
+    i++;
+    let valeur = '';
+    while (i < where.length && where[i] !== guillemet) {
+      if (where[i] === '\\') {
+        i++;
+        valeur += where[i] ?? '';
+        i++;
+        continue;
       }
-      const droite = Number(numerique);
-      const valeur = nombre(gauche);
+      valeur += where[i];
+      i++;
+    }
+    if (where[i] !== guillemet) throw refus(where, i, 'litteral chaine non ferme');
+    i++;
+    return valeur;
+  };
+
+  const OPERATEURS = ['>=', '<=', '!=', '=', '>', '<'] as const;
+
+  const comparaison = (): PredicatOdsql => {
+    const champ = identifiant();
+    blancs();
+    const operateur = OPERATEURS.find((o) => where.startsWith(o, i));
+    if (!operateur) throw refus(where, i, 'operateur de comparaison attendu');
+    i += operateur.length;
+    blancs();
+
+    if (where[i] === '"' || where[i] === "'") {
+      const attendue = chaine();
+      return (ligne) => {
+        const gauche = String(ligne[champ] ?? '');
+        return operateur === '!=' ? gauche !== attendue : gauche === attendue;
+      };
+    }
+
+    const debut = i;
+    while (i < where.length && /[-\d.]/.test(where[i])) i++;
+    if (i === debut) throw refus(where, i, 'litteral chaine ou numerique attendu');
+    const droite = Number(where.slice(debut, i));
+    return (ligne) => {
+      const valeur = nombre(ligne[champ]);
       switch (operateur) {
         case '=':
           return valeur === droite;
@@ -261,8 +337,50 @@ export function filtrerOdsql(lignes: Ligne[], where: string): Ligne[] {
         default:
           return valeur <= droite;
       }
-    })
-  );
+    };
+  };
+
+  const facteur = (): PredicatOdsql => {
+    blancs();
+    if (where[i] !== '(') return comparaison();
+    i++;
+    const dedans = expression();
+    blancs();
+    if (where[i] !== ')') throw refus(where, i, 'parenthese non fermee');
+    i++;
+    return dedans;
+  };
+
+  const terme = (): PredicatOdsql => {
+    let gauche = facteur();
+    while (motCle('and')) {
+      const precedent = gauche;
+      const droite = facteur();
+      gauche = (ligne) => precedent(ligne) && droite(ligne);
+    }
+    return gauche;
+  };
+
+  function expression(): PredicatOdsql {
+    let gauche = terme();
+    while (motCle('or')) {
+      const precedent = gauche;
+      const droite = terme();
+      gauche = (ligne) => precedent(ligne) || droite(ligne);
+    }
+    return gauche;
+  }
+
+  const predicat = expression();
+  blancs();
+  if (i < where.length) throw refus(where, i, 'texte inattendu apres la clause');
+  return predicat;
+}
+
+export function filtrerOdsql(lignes: Ligne[], where: string): Ligne[] {
+  if (!where.trim()) return lignes;
+  const predicat = analyserOdsql(where);
+  return lignes.filter(predicat);
 }
 
 /** `"champ DESC, autre ASC"` — la forme qu'emet `toOdsOrderBy`. */
@@ -307,6 +425,48 @@ function agregerOds(lignes: Ligne[], groupBy: string, select: string): Ligne[] {
   });
 }
 
+/**
+ * Un `select` d'agregats SEULS, sans `group_by` (#810) : `count(*) as n,
+ * sum(population) as pop`. Un seul champ nu dans la liste annule tout — c'est
+ * la regle que suit l'adaptateur pour choisir son chemin « une requete, une
+ * ligne ».
+ */
+function estAgregatSeul(select: string): boolean {
+  if (!select.trim()) return false;
+  const elements = analyserSelect(select);
+  return elements.length > 0 && elements.every((e) => e.fonction !== null);
+}
+
+/**
+ * Agregat global : UNE ligne, ou AUCUNE.
+ *
+ * Le vrai portail rend `results: []` quand le filtre ne garde rien — il ne
+ * synthetise pas une ligne de zeros. C'est precisement ce que l'adaptateur
+ * doit rattraper (`count` → 0, les autres → null) ; le faux serveur ment donc
+ * comme le vrai, sans quoi ce rattrapage ne serait jamais exerce.
+ */
+function agregerGlobal(lignes: Ligne[], select: string): Ligne[] {
+  if (lignes.length === 0) return [];
+  const sortie: Ligne = {};
+  for (const element of analyserSelect(select)) {
+    sortie[element.alias] = appliquerAgregat(element, lignes);
+  }
+  return [sortie];
+}
+
+/** Le corps commun de `/records` et `/exports/json` : filtre, agregation, tri. */
+function calculerOds(jeu: Ligne[], p: URLSearchParams): Ligne[] {
+  const filtrees = filtrerOdsql(jeu, p.get('where') ?? '');
+  const groupBy = p.get('group_by') ?? '';
+  const select = p.get('select') ?? '';
+  const completes = groupBy
+    ? agregerOds(filtrees, groupBy, select)
+    : estAgregatSeul(select)
+      ? agregerGlobal(filtrees, select)
+      : filtrees;
+  return trierOds(completes, p.get('order_by') ?? '');
+}
+
 // ---------------------------------------------------------------------------
 // Les quatre faux serveurs
 // ---------------------------------------------------------------------------
@@ -327,13 +487,10 @@ export interface EnveloppeOds {
 export function repondreOdsRecords(url: URL, jeu: Ligne[] = JEU): EnveloppeOds {
   const p = url.searchParams;
   const groupBy = p.get('group_by') ?? '';
-  const select = p.get('select') ?? '';
   const limite = Number(p.get('limit') ?? String(ODS_PAGE_SIZE));
   const decalage = Number(p.get('offset') ?? '0');
 
-  const filtrees = filtrerOdsql(jeu, p.get('where') ?? '');
-  const completes = groupBy ? agregerOds(filtrees, groupBy, select) : filtrees;
-  const triees = trierOds(completes, p.get('order_by') ?? '');
+  const triees = calculerOds(jeu, p);
   const page = triees.slice(decalage, decalage + limite);
 
   return { total_count: groupBy ? page.length : triees.length, results: page };
@@ -347,10 +504,7 @@ export function repondreOdsRecords(url: URL, jeu: Ligne[] = JEU): EnveloppeOds {
  */
 export function repondreOdsExport(url: URL, jeu: Ligne[] = JEU): Ligne[] {
   const p = url.searchParams;
-  const filtrees = filtrerOdsql(jeu, p.get('where') ?? '');
-  const groupBy = p.get('group_by') ?? '';
-  const completes = groupBy ? agregerOds(filtrees, groupBy, p.get('select') ?? '') : filtrees;
-  const triees = trierOds(completes, p.get('order_by') ?? '');
+  const triees = calculerOds(jeu, p);
   const limite = Number(p.get('limit') ?? '0');
   return limite > 0 ? triees.slice(0, limite) : triees;
 }
