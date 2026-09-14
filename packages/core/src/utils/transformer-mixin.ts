@@ -50,6 +50,7 @@ import {
 } from './data-bridge.js';
 import { reportConfigError, clearConfigError } from './config-error.js';
 import { checkUnknownAttributes } from './unknown-attributes.js';
+import { registerDsfrDataInstance, unregisterDsfrDataInstance } from './instance-registry.js';
 
 // Pattern Lit mixin canonique : le constructor doit être callable avec
 // n'importe quels args pour permettre le chaînage `class extends mixin(Parent)`.
@@ -360,6 +361,10 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       // enregistrée et le balisage écrit par l'intégrateur.
       checkUnknownAttributes(this);
       this.reinitTransformer();
+      // Registre des instances (#836), APRÈS l'init : l'inscription notifie,
+      // et une query qui renégocie aussitôt adresse une commande à ce nœud —
+      // il doit déjà être abonné aux commandes pour la relayer (#855).
+      registerDsfrDataInstance(this);
     }
 
     willUpdate(changedProperties: Map<PropertyKey, unknown>) {
@@ -383,6 +388,7 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
     disconnectedCallback() {
       super.disconnectedCallback();
+      unregisterDsfrDataInstance(this);
       this._cleanup();
       if (this.id) {
         clearDataCache(this.id);

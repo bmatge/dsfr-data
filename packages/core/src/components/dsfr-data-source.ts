@@ -278,8 +278,9 @@ export class DsfrDataSource extends LitElement {
    * premier filtre.
    *
    * Ce qui compte comme filtre : les clauses reçues par commande — facettes,
-   * recherche, `dsfr-data-context`, délégation d'un `dsfr-data-query`. Le
-   * `where` STATIQUE de la source ne compte PAS : il fait partie de la
+   * recherche, `dsfr-data-context`, délégation d'un `dsfr-data-query` (son
+   * `where`, avec ou sans `group-by`, quand elle est seule lectrice de la
+   * chaîne — #856). Le `where` STATIQUE de la source ne compte PAS : il fait partie de la
    * définition du jeu, pas du geste de l'utilisateur ; le contraire rendrait
    * l'attribut sans effet sur toute source qui restreint déjà son périmètre.
    *
