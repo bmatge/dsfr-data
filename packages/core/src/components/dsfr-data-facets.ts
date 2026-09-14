@@ -2005,14 +2005,20 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * Common logic after any selection change — routes to client, server, or
    * static mode. En mode `context` (#678), la diffusion est confiee au
    * contexte ; la facette ne garde que le calcul de ses valeurs : cascade
-   * serveur relancee ici (sa `source` n'est pas forcement une cible du
-   * contexte, rien ne la refetcherait), filtre local inchange en mode client.
+   * serveur relancee ici SEULEMENT quand sa `source` n'est pas une cible du
+   * contexte (rien ne la refetcherait), filtre local inchange en mode client.
+   *
+   * Le commentaire decrivait deja ce cas, le code ne le testait pas (#840) :
+   * quand la source EST une cible, le contexte lui diffuse la clause, elle
+   * refetche, emet, et `_onData` relance les facettes — la relance directe
+   * faisait une requete `/facets` de plus a chaque clic, annulee aussitot par
+   * `_facetsAbort` (donc invisible, mais payee).
    */
   private _afterSelectionChange() {
     if (this._contextMode) {
       this._pushContextFilters();
       if (this.serverFacets) {
-        this._fetchServerFacets();
+        if (!this._sourceRefetchedByContext()) this._fetchServerFacets();
       } else if (!this.staticValues) {
         this._buildFacetGroups();
         this._applyFilters();
@@ -2026,6 +2032,29 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       this._applyFilters();
     }
     if (this._ownUrlSync) this._syncUrl();
+  }
+
+  /**
+   * La source de cette facette sera-t-elle refetchee par le contexte (#840) ?
+   *
+   * Vrai quand elle est une cible du contexte, ou qu'elle est en aval d'une
+   * cible par une chaine d'attributs `source` (une `dsfr-data-query` posee
+   * derriere la source diffusee re-emet elle aussi). Les amonts multiples
+   * (`join`, `concat`) ne sont pas remontes : on retombe alors sur la relance
+   * directe, c'est-a-dire l'ancien comportement.
+   */
+  private _sourceRefetchedByContext(): boolean {
+    if (!this._context || !this.source) return false;
+    const targets = new Set(this._context.sourceIds);
+    const seen = new Set<string>();
+    let id: string | undefined = this.source;
+    while (id && !seen.has(id)) {
+      if (targets.has(id)) return true;
+      seen.add(id);
+      const upstream = document.getElementById(id) as unknown as SourceElement | null;
+      id = upstream?.source;
+    }
+    return false;
   }
 
   // --- URL params ---

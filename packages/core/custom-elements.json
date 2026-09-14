@@ -6403,7 +6403,18 @@
               "kind": "method",
               "name": "_afterSelectionChange",
               "privacy": "private",
-              "description": "Common logic after any selection change — routes to client, server, or\nstatic mode. En mode `context` (#678), la diffusion est confiee au\ncontexte ; la facette ne garde que le calcul de ses valeurs : cascade\nserveur relancee ici (sa `source` n'est pas forcement une cible du\ncontexte, rien ne la refetcherait), filtre local inchange en mode client."
+              "description": "Common logic after any selection change — routes to client, server, or\nstatic mode. En mode `context` (#678), la diffusion est confiee au\ncontexte ; la facette ne garde que le calcul de ses valeurs : cascade\nserveur relancee ici SEULEMENT quand sa `source` n'est pas une cible du\ncontexte (rien ne la refetcherait), filtre local inchange en mode client.\n\nLe commentaire decrivait deja ce cas, le code ne le testait pas (#840) :\nquand la source EST une cible, le contexte lui diffuse la clause, elle\nrefetche, emet, et `_onData` relance les facettes — la relance directe\nfaisait une requete `/facets` de plus a chaque clic, annulee aussitot par\n`_facetsAbort` (donc invisible, mais payee)."
+            },
+            {
+              "kind": "method",
+              "name": "_sourceRefetchedByContext",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La source de cette facette sera-t-elle refetchee par le contexte (#840) ?\n\nVrai quand elle est une cible du contexte, ou qu'elle est en aval d'une\ncible par une chaine d'attributs `source` (une `dsfr-data-query` posee\nderriere la source diffusee re-emet elle aussi). Les amonts multiples\n(`join`, `concat`) ne sont pas remontes : on retombe alors sur la relance\ndirecte, c'est-a-dire l'ancien comportement."
             },
             {
               "kind": "method",
