@@ -206,14 +206,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * dsfr-data-source) : une clause non parsable est signalee via
    * reportConfigError (#277).
    *
-   * **La clause part au serveur** des lors que l'amont a un adaptateur qui
-   * sait la traduire et que cette query est seule lectrice de sa chaine
+   * **La clause part au serveur** dès lors que l'amont a un adaptateur qui
+   * sait la traduire et que cette requête est seule lectrice de sa chaîne
    * (#856) — avec ou sans `group-by`. Elle est traduite au dialecte de
-   * l'adaptateur (#275) et posee en overlay CLE PAR EMETTEUR (ADR-031) :
+   * l'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :
    * elle se fusionne avec les clauses des facettes, de la recherche et du
-   * contexte au lieu de les ecraser, et elle leve l'attente d'un
-   * `require-where` pose sur la source (#854). Elle reste calculee dans le
-   * navigateur quand la chaine est partagee (#765), quand un transformateur
+   * contexte au lieu de les écraser, et elle lève l'attente d'un
+   * `require-where` posé sur la source (#854). Elle reste calculée dans le
+   * navigateur quand la chaîne est partagée (#765), quand un transformateur
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
    */
