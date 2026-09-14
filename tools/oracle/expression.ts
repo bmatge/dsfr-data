@@ -25,7 +25,9 @@
  *   - `+` additionne quand LES DEUX côtés sont numériques, sinon concatène ;
  *   - l'égalité est lâche (nombre ↔ chaîne numérique) mais une cellule VIDE
  *     n'égale jamais un nombre — c'est `egal()` de `compute.ts` ;
- *   - les comparaisons d'ordre ne matchent jamais une valeur absente.
+ *   - les comparaisons d'ordre ne matchent jamais une valeur absente ;
+ *   - la véracité d'une condition suit la règle écrite : `false`, `null`,
+ *     `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai.
  */
 import type { Row } from './manifest.js';
 import { absent, egal, toNum } from './compute.js';
@@ -333,6 +335,17 @@ function ordre(op: string, a: unknown, b: unknown): boolean {
   return c >= 0;
 }
 
+/**
+ * Véracité d'une valeur, sur la règle DOCUMENTÉE de la grammaire : `false`,
+ * `null`, `undefined`, la chaîne vide, `0` et `NaN` sont faux ; tout le reste
+ * est vrai. Un `when actif then …` sur une colonne à 1 / 0 doit donc marcher,
+ * et pas seulement sur un booléen produit par une comparaison.
+ */
+export function vrai(v: unknown): boolean {
+  if (v === false || v === null || v === undefined || v === '' || v === 0) return false;
+  return !(typeof v === 'number' && Number.isNaN(v));
+}
+
 function texteDe(v: unknown): string {
   return v === null || v === undefined ? '' : String(v);
 }
@@ -418,7 +431,7 @@ function evaluer(noeud: Noeud, row: Row): unknown {
       return row[noeud.nom] ?? null;
     case 'unaire': {
       const v = evaluer(noeud.operande, row);
-      if (noeud.op === 'not') return !v;
+      if (noeud.op === 'not') return !vrai(v);
       const n = toNum(v);
       return n === null ? null : -n;
     }
@@ -429,16 +442,16 @@ function evaluer(noeud: Noeud, row: Row): unknown {
       );
     case 'quand': {
       for (const branche of noeud.branches) {
-        if (evaluer(branche.si, row) === true) return evaluer(branche.alors, row);
+        if (vrai(evaluer(branche.si, row))) return evaluer(branche.alors, row);
       }
       return evaluer(noeud.sinon, row);
     }
     case 'binaire': {
       if (noeud.op === 'and') {
-        return evaluer(noeud.gauche, row) === true && evaluer(noeud.droite, row) === true;
+        return vrai(evaluer(noeud.gauche, row)) && vrai(evaluer(noeud.droite, row));
       }
       if (noeud.op === 'or') {
-        return evaluer(noeud.gauche, row) === true || evaluer(noeud.droite, row) === true;
+        return vrai(evaluer(noeud.gauche, row)) || vrai(evaluer(noeud.droite, row));
       }
       const a = evaluer(noeud.gauche, row);
       const b = evaluer(noeud.droite, row);

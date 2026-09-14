@@ -25,8 +25,12 @@
  *   - `where="champ:eq:0"` face à une cellule VIDE : le `where` garde
  *     l'égalité lâche de JavaScript (`'' == 0`) là où `compute` ne l'a pas ;
  *     les deux sémantiques coexistent exprès, l'oracle en énonce une ;
- *   - un tri dont la colonne mêle nombres et non-nombres : la lib range les
- *     seconds après les premiers, l'oracle tient la paire pour INCOMPARABLE ;
+ *   - un TRI dont la colonne mêle nombres et non-nombres : la bibliothèque y
+ *     applique un ordre total à trois rangs (vide < nombre < chaîne) qui n'est
+ *     pas celui de ses comparaisons de filtre ; les deux ne sont pas
+ *     comparables, et aucun contrôle ne s'y appuie. Les COMPARAISONS d'ordre
+ *     d'un `where`, elles, sont contrôlées sur une paire mixte
+ *     (`where-paire-mixte-nombre-et-texte`) ;
  *   - les erreurs de configuration (collision de colonnes d'un pivot, schéma
  *     divergent d'un empilement) : elles n'émettent AUCUNE ligne, et l'oracle
  *     ne compare que ce qui s'affiche.
@@ -284,6 +288,33 @@ ${kpi('k-num', 'q-num')}`,
         id: 'k-num',
         agg: 'count',
         pipeline: [{ op: 'filter', filters: [{ field: 'code', op: 'eq', value: 42 }] }],
+      },
+    ],
+  },
+
+  {
+    id: 'where-paire-mixte-nombre-et-texte',
+    mode: 'deterministic',
+    origin:
+      'Une colonne qui MÊLE des nombres et des « NC » : le contrat documenté compare en nombre quand les deux côtés le sont, EN TEXTE sinon — « NC » se range donc après « 100 », et les deux bornes se partagent malgré tout les douze lignes sans en perdre.',
+    feed: { kind: 'fixture', datasets: JEU_TERR },
+    markup: `${TERR}
+  <dsfr-data-query id="q-mixte-haut" source="s-terr" where="mesure:gte:100"></dsfr-data-query>
+  <dsfr-data-query id="q-mixte-bas" source="s-terr" where="mesure:lt:100"></dsfr-data-query>
+${kpi('k-mixte-haut', 'q-mixte-haut')}
+${kpi('k-mixte-bas', 'q-mixte-bas')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-mixte-haut',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'mesure', op: 'gte', value: 100 }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-mixte-bas',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'mesure', op: 'lt', value: 100 }] }],
       },
     ],
   },

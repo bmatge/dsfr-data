@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyFilter,
   concatRows,
   groupBy,
   joinRows,
@@ -139,6 +140,24 @@ describe('oracle / jointures', () => {
   });
 });
 
+describe('oracle / comparaison d’ordre sur une paire mixte', () => {
+  const mesures: Row[] = [{ x: 250 }, { x: 'NC' }, { x: '90' }, { x: null }, { x: '' }];
+
+  it('compare en chaîne quand un seul côté est numérique, comme le contrat le dit', () => {
+    const gardees = applyFilter(mesures, { field: 'x', op: 'gte', value: 100 });
+    // 250 par le nombre, « NC » par le texte (« NC » après « 100 ») ; « 90 »
+    // reste dehors par le nombre, et ni l'absent ni le vide ne matchent.
+    expect(gardees.map((r) => r.x)).toEqual([250, 'NC']);
+  });
+
+  it('n’y fait matcher ni l’absence ni le vide, quel que soit l’opérateur', () => {
+    for (const op of ['gt', 'gte', 'lt', 'lte'] as const) {
+      const gardees = applyFilter(mesures, { field: 'x', op, value: 100 });
+      expect(gardees.some((r) => r.x === null || r.x === '')).toBe(false);
+    }
+  });
+});
+
 describe('oracle / pivot et dépliage', () => {
   const long: Row[] = [
     { c: 'Lyon', an: '2022', m: 10 },
@@ -217,6 +236,48 @@ describe('oracle / pivot et dépliage', () => {
         dropEmpty: true,
       })
     ).toHaveLength(1);
+  });
+});
+
+describe('oracle / ce que l’oracle REFUSE de recalculer', () => {
+  // Une erreur de configuration n'émet AUCUNE ligne côté bibliothèque. Un
+  // oracle qui recalculerait quand même un tableau plausible fabriquerait un
+  // attendu que la page ne montrera jamais — il lève, comme elle.
+  const long: Row[] = [
+    { commune: 'Lyon', annee: '2022', montant: 10 },
+    { commune: 'Lyon', annee: 'commune', montant: 12 },
+  ];
+
+  it('refuse une colonne générée qui porte le nom d’un champ d’identité', () => {
+    expect(() => pivotRows(long, { row: 'commune', column: 'annee', value: 'montant' })).toThrow(
+      /commune/
+    );
+  });
+
+  it('refuse deux valeurs qui produiraient la même colonne', () => {
+    const doublon: Row[] = [
+      { c: 'Lyon', an: '2022', m: 1 },
+      { c: 'Lyon', an: '2023', m: 2 },
+    ];
+    expect(() =>
+      pivotRows(doublon, { row: 'c', column: 'an', value: 'm', columnFormat: 'fixe' })
+    ).toThrow(/produisent la colonne/);
+  });
+
+  it('refuse un empilement de schémas divergents', () => {
+    const jeux = {
+      main: [{ mois: '01', montant: 10 }],
+      autre: [{ mois: '01', total: 15 }],
+    };
+    expect(() => concatRows(jeux, ['main', 'autre'])).toThrow(/schémas divergents/);
+  });
+
+  it('refuse une colonne de provenance qui écraserait une colonne des données', () => {
+    const jeux = {
+      main: [{ mois: '01', montant: 10 }],
+      autre: [{ mois: '02', montant: 15 }],
+    };
+    expect(() => concatRows(jeux, ['main', 'autre'], 'montant')).toThrow(/écraserait/);
   });
 });
 

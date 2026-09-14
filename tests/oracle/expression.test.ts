@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compiler, decouper, deriver } from '../../tools/oracle/expression.js';
+import { compiler, decouper, deriver, vrai } from '../../tools/oracle/expression.js';
 
 /**
  * L'évaluateur d'expressions de l'ORACLE — la seconde implémentation de la
@@ -92,6 +92,35 @@ describe('oracle / expressions', () => {
   it('relit une colonne calculée par l’assignation précédente', () => {
     const r = deriver([{ a: 2, b: 3 }], 'p1 = a * 2; p2 = p1 + b')[0];
     expect([r.p1, r.p2]).toEqual([4, 7]);
+  });
+
+  it('tient pour vraie toute valeur qui n’est pas dans la liste des fausses', () => {
+    // Règle DOCUMENTÉE : false, null, undefined, '', 0 et NaN sont faux ;
+    // tout le reste est vrai. Une colonne à 1 / 0 se teste donc directement,
+    // sans comparaison — `when actif then …` doit marcher.
+    for (const faux of [false, null, undefined, '', 0]) {
+      expect(vrai(faux)).toBe(false);
+    }
+    expect(vrai(Number.NaN)).toBe(false);
+    for (const verite of [true, 1, -1, 'non', '0', 0.5, [], {}]) {
+      expect(vrai(verite)).toBe(true);
+    }
+  });
+
+  it('accepte une condition qui n’est pas un booléen', () => {
+    const rows = deriver(
+      [{ actif: 1 }, { actif: 0 }, { actif: 'oui' }, { actif: '' }, { actif: null }],
+      "t = when actif then 'oui' else 'non'"
+    );
+    expect(rows.map((r) => r.t)).toEqual(['oui', 'non', 'oui', 'non', 'non']);
+  });
+
+  it('applique la même véracité à and, or et not', () => {
+    const rows = deriver(
+      [{ a: 1, b: 0 }],
+      "et = when a and b then 'oui' else 'non'; ou = when a or b then 'oui' else 'non'; non = when not b then 'oui' else 'non'"
+    );
+    expect([rows[0].et, rows[0].ou, rows[0].non]).toEqual(['non', 'oui', 'oui']);
   });
 
   it('enchaîne les connecteurs logiques avec la bonne priorité', () => {

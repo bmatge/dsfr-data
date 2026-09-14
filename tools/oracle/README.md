@@ -11,6 +11,39 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
+## Doctrine : l'oracle tient le contrat ÉCRIT
+
+Indépendant ne veut pas dire arbitraire. Là où la bibliothèque **documente** un
+comportement — JSDoc d'un attribut, guide des skills, en-tête d'un utilitaire de
+`shared` — l'oracle suit le contrat documenté, et recalcule ce qui est
+**promis**. Il ne s'en écarte que sur ce que la documentation ne dit pas, ou sur
+ce qui la contredit : un écart entre le code et sa doc est un défaut, et c'est
+exactement ce qu'un contrôle doit faire tomber.
+
+Un oracle qui « corrigerait » au passage un comportement qu'il juge discutable
+ne vérifierait plus rien : il mesurerait l'écart entre la bibliothèque et l'avis
+de son auteur, pas entre deux implémentations du même contrat. Le débat sur le
+comportement lui-même se tranche dans la bibliothèque (une issue, une ADR), pas
+dans `tools/oracle`.
+
+Trois applications, qui se lisent dans le code :
+
+| Contrat documenté | Où l'oracle le tient |
+|---|---|
+| Véracité d'une condition : `false`, `null`, `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai | `vrai()` — `expression.ts` (`when`, `and`, `or`, `not`) |
+| Comparaison d'ordre : numérique quand les DEUX côtés le sont (décimales françaises comprises), lexicographique sinon ; `null`, `undefined` et `''` ne matchent jamais | `compare()` — `compute.ts`, et `ordre()` — `expression.ts` |
+| Égalité : lâche entre un nombre et une chaîne numérique, mais une cellule VIDE n'égale jamais un nombre | `egal()` — `compute.ts` |
+
+La comparaison d'ordre est le cas parlant : sur une paire mixte, « NC » face à
+100, le repli lexicographique range « NC » **après** « 100 ». C'est discutable,
+et c'est écrit ; le contrôle `where-paire-mixte-nombre-et-texte` le tient pour
+vrai, et tomberait si la bibliothèque cessait de le faire sans changer sa doc.
+
+Corollaire, pour ce que la bibliothèque **refuse** : une erreur de configuration
+(collision de colonnes d'un pivot, schémas divergents d'un empilement) n'émet
+aucune ligne. L'oracle **lève** dans ces cas au lieu de recalculer un tableau
+plausible — sinon il fabriquerait un attendu que la page ne montrera jamais.
+
 ## Les deux modes
 
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
@@ -120,6 +153,7 @@ Mutations éprouvées sur ce socle :
 | `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
 | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
 | `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
+| repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
 
 ## Le rapport
 
