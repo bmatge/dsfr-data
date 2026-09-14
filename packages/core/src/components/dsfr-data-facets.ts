@@ -819,7 +819,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * Garde son nom : c'est par lui que les tests unitaires eprouvent la
    * resolution de chemin depuis le composant.
    */
-  _resolveValue(row: Record<string, unknown>, field: string): unknown {
+  private _resolveValue(row: Record<string, unknown>, field: string): unknown {
     return resolveFacetValue(row, field);
   }
 
@@ -866,7 +866,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
   /** Filter data by all active selections EXCEPT the given field */
   private _getDataFilteredExcluding(excludeField: string): Record<string, unknown>[] {
-    return filterRowsBySelections(this._rawData, this._activeSelections, excludeField);
+    return filterRowsBySelections(this._rawData, this._activeSelections, excludeField, (row, f) =>
+      this._resolveValue(row, f)
+    );
   }
 
   /** Formes de `sort` déjà signalees comme depreciees (un warn par forme et par instance, #645) */
@@ -1022,10 +1024,12 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     // sert qu'a typer les champs date (#676).
     //
     // COUPLAGE — cette resolution reste ECRITE ICI, et non dans une methode
-    // `async` a part : `await uneMethodeAsync()` differe d'une microtache
-    // meme quand son corps est synchrone, et le cycle cesserait alors de
-    // poser son AbortController dans la tache de l'appelant. Deux clics
-    // rapides n'annuleraient plus le cycle precedent (#309).
+    // `async` a part. Avec `discoverFacets`, l'AbortController est pose APRES
+    // l'await de la decouverte, comme avant #838. Sans, tout ce qui precede
+    // la pose est synchrone : `await uneMethodeAsync()` ajouterait des
+    // microtaches meme a corps synchrone, et changerait l'ENTRELACEMENT de
+    // deux cycles concurrents — l'ordre abort / jeton de generation que #309
+    // garantit, et que `facets-fetch-hardening` eprouve, ne serait plus le meme.
     let fields = parseCSV(this.fields);
     if (adapter.discoverFacets) {
       const knewDateFields = this._dateFacetFields() !== undefined;

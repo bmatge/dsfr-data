@@ -1335,6 +1335,172 @@
             },
             {
               "kind": "method",
+              "name": "_applyGaugeAttrs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attrs",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_applyPieAttrs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attrs",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "x",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "y",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "labels",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_applyBarLineAttrs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attrs",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "paddedLabels",
+                  "type": {
+                    "text": "unknown[]"
+                  }
+                },
+                {
+                  "name": "paddedSeries",
+                  "type": {
+                    "text": "Array<Array<number | null>>"
+                  }
+                },
+                {
+                  "name": "values",
+                  "type": {
+                    "text": "number[]"
+                  }
+                }
+              ],
+              "description": "DSFR BarLineChart expects flat arrays (not double-wrapped [[values]])\nunlike BarChart which uses xparse[0] to unwrap, and uses\nname-bar/name-line + unit-tooltip-bar/unit-tooltip-line.\n\nSans `name`, la légende était vide : les libellés dérivés des champs\n(alias inline `champ:Libellé` ou chemin, #668) prennent le relais, comme\npour les autres types."
+            },
+            {
+              "kind": "method",
+              "name": "_applyMapAttrs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attrs",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "deferred",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                }
+              ],
+              "description": "Le decoupage est choisi par l'attribut level (API unifiee 2.1.0) —\nstatique : Vue le lit au montage et ne l'ecrase pas.\n\n`value` et `date` vont dans `deferred` : le composant Vue de DSFR Chart\necrase au montage les props qui ont un defaut (`value: \"\"`, `date: \"\"`).\nLes differes sont re-poses via setTimeout(500ms) apres le montage, ce qui\ndeclenche le watcher $props -> createChart(). `data` est `required` SANS\ndefaut (MapChart.js) : rien ne l'ecrase. Elle est donc posee\nimmediatement — sinon `mounted()` fait `JSON.parse(undefined)` et logge\n« Erreur lors du parsing des données data » a chaque montage de carte\n(#651) — ET conservee dans `deferred` (double pose) pour garder le cycle\nde re-pose."
+            },
+            {
+              "kind": "method",
+              "name": "_applyTargetBounds",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attrs",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "allSeries",
+                  "type": {
+                    "text": "number[][]"
+                  }
+                },
+                {
+                  "name": "activeTargets",
+                  "type": {
+                    "text": "ChartTarget[]"
+                  }
+                }
+              ],
+              "description": "Bornes Y élargies automatiquement pour que le losange de cible reste\ndans la zone traçable — seulement si l'utilisateur n'a pas fixé les\nsiennes (#377). Le bar-line a deux axes séparés (y-bar-* / y-line-*)."
+            },
+            {
+              "kind": "method",
+              "name": "_applyTypeOptions",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attrs",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                }
+              ],
+              "description": "Options propres a un type, posees apres les attributs de donnees."
+            },
+            {
+              "kind": "method",
               "name": "_getAriaLabel",
               "privacy": "private",
               "return": {
@@ -5304,7 +5470,7 @@
                   }
                 }
               ],
-              "description": "Reinjecte les selections orphelines dans les groupes (#310) : après un\nrefetch, une valeur selectionnee disparue des données restait dans\n_activeSelections — la checkbox n'etait plus rendue mais le filtre\nrestait actif (résultats vides inexplicables). Elle est rendue cochee,\nmarquee indisponible, donc desactivable."
+              "description": "Selections orphelines reinjectees (#310) — `facets/facets-client.ts`."
             },
             {
               "kind": "method",
@@ -5482,51 +5648,7 @@
                   }
                 }
               ],
-              "description": "Resolve a possibly dotted field path on a row (e.g. \"fields.Region\")"
-            },
-            {
-              "kind": "method",
-              "name": "_facetValuesOf",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "string[]"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "val",
-                  "type": {
-                    "text": "unknown"
-                  }
-                }
-              ],
-              "description": "Valeurs de facette d'une cellule (#421) : une cellule tableau (champ\nmulti-valeurs, ex. ChoiceList Grist) fournit chaque élément ; une cellule\nscalaire fournit sa valeur. Les éléments vides sont ignorés. L'ancien\n`String(val)` stringifiait le tableau (« a,b ») : la valeur ne matchait\njamais une selection et polluait les groupes de facettes."
-            },
-            {
-              "kind": "method",
-              "name": "_matchesSelection",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "boolean"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "val",
-                  "type": {
-                    "text": "unknown"
-                  }
-                },
-                {
-                  "name": "selected",
-                  "type": {
-                    "text": "Set<string>"
-                  }
-                }
-              ],
-              "description": "La cellule matche-t-elle la selection ? Intersection pour les tableaux (#421)."
+              "description": "Chemin pointe resolu sur une ligne — `facets/facets-client.ts`.\nGarde son nom : c'est par lui que les tests unitaires eprouvent la\nresolution de chemin depuis le composant."
             },
             {
               "kind": "method",
@@ -5547,7 +5669,7 @@
                   "text": "string[]"
                 }
               },
-              "description": "Auto-detect categorical fields: string type, 2-50 unique values, not all unique (ID-like)"
+              "description": "Champs categoriels detectes sur les lignes — `facets/facets-client.ts`."
             },
             {
               "kind": "field",
@@ -5555,31 +5677,6 @@
               "privacy": "private",
               "default": "new Set<string>()",
               "description": "`weight-field` absent des données : signale une fois par champ (#739)"
-            },
-            {
-              "kind": "method",
-              "name": "_rowWeight",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "number"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "row",
-                  "type": {
-                    "text": "Record<string, unknown>"
-                  }
-                },
-                {
-                  "name": "weightField",
-                  "type": {
-                    "text": "string"
-                  }
-                }
-              ],
-              "description": "Poids d'une ligne : 1 par défaut, la valeur de `weight-field` sinon\n(#739). Une cellule non numérique pese zero — la somme reste lisible,\net un champ entierement absent est signale en console."
             },
             {
               "kind": "method",
@@ -5626,23 +5723,10 @@
               "description": "Formes de `sort` déjà signalees comme depreciees (un warn par forme et par instance, #645)"
             },
             {
-              "kind": "method",
-              "name": "_resolveSortCriterion",
+              "kind": "field",
+              "name": "_warnSort",
               "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "FacetSort"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "raw",
-                  "type": {
-                    "text": "string"
-                  }
-                }
-              ],
-              "description": "Resout un critère de tri isole (`count`, `alpha`, `count:asc`…) en\n(critère, sens) — grammaire `critere:sens` de `order-by` (#645). Les\nformes `-count` / `-alpha` restent acceptees avec leur sens historique\nmais sont signalees : le tiret y voulait dire « inverse du défaut »\n(croissant pour count, decroissant pour alpha), une convention ambigue\nqu'aucune forme explicite ne partage."
+              "description": "Un avertissement de tri par forme fautive et par instance (#645)."
             },
             {
               "kind": "method",
@@ -5652,7 +5736,7 @@
                   "text": "{ fallback: FacetSort; byField: Map<string, FacetSort> }"
                 }
               },
-              "description": "Decoupe l'attribut `sort` en un tri par défaut et un tri par champ\n(#741). Une entrée est « par champ » des qu'elle porte trois segments\n(`annee:alpha:asc`) ou qu'elle en porte deux dont le premier n'est pas\nun critère (`annee:alpha`) : la forme globale historique (`count`,\n`alpha:desc`, `-count`) ne peut jamais prendre ces formes. Le champ `*`\npose le tri par défaut des champs non nommes."
+              "description": "Tri par défaut et tri par champ (#741) — `facets/facets-sort.ts`."
             },
             {
               "kind": "method",
@@ -5749,43 +5833,20 @@
             },
             {
               "kind": "field",
+              "name": "_discovery",
+              "privacy": "private",
+              "default": "new ServerFacetsDiscovery()",
+              "description": "Decouverte memorisee par jeu de donnees — `facets/facets-server.ts`."
+            },
+            {
+              "kind": "field",
               "name": "_discoveredFacets",
               "type": {
                 "text": "FacetDescriptor[] | null"
               },
               "privacy": "private",
-              "default": "null",
-              "description": "Facettes decouvertes aupres du provider ; null tant que la decouverte n'a pas abouti"
-            },
-            {
-              "kind": "field",
-              "name": "_discoveryKey",
-              "type": {
-                "text": "string"
-              },
-              "privacy": "private",
-              "default": "''",
-              "description": "Cle (baseUrl + datasetId) de la decouverte memorisee : un autre jeu l'invalide"
-            },
-            {
-              "kind": "field",
-              "name": "_discoveryPromise",
-              "type": {
-                "text": "Promise<FacetDescriptor[]> | null"
-              },
-              "privacy": "private",
-              "default": "null",
-              "description": "Decouverte en vol, partagee entre deux cycles de fetch concurrents"
-            },
-            {
-              "kind": "field",
-              "name": "_discoveryEmptyWarned",
-              "type": {
-                "text": "boolean"
-              },
-              "privacy": "private",
-              "default": "false",
-              "description": "« Aucune facette déclarée » déjà signale pour ce jeu (un warn, pas un par cycle)"
+              "description": "Facettes decouvertes aupres du provider ; null tant que la decouverte n'a pas abouti",
+              "readonly": true
             },
             {
               "kind": "method",
@@ -5806,11 +5867,11 @@
                 {
                   "name": "params",
                   "type": {
-                    "text": "Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>"
+                    "text": "FacetServerParams"
                   }
                 }
               ],
-              "description": "Un appel de decouverte par jeu de données : noms et libellés des facettes\ndeclarees (utilisés quand `fields` est absent) et champs de type date —\nutiles meme avec `fields` explicite, car le where d'une annee doit être\nun intervalle (#676). Une decouverte en echec est memorisee vide (pas de\nnouvelle tentative a chaque cycle) jusqu'a un changement de jeu."
+              "description": "Un appel de decouverte par jeu de données (#680, #676)."
             },
             {
               "kind": "method",
@@ -5870,7 +5931,7 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'> | null"
+                  "text": "FacetServerParams | null"
                 }
               },
               "parameters": [
@@ -5881,7 +5942,7 @@
                   }
                 }
               ],
-              "description": "Paramètres serveur (baseUrl, datasetId, headers, proxy) de la source\namont. Resolus par la source elle-meme (headers effectifs avec\napi-key-ref) via la délégation SourceElement — re-parser les attributs\nDOM ratait la resolution d'api-key-ref → 401 sur sources authentifiees\n(#274). Null sans datasetId."
+              "description": "Paramètres serveur de la source amont (#274) — `facets/facets-server.ts`."
             },
             {
               "kind": "method",
@@ -5918,6 +5979,17 @@
               "name": "_fetchServerFacets",
               "privacy": "private",
               "description": "Fetch facet values from server API with cross-facet counts"
+            },
+            {
+              "kind": "method",
+              "name": "_warnNoDeclaredFacets",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Un jeu sans facette declaree : un avertissement, pas un par cycle (#680)."
             },
             {
               "kind": "method",
@@ -6105,29 +6177,10 @@
               "name": "_parseCols",
               "return": {
                 "type": {
-                  "text": "{ global: number } | { map: Map<string, number>; fallback: number } | null"
+                  "text": "FacetWidths"
                 }
               },
               "description": "Parse cols attribute: returns global col size or per-field map"
-            },
-            {
-              "kind": "method",
-              "name": "_parseWidths",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "{ global: number } | { map: Map<string, number>; fallback: number } | null"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "raw",
-                  "type": {
-                    "text": "string"
-                  }
-                }
-              ],
-              "description": "Grammaire commune de `cols` et `span` : global ou carte par champ."
             },
             {
               "kind": "method",
@@ -6145,7 +6198,7 @@
                   }
                 }
               ],
-              "description": "Classe de colonne DSFR d'un champ. Pleine largeur sous 768 px, largeur\ndemandée au point de rupture `md` (#788) — comme `dsfr-data-display`.\n`.fr-col-N` est définie HORS de toute media query dans le DSFR : la\nclasse nue valait 25 % à 320 px comme à 1440 px, soit 76 px par facette\nsur téléphone (mesuré dans Chromium, DSFR 1.14.4)."
+              "description": "Classe de colonne DSFR d'un champ (#788) — `facets/facets-attributes.ts`."
             },
             {
               "kind": "method",
@@ -6156,7 +6209,7 @@
                   "text": "{\n    global: Scale | null;\n    byField: Map<string, Scale>;\n    error: string | null;\n  }"
                 }
               },
-              "description": "`span` lu en échelles (#789) : global (`\"12 md:3\"`) ou par facette\n(`\"annee:12 md:3 | type:12 md:6\"`). Dans un segment, une clé qui n'est\npas un point de rupture est un nom de champ : `annee:3` reste la largeur\n3 de la facette « annee », exactement comme avec `cols`."
+              "description": "Échelles de `span` (#789) — `facets/facets-attributes.ts`."
             },
             {
               "kind": "method",
@@ -6175,7 +6228,7 @@
                   }
                 }
               ],
-              "description": "Échelle d'une facette (#790, #789) : `span` global, sinon `span` de la\nfacette, sinon `per-row`, sinon — carte `span` sans entrée pour ce champ\net sans `per-row` — la moitié de ligne historique. `null` : ni `span` ni\n`per-row` (ancien `cols`, ou grille automatique)."
+              "description": "Échelle effective d'une facette (#790, #789) — `facets/facets-attributes.ts`."
             },
             {
               "kind": "method",
@@ -6478,7 +6531,19 @@
               "kind": "method",
               "name": "_syncUrl",
               "privacy": "private",
-              "description": "Sync current facet selections back to URL (replaceState)"
+              "description": "Sync current facet selections back to URL (replaceState). Construction de\nl'URL et ecriture dans `utils/page-url.ts` (#683, #837), contenu des\nparamètres dans `facets/facets-url.ts` (#312, #838)."
+            },
+            {
+              "kind": "method",
+              "name": "_renderBanners",
+              "privacy": "private",
+              "description": "Bandeaux d'etat au-dessus des facettes : echec du fetch de facettes\n(#309) et `weight-field` demande en mode serveur (#739) — un compteur\nfaux serait pire qu'un compteur absent, l'API facettes ne renvoie qu'un\nnombre de lignes."
+            },
+            {
+              "kind": "method",
+              "name": "_renderGroups",
+              "privacy": "private",
+              "description": "Grille des facettes : grille DSFR des que `cols`, `span` ou `per-row`\nest pose, grille automatique sinon."
             },
             {
               "kind": "method",
@@ -6769,22 +6834,10 @@
           "customElement": true
         },
         {
-          "kind": "function",
+          "kind": "variable",
           "name": "_parseCSV",
-          "return": {
-            "type": {
-              "text": "string[]"
-            }
-          },
-          "parameters": [
-            {
-              "name": "value",
-              "type": {
-                "text": "string"
-              }
-            }
-          ],
-          "description": "Parse a comma-separated string into trimmed non-empty tokens"
+          "default": "parseCSV",
+          "description": "Parse a comma-separated string into trimmed non-empty tokens.\nReexport de `facets/facets-types.ts` (#838) : les modules de facettes\nn'importent pas le composant, et l'export historique reste en place."
         }
       ],
       "exports": [
@@ -8992,6 +9045,20 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderBody",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "columns",
+                  "type": {
+                    "text": "ReturnType<DsfrDataList['parseColumns']>"
+                  }
+                }
+              ],
+              "description": "Corps de la liste : etat de la source (chargement, erreur, attente d'un\nfiltre) ou le compte, le tableau et la pagination.\n\nUne erreur de source n'efface pas une page deja rendue en pagination\nserveur — l'ancienne page reste lisible."
             }
           ],
           "events": [
@@ -15240,6 +15307,237 @@
             },
             {
               "kind": "method",
+              "name": "_delegationTarget",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "DelegationTarget | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceEl",
+                  "type": {
+                    "text": "SourceElement | null"
+                  }
+                }
+              ],
+              "description": "Source amont delegable : l'element vise par `source` quand il expose un\nadaptateur ET ne transforme pas le schema.\n\n#394 : si un transformateur entre cette query et la source qui fetch\ncrée/renomme des colonnes (unpivot, normalize rename/compute…), les\nopérations de la query s'expriment dans le schéma POST-transformation.\nLes déléguer au serveur enverrait des noms de colonnes inconnus de\nl'API (Grist Records : 500 \"unknown key annee\") — et l'erreur de la\nsource ferait tomber TOUS ses abonnés. Tout reste alors client-side."
+            },
+            {
+              "kind": "method",
+              "name": "_isChainExclusive",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceEl",
+                  "type": {
+                    "text": "SourceElement | null"
+                  }
+                }
+              ],
+              "description": "Cette query est-elle SEULE lectrice de la chaine de relais (#765) ?\nAvertit et conteste la delegation quand elle ne l'est pas.\n\n`_otherChainReaders()` est appele meme sans cible delegable : c'est lui\nqui pose `_chainIds` (#855)."
+            },
+            {
+              "kind": "method",
+              "name": "_canDelegateFields",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ],
+              "description": "Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom\ncontient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les\ninterroge avant de deleguer ; sinon on retombe sur le client-side."
+            },
+            {
+              "kind": "method",
+              "name": "_canDelegateAggregates",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "aggs",
+                  "type": {
+                    "text": "ParsedAggregate[]"
+                  }
+                }
+              ],
+              "description": "Fonction non traduisible par l'adapter (Tabular n'a pas de `distinct`,\n#672) : tout le group-by reste client-side, sur les lignes brutes —\ncomme pour un champ non delegable.\n\nUn agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :\naucun ne le traduit, et ceux qui n'implementent pas\n`supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc\n« delegable » — l'API recevrait `running_sum` et repondrait en erreur\npour tous les abonnes de la source."
+            },
+            {
+              "kind": "method",
+              "name": "_delegateGroupByAndAggregate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cmd",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "{ sourceEl, adapter, caps }",
+                  "type": {
+                    "text": "DelegationTarget"
+                  }
+                },
+                {
+                  "name": "exclusive",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Delegate group-by + aggregate together (they're coupled).\nDon't override if source already has its own groupBy or aggregate\n(user explicitly configured them on the source — respect that).\n`explode` (#736) reste client-side : aucune API du pipeline ne sait\néclater un champ multivalué, un group_by serveur regrouperait à\nnouveau par combinaison."
+            },
+            {
+              "kind": "method",
+              "name": "_delegateWhereOnly",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cmd",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "{ adapter, caps }",
+                  "type": {
+                    "text": "DelegationTarget"
+                  }
+                },
+                {
+                  "name": "exclusive",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Delegation du `where` SEUL (#856, #854) : sans regroupement, la clause\npart quand meme au serveur — c'est la moins chere a traduire et celle\nqui evite le plus de lignes (137 rapatriees pour en garder 20, mesure du\nbanc d'essai). L'overlay est CLE PAR EMETTEUR (ADR-031) : il se fusionne\navec ceux des facettes, de la recherche et du contexte au lieu de les\necraser, a la difference du regroupement.\n\nConditionne a `exclusive` comme le reste (#765) : la source sert ses\nlignes FILTREES a tous ses abonnes, un KPI voisin ne compterait que les\nlignes retenues par cette query.\n\nC'est aussi ce qui libere `require-where` comme sa documentation le\npromet (#854) : la clause deleguee EST le filtre attendu.\n\n`explode` (#736) reste hors du marche : la clause s'appliquerait aux\nlignes AVANT eclatement cote serveur et APRES cote client."
+            },
+            {
+              "kind": "method",
+              "name": "_delegateOrderBy",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cmd",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "{ sourceEl, adapter, caps }",
+                  "type": {
+                    "text": "DelegationTarget"
+                  }
+                },
+                {
+                  "name": "exclusive",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Delegate order-by"
+            },
+            {
+              "kind": "method",
+              "name": "_appendDelegationDiff",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cmd",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                },
+                {
+                  "name": "prev",
+                  "type": {
+                    "text": "{ groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean }"
+                  }
+                },
+                {
+                  "name": "prevSourceId",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ],
+              "description": "Diff same-source : liberer les operations qui ne sont plus deleguees\n(retrait de group-by, where disparu…) — envoye dans la MEME commande\nque les nouvelles delegations pour un seul refetch (#276)."
+            },
+            {
+              "kind": "method",
+              "name": "_sendDelegationCommand",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cmd",
+                  "type": {
+                    "text": "Record<string, string>"
+                  }
+                }
+              ],
+              "description": "Dedup cote query (#276) : commande identique a la derniere envoyee a\nla meme cible → la source est deja dans cet etat, son cache est\nvalide. Redispatchcer ferait sauter le cache a _subscribeToSourceData\nen attendant une emission que la source (qui deduplique aussi) ne\nrenverrait qu'en async — gel evitable."
+            },
+            {
+              "kind": "method",
               "name": "_otherChainReaders",
               "privacy": "private",
               "return": {
@@ -17514,6 +17812,92 @@
               "kind": "method",
               "name": "_fetchViaAdapter",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_resolveAdapterFetch",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ adapter: ApiAdapter; params: AdapterParams } | null"
+                }
+              },
+              "description": "Prealables d'un fetch par adaptateur : identite de la source, adaptateur\nconnu, parametres valides, et les deux diagnostics NON bloquants\n(fetch-mode/server-side #689, passe-plat `params` fautif #726).\n\n`null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et\ndiffusee a l'aval."
+            },
+            {
+              "kind": "method",
+              "name": "_publishPageMeta",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "result",
+                  "type": {
+                    "text": "FetchResult"
+                  }
+                }
+              ],
+              "description": "Pagination serveur : une page a la fois. `serverSide:true` est le signal\nd'activation de la pagination serveur en aval (contrat #270)."
+            },
+            {
+              "kind": "method",
+              "name": "_publishFetchAllMeta",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "result",
+                  "type": {
+                    "text": "FetchResult"
+                  }
+                }
+              ],
+              "description": "Fetch complet (auto-pagination). `serverSide:false` — l'aval ne doit PAS\nactiver sa pagination serveur sur un fetchAll (pageSize 0 produisait des\ntotaux de pages Infinity, #270).\n\n`truncated` (#658) : le jeu livre est un sous-ensemble — total connu et\nsuperieur aux lignes recues (plafond max-records ou limit), ou plafond\natteint sur une page pleine quand le total est inconnu (group_by ODS,\n#641 — signal pose par l'adapter). Le warn console existait deja ; ce\nchamp rend la troncature lisible par le volet Diagnostic."
+            },
+            {
+              "kind": "method",
+              "name": "_handleAdapterFetchError",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Promise<void>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "error",
+                  "type": {
+                    "text": "unknown"
+                  }
+                },
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "params",
+                  "type": {
+                    "text": "AdapterParams"
+                  }
+                },
+                {
+                  "name": "overlay",
+                  "type": {
+                    "text": "ServerSideOverlay | undefined"
+                  }
+                }
+              ],
+              "description": "Echec d'un fetch par adaptateur : abort silencieux, repli offline par le\nhook de cache (#307), sinon erreur diffusee avec l'URL de diagnostic\n(#598)."
             },
             {
               "kind": "method",

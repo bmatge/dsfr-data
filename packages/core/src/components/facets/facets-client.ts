@@ -102,7 +102,8 @@ export function rowWeight(row: FacetRow, weightField: string): number {
 export function filterRowsBySelections(
   rows: FacetRow[],
   selections: FacetSelections,
-  excludeField?: string
+  excludeField?: string,
+  resolve: (row: FacetRow, field: string) => unknown = resolveFacetValue
 ): FacetRow[] {
   const activeFields = Object.keys(selections).filter(
     (f) => f !== excludeField && selections[f].size > 0
@@ -113,7 +114,7 @@ export function filterRowsBySelections(
   return rows.filter((row) =>
     activeFields.every((field) =>
       // Intersection pour les cellules tableau (#421)
-      matchesSelection(resolveFacetValue(row, field), selections[field])
+      matchesSelection(resolve(row, field), selections[field])
     )
   );
 }
