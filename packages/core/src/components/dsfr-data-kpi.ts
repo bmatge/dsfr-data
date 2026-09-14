@@ -81,7 +81,9 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * accolades : `value="effectif:sum{sexe:eq:F} / effectif:sum"` rend une
    * part de SOMMES — le filtre ne vaut que pour son côté du ratio, là où
    * `where` filtre les deux. Marche aussi pour `count{…}` et les autres
-   * fonctions ; un filtre non reconnu est une erreur de configuration.
+   * fonctions ; un filtre non reconnu est une erreur de configuration. Le
+   * contenu des accolades est lu d'un bloc : une valeur qui contient ` / `
+   * ne coupe pas le ratio (#839).
    * `champ:first` / `champ:last` : valeur du champ sur la première / la
    * dernière ligne, DANS L'ORDRE COURANT — poser un `order-by` en amont
    * (ex. dernière valeur d'une série datée). Propres au KPI : absentes de

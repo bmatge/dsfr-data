@@ -418,17 +418,6 @@ const CHECKS: Check[] = [
     mode: 'live',
     page: 'viz/qualite-tourisme',
     constats: ['BUG-009', 'PG-015'],
-    skip:
-      'DÉFAUT — quand une `dsfr-data-query group-by` est SEULE à lire une source Opendatasoft qui ' +
-      'déclare un `select` explicite, la délégation part au serveur avec le `group_by` mais laisse ' +
-      'le `select` de la source ; les colonnes d’agrégat déclarées par `aggregate` n’y sont pas, et ' +
-      'la query émet les colonnes de la source, toutes à `null`. Affiché : `nb:sum` = 0 et ' +
-      '`nb:max` = 0 ; recalculé : 3 458 et 224 (99 groupes, eux, sont justes des deux côtés). ' +
-      'La documentation de `aggregate` promet une colonne par alias : ce n’est pas tenu sur ce ' +
-      'chemin. Le même balisage AVEC un second lecteur sur la source (contrôle ' +
-      '`qualite-tourisme-group-by-null-exclu`) est vert — c’est bien la délégation qui perd les ' +
-      'alias, pas le calcul. Vu sur `dsfr-data-source` : `select: this.select` est envoyé tel quel ' +
-      'à côté de `groupBy: this._groupByOverlay`. La supervision ouvre l’issue ; ce lot ne corrige pas.',
     origin:
       'viz/qualite-tourisme — BUG-009 : une `dsfr-data-query group-by` branchée sur une source Opendatasoft réécrit la source. Le contrôle tient que la réécriture doit emporter les AGRÉGATS avec elle : `nb` est un alias déclaré par `aggregate`, et la somme des `nb` doit refaire le nombre d’établissements situés.',
     feed: { kind: 'raw', source: QT_BRUT },

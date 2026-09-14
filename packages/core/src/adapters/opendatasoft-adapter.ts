@@ -215,6 +215,39 @@ function escapeOdsqlSelect(select: string): string {
   return splitOdsqlList(select).map(escapeOdsqlListItem).join(', ');
 }
 
+/**
+ * Decoupe `expression as alias` sur le DERNIER ` as ` d'un element de liste
+ * ODSQL. Rend null quand l'element n'est pas aliase.
+ */
+function splitOdsqlAlias(item: string): { expr: string; alias: string } | null {
+  const idx = item.toLowerCase().lastIndexOf(' as ');
+  if (idx < 0) return null;
+  const expr = item.slice(0, idx).trim();
+  const alias = item
+    .slice(idx + 4)
+    .trim()
+    .replace(/`/g, '');
+  if (!expr || !alias) return null;
+  return { expr, alias };
+}
+
+/**
+ * Colonnes que SEUL le `select` de la source sait produire (#859) : un alias
+ * pose sur une expression (`year(date) as annee`, `count(*) as total`), qui
+ * n'existe pas comme champ du jeu de donnees. Un `periode as an` compte aussi :
+ * `an` n'est pas un champ.
+ *
+ * Un simple renommage a l'identique (`` `annee` as annee ``) n'en est pas un.
+ */
+function odsqlDerivedAliases(select: string): Set<string> {
+  const derived = new Set<string>();
+  for (const item of splitOdsqlList(select)) {
+    const parsed = splitOdsqlAlias(item);
+    if (parsed && parsed.expr.replace(/`/g, '') !== parsed.alias) derived.add(parsed.alias);
+  }
+  return derived;
+}
+
 /** Colonne d'agrégat d'un `select` : fonction et alias rendu par l'API. */
 interface AggregateAlias {
   fn: string;
@@ -300,13 +333,18 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     const aggregateOnly = aggregateOnlySelect(params);
     if (aggregateOnly) return this._fetchAggregateOnly(params, aggregateOnly, signal);
 
+    // Delegation du regroupement refusee (#859) : le `select` de la source
+    // definit une colonne que la recomposition perdrait. Les lignes arrivent
+    // BRUTES et `needsClientProcessing` le dit — l'aval regroupe lui-meme.
+    const delegationRefusee = this._warnSelectConflict(params);
+
     if (params.fetchMode === 'export' && !this._exportUnavailable.has(this._datasetKey(params))) {
       const exported = await this._fetchViaExport(params, signal);
-      if (exported) return exported;
+      if (exported) return { ...exported, needsClientProcessing: delegationRefusee };
     }
 
     const fetchAllRecords = params.limit <= 0;
-    const isGrouped = Boolean(params.groupBy);
+    const isGrouped = Boolean(params.groupBy) && !delegationRefusee;
     // max-records (#233) : plafond configurable — le 1000 historique n'est
     // PAS une limite de l'API ODS, defaut conserve en garde-fou
     const maxRecords =
@@ -379,7 +417,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     return {
       data: allResults,
       totalCount: isGrouped ? undefined : totalCount >= 0 ? totalCount : allResults.length,
-      needsClientProcessing: false,
+      needsClientProcessing: delegationRefusee,
       ...(groupedAtCap ? { truncated: true } : {}),
     };
   }
@@ -424,6 +462,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   ): Promise<FetchResult> {
     const apiUrl = this.buildServerSideUrl(params, overlay);
     const url = getProxiedUrl(apiUrl, params.proxyUrl);
+    // Meme refus qu'en fetch complet (#859) : sans `group_by` dans l'URL, la
+    // page est faite de lignes brutes et `total_count` redevient fiable.
+    const delegationRefusee = this._warnSelectConflict(params);
 
     const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
     if (!response.ok) {
@@ -432,16 +473,17 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     const json = await response.json();
     const data = json.results || [];
-    const totalCount = params.groupBy
-      ? undefined
-      : typeof json.total_count === 'number'
-        ? json.total_count
-        : 0;
+    const totalCount =
+      params.groupBy && !delegationRefusee
+        ? undefined
+        : typeof json.total_count === 'number'
+          ? json.total_count
+          : 0;
 
     return {
       data,
       totalCount,
-      needsClientProcessing: false,
+      needsClientProcessing: delegationRefusee,
       rawJson: json,
     };
   }
@@ -496,10 +538,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     this._applyExtraParams(url, params);
 
     // SELECT
-    if (params.select) {
-      url.searchParams.set('select', escapeOdsqlSelect(params.select));
-    } else if (params.aggregate && params.groupBy) {
-      url.searchParams.set('select', this._buildSelectFromAggregate(params));
+    const select = this._effectiveSelect(params);
+    if (select) {
+      url.searchParams.set('select', select);
     }
 
     // WHERE: merge statique + dynamique
@@ -508,7 +549,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     }
 
     // GROUP BY
-    if (params.groupBy) {
+    if (params.groupBy && this._delegatesGroupBy(params)) {
       url.searchParams.set('group_by', escapeOdsqlGroupBy(params.groupBy));
     }
 
@@ -691,10 +732,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   private _applyOdsqlClauses(url: URL, params: AdapterParams): void {
     this._applyExtraParams(url, params);
 
-    if (params.select) {
-      url.searchParams.set('select', escapeOdsqlSelect(params.select));
-    } else if (params.aggregate && params.groupBy) {
-      url.searchParams.set('select', this._buildSelectFromAggregate(params));
+    const select = this._effectiveSelect(params);
+    if (select) {
+      url.searchParams.set('select', select);
     }
 
     const whereClause = params.where || params.filter;
@@ -702,7 +742,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       url.searchParams.set('where', whereClause);
     }
 
-    if (params.groupBy) {
+    if (params.groupBy && this._delegatesGroupBy(params)) {
       url.searchParams.set('group_by', escapeOdsqlGroupBy(params.groupBy));
     }
 
@@ -792,6 +832,83 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       needsClientProcessing: false,
       ...(truncated ? { truncated: true } : {}),
     };
+  }
+
+  /**
+   * Le `select` explicite de la source empeche-t-il la delegation du
+   * regroupement (#859) ? Rend la colonne fautive, ou null.
+   *
+   * Un `group-by` delegue recompose le `select` depuis l'agregat : les
+   * colonnes declarees par la source disparaissent de la requete. C'est sans
+   * consequence tant que le regroupement et l'agregat ne portent que sur des
+   * CHAMPS du jeu de donnees. Mais si l'un d'eux vise une colonne que seul le
+   * `select` de la source sait produire (`year(date) as annee` + un
+   * `group-by="annee"`), la recomposition perdrait sa definition et l'API
+   * repondrait sur un champ inconnu : la delegation est alors refusee.
+   */
+  private _selectConflict(params: AdapterParams): string | null {
+    if (!params.select || !params.groupBy || !params.aggregate) return null;
+    const derived = odsqlDerivedAliases(params.select);
+    if (derived.size === 0) return null;
+
+    const referenced: string[] = [];
+    for (const item of splitOdsqlList(params.groupBy)) {
+      const bare = item.replace(/`/g, '').trim();
+      // Un element de group-by qui porte lui-meme sa definition
+      // (`year(date) as annee`) n'a rien a emprunter au select de la source.
+      if (bare && !isOdsqlExpression(bare)) referenced.push(bare);
+    }
+    for (const agg of this.parseAggregates(params.aggregate)) {
+      // `count` devient `count(*)` : il ne lit aucune colonne.
+      if (agg.function !== 'count' && agg.field)
+        referenced.push(agg.field.replace(/`/g, '').trim());
+    }
+
+    return referenced.find((f) => derived.has(f)) ?? null;
+  }
+
+  /** True quand le `group_by` part au serveur (#859). */
+  private _delegatesGroupBy(params: AdapterParams): boolean {
+    return this._selectConflict(params) === null;
+  }
+
+  /**
+   * `select` reellement emis (#859).
+   *
+   * Sur un regroupement avec agregat, il est COMPOSE depuis l'agregat — le
+   * `select` de la source ne doit pas l'ecraser, sans quoi la requete part
+   * sans `count(champ) as nb`, la colonne d'alias n'existe pas, et la query,
+   * qui a marque la delegation et saute son calcul client, affiche 0.
+   * (Mesure du banc : `nb:sum` et `nb:max` a 0 pour 3 458 et 224.)
+   * La composition emporte deja les colonnes du `group-by`.
+   *
+   * Quand le `select` explicite est INCOMPATIBLE (`_selectConflict`), il est
+   * conserve tel quel : la delegation est refusee et le regroupement revient
+   * au client.
+   */
+  private _effectiveSelect(params: AdapterParams): string | undefined {
+    if (params.aggregate && params.groupBy && this._delegatesGroupBy(params)) {
+      return this._buildSelectFromAggregate(params);
+    }
+    if (params.select) return escapeOdsqlSelect(params.select);
+    return undefined;
+  }
+
+  /**
+   * Avertit, en le nommant, du refus de delegation du regroupement (#859).
+   * Rend true quand la delegation est refusee — l'appelant pose alors
+   * `needsClientProcessing`, et l'aval recalcule sur les lignes brutes.
+   */
+  private _warnSelectConflict(params: AdapterParams): boolean {
+    const conflit = this._selectConflict(params);
+    if (!conflit) return false;
+    console.warn(
+      `[dsfr-data] opendatasoft: group-by non délégué — la colonne "${conflit}" n'est définie que ` +
+        `par le select de la source (select="${params.select}") et ne survivrait pas à la ` +
+        `recomposition du select depuis l'agrégat (group-by="${params.groupBy}", ` +
+        `aggregate="${params.aggregate}") — lignes brutes renvoyées, regroupement calculé côté client`
+    );
+    return true;
   }
 
   /**
