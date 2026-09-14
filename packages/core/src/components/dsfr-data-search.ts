@@ -6,11 +6,11 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeColonValue } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
 import type { SourceElement } from '../utils/source-element.js';
-import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
-import type { DsfrDataContext } from './dsfr-data-context.js';
+import { ContextBindingMixin } from '../utils/context-binding.js';
+import type { ContextHost } from '../utils/context-registry.js';
+import { currentUrl, replaceUrl } from '../utils/page-url.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
 
@@ -98,7 +98,7 @@ class SearchContextFilter implements ContextFilterLike {
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
  */
 @customElement('dsfr-data-search')
-export class DsfrDataSearch extends TransformerMixin(LitElement) {
+export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElement)) {
   /** ID de la source de données a ecouter */
   @property({ type: String })
   source = '';
@@ -220,25 +220,11 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _urlParamApplied = false;
 
-  /** Contexte resolu (mode `context`, #678) */
-  private _context: DsfrDataContext | null = null;
-
   /** Le filtre unique enregistre aupres du contexte (#678) */
   private _contextFilter: SearchContextFilter | null = null;
 
   /** Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange */
   private _lastPushedWhere: string | null = null;
-
-  /** Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678) */
-  private _onContextConnected = (e: Event) => {
-    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
-    if (this.context && id === this.context) this._bindContext();
-  };
-
-  /** Mode `context` demande (que le contexte soit déjà resolu ou non) */
-  private get _contextMode(): boolean {
-    return this.context.trim() !== '';
-  }
 
   /** Synchro d'URL par la recherche elle-meme — desactivee en mode `context` */
   private get _ownUrlSync(): boolean {
@@ -264,26 +250,14 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
    * sans connaitre la structure du pipeline.
    */
   public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapter();
-      }
-    }
-    return null;
+    return this.delegateGetAdapter();
   }
 
   /**
    * Retourne le where effectif de la source amont (délégation transparente).
    */
   public getEffectiveWhere(excludeKey?: string | string[]): string {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
-      }
-    }
-    return '';
+    return this.delegateGetEffectiveWhere(excludeKey);
   }
 
   /**
@@ -291,13 +265,7 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
    * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
-    if (this.source) {
-      const sourceEl = document.getElementById(this.source);
-      if (sourceEl && 'getAdapterParams' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
-      }
-    }
-    return null;
+    return this.delegateGetAdapterParams();
   }
 
   createRenderRoot() {
@@ -307,12 +275,6 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-search');
-    if (this._contextMode) {
-      document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-      // Bind differe d'un tick : dans un meme fragment innerHTML, le contexte
-      // declare apres la recherche n'est pas encore upgrade
-      queueMicrotask(() => this._bindContext());
-    }
   }
 
   disconnectedCallback() {
@@ -320,23 +282,6 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
     if (this._debounceTimer !== null) {
       clearTimeout(this._debounceTimer);
       this._debounceTimer = null;
-    }
-    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-    this._unbindContext();
-  }
-
-  willUpdate(changed: Map<PropertyKey, unknown>) {
-    super.willUpdate(changed);
-    // Changement de contexte a chaud (#678) : on libere l'ancien, on rejoint le nouveau
-    if (changed.has('context') && this.hasUpdated) {
-      this._unbindContext();
-      document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-      if (this._contextMode) {
-        document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-        this._bindContext();
-      } else {
-        clearConfigError(this);
-      }
     }
   }
 
@@ -347,34 +292,18 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
 
   // --- Mode context (#678, ADR-104) ---
 
+  /** Le mode context exige un champ unique — refus verifie avant d'adopter le contexte */
+  protected validateContextBinding(): string | null {
+    return this._contextField()
+      ? null
+      : 'en mode context, "fields" doit nommer un seul champ (filtre contains du contexte)';
+  }
+
   /**
-   * Resout le contexte vise par `context="id"` et y enregistre le filtre.
-   * Le contexte peut arriver plus tard (déclaré après dans la page) :
-   * l'erreur de config est posee en attendant et levee a sa connexion.
+   * Contexte resolu (#837, tronc dans ContextBindingMixin) : le filtre unique
+   * s'y enregistre.
    */
-  private _bindContext(): void {
-    if (!this.isConnected || !this._contextMode) return;
-    const context = findContextById(this.context);
-    if (context && context === this._context) return;
-    this._unbindContext();
-    if (!context) {
-      reportConfigError(
-        this,
-        'dsfr-data-search',
-        `dsfr-data-context introuvable : "${this.context}"`
-      );
-      return;
-    }
-    if (!this._contextField()) {
-      reportConfigError(
-        this,
-        'dsfr-data-search',
-        'en mode context, "fields" doit nommer un seul champ (filtre contains du contexte)'
-      );
-      return;
-    }
-    clearConfigError(this);
-    this._context = context;
+  protected onContextBound(context: ContextHost): void {
     this._contextFilter = new SearchContextFilter(this);
     context._registerFilter(this._contextFilter);
 
@@ -388,11 +317,10 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   /** Libere le filtre aupres du contexte (disconnect, changement de contexte) */
-  private _unbindContext(): void {
-    if (this._context && this._contextFilter) {
-      this._context._unregisterFilter(this._contextFilter);
+  protected onContextUnbound(context: ContextHost | null): void {
+    if (context && this._contextFilter) {
+      context._unregisterFilter(this._contextFilter);
     }
-    this._context = null;
     this._contextFilter = null;
     this._lastPushedWhere = null;
   }
@@ -743,19 +671,17 @@ export class DsfrDataSearch extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Sync current search term back to URL (replaceState). Construite par
-   * l'API URL (#683) : concatener pathname produisait, sur une page servie
-   * sous `//chemin`, une URL relative au schema (autre hote) et replaceState
-   * levait SecurityError — sync perdue en silence.
+   * Sync current search term back to URL (replaceState) — construction de
+   * l'URL et ecriture dans `utils/page-url.ts` (#683, #837).
    */
   private _syncUrl() {
-    const url = new URL(window.location.href);
+    const url = currentUrl();
     if (this._term) {
       url.searchParams.set(this.urlSearchParam, this._term);
     } else {
       url.searchParams.delete(this.urlSearchParam);
     }
-    window.history.replaceState(null, '', url.href);
+    replaceUrl(url);
   }
 
   /**

@@ -17,6 +17,10 @@ export const CONTEXT_CONNECTED_EVENT = 'dsfr-data-context-connected';
 
 /** Ce qu'un filtre attend d'un dsfr-data-context (vue structurelle, #681) */
 export interface ContextHost extends HTMLElement {
+  /** Ids des sources diffusées par le contexte (cibles par défaut d'un filtre) */
+  readonly sourceIds: string[];
+  /** Filtres actifs du contexte (lus par les tags et `context-value`) */
+  activeFilters(): ContextFilterLike[];
   _registerFilter(filter: ContextFilterLike): string;
   _unregisterFilter(filter: ContextFilterLike): void;
   _applyFilter(filter: ContextFilterLike, colonWhere: string): void;

@@ -6,6 +6,7 @@ import { filterToOdsql } from '../utils/where.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
+import { currentUrl, replaceUrl } from '../utils/page-url.js';
 
 interface SourceWithAdapter extends HTMLElement {
   getAdapter?: () => { capabilities?: { whereFormat?: string } } | null;
@@ -380,7 +381,7 @@ export class DsfrDataContext extends LitElement {
    */
   _urlValuesFor(field: string): string[] | null {
     if (!this.urlSync) return null;
-    const params = new URL(window.location.href).searchParams;
+    const params = currentUrl().searchParams;
     const raw = params.get(this._paramNameFor(field));
     if (raw === null || raw === '') return null;
     return raw.split(',').map((v) => v.trim());
@@ -389,16 +390,11 @@ export class DsfrDataContext extends LitElement {
   /**
    * Écrit l'état courant des filtres dans l'URL. Part des paramètres
    * EXISTANTS et ne gère que les siens (leçon #312 : repartir de zéro
-   * effaçait les paramètres des composants voisins). replaceState : pas
-   * d'entrée d'historique par frappe (ADR-031).
-   *
-   * Construite avec l'API `URL` (#683) : concaténer `pathname` produisait,
-   * sur une page servie sous `//chemin`, une URL relative au schéma
-   * (`//chemin?…` = autre hôte) et `replaceState` levait SecurityError —
-   * toute la synchro d'URL cessait, en silence.
+   * effaçait les paramètres des composants voisins). La construction de
+   * l'URL et le `replaceState` vivent dans `utils/page-url.ts` (#683, #837).
    */
   private _syncUrl(): void {
-    const url = new URL(window.location.href);
+    const url = currentUrl();
     for (const filter of this._filters) {
       if (!filter.field) continue;
       const name = this._paramNameFor(filter.field);
@@ -409,7 +405,7 @@ export class DsfrDataContext extends LitElement {
         url.searchParams.delete(name);
       }
     }
-    window.history.replaceState(null, '', url.href);
+    replaceUrl(url);
   }
 
   /** Cibles effectives d'un filtre : sources du contexte ∩ apply-to */

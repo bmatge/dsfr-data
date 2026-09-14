@@ -49,6 +49,8 @@ import {
   type SourceCommandEvent,
 } from './data-bridge.js';
 import { reportConfigError, clearConfigError } from './config-error.js';
+import type { SourceElement } from './source-element.js';
+import type { ApiAdapter, AdapterParams } from '../adapters/api-adapter.js';
 import { checkUnknownAttributes } from './unknown-attributes.js';
 import { registerDsfrDataInstance, unregisterDsfrDataInstance } from './instance-registry.js';
 
@@ -68,6 +70,14 @@ export interface TransformerInterface {
   emitTransformerError(error: Error): void;
   emitTransformerLoading(): void;
   emitTransformerIdle(): void;
+  /** L'élément amont s'il est dans le DOM, null sinon (délégation #274) */
+  upstreamSourceElement(): SourceElement | null;
+  /** Adapter de la source amont (délégation transparente, #274) */
+  delegateGetAdapter(): ApiAdapter | null;
+  /** Where effectif de la source amont (délégation transparente, #274) */
+  delegateGetEffectiveWhere(excludeKey?: string | string[]): string;
+  /** Paramètres adapter résolus de la source amont (délégation, #274) */
+  delegateGetAdapterParams(): AdapterParams | null;
 }
 
 export function TransformerMixin<T extends Constructor<LitElement>>(superClass: T) {
@@ -124,6 +134,53 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      */
     protected transformerCommandTarget(): string | null {
       return (this as unknown as { source?: string }).source || null;
+    }
+
+    // --- Délégation vers l'amont (SourceElement, #274 — tronc unique #837) ---
+
+    /**
+     * Id de l'amont interrogé par la délégation — la même cible que le relais
+     * de commandes (join : la source gauche ; concat : aucune).
+     */
+    protected transformerUpstreamId(): string | null {
+      return this.transformerCommandTarget();
+    }
+
+    /** L'élément amont s'il est dans le DOM, null sinon */
+    upstreamSourceElement(): SourceElement | null {
+      const id = this.transformerUpstreamId();
+      if (!id) return null;
+      return (document.getElementById(id) as unknown as SourceElement | null) ?? null;
+    }
+
+    /**
+     * Adapter de la source amont (délégation transparente), pour que facets /
+     * search en aval atteignent l'adapter à travers ce transformateur.
+     */
+    delegateGetAdapter(): ApiAdapter | null {
+      const upstream = this.upstreamSourceElement();
+      return upstream && 'getAdapter' in upstream ? upstream.getAdapter() : null;
+    }
+
+    /** Where effectif de la source amont (délégation transparente) */
+    delegateGetEffectiveWhere(excludeKey?: string | string[]): string {
+      const upstream = this.upstreamSourceElement();
+      return upstream && 'getEffectiveWhere' in upstream
+        ? upstream.getEffectiveWhere(excludeKey)
+        : '';
+    }
+
+    /**
+     * Paramètres adapter résolus de la source amont (délégation transparente,
+     * headers api-key-ref inclus — #274). Les consommateurs NE DOIVENT PAS
+     * re-parser les attributs DOM de la source : ils rateraient la résolution
+     * d'api-key-ref (401 sur les sources authentifiées).
+     */
+    delegateGetAdapterParams(): AdapterParams | null {
+      const upstream = this.upstreamSourceElement();
+      return upstream && 'getAdapterParams' in upstream
+        ? (upstream.getAdapterParams?.() ?? null)
+        : null;
     }
 
     /** Message d'erreur de configuration bloquante, ou null si valide */

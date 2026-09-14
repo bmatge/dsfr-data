@@ -1,17 +1,8 @@
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { ContextFilterLike } from '@dsfr-data/shared/lib';
-import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
-
-/**
- * Ce que ce composant lit d'un `dsfr-data-context` : ses filtres actifs
- * (vue structurelle, #681 — pas d'import du composant, qui vit dans un
- * autre bundle pour la carte).
- */
-interface ContextReader extends HTMLElement {
-  activeFilters(): ContextFilterLike[];
-}
+import { reportConfigError } from '../utils/config-error.js';
+import { ContextBindingMixin } from '../utils/context-binding.js';
+import type { ContextHost } from '../utils/context-registry.js';
 
 /** Reperage des marqueurs `{{champ}}` d'un gabarit (pas de regex gloutonne) */
 const PLACEHOLDER = /\{\{\s*([^{}\s][^{}]*?)\s*\}\}/g;
@@ -47,7 +38,7 @@ const PLACEHOLDER = /\{\{\s*([^{}\s][^{}]*?)\s*\}\}/g;
  * @attr {boolean} live - Fait du composant une region live polie : le changement de valeur est annonce aux lecteurs d'écran.
  */
 @customElement('dsfr-data-context-value')
-export class DsfrDataContextValue extends LitElement {
+export class DsfrDataContextValue extends ContextBindingMixin(LitElement) {
   /** Id du dsfr-data-context observe */
   @property({ type: String })
   for = '';
@@ -80,40 +71,58 @@ export class DsfrDataContextValue extends LitElement {
   @property({ type: Boolean })
   live = false;
 
-  private _context: ContextReader | null = null;
-
   private _onContextChange = () => this.requestUpdate();
 
-  /** Un contexte vise par id vient d'être connecte : (re)bind si c'est le notre (#678) */
-  private _onContextConnected = (e: Event) => {
-    const id = (e as CustomEvent<{ id: string | null }>).detail?.id;
-    if (this.for && id === this.for) this._bind();
-  };
+  /** Le contexte observe est vise par `for` (et non par `context`) */
+  protected contextTargetId(): string {
+    return (this.for || '').trim();
+  }
+
+  /**
+   * La liaison est TOUJOURS tentee, meme sans `for` : c'est elle qui signale
+   * l'attribut manquant (#742).
+   */
+  get _contextMode(): boolean {
+    return true;
+  }
+
+  protected contextRebindProps(): PropertyKey[] {
+    return ['for'];
+  }
+
+  protected contextErrorTag(): string {
+    return 'dsfr-data-context-value';
+  }
+
+  /** Contexte introuvable — ou `for` absent, la cause la plus frequente */
+  protected onContextUnavailable(): void {
+    reportConfigError(
+      this,
+      'dsfr-data-context-value',
+      this.for
+        ? `dsfr-data-context introuvable : "${this.for}"`
+        : 'attribut "for" requis (id du dsfr-data-context observe)'
+    );
+    this.requestUpdate();
+  }
+
+  /** Contexte resolu : ses changements de filtres redessinent la phrase */
+  protected onContextBound(context: ContextHost): void {
+    context.addEventListener('dsfr-data-context-change', this._onContextChange);
+    this.requestUpdate();
+  }
+
+  protected onContextUnbound(context: ContextHost | null): void {
+    context?.removeEventListener('dsfr-data-context-change', this._onContextChange);
+  }
 
   /** Light DOM : le texte herite des styles de la page (titre, paragraphe) */
   createRenderRoot() {
     return this;
   }
 
-  connectedCallback() {
-    super.connectedCallback();
-    document.addEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-    // Bind differe : le contexte peut être declare apres dans le fragment
-    queueMicrotask(() => this._bind());
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    document.removeEventListener(CONTEXT_CONNECTED_EVENT, this._onContextConnected);
-    this._unbind();
-  }
-
   willUpdate(changed: Map<PropertyKey, unknown>) {
     super.willUpdate(changed);
-    if (changed.has('for') && this.hasUpdated) {
-      this._unbind();
-      this._bind();
-    }
     if (changed.has('live') || !this.hasUpdated) {
       if (this.live) {
         this.setAttribute('aria-live', 'polite');
@@ -123,31 +132,6 @@ export class DsfrDataContextValue extends LitElement {
         this.removeAttribute('role');
       }
     }
-  }
-
-  private _unbind(): void {
-    this._context?.removeEventListener('dsfr-data-context-change', this._onContextChange);
-    this._context = null;
-  }
-
-  private _bind(): void {
-    if (!this.isConnected) return;
-    const host = this.for ? findContextHostById(this.for) : null;
-    if (!host || !('activeFilters' in host)) {
-      reportConfigError(
-        this,
-        'dsfr-data-context-value',
-        this.for
-          ? `dsfr-data-context introuvable : "${this.for}"`
-          : 'attribut "for" requis (id du dsfr-data-context observe)'
-      );
-      this.requestUpdate();
-      return;
-    }
-    clearConfigError(this);
-    this._context = host as unknown as ContextReader;
-    this._context.addEventListener('dsfr-data-context-change', this._onContextChange);
-    this.requestUpdate();
   }
 
   /** Gabarit effectif : `template` s'il est pose, sinon le raccourci `field` */

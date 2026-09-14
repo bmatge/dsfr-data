@@ -22,6 +22,7 @@ import '@/components/dsfr-data-context-filter.js';
 import '@/components/dsfr-data-context-tags.js';
 import '@/components/dsfr-data-facets.js';
 import '@/components/dsfr-data-search.js';
+import '@/components/dsfr-data-query.js';
 import {
   subscribeToSourceCommands,
   dispatchDataLoaded,
@@ -558,5 +559,93 @@ describe('#678 — whereKey stable indexé sur uid + champ', () => {
     expect(produits.effectiveWhere()).toBe('');
     const ctx = document.getElementById('ctx') as unknown as ContextInternals;
     expect(ctx._filters.some((f) => f.field === 'region')).toBe(false);
+  });
+});
+
+/**
+ * #840 — en mode `context` + `server-facets`, chaque clic coûtait DEUX
+ * requêtes de facettes : `_afterSelectionChange` relançait la cascade
+ * directement, puis le contexte diffusait la clause à la source, qui
+ * refetchait, émettait, et `_onData` la relançait une seconde fois. La
+ * première était annulée par `_facetsAbort` — invisible, mais payée.
+ *
+ * Le commentaire du code décrivait déjà la condition (« sa source n'est pas
+ * forcément une cible du contexte ») ; le code ne la testait pas.
+ */
+describe('#840 — un seul appel /facets par clic', () => {
+  it('source cible du contexte : la cascade est relancée par le refetch, pas en double', async () => {
+    const charges = fakeOdsSource('cg-charges');
+    const produits = fakeOdsSource('cg-produits');
+    unsubs.push(charges.unsub, produits.unsub);
+    mount(`
+      <dsfr-data-facets id="f-solo" context="ctx" source="cg-charges" server-facets
+        fields="region" display="region:select"></dsfr-data-facets>
+      <dsfr-data-context id="ctx" sources="cg-charges cg-produits"></dsfr-data-context>
+    `);
+    await settle();
+    const facets = document.getElementById('f-solo') as DsfrDataFacets;
+    await facets.updateComplete;
+
+    const before = charges.fetchFacets.mock.calls.length;
+    choose(selectOf(facets, 'region'), 'BRE');
+    await settle();
+    await facets.updateComplete;
+
+    expect(charges.fetchFacets.mock.calls.length - before).toBe(1);
+    // La cascade a bien eu lieu : le where de la source porte la sélection
+    expect(charges.effectiveWhere()).toBe('region = "BRE"');
+  });
+
+  it('source EN AVAL d’une cible (query intermédiaire) : la chaîne est remontée, un seul appel', async () => {
+    // Ce cas est celui qu'un simple test d'appartenance rate : `cg-charges`
+    // est cible du contexte, la facette lit `q`, qui n'en est pas une. La
+    // query refetche pourtant, puisque son amont refetche — et `_onData`
+    // relance la cascade. Sans remontée de chaîne, la facette relancerait
+    // aussi en direct : deux appels par clic, exactement #840.
+    const charges = fakeOdsSource('cg-charges');
+    unsubs.push(charges.unsub);
+    mount(`
+      <dsfr-data-query id="q" source="cg-charges"></dsfr-data-query>
+      <dsfr-data-facets id="f-aval" context="ctx" source="q" server-facets
+        fields="region" display="region:select"></dsfr-data-facets>
+      <dsfr-data-context id="ctx" sources="cg-charges"></dsfr-data-context>
+    `);
+    await settle();
+    const facets = document.getElementById('f-aval') as DsfrDataFacets;
+    await facets.updateComplete;
+    // La facette a bien été peuplée à travers la query (délégation d'adapter)
+    expect(optionValues(selectOf(facets, 'region')).sort()).toEqual(['BRE', 'IDF', 'PAC']);
+
+    const before = charges.fetchFacets.mock.calls.length;
+    choose(selectOf(facets, 'region'), 'BRE');
+    await settle();
+    await facets.updateComplete;
+
+    expect(charges.fetchFacets.mock.calls.length - before).toBe(1);
+    expect(charges.effectiveWhere()).toBe('region = "BRE"');
+  });
+
+  it('source hors des cibles du contexte : la relance directe reste, un seul appel aussi', async () => {
+    const charges = fakeOdsSource('cg-charges');
+    const autre = fakeOdsSource('cg-autre');
+    unsubs.push(charges.unsub, autre.unsub);
+    mount(`
+      <dsfr-data-facets id="f-hors" context="ctx" source="cg-autre" server-facets
+        fields="region" display="region:select"></dsfr-data-facets>
+      <dsfr-data-context id="ctx" sources="cg-charges"></dsfr-data-context>
+    `);
+    await settle();
+    const facets = document.getElementById('f-hors') as DsfrDataFacets;
+    await facets.updateComplete;
+
+    const before = autre.fetchFacets.mock.calls.length;
+    choose(selectOf(facets, 'region'), 'BRE');
+    await settle();
+    await facets.updateComplete;
+
+    // Rien ne refetcherait `cg-autre` : la facette relance elle-même, une fois
+    expect(autre.fetchFacets.mock.calls.length - before).toBe(1);
+    expect(autre.effectiveWhere()).toBe('');
+    expect(charges.effectiveWhere()).toBe('region = "BRE"');
   });
 });

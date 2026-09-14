@@ -5,7 +5,6 @@ import { performJoinWithStats } from '@dsfr-data/shared/lib';
 import type { JoinType, JoinStats } from '@dsfr-data/shared/lib';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
-import type { SourceElement } from '../utils/source-element.js';
 
 type Row = Record<string, unknown>;
 
@@ -118,24 +117,12 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
    * d'atteindre l'adapter a travers ce transformateur.
    */
   public getAdapter(): import('../adapters/api-adapter.js').ApiAdapter | null {
-    if (this.left) {
-      const sourceEl = document.getElementById(this.left);
-      if (sourceEl && 'getAdapter' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapter();
-      }
-    }
-    return null;
+    return this.delegateGetAdapter();
   }
 
   /** Retourne le where effectif de la source amont (délégation transparente). */
   public getEffectiveWhere(excludeKey?: string): string {
-    if (this.left) {
-      const sourceEl = document.getElementById(this.left);
-      if (sourceEl && 'getEffectiveWhere' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getEffectiveWhere(excludeKey);
-      }
-    }
-    return '';
+    return this.delegateGetEffectiveWhere(excludeKey);
   }
 
   /**
@@ -143,13 +130,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
    * (délégation transparente, headers api-key-ref inclus — #274).
    */
   public getAdapterParams(): import('../adapters/api-adapter.js').AdapterParams | null {
-    if (this.left) {
-      const sourceEl = document.getElementById(this.left);
-      if (sourceEl && 'getAdapterParams' in sourceEl) {
-        return (sourceEl as unknown as SourceElement).getAdapterParams?.() ?? null;
-      }
-    }
-    return null;
+    return this.delegateGetAdapterParams();
   }
 
   getData(): Row[] {
