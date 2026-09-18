@@ -633,14 +633,11 @@ const CHECKS: Check[] = [
         agg: 'count',
         pipeline: [{ op: 'limit', n: 1000 }],
         // Le cas fondateur de `not-truncated` (#881) : le jeu dépasse le
-        // plafond, la page charge le plafond, et la bibliothèque ne le dit
-        // pas. En attente, avec les deux chiffres, jusqu'à ce qu'elle parle.
-        invariants: [
-          {
-            kind: 'not-truncated',
-            skip: 'AM-002 — `max-records="1000"` sur un jeu qui le dépasse : 1 000 projets chargés, et aucun diagnostic. Attendu : un mot de la bibliothèque quand `max-records` borne un jeu qui le dépasse (fetch-mode="export" compris).',
-          },
-        ],
+        // plafond, la page charge le plafond — et le KPI `count` le dit
+        // (« compte 1 000 lignes reçues, mais l'amont en détient … »).
+        // L'invariant tient par le diagnostic ; sans KPI `count`, il ne
+        // tiendrait pas (`adaptateurs/ods-plafond-sans-compteur`, AM-002).
+        invariants: [{ kind: 'not-truncated' }],
       },
     ],
   },
