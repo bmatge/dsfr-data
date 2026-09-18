@@ -31,6 +31,8 @@ export interface Rapport {
   total: number;
   echecs: number;
   comparaisons: number;
+  /** Observations qui ont eu TROIS voix : lib, oracle TS, oracle Python (#880). */
+  troisVoix: number;
   constats: Constat[];
 }
 
@@ -41,6 +43,7 @@ export function construireRapport(constats: Constat[]): Rapport {
     total: constats.length,
     echecs: constats.filter((c) => !c.ok).length,
     comparaisons: constats.reduce((n, c) => n + c.comparaisons, 0),
+    troisVoix: constats.filter((c) => c.python !== undefined).length,
     constats,
   };
 }
@@ -54,7 +57,8 @@ export function resumeTexte(rapport: Rapport): string {
   const lignes: string[] = [];
   lignes.push(
     `Vérification des données — ${rapport.total} observations, ` +
-      `${rapport.comparaisons} valeurs comparées, ${rapport.echecs} échec(s).`
+      `${rapport.comparaisons} valeurs comparées, ${rapport.echecs} échec(s)` +
+      (rapport.troisVoix > 0 ? `, ${rapport.troisVoix} à trois voix (lib, TS, Python).` : '.')
   );
   let controleCourant = '';
   for (const c of rapport.constats) {
@@ -65,9 +69,16 @@ export function resumeTexte(rapport: Rapport): string {
       lignes.push(`  ${cle} [${c.mode}] — ${c.rawRows} lignes brutes`);
     }
     const ecart = c.ecart === null ? '' : ` écart ${Math.round(c.ecart * 1e6) / 1e6}`;
+    const python =
+      c.python === undefined
+        ? ''
+        : ` python ${c.python}` +
+          (c.ecartPython === null || c.ecartPython === undefined
+            ? ''
+            : ` écart ${Math.round(c.ecartPython * 1e6) / 1e6}`);
     lignes.push(
       `    ${c.ok ? 'ok  ' : 'ÉCHEC'} ${colonne(c.observation, 26)} ` +
-        `lib ${colonne(c.lib, 28)} oracle ${colonne(c.oracle, 28)}${ecart}`
+        `lib ${colonne(c.lib, 28)} oracle ${colonne(c.oracle, 28)}${ecart}${python}`
     );
     if (!c.ok && c.message) lignes.push(`          ${c.message}`);
   }
