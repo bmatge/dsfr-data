@@ -97,6 +97,19 @@ describe('vérification des données — les jeux JSON', () => {
     expect(empreinte(jeux.get('territoires'))).toBe(empreinte(JEU));
   });
 
+  it('`canari-volume.json` est exactement ce que son générateur à graine engendre (#882)', () => {
+    // Générateur congruentiel linéaire, graine 42 — la formule est écrite dans
+    // jeux/README.md ; le fichier en est la matérialisation, et les deux ne
+    // doivent pas diverger.
+    let x = 42;
+    const GROUPES = ['A', 'B', 'C', 'D'];
+    const attendu = Array.from({ length: 1001 }, (_, i) => {
+      x = (1103515245 * x + 12345) % 2147483648;
+      return { n: i + 1, groupe: GROUPES[x % 4], valeur: x % 1000 };
+    });
+    expect(empreinte(jeux.get('canari-volume'))).toBe(empreinte(attendu));
+  });
+
   it('chaque jeu est décrit dans jeux/README.md', () => {
     const readme = readFileSync(resolve(DOSSIER, 'README.md'), 'utf-8');
     const sansFiche = [...jeux.keys()].filter((nom) => !readme.includes(`\`${nom}.json\``));

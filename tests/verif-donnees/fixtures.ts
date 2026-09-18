@@ -28,6 +28,7 @@ import {
   repondreTabular,
 } from '../builder-e2e/api-fixtures.js';
 import { repondreAdaptateurs } from './fixtures-adaptateurs.js';
+import { repondreCanari } from './fixtures-canari.js';
 import { repondreContexte } from './fixtures-contexte.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 import { repondreAffichages } from './fixtures-affichages.js';
@@ -171,6 +172,8 @@ export function repondre(url: URL): unknown | null {
   if (desAdaptateurs !== null) return desAdaptateurs;
   const duContexte = repondreContexte(url);
   if (duContexte !== null) return duContexte;
+  const duCanari = repondreCanari(url);
+  if (duCanari !== null) return duCanari;
   if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS)) {
     const reste = url.pathname.slice(PREFIXE_ODS.length);
     if (reste === '/records') {
