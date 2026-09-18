@@ -102,6 +102,10 @@ export function passeFiltre(row: Row, filter: RowFilter): boolean {
       return !filter.values.some((candidat) => egal(v, candidat));
     case 'eq':
       return filter.fold ? replier(v) === replier(filter.value) : egal(v, filter.value);
+    // L'égalité de la FORME TEXTE (PG-030) : `'1'` et `1` s'écrivent pareil,
+    // `'01'` non ; un absent n'égale rien. Aucune lecture numérique.
+    case 'eq-strict':
+      return !absent(v) && String(v) === String(filter.value);
     case 'neq':
       return !egal(v, filter.value);
     case 'contains':
@@ -624,6 +628,23 @@ export function unpivotRows(rows: Row[], options: OptionsUnpivot): Row[] {
   return out;
 }
 
+/**
+ * Éclate un champ MULTIVALUÉ : une ligne par valeur du tableau, le champ
+ * portant cette valeur. Une ligne dont le champ n'est pas un tableau, ou un
+ * tableau vide, n'en produit aucune — c'est ce qu'une facette fait d'un
+ * champ tableau (BUG-006), et ce qu'un regroupement client ne fait PAS (il
+ * compte les combinaisons).
+ */
+export function explodeRows(rows: Row[], field: string): Row[] {
+  const out: Row[] = [];
+  for (const r of rows) {
+    const v = r[field];
+    if (!Array.isArray(v)) continue;
+    for (const valeur of v) out.push({ ...r, [field]: valeur });
+  }
+  return out;
+}
+
 /** Colonnes d'un jeu, toutes lignes confondues. */
 function schemaDe(rows: Row[]): Set<string> {
   const cles = new Set<string>();
@@ -780,6 +801,9 @@ export function runPipeline(
         break;
       case 'derive':
         rows = deriver(rows, step.expr);
+        break;
+      case 'explode':
+        rows = explodeRows(rows, step.field);
         break;
       case 'pivot':
         rows = pivotRows(rows, step);

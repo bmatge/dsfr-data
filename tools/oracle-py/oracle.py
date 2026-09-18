@@ -253,6 +253,10 @@ def passe_filtre(row: Row, f: dict[str, Any]) -> bool:
     fold = bool(f.get("fold"))
     if op == "eq":
         return replier(v) == replier(f["value"]) if fold else egal(v, f["value"])
+    if op == "eq-strict":
+        # L'égalité de la FORME TEXTE (PG-030) : '1' et 1 s'écrivent pareil,
+        # '01' non ; un absent n'égale rien. Aucune lecture numérique.
+        return not absent(v) and str_js(v) == str_js(f["value"])
     if op == "neq":
         return not egal(v, f["value"])
     if op in ("contains", "notcontains"):
@@ -655,6 +659,9 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = unpivot_rows(rows, s)
         elif op == "concat":
             rows = concat_rows(datasets, s["sources"], s.get("originField"), s.get("originLabels") or {})
+        elif op == "explode":
+            # Une ligne par valeur du tableau ; rien pour une ligne sans tableau.
+            rows = [{**r, s["field"]: valeur} for r in rows if isinstance(r.get(s["field"]), list) for valeur in r[s["field"]]]
         elif op == "derive":
             raise NonCouvert(RAISONS["derive"])
         else:
