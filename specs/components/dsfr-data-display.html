@@ -319,12 +319,83 @@
           </div>
         </section>
 
+        <section class="demo-section" id="composants-par-ligne">
+          <h3>6. Un composant dsfr-data par élément (un graphique par ligne)</h3>
+          <p>
+            Le gabarit n'est pas limité à du HTML inerte : rendu par <code>innerHTML</code>, il peut contenir des
+            composants <code>dsfr-data-*</code>, rehaussés comme le reste de la page. C'est la voie native pour
+            <strong>répéter un graphique, un KPI ou une liste sur les lignes d'une source</strong> — l'équivalent
+            d'un <code>ng-repeat</code> autour d'un <code>&lt;ods-chart&gt;</code>. Le scope de chaque élément est une
+            <code>dsfr-data-query</code> par ligne, dont l'<code>id</code> et le <code>where</code> sont interpolés,
+            sur une source chargée une fois ; le type d'un graphique peut se lire dans un champ
+            (<code>type="{{champ}}"</code>).
+          </p>
+
+          <div class="code-block">
+            <pre>&lt;dsfr-data-display source="sites" per-row="3"&gt;
+  &lt;template&gt;
+    &lt;div class="fr-card"&gt;&lt;div class="fr-card__body"&gt;&lt;div class="fr-card__content"&gt;
+      &lt;h3 class="fr-card__title"&gt;{{nom}}&lt;/h3&gt;
+      &lt;!-- Le scope de la ligne : une query dont l'id et le where sont interpolés --&gt;
+      &lt;dsfr-data-query id="site-{{$index}}" source="sites" where="nom:eq:{{nom}}"&gt;&lt;/dsfr-data-query&gt;
+      &lt;dsfr-data-kpi source="site-{{$index}}" value="score_rgaa:max" label="Score RGAA" unit="/100"&gt;&lt;/dsfr-data-kpi&gt;
+    &lt;/div&gt;&lt;/div&gt;&lt;/div&gt;
+  &lt;/template&gt;
+&lt;/dsfr-data-display&gt;</pre>
+          </div>
+
+          <div class="demo-render">
+            <dsfr-data-display source="sites" per-row="3">
+              <template>
+                <div class="fr-card"><div class="fr-card__body"><div class="fr-card__content">
+                  <h3 class="fr-card__title">{{nom}}</h3>
+                  <dsfr-data-query id="site-{{$index}}" source="sites" where="nom:eq:{{nom}}"></dsfr-data-query>
+                  <dsfr-data-kpi source="site-{{$index}}" value="score_rgaa:max" label="Score RGAA" unit="/100"></dsfr-data-kpi>
+                </div></div></div>
+              </template>
+            </dsfr-data-display>
+          </div>
+
+          <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+            <p class="fr-callout__text">
+              <strong>Mesure (0.30.0, Chromium headless, sources inline) :</strong> 119 lignes × (query + graphique)
+              rendues en 410 ms jusqu'au 119<sup>e</sup> canvas ; une ré-émission de la source scopée (ce que fait un
+              filtre de <code>dsfr-data-context</code>) fait ré-émettre les 119 queries en 29 ms ; aucune erreur.
+              Le <code>where</code> de chaque query reste calculé dans le navigateur (source partagée par N lectrices,
+              jamais déléguée) : la source scopée doit être chargée en entier (<code>fetch-mode="export"</code>,
+              <code>max-records</code> relevé).
+            </p>
+          </div>
+
+          <div class="fr-callout fr-callout--brown-caramel fr-mt-2w">
+            <p class="fr-callout__title">Les limites, écrites</p>
+            <p class="fr-callout__text">
+              <strong>Pas d'imbrication :</strong> un <code>dsfr-data-display</code> dans le gabarit d'un autre ne
+              fonctionne pas — la passe de substitution consomme aussi les <code>{{…}}</code> du <code>&lt;template&gt;</code>
+              intérieur avec la ligne extérieure (champ inconnu → chaîne vide), sans erreur.
+              <strong>Re-création totale :</strong> chaque émission de la source répétée réécrit tout l'<code>innerHTML</code>,
+              les composants sont détruits et recréés (≈ 640 ms pour 119 graphiques) ; garder la source répétée stable
+              et faire porter les filtres par la source scopée.
+              <strong>Un id réutilisé purge le cache :</strong> à cette re-création, l'ancienne query purge à sa
+              déconnexion le cache de l'<code>id</code> que la nouvelle vient de remplir — un consommateur monté plus
+              tard lit du vide jusqu'à la prochaine émission.
+              <strong>Pas d'adaptateur derrière un id scopé :</strong> ni <code>dsfr-data-facets</code> ni
+              <code>dsfr-data-search</code> sur <code>q-{{…}}</code>.
+              <strong>Un attribut booléen ne se conditionne pas</strong> dans la balise (<code>horizontal</code>) :
+              deux éléments complets sous <code>{{#if}}</code> et <code>{{#unless}}</code>.
+              <strong>Charger le bundle en fin de body</strong> : chargé dans <code>&lt;head&gt;</code> sans
+              <code>defer</code>, le display capture son <code>&lt;template&gt;</code> avant qu'il soit analysé.
+            </p>
+          </div>
+        </section>
+
         <!-- Conseils d'utilisation -->
         <h2 class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
           <p class="fr-callout__text">
             <strong>Template :</strong> Le contenu du <code>&lt;template&gt;</code> est clone pour chaque element de données.
-            Utilisez n'importe quelle structure HTML DSFR (cartes, tuiles, callouts, badges...).
+            Utilisez n'importe quelle structure HTML DSFR (cartes, tuiles, callouts, badges...) — et des composants
+            <code>dsfr-data-*</code> (variante 6 : un graphique ou un KPI par ligne).
           </p>
         </div>
 

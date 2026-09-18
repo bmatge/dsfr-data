@@ -950,6 +950,93 @@ Ce motif est verbeux — trois a quatre balises la ou une expression multi-sourc
 obligerait un afficheur a souscrire a N sources et a n'attendre qu'elles soient toutes arrivees, ce
 qu'aucun ne fait aujourd'hui. Le motif documente ici couvre le besoin sans ce changement.
 
+### Un graphique par ligne : repeter des composants avec `dsfr-data-display`
+
+Un rapport d'enquete affiche un graphique **par question** ; une page de suivi, un KPI **par
+service**. Sur un portail Opendatasoft, c'est un `ng-repeat` autour d'un `<ods-chart>`. Avec
+dsfr-data, la voie native ne demande ni script ni composant supplementaire : **le gabarit d'un
+`dsfr-data-display` peut contenir des composants `dsfr-data-*`**. Le gabarit est rendu par
+`innerHTML`, les composants qu'il contient sont donc rehausses comme n'importe quel element de
+la page, avec leurs attributs interpoles par ligne.
+
+Le motif tient en trois gestes : **repeter** (les composants dans le `<template>`), **scoper**
+(une `dsfr-data-query` par ligne, dont l'`id` et le `where` sont interpoles, filtre pour cette
+ligne une source chargee une fois), **choisir le type depuis un champ** (`type="{{champ}}"`).
+
+```html
+<!-- La table des questions : une ligne par question (119 lignes) -->
+<dsfr-data-source id="questions" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="bfn-table-de-correspondance"
+  fetch-mode="export" max-records="200" order-by="ordre_chapitre"></dsfr-data-source>
+
+<!-- Le type de graphique se lit dans un champ du jeu : recodage declaratif -->
+<dsfr-data-normalize id="questions-typees" source="questions"
+  compute="type_graphique = when presentation_2024 = 'Barres verticales' then 'bar' else 'bar'">
+</dsfr-data-normalize>
+
+<!-- Les scores : UNE requete, chargee une fois. Les queries du gabarit filtrent en local. -->
+<dsfr-data-source id="scores" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="questions-reponses"
+  select="code_unifie, libelle_reponse, annee, score"
+  where="region = 'Toutes régions' AND secteur = 'Tous secteurs' AND taille = 'Toutes tailles'"
+  fetch-mode="export" max-records="5000"></dsfr-data-source>
+
+<dsfr-data-display source="questions-typees" per-row="1 md:2">
+  <template>
+    <h4>{{libelle_unifie}}</h4>
+    <!-- Le scope de la ligne : id et where interpoles -->
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores"
+      where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <!-- Le graphique de la ligne consomme ce scope ; son type vient du champ calcule -->
+    <dsfr-data-chart source="q-{{code_unifie}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"
+      databox databox-title="{{libelle_unifie}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+```
+
+Un filtre transverse (`dsfr-data-context sources="scores"`) s'applique sans rien changer : la
+source des scores re-emet, chaque query de ligne refiltre, chaque graphique se met a jour en
+place. **Mesure** (dsfr-data 0.30.0, Chromium headless, sources inline, sans CSS) : 119 lignes ×
+(query + graphique) rendues en **410 ms** jusqu'au 119e canvas ; une re-emission de la source
+des scores fait re-emettre les 119 queries en **29 ms** ; ≈ 250 ecouteurs `document` par type
+d'evenement (deux abonnes par ligne) ; aucune erreur console ni de configuration.
+
+Le `where` de chaque query reste **calcule dans le navigateur** : la source `scores` est lue par N
+queries, donc partagee, donc jamais deleguee au serveur (regle #765) — c'est ce qu'on veut ici,
+un fetch et N filtres. Il faut en contrepartie que cette source soit **chargee en entier**
+(`fetch-mode="export"`, `max-records` releve au volume reel du jeu : le plafond par defaut de
+1 000 tronque en silence).
+
+**Les limites, ecrites :**
+
+- **Pas d'imbrication.** Un `dsfr-data-display` dans le gabarit d'un autre ne fonctionne pas :
+  la passe de substitution remplace aussi les `{{…}}` du `<template>` interieur avec la ligne
+  exterieure (champ inconnu → chaine vide), sans erreur ni avertissement, et il n'existe pas
+  d'echappement de `{{`. Le niveau exterieur (un chapitre, un accordeon) s'ecrit en HTML
+  statique, avec un display par niveau.
+- **Re-creation totale a chaque emission de la source repetee.** Le display reecrit tout son
+  `innerHTML` : les composants sont detruits et recrees — mesure a ≈ 640 ms pour 119 graphiques,
+  remontage Vue / Chart.js compris. Garder la source repetee stable (une table de reference) et
+  faire porter les filtres par la source *scopee*, dont la re-emission ne touche que les queries.
+- **Un id reutilise purge le cache.** A cette re-creation, l'ancienne `dsfr-data-query` purge a
+  sa deconnexion le cache de son `id` (`TransformerMixin.disconnectedCallback`), que la nouvelle
+  instance du meme `id` vient de remplir. Un consommateur monte plus tard sur `q-001` lit du
+  vide jusqu'a la prochaine emission.
+- **Pas de delegation ni d'adaptateur derriere un id scope.** Une `dsfr-data-facets` ou une
+  `dsfr-data-search` branchee sur `q-{{…}}` n'a pas d'adaptateur a interroger : ces composants ne
+  se repetent pas par ce motif.
+- **Un attribut booleen ne se conditionne pas** dans la balise (`horizontal`, `databox`) : un bloc
+  `{{#if}}` place entre deux attributs est decoupe par l'analyse HTML. Ecrire deux elements
+  complets, l'un sous `{{#if champ}}…{{/if}}`, l'autre sous `{{#unless champ}}…{{/unless}}`.
+- **Charger le bundle en fin de body** (ou en `type="module"`). Charge dans `<head>` sans
+  `defer`, le display capture son `<template>` avant que le navigateur l'ait analyse, et ne rend
+  rien tant que la donnee ne change pas.
+
+Ce motif est verrouille par un test (`tests/dsfr-data-display.test.ts`, « composants dsfr-data
+dans le gabarit ») : il fait partie du contrat, pas d'un effet de bord.
+
 ### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
 
 Par defaut, une source Opendatasoft lit le jeu **page par page**, 100 lignes a la fois : 3 000 lignes
