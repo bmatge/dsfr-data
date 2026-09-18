@@ -41,6 +41,12 @@ export interface Rapport {
    * (quota, échec), qui restent à deux voix.
    */
   recoupement: { verdicts: Record<string, number>; sansServeur: number };
+  /**
+   * Les verdicts d'une NUIT ROUGE (#884), par phrase — `bibliothèque`,
+   * `donnée, rejoué`, `indéterminé` — et les contrôles INSTABLES (échoués
+   * puis réussis au retry), comptés à part du vert.
+   */
+  nuit: { verdicts: Record<string, number>; instables: number };
   constats: Constat[];
 }
 
@@ -48,9 +54,14 @@ export function construireRapport(constats: Constat[]): Rapport {
   const valeurs = constats.filter((c) => !c.invariant);
   const invariants = constats.filter((c) => c.invariant);
   const verdicts: Record<string, number> = {};
+  const nuit: Record<string, number> = {};
   for (const c of valeurs) {
     if (c.verdict) verdicts[c.verdict] = (verdicts[c.verdict] ?? 0) + 1;
+    if (c.fraicheur) nuit[c.fraicheur] = (nuit[c.fraicheur] ?? 0) + 1;
   }
+  const instables = new Set(
+    constats.filter((c) => c.instable).map((c) => `${c.domaine}/${c.controle}`)
+  ).size;
   return {
     run: RUN,
     generatedAt: new Date().toISOString(),
@@ -67,6 +78,7 @@ export function construireRapport(constats: Constat[]): Rapport {
       verdicts,
       sansServeur: valeurs.filter((c) => c.serveur !== undefined && c.verdict === undefined).length,
     },
+    nuit: { verdicts: nuit, instables },
     constats,
   };
 }
@@ -81,6 +93,21 @@ export function resumeTexte(rapport: Rapport): string {
   const inv = rapport.invariants;
   const rec = rapport.recoupement;
   const verdicts = Object.entries(rec.verdicts);
+  // Une nuit rouge se lit d'abord par ses verdicts (#884) : bibliothèque ou
+  // donnée, et ce qui n'a tenu qu'au retry.
+  const nuit = Object.entries(rapport.nuit.verdicts);
+  if (nuit.length > 0 || rapport.nuit.instables > 0) {
+    lignes.push(
+      `Verdicts de la nuit — ` +
+        [
+          ...nuit.map(([v, n]) => `${n} × « ${v} »`),
+          ...(rapport.nuit.instables > 0
+            ? [`${rapport.nuit.instables} contrôle(s) instable(s) (vert au retry seulement)`]
+            : []),
+        ].join(', ') +
+        '.'
+    );
+  }
   lignes.push(
     `Vérification des données — ${rapport.total} observations, ` +
       `${rapport.comparaisons} valeurs comparées, ${rapport.echecs} échec(s)` +
@@ -123,6 +150,8 @@ export function resumeTexte(rapport: Rapport): string {
         `lib ${colonne(c.lib, 28)} ${c.invariant ? 'brut  ' : 'oracle'} ${colonne(c.oracle, 28)}${ecart}${python}${serveur}`
     );
     if (c.verdict) lignes.push(`          verdict : ${c.verdict}`);
+    if (c.fraicheur) lignes.push(`          nuit : ${c.fraicheur}`);
+    if (c.instable) lignes.push(`          instable : vert au retry seulement`);
     if (!c.ok && c.message && c.message !== c.verdict) lignes.push(`          ${c.message}`);
     if (!c.ok && c.attente) lignes.push(`          en attente : ${c.attente}`);
   }

@@ -15,6 +15,7 @@ import { CANARI } from './canari.js';
 import { CONTEXTE } from './contexte.js';
 import { DELEGATION } from './delegation.js';
 import { EXPORT_STUDIO } from './export-studio.js';
+import { GEL } from './gel.js';
 import { QUERY } from './query.js';
 import { TRANSFORMATIONS } from './transformations.js';
 
@@ -27,6 +28,7 @@ export const MANIFESTES: Manifest[] = [
   EXPORT_STUDIO,
   CONTEXTE,
   CANARI,
+  GEL,
   BANC,
   BANC_ADAPTATEURS,
   BANC_PAGES,
@@ -53,6 +55,7 @@ export {
   CONTEXTE,
   DELEGATION,
   EXPORT_STUDIO,
+  GEL,
   QUERY,
   TRANSFORMATIONS,
 };

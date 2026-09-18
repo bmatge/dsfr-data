@@ -30,6 +30,13 @@ import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 import { attenduPython, lireAttendusPython } from '../tools/oracle/troisieme-voix.js';
 import { evaluerInvariants } from '../tools/oracle/invariants.js';
 import { accordAvecServeur, verdictRecoupement } from '../tools/oracle/crosscheck.js';
+import {
+  lireDataProcessed,
+  prendreEmpreinte,
+  verdictFraicheur,
+} from '../tools/oracle/fraicheur.js';
+import { geler } from '../tools/oracle/gel.js';
+import { resoudreFeed, viderCacheBrut } from '../tools/oracle/raw.js';
 
 /**
  * VÉRIFICATION DES DONNÉES — un seul spec, deux alimentations (ADR-122).
@@ -409,21 +416,23 @@ async function jouerActions(page: Page, actions: Action[]): Promise<void> {
   await page.waitForLoadState('networkidle').catch(() => undefined);
 }
 
-async function executer(domaine: string, check: Check, page: Page): Promise<void> {
-  // Contrôle légitime que la bibliothèque ne passe pas encore : il reste écrit,
-  // il reste lisible, il ne se mesure pas. Le supprimer ou l'adoucir
-  // reviendrait à écrire dans le dépôt qu'il n'y avait rien à voir.
-  test.skip(Boolean(check.skip), check.skip ?? '');
+/** Ce qu'un passage sur la page a donné : les constats du contrôle, et ses échecs. */
+interface Passage {
+  constatsCheck: Constat[];
+  echecs: string[];
+}
 
-  const fuites: string[] = [];
-  if (MODE === 'deterministic') await installerReseau(page, fuites);
-
-  const attendu =
-    MODE === 'live'
-      ? attendusVivants!.get(check.id)
-      : computeExpectedFor(check, check.feed.kind === 'fixture' ? check.feed.datasets : {});
-  expect(attendu, `pas d'attendu pour ${check.id} : relancer verif:expected`).toBeDefined();
-
+/**
+ * Navigue, joue les gestes, observe chaque attente et la compare — sans rien
+ * pousser au rapport : c'est l'appelant qui décide, parce qu'une nuit rouge
+ * peut REJOUER le passage (#884) et ne garder que le second.
+ */
+async function passer(
+  page: Page,
+  domaine: string,
+  check: Check,
+  attendu: ExpectedCheck
+): Promise<Passage> {
   // Horloge FIXE avant toute navigation : les bornes dynamiques
   // (`today`, `current-month`, `last-n-days`) se calculent au montage.
   if (check.clock) await page.clock.setFixedTime(new Date(check.clock.now));
@@ -432,13 +441,14 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
   if (check.actions?.length) await jouerActions(page, check.actions);
 
   const delai = MODE === 'live' ? 120_000 : 30_000;
+  const constatsCheck: Constat[] = [];
   const echecs: string[] = [];
   for (const e of check.expects) {
     const observation = await attendreObservation(page, e, delai);
-    const valeurAttendue = attendu!.values[cleAttendu(e)];
+    const valeurAttendue = attendu.values[cleAttendu(e)];
     expect(valeurAttendue, `attendu manquant pour ${cleAttendu(e)}`).toBeDefined();
     const constat = comparer(
-      { domaine, controle: check.id, mode: check.mode, rawRows: attendu!.rawRows },
+      { domaine, controle: check.id, mode: check.mode, rawRows: attendu.rawRows },
       e,
       valeurAttendue,
       observation
@@ -450,7 +460,7 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
     const attenduTiers = entreePython ? attenduPython(entreePython, e) : null;
     if (attenduTiers) {
       const tiers = comparer(
-        { domaine, controle: check.id, mode: check.mode, rawRows: attendu!.rawRows },
+        { domaine, controle: check.id, mode: check.mode, rawRows: attendu.rawRows },
         e,
         attenduTiers,
         observation
@@ -468,7 +478,7 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
     // verdict à trois — qui est d'accord avec qui. Un recoupement à qualifier
     // n'est jamais un échec de la bibliothèque ; un serveur d'accord avec la
     // page contre l'oracle désigne le recalcul.
-    const reponseServeur = attendu!.serveur?.[cleAttendu(e)];
+    const reponseServeur = attendu.serveur?.[cleAttendu(e)];
     if (reponseServeur) {
       if (reponseServeur.kind === 'absent') {
         constat.serveur = reponseServeur.raison;
@@ -496,23 +506,23 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
         }
       }
     }
-    constats.push(constat);
+    constatsCheck.push(constat);
 
     // Les INVARIANTS de l'attente (#881) : sur l'observation, face aux lignes
     // brutes — jamais face à l'attendu. `not-truncated` lit en plus les
     // silences de la page. Un invariant en attente est rendu, pas bloquant.
-    const invariants = attendu!.invariants?.[cleAttendu(e)];
+    const invariants = attendu.invariants?.[cleAttendu(e)];
     if (invariants && invariants.length > 0) {
       const litLesSilences = invariants.some((i) => i.invariant.kind === 'not-truncated');
       const diagnostics = litLesSilences ? await page.evaluate(lireDiagnostics, e.id) : null;
       // Un verdict par invariant, dans l'ordre déclaré.
       evaluerInvariants(e, invariants, observation, diagnostics).forEach((verdict, i) => {
         const inv = invariants[i].invariant;
-        constats.push({
+        constatsCheck.push({
           domaine,
           controle: check.id,
           mode: check.mode,
-          rawRows: attendu!.rawRows,
+          rawRows: attendu.rawRows,
           observation: cleInvariant(e, inv),
           lib: verdict.lib,
           oracle: verdict.brut,
@@ -536,11 +546,83 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
     // Un contrôle vert qui n'a rien comparé ne garde rien.
     expect(constat.comparaisons, `${cleAttendu(e)} : aucune valeur comparée`).toBeGreaterThan(0);
   }
+  return { constatsCheck, echecs };
+}
+
+/** Dossier où une nuit rouge écrit ses contrôles gelés, prêts à committer. */
+const DOSSIER_GEL_SORTIE = resolve(DOSSIER_SORTIE, 'gel');
+
+/**
+ * Simulation d'un jeu qui bouge (#884) : `VERIF_SIMULER_DONNEE=<id>` fait
+ * lire, APRÈS l'observation, une date de traitement différente de celle de
+ * l'attendu pour ce contrôle — le verdict « donnée » et le rejeu s'éprouvent
+ * sans attendre qu'un portail republie une nuit de run.
+ */
+const SIMULER_DONNEE = process.env.VERIF_SIMULER_DONNEE ?? '';
+
+async function executer(domaine: string, check: Check, page: Page, retry = 0): Promise<void> {
+  // Contrôle légitime que la bibliothèque ne passe pas encore : il reste écrit,
+  // il reste lisible, il ne se mesure pas. Le supprimer ou l'adoucir
+  // reviendrait à écrire dans le dépôt qu'il n'y avait rien à voir.
+  test.skip(Boolean(check.skip), check.skip ?? '');
+
+  const fuites: string[] = [];
+  if (MODE === 'deterministic') await installerReseau(page, fuites);
+
+  let attendu =
+    MODE === 'live'
+      ? attendusVivants!.get(check.id)
+      : computeExpectedFor(check, check.feed.kind === 'fixture' ? check.feed.datasets : {});
+  expect(attendu, `pas d'attendu pour ${check.id} : relancer verif:expected`).toBeDefined();
+
+  let passage = await passer(page, domaine, check, attendu!);
+
+  // LE VERDICT D'UNE NUIT ROUGE (#884), mode vivant, sur un écart : la date de
+  // traitement du jeu est relue. Stable : bibliothèque, et l'échec est GELÉ en
+  // contrôle figé prêt à committer. Changée : donnée, et le contrôle est rejoué
+  // une fois, dans ce run, sur un attendu recalculé. Sans date : indéterminé,
+  // l'écart reste, le verdict le dit.
+  if (MODE === 'live' && passage.echecs.length > 0 && check.feed.kind === 'raw') {
+    const avant = attendu!.fingerprint?.dataProcessed ?? null;
+    const apres =
+      SIMULER_DONNEE === check.id
+        ? `${avant ?? ''}+simulé`
+        : await lireDataProcessed(check.feed.source);
+    const verdict = verdictFraicheur(avant, apres);
+    if (verdict === 'donnée') {
+      viderCacheBrut();
+      const datasets = await resoudreFeed(check.feed);
+      attendu = computeExpectedFor(check, datasets);
+      attendu.fingerprint = await prendreEmpreinte(check.feed.source, datasets.main ?? []);
+      passage = await passer(page, domaine, check, attendu);
+      for (const c of passage.constatsCheck) c.fraicheur = 'donnée, rejoué';
+    } else {
+      for (const c of passage.constatsCheck) c.fraicheur = verdict;
+      if (verdict === 'bibliothèque') {
+        const datasets = await resoudreFeed(check.feed);
+        const gel = geler(domaine, check, datasets, passage.echecs);
+        mkdirSync(DOSSIER_GEL_SORTIE, { recursive: true });
+        writeFileSync(
+          resolve(DOSSIER_GEL_SORTIE, `${gel.check.id}.json`),
+          JSON.stringify(gel, null, 2)
+        );
+        process.stdout.write(
+          `gel : ${domaine}/${check.id} → tools/oracle/out/gel/${gel.check.id}.json — à copier sous tests/verif-donnees/gel/\n`
+        );
+      }
+    }
+  }
+
+  // Vert au retry seulement : compté à part, jamais fondu dans le vert.
+  if (retry > 0 && passage.echecs.length === 0) {
+    for (const c of passage.constatsCheck) c.instable = true;
+  }
+  constats.push(...passage.constatsCheck);
 
   if (MODE === 'deterministic') {
     expect(fuites, `requêtes sorties du faux réseau : ${fuites.join(', ')}`).toEqual([]);
   }
-  expect(echecs, echecs.join('\n')).toEqual([]);
+  expect(passage.echecs, passage.echecs.join('\n')).toEqual([]);
 }
 
 for (const { domaine, check } of controles) {
@@ -550,9 +632,9 @@ for (const { domaine, check } of controles) {
   if (check.clock) {
     test.describe(check.id, () => {
       test.use({ timezoneId: check.clock!.timezone ?? 'UTC' });
-      test(titre, async ({ page }) => executer(domaine, check, page));
+      test(titre, async ({ page }, testInfo) => executer(domaine, check, page, testInfo.retry));
     });
   } else {
-    test(titre, async ({ page }) => executer(domaine, check, page));
+    test(titre, async ({ page }, testInfo) => executer(domaine, check, page, testInfo.retry));
   }
 }
