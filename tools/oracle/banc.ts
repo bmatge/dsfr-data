@@ -134,12 +134,20 @@ export function ecrireRapportBanc(
         lignes.push('');
         lignes.push(`${c.rawRows} lignes brutes.`);
         lignes.push('');
-        lignes.push('| Observation | Lib | Oracle | Valeurs | Verdict |');
-        lignes.push('|---|---|---|---|---|');
+        lignes.push('| Observation | Lib | Oracle | Serveur | Valeurs | Verdict |');
+        lignes.push('|---|---|---|---|---|---|');
       }
+      // Le troisième chiffre (#883) et son verdict à trois : qui est d'accord
+      // avec qui. Sans recoupement, la colonne reste vide et le verdict est
+      // celui à deux voix.
+      const verdict = c.verdict
+        ? `${c.ok ? '' : '**écart** — '}${echapper(c.verdict)}`
+        : c.ok
+          ? 'conforme'
+          : `**écart** — ${echapper(c.message)}`;
       lignes.push(
         `| \`${echapper(c.observation)}\` | ${echapper(c.lib)} | ${echapper(c.oracle)} | ` +
-          `${c.comparaisons} | ${c.ok ? 'conforme' : `**écart** — ${echapper(c.message)}`} |`
+          `${c.serveur === undefined ? '' : echapper(c.serveur)} | ${c.comparaisons} | ${verdict} |`
       );
     }
     lignes.push('');

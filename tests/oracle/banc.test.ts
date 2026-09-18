@@ -71,8 +71,8 @@ describe('ecrireRapportBanc — groupement par page', () => {
     expect(md).toContain('### `a` — constats : PG-017');
     expect(md).toContain('la page et son constat');
     expect(md).toContain('100 lignes brutes.');
-    expect(md).toContain('| `kpi:k1` | 3 604 | 3604 | 1 | conforme |');
-    expect(md).toContain('| `kpi:k2` | 99 | 99 | 1 | conforme |');
+    expect(md).toContain('| `kpi:k1` | 3 604 | 3604 |  | 1 | conforme |');
+    expect(md).toContain('| `kpi:k2` | 99 | 99 |  | 1 | conforme |');
   });
 
   it('écarte ce qui ne vient pas d’une reproduction', () => {
@@ -220,7 +220,7 @@ describe('ecrireRapportBanc — échappement des cellules', () => {
       [constat({ controle: 'a', observation: 'kpi:k1', lib: 'a | b', oracle: 'c' })],
       [{ id: 'a', origin: 'o', page: 'viz/bofip' }]
     );
-    expect(md).toContain('| `kpi:k1` | a \\| b | c | 1 | conforme |');
+    expect(md).toContain('| `kpi:k1` | a \\| b | c |  | 1 | conforme |');
   });
 
   it('replie un texte multiligne, qui terminerait la ligne au milieu', () => {
@@ -240,9 +240,54 @@ describe('ecrireRapportBanc — échappement des cellules', () => {
       [constat({ controle: 'a', observation: 'kpi:k1', lib: 'fin \\', oracle: 'x' })],
       [{ id: 'a', origin: 'o', page: 'viz/bofip' }]
     );
-    expect(md).toContain('| `kpi:k1` | fin \\\\ | x | 1 | conforme |');
+    expect(md).toContain('| `kpi:k1` | fin \\\\ | x |  | 1 | conforme |');
     const ligne = md.split('\n').find((l) => l.includes('`kpi:k1`'))!;
-    // Cinq barres : les quatre séparateurs de colonnes, plus celle de fin.
-    expect(ligne.match(/(?<!\\)\|/g)).toHaveLength(6);
+    // Sept barres : celle du début, les cinq séparateurs des six colonnes
+    // (Serveur comprise, #883), plus celle de fin.
+    expect(ligne.match(/(?<!\\)\|/g)).toHaveLength(7);
+  });
+});
+
+describe('ecrireRapportBanc — le recoupement serveur (#883)', () => {
+  it('rend le troisième chiffre et le verdict à trois, en toutes lettres', () => {
+    const md = rendre(
+      [
+        constat({
+          controle: 'a',
+          observation: 'kpi:k1',
+          lib: '3 604',
+          oracle: '3604',
+          serveur: '3604',
+          verdict: 'oracle = serveur, lib = oracle : trois voix',
+        }),
+        constat({
+          controle: 'a',
+          observation: 'kpi:k2',
+          lib: '99',
+          oracle: '100',
+          serveur: '100',
+          ok: false,
+          message: 'oracle = serveur, lib ≠ oracle : bibliothèque',
+          verdict: 'oracle = serveur, lib ≠ oracle : bibliothèque',
+        }),
+        constat({
+          controle: 'a',
+          observation: 'kpi:k3',
+          lib: '7',
+          oracle: '7',
+          serveur: 'quota : 400 requêtes restantes',
+        }),
+      ],
+      [{ id: 'a', origin: 'o', page: 'viz/x', constats: ['AM-001'] }]
+    );
+    expect(md).toContain('| Observation | Lib | Oracle | Serveur | Valeurs | Verdict |');
+    expect(md).toContain(
+      '| `kpi:k1` | 3 604 | 3604 | 3604 | 1 | oracle = serveur, lib = oracle : trois voix |'
+    );
+    expect(md).toContain(
+      '| `kpi:k2` | 99 | 100 | 100 | 1 | **écart** — oracle = serveur, lib ≠ oracle : bibliothèque |'
+    );
+    // Sans verdict, le serveur n'a rien dit : sa raison est rendue, le verdict reste à deux voix.
+    expect(md).toContain('| `kpi:k3` | 7 | 7 | quota : 400 requêtes restantes | 1 | conforme |');
   });
 });

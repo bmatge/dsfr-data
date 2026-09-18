@@ -396,7 +396,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-activites-top" source="qt-activites" value="count" format="nombre" label="Activités affichées"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-villes" source="qt" value="ville:distinct" format="nombre" label="Communes"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-etabs', agg: 'count' },
+      { kind: 'kpi', id: 'k-etabs', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       {
         kind: 'kpi',
         id: 'k-activites',
@@ -443,7 +443,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-deps-total" source="qt-departements" value="nb:sum" format="nombre" label="Établissements situés"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-deps-max" source="qt-departements" value="nb:max" format="nombre" label="Plus gros département"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-tous', agg: 'count' },
+      { kind: 'kpi', id: 'k-tous', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       // Les groupes eux-mêmes : aucun à clé vide, et la somme des comptes
       // vaut le nombre d'établissements SITUÉS — le groupe null est exclu
       // sans que son compte disparaisse ailleurs (#881, PG-015).
@@ -598,7 +598,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-filieres" source="pdr" value="filiere:distinct" format="nombre" label="Filières"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-regions" source="pdr" value="nom_region:distinct" format="nombre" label="Régions"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-projets', agg: 'count' },
+      { kind: 'kpi', id: 'k-projets', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       {
         kind: 'kpi',
         id: 'k-deps',
@@ -705,6 +705,10 @@ const CHECKS: Check[] = [
         agg: 'sum',
         field: 'balance_sortie_3',
         filter: [{ field: 'categorie', op: 'eq', value: 'Actif' }],
+        crosscheck: {
+          select: 'sum(balance_sortie_3) as v',
+          where: `${CG_WHERE} and categorie = "Actif"`,
+        },
       },
       {
         kind: 'kpi',
@@ -712,6 +716,10 @@ const CHECKS: Check[] = [
         agg: 'sum',
         field: 'balance_sortie_3',
         filter: [{ field: 'categorie', op: 'eq', value: 'Passif' }],
+        crosscheck: {
+          select: 'sum(balance_sortie_3) as v',
+          where: `${CG_WHERE} and categorie = "Passif"`,
+        },
       },
       {
         kind: 'kpi',
@@ -790,7 +798,9 @@ const CHECKS: Check[] = [
     order-by="debut_de_validite:desc"></dsfr-data-source>
   <dsfr-data-kpi id="k-bofip-total" source="bofip" value="meta:total" format="nombre"
     label="Documents en vigueur"></dsfr-data-kpi>`,
-    expects: [{ kind: 'kpi', id: 'k-bofip-total', agg: 'count' }],
+    expects: [
+      { kind: 'kpi', id: 'k-bofip-total', agg: 'count', crosscheck: { select: 'count(*) as v' } },
+    ],
   },
 
   {
@@ -890,7 +900,15 @@ const CHECKS: Check[] = [
     expects: [
       // La part d'un profil ne peut pas dépasser 100 : c'est la somme des
       // scores des réponses de LA question, pour CE profil.
-      { kind: 'kpi', id: 'k-part', agg: 'sum', field: 'score', decimals: 1, pattern: '%' },
+      {
+        kind: 'kpi',
+        id: 'k-part',
+        agg: 'sum',
+        field: 'score',
+        decimals: 1,
+        pattern: '%',
+        crosscheck: { select: 'sum(score) as v' },
+      },
       // Et réponse par réponse, ce que la source a émis.
       {
         kind: 'rows',
@@ -929,7 +947,13 @@ const CHECKS: Check[] = [
     value="etp_d_enseignants_agreges:sum / etp_enseignants_hommes_et_femmes:sum"
     format="pourcentage" decimals="1" label="Agrégés"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-etp', agg: 'sum', field: 'etp_total' },
+      {
+        kind: 'kpi',
+        id: 'k-etp',
+        agg: 'sum',
+        field: 'etp_total',
+        crosscheck: { select: 'sum(etp_total) as v' },
+      },
       {
         kind: 'kpi',
         id: 'k-femmes',
@@ -1054,7 +1078,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-dep-ens" source="c-dep-n" value="ens:sum" format="nombre" decimals="0"
     label="ETP enseignants"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-dep-etabs', agg: 'count' },
+      { kind: 'kpi', id: 'k-dep-etabs', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       {
         kind: 'kpi',
         id: 'k-dep-n',
@@ -1129,7 +1153,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-euro" source="euro" value="count" format="nombre" label="Établissements"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-euro-aca" source="euro" value="academie:distinct" format="nombre" label="Académies"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-euro', agg: 'count' },
+      { kind: 'kpi', id: 'k-euro', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       { kind: 'kpi', id: 'k-euro-aca', agg: 'distinct', field: 'academie' },
       {
         kind: 'rows',
@@ -1225,7 +1249,13 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-tne-depts" source="tne-dept" value="count" format="nombre"
     label="Départements"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-tne-participants', agg: 'sum', field: 'nombre_total_de_participants' },
+      {
+        kind: 'kpi',
+        id: 'k-tne-participants',
+        agg: 'sum',
+        field: 'nombre_total_de_participants',
+        crosscheck: { select: 'sum(nombre_total_de_participants) as v' },
+      },
       {
         kind: 'kpi',
         id: 'k-tne-depts',
@@ -1290,7 +1320,13 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-aslve-lignes" source="aslve" value="count" format="nombre"
     label="Couples pays-période"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-aslve-postes', agg: 'sum', field: 'postes_offerts' },
+      {
+        kind: 'kpi',
+        id: 'k-aslve-postes',
+        agg: 'sum',
+        field: 'postes_offerts',
+        crosscheck: { select: 'sum(postes_offerts) as v' },
+      },
       { kind: 'kpi', id: 'k-aslve-pays', agg: 'distinct', field: 'iso2_pays' },
       {
         kind: 'kpi',
@@ -1334,8 +1370,15 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-ecart-max" source="ecoles-n" value="ecart_dep:max" format="decimal"
     decimals="1" label="Écart au département le plus haut"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-ecoles', agg: 'count' },
-      { kind: 'kpi', id: 'k-ecoles-ips', agg: 'avg', field: 'ips', decimals: 1 },
+      { kind: 'kpi', id: 'k-ecoles', agg: 'count', crosscheck: { select: 'count(*) as v' } },
+      {
+        kind: 'kpi',
+        id: 'k-ecoles-ips',
+        agg: 'avg',
+        field: 'ips',
+        decimals: 1,
+        crosscheck: { select: 'avg(ips) as v' },
+      },
       {
         kind: 'kpi',
         id: 'k-ecart-max',
@@ -1380,7 +1423,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-bordeaux" source="ecoles-deps" value="n:sum" format="nombre"
     label="Écoles de l'académie"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-bordeaux', agg: 'count' },
+      { kind: 'kpi', id: 'k-bordeaux', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       {
         kind: 'facets',
         id: 'ecoles-dep-f',
@@ -1420,7 +1463,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-cct-situes" source="cct-regions" value="nb:sum" format="nombre" label="Centres situés"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-cct-max" source="cct-regions" value="nb:max" format="nombre" label="Plus grosse région"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-cct', agg: 'count' },
+      { kind: 'kpi', id: 'k-cct', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       {
         kind: 'kpi',
         id: 'k-cct-regions',
@@ -1487,7 +1530,7 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-th-activites" source="th" value="activite:distinct" format="nombre"
     label="Activités"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-th', agg: 'count' },
+      { kind: 'kpi', id: 'k-th', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       { kind: 'kpi', id: 'k-th-activites', agg: 'distinct', field: 'activite' },
       {
         kind: 'facets',
@@ -1529,8 +1572,14 @@ const CHECKS: Check[] = [
     value="lics_f_semidef:sum / lics_tot_semidef:sum" format="pourcentage" decimals="1"
     label="Part des licenciées"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-fede-n', agg: 'count' },
-      { kind: 'kpi', id: 'k-fede-lics', agg: 'sum', field: 'lics_tot_semidef' },
+      { kind: 'kpi', id: 'k-fede-n', agg: 'count', crosscheck: { select: 'count(*) as v' } },
+      {
+        kind: 'kpi',
+        id: 'k-fede-lics',
+        agg: 'sum',
+        field: 'lics_tot_semidef',
+        crosscheck: { select: 'sum(lics_tot_semidef) as v' },
+      },
       {
         kind: 'kpi',
         id: 'k-fede-part',
