@@ -16,7 +16,8 @@ domaines, pour 489 observations et **26 invariants**. Un contrôle et cinq invar
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
 cités. Une troisième voix, en Python standard, recalcule 327 des attentes déterministes
-(« La troisième voix »).
+(« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
+Opendatasoft lui-même (« Le recoupement serveur »).
 
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
@@ -266,6 +267,8 @@ tools/oracle/            LE MOTEUR
                              l'oracle Python comme de l'oracle TS
   invariants.ts            les INVARIANTS (#881) : la référence depuis les lignes brutes,
                              l'évaluation sur ce que la page montre
+  crosscheck.ts            le RECOUPEMENT SERVEUR (#883) : validation des clauses, URL d'export
+                             agrégé, quota par portail, accord et verdict à trois chiffres
 
 tools/oracle-py/         LA TROISIÈME VOIX (Python standard, aucune dépendance)
   oracle.py                lit out/manifests.json et jeux/*.json, recalcule en Fraction,
@@ -286,6 +289,10 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
                              packages/, rien hors de la stdlib
   invariants.test.ts       les six sortes d'invariants, tenues et violées en tableaux nus
   canari-ops.test.ts       les deux opérations venues du canari : explode et eq-strict
+  crosscheck.test.ts       le recoupement serveur : ce que le serveur ne sait pas dire (refusé
+                             sur tous les manifestes), l'URL écrite à la main, le quota qui coupe,
+                             l'accord par clé, les cinq verdicts
+  report.test.ts           le résumé du rapport : verdicts comptés, serveur muet compté à part
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -699,6 +706,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
 | canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |
 | canari | (par construction) `fetch-mode="export" max-records="1000"` sur 1 001 lignes | `canari-plafond-export#not-truncated` | « 1000 lignes, aucun diagnostic » — en attente, AM-002 |
+| recoupement | `sum` de l'ORACLE rend un de trop (`tools/oracle/compute.ts`, `aggregate`) — un défaut du recalcul, pas de la lib | `personnels-colleges-part-ponderee` / `kpi:k-etp`, `tne-personnels-formes-unpivot` / `kpi:k-tne-participants` (vivants) | « lib 289 592, oracle 289 593, serveur 289 592 — verdict : oracle ≠ serveur, lib = serveur : le recalcul se trompe seul » : c'est le **serveur** qui désigne l'oracle, la page n'y est pour rien |
+| recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
