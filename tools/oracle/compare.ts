@@ -65,6 +65,16 @@ export interface Constat {
    * pas encore. Le constat est rendu, avec ses deux chiffres, et ne bloque pas.
    */
   attente?: string;
+  /**
+   * Le RECOUPEMENT SERVEUR (#883), mode vivant : ce que le portail a répondu,
+   * rendu court — ou la raison pour laquelle il n'a pas été interrogé (quota,
+   * échec). Troisième chiffre à côté de `lib` et `oracle`.
+   */
+  serveur?: string;
+  /** Écart lib ↔ serveur, ou `null` si le serveur n'a rien dit. */
+  ecartServeur?: number | null;
+  /** Le verdict à trois chiffres, en toutes lettres (`verdictRecoupement`). */
+  verdict?: string;
 }
 
 export type Observation =

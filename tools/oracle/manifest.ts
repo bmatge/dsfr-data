@@ -302,6 +302,40 @@ export type Invariant =
    */
   | { kind: 'not-truncated'; from?: string; skip?: string };
 
+/**
+ * Le RECOUPEMENT SERVEUR (#883) : une troisième voix VIVANTE, gratuite et
+ * tierce. Pour tout agrégat qu'une page calcule sur une source Opendatasoft,
+ * le portail sait produire le même chiffre — `/exports/json?select=…&group_by=…
+ * &where=…` — par une implémentation d'un autre éditeur, dans un autre
+ * langage, sur les mêmes lignes. L'indépendance la plus forte qu'on puisse
+ * avoir, pour une requête.
+ *
+ * Les clauses s'écrivent À LA MAIN, jamais traduites par l'adaptateur — les
+ * alias et le backquotage sont précisément ce que le banc a payé (PG-014,
+ * PG-027, BUG-010). Ce que le serveur ne sait PAS dire, et qu'un test refuse :
+ * `count(distinct)` (approximatif, PG-026), `total_count` d'une requête
+ * agrégée (LIM-002), les fonctions de date et le fuseau (FP-003, AM-064), et
+ * tout ce qui vient d'une jointure, d'un pivot ou d'un `compute` — le serveur
+ * ne connaît qu'un jeu.
+ */
+export interface Crosscheck {
+  /**
+   * `select` ODSQL, écrit à la main. Pour un KPI : UN agrégat aliasé `v`
+   * (`sum(population) as v`, `count(*) as v`). Pour des lignes : un agrégat
+   * par colonne comparée, aliasé du nom de la colonne.
+   */
+  select: string;
+  /** `group_by` ODSQL (lignes) : le champ de regroupement, qui devient la clé. */
+  groupBy?: string;
+  /**
+   * Clause ODSQL complète. À défaut, celle de la source brute (`where` d'une
+   * `RawSource`, paramètre `where` de l'URL d'une `RawUrlSource`).
+   */
+  where?: string;
+  /** Décimales de la comparaison (défaut : celles de l'attente). */
+  decimals?: number;
+}
+
 interface ExpectBase {
   /** id de l'élément `dsfr-data-*` observé dans la page. */
   id: string;
@@ -311,6 +345,8 @@ interface ExpectBase {
   pipeline?: Step[];
   /** Invariants évalués sur l'observation, face aux lignes BRUTES (#881). */
   invariants?: Invariant[];
+  /** Recoupement par le serveur Opendatasoft, mode vivant seulement (#883). */
+  crosscheck?: Crosscheck;
 }
 
 /** Valeur affichée par un `dsfr-data-kpi` (texte fr-FR de `.dsfr-data-kpi__value`). */

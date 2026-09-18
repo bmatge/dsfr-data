@@ -29,6 +29,7 @@ import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
 import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 import { attenduPython, lireAttendusPython } from '../tools/oracle/troisieme-voix.js';
 import { evaluerInvariants } from '../tools/oracle/invariants.js';
+import { accordAvecServeur, verdictRecoupement } from '../tools/oracle/crosscheck.js';
 
 /**
  * VÉRIFICATION DES DONNÉES — un seul spec, deux alimentations (ADR-122).
@@ -461,6 +462,38 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
         constat.message = [constat.message, `Python : ${tiers.message}`]
           .filter((m) => m !== '')
           .join(' — ');
+      }
+    }
+    // Le RECOUPEMENT SERVEUR (#883), mode vivant : le troisième chiffre, et le
+    // verdict à trois — qui est d'accord avec qui. Un recoupement à qualifier
+    // n'est jamais un échec de la bibliothèque ; un serveur d'accord avec la
+    // page contre l'oracle désigne le recalcul.
+    const reponseServeur = attendu!.serveur?.[cleAttendu(e)];
+    if (reponseServeur) {
+      if (reponseServeur.kind === 'absent') {
+        constat.serveur = reponseServeur.raison;
+        constat.ecartServeur = null;
+      } else {
+        const valeurLib =
+          e.kind === 'kpi'
+            ? { kind: 'kpi' as const, value: (observation as { value: number | null }).value }
+            : { kind: 'rows' as const, rows: observation as Array<Record<string, unknown>> };
+        const valeurOracle =
+          valeurAttendue.kind === 'kpi'
+            ? { kind: 'kpi' as const, value: valeurAttendue.value }
+            : valeurAttendue.kind === 'rows'
+              ? { kind: 'rows' as const, rows: valeurAttendue.rows }
+              : null;
+        const libServeur = accordAvecServeur(e, reponseServeur, valeurLib);
+        const oracleServeur = accordAvecServeur(e, reponseServeur, valeurOracle);
+        const verdict = verdictRecoupement(oracleServeur.ok, constat.ok, libServeur.ok);
+        constat.serveur = libServeur.serveur;
+        constat.ecartServeur = libServeur.ecart;
+        constat.verdict = verdict.texte;
+        if (verdict.echec && constat.ok) {
+          constat.ok = false;
+          constat.message = verdict.texte;
+        }
       }
     }
     constats.push(constat);
