@@ -62,7 +62,7 @@ const INTERDITS = [
  * composition, dont le travail est précisément de rapprocher le moteur et les
  * manifestes. Comme le spec Playwright, et pour la même raison.
  */
-const RACINES_DE_COMPOSITION = ['tools/oracle/run.ts'];
+const RACINES_DE_COMPOSITION = ['tools/oracle/run.ts', 'tools/oracle/manifests.ts'];
 
 function importeSesDonnees(depuisRelatif: string, cibleRelative: string): boolean {
   if (RACINES_DE_COMPOSITION.includes(depuisRelatif)) return false;
