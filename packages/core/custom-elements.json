@@ -4389,6 +4389,12 @@
               "description": "Message annonce par la live region (lecteurs d'écran)"
             },
             {
+              "kind": "field",
+              "name": "_onDocumentParsed",
+              "privacy": "private",
+              "description": "Seconde chance de capture, une fois le HTML initial analysé."
+            },
+            {
               "kind": "method",
               "name": "onSourceReset",
               "return": {

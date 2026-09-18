@@ -1020,19 +1020,25 @@ un fetch et N filtres. Il faut en contrepartie que cette source soit **chargee e
   `innerHTML` : les composants sont detruits et recrees — mesure a ≈ 640 ms pour 119 graphiques,
   remontage Vue / Chart.js compris. Garder la source repetee stable (une table de reference) et
   faire porter les filtres par la source *scopee*, dont la re-emission ne touche que les queries.
-- **Un id reutilise purge le cache.** A cette re-creation, l'ancienne `dsfr-data-query` purge a
-  sa deconnexion le cache de son `id` (`TransformerMixin.disconnectedCallback`), que la nouvelle
-  instance du meme `id` vient de remplir. Un consommateur monte plus tard sur `q-001` lit du
-  vide jusqu'a la prochaine emission.
 - **Pas de delegation ni d'adaptateur derriere un id scope.** Une `dsfr-data-facets` ou une
   `dsfr-data-search` branchee sur `q-{{…}}` n'a pas d'adaptateur a interroger : ces composants ne
   se repetent pas par ce motif.
 - **Un attribut booleen ne se conditionne pas** dans la balise (`horizontal`, `databox`) : un bloc
   `{{#if}}` place entre deux attributs est decoupe par l'analyse HTML. Ecrire deux elements
   complets, l'un sous `{{#if champ}}…{{/if}}`, l'autre sous `{{#unless champ}}…{{/unless}}`.
-- **Charger le bundle en fin de body** (ou en `type="module"`). Charge dans `<head>` sans
-  `defer`, le display capture son `<template>` avant que le navigateur l'ait analyse, et ne rend
-  rien tant que la donnee ne change pas.
+**Deux limites levees en 0.30.1 :**
+
+- **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
+  purgeait a sa deconnexion le cache de son `id`, que la nouvelle instance du meme `id` venait
+  de remplir : un consommateur monte plus tard sur `q-001` lisait du vide. La purge
+  (`TransformerMixin.disconnectedCallback`, et la meme dans `dsfr-data-source`) n'a desormais
+  lieu que si plus aucun element du document ne porte cet `id` ; un composant reellement retire
+  de la page purge toujours son cache.
+- **Le gabarit est recapture** (#894). Charge dans `<head>` sans `defer`, le display capturait
+  son `<template>` avant que le navigateur l'ait analyse, et ne rendait rien tant que la donnee
+  ne changeait pas — donc jamais, quand la donnee etait deja connue au montage (`data` en ligne,
+  cache deja rempli). Une seconde capture a lieu a la fin de l'analyse du document. Charger le
+  bundle en fin de body (ou en `type="module"`) reste la pose recommandee.
 
 Ce motif est verrouille par un test (`tests/dsfr-data-display.test.ts`, « composants dsfr-data
 dans le gabarit ») : il fait partie du contrat, pas d'un effet de bord.

@@ -376,15 +376,24 @@
               <strong>Re-création totale :</strong> chaque émission de la source répétée réécrit tout l'<code>innerHTML</code>,
               les composants sont détruits et recréés (≈ 640 ms pour 119 graphiques) ; garder la source répétée stable
               et faire porter les filtres par la source scopée.
-              <strong>Un id réutilisé purge le cache :</strong> à cette re-création, l'ancienne query purge à sa
-              déconnexion le cache de l'<code>id</code> que la nouvelle vient de remplir — un consommateur monté plus
-              tard lit du vide jusqu'à la prochaine émission.
               <strong>Pas d'adaptateur derrière un id scopé :</strong> ni <code>dsfr-data-facets</code> ni
               <code>dsfr-data-search</code> sur <code>q-{{…}}</code>.
               <strong>Un attribut booléen ne se conditionne pas</strong> dans la balise (<code>horizontal</code>) :
               deux éléments complets sous <code>{{#if}}</code> et <code>{{#unless}}</code>.
-              <strong>Charger le bundle en fin de body</strong> : chargé dans <code>&lt;head&gt;</code> sans
-              <code>defer</code>, le display capture son <code>&lt;template&gt;</code> avant qu'il soit analysé.
+            </p>
+          </div>
+
+          <div class="fr-callout fr-callout--green-emeraude fr-mt-2w">
+            <p class="fr-callout__title">Deux limites levées en 0.30.1</p>
+            <p class="fr-callout__text">
+              <strong>Un id réutilisé ne purge plus le cache (#893) :</strong> à la re-création, l'ancienne instance
+              purgeait à sa déconnexion le cache de l'<code>id</code> que la nouvelle venait de remplir — un
+              consommateur monté plus tard lisait du vide. La purge n'a désormais lieu que si plus aucun élément du
+              document ne porte cet <code>id</code> ; un composant réellement retiré de la page purge toujours.
+              <strong>Le gabarit est recapturé (#894) :</strong> bundle chargé dans le <code>&lt;head&gt;</code> sans
+              <code>defer</code>, le display capturait son <code>&lt;template&gt;</code> avant qu'il soit analysé, et
+              rien ne le rattrapait quand les données étaient déjà connues au montage. Une seconde capture a lieu à la
+              fin de l'analyse du document.
             </p>
           </div>
         </section>
