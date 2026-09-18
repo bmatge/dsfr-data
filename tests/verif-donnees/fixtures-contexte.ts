@@ -26,6 +26,8 @@
  * un HTTP 400 (#805).
  */
 import type { Row } from '../../tools/oracle/manifest.js';
+import etablissements from './jeux/contexte-etablissements.json' with { type: 'json' };
+import budgets from './jeux/contexte-budgets.json' with { type: 'json' };
 
 /** Hôtes fictifs — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_API_CONTEXTE = 'https://api.contexte.invalid';
@@ -35,47 +37,15 @@ export const HOTE_ODS_CONTEXTE = 'https://ods.contexte.invalid';
 export const DATASET_CONTEXTE = 'etablissements';
 export const DATASET_BUDGETS = 'budgets';
 
-// Une ligne par établissement : un jeu de fixtures se lit comme un tableau.
-// prettier-ignore
-export const ETABLISSEMENTS: Row[] = [
-  { id: '01', date: '2025-03-15', region: 'Occitanie',                  departement: '31', categorie: 'École',   population: 1200, effectif: 30, libelle: 'École Jean Jaurès' },
-  { id: '02', date: '2025-09-01', region: 'Occitanie',                  departement: '31', categorie: 'Collège', population: 2400, effectif: 60, libelle: 'Collège Victor Hugo' },
-  { id: '03', date: '2025-09-15', region: 'Bretagne',                   departement: '35', categorie: 'École',   population:  800, effectif: 20, libelle: 'École des Îles' },
-  { id: '04', date: '2025-11-20', region: 'Bretagne',                   departement: '29', categorie: 'Lycée',   population: 3000, effectif: 75, libelle: 'Lycée de la Mer' },
-  { id: '05', date: '2025-12-31', region: 'Normandie',                  departement: '76', categorie: 'École',   population:  500, effectif: 10, libelle: 'École du Havre' },
-  { id: '06', date: '2026-01-10', region: 'Normandie',                  departement: '14', categorie: 'Collège', population: 1500, effectif: 40, libelle: 'Collège de Caen' },
-  { id: '07', date: '2026-02-14', region: 'Occitanie',                  departement: '34', categorie: 'Lycée',   population: 2200, effectif: 55, libelle: 'Lycée de Montpellier' },
-  { id: '08', date: '2026-03-01', region: "Provence-Alpes-Côte d'Azur", departement: '13', categorie: 'École',   population:  900, effectif: 25, libelle: 'École de Marseille Sud' },
-  { id: '09', date: '2026-03-15', region: "Provence-Alpes-Côte d'Azur", departement: '06', categorie: 'Collège', population: 1800, effectif: 45, libelle: 'Collège de Nice' },
-  { id: '10', date: '2026-03-16', region: 'Bretagne',                   departement: '35', categorie: 'École',   population:  700, effectif: 18, libelle: 'École de Rennes' },
-  { id: '11', date: '2026-03-31', region: 'Occitanie',                  departement: '31', categorie: 'Lycée',   population: 2600, effectif: 65, libelle: 'Lycée de Toulouse Centre' },
-  { id: '12', date: '2026-04-02', region: 'Bretagne',                   departement: '35', categorie: 'École',   population:  400, effectif: 12, libelle: 'École de Vitré' },
-  { id: '13', date: '2026-05-05', region: 'Normandie',                  departement: '14', categorie: 'Lycée',   population: 2500, effectif: 62, libelle: 'Lycée de Lisieux' },
-  { id: '14', date: '2026-05-10', region: 'Bretagne',                   departement: '29', categorie: 'Collège', population: 1100, effectif: 28, libelle: 'Collège de Brest' },
-  { id: '15', date: '2026-05-24', region: "Provence-Alpes-Côte d'Azur", departement: '13', categorie: 'École',   population:  950, effectif: 22, libelle: "École d'Aubagne" },
-  { id: '16', date: '2026-05-25', region: "Provence-Alpes-Côte d'Azur", departement: '06', categorie: 'Lycée',   population: 2100, effectif: 52, libelle: "Lycée d'Antibes" },
-  { id: '17', date: '2026-05-31', region: 'Occitanie',                  departement: '34', categorie: 'École',   population:  600, effectif: 15, libelle: 'École de Sète' },
-  { id: '18', date: '2026-06-01', region: 'Occitanie',                  departement: '31', categorie: 'Collège', population: 1700, effectif: 42, libelle: 'Collège des Minimes' },
-  { id: '19', date: '2026-06-01', region: 'Bretagne',                   departement: '35', categorie: 'Lycée',   population: 2900, effectif: 70, libelle: 'Lycée de Saint-Malo' },
-  { id: '20', date: '2026-06-10', region: 'Occitanie',                  departement: '31', categorie: 'École',   population:  550, effectif: 14, libelle: 'École de Blagnac' },
-  { id: '21', date: '2026-06-20', region: "Provence-Alpes-Côte d'Azur", departement: '13', categorie: 'Collège', population: 1600, effectif: 38, libelle: "Collège d'Aix" },
-  { id: '22', date: '2026-07-05', region: 'Occitanie',                  departement: '34', categorie: 'Lycée',   population: 2300, effectif: 58, libelle: 'Lycée de Béziers' },
-  { id: '23', date: '2026-08-30', region: 'Bretagne',                   departement: '29', categorie: 'École',   population:  750, effectif: 19, libelle: 'École de Quimper' },
-  { id: '24', date: '2026-09-02', region: 'Normandie',                  departement: '76', categorie: 'Collège', population: 1300, effectif: 33, libelle: 'Collège de Dieppe' },
-  { id: '25', date: '2026-10-15', region: "Provence-Alpes-Côte d'Azur", departement: '06', categorie: 'Lycée',   population: 2000, effectif: 50, libelle: 'Lycée de Cannes' },
-];
+/** Les vingt-cinq établissements du lot (`jeux/README.md`). */
+export const ETABLISSEMENTS: Row[] = etablissements;
 
 /**
  * Le jeu SANS colonne `categorie` (#805). Un filtre de contexte posé sur
  * `categorie` et visant les deux sources doit exclure celle-ci — et le dire —
  * plutôt que lui envoyer une clause que l'API refuserait.
  */
-export const BUDGETS: Row[] = [
-  { region: 'Occitanie', montant: 5000 },
-  { region: 'Bretagne', montant: 4000 },
-  { region: 'Normandie', montant: 3000 },
-  { region: "Provence-Alpes-Côte d'Azur", montant: 2000 },
-];
+export const BUDGETS: Row[] = budgets;
 
 /** Les jeux du lot, sous le nom que le manifeste leur donne. */
 export const JEUX_CONTEXTE = {

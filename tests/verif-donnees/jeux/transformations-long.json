@@ -1,0 +1,11 @@
+[
+  {"commune":"Lyon","annee":"2022","montant":10,"ouverture":"2022-04-01"},
+  {"commune":"Lyon","annee":"2023","montant":12,"ouverture":"2023-02-15"},
+  {"commune":"Lyon","annee":"2023","montant":8,"ouverture":"2023-08-30"},
+  {"commune":"Nice","annee":"2022","montant":7,"ouverture":"2022-11-20"},
+  {"commune":"Nice","annee":"2024","montant":21,"ouverture":"2024-05-05"},
+  {"commune":"Brest","annee":"2022","montant":5,"ouverture":"2022-01-10"},
+  {"commune":"Brest","annee":"2023","montant":"4,5","ouverture":"2023-06-18"},
+  {"commune":"Brest","annee":"2024","montant":9,"ouverture":"2024-09-02"},
+  {"commune":"Nancy","annee":"","montant":99,"ouverture":"2020-01-01"}
+]

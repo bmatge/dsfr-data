@@ -1,0 +1,7 @@
+[
+  {"code":"01","region":"Hauts-de-France","poids":100},
+  {"code":"02","region":"Normandie","poids":200},
+  {"code":"03","region":"Bretagne","poids":300},
+  {"code":"77","region":"Occitanie","poids":400},
+  {"code":"","region":"Sans code","poids":500}
+]

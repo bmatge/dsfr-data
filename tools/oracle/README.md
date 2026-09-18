@@ -148,13 +148,18 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                              reproduction, chacun citant les constats du registre qu'il rejoue
                              (champs `page` et `constats` du Check)
 
-  fixtures.ts                  les lignes servies à la page ET données à l'oracle
-  fixtures-adaptateurs.ts      les lignes plates et les faux serveurs du domaine `adaptateurs`
-  fixtures-transformations.ts  idem, servies en `data` inline (aucun faux serveur)
-  fixtures-contexte.ts         les lignes et le faux serveur ODS du domaine `contexte`
+  jeux/                        LES LIGNES : un jeu = un fichier JSON (tableau d'objets, une
+                               ligne par enregistrement), lu par les fixtures, par l'oracle,
+                               par le banc et par tout autre langage ; jeux/README.md dit
+                               pour quoi chaque jeu a été taillé (#879)
+  fixtures.ts                  le faux serveur commun (ODS, Tabular, tableau nu) sur les
+                               jeux partagés (territoires, mesures, regions)
+  fixtures-adaptateurs.ts      les faux serveurs du domaine `adaptateurs` (Melodi, Grist, JSON)
+  fixtures-transformations.ts  les jeux servis en `data` inline (aucun faux serveur)
+  fixtures-contexte.ts         le faux serveur ODS du domaine `contexte`
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
-  fixtures-affichages.ts       les jeux du domaine `affichages` (communes, série, libellés, long)
+  fixtures-affichages.ts       le faux serveur du domaine `affichages`
 
 tools/oracle/            LE MOTEUR
   manifest.ts              la grammaire (types seuls) : Feed, Step, Expect, Check
@@ -175,6 +180,8 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   guard.test.ts            l'indépendance, sur tout le graphe d'imports
   compute.test.ts · expression.test.ts · transformations.test.ts   le recalcul
   observe.test.ts          le contrat des lecteurs, sur un DOM minimal
+  jeux.test.ts             les jeux JSON : chacun lu par un contrôle, chaque feed venu d'un jeu,
+                             territoires.json égal au jeu du harnais
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -312,7 +319,10 @@ part entière.
 2. Écrire le `Check` : `mode`, `origin` (d'où vient le cas, quelle issue le motive), `feed`,
    `markup`, `expects`. Les clauses d'un contrôle vivant s'écrivent **à la main** dans le
    manifeste, jamais traduites par la lib — clause ODSQL d'une `RawSource`, URL complète et
-   chemins d'extraction d'une `RawUrlSource` (voir « Les deux modes » ci-dessus).
+   chemins d'extraction d'une `RawUrlSource` (voir « Les deux modes » ci-dessus). Les lignes
+   d'un contrôle déterministe vivent dans `tests/verif-donnees/jeux/<nom>.json` — jamais en
+   littéral dans un manifeste ni une fixture (`tests/oracle/jeux.test.ts` le refuse) — et
+   `jeux/README.md` dit pour quoi le jeu est taillé.
 3. Si le calcul attendu demande une opération que `compute.ts` ne sait pas faire, l'ajouter là —
    en tableaux nus, sans rien emprunter à la lib — et l'éprouver dans `tests/oracle/compute.test.ts`.
 4. `npm run verif`, puis **prouver la mutation** (ci-dessous). Un contrôle qui ne peut pas échouer
