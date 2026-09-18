@@ -489,6 +489,45 @@ export interface ExpectUrls {
   verdict: 'none' | 'some' | 'all' | 'last' | 'notLast';
 }
 
+/**
+ * Ce que la bibliothèque a DIT — ou tu — pendant le rendu (#878).
+ *
+ * Les trois chiffres faux du 18/09 (banc, `viz/barometre-france-num-v2`)
+ * avaient la même signature : un chiffre plausible et AUCUNE erreur. Un
+ * `sources="a,b"` lu comme un seul id qui ne désigne rien, une source hors
+ * contexte, une soustraction sur une cellule absente — chaque unité marchait,
+ * la page se rendait, et personne ne savait exiger qu'il y ait eu un mot.
+ * C'est la dimension que ce lecteur ajoute : un contrôle peut demander que
+ * la bibliothèque PARLE, et dire quoi, ou qu'elle se TAISE.
+ *
+ * Deux canaux, tous deux lus dans la page :
+ *   - le marqueur `data-dsfr-config-error` posé par `reportConfigError` sur
+ *     l'élément fautif (`config-error`) ;
+ *   - le journal des `console.warn` / `console.error` émis par la bibliothèque
+ *     (`warning` : au moins un message qui la nomme, `dsfr-data-…`), tenu par
+ *     la page de fixture avant le chargement de la lib — comme `lireUrls`.
+ *
+ * `silence` exige les deux absences à la fois. Comme `urls`, l'attendu n'est
+ * pas recalculé depuis les lignes : c'est le contrôle qui l'énonce.
+ */
+export interface ExpectDiagnostic {
+  kind: 'diagnostic';
+  /** Élément dont on lit le marqueur d'erreur de configuration. */
+  id: string;
+  /**
+   * `config-error` : l'élément porte `data-dsfr-config-error` ·
+   * `warning` : la bibliothèque a écrit en console (warn ou error) ·
+   * `silence` : ni l'un ni l'autre.
+   */
+  expect: 'config-error' | 'warning' | 'silence';
+  /**
+   * Fragment que le message doit porter (`config-error`, `warning`), ou dont
+   * l'absence fait le silence (`silence`, restreint aux messages qui le
+   * portent — sans lui, tout message de la bibliothèque rompt le silence).
+   */
+  contains?: string;
+}
+
 export type Expect =
   | ExpectKpi
   | ExpectRows
@@ -502,7 +541,8 @@ export type Expect =
   | ExpectAttr
   | ExpectCsv
   | ExpectDots
-  | ExpectUrls;
+  | ExpectUrls
+  | ExpectDiagnostic;
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
 export type CheckMode = 'deterministic' | 'live';

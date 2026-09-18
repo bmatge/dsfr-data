@@ -118,6 +118,81 @@ const BFN_SCORES: RawUrlSource = {
     `&where=${encodeURIComponent(BFN_WHERE)}`,
 };
 
+// ---------------------------------------------------------------------------
+// viz/barometre-france-num-v2 — #878, cas 3 du 18/09 : la source de détail
+// d'une question (`det-prof`) devait suivre le contexte `profil` (région,
+// secteur, taille) et n'y était pas déclarée. Elle chargeait donc SANS ce
+// filtre : `sum(score)` cumulait toutes les régions, tous les secteurs, toutes
+// les tailles, et affichait « 5 724 % » pour une part de répondants. Aucune
+// erreur : une source hors contexte est une erreur d'auteur que la
+// bibliothèque ne peut pas deviner. Ce que le dispositif garde, c'est le
+// CHIFFRE de la page réelle, après le geste de filtre.
+// ---------------------------------------------------------------------------
+
+/** La question par défaut de la page (923, authentification multi-facteurs). */
+const BFNV2_QUESTION = '923';
+
+/** Le profil choisi par le geste : une région, secteur et taille au défaut. */
+const BFNV2_PROFIL =
+  'region = "Bretagne" and secteur = "Tous secteurs" and taille = "Toutes tailles"';
+
+/** Lignes brutes du détail, clause ODSQL écrite à la main. */
+const BFNV2_DETAIL: RawUrlSource = {
+  url:
+    `${exportJson(MEF, 'questions-reponses')}` +
+    `?select=${encodeURIComponent('code_unifie, libelle_reponse, score, annee')}` +
+    `&where=${encodeURIComponent(
+      `code_unifie = ${BFNV2_QUESTION} and ${BFNV2_PROFIL} and year(annee) = 2025 and libelle_reponse != "Sans réponse"`
+    )}`,
+};
+
+/**
+ * Le balisage RÉEL de la page, réduit aux deux sources de détail (nationale,
+ * profil) et aux deux contextes qui les pilotent. `sources` du contexte
+ * `profil` porte — ou non — la source de profil : c'est la seule différence
+ * entre la page juste et la page fausse, et c'est la mutation du contrôle
+ * (`'det-nat'` à la place de `'det-prof'` : une source du document, mais pas
+ * la bonne — aucune erreur, un chiffre à cinq chiffres).
+ */
+function bfnv2Markup(sourcesProfil: string): string {
+  return `
+  <dsfr-data-source id="det-nat" api-type="opendatasoft"
+    base-url="https://${MEF}" dataset-id="questions-reponses"
+    fetch-mode="export" max-records="200" require-where
+    select="sum(score) as France" group-by="libelle_reponse"
+    where="region = &quot;Toutes régions&quot; and secteur = &quot;Tous secteurs&quot; and taille = &quot;Toutes tailles&quot; and year(annee) = 2025 and libelle_reponse != &quot;Sans réponse&quot;"></dsfr-data-source>
+  <dsfr-data-source id="det-prof" api-type="opendatasoft"
+    base-url="https://${MEF}" dataset-id="questions-reponses"
+    fetch-mode="export" max-records="200" require-where
+    select="sum(score) as Profil" group-by="libelle_reponse"
+    where="year(annee) = 2025 and libelle_reponse != &quot;Sans réponse&quot;"></dsfr-data-source>
+  <dsfr-data-context id="profil" sources="${sourcesProfil}">
+    <dsfr-data-context-filter field="region"  ui="f-region"  default="Toutes régions"></dsfr-data-context-filter>
+    <dsfr-data-context-filter field="secteur" ui="f-secteur" default="Tous secteurs"></dsfr-data-context-filter>
+    <dsfr-data-context-filter field="taille"  ui="f-taille"  default="Toutes tailles"></dsfr-data-context-filter>
+  </dsfr-data-context>
+  <dsfr-data-context id="ctx-question" sources="det-nat det-prof">
+    <dsfr-data-context-filter field="code_unifie" ui="f-question" default="${BFNV2_QUESTION}"></dsfr-data-context-filter>
+  </dsfr-data-context>
+  <label for="f-region">Région</label>
+  <select id="f-region">
+    <option value="Toutes régions">Toutes régions</option>
+    <option value="Bretagne">Bretagne</option>
+    <option value="Occitanie">Occitanie</option>
+  </select>
+  <label for="f-secteur">Secteur</label>
+  <select id="f-secteur"><option value="Tous secteurs">Tous secteurs</option></select>
+  <label for="f-taille">Taille</label>
+  <select id="f-taille"><option value="Toutes tailles">Toutes tailles</option></select>
+  <label for="f-question">Question</label>
+  <select id="f-question">
+    <option value="923">Authentification multi-facteurs</option>
+    <option value="501">Le numérique est un bénéfice réel</option>
+  </select>
+  <dsfr-data-kpi id="k-part" source="det-prof" value="Profil:sum" format="pourcentage" decimals="1"
+    label="Part des répondants"></dsfr-data-kpi>`;
+}
+
 const BFN_CORR: RawUrlSource = {
   url:
     `${exportJson(MEF, 'bfn-table-de-correspondance')}` +
@@ -759,6 +834,40 @@ const CHECKS: Check[] = [
         agg: 'distinct',
         field: 'chapitre',
         pipeline: [{ op: 'join', right: 'corr', on: 'code_unifie', type: 'left' }],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // viz/barometre-france-num-v2 — les silences du 18/09 (#878)
+  // -------------------------------------------------------------------------
+  {
+    id: 'barometre-v2-source-suit-son-contexte',
+    mode: 'live',
+    page: 'viz/barometre-france-num-v2',
+    constats: ['PG-022'],
+    origin:
+      'viz/barometre-france-num-v2 — #878, cas 3 du 18/09 : la source de détail `det-prof` devait suivre le contexte `profil` et n’y était pas déclarée ; elle chargeait sans filtre de région, secteur ni taille, et la part affichée montait à « 5 724 % ». Zéro erreur console. Le contrôle reprend le balisage réel, joue le choix d’une région, et compare la part à l’oracle qui recalcule depuis l’export brut avec la clause ODSQL écrite à la main. La preuve de mutation se fait PAR LE BALISAGE (`sources="det-prof"` retiré) et non par le code : une source hors contexte est une erreur d’auteur, pas de bibliothèque (PG-022, grammaire fausse silencieuse).',
+    feed: { kind: 'raw', source: BFNV2_DETAIL },
+    markup: bfnv2Markup('det-prof'),
+    actions: [{ kind: 'select', selector: '#f-region', value: 'Bretagne' }],
+    expects: [
+      // La part d'un profil ne peut pas dépasser 100 : c'est la somme des
+      // scores des réponses de LA question, pour CE profil.
+      { kind: 'kpi', id: 'k-part', agg: 'sum', field: 'score', decimals: 1, pattern: '%' },
+      // Et réponse par réponse, ce que la source a émis.
+      {
+        kind: 'rows',
+        id: 'det-prof',
+        key: 'libelle_reponse',
+        columns: ['Profil'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'libelle_reponse',
+            columns: { Profil: { agg: 'sum', field: 'score' } },
+          },
+        ],
       },
     ],
   },
