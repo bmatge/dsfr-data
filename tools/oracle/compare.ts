@@ -75,6 +75,19 @@ export interface Constat {
   ecartServeur?: number | null;
   /** Le verdict à trois chiffres, en toutes lettres (`verdictRecoupement`). */
   verdict?: string;
+  /**
+   * Le verdict d'une NUIT ROUGE (#884), mode vivant, posé sur un écart :
+   * `bibliothèque` (empreinte stable), `donnée, rejoué` (la date de traitement
+   * a changé entre l'attendu et l'observation, le contrôle a été rejoué sur un
+   * attendu recalculé), `indéterminé` (pas de métadonnée de fraîcheur).
+   */
+  fraicheur?: string;
+  /**
+   * Le constat vient d'un contrôle qui a échoué puis RÉUSSI au retry (#884) :
+   * vert, mais compté à part — trois instabilités sur le même contrôle en un
+   * mois ouvrent une issue sur le contrôle lui-même.
+   */
+  instable?: boolean;
 }
 
 export type Observation =

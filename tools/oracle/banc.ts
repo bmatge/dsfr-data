@@ -140,11 +140,17 @@ export function ecrireRapportBanc(
       // Le troisième chiffre (#883) et son verdict à trois : qui est d'accord
       // avec qui. Sans recoupement, la colonne reste vide et le verdict est
       // celui à deux voix.
-      const verdict = c.verdict
+      const base = c.verdict
         ? `${c.ok ? '' : '**écart** — '}${echapper(c.verdict)}`
         : c.ok
           ? 'conforme'
           : `**écart** — ${echapper(c.message)}`;
+      // Le verdict d'une nuit rouge (#884) — bibliothèque, donnée rejouée,
+      // indéterminé — et l'instabilité (vert au retry seulement) s'ajoutent.
+      const verdict =
+        base +
+        (c.fraicheur ? ` — nuit : ${echapper(c.fraicheur)}` : '') +
+        (c.instable ? ' — instable (vert au retry seulement)' : '');
       lignes.push(
         `| \`${echapper(c.observation)}\` | ${echapper(c.lib)} | ${echapper(c.oracle)} | ` +
           `${c.serveur === undefined ? '' : echapper(c.serveur)} | ${c.comparaisons} | ${verdict} |`
