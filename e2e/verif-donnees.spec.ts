@@ -28,6 +28,7 @@ import { toRgb } from '../tools/oracle/compute.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
 import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 import { attenduPython, lireAttendusPython } from '../tools/oracle/troisieme-voix.js';
+import { evaluerInvariants } from '../tools/oracle/invariants.js';
 
 /**
  * VÉRIFICATION DES DONNÉES — un seul spec, deux alimentations (ADR-122).
@@ -329,8 +330,19 @@ const attendusPython = MODE === 'deterministic' ? lireAttendusPython(ATTENDUS_PY
  * l'autre, et cette liste lui donne son ordre.
  */
 const ORDRE = controles.flatMap(({ domaine, check }) =>
-  check.expects.map((e) => `${domaine}/${check.id}/${cleAttendu(e)}`)
+  check.expects.flatMap((e) => [
+    `${domaine}/${check.id}/${cleAttendu(e)}`,
+    // Les invariants d'une attente suivent sa valeur dans le rapport (#881).
+    ...('invariants' in e && e.invariants
+      ? e.invariants.map((inv) => `${domaine}/${check.id}/${cleInvariant(e, inv)}`)
+      : []),
+  ])
 );
+
+/** Clé d'un invariant dans le rapport : `<clé d'attente>#<kind>[:champ]`. */
+function cleInvariant(e: Expect, inv: { kind: string; field?: string }): string {
+  return `${cleAttendu(e)}#${inv.kind}${inv.field ? `:${inv.field}` : ''}`;
+}
 
 test.afterAll(() => {
   if (constats.length === 0) return;
@@ -452,6 +464,38 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
       }
     }
     constats.push(constat);
+
+    // Les INVARIANTS de l'attente (#881) : sur l'observation, face aux lignes
+    // brutes — jamais face à l'attendu. `not-truncated` lit en plus les
+    // silences de la page. Un invariant en attente est rendu, pas bloquant.
+    const invariants = attendu!.invariants?.[cleAttendu(e)];
+    if (invariants && invariants.length > 0) {
+      const litLesSilences = invariants.some((i) => i.invariant.kind === 'not-truncated');
+      const diagnostics = litLesSilences ? await page.evaluate(lireDiagnostics, e.id) : null;
+      // Un verdict par invariant, dans l'ordre déclaré.
+      evaluerInvariants(e, invariants, observation, diagnostics).forEach((verdict, i) => {
+        const inv = invariants[i].invariant;
+        constats.push({
+          domaine,
+          controle: check.id,
+          mode: check.mode,
+          rawRows: attendu!.rawRows,
+          observation: cleInvariant(e, inv),
+          lib: verdict.lib,
+          oracle: verdict.brut,
+          ecart: null,
+          comparaisons: verdict.comparaisons,
+          ok: verdict.ok,
+          message: verdict.message,
+          invariant: true,
+          ...(verdict.attente ? { attente: verdict.attente } : {}),
+        });
+        if (!verdict.ok && !verdict.attente) {
+          echecs.push(`${cleInvariant(e, inv)} : ${verdict.message}`);
+        }
+      });
+    }
+
     if (!constat.ok) {
       echecs.push(`${constat.observation} : ${constat.message}`);
       continue;

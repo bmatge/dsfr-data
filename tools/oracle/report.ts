@@ -33,17 +33,26 @@ export interface Rapport {
   comparaisons: number;
   /** Observations qui ont eu TROIS voix : lib, oracle TS, oracle Python (#880). */
   troisVoix: number;
+  /** Les invariants (#881), comptés à part des valeurs : tenus, violés, en attente. */
+  invariants: { tenus: number; violes: number; attente: number };
   constats: Constat[];
 }
 
 export function construireRapport(constats: Constat[]): Rapport {
+  const valeurs = constats.filter((c) => !c.invariant);
+  const invariants = constats.filter((c) => c.invariant);
   return {
     run: RUN,
     generatedAt: new Date().toISOString(),
-    total: constats.length,
-    echecs: constats.filter((c) => !c.ok).length,
-    comparaisons: constats.reduce((n, c) => n + c.comparaisons, 0),
-    troisVoix: constats.filter((c) => c.python !== undefined).length,
+    total: valeurs.length,
+    echecs: valeurs.filter((c) => !c.ok).length,
+    comparaisons: valeurs.reduce((n, c) => n + c.comparaisons, 0),
+    troisVoix: valeurs.filter((c) => c.python !== undefined).length,
+    invariants: {
+      tenus: invariants.filter((c) => c.ok).length,
+      violes: invariants.filter((c) => !c.ok && !c.attente).length,
+      attente: invariants.filter((c) => !c.ok && c.attente).length,
+    },
     constats,
   };
 }
@@ -55,10 +64,14 @@ function colonne(texte: string, largeur: number): string {
 /** Résumé texte, une ligne par observation, groupé par contrôle. */
 export function resumeTexte(rapport: Rapport): string {
   const lignes: string[] = [];
+  const inv = rapport.invariants;
   lignes.push(
     `Vérification des données — ${rapport.total} observations, ` +
       `${rapport.comparaisons} valeurs comparées, ${rapport.echecs} échec(s)` +
-      (rapport.troisVoix > 0 ? `, ${rapport.troisVoix} à trois voix (lib, TS, Python).` : '.')
+      (rapport.troisVoix > 0 ? `, ${rapport.troisVoix} à trois voix (lib, TS, Python)` : '') +
+      (inv.tenus + inv.violes + inv.attente > 0
+        ? ` ; invariants : ${inv.tenus} tenu(s), ${inv.violes} violé(s), ${inv.attente} en attente.`
+        : '.')
   );
   let controleCourant = '';
   for (const c of rapport.constats) {
@@ -76,11 +89,13 @@ export function resumeTexte(rapport: Rapport): string {
           (c.ecartPython === null || c.ecartPython === undefined
             ? ''
             : ` écart ${Math.round(c.ecartPython * 1e6) / 1e6}`);
+    const etat = c.ok ? 'ok  ' : c.attente ? 'ATT.' : 'ÉCHEC';
     lignes.push(
-      `    ${c.ok ? 'ok  ' : 'ÉCHEC'} ${colonne(c.observation, 26)} ` +
-        `lib ${colonne(c.lib, 28)} oracle ${colonne(c.oracle, 28)}${ecart}${python}`
+      `    ${etat} ${colonne(c.observation, 26)} ` +
+        `lib ${colonne(c.lib, 28)} ${c.invariant ? 'brut  ' : 'oracle'} ${colonne(c.oracle, 28)}${ecart}${python}`
     );
     if (!c.ok && c.message) lignes.push(`          ${c.message}`);
+    if (!c.ok && c.attente) lignes.push(`          en attente : ${c.attente}`);
   }
   return lignes.join('\n');
 }

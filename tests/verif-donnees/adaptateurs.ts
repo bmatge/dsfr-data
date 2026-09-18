@@ -72,7 +72,21 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-cap-n" source="s-cap" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-cap-pop" source="s-cap" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-cap-n', agg: 'count', pipeline: [{ op: 'limit', n: 120 }] },
+      {
+        kind: 'kpi',
+        id: 'k-cap-n',
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: 120 }],
+        // Le plafond tronque, et la valeur affichée est bien celle du tronçon
+        // — mais la bibliothèque ne le DIT pas (#881, AM-002) : l'invariant
+        // est en attente, avec les deux chiffres.
+        invariants: [
+          {
+            kind: 'not-truncated',
+            skip: 'AM-002 — `max-records="120"` sur 137 lignes : 120 chargées, et aucun diagnostic (ni marqueur, ni console). Une troncature qui ne se dit pas fait mentir tous les chiffres de la page. Attendu : un mot de la bibliothèque quand `max-records` borne un jeu qui le dépasse.',
+          },
+        ],
+      },
       {
         kind: 'kpi',
         id: 'k-cap-pop',
