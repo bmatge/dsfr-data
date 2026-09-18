@@ -11,10 +11,11 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **194 contrôles déterministes** et **32 contrôles vivants**, répartis en dix
-domaines, pour 454 observations. Un est en attente (voir « Un contrôle que la bibliothèque ne
-passe pas »). Les contrôles vivants rejouent **16 reproductions** du banc d'essai et citent
-**26 constats** de son registre.
+État du dépôt : **197 contrôles déterministes** et **32 contrôles vivants**, répartis en dix
+domaines, pour 459 observations et **17 invariants**. Un contrôle et deux invariants sont en
+attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
+**16 reproductions** du banc d'essai et citent **26 constats** de son registre. Une troisième
+voix, en Python standard, recalcule 297 des attentes déterministes (« La troisième voix »).
 
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
@@ -257,6 +258,8 @@ tools/oracle/            LE MOTEUR
   troisieme-voix.ts        lit tests/verif-donnees/attendus.json et rend chaque entrée sous la
                              forme d'un Attendu, pour que comparer() mette la page en regard de
                              l'oracle Python comme de l'oracle TS
+  invariants.ts            les INVARIANTS (#881) : la référence depuis les lignes brutes,
+                             l'évaluation sur ce que la page montre
 
 tools/oracle-py/         LA TROISIÈME VOIX (Python standard, aucune dépendance)
   oracle.py                lit out/manifests.json et jeux/*.json, recalcule en Fraction,
@@ -275,6 +278,7 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
                              six décimales et au même arrondi, sans navigateur
   oracle-py.test.ts        le garde de la troisième voix : ni sous-processus, ni node, ni
                              packages/, rien hors de la stdlib
+  invariants.test.ts       les six sortes d'invariants, tenues et violées en tableaux nus
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -364,6 +368,67 @@ Ce que les trois cas ont donné :
 | `sources` à virgule | `contexte/ctx-sources-separateur-virgule` | **défaut**, en attente : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, et aucun mot. Le témoin `ctx-sources-separateur-espace` (même balisage, écrit juste) est vert et silencieux. |
 | soustraction sur `null` | `transformations/pivot-normalize-soustraction-sur-null` | **vert** : le pivot émet `null`, `compute` le propage, la question non reposée est hors du top 3 et sa cellule est vide. **Le −85,2 venait de la page, pas de la bibliothèque** — la mutation `null → 0` dans `numberish` (`shared/utils/compute.ts`) reproduit exactement le chiffre du banc (« ligne 4 (teletravail) / delta : lib −85.2, oracle — »). |
 | source hors contexte | `banc-pages/barometre-v2-source-suit-son-contexte` (vivant) | **vert** : 28,3 % en Bretagne, et 30 215 % dès que `det-prof` sort du `sources` du contexte `profil`. Erreur d'auteur que la bibliothèque ne peut pas deviner : ce que le dispositif garde, c'est le chiffre de la page réelle, et la mutation se fait par le balisage. |
+
+## Les invariants
+
+Un contrôle par valeur ne garde que ce qu'on a pensé à recalculer. Un
+**invariant** (#881) garde une propriété qui doit tenir quel que soit le jeu :
+la somme d'une colonne ne change pas en traversant une jointure gauche sur clé
+unique ; un pivot puis un dépliage rendent le compte de lignes de départ ; un
+groupe `null` est visible ou exclu, jamais fondu dans un autre ; une part est
+dans `[0 ; 100]` ; une cellule absente en amont ne devient pas une valeur en
+aval ; un jeu tronqué par `max-records` le **dit**. Les trois chiffres faux du
+18/09 violaient chacun un invariant sans qu'aucun contrôle par valeur n'ait
+été écrit pour eux.
+
+**Un invariant se pose sur les lignes brutes, jamais sur l'attendu.** Sa
+référence est calculée depuis les lignes brutes du contrôle
+(`referenceInvariant`, `tools/oracle/invariants.ts`) — la somme brute d'une
+colonne, le nombre de lignes brutes, les absents — et vit dans
+`ExpectedCheck.invariants` (quelques nombres, donc `out/expected.json` en mode
+vivant ne gonfle pas). L'évaluation porte sur ce que la page **montre**
+(`evaluerInvariants`) : les lignes du cache pour `rows`, les cellules relues
+pour `list`, les points pour `chart`, les valeurs pour `facets`, la valeur
+affichée pour un KPI. Un invariant évalué contre l'attendu recalculé ne dirait
+rien de plus que la valeur.
+
+```ts
+{ kind: 'rows', id: 'j-left', key: […], columns: ['valeur', 'poids'], pipeline: […],
+  invariants: [{ kind: 'count-preserved' }, { kind: 'sum-preserved', field: 'valeur' }] }
+```
+
+| Invariant | Ce qu'il tient | Posé sur |
+|---|---|---|
+| `sum-preserved` (`field`, `from?`) | somme émise = somme brute, sur un ou plusieurs jeux | `jointure-left`, `concat-schemas-identiques`, `pivot-unpivot-aller-retour` |
+| `count-preserved` (`from?`) | autant de lignes émises que de lignes brutes | les mêmes |
+| `count-equals` (`n`) | exactement `n` lignes | `jointure-inner` (3 paires) |
+| `null-group` (`field`, `expect`, `count?`) | `visible` : une ligne à clé vide existe et son compte vaut les lignes brutes sans valeur ; `excluded` : aucune, et la somme des comptes vaut les lignes brutes AVEC valeur — clé `''` d'un client, `null` d'un serveur (PG-015) | `groupby-groupe-null-visible`, `qualite-tourisme-group-by-null-exclu` (vivant) |
+| `bounded` (`field?`, `min?`, `max?`) | toute valeur numérique — ou la valeur d'un KPI — dans les bornes ; rien à borner est un échec | `format-pourcentage-et-unite`, `personnels-colleges-part-ponderee` (vivant) |
+| `null-stays-null` (`field`, `rawField?`, `key?`) | aucune absence en amont devenue valeur en aval, ligne à ligne par clé, ou par compte | `compute-arithmetique-absence-et-division-par-zero` |
+| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur` (**en attente**), `plan-de-relance-plafond-max-records` (vivant, **en attente**) |
+
+Le rapport compte les invariants **à part** des valeurs (« invariants : 12
+tenus, 0 violé, 1 en attente ») ; une ligne d'invariant s'écrit
+`<clé d'attente>#<kind>[:champ]`, avec `lib` (ce que la page montre) et
+`brut` (ce que les lignes brutes disent). Un invariant en attente (`skip`
+sur l'invariant, avec les deux chiffres) est évalué et rendu `ATT.`, jamais
+bloquant. La troisième voix connaît les invariants aussi : `oracle.py` écrit
+leur référence et dit si son **propre** recalcul les tient (`tenu`), et
+`attendus.test.ts` exige que les références soient les mêmes des deux côtés —
+un invariant que l'oracle viole lui-même est mal posé.
+
+**Ce que `not-truncated` a appris** (AM-002, mesuré le 2026-09-19) — la
+prémisse « `max-records` tronque en silence » se découpe en trois cas :
+
+| Cas | La bibliothèque dit-elle quelque chose ? | Contrôle |
+|---|---|---|
+| mode `/records`, un KPI `count` en aval | **oui** — « `value="count"` sur "s-cap" compte 120 lignes reçues, mais l'amont en détient 137 » (#659, `meta.total`) | `ods-plafond-max-records` : tenu par le diagnostic |
+| mode `/records`, sans KPI `count` (somme, graphique) | **non** — la source charge un tronçon sans un mot | `ods-plafond-sans-compteur` : **en attente**, 120 lignes sur 137 |
+| `fetch-mode="export"`, même avec un KPI `count` | **non** — l'export ne porte pas de total, `meta.total` est absent, le KPI ne peut rien dire | `plan-de-relance-plafond-max-records` (vivant) : **en attente**, 1 000 lignes sur 3 080 |
+
+Deux invariants en attente, une seule demande : un mot de la **source** quand
+`max-records` borne un jeu qui le dépasse, export compris. Issue à ouvrir par
+la supervision.
 
 ## Les gestes et l'horloge
 
@@ -509,6 +574,12 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | troisième voix | `Math.round` → `Math.trunc` dans `roundTo` (`tools/oracle/compute.ts`) — un défaut de l'ORACLE TS, pas de la lib | `tests/oracle/attendus.test.ts` (Vitest, sans navigateur) | « arrondi TS 17768.68, Python 17768.69 (brut 17768.69) — convention d'arrondi » et « 331448, Python 331449 (brut 331448.5625) » : la rencontre voit un oracle qui se trompe seul |
 | troisième voix | `distinct` compte la chaîne vide (`tools/oracle-py/oracle.py`) — un défaut de l'oracle PYTHON | `attendus.test.ts` | « agregat-distinct-exclut-les-vides/rows:q-dist ligne 1/modalites : écart 1 » — dans l'autre sens aussi |
 | troisième voix | `gte` réduit à `gt` (`dsfr-data-query.ts`) — un défaut de la LIB | `where-gt-gte` au spec | **deux écarts sur la même observation** : « lib 4, oracle 5, écart −1, python 5, écart −1 — Python : affiché 4, recalculé 5 » |
+| invariants | `buildKey` rend une constante (`shared/utils/join.ts`) — toute clé apparie toute clé | `jointure-inner#count-equals`, `jointure-left#count-preserved`, `jointure-left#sum-preserved:valeur` | 30 lignes au lieu de 3 et de 6 ; somme émise **1 050**, brute 210 : la somme gonflée d'une relation 1-N |
+| invariants | une cellule sans observation émise à `0` au lieu de `null` (`shared/utils/pivot.ts`, `emitted[…] = 0`) | `pivot-unpivot-aller-retour#count-preserved` | 12 lignes émises, 10 brutes — « une cellule absente remplie par un zéro en ferait douze » |
+| invariants | `numberish` rend `0` pour `null` (`shared/utils/compute.ts`) | `compute-arithmetique-…#null-stays-null:ecart`, `…:produit` | « « ecart » porte une valeur là où l'amont n'en avait pas : c4 → −4 », « produit … c4 → 0 » |
+| invariants | le regroupement saute la clé vide (`dsfr-data-query.ts`, `if (key === '') continue`) | `groupby-groupe-null-visible#null-group:statut` | « aucun groupe vide » alors que 3 lignes brutes n'ont pas de valeur — le groupe null a disparu |
+| invariants | `_warnPartialCount` muet (`dsfr-data-kpi.ts`) | `ods-plafond-max-records#not-truncated` | « 120 lignes, aucun diagnostic » sur 137 brutes — troncature silencieuse |
+| invariants | `formatPercentage` ne divise plus par 100 (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite#bounded` | « 4 102,1 % » : 1 valeur hors [0 ; 100] |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
@@ -530,11 +601,13 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**En attente à ce jour** — un contrôle :
+**En attente à ce jour** — un contrôle et deux invariants :
 
-| Contrôle en attente | Domaine | Défaut ou amélioration |
+| Contrôle ou invariant en attente | Domaine | Défaut ou amélioration |
 |---|---|---|
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
+| `ods-plafond-sans-compteur#not-truncated` | adaptateurs | **défaut** (AM-002, #881) : `max-records="120"` sur 137 lignes, sans KPI `count` en aval — 120 lignes émises, aucun diagnostic. Seul un KPI `count` avertit (mode `/records`). |
+| `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic ; en export, `meta.total` est absent et même le KPI `count` se tait. Une seule demande pour les deux : un mot de la **source**. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une
 issue ouverte à leur nom, et tous sont depuis repassés au vert — c'est le rendement de la

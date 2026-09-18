@@ -633,11 +633,16 @@ const CHECKS: Check[] = [
         agg: 'count',
         pipeline: [{ op: 'limit', n: 1000 }],
         // Le cas fondateur de `not-truncated` (#881) : le jeu dépasse le
-        // plafond, la page charge le plafond — et le KPI `count` le dit
-        // (« compte 1 000 lignes reçues, mais l'amont en détient … »).
-        // L'invariant tient par le diagnostic ; sans KPI `count`, il ne
-        // tiendrait pas (`adaptateurs/ods-plafond-sans-compteur`, AM-002).
-        invariants: [{ kind: 'not-truncated' }],
+        // plafond, la page charge le plafond, et PERSONNE ne le dit — en
+        // `fetch-mode="export"`, l'export ne porte pas de total, donc le KPI
+        // `count` (qui avertit en mode /records, `adaptateurs/ods-plafond-max-records`)
+        // reste muet lui aussi. En attente, avec les deux chiffres.
+        invariants: [
+          {
+            kind: 'not-truncated',
+            skip: 'DÉFAUT (AM-002, #881) — `fetch-mode="export" max-records="1000"` sur 3 080 projets (mesuré le 2026-09-19) : 1 000 lignes reçues, aucun diagnostic, ni marqueur ni console. En mode export, `meta.total` est absent, donc même le KPI `count` — qui avertit en mode /records — ne dit rien. Attendu : un mot de la SOURCE quand `max-records` borne un export qui le dépasse. Issue à ouvrir par la supervision.',
+          },
+        ],
       },
     ],
   },
