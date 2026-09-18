@@ -11,11 +11,12 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **197 contrôles déterministes** et **32 contrôles vivants**, répartis en dix
-domaines, pour 459 observations et **17 invariants**. Un contrôle et deux invariants sont en
+État du dépôt : **210 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
+domaines, pour 489 observations et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
-**16 reproductions** du banc d'essai et citent **26 constats** de son registre. Une troisième
-voix, en Python standard, recalcule 297 des attentes déterministes (« La troisième voix »).
+**16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
+cités. Une troisième voix, en Python standard, recalcule 327 des attentes déterministes
+(« La troisième voix »).
 
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
@@ -215,6 +216,8 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                              compute, pivot, unpivot, join, concat)
   contexte.ts              contexte, facettes, recherche, synchro d'URL — joués AU CLAVIER
                              ET À LA SOURIS
+  canari.ts                LE CANARI : un contrôle par piège payé par le banc, chacun citant
+                             le registre (constats) — la première chose à rejouer
   delegation.ts            l'invariant de délégation : mêmes chiffres, serveur ou client
   export-studio.ts         les tableaux de bord produits par l'export du Studio
   affichages.ts            le RENDU : formats fr-FR, seuils, classes de choroplèthe,
@@ -238,6 +241,9 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   fixtures-affichages.ts       le faux serveur du domaine `affichages`
+  fixtures-canari.ts           le faux serveur du canari — tableau nu, export et /records ODS
+                               sur canari.json, canari-ref.json (doublon de clé) et
+                               canari-volume.json (1 001 lignes, graine 42)
 
 tools/oracle/            LE MOTEUR
   manifest.ts              la grammaire (types seuls) : Feed, Step, Expect, Check
@@ -279,6 +285,7 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   oracle-py.test.ts        le garde de la troisième voix : ni sous-processus, ni node, ni
                              packages/, rien hors de la stdlib
   invariants.test.ts       les six sortes d'invariants, tenues et violées en tableaux nus
+  canari-ops.test.ts       les deux opérations venues du canari : explode et eq-strict
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -430,6 +437,43 @@ Deux invariants en attente, une seule demande : un mot de la **source** quand
 `max-records` borne un jeu qui le dépasse, export compris. Issue à ouvrir par
 la supervision.
 
+## Le canari
+
+Le registre du banc porte une famille de pièges qui se ressemblent tous : une
+valeur qui **a l'air** d'une autre. `null` et `0`, `'01'` et `1`, un libellé
+en NFC et en NFD, une clé qui apparaît deux fois à droite, un champ
+multivalué, un jeu de 1 001 lignes derrière un plafond de 1 000. Le canari
+(#882) est **un jeu de quarante lignes écrites à la main** — `jeux/canari.json`,
+chaque ligne décrite dans `jeux/README.md` —, une table de droite à doublon,
+un jeu de volume engendré à graine, et **treize contrôles** dans
+`tests/verif-donnees/canari.ts`, un par piège, chacun citant le registre
+(`constats`) et nommant le contrôle existant qui couvrait déjà le cas plutôt
+que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
+
+| Piège | Contrôle | Ce qu'il tient |
+|---|---|---|
+| `null` ≠ `0` ≠ `''` | `canari-absence-nest-pas-zero` | somme et moyenne sur les seuls nombres ; un quotient dont l'opérande est absent reste absent (`null-stays-null`) |
+| décimale française | `canari-decimale-fr` | `'1 234,5'` vaut 1 234,5, en somme comme ligne à ligne |
+| zéro de tête | `canari-zero-de-tete-jointure`, `canari-zero-de-tete-contexte` | `'01'` n'est pas `'1'` en jointure ; un contexte émet `code = "1"` et le serveur compare la **forme** du code (`eq-strict`) |
+| clés de types différents | `canari-cles-types-differents` | `1` et `'1'` s'apparient — quinze couples, ni plus ni moins |
+| groupe null | `canari-groupe-null-client`, `canari-groupe-null-serveur` | visible sous `''` chez le client, sous `null` chez le serveur, compté, jamais fondu |
+| accents et formes Unicode | `canari-accents-nfc-nfd` | NFC et NFD font DEUX groupes (aucune normalisation n'est promise) ; la recherche replie tout et trouve les trois |
+| doublon de clé | `canari-jointure-doublon` | 42 lignes pour 40, somme gonflée de 20 : `count-preserved` et `sum-preserved` **violés par les données**, rendus en attente |
+| champ multivalué | `canari-multivalue` | la facette éclate (eau 16, air 13, sol 10 — étape `explode` de l'oracle), le regroupement client compte les combinaisons |
+| plafond | `canari-plafond-export` | mille lignes sur 1 001, et aucun mot : `not-truncated` en attente (AM-002) |
+| dates partielles | `canari-date-partielle` | un filtre d'ordre compare en texte : « 2024 » ≤ « 2024-03 » < « 2025 » |
+| `distinct` | `canari-distinct` | ni les vides ni les doublons ; `'1'` et `1` sont une modalité, `'01'` une autre |
+
+Ce que le canari a **appris en s'écrivant** — trois faux pas d'auteur, tous
+silencieux, tous sans erreur console : un KPI `champ:count` compte **tous** les
+enregistrements (la doc le dit ; « renseigné » s'écrit `where="champ:isnotnull"`,
+qui ne voit que `null`, une chaîne vide étant une valeur) ; les clauses d'un
+`where` se séparent par une **virgule**, et un `AND` devient la fin de la valeur
+(deux dates de 2025 passaient un `date:lt:2025 AND …`) ; le faux serveur ODS
+compare la forme texte d'un code, comme le portail. La troisième voix couvre
+**les trente attentes** du canari : aucun `derive`, le quotient passe par
+`ratio`.
+
 ## Les gestes et l'horloge
 
 Certains chiffres n'existent qu'APRÈS un geste : un filtre de contexte, une
@@ -580,6 +624,17 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | invariants | le regroupement saute la clé vide (`dsfr-data-query.ts`, `if (key === '') continue`) | `groupby-groupe-null-visible#null-group:statut` | « aucun groupe vide » alors que 3 lignes brutes n'ont pas de valeur — le groupe null a disparu |
 | invariants | `_warnPartialCount` muet (`dsfr-data-kpi.ts`) | `ods-plafond-max-records#not-truncated` | « 120 lignes, aucun diagnostic » sur 137 brutes — troncature silencieuse |
 | invariants | `formatPercentage` ne divise plus par 100 (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite#bounded` | « 4 102,1 % » : 1 valeur hors [0 ; 100] |
+| canari | `numberish` rend `0` pour `null` (`shared/utils/compute.ts`) | `canari-absence-nest-pas-zero` | « 3 absent(s) devenu(s) valeur » sur 6 en amont |
+| canari | `toNumber` garde les espaces de milliers (`shared/utils/number-parser.ts`) | `canari-decimale-fr` | somme 539,25 au lieu de 1 772,75, max 100 au lieu de 1 234,5 : « 1 234,5 » n'est plus un nombre |
+| canari | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `canari-zero-de-tete-jointure` | 50 lignes au lieu de 42 : « 01 » et « 010 » apparient « 1 » |
+| canari | la jointure ne garde que le premier appariement (`shared/utils/join.ts`) | `canari-jointure-doublon#count-equals` | 40 lignes au lieu de 42 : le doublon disparaît en silence |
+| canari | le regroupement saute la clé vide (`dsfr-data-query.ts`) | `canari-groupe-null-client` | 6 groupes au lieu de 7, « aucun groupe vide » |
+| canari | l'adaptateur jette les lignes à valeur nulle (`opendatasoft-adapter.ts`, `_fetchViaExport`) | `canari-groupe-null-serveur` | 6 groupes au lieu de 7, « aucun groupe vide » |
+| canari | `facetValuesOf` stringifie le tableau, « a,b » — l'ancien comportement d'avant #421 (`facets/facets-client.ts`) | `canari-multivalue` | 5 valeurs de facette au lieu de 3 |
+| canari | `_compareForRange` sans repli lexicographique (`dsfr-data-query.ts`) | `canari-date-partielle` | 4 lignes au lieu de 32 : seules les dates réduites à l'année, numériques, survivent au filtre |
+| canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
+| canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |
+| canari | (par construction) `fetch-mode="export" max-records="1000"` sur 1 001 lignes | `canari-plafond-export#not-truncated` | « 1000 lignes, aucun diagnostic » — en attente, AM-002 |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
@@ -608,6 +663,8 @@ ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
 | `ods-plafond-sans-compteur#not-truncated` | adaptateurs | **défaut** (AM-002, #881) : `max-records="120"` sur 137 lignes, sans KPI `count` en aval — 120 lignes émises, aucun diagnostic. Seul un KPI `count` avertit (mode `/records`). |
 | `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic ; en export, `meta.total` est absent et même le KPI `count` se tait. Une seule demande pour les deux : un mot de la **source**. |
+| `canari-plafond-export#not-truncated` | canari | **défaut** (AM-002, #882) : le même, sur 1 001 lignes engendrées — 1 000 reçues, aucun diagnostic. À noter : `_fetchViaExport` porte un avertissement `truncated = rows.length > cap`, qui ne peut jamais partir puisque l'export est demandé avec `limit = cap` exactement. |
+| `canari-jointure-doublon#count-preserved`, `#sum-preserved:montant` | canari | **violés par les données**, pas par la bibliothèque (PG-001) : 42 lignes pour 40, somme +20 — rendus en attente pour être LUS, c'est le point du canari. Aucune issue à ouvrir. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une
 issue ouverte à leur nom, et tous sont depuis repassés au vert — c'est le rendement de la
