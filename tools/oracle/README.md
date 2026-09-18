@@ -11,10 +11,10 @@ la précision affichée est un échec.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **191 contrôles déterministes** et **31 contrôles vivants**, répartis en dix
-domaines, pour 445 observations. Sept sont en attente (voir « Un contrôle que la bibliothèque ne
-passe pas »). Les contrôles vivants rejouent **15 reproductions** du banc d'essai et citent
-**25 constats** de son registre.
+État du dépôt : **194 contrôles déterministes** et **32 contrôles vivants**, répartis en dix
+domaines, pour 454 observations. Un est en attente (voir « Un contrôle que la bibliothèque ne
+passe pas »). Les contrôles vivants rejouent **16 reproductions** du banc d'essai et citent
+**26 constats** de son registre.
 
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
@@ -176,7 +176,7 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   compute.test.ts · expression.test.ts · transformations.test.ts   le recalcul
   observe.test.ts          le contrat des lecteurs, sur un DOM minimal
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
-  compare-urls.test.ts · raw.test.ts · stabilite.test.ts
+  compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
 e2e/verif-donnees.spec.ts  le seul spec : charge les manifestes, rend, observe, compare,
                              et passe au moteur les fiches dont `tools/oracle/banc.ts` a
@@ -204,8 +204,9 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
 | `lireExportCsv` | le contenu du fichier produit par le bouton d'export — le téléchargement est intercepté, puis rendu tel qu'il était |
 | `lireUrls` | les URL d'API réellement appelées, décodées, dans l'ordre |
+| `lireDiagnostics` | ce que la bibliothèque a DIT — le marqueur `data-dsfr-config-error` d'un élément et le journal de ses `console.warn` / `console.error` — ou tu (voir « Les silences ») |
 
-`lireUrls` est le seul qui ne porte pas sur un chiffre : deux balisages peuvent
+`lireUrls` et `lireDiagnostics` sont les deux seuls qui ne portent pas sur un chiffre : deux balisages peuvent
 montrer les mêmes chiffres en demandant au serveur des choses opposées, et
 qu'une `dsfr-data-query` délègue ou non son `group_by` ne se voit que là. Son
 `expect` énonce un verdict (`none` · `some` · `all` · `last` · `notLast`) sur la
@@ -219,6 +220,50 @@ Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'e
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
 not a function` dans le navigateur — d'où la lecture d'un nombre fr-FR réécrite dans chaque
 lecteur. Leur contrat est fixé sur un DOM minimal par `tests/oracle/observe.test.ts`.
+
+## Les silences
+
+Une seule journée du banc d'essai (18/09, `viz/barometre-france-num-v2`) a
+produit trois chiffres faux de la même famille — **faux, plausibles, et sans
+aucune erreur** : un `sources="a,b"` lu comme un seul id qui ne désigne rien
+(les sommes portaient sur toutes les régions cumulées), une source qui devait
+suivre un contexte et n'y était pas déclarée (« 5 724 % »), une soustraction
+sur une cellule absente classée « −85,2 points ». Aucun test unitaire ne les
+voit (chaque unité marche), aucun e2e (la page se rend), et jusqu'ici aucun
+contrôle de l'oracle ne savait **exiger qu'il y ait eu un mot**.
+
+C'est ce que fait l'`Expect` `diagnostic` (#878), lu par `lireDiagnostics` :
+
+```ts
+{ kind: 'diagnostic', id: 'ctx', expect: 'warning', contains: 's-etab,s-budg' }
+{ kind: 'diagnostic', id: 'ctx', expect: 'silence' }
+```
+
+Deux canaux sont lus dans la page. Le **marqueur** `data-dsfr-config-error`
+que `reportConfigError` pose sur l'élément fautif (`config-error`), et le
+**journal** des `console.warn` / `console.error` — tenu par la page de fixture
+AVANT le chargement de la bibliothèque, exactement comme le journal des URL,
+parce que les validations partent dès le `connectedCallback`. Le lecteur ne
+retient que les messages qui nomment la bibliothèque (`dsfr-data-…`) : un
+avertissement de Lit ou un 404 de tuile n'est pas un diagnostic. `warning`
+exige au moins un message (portant `contains` s'il est donné) ; `silence`
+exige les deux absences, restreintes au fragment s'il y en a un — un
+avertissement légitime sur un autre sujet ne rompt pas le silence attendu.
+
+Comme les URL, l'attendu n'est pas recalculé depuis les lignes : c'est le
+contrôle qui l'énonce. Un silence **constaté** compte pour deux comparaisons
+(les deux canaux ont été lus), jamais zéro : le spec refuse un constat vide,
+et un silence est précisément ce qu'il faut pouvoir constater. Le diagnostic
+se place **en dernier** dans `expects`, après les chiffres qu'il qualifie :
+quand ceux-ci ont fini de bouger, la page a eu le temps de parler.
+
+Ce que les trois cas ont donné :
+
+| Cas du 18/09 | Contrôle | Verdict |
+|---|---|---|
+| `sources` à virgule | `contexte/ctx-sources-separateur-virgule` | **défaut**, en attente : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, et aucun mot. Le témoin `ctx-sources-separateur-espace` (même balisage, écrit juste) est vert et silencieux. |
+| soustraction sur `null` | `transformations/pivot-normalize-soustraction-sur-null` | **vert** : le pivot émet `null`, `compute` le propage, la question non reposée est hors du top 3 et sa cellule est vide. **Le −85,2 venait de la page, pas de la bibliothèque** — la mutation `null → 0` dans `numberish` (`shared/utils/compute.ts`) reproduit exactement le chiffre du banc (« ligne 4 (teletravail) / delta : lib −85.2, oracle — »). |
+| source hors contexte | `banc-pages/barometre-v2-source-suit-son-contexte` (vivant) | **vert** : 28,3 % en Bretagne, et 30 215 % dès que `det-prof` sort du `sources` du contexte `profil`. Erreur d'auteur que la bibliothèque ne peut pas deviner : ce que le dispositif garde, c'est le chiffre de la page réelle, et la mutation se fait par le balisage. |
 
 ## Les gestes et l'horloge
 
@@ -320,6 +365,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | contexte | `_urlReadableFields` rend toutes les colonnes (`dsfr-data-facets.ts`) | `facettes-url-params-bornes` | 2 au lieu de 7 : un paramètre d'URL étranger devient un filtre (#773) |
 | contexte | relance directe rétablie sans condition dans `_afterSelectionChange` (`dsfr-data-facets.ts`, retirer `if (!this._sourceRefetchedByContext())`) | `tests/context-facets-search.test.ts` › `#840 — un seul appel /facets par clic` (vitest, pas un contrôle du filet : ce que compte la mutation est un nombre de requêtes, pas un chiffre affiché) | 2 appels `/facets` par clic au lieu de 1 — le premier annulé par `_facetsAbort`, donc invisible, mais payé |
 | contexte | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents`, `recherche-compte` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » ; et « 0 résultats » au lieu de 10 |
+| contexte | un `console.warn` ajouté dans `_validate()` (`dsfr-data-context.ts`), nommant la valeur reçue de `sources` | `ctx-sources-separateur-espace` tombe sur `diagnostic:ctx:silence` (« la bibliothèque a parlé : [warn] dsfr-data-context[ctx]: … sources reçu « s-etab s-budg » ») ; et sur `ctx-sources-separateur-virgule` rejoué hors `skip`, `diagnostic:ctx:warning « s-etab,s-budg »` PASSE pendant que les deux KPI restent rouges — le lecteur de silences éprouvé dans les deux sens | un silence attendu tombe dès que la bibliothèque parle ; un mot attendu passe dès qu'elle le dit |
+| transformations | `numberish` rend `0` pour `null` / `undefined` (`shared/utils/compute.ts`) | `pivot-normalize-soustraction-sur-null` | « ligne 4 (teletravail) / delta : lib −85.2, oracle — », puis « teletravail » en tête du top 3 et « mesuré » affiché pour une question non reposée : le chiffre du banc, reproduit à l'identique |
 | delegation | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
 | delegation | `_onInstanceRegistered` sort sans renégocier (`dsfr-data-query.ts`) | au moins 5 : `query-tardive-renegociation`, `lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer`, `query/source-partagee-765`, `delegation/source-partagee-ne-delegue-pas` | la seconde query rend 1 ligne au lieu de 7 et le KPI 8 au lieu de 137 ; le lecteur tardif compte 8 groupes ; la délégation ne franchit plus le relais ; et sur une page pourtant STATIQUE, `kpi:k-partage` lib 8 / oracle 137 — les lecteurs écrits dans le document s'inscrivent après la première négociation de la query, c'est leur inscription qui la corrige (#836, #853, #855) |
 | delegation | le bloc « `where` seul » de `_negotiateServerSide` neutralisé (`dsfr-data-query.ts`) | `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation` | 0 URL sur 2 portent `where=` ; la source `require-where` n'affiche jamais rien, 30 s de scrutation (#856, #854) |
@@ -355,6 +402,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | banc-pages | `_parseOriginLabels` altère le libellé (`dsfr-data-concat.ts`) | `portrait-federation-union-de-deux-sources` | clé « OLYMPIQUES » empilée là où le manifeste déclare « Olympiques » |
 | banc-pages | `buildKey` distingue nombre et chaîne (`shared/utils/join.ts`) | `barometre-jointure-couverture` | 0 question appariée au lieu de 119 : `code_unifie` est un nombre à gauche, une chaîne à droite (#792) |
 | banc-pages | `diff` calculé à l'envers (`dsfr-data-query.ts`) | `tne-audiences-ecart-mensuel` | écart de −3 539 là où l'oracle lit +3 539 |
+| banc-pages | mutation PAR LE BALISAGE : `bfnv2Markup('det-nat')` à la place de `'det-prof'` — la source de profil sort du `sources` du contexte `profil` (`tests/verif-donnees/banc-pages.ts`) | `barometre-v2-source-suit-son-contexte` (vivant) | « affiché 30 215,0 % (30215), recalculé 28.3 » : la part cumule toutes les régions, tous les secteurs, toutes les tailles — le « 5 724 % » du 18/09, sans un mot |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
@@ -376,11 +424,17 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**Ce que la catégorie a rapporté.** Les sept contrôles en attente à ce jour ont tous une issue
-ouverte à leur nom — c'est le rendement de la vérification, et la raison pour laquelle un `skip`
-n'est pas un contrôle perdu :
+**En attente à ce jour** — un contrôle :
 
-| Contrôle en attente | Domaine | Issue |
+| Contrôle en attente | Domaine | Défaut ou amélioration |
+|---|---|---|
+| `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
+
+**Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une
+issue ouverte à leur nom, et tous sont depuis repassés au vert — c'est le rendement de la
+vérification, et la raison pour laquelle un `skip` n'est pas un contrôle perdu :
+
+| Contrôle mis en attente | Domaine | Issue |
 |---|---|---|
 | `tabular-groupe-somme-serveur`, `tabular-filtre-limite-serveur` | delegation | [#852](https://github.com/bmatge/dsfr-data/issues/852) — `buildServerSideUrl` ignore `group-by` et `aggregate` délégués |
 | `lecteur-tardif-renegociation` | delegation | [#853](https://github.com/bmatge/dsfr-data/issues/853) — un lecteur non-query ajouté après l'initialisation ne conteste pas la délégation (#765, forme tardive) |
