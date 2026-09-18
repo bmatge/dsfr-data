@@ -1,0 +1,8 @@
+[
+  {"cle":"c1","a":10,"b":2,"quota":0,"vide":"","texte":"  Préfecture  ","date":"2024-03-15","liste":["eau","air"],"seuil":5},
+  {"cle":"c2","a":7,"b":0,"quota":3,"vide":"x","texte":"Sous-préfecture","date":"2023-11-02","liste":[],"seuil":5},
+  {"cle":"c3","a":100,"b":8,"quota":0,"vide":"","texte":"Mairie","date":"2022-06-05","liste":["sol"],"seuil":5},
+  {"cle":"c4","a":null,"b":4,"quota":12,"vide":"y","texte":"Conseil","date":"2021-12-31","liste":["air","sol"],"seuil":5},
+  {"cle":"c5","a":3,"b":6,"quota":7,"vide":"","texte":"Région","date":"2026-01-09","liste":["eau"],"seuil":5},
+  {"cle":"c6","a":45,"b":9,"quota":0,"vide":"z","texte":"Département","date":"2025-09-18","liste":[],"seuil":5}
+]

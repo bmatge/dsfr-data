@@ -143,6 +143,26 @@ describe('vérification des données — garde d’indépendance', () => {
     expect(vus.size).toBeGreaterThan(5);
   });
 
+  it('suit les imports JSON des jeux sans les refuser ni les parcourir (#879)', () => {
+    // Les lignes des fixtures vivent dans `tests/verif-donnees/jeux/*.json`
+    // depuis le lot 2 : un spécifieur `./jeux/x.json` n'est ni un interdit
+    // (rien de `packages/`) ni un module TypeScript à parcourir. Le garde le
+    // laisse passer — et ce test s'assure qu'il en a bien rencontré, sinon
+    // la tolérance ne serait qu'un cas jamais exercé.
+    const fixtures = fichiersTs(resolve(RACINE, 'tests/verif-donnees')).filter((f) =>
+      /fixtures.*\.ts$/.test(f)
+    );
+    const specifieursJson = fixtures.flatMap((f) =>
+      importsDe(readFileSync(f, 'utf-8')).filter((s) => s.endsWith('.json'))
+    );
+    expect(specifieursJson.length).toBeGreaterThan(20);
+    for (const s of specifieursJson) {
+      expect(s.startsWith('./jeux/')).toBe(true);
+      expect(INTERDITS.find((i) => i.test(s))).toBeUndefined();
+      expect(resoudre(resolve(RACINE, 'tests/verif-donnees/fixtures.ts'), s)).toBeNull();
+    }
+  });
+
   it('refuse un import de `tests/verif-donnees` depuis `tools/oracle`', () => {
     // La règle porte sur le SENS : le manifeste importe le moteur, jamais
     // l'inverse. Éprouvée ici sur la fonction elle-même, pour qu'elle ne puisse

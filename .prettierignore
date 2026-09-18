@@ -18,3 +18,7 @@ packages/core/geo/*.json
 
 # Export skill Claude Code (généré par build:skills, comparé octet à octet par tests/skills-export.test.ts)
 skills/dsfr-data/
+
+# Jeux de la vérification des données (tests/verif-donnees/jeux/README.md) :
+# une ligne par enregistrement, un jeu se lit comme un tableau.
+tests/verif-donnees/jeux/*.json
