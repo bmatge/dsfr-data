@@ -292,4 +292,76 @@ describe('vérification des données — la rencontre TS ↔ Python', () => {
     expect(comparaisons).toBeGreaterThan(1000);
     expect(ecarts).toEqual([]);
   });
+
+  it('les références des invariants (#881) sont les mêmes des deux côtés, et Python les tient sur son propre recalcul', () => {
+    const { entrees } = lireAttendus();
+    const ecarts: string[] = [];
+    let references = 0;
+    let tenus = 0;
+    let attente = 0;
+    for (const { domaine, check } of controlesDuMode('deterministic')) {
+      if (check.feed.kind !== 'fixture') continue;
+      const calcule = computeExpectedFor(check, check.feed.datasets);
+      for (const e of check.expects) {
+        const ts = calcule.invariants[cleAttendu(e)];
+        if (!ts) continue;
+        const ou = `${domaine}/${check.id}/${cleAttendu(e)}`;
+        const py = entrees.find((x) => `${x.domaine}/${x.controle}/${x.cle}` === ou) as
+          | (EntreePython & {
+              invariants?: Array<{
+                kind: string;
+                field?: string;
+                reference?: Record<string, unknown>;
+                tenu?: boolean | null;
+                attente?: boolean;
+              }>;
+            })
+          | undefined;
+        if (!py?.invariants || py.invariants.length !== ts.length) {
+          ecarts.push(
+            `${ou} : ${ts.length} invariant(s) TS, ${py?.invariants?.length ?? 0} Python — relancer verif:attendus`
+          );
+          continue;
+        }
+        ts.forEach((t, i) => {
+          const p = py.invariants![i];
+          references++;
+          if (p.kind !== t.invariant.kind) {
+            ecarts.push(`${ou} #${i} : ${t.invariant.kind} TS, ${p.kind} Python`);
+            return;
+          }
+          for (const champ of ['sum', 'count', 'nullCount', 'nonNullCount'] as const) {
+            const a = t.reference[champ];
+            const b = p.reference?.[champ];
+            if (a === undefined && b === undefined) continue;
+            const d = ecart(b, a, `${ou}#${t.invariant.kind}/${champ}`);
+            if (d !== null && d > 0.5 / 10 ** DECIMALES)
+              ecarts.push(`${ou}#${t.invariant.kind}/${champ} : TS ${a}, Python ${b}`);
+          }
+          if (
+            t.reference.nullKeys &&
+            JSON.stringify(t.reference.nullKeys) !== JSON.stringify(p.reference?.nullKeys)
+          ) {
+            ecarts.push(
+              `${ou}#${t.invariant.kind}/nullKeys : TS ${t.reference.nullKeys}, Python ${p.reference?.nullKeys}`
+            );
+          }
+          // Python évalue l'invariant sur SON recalcul : un invariant que l'oracle
+          // viole lui-même est mal posé — sauf s'il est en attente, où c'est la
+          // bibliothèque qui est visée, pas le recalcul.
+          if (p.tenu === true) tenus++;
+          if (p.attente) attente++;
+          else if (p.tenu === false)
+            ecarts.push(
+              `${ou}#${t.invariant.kind} : l'oracle Python viole l'invariant sur son propre recalcul`
+            );
+        });
+      }
+    }
+    process.stdout.write(
+      `invariants : ${references} références comparées, ${tenus} tenus par Python, ${attente} en attente\n`
+    );
+    expect(references).toBeGreaterThan(10);
+    expect(ecarts).toEqual([]);
+  });
 });

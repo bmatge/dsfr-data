@@ -173,6 +173,11 @@ describe('vérification des données — les invariants', () => {
       ],
     };
     expect(verdict(inv, ROWS, BRUTES.slice(0, 3), dit).ok).toBe(true);
+    // Sur un KPI `count`, c'est la VALEUR affichée qui compte les lignes.
+    const compteur: Expect = { kind: 'kpi', id: 'k', agg: 'count' };
+    expect(verdict(inv, compteur, { text: '4', value: 4 }, muet).ok).toBe(true);
+    expect(verdict(inv, compteur, { text: '3', value: 3 }, muet).ok).toBe(false);
+    expect(verdict(inv, compteur, { text: '3', value: 3 }, dit).lib).toContain('max-records');
     // En attente : évalué, rendu, mais marqué.
     const attente = verdict(
       { kind: 'not-truncated', skip: 'AM-002' },

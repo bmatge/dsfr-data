@@ -350,13 +350,16 @@ export function evaluerInvariants(
             ? (toNum(lignes[0]?.value) ?? -1)
             : lignes.length;
         const complet = recues === ref.count;
-        const dit =
-          (diagnostics?.console.length ?? 0) > 0 || (diagnostics?.configError ?? null) !== null;
+        // Le premier mot de la bibliothèque, cité : un rapport qui dit « un
+        // diagnostic » sans le montrer ne permet pas de juger s'il parle du
+        // bon sujet.
+        const premier = diagnostics?.configError ?? diagnostics?.console[0]?.text ?? null;
+        const dit = premier !== null;
         const ok = complet || dit;
         return {
           nom,
           ok,
-          lib: `${recues} lignes, ${dit ? 'un diagnostic' : 'aucun diagnostic'}`,
+          lib: `${recues} lignes, ${dit ? `diagnostic « ${premier.replace(/\s+/g, ' ').slice(0, 90)} »` : 'aucun diagnostic'}`,
           brut: `${ref.count} lignes brutes`,
           comparaisons: 2,
           message: ok
