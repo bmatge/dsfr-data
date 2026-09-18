@@ -334,10 +334,12 @@ la page. Le scope de chaque instance est une `dsfr-data-query` par ligne dont l'
 - Mesure en 0.30.0 : 119 lignes × (query + graphique) en 410 ms, refiltre des 119 en 29 ms.
 - Limites : pas de display dans un display (les `{{…}}` interieurs sont consommes par la ligne
   exterieure) ; une emission de la source *repetee* detruit et recree toutes les instances
-  (≈ 640 ms pour 119) et l'ancienne query purge le cache de l'id que la nouvelle reutilise ;
-  pas de `facets` ni `search` sur un id scope (pas d'adaptateur derriere) ; un attribut
-  booleen (`horizontal`) ne se conditionne pas — deux elements sous `{{#if}}` / `{{#unless}}`.
-  Detail dans la reference `dsfr-data-display`.
+  (≈ 640 ms pour 119) ; pas de `facets` ni `search` sur un id scope (pas d'adaptateur
+  derriere) ; un attribut booleen (`horizontal`) ne se conditionne pas — deux elements sous
+  `{{#if}}` / `{{#unless}}`. Detail dans la reference `dsfr-data-display`.
+- Corrige en 0.30.1 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
+  reutilise (#893), et le gabarit est recapture quand le bundle est charge dans le `<head>`
+  (#894).
 
 ### Regle generale
 

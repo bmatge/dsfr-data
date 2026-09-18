@@ -228,13 +228,30 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-display');
     this._captureTemplate();
+    // Bundle chargé dans le <head> : `connectedCallback` s'exécute AVANT que
+    // l'analyseur n'atteigne le `<template>` enfant — même piège que
+    // `dsfr-data-map-popup`, qui diffère sa lecture au premier usage. Ici le
+    // repli de `render()` ne rattrape que s'il y a un rendu ultérieur : quand
+    // les données sont déjà au cache au montage, il n'y en a pas, et la liste
+    // reste vide pour toujours. Une seconde capture à la fin de l'analyse.
+    if (!this._templateContent && document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', this._onDocumentParsed, { once: true });
+    }
     this._pager.connect();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener('DOMContentLoaded', this._onDocumentParsed);
     this._pager.disconnect();
   }
+
+  /** Seconde chance de capture, une fois le HTML initial analysé. */
+  private _onDocumentParsed = () => {
+    if (!this.isConnected || this._templateContent) return;
+    this._captureTemplate();
+    if (this._templateContent) this.requestUpdate();
+  };
 
   onSourceReset(): void {
     // Changer de source ne doit pas laisser les elements precedents (#284)

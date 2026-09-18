@@ -1927,17 +1927,23 @@ Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs \`document\` par type 
   les composants sont detruits et recrees (119 graphiques : ≈ 640 ms, remontage Vue/Chart.js).
   Garder la source repetee stable (une table de reference) ; le filtre transverse doit viser la
   source *scopee* (\`scores\`), dont la re-emission ne touche que les queries.
-- **Un id reutilise purge le cache.** A cette re-creation, l'ancienne query purge a sa
-  deconnexion le cache de son \`id\` — que la nouvelle instance vient de remplir. Un
-  consommateur monte plus tard sur \`q-001\` lit du vide jusqu'a la prochaine emission.
 - **Pas de delegation serveur derriere un id scope.** La query du gabarit lit une source
   partagee par N lectrices : son \`where\` reste client, sans avertissement — c'est voulu (un
   fetch, N filtres). Les composants qui ont besoin d'un adaptateur (\`dsfr-data-facets\`,
   \`dsfr-data-search\`) ne fonctionnent pas branches sur \`q-{{…}}\`.
 - **Un attribut booleen ne se conditionne pas** dans la balise (\`horizontal\`) : ecrire deux
   elements complets sous \`{{#if champ}}…{{/if}}\` et \`{{#unless champ}}…{{/unless}}\`.
-- Le bundle doit etre charge **en fin de body** (ou en \`type="module"\`) : charge en \`<head>\`
-  sans \`defer\`, le display capture son \`<template>\` avant qu'il soit analyse et ne rend rien.
+
+**Deux limites levees en 0.30.1 :**
+
+- **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
+  purgeait a sa deconnexion le cache de son \`id\`, que la nouvelle venait de remplir : un
+  consommateur monte plus tard sur \`q-001\` lisait du vide. La purge n'a desormais lieu que si
+  plus aucun element du document ne porte cet \`id\` (meme garde dans \`dsfr-data-source\`).
+- **Le gabarit est recapture** (#894). Charge en \`<head>\` sans \`defer\`, le display capturait
+  son \`<template>\` avant qu'il soit analyse et ne rendait rien ; une seconde capture a lieu a
+  la fin de l'analyse du document. Charger le bundle **en fin de body** (ou en
+  \`type="module"\`) reste la pose recommandee.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -4711,10 +4717,12 @@ la page. Le scope de chaque instance est une \`dsfr-data-query\` par ligne dont 
 - Mesure en 0.30.0 : 119 lignes × (query + graphique) en 410 ms, refiltre des 119 en 29 ms.
 - Limites : pas de display dans un display (les \`{{…}}\` interieurs sont consommes par la ligne
   exterieure) ; une emission de la source *repetee* detruit et recree toutes les instances
-  (≈ 640 ms pour 119) et l'ancienne query purge le cache de l'id que la nouvelle reutilise ;
-  pas de \`facets\` ni \`search\` sur un id scope (pas d'adaptateur derriere) ; un attribut
-  booleen (\`horizontal\`) ne se conditionne pas — deux elements sous \`{{#if}}\` / \`{{#unless}}\`.
-  Detail dans la reference \`dsfr-data-display\`.
+  (≈ 640 ms pour 119) ; pas de \`facets\` ni \`search\` sur un id scope (pas d'adaptateur
+  derriere) ; un attribut booleen (\`horizontal\`) ne se conditionne pas — deux elements sous
+  \`{{#if}}\` / \`{{#unless}}\`. Detail dans la reference \`dsfr-data-display\`.
+- Corrige en 0.30.1 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
+  reutilise (#893), et le gabarit est recapture quand le bundle est charge dans le \`<head>\`
+  (#894).
 
 ### Regle generale
 

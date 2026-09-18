@@ -443,11 +443,27 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       }
     }
 
+    /**
+     * Purge du cache de l'id — SEULEMENT si plus aucun élément du document ne le
+     * porte.
+     *
+     * Un `dsfr-data-display` dont le gabarit contient des composants réécrit tout
+     * son `innerHTML` à chaque émission de la source répétée. Dans un navigateur,
+     * la réécriture connecte les NOUVELLES instances avant de déconnecter les
+     * anciennes (mesuré sous Chromium : `["connected a","connected b",
+     * "disconnected a"]` ; happy-dom ordonne l'inverse, d'où un test qui joue la
+     * séquence à la main). Purger sans regarder revenait donc à vider le cache que
+     * la nouvelle instance homonyme venait de remplir : un consommateur monté plus
+     * tard — un KPI par exemple — lisait du vide et affichait « — ».
+     *
+     * Un composant réellement retiré de la page purge toujours, lui : c'est le cas
+     * où plus personne ne porte l'id.
+     */
     disconnectedCallback() {
       super.disconnectedCallback();
       unregisterDsfrDataInstance(this);
       this._cleanup();
-      if (this.id) {
+      if (this.id && !document.getElementById(this.id)) {
         clearDataCache(this.id);
         clearDataMeta(this.id);
       }
