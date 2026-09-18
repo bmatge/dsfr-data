@@ -46,6 +46,14 @@ export interface Constat {
   ok: boolean;
   /** Vide si le contrôle passe ; sinon la première divergence, en toutes lettres. */
   message: string;
+  /**
+   * La TROISIÈME VOIX (#880) : ce que l'oracle Python a recalculé, rendu
+   * court, quand `tests/verif-donnees/attendus.json` couvre l'observation.
+   * Absent sinon — l'observation n'a alors que deux voix, et le rapport le dit.
+   */
+  python?: string;
+  /** Écart lib ↔ Python, ou `null` si la comparaison est textuelle. */
+  ecartPython?: number | null;
 }
 
 export type Observation =
