@@ -225,6 +225,69 @@ export type Step =
 /** Réductions de cellule d'un pivot (grammaire commune du pipeline). */
 export type PivotAgg = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'first' | 'last';
 
+/**
+ * Un INVARIANT (#881) : une propriété que les lignes ÉMISES par la bibliothèque
+ * doivent tenir face aux lignes BRUTES — jamais face à l'attendu recalculé,
+ * sinon l'invariant ne dirait rien de plus que la valeur.
+ *
+ * Un contrôle par valeur ne garde que ce qu'on a pensé à recalculer. Les trois
+ * chiffres faux du 18/09 violaient chacun un invariant (une part à 5 724 %,
+ * une somme cumulée sur toutes les régions, un `null` devenu un nombre) sans
+ * qu'aucun contrôle par valeur n'ait été écrit pour eux.
+ *
+ * `from` nomme le ou les jeux bruts de référence (défaut : `main`) ; `skip`
+ * met l'invariant EN ATTENTE, avec sa raison et les deux chiffres, quand la
+ * bibliothèque ne le tient pas encore (la troncature silencieuse de
+ * `max-records`, AM-002) — il est rendu au rapport, il ne bloque pas.
+ */
+export type Invariant =
+  /** Somme du champ sur les lignes émises = somme sur les lignes brutes (jointure gauche, concat, unpivot). */
+  | { kind: 'sum-preserved'; field: string; from?: string | string[]; skip?: string }
+  /** Autant de lignes émises que de lignes brutes. */
+  | { kind: 'count-preserved'; from?: string | string[]; skip?: string }
+  /** Exactement `n` lignes émises. */
+  | { kind: 'count-equals'; n: number; skip?: string }
+  /**
+   * Le groupe NULL d'un regroupement : `visible` (une ligne à clé vide existe,
+   * et `count` — le nom de la colonne de compte — y vaut le nombre de lignes
+   * brutes sans valeur) ou `excluded` (aucune ligne à clé vide, et la somme
+   * des comptes vaut le nombre de lignes brutes AVEC valeur). Un client rend
+   * la clé `''`, un serveur `null` (PG-015) : l'invariant sait les deux.
+   */
+  | {
+      kind: 'null-group';
+      field: string;
+      expect: 'visible' | 'excluded';
+      count?: string;
+      from?: string;
+      skip?: string;
+    }
+  /**
+   * Toute valeur numérique de `field` (ou la valeur affichée d'un KPI) est
+   * dans `[min ; max]` — parts, taux, pourcentages. Rien à borner est un échec.
+   */
+  | { kind: 'bounded'; field?: string; min?: number; max?: number; skip?: string }
+  /**
+   * Aucune cellule absente EN AMONT (`rawField` sur les lignes brutes, défaut :
+   * `field`) n'est devenue une valeur EN AVAL (`field` sur les lignes émises).
+   * Avec `key`, les lignes s'apparient une à une ; sans, on exige au moins
+   * autant d'absents en aval qu'en amont.
+   */
+  | {
+      kind: 'null-stays-null';
+      field: string;
+      rawField?: string;
+      key?: string | string[];
+      from?: string;
+      skip?: string;
+    }
+  /**
+   * Autant de lignes émises que de lignes brutes — OU un diagnostic émis par
+   * la bibliothèque (lecteur de silences, #878). Une troncature qui ne se dit
+   * pas est le cas fondateur (AM-002).
+   */
+  | { kind: 'not-truncated'; from?: string; skip?: string };
+
 interface ExpectBase {
   /** id de l'élément `dsfr-data-*` observé dans la page. */
   id: string;
@@ -232,6 +295,8 @@ interface ExpectBase {
   from?: string;
   /** Recalcul appliqué aux lignes brutes avant comparaison. */
   pipeline?: Step[];
+  /** Invariants évalués sur l'observation, face aux lignes BRUTES (#881). */
+  invariants?: Invariant[];
 }
 
 /** Valeur affichée par un `dsfr-data-kpi` (texte fr-FR de `.dsfr-data-kpi__value`). */

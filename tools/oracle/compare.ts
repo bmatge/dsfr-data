@@ -54,6 +54,17 @@ export interface Constat {
   python?: string;
   /** Écart lib ↔ Python, ou `null` si la comparaison est textuelle. */
   ecartPython?: number | null;
+  /**
+   * Un INVARIANT (#881), évalué sur l'observation face aux lignes brutes —
+   * `lib` porte ce que la page montre, `oracle` ce que les lignes brutes
+   * disent. Compté à part des valeurs dans le rapport.
+   */
+  invariant?: boolean;
+  /**
+   * Invariant EN ATTENTE : la raison pour laquelle la bibliothèque ne le tient
+   * pas encore. Le constat est rendu, avec ses deux chiffres, et ne bloque pas.
+   */
+  attente?: string;
 }
 
 export type Observation =
