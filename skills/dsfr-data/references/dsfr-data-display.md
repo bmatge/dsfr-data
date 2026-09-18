@@ -133,7 +133,7 @@ Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs `document` par type d'
 - **Un attribut booleen ne se conditionne pas** dans la balise (`horizontal`) : ecrire deux
   elements complets sous `{{#if champ}}…{{/if}}` et `{{#unless champ}}…{{/unless}}`.
 
-**Deux limites levees en 0.30.1 :**
+**Deux limites levees en 0.31.0 :**
 
 - **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
   purgeait a sa deconnexion le cache de son `id`, que la nouvelle venait de remplir : un
@@ -143,6 +143,11 @@ Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs `document` par type d'
   son `<template>` avant qu'il soit analyse et ne rendait rien ; une seconde capture a lieu a
   la fin de l'analyse du document. Charger le bundle **en fin de body** (ou en
   `type="module"`) reste la pose recommandee.
+
+**Ce qui n'est pas leve, et n'a pas a l'etre ici :** l'identite des instances a la re-emission,
+l'imbrication et les attributs booleens conditionnels sont le contrat de `dsfr-data-repeat`
+(composant de structure, ADR-135). Regle d'usage : **`display` quand la ligne est du contenu,
+`repeat` quand la ligne est un pipeline.** L'exemple ci-dessus reste valide tel quel.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |

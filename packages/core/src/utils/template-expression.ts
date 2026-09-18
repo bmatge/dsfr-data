@@ -279,6 +279,14 @@ export interface RenderTemplateOptions {
    * l'avertissement d'imbrication (#769) pour que la page fautive se trouve.
    */
   origin?: string;
+  /**
+   * Sortie TEXTE plutôt que HTML (#890) : les valeurs ne sont pas échappées,
+   * `{{{brut}}}` vaut `{{brut}}`. Pour un rendu par nœuds (`dsfr-data-repeat`
+   * écrit le résultat dans `Text.data` ou dans une valeur d'attribut, jamais
+   * dans un `innerHTML`) : un `&lt;` échappé y serait affiché tel quel. Défaut
+   * `true`, le contrat historique de `display` et `map-popup` est inchangé.
+   */
+  escape?: boolean;
 }
 
 const BLOCK_TAG_RE = /\{\{([#/])(if|unless|each)\b[^}]*\}\}/g;
@@ -339,19 +347,20 @@ export function renderTemplate(
   item: Record<string, unknown>,
   options: RenderTemplateOptions = {}
 ): string {
-  const { raw = false, vars: callerVars, origin } = options;
+  const { raw = false, escape = true, vars: callerVars, origin } = options;
   warnNestedBlocks(templateHtml, origin);
   const eachVars: Record<string, () => string> = {};
   const withBlocks = resolveTemplateBlocks(templateHtml, item, eachVars);
   const vars = { ...callerVars, ...eachVars };
+  const out = (value: string): string => (escape ? escapeHtml(value) : value);
   return withBlocks.replace(
     PLACEHOLDER_RE,
     (_match, rawExpr: string | undefined, escExpr: string | undefined) => {
       if (rawExpr !== undefined) {
         const resolved = resolveTemplateExpression(item, rawExpr, vars);
-        return raw ? resolved : escapeHtml(resolved);
+        return raw && escape ? resolved : out(resolved);
       }
-      return escapeHtml(resolveTemplateExpression(item, escExpr as string, vars));
+      return out(resolveTemplateExpression(item, escExpr as string, vars));
     }
   );
 }

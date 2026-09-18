@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 27 balises, 332 attributs.
+ * 28 balises, 336 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -398,6 +398,14 @@ export const COMPONENT_CONTRACT = {
       "require-where",
       "source",
       "where"
+    ]
+  },
+  "dsfr-data-repeat": {
+    "attributes": [
+      "empty",
+      "key-field",
+      "per-row",
+      "source"
     ]
   },
   "dsfr-data-search": {

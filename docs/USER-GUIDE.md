@@ -1026,7 +1026,7 @@ un fetch et N filtres. Il faut en contrepartie que cette source soit **chargee e
 - **Un attribut booleen ne se conditionne pas** dans la balise (`horizontal`, `databox`) : un bloc
   `{{#if}}` place entre deux attributs est decoupe par l'analyse HTML. Ecrire deux elements
   complets, l'un sous `{{#if champ}}…{{/if}}`, l'autre sous `{{#unless champ}}…{{/unless}}`.
-**Deux limites levees en 0.30.1 :**
+**Deux limites levees en 0.31.0 :**
 
 - **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
   purgeait a sa deconnexion le cache de son `id`, que la nouvelle instance du meme `id` venait
@@ -1042,6 +1042,68 @@ un fetch et N filtres. Il faut en contrepartie que cette source soit **chargee e
 
 Ce motif est verrouille par un test (`tests/dsfr-data-display.test.ts`, « composants dsfr-data
 dans le gabarit ») : il fait partie du contrat, pas d'un effet de bord.
+
+**Ce que ce motif ne promet pas** — l'identite des instances a la re-emission, l'imbrication, un
+attribut booleen conditionnel, un rendu sans region ni compteur — est le contrat du composant de
+structure `dsfr-data-repeat` (section suivante). L'exemple ci-dessus reste valide tel quel.
+
+### Un pipeline par ligne : `dsfr-data-repeat`
+
+Regle d'usage, en une phrase : **`dsfr-data-display` quand la ligne est du contenu ;
+`dsfr-data-repeat` quand la ligne est un pipeline.** `display` est une liste de resultats — region
+nommee, compteur annonce, pagination, selection au clic. `repeat` est un composant de *structure*
+(ADR-135) : il repete des instances vivantes et ne parle pas — aucun `role`, aucun `aria-live`,
+aucun compteur, aucune pagination ; la structure de la page vient des titres que vous ecrivez dans
+le gabarit.
+
+Meme gabarit, meme grammaire (`{{champ}}`, formats, `{{#if}}`, `{{#unless}}`, `{{#each}}`), mais une
+autre **sortie** : le `<template>` est clone en DOM et ses placeholders resolus noeud par noeud, dans
+le texte et dans chaque valeur d'attribut — jamais par `innerHTML`. Les composants du gabarit sont
+donc rehausses avec leurs attributs deja interpoles.
+
+```html
+<dsfr-data-repeat source="questions-typees" key-field="code_unifie" per-row="1 md:2">
+  <template>
+    <h4 id="{{$uid}}">{{libelle_unifie}}</h4>
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores"
+      where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code_unifie}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"
+      databox databox-title="{{libelle_unifie}}"
+      data-if-horizontal="est_long"></dsfr-data-chart>
+  </template>
+</dsfr-data-repeat>
+```
+
+Ce que `repeat` promet, et que le motif precedent ne promet pas :
+
+- **L'identite par cle** (`key-field`). A une nouvelle emission de la source repetee, une ligne
+  dont la cle subsiste **garde ses noeuds** : les instances ne sont ni deconnectees ni recreees,
+  leurs attributs sont mis a jour en place ; les cles disparues sont retirees, les nouvelles
+  inserees a leur rang, l'ordre du DOM suit les donnees. Mesure (Chromium headless, bundle de
+  production, sources inline) : 119 lignes × (query + graphique) rendues au meme cout que
+  `display` (rapport 1,01), puis re-emission de la source repetee en **~110 ms sans un canvas
+  detruit**, contre **~4,7 s** et 119 instances recreees avec `display`.
+- **L'imbrication.** Un `<template>` interieur n'est pas parcouru : un `dsfr-data-display` ou un
+  second `dsfr-data-repeat` dans le gabarit rend ses propres placeholders — chapitres depuis une
+  source, questions par chapitre, un graphique par question.
+- **Les attributs booleens conditionnels.** `data-if-horizontal="champ"` pose `horizontal` quand
+  `champ` est vrai et le retire sinon ; `data-unless-…` inverse. L'attribut de convention ne reste
+  pas dans le DOM.
+- **Rien de silencieux.** `source` absent, gabarit absent, `key-field` absent des lignes ou en
+  double, `per-row` invalide : erreur de configuration nommee (`data-dsfr-config-error`, console).
+
+Deux differences de sortie, parce que le rendu est par noeuds : `{{{brut}}}` n'a pas de sens sur
+un noeud texte (rendu comme `{{brut}}`, avec un avertissement) ; un bloc `{{#if}}…{{/if}}` doit
+tenir dans **un** noeud texte ou **une** valeur d'attribut — ouvert avant un element et ferme
+apres, il ne peut pas etre un bloc : erreur de configuration, et le contenu est rendu quelle que
+soit la condition. Variables : `{{$index}}` (rang), `{{$key}}` (valeur de `key-field`),
+`{{$uid}}` (id DOM unique derive de la cle).
+
+Ce qui reste vrai pour les deux : pas de delegation serveur derriere un id scope (charger la
+source scopee en entier), ni `facets` ni `search` par ligne, et un bus plat — deux repeteurs qui
+fabriquent le meme id se marchent dessus.
 
 ### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
 
