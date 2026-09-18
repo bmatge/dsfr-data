@@ -77,6 +77,14 @@ En revanche, les proprietes JavaScript sont en camelCase (`element.labelField`).
 - Si `fields` est vide, la recherche porte sur TOUS les champs, y compris
   les champs techniques (id, SIRET...). Preciser les champs pour plus de precision.
 
+### 9. Un display dans le gabarit d'un display rend des champs vides
+
+Les composants `dsfr-data-*` places dans le `<template>` d'un `dsfr-data-display`
+fonctionnent (voie native « un graphique par ligne »), **sauf un second display** : la passe de
+substitution remplace aussi les `{{…}}` de son `<template>` interieur avec la ligne
+exterieure, et un champ inconnu devient une chaine vide — sans erreur ni avertissement. Ecrire
+le niveau exterieur en HTML statique et ne repeter qu'un niveau.
+
 ### 7. Facettes / datalist vides avec Grist ou ODS v1
 Les APIs Grist, ODS v1, et Airtable wrappent les données sous `records[].fields`.
 Les composants dsfr-data-facets, dsfr-data-list, dsfr-data-query et dsfr-data-kpi attendent des

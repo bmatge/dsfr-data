@@ -50,6 +50,15 @@ import {
  *                         entre deux attributs, il est découpé par l'analyse HTML du template
  * L'argument d'un format ne peut pas contenir « | » (il ouvre le défaut).
  *
+ * Le gabarit peut contenir des composants `dsfr-data-*` : rendu par `innerHTML`, ils sont
+ * rehaussés comme le reste de la page, attributs interpolés par ligne. C'est la voie native
+ * pour un graphique (ou un KPI) par ligne — une `dsfr-data-query id="q-{{clé}}"
+ * where="clé:eq:{{clé}}"` par ligne scope une source chargée une fois, `type="{{champ}}"`
+ * choisit le type. Limites : pas de display dans un display (les `{{…}}` intérieurs sont
+ * consommés), instances détruites et recréées à chaque émission de la source répétée, pas
+ * d'adaptateur derrière un id scopé (ni facets ni search). Contrat verrouillé par
+ * `tests/dsfr-data-display.test.ts`.
+ *
  * @example
  * <dsfr-data-source id="data" url="/api/results" transform="records"></dsfr-data-source>
  * <dsfr-data-display source="data" cols="3" pagination="12">

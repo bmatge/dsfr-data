@@ -1798,6 +1798,11 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
       'affichage',
       'liste de resultats',
       'motif repetitif',
+      'un graphique par ligne',
+      'un kpi par ligne',
+      'composant par ligne',
+      'repeter',
+      'ng-repeat',
     ],
     content:
       `## <dsfr-data-display> - Affichage dynamique via template
@@ -1867,6 +1872,72 @@ toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
 
 Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
 masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
+
+### Un composant dsfr-data par ligne : le gabarit peut contenir des composants
+
+Le gabarit n'est pas limite a du HTML inerte : il est rendu par \`innerHTML\`, donc les
+composants \`dsfr-data-*\` qu'il contient sont rehausses comme n'importe quel element de la
+page. C'est **la voie native pour repeter un graphique, un KPI ou une liste sur les lignes
+d'une source** — l'equivalent d'un \`ng-repeat\` autour d'un \`<ods-chart>\` — et elle tient en
+trois idees :
+
+1. **Repeter** : le \`<template>\` du display contient le ou les composants.
+2. **Scoper** : une \`dsfr-data-query\` par ligne, dont l'\`id\` et le \`where\` sont interpoles
+   (\`id="q-{{code}}" where="code:eq:{{code}}"\`), filtre pour cette ligne une source
+   **deja chargee en entier**. Les composants de la ligne consomment cet id.
+3. **Choisir le type depuis un champ** : \`type="{{champ}}"\` — un recodage prealable par
+   \`dsfr-data-normalize compute="type_graphique = when … then 'line' else 'bar'"\` si le
+   jeu ne porte pas directement un type DSFR Chart.
+
+\`\`\`html
+<!-- La table des questions : une ligne par question -->
+<dsfr-data-source id="questions" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="bfn-table-de-correspondance"
+  fetch-mode="export" max-records="200"></dsfr-data-source>
+<!-- Les scores : UNE requete, chargee une fois — les queries du gabarit filtrent en local -->
+<dsfr-data-source id="scores" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="questions-reponses"
+  select="code_unifie, annee, score" where="region = 'Toutes régions'"
+  fetch-mode="export" max-records="5000"></dsfr-data-source>
+
+<dsfr-data-display source="questions" per-row="1 md:2">
+  <template>
+    <h4>{{libelle_unifie}}</h4>
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores"
+      where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code_unifie}}" type="bar"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+\`\`\`
+
+Mesure (0.30.0, Chromium headless, sources inline) : 119 lignes × (query + graphique) rendues
+en **410 ms** jusqu'au 119e canvas ; une re-emission de la source des scores — ce que fait un
+filtre de \`dsfr-data-context\` — fait re-emettre les 119 queries en **29 ms** ; aucune erreur.
+Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs \`document\` par type d'evenement).
+
+**Les limites, ecrites :**
+
+- **Pas d'imbrication.** Un \`dsfr-data-display\` dans le gabarit d'un autre ne marche pas : la
+  passe de substitution consomme aussi les \`{{…}}\` du \`<template>\` interieur avec la ligne
+  exterieure (champ inconnu → chaine vide), et il n'existe pas d'echappement de \`{{\`. Le
+  niveau exterieur s'ecrit en HTML statique (un accordeon par chapitre, un display par accordeon).
+- **Re-creation totale.** Chaque emission de la source *repetee* reecrit tout l'\`innerHTML\` :
+  les composants sont detruits et recrees (119 graphiques : ≈ 640 ms, remontage Vue/Chart.js).
+  Garder la source repetee stable (une table de reference) ; le filtre transverse doit viser la
+  source *scopee* (\`scores\`), dont la re-emission ne touche que les queries.
+- **Un id reutilise purge le cache.** A cette re-creation, l'ancienne query purge a sa
+  deconnexion le cache de son \`id\` — que la nouvelle instance vient de remplir. Un
+  consommateur monte plus tard sur \`q-001\` lit du vide jusqu'a la prochaine emission.
+- **Pas de delegation serveur derriere un id scope.** La query du gabarit lit une source
+  partagee par N lectrices : son \`where\` reste client, sans avertissement — c'est voulu (un
+  fetch, N filtres). Les composants qui ont besoin d'un adaptateur (\`dsfr-data-facets\`,
+  \`dsfr-data-search\`) ne fonctionnent pas branches sur \`q-{{…}}\`.
+- **Un attribut booleen ne se conditionne pas** dans la balise (\`horizontal\`) : ecrire deux
+  elements complets sous \`{{#if champ}}…{{/if}}\` et \`{{#unless champ}}…{{/unless}}\`.
+- Le bundle doit etre charge **en fin de body** (ou en \`type="module"\`) : charge en \`<head>\`
+  sans \`defer\`, le display capture son \`<template>\` avant qu'il soit analyse et ne rend rien.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -2147,6 +2218,15 @@ empiler une région live de page par-dessus (#654).
 <!-- Tableau -->
 <dsfr-data-list source="sites" columns="nom:Nom, ministere:Ministere, score_rgaa:Score" search filters="ministere" sort="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
 \`\`\`
+
+### Un composant par ligne : le display comme repeteur
+
+Pour **N graphiques (ou KPI) depuis N lignes**, ne pas generer N blocs HTML ni de script : le
+gabarit d'un \`dsfr-data-display\` peut contenir des composants \`dsfr-data-*\`, avec une
+\`dsfr-data-query id="q-{{cle}}" where="cle:eq:{{cle}}"\` par ligne pour scoper une source
+chargee une fois, et \`type="{{champ}}"\` pour choisir le type. Grammaire, mesures et limites
+(pas d'imbrication, re-creation a chaque emission de la source repetee) dans
+\`attributeGrammars\` § « Un graphique par ligne » et dans la reference \`dsfr-data-display\`.
 
 ### Strategie de chargement : \`server-side\` ou tout charger (ADR-109)
 
@@ -3450,6 +3530,14 @@ En revanche, les proprietes JavaScript sont en camelCase (\`element.labelField\`
 - Si \`fields\` est vide, la recherche porte sur TOUS les champs, y compris
   les champs techniques (id, SIRET...). Preciser les champs pour plus de precision.
 
+### 9. Un display dans le gabarit d'un display rend des champs vides
+
+Les composants \`dsfr-data-*\` places dans le \`<template>\` d'un \`dsfr-data-display\`
+fonctionnent (voie native « un graphique par ligne »), **sauf un second display** : la passe de
+substitution remplace aussi les \`{{…}}\` de son \`<template>\` interieur avec la ligne
+exterieure, et un champ inconnu devient une chaine vide — sans erreur ni avertissement. Ecrire
+le niveau exterieur en HTML statique et ne repeter qu'un niveau.
+
 ### 7. Facettes / datalist vides avec Grist ou ODS v1
 Les APIs Grist, ODS v1, et Airtable wrappent les données sous \`records[].fields\`.
 Les composants dsfr-data-facets, dsfr-data-list, dsfr-data-query et dsfr-data-kpi attendent des
@@ -4228,7 +4316,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap, un graphique par ligne (composants dans un gabarit de display)',
     trigger: [
       'grammaire',
       'voie native',
@@ -4282,6 +4370,16 @@ compte pas (peut etre place apres les composants).
       'nom de serie',
       'nom de la serie',
       'treemap',
+      'un graphique par ligne',
+      'un graphique par',
+      'un kpi par ligne',
+      'n graphiques',
+      'repeter',
+      'repetition',
+      'boucle',
+      'ng-repeat',
+      'par question',
+      'composant par ligne',
     ],
     content: `## Grammaires d’attributs et voies natives
 
@@ -4586,6 +4684,37 @@ facettes et un nombre ailleurs : ne plus les generer.
 - Meme grammaire sur la **largeur des encarts** de carte, en longueurs CSS :
   \`<dsfr-data-map-inset width="50% md:20%">\` (deux encarts par ligne sur telephone, cinq en bureau).
   Une regle de page \`dsfr-data-map-inset { width: … }\` prime toujours.
+
+### Un graphique par ligne : repeter des composants (display + query par ligne)
+
+Le besoin « N graphiques depuis N lignes » (un \`ng-repeat\` autour d'un \`<ods-chart>\` sur
+Opendatasoft) n'a besoin ni de script ni de composant custom : **le gabarit d'un
+\`dsfr-data-display\` peut contenir des composants \`dsfr-data-*\`**, rehausses comme le reste de
+la page. Le scope de chaque instance est une \`dsfr-data-query\` par ligne dont l'\`id\` et le
+\`where\` sont interpoles, sur une source chargee une fois ; le type se lit dans un champ.
+
+\`\`\`html
+<dsfr-data-display source="questions">
+  <template>
+    <h4>{{libelle}}</h4>
+    <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score" name="{{libelle}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+\`\`\`
+
+- \`type="{{champ}}"\` attend un type DSFR Chart (\`bar\`, \`line\`, \`pie\`…) : recoder avant avec
+  \`dsfr-data-normalize compute="type_graphique = when presentation = 'Courbe' then 'line' else 'bar'"\`.
+- La source scopee (\`scores\`) doit etre **chargee en entier** (\`fetch-mode="export"\`,
+  \`max-records\` releve) : les N \`where\` sont calcules dans le navigateur, jamais delegues.
+- Mesure en 0.30.0 : 119 lignes × (query + graphique) en 410 ms, refiltre des 119 en 29 ms.
+- Limites : pas de display dans un display (les \`{{…}}\` interieurs sont consommes par la ligne
+  exterieure) ; une emission de la source *repetee* detruit et recree toutes les instances
+  (≈ 640 ms pour 119) et l'ancienne query purge le cache de l'id que la nouvelle reutilise ;
+  pas de \`facets\` ni \`search\` sur un id scope (pas d'adaptateur derriere) ; un attribut
+  booleen (\`horizontal\`) ne se conditionne pas — deux elements sous \`{{#if}}\` / \`{{#unless}}\`.
+  Detail dans la reference \`dsfr-data-display\`.
 
 ### Regle generale
 

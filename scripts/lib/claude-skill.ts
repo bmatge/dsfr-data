@@ -150,6 +150,9 @@ ${version}. Cette skill est **générée** par \`npm run build:skills\` depuis l
 - Une **source** charge les données (API ou données inline), les **transformateurs** (query,
   normalize, join, unpivot, facets, search, context) consomment un \`source\` et ré-émettent sous
   leur propre \`id\`, les **afficheurs** (chart, kpi, list, display, map, podium) sont des feuilles.
+  Une exception voulue : le gabarit d'un \`dsfr-data-display\` peut contenir des composants
+  \`dsfr-data-*\` — c'est la voie native pour **un graphique (ou un KPI) par ligne** d'une source
+  (voir \`attributeGrammars\`, « Un graphique par ligne »).
 - Les alias d'agrégation suivent la convention \`champ__fonction\` (\`population__sum\`).
 - Chargement : \`<script type="module" src=".../dsfr-data.esm.js">\` + CSS DSFR et DSFR Chart
   (voir la référence \`compositionPatterns\`).

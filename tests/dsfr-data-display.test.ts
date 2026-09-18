@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
+// Composants rehaussés dans le gabarit (bloc « composants dsfr-data dans le gabarit »)
+import '@/components/dsfr-data-query.js';
+import '@/components/dsfr-data-kpi.js';
+import '@/components/dsfr-data-chart.js';
 import {
   clearDataCache,
+  getDataCache,
   dispatchDataLoaded,
   dispatchDataLoading,
   dispatchDataError,
@@ -592,5 +597,133 @@ describe('DsfrDataDisplay', () => {
       urlDisplay.connectedCallback();
       expect((urlDisplay as any)._currentPage).toBe(1);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Composants dsfr-data dans le gabarit — la voie native « un graphique par ligne »
+// (docs/USER-GUIDE.md, skill attributeGrammars, specs/components/dsfr-data-display.html).
+// Le motif existait sans être contractuel : ce bloc le verrouille, ET verrouille sa
+// limite documentée (pas d'imbrication), pour qu'une évolution du moteur ne change ni
+// l'un ni l'autre en silence.
+// ---------------------------------------------------------------------------
+
+describe('composants dsfr-data dans le gabarit (un graphique par ligne)', () => {
+  const QUESTIONS = [
+    { code: '001', libelle: 'Question un', pres: 'bar' },
+    { code: '002', libelle: 'Question deux', pres: 'line' },
+    { code: '003', libelle: 'Question trois', pres: 'bar' },
+  ];
+  const SCORES = [
+    { code: '001', annee: '2023', score: 10 },
+    { code: '001', annee: '2024', score: 20 },
+    { code: '002', annee: '2023', score: 30 },
+    { code: '002', annee: '2024', score: 40 },
+    { code: '002', annee: '2025', score: 50 },
+    { code: '003', annee: '2024', score: 60 },
+  ];
+  const IDS = ['rep-questions', 'rep-scores', 'rep-chap', 'q-001', 'q-002', 'q-003', 'qq-1'];
+  let host: HTMLElement;
+
+  const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+
+  beforeEach(() => {
+    IDS.forEach(clearDataCache);
+    host = document.createElement('div');
+    document.body.appendChild(host);
+  });
+
+  afterEach(() => {
+    host.remove();
+    IDS.forEach(clearDataCache);
+  });
+
+  it('rehausse les composants du gabarit : une query par ligne scope les données, type="{{champ}}" choisit le type', async () => {
+    host.innerHTML = `
+      <dsfr-data-display source="rep-questions">
+        <template>
+          <h3>{{libelle}}</h3>
+          <dsfr-data-query id="q-{{code}}" source="rep-scores" where="code:eq:{{code}}"></dsfr-data-query>
+          <dsfr-data-kpi id="k-{{code}}" source="q-{{code}}" value="score:sum" label="Somme"></dsfr-data-kpi>
+          <dsfr-data-chart id="c-{{code}}" source="q-{{code}}" type="{{pres}}"
+            label-field="annee" value-field="score"></dsfr-data-chart>
+        </template>
+      </dsfr-data-display>`;
+    dispatchDataLoaded('rep-scores', SCORES);
+    dispatchDataLoaded('rep-questions', QUESTIONS);
+    await tick();
+    const rep = host.querySelector('dsfr-data-display') as DsfrDataDisplay;
+    await rep.updateComplete;
+    await tick();
+
+    // (a) répéter : une instance de chaque composant par ligne, attributs interpolés
+    const queries = [...host.querySelectorAll('dsfr-data-query')];
+    expect(queries.map((q) => q.id)).toEqual(['q-001', 'q-002', 'q-003']);
+    expect(queries.map((q) => q.getAttribute('where'))).toEqual([
+      'code:eq:001',
+      'code:eq:002',
+      'code:eq:003',
+    ]);
+
+    // (b) scoper : chaque query a émis SON sous-ensemble, et le KPI de la ligne le lit
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+    expect((getDataCache('q-002') as unknown[]).length).toBe(3);
+    expect((getDataCache('q-003') as unknown[]).length).toBe(1);
+    const kpiValue = (id: string) =>
+      host.querySelector(`#${id} .dsfr-data-kpi__value`)?.textContent?.trim();
+    expect(kpiValue('k-001')).toBe('30');
+    expect(kpiValue('k-002')).toBe('120');
+    expect(kpiValue('k-003')).toBe('60');
+
+    // (c) choisir le type depuis un champ : bar-chart / line-chart selon la ligne
+    const innerTag = (id: string) =>
+      host.querySelector(`#${id} bar-chart, #${id} line-chart`)?.tagName.toLowerCase();
+    expect(innerTag('c-001')).toBe('bar-chart');
+    expect(innerTag('c-002')).toBe('line-chart');
+    expect(host.querySelector('#c-002 line-chart')?.getAttribute('y')).toBe('[[30,40,50]]');
+
+    // Refiltre : la source scopée ré-émet (ce que fait un contexte), les lignes suivent
+    // sans que le display se re-rende (les instances sont les mêmes objets)
+    const q001 = host.querySelector('#q-001');
+    dispatchDataLoaded(
+      'rep-scores',
+      SCORES.map((r) => ({ ...r, score: r.score + 1 }))
+    );
+    await tick();
+    expect(host.querySelector('#q-001')).toBe(q001);
+    expect(kpiValue('k-001')).toBe('32');
+  });
+
+  it('limite documentée : un display dans le gabarit voit ses placeholders consommés par la ligne extérieure', async () => {
+    host.innerHTML = `
+      <dsfr-data-display source="rep-chap">
+        <template>
+          <h2>{{nom}}</h2>
+          <dsfr-data-query id="qq-{{chapitre}}" source="rep-questions" where="chapitre:eq:{{chapitre}}"></dsfr-data-query>
+          <dsfr-data-display id="inner-{{chapitre}}" source="qq-{{chapitre}}">
+            <template><p class="inner-item">[{{libelle}}|{{code}}]</p></template>
+          </dsfr-data-display>
+        </template>
+      </dsfr-data-display>`;
+    dispatchDataLoaded(
+      'rep-questions',
+      QUESTIONS.map((q) => ({ ...q, chapitre: 1 }))
+    );
+    dispatchDataLoaded('rep-chap', [{ chapitre: 1, nom: 'Chapitre un' }]);
+    await tick();
+    const outer = host.querySelector('dsfr-data-display') as DsfrDataDisplay;
+    await outer.updateComplete;
+    await tick();
+
+    const inner = host.querySelector('#inner-1') as DsfrDataDisplay | null;
+    expect(inner).not.toBeNull();
+    await inner!.updateComplete;
+    await tick();
+    // Le display intérieur a bien reçu ses 3 lignes…
+    expect((getDataCache('qq-1') as unknown[]).length).toBe(3);
+    const items = [...host.querySelectorAll('.inner-item')].map((e) => e.textContent);
+    expect(items.length).toBe(3);
+    // … mais ses placeholders ont été substitués par la ligne extérieure (champs inconnus → '')
+    expect(items).toEqual(['[|]', '[|]', '[|]']);
   });
 });
