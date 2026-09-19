@@ -101,12 +101,12 @@ describe('reflow a 320 px sur les surfaces publiques (#720, ADR-108)', () => {
     expect(fautes).toEqual([]);
   });
 
-  it('les 20 pages de composants portent bien leur table d attributs enveloppee', () => {
+  it('les 21 pages de composants portent bien leur table d attributs enveloppee', () => {
     const dir = join(RACINE, 'specs/components');
     const avecAttrTable = pagesHtml(dir).filter((p) =>
       readFileSync(p, 'utf-8').includes('class="attr-table"')
     );
-    expect(avecAttrTable.length).toBe(20);
+    expect(avecAttrTable.length).toBe(21);
 
     for (const page of avecAttrTable) {
       const html = readFileSync(page, 'utf-8');

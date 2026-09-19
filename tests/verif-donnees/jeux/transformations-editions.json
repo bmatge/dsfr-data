@@ -1,0 +1,12 @@
+[
+  {"question":"site-internet","annee":"2024","score":60.1},
+  {"question":"site-internet","annee":"2025","score":66.4},
+  {"question":"facture-elec","annee":"2024","score":40},
+  {"question":"facture-elec","annee":"2025","score":52.5},
+  {"question":"ia","annee":"2024","score":8},
+  {"question":"ia","annee":"2025","score":19.2},
+  {"question":"reseaux-sociaux","annee":"2024","score":55},
+  {"question":"reseaux-sociaux","annee":"2025","score":54.1},
+  {"question":"teletravail","annee":"2024","score":85.2},
+  {"question":"cybersecurite","annee":"2025","score":33.3}
+]

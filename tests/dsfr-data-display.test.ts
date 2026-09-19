@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
+// Composants rehaussés dans le gabarit (bloc « composants dsfr-data dans le gabarit »)
+import '@/components/dsfr-data-query.js';
+import '@/components/dsfr-data-kpi.js';
+import '@/components/dsfr-data-chart.js';
+import '@/components/dsfr-data-source.js';
 import {
   clearDataCache,
+  getDataCache,
+  setDataCache,
   dispatchDataLoaded,
   dispatchDataLoading,
   dispatchDataError,
@@ -592,5 +599,330 @@ describe('DsfrDataDisplay', () => {
       urlDisplay.connectedCallback();
       expect((urlDisplay as any)._currentPage).toBe(1);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Composants dsfr-data dans le gabarit — la voie native « un graphique par ligne »
+// (docs/USER-GUIDE.md, skill attributeGrammars, specs/components/dsfr-data-display.html).
+// Le motif existait sans être contractuel : ce bloc le verrouille, ET verrouille sa
+// limite documentée (pas d'imbrication), pour qu'une évolution du moteur ne change ni
+// l'un ni l'autre en silence.
+// ---------------------------------------------------------------------------
+
+describe('composants dsfr-data dans le gabarit (un graphique par ligne)', () => {
+  const QUESTIONS = [
+    { code: '001', libelle: 'Question un', pres: 'bar' },
+    { code: '002', libelle: 'Question deux', pres: 'line' },
+    { code: '003', libelle: 'Question trois', pres: 'bar' },
+  ];
+  const SCORES = [
+    { code: '001', annee: '2023', score: 10 },
+    { code: '001', annee: '2024', score: 20 },
+    { code: '002', annee: '2023', score: 30 },
+    { code: '002', annee: '2024', score: 40 },
+    { code: '002', annee: '2025', score: 50 },
+    { code: '003', annee: '2024', score: 60 },
+  ];
+  const IDS = ['rep-questions', 'rep-scores', 'rep-chap', 'q-001', 'q-002', 'q-003', 'qq-1'];
+  let host: HTMLElement;
+
+  const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+
+  beforeEach(() => {
+    IDS.forEach(clearDataCache);
+    host = document.createElement('div');
+    document.body.appendChild(host);
+  });
+
+  afterEach(() => {
+    host.remove();
+    IDS.forEach(clearDataCache);
+  });
+
+  it('rehausse les composants du gabarit : une query par ligne scope les données, type="{{champ}}" choisit le type', async () => {
+    host.innerHTML = `
+      <dsfr-data-display source="rep-questions">
+        <template>
+          <h3>{{libelle}}</h3>
+          <dsfr-data-query id="q-{{code}}" source="rep-scores" where="code:eq:{{code}}"></dsfr-data-query>
+          <dsfr-data-kpi id="k-{{code}}" source="q-{{code}}" value="score:sum" label="Somme"></dsfr-data-kpi>
+          <dsfr-data-chart id="c-{{code}}" source="q-{{code}}" type="{{pres}}"
+            label-field="annee" value-field="score"></dsfr-data-chart>
+        </template>
+      </dsfr-data-display>`;
+    dispatchDataLoaded('rep-scores', SCORES);
+    dispatchDataLoaded('rep-questions', QUESTIONS);
+    await tick();
+    const rep = host.querySelector('dsfr-data-display') as DsfrDataDisplay;
+    await rep.updateComplete;
+    await tick();
+
+    // (a) répéter : une instance de chaque composant par ligne, attributs interpolés
+    const queries = [...host.querySelectorAll('dsfr-data-query')];
+    expect(queries.map((q) => q.id)).toEqual(['q-001', 'q-002', 'q-003']);
+    expect(queries.map((q) => q.getAttribute('where'))).toEqual([
+      'code:eq:001',
+      'code:eq:002',
+      'code:eq:003',
+    ]);
+
+    // (b) scoper : chaque query a émis SON sous-ensemble, et le KPI de la ligne le lit
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+    expect((getDataCache('q-002') as unknown[]).length).toBe(3);
+    expect((getDataCache('q-003') as unknown[]).length).toBe(1);
+    const kpiValue = (id: string) =>
+      host.querySelector(`#${id} .dsfr-data-kpi__value`)?.textContent?.trim();
+    expect(kpiValue('k-001')).toBe('30');
+    expect(kpiValue('k-002')).toBe('120');
+    expect(kpiValue('k-003')).toBe('60');
+
+    // (c) choisir le type depuis un champ : bar-chart / line-chart selon la ligne
+    const innerTag = (id: string) =>
+      host.querySelector(`#${id} bar-chart, #${id} line-chart`)?.tagName.toLowerCase();
+    expect(innerTag('c-001')).toBe('bar-chart');
+    expect(innerTag('c-002')).toBe('line-chart');
+    expect(host.querySelector('#c-002 line-chart')?.getAttribute('y')).toBe('[[30,40,50]]');
+
+    // Refiltre : la source scopée ré-émet (ce que fait un contexte), les lignes suivent
+    // sans que le display se re-rende (les instances sont les mêmes objets)
+    const q001 = host.querySelector('#q-001');
+    dispatchDataLoaded(
+      'rep-scores',
+      SCORES.map((r) => ({ ...r, score: r.score + 1 }))
+    );
+    await tick();
+    expect(host.querySelector('#q-001')).toBe(q001);
+    expect(kpiValue('k-001')).toBe('32');
+  });
+
+  it('limite documentée : un display dans le gabarit voit ses placeholders consommés par la ligne extérieure', async () => {
+    host.innerHTML = `
+      <dsfr-data-display source="rep-chap">
+        <template>
+          <h2>{{nom}}</h2>
+          <dsfr-data-query id="qq-{{chapitre}}" source="rep-questions" where="chapitre:eq:{{chapitre}}"></dsfr-data-query>
+          <dsfr-data-display id="inner-{{chapitre}}" source="qq-{{chapitre}}">
+            <template><p class="inner-item">[{{libelle}}|{{code}}]</p></template>
+          </dsfr-data-display>
+        </template>
+      </dsfr-data-display>`;
+    dispatchDataLoaded(
+      'rep-questions',
+      QUESTIONS.map((q) => ({ ...q, chapitre: 1 }))
+    );
+    dispatchDataLoaded('rep-chap', [{ chapitre: 1, nom: 'Chapitre un' }]);
+    await tick();
+    const outer = host.querySelector('dsfr-data-display') as DsfrDataDisplay;
+    await outer.updateComplete;
+    await tick();
+
+    const inner = host.querySelector('#inner-1') as DsfrDataDisplay | null;
+    expect(inner).not.toBeNull();
+    await inner!.updateComplete;
+    await tick();
+    // Le display intérieur a bien reçu ses 3 lignes…
+    expect((getDataCache('qq-1') as unknown[]).length).toBe(3);
+    const items = [...host.querySelectorAll('.inner-item')].map((e) => e.textContent);
+    expect(items.length).toBe(3);
+    // … mais ses placeholders ont été substitués par la ligne extérieure (champs inconnus → '')
+    expect(items).toEqual(['[|]', '[|]', '[|]']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Les deux défauts mesurés pendant l'étude du motif, corrigés.
+// ---------------------------------------------------------------------------
+
+describe('cache d un id repris par une nouvelle instance', () => {
+  const QUESTIONS = [{ code: '001' }, { code: '002' }];
+  const SCORES = [
+    { code: '001', score: 10 },
+    { code: '001', score: 20 },
+    { code: '002', score: 30 },
+  ];
+  const IDS = ['pur-questions', 'pur-scores', 'q-001', 'q-002', 's-001'];
+  let host: HTMLElement;
+  const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+
+  beforeEach(() => {
+    IDS.forEach(clearDataCache);
+    host = document.createElement('div');
+    document.body.appendChild(host);
+  });
+
+  afterEach(() => {
+    host.remove();
+    IDS.forEach(clearDataCache);
+  });
+
+  /**
+   * La séquence est celle d'un `innerHTML` réécrit DANS UN NAVIGATEUR : mesuré sous
+   * Chromium 1.63, `h.innerHTML = …` émet `connected` de la nouvelle instance AVANT
+   * `disconnected` de l'ancienne (happy-dom fait l'inverse — un test qui se contente
+   * de réécrire l'innerHTML ne verrait donc jamais le défaut ici). On joue la
+   * séquence du navigateur à la main : la nouvelle query homonyme est montée, PUIS
+   * l'ancienne est retirée. Sa purge ne doit pas emporter le cache de la nouvelle.
+   */
+  it('la déconnexion d une instance ne purge pas le cache d un id repris par une autre', async () => {
+    dispatchDataLoaded('pur-scores', SCORES);
+    const query = (where: string) => {
+      const q = document.createElement('dsfr-data-query');
+      q.id = 'q-001';
+      q.setAttribute('source', 'pur-scores');
+      q.setAttribute('where', where);
+      return q;
+    };
+
+    const ancienne = query('code:eq:001');
+    host.appendChild(ancienne);
+    await tick();
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+
+    // Ordre du navigateur : la nouvelle instance est connectée d'abord…
+    const nouvelle = query('code:eq:001');
+    host.appendChild(nouvelle);
+    await tick();
+    // … puis l'ancienne est déconnectée.
+    ancienne.remove();
+    await tick();
+
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+
+    // Un lecteur monté APRÈS lit le cache, pas du vide (le symptôme mesuré : « — »).
+    const kpi = document.createElement('dsfr-data-kpi');
+    kpi.setAttribute('source', 'q-001');
+    kpi.setAttribute('value', 'score:sum');
+    host.appendChild(kpi);
+    await tick();
+    expect(host.querySelector('dsfr-data-kpi .dsfr-data-kpi__value')?.textContent?.trim()).toBe(
+      '30'
+    );
+  });
+
+  it('le motif complet survit à une ré-émission de la source répétée', async () => {
+    host.innerHTML = `
+      <dsfr-data-display source="pur-questions">
+        <template>
+          <dsfr-data-query id="q-{{code}}" source="pur-scores" where="code:eq:{{code}}"></dsfr-data-query>
+        </template>
+      </dsfr-data-display>`;
+    dispatchDataLoaded('pur-scores', SCORES);
+    dispatchDataLoaded('pur-questions', QUESTIONS);
+    const rep = host.querySelector('dsfr-data-display') as DsfrDataDisplay;
+    await rep.updateComplete;
+    await tick();
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+
+    const q001Avant = host.querySelector('#q-001');
+    dispatchDataLoaded('pur-questions', [{ code: '001' }, { code: '002' }, { code: '003' }]);
+    await rep.updateComplete;
+    await tick();
+    // Les instances sont bien recréées (condition du défaut)
+    expect(host.querySelector('#q-001')).not.toBe(q001Avant);
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+    expect((getDataCache('q-002') as unknown[]).length).toBe(1);
+  });
+
+  it('un composant réellement retiré de la page purge bien son cache', async () => {
+    host.innerHTML = `<dsfr-data-query id="q-001" source="pur-scores" where="code:eq:001"></dsfr-data-query>`;
+    dispatchDataLoaded('pur-scores', SCORES);
+    await tick();
+    expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+    host.querySelector('#q-001')!.remove();
+    await tick();
+    expect(getDataCache('q-001')).toBeUndefined();
+  });
+
+  /**
+   * `dsfr-data-source` porte la même purge que les transformateurs, et le gabarit
+   * peut en contenir une par ligne (`id` et `data`/`url` interpolés). Même
+   * séquence de navigateur, même exigence.
+   */
+  it('une source dont l id est repris par une nouvelle instance ne perd pas son cache', async () => {
+    const source = (valeur: string) => {
+      const s = document.createElement('dsfr-data-source');
+      s.id = 's-001';
+      s.setAttribute('data', valeur);
+      return s;
+    };
+
+    const ancienne = source('[{"n":1},{"n":2}]');
+    host.appendChild(ancienne);
+    await tick();
+    expect((getDataCache('s-001') as unknown[]).length).toBe(2);
+
+    const nouvelle = source('[{"n":1},{"n":2}]');
+    host.appendChild(nouvelle);
+    await tick();
+    ancienne.remove();
+    await tick();
+
+    expect((getDataCache('s-001') as unknown[]).length).toBe(2);
+
+    // Un lecteur monté APRÈS lit le cache, pas du vide.
+    const kpi = document.createElement('dsfr-data-kpi');
+    kpi.setAttribute('source', 's-001');
+    kpi.setAttribute('value', 'n:sum');
+    host.appendChild(kpi);
+    await tick();
+    expect(host.querySelector('dsfr-data-kpi .dsfr-data-kpi__value')?.textContent?.trim()).toBe(
+      '3'
+    );
+  });
+
+  it('une source réellement retirée de la page purge bien son cache', async () => {
+    const s = document.createElement('dsfr-data-source');
+    s.id = 's-001';
+    s.setAttribute('data', '[{"n":1},{"n":2}]');
+    host.appendChild(s);
+    await tick();
+    expect((getDataCache('s-001') as unknown[]).length).toBe(2);
+    s.remove();
+    await tick();
+    expect(getDataCache('s-001')).toBeUndefined();
+  });
+});
+
+describe('gabarit analysé après connectedCallback (bundle dans le <head>)', () => {
+  let host: HTMLElement;
+  const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
+
+  beforeEach(() => {
+    clearDataCache('tard-src');
+    host = document.createElement('div');
+    document.body.appendChild(host);
+  });
+
+  afterEach(() => {
+    host.remove();
+    clearDataCache('tard-src');
+    Object.defineProperty(document, 'readyState', { value: 'complete', configurable: true });
+  });
+
+  it('rend ses lignes quand le <template> enfant arrive après le premier rendu', async () => {
+    // Données déjà au cache : le composant a tout ce qu'il lui faut au montage,
+    // donc AUCUN rendu ultérieur ne viendra rattraper un gabarit capturé vide.
+    setDataCache('tard-src', [{ code: '001' }, { code: '002' }]);
+    // Le document est en cours d'analyse : le bundle a été chargé dans le <head>.
+    Object.defineProperty(document, 'readyState', { value: 'loading', configurable: true });
+
+    const el = new DsfrDataDisplay();
+    el.setAttribute('source', 'tard-src');
+    host.appendChild(el);
+    await el.updateComplete;
+    await tick();
+    // Le gabarit n'était pas encore analysé : premier rendu sans lignes.
+    expect(el.querySelectorAll('.ligne').length).toBe(0);
+
+    // L'analyseur atteint enfin le <template> enfant, puis termine la page.
+    const tpl = document.createElement('template');
+    tpl.innerHTML = '<span class="ligne">{{code}}</span>';
+    el.appendChild(tpl);
+    Object.defineProperty(document, 'readyState', { value: 'complete', configurable: true });
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    await tick();
+
+    expect([...el.querySelectorAll('.ligne')].map((e) => e.textContent)).toEqual(['001', '002']);
   });
 });

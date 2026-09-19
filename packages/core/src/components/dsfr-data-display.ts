@@ -24,6 +24,7 @@ import {
   legacyConflictMessage,
   syncLayoutError,
 } from '../utils/grid-layout.js';
+import { readChildTemplateHtml } from '../utils/child-template.js';
 
 /**
  * <dsfr-data-display> - Affichage dynamique de données via template HTML
@@ -49,6 +50,15 @@ import {
  *                         englober du texte, des éléments complets ou une valeur d'attribut : placé
  *                         entre deux attributs, il est découpé par l'analyse HTML du template
  * L'argument d'un format ne peut pas contenir « | » (il ouvre le défaut).
+ *
+ * Le gabarit peut contenir des composants `dsfr-data-*` : rendu par `innerHTML`, ils sont
+ * rehaussés comme le reste de la page, attributs interpolés par ligne. C'est la voie native
+ * pour un graphique (ou un KPI) par ligne — une `dsfr-data-query id="q-{{clé}}"
+ * where="clé:eq:{{clé}}"` par ligne scope une source chargée une fois, `type="{{champ}}"`
+ * choisit le type. Limites : pas de display dans un display (les `{{…}}` intérieurs sont
+ * consommés), instances détruites et recréées à chaque émission de la source répétée, pas
+ * d'adaptateur derrière un id scopé (ni facets ni search). Contrat verrouillé par
+ * `tests/dsfr-data-display.test.ts`.
  *
  * @example
  * <dsfr-data-source id="data" url="/api/results" transform="records"></dsfr-data-source>
@@ -219,13 +229,30 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-display');
     this._captureTemplate();
+    // Bundle chargé dans le <head> : `connectedCallback` s'exécute AVANT que
+    // l'analyseur n'atteigne le `<template>` enfant — même piège que
+    // `dsfr-data-map-popup`, qui diffère sa lecture au premier usage. Ici le
+    // repli de `render()` ne rattrape que s'il y a un rendu ultérieur : quand
+    // les données sont déjà au cache au montage, il n'y en a pas, et la liste
+    // reste vide pour toujours. Une seconde capture à la fin de l'analyse.
+    if (!this._templateContent && document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', this._onDocumentParsed, { once: true });
+    }
     this._pager.connect();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    document.removeEventListener('DOMContentLoaded', this._onDocumentParsed);
     this._pager.disconnect();
   }
+
+  /** Seconde chance de capture, une fois le HTML initial analysé. */
+  private _onDocumentParsed = () => {
+    if (!this.isConnected || this._templateContent) return;
+    this._captureTemplate();
+    if (this._templateContent) this.requestUpdate();
+  };
 
   onSourceReset(): void {
     // Changer de source ne doit pas laisser les elements precedents (#284)
@@ -279,10 +306,8 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   }
 
   private _captureTemplate(): void {
-    const tpl = this.querySelector('template');
-    if (tpl) {
-      this._templateContent = tpl.innerHTML;
-    }
+    const html = readChildTemplateHtml(this);
+    if (html) this._templateContent = html;
   }
 
   /** Remplace les placeholders dans le template pour un item donne */

@@ -1,8 +1,8 @@
 # Grammaires d’attributs et voies natives
 
-> Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap
+> Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap, un graphique par ligne (composants dans un gabarit de display)
 >
-> Déclencheurs : grammaire, voie native, colonnes, par ligne, responsive, mobile, per-row, span, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, colonne calculee, compute, when, recoder, tranche, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap
+> Déclencheurs : grammaire, voie native, colonnes, par ligne, responsive, mobile, per-row, span, decouper, separateur, multivalu, split, arrondir, arrondi, decimales, compact, abrege, unite, date de mise a jour, derniere mise a jour, nombre de resultats, compteur de resultats, total serveur, choix unique, bouton radio, boutons radio, liste deroulante, cascade, facettes dependantes, annee en cours, annee courante, cle de jointure, cles de jointure, zero initial, non renseigne, valeurs nulles, valeur nulle, is not null, isnotnull, colonne calculee, compute, when, recoder, tranche, fond neutre, fond gris, niveaux de gris, fond de carte, fond administratif, nom de serie, nom de la serie, treemap, un graphique par ligne, un graphique par, un kpi par ligne, n graphiques, repeter, repetition, boucle, ng-repeat, par question, composant par ligne
 
 ## Grammaires d’attributs et voies natives
 
@@ -307,6 +307,43 @@ facettes et un nombre ailleurs : ne plus les generer.
 - Meme grammaire sur la **largeur des encarts** de carte, en longueurs CSS :
   `<dsfr-data-map-inset width="50% md:20%">` (deux encarts par ligne sur telephone, cinq en bureau).
   Une regle de page `dsfr-data-map-inset { width: … }` prime toujours.
+
+### Un graphique par ligne : repeter des composants (display + query par ligne)
+
+Le besoin « N graphiques depuis N lignes » (un `ng-repeat` autour d'un `<ods-chart>` sur
+Opendatasoft) n'a besoin ni de script ni de composant custom : **le gabarit d'un
+`dsfr-data-display` peut contenir des composants `dsfr-data-*`**, rehausses comme le reste de
+la page. Le scope de chaque instance est une `dsfr-data-query` par ligne dont l'`id` et le
+`where` sont interpoles, sur une source chargee une fois ; le type se lit dans un champ.
+
+```html
+<dsfr-data-display source="questions">
+  <template>
+    <h4>{{libelle}}</h4>
+    <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score" name="{{libelle}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+```
+
+- `type="{{champ}}"` attend un type DSFR Chart (`bar`, `line`, `pie`…) : recoder avant avec
+  `dsfr-data-normalize compute="type_graphique = when presentation = 'Courbe' then 'line' else 'bar'"`.
+- La source scopee (`scores`) doit etre **chargee en entier** (`fetch-mode="export"`,
+  `max-records` releve) : les N `where` sont calcules dans le navigateur, jamais delegues.
+- Mesure en 0.30.0 : 119 lignes × (query + graphique) en 410 ms, refiltre des 119 en 29 ms.
+- Limites : pas de display dans un display (les `{{…}}` interieurs sont consommes par la ligne
+  exterieure) ; une emission de la source *repetee* detruit et recree toutes les instances
+  (≈ 640 ms pour 119) ; pas de `facets` ni `search` sur un id scope (pas d'adaptateur
+  derriere) ; un attribut booleen (`horizontal`) ne se conditionne pas — deux elements sous
+  `{{#if}}` / `{{#unless}}`. Detail dans la reference `dsfr-data-display`.
+- Corrige en 0.31.0 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
+  reutilise (#893), et le gabarit est recapture quand le bundle est charge dans le `<head>`
+  (#894).
+- **Quand la ligne est un pipeline** (identite des instances entre deux emissions, imbrication,
+  attribut booleen conditionnel, aucun compteur ni region), c'est `dsfr-data-repeat` :
+  meme gabarit, meme grammaire, rendu par clonage DOM — reference `dsfr-data-repeat`.
+  Regle : `display` quand la ligne est du contenu, `repeat` quand la ligne est un pipeline.
 
 ### Regle generale
 

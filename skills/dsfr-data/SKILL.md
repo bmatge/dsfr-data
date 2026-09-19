@@ -21,6 +21,9 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 - Une **source** charge les données (API ou données inline), les **transformateurs** (query,
   normalize, join, unpivot, facets, search, context) consomment un `source` et ré-émettent sous
   leur propre `id`, les **afficheurs** (chart, kpi, list, display, map, podium) sont des feuilles.
+  Une exception voulue : le gabarit d'un `dsfr-data-display` peut contenir des composants
+  `dsfr-data-*` — c'est la voie native pour **un graphique (ou un KPI) par ligne** d'une source
+  (voir `attributeGrammars`, « Un graphique par ligne »).
 - Les alias d'agrégation suivent la convention `champ__fonction` (`population__sum`).
 - Chargement : `<script type="module" src=".../dsfr-data.esm.js">` + CSS DSFR et DSFR Chart
   (voir la référence `compositionPatterns`).
@@ -102,9 +105,10 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 | Référence | Quand la lire | Déclencheurs |
 |---|---|---|
 | [dsfr-data-context-value](references/dsfr-data-context-value.md) | Valeur courante d'un filtre du contexte, dans un titre ou une phrase | context-value, valeur du filtre, titre dynamique, resultats pour, interpoler filtre, libelle du filtre |
+| [dsfr-data-repeat](references/dsfr-data-repeat.md) | Repeter des instances vivantes : un graphique, un KPI ou un pipeline par ligne, avec identite par cle et imbrication | repeat, repeter, repetition, boucle, ng-repeat, un graphique par ligne |
 | [dsfr-data-concat](references/dsfr-data-concat.md) | Empile les lignes de plusieurs sources de même schéma (union) | concat, empiler, union, concatener, concaténer, plusieurs series |
 | [dsfr-data-pivot](references/dsfr-data-pivot.md) | Replie un tableau "long" en "wide" (tableau croisé) : une colonne par valeur distincte d'un champ | pivot, tableau croisé, tableau croise, crosstab, cross-tab, lignes en colonnes |
-| [Grammaires d’attributs et voies natives](references/attribute-grammars.md) | Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap | grammaire, voie native, colonnes, par ligne, responsive, mobile |
+| [Grammaires d’attributs et voies natives](references/attribute-grammars.md) | Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap, un graphique par ligne (composants dans un gabarit de display) | grammaire, voie native, colonnes, par ligne, responsive, mobile |
 
 ## Règles transverses
 

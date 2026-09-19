@@ -1798,6 +1798,11 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
       'affichage',
       'liste de resultats',
       'motif repetitif',
+      'un graphique par ligne',
+      'un kpi par ligne',
+      'composant par ligne',
+      'repeter',
+      'ng-repeat',
     ],
     content:
       `## <dsfr-data-display> - Affichage dynamique via template
@@ -1867,6 +1872,83 @@ toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
 
 Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
 masquer en CSS quand l'attribut est vide — \`a[href=""] { display: none; }\`.
+
+### Un composant dsfr-data par ligne : le gabarit peut contenir des composants
+
+Le gabarit n'est pas limite a du HTML inerte : il est rendu par \`innerHTML\`, donc les
+composants \`dsfr-data-*\` qu'il contient sont rehausses comme n'importe quel element de la
+page. C'est **la voie native pour repeter un graphique, un KPI ou une liste sur les lignes
+d'une source** — l'equivalent d'un \`ng-repeat\` autour d'un \`<ods-chart>\` — et elle tient en
+trois idees :
+
+1. **Repeter** : le \`<template>\` du display contient le ou les composants.
+2. **Scoper** : une \`dsfr-data-query\` par ligne, dont l'\`id\` et le \`where\` sont interpoles
+   (\`id="q-{{code}}" where="code:eq:{{code}}"\`), filtre pour cette ligne une source
+   **deja chargee en entier**. Les composants de la ligne consomment cet id.
+3. **Choisir le type depuis un champ** : \`type="{{champ}}"\` — un recodage prealable par
+   \`dsfr-data-normalize compute="type_graphique = when … then 'line' else 'bar'"\` si le
+   jeu ne porte pas directement un type DSFR Chart.
+
+\`\`\`html
+<!-- La table des questions : une ligne par question -->
+<dsfr-data-source id="questions" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="bfn-table-de-correspondance"
+  fetch-mode="export" max-records="200"></dsfr-data-source>
+<!-- Les scores : UNE requete, chargee une fois — les queries du gabarit filtrent en local -->
+<dsfr-data-source id="scores" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="questions-reponses"
+  select="code_unifie, annee, score" where="region = 'Toutes régions'"
+  fetch-mode="export" max-records="5000"></dsfr-data-source>
+
+<dsfr-data-display source="questions" per-row="1 md:2">
+  <template>
+    <h4>{{libelle_unifie}}</h4>
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores"
+      where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code_unifie}}" type="bar"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+\`\`\`
+
+Mesure (0.30.0, Chromium headless, sources inline) : 119 lignes × (query + graphique) rendues
+en **410 ms** jusqu'au 119e canvas ; une re-emission de la source des scores — ce que fait un
+filtre de \`dsfr-data-context\` — fait re-emettre les 119 queries en **29 ms** ; aucune erreur.
+Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs \`document\` par type d'evenement).
+
+**Les limites, ecrites :**
+
+- **Pas d'imbrication.** Un \`dsfr-data-display\` dans le gabarit d'un autre ne marche pas : la
+  passe de substitution consomme aussi les \`{{…}}\` du \`<template>\` interieur avec la ligne
+  exterieure (champ inconnu → chaine vide), et il n'existe pas d'echappement de \`{{\`. Le
+  niveau exterieur s'ecrit en HTML statique (un accordeon par chapitre, un display par accordeon).
+- **Re-creation totale.** Chaque emission de la source *repetee* reecrit tout l'\`innerHTML\` :
+  les composants sont detruits et recrees (119 graphiques : ≈ 640 ms, remontage Vue/Chart.js).
+  Garder la source repetee stable (une table de reference) ; le filtre transverse doit viser la
+  source *scopee* (\`scores\`), dont la re-emission ne touche que les queries.
+- **Pas de delegation serveur derriere un id scope.** La query du gabarit lit une source
+  partagee par N lectrices : son \`where\` reste client, sans avertissement — c'est voulu (un
+  fetch, N filtres). Les composants qui ont besoin d'un adaptateur (\`dsfr-data-facets\`,
+  \`dsfr-data-search\`) ne fonctionnent pas branches sur \`q-{{…}}\`.
+- **Un attribut booleen ne se conditionne pas** dans la balise (\`horizontal\`) : ecrire deux
+  elements complets sous \`{{#if champ}}…{{/if}}\` et \`{{#unless champ}}…{{/unless}}\`.
+
+**Deux limites levees en 0.31.0 :**
+
+- **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
+  purgeait a sa deconnexion le cache de son \`id\`, que la nouvelle venait de remplir : un
+  consommateur monte plus tard sur \`q-001\` lisait du vide. La purge n'a desormais lieu que si
+  plus aucun element du document ne porte cet \`id\` (meme garde dans \`dsfr-data-source\`).
+- **Le gabarit est recapture** (#894). Charge en \`<head>\` sans \`defer\`, le display capturait
+  son \`<template>\` avant qu'il soit analyse et ne rendait rien ; une seconde capture a lieu a
+  la fin de l'analyse du document. Charger le bundle **en fin de body** (ou en
+  \`type="module"\`) reste la pose recommandee.
+
+**Ce qui n'est pas leve, et n'a pas a l'etre ici :** l'identite des instances a la re-emission,
+l'imbrication et les attributs booleens conditionnels sont le contrat de \`dsfr-data-repeat\`
+(composant de structure, ADR-135). Regle d'usage : **\`display\` quand la ligne est du contenu,
+\`repeat\` quand la ligne est un pipeline.** L'exemple ci-dessus reste valide tel quel.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -2147,6 +2229,15 @@ empiler une région live de page par-dessus (#654).
 <!-- Tableau -->
 <dsfr-data-list source="sites" columns="nom:Nom, ministere:Ministere, score_rgaa:Score" search filters="ministere" sort="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
 \`\`\`
+
+### Un composant par ligne : le display comme repeteur
+
+Pour **N graphiques (ou KPI) depuis N lignes**, ne pas generer N blocs HTML ni de script : le
+gabarit d'un \`dsfr-data-display\` peut contenir des composants \`dsfr-data-*\`, avec une
+\`dsfr-data-query id="q-{{cle}}" where="cle:eq:{{cle}}"\` par ligne pour scoper une source
+chargee une fois, et \`type="{{champ}}"\` pour choisir le type. Grammaire, mesures et limites
+(pas d'imbrication, re-creation a chaque emission de la source repetee) dans
+\`attributeGrammars\` § « Un graphique par ligne » et dans la reference \`dsfr-data-display\`.
 
 ### Strategie de chargement : \`server-side\` ou tout charger (ADR-109)
 
@@ -3450,6 +3541,14 @@ En revanche, les proprietes JavaScript sont en camelCase (\`element.labelField\`
 - Si \`fields\` est vide, la recherche porte sur TOUS les champs, y compris
   les champs techniques (id, SIRET...). Preciser les champs pour plus de precision.
 
+### 9. Un display dans le gabarit d'un display rend des champs vides
+
+Les composants \`dsfr-data-*\` places dans le \`<template>\` d'un \`dsfr-data-display\`
+fonctionnent (voie native « un graphique par ligne »), **sauf un second display** : la passe de
+substitution remplace aussi les \`{{…}}\` de son \`<template>\` interieur avec la ligne
+exterieure, et un champ inconnu devient une chaine vide — sans erreur ni avertissement. Ecrire
+le niveau exterieur en HTML statique et ne repeter qu'un niveau.
+
 ### 7. Facettes / datalist vides avec Grist ou ODS v1
 Les APIs Grist, ODS v1, et Airtable wrappent les données sous \`records[].fields\`.
 Les composants dsfr-data-facets, dsfr-data-list, dsfr-data-query et dsfr-data-kpi attendent des
@@ -3673,6 +3772,118 @@ Regles :
 - Pour LISTER les filtres et les retirer un a un, c'est context-tags ; ce composant
   ne sert qu'a l'ecrire dans une phrase.
 ` + reference('dsfr-data-context-value'),
+  },
+
+  dsfrDataRepeat: {
+    id: 'dsfrDataRepeat',
+    name: 'dsfr-data-repeat',
+    description:
+      'Repeter des instances vivantes : un graphique, un KPI ou un pipeline par ligne, avec identite par cle et imbrication',
+    trigger: [
+      'repeat',
+      'repeter',
+      'repetition',
+      'boucle',
+      'ng-repeat',
+      'un graphique par ligne',
+      'un graphique par question',
+      'un kpi par ligne',
+      'un kpi par service',
+      'n graphiques',
+      'composant par ligne',
+      'instances',
+      'key-field',
+      'petits multiples',
+      'small multiples',
+      'attribut conditionnel',
+      'data-if',
+    ],
+    content:
+      `## <dsfr-data-repeat> - Repeter des instances vivantes : une ligne, un pipeline
+
+Composant de STRUCTURE (ADR-135). Pour chaque ligne de \`source\`, le \`<template>\` enfant est
+CLONE en DOM et ses placeholders resolus noeud par noeud — texte, attributs, et donc les
+composants \`dsfr-data-*\` qu'il contient, rehausses avec leurs attributs deja interpoles.
+C'est la voie native pour « un graphique par question », « un KPI par service ».
+
+**Regle d'usage : \`dsfr-data-display\` quand la ligne est du CONTENU ; \`dsfr-data-repeat\`
+quand la ligne est un PIPELINE.** \`display\` est une liste de resultats (region nommee, compteur
+annonce, pagination, selection). \`repeat\` est transparent : aucun \`role\`, aucun
+\`aria-live\`, aucun compteur, aucune pagination — la structure vient des titres du gabarit.
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| source | String | \`""\` | oui | Id de la source (ou du transformateur) : une ligne = une instance du gabarit. Absent : erreur de configuration |
+| key-field | String | \`""\` | non | Champ qui identifie une ligne entre deux emissions (chemin \`a.b\` accepte). Une cle qui subsiste garde ses noeuds et ses instances. Vide : le rang. Absent des lignes ou en double : erreur nommee, repli sur le rang |
+| per-row | String | \`""\` | non | Lignes par rangee a partir de 768 px : diviseur de 12 (\`1 2 3 4 6 12\`) ou echelle \`"1 md:2 lg:3"\` (grille \`fr-grid-row\` avec gouttieres). Vide : un bloc par ligne. Sans \`cols\` |
+| empty | String | \`""\` | non | Texte rendu quand la source emet zero ligne, dans un \`<p>\` SANS \`role="status"\` (la balise n'annonce rien). Vide : rien |
+
+Variables du gabarit : \`{{$index}}\` (rang, 0-based), \`{{$key}}\` (valeur de \`key-field\`, ou le
+rang), \`{{$uid}}\` (id DOM unique derive de la cle : sur pour \`id=\` et \`aria-labelledby\`).
+
+### Pattern — un graphique par question
+
+\`\`\`html
+<!-- La table des questions (une ligne par question) et les scores (UNE requete) -->
+<dsfr-data-source id="questions" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="bfn-table-de-correspondance" fetch-mode="export" max-records="200"></dsfr-data-source>
+<dsfr-data-source id="scores" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="questions-reponses" fetch-mode="export" max-records="5000"></dsfr-data-source>
+
+<dsfr-data-repeat source="questions" key-field="code_unifie" per-row="1 md:2">
+  <template>
+    <h3 id="{{$uid}}">{{libelle_unifie}}</h3>
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores" where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code_unifie}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"
+      data-if-horizontal="est_long"></dsfr-data-chart>
+  </template>
+</dsfr-data-repeat>
+\`\`\`
+
+### Ce que repeat promet (et que display ne promet pas)
+
+- **Identite par cle.** A une nouvelle emission de \`source\`, une ligne dont la cle subsiste
+  garde ses noeuds : les instances ne sont ni deconnectees ni recreees, leurs attributs sont
+  mis a jour en place ; les cles disparues sont retirees, les nouvelles inserees a leur rang,
+  l'ordre du DOM suit les donnees. Mesure : 119 graphiques re-emis en ~110 ms sans un canvas
+  detruit (display : ~4,7 s, tout recree).
+- **Imbrication.** Un \`<template>\` interieur n'est pas parcouru : un \`dsfr-data-display\`
+  ou un second \`dsfr-data-repeat\` dans le gabarit rend SES propres placeholders.
+- **Attribut booleen conditionnel.** \`data-if-databox="champ"\` pose \`databox\` quand
+  \`champ\` est vrai (ni null, undefined, « », [] ni false) et le retire sinon ;
+  \`data-unless-champ\` inverse. L'attribut de convention est retire du DOM.
+- **Transparence.** \`grep role=\` sur le rendu = 0. C'est l'auteur qui structure (titres) et
+  qui annonce (\`empty\` n'a pas de \`role="status"\`).
+
+### Grammaire du gabarit : la meme, deux differences de sortie
+
+Meme moteur que \`display\` et \`map-popup\` (\`{{chemin[:format[:arg]][|défaut]}}\`,
+\`{{#if}}\`, \`{{#unless}}\`, \`{{#each}}\`), aucune syntaxe nouvelle. Parce que le rendu est
+par noeuds :
+- \`{{{brut}}}\` n'a pas de sens sur un noeud texte : rendu comme \`{{brut}}\` (texte, echappe),
+  avec un avertissement une fois par gabarit. Pour injecter du HTML, c'est \`display\`.
+- Un bloc \`{{#if}}…{{/if}}\` doit tenir dans UN noeud texte ou UNE valeur d'attribut
+  (\`class="{{#if x}}actif{{/if}}"\` marche). Ouvert avant un element et ferme apres
+  (« englober deux \`<p>\` »), il ne peut pas etre un bloc : **erreur de configuration**, et le
+  contenu est rendu quelle que soit la condition. Choisir un sous-arbre entier viendra avec la
+  conditionnelle structurelle (lot 3) ; d'ici la, un element par branche.
+
+### Limites (vraies, dites d'avance)
+
+- Pas de delegation serveur derriere un id scope : une source lue par N queries reste calculee
+  dans le navigateur (regle #765) — la charger EN ENTIER (\`fetch-mode="export"\`,
+  \`max-records\` au volume reel). Ni \`facets\` ni \`search\` ne se repetent.
+- Le bus est plat : deux repeteurs qui fabriquent le meme id (\`q-001\`) se marchent dessus,
+  comme deux auteurs qui ecriraient le meme id. Prefixer par repeteur.
+- Une query par ligne coute N filtres et N renegociations a chaque inscription (#900) ; le
+  lot 2 (\`scopes\`) partitionnera la source une fois.
+- Ne pas poser \`display:block\` sur la balise depuis la page : les lignes sont des \`<div>\`
+  enfants directs, la grille \`per-row\` porte ses classes DSFR.
+` + reference('dsfr-data-repeat'),
   },
 
   dsfrDataJoin: {
@@ -4228,7 +4439,7 @@ compte pas (peut etre place apres les composants).
     id: 'attributeGrammars',
     name: 'Grammaires d’attributs et voies natives',
     description:
-      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap',
+      'Par attribut, la grammaire exacte et la voie native a essayer AVANT d’ecrire un script : split, round, format compact, decimales et unite d’un KPI, format date, compteur de resultats, facettes radio/select/cascade, annee en cours, cles de jointure, valeurs nulles, colonne calculee et recodage (compute, when), fond de carte neutre ou administratif, nom de serie, treemap, un graphique par ligne (composants dans un gabarit de display)',
     trigger: [
       'grammaire',
       'voie native',
@@ -4282,6 +4493,16 @@ compte pas (peut etre place apres les composants).
       'nom de serie',
       'nom de la serie',
       'treemap',
+      'un graphique par ligne',
+      'un graphique par',
+      'un kpi par ligne',
+      'n graphiques',
+      'repeter',
+      'repetition',
+      'boucle',
+      'ng-repeat',
+      'par question',
+      'composant par ligne',
     ],
     content: `## Grammaires d’attributs et voies natives
 
@@ -4586,6 +4807,43 @@ facettes et un nombre ailleurs : ne plus les generer.
 - Meme grammaire sur la **largeur des encarts** de carte, en longueurs CSS :
   \`<dsfr-data-map-inset width="50% md:20%">\` (deux encarts par ligne sur telephone, cinq en bureau).
   Une regle de page \`dsfr-data-map-inset { width: … }\` prime toujours.
+
+### Un graphique par ligne : repeter des composants (display + query par ligne)
+
+Le besoin « N graphiques depuis N lignes » (un \`ng-repeat\` autour d'un \`<ods-chart>\` sur
+Opendatasoft) n'a besoin ni de script ni de composant custom : **le gabarit d'un
+\`dsfr-data-display\` peut contenir des composants \`dsfr-data-*\`**, rehausses comme le reste de
+la page. Le scope de chaque instance est une \`dsfr-data-query\` par ligne dont l'\`id\` et le
+\`where\` sont interpoles, sur une source chargee une fois ; le type se lit dans un champ.
+
+\`\`\`html
+<dsfr-data-display source="questions">
+  <template>
+    <h4>{{libelle}}</h4>
+    <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score" name="{{libelle}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+\`\`\`
+
+- \`type="{{champ}}"\` attend un type DSFR Chart (\`bar\`, \`line\`, \`pie\`…) : recoder avant avec
+  \`dsfr-data-normalize compute="type_graphique = when presentation = 'Courbe' then 'line' else 'bar'"\`.
+- La source scopee (\`scores\`) doit etre **chargee en entier** (\`fetch-mode="export"\`,
+  \`max-records\` releve) : les N \`where\` sont calcules dans le navigateur, jamais delegues.
+- Mesure en 0.30.0 : 119 lignes × (query + graphique) en 410 ms, refiltre des 119 en 29 ms.
+- Limites : pas de display dans un display (les \`{{…}}\` interieurs sont consommes par la ligne
+  exterieure) ; une emission de la source *repetee* detruit et recree toutes les instances
+  (≈ 640 ms pour 119) ; pas de \`facets\` ni \`search\` sur un id scope (pas d'adaptateur
+  derriere) ; un attribut booleen (\`horizontal\`) ne se conditionne pas — deux elements sous
+  \`{{#if}}\` / \`{{#unless}}\`. Detail dans la reference \`dsfr-data-display\`.
+- Corrige en 0.31.0 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
+  reutilise (#893), et le gabarit est recapture quand le bundle est charge dans le \`<head>\`
+  (#894).
+- **Quand la ligne est un pipeline** (identite des instances entre deux emissions, imbrication,
+  attribut booleen conditionnel, aucun compteur ni region), c'est \`dsfr-data-repeat\` :
+  meme gabarit, meme grammaire, rendu par clonage DOM — reference \`dsfr-data-repeat\`.
+  Regle : \`display\` quand la ligne est du contenu, \`repeat\` quand la ligne est un pipeline.
 
 ### Regle generale
 

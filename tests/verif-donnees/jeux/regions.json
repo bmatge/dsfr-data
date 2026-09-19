@@ -1,0 +1,12 @@
+[
+  {"code":"01","region_nom":"Hauts-de-France"},
+  {"code":"02","region_nom":"Hauts-de-France"},
+  {"code":"03","region_nom":"Hauts-de-France"},
+  {"code":"04","region_nom":"Provence-Alpes-Côte d'Azur"},
+  {"code":"05","region_nom":"Occitanie"},
+  {"code":"06","region_nom":"Provence-Alpes-Côte d'Azur"},
+  {"code":"07","region_nom":"Pays de la Loire"},
+  {"code":"","region_nom":"Territoire sans code"},
+  {"code":"20","region_nom":"Corse"},
+  {"code":"21","region_nom":"Nouvelle-Aquitaine"}
+]

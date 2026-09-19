@@ -1,0 +1,14 @@
+[
+  {"code":"01","zone":"nord","quota":0,"indice":100,"poids":1000,"lat":50.63,"lon":3.06,"mois":"2026-01","flux":10},
+  {"code":"02","zone":"nord","quota":"","indice":120,"poids":200,"lat":50.29,"lon":2.78,"mois":"2026-02","flux":20},
+  {"code":"03","zone":"nord","quota":5,"indice":90,"poids":400,"lat":49.89,"lon":2.3,"mois":"2026-03","flux":5},
+  {"code":"04","zone":"sud","quota":0,"indice":140,"poids":3000,"lat":43.3,"lon":5.37,"mois":"2026-01","flux":40},
+  {"code":"05","zone":"sud","quota":"","indice":60,"poids":100,"lat":43.61,"lon":3.88,"mois":"2026-02","flux":15},
+  {"code":"06","zone":"sud","quota":12,"indice":110,"poids":900,"lat":43.7,"lon":7.27,"mois":"2026-03","flux":25},
+  {"code":"07","zone":"ouest","quota":3,"indice":80,"poids":600,"lat":47.22,"lon":-1.55,"mois":"2026-01","flux":30},
+  {"code":"08","zone":"ouest","quota":"","indice":95,"poids":250,"lat":48.11,"lon":-1.68,"mois":"2026-02","flux":12},
+  {"code":"","zone":"ouest","quota":7,"indice":105,"poids":350,"lat":47.75,"lon":-3.37,"mois":"2026-03","flux":8},
+  {"code":null,"zone":"est","quota":9,"indice":130,"poids":800,"lat":48.58,"lon":7.75,"mois":"2026-01","flux":22},
+  {"code":"11","zone":"est","quota":0,"indice":70,"poids":150,"lat":47.32,"lon":5.04,"mois":"2026-02","flux":18},
+  {"code":"12","zone":"est","quota":4,"indice":115,"poids":500,"lat":48.69,"lon":6.18,"mois":"2026-03","flux":33}
+]

@@ -27,6 +27,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SKILLS } from '../apps/builder-ia/src/skills.js';
 import { splitSkillContent, availableSections } from '../apps/builder-ia/src/skills-sections.js';
+import { readMarkdownSkills } from './lib/markdown-skills-fs.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -34,11 +35,18 @@ const outDir = resolve(root, 'packages/core/dist');
 
 mkdirSync(outDir, { recursive: true });
 
+// Skills ecrites a la main dans skills/<nom>/ (ADR-136) : la skill metier
+// `dataviz-metier` n'a pas de source dans le code, son markdown EST la source.
+// Elle est AJOUTEE apres les skills du builder-IA, jamais melangee : le
+// builder-IA (`getRelevantSkills` sur SKILLS) ne la voit pas, le serveur MCP
+// et le client skills du studio (qui lisent skills.json) la voient.
+const markdownSkills = readMarkdownSkills(resolve(root, 'skills'));
+
 // `content` reste l'agregat historique : les consommateurs deja en place
 // (https://chartsbuilder.miweb.run/dist/skills.json) ne voient aucun changement.
 // `sections` est additif — le serveur MCP s'en sert pour `get_skill(id, section)`
 // sans rejouer le decoupage de son cote (#513).
-const skills = Object.values(SKILLS).map((s) => ({
+const skills = [...Object.values(SKILLS), ...markdownSkills].map((s) => ({
   id: s.id,
   name: s.name,
   description: s.description,
@@ -92,7 +100,7 @@ writeFileSync(metaPath, `${JSON.stringify(meta, null, 2)}\n`);
 
 const bytes = Buffer.byteLength(JSON.stringify(skills), 'utf-8');
 console.log(
-  `skills.json generated (${skills.length} skills, ${(bytes / 1024).toFixed(1)} Ko) -> ${outPath}`
+  `skills.json generated (${skills.length} skills dont ${markdownSkills.length} écrite(s) à la main : ${markdownSkills.map((s) => s.id).join(', ') || '—'}, ${(bytes / 1024).toFixed(1)} Ko) -> ${outPath}`
 );
 console.log(
   `skills-meta.json generated (lib ${meta.libVersion}, commit ${meta.commit}, ${meta.generatedAt}) -> ${metaPath}`

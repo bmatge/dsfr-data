@@ -1,0 +1,8 @@
+[
+  {"code":"01","libelle":"Alpha","valeur":10},
+  {"code":"02","libelle":"Bravo","valeur":20},
+  {"code":"03","libelle":"Charlie","valeur":30},
+  {"code":"99","libelle":"Zoulou","valeur":40},
+  {"code":"","libelle":"Vide","valeur":50},
+  {"code":null,"libelle":"Absent","valeur":60}
+]

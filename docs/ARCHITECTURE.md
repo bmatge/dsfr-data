@@ -42,6 +42,15 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
          │
          └──► dsfr-data-a11y (companion accessibilite : tableau, CSV, description)
 
+  Noeud de STRUCTURE (ADR-135, #890) — une ligne de donnees, un pipeline :
+
+  dsfr-data-source (questions) ──► dsfr-data-repeat key-field="code"
+                                       │  <template> clone en DOM par ligne, attributs interpoles
+                                       │  AVANT insertion, identite des instances par cle
+                                       ├──► dsfr-data-query id="q-{{code}}" source="scores" ──► dsfr-data-chart
+                                       ├──► dsfr-data-query id="q-{{code}}" … ──► dsfr-data-chart
+                                       └──► … (une instance du gabarit par ligne)
+
   Tier d'orchestration OPT-IN (#224, ADR-031) — dashboard a filtre commun :
 
   UI natives (select, input...) ──► dsfr-data-context ──┬──► commandes where (whereKey stable/filtre)
@@ -95,6 +104,7 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - **dsfr-data-context** (opt-in, #224/ADR-031) orchestre des filtres transverses multi-sources : il ecoute des UI natives via ses enfants `dsfr-data-context-filter` et diffuse des commandes `where` a N sources nommees (un `whereKey` stable par filtre -> AND par le merge multi-emetteurs ; jamais « le dernier gagne »). Clause construite en colon puis traduite au `whereFormat` de chaque adapter. `url-sync` (defaut OFF) serialise les filtres dans l'URL (l'intention, pas les dates resolues). Sans contexte, chaque source reste autonome.
 - **Un seul bus de diffusion (#678, ADR-104, amende ADR-031)** : le contrat que le contexte attend d'un filtre est l'interface lib-safe `ContextFilterLike` (`packages/shared/src/query/context-filter.ts` : `field`, `applyTo`, `buildColonWhere()`, `displayLabel()`, `displayValue()`, `clear()`, `urlValue()`, `isConnected`). `dsfr-data-facets context="id"` s'enregistre **une fois par champ** (objet `FacetFieldFilter` : `eq` une valeur, `in` plusieurs), `dsfr-data-search context="id"` comme filtre `contains` sur le champ unique de `fields`, `dsfr-data-context-filter context="id"` peut vivre hors du contexte (repli `closest`). En mode `context`, facets et search **n'emettent plus** de `dsfr-data-source-command` (`_dispatchFacetCommand` est un no-op) et leur `url-sync`/`url-params` propre est ignore : le contexte porte l'URL, un parametre par champ (migration : reporter `url-param-map` sur le contexte). Facets continue de calculer valeurs, compteurs et cascade sur sa `source` — en `server-facets`, le where de base de la cascade exclut ses propres whereKeys (`getEffectiveWhere(string[])`, sinon chaque facette ne proposerait plus que sa selection quand sa source est aussi une cible). **Enregistrement tardif** : le contexte emet `dsfr-data-context-connected { id }` sur `document` a sa connexion ; un composant `context="id"` dont le contexte n'est pas encore la pose une erreur de config et s'enregistre a ce signal. **whereKey** = `uid + champ` (suffixe `-2` pour un second filtre sur le meme champ, AND conserve) : stable a l'insertion tardive, l'ancien index d'ordre DOM decalait les cles. `context-tags` liste `activeFilters()` quel que soit le type. Demonstration : `tests/context-facets-search.test.ts` (page « Comptabilite generale » sans `<option>` en dur).
 - **dsfr-data-context-value** (#742) rend la valeur courante d'un filtre dans une phrase (« Resultats pour {{departement}} ») la ou `context-tags` ne sait que lister. Il lit le registre `utils/context-registry.ts` par une vue structurelle, **sans importer `dsfr-data-context`** (meme precaution que #681 : la carte est dans un autre bundle, un import redefinirait le tag). Region live **opt-in** (`live`), a poser sur un seul element. Un `{{champ}}` non resolu bascule sur `fallback` en entier. Enregistre dans `index.ts` et `index-core.ts`, absent du bundle map.
+- **dsfr-data-repeat** (#890, ADR-135) est le seul noeud de **structure** : il ne rend pas la donnee, il fabrique des instances — pour chaque ligne de `source`, le `<template>` enfant est clone en DOM (`utils/template-clone.ts`) et ses placeholders resolus noeud par noeud avec le `renderTemplate` partage (`escape: false`) ; les composants du gabarit sont rehausses avec leurs attributs deja interpoles. `key-field` donne l'identite : a une re-emission, une cle qui subsiste garde ses noeuds (mise a jour en place), jamais de deconnexion-recreation sous le meme id. Rendu transparent (aucun `role`, aucun compteur). Regle d'usage : `display` quand la ligne est du contenu, `repeat` quand la ligne est un pipeline. `SourceSubscriberMixin` ; au lot 2 (`scopes`, #891) il emettra.
 - **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees ; ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
 - **dsfr-data-map-layer** projete les donnees sur la carte (marker, geoshape, circle, heatmap). Chaque layer a sa propre source → multi-source naturel.
 - Le viewport-driven fetch (`bbox`) envoie des commandes `dsfr-data-source-command` avec `whereKey: "map-bbox"` pour le merge avec les autres filtres.
@@ -792,9 +802,9 @@ et compare) :
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
 |---|---|---|
 | Alimentation | fixtures du dépôt, servies par `page.route` | vraies API du banc d'essai, retéléchargées (mises en cache par URL pour la durée du run) |
-| Attendu | recalculé dans le run, depuis les **mêmes** lignes | `tools/oracle/out/expected.json`, produit juste avant le rendu |
-| Commande | `npm run verif` | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
-| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
+| Attendu | recalculé dans le run, depuis les **mêmes** lignes — et, troisième voix, `tests/verif-donnees/attendus.json` (Python, **versionné**) | `tools/oracle/out/expected.json`, produit juste avant le rendu — avec l'empreinte du jeu et le recoupement serveur |
+| Commande | `npm run verif` ; `npm run verif:attendus` régénère les attendus Python | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
+| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR ; job `attendus` : un attendu Python qui change sans être committé est un échec | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
 | Réseau | aucun (toute sortie inattendue fait échouer) | requis |
 
 **Le moteur** — `tools/oracle/`, hors du périmètre de la lib : `manifest.ts` (la grammaire, types
@@ -893,8 +903,50 @@ de son auteur, pas entre deux implémentations du même contrat — le débat su
 tranche dans la lib (une issue, une ADR), pas dans `tools/oracle`. Et là où la documentation ne dit
 rien, c'est l'oracle qui **énonce**, en toutes lettres, et la mutation qui garde.
 
-> Procédure complète — ajouter un contrôle, écrire une alimentation vivante, prouver une mutation,
-> lire le rapport : **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
+**Trois voix, deux régimes** (epic #886, lots 1 à 7, amendement de l'ADR-122). Le garde d'imports
+garantit que l'oracle n'emprunte rien à la lib ; il ne garantit pas qu'il ne *pense pas comme
+elle* — mêmes auteurs, même langage. D'où ce que la catégorie a gagné depuis :
+
+- **les silences** (#878) — un `Expect` `diagnostic` et le lecteur `lireDiagnostics` (marqueur
+  `data-dsfr-config-error`, journal des `console.warn` / `console.error` de la lib) : un contrôle
+  peut exiger que la bibliothèque **parle**, et dise quoi, ou qu'elle se taise. Les trois chiffres
+  faux du 18/09 avaient zéro erreur console ;
+- **la troisième voix** (#880) — `tools/oracle-py/oracle.py`, **Python standard, jamais pandas**
+  (`sum` toute-NaN = 0 et `groupby` qui supprime le groupe null reproduiraient les bugs au lieu de
+  les dénoncer) ; les jeux du régime déterministe en JSON partagés (`tests/verif-donnees/jeux/`,
+  #879), les attendus **versionnés** (`tests/verif-donnees/attendus.json`, `npm run verif:attendus`),
+  la rencontre TS ↔ Python sans navigateur (`tests/oracle/attendus.test.ts`) et le job `attendus`
+  de `verif-donnees.yml` qui refuse un attendu non committé — sur les **valeurs** seules : l'en-tête
+  du fichier gardé ne porte aucune métadonnée d'environnement, la version de l'interpréteur vit dans
+  `tools/oracle/out/attendus-provenance.json` (ignoré par git) et le workflow épingle Python 3.11,
+  faute de quoi le garde-fou rougissait sur cette seule ligne, toutes valeurs égales. Le régime
+  déterministe seul : en vivant, un attendu figé se périme au premier changement de données ;
+- **les invariants** (#881) — `sum-preserved`, `count-preserved`, `count-equals`, `null-group`,
+  `bounded`, `null-stays-null`, `not-truncated`, évalués sur ce que la page montre **contre les
+  lignes brutes, jamais contre l'attendu** ;
+- **le canari** (#882) — `jeux/canari.json`, quarante lignes écrites à la main, un contrôle par
+  piège payé par le banc, chacun citant le registre ;
+- **le recoupement serveur** (#883, vivant) — l'agrégation Opendatasoft elle-même comme troisième
+  voix vivante, clauses écrites à la main, sous quota, avec un **verdict à trois chiffres** ;
+- **le verdict d'une nuit rouge** (#884, vivant) — empreinte du jeu et `data_processed` du portail :
+  **bibliothèque** (l'échec est **gelé** en contrôle déterministe sous `tests/verif-donnees/gel/`,
+  rouge sans réseau jusqu'au correctif), **donnée** (rejoué une fois dans le run), **indéterminé**.
+  Règle de vie : une nuit rouge est gelée ou requalifiée sous 24 h, jamais un troisième état.
+
+**Ce que la catégorie ne couvre pas**, écrit noir sur blanc :
+
+- les erreurs d'auteur de page que la bibliothèque ne peut pas voir (source hors contexte, mauvais
+  jeu de données) : le dispositif garde le *chiffre de la page réelle* en vivant, la garde durable
+  est un oracle de page côté banc ;
+- les pixels, la mise en page, l'accessibilité : `e2e/` et `e2e-layout.yml` ;
+- les expressions `derive` (ADR-105) en Python, tant qu'une seconde réécriture de la grammaire n'est
+  pas décidée — 21 attentes restent à deux voix ;
+- la qualité de la donnée source (LIM-003, LIM-015, LIM-016) : aucun oracle ne répare un jeu faux ;
+- les API sans métadonnée de fraîcheur (Tabular, Melodi) : verdict `indéterminé`.
+
+> Procédure complète — ajouter un contrôle, un canari, un attendu Python, un recoupement, traiter
+> une nuit rouge, prouver une mutation, lire le rapport :
+> **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
 
 ### Structure
 
@@ -1111,6 +1163,9 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 - **`reuseExistingServer` fait tester le worktree du voisin** (appris aux lots de la vérification des données) — `e2e/playwright.config.ts:16`, port 5173 (`:15`). Playwright démarre `npm run dev` lui-même, **sauf** si le port répond déjà : il réutilise alors ce serveur, quel que soit le checkout qui le sert. Avec plusieurs worktrees ouverts en parallèle (le cas normal d'un plan en lots), `npm run verif`, `npm run test:e2e` et les specs de mise en page éprouvent les **sources d'un autre worktree** — et une preuve de mutation passe au vert à tort, puisque le défaut injecté ici n'est pas dans le code servi là-bas. Le symptôme est muet : tout est vert. **Réflexe** : `lsof -i :5173` avant de lancer ; si le port est pris par un autre checkout, démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la configuration Playwright.
 
+- **Le gabarit d'un `dsfr-data-display` peut contenir des composants `dsfr-data-*`** (voie native « un graphique par ligne », documentée dans `docs/USER-GUIDE.md`, la skill `attributeGrammars` et `specs/components/dsfr-data-display.html`, verrouillée par `tests/dsfr-data-display.test.ts`) — `packages/core/src/components/dsfr-data-display.ts:444-449` (`.innerHTML` du conteneur Lit). Une `dsfr-data-query id="q-{{clé}}" where="clé:eq:{{clé}}"` par ligne scope une source chargée une fois ; N lectrices ⇒ chaîne partagée ⇒ `where` client, sans avertissement (point #765 ci-dessus). Mesuré en 0.30.0 : 119 × (query + chart) en 410 ms, refiltre en 29 ms. **Trois couplages à connaître avant de toucher display ou les mixins** : (a) toute émission de la source répétée réécrit l'`innerHTML` entier, donc détruit et recrée les instances (≈ 640 ms pour 119 graphiques) — toujours vrai ; (b) à cette re-création, le navigateur connecte les NOUVELLES instances **avant** de déconnecter les anciennes (mesuré sous Chromium ; happy-dom ordonne l'inverse, donc un test qui se contente de réécrire l'`innerHTML` ne voit rien), si bien que la purge de cache au `disconnectedCallback` emportait celui de l'instance homonyme qui venait de le remplir — **corrigé en 0.31.0** (#893) : `TransformerMixin.disconnectedCallback` (`utils/transformer-mixin.ts:462-470`) et `dsfr-data-source.disconnectedCallback` (`dsfr-data-source.ts:360-367`) ne purgent que si `document.getElementById(this.id)` ne rend plus rien ; (c) `_captureTemplate` lit le `<template>` à `connectedCallback` (`display.ts:227-241`) : bundle chargé dans `<head>` sans `defer`, le gabarit n'est pas encore analysé — le repli de `render()` ne rattrape que s'il y a un rendu ultérieur, d'où **une seconde capture à `DOMContentLoaded`, corrigée en 0.31.0** (#894), sur le modèle de `dsfr-data-map-popup.ts:77-80`. Un display dans le gabarit d'un display ne fonctionne pas : la passe unique de `renderTemplate` (`utils/template-expression.ts:337-357`) substitue aussi les `{{…}}` du `<template>` intérieur avec la ligne extérieure, sans échappement possible.
+
+- **`dsfr-data-repeat` : Lit ne rend pas dans `this`** (#890) — `dsfr-data-repeat.ts`, `createRenderRoot()`. Le composant est en light DOM comme les autres, mais sa racine de rendu Lit est un `<div class="dsfr-data-repeat__status">` enfant, pas `this` : une `ChildPart` Lit s'etend de son marqueur a la **fin du parent**, et tout noeud rattache apres (les lignes, gerees a la main par `_renderRows`) serait emporte au re-rendu suivant — vu en test : `empty` rendu puis `nothing`, lignes disparues. Les lignes vivent dans un frere (`__rows`), hors de portee de Lit. **Second couplage** : le clone d'un `<template>` est **rehausse des `importNode`** (constructeur execute, `id` encore egal a `q-{{code}}`) — c'est l'init a `connectedCallback` des deux mixins (#281) qui garantit qu'aucun abonnement ne part sous un placeholder ; un composant qui lirait `source` ou `id` dans son constructeur verrait le placeholder. Verifie en Chromium par `e2e/repeat.spec.ts` ; happy-dom connecte avant de rattacher les enfants, d'ou le `MutationObserver` sur `childList` qui attend le `<template>` (aussi le cas reel du bundle dans `<head>`, #894).
 - **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission d'un ancien domaine (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
 
 ---

@@ -80,6 +80,15 @@ empiler une région live de page par-dessus (#654).
 <dsfr-data-list source="sites" columns="nom:Nom, ministere:Ministere, score_rgaa:Score" search filters="ministere" sort="score_rgaa:desc" pagination="20" export="csv"></dsfr-data-list>
 ```
 
+### Un composant par ligne : le display comme repeteur
+
+Pour **N graphiques (ou KPI) depuis N lignes**, ne pas generer N blocs HTML ni de script : le
+gabarit d'un `dsfr-data-display` peut contenir des composants `dsfr-data-*`, avec une
+`dsfr-data-query id="q-{{cle}}" where="cle:eq:{{cle}}"` par ligne pour scoper une source
+chargee une fois, et `type="{{champ}}"` pour choisir le type. Grammaire, mesures et limites
+(pas d'imbrication, re-creation a chaque emission de la source repetee) dans
+`attributeGrammars` § « Un graphique par ligne » et dans la reference `dsfr-data-display`.
+
 ### Strategie de chargement : `server-side` ou tout charger (ADR-109)
 
 Une balise de source est emise UNE FOIS et partagee par tous ses consommateurs. La strategie se

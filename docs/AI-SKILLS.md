@@ -15,6 +15,14 @@ Les trois sont produits par la même chaîne et disent la même chose ; la skill
 MCP découpent chaque skill en sections (`guide`, `reference`, `exemples`, `pieges`) pour ne
 charger que l'utile.
 
+À côté de la skill **technique** générée vit une skill **métier écrite à la main**,
+[`skills/dataviz-metier/`](../skills/dataviz-metier/README.md) (ADR-136) : le regard d'une agence
+de dataviz et d'un datajournaliste — quelle question, pour quel lecteur, quelle forme, échelles
+honnêtes, sens des variations, phrase de lecture, tableau équivalent, ce qu'on ne montre pas —
+chaque règle ancrée dans un cas du banc d'essai open-data-viz et traduite en geste `dsfr-data`.
+Elle suit le même chemin que la skill technique : `skills.json`, serveur MCP, `skills:install`
+(voir § 1 bis).
+
 ## 1. Skill Claude Code (`skills/dsfr-data/`)
 
 Installation par outil (Claude Code, Codex, Cursor, Gemini CLI, Copilot…) : voir
@@ -40,10 +48,11 @@ intégrez dsfr-data dans un autre site :
 npm run skills:install -- --global
 ```
 
-Le script crée un lien symbolique `.claude/skills/dsfr-data` (ou `~/.claude/skills/dsfr-data`)
-vers `skills/dsfr-data/` : la skill suit vos `git pull` sans réinstallation. Sur un poste sans
-droit de créer des liens (Windows), ajoutez `--copy` (à relancer après chaque mise à jour).
-`--uninstall` retire le lien.
+Le script crée un lien symbolique `.claude/skills/<nom>` (ou `~/.claude/skills/<nom>`) vers
+chaque dossier `skills/<nom>/` porteur d'un `SKILL.md` — la skill générée **et** les skills
+écrites à la main : elles suivent vos `git pull` sans réinstallation. Sur un poste sans droit de
+créer des liens (Windows), ajoutez `--copy` (à relancer après chaque mise à jour). `--only <nom>`
+n'installe qu'une skill ; `--uninstall` retire les liens.
 
 Vérifier : ouvrir Claude Code dans le repo et demander par exemple *« un graphique en barres
 dsfr-data sur un dataset OpenDataSoft groupé par région »* — la réponse doit citer la référence
@@ -61,6 +70,30 @@ Les skills du builder-IA citent l'instance qui les sert (proxy, URL de la biblio
 est **indépendant du poste** : `https://VOTRE_INSTANCE/dist` désigne l'URL de la bibliothèque
 (CDN `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist`, ou `/dist` de votre instance) et les chemins
 `/…-proxy/` sont relatifs à votre instance Charts builder.
+
+## 1 bis. Skills écrites à la main (`skills/<nom>/`, ADR-136)
+
+Une skill qui n'a pas de source dans le code — la skill métier `dataviz-metier` — vit dans un
+dossier frère de la skill générée, au même format (`SKILL.md` avec frontmatter `name` /
+`description`, une ligne « Déclencheurs : … », `references/*.md`). Son markdown **est** la
+source : on l'édite directement, et `npm run build:skills` ne la touche pas.
+
+Pour qu'elle voyage par le même canal que la skill technique, `scripts/build-skills-json.ts`
+ajoute à `skills.json` toute skill markdown trouvée dans `skills/` hors dossier généré
+(`scripts/lib/markdown-skills.ts` : id camelCase dérivé du dossier — `dataviz-metier` →
+`datavizMetier` —, déclencheurs lus sur la ligne « Déclencheurs », contenu autoportant = corps du
+`SKILL.md` puis références concaténées). Le serveur MCP et le client skills du studio la servent
+donc comme les autres (`list_skills`, `get_relevant_skills`, `get_skill("datavizMetier")`) ;
+`skills-meta.json` la compte.
+
+Ce que ce chemin **ne couvre pas** : le builder-IA lit `SKILLS` (`apps/builder-ia/src/skills.ts`)
+directement, pas `skills.json` — il ne voit pas les skills markdown. Les y faire entrer est une
+décision à part (ADR-136, § Révision).
+
+Garde : `tests/skills-markdown.test.ts` vérifie la forme (même frontmatter que la skill générée,
+références citées ⇔ présentes, id sans collision) et que la skill remonte par le moteur de
+matching partagé sur des questions métier sans passer devant la skill technique sur une question
+de syntaxe.
 
 ## 2. Serveur MCP (`mcp-server/`)
 
@@ -123,3 +156,7 @@ npm run build:skills
 régénère le manifeste custom-elements, la référence, le moteur de matching du MCP, `skills.json`
 **et** `skills/dsfr-data/`. Les fichiers générés sont commités ; un test (`tests/skills-export.test.ts`)
 échoue si l'export n'est plus le rendu exact des skills. Ne jamais éditer `skills/dsfr-data/` à la main.
+
+Une skill écrite à la main (`skills/dataviz-metier/`) se met à jour en éditant son markdown ;
+`npm run build:skills` la reprend dans `skills.json`, et `tests/skills-markdown.test.ts` en
+vérifie la forme.

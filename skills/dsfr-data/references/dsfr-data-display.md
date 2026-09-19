@@ -2,7 +2,7 @@
 
 > Affichage dynamique de données via template HTML (cartes, tuiles, listes)
 >
-> Déclencheurs : cartes, carte, tuiles, tuile, cards, tiles, display, template, affichage, liste de resultats, motif repetitif
+> Déclencheurs : cartes, carte, tuiles, tuile, cards, tiles, display, template, affichage, liste de resultats, motif repetitif, un graphique par ligne, un kpi par ligne, composant par ligne, repeter, ng-repeat
 
 ## <dsfr-data-display> - Affichage dynamique via template
 
@@ -71,6 +71,83 @@ toujours, un pipe produisant du HTML ouvrirait une surface d'injection.
 
 Recette de transition (versions antérieures à 0.22, sans bloc) : rendre le lien toujours et le
 masquer en CSS quand l'attribut est vide — `a[href=""] { display: none; }`.
+
+### Un composant dsfr-data par ligne : le gabarit peut contenir des composants
+
+Le gabarit n'est pas limite a du HTML inerte : il est rendu par `innerHTML`, donc les
+composants `dsfr-data-*` qu'il contient sont rehausses comme n'importe quel element de la
+page. C'est **la voie native pour repeter un graphique, un KPI ou une liste sur les lignes
+d'une source** — l'equivalent d'un `ng-repeat` autour d'un `<ods-chart>` — et elle tient en
+trois idees :
+
+1. **Repeter** : le `<template>` du display contient le ou les composants.
+2. **Scoper** : une `dsfr-data-query` par ligne, dont l'`id` et le `where` sont interpoles
+   (`id="q-{{code}}" where="code:eq:{{code}}"`), filtre pour cette ligne une source
+   **deja chargee en entier**. Les composants de la ligne consomment cet id.
+3. **Choisir le type depuis un champ** : `type="{{champ}}"` — un recodage prealable par
+   `dsfr-data-normalize compute="type_graphique = when … then 'line' else 'bar'"` si le
+   jeu ne porte pas directement un type DSFR Chart.
+
+```html
+<!-- La table des questions : une ligne par question -->
+<dsfr-data-source id="questions" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="bfn-table-de-correspondance"
+  fetch-mode="export" max-records="200"></dsfr-data-source>
+<!-- Les scores : UNE requete, chargee une fois — les queries du gabarit filtrent en local -->
+<dsfr-data-source id="scores" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="questions-reponses"
+  select="code_unifie, annee, score" where="region = 'Toutes régions'"
+  fetch-mode="export" max-records="5000"></dsfr-data-source>
+
+<dsfr-data-display source="questions" per-row="1 md:2">
+  <template>
+    <h4>{{libelle_unifie}}</h4>
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores"
+      where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code_unifie}}" type="bar"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-display>
+```
+
+Mesure (0.30.0, Chromium headless, sources inline) : 119 lignes × (query + graphique) rendues
+en **410 ms** jusqu'au 119e canvas ; une re-emission de la source des scores — ce que fait un
+filtre de `dsfr-data-context` — fait re-emettre les 119 queries en **29 ms** ; aucune erreur.
+Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs `document` par type d'evenement).
+
+**Les limites, ecrites :**
+
+- **Pas d'imbrication.** Un `dsfr-data-display` dans le gabarit d'un autre ne marche pas : la
+  passe de substitution consomme aussi les `{{…}}` du `<template>` interieur avec la ligne
+  exterieure (champ inconnu → chaine vide), et il n'existe pas d'echappement de `{{`. Le
+  niveau exterieur s'ecrit en HTML statique (un accordeon par chapitre, un display par accordeon).
+- **Re-creation totale.** Chaque emission de la source *repetee* reecrit tout l'`innerHTML` :
+  les composants sont detruits et recrees (119 graphiques : ≈ 640 ms, remontage Vue/Chart.js).
+  Garder la source repetee stable (une table de reference) ; le filtre transverse doit viser la
+  source *scopee* (`scores`), dont la re-emission ne touche que les queries.
+- **Pas de delegation serveur derriere un id scope.** La query du gabarit lit une source
+  partagee par N lectrices : son `where` reste client, sans avertissement — c'est voulu (un
+  fetch, N filtres). Les composants qui ont besoin d'un adaptateur (`dsfr-data-facets`,
+  `dsfr-data-search`) ne fonctionnent pas branches sur `q-{{…}}`.
+- **Un attribut booleen ne se conditionne pas** dans la balise (`horizontal`) : ecrire deux
+  elements complets sous `{{#if champ}}…{{/if}}` et `{{#unless champ}}…{{/unless}}`.
+
+**Deux limites levees en 0.31.0 :**
+
+- **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
+  purgeait a sa deconnexion le cache de son `id`, que la nouvelle venait de remplir : un
+  consommateur monte plus tard sur `q-001` lisait du vide. La purge n'a desormais lieu que si
+  plus aucun element du document ne porte cet `id` (meme garde dans `dsfr-data-source`).
+- **Le gabarit est recapture** (#894). Charge en `<head>` sans `defer`, le display capturait
+  son `<template>` avant qu'il soit analyse et ne rendait rien ; une seconde capture a lieu a
+  la fin de l'analyse du document. Charger le bundle **en fin de body** (ou en
+  `type="module"`) reste la pose recommandee.
+
+**Ce qui n'est pas leve, et n'a pas a l'etre ici :** l'identite des instances a la re-emission,
+l'imbrication et les attributs booleens conditionnels sont le contrat de `dsfr-data-repeat`
+(composant de structure, ADR-135). Regle d'usage : **`display` quand la ligne est du contenu,
+`repeat` quand la ligne est un pipeline.** L'exemple ci-dessus reste valide tel quel.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |

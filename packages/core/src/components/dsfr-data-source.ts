@@ -347,10 +347,20 @@ export class DsfrDataSource extends LitElement {
     this._setupCommandListener();
   }
 
+  /**
+   * Purge du cache de l'id — SEULEMENT si plus aucun élément du document ne le
+   * porte, même garde que `TransformerMixin.disconnectedCallback` (#893).
+   *
+   * Le gabarit d'un `dsfr-data-display` peut porter une source par ligne (`id`
+   * et `data`/`url` interpolés) : à chaque émission de la source répétée,
+   * l'`innerHTML` est réécrit et le navigateur connecte les NOUVELLES instances
+   * avant de déconnecter les anciennes. Purger sans regarder vidait le cache que
+   * la nouvelle instance homonyme venait de remplir.
+   */
   disconnectedCallback() {
     super.disconnectedCallback();
     this._cleanup();
-    if (this.id) {
+    if (this.id && !document.getElementById(this.id)) {
       clearDataCache(this.id);
       clearDataMeta(this.id);
     }
