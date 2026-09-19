@@ -48,7 +48,15 @@ export type Agg =
 export type RowFilter =
   | {
       field: string;
-      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notcontains';
+      /**
+       * `eq-strict` : l'égalité de la FORME TEXTE, sans lecture numérique —
+       * `'1'` et `1` s'écrivent pareil et s'égalent, `'01'` n'égale ni l'un ni
+       * l'autre, un absent n'égale rien. C'est ce qu'un filtre de contexte
+       * délégué à un serveur obtient sur un code (PG-030 : « aucune ligne pour
+       * un code à zéro de tête »), à l'inverse de l'égalité lâche du client
+       * (`eq`), pour qui `'01'` vaut `1`.
+       */
+      op: 'eq' | 'eq-strict' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notcontains';
       value: string | number;
       /**
        * Compare sans accents ni casse (`eq` et `contains`) — ce que fait une
@@ -186,6 +194,12 @@ export type Step =
     }
   /** Colonnes calculées : la MÊME expression que l'attribut `compute`, réévaluée à part. */
   | { op: 'derive'; expr: string }
+  /**
+   * Éclate un champ MULTIVALUÉ (tableau) : une ligne par valeur, le champ
+   * portant cette valeur ; une ligne sans tableau (absent, vide) n'en produit
+   * aucune. C'est ce qu'une facette fait d'un champ tableau (BUG-006).
+   */
+  | { op: 'explode'; field: string }
   /** Repli long → large, symétrique de `unpivot` (`dsfr-data-pivot`). */
   | {
       op: 'pivot';
