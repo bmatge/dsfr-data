@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 348 attributs.
+ * 28 balises, 360 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -182,6 +182,7 @@ export const COMPONENT_CONTRACT = {
   },
   "dsfr-data-kpi": {
     "attributes": [
+      "border",
       "col",
       "color-token",
       "decimals",
@@ -189,13 +190,23 @@ export const COMPONENT_CONTRACT = {
       "format",
       "heading",
       "icon",
+      "icon-position",
+      "icon-size",
       "idle-message",
+      "image",
+      "image-alt",
+      "image-position",
       "label",
       "lines",
+      "orientation",
+      "picto",
+      "picto-base",
+      "picto-field",
       "source",
       "span",
       "threshold-green",
       "threshold-orange",
+      "tint",
       "trend",
       "unit",
       "value",
@@ -215,6 +226,7 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "cols",
       "gap",
+      "orientation",
       "per-row"
     ]
   },

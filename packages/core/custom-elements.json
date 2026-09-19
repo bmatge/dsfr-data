@@ -8074,6 +8074,16 @@
               "default": "'md'",
               "description": "Espacement entre KPIs : sm (0.5rem), md (1rem), lg (1.5rem)",
               "attribute": "gap"
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical' | string"
+              },
+              "default": "'horizontal'",
+              "description": "`horizontal` (défaut : la grille 12 colonnes) ou `vertical` : les KPI\nsont EMPILÉS en colonne dans un seul cadre — un liseré gauche continu\nporté par le groupe, un filet entre les items, valeur à 2 rem, icône ou\npictogramme à 2,5 rem à gauche du texte (planche kpi-evolutions, 1e).\nCompact, pour une barre latérale ou un encart. `per-row`, `cols`, `span`\net `gap` sont sans effet dans ce mode. Les KPI enfants perdent leur\npropre liseré (règle portée par `dsfr-data-kpi`, sur le sélecteur\n`dsfr-data-kpi-group[orientation=\"vertical\"]`) — ils sont lus au rendu :\nun changement d'orientation APRÈS le montage ne les remet pas en forme.\nLe liseré du groupe est bleu info ; il ne suit pas le `color-token` des\nenfants.",
+              "attribute": "orientation"
             }
           ],
           "attributes": [
@@ -8103,6 +8113,15 @@
               "default": "'md'",
               "description": "Espacement entre KPIs : sm (0.5rem), md (1rem), lg (1.5rem)",
               "fieldName": "gap"
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical' | string"
+              },
+              "default": "'horizontal'",
+              "description": "`horizontal` (défaut : la grille 12 colonnes) ou `vertical` : les KPI\nsont EMPILÉS en colonne dans un seul cadre — un liseré gauche continu\nporté par le groupe, un filet entre les items, valeur à 2 rem, icône ou\npictogramme à 2,5 rem à gauche du texte (planche kpi-evolutions, 1e).\nCompact, pour une barre latérale ou un encart. `per-row`, `cols`, `span`\net `gap` sont sans effet dans ce mode. Les KPI enfants perdent leur\npropre liseré (règle portée par `dsfr-data-kpi`, sur le sélecteur\n`dsfr-data-kpi-group[orientation=\"vertical\"]`) — ils sont lus au rendu :\nun changement d'orientation APRÈS le montage ne les remet pas en forme.\nLe liseré du groupe est bleu info ; il ne suit pas le `color-token` des\nenfants.",
+              "fieldName": "orientation"
             }
           ],
           "superclass": {
@@ -8136,6 +8155,25 @@
       "kind": "javascript-module",
       "path": "packages/core/src/components/dsfr-data-kpi.ts",
       "declarations": [
+        {
+          "kind": "variable",
+          "name": "ILLUSTRATIVE_COLOR_TOKENS",
+          "type": {
+            "text": "[\n  'green-tilleul-verveine',\n  'green-bourgeon',\n  'green-emeraude',\n  'green-menthe',\n  'green-archipel',\n  'blue-ecume',\n  'blue-cumulus',\n  'purple-glycine',\n  'pink-macaron',\n  'pink-tuile',\n  'yellow-tournesol',\n  'yellow-moutarde',\n  'orange-terre-battue',\n  'brown-cafe-creme',\n  'brown-caramel',\n  'brown-opera',\n  'beige-gris-galet',\n]"
+          },
+          "default": "[ 'green-tilleul-verveine', 'green-bourgeon', 'green-emeraude', 'green-menthe', 'green-archipel', 'blue-ecume', 'blue-cumulus', 'purple-glycine', 'pink-macaron', 'pink-tuile', 'yellow-tournesol', 'yellow-moutarde', 'orange-terre-battue', 'brown-cafe-creme', 'brown-caramel', 'brown-opera', 'beige-gris-galet', ]",
+          "description": "Les 17 couleurs illustratives du DSFR (planche « kpi-evolutions », 3c),\ntelles que nommées par les tokens `--border-plain-<nom>`,\n`--background-contrast-<nom>` (fond 950), `--background-alt-<nom>` (975)\net l'option `--<nom>-925-125`. Vérifié dans `dsfr@1.14.4/dist/dsfr.min.css`\nle 2026-09-20 : les quatre tokens existent pour chacun des 17 noms."
+        },
+        {
+          "kind": "function",
+          "name": "resetKpiDisplayWarnings",
+          "return": {
+            "type": {
+              "text": "void"
+            }
+          },
+          "description": "Remet le dédoublonnage des avertissements d'affichage à zéro (tests)."
+        },
         {
           "kind": "class",
           "description": "<dsfr-data-kpi> - Widget d'indicateur chiffré\n\nAffiche une valeur numérique mise en avant, style \"chiffre clé\".\nSe connecte à une source de données via son ID.",
@@ -8218,8 +8256,118 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Classe d'icône (ex: ri-global-line)",
+              "description": "Classe d'icône DSFR (`fr-icon-leaf-line`) ou Remix (`ri-global-line`).\nUne CLASSE, jamais du balisage : la valeur doit suivre\n`^(fr-icon|ri)-[a-z0-9-]+$`, sinon elle est ignorée avec un avertissement\nconsole qui la nomme (une fois par valeur). Placement et taille :\n`icon-position`, `icon-size`. Remplacée par `picto` si les deux sont posés.",
               "attribute": "icon"
+            },
+            {
+              "kind": "field",
+              "name": "iconPosition",
+              "type": {
+                "text": "IconPosition | string"
+              },
+              "default": "'label'",
+              "description": "Où se place l'icône (ou le pictogramme) : `label` (défaut, rendu\nhistorique : entre le surtitre et la valeur, en gris), `top` (en tête de\nla carte, dans la couleur de l'accent — vignette 1a), `right` (à droite,\nalignée en haut, le texte garde sa marge — vignette 1b). Sans effet\nsans `icon` ni `picto`.",
+              "attribute": "icon-position"
+            },
+            {
+              "kind": "field",
+              "name": "iconSize",
+              "type": {
+                "text": "IconSize | string"
+              },
+              "default": "''",
+              "description": "Taille de l'icône : `sm` = 1,5 rem (24 px — sans attribut, c'est le rendu\nhistorique, inchangé) ou `md` = 2 rem (32 px). L'échelle s'arrête là :\nl'échelle documentée du DSFR s'arrête à `fr-icon--lg` = 2 rem, et au-delà\nle DSFR ne parle plus d'icône mais de PICTOGRAMME — pour une illustration\nde 48 ou 80 px, poser `picto`, pas une icône agrandie. Ni `lg`, ni valeur\nen pixels : une autre valeur est ignorée avec un avertissement. Vaut aussi\npour `picto`, sur l'échelle des tuiles DSFR : `sm` = 3,5 rem, `md` = 5 rem\n(sans attribut : `md`, la tuile DSFR standard). Pour une icône `fr-icon-*`, la taille passe par `--icon-size`\n(le glyphe est un `::before` masqué, indifférent à `font-size`).",
+              "attribute": "icon-size"
+            },
+            {
+              "kind": "field",
+              "name": "picto",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Pictogramme DSFR illustratif (`fr-artwork`), par son NOM : `environment/leaf`,\n`buildings/city-hall`… (dossier de catégorie + fichier, sans `.svg`).\nContraint à `^[a-z0-9-]+(/[a-z0-9-]+)*$` — ce motif exclut `../` et tout\nschéma sans assainisseur. Le composant rend le SVG canonique à trois\n`<use>` (`#artwork-decorative`, `#artwork-minor`, `#artwork-major`) dont\nl'adresse est `picto-base` + nom + `.svg` : `picto-base` est OBLIGATOIRE\n(sans lui, rien n'est rendu, avec un avertissement). Les couleurs viennent\ndes classes `fr-artwork-*` du DSFR — le mode sombre suit sans travail — et\nune couleur illustrative (`color-token`) est reportée en `fr-artwork--<nom>`.\n⚠️ `<use href>` vers un AUTRE domaine n'est pas rendu par les navigateurs\n(pas de CORS sur `use`) : `picto-base` doit servir les SVG depuis l'origine\nde la page (copie locale de `dist/artwork/pictograms/`), pas depuis un CDN.\nPrime sur `icon`. Mêmes `icon-position` et `icon-size` que l'icône.",
+              "attribute": "picto"
+            },
+            {
+              "kind": "field",
+              "name": "pictoField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Même chose que `picto`, mais le nom est lu dans un CHAMP de la première\nligne reçue (`picto-field=\"theme_picto\"`) — utile dans un répéteur. Même\nmotif, même refus. `picto` prime s'il est posé.",
+              "attribute": "picto-field"
+            },
+            {
+              "kind": "field",
+              "name": "pictoBase",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Préfixe d'adresse des pictogrammes, écrit par l'intégrateur :\n`picto-base=\"/dsfr/artwork/pictograms/\"`. Le nom (`picto`) y est concaténé\n(barre finale ajoutée si absente). C'est ce découpage nom / base qui rend\n`picto` sûr par construction. Même origine que la page, voir `picto`.",
+              "attribute": "picto-base"
+            },
+            {
+              "kind": "field",
+              "name": "image",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Image libre (photo, logo) par son URL. Passée par la même liste blanche de\nschémas que le format `{{champ:url}}` des gabarits (`http:`, `https:`,\n`mailto:`, `tel:` ou relative) : une URL refusée (`javascript:`, `data:`…)\nn'affiche rien et avertit. Placement : `image-position`. Texte alternatif :\n`image-alt` (vide = décorative). Rendue seulement quand la donnée est là.",
+              "attribute": "image"
+            },
+            {
+              "kind": "field",
+              "name": "imageAlt",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Texte alternatif de `image`. Vide (défaut) : image décorative (`alt=\"\"`).",
+              "attribute": "image-alt"
+            },
+            {
+              "kind": "field",
+              "name": "imagePosition",
+              "type": {
+                "text": "ImagePosition | string"
+              },
+              "default": "'top'",
+              "description": "Placement de `image` : `top` (défaut, bandeau 16:9 bord à bord au-dessus du\ncontenu — vignette 1d), `left` (colonne de 10 rem pleine hauteur, le liseré\nreste à gauche de l'image — 2a), `right` (vignette carrée de 7,5 rem dans la\nmarge, à droite du texte — 2b).",
+              "attribute": "image-position"
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical' | string"
+              },
+              "default": "'horizontal'",
+              "description": "`horizontal` (défaut, carte à liseré gauche) ou `vertical` : tuile à\nliseré HAUT (sauf `border` explicite). Avec une icône, un pictogramme ou\nune image, tout passe au-dessus du surtitre et le texte est centré\n(vignette 1f) ; sans média, le KPI reste aligné à gauche — la version\nsobre des chiffres-clés éditoriaux (1g). Sur `dsfr-data-kpi-group`, le\nmême attribut empile les KPI (voir le groupe).",
+              "attribute": "orientation"
+            },
+            {
+              "kind": "field",
+              "name": "border",
+              "type": {
+                "text": "BorderMode | string"
+              },
+              "default": "'left'",
+              "description": "Tracé du liseré ; sa couleur reste celle de `color-token` ou des seuils.\n`left` (défaut, 4 px, rendu historique), `top` (4 px), `bottom` (filet de\n2 px, comme les champs DSFR), `outline` (contour de 1 px), `left-short`\n(4 px à hauteur de la valeur), `none`. Autre valeur : ignorée, avertissement.",
+              "attribute": "border"
+            },
+            {
+              "kind": "field",
+              "name": "tint",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "description": "Fond teinté dans la couleur du token : `tint` (ou `tint=\"true\"`) prend le\nfond 950 (`--background-contrast-<nom>`) ; `tint=\"975\"` le fond le plus\nclair (`--background-alt-<nom>`) ; `tint=\"925\"` le plus soutenu\n(`--<nom>-925-125`). Les 4 tokens sémantiques n'ont pas de 925 dans le\nDSFR : replié sur 950 avec un avertissement. La VALEUR reste en gris titre\n(`--text-title-grey`) : les teintes pleines claires (tournesol, café-crème,\ngalet) ne tiennent pas le contraste pour du texte — planche 3b. Le surtitre\net le libellé passent en `--text-default-grey` pour la même raison.\nSe combine avec `border` (souvent `border=\"none\"`).",
+              "attribute": "tint"
             },
             {
               "kind": "field",
@@ -8333,7 +8481,7 @@
                 "text": "KpiColor | ''"
               },
               "default": "''",
-              "description": "Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu",
+              "description": "Couleur forcée. Deux familles, deux SENS :\n- les 4 tokens sémantiques `vert`, `orange`, `rouge`, `bleu` disent un\n  ÉTAT (bon, attention, critique, neutre) — c'est aussi ce que posent les\n  seuils, et ce que le libellé accessible annonce (« etat bon ») ;\n- les 17 couleurs illustratives DSFR (`green-emeraude`, `blue-cumulus`,\n  `purple-glycine`, `orange-terre-battue`… liste : `ILLUSTRATIVE_COLOR_TOKENS`)\n  disent une CATÉGORIE — thème, ministère, famille de données — et\n  n'annoncent aucun état. Un KPI en rouge illustratif (`pink-tuile`) qui ne\n  veut pas dire « mauvais » est un contresens de lecture : l'état reste aux\n  tokens sémantiques.\nUne couleur illustrative pose le liseré et l'icône en teinte pleine via\n`var(--border-plain-<nom>)` et, avec `tint`, le fond via\n`var(--background-contrast-<nom>)` — tokens DSFR existants, aucun\nhexadécimal : le mode sombre suit. Nom inconnu : ignoré avec avertissement,\nrepli sur les seuils puis bleu.",
               "attribute": "color-token"
             },
             {
@@ -8579,6 +8727,197 @@
                   "text": "string"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_iconClass",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Classe d'icône validée, ou `''` (valeur hors motif : avertie, ignorée)."
+            },
+            {
+              "kind": "method",
+              "name": "_iconPosition",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "IconPosition"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_iconSize",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "IconSize"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "picto",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Taille validée ; sans attribut : `sm` pour une icône (1,5 rem historique), `md` pour un picto."
+            },
+            {
+              "kind": "method",
+              "name": "_pictoName",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Nom de pictogramme validé (`picto`, sinon `picto-field` sur la 1re ligne), ou `''`."
+            },
+            {
+              "kind": "method",
+              "name": "_pictoFile",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "nom",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Adresse du fichier SVG d'un pictogramme : base + nom + `.svg`."
+            },
+            {
+              "kind": "method",
+              "name": "_imageUrl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "URL d'image acceptée par la liste blanche de schémas, ou `''`."
+            },
+            {
+              "kind": "method",
+              "name": "_imagePosition",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ImagePosition"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_isVertical",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_borderMode",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "BorderMode"
+                }
+              },
+              "description": "Mode de liseré effectif : `border` validé, sinon `top` en vertical, sinon `left`."
+            },
+            {
+              "kind": "method",
+              "name": "_tintShade",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "TintShade | null"
+                }
+              },
+              "description": "Teinte demandée, ou `null` sans `tint` (ou `tint=\"false\"`)."
+            },
+            {
+              "kind": "method",
+              "name": "_tintVar",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "color",
+                  "type": {
+                    "text": "KpiColor"
+                  }
+                },
+                {
+                  "name": "shade",
+                  "type": {
+                    "text": "TintShade"
+                  }
+                }
+              ],
+              "description": "Variable CSS du fond teinté, depuis les tokens DSFR — jamais un hexadécimal.\nIllustratif : alt (975) / contrast (950) / option 925-125.\nSémantique : option 975-75 / contrast (950) ; pas de 925 dans le DSFR."
+            },
+            {
+              "kind": "method",
+              "name": "_inStackedGroup",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Dans un `dsfr-data-kpi-group orientation=\"vertical\"` (lu au rendu)."
+            },
+            {
+              "kind": "method",
+              "name": "_renderPicto",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "nom",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "position",
+                  "type": {
+                    "text": "IconPosition"
+                  }
+                },
+                {
+                  "name": "size",
+                  "type": {
+                    "text": "IconSize"
+                  }
+                },
+                {
+                  "name": "illustrative",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "SVG canonique d'un pictogramme DSFR : trois `<use>` vers le même fichier."
             }
           ],
           "attributes": [
@@ -8651,8 +8990,107 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Classe d'icône (ex: ri-global-line)",
+              "description": "Classe d'icône DSFR (`fr-icon-leaf-line`) ou Remix (`ri-global-line`).\nUne CLASSE, jamais du balisage : la valeur doit suivre\n`^(fr-icon|ri)-[a-z0-9-]+$`, sinon elle est ignorée avec un avertissement\nconsole qui la nomme (une fois par valeur). Placement et taille :\n`icon-position`, `icon-size`. Remplacée par `picto` si les deux sont posés.",
               "fieldName": "icon"
+            },
+            {
+              "name": "icon-position",
+              "type": {
+                "text": "IconPosition | string"
+              },
+              "default": "'label'",
+              "description": "Où se place l'icône (ou le pictogramme) : `label` (défaut, rendu\nhistorique : entre le surtitre et la valeur, en gris), `top` (en tête de\nla carte, dans la couleur de l'accent — vignette 1a), `right` (à droite,\nalignée en haut, le texte garde sa marge — vignette 1b). Sans effet\nsans `icon` ni `picto`.",
+              "fieldName": "iconPosition"
+            },
+            {
+              "name": "icon-size",
+              "type": {
+                "text": "IconSize | string"
+              },
+              "default": "''",
+              "description": "Taille de l'icône : `sm` = 1,5 rem (24 px — sans attribut, c'est le rendu\nhistorique, inchangé) ou `md` = 2 rem (32 px). L'échelle s'arrête là :\nl'échelle documentée du DSFR s'arrête à `fr-icon--lg` = 2 rem, et au-delà\nle DSFR ne parle plus d'icône mais de PICTOGRAMME — pour une illustration\nde 48 ou 80 px, poser `picto`, pas une icône agrandie. Ni `lg`, ni valeur\nen pixels : une autre valeur est ignorée avec un avertissement. Vaut aussi\npour `picto`, sur l'échelle des tuiles DSFR : `sm` = 3,5 rem, `md` = 5 rem\n(sans attribut : `md`, la tuile DSFR standard). Pour une icône `fr-icon-*`, la taille passe par `--icon-size`\n(le glyphe est un `::before` masqué, indifférent à `font-size`).",
+              "fieldName": "iconSize"
+            },
+            {
+              "name": "picto",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Pictogramme DSFR illustratif (`fr-artwork`), par son NOM : `environment/leaf`,\n`buildings/city-hall`… (dossier de catégorie + fichier, sans `.svg`).\nContraint à `^[a-z0-9-]+(/[a-z0-9-]+)*$` — ce motif exclut `../` et tout\nschéma sans assainisseur. Le composant rend le SVG canonique à trois\n`<use>` (`#artwork-decorative`, `#artwork-minor`, `#artwork-major`) dont\nl'adresse est `picto-base` + nom + `.svg` : `picto-base` est OBLIGATOIRE\n(sans lui, rien n'est rendu, avec un avertissement). Les couleurs viennent\ndes classes `fr-artwork-*` du DSFR — le mode sombre suit sans travail — et\nune couleur illustrative (`color-token`) est reportée en `fr-artwork--<nom>`.\n⚠️ `<use href>` vers un AUTRE domaine n'est pas rendu par les navigateurs\n(pas de CORS sur `use`) : `picto-base` doit servir les SVG depuis l'origine\nde la page (copie locale de `dist/artwork/pictograms/`), pas depuis un CDN.\nPrime sur `icon`. Mêmes `icon-position` et `icon-size` que l'icône.",
+              "fieldName": "picto"
+            },
+            {
+              "name": "picto-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Même chose que `picto`, mais le nom est lu dans un CHAMP de la première\nligne reçue (`picto-field=\"theme_picto\"`) — utile dans un répéteur. Même\nmotif, même refus. `picto` prime s'il est posé.",
+              "fieldName": "pictoField"
+            },
+            {
+              "name": "picto-base",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Préfixe d'adresse des pictogrammes, écrit par l'intégrateur :\n`picto-base=\"/dsfr/artwork/pictograms/\"`. Le nom (`picto`) y est concaténé\n(barre finale ajoutée si absente). C'est ce découpage nom / base qui rend\n`picto` sûr par construction. Même origine que la page, voir `picto`.",
+              "fieldName": "pictoBase"
+            },
+            {
+              "name": "image",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Image libre (photo, logo) par son URL. Passée par la même liste blanche de\nschémas que le format `{{champ:url}}` des gabarits (`http:`, `https:`,\n`mailto:`, `tel:` ou relative) : une URL refusée (`javascript:`, `data:`…)\nn'affiche rien et avertit. Placement : `image-position`. Texte alternatif :\n`image-alt` (vide = décorative). Rendue seulement quand la donnée est là.",
+              "fieldName": "image"
+            },
+            {
+              "name": "image-alt",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Texte alternatif de `image`. Vide (défaut) : image décorative (`alt=\"\"`).",
+              "fieldName": "imageAlt"
+            },
+            {
+              "name": "image-position",
+              "type": {
+                "text": "ImagePosition | string"
+              },
+              "default": "'top'",
+              "description": "Placement de `image` : `top` (défaut, bandeau 16:9 bord à bord au-dessus du\ncontenu — vignette 1d), `left` (colonne de 10 rem pleine hauteur, le liseré\nreste à gauche de l'image — 2a), `right` (vignette carrée de 7,5 rem dans la\nmarge, à droite du texte — 2b).",
+              "fieldName": "imagePosition"
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical' | string"
+              },
+              "default": "'horizontal'",
+              "description": "`horizontal` (défaut, carte à liseré gauche) ou `vertical` : tuile à\nliseré HAUT (sauf `border` explicite). Avec une icône, un pictogramme ou\nune image, tout passe au-dessus du surtitre et le texte est centré\n(vignette 1f) ; sans média, le KPI reste aligné à gauche — la version\nsobre des chiffres-clés éditoriaux (1g). Sur `dsfr-data-kpi-group`, le\nmême attribut empile les KPI (voir le groupe).",
+              "fieldName": "orientation"
+            },
+            {
+              "name": "border",
+              "type": {
+                "text": "BorderMode | string"
+              },
+              "default": "'left'",
+              "description": "Tracé du liseré ; sa couleur reste celle de `color-token` ou des seuils.\n`left` (défaut, 4 px, rendu historique), `top` (4 px), `bottom` (filet de\n2 px, comme les champs DSFR), `outline` (contour de 1 px), `left-short`\n(4 px à hauteur de la valeur), `none`. Autre valeur : ignorée, avertissement.",
+              "fieldName": "border"
+            },
+            {
+              "name": "tint",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "description": "Fond teinté dans la couleur du token : `tint` (ou `tint=\"true\"`) prend le\nfond 950 (`--background-contrast-<nom>`) ; `tint=\"975\"` le fond le plus\nclair (`--background-alt-<nom>`) ; `tint=\"925\"` le plus soutenu\n(`--<nom>-925-125`). Les 4 tokens sémantiques n'ont pas de 925 dans le\nDSFR : replié sur 950 avec un avertissement. La VALEUR reste en gris titre\n(`--text-title-grey`) : les teintes pleines claires (tournesol, café-crème,\ngalet) ne tiennent pas le contraste pour du texte — planche 3b. Le surtitre\net le libellé passent en `--text-default-grey` pour la même raison.\nSe combine avec `border` (souvent `border=\"none\"`).",
+              "fieldName": "tint"
             },
             {
               "name": "icone",
@@ -8754,7 +9192,7 @@
                 "text": "KpiColor | ''"
               },
               "default": "''",
-              "description": "Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu",
+              "description": "Couleur forcée. Deux familles, deux SENS :\n- les 4 tokens sémantiques `vert`, `orange`, `rouge`, `bleu` disent un\n  ÉTAT (bon, attention, critique, neutre) — c'est aussi ce que posent les\n  seuils, et ce que le libellé accessible annonce (« etat bon ») ;\n- les 17 couleurs illustratives DSFR (`green-emeraude`, `blue-cumulus`,\n  `purple-glycine`, `orange-terre-battue`… liste : `ILLUSTRATIVE_COLOR_TOKENS`)\n  disent une CATÉGORIE — thème, ministère, famille de données — et\n  n'annoncent aucun état. Un KPI en rouge illustratif (`pink-tuile`) qui ne\n  veut pas dire « mauvais » est un contresens de lecture : l'état reste aux\n  tokens sémantiques.\nUne couleur illustrative pose le liseré et l'icône en teinte pleine via\n`var(--border-plain-<nom>)` et, avec `tint`, le fond via\n`var(--background-contrast-<nom>)` — tokens DSFR existants, aucun\nhexadécimal : le mode sombre suit. Nom inconnu : ignoré avec avertissement,\nrepli sur les seuils puis bleu.",
               "fieldName": "colorToken"
             },
             {
@@ -8813,6 +9251,22 @@
         }
       ],
       "exports": [
+        {
+          "kind": "js",
+          "name": "ILLUSTRATIVE_COLOR_TOKENS",
+          "declaration": {
+            "name": "ILLUSTRATIVE_COLOR_TOKENS",
+            "module": "packages/core/src/components/dsfr-data-kpi.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "resetKpiDisplayWarnings",
+          "declaration": {
+            "name": "resetKpiDisplayWarnings",
+            "module": "packages/core/src/components/dsfr-data-kpi.ts"
+          }
+        },
         {
           "kind": "js",
           "name": "DsfrDataKpi",

@@ -170,29 +170,39 @@ function separer(html: string): { markup: string; css: string } {
     css.push(s);
     return '<style></style>';
   });
-  // Le marqueur de Lit (`lit$<aléa>$`) change à chaque processus : normalisé.
-  return {
-    markup: markup
-      .replace(/lit\$\d+\$/g, 'lit$X$')
-      .replace(/\s+/g, ' ')
-      .trim(),
-    css: css.join('\n'),
-  };
+  // Les commentaires (marqueurs de Lit `<!--?lit$…$-->`, `<!---->`) ne se
+  // rendent pas : retirés des deux côtés. Une expression `${}` de plus dans le
+  // template en ajoute un sans changer un pixel — ce n'est pas ce que ce test
+  // surveille. Éléments, attributs et texte, eux, sont comparés byte à byte.
+  return { markup: normaliser(markup), css: css.join('\n') };
 }
 
-/** Règles CSS `selecteur -> declarations normalisées` (parseur minimal, sans @media). */
-function regles(css: string): Map<string, string> {
-  const out = new Map<string, string>();
+function normaliser(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/> </g, '><')
+    .trim();
+}
+
+/**
+ * Règles CSS `sélecteur -> (propriété -> valeur)` — parseur minimal, sans
+ * @media. Un sélecteur écrit deux fois cumule ses déclarations, comme le
+ * ferait le navigateur.
+ */
+function regles(css: string): Map<string, Map<string, string>> {
+  const out = new Map<string, Map<string, string>>();
   const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
   for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selecteur = norm(m[1]);
-    const decls = norm(m[2])
-      .split(';')
-      .map((d) => norm(d))
-      .filter(Boolean)
-      .sort()
-      .join('; ');
-    if (selecteur) out.set(selecteur, decls);
+    if (!selecteur) continue;
+    const props = out.get(selecteur) ?? new Map<string, string>();
+    for (const d of norm(m[2]).split(';')) {
+      const i = d.indexOf(':');
+      if (i < 0) continue;
+      props.set(norm(d.slice(0, i)), norm(d.slice(i + 1)));
+    }
+    out.set(selecteur, props);
   }
   return out;
 }
@@ -222,14 +232,11 @@ async function rendre(cas: Cas): Promise<{ markup: string; css: string; hote: st
       .map((a) => `${a.name}="${a.value}"`)
       .sort()
       .join(' ');
-    hote = `${attrs} || ${shadow
-      .replace(/lit\$\d+\$/g, 'lit$X$')
-      .replace(/\s+/g, ' ')
-      .trim()}`;
+    hote = `${attrs} || ${normaliser(shadow)}`;
   }
   wrapper.remove();
   return {
-    markup: parts.map((p) => p.markup).join('\n'),
+    markup: normaliser(parts.map((p) => p.markup).join('\n')),
     css: parts.map((p) => p.css).join('\n'),
     hote,
   };
@@ -262,8 +269,8 @@ describe('dsfr-data-kpi : rendu identique sans les nouveaux attributs', () => {
   it.each(CAS.map((c) => [c.nom] as const))('%s : balisage byte à byte', (nom) => {
     const actuel = rendus.get(nom)!;
     expect(reference[nom], `cas « ${nom} » absent de la référence`).toBeDefined();
-    expect(actuel.markup).toBe(reference[nom].markup);
-    expect(actuel.hote).toBe(reference[nom].hote);
+    expect(actuel.markup).toBe(normaliser(reference[nom].markup));
+    expect(actuel.hote).toBe(normaliser(reference[nom].hote));
   });
 
   it.each(CAS.map((c) => [c.nom] as const))(
@@ -271,19 +278,34 @@ describe('dsfr-data-kpi : rendu identique sans les nouveaux attributs', () => {
     (nom) => {
       const avant = regles(reference[nom].css);
       const apres = regles(rendus.get(nom)!.css);
-      const perdues: string[] = [];
-      for (const [sel, decls] of avant) {
-        if (apres.get(sel) !== decls)
-          perdues.push(`${sel} { ${decls} } -> ${apres.get(sel) ?? 'ABSENTE'}`);
+      const ecarts: string[] = [];
+      for (const [sel, props] of avant) {
+        const nouvelles = apres.get(sel);
+        if (!nouvelles) {
+          ecarts.push(`${sel} : règle ABSENTE`);
+          continue;
+        }
+        for (const [prop, val] of props) {
+          if (nouvelles.get(prop) !== val) {
+            ecarts.push(`${sel} { ${prop}: ${val} } -> ${nouvelles.get(prop) ?? 'ABSENTE'}`);
+          }
+        }
+        // Un sélecteur historique ne peut GAGNER qu'une variable (`--*`) :
+        // une propriété de rendu ajoutée changerait le rendu par défaut.
+        for (const prop of nouvelles.keys()) {
+          if (!props.has(prop) && !prop.startsWith('--')) {
+            ecarts.push(`${sel} : propriété de rendu ajoutée « ${prop} »`);
+          }
+        }
       }
-      expect(perdues).toEqual([]);
+      expect(ecarts).toEqual([]);
     }
   );
 
   it('le diff de balisage sur l’ensemble des cas est vide', () => {
-    const diff = CAS.filter((c) => rendus.get(c.nom)!.markup !== reference[c.nom]?.markup).map(
-      (c) => c.nom
-    );
+    const diff = CAS.filter(
+      (c) => rendus.get(c.nom)!.markup !== normaliser(reference[c.nom]?.markup ?? '')
+    ).map((c) => c.nom);
     expect(diff).toEqual([]);
   });
 });
