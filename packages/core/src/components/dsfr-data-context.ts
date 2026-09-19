@@ -8,6 +8,7 @@ import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
 import { scheduleContextUrlParamConflictScan } from '../utils/context-url-conflicts.js';
+import { checkNumericFieldMismatch } from '../utils/numeric-field-mismatch.js';
 
 interface SourceWithAdapter extends HTMLElement {
   getAdapter?: () => { capabilities?: { whereFormat?: string } } | null;
@@ -235,6 +236,9 @@ export class DsfrDataContext extends LitElement {
     this._reportMissingField(filter, missing, reached.length === 0 && missing.length > 0);
     for (const sourceId of reached) {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
+      // Comparaison texte sur un champ que CETTE source publie en nombre
+      // (#924) : la clause part inchangee, le piege est seulement dit.
+      if (colonWhere) checkNumericFieldMismatch(sourceId, colonWhere);
       dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
     }
     // Une cible exclue garde le where precedent de ce filtre s'il y en avait

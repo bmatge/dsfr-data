@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — un filtre de contexte sur un champ entier (#924)</title>
+  <!--
+    Le cas de PG-030, réduit : UN même <select> de codes région nourrit un
+    contexte qui vise DEUX jeux — l'un publie `reg` en ENTIER (1, 75), comme
+    `sc_missions` sur data.sports.gouv.fr, l'autre en TEXTE ("01", "75"),
+    comme les vingt-sept autres jeux de la page.
+
+    Pour la Guadeloupe, le filtre émet `reg = "01"` aux deux. Côté portail,
+    le jeu en texte répond et le jeu en entier ne répond rien — « — » au
+    KPI, sans une ligne de console (vérifié à l'API de data.sports.gouv.fr :
+    `where=reg='01'` → 0 ligne, `refine=reg:01` → 1 306). « 75 » passe des
+    deux côtés, ce qui cache le défaut. Ici les données sont en ligne : la
+    clause part sur le bus sans qu'aucune API ne l'exécute — ce qui est
+    vérifié, c'est la clause émise et l'avertissement, pas la réponse.
+
+    Ce que seul un vrai navigateur prouve : le piège ne se manifeste qu'à
+    l'émission réelle de la clause vers une source qui a déjà rendu ses
+    lignes — c'est d'elles que vient le type du champ, aucun schéma n'étant
+    lu côté bibliothèque.
+
+    AUCUN comportement ne change : la clause émise est celle d'avant.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Portrait d'un territoire</h1>
+
+    <label for="sel-reg">Région</label>
+    <select id="sel-reg">
+      <option value="">—</option>
+      <option value="01">Guadeloupe (01)</option>
+      <option value="75">Nouvelle-Aquitaine (75)</option>
+    </select>
+
+    <!-- `reg` en ENTIER, comme sc_missions -->
+    <dsfr-data-source id="src-int" data='[
+      {"reg":1,"n":1306},{"reg":75,"n":4211}
+    ]'></dsfr-data-source>
+    <!-- `reg` en TEXTE, comme les autres jeux du portail -->
+    <dsfr-data-source id="src-txt" data='[
+      {"reg":"01","n":1306},{"reg":"75","n":4211}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-context id="ctx" sources="src-int src-txt">
+      <dsfr-data-context-filter field="reg" operator="eq" ui="sel-reg"></dsfr-data-context-filter>
+    </dsfr-data-context>
+
+    <dsfr-data-kpi id="kpi-int" source="src-int" value="n:sum" label="Volontariat"></dsfr-data-kpi>
+    <dsfr-data-kpi id="kpi-txt" source="src-txt" value="n:sum" label="Équipements"></dsfr-data-kpi>
+  </main>
+</body>
+</html>

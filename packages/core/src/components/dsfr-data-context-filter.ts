@@ -187,6 +187,17 @@ type YearOperator = (typeof YEAR_OPERATORS)[number];
  * sources ciblées, traduite au dialecte de chaque adapter.
  *
  * La valeur vide retire le filtre (where vide sur le même whereKey).
+ *
+ * CODES À ZÉRO DE TÊTE (#924). Un contrôle de formulaire rend toujours du
+ * TEXTE : le filtre émet `reg = "01"`. Sur un champ que le jeu publie en
+ * entier, le portail compare en texte et ne trouve rien — le KPI affiche
+ * « — », sans erreur. Les codes métropolitains (« 75 ») passent, ce qui
+ * cache le défaut ; seuls la Guadeloupe (01), la Martinique, la Guyane, La
+ * Réunion, Mayotte et les neuf premiers départements sont muets. La console
+ * le dit désormais, une fois par champ et par source, dès que les lignes
+ * déjà rendues montrent que le champ est numérique — alimenter alors le
+ * filtre avec la valeur sans zéro de tête, ou réserver ce filtre aux
+ * sources qui publient le code en texte avec `apply-to`.
  */
 @customElement('dsfr-data-context-filter')
 export class DsfrDataContextFilter extends LitElement {
@@ -201,6 +212,18 @@ export class DsfrDataContextFilter extends LitElement {
    * nommée et rien n'est diffusé ; absente de certaines seulement, ces
    * sources sont exclues du filtre, avec un message console. Sinon le
    * filtre part, et l'API répond (HTTP 400 si la colonne n'existe pas).
+   *
+   * TYPE DE LA COLONNE (#924) : un contrôle de formulaire rend toujours du
+   * TEXTE, et le filtre émet `reg = "01"`. Sur une colonne que le jeu
+   * publie en ENTIER, le portail compare en texte et ne trouve rien, là où
+   * son `refine` trouvait — « — » à l'écran, sans erreur. Les codes
+   * métropolitains (« 75 ») passent, ce qui cache le défaut : seuls les
+   * codes à zéro de tête (Guadeloupe 01, départements 01 à 09) sont muets.
+   * Quand les lignes déjà rendues par une source montrent que la colonne y
+   * est numérique, la console le dit, une fois par colonne et par source.
+   * Le geste : alimenter le filtre avec la valeur sans zéro de tête, ou
+   * réserver ce filtre aux sources qui publient le code en texte avec
+   * `apply-to`.
    */
   @property({ type: String })
   field = '';
