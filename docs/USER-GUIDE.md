@@ -890,7 +890,9 @@ sait regarder DANS ce tableau — la valeur de filtre d'un `count` de `dsfr-data
 <dsfr-data-kpi source="data" value="count:tags:urgent" label="Dossiers urgents"></dsfr-data-kpi>
 ```
 
-Partout ailleurs, l'egalite compare la valeur du champ **telle quelle**, sans l'ouvrir :
+Partout ailleurs, l'egalite compare la valeur du champ **telle quelle**, sans l'ouvrir — tant
+qu'elle est evaluee dans le navigateur ; deleguee au portail, elle change de sens, voir
+« Quand la clause part au serveur » plus bas :
 
 | Ecriture | Regarde dans le tableau ? |
 |---|---|
@@ -941,11 +943,35 @@ Deux fausses pistes, a ecarter explicitement :
   `group-by`* (une ligne a N valeurs compte dans N groupes) ; il ne repond pas a « garder les lignes
   portant cette etiquette ».
 
-> ⚠️ Tout ce qui precede decrit l'evaluation **cote client**. Un `where` de `dsfr-data-query` peut
-> partir au serveur (source non partagee, clause traduisible) : c'est alors le portail qui decide
-> ce que `=` veut dire sur un champ multivalue, et son verdict peut differer de celui decrit ici —
-> ce point n'a pas ete mesure. Une page qui bascule entre delegation et calcul local peut donc voir
-> son filtre changer de sens : le verifier sur le jeu concerne avant d'en dependre.
+#### Quand la clause part au serveur, `=` ne veut plus dire la meme chose
+
+Tout ce qui precede decrit l'evaluation **cote client**. Un `where` de `dsfr-data-query` peut partir
+au serveur (source non partagee, clause traduisible) : c'est alors le portail qui decide ce que `=`
+veut dire sur un champ multivalue. **Mesure le 2026-09-19** sur le catalogue de
+`data.economie.gouv.fr`, champ `keyword` (un vrai tableau) : `where=keyword = "budgets annexes"`
+rend `total_count = 1` sur la ligne dont `keyword` vaut
+`["LFI 2011","budgets annexes","finances publiques","loi de finances initiale"]`, et
+`where=keyword = "LFI 2011"` rend `1` aussi. **Opendatasoft lit `=` comme un « contient »** : il
+trouve la ligne sur n'importe quel element du tableau.
+
+| Donnee du champ, comparee a la valeur du filtre | Client (repli `String`) | Serveur (ODS delegue) |
+|---|---|---|
+| `["urgent"]` vs `"urgent"` — un seul element | **matche** | **matche** |
+| `["urgent","social"]` vs `"urgent"` — plusieurs | ne matche pas | **matche** |
+| `["a","b"]` vs `"a,b"` — le rendu texte | **matche** | ne matche pas |
+
+Le meme `where="tags:eq:urgent"`, sur le meme jeu, **ne compte donc pas la meme chose** selon que la
+clause est delegue au portail ou evaluee localement.
+
+> ⚠️ **Ce n'est pas la balise qui porte le `where` qui decide de la delegation.** C'est le mode de la
+> source (`fetch-mode`, `server-side`), la presence d'un transformateur en amont, le partage de la
+> source avec un autre consommateur, un `explode`. Ajouter un **second graphique** a la page peut
+> faire perdre a la source sa dedicace, donc basculer l'evaluation du filtre du serveur vers le
+> client, donc **changer un chiffre affiche** — sans qu'on ait touche au filtre, et sans un message.
+
+Sur un champ multivalue, la colonne derivee par `compute` ci-dessus n'est donc pas seulement la voie
+« native » : c'est la seule ecriture qui rende le **meme** chiffre des deux cotes, parce que le
+filtre final porte sur un booleen scalaire.
 
 Enfin, une **facette** (`dsfr-data-facets`) sur un champ tableau, elle, eclate bien les valeurs et
 filtre correctement : quand le filtre est destine a l'utilisateur plutot qu'ecrit en dur, c'est la

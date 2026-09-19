@@ -122,6 +122,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * qui la compte. Dériver un booléen en amont (`dsfr-data-normalize`
    * `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"`), puis
    * `where="a_urgent:eq:1"`.
+   * ⚠️ Le KPI ne délègue jamais : son `where` évalue donc TOUJOURS la variante
+   * client. Le même texte porté par une `dsfr-data-query` peut, lui, partir au
+   * portail — et Opendatasoft lit `=` comme un « contient » sur un champ
+   * tableau (mesuré le 2026-09-19 sur data.economie.gouv.fr, champ `keyword`,
+   * #953) : `['urgent']` matche des deux côtés, `['urgent','social']` matche
+   * au serveur seulement, `['a','b']` comparé à `'a,b'` matche au client
+   * seulement. Un KPI et un graphique qui portent le MÊME `where` sur le même
+   * jeu peuvent donc afficher deux chiffres — le booléen dérivé en amont est
+   * la seule écriture qui les réconcilie.
    */
   @property({ type: String })
   where = '';

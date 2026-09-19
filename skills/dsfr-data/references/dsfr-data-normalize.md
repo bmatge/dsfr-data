@@ -117,6 +117,9 @@ tableau, element par element, avec la meme egalite lache. La correspondance `cha
 la fonction `compute` compare element par element. C'est aussi la voie pour FILTRER un champ
 tableau, qu'aucun operateur `where` ne sait faire : calculer ici un booleen
 (`a_urgent = when contains(tags,'urgent') then 1 else 0`), puis `where="a_urgent:eq:1"` en aval.
+C'est aussi la seule ecriture STABLE : un `where` pose directement sur le champ tableau change de
+sens selon qu'il est delegue au portail (ODS lit `=` comme un « contient », mesure le 2026-09-19,
+#953) ou evalue dans le navigateur, alors que le booleen derive est un scalaire des deux cotes.
 
 Garde-fous : aucun `eval`, seuls les champs de la ligne sont lisibles, expression bornee
 en longueur (2000 caracteres) et en profondeur (32 niveaux). Les colonnes produites
