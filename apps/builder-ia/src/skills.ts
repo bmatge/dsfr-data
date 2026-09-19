@@ -1934,7 +1934,7 @@ Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs \`document\` par type 
 - **Un attribut booleen ne se conditionne pas** dans la balise (\`horizontal\`) : ecrire deux
   elements complets sous \`{{#if champ}}…{{/if}}\` et \`{{#unless champ}}…{{/unless}}\`.
 
-**Deux limites levees en 0.30.1 :**
+**Deux limites levees en 0.31.0 :**
 
 - **Un id reutilise ne purge plus le cache** (#893). A la re-creation, l'ancienne instance
   purgeait a sa deconnexion le cache de son \`id\`, que la nouvelle venait de remplir : un
@@ -1944,6 +1944,11 @@ Chaque ligne coute deux abonnes au bus (≈ 250 ecouteurs \`document\` par type 
   son \`<template>\` avant qu'il soit analyse et ne rendait rien ; une seconde capture a lieu a
   la fin de l'analyse du document. Charger le bundle **en fin de body** (ou en
   \`type="module"\`) reste la pose recommandee.
+
+**Ce qui n'est pas leve, et n'a pas a l'etre ici :** l'identite des instances a la re-emission,
+l'imbrication et les attributs booleens conditionnels sont le contrat de \`dsfr-data-repeat\`
+(composant de structure, ADR-135). Regle d'usage : **\`display\` quand la ligne est du contenu,
+\`repeat\` quand la ligne est un pipeline.** L'exemple ci-dessus reste valide tel quel.
 
 ### Attributs
 | Attribut | Type | Défaut | Requis | Description |
@@ -3769,6 +3774,118 @@ Regles :
 ` + reference('dsfr-data-context-value'),
   },
 
+  dsfrDataRepeat: {
+    id: 'dsfrDataRepeat',
+    name: 'dsfr-data-repeat',
+    description:
+      'Repeter des instances vivantes : un graphique, un KPI ou un pipeline par ligne, avec identite par cle et imbrication',
+    trigger: [
+      'repeat',
+      'repeter',
+      'repetition',
+      'boucle',
+      'ng-repeat',
+      'un graphique par ligne',
+      'un graphique par question',
+      'un kpi par ligne',
+      'un kpi par service',
+      'n graphiques',
+      'composant par ligne',
+      'instances',
+      'key-field',
+      'petits multiples',
+      'small multiples',
+      'attribut conditionnel',
+      'data-if',
+    ],
+    content:
+      `## <dsfr-data-repeat> - Repeter des instances vivantes : une ligne, un pipeline
+
+Composant de STRUCTURE (ADR-135). Pour chaque ligne de \`source\`, le \`<template>\` enfant est
+CLONE en DOM et ses placeholders resolus noeud par noeud — texte, attributs, et donc les
+composants \`dsfr-data-*\` qu'il contient, rehausses avec leurs attributs deja interpoles.
+C'est la voie native pour « un graphique par question », « un KPI par service ».
+
+**Regle d'usage : \`dsfr-data-display\` quand la ligne est du CONTENU ; \`dsfr-data-repeat\`
+quand la ligne est un PIPELINE.** \`display\` est une liste de resultats (region nommee, compteur
+annonce, pagination, selection). \`repeat\` est transparent : aucun \`role\`, aucun
+\`aria-live\`, aucun compteur, aucune pagination — la structure vient des titres du gabarit.
+
+### Attributs
+
+| Attribut | Type | Défaut | Requis | Description |
+|----------|------|--------|--------|-------------|
+| source | String | \`""\` | oui | Id de la source (ou du transformateur) : une ligne = une instance du gabarit. Absent : erreur de configuration |
+| key-field | String | \`""\` | non | Champ qui identifie une ligne entre deux emissions (chemin \`a.b\` accepte). Une cle qui subsiste garde ses noeuds et ses instances. Vide : le rang. Absent des lignes ou en double : erreur nommee, repli sur le rang |
+| per-row | String | \`""\` | non | Lignes par rangee a partir de 768 px : diviseur de 12 (\`1 2 3 4 6 12\`) ou echelle \`"1 md:2 lg:3"\` (grille \`fr-grid-row\` avec gouttieres). Vide : un bloc par ligne. Sans \`cols\` |
+| empty | String | \`""\` | non | Texte rendu quand la source emet zero ligne, dans un \`<p>\` SANS \`role="status"\` (la balise n'annonce rien). Vide : rien |
+
+Variables du gabarit : \`{{$index}}\` (rang, 0-based), \`{{$key}}\` (valeur de \`key-field\`, ou le
+rang), \`{{$uid}}\` (id DOM unique derive de la cle : sur pour \`id=\` et \`aria-labelledby\`).
+
+### Pattern — un graphique par question
+
+\`\`\`html
+<!-- La table des questions (une ligne par question) et les scores (UNE requete) -->
+<dsfr-data-source id="questions" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="bfn-table-de-correspondance" fetch-mode="export" max-records="200"></dsfr-data-source>
+<dsfr-data-source id="scores" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="questions-reponses" fetch-mode="export" max-records="5000"></dsfr-data-source>
+
+<dsfr-data-repeat source="questions" key-field="code_unifie" per-row="1 md:2">
+  <template>
+    <h3 id="{{$uid}}">{{libelle_unifie}}</h3>
+    <dsfr-data-query id="q-{{code_unifie}}" source="scores" where="code_unifie:eq:{{code_unifie}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart source="q-{{code_unifie}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"
+      data-if-horizontal="est_long"></dsfr-data-chart>
+  </template>
+</dsfr-data-repeat>
+\`\`\`
+
+### Ce que repeat promet (et que display ne promet pas)
+
+- **Identite par cle.** A une nouvelle emission de \`source\`, une ligne dont la cle subsiste
+  garde ses noeuds : les instances ne sont ni deconnectees ni recreees, leurs attributs sont
+  mis a jour en place ; les cles disparues sont retirees, les nouvelles inserees a leur rang,
+  l'ordre du DOM suit les donnees. Mesure : 119 graphiques re-emis en ~110 ms sans un canvas
+  detruit (display : ~4,7 s, tout recree).
+- **Imbrication.** Un \`<template>\` interieur n'est pas parcouru : un \`dsfr-data-display\`
+  ou un second \`dsfr-data-repeat\` dans le gabarit rend SES propres placeholders.
+- **Attribut booleen conditionnel.** \`data-if-databox="champ"\` pose \`databox\` quand
+  \`champ\` est vrai (ni null, undefined, « », [] ni false) et le retire sinon ;
+  \`data-unless-champ\` inverse. L'attribut de convention est retire du DOM.
+- **Transparence.** \`grep role=\` sur le rendu = 0. C'est l'auteur qui structure (titres) et
+  qui annonce (\`empty\` n'a pas de \`role="status"\`).
+
+### Grammaire du gabarit : la meme, deux differences de sortie
+
+Meme moteur que \`display\` et \`map-popup\` (\`{{chemin[:format[:arg]][|défaut]}}\`,
+\`{{#if}}\`, \`{{#unless}}\`, \`{{#each}}\`), aucune syntaxe nouvelle. Parce que le rendu est
+par noeuds :
+- \`{{{brut}}}\` n'a pas de sens sur un noeud texte : rendu comme \`{{brut}}\` (texte, echappe),
+  avec un avertissement une fois par gabarit. Pour injecter du HTML, c'est \`display\`.
+- Un bloc \`{{#if}}…{{/if}}\` doit tenir dans UN noeud texte ou UNE valeur d'attribut
+  (\`class="{{#if x}}actif{{/if}}"\` marche). Ouvert avant un element et ferme apres
+  (« englober deux \`<p>\` »), il ne peut pas etre un bloc : **erreur de configuration**, et le
+  contenu est rendu quelle que soit la condition. Choisir un sous-arbre entier viendra avec la
+  conditionnelle structurelle (lot 3) ; d'ici la, un element par branche.
+
+### Limites (vraies, dites d'avance)
+
+- Pas de delegation serveur derriere un id scope : une source lue par N queries reste calculee
+  dans le navigateur (regle #765) — la charger EN ENTIER (\`fetch-mode="export"\`,
+  \`max-records\` au volume reel). Ni \`facets\` ni \`search\` ne se repetent.
+- Le bus est plat : deux repeteurs qui fabriquent le meme id (\`q-001\`) se marchent dessus,
+  comme deux auteurs qui ecriraient le meme id. Prefixer par repeteur.
+- Une query par ligne coute N filtres et N renegociations a chaque inscription (#900) ; le
+  lot 2 (\`scopes\`) partitionnera la source une fois.
+- Ne pas poser \`display:block\` sur la balise depuis la page : les lignes sont des \`<div>\`
+  enfants directs, la grille \`per-row\` porte ses classes DSFR.
+` + reference('dsfr-data-repeat'),
+  },
+
   dsfrDataJoin: {
     id: 'dsfrDataJoin',
     name: 'dsfr-data-join',
@@ -4720,9 +4837,13 @@ la page. Le scope de chaque instance est une \`dsfr-data-query\` par ligne dont 
   (≈ 640 ms pour 119) ; pas de \`facets\` ni \`search\` sur un id scope (pas d'adaptateur
   derriere) ; un attribut booleen (\`horizontal\`) ne se conditionne pas — deux elements sous
   \`{{#if}}\` / \`{{#unless}}\`. Detail dans la reference \`dsfr-data-display\`.
-- Corrige en 0.30.1 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
+- Corrige en 0.31.0 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
   reutilise (#893), et le gabarit est recapture quand le bundle est charge dans le \`<head>\`
   (#894).
+- **Quand la ligne est un pipeline** (identite des instances entre deux emissions, imbrication,
+  attribut booleen conditionnel, aucun compteur ni region), c'est \`dsfr-data-repeat\` :
+  meme gabarit, meme grammaire, rendu par clonage DOM — reference \`dsfr-data-repeat\`.
+  Regle : \`display\` quand la ligne est du contenu, \`repeat\` quand la ligne est un pipeline.
 
 ### Regle generale
 

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — dsfr-data-repeat : instances vivantes, identité par clé, vrai navigateur</title>
+  <!--
+    Ce que happy-dom ne peut pas prouver (#890) : l'ordre de rehaussement d'un fragment
+    cloné, l'interpolation des attributs AVANT toute connexion, et la garde de purge du
+    cache (#895) quand un id est porté par une instance fabriquée par le gabarit.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Un KPI par question</h1>
+    <dsfr-data-source id="rep-scores" data='[
+      {"code":"001","annee":"2023","score":10},{"code":"001","annee":"2024","score":20},
+      {"code":"002","annee":"2023","score":30},{"code":"002","annee":"2024","score":40},
+      {"code":"003","annee":"2024","score":60}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="rep-questions" data='[
+      {"code":"001","libelle":"Question un","long":true},
+      {"code":"002","libelle":"Question deux","long":false},
+      {"code":"003","libelle":"Question trois","long":false}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-repeat id="rep" source="rep-questions" key-field="code" per-row="1 md:3">
+      <template>
+        <h2 id="{{$uid}}" class="titre">{{libelle}}</h2>
+        <dsfr-data-query id="q-{{code}}" source="rep-scores" where="code:eq:{{code}}"></dsfr-data-query>
+        <dsfr-data-kpi id="k-{{code}}" source="q-{{code}}" value="score:sum" label="Somme des scores"
+          data-if-horizontal="long"></dsfr-data-kpi>
+      </template>
+    </dsfr-data-repeat>
+
+    <section id="tard"></section>
+  </main>
+</body>
+</html>

@@ -16327,6 +16327,437 @@
     },
     {
       "kind": "javascript-module",
+      "path": "packages/core/src/components/dsfr-data-repeat.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "REPEAT_TAG",
+          "type": {
+            "text": "string"
+          },
+          "default": "'dsfr-data-repeat'",
+          "description": "Nom de la balise (lot 0, #888 : `dsfr-data-repeat` est le nom de travail de\nl'ADR-135, pas encore arrêté par le mainteneur). Un seul point de définition,\nlu par les tests et par le préfixe des `$uid` : renommer = cette constante et\nle décorateur ci-dessous, que le test « la balise enregistrée est REPEAT_TAG »\ngarde alignés."
+        },
+        {
+          "kind": "class",
+          "description": "<dsfr-data-repeat> - Répéter des instances vivantes : une ligne de données, un pipeline\n\nComposant de STRUCTURE (ADR-135, #887) : pour chaque ligne de `source`, le `<template>`\nenfant est cloné et ses placeholders résolus — texte, attributs, et donc les composants\n`dsfr-data-*` qu'il contient, rehaussés avec leurs attributs déjà interpolés. C'est la\nvoie native pour « un graphique par question », « un KPI par service » : une\n`dsfr-data-query id=\"q-{{clé}}\" where=\"clé:eq:{{clé}}\"` par ligne scope une source chargée\nune fois, `type=\"{{champ}}\"` choisit le type.\n\nRègle d'usage : **`dsfr-data-display` quand la ligne est du contenu ; `dsfr-data-repeat`\nquand la ligne est un pipeline.** `display` est une liste de résultats — région nommée,\ncompteur annoncé, pagination, sélection. `repeat` est transparent : aucun `role`, aucun\n`aria-live`, aucun compteur, aucune pagination ; la structure de la page vient des titres\nque vous écrivez dans le gabarit.\n\nCe que `repeat` promet, et que `display` ne promet pas :\n- **l'identité par clé** (`key-field`) : à une nouvelle émission de `source`, une ligne\n  dont la clé subsiste garde ses nœuds — les instances qu'ils portent ne sont ni\n  déconnectées ni recréées, leurs attributs sont mis à jour en place ; les clés disparues\n  sont retirées, les nouvelles insérées à leur rang, l'ordre du DOM suit les données ;\n- **l'imbrication** : un `<template>` intérieur n'est pas parcouru — un `dsfr-data-display`\n  (ou un autre `dsfr-data-repeat`) dans le gabarit rend ses propres placeholders ;\n- **les attributs booléens conditionnels** : `data-if-databox=\"champ\"` pose `databox` quand\n  `champ` est vrai (ni null, undefined, « », [] ni false) et le retire sinon ;\n  `data-unless-…` inverse. Un `{{#if}}` entre deux attributs, lui, est découpé par\n  l'analyse HTML.\n\nGrammaire du gabarit : celle de `dsfr-data-display` et `dsfr-data-map-popup`\n(`{{chemin[:format[:arg]][|défaut]}}`, `{{#if}}`, `{{#unless}}`, `{{#each}}`), sans\nsyntaxe nouvelle, avec deux différences de sortie :\n- `{{{brut}}}` n'a pas de sens sur un nœud texte : rendu comme `{{brut}}`, avec un\n  avertissement une fois par gabarit ;\n- un bloc `{{#if}}…{{/if}}` doit tenir dans UN nœud texte ou UNE valeur d'attribut. Ouvert\n  avant un élément et fermé après (« englober deux `<p>` »), il ne peut pas être un bloc :\n  erreur de configuration, et le contenu est rendu quelle que soit la condition.\nVariables : `{{$index}}` (rang, 0-based), `{{$key}}` (valeur de `key-field`, ou le rang),\n`{{$uid}}` (identifiant DOM unique dérivé de la clé, sûr pour `id=` et `aria-labelledby`).\n\nCe que ce composant ne fait pas : pas de délégation serveur derrière un id scopé (une\nsource lue par N queries reste calculée dans le navigateur, règle #765 — charger la source\nen entier, `fetch-mode=\"export\"`, `max-records` au volume réel) ; ni `facets` ni `search`\nne se répètent. Deux répéteurs qui fabriquent le même id se marchent dessus, comme deux\nauteurs qui écriraient le même id.",
+          "name": "DsfrDataRepeat",
+          "members": [
+            {
+              "kind": "field",
+              "name": "source",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id de la source (ou du transformateur) dont chaque ligne devient une instance du gabarit. Requis.",
+              "attribute": "source"
+            },
+            {
+              "kind": "field",
+              "name": "keyField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur identifie une ligne entre deux émissions (chemin `a.b` accepté).\nUne clé qui subsiste garde ses nœuds et ses instances ; vide, la clé est le rang.\nClé nulle ou vide sur une ligne : le rang, sans erreur. Clé en double : erreur de\nconfiguration nommant la clé, et le rang pour les doublons.",
+              "attribute": "key-field"
+            },
+            {
+              "kind": "field",
+              "name": "perRow",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre de lignes par rangée à partir de 768 px (en dessous : une par rangée) —\ndiviseur de 12 (1, 2, 3, 4, 6, 12), ou une échelle par point de rupture\n`\"1 md:2 lg:3\"`. Vide : pas de grille, un bloc par ligne. Grille `fr-grid-row`\navec gouttières.",
+              "attribute": "per-row"
+            },
+            {
+              "kind": "field",
+              "name": "empty",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Texte rendu quand la source émet zéro ligne — dans un `<p>` sans `role=\"status\"` :\nla balise n'annonce rien, c'est l'auteur qui décide de l'annonce. Vide : rien.",
+              "attribute": "empty"
+            },
+            {
+              "kind": "field",
+              "name": "_uid",
+              "privacy": "private",
+              "readonly": true,
+              "default": "`${REPEAT_TAG.replace('dsfr-data-', 'dsfr-')}-${++repeatInstanceSeq}`",
+              "description": "Préfixe des `$uid` de l'instance (unique sur la page, comme `dsfr-display-N`)."
+            },
+            {
+              "kind": "field",
+              "name": "_template",
+              "type": {
+                "text": "HTMLTemplateElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_rows",
+              "type": {
+                "text": "HTMLElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_keyed",
+              "privacy": "private",
+              "default": "new Map<string, RepeatRow>()"
+            },
+            {
+              "kind": "field",
+              "name": "_data",
+              "type": {
+                "text": "Record<string, unknown>[]"
+              },
+              "privacy": "private",
+              "default": "[]"
+            },
+            {
+              "kind": "field",
+              "name": "_hasData",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "_checkedTemplate",
+              "type": {
+                "text": "HTMLTemplateElement | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Gabarit déjà vérifié (`{{{brut}}}`, blocs coupés) et son erreur structurelle."
+            },
+            {
+              "kind": "field",
+              "name": "_templateError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_lastError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Dernier message posé : `console.error` une fois par message distinct, l'attribut suit."
+            },
+            {
+              "kind": "field",
+              "name": "_templateObserver",
+              "type": {
+                "text": "MutationObserver | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Le gabarit n'est pas encore là quand la donnée arrive : bundle chargé dans le\n`<head>` (l'analyseur n'a pas atteint le `<template>`, #894), élément créé puis\ngarni par script, ou happy-dom qui connecte avant de rattacher les enfants. On\nobserve les enfants jusqu'à la capture, puis on rend. L'erreur « gabarit requis »\nest différée d'une macrotâche : l'enfant arrive souvent dans la même tâche."
+            },
+            {
+              "kind": "method",
+              "name": "_watchTemplate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_unwatchTemplate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "field",
+              "name": "_onDocumentParsed",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "onSourceReset",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "onSourceData",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_origin",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_report",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Pose l'erreur ; `console.error` seulement quand le message change (pas une fois par émission)."
+            },
+            {
+              "kind": "method",
+              "name": "_clearError",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_getTemplate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLTemplateElement | null"
+                }
+              },
+              "description": "Lecture paresseuse : le premier `<template>` enfant direct."
+            },
+            {
+              "kind": "method",
+              "name": "_checkTemplate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "tpl",
+                  "type": {
+                    "text": "HTMLTemplateElement"
+                  }
+                }
+              ],
+              "description": "Vérifications structurelles, une fois par gabarit : `{{{brut}}}` (avertissement,\nle rendu est échappé) et bloc coupé entre nœuds (erreur, retournée à chaque rendu)."
+            },
+            {
+              "kind": "method",
+              "name": "_getRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_clearRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_gridClasses",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ rows: string; row: string; error: string | null }"
+                }
+              },
+              "description": "Classes de grille : `per-row` via `grid-layout.ts` (ADR-112), sans `cols`."
+            },
+            {
+              "kind": "method",
+              "name": "_keysOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ keys: string[]; error: string | null }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "items",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Clé de chaque ligne : `key-field`, ou le rang. Champ absent de toutes les\nlignes → erreur nommée, rang pour toutes. Doublon → erreur nommée, rang\npour les occurrences suivantes (la première garde la clé)."
+            },
+            {
+              "kind": "method",
+              "name": "_vars",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "TemplateVars"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "index",
+                  "type": {
+                    "text": "number"
+                  }
+                },
+                {
+                  "name": "key",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "source",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id de la source (ou du transformateur) dont chaque ligne devient une instance du gabarit. Requis.",
+              "fieldName": "source"
+            },
+            {
+              "name": "key-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ dont la valeur identifie une ligne entre deux émissions (chemin `a.b` accepté).\nUne clé qui subsiste garde ses nœuds et ses instances ; vide, la clé est le rang.\nClé nulle ou vide sur une ligne : le rang, sans erreur. Clé en double : erreur de\nconfiguration nommant la clé, et le rang pour les doublons.",
+              "fieldName": "keyField"
+            },
+            {
+              "name": "per-row",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nombre de lignes par rangée à partir de 768 px (en dessous : une par rangée) —\ndiviseur de 12 (1, 2, 3, 4, 6, 12), ou une échelle par point de rupture\n`\"1 md:2 lg:3\"`. Vide : pas de grille, un bloc par ligne. Grille `fr-grid-row`\navec gouttières.",
+              "fieldName": "perRow"
+            },
+            {
+              "name": "empty",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Texte rendu quand la source émet zéro ligne — dans un `<p>` sans `role=\"status\"` :\nla balise n'annonce rien, c'est l'auteur qui décide de l'annonce. Vide : rien.",
+              "fieldName": "empty"
+            }
+          ],
+          "mixins": [
+            {
+              "name": "SourceSubscriberMixin",
+              "module": "/packages/core/src/utils/source-subscriber.js"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "dsfr-data-repeat",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "REPEAT_TAG",
+          "declaration": {
+            "name": "REPEAT_TAG",
+            "module": "packages/core/src/components/dsfr-data-repeat.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "DsfrDataRepeat",
+          "declaration": {
+            "name": "DsfrDataRepeat",
+            "module": "packages/core/src/components/dsfr-data-repeat.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dsfr-data-repeat",
+          "declaration": {
+            "name": "DsfrDataRepeat",
+            "module": "packages/core/src/components/dsfr-data-repeat.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "packages/core/src/components/dsfr-data-search.ts",
       "declarations": [
         {

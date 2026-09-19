@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dsfr-data-repeat - Composants - dsfr-data</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.css" integrity="sha384-5m9vgfA+uOR3qcY14HhRzWDK17cwEVXO75RSwv2KJXignSdIrOvz1xNaaDpWXCeu" crossorigin="anonymous">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr-chart@2.1.1/dist/DSFRChart/DSFRChart.js" integrity="sha384-OJTIJmv0zL1Ym2Bd6hA0oHB25gTqveSogoyVtnN3cEJcm4qE28qzTEp56vJeeKIS" crossorigin="anonymous"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+</head>
+<body>
+  <!-- Sources de données : la table des questions (répétée) et les scores (scopés par ligne) -->
+  <dsfr-data-source id="questions" data='[
+    {"code":"001","libelle":"Le climat social est bon","pres":"bar","long":false},
+    {"code":"002","libelle":"Les objectifs sont clairs","pres":"line","long":false},
+    {"code":"003","libelle":"La charge de travail est soutenable","pres":"bar","long":true}
+  ]'></dsfr-data-source>
+  <dsfr-data-source id="scores" data='[
+    {"code":"001","annee":"2022","score":62},{"code":"001","annee":"2023","score":65},{"code":"001","annee":"2024","score":71},
+    {"code":"002","annee":"2022","score":54},{"code":"002","annee":"2023","score":58},{"code":"002","annee":"2024","score":57},
+    {"code":"003","annee":"2022","score":48},{"code":"003","annee":"2023","score":51},{"code":"003","annee":"2024","score":49}
+  ]'></dsfr-data-source>
+  <dsfr-data-source id="chapitres" data='[
+    {"chapitre":"A","nom":"Conditions de travail"},
+    {"chapitre":"B","nom":"Management"}
+  ]'></dsfr-data-source>
+  <dsfr-data-source id="questions-par-chapitre" data='[
+    {"chapitre":"A","code":"001","libelle":"Le climat social est bon"},
+    {"chapitre":"A","code":"003","libelle":"La charge de travail est soutenable"},
+    {"chapitre":"B","code":"002","libelle":"Les objectifs sont clairs"}
+  ]'></dsfr-data-source>
+
+  <!-- Header -->
+  <app-header current-page="composants" base-path="../../"></app-header>
+
+  <!-- Layout documentation avec sidemenu -->
+  <app-layout-demo
+    title="dsfr-data-repeat"
+    icon="ri-layout-grid-line"
+    active-path="components/dsfr-data-repeat"
+    base-path="../">
+    <div slot="content">
+        <p class="fr-text--lead">
+          Répète des <strong>instances vivantes</strong> : pour chaque ligne d'une source, le
+          <code>&lt;template&gt;</code> enfant est cloné et ses placeholders résolus — texte, attributs, et donc les
+          composants <code>dsfr-data-*</code> qu'il contient. Un graphique par question, un KPI par service.
+        </p>
+
+        <div class="fr-callout fr-mb-4w">
+          <p class="fr-callout__title">Règle d'usage</p>
+          <p class="fr-callout__text">
+            <strong><code>dsfr-data-display</code> quand la ligne est du contenu ; <code>dsfr-data-repeat</code> quand
+            la ligne est un pipeline.</strong> <code>display</code> est une liste de résultats (région nommée, compteur
+            annoncé, pagination, sélection). <code>repeat</code> est un composant de <em>structure</em> (ADR-135) :
+            transparent — aucun <code>role</code>, aucun <code>aria-live</code>, aucun compteur, aucune pagination — la
+            structure de la page vient des titres que vous écrivez dans le gabarit.
+          </p>
+        </div>
+
+        <h2>Attributs</h2>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-repeat fields="source,key-field,per-row,empty" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source (ou du transformateur) dont chaque ligne devient une instance du gabarit. Requis.</td></tr>
+                <tr><td><code>key-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur identifie une ligne entre deux émissions (chemin <code>a.b</code> accepté). Une clé qui subsiste garde ses nœuds et ses instances ; vide, la clé est le rang. Clé nulle ou vide sur une ligne : le rang, sans erreur. Clé en double : erreur de configuration nommant la clé, et le rang pour les doublons.</td></tr>
+                <tr><td><code>per-row</code></td><td>String</td><td><code>""</code></td><td>Nombre de lignes par rangée à partir de 768 px (en dessous : une par rangée) — diviseur de 12 (1, 2, 3, 4, 6, 12), ou une échelle par point de rupture <code>"1 md:2 lg:3"</code>. Vide : pas de grille, un bloc par ligne. Grille <code>fr-grid-row</code> avec gouttières.</td></tr>
+                <tr><td><code>empty</code></td><td>String</td><td><code>""</code></td><td>Texte rendu quand la source émet zéro ligne — dans un <code>&lt;p&gt;</code> sans <code>role="status"</code> : la balise n'annonce rien, c'est l'auteur qui décide de l'annonce. Vide : rien.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="fr-mt-3w">Variables du gabarit</h3>
+        <ul>
+          <li><code>{{$index}}</code> — rang de la ligne (0-based) ;</li>
+          <li><code>{{$key}}</code> — valeur de <code>key-field</code> (ou le rang) ;</li>
+          <li><code>{{$uid}}</code> — identifiant DOM unique dérivé de la clé, sûr pour <code>id=</code> et
+            <code>aria-labelledby</code>, distinct d'un répéteur à l'autre.</li>
+        </ul>
+
+        <h3 class="fr-mt-3w">Ce que <code>repeat</code> promet</h3>
+        <ul>
+          <li><strong>L'identité par clé.</strong> À une nouvelle émission de la source, une ligne dont la clé
+            (<code>key-field</code>) subsiste garde ses nœuds : les instances ne sont ni déconnectées ni recréées,
+            leurs attributs sont mis à jour en place ; les clés disparues sont retirées, les nouvelles insérées à leur
+            rang, l'ordre du DOM suit les données. Mesuré : 119 graphiques ré-émis en ~110 ms sans un canvas détruit
+            (contre ~4,7 s de recréation totale avec <code>display</code>).</li>
+          <li><strong>L'imbrication.</strong> Un <code>&lt;template&gt;</code> intérieur n'est pas parcouru : un
+            <code>dsfr-data-display</code> ou un second <code>dsfr-data-repeat</code> dans le gabarit rend ses propres
+            placeholders.</li>
+          <li><strong>Les attributs booléens conditionnels.</strong> <code>data-if-horizontal="champ"</code> pose
+            <code>horizontal</code> quand <code>champ</code> est vrai (ni null, undefined, « », [] ni false) et le
+            retire sinon ; <code>data-unless-…</code> inverse. L'attribut de convention est retiré du DOM.</li>
+          <li><strong>Rien de silencieux.</strong> <code>source</code> absent, gabarit absent, <code>key-field</code>
+            absent des lignes ou en double, <code>per-row</code> invalide, bloc <code>{{#if}}</code> coupé entre deux
+            éléments : erreur de configuration nommée (<code>data-dsfr-config-error</code>, console).</li>
+        </ul>
+
+        <h3 class="fr-mt-3w">Grammaire du gabarit : la même, deux différences de sortie</h3>
+        <p>
+          Le moteur est celui de <a href="dsfr-data-display.html">dsfr-data-display</a> et de
+          <a href="dsfr-data-map-popup.html">dsfr-data-map-popup</a> — <code>{{chemin[:format[:arg]][|défaut]}}</code>,
+          <code>{{#if}}</code>, <code>{{#unless}}</code>, <code>{{#each}}</code> — sans syntaxe nouvelle. Parce que le
+          rendu est par nœuds : <code>{{{brut}}}</code> n'a pas de sens sur un nœud texte (rendu comme
+          <code>{{brut}}</code>, avec un avertissement) ; un bloc <code>{{#if}}…{{/if}}</code> doit tenir dans
+          <strong>un</strong> nœud texte ou <strong>une</strong> valeur d'attribut — ouvert avant un élément et fermé
+          après, il ne peut pas être un bloc : erreur de configuration, et le contenu est rendu quelle que soit la
+          condition.
+        </p>
+
+        <h2 class="fr-mt-4w">Exemples</h2>
+
+        <section class="demo-section">
+          <h3>1. Un graphique par question, scopé par une query interpolée</h3>
+          <dsfr-data-repeat id="demo-questions" source="questions" key-field="code" per-row="1 md:3">
+            <template>
+              <h4 id="{{$uid}}" class="fr-h6">{{libelle}}</h4>
+              <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"
+                order-by="annee:asc"></dsfr-data-query>
+              <dsfr-data-chart source="q-{{code}}" type="{{pres}}" label-field="annee" value-field="score"
+                name="{{libelle}}" data-if-horizontal="long"></dsfr-data-chart>
+            </template>
+          </dsfr-data-repeat>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-repeat</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"questions"</span> <span class="tok-attr">key-field</span><span class="tok-punct">=</span><span class="tok-string">"code"</span> <span class="tok-attr">per-row</span><span class="tok-punct">=</span><span class="tok-string">"1 md:3"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">h4</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"{{$uid}}"</span><span class="tok-punct">&gt;</span>{{libelle}}<span class="tok-punct">&lt;/</span><span class="tok-tag">h4</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"q-{{code}}"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"scores"</span> <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"code:eq:{{code}}"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"q-{{code}}"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"{{pres}}"</span>
+      <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"annee"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score"</span> <span class="tok-attr">data-if-horizontal</span><span class="tok-punct">=</span><span class="tok-string">"long"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-repeat</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            La troisième question porte <code>long: true</code> : son graphique reçoit l'attribut
+            <code>horizontal</code>, les deux autres non. La source <code>scores</code> est lue par trois queries :
+            son <code>where</code> reste calculé dans le navigateur (règle #765), c'est voulu — un fetch, N filtres.
+          </p>
+        </section>
+
+        <section class="demo-section">
+          <h3>2. Imbrication : chapitres → questions, deux répéteurs</h3>
+          <dsfr-data-repeat id="demo-chapitres" source="chapitres" key-field="chapitre">
+            <template>
+              <h4 id="{{$uid}}" class="fr-h6">{{nom}}</h4>
+              <dsfr-data-query id="qc-{{chapitre}}" source="questions-par-chapitre" where="chapitre:eq:{{chapitre}}"></dsfr-data-query>
+              <dsfr-data-repeat source="qc-{{chapitre}}" key-field="code">
+                <template><p class="fr-mb-1v">{{$index}}. {{libelle}} <span class="fr-badge fr-badge--sm fr-badge--info fr-badge--no-icon">{{code}}</span></p></template>
+              </dsfr-data-repeat>
+            </template>
+          </dsfr-data-repeat>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-repeat</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"chapitres"</span> <span class="tok-attr">key-field</span><span class="tok-punct">=</span><span class="tok-string">"chapitre"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">h4</span><span class="tok-punct">&gt;</span>{{nom}}<span class="tok-punct">&lt;/</span><span class="tok-tag">h4</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"qc-{{chapitre}}"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"questions-par-chapitre"</span> <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"chapitre:eq:{{chapitre}}"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-query</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-repeat</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"qc-{{chapitre}}"</span> <span class="tok-attr">key-field</span><span class="tok-punct">=</span><span class="tok-string">"code"</span><span class="tok-punct">&gt;</span>
+      <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>{{$index}}. {{libelle}}<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-repeat</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-repeat</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            Le <code>&lt;template&gt;</code> intérieur arrive intact au répéteur intérieur : <code>{{libelle}}</code> et
+            <code>{{code}}</code> sont résolus par la ligne intérieure, <code>{{nom}}</code> par la ligne extérieure.
+            Avec <code>dsfr-data-display</code>, les placeholders intérieurs seraient consommés par la ligne extérieure.
+          </p>
+        </section>
+
+        <section class="demo-section">
+          <h3>3. <code>empty</code> : zéro ligne, un texte sans annonce</h3>
+          <dsfr-data-source id="vide" data='[]'></dsfr-data-source>
+          <dsfr-data-repeat source="vide" empty="Aucune question pour ce périmètre.">
+            <template><p>{{libelle}}</p></template>
+          </dsfr-data-repeat>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-repeat</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"vide"</span> <span class="tok-attr">empty</span><span class="tok-punct">=</span><span class="tok-string">"Aucune question pour ce périmètre."</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span>{{libelle}}<span class="tok-punct">&lt;/</span><span class="tok-tag">p</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-repeat</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            Le texte est rendu dans un <code>&lt;p&gt;</code> sans <code>role="status"</code> : c'est l'auteur qui décide
+            de l'annonce, la balise ne parle pas.
+          </p>
+        </section>
+
+        <h2 class="fr-mt-4w">Limites, dites d'avance</h2>
+        <ul>
+          <li>Pas de délégation serveur derrière un id scopé : une source lue par N queries reste calculée dans le
+            navigateur (règle #765). La charger <strong>en entier</strong> (<code>fetch-mode="export"</code>,
+            <code>max-records</code> au volume réel). Ni <code>facets</code> ni <code>search</code> ne se répètent.</li>
+          <li>Le bus est plat : deux répéteurs qui fabriquent le même id (<code>q-001</code>) se marchent dessus, comme
+            deux auteurs qui écriraient le même id. Préfixer par répéteur.</li>
+          <li>Une query par ligne coûte N filtres et N renégociations à chaque inscription (#900) ; le lot 2
+            (<code>scopes</code>, #891) partitionnera la source une fois.</li>
+        </ul>
+    </div>
+  </app-layout-demo>
+
+  <!-- Footer -->
+  <app-footer base-path="../../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

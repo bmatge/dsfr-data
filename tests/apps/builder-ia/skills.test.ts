@@ -6,8 +6,8 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 34 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(34);
+  it('should have 35 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(35);
   });
 
   it('should have expected skill IDs', () => {

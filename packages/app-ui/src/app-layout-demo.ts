@@ -176,6 +176,11 @@ export class AppLayoutDemo extends LitElement {
             href: 'components/dsfr-data-display.html',
           },
           {
+            id: 'components/dsfr-data-repeat',
+            label: 'dsfr-data-repeat',
+            href: 'components/dsfr-data-repeat.html',
+          },
+          {
             id: 'components/dsfr-data-podium',
             label: 'dsfr-data-podium',
             href: 'components/dsfr-data-podium.html',

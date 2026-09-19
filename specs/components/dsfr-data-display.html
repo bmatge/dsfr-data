@@ -384,7 +384,7 @@
           </div>
 
           <div class="fr-callout fr-callout--green-emeraude fr-mt-2w">
-            <p class="fr-callout__title">Deux limites levées en 0.30.1</p>
+            <p class="fr-callout__title">Deux limites levées en 0.31.0</p>
             <p class="fr-callout__text">
               <strong>Un id réutilisé ne purge plus le cache (#893) :</strong> à la re-création, l'ancienne instance
               purgeait à sa déconnexion le cache de l'<code>id</code> que la nouvelle venait de remplir — un
@@ -394,6 +394,17 @@
               <code>defer</code>, le display capturait son <code>&lt;template&gt;</code> avant qu'il soit analysé, et
               rien ne le rattrapait quand les données étaient déjà connues au montage. Une seconde capture a lieu à la
               fin de l'analyse du document.
+            </p>
+          </div>
+
+          <div class="fr-callout fr-mt-2w">
+            <p class="fr-callout__title">Quand la ligne est un pipeline : <code>dsfr-data-repeat</code></p>
+            <p class="fr-callout__text">
+              L'identité des instances à la ré-émission, l'imbrication, un attribut booléen conditionnel et un rendu
+              sans région ni compteur ne sont pas des limites à lever ici : c'est le contrat du composant de structure
+              <a href="dsfr-data-repeat.html">dsfr-data-repeat</a> (ADR-135). Règle d'usage :
+              <strong><code>display</code> quand la ligne est du contenu, <code>repeat</code> quand la ligne est un
+              pipeline.</strong> L'exemple ci-dessus reste valide tel quel.
             </p>
           </div>
         </section>

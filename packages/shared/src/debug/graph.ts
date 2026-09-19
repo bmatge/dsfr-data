@@ -54,6 +54,8 @@ export const STAGE_ROLES: Record<string, StageRole> = {
   'dsfr-data-list': 'display',
   'dsfr-data-map-layer': 'display',
   'dsfr-data-podium': 'display',
+  // Noeud de structure (ADR-135, #890) : consommateur au lot 1, emetteur au lot 2 (`scopes`).
+  'dsfr-data-repeat': 'display',
 };
 
 /**
@@ -116,6 +118,7 @@ export const SHAPE_ATTRS: Record<string, string[]> = {
   'dsfr-data-kpi': ['value', 'label', 'format', 'unit'],
   'dsfr-data-podium': ['label-field', 'value-field', 'max-items'],
   'dsfr-data-display': ['per-row', 'cols', 'pagination', 'uid-field'],
+  'dsfr-data-repeat': ['key-field', 'per-row'],
   'dsfr-data-map-layer': ['type', 'lat-field', 'lon-field', 'geo-field'],
   'dsfr-data-a11y': ['label-field', 'value-field', 'for', 'table'],
 };
