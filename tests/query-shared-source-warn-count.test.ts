@@ -76,7 +76,7 @@ function page(prefix: string) {
 }
 
 const messagesPartage = (warn: ReturnType<typeof vi.spyOn>) =>
-  warn.mock.calls.map((c) => String(c[0])).filter((m) => m.includes('#765'));
+  warn.mock.calls.map((c: unknown[]) => String(c[0])).filter((m: string) => m.includes('#765'));
 
 describe('#900 — un avertissement par query, pas un par voisin', () => {
   it(`${N} queries sur une source partagée : au plus ${N} avertissements (pas N²/2)`, async () => {
