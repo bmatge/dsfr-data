@@ -1549,6 +1549,31 @@
             },
             {
               "kind": "method",
+              "name": "_overlayStackingHost",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "wrapper",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                },
+                {
+                  "name": "canvas",
+                  "type": {
+                    "text": "HTMLCanvasElement"
+                  }
+                }
+              ],
+              "description": "Hôte des overlays : le conteneur dans lequel les SVG sont peints AU-DESSUS\ndu canvas (#903).\n\nSans `databox`, canvas et overlays sont frères dans le wrapper : rien à\nfaire. Avec, DSFR Chart téléporte le canvas DANS la carte de la DataBox\n(`div.fr-card.databox`, `position: relative`, `z-index: 500`, fond blanc\nopaque) ; les overlays, restés à côté de `data-box`, étaient donc peints\nSOUS elle — `reference-lines` et `targets` invisibles, sans un message,\npuisque le dessin « réussissait ». Même famille que #813.\n\nOn remonte depuis le canvas jusqu'au premier ancêtre POSITIONNÉ : la carte\nquand il y a une DataBox, le wrapper sinon. L'overlay se retrouve dans le\ncontexte d'empilement du canvas, donc peint après lui (ordre de l'arbre).\nPlutôt qu'une course au `z-index` : un overlay à 501 passerait aussi\nau-dessus de la modale et du plein écran de la DataBox, qui vivent DANS la\ncarte."
+            },
+            {
+              "kind": "method",
               "name": "_paintChartOverlays",
               "privacy": "private",
               "return": {

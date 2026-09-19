@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — reference-lines et targets sous une DataBox (#903)</title>
+  <!--
+    Ce que happy-dom ne peut pas prouver (#903) : QUI EST PEINT AU-DESSUS. Les
+    overlays étaient bien construits, aux bonnes dimensions, sans un message —
+    et invisibles, parce que la carte de la DataBox (`z-index: 500`, fond blanc
+    opaque) était peinte par-dessus. Seul un moteur de rendu répond à
+    `elementFromPoint`.
+
+    Les deux graphiques sont identiques à `databox` près.
+  -->
+  <!-- Le DSFR complet : c'est LUI qui pose `z-index: 500` sur `.fr-card`, donc
+       sur la carte de la DataBox — sans lui, le défaut ne se reproduit pas
+       (même CDN que les autres fixtures : `layout-grid.html`). -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <!-- La vraie bibliothèque de graphiques, depuis node_modules (même parti
+       pris que `chart-legend.html`). -->
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main class="fr-container">
+    <dsfr-data-source id="serie" data='[
+      {"mois":"2024-01","cumul":1000},{"mois":"2024-02","cumul":1800},
+      {"mois":"2024-03","cumul":2600},{"mois":"2024-04","cumul":3100}
+    ]'></dsfr-data-source>
+
+    <h2>Avec DataBox</h2>
+    <dsfr-data-chart id="avec" source="serie" type="line" label-field="mois" value-field="cumul:Cumul"
+      y-min="0"
+      reference-lines='[{"axis":"y","value":2000,"label":"Objectif intermédiaire"}]'
+      targets='[{"x":"2024-09","value":4000,"label":"Cible septembre"}]'
+      databox databox-title="Cumul et cible"></dsfr-data-chart>
+
+    <h2>Sans DataBox (témoin)</h2>
+    <dsfr-data-chart id="sans" source="serie" type="line" label-field="mois" value-field="cumul:Cumul"
+      y-min="0"
+      reference-lines='[{"axis":"y","value":2000,"label":"Objectif intermédiaire"}]'
+      targets='[{"x":"2024-09","value":4000,"label":"Cible septembre"}]'></dsfr-data-chart>
+  </main>
+</body>
+</html>
