@@ -32,13 +32,16 @@ export function absent(v: unknown): boolean {
 /**
  * Égalité de l'oracle, énoncée en toutes lettres plutôt qu'empruntée à la lib :
  * deux valeurs vides sont égales ; une valeur vide n'est égale à RIEN d'autre
- * (c'est le piège `'' == 0` de #846) ; sinon égalité numérique si les deux
- * côtés sont numériques, sinon égalité de chaînes.
+ * (c'est le piège `'' == 0` de #846) ; un TABLEAU est égal dès qu'un de ses
+ * éléments l'est, et garde en plus son rendu texte (#953 — mesuré au portail :
+ * `where=champ = "x"` trouve sur n'importe quel élément) ; sinon égalité
+ * numérique si les deux côtés sont numériques, sinon égalité de chaînes.
  */
 export function egal(a: unknown, b: unknown): boolean {
   const va = absent(a);
   const vb = absent(b);
   if (va || vb) return va && vb;
+  if (Array.isArray(a) && a.some((el) => egal(el, b))) return true;
   const na = toNum(a);
   const nb = toNum(b);
   if (na !== null && nb !== null) return na === nb;

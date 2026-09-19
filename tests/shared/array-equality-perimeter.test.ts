@@ -1,34 +1,41 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   looseEquals,
-  looseEqualsOrContains,
   applyLocalFilter,
+  resetArrayEqualityTransitionWarnings,
 } from '../../packages/shared/src/query/filter-translator';
 import { compileCompute, applyCompute } from '../../packages/shared/src/utils/compute';
 import { computeAggregation } from '../../packages/core/src/utils/aggregations';
 
 /**
- * Garde-fou documentaire de #842 — l'asymétrie « champ tableau » est VOULUE.
+ * Le périmètre de l'égalité « champ tableau », DEUXIÈME état.
  *
- * `looseEqualsOrContains` (#673) fait matcher un champ TABLEAU dès qu'un de ses
- * éléments est égal. Elle n'a qu'UN appelant dans tout le dépôt : la valeur de
- * filtre d'un `count:champ:valeur` du KPI (aggregations.ts). Partout ailleurs —
- * `where` colon (source, query, KPI, filtre entre accolades d'une expression)
- * et les comparaisons `=` / `!=` de `compute` — l'égalité est `looseEquals`.
+ * ── Ce que ce fichier disait avant, et qui était faux ────────────────────
+ * Écrit à #842, il verrouillait une asymétrie présentée comme VOULUE :
+ * `count:tags:urgent` du KPI parcourait le tableau (`looseEqualsOrContains`,
+ * #673), tout le reste — `where` colon, `count{tags:eq:urgent}`, `=` de
+ * `compute` — comparait la valeur telle quelle. L'argument était qu'étendre
+ * la variante changerait en silence le compte de pages publiées.
  *
- * ⚠️ Et `looseEquals` ne dit PAS « un tableau ne matche jamais » : son repli
- * `String(a) === String(b)` fait matcher un tableau À UN SEUL ÉLÉMENT
- * (`['urgent'] == 'urgent'` est vrai en JS), et un tableau à plusieurs
- * éléments matche son propre rendu à la virgule (`'urgent,social'`). La
- * différence est donc DÉPENDANTE DE LA DONNÉE : la même page rend des
- * résultats différents selon qu'une ligne porte une étiquette ou deux.
- * C'est précisément ce que la doc doit dire.
+ * ── Ce qui l'a invalidé ──────────────────────────────────────────────────
+ * La mesure de #953 : Opendatasoft lit déjà `=` sur un champ multivalué comme
+ * un « contient ». Dès qu'une clause est déléguée — et ce n'est pas la balise
+ * qui porte le `where` qui en décide — la bibliothèque AVAIT déjà la
+ * sémantique tableau. L'asymétrie n'était donc pas un contrat, c'était une
+ * incohérence interne ; et le comportement client n'était pas une sémantique,
+ * c'était `Array.prototype.toString`.
  *
- * Étendre la variante tableau à `where` / `compute` serait un changement de
- * comportement silencieux (une page qui comptait deux lignes en compterait
- * soudain quatre) : arbitrage tranché à #842, on documente au lieu d'étendre.
- * Si ce test casse, c'est que la sémantique a bougé — reprendre la doc avec
- * (JSDoc de `where` / `compute` / `value` du KPI, USER-GUIDE, skill).
+ * ── Le périmètre qui reste, et que ce fichier verrouille maintenant ───────
+ * Trois choses continuent de se distinguer, et il faut les dire :
+ *   1. le repli textuel (`['a','b']` matche `'a,b'`) est GARDÉ côté client
+ *      alors que le portail rend 0 dessus — gardé pour ne perdre aucune ligne ;
+ *   2. `contains` du `where` reste une recherche de SOUS-CHAÎNE dans
+ *      `String(tableau)` : ce n'est toujours pas un `eq` élément par élément ;
+ *   3. `neq` / `notin` sont la négation de `eq` / `in` : c'est le seul endroit
+ *      où le client perd une ligne, et le serveur fait pareil.
+ *
+ * La démonstration de non-perte et les mesures API sont dans
+ * `tests/shared/array-equality-alignment.test.ts`.
  */
 
 const ROWS = [
@@ -40,79 +47,94 @@ const ROWS = [
 
 const ids = (rows: Record<string, unknown>[]): unknown[] => rows.map((r) => r.id);
 
-describe('#842 — la variante « tableau contient » et son périmètre', () => {
-  it('les deux égalités ne diffèrent que sur un tableau à PLUSIEURS éléments', () => {
-    expect(looseEqualsOrContains(['urgent', 'social'], 'urgent')).toBe(true);
-    expect(looseEquals(['urgent', 'social'], 'urgent')).toBe(false);
+describe('#953 — il n’y a plus qu’une égalité', () => {
+  beforeEach(() => resetArrayEqualityTransitionWarnings());
 
-    // Le piège : à un seul élément, les deux sont d'accord — par le repli
-    // `String(a) === String(b)`, pas par une quelconque connaissance des
-    // tableaux. La différence n'apparaît donc que sur certaines lignes.
-    expect(looseEquals(['urgent'], 'urgent')).toBe(true);
-    expect(looseEqualsOrContains(['urgent'], 'urgent')).toBe(true);
-    // Et un tableau à plusieurs éléments matche son rendu à la virgule.
-    expect(looseEquals(['urgent', 'social'], 'urgent,social')).toBe(true);
-
-    // Sur un scalaire, les deux sont rigoureusement la même fonction.
-    for (const [a, b] of [
-      ['urgent', 'urgent'],
-      ['75', 75],
-      [true, 'true'],
-      [null, undefined],
-      ['', 0],
-      ['urgent', 'social'],
-    ] as [unknown, unknown][]) {
-      expect(looseEqualsOrContains(a, b)).toBe(looseEquals(a, b));
-    }
+  it('`looseEqualsOrContains` a fusionné dans `looseEquals`', async () => {
+    const shared = await import('../../packages/shared/src/query/filter-translator');
+    expect('looseEqualsOrContains' in shared).toBe(false);
+    // Et la fonction survivante fait ce que faisait la variante.
+    expect(looseEquals(['urgent', 'social'], 'urgent')).toBe(true);
   });
 
-  it('KPI `count:champ:valeur` : la variante S’APPLIQUE — les 3 lignes « urgent »', () => {
+  it('KPI, `where` et `compute` comptent enfin la même chose', () => {
     expect(computeAggregation(ROWS, 'count:tags:urgent')).toBe(3);
-  });
-
-  it('KPI, filtre entre accolades du même attribut : la variante NE s’applique PAS', () => {
-    // Même composant, même attribut `value` — mais le dialecte colon des
-    // accolades passe par applyLocalFilter. La ligne 1 (deux étiquettes)
-    // sort du compte : 2 au lieu de 3.
-    expect(computeAggregation(ROWS, 'count{tags:eq:urgent}')).toBe(2);
-    // Le `where` du KPI (même applyLocalFilter) donnerait le même 2.
-    expect(ids(applyLocalFilter(ROWS, 'tags:eq:urgent'))).toEqual([3, 4]);
-  });
-
-  it('`where` colon : eq / in / neq comparent la valeur du champ telle quelle', () => {
-    expect(ids(applyLocalFilter(ROWS, 'tags:eq:urgent'))).toEqual([3, 4]);
-    // `in` applique la même égalité à chaque jeton : la ligne 1 manque encore.
-    expect(ids(applyLocalFilter(ROWS, 'tags:in:urgent|social'))).toEqual([2, 3, 4]);
-    // Le négatif garde donc la ligne multi-étiquettes, qui n’a pas matché.
-    expect(ids(applyLocalFilter(ROWS, 'tags:neq:urgent'))).toEqual([1, 2]);
-  });
-
-  it('`compute` : `champ = valeur` compare la valeur du champ telle quelle', () => {
+    expect(computeAggregation(ROWS, 'count{tags:eq:urgent}')).toBe(3);
+    expect(ids(applyLocalFilter(ROWS, 'tags:eq:urgent'))).toEqual([1, 3, 4]);
     const c = compileCompute("a = when tags = 'urgent' then 1 else 0");
-    expect(ROWS.map((r) => applyCompute({ ...r }, c).a)).toEqual([0, 0, 1, 1]);
-  });
-
-  // --- Les voies de remplacement, quand on VEUT le comportement tableau ---
-
-  it('voie native de `compute` : `contains()` parcourt le tableau, élément par élément', () => {
-    const c = compileCompute("a = when contains(tags, 'urgent') then 1 else 0");
     expect(ROWS.map((r) => applyCompute({ ...r }, c).a)).toEqual([1, 0, 1, 1]);
   });
+});
 
-  it('voie native de `where` : une colonne calculée en amont, puis un filtre dessus', () => {
-    // dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"
-    // puis where="a_urgent:eq:1" — c'est LA réponse à donner en doc.
+describe('#953 — ce qui distingue ENCORE le client du portail', () => {
+  beforeEach(() => resetArrayEqualityTransitionWarnings());
+
+  it('1. le repli textuel est gardé, et le portail ne l’a pas', () => {
+    // Mesuré : where=keyword = "LFI 2011,budgets annexes,…" -> total_count = 0.
+    // Côté client, ça matche encore — volontairement, pour ne rien perdre.
+    expect(looseEquals(['a', 'b'], 'a,b')).toBe(true);
+    expect(ids(applyLocalFilter([{ id: 1, t: ['a', 'b'] }], 't:eq:a%2Cb'))).toEqual([1]);
+  });
+
+  it('2. `contains` du `where` reste une sous-chaîne, pas un élément', () => {
+    // Le faux ami de #951 : il matche « non-urgent » quand on cherche « urgent ».
+    const piege = [{ id: 9, tags: ['non-urgent'] }];
+    expect(applyLocalFilter(piege, 'tags:contains:urgent')).toHaveLength(1); // faux positif
+    expect(applyLocalFilter(piege, 'tags:eq:urgent')).toHaveLength(0); // eq, lui, est juste
+    // Et il traverse la frontière entre deux éléments, via la virgule.
+    expect(applyLocalFilter([{ tags: ['ea', 'ir'] }], 'tags:contains:a%2Ci')).toHaveLength(1);
+  });
+
+  it('3. `neq` / `notin` : la seule perte, et elle est alignée sur le serveur', () => {
+    // Avant : [1, 2]. Le portail mesuré ne gardait déjà que la ligne 2.
+    expect(ids(applyLocalFilter(ROWS, 'tags:neq:urgent'))).toEqual([2]);
+    expect(ids(applyLocalFilter(ROWS, 'tags:notin:urgent|social'))).toEqual([]);
+    const c = compileCompute("a = when tags != 'urgent' then 1 else 0");
+    expect(ROWS.map((r) => applyCompute({ ...r }, c).a)).toEqual([0, 1, 0, 0]);
+  });
+});
+
+describe('#953 — la voie `compute` reste valide, elle n’est plus nécessaire', () => {
+  beforeEach(() => resetArrayEqualityTransitionWarnings());
+
+  it('le booléen dérivé donne le même résultat que le `where` direct', () => {
     const c = compileCompute("a_urgent = when contains(tags, 'urgent') then 1 else 0");
     const enrichies = ROWS.map((r) => applyCompute({ ...r }, c));
     expect(ids(applyLocalFilter(enrichies, 'a_urgent:eq:1'))).toEqual([1, 3, 4]);
+    // … qui est exactement ce que rend désormais le filtre direct.
+    expect(ids(applyLocalFilter(ROWS, 'tags:eq:urgent'))).toEqual([1, 3, 4]);
   });
 
-  it('`where="champ:contains:v"` : donne le bon résultat ici, mais n’est PAS un équivalent', () => {
-    // Il compare une SOUS-CHAÎNE de `String(tableau)`. Sur ce jeu, ça tombe juste.
-    expect(ids(applyLocalFilter(ROWS, 'tags:contains:urgent'))).toEqual([1, 3, 4]);
-    // Ça cesse de marcher dès qu'une étiquette est sous-chaîne d'une autre.
-    const piege = [{ id: 9, tags: ['non-urgent'] }];
-    expect(applyLocalFilter(piege, 'tags:contains:urgent')).toHaveLength(1); // faux positif
-    expect(applyLocalFilter(piege, 'tags:eq:urgent')).toHaveLength(0);
+  it('elle garde un intérêt : un scalaire dérivé se délègue et se regroupe', () => {
+    // Le filtre final porte sur un scalaire : aucune ambiguïté de mode, et
+    // la colonne devient regroupable / affichable. C'est ce qui la garde utile.
+    const c = compileCompute("a_urgent = when contains(tags, 'urgent') then 1 else 0");
+    expect(ROWS.map((r) => applyCompute({ ...r }, c).a_urgent)).toEqual([1, 0, 1, 1]);
+  });
+});
+
+describe('#953 — l’avertissement de transition ne sort que sur les lignes qui basculent', () => {
+  let warn: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    resetArrayEqualityTransitionWarnings();
+    warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+  afterEach(() => warn.mockRestore());
+
+  it('rien sur un jeu scalaire, un message sur un jeu multivalué', () => {
+    applyLocalFilter(
+      [
+        { dep: '75' },
+        { dep: 75 },
+        { dep: null },
+        { dep: ['75'] }, // un seul élément : matchait déjà par le repli
+      ],
+      'dep:eq:75'
+    );
+    expect(warn).not.toHaveBeenCalled();
+
+    applyLocalFilter([{ dep: ['75', '13'] }], 'dep:eq:75');
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 });

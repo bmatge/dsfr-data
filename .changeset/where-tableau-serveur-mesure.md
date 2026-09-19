@@ -25,3 +25,8 @@ second graphique à une page peut donc changer un chiffre sans qu'on touche au f
 Documentation seule, aucun changement de comportement : JSDoc de `where` sur
 `dsfr-data-query` et `dsfr-data-kpi`, section « Champs tableau » du guide, passages
 correspondants de la skill.
+
+> **Suite, dans la même version.** Les trois comportements décrits ci-dessus ne sont
+> plus que deux : le client a été aligné sur le serveur (#953), en gardant le repli
+> textuel — `['urgent','social']` matche désormais des deux côtés, `['a','b']` vs
+> `'a,b'` reste un repli client que le portail n'a pas.

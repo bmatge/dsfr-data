@@ -181,10 +181,14 @@ def _str_js_float(f: float) -> str:
 
 
 def egal(a: Any, b: Any) -> bool:
-    """Deux absents sont égaux ; un absent n'égale rien ; nombres si les deux le sont ; sinon chaînes."""
+    """Deux absents sont égaux ; un absent n'égale rien ; un TABLEAU est égal dès
+    qu'un de ses éléments l'est, et garde en plus son rendu texte (#953) ;
+    nombres si les deux le sont ; sinon chaînes."""
     va, vb = absent(a), absent(b)
     if va or vb:
         return va and vb
+    if isinstance(a, list) and any(egal(el, b) for el in a):
+        return True
     na, nb = to_num(a), to_num(b)
     if na is not None and nb is not None:
         return na == nb

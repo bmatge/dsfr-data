@@ -442,37 +442,40 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
 
-**Champs tableau (#842)** : ces opérateurs comparent la valeur du champ TELLE QUELLE.
-\`tags:eq:urgent\` ne retient PAS une ligne dont \`tags\` vaut \`["urgent","social"]\` — alors que
-\`value="count:tags:urgent"\` de dsfr-data-kpi, lui, la compte (seule la grammaire d'agrégation
-parcourt les tableaux, #673). Piège : une ligne à UNE seule étiquette (\`["urgent"]\`) matche quand
-même, par repli sur le texte — le filtre a donc l'air de marcher sur une partie du jeu. L'asymétrie
-est voulue (l'étendre changerait en silence les chiffres de pages publiées). Pour filtrer un champ
-tableau, dériver un booléen en amont puis filtrer dessus :
-\`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"\` puis
-\`where="a_urgent:eq:1"\`. Ne PAS proposer \`tags:contains:urgent\` comme équivalent : il cherche une
-sous-chaîne dans \`String(tableau)\`, donc « non-urgent » y matche « urgent ». \`explode\` éclate un
-multivalué avant un \`group-by\`, ce n'est pas un filtre ; une \`dsfr-data-facets\` sur le champ,
-elle, éclate et filtre correctement (#421) quand le filtre revient à l'utilisateur.
+**Champs tableau (#953, ex-#842)** : \`eq\` / \`neq\` / \`in\` / \`notin\` regardent DANS le tableau.
+\`tags:eq:urgent\` retient une ligne dont \`tags\` vaut \`["urgent","social"]\`, exactement comme
+\`value="count:tags:urgent"\` de dsfr-data-kpi la compte, et comme le portail la retient quand la
+clause lui est déléguée. La règle exacte côté client :
 
-**…et le serveur, lui, regarde DANS le tableau (#953)**. Ce qui précède décrit l'évaluation côté
-client. Mesuré le 2026-09-19 sur le catalogue de data.economie.gouv.fr (champ \`keyword\`) :
-\`where=keyword = "budgets annexes"\` rend \`total_count = 1\` sur une ligne dont \`keyword\` porte
-quatre valeurs. Opendatasoft lit \`=\` comme un « contient ».
+\`\`\`
+eq(valeur, v) = (valeur est un tableau ET un de ses éléments vaut v)
+                OU String(valeur) === String(v)
+\`\`\`
 
-| Donnée du champ, comparée à la valeur du filtre | Client | Serveur (ODS délégué) |
-|---|---|---|
-| \`["urgent"]\` vs \`"urgent"\` (un seul élément) | matche | matche |
-| \`["urgent","social"]\` vs \`"urgent"\` (plusieurs) | ne matche pas | matche |
-| \`["a","b"]\` vs \`"a,b"\` (le rendu texte) | matche | ne matche pas |
+Le second terme est un repli textuel que le portail n'a pas (\`["a","b"]\` matche \`"a,b"\` en local,
+le portail rend 0) : il est gardé pour que \`eq\` / \`in\` ne puissent que gagner des correspondances.
+\`neq\` / \`notin\` en sont la négation, donc eux en perdent — le portail fait pareil (son \`!=\` est la
+négation stricte de son \`=\`, valeurs nulles exclues des deux côtés).
 
-⚠️ **Ce n'est pas la balise portant le \`where\` qui décide** si la clause est déléguée : c'est le
-mode de la source (\`fetch-mode\`, \`server-side\`), un transformateur amont, le partage de la source
-avec un autre consommateur, un \`explode\`. Ajouter un second graphique à une page peut faire perdre
-la dédicace de la source, basculer l'évaluation au client et **changer un chiffre affiché**, sans
-qu'on touche au filtre et sans message. Ne jamais répondre « ce filtre compte X » sur un champ
-multivalué sans dire de quel côté il est évalué — et préférer le booléen dérivé par \`compute\`,
-seule écriture qui rende le même chiffre des deux côtés.
+Mesuré le 2026-09-19 sur deux portails et deux endpoints — \`keyword\` du catalogue de
+data.economie.gouv.fr, \`themes_attendus\` de \`retours-formulaire-votre-avis-copie\` sur
+data.education.gouv.fr (176 lignes, 21 nulles) : \`= "Elèves"\` → 124, \`!= "Elèves"\` → 31,
+\`in ("Elèves","Finances")\` → 130, et le rendu texte complet du tableau → 0. Opendatasoft lit \`=\`
+sur un champ multivalué comme un « contient ». C'est sur cette sémantique que le client est aligné,
+et le chiffre ne dépend donc plus de l'endroit où la clause est évaluée.
+
+⚠️ Ne PAS proposer \`tags:contains:urgent\` comme équivalent de \`eq\` : il cherche une sous-chaîne dans
+\`String(tableau)\`, donc « non-urgent » y matche « urgent », et la recherche traverse la virgule
+entre deux éléments. \`explode\` éclate un multivalué avant un \`group-by\`, ce n'est pas un filtre ;
+une \`dsfr-data-facets\` sur le champ éclate et filtre correctement (#421) quand le filtre revient à
+l'utilisateur. Le booléen dérivé par \`compute\`
+(\`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"\` puis
+\`where="a_urgent:eq:1"\`) reste valide — utile quand on veut aussi REGROUPER par cette distinction,
+le filtre portant alors sur un scalaire — mais il n'est plus NÉCESSAIRE pour filtrer un champ
+tableau.
+
+Pendant une version mineure, un avertissement de transition nomme en console le champ et la valeur
+des lignes qui se mettent à compter, dédupliqué par couple champ/valeur.
 
 **Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
 renseigné produit un groupe \`null\` (jamais \`""\`), que dsfr-data-chart libelle
@@ -831,18 +834,19 @@ manquant rend \`null\`, pas \`actif\`), une division par zero rend \`null\` (jam
 | \`champ:in:a\\|b\` / \`notin\` | \`champ = 'a' or champ = 'b'\` / \`not (…)\` |
 | \`a:eq:1, b:eq:2\` (virgule = ET) | \`a = 1 and b = 2\` |
 
-**Champs tableau (#842)** : \`=\` et \`!=\` comparent la valeur du champ TELLE QUELLE —
-\`when tags = 'urgent'\` est faux pour \`["urgent","social"]\` (et vrai pour \`["urgent"]\`, par repli
-sur le texte : le resultat depend de la donnee). Seul \`contains(tags, 'urgent')\` parcourt le
-tableau, element par element, avec la meme egalite lache. La correspondance \`champ:contains:v\` ↔
-\`contains(champ, 'v')\` ci-dessus ne vaut donc QUE sur du texte : sur un tableau, l'operateur
-\`where\` cherche une sous-chaine dans \`String(tableau)\` (« non-urgent » y matche « urgent ») la ou
-la fonction \`compute\` compare element par element. C'est aussi la voie pour FILTRER un champ
-tableau, qu'aucun operateur \`where\` ne sait faire : calculer ici un booleen
-(\`a_urgent = when contains(tags,'urgent') then 1 else 0\`), puis \`where="a_urgent:eq:1"\` en aval.
-C'est aussi la seule ecriture STABLE : un \`where\` pose directement sur le champ tableau change de
-sens selon qu'il est delegue au portail (ODS lit \`=\` comme un « contient », mesure le 2026-09-19,
-#953) ou evalue dans le navigateur, alors que le booleen derive est un scalaire des deux cotes.
+**Champs tableau (#953, ex-#842)** : \`=\` et \`!=\` regardent DANS le tableau —
+\`when tags = 'urgent'\` est VRAI pour \`["urgent","social"]\`, exactement comme
+\`contains(tags, 'urgent')\`, et comme le \`where\` \`tags:eq:urgent\` et le portail sur une clause
+deleguee. \`!=\` en est la negation, donc faux sur cette meme ligne. La correspondance
+\`champ:contains:v\` ↔ \`contains(champ, 'v')\` ci-dessus ne vaut TOUJOURS que sur du texte : sur un
+tableau, l'operateur \`where\` \`contains\` cherche une sous-chaine dans \`String(tableau)\`
+(« non-urgent » y matche « urgent ») la ou la fonction \`compute\` compare element par element —
+pour filtrer un champ tableau, c'est \`champ:eq:v\` qu'il faut ecrire, pas \`champ:contains:v\`.
+Le booleen derive (\`a_urgent = when contains(tags,'urgent') then 1 else 0\`, puis
+\`where="a_urgent:eq:1"\` en aval) reste valide et garde un interet — le filtre final porte sur un
+scalaire, regroupable et delegable — mais il n'est plus NECESSAIRE : depuis l'alignement de
+l'egalite client sur celle du portail, un \`where\` pose directement sur le champ tableau rend le
+meme compte qu'il soit delegue ou evalue dans le navigateur.
 
 Garde-fous : aucun \`eval\`, seuls les champs de la ligne sont lisibles, expression bornee
 en longueur (2000 caracteres) et en profondeur (32 niveaux). Les colonnes produites
@@ -1325,15 +1329,12 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
 \`\`\`
 - \`count:champ:valeur\` accepte un champ **tableau** (tags) : la ligne compte si l'un des
   éléments est égal. Le \`where\` s'applique aux deux côtés (sauf \`meta:total\`).
-  **C'est la seule grammaire du dépôt qui regarde DANS un tableau** (#673). Le \`where\` du KPI et
-  le filtre entre accolades (\`count{tags:eq:urgent}\`) comparent la valeur telle quelle : sur le
-  même jeu, \`value="count:tags:urgent"\` et \`value="count{tags:eq:urgent}"\` rendent deux chiffres
-  différents, et c'est voulu (#842). Pour filtrer sur un champ tableau, dériver un booléen en amont
-  (\`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"\`) puis
-  \`where="a_urgent:eq:1"\`. Le KPI ne délègue jamais : son \`where\` est toujours la variante client.
-  Le même texte sur une \`dsfr-data-query\` peut, lui, partir au portail, qui lit \`=\` comme un
-  « contient » sur un champ tableau (mesuré le 2026-09-19, #953) — un KPI et un graphique portant le
-  MÊME \`where\` sur le même jeu peuvent donc afficher deux chiffres.
+  Depuis #953, le \`where\` du KPI et le filtre entre accolades (\`count{tags:eq:urgent}\`) font
+  PAREIL : sur le même jeu, \`value="count:tags:urgent"\` et \`value="count{tags:eq:urgent}"\`
+  rendent le MÊME chiffre. L'asymétrie de #842 — deux chiffres, « et c'est voulu » — a disparu :
+  l'égalité client est alignée sur celle du portail, qui lit déjà \`=\` sur un champ multivalué
+  comme un « contient ». Le KPI ne délègue jamais, mais c'est désormais sans conséquence : un KPI
+  et un graphique portant le MÊME \`where\` sur le même jeu affichent le même chiffre.
 - **Seul \`count\` accepte une valeur de filtre** : \`sum:montant:ouvert\` est une erreur de
   configuration (il rendait autrefois le total non filtré).
 - **Part de SOMMES : filtre entre accolades sur un côté** (\`expr{champ:op:valeur}\`, dialecte du

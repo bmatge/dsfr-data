@@ -92,39 +92,99 @@ export function filterToOdsql(filterExpr: string): string {
  * comparaisons `=` / `!=` de `compute` (#671) : `where="cat:eq:A"` et
  * `when cat = 'A'` gardent les mêmes lignes.
  *
- * CHAMP TABLEAU (#842) : cette fonction ne connaît pas les tableaux — elle
- * compare la valeur TELLE QUELLE. Le repli `String === String` fait quand
- * même matcher un tableau à UN élément (`['urgent'] == 'urgent'` est vrai en
- * JS) et un tableau à plusieurs éléments son propre rendu à la virgule
- * (`['a','b']` matche `'a,b'`). Le résultat dépend donc de la donnée ligne à
- * ligne. Pour un vrai « contient », voir `looseEqualsOrContains` — réservée
- * aux agrégations — et, en markup, `compute` + `contains()`.
+ * CHAMP TABLEAU (#953, ex-#842) : elle regarde DANS le tableau — un champ
+ * multivalué matche dès qu'un de ses éléments est égal — **et garde le repli
+ * textuel en OU** :
+ *
+ *   eq(valeur, v) = (valeur est un tableau et un élément vaut v) OU
+ *                   String(valeur) === String(v)
+ *
+ * C'est ce que fait Opendatasoft, mesuré le 2026-09-19 sur deux portails et
+ * deux endpoints (`keyword` du catalogue economie, `themes_attendus` de
+ * `retours-formulaire-votre-avis-copie` sur education) : `where=champ = "x"`
+ * trouve sur n'importe quel élément, jamais sur le rendu texte complet.
+ * Le comportement d'avant n'était pas une sémantique, c'était
+ * `Array.prototype.toString`.
+ *
+ * Le repli textuel est GARDÉ alors que le serveur ne l'a pas, et c'est le
+ * point qui rend le changement sûr : sur `eq` / `in`, le client ne peut que
+ * GAGNER des correspondances, jamais en perdre (`['a','b']` matche encore
+ * `'a,b'` en local, alors que le portail rendrait 0 sur cette clause).
+ *
+ * L'EXCEPTION : `neq` / `notin` étant la négation de `eq` / `in`, une ligne
+ * multivaluée que `neq` gardait à tort en sort désormais. Le serveur fait
+ * pareil (`!=` y est la négation stricte de `=`, nuls exclus des deux côtés) :
+ * mesuré, 176 lignes dont 21 nulles, `= "Elèves"` → 124, `!= "Elèves"` → 31,
+ * soit exactement 155 − 124.
+ *
+ * `field` est purement diagnostique : quand il est fourni, un avertissement de
+ * transition nomme le champ et la valeur des lignes qui se mettent à compter
+ * (voir `warnArrayEqualityTransition`).
  */
-export function looseEquals(a: unknown, b: unknown): boolean {
+export function looseEquals(a: unknown, b: unknown, field?: string): boolean {
   if (a === null || a === undefined) return b === null || b === undefined;
+  if (Array.isArray(a) && a.some((el) => looseEqualsQuiet(el, b))) {
+    // Seulement quand c'est la voie TABLEAU qui a décidé : si le repli textuel
+    // matchait déjà, la ligne comptait avant et le compte ne bouge pas.
+    // eslint-disable-next-line eqeqeq -- comparaison lâche volontaire
+    if (!(a == b) && String(a) !== String(b)) warnArrayEqualityTransition(field, b);
+    return true;
+  }
   // eslint-disable-next-line eqeqeq -- loose equality intentional (string/number coercion)
   if (a == b) return true;
   return String(a) === String(b);
 }
 
+/** `looseEquals` sans l'avertissement — récursion interne et tableaux imbriqués. */
+function looseEqualsQuiet(a: unknown, b: unknown): boolean {
+  if (a === null || a === undefined) return b === null || b === undefined;
+  if (Array.isArray(a) && a.some((el) => looseEqualsQuiet(el, b))) return true;
+  // eslint-disable-next-line eqeqeq -- loose equality intentional
+  if (a == b) return true;
+  return String(a) === String(b);
+}
+
+/** Plafond de couples (champ, valeur) mémorisés — la dédup ne doit pas fuir. */
+const ARRAY_EQUALITY_WARN_MAX = 50;
+const arrayEqualityWarned = new Set<string>();
+let arrayEqualitySilenced = false;
+
 /**
- * Variante « tableau contient » (#673) : un champ TABLEAU (tags, catégories
- * multiples) matche si l'un de ses éléments est égal — `count:tags:urgent`
- * compte les lignes dont les tags contiennent « urgent ».
+ * Avertissement de TRANSITION (#953), destiné à vivre une version mineure.
  *
- * PÉRIMÈTRE, ET IL EST ÉTROIT (#842) : un seul appelant dans tout le dépôt,
- * la valeur de filtre d'un `count:champ:valeur` du KPI (`aggregations.ts`).
- * Tout le reste utilise `looseEquals` : le dialecte colon de `where` (source,
- * query, KPI, et le filtre entre accolades `count{champ:eq:v}` du KPI lui-même)
- * et les comparaisons `=` / `!=` de `compute`. L'asymétrie est VOULUE : étendre
- * la variante à `where` changerait en silence le compte de pages publiées.
- * Elle est documentée (JSDoc des attributs concernés, `docs/USER-GUIDE.md`,
- * skill `dsfr-data`) et verrouillée par
- * `tests/shared/array-equality-perimeter.test.ts`.
+ * Il ne sort que sur les lignes dont le compte change — celles que la voie
+ * tableau fait matcher et que le repli textuel rejetait. Dédupliqué par couple
+ * (champ, valeur) : ce dépôt a déjà payé une régression de 7 139
+ * avertissements, un message par ligne serait inacceptable. Au-delà de
+ * {@link ARRAY_EQUALITY_WARN_MAX} couples distincts, un dernier message dit
+ * qu'on se tait et le Set cesse de croître.
  */
-export function looseEqualsOrContains(a: unknown, b: unknown): boolean {
-  if (Array.isArray(a)) return a.some((el) => looseEqualsOrContains(el, b));
-  return looseEquals(a, b);
+function warnArrayEqualityTransition(field: string | undefined, value: unknown): void {
+  if (arrayEqualitySilenced) return;
+  const cle = JSON.stringify([field ?? null, String(value)]);
+  if (arrayEqualityWarned.has(cle)) return;
+  if (arrayEqualityWarned.size >= ARRAY_EQUALITY_WARN_MAX) {
+    arrayEqualitySilenced = true;
+    console.warn(
+      `dsfr-data: plus de ${ARRAY_EQUALITY_WARN_MAX} couples champ/valeur concernés par ` +
+        `l'alignement de l'égalité sur les champs tableau — avertissements coupés pour la suite.`
+    );
+    return;
+  }
+  arrayEqualityWarned.add(cle);
+  console.warn(
+    `dsfr-data: champ tableau ${field ? `"${field}"` : '(champ non nommé)'} — l'égalité ` +
+      `regarde désormais DANS le tableau : des lignes dont "${String(value)}" est un ÉLÉMENT ` +
+      `(et non la valeur entière) se mettent à compter. Le compte s'aligne sur ce que renvoie ` +
+      `le portail Opendatasoft quand la même clause lui est déléguée (#953). Avertissement de ` +
+      `transition : il disparaîtra à la prochaine mineure.`
+  );
+}
+
+/** Remet à zéro la déduplication des avertissements de transition (tests). */
+export function resetArrayEqualityTransitionWarnings(): void {
+  arrayEqualityWarned.clear();
+  arrayEqualitySilenced = false;
 }
 
 function isNumericValue(v: unknown): boolean {
@@ -201,16 +261,14 @@ export function validateColonFilter(filterExpr: string): string | null {
  * par défaut la clé directe `row[field]` ; un consommateur qui accepte des
  * chemins imbriqués (`fields.score`) passe son propre accesseur.
  *
- * CHAMP TABLEAU (#842) : `eq` / `neq` / `in` / `notin` comparent la valeur
- * telle quelle (`looseEquals`), PAS élément par élément. `tags:eq:urgent`
- * garde `tags: 'urgent'` et `tags: ['urgent']` (repli sur `String`) mais pas
- * `tags: ['urgent','social']`. Le `count:champ:valeur` du KPI, lui, parcourt
- * le tableau : c'est la seule exception du dépôt, et elle est voulue.
- * Pour filtrer un champ tableau : `dsfr-data-normalize` avec
- * `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"`, puis
- * `where="a_urgent:eq:1"`. `tags:contains:urgent` n'est PAS un équivalent —
- * il cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent »
- * matche « urgent ».
+ * CHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent
+ * DANS le tableau — `tags:eq:urgent` garde `tags: 'urgent'`, `['urgent']` ET
+ * `['urgent','social']`, comme le fait le portail sur une clause déléguée.
+ * Le repli textuel reste en OU, donc `eq` / `in` ne peuvent que gagner des
+ * lignes ; `neq` / `notin`, étant leur négation, en perdent (le serveur aussi).
+ * `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` — il cherche
+ * une sous-chaîne dans `String(tableau)`, donc « non-urgent » matche
+ * « urgent ».
  */
 export function applyLocalFilter(
   data: Record<string, unknown>[],
@@ -234,9 +292,9 @@ export function applyLocalFilter(
       const value = unescapeColonValue(f.rawValue);
       switch (f.op) {
         case 'eq':
-          return looseEquals(v, value);
+          return looseEquals(v, value, f.field);
         case 'neq':
-          return !looseEquals(v, value);
+          return !looseEquals(v, value, f.field);
         case 'gt': {
           const cmp = compareForRange(v, value);
           return cmp !== null && cmp > 0;
@@ -267,13 +325,17 @@ export function applyLocalFilter(
           return (
             v !== null &&
             v !== undefined &&
-            f.rawValue.split('|').some((token) => looseEquals(v, unescapeColonValue(token)))
+            f.rawValue
+              .split('|')
+              .some((token) => looseEquals(v, unescapeColonValue(token), f.field))
           );
         case 'notin':
           return (
             v === null ||
             v === undefined ||
-            !f.rawValue.split('|').some((token) => looseEquals(v, unescapeColonValue(token)))
+            !f.rawValue
+              .split('|')
+              .some((token) => looseEquals(v, unescapeColonValue(token), f.field))
           );
         case 'isnull':
           return v === null || v === undefined;

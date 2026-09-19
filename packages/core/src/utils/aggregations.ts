@@ -3,7 +3,7 @@ import {
   applyLocalFilter,
   validateColonFilter,
   isIsoDateString,
-  looseEqualsOrContains,
+  looseEquals,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from './json-path.js';
 
@@ -495,13 +495,13 @@ function evaluateOnItems(
       if (parsed.filterValue !== undefined) {
         // Egalite LACHE (#303) : query filtre en ==, count:field:value
         // comparait en === strict ("75" ne matchait pas 75).
-        // SEUL endroit du depot ou la variante « tableau contient » (#673)
-        // s'applique : le `where` colon et le filtre entre accolades
-        // (`count{tags:eq:urgent}`, plus haut) comparent la valeur telle
-        // quelle. Asymetrie voulue, arbitree a #842 et verrouillee par
-        // tests/shared/array-equality-perimeter.test.ts.
+        // CHAMP TABLEAU (#953) : c'est le meme `looseEquals` que le `where`
+        // colon depuis que l'egalite client est alignee sur celle du portail.
+        // L'asymetrie de #842 — `count:tags:urgent` parcourait le tableau la
+        // ou `count{tags:eq:urgent}` ne le parcourait pas — a disparu, et
+        // `looseEqualsOrContains` avec elle : une seule fonction.
         return items.filter((item) =>
-          looseEquals(getByPath(item, parsed.field), parsed.filterValue)
+          looseEquals(getByPath(item, parsed.field), parsed.filterValue, parsed.field)
         ).length;
       }
       return items.length;
@@ -643,12 +643,3 @@ function collectIsoDates(items: Record<string, unknown>[], field: string): strin
   }
   return out.length > 0 ? out : null;
 }
-
-/**
- * Egalite lache alignee sur dsfr-data-query (#278/#303), variante « tableau
- * contient » (#673) : definition unique dans shared (revue du 2026-09-13).
- * ATTENTION au nom local : ce n'est PAS le `looseEquals` de `where` — c'est
- * la variante qui parcourt les tableaux, et elle ne sert qu'au filtre de
- * valeur de `count:champ:valeur` (#842).
- */
-const looseEquals = looseEqualsOrContains;
