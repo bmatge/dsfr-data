@@ -55,7 +55,7 @@ function mountChart(options: {
 }) {
   const chart = new DsfrDataChart();
   chart.id = 'graphique';
-  chart.type = options.type ?? 'bar';
+  chart.type = (options.type ?? 'bar') as typeof chart.type;
   document.body.appendChild(chart);
 
   const wrapper = document.createElement('div');
