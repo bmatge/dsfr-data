@@ -15577,13 +15577,23 @@
             },
             {
               "kind": "field",
-              "name": "_sharedWarned",
+              "name": "_chainShared",
               "type": {
-                "text": "string"
+                "text": "boolean"
               },
               "privacy": "private",
-              "default": "''",
-              "description": "Dernier partage signale : un avertissement par situation (#765)."
+              "default": "false",
+              "description": "La derniere negociation a-t-elle trouve la chaine partagee (#765) ?\nGarde du point fixe de `_onInstanceRegistered` (#900)."
+            },
+            {
+              "kind": "field",
+              "name": "_sharedWarned",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Derniere source signalee comme partagee : un avertissement par SITUATION\n(#765), et la situation c'est la source — pas la liste de ses lecteurs.\n\n#900 : la signature comparait `${source}|${sharedWith.join(',')}`, et\n`sharedWith` s'allonge d'un element a chaque lecteur qui s'inscrit\n(`_onInstanceRegistered` renegocie). Chaque query repartait donc pour un\navertissement par voisin arrive apres elle : 7 139 `console.warn` au\npremier rendu pour 119 queries (motif #877, spike #889), 40 % du temps\nde rendu. La liste des lecteurs est un DETAIL du message, jamais la cle\nde deduplication ; `null` distingue « jamais averti » d'une source vide."
             },
             {
               "kind": "method",
