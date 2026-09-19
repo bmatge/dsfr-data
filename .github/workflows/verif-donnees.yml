@@ -64,3 +64,39 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 14
+
+  # La TROISIEME VOIX (#880) : l'oracle Python (stdlib, tools/oracle-py/)
+  # recalcule les attentes deterministes depuis les memes jeux JSON, et le
+  # fichier d'attendus est VERSIONNE (tests/verif-donnees/attendus.json).
+  # Un attendu qui change sans etre committe est un echec ; un attendu committe
+  # qui change est un diff relu. Aucune dependance Python : python3 seul.
+  attendus:
+    name: Attendus figés de la troisième voix (Python stdlib)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # python3 est present sur ubuntu-latest ; s'il manquait, dire lequel
+      # installer plutot que d'echouer sur un chemin introuvable.
+      - name: python3
+        run: |
+          if ! command -v python3 >/dev/null; then
+            echo "::error::python3 introuvable — installer Python 3.11+ (stdlib seule, aucun paquet)"
+            exit 1
+          fi
+          python3 --version
+
+      - name: Regénérer les attendus (verif:manifests puis oracle.py)
+        run: npm run verif:attendus
+
+      - name: Les attendus committés sont ceux que la troisième voix produit
+        run: git diff --exit-code -- tests/verif-donnees/attendus.json

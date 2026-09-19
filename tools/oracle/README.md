@@ -61,12 +61,89 @@ contrôle sur la première borne (27,5 au lieu de 26,5). Une convention énoncé
 d'un seul côté et éprouvée en échec vaut mieux qu'une convention implicite des
 deux côtés, qui ne prouverait rien.
 
+## La troisième voix
+
+Le garde d'imports garantit que l'oracle n'emprunte rien à la bibliothèque ; il
+ne garantit pas qu'il ne **pense pas comme elle**. Mêmes auteurs, même
+langage, mêmes idiomes : une dérive dans le même sens serait invisible au
+rapport. D'où une troisième voix (#880), dans un autre langage et sans aucun
+outil commun : `tools/oracle-py/oracle.py`, **Python standard** — `json`,
+`fractions`, `decimal`, `unicodedata`, rien d'autre. Jamais pandas, et c'est
+une raison de fond : `sum` d'une colonne toute-NaN y vaut 0, `groupby` y
+supprime le groupe null, `mean` y saute les NaN — exactement la famille de
+comportements que la doctrine #301 interdit. Un oracle qu'il faudrait corriger
+partout ne vérifierait plus rien.
+
+Les deux oracles se rencontrent par un **fichier**, jamais par un appel :
+
+```bash
+npm run verif:manifests   # projette les contrôles déterministes en out/manifests.json
+npm run verif:attendus    # …puis python3 tools/oracle-py/oracle.py
+                          #   → tests/verif-donnees/attendus.json, VERSIONNÉ
+```
+
+`attendus.json` porte une entrée par observation : `valeur` (pour un KPI,
+arrondie `ROUND_HALF_UP` à `decimals`), `brut` (avant arrondi), ou la raison
+pour laquelle la voix ne couvre pas l'attente. Il est **committé** : un
+attendu qui change se voit dans le diff d'une PR, relu, au lieu d'être
+silencieusement recalculé — c'est ce que le régime déterministe permet, et
+ce que le régime vivant interdit (ADR-122, amendée par le lot 8). Le job
+`attendus` de `verif-donnees.yml` le régénère et refuse un diff non committé.
+
+Trois rencontres :
+
+| Où | Quoi |
+|---|---|
+| `tests/oracle/attendus.test.ts` (Vitest, quelques secondes, sans navigateur) | pour chaque entrée couverte, l'oracle TS recalcule depuis les mêmes jeux et doit tomber **au même endroit à six décimales et au même arrondi**. Un écart est un constat à arbitrer — doc muette, convention, défaut de l'un des deux —, jamais à adoucir. Le test écrit l'écart maximal mesuré. |
+| `e2e/verif-donnees.spec.ts`, mode déterministe | quand une entrée couvre l'observation, la page est comparée à Python **par la même fonction** que contre TS : le `Constat` porte `python` et `ecartPython`, le rapport dit combien d'observations ont **trois voix**. Deux écarts sur la même observation, ou aucun. Fichier absent : deux voix, et le rapport le dit. |
+| `tests/oracle/oracle-py.test.ts` | le garde de la voix : aucun sous-processus, aucun `node`, rien de `packages/`, rien hors de la stdlib. Un oracle qui rappellerait l'autre serait un écho. |
+
+**Couverture** (au 2026-09-19) : 293 attentes sur 369, soit **90 % des
+attentes numériques** ; les 76 restantes sont nommées avec leur raison —
+`derive` (21 : la grammaire d'expressions ADR-105 est une seconde réécriture,
+hors v1), `urls` (31) et `diagnostic` (1) qui ne sont pas des chiffres,
+`legend` (5), `attr` (10), `class` (5), `dots` (1), `csv` (1). À la rencontre :
+**2 035 comparaisons, écart maximal 0**.
+
+**Conventions écrites** (l'en-tête d'`oracle.py` les porte aussi) :
+
+- *Nombres* : nombre JSON (jamais un booléen) ou chaîne qui, blancs retirés et
+  première virgule changée en point, se lit comme un décimal ; `Infinity`,
+  `NaN`, `1_000` ne sont pas des nombres. Tout calcul en `Fraction`
+  (exact, décimaux lus en `Decimal`), arrondi final `ROUND_HALF_UP`.
+- *Absence* : `null` et chaîne vide (blancs compris) ; `isnull-strict` ne
+  voit que `null`. *Égalité* : deux absents sont égaux, un absent n'égale
+  rien, numérique si les deux côtés le sont, sinon en chaîne.
+- *Ordre* : numérique si les deux côtés le sont ; sinon en texte sur une clé
+  de collation indépendante de la locale — `NFD` sans marques combinantes puis
+  `casefold`, départagée par la forme NFD à casse inversée. C'est une
+  approximation de la collation ICU de `localeCompare` ; une divergence sur une
+  paire donnée serait un constat, et il n'y en a aucune sur le corpus.
+- *Chaîne d'une valeur* (clés de groupe, de jointure, de pivot) : la forme
+  que `String(v)` donnerait en JavaScript.
+
+**Les deux hypothèses de l'issue, éprouvées.** (1) `roundTo` de l'oracle TS
+utilise `Math.round`, qui arrondit −2,5 à −2 quand `ROUND_HALF_UP` dit −3 :
+la comparaison des valeurs **arrondies** de `attendus.test.ts` verrait le cas,
+et **aucune observation du corpus ne tombe sur une demi-unité négative** — la
+mutation `Math.round → Math.trunc` prouve que la comparaison mord (deux
+constats : « arrondi TS 17768.68, Python 17768.69 », « 331448, Python
+331449 »). (2) Les sommes de flottants : la voix Python somme en `Fraction`,
+exact ; l'écart maximal mesuré contre les sommes binaires de TS est **0** sur
+les 2 035 comparaisons — aucune ne tombe à la limite de tolérance.
+
+**Quand TS et Python divergent** : ne pas toucher à la tolérance. Lire la
+doc de l'attribut ; si elle tranche, corriger l'oracle qui la contredit ; si
+elle ne dit rien, ÉNONCER la convention (README, en-tête d'`oracle.py`) et la
+tenir des deux côtés ; si les deux tiennent la doc et divergent quand même,
+c'est la bibliothèque qui a deux comportements, et c'est une issue.
+
 ## Les deux modes
 
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
 |---|---|---|
 | Alimentation | fixtures du dépôt, servies par `page.route` | vraies API, retéléchargées |
-| Attendu | recalculé dans le run, depuis les **mêmes** lignes | `out/expected.json`, produit juste avant |
+| Attendu | recalculé dans le run, depuis les **mêmes** lignes — ET, pour les observations que la troisième voix couvre, `tests/verif-donnees/attendus.json`, figé et versionné | `out/expected.json`, produit juste avant |
 | Déclenchement | chaque PR, **bloquant** (`.github/workflows/verif-donnees.yml`) | nuit / à la demande / label `oracle`, jamais bloquant (`.github/workflows/oracle.yml`) |
 | Réseau | aucun (toute sortie inattendue fait échouer) | requis |
 
@@ -175,6 +252,18 @@ tools/oracle/            LE MOTEUR
   banc.ts                  le MÊME rapport rangé par page reproduite et par constat du
                              registre du banc (out/banc.md)
   run.ts                   `verif:expected` — l'attendu du mode vivant
+  manifests.ts             `verif:manifests` — la projection des contrôles déterministes en
+                             out/manifests.json, pour la troisième voix (racine de composition)
+  troisieme-voix.ts        lit tests/verif-donnees/attendus.json et rend chaque entrée sous la
+                             forme d'un Attendu, pour que comparer() mette la page en regard de
+                             l'oracle Python comme de l'oracle TS
+
+tools/oracle-py/         LA TROISIÈME VOIX (Python standard, aucune dépendance)
+  oracle.py                lit out/manifests.json et jeux/*.json, recalcule en Fraction,
+                             écrit tests/verif-donnees/attendus.json (versionné)
+
+tests/verif-donnees/attendus.json   LES ATTENDUS FIGÉS de la troisième voix — une entrée par
+                             observation, committés, régénérés par `npm run verif:attendus`
 
 tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   guard.test.ts            l'indépendance, sur tout le graphe d'imports
@@ -182,6 +271,10 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   observe.test.ts          le contrat des lecteurs, sur un DOM minimal
   jeux.test.ts             les jeux JSON : chacun lu par un contrôle, chaque feed venu d'un jeu,
                              territoires.json égal au jeu du harnais
+  attendus.test.ts         LA RENCONTRE TS ↔ Python : chaque valeur couverte au même endroit à
+                             six décimales et au même arrondi, sans navigateur
+  oracle-py.test.ts        le garde de la troisième voix : ni sous-processus, ni node, ni
+                             packages/, rien hors de la stdlib
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -413,6 +506,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | banc-pages | `buildKey` distingue nombre et chaîne (`shared/utils/join.ts`) | `barometre-jointure-couverture` | 0 question appariée au lieu de 119 : `code_unifie` est un nombre à gauche, une chaîne à droite (#792) |
 | banc-pages | `diff` calculé à l'envers (`dsfr-data-query.ts`) | `tne-audiences-ecart-mensuel` | écart de −3 539 là où l'oracle lit +3 539 |
 | banc-pages | mutation PAR LE BALISAGE : `bfnv2Markup('det-nat')` à la place de `'det-prof'` — la source de profil sort du `sources` du contexte `profil` (`tests/verif-donnees/banc-pages.ts`) | `barometre-v2-source-suit-son-contexte` (vivant) | « affiché 30 215,0 % (30215), recalculé 28.3 » : la part cumule toutes les régions, tous les secteurs, toutes les tailles — le « 5 724 % » du 18/09, sans un mot |
+| troisième voix | `Math.round` → `Math.trunc` dans `roundTo` (`tools/oracle/compute.ts`) — un défaut de l'ORACLE TS, pas de la lib | `tests/oracle/attendus.test.ts` (Vitest, sans navigateur) | « arrondi TS 17768.68, Python 17768.69 (brut 17768.69) — convention d'arrondi » et « 331448, Python 331449 (brut 331448.5625) » : la rencontre voit un oracle qui se trompe seul |
+| troisième voix | `distinct` compte la chaîne vide (`tools/oracle-py/oracle.py`) — un défaut de l'oracle PYTHON | `attendus.test.ts` | « agregat-distinct-exclut-les-vides/rows:q-dist ligne 1/modalites : écart 1 » — dans l'autre sens aussi |
+| troisième voix | `gte` réduit à `gt` (`dsfr-data-query.ts`) — un défaut de la LIB | `where-gt-gte` au spec | **deux écarts sur la même observation** : « lib 4, oracle 5, écart −1, python 5, écart −1 — Python : affiché 4, recalculé 5 » |
 
 ## Un contrôle que la bibliothèque ne passe pas
 

@@ -31,6 +31,8 @@
     "dev:server": "npm run dev --workspace=@dsfr-data/server",
     "verif": "VERIF_RUN=$$ playwright test --config e2e/playwright.config.ts e2e/verif-donnees.spec.ts --project=chromium",
     "verif:expected": "vite-node tools/oracle/run.ts",
+    "verif:manifests": "vite-node tools/oracle/manifests.ts",
+    "verif:attendus": "npm run verif:manifests && python3 tools/oracle-py/oracle.py",
     "verif:live": "npm run verif:expected && VERIF_RUN=$$ VERIF_MODE=live playwright test --config e2e/playwright.config.ts e2e/verif-donnees.spec.ts --project=chromium",
     "test:e2e": "playwright test --config e2e/playwright.config.ts",
     "lint": "eslint --max-warnings 0 'packages/core/src/**/*.ts' 'apps/**/*.ts' 'packages/shared/**/*.ts' 'server/src/**/*.ts' 'tools/**/*.ts' 'e2e/**/*.ts'",

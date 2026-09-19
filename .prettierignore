@@ -22,3 +22,6 @@ skills/dsfr-data/
 # Jeux de la vérification des données (tests/verif-donnees/jeux/README.md) :
 # une ligne par enregistrement, un jeu se lit comme un tableau.
 tests/verif-donnees/jeux/*.json
+
+# Attendus de la troisième voix (python3 tools/oracle-py/oracle.py) : une entrée par ligne
+tests/verif-donnees/attendus.json

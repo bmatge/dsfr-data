@@ -27,6 +27,7 @@ import {
 import { toRgb } from '../tools/oracle/compute.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
 import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
+import { attenduPython, lireAttendusPython } from '../tools/oracle/troisieme-voix.js';
 
 /**
  * VÉRIFICATION DES DONNÉES — un seul spec, deux alimentations (ADR-122).
@@ -50,6 +51,8 @@ import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 const ICI = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = resolve(ICI, 'verif-donnees');
 const EXPECTED_PATH = resolve(DOSSIER_SORTIE, 'expected.json');
+/** Les attendus de la TROISIÈME VOIX (Python, #880), versionnés — mode déterministe seulement. */
+const ATTENDUS_PYTHON_PATH = resolve(ICI, '../tests/verif-donnees/attendus.json');
 
 const MODE = process.env.VERIF_MODE === 'live' ? 'live' : 'deterministic';
 
@@ -315,6 +318,10 @@ async function attendreObservation(page: Page, e: Expect, delai: number): Promis
 
 const controles = controlesDuMode(MODE);
 const attendusVivants = MODE === 'live' ? chargerAttendus() : null;
+// La troisième voix ne parle qu'en déterministe : ses attendus sont figés
+// sur les jeux du dépôt. Fichier absent (python3 manquant, attendus jamais
+// produits) : deux voix, et le rapport le dit.
+const attendusPython = MODE === 'deterministic' ? lireAttendusPython(ATTENDUS_PYTHON_PATH) : null;
 
 /**
  * Les clés attendues du rapport, dans l'ordre des manifestes. Playwright
@@ -423,6 +430,27 @@ async function executer(domaine: string, check: Check, page: Page): Promise<void
       valeurAttendue,
       observation
     );
+    // La TROISIÈME VOIX (#880) : la même comparaison, contre l'attendu Python
+    // figé. Deux écarts sur la même observation, ou aucun — jamais un seul
+    // qui masquerait l'autre.
+    const entreePython = attendusPython?.get(`${domaine}/${check.id}/${cleAttendu(e)}`);
+    const attenduTiers = entreePython ? attenduPython(entreePython, e) : null;
+    if (attenduTiers) {
+      const tiers = comparer(
+        { domaine, controle: check.id, mode: check.mode, rawRows: attendu!.rawRows },
+        e,
+        attenduTiers,
+        observation
+      );
+      constat.python = tiers.oracle;
+      constat.ecartPython = tiers.ecart;
+      if (!tiers.ok) {
+        constat.ok = false;
+        constat.message = [constat.message, `Python : ${tiers.message}`]
+          .filter((m) => m !== '')
+          .join(' — ');
+      }
+    }
     constats.push(constat);
     if (!constat.ok) {
       echecs.push(`${constat.observation} : ${constat.message}`);
