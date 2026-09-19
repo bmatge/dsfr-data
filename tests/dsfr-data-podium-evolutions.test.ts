@@ -5,6 +5,7 @@ import {
   resetPodiumMediaWarnings,
 } from '@/components/dsfr-data-podium.js';
 import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
+import { CHOROPLETH_SCALES, PALETTE_COLORS } from '@dsfr-data/shared/lib';
 
 const REGIONS = [
   {
@@ -441,10 +442,109 @@ describe('dsfr-data-podium — evolutions d’affichage', () => {
     });
   });
 
+  /**
+   * Garde-fou de la documentation du contraste.
+   *
+   * Les chiffres de contraste de la pastille sont ecrits a quatre endroits
+   * (corps de PR, changeset, JSDoc de `rank`, spec vivante). Ils ont deja ete
+   * faux trois fois : la planche de design cite une rampe qui n'est pas celle
+   * du composant, et `dsfr-palettes.ts` expose DEUX rampes homonymes —
+   * `PALETTE_COLORS.sequentialDescending` (5 tons, celle de dsfr-charts) et
+   * `CHOROPLETH_SCALES.sequentialDescending` (9 tons). Le podium importe la
+   * SECONDE. Lire la premiere donne un tableau plausible et faux.
+   *
+   * Ce test fige les couples (couleur servie, encre retenue) et les ratios
+   * documentes, en partant de `CHOROPLETH_SCALES` — pas d'une copie. Un
+   * changement de palette casse ici, au lieu de faire mentir silencieusement
+   * la documentation une quatrieme fois.
+   */
+  describe('contraste de la pastille — chiffres documentes', () => {
+    const BLANC = '#ffffff';
+    const GRIS_TITRE = '#161616';
+
+    /** Ratio de contraste WCAG 2.x entre deux couleurs. */
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const arrondi = (n: number) => Math.round(n * 100) / 100;
+
+    it('sert bien les cinq premiers tons de CHOROPLETH_SCALES, pas ceux de PALETTE_COLORS', async () => {
+      const podium = await mount((p) => (p.maxItems = 5));
+      const servies = (podium as unknown as { _processItems(): { color: string }[] })
+        ._processItems()
+        .map((i) => i.color);
+
+      expect(servies).toEqual(CHOROPLETH_SCALES['sequentialDescending'].slice(0, 5));
+      // Le tableau documente, verrouille en clair.
+      expect(servies).toEqual(['#000091', '#2323B4', '#4747E5', '#6A6AF4', '#8585F6']);
+      // Et surtout : ce n'est PAS la rampe a 5 tons de PALETTE_COLORS.
+      expect(servies).not.toEqual(PALETTE_COLORS.sequentialDescending);
+    });
+
+    it('fige les cinq couples (couleur, encre retenue)', async () => {
+      const podium = await mount((p) => {
+        p.rank = 'medal';
+        p.maxItems = 5;
+      });
+      const couples = [...podium.querySelectorAll('.dsfr-data-podium__rank--medal')].map((e) => {
+        const li = e.closest('li') as HTMLElement;
+        return [
+          li.style.getPropertyValue('--podium-color').trim(),
+          e.className.includes('--ink-light') ? 'blanc' : 'gris',
+        ];
+      });
+
+      expect(couples).toEqual([
+        ['#000091', 'blanc'],
+        ['#2323B4', 'blanc'],
+        ['#4747E5', 'blanc'],
+        ['#6A6AF4', 'gris'],
+        ['#8585F6', 'gris'],
+      ]);
+    });
+
+    it('fige les ratios documentes, et le point bas au rang 4', () => {
+      const rampe = CHOROPLETH_SCALES['sequentialDescending'].slice(0, 5);
+      const table = rampe.map((c) => ({
+        blanc: arrondi(ratio(c, BLANC)),
+        gris: arrondi(ratio(c, GRIS_TITRE)),
+      }));
+
+      expect(table).toEqual([
+        { blanc: 14.91, gris: 1.21 },
+        { blanc: 10.65, gris: 1.7 },
+        { blanc: 6.36, gris: 2.84 },
+        { blanc: 4.22, gris: 4.29 },
+        { blanc: 3.14, gris: 5.76 },
+      ]);
+
+      // L'encre retenue est toujours la meilleure des deux.
+      const retenus = table.map((t) => Math.max(t.blanc, t.gris));
+      expect(retenus).toEqual([14.91, 10.65, 6.36, 4.29, 5.76]);
+
+      // Le point bas est le RANG 4 (#6A6AF4), pas un autre.
+      const pire = Math.min(...retenus);
+      expect(pire).toBe(4.29);
+      expect(retenus.indexOf(pire) + 1).toBe(4);
+
+      // Sous AA texte normal, au-dessus de AA texte large. A dire, pas a cacher.
+      expect(pire).toBeLessThan(4.5);
+      expect(pire).toBeGreaterThan(3);
+    });
+
+    it('bascule blanc → gris entre le rang 3 et le rang 4', () => {
+      const rampe = CHOROPLETH_SCALES['sequentialDescending'].slice(0, 5);
+      const encres = rampe.map((c) => (ratio(c, BLANC) >= ratio(c, GRIS_TITRE) ? 'blanc' : 'gris'));
+      expect(encres).toEqual(['blanc', 'blanc', 'blanc', 'gris', 'gris']);
+      // Trois rangs en blanc sur cette rampe.
+      expect(encres.filter((e) => e === 'blanc')).toHaveLength(3);
+    });
+  });
+
   describe('relativeLuminance', () => {
     it('classe la rampe sequentialDescending du plus sombre au plus clair', () => {
-      const rampe = ['#000091', '#2323B4', '#4747E5', '#6A6AF4', '#8585F6'];
-      const l = rampe.map(relativeLuminance);
+      const l = CHOROPLETH_SCALES['sequentialDescending'].slice(0, 5).map(relativeLuminance);
       expect(l).toEqual([...l].sort((a, b) => a - b));
     });
 

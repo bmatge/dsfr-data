@@ -197,9 +197,28 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
    * couleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).
    *
    * En `medal`, la couleur d'encre du chiffre est choisie par calcul de
-   * luminance relative : la rampe s'éclaircit, et du blanc sur le 5e ton
-   * serait illisible. Le chiffre reste `aria-hidden` : l'ordre est porté par
-   * la position dans la liste, le chiffre n'en est qu'un rappel.
+   * luminance relative WCAG : la rampe s'éclaircit, et du blanc dès son
+   * **4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est
+   * porté par la position dans la liste, le chiffre n'en est qu'un rappel.
+   *
+   * ⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), **pas**
+   * `PALETTE_COLORS.sequentialDescending` (5 tons) : `dsfr-palettes.ts` expose
+   * deux rampes homonymes et le podium sert la première. Lire la seconde donne
+   * un tableau de contraste plausible et faux — c'est arrivé. Ratios sur les
+   * 5 premiers tons, encre retenue en gras :
+   *
+   * | Rang | Couleur   | vs blanc  | vs `#161616` |
+   * |------|-----------|-----------|--------------|
+   * | 1    | `#000091` | **14,91** | 1,21         |
+   * | 2    | `#2323B4` | **10,65** | 1,70         |
+   * | 3    | `#4747E5` | **6,36**  | 2,84         |
+   * | 4    | `#6A6AF4` | 4,22      | **4,29**     |
+   * | 5    | `#8585F6` | 3,14      | **5,76**     |
+   *
+   * Le point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et
+   * au-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5
+   * sur `#6A6AF4`. Ces chiffres sont figés par
+   * `tests/dsfr-data-podium-evolutions.test.ts`.
    */
   @property({ type: String })
   rank = 'number';
@@ -922,7 +941,9 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
 /**
  * Luminance relative WCAG 2.x d'une couleur `#rrggbb`. Sert a choisir l'encre
  * du chiffre d'une pastille : la rampe CHOROPLETH_SCALES s'eclaircit, et du
- * blanc sur son 5e ton serait illisible.
+ * blanc des son 4e ton (`#6A6AF4`) serait illisible. Voir la table de ratios
+ * au JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS, qui porte
+ * une rampe homonyme a 5 tons que le podium ne sert pas.
  */
 export function relativeLuminance(hex: string): number {
   const clean = hex.replace('#', '');

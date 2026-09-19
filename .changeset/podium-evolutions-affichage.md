@@ -38,9 +38,27 @@ valeur refusée et non une fois par ligne.
 
 **Rang** — `rank="number|medal|none"`. En `medal`, le chiffre est posé dans une pastille
 de la couleur de l'item (24 px quand une vignette occupe déjà la place, 32 px sinon), et la
-couleur d'encre est choisie par **calcul de luminance relative WCAG** : la rampe
-`CHOROPLETH_SCALES` s'éclaircit, et du blanc sur son quatrième ton serait illisible. Les
-deux encres sont deux tokens DSFR croisés sous `[data-fr-theme="dark"]`, pour rester
+couleur d'encre est choisie par **calcul de luminance relative WCAG** sur la couleur
+réellement servie. La rampe par défaut est `CHOROPLETH_SCALES.sequentialDescending`
+(9 tons) — **et non** `PALETTE_COLORS.sequentialDescending` (5 tons), qui porte le même nom
+dans le même fichier : recalculer sur la seconde donne un tableau plausible et faux.
+Ratios sur les cinq premiers tons, encre retenue en gras :
+
+| Rang | Couleur | vs blanc | vs gris de titre `#161616` |
+|---|---|---|---|
+| 1 | `#000091` | **14,91:1** | 1,21:1 |
+| 2 | `#2323B4` | **10,65:1** | 1,70:1 |
+| 3 | `#4747E5` | **6,36:1** | 2,84:1 |
+| 4 | `#6A6AF4` | 4,22:1 | **4,29:1** |
+| 5 | `#8585F6` | 3,14:1 | **5,76:1** |
+
+**Le point bas est le rang 4** : 4,29:1, sous AA texte normal (4,5:1), au-dessus de AA
+texte large (3:1) — aucune des deux encres n'atteint 4,5:1 sur `#6A6AF4`. Le chiffre reste
+`aria-hidden`, l'ordre étant porté par la position dans le `<ol>`. Ces cinq couples
+(couleur, encre) et ces ratios sont figés par un test, pour qu'un changement de palette
+casse la recette au lieu de faire mentir la documentation.
+
+Les deux encres sont deux tokens DSFR croisés sous `[data-fr-theme="dark"]`, pour rester
 identiques dans les deux thèmes — le fond de la pastille étant une couleur de palette qui,
 elle, ne change pas avec le thème. Aucun hexadécimal n'est écrit en dur.
 
