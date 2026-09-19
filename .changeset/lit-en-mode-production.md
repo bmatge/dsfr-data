@@ -1,0 +1,7 @@
+---
+'dsfr-data': patch
+---
+
+**Les bundles publiés n'embarquent plus Lit en mode développement (#899).** `scripts/build-lib.ts` posait bien `mode: 'production'` et `process.env.NODE_ENV: '"production"'` dans `define` — mais l'un et l'autre réécrivent le **code produit**, ils ne choisissent pas la **condition d'export** par laquelle Vite résout une dépendance. Vite lit pour cela `process.env.NODE_ENV` du processus de build, que `vite-node` laisse à « development » : Lit publiant une condition `development`, les paquets npm embarquaient `lit-html/development`, `lit-element/development` et `reactive-element/development` (vérifié sur 0.30.0 et 0.31.0 : deux occurrences de « Lit is in dev mode » dans `dist/dsfr-data.esm.js`). Conséquence chez tous les intégrateurs, sur chaque page : les vérifications supplémentaires du mode dev de Lit à chaque mise à jour de propriété, et un avertissement « Lit is in dev mode » en console. La variable est désormais posée explicitement avant tout appel à `build()` — même correctif de forme que #716, une couche plus bas. Les bundles perdent au passage 14 à 15 Ko chacun.
+
+**Un garde-fou empêche la régression de revenir** (`tests/lib-dev-mode-guard.test.ts`, rejoué par la CI après le build, comme la garde de #716) : les six bundles publiables sont grepés, aucun ne doit contenir « Lit is in dev mode » ni un chemin `*/development`. Les builds de développement (`DSFR_DATA_DEV_BUILD=1`) restent en mode dev, Lit compris.
