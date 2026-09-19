@@ -103,6 +103,20 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     /** Désabonnements des sources amont (1 par source, join en a 2) */
     _transformerUnsubs: Array<() => void> = [];
 
+    /**
+     * État de CHAQUE entrée amont, indexé comme `transformerSources()` (#897).
+     *
+     * Avec une seule entrée, l'état du dernier événement EST l'état du nœud, et
+     * relayer chaque événement tel quel suffisait. Avec deux, les relais
+     * s'écrasaient : une jointure dont l'entrée gauche est `require-where`
+     * (attente) et l'entrée droite une source ordinaire restait sur
+     * « Chargement… » indéfiniment quand le chargement de la droite arrivait
+     * après l'attente de la gauche — rien ne venait le lever, puisque la
+     * jointure n'émet rien tant que ses deux entrées ne sont pas là. La seule
+     * différence avec la page qui marche était l'ordre des balises dans le DOM.
+     */
+    _transformerInputStates: Array<'loading' | 'loaded' | 'idle' | 'error'> = [];
+
     /** Désabonnement du relais de commandes */
     _transformerUnsubCommands: (() => void) | null = null;
 
@@ -281,6 +295,37 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       return this._transformerIdle;
     }
 
+    /**
+     * Note l'état d'une entrée et en dérive celui du nœud (#897).
+     *
+     * L'ordre de priorité n'est pas l'ordre d'arrivée :
+     * - **erreur** d'abord : elle est déjà propagée par `emitTransformerError`,
+     *   rien à réémettre ici ;
+     * - **attente** ensuite : une entrée qui attend un filtre ne livrera rien,
+     *   donc la jointure ne se fera pas — le dire est la seule façon pour
+     *   l'aval d'afficher son `idle-message` au lieu d'un chargement sans fin ;
+     * - **chargement** enfin, tant qu'une entrée charge et qu'aucune n'attend ;
+     * - toutes les entrées chargées : l'émission appartient à l'hôte
+     *   (`emitTransformedData` depuis `onTransformerData`), on ne touche à rien.
+     */
+    protected _noteInputState(index: number, etat: 'loading' | 'loaded' | 'idle' | 'error'): void {
+      this._transformerInputStates[index] = etat;
+    }
+
+    /** Émet l'état dérivé des entrées, sauf si l'hôte a la main (voir ci-dessus). */
+    protected _syncStateFromInputs(): void {
+      const etats = this._transformerInputStates;
+      if (etats.length === 0) return;
+      if (etats.includes('error')) return;
+      if (etats.includes('idle')) {
+        this.emitTransformerIdle();
+        return;
+      }
+      if (etats.includes('loading')) {
+        this.emitTransformerLoading();
+      }
+    }
+
     // --- Orchestration ---
 
     /**
@@ -308,17 +353,25 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
       this.beforeTransformerSubscribe();
 
-      this.transformerSources().forEach((sourceId, index) => {
+      // Une entrée dont on n'a encore rien entendu n'est pas « chargée » : la
+      // supposer telle ferait passer le nœud pour prêt dès la première voisine
+      // arrivée (#897).
+      const sources = this.transformerSources();
+      this._transformerInputStates = sources.map(() => 'loading');
+
+      sources.forEach((sourceId, index) => {
         // Lecture du cache avant abonnement (évite la race si la source a
         // déjà émis), sauf veto de l'hôte
         // Un amont déjà en attente d'un filtre (#690) : son événement est
         // passé et son cache est vide — sans cette relecture, ce nœud et tout
         // son aval resteraient muets au lieu d'afficher « choisissez un filtre ».
         if (isDataIdle(sourceId)) {
+          this._noteInputState(index, 'idle');
           this.emitTransformerIdle();
         } else if (this.shouldReadInitialCache(sourceId)) {
           const cached = getDataCache(sourceId);
           if (cached !== undefined) {
+            this._noteInputState(index, 'loaded');
             this.onTransformerData(cached, sourceId, index);
           }
         }
@@ -326,20 +379,36 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
         this._transformerUnsubs.push(
           subscribeToSource(sourceId, {
             onLoaded: (data: unknown) => {
+              this._noteInputState(index, 'loaded');
               this._transformerLoading = false;
               // Une émission réussie efface l'erreur précédente — query ne
               // le faisait jamais (#280)
               this._transformerError = null;
               this._transformerIdle = false;
               this.onTransformerData(data, sourceId, index);
+              // Une entrée chargée qui ne suffit pas à produire le résultat
+              // (jointure à deux entrées dont l'autre attend ou charge) ne doit
+              // pas laisser l'aval sur un chargement qui ne finira pas (#897).
+              // Si l'hôte a émis, toutes les entrées sont chargées et la
+              // dérivation ne fait rien.
+              this._syncStateFromInputs();
               this.requestUpdate();
             },
-            onLoading: () => this.emitTransformerLoading(),
-            onError: (err: Error) => this.emitTransformerError(err),
+            onLoading: () => {
+              this._noteInputState(index, 'loading');
+              this._syncStateFromInputs();
+            },
+            onError: (err: Error) => {
+              this._noteInputState(index, 'error');
+              this.emitTransformerError(err);
+            },
             // Une étape en attente d'un filtre ne livre rien : le relayer
             // aval est la seule façon qu'a un afficheur derrière une chaîne
             // de transformateurs de rendre l'état « idle » (#690).
-            onIdle: () => this.emitTransformerIdle(),
+            onIdle: () => {
+              this._noteInputState(index, 'idle');
+              this._syncStateFromInputs();
+            },
           })
         );
       });
