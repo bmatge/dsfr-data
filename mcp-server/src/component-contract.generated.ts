@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 344 attributs.
+ * 28 balises, 347 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -59,6 +59,7 @@ export const COMPONENT_CONTRACT = {
       "idle-message",
       "label-field",
       "map-highlight",
+      "map-summary",
       "map-summary-value",
       "map-summary-weight",
       "name",

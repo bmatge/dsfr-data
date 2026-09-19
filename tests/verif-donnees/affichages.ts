@@ -900,6 +900,30 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'carte-resume-somme-927',
+    mode: 'deterministic',
+    origin:
+      '#927 — le résumé d’une carte de VOLUMES est la SOMME, jamais la moyenne : « 3 074,06 en France » pour 310 480 licences était la moyenne de 101 volumes, un chiffre sans signification (AM-079). `map-summary="sum"` la calcule depuis la donnée, donc suit les filtres — là où un littéral reste juste pour un seul jeu.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-carte-somme', 'communes')}
+  <dsfr-data-chart id="g-carte-somme" source="s-carte-somme" type="map"
+    code-field="dept" value-field="population" map-summary="sum"
+    name="Habitants"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'attr',
+        id: 'g-carte-somme',
+        attr: 'value',
+        decimals: 2,
+        column: 'v',
+        pipeline: [{ op: 'global', columns: { v: { agg: 'sum', field: 'population' } } }],
+      },
+    ],
+  },
+
+  {
     id: 'graphique-nuage-de-points',
     mode: 'deterministic',
     origin:
