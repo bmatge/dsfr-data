@@ -1,0 +1,6 @@
+[
+  {"region":"Occitanie","montant":5000},
+  {"region":"Bretagne","montant":4000},
+  {"region":"Normandie","montant":3000},
+  {"region":"Provence-Alpes-Côte d'Azur","montant":2000}
+]

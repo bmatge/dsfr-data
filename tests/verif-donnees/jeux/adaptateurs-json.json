@@ -1,0 +1,7 @@
+[
+  {"commune":"Lille","zone":"nord","montant":"1 234,56","effectif":"120"},
+  {"commune":"Amiens","zone":"nord","montant":"987,40","effectif":45},
+  {"commune":"Montpellier","zone":"sud","montant":"12 000,05","effectif":"310"},
+  {"commune":"Toulouse","zone":"sud","montant":"3 456,78","effectif":210},
+  {"commune":"Rennes","zone":"ouest","montant":"89,90","effectif":"15"}
+]
