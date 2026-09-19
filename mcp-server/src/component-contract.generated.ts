@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 336 attributs.
+ * 28 balises, 338 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -404,7 +404,9 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "empty",
       "key-field",
+      "lazy",
       "per-row",
+      "scopes",
       "source"
     ]
   },

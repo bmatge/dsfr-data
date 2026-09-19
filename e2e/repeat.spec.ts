@@ -106,6 +106,130 @@ test.describe('dsfr-data-repeat en vrai navigateur', () => {
     expect(results.violations).toEqual([]);
   });
 
+  /**
+   * Lot 2 (#891) — `scopes` et `lazy` : les trois chiffres annoncés à l'issue.
+   * happy-dom n'a pas d'`IntersectionObserver` et ordonne les callbacks à
+   * l'envers : seul ce spec prouve `lazy` sur un vrai défilement, et seule une
+   * vraie page mesure une ré-émission.
+   */
+  test('scopes : 119 graphiques sans une seule query, ré-émission de la source scopée ≤ 30 ms, 0 instance recréée', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const errors: string[] = [];
+    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto('/e2e/repeat-perf.html?mode=scopes');
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__perf.firstRenderMs), { timeout: 60_000 })
+      .not.toBeNull();
+    const premier = await page.evaluate(() => (window as any).__perf.firstRenderMs as number);
+    expect(await page.locator('canvas').count()).toBe(119);
+    // Le gabarit ne contient AUCUNE query : les 119 ids viennent de `scopes`.
+    expect(await page.locator('dsfr-data-query').count()).toBe(0);
+    expect(await page.locator('[id*="{{"]').count()).toBe(0);
+    expect(await page.locator('[data-dsfr-config-error]').count()).toBe(0);
+    expect(await page.evaluate(() => (document.getElementById('rep') as any).getScopedIds().length))
+      .toBe(119);
+
+    // Écouteurs `document` par type d'événement, rapportés à la ligne.
+    const ecouteurs = (await page.evaluate(() => (window as any).__ecouteurs)) as Record<
+      string,
+      number
+    >;
+    const parLigne = (ecouteurs['dsfr-data-loaded'] ?? 0) / 119;
+    console.log(
+      `REPEAT-SCOPES: premier rendu ${premier.toFixed(0)} ms | écouteurs « dsfr-data-loaded » ${ecouteurs['dsfr-data-loaded']} soit ${parLigne.toFixed(2)} par ligne`
+    );
+    // ≤ 1 + (nombre de feuilles du gabarit) par ligne — une feuille ici.
+    expect(parLigne).toBeLessThanOrEqual(2);
+
+    const scope = (await page.evaluate(() => (window as any).__perfReemitScope())) as {
+      msRefiltre: number;
+      msTotal: number;
+      emissions: number;
+      identity: boolean;
+      canvases: number;
+    };
+    console.log(
+      `REPEAT-SCOPES: ré-émission de la source SCOPÉE — refiltre ${scope.msRefiltre.toFixed(1)} ms ` +
+        `pour ${scope.emissions} ids, total (repeint compris) ${scope.msTotal.toFixed(0)} ms | ` +
+        `identité ${scope.identity} | ${scope.canvases} canvas`
+    );
+    expect(scope.emissions).toBe(119);
+    expect(scope.identity).toBe(true);
+    expect(scope.canvases).toBe(119);
+    // Le REFILTRE est ce que `scopes` change : une partition au lieu de 119
+    // filtres. Le repeint des 119 graphiques est le coût de DSFR Chart, et il
+    // est le même dans les deux modes (mesuré par le test de référence).
+    expect(scope.msRefiltre).toBeLessThanOrEqual(30);
+    expect(errors).toEqual([]);
+  });
+
+  test('référence : le même refiltre avec une query par ligne (lot 1)', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto('/e2e/repeat-perf.html?mode=repeat');
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__perf.firstRenderMs), { timeout: 60_000 })
+      .not.toBeNull();
+    const scope = (await page.evaluate(() => (window as any).__perfReemitScope())) as {
+      msRefiltre: number;
+      msTotal: number;
+      emissions: number;
+    };
+    const ecouteurs = (await page.evaluate(() => (window as any).__ecouteurs)) as Record<
+      string,
+      number
+    >;
+    console.log(
+      `REPEAT-QUERIES: écouteurs « dsfr-data-loaded » ${ecouteurs['dsfr-data-loaded']} soit ` +
+        `${((ecouteurs['dsfr-data-loaded'] ?? 0) / 119).toFixed(2)} par ligne`
+    );
+    console.log(
+      `REPEAT-QUERIES: ré-émission de la source partagée — refiltre ${scope.msRefiltre.toFixed(1)} ms ` +
+        `pour ${scope.emissions} ids, total (repeint compris) ${scope.msTotal.toFixed(0)} ms (119 queries)`
+    );
+  });
+
+  test('lazy : moins de 20 canvas au chargement, 119 après défilement, aucune erreur', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const errors: string[] = [];
+    page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await page.goto('/e2e/repeat-perf.html?mode=scopes-lazy');
+
+    // Les titres sont là tout de suite : le plan de la page ne dépend pas du défilement.
+    await expect.poll(() => page.locator('#rep h2').count(), { timeout: 30_000 }).toBe(119);
+    await page.waitForTimeout(1500);
+    const auChargement = await page.locator('canvas').count();
+    console.log(`REPEAT-LAZY: ${auChargement} canvas sur 119 au chargement`);
+    expect(auChargement).toBeLessThan(20);
+    expect(auChargement).toBeGreaterThan(0);
+
+    // Les ids scopés, eux, sont émis pour TOUTES les lignes dès le départ.
+    expect(await page.evaluate(() => (document.getElementById('rep') as any).getScopedIds().length))
+      .toBe(119);
+
+    // Défilement complet — les graphiques DSFR Chart se rendent à la visibilité,
+    // la recette DOIT défiler (le piège des faux positifs du banc).
+    // Pas de 800 px, pas de 2 000 : l'IntersectionObserver est ÉCHANTILLONNÉ,
+    // une ligne entièrement franchie entre deux relevés n'est jamais signalée
+    // (deux lignes manquaient à 2 000 px par cran).
+    for (let i = 0; i < 200; i++) {
+      await page.mouse.wheel(0, 800);
+      await page.waitForTimeout(60);
+      if ((await page.locator('canvas').count()) >= 119) break;
+    }
+    await expect.poll(() => page.locator('canvas').count(), { timeout: 30_000 }).toBe(119);
+    expect(await page.locator('[data-dsfr-config-error]').count()).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
   for (const mode of ['repeat', 'display'] as const) {
     test(`mesure 119 lignes × (query + graphique) — ${mode}`, async ({ page }) => {
       test.setTimeout(120_000);

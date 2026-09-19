@@ -130,6 +130,20 @@ export function lignesEmises(expect: Expect, observation: Observation): Row[] | 
         return row;
       });
     }
+    case 'texts': {
+      // Une observation par élément désigné, donc une LIGNE par élément : c'est
+      // ce qui rend `count-equals` lisible sur un composant de structure
+      // (cinq instances pour cinq lignes répétées, #891), et `sum-preserved`
+      // sur la colonne que ces textes affichent. `scale` est défait : la
+      // référence, elle, est dans l'unité des lignes brutes.
+      const textes = observation as string[];
+      return textes.map((t) => {
+        const brut = expect.numeric ? parseDisplayedNumber(t) : t;
+        const valeur =
+          expect.numeric && expect.scale && typeof brut === 'number' ? brut / expect.scale : brut;
+        return { [expect.column]: valeur } as Row;
+      });
+    }
     case 'facets': {
       const groupe = (
         observation as Array<{

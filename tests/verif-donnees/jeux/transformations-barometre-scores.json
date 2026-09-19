@@ -1,0 +1,13 @@
+[
+  {"code":"Q01","annee":"2023","montant":12},
+  {"code":"Q01","annee":"2024","montant":18},
+  {"code":"Q02","annee":"2023","montant":7},
+  {"code":"Q02","annee":"2024","montant":9},
+  {"code":"Q02","annee":"2025","montant":11},
+  {"code":"Q03","annee":"2024","montant":25},
+  {"code":"Q04","annee":"2022","montant":4},
+  {"code":"Q04","annee":"2023","montant":6},
+  {"code":"Q04","annee":"2024","montant":8},
+  {"code":"Q05","annee":"2023","montant":5},
+  {"code":"Q05","annee":"2024","montant":-5}
+]

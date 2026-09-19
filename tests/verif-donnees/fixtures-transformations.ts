@@ -31,6 +31,8 @@ import compositeGauche from './jeux/transformations-composite-gauche.json' with 
 import compositeDroite from './jeux/transformations-composite-droite.json' with { type: 'json' };
 import pile2024 from './jeux/transformations-pile-2024.json' with { type: 'json' };
 import pile2025 from './jeux/transformations-pile-2025.json' with { type: 'json' };
+import barometreQuestions from './jeux/transformations-barometre-questions.json' with { type: 'json' };
+import barometreScores from './jeux/transformations-barometre-scores.json' with { type: 'json' };
 
 /** Douze territoires : filtres, agrégats, regroupements, tris. */
 export const TERRITOIRES: Row[] = territoires;
@@ -66,6 +68,12 @@ export const COMPOSITE_DROITE: Row[] = compositeDroite;
 /** Deux millésimes de même schéma, à empiler. */
 export const PILE_2024: Row[] = pile2024;
 export const PILE_2025: Row[] = pile2025;
+
+/** Les cinq questions RÉPÉTÉES par `dsfr-data-repeat` (#891) : une ligne, une instance. */
+export const BAROMETRE_QUESTIONS: Row[] = barometreQuestions;
+
+/** Les scores PARTITIONNÉS par `scopes` : onze lignes, cinq clés, dont une à somme nulle. */
+export const BAROMETRE_SCORES: Row[] = barometreScores;
 
 /**
  * Les lignes d'un jeu, prêtes pour l'attribut `data` d'un

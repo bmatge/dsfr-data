@@ -66,11 +66,13 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-repeat fields="source,key-field,per-row,empty" -->
+              <!-- ATTRS:dsfr-data-repeat fields="source,key-field,per-row,empty,scopes,lazy" -->
                 <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source (ou du transformateur) dont chaque ligne devient une instance du gabarit. Requis.</td></tr>
                 <tr><td><code>key-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur identifie une ligne entre deux émissions (chemin <code>a.b</code> accepté). Une clé qui subsiste garde ses nœuds et ses instances ; vide, la clé est le rang. Clé nulle ou vide sur une ligne : le rang, sans erreur. Clé en double : erreur de configuration nommant la clé, et le rang pour les doublons.</td></tr>
                 <tr><td><code>per-row</code></td><td>String</td><td><code>""</code></td><td>Nombre de lignes par rangée à partir de 768 px (en dessous : une par rangée) — diviseur de 12 (1, 2, 3, 4, 6, 12), ou une échelle par point de rupture <code>"1 md:2 lg:3"</code>. Vide : pas de grille, un bloc par ligne. Grille <code>fr-grid-row</code> avec gouttières.</td></tr>
                 <tr><td><code>empty</code></td><td>String</td><td><code>""</code></td><td>Texte rendu quand la source émet zéro ligne — dans un <code>&lt;p&gt;</code> sans <code>role="status"</code> : la balise n'annonce rien, c'est l'auteur qui décide de l'annonce. Vide : rien.</td></tr>
+                <tr><td><code>scopes</code></td><td>String</td><td><code>""</code></td><td>Partitionne une ou plusieurs sources par champ et émet **un id scopé par ligne répétée** — la voie native pour « un graphique par question » sans écrire une <code>dsfr-data-query</code> par ligne dans le gabarit (#891). Grammaire (#888, proposition A, celle de <code>champ:fonction:alias</code>) : <code>source:champ:alias</code>, entrées séparées par <code>|</code>, termes par <code>:</code>. L'alias est facultatif — à défaut, c'est l'id de la source. <code>scopes="scores:code_unifie:q | effectifs:code_unifie:e"</code> émet, pour chaque ligne de clé <code>001</code>, les ids <code>q-001</code> et <code>e-001</code> ; le gabarit les lit par <code>{{$scope.q}}</code> et <code>{{$scope.e}}</code> (<code>{{$scope}}</code> quand une seule entrée est déclarée). Les composants du gabarit les consomment par leur attribut <code>source</code> habituel : rien ne change pour eux. La clé d'appariement est celle de la ligne répétée (<code>key-field</code>, requis) : une clé sans lignes dans la source scopée émet un **tableau vide** — le graphique de la ligne est vide, pas absent. Les états <code>loading</code>, <code>error</code> et <code>idle</code> (<code>require-where</code>) de la source scopée sont relayés sur chaque id scopé, pour que la ligne affiche le bon message. Une ré-émission de la source scopée re-partitionne et ré-émet **sans toucher aux lignes**. La partition est faite **une fois** par émission (une <code>Map</code> par champ), là où N <code>dsfr-data-query</code> refiltraient chacune la source entière. Les ids scopés sont purgés du cache quand leur ligne disparaît et à la déconnexion du répéteur. Entrée fausse (nombre de termes, terme vide, alias en double, source introuvable, champ absent des lignes) : <code>reportConfigError</code> nommant l'entrée — rien de silencieux.</td></tr>
+                <tr><td><code>lazy</code></td><td>Boolean</td><td><code>false</code></td><td>N'estampe les composants d'une ligne qu'à son approche du viewport (<code>IntersectionObserver</code>, marge 200 px — la même que <code>dsfr-data-map</code>). Les conteneurs et le contenu ORDINAIRE du gabarit (titres, textes, liens) sont rendus d'emblée : la page garde sa structure de titres, sa hauteur et son plan d'accessibilité. Seuls les éléments <code>dsfr-data-*</code> sont retenus hors du document, attributs déjà interpolés, et insérés à l'entrée de la ligne dans la marge — ils ne s'abonnent donc à rien et ne dessinent rien avant. Les ids scopés, eux, sont émis pour **toutes** les lignes dès le départ : le cache est là quand la ligne s'estampe. Sans <code>lazy</code>, comportement du lot 1 (tout est estampé d'emblée). Sans <code>IntersectionObserver</code> (environnement de test), <code>lazy</code> est sans effet.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -81,7 +83,9 @@
           <li><code>{{$index}}</code> — rang de la ligne (0-based) ;</li>
           <li><code>{{$key}}</code> — valeur de <code>key-field</code> (ou le rang) ;</li>
           <li><code>{{$uid}}</code> — identifiant DOM unique dérivé de la clé, sûr pour <code>id=</code> et
-            <code>aria-labelledby</code>, distinct d'un répéteur à l'autre.</li>
+            <code>aria-labelledby</code>, distinct d'un répéteur à l'autre ;</li>
+          <li><code>{{$scope.alias}}</code> — l'id scopé de la ligne pour l'entrée <code>alias</code> de
+            <code>scopes</code> ; <code>{{$scope}}</code> quand une seule entrée est déclarée.</li>
         </ul>
 
         <h3 class="fr-mt-3w">Ce que <code>repeat</code> promet</h3>
@@ -184,6 +188,37 @@
           </p>
         </section>
 
+        <section class="demo-section">
+          <h3>4. <code>scopes</code> : la même page sans une seule query</h3>
+          <dsfr-data-repeat id="demo-scopes" source="questions" key-field="code" per-row="1 md:3"
+            scopes="scores:code:s">
+            <template>
+              <h4 id="{{$uid}}" class="fr-h6">{{libelle}}</h4>
+              <dsfr-data-chart source="{{$scope.s}}" type="{{pres}}" label-field="annee" value-field="score"
+                name="{{libelle}}" data-if-horizontal="long"></dsfr-data-chart>
+            </template>
+          </dsfr-data-repeat>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-repeat</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"questions"</span> <span class="tok-attr">key-field</span><span class="tok-punct">=</span><span class="tok-string">"code"</span> <span class="tok-attr">scopes</span><span class="tok-punct">=</span><span class="tok-string">"scores:code:s"</span> lazy<span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">h4</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"{{$uid}}"</span><span class="tok-punct">&gt;</span>{{libelle}}<span class="tok-punct">&lt;/</span><span class="tok-tag">h4</span><span class="tok-punct">&gt;</span>
+    <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-chart</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"{{$scope.s}}"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"{{pres}}"</span>
+      <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"annee"</span> <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-chart</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;/</span><span class="tok-tag">template</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-repeat</span><span class="tok-punct">&gt;</span></pre></div>
+          <p class="fr-text--sm fr-mt-1w">
+            Même rendu que l'exemple 1, sans une seule <code>dsfr-data-query</code> : <code>scopes</code> partitionne
+            <code>scores</code> par <code>code</code> — <strong>une passe</strong>, une <code>Map</code> — et émet
+            <code>s-001</code>, <code>s-002</code>, <code>s-003</code>. Sur 119 lignes, le refiltre d'une ré-émission
+            de la source scopée passe de <strong>13,8 ms</strong> (119 queries) à <strong>2,3 ms</strong>, et les
+            écouteurs <code>document</code> de <strong>2,03</strong> à <strong>1,03 par ligne</strong>. Une clé sans
+            lignes émet un <strong>tableau vide</strong> : la ligne existe, son graphique est vide, pas absent. Les
+            états <code>loading</code>, <code>error</code> et <code>idle</code> de la source scopée sont relayés sur
+            chaque id scopé, et le volet Diagnostic attribue chaque id à son répéteur
+            (<code>s-001 ← dsfr-data-repeat#demo-scopes</code>). Ajoutez <code>lazy</code> pour n'insérer les
+            composants d'une ligne qu'à son approche du viewport — les titres, eux, restent rendus d'emblée.
+          </p>
+        </section>
+
         <h2 class="fr-mt-4w">Limites, dites d'avance</h2>
         <ul>
           <li>Pas de délégation serveur derrière un id scopé : une source lue par N queries reste calculée dans le
@@ -191,8 +226,13 @@
             <code>max-records</code> au volume réel). Ni <code>facets</code> ni <code>search</code> ne se répètent.</li>
           <li>Le bus est plat : deux répéteurs qui fabriquent le même id (<code>q-001</code>) se marchent dessus, comme
             deux auteurs qui écriraient le même id. Préfixer par répéteur.</li>
-          <li>Une query par ligne coûte N filtres et N renégociations à chaque inscription (#900) ; le lot 2
-            (<code>scopes</code>, #891) partitionnera la source une fois.</li>
+          <li>Une query par ligne coûte N filtres et N renégociations à chaque inscription (#900) : préférer
+            <code>scopes</code>, qui partitionne la source une fois. La query par ligne reste la voie quand la ligne a
+            besoin d'un <strong>regroupement</strong> ou d'un <strong>agrégat</strong> propre —
+            <code>scopes</code> livre les lignes brutes de la clé, il ne calcule pas.</li>
+          <li><code>lazy</code> ne réserve pas de hauteur à votre place : sans <code>min-height</code> sur le gabarit
+            (ou sur <code>.dsfr-data-repeat__row</code>), des conteneurs réduits à un titre tiennent tous dans le
+            viewport et s'estampent d'un coup.</li>
         </ul>
     </div>
   </app-layout-demo>
