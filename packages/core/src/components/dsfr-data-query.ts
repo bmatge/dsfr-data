@@ -695,6 +695,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const chainReaders = this._otherChainReaders();
     const sharedWith = sourceEl ? chainReaders : [];
     const exclusive = sharedWith.length === 0;
+    this._chainShared = !exclusive;
     // Avertir seulement quand une delegation aurait ete tentee : un agregat
     // global (sans group-by) reste cote client de toute facon.
     if (!exclusive && (this.groupBy || this.orderBy)) {
@@ -965,19 +966,47 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _onInstanceRegistered = (el: Element) => {
     if (el === this || this._chainIds.size === 0) return;
     if (el.tagName.toLowerCase() === 'dsfr-data-context') return;
+    const isChainLink = el.id !== '' && this._chainIds.has(el.id);
     const touchesChain =
-      (el.id !== '' && this._chainIds.has(el.id)) ||
-      upstreamLinksOf(el).some((up) => up !== '' && this._chainIds.has(up));
-    if (touchesChain) this._negotiateServerSide();
+      isChainLink || upstreamLinksOf(el).some((up) => up !== '' && this._chainIds.has(up));
+    if (!touchesChain) return;
+    // #900 — POINT FIXE. Un LECTEUR de plus (pas un maillon de la chaine) sur
+    // une chaine deja reconnue partagee, par une query qui ne delegue plus
+    // rien, ne peut changer aucune decision : le partage ne se defait pas a
+    // l'arrivee d'un lecteur, et il n'y a plus d'overlay a liberer.
+    // Renegocier relisait pourtant toute la chaine (`readersOf` est en O(N))
+    // et rediffusait `dsfr-data-delegation-contested` a tous les voisins —
+    // O(N²) pour N queries sur une source, l'autre moitie du cout de #900.
+    // La garde exclut le MAILLON rehausse (#855), dont l'arrivee change bien
+    // la donne, et ne s'applique pas tant qu'il reste quelque chose de
+    // delegue (le `where`, cle par emetteur, l'est meme en chaine partagee).
+    if (!isChainLink && this._chainShared && !this._hasServerDelegation()) return;
+    this._negotiateServerSide();
   };
 
-  /** Dernier partage signale : un avertissement par situation (#765). */
-  private _sharedWarned = '';
+  /**
+   * La derniere negociation a-t-elle trouve la chaine partagee (#765) ?
+   * Garde du point fixe de `_onInstanceRegistered` (#900).
+   */
+  private _chainShared = false;
+
+  /**
+   * Derniere source signalee comme partagee : un avertissement par SITUATION
+   * (#765), et la situation c'est la source — pas la liste de ses lecteurs.
+   *
+   * #900 : la signature comparait `${source}|${sharedWith.join(',')}`, et
+   * `sharedWith` s'allonge d'un element a chaque lecteur qui s'inscrit
+   * (`_onInstanceRegistered` renegocie). Chaque query repartait donc pour un
+   * avertissement par voisin arrive apres elle : 7 139 `console.warn` au
+   * premier rendu pour 119 queries (motif #877, spike #889), 40 % du temps
+   * de rendu. La liste des lecteurs est un DETAIL du message, jamais la cle
+   * de deduplication ; `null` distingue « jamais averti » d'une source vide.
+   */
+  private _sharedWarned: string | null = null;
 
   private _warnSharedSource(sharedWith: string[]): void {
-    const signature = `${this.source}|${sharedWith.join(',')}`;
-    if (signature === this._sharedWarned) return;
-    this._sharedWarned = signature;
+    if (this.source === this._sharedWarned) return;
+    this._sharedWarned = this.source;
     console.warn(
       `dsfr-data-query[${this.id}]: group-by, aggregate et order-by restent calculés côté ` +
         `client — la source "${this.source}" est lue aussi par ${sharedWith.join(', ')}, qui ` +
