@@ -40,7 +40,7 @@
               <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto,idle-message" -->
+              <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto,idle-message,count-label" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce tableau consomme les données.</td></tr>
                 <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes : <code>"clé:Label, cle2:Label2"</code>. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un <code>dsfr-data-pivot</code>, #255).</td></tr>
                 <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche</td></tr>
@@ -55,6 +55,7 @@
                 <tr><td><code>server-sort</code></td><td>Boolean</td><td>Active le tri serveur. Au lieu de trier localement, envoie une commande { orderBy } au source upstream (dsfr-data-query server-side) qui re-fetche les données triees.</td></tr>
                 <tr><td><code>columns-auto</code></td><td>Boolean</td><td>Complète <code>columns</code> avec les clés des données qui n'y figurent pas (ordre d'apparition, libellé = clé) : les premières colonnes sont libellées et figées, les suivantes suivent les données (#640).</td></tr>
                 <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
+                <tr><td><code>count-label</code></td><td>String</td><td>Nom compté par le compteur rendu au-dessus du tableau, à la place de « résultat » : <code>count-label="commune"</code> affiche « 1 234 communes » (#925, AM-077 — même grammaire que <code>dsfr-data-search</code>, #779). Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou un mot invariable, donner les deux formes séparées par une **barre verticale** : <code>count-label="cheval|chevaux"</code>, <code>count-label="prix|prix"</code>. La virgule ne sépare PAS les deux formes. Poser l'attribut fait aussi passer le nombre par le formateur fr-FR (séparateur de milliers). Sans l'attribut, le compteur est rendu exactement comme avant. La mention « (filtré) » suit le compteur dans les deux cas.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>

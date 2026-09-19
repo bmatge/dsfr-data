@@ -4466,6 +4466,16 @@
             },
             {
               "kind": "field",
+              "name": "countLabel",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom compté par le compteur rendu au-dessus de la grille, à la place de\n« resultat » : `count-label=\"établissement\"` affiche\n« 12 345 établissements » (#925, AM-077 — même grammaire que\n`dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le\ncompteur est rendu exactement comme avant — le corriger par défaut\nchangerait le texte de toutes les pages existantes, et reste à trancher\n(#925, point résiduel).\n\nCet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est\nune liste de résultats, et sa région annoncée fait partie de son contrat\n(ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —\nune fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.",
+              "attribute": "count-label"
+            },
+            {
+              "kind": "field",
               "name": "gap",
               "type": {
                 "text": "string"
@@ -5045,6 +5055,15 @@
               "default": "'Aucun resultat'",
               "description": "Message quand aucune donnee",
               "fieldName": "empty"
+            },
+            {
+              "name": "count-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom compté par le compteur rendu au-dessus de la grille, à la place de\n« resultat » : `count-label=\"établissement\"` affiche\n« 12 345 établissements » (#925, AM-077 — même grammaire que\n`dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le\ncompteur est rendu exactement comme avant — le corriger par défaut\nchangerait le texte de toutes les pages existantes, et reste à trancher\n(#925, point résiduel).\n\nCet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est\nune liste de résultats, et sa région annoncée fait partie de son contrat\n(ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —\nune fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.",
+              "fieldName": "countLabel"
             },
             {
               "name": "gap",
@@ -8844,6 +8863,16 @@
             },
             {
               "kind": "field",
+              "name": "countLabel",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom compté par le compteur rendu au-dessus du tableau, à la place de\n« résultat » : `count-label=\"commune\"` affiche « 1 234 communes »\n(#925, AM-077 — même grammaire que `dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers). Sans l'attribut, le compteur est rendu\nexactement comme avant. La mention « (filtré) » suit le compteur dans\nles deux cas.",
+              "attribute": "count-label"
+            },
+            {
+              "kind": "field",
               "name": "decimals",
               "type": {
                 "text": "number | null"
@@ -9726,6 +9755,15 @@
               "default": "''",
               "description": "Titre du tableau, rendu dans `caption` (masqué visuellement, lu par les\nlecteurs d'écran — RGAA 5.4, #669). À défaut, dérivé de `aria-label`.",
               "fieldName": "caption"
+            },
+            {
+              "name": "count-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom compté par le compteur rendu au-dessus du tableau, à la place de\n« résultat » : `count-label=\"commune\"` affiche « 1 234 communes »\n(#925, AM-077 — même grammaire que `dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers). Sans l'attribut, le compteur est rendu\nexactement comme avant. La mention « (filtré) » suit le compteur dans\nles deux cas.",
+              "fieldName": "countLabel"
             },
             {
               "name": "decimals",
@@ -18156,7 +18194,7 @@
                   }
                 }
               ],
-              "description": "Nom compté, accordé au nombre (`count-label`, sinon « résultat »)."
+              "description": "Nom compté, accordé au nombre (`count-label`, sinon « résultat »).\nGrammaire partagée avec `display` et `list` depuis #925 : une seule\nimplémentation, `utils/count-label.ts`."
             },
             {
               "kind": "method",

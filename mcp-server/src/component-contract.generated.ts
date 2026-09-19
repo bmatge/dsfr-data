@@ -127,6 +127,7 @@ export const COMPONENT_CONTRACT = {
     "attributes": [
       "cols",
       "context",
+      "count-label",
       "empty",
       "gap",
       "idle-message",
@@ -222,6 +223,7 @@ export const COMPONENT_CONTRACT = {
       "columns",
       "columns-auto",
       "context",
+      "count-label",
       "decimals",
       "export",
       "filters",
