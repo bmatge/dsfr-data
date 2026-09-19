@@ -95,6 +95,16 @@ export interface AttenduUrls {
   verdict: 'none' | 'some' | 'all' | 'last' | 'notLast';
 }
 
+/**
+ * Ce que la bibliothèque doit avoir DIT (ou tu) — énoncé par le contrôle,
+ * comme les URL, jamais recalculé (#878).
+ */
+export interface AttenduDiagnostic {
+  kind: 'diagnostic';
+  expect: 'config-error' | 'warning' | 'silence';
+  contains?: string;
+}
+
 export interface AttenduTexte {
   kind: 'text';
   /** Texte attendu (comparaison textuelle), ou `null` si la comparaison est numérique. */
@@ -129,7 +139,8 @@ export type Attendu =
   | AttenduPastilles
   | AttenduFacettes
   | AttenduTexte
-  | AttenduUrls;
+  | AttenduUrls
+  | AttenduDiagnostic;
 
 /**
  * Couleur d'un KPI d'après ses seuils, énoncée en toutes lettres plutôt
@@ -173,6 +184,9 @@ export function cleAttendu(e: Expect): string {
   if (e.kind === 'attr') return `${base}:${e.attr}`;
   if (e.kind === 'text' && e.selector) return `${base}:${e.selector}`;
   if (e.kind === 'texts' || e.kind === 'class') return `${base}:${e.selector}`;
+  // Un même élément peut être interrogé sur deux verdicts (un marqueur ET un
+  // silence sur un autre fragment) : le verdict fait partie de la clé.
+  if (e.kind === 'diagnostic') return `${base}:${e.expect}`;
   return base;
 }
 
@@ -198,6 +212,16 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
         contains: e.contains,
         verdict: e.verdict,
         ...(e.among ? { among: e.among } : {}),
+      };
+      continue;
+    }
+    // Un silence ou un message ne se recalcule pas non plus : le contrôle
+    // énonce ce que la bibliothèque doit avoir dit (#878).
+    if (e.kind === 'diagnostic') {
+      values[cleAttendu(e)] = {
+        kind: 'diagnostic',
+        expect: e.expect,
+        ...(e.contains ? { contains: e.contains } : {}),
       };
       continue;
     }

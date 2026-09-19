@@ -12,6 +12,7 @@ import {
   lireAttribut,
   lireCache,
   lireClasses,
+  lireDiagnostics,
   lireExportCsv,
   lireFacettes,
   lireGraphique,
@@ -97,6 +98,31 @@ function ecrireFixture(domaine: string, check: Check): string {
       } catch (e) { /* une entree exotique ne doit pas casser la page */ }
       return brut.apply(this, arguments);
     };
+  })();
+</script>
+<!-- Journal des SILENCES (expect diagnostic, #878) : ce que la bibliotheque
+     ecrit en console, warn et error, pose AVANT son chargement — ses
+     validations partent des le connectedCallback. Le lecteur ne retient que
+     les messages qui la nomment (dsfr-data-…). -->
+<script>
+  window.__verifConsole = [];
+  (function () {
+    function texte(args) {
+      var out = [];
+      for (var i = 0; i < args.length; i++) {
+        var a = args[i];
+        out.push(typeof a === 'string' ? a : (a && a.message) ? a.message : String(a));
+      }
+      return out.join(' ');
+    }
+    ['warn', 'error'].forEach(function (niveau) {
+      var brut = console[niveau];
+      console[niveau] = function () {
+        try { window.__verifConsole.push({ level: niveau, text: texte(arguments) }); }
+        catch (e) { /* le journal ne doit jamais casser la page */ }
+        return brut.apply(this, arguments);
+      };
+    });
   })();
 </script>${check.head ?? ''}
 <script type="module">
@@ -188,6 +214,8 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(lirePastilles, e.id);
       case 'urls':
         return await page.evaluate(lireUrls);
+      case 'diagnostic':
+        return await page.evaluate(lireDiagnostics, e.id);
     }
   } catch (erreur) {
     if (/Execution context was destroyed|Target (page|closed)/.test(String(erreur))) return null;
@@ -237,6 +265,14 @@ function prete(e: Expect, obs: Observation): boolean {
     // d'un check sont observés dans l'ordre, il se place en dernier.
     case 'urls':
       return Array.isArray(obs) && obs.length > 0;
+    // Un diagnostic se lit tout de suite : scruter un avertissement qui ne
+    // vient pas coûterait la borne entière pour dire, moins bien, ce que le
+    // comparateur dit déjà (« elle n'a rien dit »). Il se place en DERNIER
+    // dans `expects`, après les chiffres qu'il qualifie : quand ceux-ci ont
+    // fini de bouger, la page a eu le temps de parler — et la lecture en deux
+    // temps de `stabilite.ts` attend encore que le journal ne bouge plus.
+    case 'diagnostic':
+      return true;
   }
 }
 

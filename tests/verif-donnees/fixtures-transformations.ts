@@ -98,6 +98,32 @@ export const LONG: Row[] = [
 ];
 
 /**
+ * Deux ÉDITIONS d'un baromètre, en format long : une part de répondants par
+ * question et par année (#878, cas 2 du 18/09).
+ *
+ * Deux questions n'ont qu'une édition — `teletravail` posée en 2024 seulement,
+ * `cybersecurite` en 2025 seulement. Après pivot, leur cellule manquante est
+ * ABSENTE, pas nulle : une soustraction qui la prendrait pour un zéro
+ * fabriquerait une variation de −85,2 points pour une question qui n'a pas
+ * été reposée, et la mettrait en tête du classement des variations. Les
+ * valeurs sont choisies pour que ce faux −85,2 dépasse la plus forte
+ * variation réelle (+12,5).
+ */
+// prettier-ignore
+export const EDITIONS: Row[] = [
+  { question: 'site-internet',   annee: '2024', score: 60.1 },
+  { question: 'site-internet',   annee: '2025', score: 66.4 },
+  { question: 'facture-elec',    annee: '2024', score: 40 },
+  { question: 'facture-elec',    annee: '2025', score: 52.5 },
+  { question: 'ia',              annee: '2024', score: 8 },
+  { question: 'ia',              annee: '2025', score: 19.2 },
+  { question: 'reseaux-sociaux', annee: '2024', score: 55 },
+  { question: 'reseaux-sociaux', annee: '2025', score: 54.1 },
+  { question: 'teletravail',     annee: '2024', score: 85.2 },
+  { question: 'cybersecurite',   annee: '2025', score: 33.3 },
+];
+
+/**
  * Format LARGE pour le dépliage : trois mois en colonnes, une cellule vide
  * (elle disparaît avec `drop-empty`), une valeur en décimale française.
  */

@@ -420,6 +420,79 @@ const CHECKS: Check[] = [
   },
 
   // ---------------------------------------------------------------------
+  // Les SILENCES (#878) — un chiffre faux, plausible, et aucune erreur
+  // ---------------------------------------------------------------------
+  {
+    id: 'ctx-sources-separateur-virgule',
+    mode: 'deterministic',
+    origin:
+      '#878, cas 1 du 18/09 (banc, viz/barometre-france-num-v2) — `sources` attend des ids séparés par des ESPACES ; écrit avec une virgule, `sources="s-etab,s-budg"` est UN id qui ne désigne aucune source du document, le contexte ne filtre plus rien et les sommes portent sur tout le jeu. Le KPI doit montrer la somme FILTRÉE, et la bibliothèque doit DIRE qu’un id de `sources` ne désigne rien (cousin de #805 et de #772 — dont l’utilitaire de séparateur suspect ne couvre pas `sources`).',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-etab')}${sourceOds('s-budg', DATASET_BUDGETS)}
+  <dsfr-data-context id="ctx" sources="s-etab,s-budg">
+    <dsfr-data-context-filter field="region" operator="eq" ui="ui-region" label="Région">
+    </dsfr-data-context-filter>
+  </dsfr-data-context>
+  ${selectRegions('ui-region')}
+  ${kpiSomme('k-pop', 's-etab')}${kpiSomme('k-montant', 's-budg', 'montant')}`,
+    actions: [{ kind: 'select', selector: '#ui-region', value: 'Occitanie' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-pop',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'eq', value: 'Occitanie' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-montant',
+        agg: 'sum',
+        field: 'montant',
+        from: 'budgets',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'eq', value: 'Occitanie' }] }],
+      },
+      // Le jour où la bibliothèque parle, elle doit dire QUOI : l'id fautif.
+      { kind: 'diagnostic', id: 'ctx', expect: 'warning', contains: 's-etab,s-budg' },
+    ],
+    skip: 'DÉFAUT (#878, cas 1) — `sources="s-etab,s-budg"` est accepté sans un mot : `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, et la commande part vers un id que personne n’écoute. Mesuré le 2026-09-19 : k-pop lib 38 350 / oracle 13 550 (population, Occitanie), k-montant lib 14 000 / oracle 5 000 ; diagnostic : aucun marqueur, aucun message console. Attendu : les sommes filtrées, ET un message nommant l’id « s-etab,s-budg » qui ne désigne aucune `dsfr-data-source` du document (piste : étendre l’utilitaire de #772 à `sources`, virgule suspecte). Issue à ouvrir par la supervision.',
+  },
+
+  {
+    id: 'ctx-sources-separateur-espace',
+    mode: 'deterministic',
+    origin:
+      '#878 — le même balisage écrit JUSTE (`sources="s-etab s-budg"`) : les deux sommes suivent le filtre, et la bibliothèque se tait. C’est le témoin du précédent, et le contrôle du lecteur de silences dans l’autre sens — un avertissement qui partirait sur un balisage correct serait un faux positif.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-etab')}${sourceOds('s-budg', DATASET_BUDGETS)}
+  <dsfr-data-context id="ctx" sources="s-etab s-budg">
+    <dsfr-data-context-filter field="region" operator="eq" ui="ui-region" label="Région">
+    </dsfr-data-context-filter>
+  </dsfr-data-context>
+  ${selectRegions('ui-region')}
+  ${kpiSomme('k-pop', 's-etab')}${kpiSomme('k-montant', 's-budg', 'montant')}`,
+    actions: [{ kind: 'select', selector: '#ui-region', value: 'Occitanie' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-pop',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'eq', value: 'Occitanie' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-montant',
+        agg: 'sum',
+        field: 'montant',
+        from: 'budgets',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'eq', value: 'Occitanie' }] }],
+      },
+      { kind: 'diagnostic', id: 'ctx', expect: 'silence' },
+    ],
+  },
+
+  // ---------------------------------------------------------------------
   // URL
   // ---------------------------------------------------------------------
   {
