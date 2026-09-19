@@ -11,9 +11,11 @@ import { AFFICHAGES } from './affichages.js';
 import { BANC } from './banc.js';
 import { BANC_ADAPTATEURS } from './banc-adaptateurs.js';
 import { BANC_PAGES } from './banc-pages.js';
+import { CANARI } from './canari.js';
 import { CONTEXTE } from './contexte.js';
 import { DELEGATION } from './delegation.js';
 import { EXPORT_STUDIO } from './export-studio.js';
+import { GEL } from './gel.js';
 import { QUERY } from './query.js';
 import { TRANSFORMATIONS } from './transformations.js';
 
@@ -25,6 +27,8 @@ export const MANIFESTES: Manifest[] = [
   DELEGATION,
   EXPORT_STUDIO,
   CONTEXTE,
+  CANARI,
+  GEL,
   BANC,
   BANC_ADAPTATEURS,
   BANC_PAGES,
@@ -47,9 +51,11 @@ export {
   BANC,
   BANC_ADAPTATEURS,
   BANC_PAGES,
+  CANARI,
   CONTEXTE,
   DELEGATION,
   EXPORT_STUDIO,
+  GEL,
   QUERY,
   TRANSFORMATIONS,
 };

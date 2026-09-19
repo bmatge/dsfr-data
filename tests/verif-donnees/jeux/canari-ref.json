@@ -1,0 +1,9 @@
+[
+  {"code":"01","nom":"Un"},
+  {"code":"02","nom":"Deux"},
+  {"code":"02","nom":"Deux bis"},
+  {"code":"1","nom":"Un sans zéro"},
+  {"code":"2A","nom":"Corse-du-Sud"},
+  {"code":"","nom":"Vide"},
+  {"code":"99","nom":"Sans gauche"}
+]

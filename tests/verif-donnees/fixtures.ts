@@ -28,7 +28,10 @@ import {
   repondreTabular,
 } from '../builder-e2e/api-fixtures.js';
 import { repondreAdaptateurs } from './fixtures-adaptateurs.js';
+import { repondreCanari } from './fixtures-canari.js';
 import { repondreContexte } from './fixtures-contexte.js';
+import { repondreGel } from '../../tools/oracle/gel.js';
+import { GELS } from './gel.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 import { repondreAffichages } from './fixtures-affichages.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
@@ -171,6 +174,16 @@ export function repondre(url: URL): unknown | null {
   if (desAdaptateurs !== null) return desAdaptateurs;
   const duContexte = repondreContexte(url);
   if (duContexte !== null) return duContexte;
+  const duCanari = repondreCanari(url);
+  if (duCanari !== null) return duCanari;
+  // Les contrôles GELÉS (#884) : leurs lignes brutes, servies comme un portail.
+  const duGel = repondreGel(url, GELS, {
+    exportJson: repondreOdsExport,
+    records: repondreOdsRecords,
+    facets: repondreOdsFacets,
+    metadonnees: repondreOdsMetadonnees,
+  });
+  if (duGel !== null) return duGel;
   if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS)) {
     const reste = url.pathname.slice(PREFIXE_ODS.length);
     if (reste === '/records') {

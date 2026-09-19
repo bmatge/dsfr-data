@@ -69,6 +69,64 @@ tables de correspondance du faux serveur, pas des lignes que l'oracle recalcule.
 | `transformations-pile-2024.json` | 3 | Deux millésimes de même schéma à empiler. |
 | `transformations-pile-2025.json` | 2 | Le second, plus court : l'ordre d'empilement doit être tenu. |
 
+## Le canari (#882)
+
+Un jeu taillé pour **chaque piège que le banc a payé** — une valeur qui a l'air d'une
+autre — et un contrôle par piège dans `tests/verif-donnees/canari.ts`, chacun citant le
+registre du banc. C'est la première chose qu'un contributeur rejoue.
+
+| Fichier | Lignes | Taillé pour |
+|---|---|---|
+| `canari.json` | 40 | Neuf colonnes, chaque ligne décrite ci-dessous. |
+| `canari-ref.json` | 7 | La table de droite d'une jointure sur `code` : `01`, `02` **deux fois** (le doublon volontaire, PG-001), `1` (sans zéro de tête), `2A`, `''` (une clé vide qui ne doit rien apparier) et `99` (sans ligne à gauche). |
+| `canari-volume.json` | 1 001 | Une ligne de plus qu'un plafond de 1 000 (AM-002). ENGENDRÉ par un générateur congruentiel linéaire de graine 42 — `x ← (1103515245 · x + 12345) mod 2³¹`, `groupe = [A,B,C,D][x mod 4]`, `valeur = x mod 1000` — et matérialisé ; `tests/oracle/jeux.test.ts` le régénère et refuse toute divergence. Somme des valeurs : 501 367. |
+
+### Les colonnes de `canari.json`
+
+| Colonne | Ce qu'elle mêle | Piège |
+|---|---|---|
+| `code` | `'01'` (×4), `'1'` (×2), `1` nombre (×2), `'2A'` (×3), `'02'` (×2), `'010'`, `''` (×2), `null` (×2), et des codes ordinaires | zéro de tête (PG-030, BUG-014), clé numérique contre clé texte (FP-012), clé vide |
+| `libelle` | « Élancourt » en **NFC**, « Élancourt » en **NFD** (E + accent combinant), « élancourt » en minuscules, « L'Haÿ-les-Roses », « Recherche & Essais », « Sète » et « Sete », `''`, `null` | accents et formes Unicode dans le regroupement et la recherche (AM-033) |
+| `montant` | `0` (×2), `null` (×3), `''` (×3), `'1 234,5'`, `'3,75'`, `-2.5`, et des nombres | absence ≠ zéro (PG-020, #301), décimale française (AM-033) |
+| `poids` | des entiers dont deux `0` | division par zéro dans un quotient |
+| `tags` | `['eau','air']`, `['air']`, `[]` (×8), `null` (×4), … | champ multivalué : la facette éclate, le regroupement compte les combinaisons (BUG-006) |
+| `date` | ISO complet, `AAAA-MM` (×14), `AAAA` (×5), `''` (×2), `null` | dates partielles dans un filtre d'ordre (AM-029, BUG-005) |
+| `region` | Nord, Sud, Corse, Centre, Est, Ouest, et **six `null`** | le groupe null, client et serveur (PG-015), `distinct` (AM-004) |
+| `part` | fractions (`0.25`) ET pourcentages (`25`), `0`, `1`, `100`, `null` | une part dans `[0 ; 1]` ou dans `[0 ; 100]` — la borne dépend de l'unité |
+
+### Les lignes, une par une
+
+| id | Ce qu'elle piège |
+|---|---|
+| c01 | la référence : `01`, « Élancourt » NFC, un montant, deux tags, une date complète |
+| c02 | même code, même mot en **NFD** : un autre libellé pour un regroupement, le même pour une recherche |
+| c03 | même mot en minuscules ; montant `0` (un zéro, pas une absence) ; `tags` vide ; date `2024` seule |
+| c04 | code `'1'` (sans zéro) ; montant `null` ; `tags` `null` ; date vide ; région `null` |
+| c05 | code `'1'` ; montant `''` (vide ≠ null ≠ 0) ; `poids` **0** (division par zéro) ; date 2023 |
+| c06 | code `1` **nombre** ; montant `'1 234,5'` en français ; date 2025 |
+| c07 | code `1` nombre ; montant **négatif** ; « Sete » sans accent face à « Sète » |
+| c08 | `2A` (un code alphanumérique, jamais un nombre) ; 29 février |
+| c09 | `2A` ; montant `'3,75'` |
+| c10 | code `''` : n'apparie rien, pas même la ligne « Vide » de droite ; région `null` |
+| c11 | code `null` ; date `null` ; région `null` |
+| c12, c13 | code `02`, présent DEUX fois à droite : la jointure les duplique, la somme gonfle de 12 + 8 |
+| c14 | date 2023 complète : hors 2024 |
+| c15 | `2B`, date `2025-03` : hors 2024 |
+| c16 | `poids` 0 (division par zéro) |
+| c17 | `'010'` : ni `10` ni `1` |
+| c18–c20 | des lignes ordinaires ; c19 un zéro ; c20 le plus gros montant |
+| c21 | montant `null`, `tags` `null`, date vide, région `null` — une ligne presque vide |
+| c22 | montant `''` ; date `2024` seule |
+| c23–c30 | des lignes ordinaires, dates partielles ou complètes, tags variés |
+| c31 | montant `null` ; part `null` |
+| c32 | montant `''` ; région `null` |
+| c33, c34 | apostrophes dans le libellé (« Côte-d'Or », « Côtes-d'Armor ») |
+| c35 | troisième `2A` |
+| c36 | quatrième `01` |
+| c37 | code `''` ET libellé `''` |
+| c38 | code `null` ET libellé `null` |
+| c39, c40 | des lignes ordinaires ; c40 daté `2025` seul |
+
 ## Ajouter un jeu
 
 1. Écrire le fichier ici, tableau d'objets, une ligne par enregistrement.

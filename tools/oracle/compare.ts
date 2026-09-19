@@ -46,6 +46,48 @@ export interface Constat {
   ok: boolean;
   /** Vide si le contrôle passe ; sinon la première divergence, en toutes lettres. */
   message: string;
+  /**
+   * La TROISIÈME VOIX (#880) : ce que l'oracle Python a recalculé, rendu
+   * court, quand `tests/verif-donnees/attendus.json` couvre l'observation.
+   * Absent sinon — l'observation n'a alors que deux voix, et le rapport le dit.
+   */
+  python?: string;
+  /** Écart lib ↔ Python, ou `null` si la comparaison est textuelle. */
+  ecartPython?: number | null;
+  /**
+   * Un INVARIANT (#881), évalué sur l'observation face aux lignes brutes —
+   * `lib` porte ce que la page montre, `oracle` ce que les lignes brutes
+   * disent. Compté à part des valeurs dans le rapport.
+   */
+  invariant?: boolean;
+  /**
+   * Invariant EN ATTENTE : la raison pour laquelle la bibliothèque ne le tient
+   * pas encore. Le constat est rendu, avec ses deux chiffres, et ne bloque pas.
+   */
+  attente?: string;
+  /**
+   * Le RECOUPEMENT SERVEUR (#883), mode vivant : ce que le portail a répondu,
+   * rendu court — ou la raison pour laquelle il n'a pas été interrogé (quota,
+   * échec). Troisième chiffre à côté de `lib` et `oracle`.
+   */
+  serveur?: string;
+  /** Écart lib ↔ serveur, ou `null` si le serveur n'a rien dit. */
+  ecartServeur?: number | null;
+  /** Le verdict à trois chiffres, en toutes lettres (`verdictRecoupement`). */
+  verdict?: string;
+  /**
+   * Le verdict d'une NUIT ROUGE (#884), mode vivant, posé sur un écart :
+   * `bibliothèque` (empreinte stable), `donnée, rejoué` (la date de traitement
+   * a changé entre l'attendu et l'observation, le contrôle a été rejoué sur un
+   * attendu recalculé), `indéterminé` (pas de métadonnée de fraîcheur).
+   */
+  fraicheur?: string;
+  /**
+   * Le constat vient d'un contrôle qui a échoué puis RÉUSSI au retry (#884) :
+   * vert, mais compté à part — trois instabilités sur le même contrôle en un
+   * mois ouvrent une issue sur le contrôle lui-même.
+   */
+  instable?: boolean;
 }
 
 export type Observation =
