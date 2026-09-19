@@ -57,6 +57,25 @@ if (!commit) {
  */
 const devBuild = process.env.DSFR_DATA_DEV_BUILD === '1';
 
+/**
+ * ... et le meme piege une couche plus bas : la RESOLUTION des modules (#899).
+ *
+ * `mode` et `define` ci-dessous reecrivent le CODE produit ; ils ne choisissent
+ * pas la condition d'export par laquelle Vite resout une dependance. Pour cela
+ * Vite lit `process.env.NODE_ENV` du PROCESSUS — que `vite-node` laisse a
+ * « development ». Lit publie une condition `development` : les bundles
+ * publies embarquaient donc `lit-html/development`, `lit-element/development`
+ * et `reactive-element/development` (verifie sur les paquets npm 0.30.0 et
+ * 0.31.0), soit des verifications supplementaires a chaque mise a jour de
+ * propriete et un « Lit is in dev mode » en console sur chaque page
+ * d'integrateur.
+ *
+ * On pose donc la variable AVANT tout appel a `build()`, c'est-a-dire avant
+ * toute resolution. Le garde-fou qui empeche la regression de revenir est dans
+ * `tests/lib-dev-mode-guard.test.ts`, rejoue par la CI apres le build.
+ */
+process.env.NODE_ENV = devBuild ? 'development' : 'production';
+
 const commonConfig = {
   // Ne jamais laisser Vite deduire le mode de NODE_ENV : sous `vite-node` il
   // vaut « development », ce qui produirait un bundle de dev publie sur npm.

@@ -125,3 +125,51 @@ describe.skipIf(!built)('les bundles publies ne contiennent pas la bascule de de
     expect(source).toContain('DSFR_DATA_PROXY');
   });
 });
+
+/**
+ * Meme piege, autre victime : la RESOLUTION des modules (#899).
+ *
+ * CE QUI S'EST PASSE. `mode: 'production'` et le `define` de
+ * `scripts/build-lib.ts` reecrivent le CODE ; ils ne choisissent pas la
+ * condition d'export employee pour RESOUDRE une dependance. Vite lit pour cela
+ * `process.env.NODE_ENV` du processus de build — que `vite-node` laisse a
+ * « development ». Lit publie une condition d'export `development`, et c'est
+ * donc `lit-html/development`, `lit-element/development` et
+ * `reactive-element/development` qui entraient dans les bundles PUBLIES :
+ * verifications supplementaires a chaque mise a jour de propriete, et
+ * « Lit is in dev mode » en console chez chaque integrateur, a chaque page
+ * (constate sur les paquets npm 0.30.0 et 0.31.0).
+ *
+ * Sans ce garde-fou la regression revient au premier build : rien d'autre dans
+ * la chaine ne distingue les deux paquets Lit.
+ */
+const MARQUEURS_LIT_DEV = [
+  // L'avertissement console lui-meme : present dans le seul build de dev de Lit.
+  'Lit is in dev mode',
+  // Les chemins des paquets de dev, tels que les resout la condition d'export.
+  'reactive-element/development',
+  'lit-html/development',
+  'lit-element/development',
+];
+
+describe.skipIf(!built)('les bundles publies embarquent Lit en mode production (#899)', () => {
+  for (const fichier of BUNDLES_PUBLIES) {
+    it(`${fichier} n embarque pas le build de dev de Lit`, () => {
+      const chemin = join(DIST, fichier);
+      if (!existsSync(chemin)) return;
+      const source = readFileSync(chemin, 'utf-8');
+      const trouves = MARQUEURS_LIT_DEV.filter((m) => source.includes(m));
+      expect(
+        trouves,
+        `${fichier} embarque Lit en mode dev (${trouves.join(', ')}) : ` +
+          `le build a ete fait avec DSFR_DATA_DEV_BUILD=1, ou NODE_ENV est reste ` +
+          `a « development » au moment de resoudre lit (#899)`
+      ).toEqual([]);
+    });
+  }
+
+  it('build-lib.ts pose NODE_ENV avant de resoudre les dependances', () => {
+    const source = readFileSync(join(RACINE, 'scripts/build-lib.ts'), 'utf-8');
+    expect(source).toMatch(/process\.env\.NODE_ENV\s*=\s*devBuild\s*\?/);
+  });
+});
