@@ -192,6 +192,14 @@ au volume est `fetch-mode="export"` (ci-dessus), qui ne se combine jamais avec `
 Garde-fous : forme dans `tests/shared/dashboard-export-html.test.ts`, rendu dans
 `tests/builder-e2e/export-html-api-recette.spec.ts` (documents `pagePour()` vs `pagePartagee()`).
 
+⚠️ **« Partagee » se compte APRES les sources dediees** (#866) : `serverPaginatedSources` lit
+`effectiveSourceConsumers`, c'est-a-dire le graphe **une fois** `dedicatedSourcePlan` applique.
+Un KPI Opendatasoft recevant TOUJOURS sa source dediee a agregat serveur (#810), un document
+« liste paginee + KPI » sur ODS ne partage plus rien : la liste reste seule lectrice et l'export
+pose legitimement `server-side`. Un document qui veut eprouver le chargement complet doit donc
+porter un lecteur qu'AUCUNE regle ne dedie — un graphique non agrege, par exemple. Trois cas de
+la recette ont decrit ce comportement correct comme une regression avant d'etre requalifies.
+
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
 - **Colon** (Tabular, Grist, INSEE, Generic) : `field:operator:value, field2:operator:value2`. Les caracteres structurels (`,` `:` `|`) dans une VALEUR sont percent-encodes (`escapeColonValue`/`unescapeColonValue` dans `packages/core/src/utils/where.ts`, #271) ; tous les parseurs colon decodent apres decoupage.

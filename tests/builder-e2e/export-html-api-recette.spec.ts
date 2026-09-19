@@ -344,9 +344,10 @@ test.describe('une source partagee garde ses chiffres (ADR-109, #717)', () => {
     }) => {
       // LA REGRESSION SILENCIEUSE QUE LA REGLE INTERDIT. Une source n'est
       // emise qu'une fois : si l'export posait `server-side` parce qu'une
-      // liste paginee la consomme, le KPI d'a cote ne recevrait plus qu'une
-      // page de dix lignes et afficherait un total FAUX — sans erreur, sur un
-      // HTML parfaitement bien forme. Seul un rendu peut le voir.
+      // liste paginee la consomme, le graphique d'a cote ne recevrait plus
+      // qu'une page de dix lignes et afficherait des chiffres FAUX — sans
+      // erreur, sur un HTML parfaitement bien forme. Seul un rendu peut le
+      // voir.
       const erreurs = collecterErreurs(page);
       const html = pagePartagee(variante);
       expect(html, 'une source partagee ne doit jamais paginer cote serveur').not.toContain(
@@ -355,14 +356,22 @@ test.describe('une source partagee garde ses chiffres (ADR-109, #717)', () => {
 
       await harnais.ouvrir(html);
 
-      // Le KPI et la liste partagent la meme balise : tous deux recoivent le
-      // jeu entier.
-      await expect
-        .poll(() => lignesRecues(page, 'dsfr-data-kpi'), { timeout: 20_000 })
-        .toBe(NOMBRE_DE_LIGNES);
+      // La liste et le graphique partagent la meme balise : tous deux
+      // recoivent le jeu entier.
       await expect
         .poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 })
         .toBe(NOMBRE_DE_LIGNES);
+      await expect
+        .poll(() => lignesRecues(page, 'dsfr-data-chart'), { timeout: 20_000 })
+        .toBe(NOMBRE_DE_LIGNES);
+
+      // Le KPI, lui, ne lit la source partagee que sur Tabular : sur
+      // Opendatasoft, #810 lui donne TOUJOURS une source dediee a agregat
+      // serveur, qui rend UNE ligne (`sum(population) as population__sum`).
+      // Deux chemins, un seul chiffre attendu — celui du jeu entier.
+      await expect
+        .poll(() => lignesRecues(page, 'dsfr-data-kpi'), { timeout: 20_000 })
+        .toBe(variante === 'ods' ? 1 : NOMBRE_DE_LIGNES);
 
       // Et le chiffre AFFICHE est le bon. Compare sur les seuls chiffres :
       // le format « nombre » insere des separateurs de milliers insecables.
@@ -439,7 +448,14 @@ test.describe('mode export ODS (#689, ADR-106)', () => {
       .toBe(NOMBRE_DE_LIGNES);
 
     expect(appelsContenant(harnais.journal, '/exports/json').length).toBe(1);
-    expect(appelsContenant(harnais.journal, '/records').length).toBe(0);
+    // La source PARTAGEE ne touche plus `/records`. Le seul appel qui reste
+    // est celui de la source dediee du KPI (#810) : un agregat serveur d'une
+    // ligne, qui ne passe pas par l'export et n'a pas a en passer.
+    const records = appelsContenant(harnais.journal, '/records');
+    expect(records, 'la source partagee ne doit plus paginer par /records').toHaveLength(1);
+    expect(records[0], 'le seul /records restant est l’agregat du KPI').toContain(
+      'population__sum'
+    );
     // `limit` = plafond + 1 : c'est le seul moyen de detecter une troncature
     // sans `total_count`.
     expect(appelsContenant(harnais.journal, 'limit=1001').length).toBe(1);
