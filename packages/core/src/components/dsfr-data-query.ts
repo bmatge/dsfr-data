@@ -241,6 +241,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * else 0"` puis `where="a_urgent:eq:1"`. `tags:contains:urgent` cherche une
    * sous-chaîne dans `String(tableau)` : « non-urgent » y matche « urgent ».
    * Pour éclater un multivalué avant un `group-by`, c'est `explode` (#736).
+   * ⚠️ Tout ceci décrit l'évaluation CÔTÉ CLIENT. Quand la clause part au
+   * serveur (voir ci-dessus), c'est le portail qui décide ce que `=` veut dire
+   * sur un champ multivalué, et son verdict peut différer — non vérifié à ce
+   * jour. Une page qui bascule entre délégation et calcul local (source
+   * partagée, transformateur amont, `explode`) peut donc voir le filtre
+   * changer de sens : le mesurer sur le jeu concerné avant d'en dépendre.
    */
   @property({ type: String })
   where = '';

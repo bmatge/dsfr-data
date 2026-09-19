@@ -941,6 +941,12 @@ Deux fausses pistes, a ecarter explicitement :
   `group-by`* (une ligne a N valeurs compte dans N groupes) ; il ne repond pas a « garder les lignes
   portant cette etiquette ».
 
+> ⚠️ Tout ce qui precede decrit l'evaluation **cote client**. Un `where` de `dsfr-data-query` peut
+> partir au serveur (source non partagee, clause traduisible) : c'est alors le portail qui decide
+> ce que `=` veut dire sur un champ multivalue, et son verdict peut differer de celui decrit ici —
+> ce point n'a pas ete mesure. Une page qui bascule entre delegation et calcul local peut donc voir
+> son filtre changer de sens : le verifier sur le jeu concerne avant d'en dependre.
+
 Enfin, une **facette** (`dsfr-data-facets`) sur un champ tableau, elle, eclate bien les valeurs et
 filtre correctement : quand le filtre est destine a l'utilisateur plutot qu'ecrit en dur, c'est la
 voie la plus courte.
