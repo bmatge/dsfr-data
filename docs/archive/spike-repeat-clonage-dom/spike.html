@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPIKE #889 — mesure : clonage DOM contre innerHTML (119 lignes × query + graphique)</title>
+  <!--
+    Page JETABLE. Conditions du guide (#877) : sources inline, sans CSS,
+    Chromium headless, DSFR Chart réel chargé depuis node_modules.
+    ?mode=display    → dsfr-data-display (référence, innerHTML)
+    ?mode=innerhtml  → spike-repeat en substitution de chaîne + innerHTML
+    ?mode=clone      → spike-repeat en clonage DOM, tout recréé à chaque émission
+    ?mode=clone-keyed→ spike-repeat en clonage DOM + réconciliation par clé
+  -->
+  <script>
+    // ?quiet=1 : neutralise console.warn AVANT le chargement de la bibliothèque,
+    // pour isoler le coût des avertissements #765 (O(N²) avec une query par ligne).
+    if (new URLSearchParams(location.search).get('quiet') === '1') {
+      window.__spikeWarnCount = 0;
+      console.warn = () => { window.__spikeWarnCount++; };
+    }
+  </script>
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <!-- Bundle de PRODUCTION (lib + spike-repeat), construit par build.ts -->
+  <script type="module" src="/e2e/spike-repeat/dist/spike-bundle.js"></script>
+</head>
+<body>
+  <main id="scene"></main>
+
+  <template id="gabarit">
+    <h4>{{libelle}}</h4>
+    <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart id="c-{{code}}" source="q-{{code}}" type="{{pres}}"
+      label-field="annee" value-field="score__sum" name="{{libelle}}"></dsfr-data-chart>
+  </template>
+
+  <script type="module">
+    import { DATA_EVENTS } from '/e2e/spike-repeat/dist/spike-bundle.js';
+
+    const N = 119;
+    const mode = new URLSearchParams(location.search).get('mode') ?? 'clone';
+    const questions = Array.from({ length: N }, (_, i) => ({
+      code: String(i + 1).padStart(3, '0'),
+      libelle: `Question ${i + 1}`,
+      pres: i % 2 === 0 ? 'bar' : 'line',
+    }));
+    const scores = questions.flatMap((q) =>
+      ['2022', '2023', '2024'].map((annee, k) => ({
+        code: q.code,
+        annee,
+        score: 10 + ((q.code.charCodeAt(2) + k * 7) % 50),
+      }))
+    );
+
+    const canvasCount = () => document.querySelectorAll('canvas').length;
+
+    const state = {
+      mode,
+      quiet: new URLSearchParams(location.search).get('quiet') === '1',
+      n: N,
+      t0: 0,
+      firstRenderMs: null,
+      phase: 'initial',
+      reemit: null,
+      scopedLoaded: 0,
+    };
+    window.__spike = state;
+
+    // t0 = émission de la source répétée (pas l'insertion : la source inline
+    // émet dans son premier willUpdate, une microtâche plus tard).
+    document.addEventListener(DATA_EVENTS.LOADED, (e) => {
+      const id = e.detail?.sourceId;
+      if (id === 'questions' && state.phase === 'initial' && !state.t0) state.t0 = performance.now();
+      if (state.phase === 'scoped' && typeof id === 'string' && id.startsWith('q-')) {
+        state.scopedLoaded++;
+        if (state.scopedLoaded >= N && state.reemit && state.reemit.ms === null) {
+          state.reemit.ms = performance.now() - state.reemit.t0;
+        }
+      }
+    });
+
+    let sawDrop = false;
+    const mo = new MutationObserver(() => {
+      const c = canvasCount();
+      if (state.phase === 'initial' && state.firstRenderMs === null && c >= N) {
+        state.firstRenderMs = performance.now() - state.t0;
+      }
+      if (state.phase === 'repeated' && state.reemit && state.reemit.ms === null) {
+        if (c < N) sawDrop = true;
+        if (sawDrop && c >= N) state.reemit.ms = performance.now() - state.reemit.t0;
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    const tpl = document.getElementById('gabarit').innerHTML;
+    const scene = document.getElementById('scene');
+    const repeater =
+      mode === 'display'
+        ? `<dsfr-data-display id="rep" source="questions"><template>${tpl}</template></dsfr-data-display>`
+        : `<spike-repeat id="rep" source="questions" mode="${mode}" key-field="code"><template>${tpl}</template></spike-repeat>`;
+    scene.innerHTML =
+      `<dsfr-data-source id="scores" data='${JSON.stringify(scores)}'></dsfr-data-source>` +
+      `<dsfr-data-source id="questions" data='${JSON.stringify(questions)}'></dsfr-data-source>` +
+      repeater;
+
+    /** Ré-émission de la source RÉPÉTÉE (mêmes clés, libellés modifiés). */
+    window.__spikeReemitRepeated = () => {
+      const rep = document.getElementById('rep');
+      const queries = [...document.querySelectorAll('dsfr-data-query')];
+      queries.forEach((q, i) => (q.__spikeTag = i));
+      state.phase = 'repeated';
+      sawDrop = false;
+      state.reemit = { t0: performance.now(), ms: null, renderMs: null, identity: null, stats: null };
+      if (rep.tagName === 'SPIKE-REPEAT') {
+        rep.addEventListener(
+          'spike-rendered',
+          (e) => {
+            state.reemit.renderMs = performance.now() - state.reemit.t0;
+            state.reemit.stats = e.detail;
+            if (mode === 'clone-keyed') {
+              // Aucun canvas ne tombe : la mesure est le rendu synchrone + un cadre.
+              requestAnimationFrame(() => {
+                if (state.reemit.ms === null) state.reemit.ms = performance.now() - state.reemit.t0;
+              });
+            }
+          },
+          { once: true }
+        );
+      }
+      const v2 = questions.map((q) => ({ ...q, libelle: `${q.libelle} (v2)` }));
+      document.getElementById('questions').setAttribute('data', JSON.stringify(v2));
+      return new Promise((resolve) => {
+        const tick = () => {
+          if (state.reemit.ms !== null) {
+            const after = [...document.querySelectorAll('dsfr-data-query')];
+            state.reemit.identity =
+              after.length === queries.length && after.every((q, i) => q.__spikeTag === i);
+            state.reemit.canvases = canvasCount();
+            state.reemit.libelle = document.querySelector('#rep h4')?.textContent.trim();
+            resolve(state.reemit);
+          } else setTimeout(tick, 5);
+        };
+        tick();
+      });
+    };
+
+    /** Ré-émission de la source SCOPÉE (ce que fait un contexte) : 119 queries refiltrent. */
+    window.__spikeReemitScoped = () => {
+      state.phase = 'scoped';
+      state.scopedLoaded = 0;
+      state.reemit = { t0: performance.now(), ms: null };
+      const v2 = scores.map((r) => ({ ...r, score: r.score + 1 }));
+      document.getElementById('scores').setAttribute('data', JSON.stringify(v2));
+      return new Promise((resolve) => {
+        const tick = () => {
+          if (state.reemit.ms !== null) resolve(state.reemit);
+          else setTimeout(tick, 5);
+        };
+        tick();
+      });
+    };
+  </script>
+</body>
+</html>

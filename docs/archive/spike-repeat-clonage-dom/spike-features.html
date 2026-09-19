@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPIKE #889 — imbrication, attributs booléens, pertes</title>
+  <!-- Page JETABLE : les points 1, 2, 4 et 5 de l'issue, en vrai navigateur. -->
+  <script type="module" src="/e2e/spike-repeat/dist/spike-bundle.js"></script>
+</head>
+<body>
+  <main>
+    <!-- Données du second test de #877 (chapitre → questions) -->
+    <dsfr-data-source id="rep-chap" data='[{"chapitre":1,"nom":"Chapitre un"}]'></dsfr-data-source>
+    <dsfr-data-source id="rep-questions" data='[
+      {"code":"001","libelle":"Question un","pres":"bar","chapitre":1},
+      {"code":"002","libelle":"Question deux","pres":"line","chapitre":1},
+      {"code":"003","libelle":"Question trois","pres":"bar","chapitre":1}
+    ]'></dsfr-data-source>
+
+    <!-- 2a. Le second test de #877, rejoué : répéteur par clonage à l'extérieur,
+         dsfr-data-display (rendu innerHTML) à l'intérieur. -->
+    <section id="cas-display">
+      <spike-repeat id="chap-display" mode="clone" source="rep-chap" key-field="chapitre">
+        <template>
+          <h2>{{nom}}</h2>
+          <dsfr-data-query id="qq-{{chapitre}}" source="rep-questions" where="chapitre:eq:{{chapitre}}"></dsfr-data-query>
+          <dsfr-data-display id="inner-{{chapitre}}" source="qq-{{chapitre}}">
+            <template><p class="inner-item">[{{libelle}}|{{code}}]</p></template>
+          </dsfr-data-display>
+        </template>
+      </spike-repeat>
+    </section>
+
+    <!-- 2b. Répéteur dans répéteur (les deux par clonage). -->
+    <section id="cas-repeat">
+      <spike-repeat id="chap-repeat" mode="clone" source="rep-chap" key-field="chapitre">
+        <template>
+          <h2 class="chap-titre">{{nom}} ({{$key}})</h2>
+          <dsfr-data-query id="qr-{{chapitre}}" source="rep-questions" where="chapitre:eq:{{chapitre}}"></dsfr-data-query>
+          <spike-repeat id="inner-rep-{{chapitre}}" mode="clone-keyed" source="qr-{{chapitre}}" key-field="code">
+            <template><p class="inner-rep-item" id="{{$uid}}">[{{libelle}}|{{code}}|{{$index}}]</p></template>
+          </spike-repeat>
+        </template>
+      </spike-repeat>
+    </section>
+
+    <!-- 4. Attributs : booléen posé/retiré par data-if-*, {{#if}} dans une valeur d'attribut. -->
+    <dsfr-data-source id="rep-attrs" data='[
+      {"code":"a","flag":true,"html":"<strong>gras</strong> &amp; texte"},
+      {"code":"b","flag":false,"html":"<em>ital</em>"}
+    ]'></dsfr-data-source>
+    <section id="cas-attrs">
+      <spike-repeat id="attrs" mode="clone-keyed" source="rep-attrs" key-field="code" raw>
+        <template>
+          <p class="probe base {{#if flag}}est-vrai{{/if}}" data-if-hidden="flag" data-unless-aria-current="flag" data-code="{{code}}">{{code}}</p>
+          <dsfr-data-chart class="probe-chart" source="rep-attrs" type="bar" label-field="code" value-field="code"
+            data-if-horizontal="flag"></dsfr-data-chart>
+          <!-- 5a. {{{brut}}} sur un nœud texte -->
+          <p class="brut">{{{html}}}</p>
+          <!-- 5b. {{#if}} qui englobe deux éléments frères -->
+          <div class="englobant">{{#if flag}}<span>A</span><span>B</span>{{/if}}</div>
+          <!-- 5c. {{#if}} contenu dans un seul nœud texte : fonctionne -->
+          <p class="dans-texte">{{#if flag}}oui{{/if}}{{#unless flag}}non{{/unless}}</p>
+          <!-- 5d. entités : la valeur doit être du texte, pas du HTML échappé -->
+          <p class="entites">{{html}}</p>
+        </template>
+      </spike-repeat>
+    </section>
+
+    <!-- 1. Sonde de rehaussement : que devient un custom element cloné HORS document ? -->
+    <template id="probe-template">
+      <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"></dsfr-data-query>
+      <template><p>{{interieur}}</p></template>
+    </template>
+  </main>
+
+  <script type="module">
+    import { getDataCache, collectBindings } from '/e2e/spike-repeat/dist/spike-bundle.js';
+
+    await customElements.whenDefined('dsfr-data-query');
+    const tpl = document.getElementById('probe-template');
+    const frag = document.importNode(tpl.content, true);
+    const q = frag.querySelector('dsfr-data-query');
+    const Ctor = customElements.get('dsfr-data-query');
+    const inner = frag.querySelector('template');
+    const bindings = collectBindings(frag);
+    window.__probe = {
+      // Le clone est-il déjà rehaussé (constructeur exécuté) avant toute connexion ?
+      upgradedAtClone: q instanceof Ctor,
+      isConnected: q.isConnected,
+      idAtClone: q.id,
+      // A-t-il émis / s'est-il abonné sous le faux id ?
+      cacheUnderFakeId: getDataCache('q-{{code}}') !== undefined,
+      // Le <template> intérieur a-t-il conservé son contenu au clonage ?
+      innerTemplateChildren: inner ? inner.content.childNodes.length : -1,
+      innerTemplateHtml: inner ? inner.innerHTML : null,
+      // Le TreeWalker ne descend pas dans le template intérieur :
+      bindingsSeen: bindings.map((b) => (b.kind === 'text' ? b.tpl.trim() : `${b.name}=${b.tpl}`)),
+    };
+  </script>
+</body>
+</html>
