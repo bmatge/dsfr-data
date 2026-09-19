@@ -91,6 +91,14 @@ export function filterToOdsql(filterExpr: string): string {
  * Même sémantique que `_looseEquals` de dsfr-data-query. Partagée avec les
  * comparaisons `=` / `!=` de `compute` (#671) : `where="cat:eq:A"` et
  * `when cat = 'A'` gardent les mêmes lignes.
+ *
+ * CHAMP TABLEAU (#842) : cette fonction ne connaît pas les tableaux — elle
+ * compare la valeur TELLE QUELLE. Le repli `String === String` fait quand
+ * même matcher un tableau à UN élément (`['urgent'] == 'urgent'` est vrai en
+ * JS) et un tableau à plusieurs éléments son propre rendu à la virgule
+ * (`['a','b']` matche `'a,b'`). Le résultat dépend donc de la donnée ligne à
+ * ligne. Pour un vrai « contient », voir `looseEqualsOrContains` — réservée
+ * aux agrégations — et, en markup, `compute` + `contains()`.
  */
 export function looseEquals(a: unknown, b: unknown): boolean {
   if (a === null || a === undefined) return b === null || b === undefined;
@@ -102,8 +110,17 @@ export function looseEquals(a: unknown, b: unknown): boolean {
 /**
  * Variante « tableau contient » (#673) : un champ TABLEAU (tags, catégories
  * multiples) matche si l'un de ses éléments est égal — `count:tags:urgent`
- * compte les lignes dont les tags contiennent « urgent ». Réservée aux
- * agrégations du KPI ; `where` et `compute` gardent l'égalité stricte.
+ * compte les lignes dont les tags contiennent « urgent ».
+ *
+ * PÉRIMÈTRE, ET IL EST ÉTROIT (#842) : un seul appelant dans tout le dépôt,
+ * la valeur de filtre d'un `count:champ:valeur` du KPI (`aggregations.ts`).
+ * Tout le reste utilise `looseEquals` : le dialecte colon de `where` (source,
+ * query, KPI, et le filtre entre accolades `count{champ:eq:v}` du KPI lui-même)
+ * et les comparaisons `=` / `!=` de `compute`. L'asymétrie est VOULUE : étendre
+ * la variante à `where` changerait en silence le compte de pages publiées.
+ * Elle est documentée (JSDoc des attributs concernés, `docs/USER-GUIDE.md`,
+ * skill `dsfr-data`) et verrouillée par
+ * `tests/shared/array-equality-perimeter.test.ts`.
  */
 export function looseEqualsOrContains(a: unknown, b: unknown): boolean {
   if (Array.isArray(a)) return a.some((el) => looseEqualsOrContains(el, b));
@@ -183,6 +200,17 @@ export function validateColonFilter(filterExpr: string): string | null {
  * `getField` (#674) : résolution de la valeur d'un champ dans une ligne —
  * par défaut la clé directe `row[field]` ; un consommateur qui accepte des
  * chemins imbriqués (`fields.score`) passe son propre accesseur.
+ *
+ * CHAMP TABLEAU (#842) : `eq` / `neq` / `in` / `notin` comparent la valeur
+ * telle quelle (`looseEquals`), PAS élément par élément. `tags:eq:urgent`
+ * garde `tags: 'urgent'` et `tags: ['urgent']` (repli sur `String`) mais pas
+ * `tags: ['urgent','social']`. Le `count:champ:valeur` du KPI, lui, parcourt
+ * le tableau : c'est la seule exception du dépôt, et elle est voulue.
+ * Pour filtrer un champ tableau : `dsfr-data-normalize` avec
+ * `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"`, puis
+ * `where="a_urgent:eq:1"`. `tags:contains:urgent` n'est PAS un équivalent —
+ * il cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent »
+ * matche « urgent ».
  */
 export function applyLocalFilter(
   data: Record<string, unknown>[],

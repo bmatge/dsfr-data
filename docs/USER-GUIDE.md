@@ -878,6 +878,79 @@ Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749)
 - **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
 - Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
 
+### Champs tableau : ou l'egalite regarde dans le tableau, et ou elle ne regarde pas
+
+Un champ multivalue (etiquettes ODS, ChoiceList Grist, colonne repliee par `fold`) arrive dans la
+page comme un **tableau** : `tags: ["urgent", "social"]`. Une seule grammaire de la bibliotheque
+sait regarder DANS ce tableau — la valeur de filtre d'un `count` de `dsfr-data-kpi` :
+
+```html
+<!-- Compte les lignes dont les tags CONTIENNENT « urgent » : la ligne
+     tags=["urgent","social"] est comptee. -->
+<dsfr-data-kpi source="data" value="count:tags:urgent" label="Dossiers urgents"></dsfr-data-kpi>
+```
+
+Partout ailleurs, l'egalite compare la valeur du champ **telle quelle**, sans l'ouvrir :
+
+| Ecriture | Regarde dans le tableau ? |
+|---|---|
+| `value="count:tags:urgent"` (KPI) | **oui** — un element egal suffit |
+| `where="tags:eq:urgent"` (source, query, KPI) | non |
+| `where="tags:in:urgent\|social"` | non |
+| `value="count{tags:eq:urgent}"` (filtre entre accolades du KPI) | non |
+| `compute="… when tags = 'urgent' …"` | non |
+
+Deux consequences a connaitre avant de debugger une page :
+
+- **Sur le meme jeu, `value="count:tags:urgent"` et `value="count{tags:eq:urgent}"` donnent deux
+  chiffres differents.** Ce n'est pas un bug : c'est la meme asymetrie, vue depuis un seul attribut.
+- **Le `where` n'echoue pas franchement : il echoue par endroits.** Une ligne dont `tags` ne porte
+  qu'une valeur (`["urgent"]`) matche quand meme `tags:eq:urgent`, parce que la comparaison retombe
+  sur le texte. Une ligne a deux etiquettes ne matche pas. Le filtre a donc l'air de marcher sur une
+  partie du jeu, ce qui est la pire forme de panne.
+
+L'asymetrie est **voulue** : etendre la variante « contient » a `where` changerait en silence les
+chiffres de toutes les pages deja publiees qui comptent zero ligne sur un champ tableau.
+
+#### Ce qu'il faut ecrire pour filtrer un champ tableau
+
+Il n'existe **pas** d'operateur `where` qui parcourt un tableau. La voie native passe par une
+colonne calculee : `contains()` de `compute` sait, lui, parcourir le tableau avec la meme egalite
+lache. On derive un booleen, puis on filtre dessus.
+
+```html
+<dsfr-data-source id="brut" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="mon-jeu"></dsfr-data-source>
+
+<!-- 1. Deriver le booleen : contains() ouvre le tableau -->
+<dsfr-data-normalize id="enrichi" source="brut"
+  compute="a_urgent = when contains(tags, 'urgent') then 1 else 0"></dsfr-data-normalize>
+
+<!-- 2. Filtrer sur la colonne derivee, avec le where habituel -->
+<dsfr-data-query id="urgents" source="enrichi" where="a_urgent:eq:1"></dsfr-data-query>
+<dsfr-data-list source="urgents" columns="titre, tags"></dsfr-data-list>
+```
+
+Deux fausses pistes, a ecarter explicitement :
+
+- **`where="tags:contains:urgent"` n'est pas un equivalent.** Cet operateur cherche une sous-chaine
+  dans le rendu texte du tableau (`"urgent,social"`). Il tombe juste tant qu'aucune etiquette n'est
+  sous-chaine d'une autre — et devient faux des qu'il en existe une : sur un jeu qui contient
+  « non-urgent », `tags:contains:urgent` retient les lignes « non-urgent ».
+- **`explode` de `dsfr-data-query` n'est pas un filtre.** Il eclate un multivalue *avant un
+  `group-by`* (une ligne a N valeurs compte dans N groupes) ; il ne repond pas a « garder les lignes
+  portant cette etiquette ».
+
+> ⚠️ Tout ce qui precede decrit l'evaluation **cote client**. Un `where` de `dsfr-data-query` peut
+> partir au serveur (source non partagee, clause traduisible) : c'est alors le portail qui decide
+> ce que `=` veut dire sur un champ multivalue, et son verdict peut differer de celui decrit ici —
+> ce point n'a pas ete mesure. Une page qui bascule entre delegation et calcul local peut donc voir
+> son filtre changer de sens : le verifier sur le jeu concerne avant d'en dependre.
+
+Enfin, une **facette** (`dsfr-data-facets`) sur un champ tableau, elle, eclate bien les valeurs et
+filtre correctement : quand le filtre est destine a l'utilisateur plutot qu'ecrit en dur, c'est la
+voie la plus courte.
+
 ### Un ratio entre DEUX sources : agreger, joindre, diviser
 
 Le ratio de `dsfr-data-kpi` (`value="a / b"`) s'evalue sur **l'unique source** du KPI. Un indicateur

@@ -494,7 +494,12 @@ function evaluateOnItems(
     case 'count':
       if (parsed.filterValue !== undefined) {
         // Egalite LACHE (#303) : query filtre en ==, count:field:value
-        // comparait en === strict ("75" ne matchait pas 75)
+        // comparait en === strict ("75" ne matchait pas 75).
+        // SEUL endroit du depot ou la variante « tableau contient » (#673)
+        // s'applique : le `where` colon et le filtre entre accolades
+        // (`count{tags:eq:urgent}`, plus haut) comparent la valeur telle
+        // quelle. Asymetrie voulue, arbitree a #842 et verrouillee par
+        // tests/shared/array-equality-perimeter.test.ts.
         return items.filter((item) =>
           looseEquals(getByPath(item, parsed.field), parsed.filterValue)
         ).length;
@@ -642,5 +647,8 @@ function collectIsoDates(items: Record<string, unknown>[], field: string): strin
 /**
  * Egalite lache alignee sur dsfr-data-query (#278/#303), variante « tableau
  * contient » (#673) : definition unique dans shared (revue du 2026-09-13).
+ * ATTENTION au nom local : ce n'est PAS le `looseEquals` de `where` — c'est
+ * la variante qui parcourt les tableaux, et elle ne sert qu'au filtre de
+ * valeur de `count:champ:valeur` (#842).
  */
 const looseEquals = looseEqualsOrContains;

@@ -228,6 +228,25 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * navigateur quand la chaîne est partagée (#765), quand un transformateur
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
+   *
+   * CHAMP TABLEAU (#842) : `eq` / `neq` / `in` / `notin` comparent la valeur du
+   * champ TELLE QUELLE. Un champ tableau (`tags: ['urgent','social']`) ne matche
+   * donc pas `tags:eq:urgent` — alors qu'un `value="count:tags:urgent"` de
+   * dsfr-data-kpi, lui, le compte (seule la grammaire d'agrégation connaît la
+   * variante « contient », #673). Pire, le résultat dépend de la donnée : par
+   * repli sur `String`, `tags: ['urgent']` (un seul élément) matche bien.
+   * L'asymétrie est assumée — l'étendre changerait en silence le compte de pages
+   * existantes. Pour filtrer un champ tableau, dériver le booléen en amont :
+   * `dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1
+   * else 0"` puis `where="a_urgent:eq:1"`. `tags:contains:urgent` cherche une
+   * sous-chaîne dans `String(tableau)` : « non-urgent » y matche « urgent ».
+   * Pour éclater un multivalué avant un `group-by`, c'est `explode` (#736).
+   * ⚠️ Tout ceci décrit l'évaluation CÔTÉ CLIENT. Quand la clause part au
+   * serveur (voir ci-dessus), c'est le portail qui décide ce que `=` veut dire
+   * sur un champ multivalué, et son verdict peut différer — non vérifié à ce
+   * jour. Une page qui bascule entre délégation et calcul local (source
+   * partagée, transformateur amont, `explode`) peut donc voir le filtre
+   * changer de sens : le mesurer sur le jeu concerné avant d'en dépendre.
    */
   @property({ type: String })
   where = '';

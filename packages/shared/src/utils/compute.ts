@@ -20,6 +20,16 @@
  * lexicographic otherwise (ISO dates compare correctly); null, undefined and
  * '' never match.
  *
+ * ARRAY FIELDS (#842): `=` / `!=` compare the field value AS IS — they do not
+ * look inside an array. `when tags = 'urgent'` is false for
+ * `['urgent','social']` (and true for `['urgent']`, via the `String` fallback:
+ * the outcome is data-dependent). Use `contains(tags, 'urgent')`, which walks
+ * the array with the same loose equality. This asymmetry with the aggregation
+ * grammar of dsfr-data-kpi (`count:tags:urgent` DOES walk the array,
+ * `looseEqualsOrContains`, #673) is deliberate: widening `=` would silently
+ * change the output of published pages. Locked by
+ * tests/shared/array-equality-perimeter.test.ts.
+ *
  * Arithmetic `- * /` and unary minus: a missing or non-numeric operand
  * yields null (never a plausible 0), and a division by zero yields null
  * (never Infinity) — the same doctrine as the numeric functions.
@@ -227,7 +237,9 @@ const FUNCTIONS: Record<string, FunctionSpec> = {
     impl: (a) => {
       const haystack = a[0];
       if (isNil(haystack)) return false;
-      // Array: loose equality per element (same as `where` `in`).
+      // Array: loose equality per element. NOT the same as `where` `in`, which
+      // compares the whole field value as is (#842): `contains()` is the only
+      // markup-level way to walk an array outside the KPI aggregation grammar.
       if (Array.isArray(haystack)) return haystack.some((v) => looseEquals(v, a[1]));
       // Text: case-insensitive substring (same as `where` `contains`).
       if (isNil(a[1])) return false;
