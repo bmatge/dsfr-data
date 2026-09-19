@@ -3702,6 +3702,14 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   desucrage reste \`gte\` + \`lt\`, donc la plage se DELEGUE au serveur comme n'importe quelle
   autre — c'est la difference avec la voie client. Une annee nue ("2024") nomme l'annee qui
   COMMENCE en 2024 ; une date ("2025-03-10") designe l'annee qui la CONTIENT. Tag « 2024-2025 ».
+- Codes a ZERO DE TETE (#924) : un controle rend toujours du TEXTE, le filtre emet \`reg = "01"\`.
+  Sur une colonne que le jeu publie en ENTIER, le portail compare en texte et ne trouve rien, la
+  ou son \`refine\` trouvait — « — » a l'ecran, sans erreur. Les codes metropolitains (« 75 »)
+  passent, ce qui cache le defaut ; seuls la Guadeloupe (01), la Martinique, la Guyane, La
+  Reunion, Mayotte et les departements 01 a 09 sont muets. Des que les lignes rendues par une
+  source montrent la colonne numerique, un console.warn le dit (une fois par colonne et par
+  source). Le geste : alimenter le filtre avec la valeur sans zero de tete, ou reserver ce filtre
+  aux sources qui publient le code en texte avec \`apply-to\`.
 
 \`\`\`html
 <dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"

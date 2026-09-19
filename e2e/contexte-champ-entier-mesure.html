@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — mesure du bruit de l'avertissement (#924)</title>
+  <!--
+    Page de MESURE : deux champs de code (région, département), quatre jeux
+    dont DEUX publient le code en entier, et cent gestes sur les deux
+    sélecteurs. Un avertissement répété à chaque événement cesserait d'être
+    lu — ce dépôt a déjà payé une régression de 7 139 messages.
+
+    Attendu : quatre avertissements, un par couple (champ, source réellement
+    numérique), quel que soit le nombre de gestes.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Mesure du bruit</h1>
+
+    <label for="sel-reg">Région</label>
+    <select id="sel-reg">
+      <option value="">—</option>
+      <option value="01">01</option>
+      <option value="02">02</option>
+      <option value="75">75</option>
+    </select>
+
+    <label for="sel-dep">Département</label>
+    <select id="sel-dep">
+      <option value="">—</option>
+      <option value="01">01</option>
+      <option value="09">09</option>
+      <option value="33">33</option>
+    </select>
+
+    <dsfr-data-source id="m-int-a" data='[
+      {"reg":1,"dep":1,"n":10},{"reg":2,"dep":9,"n":20},{"reg":75,"dep":33,"n":30}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="m-int-b" data='[
+      {"reg":1,"dep":1,"n":11},{"reg":2,"dep":9,"n":21},{"reg":75,"dep":33,"n":31}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="m-txt-a" data='[
+      {"reg":"01","dep":"01","n":12},{"reg":"02","dep":"09","n":22},{"reg":"75","dep":"33","n":32}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="m-txt-b" data='[
+      {"reg":"01","dep":"01","n":13},{"reg":"02","dep":"09","n":23},{"reg":"75","dep":"33","n":33}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-context id="ctx-mesure" sources="m-int-a m-int-b m-txt-a m-txt-b">
+      <dsfr-data-context-filter field="reg" operator="eq" ui="sel-reg"></dsfr-data-context-filter>
+      <dsfr-data-context-filter field="dep" operator="eq" ui="sel-dep"></dsfr-data-context-filter>
+    </dsfr-data-context>
+
+    <dsfr-data-kpi id="m-kpi" source="m-int-a" value="n:sum" label="Total"></dsfr-data-kpi>
+  </main>
+</body>
+</html>
