@@ -750,6 +750,132 @@ def attendu_de(e: dict[str, Any], datasets: dict[str, list[Row]]) -> dict[str, A
 
 
 # ---------------------------------------------------------------------------
+# Invariants (#881) — la référence vient des lignes BRUTES ; « tenu » dit si
+# le recalcul de CETTE voix les respecte (un invariant que l'oracle viole
+# lui-même est mal posé, ou volontairement violé — le canari 1-N).
+# ---------------------------------------------------------------------------
+
+
+def lignes_brutes(datasets: dict[str, list[Row]], depuis: Any) -> list[Row]:
+    noms = ["main"] if depuis is None else (depuis if isinstance(depuis, list) else [depuis])
+    out: list[Row] = []
+    for nom in noms:
+        if nom not in datasets:
+            raise ErreurConfiguration(f"invariant : jeu « {nom} » absent du feed")
+        out.extend(datasets[nom])
+    return out
+
+
+def cle_de(row: Row, key: Any) -> str:
+    champs = key if isinstance(key, list) else [key]
+    return " | ".join(str_js(row.get(k)) for k in champs)
+
+
+def reference_invariant(inv: dict[str, Any], datasets: dict[str, list[Row]]) -> dict[str, Any]:
+    kind = inv["kind"]
+    if kind == "sum-preserved":
+        nums = [n for n in (to_num(r.get(inv["field"])) for r in lignes_brutes(datasets, inv.get("from"))) if n is not None]
+        return {"sum": json_pret(sum(nums, Fraction(0))) if nums else None}
+    if kind in ("count-preserved", "not-truncated"):
+        return {"count": len(lignes_brutes(datasets, inv.get("from")))}
+    if kind == "null-group":
+        brutes = lignes_brutes(datasets, inv.get("from"))
+        nuls = sum(1 for r in brutes if absent(r.get(inv["field"])))
+        return {"nullCount": nuls, "nonNullCount": len(brutes) - nuls}
+    if kind == "null-stays-null":
+        brutes = lignes_brutes(datasets, inv.get("from"))
+        champ = inv.get("rawField") or inv["field"]
+        sans = [r for r in brutes if absent(r.get(champ))]
+        ref: dict[str, Any] = {"nullCount": len(sans)}
+        if inv.get("key"):
+            ref["nullKeys"] = [cle_de(r, inv["key"]) for r in sans]
+        return ref
+    return {}
+
+
+def lignes_de(e: dict[str, Any], attendu: dict[str, Any]) -> list[Row] | None:
+    """Les lignes que le recalcul de cette voix a produites, quel que soit le genre."""
+    genre = e["kind"]
+    v = attendu.get("valeur")
+    if genre in ("kpi", "text"):
+        return [{"value": attendu.get("brut")}]
+    if genre in ("rows", "list"):
+        return list(v) if isinstance(v, list) else None
+    if genre == "chart" and isinstance(v, dict):
+        return [
+            {e["labelColumn"]: label, **{col: v["series"][s][i] for s, col in enumerate(e["valueColumns"])}}
+            for i, label in enumerate(v["labels"])
+        ]
+    if genre == "facets" and isinstance(v, list):
+        return [{e["valueColumn"]: x["value"], e["countColumn"]: x["count"]} for x in v]
+    return None
+
+
+def tenu(inv: dict[str, Any], ref: dict[str, Any], lignes: list[Row], genre: str) -> bool | None:
+    kind = inv["kind"]
+    if kind == "sum-preserved":
+        nums = [n for n in (to_num(r.get(inv["field"])) for r in lignes) if n is not None]
+        somme = sum(nums, Fraction(0)) if nums else None
+        if somme is None or ref.get("sum") is None:
+            return somme is None and ref.get("sum") is None
+        return abs(somme - Fraction(str(ref["sum"]))) <= Fraction(1, 2 * 10**DECIMALES_LIGNES)
+    if kind == "count-preserved":
+        return len(lignes) == ref["count"]
+    if kind == "count-equals":
+        return len(lignes) == inv["n"]
+    if kind == "null-group":
+        vides = [r for r in lignes if absent(r.get(inv["field"]))]
+        compte = inv.get("count")
+
+        def total(rows: list[Row]) -> Fraction:
+            return sum((to_num(r.get(compte)) or Fraction(0) for r in rows), Fraction(0))
+
+        if inv["expect"] == "visible":
+            return len(vides) > 0 and (compte is None or total(vides) == ref["nullCount"])
+        return len(vides) == 0 and (compte is None or total(lignes) == ref["nonNullCount"])
+    if kind == "bounded":
+        champ = "value" if genre in ("kpi", "text") else (inv.get("field") or "value")
+        valeurs = [n for n in (to_num(r.get(champ)) for r in lignes) if n is not None]
+        if not valeurs:
+            return False
+        lo, hi = inv.get("min"), inv.get("max")
+        return all((lo is None or v >= lo) and (hi is None or v <= hi) for v in valeurs)
+    if kind == "null-stays-null":
+        if inv.get("key") and "nullKeys" in ref:
+            par_cle = {cle_de(r, inv["key"]): r for r in lignes}
+            return all(k not in par_cle or absent(par_cle[k].get(inv["field"])) for k in ref["nullKeys"])
+        return sum(1 for r in lignes if absent(r.get(inv["field"]))) >= ref["nullCount"]
+    if kind == "not-truncated":
+        # Tenu si toutes les lignes sont là — OU si la bibliothèque l'a DIT,
+        # ce que seule la page sait : hors de la page, l'invariant reste
+        # indéterminé dès que le compte diffère.
+        recues = to_num(lignes[0].get("value")) if genre in ("kpi", "text") and lignes else Fraction(len(lignes))
+        return True if recues == ref["count"] else None
+    return None
+
+
+def invariants_de(e: dict[str, Any], attendu: dict[str, Any] | None, datasets: dict[str, list[Row]]) -> list[dict[str, Any]]:
+    out = []
+    lignes = lignes_de(e, attendu) if attendu is not None else None
+    for inv in e.get("invariants") or []:
+        entree: dict[str, Any] = {"kind": inv["kind"]}
+        if inv.get("field"):
+            entree["field"] = inv["field"]
+        try:
+            ref = reference_invariant(inv, datasets)
+        except ErreurConfiguration as erreur:
+            entree["erreur"] = str(erreur)
+            out.append(entree)
+            continue
+        entree["reference"] = ref
+        entree["tenu"] = None if lignes is None else tenu(inv, ref, lignes, e["kind"])
+        if inv.get("skip"):
+            entree["attente"] = True
+        out.append(entree)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Programme
 # ---------------------------------------------------------------------------
 
@@ -775,8 +901,10 @@ def calculer(projection: dict[str, Any], jeux: dict[str, list[Row]]) -> list[dic
                 "cle": e["cle"],
                 "kind": e["kind"],
             }
+            attendu: dict[str, Any] | None = None
             try:
-                entree.update(attendu_de(e, datasets))
+                attendu = attendu_de(e, datasets)
+                entree.update(attendu)
                 entree["couvert"] = True
             except NonCouvert as raison:
                 entree["couvert"] = False
@@ -784,6 +912,10 @@ def calculer(projection: dict[str, Any], jeux: dict[str, list[Row]]) -> list[dic
             except ErreurConfiguration as erreur:
                 entree["couvert"] = False
                 entree["raison"] = f"erreur de configuration : {erreur}"
+            # Les invariants (#881) : leur référence ne dépend que des lignes
+            # brutes, elle est écrite même quand la valeur n'est pas couverte.
+            if e.get("invariants"):
+                entree["invariants"] = invariants_de(e, attendu, datasets)
             attendus.append(entree)
     return attendus
 

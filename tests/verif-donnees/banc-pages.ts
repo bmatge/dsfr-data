@@ -444,6 +444,24 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-deps-max" source="qt-departements" value="nb:max" format="nombre" label="Plus gros département"></dsfr-data-kpi>`,
     expects: [
       { kind: 'kpi', id: 'k-tous', agg: 'count' },
+      // Les groupes eux-mêmes : aucun à clé vide, et la somme des comptes
+      // vaut le nombre d'établissements SITUÉS — le groupe null est exclu
+      // sans que son compte disparaisse ailleurs (#881, PG-015).
+      {
+        kind: 'rows',
+        id: 'qt-departements',
+        key: 'departement',
+        columns: ['nb'],
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'departement', op: 'isnotnull' }] },
+          {
+            op: 'group-by',
+            by: 'departement',
+            columns: { nb: { agg: 'count', field: 'nom_du_professionnel' } },
+          },
+        ],
+        invariants: [{ kind: 'null-group', field: 'departement', expect: 'excluded', count: 'nb' }],
+      },
       {
         kind: 'kpi',
         id: 'k-deps',
@@ -608,7 +626,25 @@ const CHECKS: Check[] = [
     feed: { kind: 'raw', source: PDR_BRUT },
     markup: `${PDR_SOURCE(1000)}
   <dsfr-data-kpi id="k-charges" source="pdr" value="count" format="nombre" label="Projets chargés"></dsfr-data-kpi>`,
-    expects: [{ kind: 'kpi', id: 'k-charges', agg: 'count', pipeline: [{ op: 'limit', n: 1000 }] }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-charges',
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: 1000 }],
+        // Le cas fondateur de `not-truncated` (#881) : le jeu dépasse le
+        // plafond, la page charge le plafond, et PERSONNE ne le dit — en
+        // `fetch-mode="export"`, l'export ne porte pas de total, donc le KPI
+        // `count` (qui avertit en mode /records, `adaptateurs/ods-plafond-max-records`)
+        // reste muet lui aussi. En attente, avec les deux chiffres.
+        invariants: [
+          {
+            kind: 'not-truncated',
+            skip: 'DÉFAUT (AM-002, #881) — `fetch-mode="export" max-records="1000"` sur 3 080 projets (mesuré le 2026-09-19) : 1 000 lignes reçues, aucun diagnostic, ni marqueur ni console. En mode export, `meta.total` est absent, donc même le KPI `count` — qui avertit en mode /records — ne dit rien. Attendu : un mot de la SOURCE quand `max-records` borne un export qui le dépasse. Issue à ouvrir par la supervision.',
+          },
+        ],
+      },
+    ],
   },
 
   {
@@ -900,6 +936,9 @@ const CHECKS: Check[] = [
         agg: 'max',
         field: 'part',
         decimals: 1,
+        // Une part est entre 0 et 100 : un ratio qui diviserait par la page
+        // plutôt que par le total sortirait des bornes (#881).
+        invariants: [{ kind: 'bounded', min: 0, max: 100 }],
         pipeline: [
           {
             op: 'global',
@@ -917,6 +956,7 @@ const CHECKS: Check[] = [
         agg: 'max',
         field: 'part',
         decimals: 1,
+        invariants: [{ kind: 'bounded', min: 0, max: 100 }],
         pipeline: [
           {
             op: 'global',
