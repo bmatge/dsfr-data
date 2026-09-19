@@ -69,6 +69,14 @@ describe('DsfrDataA11y', () => {
     it('noAutoAria defaults to false', () => {
       expect(comp.noAutoAria).toBe(false);
     });
+
+    it('emptyLabel defaults to empty string (absent = rendu inchangé)', () => {
+      expect(comp.emptyLabel).toBe('');
+    });
+
+    it('seriesField defaults to empty string', () => {
+      expect(comp.seriesField).toBe('');
+    });
   });
 
   // =========================================================================
@@ -647,6 +655,250 @@ describe('DsfrDataA11y', () => {
       const csv = comp._buildCsv([{ code: '75056', taux: 2.27 }]);
       expect(csv).toBe(`${CSV_BOM}code;taux\n75056;2.27`);
       comp.remove();
+    });
+  });
+
+  // =========================================================================
+  // empty-label — le groupe null porte le même nom que sur le graphique (#933)
+  // =========================================================================
+
+  describe('empty-label — cellule de libellé du groupe null (#933)', () => {
+    const cellTexts = (el: Element): string[][] =>
+      Array.from(el.querySelectorAll('tbody tr')).map((tr) =>
+        Array.from(tr.querySelectorAll('td')).map((td) => (td.textContent ?? '').trim())
+      );
+
+    async function mount(rows: Record<string, unknown>[], attrs: Record<string, string> = {}) {
+      comp.source = SOURCE_ID;
+      comp.table = true;
+      comp.noAutoAria = true;
+      for (const [name, value] of Object.entries(attrs)) comp.setAttribute(name, value);
+      document.body.appendChild(comp);
+      dispatchDataLoaded(SOURCE_ID, rows);
+      await comp.updateComplete;
+    }
+
+    const ROWS = [
+      { cat: 'École', total: 10 },
+      { cat: 'Collège', total: 6 },
+      { cat: null, total: 3 },
+    ];
+
+    it('sans empty-label, la cellule reste vide (rendu historique inchangé)', async () => {
+      await mount(ROWS, { 'label-field': 'cat', 'value-field': 'total' });
+      expect(cellTexts(comp)).toEqual([
+        ['École', '10'],
+        ['Collège', '6'],
+        ['', '3'],
+      ]);
+      comp.remove();
+    });
+
+    it('empty-label nomme le groupe null dans la colonne de libellé', async () => {
+      await mount(ROWS, {
+        'label-field': 'cat',
+        'value-field': 'total',
+        'empty-label': 'Non renseigné',
+      });
+      expect(cellTexts(comp)).toEqual([
+        ['École', '10'],
+        ['Collège', '6'],
+        ['Non renseigné', '3'],
+      ]);
+      comp.remove();
+    });
+
+    it('couvre null, undefined et la chaîne vide, comme dsfr-data-chart', async () => {
+      await mount(
+        [
+          { cat: null, total: 1 },
+          { cat: undefined, total: 2 },
+          { cat: '', total: 3 },
+        ],
+        { 'label-field': 'cat', 'value-field': 'total', 'empty-label': 'Non renseigné' }
+      );
+      expect(cellTexts(comp)).toEqual([
+        ['Non renseigné', '1'],
+        ['Non renseigné', '2'],
+        ['Non renseigné', '3'],
+      ]);
+      comp.remove();
+    });
+
+    it('ne touche pas aux cellules de valeur : une valeur nulle reste vide', async () => {
+      await mount([{ cat: 'École', total: null }], {
+        'label-field': 'cat',
+        'value-field': 'total',
+        'empty-label': 'Non renseigné',
+      });
+      expect(cellTexts(comp)).toEqual([['École', '']]);
+      comp.remove();
+    });
+
+    it("sans label-field, s'applique à la première colonne rendue", async () => {
+      await mount(ROWS, { 'empty-label': 'Non renseigné' });
+      expect(cellTexts(comp)).toEqual([
+        ['École', '10'],
+        ['Collège', '6'],
+        ['Non renseigné', '3'],
+      ]);
+      comp.remove();
+    });
+
+    it('le CSV téléchargé porte le même libellé', () => {
+      comp.labelField = 'cat';
+      comp.valueField = 'total';
+      comp.emptyLabel = 'Non renseigné';
+      const csv = comp._buildCsv(ROWS as Record<string, unknown>[]);
+      expect(csv).toBe(`${CSV_BOM}cat;total\nÉcole;10\nCollège;6\nNon renseigné;3`);
+    });
+
+    it('sans empty-label, le CSV reste brut', () => {
+      comp.labelField = 'cat';
+      comp.valueField = 'total';
+      const csv = comp._buildCsv(ROWS as Record<string, unknown>[]);
+      expect(csv).toBe(`${CSV_BOM}cat;total\nÉcole;10\nCollège;6\n;3`);
+    });
+  });
+
+  // =========================================================================
+  // series-field — la dimension série du format long (#930)
+  // =========================================================================
+
+  describe('series-field — pivot du format long (#930)', () => {
+    const headers = (el: Element): string[] =>
+      Array.from(el.querySelectorAll('thead th')).map((th) => (th.textContent ?? '').trim());
+    const scopes = (el: Element): string[] =>
+      Array.from(el.querySelectorAll('thead th')).map((th) => th.getAttribute('scope') ?? '');
+    // Corps du tableau : th de ligne ET td, dans l'ordre du DOM.
+    const cellTexts = (el: Element): string[][] =>
+      Array.from(el.querySelectorAll('tbody tr')).map((tr) =>
+        Array.from(tr.querySelectorAll('th, td')).map((c) => (c.textContent ?? '').trim())
+      );
+    const rowHeaders = (el: Element): string[] =>
+      Array.from(el.querySelectorAll('tbody th')).map((th) => th.getAttribute('scope') ?? '');
+
+    async function mount(rows: Record<string, unknown>[], attrs: Record<string, string> = {}) {
+      comp.source = SOURCE_ID;
+      comp.table = true;
+      comp.noAutoAria = true;
+      for (const [name, value] of Object.entries(attrs)) comp.setAttribute(name, value);
+      document.body.appendChild(comp);
+      dispatchDataLoaded(SOURCE_ID, rows);
+      await comp.updateComplete;
+    }
+
+    // Format long tel que le produit dsfr-data-concat + origin-field.
+    const LONG = [
+      { annee: '2022', federation: 'Athlétisme', base100: 100 },
+      { annee: '2022', federation: 'Toutes fédés', base100: 100 },
+      { annee: '2023', federation: 'Athlétisme', base100: 104 },
+      { annee: '2023', federation: 'Toutes fédés', base100: 98 },
+    ];
+
+    it('sans series-field, une ligne par enregistrement (rendu historique inchangé)', async () => {
+      await mount(LONG, { 'label-field': 'annee', 'value-field': 'base100' });
+      expect(headers(comp)).toEqual(['annee', 'base100']);
+      expect(cellTexts(comp)).toEqual([
+        ['2022', '100'],
+        ['2022', '100'],
+        ['2023', '104'],
+        ['2023', '98'],
+      ]);
+      comp.remove();
+    });
+
+    it('series-field : une colonne par série, une ligne par libellé', async () => {
+      await mount(LONG, {
+        'label-field': 'annee',
+        'value-field': 'base100',
+        'series-field': 'federation',
+      });
+      expect(headers(comp)).toEqual(['annee', 'Athlétisme', 'Toutes fédés']);
+      expect(scopes(comp)).toEqual(['col', 'col', 'col']);
+      expect(cellTexts(comp)).toEqual([
+        ['2022', '100', '100'],
+        ['2023', '104', '98'],
+      ]);
+      comp.remove();
+    });
+
+    it('la cellule de libellé est un en-tête de ligne (scope="row")', async () => {
+      await mount(LONG, {
+        'label-field': 'annee',
+        'value-field': 'base100',
+        'series-field': 'federation',
+      });
+      expect(rowHeaders(comp)).toEqual(['row', 'row']);
+      comp.remove();
+    });
+
+    it('le tableau à plat garde ses <td> : aucun en-tête de ligne ajouté', async () => {
+      await mount(LONG, { 'label-field': 'annee', 'value-field': 'base100' });
+      expect(rowHeaders(comp)).toEqual([]);
+      comp.remove();
+    });
+
+    it('un couple (libellé, série) absent laisse la cellule vide', async () => {
+      await mount(
+        [
+          { annee: '2022', federation: 'A', base100: 1 },
+          { annee: '2023', federation: 'B', base100: 2 },
+        ],
+        { 'label-field': 'annee', 'value-field': 'base100', 'series-field': 'federation' }
+      );
+      expect(headers(comp)).toEqual(['annee', 'A', 'B']);
+      expect(cellTexts(comp)).toEqual([
+        ['2022', '1', ''],
+        ['2023', '', '2'],
+      ]);
+      comp.remove();
+    });
+
+    it('empty-label nomme aussi une série sans nom', async () => {
+      await mount(
+        [
+          { annee: '2022', federation: null, base100: 1 },
+          { annee: '2022', federation: 'A', base100: 2 },
+        ],
+        {
+          'label-field': 'annee',
+          'value-field': 'base100',
+          'series-field': 'federation',
+          'empty-label': 'Non renseigné',
+        }
+      );
+      expect(headers(comp)).toEqual(['annee', 'Non renseigné', 'A']);
+      comp.remove();
+    });
+
+    it('series-field sans label-field ni value-field : erreur de configuration nommée, rendu inchangé', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      await mount(LONG, { 'series-field': 'federation' });
+      expect(comp.getAttribute('data-dsfr-config-error')).toContain('series-field');
+      expect(headers(comp)).toEqual(['annee', 'federation', 'base100']);
+      spy.mockRestore();
+      comp.remove();
+    });
+
+    it('la description lue annonce le nombre de lignes du tableau, pas du format long', async () => {
+      await mount(LONG, {
+        'label-field': 'annee',
+        'value-field': 'base100',
+        'series-field': 'federation',
+      });
+      const desc = (comp.querySelector(`#${comp.id}-desc`)?.textContent ?? '').trim();
+      expect(desc).toContain('2 lignes');
+      expect(desc).toContain('2 séries');
+      comp.remove();
+    });
+
+    it('le CSV téléchargé porte la même structure que le tableau affiché', () => {
+      comp.labelField = 'annee';
+      comp.valueField = 'base100';
+      comp.seriesField = 'federation';
+      const csv = comp._buildCsv(LONG as Record<string, unknown>[]);
+      expect(csv).toBe(`${CSV_BOM}annee;Athlétisme;Toutes fédés\n2022;100;100\n2023;104;98`);
     });
   });
 

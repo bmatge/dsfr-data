@@ -69,6 +69,54 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
+  /**
+   * Libellé substitué aux cellules VIDES (`null`, `undefined` ou `""`) de la
+   * colonne de libellé du tableau, et aux noms de série vides en mode
+   * `series-field` (#933). Même rôle que l'`empty-label` de
+   * `dsfr-data-chart` (#647) : sans lui, la barre du groupe non renseigné
+   * porte un nom sur l'axe alors que sa ligne dans le tableau équivalent a
+   * une cellule vide — le tableau dit autre chose que le graphique.
+   *
+   * Colonne de libellé = `label-field` s'il est posé, sinon la PREMIÈRE
+   * colonne rendue. Les colonnes de valeur ne sont jamais touchées : une
+   * mesure absente reste une cellule vide, on n'invente pas un libellé.
+   *
+   * Absent (défaut), le rendu est inchangé : la cellule reste vide. La
+   * valeur n'est PAS reprise du graphique visé par `for` — l'écrire sur les
+   * deux balises est volontaire, pour qu'aucune page existante ne voie son
+   * tableau changer.
+   *
+   * Le CSV téléchargé porte le même libellé que le tableau affiché.
+   */
+  @property({ type: String, attribute: 'empty-label' })
+  emptyLabel = '';
+
+  /**
+   * Champ « clé de série » d'un jeu au format long/tidy — typiquement
+   * l'`origin-field` d'un `dsfr-data-concat` (#807), ou le champ que
+   * `dsfr-data-chart series-field` consomme déjà côté graphique (#930).
+   *
+   * Posé, le tableau équivalent PIVOTE : une ligne par valeur de
+   * `label-field`, une colonne par valeur distincte de ce champ (dans leur
+   * ordre d'apparition), au lieu d'une ligne par couple (libellé, série)
+   * sans colonne disant de quelle série la valeur provient. Le CSV
+   * téléchargé suit la même structure.
+   *
+   * Exige `label-field` ET `value-field` : sans eux on ne sait pas quelle
+   * colonne porte la mesure. Le manque est signalé
+   * (`data-dsfr-config-error`) et le tableau retombe sur le rendu à plat,
+   * jamais un pivot silencieusement faux. Seul le PREMIER champ de
+   * `value-field` est pivoté.
+   *
+   * Un couple (libellé, série) absent des données rend une cellule vide :
+   * `dsfr-data-chart` y trace 0, le tableau ne l'affirme pas.
+   *
+   * Absent (défaut), le rendu est inchangé. La valeur n'est PAS reprise du
+   * graphique visé par `for`.
+   */
+  @property({ type: String, attribute: 'series-field' })
+  seriesField = '';
+
   /** Libellé personnalisé de la section accessible. */
   @property({ type: String })
   label = '';
@@ -91,6 +139,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    */
   @property({ type: String, attribute: 'idle-message' })
   idleMessage = IDLE_MESSAGE_DEFAULT;
+
+  /** Vrai quand l'erreur de configuration posée vient de `series-field`. */
+  private _seriesConfigError = false;
 
   private _previousForTarget: Element | null = null;
   private _injectedSkipLink: HTMLAnchorElement | null = null;
@@ -140,6 +191,31 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       this._removeAria();
       this._setupTarget();
     }
+    this._checkSeriesConfig();
+  }
+
+  /**
+   * `series-field` sans `label-field` ni `value-field` ne peut pas pivoter :
+   * on ne sait pas quelle colonne porte la mesure. Le manque est nommé plutôt
+   * que silencieux (le tableau retombe sur le rendu à plat) — une grammaire
+   * fausse qui ne dit rien coûte plus cher qu'une erreur en console.
+   */
+  private _checkSeriesConfig() {
+    if (!this.seriesField || this._seriesMode) {
+      if (this._seriesConfigError) {
+        this._seriesConfigError = false;
+        clearConfigError(this);
+      }
+      return;
+    }
+    if (this._seriesConfigError) return;
+    this._seriesConfigError = true;
+    reportConfigError(
+      this,
+      `dsfr-data-a11y[${this.id}]`,
+      'series-field exige aussi label-field et value-field pour pivoter le tableau — ' +
+        'tableau rendu à plat, sans colonne de série'
+    );
   }
 
   /**
@@ -283,11 +359,32 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   }
 
   _buildCsv(data: Record<string, unknown>[]): string {
+    // Mode serie (#930) : le CSV porte la meme structure pivotee que le
+    // tableau affiche — une ligne par libelle, une colonne par serie.
+    if (this._seriesMode) {
+      const { headers, rows } = this._pivotSeries(data);
+      const columns = headers.map((label, i) => ({ key: `c${i}`, label }));
+      const records = rows.map((cells) => Object.fromEntries(cells.map((v, i) => [`c${i}`, v])));
+      return buildCsv(records, { columns });
+    }
+
     // Memes colonnes que le tableau rendu (label-field/value-field si definis),
     // champs techniques `_*` exclus dans tous les cas.
     const columns = this._getColumns(data)
       .filter((key) => !key.startsWith('_'))
       .map((key) => ({ key }));
+
+    // `empty-label` (#933) : le CSV nomme le groupe null comme le tableau.
+    if (this.emptyLabel) {
+      const labelKey = this._labelColumnKey(data);
+      if (labelKey) {
+        const rows = data.map((row) =>
+          this._isEmptyValue(row[labelKey]) ? { ...row, [labelKey]: this.emptyLabel } : row
+        );
+        return buildCsv(rows, { columns });
+      }
+    }
+
     return buildCsv(data, { columns });
   }
 
@@ -320,9 +417,112 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     return Object.keys(data[0]);
   }
 
+  /**
+   * Nom de la colonne de libellé : `label-field` s'il est posé, sinon la
+   * PREMIÈRE colonne rendue. C'est la seule colonne où `empty-label`
+   * s'applique (#933).
+   */
+  private _labelColumnKey(data: Record<string, unknown>[]): string {
+    return this.labelField || this._getColumns(data)[0] || '';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Series pivot (#930)
+  // ---------------------------------------------------------------------------
+
+  /** Vrai quand le pivot du format long est demandé ET exploitable. */
+  private get _seriesMode(): boolean {
+    return !!(this.seriesField && this.labelField && this.valueField);
+  }
+
+  /**
+   * Pivote un jeu au format long en tableau croisé : une ligne par valeur de
+   * `label-field`, une colonne par valeur distincte de `series-field`, dans
+   * leur ordre d'apparition — l'ordre que `dsfr-data-chart` donne déjà aux
+   * séries (#930). Les valeurs de cellule restent brutes : c'est le rendu qui
+   * les formate, comme pour le tableau à plat.
+   */
+  private _pivotSeries(data: Record<string, unknown>[]): {
+    headers: string[];
+    rows: unknown[][];
+  } {
+    const valueKey = this.valueField.split(',')[0].trim();
+    const labelKeys: string[] = [];
+    const labelValues: unknown[] = [];
+    const seriesNames: string[] = [];
+    const cells = new Map<string, Map<string, unknown>>();
+
+    for (const record of data) {
+      const labelKey = this._headerText(record[this.labelField]);
+      const seriesName = this._headerText(record[this.seriesField]);
+      if (!cells.has(labelKey)) {
+        cells.set(labelKey, new Map());
+        labelKeys.push(labelKey);
+        labelValues.push(record[this.labelField]);
+      }
+      if (!seriesNames.includes(seriesName)) seriesNames.push(seriesName);
+      cells.get(labelKey)!.set(seriesName, record[valueKey]);
+    }
+
+    return {
+      headers: [this.labelField, ...seriesNames],
+      rows: labelKeys.map((key, i) => [
+        labelValues[i],
+        ...seriesNames.map((s) => cells.get(key)!.get(s)),
+      ]),
+    };
+  }
+
+  /**
+   * Modèle du tableau rendu : en-têtes, lignes de valeurs brutes, et rang de
+   * la colonne de libellé (toujours la première). Un seul point de vérité
+   * pour le tableau affiché et pour la description lue.
+   */
+  private _tableModel(data: Record<string, unknown>[]): {
+    headers: string[];
+    rows: unknown[][];
+    seriesCount: number;
+  } {
+    if (this._seriesMode) {
+      const { headers, rows } = this._pivotSeries(data);
+      return { headers, rows, seriesCount: headers.length - 1 };
+    }
+    const headers = this._getColumns(data);
+    return {
+      headers,
+      rows: data.map((row) => headers.map((col) => row[col])),
+      seriesCount: 0,
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Cell formatting (#666)
   // ---------------------------------------------------------------------------
+
+  /** Valeur « vide » au sens d'`empty-label` : mêmes cas que dsfr-data-chart. */
+  private _isEmptyValue(value: unknown): boolean {
+    return value === null || value === undefined || value === '';
+  }
+
+  /**
+   * Texte d'un en-tête ou d'une clé de regroupement : `empty-label` quand la
+   * valeur est vide, sinon la valeur telle quelle.
+   */
+  private _headerText(value: unknown): string {
+    return this._isEmptyValue(value) ? this.emptyLabel : String(value);
+  }
+
+  /**
+   * Texte d'une cellule du corps du tableau. La colonne de libellé porte
+   * `empty-label` quand la valeur est vide (#933) ; les colonnes de valeur
+   * restent au rendu historique — une mesure absente reste une cellule vide.
+   */
+  private _bodyCellText(value: unknown, isLabelColumn: boolean): string {
+    if (isLabelColumn && this.emptyLabel && this._isEmptyValue(value)) {
+      return this.emptyLabel;
+    }
+    return this.formatCellValue(value);
+  }
 
   /**
    * Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,
@@ -343,16 +543,27 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   // Auto-generated description for aria-describedby
   // ---------------------------------------------------------------------------
 
-  private _getAutoDescription(hasData: boolean, data: unknown): string {
+  private _getAutoDescription(
+    hasData: boolean,
+    data: unknown,
+    model?: { rows: unknown[][]; seriesCount: number }
+  ): string {
     // En attente d'un filtre (#690) : dire ce qui manque, pas « aucune donnée »
     if (this._sourceIdle) return `${this.idleMessage || IDLE_MESSAGE_DEFAULT}.`;
     if (!hasData) return 'Aucune donnee disponible.';
-    const count = (data as unknown[]).length;
+    // En mode série (#930) le tableau est pivoté : annoncer SES lignes, pas
+    // celles du format long, qui en compte autant que de couples.
+    const pivoted = model && model.seriesCount > 0;
+    const count = pivoted ? model!.rows.length : (data as unknown[]).length;
     // Detect if target is a map component
     const target = this.for ? document.getElementById(this.for) : null;
     const isMap = target?.tagName?.toLowerCase() === 'dsfr-data-map';
     const label = isMap ? 'Données de la carte' : 'Données du graphique';
-    const parts: string[] = [`${label} : ${count} lignes.`];
+    const parts: string[] = [
+      pivoted
+        ? `${label} : ${count} lignes, ${model!.seriesCount} séries.`
+        : `${label} : ${count} lignes.`,
+    ];
     if (this.description) parts.push(this.description);
     if (this._showDownload) parts.push('Téléchargement CSV disponible.');
     if (this._showTable) parts.push('Tableau de données disponible.');
@@ -371,9 +582,12 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     const tableId = `${this.id}-table`;
 
     const typedData = hasData ? (data as Record<string, unknown>[]) : [];
-    const columns = hasData ? this._getColumns(typedData) : [];
-    const tableRows = typedData.slice(0, MAX_TABLE_ROWS);
-    const isTruncated = typedData.length > MAX_TABLE_ROWS;
+    const model = hasData
+      ? this._tableModel(typedData)
+      : { headers: [] as string[], rows: [] as unknown[][], seriesCount: 0 };
+    const columns = model.headers;
+    const tableRows = model.rows.slice(0, MAX_TABLE_ROWS);
+    const isTruncated = model.rows.length > MAX_TABLE_ROWS;
 
     return html`
       <section
@@ -384,7 +598,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       >
         <!-- Concise description for aria-describedby (sr-only) -->
         <p id="${descId}" class="dsfr-data-a11y__sr-only">
-          ${this._getAutoDescription(hasData, data)}
+          ${this._getAutoDescription(hasData, data, model)}
         </p>
 
         <details class="fr-accordion">
@@ -421,7 +635,16 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                           ${tableRows.map(
                             (row) => html`
                               <tr>
-                                ${columns.map((col) => html`<td>${this.formatCellValue(row[col])}</td>`)}
+                                ${row.map((cell, i) =>
+                                  // Tableau croise (#930) : la premiere cellule
+                                  // est l'en-tete de SA ligne — sans quoi une
+                                  // valeur au croisement n'a plus qu'une moitie
+                                  // de coordonnees pour un lecteur d'ecran. Le
+                                  // tableau a plat garde ses <td> historiques.
+                                  model.seriesCount > 0 && i === 0
+                                    ? html`<th scope="row">${this._bodyCellText(cell, true)}</th>`
+                                    : html`<td>${this._bodyCellText(cell, i === 0)}</td>`
+                                )}
                               </tr>
                             `
                           )}
