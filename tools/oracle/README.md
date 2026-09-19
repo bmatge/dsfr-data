@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **212 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
-domaines, pour 492 observations et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt : **214 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
+domaines, pour 494 observations et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 328 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 332 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -736,6 +736,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | transformations | `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
 | transformations | `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
 | transformations | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
+| transformations | les agrégats de fenêtre appliqués APRÈS `limit` (`dsfr-data-query.ts`, déplacer le bloc « 3 bis » sous le `slice`) | `agregat-part-du-total-avant-limit` (`agregat-part-du-total-926` reste vert) | part de la zone « sud » : lib 50,197 %, oracle 38,873 % — le top 2 se redistribue à 100 %, et les deux chiffres sont plausibles (#926) |
 | transformations | `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
 | contexte | whereKey réduit à `this._uid` (`dsfr-data-context.ts`) | `ctx-deux-filtres-and` | 8 au lieu de 3 : deux filtres partagent une clé, le dernier gagne (ADR-031) |
 | contexte | `localIsoDate` → `isoDate` dans `current-month` (`dsfr-data-context-filter.ts`) | `ctx-current-month` | 5 au lieu de 4 : à 00 h 30 à Paris le 1er juin, l'UTC filtre encore mai |
@@ -770,7 +771,6 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_processTidyData` décale l'index de série | `graphique-series-field-format-long` | série 0, point 0 (Janvier) : graphique 310, oracle 120 |
 | affichages | `_applyColorMap` ne repeint plus la légende (`dsfr-data-chart.ts`) | `graphique-color-map-pastilles-databox` | aucune pastille ne porte de couleur déclarée — #813 |
 | affichages | `attrs['x-min']` (ou `horizontal`) n'est plus relayé | `graphique-bornes-des-axes`, `graphique-barres-horizontales-empilees` | l'attribut manque sur l'élément rendu |
-| affichages | `map-summary="sum"` rend la moyenne au lieu du total (`_computeMapSummary`, `total` → `total / count`) | `carte-resume-somme-927` (les deux résumés historiques restent verts) | affiché 331 448,56, recalculé 15 909 531 — la moyenne de volumes d'AM-079, reproduite |
 | affichages | `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` (le non pondéré reste vert) | résumé 41,02 au lieu de 43,07 — exactement #763 |
 | affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/dsfr-palettes.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
 | affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |

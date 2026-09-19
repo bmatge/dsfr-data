@@ -29,6 +29,8 @@ export const AGGREGATE_FUNCTIONS = [
   'distinct',
   'running_sum',
   'diff',
+  'share',
+  'share_percent',
 ] as const;
 
 export function isAggregateFunction(fn: string): fn is QueryAggregate['function'] {
@@ -57,6 +59,39 @@ export const RUNNING_AGGREGATE_FUNCTIONS = ['running_sum', 'diff'] as const;
 /** La fonction est-elle un agrégat cumulé, donc client-only et ordonné (#738) ? */
 export function isRunningAggregate(fn: string): boolean {
   return (RUNNING_AGGREGATE_FUNCTIONS as readonly string[]).includes(fn);
+}
+
+/**
+ * Agrégats de PART DU TOTAL (#926) : `champ__share` vaut la valeur de la ligne
+ * divisée par la somme de la colonne sur TOUTES les lignes de sortie.
+ * `share_percent` est la même part en points de pourcentage (× 100), pour un
+ * axe de graphique — une fraction dessinée sur un axe intitulé « % » y
+ * afficherait 0,33 pour 33 %.
+ *
+ * Comme les cumulées, ce sont des fonctions de FENÊTRE et non des réductions :
+ * elles ne replient pas un groupe, se calculent sur les lignes de sortie, et ne
+ * sont JAMAIS déléguées (aucune API du pipeline n'a d'équivalent, et un
+ * adaptateur sans `supportsServerAggregate` accepterait en silence une fonction
+ * que le serveur rejetterait pour tous les abonnés de la source).
+ *
+ * Elles ne dépendent PAS de l'ordre des lignes, à la différence de
+ * `running_sum` et `diff` : pas d'avertissement sans `order-by`.
+ */
+export const SHARE_AGGREGATE_FUNCTIONS = ['share', 'share_percent'] as const;
+
+/** La fonction est-elle une part du total (#926) ? */
+export function isShareAggregate(fn: string): boolean {
+  return (SHARE_AGGREGATE_FUNCTIONS as readonly string[]).includes(fn);
+}
+
+/**
+ * Fonctions de FENÊTRE : celles qui produisent une ligne par ligne de sortie au
+ * lieu de replier un groupe (cumulées #738 et parts du total #926). Elles sont
+ * exclues du regroupement et de la délégation serveur, et appliquées après le
+ * tri sur les lignes de sortie.
+ */
+export function isWindowAggregate(fn: string): boolean {
+  return isRunningAggregate(fn) || isShareAggregate(fn);
 }
 
 /**

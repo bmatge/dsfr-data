@@ -488,6 +488,8 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | distinct | Nombre de valeurs distinctes (alias \`count-distinct\`) — null et chaîne vide exclus, \`75\` et \`"75"\` comptent pour une seule valeur | \`"commune:distinct"\` → colonne \`commune__distinct\` |
 | running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | \`"montant:running_sum"\` → colonne \`montant__running_sum\` |
 | diff | **Écart avec la ligne précédente**, inverse du cumul (#775) : retrouve le flux d'une série publiée déjà cumulée. Première ligne \`null\` | \`"cumul:diff"\` → colonne \`cumul__diff\` |
+| share | **Part du total** (#926) : valeur de la ligne / somme de la colonne sur les lignes de sortie. FRACTION (0,334) | \`"lics__sum:share"\` → colonne \`lics__sum__share\` |
+| share_percent | La même part **en points de pourcentage** (33,4), pour un axe de graphique | \`"lics__sum:share_percent"\` → colonne \`lics__sum__share_percent\` |
 
 Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
@@ -534,6 +536,38 @@ délégué, avertissement sans \`order-by\`). Cas type : un compteur publié **d
   (le graphique la laisse vide, un \`sum\` aval l'exclut).
 - Une valeur non numérique rend \`null\` pour sa ligne **et pour la suivante**, qui n'a pas de
   précédente connue : l'écart n'enjambe jamais un trou.
+
+### Part du total (share / share_percent, #926)
+Une **répartition** — « part des licences par typologie de communes » — se posait jusqu'ici en
+deux sources, deux clés constantes (\`compute="k = 1"\`), un \`dsfr-data-join on="k"\` et une
+division. \`share\` la donne en un attribut :
+
+\`\`\`html
+<dsfr-data-query id="repartition" source="licences"
+  group-by="typologie"
+  aggregate="lics:sum, lics__sum:share_percent:part">
+</dsfr-data-query>
+<!-- colonnes : typologie, lics__sum, part (33,4 · 36,0 · 19,7 · 10,9) -->
+\`\`\`
+
+- \`share\` rend une **fraction** (0,334), \`share_percent\` la même part **en points de
+  pourcentage** (33,4). Sur un axe de graphique, prendre \`share_percent\` : une fraction
+  dessinée sous un axe intitulé « % » y afficherait 0,33. Sur un \`dsfr-data-kpi\`
+  \`format="pourcentage"\`, prendre \`share\` — le KPI met la fraction à l'échelle, comme le
+  ratio de #673.
+- **Le dénominateur est le total des lignes de SORTIE, avant \`limit\`.** Donc : une part est
+  toujours une part de l'**ensemble filtré** (\`where\`, facettes, recherche, contexte
+  déplacent le total — 33,4 % sans filtre, 16,3 % en Bretagne, et les deux sont justes ; le
+  dire en page) ; et avec \`limit\`, **les parts ne somment pas à 100 %**, un top 10 montrant
+  la part de chaque ligne dans le tout et non dans le top 10.
+- **Une part suppose une partition** : chaque unité comptée une fois. Après \`explode\`, une
+  ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
+  des licences portant ce label », pas « répartition ».
+- Total nul ou valeur non numérique : \`null\`, jamais l'infini ni un zéro de complaisance.
+- **Jamais délégué**, comme les cumuls : un \`group-by\` qui porte une part redescend
+  entièrement côté client — relever \`max-records\` avant, sinon le dénominateur est tronqué
+  sans que rien ne le montre (les parts somment quand même à 100 %).
+- L'ordre des lignes est indifférent : pas d'\`order-by\` requis, pas d'avertissement.
 
 Toute autre fonction (\`somme\`, \`moyenne\`, \`median\`…) est une **erreur de configuration**
 visible (console + \`data-dsfr-config-error\`, composants aval en erreur) — jamais un 0 silencieux.
