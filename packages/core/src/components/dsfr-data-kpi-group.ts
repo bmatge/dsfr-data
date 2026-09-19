@@ -69,6 +69,22 @@ export class DsfrDataKpiGroup extends LitElement {
   @property({ type: String })
   gap: 'sm' | 'md' | 'lg' = 'md';
 
+  /**
+   * `horizontal` (défaut : la grille 12 colonnes) ou `vertical` : les KPI
+   * sont EMPILÉS en colonne dans un seul cadre — un liseré gauche continu
+   * porté par le groupe, un filet entre les items, valeur à 2 rem, icône ou
+   * pictogramme à 2,5 rem à gauche du texte (planche kpi-evolutions, 1e).
+   * Compact, pour une barre latérale ou un encart. `per-row`, `cols`, `span`
+   * et `gap` sont sans effet dans ce mode. Les KPI enfants perdent leur
+   * propre liseré (règle portée par `dsfr-data-kpi`, sur le sélecteur
+   * `dsfr-data-kpi-group[orientation="vertical"]`) — ils sont lus au rendu :
+   * un changement d'orientation APRÈS le montage ne les remet pas en forme.
+   * Le liseré du groupe est bleu info ; il ne suit pas le `color-token` des
+   * enfants.
+   */
+  @property({ type: String })
+  orientation: 'horizontal' | 'vertical' | string = 'horizontal';
+
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-kpi-group');
@@ -92,6 +108,18 @@ export class DsfrDataKpiGroup extends LitElement {
     }
     :host([gap='lg']) {
       --dsfr-data-kpi-group-gap: 1.5rem;
+    }
+
+    /* Empilé (orientation="vertical", planche 1e) : un cadre, un liseré
+       continu, les KPI en colonne. Les enfants sont mis en forme par
+       dsfr-data-kpi (sélecteur sur le groupe), le groupe ne porte que le cadre. */
+    :host([orientation='vertical']) {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: var(--background-default-grey);
+      border-left: 4px solid var(--background-flat-info);
+      border-radius: 0.25rem;
     }
 
     /* Per-KPI col overrides (1-12) */

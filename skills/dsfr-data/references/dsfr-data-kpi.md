@@ -29,11 +29,21 @@ Attend un tableau d'objets. L'attribut `valeur` determine comment extraire/agré
 | unit | String | `""` | non | Unite accolee apres la valeur (espace insecable), ex. `format="compact" unit="€"` -> « 44,9 Md € ». Inutile avec euro et pourcentage (symbole deja present) |
 | trend | String | `""` | non | RACCOURCI HERITE (preferez `lines`). Expression d'agregation `"champ:fn"` (`"evolution:avg"`) — PAS un litteral. Rendue avec une fleche en pourcentage fr-FR (`↑ 5,2 %`). Alias deprecie : `tendance` |
 | lines | String | `""` | non | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le `label`. Chaque item : `value` (expression `champ:fn`) OU `text` (statique), + `format` (dont `"date"`), `decimals`, `unit`, `sign`, `prefix`, `suffix`, `color` (`"auto"`=vert si >=0/rouge si <0, token DSFR, ou couleur CSS), `na` (repli si non fini). Ex. `[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]` |
-| color-token | String | `""` | non | Forcer la couleur (token semantique DSFR) : vert, orange, rouge, bleu. Alias deprecies : `color`, `couleur` |
+| color-token | String | `""` | non | Forcer la couleur. Quatre tokens SÉMANTIQUES (un ÉTAT) : vert, orange, rouge, bleu — ou l'une des 17 couleurs ILLUSTRATIVES DSFR (une CATÉGORIE : thème, ministère, famille de données) : `green-emeraude`, `blue-cumulus`, `purple-glycine`, `orange-terre-battue`… (section « Habillage »). Alias deprecies : `color`, `couleur` |
 | threshold-green | Number | - | non | Seuil au-dessus duquel couleur = vert. Alias deprecie : `seuil-vert` |
 | threshold-orange | Number | - | non | Seuil au-dessus duquel couleur = orange (en-dessous = rouge). Alias deprecie : `seuil-orange` |
 | span | String | - | non | Largeur en colonnes DSFR (1-12), actif uniquement dans un `<dsfr-data-kpi-group>` (#790) |
 | col | Number | - | non | Ancien nom de `span`, même sens — toujours accepté, ne plus le générer |
+| icon-position | String | `"label"` | non | Place de l'icône ou du picto : `label` (défaut, entre le surtitre et la valeur, en gris), `top` (en tête, couleur de l'accent), `right` (à droite, alignée en haut) |
+| icon-size | String | - | non | `sm` (1,5 rem, défaut d'une icône) ou `md` (2 rem) — l'échelle s'arrête à la taille maximale d'une icône DSFR ; au-delà, poser `picto`. Pour un picto : `sm` = 3,5 rem, `md` = 5 rem (défaut) |
+| picto | String | `""` | non | Pictogramme DSFR par son nom, `environment/leaf` (catégorie/fichier, sans .svg, motif `[a-z0-9-]` et `/`). Requiert `picto-base`. Prime sur `icon` |
+| picto-field | String | `""` | non | Comme `picto`, mais le nom est lu dans un champ de la première ligne (répéteur) |
+| picto-base | String | `""` | non | Préfixe d'adresse des SVG, MÊME ORIGINE que la page : `picto-base="/dsfr/artwork/pictograms/"`. Un CDN ne marche pas (`<use>` sans CORS) |
+| image | String | `""` | non | URL d'image (liste blanche de schémas de `{{champ:url}}` ; refusée = rien + avertissement). `image-alt` pour le texte alternatif (vide = décorative) |
+| image-position | String | `"top"` | non | `top` (bandeau 16:9), `left` (colonne 10 rem pleine hauteur), `right` (vignette 7,5 rem) |
+| orientation | String | `"horizontal"` | non | `vertical` : tuile à liseré haut, centrée si elle porte une icône, un picto ou une image |
+| border | String | `"left"` | non | Tracé du liseré : `left`, `top`, `bottom` (filet 2 px), `outline` (contour 1 px), `left-short` (à hauteur de la valeur), `none`. La couleur reste celle du token ou des seuils |
+| tint | String | - | non | Fond teinté dans la couleur du token : `tint` = fond 950, `tint="975"` plus clair, `tint="925"` plus soutenu (illustratives seulement). La VALEUR reste en gris titre |
 
 Fonctions acceptées dans `value`, `trend` et `lines` : avg, sum, count, min, max, first, last,
 distinct (alias `count-distinct`), evolution.
@@ -136,6 +146,46 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 - `gap` : espacement entre KPIs (sm, md, lg)
 - Responsive automatique : empile en mobile
 
+### Habillage : icône, pictogramme, image, liseré, teinte
+Rien de tout cela ne touche à la donnée. Sans ces attributs, le rendu est celui d'avant.
+```html
+<!-- Icône en tête, dans la couleur du liseré (fr-icon-* ou ri-*, une classe, jamais du balisage) -->
+<dsfr-data-kpi source="baro" value="immat" heading="Immatriculations" label="dans le mois"
+  icon="fr-icon-car-line" icon-position="top"></dsfr-data-kpi>
+
+<!-- Pictogramme DSFR : nom + base écrite par l'intégrateur, SVG copiés sur la même origine -->
+<dsfr-data-kpi source="baro" value="pac" heading="Pompes à chaleur" label="vendues par mois"
+  picto="environment/leaf" picto-base="/dsfr/artwork/pictograms/" icon-position="right"></dsfr-data-kpi>
+
+<!-- Tuile verticale, image en bandeau, liseré haut -->
+<dsfr-data-kpi source="baro" value="pdm" format="pourcentage" heading="Part de marché" label="des ventes"
+  orientation="vertical" image="/img/ve.jpg" image-alt="Voiture électrique en charge"></dsfr-data-kpi>
+
+<!-- Groupe thématique : couleurs ILLUSTRATIVES (catégories), fond teinté, sans liseré -->
+<dsfr-data-kpi source="env" value="count" heading="Environnement" label="jeux de données"
+  color-token="green-emeraude" tint border="none" icon="fr-icon-leaf-line" icon-position="top"></dsfr-data-kpi>
+<dsfr-data-kpi source="edu" value="count" heading="Éducation" label="jeux de données"
+  color-token="purple-glycine" tint border="none" icon="fr-icon-book-2-line" icon-position="top"></dsfr-data-kpi>
+```
+- **Catégorie ≠ état.** Une couleur illustrative (`green-emeraude`, `pink-tuile`…) dit un
+  thème, un ministère, une famille de données. Bon / attention / critique restent aux quatre
+  tokens sémantiques et aux seuils : un KPI en rouge illustratif qui ne veut pas dire « mauvais »
+  se lit comme une alerte. Les couleurs viennent des tokens DSFR (`--border-plain-<nom>`,
+  `--background-contrast-<nom>`) : ne jamais générer d'hexadécimal, le mode sombre suit.
+- **Sous `tint`, la valeur reste en gris titre**, jamais dans la couleur de l'accent : les
+  teintes pleines claires (tournesol, café-crème, galet) ne tiennent pas le contraste pour du texte.
+- **`icon-size` s'arrête à `md` (2 rem)** : c'est la plus grande icône que le DSFR documente
+  (`fr-icon--lg`). Pour une illustration de 3,5 ou 5 rem, générer `picto`, pas `icon-size="lg"`
+  (ignoré, avec un avertissement).
+- **`picto-base` est obligatoire et doit servir les SVG depuis l'origine de la page** : un
+  `<use href>` vers un CDN n'est pas rendu par les navigateurs. Prévoir une copie locale de
+  `dist/artwork/pictograms/` du DSFR.
+- `icon` et `picto` sont validés (classe `fr-icon-*`/`ri-*` ; nom `[a-z0-9-]` et `/`) ;
+  `image` passe par la liste blanche de schémas. Une valeur refusée n'affiche rien et le dit
+  en console — une fois par valeur, quel que soit le nombre de KPI.
+- `<dsfr-data-kpi-group orientation="vertical">` empile les KPI dans un seul cadre à liseré
+  continu, filet entre les items (barre latérale, encart) ; `per-row` et `span` n'y jouent plus.
+
 ### Logique des couleurs
 1. Si `color-token` est défini : applique cette couleur directement
 2. Si `seuil-vert` et `seuil-orange` sont définis : couleur automatique selon la valeur
@@ -203,19 +253,29 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
+| `border` | `BorderMode \| string` | `'left'` | Tracé du liseré ; sa couleur reste celle de `color-token` ou des seuils. `left` (défaut, 4 px, rendu historique), `top` (4 px), `bottom` (filet de 2 px, comme les champs DSFR), `outline` (contour de 1 px), `left-short` (4 px à hauteur de la valeur), `none`. Autre valeur : ignorée, avertissement. |
 | `col` | `number \| undefined` | — | Largeur en colonnes DSFR (1-12). Significatif uniquement dans un <dsfr-data-kpi-group>. Même rôle que `span`, qui est préféré (#790) ; toujours accepté. |
 | `color` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias de `color-token` (#367) — le nom `color` évoque l'attribut de présentation HTML déprécié (faux positif d'audit RGAA 10.1.2) |
-| `color-token` | `KpiColor \| ''` | `""` (vide) | Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu |
+| `color-token` | `KpiColor \| ''` | `""` (vide) | Couleur forcée. Deux familles, deux SENS : - les 4 tokens sémantiques `vert`, `orange`, `rouge`, `bleu` disent un ÉTAT (bon, attention, critique, neutre) — c'est aussi ce que posent les seuils, et ce que le libellé accessible annonce (« etat bon ») ; - les 17 couleurs illustratives DSFR (`green-emeraude`, `blue-cumulus`, `purple-glycine`, `orange-terre-battue`… liste : `ILLUSTRATIVE_COLOR_TOKENS`) disent une CATÉGORIE — thème, ministère, famille de données — et n'annoncent aucun état. Un KPI en rouge illustratif (`pink-tuile`) qui ne veut pas dire « mauvais » est un contresens de lecture : l'état reste aux tokens sémantiques. Une couleur illustrative pose le liseré et l'icône en teinte pleine via `var(--border-plain-<nom>)` et, avec `tint`, le fond via `var(--background-contrast-<nom>)` — tokens DSFR existants, aucun hexadécimal : le mode sombre suit. Nom inconnu : ignoré avec avertissement, repli sur les seuils puis bleu. |
 | `couleur` | `KpiColor \| ''` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `color-token` (#300) |
 | `decimals` | `number \| undefined` | — | Nombre de décimales affichées (entier 0 à 20), ex. `format="euro" decimals="3"` → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour compact ; sans effet sur date. Absent : défaut historique du format (#665). |
 | `description` | `string` | `""` (vide) | Description détaillée pour l'accessibilité |
 | `format` | `FormatType` | `'nombre'` | Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667). Les décimales passent par `decimals`, jamais par le format (`euro:3` est refusé et affiché comme erreur de configuration, #665). |
 | `heading` | `string` | `""` (vide) | Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé `heading` et non `title` : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle). |
-| `icon` | `string` | `""` (vide) | Classe d'icône (ex: ri-global-line) |
+| `icon` | `string` | `""` (vide) | Classe d'icône DSFR (`fr-icon-leaf-line`) ou Remix (`ri-global-line`). Une CLASSE, jamais du balisage : la valeur doit suivre `^(fr-icon\|ri)-[a-z0-9-]+$`, sinon elle est ignorée avec un avertissement console qui la nomme (une fois par valeur). Placement et taille : `icon-position`, `icon-size`. Remplacée par `picto` si les deux sont posés. |
+| `icon-position` | `IconPosition \| string` | `'label'` | Où se place l'icône (ou le pictogramme) : `label` (défaut, rendu historique : entre le surtitre et la valeur, en gris), `top` (en tête de la carte, dans la couleur de l'accent — vignette 1a), `right` (à droite, alignée en haut, le texte garde sa marge — vignette 1b). Sans effet sans `icon` ni `picto`. |
+| `icon-size` | `IconSize \| string` | `""` (vide) | Taille de l'icône : `sm` = 1,5 rem (24 px — sans attribut, c'est le rendu historique, inchangé) ou `md` = 2 rem (32 px). L'échelle s'arrête là : l'échelle documentée du DSFR s'arrête à `fr-icon--lg` = 2 rem, et au-delà le DSFR ne parle plus d'icône mais de PICTOGRAMME — pour une illustration de 48 ou 80 px, poser `picto`, pas une icône agrandie. Ni `lg`, ni valeur en pixels : une autre valeur est ignorée avec un avertissement. Vaut aussi pour `picto`, sur l'échelle des tuiles DSFR : `sm` = 3,5 rem, `md` = 5 rem (sans attribut : `md`, la tuile DSFR standard). Pour une icône `fr-icon-*`, la taille passe par `--icon-size` (le glyphe est un `::before` masqué, indifférent à `font-size`). |
 | `icone` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `icon` (#300) |
 | `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
+| `image` | `string` | `""` (vide) | Image libre (photo, logo) par son URL. Passée par la même liste blanche de schémas que le format `{{champ:url}}` des gabarits (`http:`, `https:`, `mailto:`, `tel:` ou relative) : une URL refusée (`javascript:`, `data:`…) n'affiche rien et avertit. Placement : `image-position`. Texte alternatif : `image-alt` (vide = décorative). Rendue seulement quand la donnée est là. |
+| `image-alt` | `string` | `""` (vide) | Texte alternatif de `image`. Vide (défaut) : image décorative (`alt=""`). |
+| `image-position` | `ImagePosition \| string` | `'top'` | Placement de `image` : `top` (défaut, bandeau 16:9 bord à bord au-dessus du contenu — vignette 1d), `left` (colonne de 10 rem pleine hauteur, le liseré reste à gauche de l'image — 2a), `right` (vignette carrée de 7,5 rem dans la marge, à droite du texte — 2b). |
 | `label` | `string` | `""` (vide) | Libellé affiché sous le chiffre (et sous les `lines`) |
 | `lines` | `string` | `""` (vide) | Lignes secondaires declaratives (JSON), rendues ENTRE la valeur et le `label`. Chaque item est soit data-driven (`value` = expression "champ:fn"), soit texte statique (`text`), avec couleur declarative. Ex. `[{"value":"evol:avg","sign":true,"suffix":"vs mai 2025","color":"auto"}]`. Schema complet : packages/core/src/utils/kpi-lines.ts (KpiLineSpec). |
+| `orientation` | `'horizontal' \| 'vertical' \| string` | `'horizontal'` | `horizontal` (défaut, carte à liseré gauche) ou `vertical` : tuile à liseré HAUT (sauf `border` explicite). Avec une icône, un pictogramme ou une image, tout passe au-dessus du surtitre et le texte est centré (vignette 1f) ; sans média, le KPI reste aligné à gauche — la version sobre des chiffres-clés éditoriaux (1g). Sur `dsfr-data-kpi-group`, le même attribut empile les KPI (voir le groupe). |
+| `picto` | `string` | `""` (vide) | Pictogramme DSFR illustratif (`fr-artwork`), par son NOM : `environment/leaf`, `buildings/city-hall`… (dossier de catégorie + fichier, sans `.svg`). Contraint à `^[a-z0-9-]+(/[a-z0-9-]+)*$` — ce motif exclut `../` et tout schéma sans assainisseur. Le composant rend le SVG canonique à trois `<use>` (`#artwork-decorative`, `#artwork-minor`, `#artwork-major`) dont l'adresse est `picto-base` + nom + `.svg` : `picto-base` est OBLIGATOIRE (sans lui, rien n'est rendu, avec un avertissement). Les couleurs viennent des classes `fr-artwork-*` du DSFR — le mode sombre suit sans travail — et une couleur illustrative (`color-token`) est reportée en `fr-artwork--<nom>`. ⚠️ `<use href>` vers un AUTRE domaine n'est pas rendu par les navigateurs (pas de CORS sur `use`) : `picto-base` doit servir les SVG depuis l'origine de la page (copie locale de `dist/artwork/pictograms/`), pas depuis un CDN. Prime sur `icon`. Mêmes `icon-position` et `icon-size` que l'icône. |
+| `picto-base` | `string` | `""` (vide) | Préfixe d'adresse des pictogrammes, écrit par l'intégrateur : `picto-base="/dsfr/artwork/pictograms/"`. Le nom (`picto`) y est concaténé (barre finale ajoutée si absente). C'est ce découpage nom / base qui rend `picto` sûr par construction. Même origine que la page, voir `picto`. |
+| `picto-field` | `string` | `""` (vide) | Même chose que `picto`, mais le nom est lu dans un CHAMP de la première ligne reçue (`picto-field="theme_picto"`) — utile dans un répéteur. Même motif, même refus. `picto` prime s'il est posé. |
 | `seuil-orange` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-orange` (#300) |
 | `seuil-vert` | `number \| undefined` | — | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `threshold-green` (#300) |
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si `value` est un littéral (`value="=667"`). |
@@ -223,6 +283,7 @@ Utiliser `<dsfr-data-kpi-group>` pour disposer plusieurs KPIs en grille responsi
 | `tendance` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `trend` (#300) |
 | `threshold-green` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est verte |
 | `threshold-orange` | `number \| undefined` | — | Seuil au-dessus duquel la valeur est orange |
+| `tint` | `string \| null` | `null` | Fond teinté dans la couleur du token : `tint` (ou `tint="true"`) prend le fond 950 (`--background-contrast-<nom>`) ; `tint="975"` le fond le plus clair (`--background-alt-<nom>`) ; `tint="925"` le plus soutenu (`--<nom>-925-125`). Les 4 tokens sémantiques n'ont pas de 925 dans le DSFR : replié sur 950 avec un avertissement. La VALEUR reste en gris titre (`--text-title-grey`) : les teintes pleines claires (tournesol, café-crème, galet) ne tiennent pas le contraste pour du texte — planche 3b. Le surtitre et le libellé passent en `--text-default-grey` pour la même raison. Se combine avec `border` (souvent `border="none"`). |
 | `trend` | `string` | `""` (vide) | RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe, couleur, repli n.d.), preferez `lines`. Conserve pour compatibilite. Expression d'agrégation pour la tendance, évaluée sur les données de la source (grammaire commune "champ:fn", ex. "evolution:avg") — PAS un litteral : l'ancienne doc ("+3.2") laissait croire qu'on passait une valeur, la chaîne etait interpretee comme nom de champ (#303). Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %"). `trend="recettes:evolution"` (#675) : taux d'évolution entre la première et la dernière ligne, rendu en pourcentage. |
 | `unit` | `string` | `""` (vide) | Unité accolée après la valeur (espace insécable), ex. `format="compact" unit="€"` → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et pourcentage portent déjà leur symbole (#665). |
 | `valeur` | `string` | `""` (vide) | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `value` (#300) |

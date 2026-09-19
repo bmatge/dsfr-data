@@ -1,6 +1,7 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { sanitizeTemplateUrl } from '../utils/template-expression.js';
 import {
   formatValue,
   formatPercentage,
@@ -31,14 +32,104 @@ import { getByPath } from '../utils/json-path.js';
 import { parseSpan, legacyConflictMessage } from '../utils/grid-layout.js';
 import { applyLocalFilter, validateColonFilter } from '@dsfr-data/shared/lib';
 
-type KpiColor = 'vert' | 'orange' | 'rouge' | 'bleu';
+/** Les 4 tokens sémantiques historiques : un ÉTAT (bon, attention, critique, neutre). */
+type KpiSemanticColor = 'vert' | 'orange' | 'rouge' | 'bleu';
 
-const COLOR_CLASSES: Record<KpiColor, string> = {
+/**
+ * Les 17 couleurs illustratives du DSFR (planche « kpi-evolutions », 3c),
+ * telles que nommées par les tokens `--border-plain-<nom>`,
+ * `--background-contrast-<nom>` (fond 950), `--background-alt-<nom>` (975)
+ * et l'option `--<nom>-925-125`. Vérifié dans `dsfr@1.14.4/dist/dsfr.min.css`
+ * le 2026-09-20 : les quatre tokens existent pour chacun des 17 noms.
+ */
+export const ILLUSTRATIVE_COLOR_TOKENS = [
+  'green-tilleul-verveine',
+  'green-bourgeon',
+  'green-emeraude',
+  'green-menthe',
+  'green-archipel',
+  'blue-ecume',
+  'blue-cumulus',
+  'purple-glycine',
+  'pink-macaron',
+  'pink-tuile',
+  'yellow-tournesol',
+  'yellow-moutarde',
+  'orange-terre-battue',
+  'brown-cafe-creme',
+  'brown-caramel',
+  'brown-opera',
+  'beige-gris-galet',
+] as const;
+
+type KpiIllustrativeColor = (typeof ILLUSTRATIVE_COLOR_TOKENS)[number];
+type KpiColor = KpiSemanticColor | KpiIllustrativeColor;
+
+const SEMANTIC_COLORS: ReadonlySet<string> = new Set(['vert', 'orange', 'rouge', 'bleu']);
+const ILLUSTRATIVE_COLORS: ReadonlySet<string> = new Set(ILLUSTRATIVE_COLOR_TOKENS);
+
+const COLOR_CLASSES: Record<KpiSemanticColor, string> = {
   vert: 'dsfr-data-kpi--success',
   orange: 'dsfr-data-kpi--warning',
   rouge: 'dsfr-data-kpi--error',
   bleu: 'dsfr-data-kpi--info',
 };
+
+/** Nom DSFR du token sémantique (`--background-contrast-<nom>`, `--<nom>-975-75`). */
+const SEMANTIC_DSFR_NAMES: Record<KpiSemanticColor, string> = {
+  vert: 'success',
+  orange: 'warning',
+  rouge: 'error',
+  bleu: 'info',
+};
+
+const ICON_POSITIONS = ['label', 'top', 'right'] as const;
+type IconPosition = (typeof ICON_POSITIONS)[number];
+const ICON_SIZES = ['sm', 'md'] as const;
+type IconSize = (typeof ICON_SIZES)[number];
+const IMAGE_POSITIONS = ['top', 'left', 'right'] as const;
+type ImagePosition = (typeof IMAGE_POSITIONS)[number];
+const BORDER_MODES = ['left', 'top', 'bottom', 'outline', 'left-short', 'none'] as const;
+type BorderMode = (typeof BORDER_MODES)[number];
+const TINT_SHADES = ['975', '950', '925'] as const;
+type TintShade = (typeof TINT_SHADES)[number];
+
+/**
+ * `icon` ne pose qu'une classe CSS, jamais du balisage : la valeur est
+ * contrainte à une classe d'icône DSFR (`fr-icon-*`) ou Remix (`ri-*`).
+ */
+const ICON_CLASS_RE = /^(fr-icon|ri)-[a-z0-9-]+$/;
+
+/**
+ * Nom de pictogramme : segments `[a-z0-9-]+` séparés par `/` (les pictogrammes
+ * DSFR vivent sous un dossier de catégorie : `environment/leaf`), soit le
+ * motif `^[a-z0-9-]+(/[a-z0-9-]+)*$`. Vérifié segment par segment plutôt que
+ * par une regex à quantificateur imbriqué (lint `detect-unsafe-regex`). Le
+ * motif exclut mécaniquement `..`, `:` et tout schéma — sans assainisseur.
+ */
+const PICTO_SEGMENT_RE = /^[a-z0-9-]+$/;
+const PICTO_NAME_PATTERN = '^[a-z0-9-]+(/[a-z0-9-]+)*$';
+function isPictoName(nom: string): boolean {
+  return nom.split('/').every((seg) => PICTO_SEGMENT_RE.test(seg));
+}
+
+/**
+ * Un avertissement par (attribut, valeur) pour toute la durée de la page.
+ * Le dépôt a payé une régression de 7 139 messages identiques : le compte
+ * émis est mesuré par les tests (`tests/kpi-affichage.test.ts`).
+ */
+const avertissementsAffichage = new Set<string>();
+
+/** Remet le dédoublonnage des avertissements d'affichage à zéro (tests). */
+export function resetKpiDisplayWarnings(): void {
+  avertissementsAffichage.clear();
+}
+
+function warnAffichage(cle: string, message: string): void {
+  if (avertissementsAffichage.has(cle)) return;
+  avertissementsAffichage.add(cle);
+  console.warn(`dsfr-data-kpi: ${message}`);
+}
 
 /**
  * <dsfr-data-kpi> - Widget d'indicateur chiffré
@@ -152,9 +243,131 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   description = '';
 
-  /** Classe d'icône (ex: ri-global-line) */
+  /**
+   * Classe d'icône DSFR (`fr-icon-leaf-line`) ou Remix (`ri-global-line`).
+   * Une CLASSE, jamais du balisage : la valeur doit suivre
+   * `^(fr-icon|ri)-[a-z0-9-]+$`, sinon elle est ignorée avec un avertissement
+   * console qui la nomme (une fois par valeur). Placement et taille :
+   * `icon-position`, `icon-size`. Remplacée par `picto` si les deux sont posés.
+   */
   @property({ type: String })
   icon = '';
+
+  /**
+   * Où se place l'icône (ou le pictogramme) : `label` (défaut, rendu
+   * historique : entre le surtitre et la valeur, en gris), `top` (en tête de
+   * la carte, dans la couleur de l'accent — vignette 1a), `right` (à droite,
+   * alignée en haut, le texte garde sa marge — vignette 1b). Sans effet
+   * sans `icon` ni `picto`.
+   */
+  @property({ type: String, attribute: 'icon-position' })
+  iconPosition: IconPosition | string = 'label';
+
+  /**
+   * Taille de l'icône : `sm` = 1,5 rem (24 px — sans attribut, c'est le rendu
+   * historique, inchangé) ou `md` = 2 rem (32 px). L'échelle s'arrête là :
+   * l'échelle documentée du DSFR s'arrête à `fr-icon--lg` = 2 rem, et au-delà
+   * le DSFR ne parle plus d'icône mais de PICTOGRAMME — pour une illustration
+   * de 48 ou 80 px, poser `picto`, pas une icône agrandie. Ni `lg`, ni valeur
+   * en pixels : une autre valeur est ignorée avec un avertissement. Vaut aussi
+   * pour `picto`, sur l'échelle des tuiles DSFR : `sm` = 3,5 rem, `md` = 5 rem
+   * (sans attribut : `md`, la tuile DSFR standard). Pour une icône `fr-icon-*`, la taille passe par `--icon-size`
+   * (le glyphe est un `::before` masqué, indifférent à `font-size`).
+   */
+  @property({ type: String, attribute: 'icon-size' })
+  iconSize: IconSize | string = '';
+
+  /**
+   * Pictogramme DSFR illustratif (`fr-artwork`), par son NOM : `environment/leaf`,
+   * `buildings/city-hall`… (dossier de catégorie + fichier, sans `.svg`).
+   * Contraint à `^[a-z0-9-]+(/[a-z0-9-]+)*$` — ce motif exclut `../` et tout
+   * schéma sans assainisseur. Le composant rend le SVG canonique à trois
+   * `<use>` (`#artwork-decorative`, `#artwork-minor`, `#artwork-major`) dont
+   * l'adresse est `picto-base` + nom + `.svg` : `picto-base` est OBLIGATOIRE
+   * (sans lui, rien n'est rendu, avec un avertissement). Les couleurs viennent
+   * des classes `fr-artwork-*` du DSFR — le mode sombre suit sans travail — et
+   * une couleur illustrative (`color-token`) est reportée en `fr-artwork--<nom>`.
+   * ⚠️ `<use href>` vers un AUTRE domaine n'est pas rendu par les navigateurs
+   * (pas de CORS sur `use`) : `picto-base` doit servir les SVG depuis l'origine
+   * de la page (copie locale de `dist/artwork/pictograms/`), pas depuis un CDN.
+   * Prime sur `icon`. Mêmes `icon-position` et `icon-size` que l'icône.
+   */
+  @property({ type: String })
+  picto = '';
+
+  /**
+   * Même chose que `picto`, mais le nom est lu dans un CHAMP de la première
+   * ligne reçue (`picto-field="theme_picto"`) — utile dans un répéteur. Même
+   * motif, même refus. `picto` prime s'il est posé.
+   */
+  @property({ type: String, attribute: 'picto-field' })
+  pictoField = '';
+
+  /**
+   * Préfixe d'adresse des pictogrammes, écrit par l'intégrateur :
+   * `picto-base="/dsfr/artwork/pictograms/"`. Le nom (`picto`) y est concaténé
+   * (barre finale ajoutée si absente). C'est ce découpage nom / base qui rend
+   * `picto` sûr par construction. Même origine que la page, voir `picto`.
+   */
+  @property({ type: String, attribute: 'picto-base' })
+  pictoBase = '';
+
+  /**
+   * Image libre (photo, logo) par son URL. Passée par la même liste blanche de
+   * schémas que le format `{{champ:url}}` des gabarits (`http:`, `https:`,
+   * `mailto:`, `tel:` ou relative) : une URL refusée (`javascript:`, `data:`…)
+   * n'affiche rien et avertit. Placement : `image-position`. Texte alternatif :
+   * `image-alt` (vide = décorative). Rendue seulement quand la donnée est là.
+   */
+  @property({ type: String })
+  image = '';
+
+  /** Texte alternatif de `image`. Vide (défaut) : image décorative (`alt=""`). */
+  @property({ type: String, attribute: 'image-alt' })
+  imageAlt = '';
+
+  /**
+   * Placement de `image` : `top` (défaut, bandeau 16:9 bord à bord au-dessus du
+   * contenu — vignette 1d), `left` (colonne de 10 rem pleine hauteur, le liseré
+   * reste à gauche de l'image — 2a), `right` (vignette carrée de 7,5 rem dans la
+   * marge, à droite du texte — 2b).
+   */
+  @property({ type: String, attribute: 'image-position' })
+  imagePosition: ImagePosition | string = 'top';
+
+  /**
+   * `horizontal` (défaut, carte à liseré gauche) ou `vertical` : tuile à
+   * liseré HAUT (sauf `border` explicite). Avec une icône, un pictogramme ou
+   * une image, tout passe au-dessus du surtitre et le texte est centré
+   * (vignette 1f) ; sans média, le KPI reste aligné à gauche — la version
+   * sobre des chiffres-clés éditoriaux (1g). Sur `dsfr-data-kpi-group`, le
+   * même attribut empile les KPI (voir le groupe).
+   */
+  @property({ type: String })
+  orientation: 'horizontal' | 'vertical' | string = 'horizontal';
+
+  /**
+   * Tracé du liseré ; sa couleur reste celle de `color-token` ou des seuils.
+   * `left` (défaut, 4 px, rendu historique), `top` (4 px), `bottom` (filet de
+   * 2 px, comme les champs DSFR), `outline` (contour de 1 px), `left-short`
+   * (4 px à hauteur de la valeur), `none`. Autre valeur : ignorée, avertissement.
+   */
+  @property({ type: String })
+  border: BorderMode | string = 'left';
+
+  /**
+   * Fond teinté dans la couleur du token : `tint` (ou `tint="true"`) prend le
+   * fond 950 (`--background-contrast-<nom>`) ; `tint="975"` le fond le plus
+   * clair (`--background-alt-<nom>`) ; `tint="925"` le plus soutenu
+   * (`--<nom>-925-125`). Les 4 tokens sémantiques n'ont pas de 925 dans le
+   * DSFR : replié sur 950 avec un avertissement. La VALEUR reste en gris titre
+   * (`--text-title-grey`) : les teintes pleines claires (tournesol, café-crème,
+   * galet) ne tiennent pas le contraste pour du texte — planche 3b. Le surtitre
+   * et le libellé passent en `--text-default-grey` pour la même raison.
+   * Se combine avec `border` (souvent `border="none"`).
+   */
+  @property({ type: String })
+  tint: string | null = null;
 
   /** @deprecated alias français de `icon` (#300) */
   @property({ type: String })
@@ -230,7 +443,23 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   @property({ type: Number, attribute: 'seuil-orange' })
   seuilOrange?: number;
 
-  /** Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu */
+  /**
+   * Couleur forcée. Deux familles, deux SENS :
+   * - les 4 tokens sémantiques `vert`, `orange`, `rouge`, `bleu` disent un
+   *   ÉTAT (bon, attention, critique, neutre) — c'est aussi ce que posent les
+   *   seuils, et ce que le libellé accessible annonce (« etat bon ») ;
+   * - les 17 couleurs illustratives DSFR (`green-emeraude`, `blue-cumulus`,
+   *   `purple-glycine`, `orange-terre-battue`… liste : `ILLUSTRATIVE_COLOR_TOKENS`)
+   *   disent une CATÉGORIE — thème, ministère, famille de données — et
+   *   n'annoncent aucun état. Un KPI en rouge illustratif (`pink-tuile`) qui ne
+   *   veut pas dire « mauvais » est un contresens de lecture : l'état reste aux
+   *   tokens sémantiques.
+   * Une couleur illustrative pose le liseré et l'icône en teinte pleine via
+   * `var(--border-plain-<nom>)` et, avec `tint`, le fond via
+   * `var(--background-contrast-<nom>)` — tokens DSFR existants, aucun
+   * hexadécimal : le mode sombre suit. Nom inconnu : ignoré avec avertissement,
+   * repli sur les seuils puis bleu.
+   */
   @property({ type: String, attribute: 'color-token' })
   colorToken: KpiColor | '' = '';
 
@@ -408,7 +637,16 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   private _getColor(): KpiColor {
     const explicitColor = this.colorToken || this.color || this.couleur;
-    if (explicitColor) return explicitColor;
+    if (explicitColor) {
+      if (SEMANTIC_COLORS.has(explicitColor) || ILLUSTRATIVE_COLORS.has(explicitColor)) {
+        return explicitColor;
+      }
+      warnAffichage(
+        `color-token:${explicitColor}`,
+        `color-token="${explicitColor}" inconnu — attendu vert, orange, rouge, bleu ` +
+          `ou une couleur illustrative DSFR (${ILLUSTRATIVE_COLOR_TOKENS.join(', ')}) ; ignoré`
+      );
+    }
 
     const value = this._computeValue();
     if (typeof value !== 'number') return 'bleu';
@@ -574,15 +812,240 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return label;
   }
 
+  // ---------------------------------------------------------------------------
+  // Habillage (planche « kpi-evolutions ») — rien ici ne touche à la donnée.
+  // Chaque résolution est pure et ne pose un avertissement qu'une fois par
+  // (attribut, valeur), quelle que soit la quantité d'instances.
+  // ---------------------------------------------------------------------------
+
+  /** Classe d'icône validée, ou `''` (valeur hors motif : avertie, ignorée). */
+  private _iconClass(): string {
+    const raw = (this.icon || this.icone).trim();
+    if (!raw) return '';
+    if (ICON_CLASS_RE.test(raw)) return raw;
+    warnAffichage(
+      `icon:${raw}`,
+      `icon="${raw}" ignoré — attendu une classe d'icône DSFR (fr-icon-…) ou Remix (ri-…), ` +
+        `une seule, sans espace ni balisage`
+    );
+    return '';
+  }
+
+  private _iconPosition(): IconPosition {
+    const v = this.iconPosition;
+    if ((ICON_POSITIONS as readonly string[]).includes(v)) return v as IconPosition;
+    warnAffichage(
+      `icon-position:${v}`,
+      `icon-position="${v}" inconnu — attendu ${ICON_POSITIONS.join(', ')} ; rendu par défaut (label)`
+    );
+    return 'label';
+  }
+
+  /** Taille validée ; sans attribut : `sm` pour une icône (1,5 rem historique), `md` pour un picto. */
+  private _iconSize(picto: boolean): IconSize {
+    const v = this.iconSize;
+    if (!v) return picto ? 'md' : 'sm';
+    if ((ICON_SIZES as readonly string[]).includes(v)) return v as IconSize;
+    warnAffichage(
+      `icon-size:${v}`,
+      `icon-size="${v}" inconnu — l'échelle s'arrête à sm (1,5 rem) et md (2 rem), la taille ` +
+        `maximale d'une icône DSFR (fr-icon--lg) ; au-delà, poser un pictogramme (picto). Rendu en sm`
+    );
+    return 'sm';
+  }
+
+  /** Nom de pictogramme validé (`picto`, sinon `picto-field` sur la 1re ligne), ou `''`. */
+  private _pictoName(): string {
+    let nom = this.picto.trim();
+    if (!nom && this.pictoField) {
+      const data = this._filteredData();
+      const first = Array.isArray(data) ? data[0] : data;
+      const v = first && typeof first === 'object' ? getByPath(first, this.pictoField) : undefined;
+      nom = v == null ? '' : String(v).trim();
+    }
+    if (!nom) return '';
+    if (!isPictoName(nom)) {
+      warnAffichage(
+        `picto:${nom}`,
+        `picto="${nom}" refusé — attendu un nom de pictogramme DSFR (${PICTO_NAME_PATTERN}), ` +
+          `ex. environment/leaf ; rien n'est rendu`
+      );
+      return '';
+    }
+    if (!this.pictoBase) {
+      warnAffichage(
+        `picto-base:${nom}`,
+        `picto="${nom}" sans picto-base — l'adresse des SVG est écrite par l'intégrateur ` +
+          `(picto-base="/dsfr/artwork/pictograms/", même origine que la page) ; rien n'est rendu`
+      );
+      return '';
+    }
+    return nom;
+  }
+
+  /** Adresse du fichier SVG d'un pictogramme : base + nom + `.svg`. */
+  private _pictoFile(nom: string): string {
+    const base = this.pictoBase.endsWith('/') ? this.pictoBase : `${this.pictoBase}/`;
+    return `${base}${nom}.svg`;
+  }
+
+  /** URL d'image acceptée par la liste blanche de schémas, ou `''`. */
+  private _imageUrl(): string {
+    const raw = this.image.trim();
+    if (!raw) return '';
+    const safe = sanitizeTemplateUrl(raw);
+    if (safe) return safe;
+    warnAffichage(
+      `image:${raw}`,
+      `image="${raw}" refusée — schéma hors liste blanche (http, https, mailto, tel ou URL relative) ; ` +
+        `rien n'est rendu`
+    );
+    return '';
+  }
+
+  private _imagePosition(): ImagePosition {
+    const v = this.imagePosition;
+    if ((IMAGE_POSITIONS as readonly string[]).includes(v)) return v as ImagePosition;
+    warnAffichage(
+      `image-position:${v}`,
+      `image-position="${v}" inconnu — attendu ${IMAGE_POSITIONS.join(', ')} ; rendu en top`
+    );
+    return 'top';
+  }
+
+  private _isVertical(): boolean {
+    return this.orientation === 'vertical';
+  }
+
+  /** Mode de liseré effectif : `border` validé, sinon `top` en vertical, sinon `left`. */
+  private _borderMode(): BorderMode {
+    const v = this.border;
+    if ((BORDER_MODES as readonly string[]).includes(v)) {
+      if (v !== 'left' || this.hasAttribute('border') || !this._isVertical())
+        return v as BorderMode;
+    } else {
+      warnAffichage(
+        `border:${v}`,
+        `border="${v}" inconnu — attendu ${BORDER_MODES.join(', ')} ; rendu par défaut`
+      );
+    }
+    return this._isVertical() ? 'top' : 'left';
+  }
+
+  /** Teinte demandée, ou `null` sans `tint` (ou `tint="false"`). */
+  private _tintShade(): TintShade | null {
+    if (this.tint === null || this.tint === undefined) return null;
+    const v = String(this.tint).trim().toLowerCase();
+    if (v === 'false' || v === '0' || v === 'no' || v === 'non') return null;
+    if (v === '' || v === 'true' || v === 'tint') return '950';
+    if ((TINT_SHADES as readonly string[]).includes(v)) return v as TintShade;
+    warnAffichage(`tint:${v}`, `tint="${v}" inconnu — attendu 975, 950 ou 925 ; fond 950`);
+    return '950';
+  }
+
+  /**
+   * Variable CSS du fond teinté, depuis les tokens DSFR — jamais un hexadécimal.
+   * Illustratif : alt (975) / contrast (950) / option 925-125.
+   * Sémantique : option 975-75 / contrast (950) ; pas de 925 dans le DSFR.
+   */
+  private _tintVar(color: KpiColor, shade: TintShade): string {
+    if (ILLUSTRATIVE_COLORS.has(color)) {
+      if (shade === '975') return `var(--background-alt-${color})`;
+      if (shade === '925') return `var(--${color}-925-125)`;
+      return `var(--background-contrast-${color})`;
+    }
+    const nom = SEMANTIC_DSFR_NAMES[color as KpiSemanticColor];
+    if (shade === '975') return `var(--${nom}-975-75)`;
+    if (shade === '925') {
+      warnAffichage(
+        `tint-925:${color}`,
+        `tint="925" avec color-token="${color}" — le DSFR ne définit pas de fond 925 pour les ` +
+          `tokens sémantiques (seulement 975 et 950) ; fond 950 utilisé`
+      );
+    }
+    return `var(--background-contrast-${nom})`;
+  }
+
+  /** Dans un `dsfr-data-kpi-group orientation="vertical"` (lu au rendu). */
+  private _inStackedGroup(): boolean {
+    return this.closest('dsfr-data-kpi-group[orientation="vertical"]') !== null;
+  }
+
   render() {
     const value = this._computeValue();
     const formattedValue = this._formatDisplay(value);
-    const colorClass = COLOR_CLASSES[this._getColor()] || COLOR_CLASSES.bleu;
+    const color = this._getColor();
+    const illustrative = ILLUSTRATIVE_COLORS.has(color);
+    const colorClass = illustrative
+      ? 'dsfr-data-kpi--illustrative'
+      : COLOR_CLASSES[color as KpiSemanticColor] || COLOR_CLASSES.bleu;
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();
 
+    const dataState =
+      !this._blockingConfigError && !this._sourceLoading && !this._sourceError && !this._sourceIdle;
+
+    // --- habillage --------------------------------------------------------
+    const pictoName = this._pictoName();
+    const iconClass = pictoName ? '' : this._iconClass();
+    const hasMedia = Boolean(pictoName || iconClass);
+    const vertical = this._isVertical();
+    const stacked = this._inStackedGroup();
+    // En vertical, comme dans un groupe empilé, le média passe en tête ;
+    // ailleurs, la position demandée (label = rendu historique).
+    const iconPosition: IconPosition =
+      hasMedia && (vertical || stacked) ? 'top' : hasMedia ? this._iconPosition() : 'label';
+    const iconSize: IconSize = hasMedia ? this._iconSize(Boolean(pictoName)) : 'sm';
+    const imageUrl = dataState ? this._imageUrl() : '';
+    const imagePosition = imageUrl ? this._imagePosition() : 'top';
+    const borderMode = this._borderMode();
+    const tintShade = this._tintShade();
+
+    const cardClasses = ['dsfr-data-kpi', colorClass];
+    if (borderMode !== 'left') cardClasses.push(`dsfr-data-kpi--border-${borderMode}`);
+    if (vertical) cardClasses.push('dsfr-data-kpi--vertical');
+    if (vertical && (hasMedia || imageUrl)) cardClasses.push('dsfr-data-kpi--centered');
+    if (tintShade) cardClasses.push('dsfr-data-kpi--tint');
+    if (iconPosition === 'right') cardClasses.push('dsfr-data-kpi--icon-right');
+    if (stacked && hasMedia) cardClasses.push('dsfr-data-kpi--stacked-media');
+    if (imageUrl) cardClasses.push(`dsfr-data-kpi--image-${imagePosition}`);
+    if (hasMedia && iconPosition === 'right') {
+      cardClasses.push(`dsfr-data-kpi--media-${pictoName ? 'picto' : 'icon'}-${iconSize}`);
+    }
+
+    const cardStyle: string[] = [];
+    if (illustrative) cardStyle.push(`--dsfr-data-kpi-accent: var(--border-plain-${color})`);
+    if (tintShade) cardStyle.push(`--dsfr-data-kpi-tint: ${this._tintVar(color, tintShade)}`);
+
+    const media = pictoName
+      ? this._renderPicto(pictoName, iconPosition, iconSize, illustrative ? color : '')
+      : iconClass
+        ? html`
+            <span
+              class="dsfr-data-kpi__icon ${iconClass}${
+                iconPosition !== 'label' ? ` dsfr-data-kpi__icon--${iconPosition}` : ''
+              }${iconSize === 'md' ? ' dsfr-data-kpi__icon--md' : ''}"
+              aria-hidden="true"
+            ></span>
+          `
+        : '';
+
+    const image = imageUrl
+      ? html`
+          <div class="dsfr-data-kpi__image dsfr-data-kpi__image--${imagePosition}">
+            <img src="${imageUrl}" alt="${this.imageAlt}" />
+          </div>
+        `
+      : '';
+
     return html`
-      <div class="dsfr-data-kpi ${colorClass}" role="figure" aria-label="${this._getAriaLabel()}">
+      <div
+        class="${cardClasses.join(' ')}"
+        role="figure"
+        aria-label="${this._getAriaLabel()}"
+        style=${cardStyle.length ? cardStyle.join('; ') : nothing}
+      >
+        ${imageUrl && imagePosition !== 'right' ? image : ''}
         ${
           this._blockingConfigError
             ? renderConfigError('dsfr-data-kpi', this._blockingConfigError)
@@ -593,22 +1056,18 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                 : this._sourceIdle
                   ? renderSourceIdle('dsfr-data-kpi', this.idleMessage)
                   : html`
-                      <div class="dsfr-data-kpi__content">
+                      <div
+                        class="dsfr-data-kpi__content${
+                          iconPosition === 'right' ? ' dsfr-data-kpi__content--icon-right' : ''
+                        }"
+                      >
+                        ${iconPosition === 'top' ? media : ''}
                         ${
                           this.heading
                             ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>`
                             : ''
                         }
-                        ${
-                          this.icon || this.icone
-                            ? html`
-                                <span
-                                  class="dsfr-data-kpi__icon ${this.icon || this.icone}"
-                                  aria-hidden="true"
-                                ></span>
-                              `
-                            : ''
-                        }
+                        ${iconPosition === 'label' ? media : ''}
                         <div class="dsfr-data-kpi__value-wrapper">
                           <span class="dsfr-data-kpi__value">${formattedValue}</span>
                           ${
@@ -648,9 +1107,11 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                           `
                         )}
                         <span class="dsfr-data-kpi__label">${this.label}</span>
+                        ${iconPosition === 'right' ? media : ''}
                       </div>
                     `
         }
+        ${imageUrl && imagePosition === 'right' ? image : ''}
       </div>
       <style>
         .dsfr-data-kpi {
@@ -736,7 +1197,240 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
         .dsfr-data-kpi__error {
           color: var(--text-default-error);
         }
+
+        /* ------------------------------------------------------------------
+           Habillage (planche kpi-evolutions). Tout ce qui suit est ADDITIF :
+           les règles ci-dessus, qui régissent le rendu historique, ne sont pas
+           retouchées (tests/kpi-rendu-retrocompat.test.ts) — les tokens
+           sémantiques n'y gagnent qu'une variable d'accent, consommée par les
+           nouveaux modes seulement.
+           ------------------------------------------------------------------ */
+        .dsfr-data-kpi--success {
+          --dsfr-data-kpi-accent: var(--background-flat-success);
+        }
+        .dsfr-data-kpi--warning {
+          --dsfr-data-kpi-accent: var(--background-flat-warning);
+        }
+        .dsfr-data-kpi--error {
+          --dsfr-data-kpi-accent: var(--background-flat-error);
+        }
+        .dsfr-data-kpi--info {
+          --dsfr-data-kpi-accent: var(--background-flat-info);
+        }
+        /* Couleur illustrative : l'accent est posé en style inline,
+           var(--border-plain-<nom>) — token DSFR, mode sombre inclus. */
+        .dsfr-data-kpi--illustrative {
+          border-left-color: var(--dsfr-data-kpi-accent);
+        }
+
+        /* Liseré : border="top|bottom|outline|left-short|none" */
+        .dsfr-data-kpi--border-top {
+          border-left-width: 0;
+          border-top: 4px solid var(--dsfr-data-kpi-accent, var(--border-default-grey));
+        }
+        .dsfr-data-kpi--border-bottom {
+          border-left-width: 0;
+          box-shadow: inset 0 -2px 0 var(--dsfr-data-kpi-accent, var(--border-default-grey));
+        }
+        .dsfr-data-kpi--border-outline {
+          border: 1px solid var(--dsfr-data-kpi-accent, var(--border-default-grey));
+        }
+        .dsfr-data-kpi--border-left-short {
+          border-left-width: 0;
+          position: relative;
+        }
+        .dsfr-data-kpi--border-left-short::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 1.5rem;
+          width: 4px;
+          height: 2.5rem;
+          background: var(--dsfr-data-kpi-accent, var(--border-default-grey));
+        }
+        .dsfr-data-kpi--border-none {
+          border-left-width: 0;
+        }
+
+        /* Fond teinté : la VALEUR reste en gris titre (contraste, planche 3b). */
+        .dsfr-data-kpi--tint {
+          background: var(--dsfr-data-kpi-tint);
+        }
+        .dsfr-data-kpi--tint .dsfr-data-kpi__heading,
+        .dsfr-data-kpi--tint .dsfr-data-kpi__label {
+          color: var(--text-default-grey);
+        }
+
+        /* Icône : taille et position */
+        .dsfr-data-kpi__icon--md {
+          font-size: 2rem;
+          --icon-size: 2rem;
+        }
+        .dsfr-data-kpi__icon--top,
+        .dsfr-data-kpi__icon--right {
+          color: var(--dsfr-data-kpi-accent, var(--text-mention-grey));
+          line-height: 1;
+        }
+        .dsfr-data-kpi--media-icon-sm {
+          --dsfr-data-kpi-media-size: 1.5rem;
+        }
+        .dsfr-data-kpi--media-icon-md {
+          --dsfr-data-kpi-media-size: 2rem;
+        }
+        .dsfr-data-kpi--media-picto-sm {
+          --dsfr-data-kpi-media-size: 3.5rem;
+        }
+        .dsfr-data-kpi--media-picto-md {
+          --dsfr-data-kpi-media-size: 5rem;
+        }
+        .dsfr-data-kpi--icon-right {
+          position: relative;
+        }
+        .dsfr-data-kpi__content--icon-right {
+          padding-right: calc(var(--dsfr-data-kpi-media-size, 1.5rem) + 1.5rem);
+        }
+        .dsfr-data-kpi__icon--right,
+        .dsfr-data-kpi__picto--right {
+          position: absolute;
+          top: 1.5rem;
+          right: 1.5rem;
+        }
+
+        /* Pictogramme DSFR : échelle des tuiles (5 rem, 3,5 rem en sm) */
+        .dsfr-data-kpi__picto {
+          width: 5rem;
+          height: 5rem;
+          flex: none;
+        }
+        .dsfr-data-kpi__picto--sm {
+          width: 3.5rem;
+          height: 3.5rem;
+        }
+
+        /* Image : bandeau, colonne ou vignette */
+        .dsfr-data-kpi__image {
+          flex: none;
+          overflow: hidden;
+        }
+        .dsfr-data-kpi__image img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .dsfr-data-kpi--image-top {
+          padding: 0;
+        }
+        .dsfr-data-kpi--image-top > .dsfr-data-kpi__content {
+          padding: 1.5rem;
+        }
+        .dsfr-data-kpi__image--top {
+          aspect-ratio: 16 / 9;
+        }
+        .dsfr-data-kpi--image-left {
+          flex-direction: row;
+          justify-content: flex-start;
+          align-items: stretch;
+          padding: 0;
+        }
+        .dsfr-data-kpi--image-left > .dsfr-data-kpi__content {
+          flex: 1;
+          min-width: 0;
+          justify-content: center;
+          padding: 1.5rem;
+        }
+        .dsfr-data-kpi__image--left {
+          width: 10rem;
+        }
+        .dsfr-data-kpi--image-right {
+          flex-direction: row;
+          justify-content: flex-start;
+          align-items: flex-start;
+          gap: 1.5rem;
+        }
+        .dsfr-data-kpi--image-right > .dsfr-data-kpi__content {
+          flex: 1;
+          min-width: 0;
+        }
+        .dsfr-data-kpi__image--right {
+          width: 7.5rem;
+          height: 7.5rem;
+        }
+
+        /* Vertical : tuile centrée quand elle porte un média (1f), sinon 1g */
+        .dsfr-data-kpi--centered {
+          align-items: center;
+          text-align: center;
+        }
+        .dsfr-data-kpi--centered .dsfr-data-kpi__content {
+          align-items: center;
+        }
+        .dsfr-data-kpi--centered .dsfr-data-kpi__value-wrapper {
+          justify-content: center;
+        }
+
+        /* Groupe empilé (dsfr-data-kpi-group orientation="vertical", 1e) :
+           un liseré continu porté par le groupe, un filet entre les KPI,
+           le média à gauche du texte à 2,5 rem. */
+        dsfr-data-kpi-group[orientation='vertical'] > dsfr-data-kpi > .dsfr-data-kpi {
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+          min-height: 0;
+          height: auto;
+          padding: 1.25rem 2rem 1.5rem;
+          background: transparent;
+          position: relative;
+        }
+        dsfr-data-kpi-group[orientation='vertical']
+          > dsfr-data-kpi:not(:last-child)
+          > .dsfr-data-kpi {
+          box-shadow: inset 0 -1px 0 var(--border-default-grey);
+        }
+        dsfr-data-kpi-group[orientation='vertical'] > dsfr-data-kpi .dsfr-data-kpi__value {
+          font-size: 2rem;
+        }
+        dsfr-data-kpi-group[orientation='vertical'] > dsfr-data-kpi .dsfr-data-kpi__content {
+          gap: 0.25rem;
+        }
+        dsfr-data-kpi-group[orientation='vertical']
+          > dsfr-data-kpi
+          > .dsfr-data-kpi--stacked-media {
+          padding-left: 5.75rem;
+        }
+        dsfr-data-kpi-group[orientation='vertical'] > dsfr-data-kpi .dsfr-data-kpi__icon--top,
+        dsfr-data-kpi-group[orientation='vertical'] > dsfr-data-kpi .dsfr-data-kpi__picto--top {
+          position: absolute;
+          left: 2rem;
+          top: 1.25rem;
+          width: 2.5rem;
+          height: 2.5rem;
+          font-size: 2.5rem;
+          --icon-size: 2.5rem;
+        }
       </style>
+    `;
+  }
+
+  /** SVG canonique d'un pictogramme DSFR : trois `<use>` vers le même fichier. */
+  private _renderPicto(nom: string, position: IconPosition, size: IconSize, illustrative: string) {
+    const file = this._pictoFile(nom);
+    const classes = ['fr-artwork', 'dsfr-data-kpi__picto'];
+    if (position !== 'label') classes.push(`dsfr-data-kpi__picto--${position}`);
+    if (size === 'sm') classes.push('dsfr-data-kpi__picto--sm');
+    if (illustrative) classes.push(`fr-artwork--${illustrative}`);
+    return html`
+      <svg
+        class="${classes.join(' ')}"
+        aria-hidden="true"
+        viewBox="0 0 80 80"
+        width="80"
+        height="80"
+      >
+        <use class="fr-artwork-decorative" href="${file}#artwork-decorative"></use>
+        <use class="fr-artwork-minor" href="${file}#artwork-minor"></use>
+        <use class="fr-artwork-major" href="${file}#artwork-major"></use>
+      </svg>
     `;
   }
 }

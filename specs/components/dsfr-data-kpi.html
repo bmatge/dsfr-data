@@ -12,6 +12,12 @@
   <style>
     body { min-height: 100vh; display: flex; flex-direction: column; }
     .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin: 1rem 0; }
+    .kpi-grid--large { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .kpi-grid--17 { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
+    .kpi-grid--17 dsfr-data-kpi .dsfr-data-kpi { min-height: 0; padding: 0.75rem 1rem; }
+    .kpi-grid--17 dsfr-data-kpi .dsfr-data-kpi__value { font-size: 1.5rem; }
+    .kpi-demo-vertical { max-width: 30rem; }
+    .vignette { font-family: monospace; font-size: 0.75rem; color: var(--text-mention-grey); margin: 0.25rem 0 0; }
   </style>
 </head>
 <body>
@@ -38,7 +44,7 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-kpi fields="source,value,heading,label,description,trend,lines,format,unit,decimals,icon,color-token,threshold-green,threshold-orange,span,col,where,idle-message" -->
+              <!-- ATTRS:dsfr-data-kpi fields="source,value,heading,label,description,trend,lines,format,unit,decimals,icon,icon-position,icon-size,picto,picto-field,picto-base,image,image-alt,image-position,orientation,border,tint,color-token,threshold-green,threshold-orange,span,col,where,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce KPI consomme les données. Facultatif si <code>value</code> est un littéral (<code>value="=667"</code>).</td></tr>
                 <tr><td><code>value</code></td><td>String</td><td>Expression de valeur — convention cible anglaise (#300). Grammaire commune "champ:fn" (#303), ex. value="population:sum". <code>champ:distinct</code> (alias <code>count-distinct</code>, #672) : nombre de valeurs distinctes, null et chaîne vide exclus, calculé sur les lignes reçues. <code>meta:total</code> (#659) : total publié par l'amont (total serveur en server-side, lignes avant <code>limit</code> derrière un query) — <code>count</code> ne compte que les lignes reçues. Ratio (#673) : <code>value="count:statut:ouvert / count"</code>, chaque côté dans la grammaire ci-dessus (<code>meta:total</code> compris). Résultat = fraction (0,35) ; <code>format="pourcentage"</code> la rend en pourcentage (35 %) — les seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ». <code>count:champ:valeur</code> accepte un champ tableau (un élément égal suffit). Depuis #953, le <code>where</code> ci-dessous et le filtre entre accolades <code>count{tags:eq:urgent}</code> font PAREIL : <code>value="count:tags:urgent"</code> et <code>value="count{tags:eq:urgent}"</code> rendent le MÊME chiffre. L'asymétrie de #842 — deux chiffres sur le même jeu, et c'était « voulu » — a disparu : l'égalité client est alignée sur celle du portail, qui lit déjà <code>=</code> sur un champ multivalué comme un « contient » (mesuré le 2026-09-19). Seul <code>count</code> accepte une valeur de filtre : <code>sum:champ:valeur</code> est une erreur de configuration (#764). Filtre propre à une expression (#776), dialecte du <code>where</code> entre accolades : <code>value="effectif:sum{sexe:eq:F} / effectif:sum"</code> rend une part de SOMMES — le filtre ne vaut que pour son côté du ratio, là où <code>where</code> filtre les deux. Marche aussi pour <code>count{…}</code> et les autres fonctions ; un filtre non reconnu est une erreur de configuration. Le contenu des accolades est lu d'un bloc : une valeur qui contient <code> / </code> ne coupe pas le ratio (#839). <code>champ:first</code> / <code>champ:last</code> : valeur du champ sur la première / la dernière ligne, DANS L'ORDRE COURANT — poser un <code>order-by</code> en amont (ex. dernière valeur d'une série datée). Propres au KPI : absentes de l'<code>aggregate</code> de <code>dsfr-data-query</code>. <code>champ:evolution</code> (#675) : (dernière − première) / première sur les lignes DANS LEUR ORDRE COURANT — poser un <code>order-by</code> chronologique en amont. Fraction, rendue en pourcentage par <code>format="pourcentage"</code>, <code>trend</code> et <code>lines</code> ; « — » si moins de deux valeurs ou première = 0.</td></tr>
                 <tr><td><code>heading</code></td><td>String</td><td>Titre affiché AU-DESSUS de la valeur (surtitre, style majuscules grises). Nommé <code>heading</code> et non <code>title</code> : ce dernier entrerait en collision avec la propriété DOM native HTMLElement.title (infobulle).</td></tr>
@@ -49,8 +55,19 @@
                 <tr><td><code>format</code></td><td>FormatType</td><td>Format d'affichage : nombre (défaut), pourcentage, euro, decimal, compact (14 785 684 → « 14,8 M »), date (chaîne ISO → « 09/09/2026 », #667). Les décimales passent par <code>decimals</code>, jamais par le format (<code>euro:3</code> est refusé et affiché comme erreur de configuration, #665).</td></tr>
                 <tr><td><code>unit</code></td><td>String</td><td>Unité accolée après la valeur (espace insécable), ex. <code>format="compact" unit="€"</code> → « 44,9 Md € ». Surtout utile avec nombre, decimal et compact — euro et pourcentage portent déjà leur symbole (#665).</td></tr>
                 <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales affichées (entier 0 à 20), ex. <code>format="euro" decimals="3"</code> → « 1,749 € ». Fixe pour nombre, pourcentage, euro et decimal ; plafond pour compact ; sans effet sur date. Absent : défaut historique du format (#665).</td></tr>
-                <tr><td><code>icon</code></td><td>String</td><td>Classe d'icône (ex: ri-global-line)</td></tr>
-                <tr><td><code>color-token</code></td><td>KpiColor | ''</td><td>Couleur forcée (token sémantique DSFR) : vert, orange, rouge, bleu</td></tr>
+                <tr><td><code>icon</code></td><td>String</td><td>Classe d'icône DSFR (<code>fr-icon-leaf-line</code>) ou Remix (<code>ri-global-line</code>). Une CLASSE, jamais du balisage : la valeur doit suivre <code>^(fr-icon|ri)-[a-z0-9-]+$</code>, sinon elle est ignorée avec un avertissement console qui la nomme (une fois par valeur). Placement et taille : <code>icon-position</code>, <code>icon-size</code>. Remplacée par <code>picto</code> si les deux sont posés.</td></tr>
+                <tr><td><code>icon-position</code></td><td>IconPosition | string</td><td>Où se place l'icône (ou le pictogramme) : <code>label</code> (défaut, rendu historique : entre le surtitre et la valeur, en gris), <code>top</code> (en tête de la carte, dans la couleur de l'accent — vignette 1a), <code>right</code> (à droite, alignée en haut, le texte garde sa marge — vignette 1b). Sans effet sans <code>icon</code> ni <code>picto</code>.</td></tr>
+                <tr><td><code>icon-size</code></td><td>IconSize | string</td><td>Taille de l'icône : <code>sm</code> = 1,5 rem (24 px — sans attribut, c'est le rendu historique, inchangé) ou <code>md</code> = 2 rem (32 px). L'échelle s'arrête là : l'échelle documentée du DSFR s'arrête à <code>fr-icon--lg</code> = 2 rem, et au-delà le DSFR ne parle plus d'icône mais de PICTOGRAMME — pour une illustration de 48 ou 80 px, poser <code>picto</code>, pas une icône agrandie. Ni <code>lg</code>, ni valeur en pixels : une autre valeur est ignorée avec un avertissement. Vaut aussi pour <code>picto</code>, sur l'échelle des tuiles DSFR : <code>sm</code> = 3,5 rem, <code>md</code> = 5 rem (sans attribut : <code>md</code>, la tuile DSFR standard). Pour une icône <code>fr-icon-*</code>, la taille passe par <code>--icon-size</code> (le glyphe est un <code>::before</code> masqué, indifférent à <code>font-size</code>).</td></tr>
+                <tr><td><code>picto</code></td><td>String</td><td>Pictogramme DSFR illustratif (<code>fr-artwork</code>), par son NOM : <code>environment/leaf</code>, <code>buildings/city-hall</code>… (dossier de catégorie + fichier, sans <code>.svg</code>). Contraint à <code>^[a-z0-9-]+(/[a-z0-9-]+)*$</code> — ce motif exclut <code>../</code> et tout schéma sans assainisseur. Le composant rend le SVG canonique à trois <code>&lt;use&gt;</code> (<code>#artwork-decorative</code>, <code>#artwork-minor</code>, <code>#artwork-major</code>) dont l'adresse est <code>picto-base</code> + nom + <code>.svg</code> : <code>picto-base</code> est OBLIGATOIRE (sans lui, rien n'est rendu, avec un avertissement). Les couleurs viennent des classes <code>fr-artwork-*</code> du DSFR — le mode sombre suit sans travail — et une couleur illustrative (<code>color-token</code>) est reportée en <code>fr-artwork--&lt;nom&gt;</code>. ⚠️ <code>&lt;use href&gt;</code> vers un AUTRE domaine n'est pas rendu par les navigateurs (pas de CORS sur <code>use</code>) : <code>picto-base</code> doit servir les SVG depuis l'origine de la page (copie locale de <code>dist/artwork/pictograms/</code>), pas depuis un CDN. Prime sur <code>icon</code>. Mêmes <code>icon-position</code> et <code>icon-size</code> que l'icône.</td></tr>
+                <tr><td><code>picto-field</code></td><td>String</td><td>Même chose que <code>picto</code>, mais le nom est lu dans un CHAMP de la première ligne reçue (<code>picto-field="theme_picto"</code>) — utile dans un répéteur. Même motif, même refus. <code>picto</code> prime s'il est posé.</td></tr>
+                <tr><td><code>picto-base</code></td><td>String</td><td>Préfixe d'adresse des pictogrammes, écrit par l'intégrateur : <code>picto-base="/dsfr/artwork/pictograms/"</code>. Le nom (<code>picto</code>) y est concaténé (barre finale ajoutée si absente). C'est ce découpage nom / base qui rend <code>picto</code> sûr par construction. Même origine que la page, voir <code>picto</code>.</td></tr>
+                <tr><td><code>image</code></td><td>String</td><td>Image libre (photo, logo) par son URL. Passée par la même liste blanche de schémas que le format <code>{{champ:url}}</code> des gabarits (<code>http:</code>, <code>https:</code>, <code>mailto:</code>, <code>tel:</code> ou relative) : une URL refusée (<code>javascript:</code>, <code>data:</code>…) n'affiche rien et avertit. Placement : <code>image-position</code>. Texte alternatif : <code>image-alt</code> (vide = décorative). Rendue seulement quand la donnée est là.</td></tr>
+                <tr><td><code>image-alt</code></td><td>String</td><td>Texte alternatif de <code>image</code>. Vide (défaut) : image décorative (<code>alt=""</code>).</td></tr>
+                <tr><td><code>image-position</code></td><td>ImagePosition | string</td><td>Placement de <code>image</code> : <code>top</code> (défaut, bandeau 16:9 bord à bord au-dessus du contenu — vignette 1d), <code>left</code> (colonne de 10 rem pleine hauteur, le liseré reste à gauche de l'image — 2a), <code>right</code> (vignette carrée de 7,5 rem dans la marge, à droite du texte — 2b).</td></tr>
+                <tr><td><code>orientation</code></td><td><code>horizontal</code> · <code>vertical</code></td><td><code>horizontal</code> (défaut, carte à liseré gauche) ou <code>vertical</code> : tuile à liseré HAUT (sauf <code>border</code> explicite). Avec une icône, un pictogramme ou une image, tout passe au-dessus du surtitre et le texte est centré (vignette 1f) ; sans média, le KPI reste aligné à gauche — la version sobre des chiffres-clés éditoriaux (1g). Sur <code>dsfr-data-kpi-group</code>, le même attribut empile les KPI (voir le groupe).</td></tr>
+                <tr><td><code>border</code></td><td>BorderMode | string</td><td>Tracé du liseré ; sa couleur reste celle de <code>color-token</code> ou des seuils. <code>left</code> (défaut, 4 px, rendu historique), <code>top</code> (4 px), <code>bottom</code> (filet de 2 px, comme les champs DSFR), <code>outline</code> (contour de 1 px), <code>left-short</code> (4 px à hauteur de la valeur), <code>none</code>. Autre valeur : ignorée, avertissement.</td></tr>
+                <tr><td><code>tint</code></td><td>String</td><td>Fond teinté dans la couleur du token : <code>tint</code> (ou <code>tint="true"</code>) prend le fond 950 (<code>--background-contrast-&lt;nom&gt;</code>) ; <code>tint="975"</code> le fond le plus clair (<code>--background-alt-&lt;nom&gt;</code>) ; <code>tint="925"</code> le plus soutenu (<code>--&lt;nom&gt;-925-125</code>). Les 4 tokens sémantiques n'ont pas de 925 dans le DSFR : replié sur 950 avec un avertissement. La VALEUR reste en gris titre (<code>--text-title-grey</code>) : les teintes pleines claires (tournesol, café-crème, galet) ne tiennent pas le contraste pour du texte — planche 3b. Le surtitre et le libellé passent en <code>--text-default-grey</code> pour la même raison. Se combine avec <code>border</code> (souvent <code>border="none"</code>).</td></tr>
+                <tr><td><code>color-token</code></td><td>KpiColor | ''</td><td>Couleur forcée. Deux familles, deux SENS : - les 4 tokens sémantiques <code>vert</code>, <code>orange</code>, <code>rouge</code>, <code>bleu</code> disent un ÉTAT (bon, attention, critique, neutre) — c'est aussi ce que posent les seuils, et ce que le libellé accessible annonce (« etat bon ») ; - les 17 couleurs illustratives DSFR (<code>green-emeraude</code>, <code>blue-cumulus</code>, <code>purple-glycine</code>, <code>orange-terre-battue</code>… liste : <code>ILLUSTRATIVE_COLOR_TOKENS</code>) disent une CATÉGORIE — thème, ministère, famille de données — et n'annoncent aucun état. Un KPI en rouge illustratif (<code>pink-tuile</code>) qui ne veut pas dire « mauvais » est un contresens de lecture : l'état reste aux tokens sémantiques. Une couleur illustrative pose le liseré et l'icône en teinte pleine via <code>var(--border-plain-&lt;nom&gt;)</code> et, avec <code>tint</code>, le fond via <code>var(--background-contrast-&lt;nom&gt;)</code> — tokens DSFR existants, aucun hexadécimal : le mode sombre suit. Nom inconnu : ignoré avec avertissement, repli sur les seuils puis bleu.</td></tr>
                 <tr><td><code>threshold-green</code></td><td>Number</td><td>Seuil au-dessus duquel la valeur est verte</td></tr>
                 <tr><td><code>threshold-orange</code></td><td>Number</td><td>Seuil au-dessus duquel la valeur est orange</td></tr>
                 <tr><td><code>span</code></td><td>String</td><td>Largeur sur la grille de 12 colonnes (1-12), dans un &lt;dsfr-data-kpi-group&gt; : <code>span="6"</code> occupe la moitié de la ligne. Remplace <code>col</code>, même sens (#790) ; prime sur <code>col</code> s'ils sont posés ensemble. Sans valeur par défaut, et pour la même raison que <code>col</code> : la propriété est reflétée, donc une valeur initiale <code>''</code> poserait <code>span=""</code> sur CHAQUE KPI. La largeur par défaut du groupe est portée par une règle <code>::slotted(*:not([col]):not([span]))</code> — un attribut vide, mais présent, la désactive et tous les KPI retombent en <code>grid-column: auto</code> (#822).</td></tr>
@@ -80,10 +97,11 @@
             <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>aria-label</code></td><td>String</td><td>Label accessible du groupe</td></tr>
-              <!-- ATTRS:dsfr-data-kpi-group fields="per-row,cols,gap" -->
+              <!-- ATTRS:dsfr-data-kpi-group fields="per-row,cols,gap,orientation" -->
                 <tr><td><code>per-row</code></td><td>String</td><td>Nombre de KPI par ligne à partir de 768 px (en dessous : un par ligne) — 1, 2, 3, 4, 6 ou 12, les diviseurs de la grille. Échelle mobile-first (#789) : <code>per-row="2 md:4"</code> — deux KPI par ligne sur téléphone, quatre à partir de 768 px ; avec un terme de base ou un palier <code>sm</code>, le repli forcé sur une colonne ne s'applique plus. Remplace <code>cols</code>, même sens (#790) ; prime sur <code>cols</code> s'ils sont posés ensemble. Un KPI qui porte <code>span</code> (ou <code>col</code>) garde sa propre largeur.</td></tr>
                 <tr><td><code>cols</code></td><td>Number</td><td>Nombre de KPI par ligne par défaut (1-12). Chaque enfant occupe Math.floor(12/cols) colonnes. Même rôle que <code>per-row</code>, qui est préféré : <code>cols</code> désigne une LARGEUR sur <code>dsfr-data-facets</code> (#790). Toujours accepté, avec le même sens.</td></tr>
                 <tr><td><code>gap</code></td><td><code>sm</code> · <code>md</code> · <code>lg</code></td><td>Espacement entre KPIs : sm (0.5rem), md (1rem), lg (1.5rem)</td></tr>
+                <tr><td><code>orientation</code></td><td><code>horizontal</code> · <code>vertical</code></td><td><code>horizontal</code> (défaut : la grille 12 colonnes) ou <code>vertical</code> : les KPI sont EMPILÉS en colonne dans un seul cadre — un liseré gauche continu porté par le groupe, un filet entre les items, valeur à 2 rem, icône ou pictogramme à 2,5 rem à gauche du texte (planche kpi-evolutions, 1e). Compact, pour une barre latérale ou un encart. <code>per-row</code>, <code>cols</code>, <code>span</code> et <code>gap</code> sont sans effet dans ce mode. Les KPI enfants perdent leur propre liseré (règle portée par <code>dsfr-data-kpi</code>, sur le sélecteur <code>dsfr-data-kpi-group[orientation="vertical"]</code>) — ils sont lus au rendu : un changement d'orientation APRÈS le montage ne les remet pas en forme. Le liseré du groupe est bleu info ; il ne suit pas le <code>color-token</code> des enfants.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -250,6 +268,147 @@
   <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:min"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Plus bas RGAA"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"rouge"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
   <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa:max"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"Meilleur RGAA"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"vert"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
 <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi-group</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <h2 class="fr-mt-4w" id="habillage">Habillage : icône, pictogramme, image, liseré, teinte</h2>
+        <p>
+          Évolutions d'affichage de la planche « kpi-evolutions » (tours 1 à 3). <strong>Rien côté données</strong>,
+          et <strong>rien sans les nouveaux attributs</strong> : sans eux, le rendu est celui des exemples 1 à 9,
+          byte à byte (<code>tests/kpi-rendu-retrocompat.test.ts</code>). Les pictogrammes sont servis depuis
+          <code>specs/assets/pictograms/</code> — même origine que la page : un <code>&lt;use href&gt;</code> vers
+          un CDN n'est pas rendu par les navigateurs.
+        </p>
+        <dsfr-data-source id="evo" data='[{"immat":36594,"immat_evol":111,"pdm":29.4,"pdm_evol":96.3,"pl":3.3,"pac":15176,"pac_evol":2.9,"entrees":78,"env":38.2,"log":15176,"edu":1948,"sport":193,"severite":43,"balises":1948,"theme_picto":"environment/leaf"}]'></dsfr-data-source>
+
+        <section class="demo-section" id="tour-1">
+          <h3>10. Tour 1 — icône, pictogramme, image (1a à 1d)</h3>
+          <p class="fr-text--sm fr-text--light">
+            1a et 1b : la planche montrait une icône de 48 et 64 px ; l'échelle d'<code>icon-size</code> s'arrête à
+            <code>md</code> = 2 rem (la plus grande icône documentée du DSFR), donc ces deux vignettes se rendent avec
+            un <strong>pictogramme</strong>. 1c : l'icône dans le libellé est le rendu par défaut, inchangé.
+          </p>
+          <div class="kpi-grid kpi-grid--large">
+            <div>
+              <dsfr-data-kpi source="evo" heading="Immatriculations" value="immat" format="nombre" lines='[{"value":"immat_evol","sign":true,"suffix":"depuis 1 an","color":"auto"}]' label="voitures électriques immatriculées dans le mois" picto="environment/leaf" picto-base="../assets/pictograms/" icon-position="top" icon-size="sm"></dsfr-data-kpi>
+              <p class="vignette">1a · picto="environment/leaf" picto-base="…" icon-position="top" icon-size="sm"</p>
+            </div>
+            <div>
+              <dsfr-data-kpi source="evo" heading="Part de marché" value="pdm" format="pourcentage" lines='[{"value":"pdm_evol","sign":true,"suffix":"depuis 1 an","color":"auto"}]' label="des voitures neuves vendues sont électriques" picto="buildings/city-hall" picto-base="../assets/pictograms/" icon-position="right"></dsfr-data-kpi>
+              <p class="vignette">1b · picto="buildings/city-hall" icon-position="right"</p>
+            </div>
+            <div>
+              <dsfr-data-kpi source="evo" heading="Poids lourds" value="pl" format="pourcentage" label="des camions neufs vendus sont électriques" icon="ri-truck-line" color-token="vert"></dsfr-data-kpi>
+              <p class="vignette">1c · icon="ri-truck-line" (rendu par défaut)</p>
+            </div>
+            <div>
+              <dsfr-data-kpi source="evo" heading="Pompes à chaleur" value="pac" format="nombre" lines='[{"value":"pac_evol","sign":true,"suffix":"depuis 1 an","color":"auto"}]' label="vendues par mois en moyenne" image="../assets/kpi-image-demo.svg" image-alt=""></dsfr-data-kpi>
+              <p class="vignette">1d · image="…" image-alt="" (bandeau 16:9)</p>
+            </div>
+          </div>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"evo"</span> <span class="tok-attr">heading</span><span class="tok-punct">=</span><span class="tok-string">"Immatriculations"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"immat"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"…"</span>
+  <span class="tok-attr">picto</span><span class="tok-punct">=</span><span class="tok-string">"environment/leaf"</span> <span class="tok-attr">picto-base</span><span class="tok-punct">=</span><span class="tok-string">"../assets/pictograms/"</span> <span class="tok-attr">icon-position</span><span class="tok-punct">=</span><span class="tok-string">"top"</span> <span class="tok-attr">icon-size</span><span class="tok-punct">=</span><span class="tok-string">"sm"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"evo"</span> <span class="tok-attr">heading</span><span class="tok-punct">=</span><span class="tok-string">"Part de marché"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"pdm"</span> <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"pourcentage"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"…"</span>
+  <span class="tok-attr">picto</span><span class="tok-punct">=</span><span class="tok-string">"buildings/city-hall"</span> <span class="tok-attr">picto-base</span><span class="tok-punct">=</span><span class="tok-string">"../assets/pictograms/"</span> <span class="tok-attr">icon-position</span><span class="tok-punct">=</span><span class="tok-string">"right"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"evo"</span> <span class="tok-attr">heading</span><span class="tok-punct">=</span><span class="tok-string">"Poids lourds"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"pl"</span> <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"pourcentage"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"…"</span>
+  <span class="tok-attr">icon</span><span class="tok-punct">=</span><span class="tok-string">"fr-icon-truck-line"</span> <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"vert"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"evo"</span> <span class="tok-attr">heading</span><span class="tok-punct">=</span><span class="tok-string">"Pompes à chaleur"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"pac"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"…"</span>
+  <span class="tok-attr">image</span><span class="tok-punct">=</span><span class="tok-string">"../assets/kpi-image-demo.svg"</span> <span class="tok-attr">image-alt</span><span class="tok-punct">=</span><span class="tok-string">""</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section" id="tour-1-vertical">
+          <h3>11. Tour 1 — mode vertical (1e à 1g)</h3>
+          <div class="kpi-grid kpi-grid--large">
+            <div class="kpi-demo-vertical">
+              <dsfr-data-kpi-group orientation="vertical">
+                <dsfr-data-kpi source="evo" heading="Immatriculations" value="immat" format="nombre" lines='[{"value":"immat_evol","sign":true,"suffix":"· voitures électriques immatriculées dans le mois","color":"auto"}]' icon="fr-icon-car-line"></dsfr-data-kpi>
+                <dsfr-data-kpi source="evo" heading="Part de marché" value="pdm" format="pourcentage" lines='[{"value":"pdm_evol","sign":true,"suffix":"· des voitures neuves vendues","color":"auto"}]' icon="fr-icon-pie-chart-2-line"></dsfr-data-kpi>
+                <dsfr-data-kpi source="evo" heading="Poids lourds" value="pl" format="pourcentage" label="des camions neufs vendus sont électriques" icon="ri-truck-line"></dsfr-data-kpi>
+              </dsfr-data-kpi-group>
+              <p class="vignette">1e · &lt;dsfr-data-kpi-group orientation="vertical"&gt;</p>
+            </div>
+            <div>
+              <div class="kpi-grid">
+                <dsfr-data-kpi source="evo" heading="Pompes à chaleur" value="pac" format="nombre" lines='[{"value":"pac_evol","sign":true,"suffix":"depuis 1 an","color":"auto"}]' label="vendues par mois en moyenne" orientation="vertical" picto="environment/sun" picto-base="../assets/pictograms/"></dsfr-data-kpi>
+                <dsfr-data-kpi source="evo" heading="Dont sévérité haute" value="severite" format="nombre" label="chiffre faux ou fonction inutilisable" orientation="vertical" picto="institutions/money" picto-base="../assets/pictograms/" color-token="orange"></dsfr-data-kpi>
+              </div>
+              <p class="vignette">1f · orientation="vertical" picto="environment/sun" (tuile centrée)</p>
+            </div>
+            <div>
+              <dsfr-data-kpi source="evo" heading="Balises posées" value="balises" format="nombre" label="occurrences dans les pages du dépôt" orientation="vertical"></dsfr-data-kpi>
+              <p class="vignette">1g · orientation="vertical" (sans picto : aligné à gauche)</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="demo-section" id="tour-2">
+          <h3>12. Tour 2 — image horizontale et formats de liseré (2a à 2i)</h3>
+          <div class="kpi-grid kpi-grid--large">
+            <div>
+              <dsfr-data-kpi source="evo" heading="Pompes à chaleur" value="pac" format="nombre" lines='[{"value":"pac_evol","sign":true,"suffix":"depuis 1 an","color":"auto"}]' label="vendues par mois en moyenne" image="../assets/kpi-image-demo.svg" image-position="left"></dsfr-data-kpi>
+              <p class="vignette">2a · image-position="left"</p>
+            </div>
+            <div>
+              <dsfr-data-kpi source="evo" heading="Part de marché" value="pdm" format="pourcentage" lines='[{"value":"pdm_evol","sign":true,"suffix":"depuis 1 an","color":"auto"}]' label="des voitures neuves vendues sont électriques" image="../assets/kpi-image-demo.svg" image-position="right"></dsfr-data-kpi>
+              <p class="vignette">2b · image-position="right"</p>
+            </div>
+          </div>
+          <div class="kpi-grid">
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="left"></dsfr-data-kpi><p class="vignette">2c · border="left"</p></div>
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="top"></dsfr-data-kpi><p class="vignette">2d · border="top"</p></div>
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="bottom"></dsfr-data-kpi><p class="vignette">2e · border="bottom"</p></div>
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="outline"></dsfr-data-kpi><p class="vignette">2f · border="outline"</p></div>
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="left-short"></dsfr-data-kpi><p class="vignette">2g · border="left-short"</p></div>
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="none" tint></dsfr-data-kpi><p class="vignette">2h · border="none" tint</p></div>
+            <div><dsfr-data-kpi source="evo" heading="Entrées suivies" value="entrees" label="tous contenus des trois catalogues" border="none"></dsfr-data-kpi><p class="vignette">2i · border="none"</p></div>
+          </div>
+        </section>
+
+        <section class="demo-section" id="tour-3">
+          <h3>13. Tour 3 — couleurs illustratives (3a à 3c)</h3>
+          <p class="fr-text--sm fr-text--light">
+            Une couleur illustrative dit une <strong>catégorie</strong> (thème, ministère, famille de données) ;
+            l'<strong>état</strong> reste aux quatre tokens sémantiques et aux seuils. Liseré et icône :
+            <code>var(--border-plain-&lt;nom&gt;)</code> ; fond teinté : <code>var(--background-contrast-&lt;nom&gt;)</code>.
+            Aucun hexadécimal, le mode sombre suit. Sous <code>tint</code>, la valeur reste en gris titre.
+          </p>
+          <div class="kpi-grid">
+            <dsfr-data-kpi source="evo" heading="Environnement" value="env" format="pourcentage" label="de voitures neuves électriques" color-token="green-emeraude" icon="fr-icon-leaf-line" icon-position="top"></dsfr-data-kpi>
+            <dsfr-data-kpi source="evo" heading="Logement" value="log" format="nombre" label="pompes à chaleur par mois" color-token="blue-cumulus" icon="fr-icon-building-line" icon-position="top"></dsfr-data-kpi>
+            <dsfr-data-kpi source="evo" heading="Éducation" value="edu" format="nombre" label="établissements suivis" color-token="purple-glycine" icon="fr-icon-book-2-line" icon-position="top"></dsfr-data-kpi>
+            <dsfr-data-kpi source="evo" heading="Sports" value="sport" format="nombre" label="fédérations agréées" color-token="orange-terre-battue" icon="fr-icon-medal-line" icon-position="top"></dsfr-data-kpi>
+          </div>
+          <p class="vignette">3a · color-token="green-emeraude" icon="fr-icon-leaf-line" icon-position="top"</p>
+          <div class="kpi-grid">
+            <dsfr-data-kpi source="evo" heading="Environnement" value="env" format="pourcentage" label="de voitures neuves électriques" color-token="green-emeraude" tint border="none" icon="fr-icon-leaf-line" icon-position="top"></dsfr-data-kpi>
+            <dsfr-data-kpi source="evo" heading="Logement" value="log" format="nombre" label="pompes à chaleur par mois" color-token="blue-cumulus" tint border="none" icon="fr-icon-building-line" icon-position="top"></dsfr-data-kpi>
+            <dsfr-data-kpi source="evo" heading="Éducation" value="edu" format="nombre" label="établissements suivis" color-token="purple-glycine" tint border="none" icon="fr-icon-book-2-line" icon-position="top"></dsfr-data-kpi>
+            <dsfr-data-kpi source="evo" heading="Sports" value="sport" format="nombre" label="fédérations agréées" color-token="orange-terre-battue" tint border="none" icon="fr-icon-medal-line" icon-position="top"></dsfr-data-kpi>
+          </div>
+          <p class="vignette">3b · color-token="green-emeraude" tint border="none"</p>
+          <div class="kpi-grid kpi-grid--17" id="palette-17">
+            <dsfr-data-kpi value="=1" label="green-tilleul-verveine" color-token="green-tilleul-verveine" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=2" label="green-bourgeon" color-token="green-bourgeon" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=3" label="green-emeraude" color-token="green-emeraude" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=4" label="green-menthe" color-token="green-menthe" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=5" label="green-archipel" color-token="green-archipel" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=6" label="blue-ecume" color-token="blue-ecume" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=7" label="blue-cumulus" color-token="blue-cumulus" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=8" label="purple-glycine" color-token="purple-glycine" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=9" label="pink-macaron" color-token="pink-macaron" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=10" label="pink-tuile" color-token="pink-tuile" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=11" label="yellow-tournesol" color-token="yellow-tournesol" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=12" label="yellow-moutarde" color-token="yellow-moutarde" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=13" label="orange-terre-battue" color-token="orange-terre-battue" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=14" label="brown-cafe-creme" color-token="brown-cafe-creme" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=15" label="brown-caramel" color-token="brown-caramel" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=16" label="brown-opera" color-token="brown-opera" tint></dsfr-data-kpi>
+            <dsfr-data-kpi value="=17" label="beige-gris-galet" color-token="beige-gris-galet" tint></dsfr-data-kpi>
+          </div>
+          <p class="vignette">3c · les 17 valeurs acceptées — liseré (teinte pleine) et fond (‑950)</p>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"evo"</span> <span class="tok-attr">heading</span><span class="tok-punct">=</span><span class="tok-string">"Environnement"</span> <span class="tok-attr">value</span><span class="tok-punct">=</span><span class="tok-string">"env"</span> <span class="tok-attr">format</span><span class="tok-punct">=</span><span class="tok-string">"pourcentage"</span> <span class="tok-attr">label</span><span class="tok-punct">=</span><span class="tok-string">"…"</span>
+  <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"green-emeraude"</span> <span class="tok-attr">icon</span><span class="tok-punct">=</span><span class="tok-string">"fr-icon-leaf-line"</span> <span class="tok-attr">icon-position</span><span class="tok-punct">=</span><span class="tok-string">"top"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> … <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"green-emeraude"</span> tint <span class="tok-attr">border</span><span class="tok-punct">=</span><span class="tok-string">"none"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-kpi</span> … <span class="tok-attr">color-token</span><span class="tok-punct">=</span><span class="tok-string">"brown-cafe-creme"</span> <span class="tok-attr">tint</span><span class="tok-punct">=</span><span class="tok-string">"975"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-kpi</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
     </div>
   </app-layout-demo>
