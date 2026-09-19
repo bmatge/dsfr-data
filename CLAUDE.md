@@ -68,6 +68,9 @@ npm run verif:attendus  # La TROISIEME VOIX : projette les controles determinist
                       #   (stdlib seule, jamais pandas) → tests/verif-donnees/attendus.json, VERSIONNE.
                       #   A relancer apres tout controle deterministe ajoute ou modifie : le job
                       #   `attendus` de verif-donnees.yml refuse un attendu qui change sans etre commite.
+                      #   Le fichier garde ne porte QUE des chiffres : la version de l'interpreteur va
+                      #   dans tools/oracle/out/attendus-provenance.json (ignore par git), sinon le
+                      #   garde-fou rougit des que le runner n'a pas le Python de l'auteur.
 
 # Lint / garde-fous
 npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique

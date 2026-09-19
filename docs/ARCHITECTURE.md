@@ -906,8 +906,11 @@ elle* — mêmes auteurs, même langage. D'où ce que la catégorie a gagné dep
   les dénoncer) ; les jeux du régime déterministe en JSON partagés (`tests/verif-donnees/jeux/`,
   #879), les attendus **versionnés** (`tests/verif-donnees/attendus.json`, `npm run verif:attendus`),
   la rencontre TS ↔ Python sans navigateur (`tests/oracle/attendus.test.ts`) et le job `attendus`
-  de `verif-donnees.yml` qui refuse un attendu non committé. Le régime déterministe seul : en
-  vivant, un attendu figé se périme au premier changement de données ;
+  de `verif-donnees.yml` qui refuse un attendu non committé — sur les **valeurs** seules : l'en-tête
+  du fichier gardé ne porte aucune métadonnée d'environnement, la version de l'interpréteur vit dans
+  `tools/oracle/out/attendus-provenance.json` (ignoré par git) et le workflow épingle Python 3.11,
+  faute de quoi le garde-fou rougissait sur cette seule ligne, toutes valeurs égales. Le régime
+  déterministe seul : en vivant, un attendu figé se périme au premier changement de données ;
 - **les invariants** (#881) — `sum-preserved`, `count-preserved`, `count-equals`, `null-group`,
   `bounded`, `null-stays-null`, `not-truncated`, évalués sur ce que la page montre **contre les
   lignes brutes, jamais contre l'attendu** ;

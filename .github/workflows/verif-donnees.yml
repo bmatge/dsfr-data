@@ -85,8 +85,13 @@ jobs:
 
       - run: npm ci
 
-      # python3 est present sur ubuntu-latest ; s'il manquait, dire lequel
-      # installer plutot que d'echouer sur un chemin introuvable.
+      # L'interpreteur est EPINGLE : sans cela le runner prend le python3 de
+      # l'image, qui change sans preavis. La stdlib seule, aucun paquet — le
+      # cache pip n'a rien a mettre en cache.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
       - name: python3
         run: |
           if ! command -v python3 >/dev/null; then
@@ -97,6 +102,16 @@ jobs:
 
       - name: Regénérer les attendus (verif:manifests puis oracle.py)
         run: npm run verif:attendus
+
+      # LE GARDE-FOU, et RIEN QUE LUI : `attendus.json` ne porte que des
+      # chiffres et les conventions qui les produisent. La version exacte de
+      # l'interpreteur est ECRITE, mais dans le fichier de provenance, hors de
+      # la zone comparee (tools/oracle/out/, ignore par git) — sinon le diff
+      # rougit sur la seule ligne d'en-tete des que le runner n'a pas le Python
+      # de l'auteur (3.12.3 contre 3.11.5, toutes valeurs egales par ailleurs),
+      # et un controle de conformite instable est un controle qu'on abandonne.
+      - name: Provenance de la troisième voix (hors zone gardée)
+        run: cat tools/oracle/out/attendus-provenance.json
 
       - name: Les attendus committés sont ceux que la troisième voix produit
         run: git diff --exit-code -- tests/verif-donnees/attendus.json
