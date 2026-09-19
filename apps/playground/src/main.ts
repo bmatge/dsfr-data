@@ -23,6 +23,7 @@ import {
   toastError,
   mountDiagnosticPanel,
   transmettreDiagnostic,
+  CLE_CODE_RAPPORTE,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -261,6 +262,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     link.href = backHref;
     link.className = 'fr-link fr-icon-arrow-left-line fr-link--icon-left';
     link.textContent = `Retour au ${BACK_LABELS[fromApp]}`;
+    // Le Builder rouvre sa configuration d'avant le départ, pas ce code. On lui
+    // rapporte l'état réel de l'éditeur pour qu'il sache s'il va écraser une
+    // modification, et puisse le dire avant de le faire (#965).
+    //
+    // Sur `pagehide` et non sur le clic du lien : on repart aussi par la barre
+    // de navigation ou par le bouton « page précédente », et ces sorties-là
+    // méritent le même avertissement.
+    if (fromApp === 'builder') {
+      window.addEventListener('pagehide', () => {
+        try {
+          sessionStorage.setItem(CLE_CODE_RAPPORTE, editor.getValue());
+        } catch {
+          // QuotaExceededError — le Builder avertira faute de preuve du contraire
+        }
+      });
+    }
     backBar.appendChild(link);
     const main = document.querySelector('main .fr-container') || document.querySelector('main');
     if (main) main.prepend(backBar);

@@ -19,6 +19,13 @@ import {
   isDemoDatasetsDisabled,
   isUnsafeKey,
   resolveSelectedSource,
+  confirmDialog,
+  navigateTo,
+  CLE_ETAT_BUILDER,
+  CLE_CODE_CONFIE,
+  CLE_CODE_RAPPORTE,
+  verdictRetourPlayground,
+  AVERTISSEMENT_RETOUR_PLAYGROUND,
 } from '@dsfr-data/shared';
 import { state, type ChartType, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
@@ -514,18 +521,46 @@ export async function loadFields(): Promise<void> {
 /**
  * Restore builder state from sessionStorage.
  * Works when coming back from favorites (from=favorites) or playground (from=playground).
+ *
+ * Le Builder ne relit pas le code : il rouvre l'instantané de configuration
+ * déposé avant le départ. Quand on revient du Playground avec un code modifié,
+ * cette reprise **jette** la modification — on le dit donc avant, et on laisse
+ * repartir au Playground plutôt que d'écraser en silence (#965).
  */
-export function loadFavoriteState(): void {
+export async function loadFavoriteState(): Promise<void> {
   const urlParams = new URLSearchParams(window.location.search);
   const from = urlParams.get('from');
   if (from !== 'favorites' && from !== 'playground') return;
 
-  const savedState = sessionStorage.getItem('builder-state');
+  const savedState = sessionStorage.getItem(CLE_ETAT_BUILDER);
   if (!savedState) return;
+
+  const retour = verdictRetourPlayground({
+    from,
+    codeConfie: sessionStorage.getItem(CLE_CODE_CONFIE),
+    codeRapporte: sessionStorage.getItem(CLE_CODE_RAPPORTE),
+  });
+  if (retour.verdict === 'divergent') {
+    const reprendre = await confirmDialog(AVERTISSEMENT_RETOUR_PLAYGROUND.message, {
+      title: AVERTISSEMENT_RETOUR_PLAYGROUND.titre,
+      confirmLabel: AVERTISSEMENT_RETOUR_PLAYGROUND.confirmLabel,
+      cancelLabel: AVERTISSEMENT_RETOUR_PLAYGROUND.cancelLabel,
+      danger: true,
+    });
+    if (!reprendre) {
+      // Repartir avec le code tel qu'il était : rien n'est perdu, et
+      // l'instantané reste en place pour un retour ultérieur.
+      sessionStorage.setItem('playground-code', retour.codeRapporte);
+      navigateTo('playground', { from: 'builder' });
+      return;
+    }
+  }
+  sessionStorage.removeItem(CLE_CODE_CONFIE);
+  sessionStorage.removeItem(CLE_CODE_RAPPORTE);
 
   try {
     const favoriteState = JSON.parse(savedState);
-    sessionStorage.removeItem('builder-state');
+    sessionStorage.removeItem(CLE_ETAT_BUILDER);
 
     // Restore state — filter out prototype-pollution keys before assigning
     const stateRec = state as unknown as Record<string, unknown>;

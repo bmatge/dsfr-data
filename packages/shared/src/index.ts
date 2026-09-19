@@ -251,6 +251,15 @@ export {
 export type { PromptDialogOptions } from './ui/modal.js';
 export { showToast, toastSuccess, toastError, toastWarning, toastInfo } from './ui/toast.js';
 export { appHref, navigateTo } from './ui/navigation.js';
+export {
+  CLE_ETAT_BUILDER,
+  CLE_CODE_CONFIE,
+  CLE_CODE_RAPPORTE,
+  normaliserCode,
+  verdictRetourPlayground,
+  AVERTISSEMENT_RETOUR_PLAYGROUND,
+} from './ui/passation.js';
+export type { VerdictRetour } from './ui/passation.js';
 
 // Sample data
 export type { SampleDataset } from './data/sample-datasets.js';
