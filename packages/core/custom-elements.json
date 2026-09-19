@@ -2017,6 +2017,36 @@
               "description": "Applique les couleurs sur l'instance et la légende. False si pas prête."
             },
             {
+              "kind": "field",
+              "name": "_colorModelWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Modèle de couleurs hors d'atteinte : signalé une fois (#968)."
+            },
+            {
+              "kind": "method",
+              "name": "_syncColorModel",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "chart",
+                  "type": {
+                    "text": "ColorableChart"
+                  }
+                },
+                {
+                  "name": "chartEl",
+                  "type": {
+                    "text": "Element | null"
+                  }
+                }
+              ],
+              "description": "Reporte les couleurs appliquées dans le `colorParse` du composant Vue.\nHors d'atteinte, on le DIT : l'infobulle ne nomme pas les séries, sa\npastille en est le seul lien — fausse, elle est un chiffre faux présenté\ncomme juste, et la leçon de #813 est de ne plus sortir en silence."
+            },
+            {
               "kind": "method",
               "name": "_paintLegendDots",
               "privacy": "private",

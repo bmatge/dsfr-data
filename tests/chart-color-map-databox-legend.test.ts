@@ -54,6 +54,14 @@ function mountChart(withDatabox: boolean, dots = 3) {
     wrapper.append(barChart);
   }
   chart.appendChild(wrapper);
+  // Modèle de couleurs du composant Vue, d'où l'infobulle tire ses pastilles
+  // (#968) : présent ici pour que le report n'avertisse pas.
+  (barChart as unknown as { _instance: unknown })._instance = {
+    proxy: {
+      colorParse: [['#5C68E5'], ['#82B5F2'], ['#29598F']],
+      colorHover: [['#1b1f5c'], ['#123a63'], ['#0b1b2b']],
+    },
+  };
 
   // Instance Chart.js trouvée par window.Chart.getChart (premier chemin de
   // resolveChartInstance) : trois séries empilées.

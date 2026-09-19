@@ -8,6 +8,7 @@
  *
  * Aucune dépendance Lit / DOM-bridge : réutilisable et testable hors composant.
  */
+import type { ChartColorModel } from './color-map.js';
 
 /** Rouge DSFR par défaut (error-active-red-marianne). */
 export const DEFAULT_REF_COLOR = '#c9191e';
@@ -178,6 +179,28 @@ export function resolveChartInstance(
   }
 
   return null;
+}
+
+/**
+ * Récupère le MODÈLE de couleurs du composant Vue de `@gouvfr/dsfr-chart`
+ * (`colorParse` / `colorHover`, et `colorBarParse` pour `bar-line-chart`).
+ *
+ * Même accès que {@link resolveChartInstance} — accès direct à `_instance.proxy`,
+ * validé par duck-typing, l'énumération des clés étant vide en build Vue de
+ * production. Voir `syncChartColorModel` : c'est la source dont dérivent le
+ * canvas, la légende et l'infobulle (#968). Dégradation gracieuse → `null`.
+ */
+export function resolveChartColorModel(
+  chartEl: Element | null | undefined
+): ChartColorModel | null {
+  const proxy = (chartEl as { _instance?: { proxy?: unknown } } | null | undefined)?._instance
+    ?.proxy;
+  if (!proxy || typeof proxy !== 'object') return null;
+  try {
+    return Array.isArray((proxy as ChartColorModel).colorParse) ? (proxy as ChartColorModel) : null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Calcul des coordonnées --------------------------------------------------

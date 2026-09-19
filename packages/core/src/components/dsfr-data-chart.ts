@@ -14,6 +14,7 @@ import {
   parseReferenceLines,
   isCartesianChartType,
   resolveChartInstance,
+  resolveChartColorModel,
   computeReferenceGeometries,
   buildReferenceOverlaySvg,
   referenceLinesAriaSummary,
@@ -54,7 +55,12 @@ import {
 } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
-import { parseColorMap, applyColorMap, type ColorableChart } from '../utils/color-map.js';
+import {
+  parseColorMap,
+  applyColorMap,
+  syncChartColorModel,
+  type ColorableChart,
+} from '../utils/color-map.js';
 
 type DSFRChartType =
   | 'line'
@@ -1654,12 +1660,43 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     const applied = applyColorMap(chart as ColorableChart, colorMap, this._getDisplaySeriesNames());
     if (!applied.applied) return true;
+    // Report dans le MODÈLE de DSFR Chart (#968), pas seulement sur l'instance
+    // Chart.js : `colorParse` est la source dont derivent le canvas, la legende
+    // ET l'infobulle. Cette derniere la relit AU SURVOL — son DOM n'existe pas
+    // avant, et il est reecrit a chaque mouvement : aucun rattrapage de DOM ne
+    // peut la tenir. Sans ce report, les pastilles de l'infobulle gardaient la
+    // palette par defaut et appariaient la mauvaise valeur a la mauvaise serie.
+    this._syncColorModel(chart as ColorableChart, hosts.chartEl);
     // Les pastilles se cherchent dans le COMPOSANT, pas dans l'element de
     // graphique interne (#813) : avec `databox`, DSFR Chart rend canvas et
     // legende dans `data-box`, et l'element `bar-chart` retenu reste vide —
     // le graphique etait recolore (canvas trouve par repli), sa legende non.
     this._paintLegendDots(this, applied.legendColors);
     return true;
+  }
+
+  /** Modèle de couleurs hors d'atteinte : signalé une fois (#968). */
+  private _colorModelWarned = false;
+
+  /**
+   * Reporte les couleurs appliquées dans le `colorParse` du composant Vue.
+   * Hors d'atteinte, on le DIT : l'infobulle ne nomme pas les séries, sa
+   * pastille en est le seul lien — fausse, elle est un chiffre faux présenté
+   * comme juste, et la leçon de #813 est de ne plus sortir en silence.
+   */
+  private _syncColorModel(chart: ColorableChart, chartEl: Element | null) {
+    const model = resolveChartColorModel(chartEl);
+    if (syncChartColorModel(model, chart.data?.datasets ?? [])) {
+      this._colorModelWarned = false;
+      return;
+    }
+    if (this._colorModelWarned) return;
+    this._colorModelWarned = true;
+    console.warn(
+      `dsfr-data-chart[${this.id}]: color-map — modèle de couleurs de DSFR Chart ` +
+        `introuvable : les pastilles de l'infobulle garderont la palette par défaut ` +
+        `et contrediront le graphique.`
+    );
   }
 
   /**
