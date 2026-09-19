@@ -457,6 +457,20 @@ export const catalogue: ExempleMeta[] = [
     pipeline: ['facets', 'server-side'],
     output: ['list'],
   },
+  {
+    id: 'grist-pdm-ve-line',
+    title: `Ligne — Part de marche des VE par segment (Grist)`,
+    source: ['grist'],
+    pipeline: ['query', 'pivot', 'normalize'],
+    output: ['chart'],
+  },
+  {
+    id: 'grist-catalogue-list',
+    title: `Tableau — Catalogue d'indicateurs (Grist)`,
+    source: ['grist'],
+    pipeline: ['normalize', 'query'],
+    output: ['list'],
+  },
 ];
 
 /** Exemple charge au demarrage quand l'URL n'en designe aucun. */

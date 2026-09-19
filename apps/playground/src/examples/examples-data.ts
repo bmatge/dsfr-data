@@ -2922,4 +2922,142 @@ export const examples: Record<string, string> = {
     </p>
   </div>
 </div>`,
+
+  // =====================================================================
+  // GRIST — dsfr-data-source api-type="grist"
+  // L'adaptateur aplatit lui-meme records[].fields : aucun normalize
+  // n'est necessaire pour la mise a plat en mode adaptateur.
+  // =====================================================================
+
+  'grist-pdm-ve-line': `<!--
+  Grist — Part de marche des vehicules electriques, par segment
+  Pipeline : dsfr-data-source (grist) → dsfr-data-query → dsfr-data-unpivot
+             → dsfr-data-normalize → dsfr-data-chart
+  Source : Plan Electrification (grist.numerique.gouv.fr, document public)
+  Une table « wide » : une ligne par indicateur, une colonne par mois.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Part de marche des vehicules electriques, par segment</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : SDES, via le document Grist du Plan Electrification
+  </p>
+
+  <!-- En mode adaptateur, base-url pointe l'endpoint /records complet.
+       L'adaptateur aplatit records[].fields tout seul : les colonnes du
+       tableau Grist arrivent directement comme colonnes de lignes. -->
+  <dsfr-data-source id="plan" api-type="grist"
+    base-url="https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/Plan_Elec_Indic_dyanmiques/records">
+  </dsfr-data-source>
+
+  <!-- Le tableau melange tous les indicateurs du plan : on retient les
+       cinq lignes de part de marche, une par segment de vehicule. -->
+  <dsfr-data-query id="pdm" source="plan"
+    where="Indicateurs:eq:PDM %25 VE">
+  </dsfr-data-query>
+
+  <!-- 44 colonnes mensuelles c2023_01 … c2026_08 depliees en deux
+       colonnes (mois, pdm). Un mois de plus dans le document est pris en
+       compte sans toucher a ce code : c'est tout l'interet du motif. -->
+  <dsfr-data-unpivot id="mensuel" source="pdm"
+    id-cols="Sous_theme"
+    value-cols-pattern="c{YYYY}_{MM}"
+    var-name="mois" var-format="{YYYY}-{MM}"
+    value-name="pdm">
+  </dsfr-data-unpivot>
+
+  <!-- Les cellules valent « 16,2% » : une CHAINE, virgule decimale et
+       signe pourcent. numeric la convertit (16.2) ; sans lui, le
+       graphique trierait et additionnerait du texte. -->
+  <dsfr-data-normalize id="chiffres" source="mensuel" numeric="pdm">
+  </dsfr-data-normalize>
+
+  <dsfr-data-chart source="chiffres"
+    type="line"
+    label-field="mois"
+    value-field="pdm"
+    series-field="Sous_theme"
+    unit-tooltip="%"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Grist publie ce qu'une equipe saisit, pas ce qu'une API normalise.</strong>
+      Les valeurs arrivent en texte francais (« 16,2% »), les libelles portent leurs
+      coquilles, et plusieurs lignes partagent le meme nom d'indicateur — c'est
+      <code>Sous_theme</code> qui les distingue. Ces trois traits sont la regle sur un
+      document collaboratif, pas l'exception : le <code>numeric</code> et le
+      <code>series-field</code> ci-dessus ne sont pas des precautions, ce sont les gestes
+      normaux.
+      <br><strong>Un pourcent litteral dans un <code>where</code> s'echappe.</strong> Le
+      dialecte colon decode les sequences pourcent : « PDM % VE » s'ecrit
+      <code>PDM %25 VE</code>, comme un <code>:</code> s'ecrit <code>%3A</code> et un
+      <code>|</code> <code>%7C</code>.
+    </p>
+  </div>
+</div>`,
+
+  'grist-catalogue-list': `<!--
+  Grist — Le catalogue des indicateurs d'un document collaboratif
+  Pipeline : dsfr-data-source (grist) → dsfr-data-normalize (compute) → dsfr-data-list
+  Source : Plan Electrification (grist.numerique.gouv.fr, document public)
+  Montre ce qu'un document Grist rend tel quel, avant toute dataviz.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les indicateurs du Plan Electrification</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : grist.numerique.gouv.fr — document public du Plan Electrification
+  </p>
+
+  <dsfr-data-source id="plan" api-type="grist"
+    base-url="https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/Plan_Elec_Indic_dyanmiques/records">
+  </dsfr-data-source>
+
+  <!-- « Nombre immatriculations VE » apparait cinq fois : une par segment.
+       Le libelle seul ne designe donc rien. compute fabrique la colonne
+       qui identifie vraiment une serie, en concatenant les deux champs. -->
+  <!-- trim ecarte les espaces de saisie (« … 12 mois) » avec un blanc
+       final) ; a_libelle marque les lignes de separation, que le document
+       laisse a blanc. -->
+  <dsfr-data-normalize id="series" source="plan"
+    trim
+    compute="a_libelle = when is_empty(Indicateurs) then 0 else 1; serie = Indicateurs + ' — ' + Sous_theme">
+  </dsfr-data-normalize>
+
+  <dsfr-data-query id="renseignes" source="series"
+    where="a_libelle:eq:1"
+    order-by="Theme:asc">
+  </dsfr-data-query>
+
+  <dsfr-data-list source="renseignes"
+    columns="Theme:Theme, serie:Serie, Source:Source, Derniere_mise_a_jour:Mise a jour"
+    pagination="15"
+    search>
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Un libelle n'est pas un identifiant.</strong> « Nombre immatriculations VE »
+      figure cinq fois dans ce document, une fois par segment de vehicule. Brancher un
+      graphique sur cette colonne empilerait cinq series sous un seul nom, sans rien signaler.
+      La colonne calculee par <code>compute</code> — <code>Indicateurs + ' — ' + Sous_theme</code>
+      — rend l'identite explicite avant qu'un affichage en depende.
+      <br><strong>Aucun <code>flatten</code> n'a ete necessaire.</strong> En mode adaptateur,
+      Grist aplatit <code>records[].fields</code> de lui-meme. Le <code>flatten</code> de
+      <code>dsfr-data-normalize</code> ne sert qu'en mode URL brute (attribut <code>url</code>
+      sans <code>api-type</code>), ou la reponse arrive telle quelle.
+      <br><strong>Une cellule vide n'est pas une cellule nulle.</strong> Vingt-huit des
+      cinquante-sept lignes de ce document sont des separateurs laisses a blanc.
+      <code>where="Indicateurs:isnotnull"</code> les garde TOUTES : la chaine vide n'est pas
+      <code>null</code>. Et comme <code>order-by="Theme:asc"</code> range le vide en tete, la
+      premiere page du tableau n'affichait que des tirets. Le filtre correct passe par
+      <code>is_empty()</code>, qui couvre le null, la chaine vide et le tableau vide.
+      <br>Le document est lu en LECTURE SEULE et sans jeton : il est public. Un document
+      prive demanderait un <code>Authorization: Bearer</code>, visible dans le source de la
+      page — a reserver aux cles a acces restreint ou aux contextes proteges.
+    </p>
+  </div>
+</div>`,
 };
