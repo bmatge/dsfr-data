@@ -27,6 +27,7 @@ import {
   DATASET_BUDGETS,
   DATASET_CONTEXTE,
   ETABLISSEMENTS,
+  ETABLISSEMENTS_HETEROGENES,
   HOTE_ODS_CONTEXTE,
   urlContexte,
 } from './fixtures-contexte.js';
@@ -34,8 +35,12 @@ import {
 /** Instant fixe des contrôles à borne dynamique : le 1er juin 2026, 00 h 30 à Paris. */
 const HORLOGE = { now: '2026-06-01T00:30:00+02:00', timezone: 'Europe/Paris' } as const;
 
-/** Les deux jeux, sous les noms que les `expects` leur donnent. */
-const JEUX = { main: ETABLISSEMENTS, budgets: BUDGETS };
+/** Les trois jeux, sous les noms que les `expects` leur donnent. */
+const JEUX = {
+  main: ETABLISSEMENTS,
+  budgets: BUDGETS,
+  heterogenes: ETABLISSEMENTS_HETEROGENES,
+};
 
 /**
  * Source ODS : c'est la seule qui accepte un `where` de contexte. Une source
@@ -381,6 +386,33 @@ const CHECKS: Check[] = [
       },
       // La source sans la colonne garde TOUTES ses lignes : aucune étape.
       { kind: 'kpi', id: 'k-budg', agg: 'count', from: 'budgets' },
+    ],
+  },
+
+  {
+    id: 'ctx-champ-tardif-841',
+    mode: 'deterministic',
+    origin:
+      '#841 — le REVERS de #805 : un champ qui n’apparaît qu’à la 250ᵉ ligne n’est pas un champ absent. L’heuristique jugeait sur les 200 PREMIÈRES lignes reçues, et écartait alors le filtre SANS UN MOT — le KPI affichait le jeu entier au lieu de la seule ligne qui porte la colonne. Le contrôle exige les deux : le chiffre filtré, et le silence de la bibliothèque (aucun « n’existe pas »).',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-het', 'heterogenes')}
+  <dsfr-data-context id="ctx" sources="s-het">
+    <dsfr-data-context-filter id="f-zone" field="zone" operator="eq" ui="ui-zone" label="Zone">
+    </dsfr-data-context-filter>
+  </dsfr-data-context>
+  <label for="ui-zone">Zone</label>
+  <select id="ui-zone"><option value="">Toutes</option><option value="sud">sud</option></select>
+  ${kpiCount('k-n', 's-het')}`,
+    actions: [{ kind: 'select', selector: '#ui-zone', value: 'sud' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-n',
+        agg: 'count',
+        from: 'heterogenes',
+        pipeline: [{ op: 'filter', filters: [{ field: 'zone', op: 'eq', value: 'sud' }] }],
+      },
+      { kind: 'diagnostic', id: 'f-zone', expect: 'silence', contains: 'zone' },
     ],
   },
 
