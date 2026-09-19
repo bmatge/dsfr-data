@@ -1,10 +1,22 @@
-# Vérification des données — oracle indépendant
+# Vérification des données — trois voix, deux régimes
 
-Deux implémentations doivent donner le même chiffre **au même instant** (ADR-122).
+Plusieurs implémentations doivent donner le même chiffre **au même instant** (ADR-122, amendée
+par l'epic #886).
 
 D'un côté la bibliothèque rend un balisage `dsfr-data-*` et l'on lit ce qu'elle **affiche**.
 De l'autre, `tools/oracle` repart des lignes **brutes** et recalcule en tableaux nus. Un écart à
-la précision affichée est un échec.
+la précision affichée est un échec. Depuis l'epic #886, une **troisième voix** recalcule encore :
+en régime déterministe, un oracle en **Python standard** (`tools/oracle-py/`) dont les attendus
+sont versionnés ; en régime vivant, **le serveur Opendatasoft lui-même** (`select` + `group_by`
+écrits à la main). Et le dispositif sait désormais exiger un **silence** ou un **mot** de la
+bibliothèque, tenir des **invariants** face aux lignes brutes, rejouer chaque **piège** payé par
+le banc sur un jeu canari, et trancher une **nuit rouge** — bibliothèque ou donnée — en gelant
+l'échec en contrôle figé.
+
+Le plan de ce document : la doctrine · les deux modes · l'arborescence · ce qu'on observe · les
+silences · la troisième voix · les invariants · le canari · le recoupement serveur · le verdict
+d'une nuit rouge et le gel · les gestes et l'horloge · ajouter un contrôle · prouver une
+mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 
 **Indépendance** : `tools/oracle` et `tests/verif-donnees` n'importent rien de `packages/`, de
 `@dsfr-data/*` ni de l'alias `@/`. Le test-garde `tests/oracle/guard.test.ts` parcourt tout le
