@@ -37,6 +37,8 @@
  */
 import type { Check, Manifest, Row } from '../../tools/oracle/manifest.js';
 import {
+  BAROMETRE_QUESTIONS,
+  BAROMETRE_SCORES,
   BRUTES,
   CALCULS,
   COMPOSITE_DROITE,
@@ -1984,6 +1986,52 @@ const INVARIANTS: Check[] = [
           { op: 'group-by', by: 'statut', columns: { nb: { agg: 'count', field: 'code' } } },
         ],
         invariants: [{ kind: 'null-group', field: 'statut', expect: 'visible', count: 'nb' }],
+      },
+    ],
+  },
+
+  {
+    id: 'repeat-scopes-partition',
+    mode: 'deterministic',
+    origin:
+      "#891, ADR-122 — `dsfr-data-repeat` produit des chiffres (un agrégat par ligne répétée) et n'avait aucun contrôle d'oracle. `scopes` partitionne les onze scores par `code` et émet un id par question : chaque KPI de ligne doit valoir la somme de SA clé, et seulement d'elle. Deux invariants portent le sens — `count-equals` (cinq instances pour cinq lignes répétées, relevé sur les TITRES, donc indépendant de la partition) et `sum-preserved` (les cinq sommes affichées rendent la somme brute : une ligne qui fuit d'un scope à l'autre, ou comptée deux fois, tombe). La clé `Q05` somme à zéro (+5 / −5) : un scope qui déborderait sur ses voisines ne s'y verrait pas par un total non nul.",
+    feed: {
+      kind: 'fixture',
+      datasets: { main: BAROMETRE_SCORES, questions: BAROMETRE_QUESTIONS },
+    },
+    markup: `${source('s-bq', BAROMETRE_QUESTIONS)}
+${source('s-bs', BAROMETRE_SCORES)}
+  <dsfr-data-repeat id="rep-scopes" source="s-bq" key-field="code" scopes="s-bs:code:qs">
+    <template>
+      <h3 class="titre">{{libelle}}</h3>
+      <dsfr-data-kpi id="k-{{code}}" source="{{$scope.qs}}" value="montant:sum"
+        format="nombre" label="Total"></dsfr-data-kpi>
+    </template>
+  </dsfr-data-repeat>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'rep-scopes',
+        selector: '.titre',
+        from: 'questions',
+        pipeline: [],
+        column: 'libelle',
+        invariants: [{ kind: 'count-equals', n: 5 }],
+      },
+      {
+        kind: 'texts',
+        id: 'rep-scopes',
+        selector: '.dsfr-data-kpi__value',
+        pipeline: [
+          { op: 'group-by', by: 'code', columns: { montant: { agg: 'sum', field: 'montant' } } },
+          { op: 'order-by', column: 'code', dir: 'asc' },
+        ],
+        column: 'montant',
+        numeric: true,
+        invariants: [
+          { kind: 'count-equals', n: 5 },
+          { kind: 'sum-preserved', field: 'montant' },
+        ],
       },
     ],
   },

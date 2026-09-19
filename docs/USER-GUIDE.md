@@ -1105,6 +1105,68 @@ Ce qui reste vrai pour les deux : pas de delegation serveur derriere un id scope
 source scopee en entier), ni `facets` ni `search` par ligne, et un bus plat — deux repeteurs qui
 fabriquent le meme id se marchent dessus.
 
+#### La meme page sans une seule query : `scopes`
+
+Le motif ci-dessus fabrique une `dsfr-data-query` par ligne, et chacune refiltre la source
+entiere a chaque emission : 119 filtres sur le meme tableau, deux ecouteurs `document` par
+ligne, 119 ids fabriques dans le gabarit dont le volet Diagnostic ne sait rien. `scopes`
+fait la partition **une fois** — une passe, une `Map` par champ — et emet un id par ligne :
+
+```html
+<dsfr-data-repeat source="questions-typees" key-field="code_unifie" per-row="1 md:2"
+  scopes="scores:code_unifie:q" lazy>
+  <template>
+    <h4 id="{{$uid}}">{{libelle_unifie}}</h4>
+    <dsfr-data-chart source="{{$scope.q}}" type="{{type_graphique}}"
+      label-field="annee" value-field="score" name="{{libelle_unifie}}"
+      databox databox-title="{{libelle_unifie}}"></dsfr-data-chart>
+  </template>
+</dsfr-data-repeat>
+```
+
+Grammaire : `source:champ:alias`, entrees separees par `|` (`scopes="scores:code:q |
+effectifs:code:e"`), l'alias est facultatif — a defaut, c'est l'id de la source. Le gabarit lit
+`{{$scope.alias}}`, ou `{{$scope}}` quand une seule entree est declaree. `key-field` est requis :
+la cle de partition est celle de la ligne repetee.
+
+Ce que `scopes` promet :
+
+- **Une cle sans lignes emet un tableau vide**, jamais rien : la ligne existe, son graphique est
+  vide, pas absent.
+- **Les etats sont relayes.** `loading`, `error` et `idle` (`require-where`) de la source scopee
+  portent sur chaque id scope : la ligne affiche « Chargement… », le message d'erreur du portail
+  ou « Choisissez un filtre », au lieu d'un blanc.
+- **Une re-emission de la source scopee re-partitionne sans toucher aux lignes.** Mesure
+  (Chromium headless, 119 lignes) : le refiltre passe de **13,8 ms** (119 queries) a **2,3 ms**
+  (une partition), les ecouteurs `document` de **2,03** a **1,03 par ligne**, et aucune instance
+  n'est recreee.
+- **Le volet Diagnostic attribue chaque id a son repeteur** (`q-001 ← dsfr-data-repeat#questions`),
+  au lieu de compter 119 « amonts introuvables ».
+- **Purge** : un id scope disparait du cache avec sa ligne, et a la deconnexion du repeteur.
+- **Rien de silencieux** : nombre de termes, terme vide, alias en double, source introuvable dans
+  la page, champ absent des lignes — chaque cas nomme l'entree fautive.
+
+Quand garder une query par ligne ? Quand la ligne a besoin d'un **regroupement** ou d'un
+**agregat** propre (`group-by="annee" aggregate="score:sum"`) : `scopes` livre les lignes brutes
+de la cle, il ne calcule pas.
+
+#### `lazy` : n'estamper que ce qui approche
+
+`lazy` (booleen) n'insere les composants `dsfr-data-*` d'une ligne qu'a son entree dans une marge
+de 200 px autour du viewport (`IntersectionObserver`, la meme que `dsfr-data-map`). Les titres et
+les textes du gabarit, eux, sont rendus d'emblee : le plan de la page et sa hauteur ne dependent
+pas du defilement. Les ids scopes sont emis pour **toutes** les lignes des le depart — le cache
+est la quand la ligne s'estampe. Mesure sur la page temoin : **4 graphiques dessines sur 119** au
+chargement, 119 apres defilement complet.
+
+Deux precautions :
+
+- **Reservez la hauteur.** `lazy` ne devine pas la taille de vos lignes : sans une `min-height`
+  sur le gabarit (ou sur `.dsfr-data-repeat__row`), 119 conteneurs reduits a un titre tiennent
+  dans le viewport et s'estampent tous d'un coup.
+- **Une recette doit defiler.** Les graphiques DSFR Chart se rendent deja a la visibilite : un
+  compte de `canvas` pris trop tot ne prouve rien, avec ou sans `lazy`.
+
 ### Charger un jeu Opendatasoft en une requete : `fetch-mode="export"`
 
 Par defaut, une source Opendatasoft lit le jeu **page par page**, 100 lignes a la fois : 3 000 lignes
