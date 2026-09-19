@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — jointure dont une entrée est en require-where (#897)</title>
+  <!--
+    Ce que happy-dom ne peut pas prouver (#897) : la seule variable du défaut est
+    l'ORDRE DES BALISES dans le document, qui décide de l'ordre des événements de
+    cycle de vie — et happy-dom ordonne les callbacks à l'envers d'un navigateur.
+    Les deux moitiés de la page sont identiques à l'ordre des deux
+    `dsfr-data-source` près : les deux doivent afficher l'attente, pas un
+    chargement sans fin.
+
+    L'entrée `require-where` ne fait AUCUNE requête tant qu'aucun filtre n'est
+    arrivé (#690) : la page ne touche pas le réseau, `base-url` n'est jamais
+    appelée. L'entrée ordinaire est un fichier statique servi par le serveur de
+    dev : son chargement est ASYNCHRONE, donc son `dsfr-data-loading` arrive
+    APRÈS l'attente de la première — c'est cette succession-là qui bloquait.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Jointure et attente d'un filtre</h1>
+
+    <section id="bloc-attente-dabord">
+      <h2>Ordre qui bloquait : la source en attente déclarée en premier</h2>
+      <dsfr-data-source id="a-attente" api-type="opendatasoft"
+        base-url="https://exemple.invalid" dataset-id="jamais-appele"
+        group-by="reg_code, reg_nom" select="count(*) as n" require-where></dsfr-data-source>
+      <dsfr-data-source id="a-pleine" url="/e2e/join-require-where-droite.json"></dsfr-data-source>
+      <dsfr-data-join id="a-join" left="a-attente" right="a-pleine" on="reg_code" type="inner"></dsfr-data-join>
+      <dsfr-data-kpi id="a-kpi" source="a-join" value="part:max"
+        idle-message="Choisissez une région"></dsfr-data-kpi>
+    </section>
+
+    <section id="bloc-pleine-dabord">
+      <h2>Ordre qui marchait : la source pleine déclarée en premier</h2>
+      <dsfr-data-source id="b-pleine" url="/e2e/join-require-where-droite.json"></dsfr-data-source>
+      <dsfr-data-source id="b-attente" api-type="opendatasoft"
+        base-url="https://exemple.invalid" dataset-id="jamais-appele"
+        group-by="reg_code, reg_nom" select="count(*) as n" require-where></dsfr-data-source>
+      <dsfr-data-join id="b-join" left="b-attente" right="b-pleine" on="reg_code" type="inner"></dsfr-data-join>
+      <dsfr-data-kpi id="b-kpi" source="b-join" value="part:max"
+        idle-message="Choisissez une région"></dsfr-data-kpi>
+    </section>
+  </main>
+</body>
+</html>
