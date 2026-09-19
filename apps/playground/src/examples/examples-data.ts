@@ -2741,4 +2741,185 @@ export const examples: Record<string, string> = {
     </p>
   </div>
 </div>`,
+
+  // =====================================================================
+  // CARTE ENRICHIE — legende et encarts territoriaux
+  // dsfr-data-map-legend rend la legende des couches ; dsfr-data-map-inset
+  // ajoute les mini-cartes des territoires hors metropole.
+  // =====================================================================
+
+  'map-legend-statut': `<!--
+  Carte + legende — Les lycees bretons par statut
+  Pipeline : dsfr-data-source → dsfr-data-map → map-layer (color-map) + map-legend
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  278 lycees : le jeu entier tient sous le plafond de la source, aucune
+  troncature silencieuse.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les lycees bretons, par statut</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="lycees" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée' AND libelle_region = 'Bretagne'">
+  </dsfr-data-source>
+
+  <dsfr-data-map center="48.2,-2.9" zoom="8" height="520px"
+    name="Lycees de Bretagne par statut">
+    <!-- color-field designe la colonne, color-map associe une couleur a
+         chaque valeur. La legende se DEDUIT de ce couple : elle n'est pas
+         saisie a part, donc elle ne peut pas se desynchroniser. -->
+    <dsfr-data-map-layer id="couche" source="lycees" type="circle"
+      lat-field="latitude" lon-field="longitude"
+      radius="5"
+      color-field="statut_public_prive"
+      color-map="Public:#000091, Privé:#E1000F"
+      fill-opacity="0.7"
+      tooltip-field="nom_etablissement">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-legend for="couche" label="Statut de l'etablissement">
+    </dsfr-data-map-legend>
+
+    <dsfr-data-map-popup mode="popup" title-field="nom_etablissement">
+      <template>
+        <p class="fr-text--sm">{{statut_public_prive}} — {{nom_commune}}</p>
+        <p class="fr-text--sm">{{adresse_1}}</p>
+      </template>
+    </dsfr-data-map-popup>
+  </dsfr-data-map>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Une legende qui se deduit ne ment pas.</strong>
+      <code>dsfr-data-map-legend</code> lit les couches de la carte et rend leurs entrees :
+      classes d'une choroplethe, paires de <code>color-map</code>, ou entree unique d'une couche
+      monochrome. Une legende ecrite a la main a cote, elle, survit aux changements de couleurs.
+      <br><strong>Regardez la troisieme entree.</strong> La legende affiche « Autres valeurs »
+      en plus de Public et Prive : sur les 278 lycees bretons, un etablissement n'a pas de statut
+      renseigne. Le <code>color-map</code> ne l'avait pas prevu, la legende le dit quand meme —
+      elle decrit ce que la carte CONTIENT, pas ce que l'auteur avait en tete. Une legende
+      ecrite a la main aurait affirme « deux statuts » et le point serait passe inapercu.
+      <br><code>for</code> designe la couche decrite ; vide, la legende concatene les entrees de
+      toutes les couches directes de la carte.
+    </p>
+  </div>
+</div>`,
+
+  'map-inset-drom': `<!--
+  Carte + encarts territoriaux — Les lycees des DROM
+  Pipeline : dsfr-data-source → dsfr-data-map → map-layer + 5 x map-inset
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  dsfr-data-map-inset rend une mini-carte par territoire, alimentee par les
+  memes couches que la carte hote.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les lycees des departements et regions d'outre-mer</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="lycees" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée' AND code_region IN ('01','02','03','04','06')">
+  </dsfr-data-source>
+
+  <dsfr-data-map center="10,-40" zoom="3" height="420px"
+    name="Lycees des DROM">
+    <dsfr-data-map-layer id="couche" source="lycees" type="circle"
+      lat-field="latitude" lon-field="longitude"
+      radius="5"
+      color-field="statut_public_prive"
+      color-map="Public:#000091, Privé:#E1000F"
+      fill-opacity="0.7"
+      tooltip-field="nom_etablissement">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-legend for="couche" label="Statut de l'etablissement">
+    </dsfr-data-map-legend>
+
+    <!-- Chaque encart est une mini-carte cadree sur son territoire. Le
+         preset « territory » fournit centre, zoom et libelle ; width
+         accepte une echelle mobile-first (une colonne sur telephone,
+         cinq sur ecran large). -->
+    <dsfr-data-map-inset territory="guadeloupe" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="martinique" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="guyane" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="la-reunion" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="mayotte" width="100% md:20%"></dsfr-data-map-inset>
+  </dsfr-data-map>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Les encarts ne sont pas un ornement.</strong> Une carte de France cadree sur la
+      metropole laisse cinq departements hors champ : ils ne sont pas « petits », ils sont
+      ailleurs. <code>dsfr-data-map-inset</code> leur donne une mini-carte a la bonne echelle,
+      alimentee par les MEMES couches — rien a dupliquer, rien a maintenir en double.
+      <br>Les presets <code>territory</code> couvrent les DROM, les collectivites et la Corse ;
+      <code>center</code> et <code>zoom</code> permettent un cadrage libre pour un zoom local.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // FACETTES ET RECHERCHE sur l'annuaire de l'education
+  // =====================================================================
+
+  'facets-education': `<!--
+  Facettes serveur — Explorer l'annuaire de l'education
+  Pipeline : dsfr-data-source (server-side) → dsfr-data-facets → dsfr-data-list
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  68 000 etablissements : les facettes et la pagination sont deleguees au
+  serveur, rien n'est charge d'avance.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Explorer l'annuaire de l'education</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education (68 583 etablissements)
+  </p>
+
+  <dsfr-data-source id="src" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    server-side page-size="20">
+  </dsfr-data-source>
+
+  <!-- server-facets : les comptes de chaque modalite sont demandes a l'API,
+       pas calcules sur une page deja chargee. -->
+  <dsfr-data-facets id="filtres" source="src"
+    fields="type_etablissement, statut_public_prive, libelle_region"
+    labels="type_etablissement:Type | statut_public_prive:Statut | libelle_region:Region"
+    server-facets
+    cols="4">
+  </dsfr-data-facets>
+
+  <dsfr-data-list source="src"
+    columns="nom_etablissement:Etablissement, type_etablissement:Type, statut_public_prive:Statut, nom_commune:Commune"
+    pagination="20"
+    search>
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Des facettes calculees sur une page ne sont pas des facettes.</strong> Sans
+      <code>server-facets</code>, les comptes porteraient sur les vingt lignes chargees et
+      annonceraient « 3 lycees » sur un jeu qui en compte 5 644. Delegues au serveur, ils
+      portent sur le jeu filtre entier.
+      <br>Les clauses des facettes, de la recherche et d'un <code>dsfr-data-context</code> se
+      fusionnent en ET au lieu de s'ecraser : cocher une region et taper un nom restreint les
+      deux fois.
+      <br><strong>Deux attributs a ne pas confondre.</strong> <code>fields</code> ne prend que
+      des noms de colonnes ; les libelles vont dans <code>labels</code>, separes par des barres
+      verticales. Et <code>cols</code> est une LARGEUR sur la grille de douze, pas un nombre de
+      facettes par ligne : <code>cols="4"</code> en range trois par ligne.
+    </p>
+  </div>
+</div>`,
 };

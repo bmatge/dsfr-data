@@ -436,6 +436,27 @@ export const catalogue: ExempleMeta[] = [
     pipeline: ['context', 'server-side'],
     output: ['list'],
   },
+  {
+    id: 'map-legend-statut',
+    title: `Carte + legende — Lycees bretons par statut`,
+    source: ['opendatasoft'],
+    pipeline: ['direct'],
+    output: ['map'],
+  },
+  {
+    id: 'map-inset-drom',
+    title: `Carte + encarts territoriaux — Lycees des DROM`,
+    source: ['opendatasoft'],
+    pipeline: ['direct'],
+    output: ['map'],
+  },
+  {
+    id: 'facets-education',
+    title: `Facettes serveur — Annuaire de l'education`,
+    source: ['opendatasoft'],
+    pipeline: ['facets', 'server-side'],
+    output: ['list'],
+  },
 ];
 
 /** Exemple charge au demarrage quand l'URL n'en designe aucun. */
