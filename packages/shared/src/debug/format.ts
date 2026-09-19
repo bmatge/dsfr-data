@@ -428,6 +428,33 @@ function formatComputedColumns(node: StageNode, opts: FormatOptions): string[] {
   return [`     calculées (compute) : ${items.join(', ')}`];
 }
 
+/** Ids scopés listés au plus dans ce rapport : 119 lignes ne se lisent pas. */
+const SCOPES_RENDUS = 8;
+
+/**
+ * Ids ÉMIS par un `dsfr-data-repeat` (#891) : « d'où vient `q-001` ? ».
+ *
+ * Aucun élément de la page ne porte ces ids — ils sont fabriqués par la
+ * partition d'une source. Sans cette section, un lecteur du volet ne peut que
+ * conclure à un amont fantôme. Le nombre est dit en entier, la liste tronquée.
+ */
+function formatScopedIds(trace: Trace): string[] {
+  const emetteurs = trace.graph.nodes.filter((n) => (n.emits?.length ?? 0) > 0);
+  if (emetteurs.length === 0) return [];
+  const out = ['Ids scopés (fabriqués par un répéteur, absents du balisage) :'];
+  for (const node of emetteurs) {
+    const ids = node.emits ?? [];
+    for (const id of ids.slice(0, SCOPES_RENDUS)) {
+      out.push(`  ${id} ← ${node.tag}#${node.id}`);
+    }
+    if (ids.length > SCOPES_RENDUS) {
+      out.push(`  … et ${plural(ids.length - SCOPES_RENDUS, 'autre')} de ${node.tag}#${node.id}`);
+    }
+  }
+  out.push('');
+  return out;
+}
+
 /**
  * Rend la trace en texte français.
  *
@@ -517,6 +544,8 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     out.push(...formatSample(state, opts));
     out.push('');
   }
+
+  out.push(...formatScopedIds(trace));
 
   const commands = trace.events.filter(
     (e): e is Extract<typeof e, { kind: 'command' }> => e.kind === 'command'

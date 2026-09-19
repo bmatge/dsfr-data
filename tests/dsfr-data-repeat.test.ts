@@ -80,11 +80,17 @@ describe('dsfr-data-repeat', () => {
   it('noms réservés (#888 § 4) : aucun attribut des lots 2-3 ne fait partie du lot 1', () => {
     const observed = (DsfrDataRepeat as unknown as { observedAttributes: string[] })
       .observedAttributes;
-    expect(observed.sort()).toEqual(['empty', 'key-field', 'per-row', 'source']);
-    for (const reserved of [
+    // `scopes` et `lazy` sont livrés au lot 2 (#891) ; `lazy-margin` reste réservé.
+    expect(observed.sort()).toEqual([
+      'empty',
+      'key-field',
       'lazy',
-      'lazy-margin',
+      'per-row',
       'scopes',
+      'source',
+    ]);
+    for (const reserved of [
+      'lazy-margin',
       'if',
       'unless',
       'else',

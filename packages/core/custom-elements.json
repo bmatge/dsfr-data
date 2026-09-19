@@ -16375,7 +16375,7 @@
         },
         {
           "kind": "class",
-          "description": "<dsfr-data-repeat> - Répéter des instances vivantes : une ligne de données, un pipeline\n\nComposant de STRUCTURE (ADR-135, #887) : pour chaque ligne de `source`, le `<template>`\nenfant est cloné et ses placeholders résolus — texte, attributs, et donc les composants\n`dsfr-data-*` qu'il contient, rehaussés avec leurs attributs déjà interpolés. C'est la\nvoie native pour « un graphique par question », « un KPI par service » : une\n`dsfr-data-query id=\"q-{{clé}}\" where=\"clé:eq:{{clé}}\"` par ligne scope une source chargée\nune fois, `type=\"{{champ}}\"` choisit le type.\n\nRègle d'usage : **`dsfr-data-display` quand la ligne est du contenu ; `dsfr-data-repeat`\nquand la ligne est un pipeline.** `display` est une liste de résultats — région nommée,\ncompteur annoncé, pagination, sélection. `repeat` est transparent : aucun `role`, aucun\n`aria-live`, aucun compteur, aucune pagination ; la structure de la page vient des titres\nque vous écrivez dans le gabarit.\n\nCe que `repeat` promet, et que `display` ne promet pas :\n- **l'identité par clé** (`key-field`) : à une nouvelle émission de `source`, une ligne\n  dont la clé subsiste garde ses nœuds — les instances qu'ils portent ne sont ni\n  déconnectées ni recréées, leurs attributs sont mis à jour en place ; les clés disparues\n  sont retirées, les nouvelles insérées à leur rang, l'ordre du DOM suit les données ;\n- **l'imbrication** : un `<template>` intérieur n'est pas parcouru — un `dsfr-data-display`\n  (ou un autre `dsfr-data-repeat`) dans le gabarit rend ses propres placeholders ;\n- **les attributs booléens conditionnels** : `data-if-databox=\"champ\"` pose `databox` quand\n  `champ` est vrai (ni null, undefined, « », [] ni false) et le retire sinon ;\n  `data-unless-…` inverse. Un `{{#if}}` entre deux attributs, lui, est découpé par\n  l'analyse HTML.\n\nGrammaire du gabarit : celle de `dsfr-data-display` et `dsfr-data-map-popup`\n(`{{chemin[:format[:arg]][|défaut]}}`, `{{#if}}`, `{{#unless}}`, `{{#each}}`), sans\nsyntaxe nouvelle, avec deux différences de sortie :\n- `{{{brut}}}` n'a pas de sens sur un nœud texte : rendu comme `{{brut}}`, avec un\n  avertissement une fois par gabarit ;\n- un bloc `{{#if}}…{{/if}}` doit tenir dans UN nœud texte ou UNE valeur d'attribut. Ouvert\n  avant un élément et fermé après (« englober deux `<p>` »), il ne peut pas être un bloc :\n  erreur de configuration, et le contenu est rendu quelle que soit la condition.\nVariables : `{{$index}}` (rang, 0-based), `{{$key}}` (valeur de `key-field`, ou le rang),\n`{{$uid}}` (identifiant DOM unique dérivé de la clé, sûr pour `id=` et `aria-labelledby`).\n\nCe que ce composant ne fait pas : pas de délégation serveur derrière un id scopé (une\nsource lue par N queries reste calculée dans le navigateur, règle #765 — charger la source\nen entier, `fetch-mode=\"export\"`, `max-records` au volume réel) ; ni `facets` ni `search`\nne se répètent. Deux répéteurs qui fabriquent le même id se marchent dessus, comme deux\nauteurs qui écriraient le même id.",
+          "description": "<dsfr-data-repeat> - Répéter des instances vivantes : une ligne de données, un pipeline\n\nComposant de STRUCTURE (ADR-135, #887) : pour chaque ligne de `source`, le `<template>`\nenfant est cloné et ses placeholders résolus — texte, attributs, et donc les composants\n`dsfr-data-*` qu'il contient, rehaussés avec leurs attributs déjà interpolés. C'est la\nvoie native pour « un graphique par question », « un KPI par service » : une\n`dsfr-data-query id=\"q-{{clé}}\" where=\"clé:eq:{{clé}}\"` par ligne scope une source chargée\nune fois, `type=\"{{champ}}\"` choisit le type.\n\nRègle d'usage : **`dsfr-data-display` quand la ligne est du contenu ; `dsfr-data-repeat`\nquand la ligne est un pipeline.** `display` est une liste de résultats — région nommée,\ncompteur annoncé, pagination, sélection. `repeat` est transparent : aucun `role`, aucun\n`aria-live`, aucun compteur, aucune pagination ; la structure de la page vient des titres\nque vous écrivez dans le gabarit.\n\nCe que `repeat` promet, et que `display` ne promet pas :\n- **l'identité par clé** (`key-field`) : à une nouvelle émission de `source`, une ligne\n  dont la clé subsiste garde ses nœuds — les instances qu'ils portent ne sont ni\n  déconnectées ni recréées, leurs attributs sont mis à jour en place ; les clés disparues\n  sont retirées, les nouvelles insérées à leur rang, l'ordre du DOM suit les données ;\n- **l'imbrication** : un `<template>` intérieur n'est pas parcouru — un `dsfr-data-display`\n  (ou un autre `dsfr-data-repeat`) dans le gabarit rend ses propres placeholders ;\n- **les attributs booléens conditionnels** : `data-if-databox=\"champ\"` pose `databox` quand\n  `champ` est vrai (ni null, undefined, « », [] ni false) et le retire sinon ;\n  `data-unless-…` inverse. Un `{{#if}}` entre deux attributs, lui, est découpé par\n  l'analyse HTML.\n\nGrammaire du gabarit : celle de `dsfr-data-display` et `dsfr-data-map-popup`\n(`{{chemin[:format[:arg]][|défaut]}}`, `{{#if}}`, `{{#unless}}`, `{{#each}}`), sans\nsyntaxe nouvelle, avec deux différences de sortie :\n- `{{{brut}}}` n'a pas de sens sur un nœud texte : rendu comme `{{brut}}`, avec un\n  avertissement une fois par gabarit ;\n- un bloc `{{#if}}…{{/if}}` doit tenir dans UN nœud texte ou UNE valeur d'attribut. Ouvert\n  avant un élément et fermé après (« englober deux `<p>` »), il ne peut pas être un bloc :\n  erreur de configuration, et le contenu est rendu quelle que soit la condition.\nVariables : `{{$index}}` (rang, 0-based), `{{$key}}` (valeur de `key-field`, ou le rang),\n`{{$uid}}` (identifiant DOM unique dérivé de la clé, sûr pour `id=` et `aria-labelledby`),\net avec `scopes` : `{{$scope.alias}}` (l'id scopé de la ligne pour cette entrée) —\n`{{$scope}}` quand une seule entrée est déclarée.\n\n**`scopes` fait du répéteur un ÉMETTEUR** (#891) : il partitionne une source par champ\n— une passe, une `Map` — et émet un id par ligne, au lieu d'une `dsfr-data-query` par\nligne qui refiltrerait chacune la source entière. Le gabarit n'a plus d'id à fabriquer,\net le volet Diagnostic sait d'où vient `q-001`. `lazy` diffère l'estampage des\ncomposants d'une ligne à son approche du viewport, titres compris rendus d'emblée.\n\nCe que ce composant ne fait pas : pas de délégation serveur derrière un id scopé (une\nsource lue par N queries reste calculée dans le navigateur, règle #765 — charger la source\nen entier, `fetch-mode=\"export\"`, `max-records` au volume réel) ; ni `facets` ni `search`\nne se répètent. Deux répéteurs qui fabriquent le même id se marchent dessus, comme deux\nauteurs qui écriraient le même id.",
           "name": "DsfrDataRepeat",
           "members": [
             {
@@ -16417,6 +16417,26 @@
               "default": "''",
               "description": "Texte rendu quand la source émet zéro ligne — dans un `<p>` sans `role=\"status\"` :\nla balise n'annonce rien, c'est l'auteur qui décide de l'annonce. Vide : rien.",
               "attribute": "empty"
+            },
+            {
+              "kind": "field",
+              "name": "scopes",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Partitionne une ou plusieurs sources par champ et émet **un id scopé par\nligne répétée** — la voie native pour « un graphique par question » sans\nécrire une `dsfr-data-query` par ligne dans le gabarit (#891).\n\nGrammaire (#888, proposition A, celle de `champ:fonction:alias`) :\n`source:champ:alias`, entrées séparées par `|`, termes par `:`.\nL'alias est facultatif — à défaut, c'est l'id de la source.\n\n`scopes=\"scores:code_unifie:q | effectifs:code_unifie:e\"` émet, pour\nchaque ligne de clé `001`, les ids `q-001` et `e-001` ; le gabarit les\nlit par `{{$scope.q}}` et `{{$scope.e}}` (`{{$scope}}` quand une seule\nentrée est déclarée). Les composants du gabarit les consomment par leur\nattribut `source` habituel : rien ne change pour eux.\n\nLa clé d'appariement est celle de la ligne répétée (`key-field`, requis) :\nune clé sans lignes dans la source scopée émet un **tableau vide** — le\ngraphique de la ligne est vide, pas absent. Les états `loading`, `error`\net `idle` (`require-where`) de la source scopée sont relayés sur chaque id\nscopé, pour que la ligne affiche le bon message. Une ré-émission de la\nsource scopée re-partitionne et ré-émet **sans toucher aux lignes**.\n\nLa partition est faite **une fois** par émission (une `Map` par champ),\nlà où N `dsfr-data-query` refiltraient chacune la source entière. Les ids\nscopés sont purgés du cache quand leur ligne disparaît et à la\ndéconnexion du répéteur.\n\nEntrée fausse (nombre de termes, terme vide, alias en double, source\nintrouvable, champ absent des lignes) : `reportConfigError` nommant\nl'entrée — rien de silencieux.",
+              "attribute": "scopes"
+            },
+            {
+              "kind": "field",
+              "name": "lazy",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "N'estampe les composants d'une ligne qu'à son approche du viewport\n(`IntersectionObserver`, marge 200 px — la même que `dsfr-data-map`).\n\nLes conteneurs et le contenu ORDINAIRE du gabarit (titres, textes, liens)\nsont rendus d'emblée : la page garde sa structure de titres, sa hauteur et\nson plan d'accessibilité. Seuls les éléments `dsfr-data-*` sont retenus\nhors du document, attributs déjà interpolés, et insérés à l'entrée de la\nligne dans la marge — ils ne s'abonnent donc à rien et ne dessinent rien\navant. Les ids scopés, eux, sont émis pour **toutes** les lignes dès le\ndépart : le cache est là quand la ligne s'estampe.\n\nSans `lazy`, comportement du lot 1 (tout est estampé d'emblée). Sans\n`IntersectionObserver` (environnement de test), `lazy` est sans effet.",
+              "attribute": "lazy"
             },
             {
               "kind": "field",
@@ -16496,6 +16516,30 @@
               "privacy": "private",
               "default": "null",
               "description": "Dernier message posé : `console.error` une fois par message distinct, l'attribut suit."
+            },
+            {
+              "kind": "field",
+              "name": "_scopes",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new ScopeEmitter( (message) => this._report(message), () => this.isConnected )",
+              "description": "L'émetteur de `scopes` : abonnement, partition, émission, purge. Sa logique\nvit dans `utils/scope-emitter.ts` — aucun composant ne recode un abonnement\nau bus (#280), et aucun mixin ne couvre « N sources en entrée, N ids\nfabriqués en sortie »."
+            },
+            {
+              "kind": "field",
+              "name": "_lazyObserver",
+              "type": {
+                "text": "IntersectionObserver | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Observateur de visibilité de `lazy` ; un seul pour toutes les lignes."
+            },
+            {
+              "kind": "field",
+              "name": "_lazyPending",
+              "privacy": "private",
+              "default": "new Map<Element, RepeatRow>()"
             },
             {
               "kind": "field",
@@ -16679,6 +16723,26 @@
             },
             {
               "kind": "method",
+              "name": "_plainKey",
+              "privacy": "private",
+              "static": true,
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "key",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "La clé telle que le gabarit la voit (`{{$key}}`) : le rang sans son préfixe."
+            },
+            {
+              "kind": "method",
               "name": "_vars",
               "privacy": "private",
               "return": {
@@ -16703,6 +16767,16 @@
             },
             {
               "kind": "method",
+              "name": "getScopedIds",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Les ids que ce répéteur ÉMET — lu par la reconstruction du graphe\n(`snapshotGraph`), qui n'a aucun autre moyen de savoir d'où sort `q-001` :\naucun élément de la page ne porte cet id. Même doctrine que\n`getSkippedCount()` : une méthode publique du composant, pas un événement."
+            },
+            {
+              "kind": "method",
               "name": "_renderRows",
               "privacy": "private",
               "return": {
@@ -16710,6 +16784,54 @@
                   "text": "void"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_lazyEnabled",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "`lazy` n'a de sens qu'avec un `IntersectionObserver` ; sinon tout est estampé."
+            },
+            {
+              "kind": "method",
+              "name": "_observeLazy",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "row",
+                  "type": {
+                    "text": "RepeatRow"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_stampRow",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "row",
+                  "type": {
+                    "text": "RepeatRow"
+                  }
+                }
+              ],
+              "description": "Remet les composants retenus à leur place : c'est là qu'ils s'abonnent."
             }
           ],
           "attributes": [
@@ -16748,6 +16870,24 @@
               "default": "''",
               "description": "Texte rendu quand la source émet zéro ligne — dans un `<p>` sans `role=\"status\"` :\nla balise n'annonce rien, c'est l'auteur qui décide de l'annonce. Vide : rien.",
               "fieldName": "empty"
+            },
+            {
+              "name": "scopes",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Partitionne une ou plusieurs sources par champ et émet **un id scopé par\nligne répétée** — la voie native pour « un graphique par question » sans\nécrire une `dsfr-data-query` par ligne dans le gabarit (#891).\n\nGrammaire (#888, proposition A, celle de `champ:fonction:alias`) :\n`source:champ:alias`, entrées séparées par `|`, termes par `:`.\nL'alias est facultatif — à défaut, c'est l'id de la source.\n\n`scopes=\"scores:code_unifie:q | effectifs:code_unifie:e\"` émet, pour\nchaque ligne de clé `001`, les ids `q-001` et `e-001` ; le gabarit les\nlit par `{{$scope.q}}` et `{{$scope.e}}` (`{{$scope}}` quand une seule\nentrée est déclarée). Les composants du gabarit les consomment par leur\nattribut `source` habituel : rien ne change pour eux.\n\nLa clé d'appariement est celle de la ligne répétée (`key-field`, requis) :\nune clé sans lignes dans la source scopée émet un **tableau vide** — le\ngraphique de la ligne est vide, pas absent. Les états `loading`, `error`\net `idle` (`require-where`) de la source scopée sont relayés sur chaque id\nscopé, pour que la ligne affiche le bon message. Une ré-émission de la\nsource scopée re-partitionne et ré-émet **sans toucher aux lignes**.\n\nLa partition est faite **une fois** par émission (une `Map` par champ),\nlà où N `dsfr-data-query` refiltraient chacune la source entière. Les ids\nscopés sont purgés du cache quand leur ligne disparaît et à la\ndéconnexion du répéteur.\n\nEntrée fausse (nombre de termes, terme vide, alias en double, source\nintrouvable, champ absent des lignes) : `reportConfigError` nommant\nl'entrée — rien de silencieux.",
+              "fieldName": "scopes"
+            },
+            {
+              "name": "lazy",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "N'estampe les composants d'une ligne qu'à son approche du viewport\n(`IntersectionObserver`, marge 200 px — la même que `dsfr-data-map`).\n\nLes conteneurs et le contenu ORDINAIRE du gabarit (titres, textes, liens)\nsont rendus d'emblée : la page garde sa structure de titres, sa hauteur et\nson plan d'accessibilité. Seuls les éléments `dsfr-data-*` sont retenus\nhors du document, attributs déjà interpolés, et insérés à l'entrée de la\nligne dans la marge — ils ne s'abonnent donc à rien et ne dessinent rien\navant. Les ids scopés, eux, sont émis pour **toutes** les lignes dès le\ndépart : le cache est là quand la ligne s'estampe.\n\nSans `lazy`, comportement du lot 1 (tout est estampé d'emblée). Sans\n`IntersectionObserver` (environnement de test), `lazy` est sans effet.",
+              "fieldName": "lazy"
             }
           ],
           "mixins": [

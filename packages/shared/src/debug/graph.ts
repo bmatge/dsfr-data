@@ -118,7 +118,7 @@ export const SHAPE_ATTRS: Record<string, string[]> = {
   'dsfr-data-kpi': ['value', 'label', 'format', 'unit'],
   'dsfr-data-podium': ['label-field', 'value-field', 'max-items'],
   'dsfr-data-display': ['per-row', 'cols', 'pagination', 'uid-field'],
-  'dsfr-data-repeat': ['key-field', 'per-row'],
+  'dsfr-data-repeat': ['key-field', 'per-row', 'scopes', 'lazy'],
   'dsfr-data-map-layer': ['type', 'lat-field', 'lon-field', 'geo-field'],
   'dsfr-data-a11y': ['label-field', 'value-field', 'for', 'table'],
 };
@@ -197,6 +197,18 @@ export interface StageNode {
    * composant rehaussé ; absent sans compute ou quand rien n'a été traité.
    */
   computedColumns?: ComputedColumn[];
+  /**
+   * Ids que ce nœud ÉMET en plus du sien (#891) — les ids scopés d'un
+   * `dsfr-data-repeat` (`scopes`).
+   *
+   * Ils n'existent nulle part dans le DOM : aucun élément ne les porte, et
+   * pourtant des composants du gabarit déclarent `source="q-001"`. Sans cette
+   * liste, chacun serait compté « amont introuvable » — une fausse panne par
+   * ligne — et « d'où vient q-001 ? » n'aurait aucune réponse dans le volet.
+   * Lu sur `getScopedIds()` du composant rehaussé, même doctrine que
+   * `readSkippedRows` : une méthode publique, pas un événement du bus.
+   */
+  emits?: string[];
 }
 
 /** Une colonne produite par `compute` et un exemple de valeur (première ligne). */
@@ -295,6 +307,24 @@ function readComputedColumns(el: Element): ComputedColumn[] | undefined {
   }
 }
 
+/** Composant qui fabrique des ids sur le bus (`dsfr-data-repeat scopes`, #891). */
+interface EmittingElement extends Element {
+  getScopedIds?: () => string[];
+}
+
+/** Ids scopés d'un répéteur, si le composant est rehaussé et les expose. */
+function readEmittedIds(el: Element): string[] | undefined {
+  const emitting = el as EmittingElement;
+  if (typeof emitting.getScopedIds !== 'function') return undefined;
+  try {
+    const ids = emitting.getScopedIds();
+    return Array.isArray(ids) && ids.length > 0 ? ids : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
+}
+
 function readShapeAttrs(el: Element, tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   for (const name of attrsDeForme(tag)) {
@@ -356,6 +386,7 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
     const skippedRows = role === 'display' ? readSkippedRows(el) : undefined;
     const stackedPositions = role === 'display' ? readStackedPositions(el) : undefined;
     const computedColumns = role === 'transform' ? readComputedColumns(el) : undefined;
+    const emits = tag === 'dsfr-data-repeat' ? readEmittedIds(el) : undefined;
 
     nodes.push({
       id,
@@ -370,10 +401,14 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       ...(skippedRows !== undefined ? { skippedRows } : {}),
       ...(stackedPositions !== undefined ? { stackedPositions } : {}),
       ...(computedColumns !== undefined ? { computedColumns } : {}),
+      ...(emits !== undefined ? { emits } : {}),
     });
   }
 
   const known = new Set(nodes.filter((n) => !n.synthetic && !n.ambiguous).map((n) => n.id));
+  // Un id scopé est un amont parfaitement réel, simplement fabriqué au vol par
+  // un répéteur — il ne « manque » pas de la page (#891).
+  for (const node of nodes) for (const id of node.emits ?? []) known.add(id);
   const dangling: Array<{ node: string; missing: string }> = [];
   for (const node of nodes) {
     for (const up of node.upstream) {
