@@ -33,4 +33,18 @@ probablement plus tel quel**. Ce qu'il faut en lire, ce sont `renderer.ts` (les 
 côte à côte) et `spike.spec.ts` (ce qui a été mesuré). Le composant réel est dans
 `packages/core/src/components/dsfr-data-repeat.ts`.
 
+## `docs/archive/` est exclu de CodeQL — et ce n'est pas anodin
+
+CodeQL a levé un `js/xss` **high** sur `spike.html` au premier passage de cette PR. L'alerte est
+juste, et elle est inhérente à l'objet : un spike qui compare `innerHTML` au clonage DOM
+**contient** le motif dangereux, c'est ce qu'il mesure. Sur sa branche d'origine, le spike vivait
+sous `e2e/` — déjà dans les `paths-ignore` de CodeQL, d'où le silence jusqu'ici.
+
+`docs/archive` a donc été ajouté à la liste, dans la même intention que `tests` et `e2e` : du
+code qui ne tourne pas, n'est compilé par aucun `tsconfig`, et n'est pas publié.
+
+**Conséquence à connaître avant d'ajouter quoi que ce soit ici** : ce dossier n'est plus analysé.
+N'y mettez que des artefacts morts. Du code vivant rangé ici perdrait sa couverture de sécurité
+sans que rien ne le signale.
+
 Branche d'origine : `spike/repeat-clonage-dom`, commit `8c35137`, supprimée après versement.
