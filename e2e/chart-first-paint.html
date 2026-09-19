@@ -1,0 +1,102 @@
+<!doctype html>
+<!--
+  Page de REPRODUCTION, pas une fixture de spec : aucun test ne la charge.
+  Elle reproduit le canvas resté blanc jusqu'au survol. À ouvrir à la main
+  (npm run dev, puis /e2e/chart-first-paint.html) quand on soupçonne un
+  retour du défaut : le graphique doit être peint au chargement, sans geste.
+
+  Versée depuis la branche claude/cool-ride-d30sjf (commit 628033b), qui
+  n'avait pas de PR et a été supprimée après versement (#875).
+-->
+<html lang="fr" data-fr-theme>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fixture E2E — premier rendu du canvas, page type tableau de bord</title>
+  <!--
+    SERT A REPRODUIRE : « le graphique reste blanc jusqu'au passage de la
+    souris » (legende et titre rendus, seul le canvas est vide ; il se
+    remplit au premier mousemove, parce que Chart.js redessine pour gerer
+    le survol).
+
+    ETAT MESURE, a ne pas confondre avec un garde-fou : sous CHROMIUM cette
+    page est VERTE — canvas peints avant toute activite souris, y compris en
+    faisant varier les latences croisees donnees / DSFRChart.js et en
+    re-emettant les donnees apres le premier rendu (chemin incremental #305).
+    Le defaut n'a ete constate que sous FIREFOX (non reproduit sous Chrome ni
+    Edge). Tant qu'on ne sait pas le faire ECHOUER, cette page ne garde rien :
+    elle est du materiel de reproduction, pas un test de non-regression.
+
+    AUTONOME A DESSEIN : DSFR Chart vient de node_modules (dependance du
+    depot) et non d'un CDN, pour rester deterministe comme chart-legend.html.
+    La grille DSFR est REDUITE ci-dessous a sa geometrie utile (flex, deux
+    colonnes, gouttieres) : `@gouvfr/dsfr` n'est pas une dependance du depot,
+    et la condition qu'on cherche a reproduire est la mise en page en
+    colonnes, pas la feuille DSFR complete. Si le diagnostic devait exiger la
+    vraie feuille : `npm i -D @gouvfr/dsfr@1.14.4` puis remplacer le bloc
+    <style> par les deux <link> vers dist/dsfr.min.css et
+    dist/utility/utility.min.css.
+
+    Donnees : e2e/chart-first-paint-data.json, jeu FIXE (aucun aleatoire).
+  -->
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    /* Geometrie de la grille DSFR, reduite au strict necessaire. */
+    /* box-sizing global : DSFR le pose, et sans lui les gouttieres
+       debordent la colonne, qui retombe en pleine largeur. */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    .fr-container { max-width: 78rem; margin: 0 auto; padding: 0 1rem; }
+    .fr-my-4w { margin-top: 2rem; margin-bottom: 2rem; }
+    .fr-grid-row { display: flex; flex-wrap: wrap; }
+    .fr-grid-row--gutters { margin: -0.5rem; }
+    .fr-grid-row--gutters > [class^='fr-col'] { padding: 0.5rem; }
+    .fr-col-12 { flex: 0 0 100%; max-width: 100%; }
+    @media (min-width: 48em) {
+      .fr-col-md-6 { flex: 0 0 50%; max-width: 50%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="fr-container fr-my-4w">
+    <h1>Mon tableau de bord</h1>
+
+    <dsfr-data-source id="src" url="/e2e/chart-first-paint-data.json"></dsfr-data-source>
+
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <div class="fr-col-12 fr-col-md-6">
+        <dsfr-data-chart id="w1" source="src" type="bar" title="Conso par ville"
+          label-field="ville" value-field="conso" aggregation="sum"></dsfr-data-chart>
+      </div>
+      <div class="fr-col-12 fr-col-md-6">
+        <dsfr-data-chart id="w2" source="src" type="line" title="Conso par annee"
+          label-field="annee" value-field="conso" aggregation="avg"></dsfr-data-chart>
+      </div>
+    </div>
+
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <div class="fr-col-12 fr-col-md-6">
+        <dsfr-data-chart id="w3" source="src" type="pie" title="Repartition"
+          label-field="ville" value-field="cout" aggregation="sum"></dsfr-data-chart>
+      </div>
+      <div class="fr-col-12 fr-col-md-6">
+        <dsfr-data-chart id="w4" source="src" type="bar" title="Cout par annee"
+          label-field="annee" value-field="cout" aggregation="sum"></dsfr-data-chart>
+      </div>
+    </div>
+
+    <div class="fr-grid-row fr-grid-row--gutters">
+      <div class="fr-col-12 fr-col-md-6">
+        <dsfr-data-chart id="w5" source="src" type="line" title="Cout moyen"
+          label-field="annee" value-field="cout" aggregation="avg"></dsfr-data-chart>
+      </div>
+      <div class="fr-col-12 fr-col-md-6">
+        <dsfr-data-chart id="w6" source="src" type="bar" title="Conso max"
+          label-field="ville" value-field="conso" aggregation="max"></dsfr-data-chart>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

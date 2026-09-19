@@ -40,6 +40,12 @@ jobs:
               - packages/**/dist
               - tests
               - e2e
+              # Code archivé : ne tourne pas, n'est compilé par aucun tsconfig,
+              # n'est pas publié. Même intention que `tests` et `e2e` ci-dessus —
+              # le spike #889 y vivait d'ailleurs sous e2e/, donc déjà ignoré.
+              # Un spike qui compare innerHTML au clonage DOM CONTIENT le motif
+              # dangereux : c'est son objet, pas un défaut à corriger.
+              - docs/archive
               - '**/*.test.ts'
               - '**/*.spec.ts'
 
