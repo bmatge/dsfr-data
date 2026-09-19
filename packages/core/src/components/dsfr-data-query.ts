@@ -243,10 +243,25 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Pour éclater un multivalué avant un `group-by`, c'est `explode` (#736).
    * ⚠️ Tout ceci décrit l'évaluation CÔTÉ CLIENT. Quand la clause part au
    * serveur (voir ci-dessus), c'est le portail qui décide ce que `=` veut dire
-   * sur un champ multivalué, et son verdict peut différer — non vérifié à ce
-   * jour. Une page qui bascule entre délégation et calcul local (source
-   * partagée, transformateur amont, `explode`) peut donc voir le filtre
-   * changer de sens : le mesurer sur le jeu concerné avant d'en dépendre.
+   * sur un champ multivalué — et il en décide AUTREMENT. Mesuré le 2026-09-19
+   * sur le catalogue de data.economie.gouv.fr, champ `keyword` (#953) :
+   * Opendatasoft lit `=` comme un « contient », il trouve la ligne sur
+   * n'importe quel élément du tableau.
+   * - `['urgent']` (un seul élément) : client **matche**, serveur **matche**.
+   * - `['urgent','social']` (plusieurs éléments) : client ne matche pas,
+   *   serveur **matche**.
+   * - `['a','b']` comparé à `'a,b'` : client **matche** (repli sur `String`),
+   *   serveur ne matche pas.
+   * Le même `where="tags:eq:urgent"` sur le même jeu ne compte donc pas la
+   * même chose selon qu'il est délégué ou non. Et ce n'est PAS cette balise
+   * qui en décide : c'est le mode de la source (`fetch-mode`, `server-side`),
+   * un transformateur amont, le partage de la chaîne avec un autre lecteur
+   * (#765), un `explode`. Ajouter un second graphique à la page peut faire
+   * perdre la dédicace de la source, basculer l'évaluation au client et
+   * **changer le chiffre affiché**, sans qu'on ait touché au filtre ni qu'un
+   * message soit émis. Sur un champ multivalué, dériver le booléen en amont
+   * (ci-dessus) : c'est la seule écriture qui donne le même compte des deux
+   * côtés.
    */
   @property({ type: String })
   where = '';

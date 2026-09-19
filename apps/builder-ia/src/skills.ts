@@ -455,6 +455,25 @@ sous-chaîne dans \`String(tableau)\`, donc « non-urgent » y matche « urgent 
 multivalué avant un \`group-by\`, ce n'est pas un filtre ; une \`dsfr-data-facets\` sur le champ,
 elle, éclate et filtre correctement (#421) quand le filtre revient à l'utilisateur.
 
+**…et le serveur, lui, regarde DANS le tableau (#953)**. Ce qui précède décrit l'évaluation côté
+client. Mesuré le 2026-09-19 sur le catalogue de data.economie.gouv.fr (champ \`keyword\`) :
+\`where=keyword = "budgets annexes"\` rend \`total_count = 1\` sur une ligne dont \`keyword\` porte
+quatre valeurs. Opendatasoft lit \`=\` comme un « contient ».
+
+| Donnée du champ, comparée à la valeur du filtre | Client | Serveur (ODS délégué) |
+|---|---|---|
+| \`["urgent"]\` vs \`"urgent"\` (un seul élément) | matche | matche |
+| \`["urgent","social"]\` vs \`"urgent"\` (plusieurs) | ne matche pas | matche |
+| \`["a","b"]\` vs \`"a,b"\` (le rendu texte) | matche | ne matche pas |
+
+⚠️ **Ce n'est pas la balise portant le \`where\` qui décide** si la clause est déléguée : c'est le
+mode de la source (\`fetch-mode\`, \`server-side\`), un transformateur amont, le partage de la source
+avec un autre consommateur, un \`explode\`. Ajouter un second graphique à une page peut faire perdre
+la dédicace de la source, basculer l'évaluation au client et **changer un chiffre affiché**, sans
+qu'on touche au filtre et sans message. Ne jamais répondre « ce filtre compte X » sur un champ
+multivalué sans dire de quel côté il est évalué — et préférer le booléen dérivé par \`compute\`,
+seule écriture qui rende le même chiffre des deux côtés.
+
 **Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
 renseigné produit un groupe \`null\` (jamais \`""\`), que dsfr-data-chart libelle
 « Non renseigné » (attribut \`empty-label\`). Rien n'est masqué par défaut. Pour
@@ -821,6 +840,9 @@ tableau, element par element, avec la meme egalite lache. La correspondance \`ch
 la fonction \`compute\` compare element par element. C'est aussi la voie pour FILTRER un champ
 tableau, qu'aucun operateur \`where\` ne sait faire : calculer ici un booleen
 (\`a_urgent = when contains(tags,'urgent') then 1 else 0\`), puis \`where="a_urgent:eq:1"\` en aval.
+C'est aussi la seule ecriture STABLE : un \`where\` pose directement sur le champ tableau change de
+sens selon qu'il est delegue au portail (ODS lit \`=\` comme un « contient », mesure le 2026-09-19,
+#953) ou evalue dans le navigateur, alors que le booleen derive est un scalaire des deux cotes.
 
 Garde-fous : aucun \`eval\`, seuls les champs de la ligne sont lisibles, expression bornee
 en longueur (2000 caracteres) et en profondeur (32 niveaux). Les colonnes produites
@@ -1308,7 +1330,10 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
   même jeu, \`value="count:tags:urgent"\` et \`value="count{tags:eq:urgent}"\` rendent deux chiffres
   différents, et c'est voulu (#842). Pour filtrer sur un champ tableau, dériver un booléen en amont
   (\`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"\`) puis
-  \`where="a_urgent:eq:1"\`.
+  \`where="a_urgent:eq:1"\`. Le KPI ne délègue jamais : son \`where\` est toujours la variante client.
+  Le même texte sur une \`dsfr-data-query\` peut, lui, partir au portail, qui lit \`=\` comme un
+  « contient » sur un champ tableau (mesuré le 2026-09-19, #953) — un KPI et un graphique portant le
+  MÊME \`where\` sur le même jeu peuvent donc afficher deux chiffres.
 - **Seul \`count\` accepte une valeur de filtre** : \`sum:montant:ouvert\` est une erreur de
   configuration (il rendait autrefois le total non filtré).
 - **Part de SOMMES : filtre entre accolades sur un côté** (\`expr{champ:op:valeur}\`, dialecte du
