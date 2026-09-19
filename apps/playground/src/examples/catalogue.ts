@@ -471,6 +471,34 @@ export const catalogue: ExempleMeta[] = [
     pipeline: ['normalize', 'query'],
     output: ['list'],
   },
+  {
+    id: 'kpi-habillage',
+    title: `Indicateurs — Icone, lisere, teinte (habillage)`,
+    source: ['inline'],
+    pipeline: ['direct'],
+    output: ['kpi'],
+  },
+  {
+    id: 'kpi-etat-vs-categorie',
+    title: `Indicateurs — Couleur d'etat ou de categorie`,
+    source: ['opendatasoft'],
+    pipeline: ['query'],
+    output: ['kpi'],
+  },
+  {
+    id: 'podium-estrade',
+    title: `Podium — Estrade, pastilles, colonnes verticales`,
+    source: ['opendatasoft'],
+    pipeline: ['query'],
+    output: ['podium'],
+  },
+  {
+    id: 'podium-barre-et-vignettes',
+    title: `Podium — Barre sur trois axes et vignettes`,
+    source: ['inline'],
+    pipeline: ['direct'],
+    output: ['podium'],
+  },
 ];
 
 /** Exemple charge au demarrage quand l'URL n'en designe aucun. */
