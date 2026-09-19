@@ -219,6 +219,8 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                              ET À LA SOURIS
   canari.ts                LE CANARI : un contrôle par piège payé par le banc, chacun citant
                              le registre (constats) — la première chose à rejouer
+  gel.ts · gel/            les contrôles GELÉS : les échecs vivants au verdict bibliothèque,
+                             copiés depuis out/gel/, rouges sans réseau jusqu'au correctif
   delegation.ts            l'invariant de délégation : mêmes chiffres, serveur ou client
   export-studio.ts         les tableaux de bord produits par l'export du Studio
   affichages.ts            le RENDU : formats fr-FR, seuils, classes de choroplèthe,
@@ -269,6 +271,10 @@ tools/oracle/            LE MOTEUR
                              l'évaluation sur ce que la page montre
   crosscheck.ts            le RECOUPEMENT SERVEUR (#883) : validation des clauses, URL d'export
                              agrégé, quota par portail, accord et verdict à trois chiffres
+  fraicheur.ts             le VERDICT D'UNE NUIT ROUGE (#884) : empreinte du jeu, date de
+                             traitement du portail, bibliothèque / donnée / indéterminé
+  gel.ts                   le GEL d'un échec : un contrôle vivant devient un contrôle figé,
+                             sans clé, servi par le faux serveur gel.verif.invalid
 
 tools/oracle-py/         LA TROISIÈME VOIX (Python standard, aucune dépendance)
   oracle.py                lit out/manifests.json et jeux/*.json, recalcule en Fraction,
@@ -293,6 +299,8 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
                              sur tous les manifestes), l'URL écrite à la main, le quota qui coupe,
                              l'accord par clé, les cinq verdicts
   report.test.ts           le résumé du rapport : verdicts comptés, serveur muet compté à part
+  fraicheur.test.ts        l'empreinte, la date lue une fois par jeu (jamais inventée), les verdicts
+  gel.test.ts              le gel : réécriture du balisage, secrets retirés, faux serveur, relecture
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -545,6 +553,71 @@ clause), BOFiP, Baromètre v2, personnels des collèges, Euroscol, TNE,
 assistants de langues, IPS des écoles, contrôle technique, Tourisme &
 Handicap, fédérations sportives, IPS des collèges.
 
+## Le verdict d'une nuit rouge, et le gel
+
+Le point qui fait vivre ou mourir un dispositif de ce genre : **que fait-on
+d'une nuit rouge ?** Le mode vivant tient l'ADR-122 — les deux côtés lisent
+la même API « au même instant » —, mais « au même instant » vaut quelques
+minutes (`verif:expected` puis le spec), et un jeu mis à jour entre les deux
+donne un écart qui n'est ni un bug ni une donnée fausse. Un contrôle vivant
+qu'il faut interpréter le matin est un contrôle qu'on finit par ignorer.
+
+**L'empreinte** (#884, `tools/oracle/fraicheur.ts`). Au calcul de l'attendu,
+`verif:expected` note pour chaque contrôle vivant le nombre de lignes brutes,
+un SHA-256 de leur forme JSON et la date de traitement que le portail publie
+(`metas.default.data_processed` de `/api/explore/v2.1/catalog/datasets/{id}`)
+— `ExpectedCheck.fingerprint`. Sur un **écart**, le spec relit cette date
+(une requête, en cache par jeu) et tranche :
+
+| Verdict | Quand | Ce que fait le spec |
+|---|---|---|
+| **bibliothèque** | la date n'a pas bougé | l'échec est **gelé** : `tools/oracle/out/gel/<id>-gel.json`, un contrôle déterministe prêt à committer |
+| **donnée, rejoué** | la date a bougé entre l'attendu et l'observation | le contrôle est **rejoué une fois**, dans le même run, sur un attendu recalculé depuis les lignes retéléchargées ; seul le second passage est rendu |
+| **indéterminé** | pas de date d'un côté ou de l'autre (Tabular, Melodi, un export sans catalogue) | l'écart reste, le verdict le dit — jamais une date inventée |
+
+Le rapport texte **commence** par le décompte des verdicts (« Verdicts de la
+nuit — 1 × « bibliothèque », … »), chaque constat porte `nuit : …`, et
+`out/banc.md` l'ajoute à sa colonne Verdict.
+
+**Le gel** (`tools/oracle/gel.ts`). Le fichier gelé porte les lignes brutes
+téléchargées (en fixtures), le balisage — chaque `base-url` réécrite vers
+`https://gel.verif.invalid/<id>`, les attributs `api-key-ref` et `headers`
+**retirés** : un gel n'emporte jamais une clé —, les attentes (sans
+`crosscheck`, qui n'a pas de sens hors ligne), la page et les constats du
+banc, et une `provenance` (contrôle d'origine, date, écarts, réserves). Le
+copier sous `tests/verif-donnees/gel/` suffit : le domaine `gel` le charge
+(`tests/verif-donnees/gel.ts`), le faux serveur `repondreGel` sert l'export,
+`/records` et `/facets` depuis ses lignes avec les répondeurs ODS du harnais,
+et le contrôle tourne sur chaque PR, sans réseau, rouge jusqu'au correctif,
+vert ensuite. Le matin, la question n'est plus « est-ce la lib ? » mais « ce
+contrôle figé est-il rouge sur `main` ? ». Une clause que le faux serveur ne
+sait pas lire (`year(…)`, `in (…)`, `search(…)`) est nommée dans
+`provenance.reserves` : le gel est écrit quand même, et dit ce qu'il ne
+saura pas rejouer.
+
+**Le bruit.** `--retries=1` reste sur `oracle.yml` ; un contrôle qui a
+échoué puis réussi au retry est compté à part (« instable », `Constat.instable`,
+jamais fondu dans le vert). Trois instabilités sur le même contrôle en un
+mois ouvrent une issue sur le contrôle lui-même.
+
+**Pour éprouver le verdict « donnée » sans attendre qu'un portail republie** :
+`VERIF_SIMULER_DONNEE=<id>` fait lire, après l'observation, une date
+différente pour ce contrôle — le rejeu se voit au rapport.
+
+### La règle de vie
+
+Une nuit rouge est traitée **sous 24 h**, et n'a que deux sorties :
+
+1. **gelée** — verdict bibliothèque : le fichier de `out/gel/` est copié sous
+   `tests/verif-donnees/gel/`, committé, et une issue `verif-donnees` est
+   ouverte ; le contrôle figé est rouge sur `main` jusqu'au correctif ;
+2. **requalifiée** — verdict donnée (rejoué vert), clause de manifeste
+   périmée, jeu supprimé ou déplacé : le contrôle vivant est mis à jour, ou
+   mis en `skip` avec sa raison et ses deux chiffres.
+
+**Jamais un troisième état.** Un contrôle vivant rouge depuis plus d'une
+semaine est un défaut du dispositif, pas du portail.
+
 ## Les gestes et l'horloge
 
 Certains chiffres n'existent qu'APRÈS un geste : un filtre de contexte, une
@@ -708,6 +781,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | (par construction) `fetch-mode="export" max-records="1000"` sur 1 001 lignes | `canari-plafond-export#not-truncated` | « 1000 lignes, aucun diagnostic » — en attente, AM-002 |
 | recoupement | `sum` de l'ORACLE rend un de trop (`tools/oracle/compute.ts`, `aggregate`) — un défaut du recalcul, pas de la lib | `personnels-colleges-part-ponderee` / `kpi:k-etp`, `tne-personnels-formes-unpivot` / `kpi:k-tne-participants` (vivants) | « lib 289 592, oracle 289 593, serveur 289 592 — verdict : oracle ≠ serveur, lib = serveur : le recalcul se trompe seul » : c'est le **serveur** qui désigne l'oracle, la page n'y est pour rien |
 | recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
+| nuit rouge | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) sur le contrôle VIVANT `bofip-total-publie-par-la-source-serveur` | verdict **bibliothèque** | « Verdicts de la nuit — 1 × « bibliothèque » » ; « lib 10, oracle 9 148, serveur 9 148 » ; le gel `out/gel/bofip-total-publie-par-la-source-serveur-gel.json` est écrit — copié sous `tests/verif-donnees/gel/`, il est **rouge en `npm run verif` sans réseau** (« affiché 10, recalculé 9148 », aucune requête sortie du faux réseau) et **vert** une fois la mutation retirée |
+| nuit rouge | `VERIF_SIMULER_DONNEE=bofip-total-publie-par-la-source-serveur` (date de traitement différente à la relecture), même mutation | verdict **donnée, rejoué** | « Verdicts de la nuit — 1 × « donnée, rejoué » » : le contrôle a été rejoué sur un attendu recalculé, et seul le second passage est rendu |
 
 ## Un contrôle que la bibliothèque ne passe pas
 

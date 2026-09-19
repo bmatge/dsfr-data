@@ -21,12 +21,18 @@ import {
   QuotaError,
   type AttenduServeur,
 } from './crosscheck.js';
+import { prendreEmpreinte } from './fraicheur.js';
 
 export async function computeExpected(): Promise<ExpectedCheck[]> {
   const out: ExpectedCheck[] = [];
   for (const { domaine, check } of controlesDuMode('live')) {
     const datasets = await resoudreFeed(check.feed);
     const attendu = computeExpectedFor(check, datasets);
+    // L'EMPREINTE du jeu principal (#884) : ce que le spec relira pour dire
+    // « bibliothèque » ou « donnée » sur un écart.
+    if (check.feed.kind === 'raw') {
+      attendu.fingerprint = await prendreEmpreinte(check.feed.source, datasets.main ?? []);
+    }
     // Le RECOUPEMENT SERVEUR (#883) : une requête agrégée par attente qui en
     // demande une, clauses écrites à la main, sous quota. Un portail coupé ou
     // une requête en échec laisse une raison, jamais un chiffre inventé.

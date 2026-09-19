@@ -20,6 +20,7 @@ import {
 } from './compute.js';
 import { referenceInvariant, type AttenduInvariant } from './invariants.js';
 import type { AttenduServeur, EtatPortail } from './crosscheck.js';
+import type { Empreinte } from './fraicheur.js';
 
 export interface AttenduKpi {
   kind: 'kpi';
@@ -215,6 +216,13 @@ export interface ExpectedCheck {
   serveur?: Record<string, AttenduServeur>;
   /** L'état des portails recoupés dans ce run : quota lu, requêtes, coupure. */
   recoupement?: Record<string, EtatPortail>;
+  /**
+   * L'EMPREINTE du jeu principal au calcul de l'attendu (#884), mode vivant :
+   * nombre de lignes, SHA-256 de leur forme JSON, et `data_processed` du
+   * portail. C'est ce que le spec relit après l'observation pour trancher
+   * « bibliothèque » ou « donnée ».
+   */
+  fingerprint?: Empreinte;
 }
 
 /** Calcule l'attendu d'un contrôle à partir de ses jeux de lignes brutes. */
