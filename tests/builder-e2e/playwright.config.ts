@@ -1,17 +1,35 @@
 import { defineConfig } from '@playwright/test';
 
+/**
+ * Extensions ramassees par Playwright. Trois familles cohabitent dans ce
+ * dossier, et deux d'entre elles ne sont PAS de la couverture :
+ *
+ *  - `*.spec.ts`    — les specs, seule famille ramassee par defaut ;
+ *  - `*.tool.ts`    — des OUTILS sans aucune assertion (#867) : ils impriment
+ *    ou ils generent un rapport, et passent toujours au vert, y compris quand
+ *    le Builder n'a rien genere ;
+ *  - `*.archive.ts` — les specs HISTORIQUES du Builder (#868). Ils assertent,
+ *    eux, mais ils pilotent l'UI par ses `id` HTML et par des
+ *    `waitForTimeout` fixes : chaque refonte les decale, et 56 de leurs
+ *    72 cas sont rouges. Archives plutot que supprimes — leur contenu reste
+ *    la trace de ce qui etait couvert, et `typecheck:tests` continue de les
+ *    compiler.
+ *
+ * `api-fixtures.test.ts` vit aussi ici mais releve de vitest : sans ce filtre,
+ * Playwright le ramasse et la commande documentee plante avant le premier test
+ * (« Cannot read properties of undefined (reading 'config') »).
+ *
+ * Les deux familles exclues restent lancables a la demande :
+ *   BUILDER_E2E_OUTILS=1   npx playwright test --config … builder-exhaustive
+ *   BUILDER_E2E_ARCHIVES=1 npx playwright test --config … quick-audit
+ */
+const extensionsRamassees = ['spec'];
+if (process.env.BUILDER_E2E_OUTILS) extensionsRamassees.push('tool');
+if (process.env.BUILDER_E2E_ARCHIVES) extensionsRamassees.push('archive');
+
 export default defineConfig({
   testDir: '.',
-  // `api-fixtures.test.ts` vit dans ce dossier mais releve de vitest : sans ce
-  // filtre, Playwright le ramasse et la commande documentee plante avant le
-  // premier test (« Cannot read properties of undefined (reading 'config') »).
-  //
-  // Les fichiers `*.tool.ts` sont des OUTILS sans aucune assertion (#867) :
-  // ils impriment ou ils generent un rapport, et passent toujours au vert,
-  // y compris quand le Builder n'a rien genere. Les compter comme de la
-  // couverture etait une illusion — ils restent lancables a la demande :
-  //   BUILDER_E2E_OUTILS=1 npx playwright test --config … builder-exhaustive
-  testMatch: process.env.BUILDER_E2E_OUTILS ? /.*\.(spec|tool)\.ts$/ : /.*\.spec\.ts$/,
+  testMatch: new RegExp(`.*\\.(${extensionsRamassees.join('|')})\\.ts$`),
   timeout: 120_000,
   retries: 0,
   workers: 1, // Sequential: shared results array + avoid port conflicts

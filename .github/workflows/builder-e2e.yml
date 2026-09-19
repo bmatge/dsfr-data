@@ -4,9 +4,15 @@ name: Builder E2E
 #
 # Le reste du dossier n'est PAS câblé ici, et ce n'est pas un oubli : les specs
 # historiques du Builder pilotent l'UI par ses `id` HTML et par des
-# `waitForTimeout` fixes, et 56 de leurs cas sont rouges (#868). Ils restent un
-# outil de recette manuelle. Les fichiers `*.tool.ts` n'ont aucune assertion et
-# sont hors `testMatch` (#867).
+# `waitForTimeout` fixes, et 56 de leurs 72 cas sont rouges. Ils sont ARCHIVÉS
+# depuis #868 (`*.archive.ts`, hors `testMatch`, relançables avec
+# `BUILDER_E2E_ARCHIVES=1`) : leur contenu reste la trace de ce qui était
+# couvert, `typecheck:tests` continue de les compiler, mais ils ne sont plus
+# ramassés. Les fichiers `*.tool.ts` n'ont aucune assertion et sont hors
+# `testMatch` eux aussi (#867).
+#
+# Conséquence sur ce workflow : AUCUNE. Il nomme ses trois specs une par une,
+# et le dossier ramasse désormais exactement ces 104 cas par défaut.
 #
 # Ce qui rend ces trois-là bloquants :
 #   - `builder-ia-recette` + `layout-diagnostic-recette` : 43 cas, 16 s, aucune

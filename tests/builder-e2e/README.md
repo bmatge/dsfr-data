@@ -1,43 +1,124 @@
-# tests/builder-e2e — trois specs bloquantes, le reste en recette manuelle
+# tests/builder-e2e — trois specs bloquantes, quatre specs archivées, deux outils
 
 > **Trois specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869) :
 > `export-html-api-recette` (61 cas, vert depuis #866), `builder-ia-recette` et
-> `layout-diagnostic-recette` (43 cas). 104 cas, 27 s, aucune API tierce.
+> `layout-diagnostic-recette` (43 cas). **104 cas**, 27 s, aucune API tierce. C'est
+> exactement ce que Playwright ramasse par défaut dans ce dossier depuis #868.
 >
-> **Le reste du dossier ne tourne dans aucun workflow, et ce n'est pas un oubli : il n'est pas
-> vert** (#868). Il se lance à la main quand on veut inspecter le Builder ou l'Assistant IA
-> dans un vrai navigateur. Les autres garde-fous qui BLOQUENT une PR : `vitest` (unitaires),
-> `e2e-layout.yml` (mise en page mesurée), `verif-donnees.yml` (tout chiffre affiché recalculé
-> par un oracle).
+> **Quatre specs historiques du Builder ont été ARCHIVÉES** (#868, 2026-09-19) : elles portent
+> l'extension `.archive.ts`, sortent du `testMatch`, et se relancent avec
+> `BUILDER_E2E_ARCHIVES=1`. Leur contenu n'est pas effacé — voir « Ce qui n'est plus ramassé »
+> ci-dessous pour ce qu'on perd et comment y revenir.
 >
-> L'état ci-dessous est **mesuré**, pas déclaré (relevé du 2026-09-14, #844). Les pourcentages
-> de l'ancienne version de ce fichier (« 11/12 passent », « 7/8 passent ») dataient d'avant
-> plusieurs refontes de l'UI du Builder et ne valaient plus rien.
+> **Deux outils** (`*.tool.ts`, #867) n'assertent rien et sont hors `testMatch` eux aussi ;
+> ils se relancent avec `BUILDER_E2E_OUTILS=1`.
+>
+> Les garde-fous qui BLOQUENT une PR par ailleurs : `vitest` (unitaires), `e2e-layout.yml`
+> (mise en page mesurée), `verif-donnees.yml` (tout chiffre affiché recalculé par un oracle).
+>
+> L'état ci-dessous est **mesuré**, pas déclaré. Les pourcentages d'une version encore
+> antérieure de ce fichier (« 11/12 passent », « 7/8 passent ») dataient d'avant plusieurs
+> refontes de l'UI du Builder et ne valaient plus rien.
 
-## État réel, spec par spec
+## État réel, fichier par fichier
 
-Relevé sur un serveur de dev local, `npx playwright test --config tests/builder-e2e/playwright.config.ts <spec>`.
+Comptes de cas relevés le **2026-09-19** avec
+`npx playwright test --config tests/builder-e2e/playwright.config.ts --list` (le `--list` ne
+lance rien : le chiffre ne dépend ni du serveur de dev ni de l'état de l'UI). Les colonnes
+« résultat » viennent des relevés d'exécution datés en regard.
 
-| Spec | Serveur de dev | Résultat mesuré | Ce qu'il faut en penser |
+### Ramassés par défaut — la couverture réelle du dossier
+
+| Spec | Serveur de dev | Cas | Résultat mesuré | Ce qu'il faut en penser |
+|---|---|---|---|---|
+| `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | 61 | **61 vert** (2026-09-19, #866) | Le plus solide du dossier : déterministe, sans réseau, 11 s. Demande `npm run build` avant. |
+| `builder-ia-recette.spec.ts` | oui | 16 | **vert** (2026-09-14, #844) | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
+| `layout-diagnostic-recette.spec.ts` | oui | 27 | **vert** (2026-09-14, #844) | Idem. |
+| | | **104** | | C'est le total que Playwright ramasse, et le total que la CI exécute. |
+
+### Archivés — hors `testMatch` depuis #868 (2026-09-19)
+
+| Spec archivé | Serveur de dev | Cas | Dernier résultat mesuré | Pourquoi archivé |
+|---|---|---|---|---|
+| `quick-audit.archive.ts` | oui | 12 | **10 vert / 2 rouge** (2026-09-14, #844) | Dérive de sélecteurs : « Filtre avancé » et « Série 2 » ne trouvent plus leur contrôle. |
+| `simple-test.archive.ts` | oui | 9 | **6 vert / 2 rouge** (2026-09-14, #844) | Idem (« Bouton générer », « Zone de code généré »). |
+| `aggregation-consistency.archive.ts` | oui | 14 | **0 vert / 15 rouge** (2026-09-14, #844) | Entièrement rouge. Le harnais pilote le Builder par ses `id` HTML ; l'UI a bougé, le harnais non. |
+| `comprehensive-test.archive.ts` | oui | 37 | **0 vert / 37 rouge** (2026-09-14, #844) | Même harnais, mêmes causes. Run très long : chaque cas va au bout de son délai avant d'expirer. |
+| | | **72** | **56 rouges** | |
+
+> ⚠️ Les comptes de cas de la colonne « Cas » (relevé du 2026-09-19 par `--list`) et les comptes
+> de résultats du relevé du 2026-09-14 ne coïncident pas partout : `--list` compte 14 cas dans
+> `aggregation-consistency` là où le relevé d'exécution en notait 15, et 9 dans `simple-test` là
+> où il en notait 8. L'écart n'a pas été rejoué — un relevé d'exécution honnête demande un arbre
+> construit (`npm run build:shared && npm run build && npm run build:app-ui`), faute de quoi on
+> mesure son propre environnement et pas les specs. Le chiffre qui engage l'archivage, lui, est
+> celui de `--list`, et il est exact : **72 cas sortent du ramassage, 104 restent**.
+
+### Outils — hors `testMatch` depuis #867, et ce ne sont pas des tests
+
+| Outil | Serveur de dev | Cas | Ce que c'est |
 |---|---|---|---|
-| `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | **61 vert** (relevé du 2026-09-19, #866) | Le plus solide du dossier : déterministe, sans réseau, 11 s. Demande `npm run build` avant. |
-| `builder-ia-recette.spec.ts` | oui | **vert** | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
-| `layout-diagnostic-recette.spec.ts` | oui | **vert** | Idem. |
-| `quick-audit.spec.ts` | oui | **10 vert / 2 rouge** | Dérive de sélecteurs : « Filtre avancé » et « Série 2 » ne trouvent plus leur contrôle. |
-| `simple-test.spec.ts` | oui | **6 vert / 2 rouge** | Idem (« Bouton générer », « Zone de code généré »). |
-| `aggregation-consistency.spec.ts` | oui | **0 vert / 15 rouge** | Entièrement rouge. Le harnais pilote le Builder par ses `id` HTML ; l'UI a bougé, le harnais non. |
-| `comprehensive-test.spec.ts` | oui | **0 vert / 37 rouge** | Même harnais, mêmes causes. Run très long : chaque cas va au bout de son délai avant d'expirer. |
-| `inspect-builder.tool.ts` | oui | **aucune assertion**, hors `testMatch` (#867) | Ce n'est pas un test : c'est un inspecteur qui imprime la structure du Builder. Le lancer `--headed`. |
-| `builder-exhaustive.tool.ts` | oui | **aucune assertion** (110 cas), hors `testMatch` (#867) | Ce n'est pas un test non plus : c'est un **générateur de rapport** (`RESULTS.md` + `screenshots/`, tous deux ignorés par git). Il passe toujours au vert, même quand il journalise `code=false` — autrement dit quand le Builder n'a rien généré. Compter ses 110 « tests » comme de la couverture est une illusion. |
+| `inspect-builder.tool.ts` | oui | 1 | Un inspecteur qui imprime la structure du Builder. Le lancer `--headed`. |
+| `builder-exhaustive.tool.ts` | oui | 110 | Un **générateur de rapport** (`RESULTS.md` + `screenshots/`, ignorés par git). Il passe toujours au vert, même quand il journalise `code=false` — autrement dit quand le Builder n'a rien généré. Compter ses 110 « tests » comme de la couverture est une illusion. |
 
-**Pourquoi c'est rouge, en une phrase** : les specs les plus anciens conduisent le Builder par
-ses identifiants HTML et par des `waitForTimeout` fixes ; chaque refonte de l'UI les décale, et
-rien en CI ne le signalait. Les remettre au vert est un travail à part entière — ce n'est pas
-une question de fixtures à rafraîchir.
+**Pourquoi les archivés sont rouges, en une phrase** : ils conduisent le Builder par ses
+identifiants HTML et par des `waitForTimeout` fixes ; chaque refonte de l'UI les décale, et rien
+en CI ne le signalait. Les remettre au vert est un travail à part entière — ce n'est pas une
+question de fixtures à rafraîchir.
+
+## Ce qui n'est plus ramassé, et comment y revenir
+
+**Le chiffre** (relevé du 2026-09-19) : le dossier collectait **176 cas** dans 7 fichiers ; il en
+collecte **104** dans 3 fichiers. **72 cas sont sortis**, dont **56 étaient rouges** et 16 verts.
+Aucun de ces 176 cas ne tournait en CI hors des 104 : l'archivage ne retire donc **rien** de ce
+qui bloquait une PR, et le nombre de cas exécutés par `builder-e2e.yml` est inchangé.
+
+```bash
+# Ce que Playwright ramasse par defaut : 104 cas, 3 fichiers
+npx playwright test --config tests/builder-e2e/playwright.config.ts --list
+
+# Avec les archives : 176 cas, 7 fichiers
+BUILDER_E2E_ARCHIVES=1 npx playwright test --config tests/builder-e2e/playwright.config.ts --list
+
+# Avec les outils : 215 cas, 5 fichiers
+BUILDER_E2E_OUTILS=1 npx playwright test --config tests/builder-e2e/playwright.config.ts --list
+```
+
+**Ce que les 72 cas archivés couvraient** — c'est une intention, pas un état vert (le détail des
+paramètres visés est plus bas, « Paramètres visés par les specs archivés ») :
+
+| Spec archivé | Ce qu'il couvrait |
+|---|---|
+| `comprehensive-test` (37) | La matrice du Builder : 5 agrégations × 11 types, palettes, tri, séries simples/doubles, mode avancé (filtres, group-by, aggregate). |
+| `aggregation-consistency` (14) | La cohérence chiffrée : chaque agrégation du Builder recalculée depuis les données source par `data-consistency-checker.ts`. |
+| `quick-audit` (12) | Un sous-ensemble rapide de la même matrice (sum/avg/min/max/count, horizontalBar, filtre avancé, série 2). |
+| `simple-test` (9) | Les fondamentaux de l'UI du Builder : la page charge, les contrôles existent, le bouton générer est cliquable, le code apparaît. |
+
+**Ce que cette couverture a de redondant** : le recalcul indépendant de tout chiffre affiché est
+assuré en CI par `verif-donnees.yml` (oracle), la forme du code généré par
+`tests/apps/builder-ia/code-generator-recette.test.ts` (hors ligne, vitest), et le fait qu'un type
+rende réellement par `builder-ia-recette.spec.ts` (16 types) et `export-html-api-recette.spec.ts`
+(16 types × 3 variantes API). **Ce qui n'est couvert nulle part ailleurs** : le pilotage de l'UI
+du Builder elle-même — cliquer ses contrôles et vérifier que le code généré change en
+conséquence. C'est cela, et seulement cela, que l'archivage laisse à la recette manuelle.
+
+**Pour relancer un spec archivé** (il faut un arbre construit, sinon on mesure son propre
+environnement et pas le spec) :
+
+```bash
+npm run build:shared && npm run build && npm run build:app-ui
+BUILDER_E2E_ARCHIVES=1 npx playwright test \
+  --config tests/builder-e2e/playwright.config.ts quick-audit.archive.ts --headed
+```
+
+Les fichiers archivés restent **typés** par `npm run typecheck:tests` (`tsconfig.tests.json`
+inclut `tests/**/*.ts`) : un renommage dans le Builder qui casserait leur compilation se verra
+toujours en CI. Ils gardent aussi leur adresse en dur `http://localhost:5173` — rien de leur
+contenu n'a été touché par l'archivage.
 
 **Ce qui est câblé en CI** (#869, sur le modèle d'`e2e-layout.yml`) : `builder-ia-recette` +
 `layout-diagnostic-recette` (43 cas, 16 s, verts et sans réseau) et `export-html-api-recette`
-(61 cas, vert depuis #866). Le reste ne l'est pas, et ne le sera pas avant que #868 soit tranchée.
+(61 cas, vert depuis #866).
 
 **Les trois rouges d'`export-html-api-recette`, requalifiés (#866)** : ce n'était ni le faux
 serveur ni le parseur ODSQL strict des fixtures, mais une **attente périmée**. Le document
@@ -61,9 +142,17 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   (Builder, Assistant IA, Playground, Studio, Carto) : pas de défilement horizontal, mode de
   hauteur déclaré, fin de document bordant le rail, et volet Diagnostic qui **reçoit réellement
   le clic**.
-- **`quick-audit.spec.ts`**, **`simple-test.spec.ts`**, **`comprehensive-test.spec.ts`**,
-  **`aggregation-consistency.spec.ts`** : les specs historiques du Builder (agrégations, types,
-  palettes, tri, filtres). Partiellement à entièrement rouges — voir le tableau ci-dessus.
+### Specs archivés (extension `.archive.ts`, hors `testMatch`)
+
+Les specs historiques du Builder (agrégations, types, palettes, tri, filtres). Ils **assertent**,
+contrairement aux outils ci-dessous — c'est pour cela qu'ils sont archivés et non supprimés : leur
+contenu reste la trace de ce qui était couvert. 72 cas, 56 rouges (voir « Ce qui n'est plus
+ramassé »). Pour les relancer, `BUILDER_E2E_ARCHIVES=1`.
+
+- **`comprehensive-test.archive.ts`** (37 cas) : la matrice du Builder.
+- **`aggregation-consistency.archive.ts`** (14 cas) : la cohérence chiffrée des agrégations.
+- **`quick-audit.archive.ts`** (12 cas) : un sous-ensemble rapide de la matrice.
+- **`simple-test.archive.ts`** (9 cas) : les fondamentaux de l'UI du Builder.
 
 ### Outils (sans assertion, extension `.tool.ts`, hors `testMatch`)
 
@@ -93,9 +182,9 @@ BUILDER_E2E_OUTILS=1 npx playwright test \
 - **`TESTING_MATRIX.md`** : matrice des paramètres à tester.
 - **`playwright.config.ts`** : configuration Playwright. `testMatch` y est restreint à
   `*.spec.ts` — sans quoi Playwright ramasse `api-fixtures.test.ts`, qui relève de vitest, et
-  plante avant le premier test ; les outils `*.tool.ts` en sont exclus sauf
-  `BUILDER_E2E_OUTILS=1`. `webServer` y démarre `npm run dev` au besoin et **réutilise** celui
-  qui tourne déjà.
+  plante avant le premier test ; les outils `*.tool.ts` (#867) et les specs archivés
+  `*.archive.ts` (#868) en sont exclus sauf `BUILDER_E2E_OUTILS=1` / `BUILDER_E2E_ARCHIVES=1`.
+  `webServer` y démarre `npm run dev` au besoin et **réutilise** celui qui tourne déjà.
 
 ## Lancement
 
@@ -113,12 +202,13 @@ npm run build
 npx playwright test --config tests/builder-e2e/playwright.config.ts export-html-api-recette.spec.ts
 
 # Debug
-npx playwright test --config tests/builder-e2e/playwright.config.ts quick-audit.spec.ts --headed
-npx playwright test --config tests/builder-e2e/playwright.config.ts quick-audit.spec.ts --ui
+BUILDER_E2E_ARCHIVES=1 npx playwright test --config tests/builder-e2e/playwright.config.ts quick-audit.archive.ts --headed
+BUILDER_E2E_ARCHIVES=1 npx playwright test --config tests/builder-e2e/playwright.config.ts quick-audit.archive.ts --ui
 ```
 
-Lancer **tout** le dossier prend plus d'une heure (les specs historiques enchaînent les délais
-d'attente fixes puis expirent) et finit rouge : préférer un spec à la fois.
+Lancer le dossier **avec les archives** (`BUILDER_E2E_ARCHIVES=1`) prend plus d'une heure (elles
+enchaînent les délais d'attente fixes puis expirent) et finit rouge : préférer un spec à la fois.
+Sans le drapeau, les 104 cas ramassés passent en une trentaine de secondes.
 
 
 ## 🌐 Recette des variantes API (#625, ADR-106)
@@ -182,11 +272,11 @@ rendu est posé sur `pagePartagee()`, et pas par hasard : `fetch-mode` et `serve
 par construction, et la source partagée est justement celle qu'ADR-109 laisse en chargement
 complet — donc la seule où l'export a un sens.
 
-## Paramètres visés par les specs historiques
+## Paramètres visés par les specs archivés
 
-Ce que `comprehensive-test.spec.ts` et `quick-audit.spec.ts` cherchent à couvrir. C'est une
-**intention**, pas un état : voir le tableau « État réel, spec par spec » en tête de fichier pour
-ce qui passe aujourd'hui.
+Ce que `comprehensive-test.archive.ts` et `quick-audit.archive.ts` cherchent à couvrir. C'est une
+**intention**, pas un état — et depuis #868 ces specs ne sont plus ramassés : voir « Ce qui n'est
+plus ramassé » pour ce que cela retire.
 
 | Catégorie | Paramètres visés |
 |-----------|------------------|
@@ -226,7 +316,7 @@ Les tests utilisent un dataset avec valeurs connues pour permettre la vérificat
 
 ### Valeurs attendues et résultats
 
-**Pour le champ `population` (attendu de `quick-audit.spec.ts`) :**
+**Pour le champ `population` (attendu de `quick-audit.archive.ts`) :**
 
 | Agrégation | Valeur attendue |
 |------------|-----------------|
@@ -251,7 +341,7 @@ laissait croire à un relevé. Pour ce qui passe aujourd'hui, voir le tableau en
 
 ### Exposition du state pour les tests
 
-Les specs historiques injectent leurs données dans le state du Builder, exposé globalement.
+Les specs archivés injectent leurs données dans le state du Builder, exposé globalement.
 **Vérifié le 2026-09-14 : l'exposition est bien en place**, dans `apps/builder/src/main.ts`
 (près de la ligne 59, depuis #115) :
 
@@ -352,10 +442,10 @@ test('Agrégation MEDIAN - calcul correct', async ({ page }) => {
 
 ```bash
 # Lancer le test en mode headed pour voir ce qui se passe
-npx playwright test tests/builder-e2e/comprehensive-test.spec.ts --headed -g "AVG"
+BUILDER_E2E_ARCHIVES=1 npx playwright test --config tests/builder-e2e/playwright.config.ts comprehensive-test.archive.ts --headed -g "AVG"
 
 # Lancer avec le debugger
-npx playwright test tests/builder-e2e/comprehensive-test.spec.ts --debug -g "AVG"
+BUILDER_E2E_ARCHIVES=1 npx playwright test --config tests/builder-e2e/playwright.config.ts comprehensive-test.archive.ts --debug -g "AVG"
 
 # Voir les traces
 npx playwright show-trace trace.zip
@@ -398,7 +488,8 @@ propres yeux quand on ouvre le Builder.
 
 - `playwright.config.ts` impose `workers: 1` (tableau de résultats partagé par
   `builder-exhaustive.tool.ts`) : les specs de ce dossier ne sont PAS parallélisés.
-- Lancer un spec à la fois ; le dossier entier dépasse l'heure.
+- Les 104 cas ramassés passent en une trentaine de secondes ; c'est avec
+  `BUILDER_E2E_ARCHIVES=1` que le dossier dépasse l'heure.
 
 ### Stabilité
 
@@ -433,7 +524,9 @@ await page.pause();
 Pour ajouter de nouveaux tests :
 
 1. Consulter `TESTING_MATRIX.md` pour identifier les paramètres non couverts
-2. Ajouter les tests dans `comprehensive-test.spec.ts`
+2. NE PAS ajouter de test dans un `*.archive.ts` : ils ne sont plus ramassés. Un nouveau
+   garde-fou va dans un `*.spec.ts` déterministe (voir `layout-diagnostic-recette.spec.ts` pour
+   le motif : sélecteurs stables, aucune attente fixe)
 3. Si test de cohérence, utiliser `data-consistency-checker.ts`
 4. Mettre à jour cette documentation
 5. Vérifier que tous les tests passent
