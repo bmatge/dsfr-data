@@ -1,5 +1,29 @@
 # dsfr-data
 
+## 0.31.0
+
+### Minor Changes
+
+- [#905](https://github.com/bmatge/dsfr-data/pull/905) [`2a38d80`](https://github.com/bmatge/dsfr-data/commit/2a38d809a4ebfb0cf0517e941e5761c542f6f75d) Thanks [@bmatge](https://github.com/bmatge)! - **Nouveau composant de structure `dsfr-data-repeat`** (ADR-135, [#887](https://github.com/bmatge/dsfr-data/issues/887), lot 1) : répéter des instances vivantes — une ligne de données, un pipeline. Pour chaque ligne de `source`, le `<template>` enfant est **cloné en DOM** et ses placeholders résolus nœud par nœud avec le moteur de gabarit partagé (`{{}}`, formats, `{{#if}}`, `{{#unless}}`, `{{#each}}` — aucune syntaxe nouvelle) ; les composants `dsfr-data-*` du gabarit sont rehaussés avec leurs attributs **déjà interpolés**.
+  
+  Ce que `repeat` promet, et que le motif « composants dans un gabarit de `display` » ne promet pas : **l'identité par clé** (`key-field` — une ligne dont la clé subsiste garde ses nœuds et ses instances, attributs mis à jour en place, jamais de déconnexion-recréation sous le même id : 119 graphiques ré-émis en ~110 ms sans un canvas détruit, contre ~4,7 s de recréation avec `display`), **l'imbrication** (un `<template>` intérieur n'est pas parcouru : un `display` ou un `repeat` dans le gabarit rend ses propres placeholders), **les attributs booléens conditionnels** (`data-if-horizontal="champ"` / `data-unless-…`), et un **rendu transparent** : aucun `role`, aucun `aria-live`, aucun compteur, aucune pagination. Attributs : `source`, `key-field`, `per-row` (échelle ADR-112), `empty` ; variables `{{$index}}`, `{{$key}}`, `{{$uid}}`. Règle d'usage : `display` quand la ligne est du contenu, `repeat` quand la ligne est un pipeline.
+  
+  Rien de silencieux : `source` absent, gabarit absent, `key-field` absent des lignes ou en double, `per-row` invalide, bloc `{{#if}}` coupé entre deux éléments frères → erreur de configuration nommée. `{{{brut}}}` n'a pas de sens dans un rendu par nœuds : rendu échappé, avec avertissement.
+  
+  `renderTemplate` gagne une option additive `escape: false` (sortie texte) ; le contrat de `display` et `map-popup` est inchangé.
+
+### Patch Changes
+
+- [#895](https://github.com/bmatge/dsfr-data/pull/895) [`f19df13`](https://github.com/bmatge/dsfr-data/commit/f19df13efc405f813dacfb3fcf316c005e9cf7fd) Thanks [@bmatge](https://github.com/bmatge)! - Deux défauts du motif « un composant par ligne » (gabarit de `dsfr-data-display` contenant des composants `dsfr-data-*`).
+  
+  **Le cache d'un `id` repris n'est plus purgé par l'instance qu'il remplace ([#893](https://github.com/bmatge/dsfr-data/issues/893)).** À la déconnexion d'un transformateur — et d'une `dsfr-data-source`, qui portait la même purge — le cache global n'est vidé que si plus aucun élément du document ne porte cet `id`. Dans un navigateur, réécrire un `innerHTML` connecte les nouvelles instances **avant** de déconnecter les anciennes (mesuré sous Chromium : `connected a`, `connected b`, `disconnected a` — happy-dom ordonne l'inverse) : chaque ré-émission de la source répétée vidait donc le cache que la nouvelle query homonyme venait de remplir, et un consommateur monté plus tard — un KPI par exemple — lisait du vide et affichait « — ». Un composant réellement retiré de la page purge toujours son cache.
+  
+  **Le gabarit est recapturé quand le bundle est chargé dans le `<head>` ([#894](https://github.com/bmatge/dsfr-data/issues/894)).** `connectedCallback` s'exécutait alors avant que le `<template>` enfant ne soit analysé : le gabarit était vide, et quand les données étaient déjà connues au montage (source `data` en ligne, cache déjà rempli) aucun rendu ultérieur ne venait le rattraper — la liste restait vide définitivement. Une seconde capture a lieu à la fin de l'analyse du document, sur le modèle de `dsfr-data-map-popup`.
+
+- [#915](https://github.com/bmatge/dsfr-data/pull/915) [`570cb09`](https://github.com/bmatge/dsfr-data/commit/570cb093501de7c7ea4a06e0e146d2221f297b3d) Thanks [@bmatge](https://github.com/bmatge)! - **L'avertissement « source partagée » n'est plus ré-émis une fois par voisin ([#900](https://github.com/bmatge/dsfr-data/issues/900)).** Sur une page portant le motif « une query par ligne » — N `dsfr-data-query` sur une même source, gabarit de `dsfr-data-display` —, l'avertissement de [#765](https://github.com/bmatge/dsfr-data/issues/765) partait en O(N²) : sa déduplication comparait une signature `source|liste des lecteurs`, et cette liste s'allonge d'un élément à chaque lecteur qui s'inscrit, donc chaque query repartait pour un avertissement par voisin arrivé après elle. Mesuré en navigateur réel, bundle de production, 119 queries sur une source en ligne : **7 139 `console.warn` au premier rendu, 119 après** — un par query, ce que l'avertissement a toujours voulu dire. Il n'est ni supprimé ni conditionné à un seuil : la déduplication porte désormais sur la source, la liste des lecteurs restant un détail du message.
+  
+  **Une chaîne déjà reconnue partagée ne se renégocie plus à chaque lecteur ([#900](https://github.com/bmatge/dsfr-data/issues/900)).** L'arrivée d'un lecteur de plus sur une chaîne partagée, pour une query qui ne délègue déjà plus rien, ne peut changer aucune décision : le partage ne se défait pas, et il n'y a plus d'overlay à libérer. La renégociation relisait pourtant toute la chaîne et rediffusait `dsfr-data-delegation-contested` à tous les voisins, là encore en O(N²). Le maillon rehaussé après coup ([#855](https://github.com/bmatge/dsfr-data/issues/855)) et la query qui délègue encore un `where` continuent de renégocier.
+
 ## 0.30.0
 
 ### Minor Changes
