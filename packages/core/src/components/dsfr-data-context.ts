@@ -7,6 +7,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
+import { scheduleContextUrlParamConflictScan } from '../utils/context-url-conflicts.js';
 
 interface SourceWithAdapter extends HTMLElement {
   getAdapter?: () => { capabilities?: { whereFormat?: string } } | null;
@@ -79,6 +80,17 @@ export class DsfrDataContext extends LitElement {
    * en history.replaceState à chaque changement. Un paramètre par champ,
    * pour les filtres classiques comme pour les facettes et la recherche
    * enregistrées par `context="id"` (#678) : l'URL-sync est unique.
+   *
+   * DEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).
+   * 1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le
+   *    MÊME paramètre : le dernier écrase les autres, et au rechargement ils
+   *    relisent tous la même valeur — un comparateur se compare alors à
+   *    lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour
+   *    séparer les paramètres.
+   * 2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre
+   *    d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle
+   *    reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN
+   *    PREMIER dans le document.
    */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
@@ -191,6 +203,10 @@ export class DsfrDataContext extends LitElement {
     let key = base;
     for (let n = 2; taken.has(key); n++) key = `${base}-${n}`;
     this._whereKeys.set(filter, key);
+    // Un paramètre d'URL réclamé par deux contextes url-sync se dit (#922).
+    // Le balayage est différé et coalescé : les filtres de l'autre contexte
+    // ne sont pas forcément enregistrés au moment où celui-ci arrive.
+    if (this.urlSync && filter.field) scheduleContextUrlParamConflictScan();
     return key;
   }
 
