@@ -42,29 +42,13 @@
   <app-action-bar heading="Playground">
     <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <div slot="context" class="example-selector">
-      <!-- Trois axes croises (source x pipeline x sortie) : ce sont des FILTRES
-           sur le catalogue (src/examples/catalogue.ts), pas des generateurs.
-           Les <option> sont peuplees par selector.ts — ne rien saisir ici. -->
-      <div class="example-filters">
-        <div class="example-filter">
-          <label class="fr-label" for="filtre-source">Source</label>
-          <select id="filtre-source" class="fr-select fr-select--sm"></select>
-        </div>
-        <div class="example-filter">
-          <label class="fr-label" for="filtre-pipeline">Pipeline</label>
-          <select id="filtre-pipeline" class="fr-select fr-select--sm"></select>
-        </div>
-        <div class="example-filter">
-          <label class="fr-label" for="filtre-sortie">Sortie</label>
-          <select id="filtre-sortie" class="fr-select fr-select--sm"></select>
-        </div>
-        <div class="example-filter example-filter--large">
-          <label class="fr-label" for="example-select">
-            Exemple <span id="compteur-exemples" class="fr-hint-text"></span>
-          </label>
-          <select id="example-select" class="fr-select fr-select--sm"></select>
-        </div>
-      </div>
+      <!-- La barre ne garde qu'une bascule : filtres, liste et actions vivent
+           dans le volet lateral, ancre sur la colonne de code. -->
+      <button id="volet-btn" type="button"
+        class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-menu-2-fill fr-btn--icon-left"
+        aria-expanded="false" aria-controls="volet-exemples">
+        Exemples <span id="compteur-exemples" class="volet-compteur"></span>
+      </button>
     </div>
     <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
     <button slot="tertiary" id="save-btn" class="fr-icon-star-line" title="Enregistrer ce code dans vos favoris">Ajouter aux favoris</button>
@@ -73,7 +57,6 @@
     <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
     <button slot="tertiary" id="deps-btn" class="fr-icon-code-s-slash-line" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
     <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="tertiary" id="reset-btn" class="fr-icon-refresh-line" title="Recharger l'exemple sélectionné">Réinitialiser</button>
     <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
   </app-action-bar>
 
@@ -81,6 +64,60 @@
   <app-layout-builder mode="sticky-left" left-ratio="50">
     <div slot="left" class="playground-editor">
       <textarea id="code-editor"></textarea>
+
+      <!-- Volet lateral, sur le modele de dsfr-data-map-popup mode="panel-left" :
+           ancre en absolu dans son conteneur (pas en fixed sur le viewport),
+           glisse depuis la gauche, se ferme par sa croix ou par Echap.
+           Les <option> des quatre selects sont peuplees par selector.ts. -->
+      <aside id="volet-exemples" class="pg-volet" role="complementary"
+        aria-label="Parcourir les exemples" inert>
+        <div class="pg-volet__entete">
+          <h2 class="pg-volet__titre">
+            Exemples <span id="compteur-volet" class="pg-volet__compteur"></span>
+          </h2>
+          <button id="volet-fermer" type="button"
+            class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-close-line"
+            title="Fermer le volet" aria-label="Fermer le volet"></button>
+        </div>
+
+        <div class="pg-volet__corps">
+          <div class="example-filters">
+            <div class="example-filter">
+              <label class="fr-label" for="filtre-source">Source</label>
+              <select id="filtre-source" class="fr-select fr-select--sm"></select>
+            </div>
+            <div class="example-filter">
+              <label class="fr-label" for="filtre-pipeline">Pipeline</label>
+              <select id="filtre-pipeline" class="fr-select fr-select--sm"></select>
+            </div>
+            <div class="example-filter">
+              <label class="fr-label" for="filtre-sortie">Sortie</label>
+              <select id="filtre-sortie" class="fr-select fr-select--sm"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Le resultat du filtrage sort du corps defilant : c'est le champ
+             qui sert, il reste sous les yeux quelle que soit la hauteur. -->
+        <div class="pg-volet__choix">
+          <div class="example-filter">
+            <label class="fr-label" for="example-select">Exemple</label>
+            <select id="example-select" class="fr-select fr-select--sm"></select>
+          </div>
+        </div>
+
+        <div class="pg-volet__pied">
+          <button id="voir-exemple-btn" type="button"
+            class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--icon-left">
+            Voir l'exemple
+          </button>
+          <button id="reset-btn" type="button"
+            class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-refresh-line fr-btn--icon-left"
+            title="Recharger l'exemple selectionne">
+            Reinitialiser
+          </button>
+        </div>
+      </aside>
     </div>
     <div slot="right" class="playground-preview">
       <iframe id="preview-frame" class="preview-frame" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups" title="Aperçu du code"></iframe>

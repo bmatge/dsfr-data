@@ -33,6 +33,10 @@ import { getPreviewHTML } from './preview.js';
 
 let editor: CodeMirrorEditor;
 let selecteur: SelecteurExemples | null = null;
+/** Code de l'exemple actuellement charge, pour distinguer une VRAIE edition. */
+let codeCharge = '';
+/** Id de cet exemple, pour reculer le selecteur si le remplacement est refuse. */
+let codeChargeId = '';
 
 /** Standard dependency block for external use */
 const DEPS_BLOCK = `<!-- Dependances (DSFR + DSFR Chart + dsfr-data) -->
@@ -134,18 +138,35 @@ function autoResizeIframe(iframe: HTMLIFrameElement): void {
 }
 
 async function loadExample(name: string, skipConfirm = false): Promise<void> {
-  if (examples[name]) {
-    if (
-      !skipConfirm &&
-      editor.getValue().trim() &&
-      !(await confirmDialog('Remplacer le code actuel par cet exemple ?'))
-    )
-      return;
-    editor.setValue(examples[name]);
-    DEPS_LINE_RE.lastIndex = 0;
-    updateDepsButton(hasDeps(examples[name]));
-    runCode();
+  const code = examples[name];
+  if (!code) return;
+
+  // La confirmation ne protege que du travail reel : on ne la pose que si
+  // l'editeur s'ecarte de l'exemple charge. Passer d'un exemple intact a un
+  // autre ne demande plus rien — c'est la manoeuvre courante du playground.
+  const modifie = editor.getValue().trim() !== codeCharge.trim();
+  if (
+    !skipConfirm &&
+    modifie &&
+    editor.getValue().trim() &&
+    !(await confirmDialog('Remplacer vos modifications par cet exemple ?'))
+  ) {
+    // Refus : le selecteur doit continuer de designer ce qui est REELLEMENT
+    // charge, sinon l'interface annonce un exemple que l'editeur ne contient pas.
+    selecteur?.pointerSur(name === codeChargeId ? name : codeChargeId);
+    return;
   }
+
+  editor.setValue(code);
+  codeCharge = code;
+  codeChargeId = name;
+  selecteur?.marquerCharge(name);
+  // Le volet couvre l'editeur : le garder ouvert masquerait le code qu'on
+  // vient de demander. La bascule de la barre d'actions le rouvre aussitot.
+  selecteur?.basculer(false);
+  DEPS_LINE_RE.lastIndex = 0;
+  updateDepsButton(hasDeps(code));
+  runCode();
 }
 
 function copyCode(): void {
