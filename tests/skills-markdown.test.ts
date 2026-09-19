@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { resolve } from 'path';
 import { SKILLS } from '../apps/builder-ia/src/skills.js';
 import { CLAUDE_SKILL_DIR } from '../scripts/lib/claude-skill.js';
