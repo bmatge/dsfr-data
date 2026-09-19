@@ -1,5 +1,391 @@
 # dsfr-data
 
+## 0.33.0
+
+### Minor Changes
+
+- [#941](https://github.com/bmatge/dsfr-data/pull/941) [`800be59`](https://github.com/bmatge/dsfr-data/commit/800be59f9cef52c7e1293208a06395ba38692168) Thanks [@bmatge](https://github.com/bmatge)! - **`dsfr-data-a11y` : `empty-label` nomme le groupe non renseigné dans le tableau équivalent** ([#933](https://github.com/bmatge/dsfr-data/issues/933), AM-085). Depuis [#647](https://github.com/bmatge/dsfr-data/issues/647), `empty-label` sur `dsfr-data-chart` nomme la catégorie vide (`null`, `undefined`, `""`) sur l'axe et dans la légende. Le tableau équivalent qui double ce graphique, lui, rendait une cellule de libellé **vide** : la barre « Non renseigné | 3 » devenait la ligne « | 3 ». Un lecteur d'écran entendait donc une valeur sans son nom, là où l'œil voyait les deux — sur des jeux publics où le groupe non renseigné est souvent la modalité la plus nombreuse.
+  
+  `empty-label` existe maintenant aussi sur `dsfr-data-a11y`. Posé, il remplit la cellule de la **colonne de libellé** (`label-field` s'il est défini, sinon la première colonne rendue) quand la valeur est vide, et le **CSV téléchargé porte le même libellé** que le tableau affiché. Les colonnes de valeur ne sont jamais touchées : une mesure absente reste une cellule vide, on n'invente pas une mesure.
+  
+  **Strictement additif** : absent, le rendu est celui d'avant, cellule vide comprise. La valeur n'est volontairement **pas** reprise du graphique visé par `for` — la reprendre aurait changé le tableau de pages déjà en ligne ; l'écrire sur les deux balises est le prix d'un zéro risque de régression.
+
+- [#941](https://github.com/bmatge/dsfr-data/pull/941) [`800be59`](https://github.com/bmatge/dsfr-data/commit/800be59f9cef52c7e1293208a06395ba38692168) Thanks [@bmatge](https://github.com/bmatge)! - **`dsfr-data-a11y` : `series-field` pivote le tableau équivalent d'un graphique multi-séries** ([#930](https://github.com/bmatge/dsfr-data/issues/930), AM-082). `dsfr-data-concat` ([#807](https://github.com/bmatge/dsfr-data/issues/807)) rend une légende nourrie par la donnée : empiler trois séries, poser `origin-field`, et `dsfr-data-chart series-field` trace trois courbes nommées par le jeu. Le tableau équivalent, lui, ne connaissait que `label-field` et `value-field` : il rendait une ligne par couple (libellé, série) **sans aucune colonne disant de quelle série venait la valeur** — six lignes « 2022 | 100 », « 2022 | 100 », « 2023 | 104 »… où le graphique montre trois points par courbe. Le gain de légende se payait d'un tableau illisible, c'est-à-dire de l'alternative accessible elle-même.
+  
+  `series-field` sur `dsfr-data-a11y` **pivote** : une ligne par valeur de `label-field`, une colonne par valeur distincte du champ de série (dans leur ordre d'apparition, le même que celui des séries du graphique). La cellule de libellé devient un **`<th scope="row">`** — dans un tableau croisé, une valeur sans en-tête de ligne n'a plus qu'une moitié de ses coordonnées pour un lecteur d'écran. Le résumé lu annonce « N lignes, M séries » au lieu du compte du format long, et le **CSV téléchargé suit la même structure** que le tableau affiché.
+  
+  Garde-fous : l'attribut exige `label-field` **et** `value-field` — sans eux on ne sait pas quelle colonne porte la mesure, et le manque est **nommé** (`data-dsfr-config-error` + console) avec repli sur le tableau à plat, jamais un pivot silencieusement faux. Un couple (libellé, série) absent des données laisse une cellule **vide** : le graphique y trace 0, le tableau ne l'affirme pas.
+  
+  **Strictement additif** : absent, le rendu est celui d'avant, y compris les `<td>` du tableau à plat. La valeur n'est volontairement **pas** reprise du graphique visé par `for`, qui aurait changé la forme du tableau de pages déjà en ligne.
+
+- [#949](https://github.com/bmatge/dsfr-data/pull/949) [`34a5232`](https://github.com/bmatge/dsfr-data/commit/34a52325b045d9d64a46172c24870179d4f5eb0a) Thanks [@bmatge](https://github.com/bmatge)! - **`dsfr-data-chart` : `map-summary-field` calcule le résumé d'une carte sur une colonne, pendant que la carte en affiche une autre** ([#929](https://github.com/bmatge/dsfr-data/issues/929), PG-031).
+  
+  Le constat d'origine disait que le résumé pondéré « porte sur la colonne AFFICHÉE ». **La vérification l'a requalifié** : le composant arrondit bien au centième pour *dessiner* la carte, mais le résumé, lui, repart des **lignes source** — cet arrondi-là ne compte pas. Ce qui fausse le chiffre est en amont : `dsfr-data-normalize round="champ:1"`, le réflexe pour une infobulle lisible, **réécrit la colonne dans la donnée**. Le composant ne voit jamais la valeur brute, et Σ(valeur × effectif) / Σ(effectif) pondère des valeurs arrondies. Mesuré au navigateur sur les 101 départements d'une fédération de `data.sports.gouv.fr` : taux national exact **4,5368**, pondéré sur la valeur brute **4,5368**, pondéré sur `round(x, 1)` **4,5331**. L'écart reste plausible, donc invisible. Les deux attributs sont corrects séparément ; c'est leur composition qui ment.
+  
+  `map-summary-field` désigne la colonne **de calcul**. La page dérive une colonne d'affichage et laisse la brute intacte :
+  
+  ```html
+  <dsfr-data-normalize id="n" source="licences"
+    compute="lics_pop_aff = round(lics_pop, 1)"></dsfr-data-normalize>
+  <dsfr-data-chart source="n" type="map" code-field="dep"
+    value-field="lics_pop_aff" map-summary-weight="pop"
+    map-summary-field="lics_pop"></dsfr-data-chart>
+  ```
+  
+  Vaut pour les trois calculs (`sum`, `avg`, `weighted`) ; sans effet sous `map-summary-value` ou `map-summary="none"`. Un champ qu'aucune ligne dessinée ne porte en numérique est une **erreur de configuration nommée** : aucun résumé n'est affiché, jamais un repli silencieux sur la colonne affichée — qui serait exactement le chiffre faux que l'attribut existe pour éviter.
+  
+  **Strictement additif** : sans l'attribut, rien ne change, et aucun chiffre déjà publié ne bouge. Le JSDoc de `map-summary-weight` et de `map-summary` dit désormais sur quoi porte le calcul, arrondis amont compris — un piège de composition qui n'est écrit nulle part se repaie.
+
+- [#947](https://github.com/bmatge/dsfr-data/pull/947) [`73d45eb`](https://github.com/bmatge/dsfr-data/commit/73d45ebd1fe6297f40754670a983faf82cd569fd) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-chart` : `map-summary`, le mode de synthèse du résumé d'une carte — résout le constat AM-079 du banc d'essai
+  
+  Le résumé affiché sous le titre d'une carte de **volumes** était une moyenne de
+  volumes : « 3 074,06 en France » pour 310 480 licences, la moyenne arithmétique
+  de 101 nombres de licenciés, un chiffre sans signification. [#763](https://github.com/bmatge/dsfr-data/issues/763) avait réglé les
+  TAUX (`map-summary-weight`) et permis une valeur fournie (`map-summary-value`),
+  mais celle-ci est un **littéral** : juste pour une fédération, fausse dès qu'on
+  en change ou qu'on filtre une région — précisément le geste dont le banc a
+  montré qu'il produit des chiffres faux.
+  
+  `map-summary` choisit désormais le mode, calculé sur les lignes dessinées :
+  
+  - `sum` — la **somme**, seule synthèse juste d'un volume, et elle **suit les
+    filtres** ;
+  - `weighted` — la moyenne pondérée Σ(valeur × effectif) / Σ(effectif), la
+    synthèse juste d'un taux (exige `map-summary-weight`) ;
+  - `avg` — la moyenne non pondérée, le calcul historique ;
+  - `none` — aucun chiffre. Ce qui disparaît est la valeur : l'en-tête « …, en
+    France » appartient à DSFR Chart et reste affiché.
+  
+  La première question d'une carte thématique est **volume ou taux**, et elle
+  décide du mode : un volume s'additionne, un taux se pondère, et l'autre calcul
+  est faux dans les deux sens. Une somme suppose en outre une **partition** —
+  chaque territoire compté une fois. Deux lignes portant le même code
+  géographique sont additionnées toutes les deux alors que la carte n'en dessine
+  qu'une : un avertissement console le dit désormais, avec le nombre de lignes et
+  le nombre de territoires dessinés, et renvoie à une agrégation en amont.
+  
+  Un mode inconnu, ou `weighted` sans `map-summary-weight`, est une **erreur de
+  configuration** : aucun résumé n'est affiché plutôt qu'un chiffre de repli qui
+  aurait l'air juste. Un mode posé à côté de `map-summary-value`, ou un
+  `map-summary-weight` qu'un mode ignore, est signalé en console — l'intention
+  contredite est dite, pas subie.
+  
+  Le résumé lit la colonne `value-field` telle qu'elle arrive, arrondis d'un
+  `dsfr-data-normalize round="…"` en amont compris ; c'est marginal sur une somme,
+  pas sur `weighted` (PG-031), et le JSDoc le dit.
+  
+  **Strictement additif** : sans `map-summary`, le résumé garde exactement son
+  ordre historique — valeur fournie, sinon pondérée si un effectif est posé, sinon
+  moyenne non pondérée. Aucun chiffre déjà publié ne change.
+
+- [#939](https://github.com/bmatge/dsfr-data/pull/939) [`b6d1e32`](https://github.com/bmatge/dsfr-data/commit/b6d1e326e9aee87516ca045a08228d87144f6f66) Thanks [@bmatge](https://github.com/bmatge)! - **`count-label` sur `dsfr-data-display` et `dsfr-data-list`** ([#925](https://github.com/bmatge/dsfr-data/issues/925), AM-077). Les deux afficheurs comptaient « résultat », mot qui ne dit rien d'un annuaire d'établissements ni d'un palmarès de communes ; `dsfr-data-search` avait reçu le libellé paramétrable en 0.29 ([#779](https://github.com/bmatge/dsfr-data/issues/779)), pas ses deux voisins. Même grammaire que la recherche, et une seule implémentation pour les trois (`utils/count-label.ts`) : `count-label="établissement"` rend « 12 345 établissements », une forme seule prend un « s » au pluriel, et deux formes séparées par une **barre verticale** couvrent le pluriel irrégulier ou le mot invariable (`"cheval|chevaux"`, `"prix|prix"`). La virgule ne sépare pas les deux formes.
+  
+  Poser l'attribut fait aussi passer le nombre par le **formateur fr-FR** : « 1 234 » et non « 1234 ». C'est le seul moyen, aujourd'hui, d'obtenir sur `display` un compteur accentué et séparé — `count-label="résultat"` rend « 12 345 résultats ».
+  
+  **Rien ne change sans l'attribut** : `display` rend « 1234 resultats » et `list` « 1234 résultats » exactement comme avant, au caractère près (verrouillé par test). Corriger ces deux libellés par défaut toucherait le texte rendu de toute page qui utilise les composants — c'est le point résiduel de [#925](https://github.com/bmatge/dsfr-data/issues/925), laissé ouvert.
+  
+  `count-label` ne sait pas **taire** le compteur : une liste de résultats annonce ce qu'elle compte, et sa région live fait partie de son contrat (ADR-135, qui ferme `display` aux besoins structurels). Mettre en forme une ligne sans landmark ni compteur — une fiche, un nom dans une phrase — c'est `dsfr-data-repeat`.
+
+- [#957](https://github.com/bmatge/dsfr-data/pull/957) [`7ff7f85`](https://github.com/bmatge/dsfr-data/commit/7ff7f8511904b5188e7f707879b3f6a2980322d6) Thanks [@bmatge](https://github.com/bmatge)! - Champs tableau : l'égalité côté client regarde enfin DANS le tableau, comme le portail
+  
+  Sur un champ multivalué (étiquettes ODS, ChoiceList Grist, colonne repliée par `fold`),
+  `where="tags:eq:urgent"` ne retenait pas une ligne dont `tags` vaut `["urgent","social"]`,
+  alors que `value="count:tags:urgent"` de `dsfr-data-kpi` la comptait. Ce n'était pas une
+  sémantique : `looseEquals` faisait `String(a) === String(b)`, donc `Array.prototype.toString`.
+  Une ligne à UNE étiquette matchait, une ligne à deux ne matchait pas — le filtre avait l'air
+  de marcher sur une partie du jeu.
+  
+  Et le portail, lui, faisait déjà « contient ». Mesuré le 2026-09-19 sur deux portails et deux
+  endpoints :
+  
+  ```
+  data.economie.gouv.fr, catalogue, champ keyword (tableau)
+    where=keyword = "budgets annexes"  -> total_count = 1   (2e element)
+    where=keyword = "LFI 2011,budgets annexes,finances publiques,loi de finances initiale" -> 0
+  
+  data.education.gouv.fr, retours-formulaire-votre-avis-copie, champ themes_attendus
+    176 lignes, dont 21 nulles
+    where=themes_attendus = "Elèves"                -> 124
+    where=themes_attendus != "Elèves"               ->  31   (= 155 non nulles - 124)
+    where=themes_attendus in ("Elèves","Finances")  -> 130   (= l'union du OU)
+  ```
+  
+  Dès qu'une clause était déléguée — et ce n'est pas la balise qui porte le `where` qui en
+  décide, mais le mode de la source, un transformateur amont, le partage de la chaîne —
+  le même attribut comptait autre chose. Ajouter un second graphique à une page pouvait
+  basculer l'évaluation du serveur vers le client et changer un chiffre affiché, sans un
+  message.
+  
+  ## Ce qui change
+  
+  L'égalité client est alignée sur celle du serveur, **le repli textuel gardé en OU** :
+  
+  ```
+  eq(valeur, v) = (valeur est un tableau ET un de ses éléments vaut v)
+                  OU String(valeur) === String(v)      <- l'existant, inchangé
+  ```
+  
+  - **`eq`, `in`, le `=` de `compute`, le filtre entre accolades du KPI GAGNENT des lignes** :
+    celles dont la valeur cherchée est un élément parmi d'autres. Ce sont exactement les pages
+    qui sous-comptaient par rapport au portail. Mesuré au navigateur sur le jeu Éducation
+    ci-dessus : le même `where`, évalué côté client, affichait **58** là où la clause déléguée
+    affichait **124** ; les deux affichent désormais **124**.
+  - **`neq` et `notin` en PERDENT**, étant la négation des précédents : `tags:neq:urgent` ne
+    garde plus une ligne `["urgent","social"]`. C'est la seule perte, et elle est assumée parce
+    que le portail fait pareil — son `!=` est la négation stricte de son `=`, valeurs nulles
+    exclues des deux côtés (155 − 124 = 31, mesuré).
+  - **Le repli textuel reste** : `["a","b"]` matche encore `"a,b"` côté client, là où le portail
+    rend 0. Il est gardé pour que `eq` / `in` ne puissent que gagner des correspondances.
+  - **`count:champ:valeur` et `count{champ:eq:valeur}` rendent enfin le même chiffre.**
+    `looseEqualsOrContains` a disparu : il n'y a plus qu'une égalité dans le dépôt.
+  - **`where="champ:contains:v"` est inchangé** — il reste une recherche de sous-chaîne dans le
+    rendu texte du tableau, donc « non-urgent » y matche toujours « urgent ». Pour filtrer un
+    champ tableau, c'est `eq` qu'il faut écrire.
+  
+  Pendant cette mineure, un **avertissement de transition** nomme en console le champ et la
+  valeur des lignes qui se mettent à compter, et dit que le compte s'aligne sur ce que renvoie
+  le portail. Il est dédupliqué par couple (champ, valeur) et plafonné : sur le jeu Éducation où
+  66 lignes basculent, **un seul message** est émis.
+  
+  Le contournement recommandé jusqu'ici — dériver un booléen par
+  `dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis
+  `where="a_urgent:eq:1"` — **reste valide**, et garde un intérêt propre (le filtre porte alors
+  sur un scalaire, regroupable et délégable). Il n'est simplement plus *nécessaire*.
+  
+  Closes [#953](https://github.com/bmatge/dsfr-data/issues/953), closes [#842](https://github.com/bmatge/dsfr-data/issues/842).
+
+- [#940](https://github.com/bmatge/dsfr-data/pull/940) [`97094e4`](https://github.com/bmatge/dsfr-data/commit/97094e49de031a0567f0c2fe2f7096111deecd37) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-facets` : un libellé pour les VALEURS d'une facette (`value-labels`)
+  
+  `labels` nomme les CHAMPS ; rien ne nommait ce qu'ils contiennent. Une facette
+  posée sur un champ de code affichait donc « 29 », « 56 », « 101 » là où le
+  lecteur attend « Finistère », « Morbihan », « Fédération française
+  d'athlétisme » — alors que le libellé se trouve presque toujours dans la même
+  ligne, juste à côté du code. Faute d'attribut, les pages retombaient sur un
+  `<select>` dont les options étaient générées hors ligne (609 lignes d'`option`
+  sur les portraits Sports), liste qui se périme au premier ajout au référentiel.
+  
+  Voie native nouvelle : `value-labels="dep_code:dep_nom"` lit le libellé dans un
+  champ compagnon des mêmes lignes ; `value-labels='{"dep_code":{"29":"Finistère"}}'`
+  accepte une table figée quand aucun champ compagnon n'existe. La valeur
+  diffusée au contexte, à l'URL et au `where` reste le CODE ; le tri `alpha` et
+  la recherche portent sur le libellé, et les tags de `dsfr-data-context-tags`
+  affichent le libellé tout en retirant la bonne valeur.
+  
+  Au passage, une entrée de `labels` qui nomme une valeur au lieu d'un champ
+  (`labels="22:Côtes-d'Armor"`) était lue comme un nom de champ et ignorée sans
+  un mot : elle est désormais signalée en console, avec renvoi vers
+  `value-labels`.
+  
+  Strictement additif : sans `value-labels`, rien ne change.
+
+- [#940](https://github.com/bmatge/dsfr-data/pull/940) [`97094e4`](https://github.com/bmatge/dsfr-data/commit/97094e49de031a0567f0c2fe2f7096111deecd37) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-facets` : une valeur par défaut par champ (`default`)
+  
+  Sans sélection, une facette n'émet aucun filtre. C'est le bon comportement
+  quand l'absence de filtre veut dire « tout ». Ça ne l'est plus quand l'agrégat
+  national est une LIGNE du jeu : sur un jeu qui publie `region = "Toutes
+  régions"` à côté d'une ligne par région, l'absence de filtre cumule la France
+  entière ET chaque région — un total qui ne veut rien dire, affiché sans
+  avertissement. La facette n'avait aucun moyen de dire « ce filtre porte
+  toujours une valeur ». `dsfr-data-context-filter` a `default`, mais il pilote
+  un élément d'UI par son `id`, que la facette ne fournit pas.
+  
+  Voie native nouvelle : `default="region:Toutes régions | secteur:Tous secteurs"`,
+  à la grammaire des autres attributs par champ. La valeur est posée au montage,
+  APRÈS la lecture de l'URL (`url-params`, ou l'URL du contexte en mode
+  `context`), qui l'emporte, et elle est émise comme une sélection normale —
+  tags, URL et cascade suivent. Un champ ainsi nommé ne redevient jamais vide :
+  la remise à zéro (bouton, tag retiré, dernière case décochée) revient au
+  défaut, et les options « Tous » de `select` et `radio-inline` ne sont plus
+  rendues pour ce champ, faute de pouvoir mener ailleurs qu'au défaut.
+  
+  Strictement additif : sans `default`, rien ne change.
+
+- [#946](https://github.com/bmatge/dsfr-data/pull/946) [`711d3fc`](https://github.com/bmatge/dsfr-data/commit/711d3fc30af7b04d8eb2bc745f94c6d460574930) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-query` : la part du total (`share`, `share_percent`) — résout le constat AM-078 du banc d'essai
+  
+  Une répartition — « part des licences par typologie de communes », « part par
+  tranche d'âge », « part par statut » : l'une des trois formes les plus courantes
+  d'un tableau de bord — n'avait aucune voie native. Aucun agrégat ne produisait
+  le total à côté des lignes groupées, `compute` ne voit que la ligne courante, et
+  le ratio de `dsfr-data-kpi` ([#673](https://github.com/bmatge/dsfr-data/issues/673)) rend UN nombre, pas une colonne : un
+  GRAPHIQUE de parts restait hors d'atteinte. Le chemin qui marchait coûtait, par
+  répartition, une seconde source sans `group-by`, deux clés constantes
+  (`compute="k = 1"`), un `dsfr-data-join on="k"` et une division — quatre
+  composants et une requête de plus, payés trois fois sur la même page.
+  
+  Deux fonctions d'agrégat nouvelles :
+  
+  - `aggregate="lics:sum, lics__sum:share"` rend `lics__sum__share`, la valeur de
+    la ligne divisée par la somme de la colonne sur les lignes de sortie — une
+    **fraction** (0,334), celle que `dsfr-data-kpi format="pourcentage"` met à
+    l'échelle comme un ratio ;
+  - `share_percent` rend la même part **en points de pourcentage** (33,4), la
+    forme qu'attend un axe de graphique : une fraction dessinée sous un axe
+    intitulé « % » y afficherait 0,33.
+  
+  **Le dénominateur, qui est tout le sujet.** C'est la somme de la colonne sur les
+  lignes de sortie, **avant `limit`**. Donc une part est toujours une part de
+  l'ensemble **filtré** : `where`, facettes, recherche et `dsfr-data-context`
+  déplacent le total, et c'est presque toujours ce qu'on veut — mais le même
+  graphique montre 33,4 % sans filtre et 16,3 % sur une région, les deux justes,
+  et la page doit le dire. Avec `limit`, les parts **ne somment pas à 100 %** : un
+  top 10 montre la part de chaque ligne dans le tout, pas dans le top 10 ;
+  l'inverse ferait d'une troncature d'affichage une redéfinition silencieuse du
+  total. Et si la source est tronquée (`max-records`, pagination), le dénominateur
+  l'est aussi, sans que rien ne le montre : les parts somment quand même à 100 %.
+  
+  Comme les agrégats cumulés, ce sont des fonctions de **fenêtre** : calcul
+  toujours côté client, jamais délégué à l'API, et un `group-by` qui porte une
+  part redescend entièrement côté client — relever `max-records` avant de poser
+  l'attribut sur un jeu volumineux. À la différence des cumuls, l'ordre des lignes
+  est indifférent : pas d'`order-by` requis, pas d'avertissement.
+  
+  Total nul, ou valeur non numérique : `null`, jamais l'infini ni un zéro de
+  complaisance ; une valeur non numérique ne compte pas non plus au dénominateur.
+  
+  Le calcul est tenu par deux contrôles de l'oracle (`agregat-part-du-total-926`,
+  `agregat-part-du-total-avant-limit`), recalculés par les trois voix, avec la
+  mutation qui les fait rougir.
+  
+  Strictement additif : sans `share` ni `share_percent`, rien ne change.
+
+- [#945](https://github.com/bmatge/dsfr-data/pull/945) [`fcca8cc`](https://github.com/bmatge/dsfr-data/commit/fcca8cce9801448cebca1996b7c8fc6fde9f131f) Thanks [@bmatge](https://github.com/bmatge)! - **`lazy` sur `dsfr-data-source` : différer la première requête jusqu'à ce que quelqu'un regarde** ([#931](https://github.com/bmatge/dsfr-data/issues/931), AM-083). Une page à onglets déclare ses sources pour **tous** les panneaux ; cinq sur six sont fermés à l'arrivée, et pourtant toutes les requêtes partent au chargement. Sur un portail dont le quota anonyme est de 5 000 requêtes par jour et par IP, quelques dizaines de chargements suffisent à épuiser la journée. Avec `lazy`, la première requête attend qu'un consommateur de la source entre dans une marge de 200 px autour du viewport (`IntersectionObserver`, la même marge que `dsfr-data-map` et que le `lazy` de `dsfr-data-repeat`, [#891](https://github.com/bmatge/dsfr-data/issues/891) — même nom, même grammaire booléenne, pour la même raison).
+  
+  **Mesure** (fixture `e2e/source-lazy.html` : six onglets, huit sources chacun, 48 sources ; Chromium, le même document mesuré deux fois, l'attribut retiré à la volée pour la référence) : **48 requêtes au repos sans l'attribut, 6 avec**. 12 après ouverture d'un second onglet, 38 après avoir ouvert les six et défilé le dernier. Un panneau fermé est en `display:none` : il n'a pas de boîte, il n'intersecte jamais, et l'observateur se déclenche à l'ouverture de l'onglet.
+  
+  **Ce qui est observé** : les **feuilles** de la chaîne aval (chart, list, kpi, display, podium, a11y, repeat ; pour une couche de carte, la carte qui la porte), suivies à travers les transformateurs — un `dsfr-data-query` est un tuyau déclaré en haut de page, l'observer reviendrait à ne rien différer. **`lazy-target="<sélecteur CSS>"`** remplace cette détection quand elle ne peut pas voir le bon élément.
+  
+  **Opt-in strict** : sans l'attribut, rien ne change. Et **toutes les dégradations vont du côté « on charge »** : sans `IntersectionObserver`, ou si la page ne déclare aucun consommateur (ou si `lazy-target` ne désigne rien), la source part immédiatement **et le dit en console** — une source qui ne chargerait jamais serait pire que le trafic qu'on cherche à éviter.
+  
+  **Ce que `lazy` ne promet pas** : un `IntersectionObserver` n'est pas continu. Il échantillonne aux temps de rendu ; un défilement par crans rapides peut traverser un consommateur sans jamais le rapporter comme visible — la source reste alors en attente jusqu'au prochain passage. C'est le comportement du navigateur, pas un bug de la bibliothèque, et c'est écrit dans le guide.
+  
+  Se cumule avec `require-where` : les deux portes doivent s'ouvrir, et `require-where` est évalué **en premier** (c'est son message d'attente que l'utilisateur doit lire). Pendant l'attente, la source publie `dsfr-data-idle` avec `reason: 'lazy'`, et le **volet Diagnostic distingue les deux attentes** — « en attente d'un regard (lazy) » et « en attente d'un filtre (require-where) » : les confondre enverrait chercher un filtre là où il suffit de faire défiler.
+
+### Patch Changes
+
+- [#942](https://github.com/bmatge/dsfr-data/pull/942) [`5ce5389`](https://github.com/bmatge/dsfr-data/commit/5ce5389d7f0c631980567f1edc384ca5f827ac97) Thanks [@bmatge](https://github.com/bmatge)! - Deux contextes sur un même contrôle : la dépendance à l'ordre de déclaration se dit ([#923](https://github.com/bmatge/dsfr-data/issues/923))
+  
+  Un `dsfr-data-context-filter` lit la valeur de son contrôle **à son montage**, et
+  le pré-remplissage depuis l'URL (ou depuis `default`) écrit `el.value` **sans
+  émettre d'événement**. Quand deux contextes écoutent le même `<select>`, le filtre
+  du contexte déclaré avant le contexte `url-sync` reste donc sur la valeur
+  initiale : deux pages identiques à l'ordre près répondent deux choses différentes
+  sur la même URL, avec le même affichage. C'est un chiffre faux, pas un inconfort.
+  
+  La console le dit désormais, une fois par situation : elle nomme le contrôle, le
+  filtre qui vient d'être pré-rempli, celui qui a lu trop tôt et son contexte, puis
+  le geste qui sort du piège — déclarer le contexte `url-sync` **en premier** dans
+  le document. Le message ne sort que si le pré-remplissage a réellement changé la
+  valeur du contrôle : deux filtres qui lisent la même valeur ne se contredisent pas.
+  
+  **Aucun comportement ne change** : émettre un `change` au pré-remplissage
+  corrigerait le fond mais changerait l'ordre d'application de toutes les pages qui
+  marchent. La dépendance est aussi documentée dans la fiche `url-sync`.
+
+- [#942](https://github.com/bmatge/dsfr-data/pull/942) [`5ce5389`](https://github.com/bmatge/dsfr-data/commit/5ce5389d7f0c631980567f1edc384ca5f827ac97) Thanks [@bmatge](https://github.com/bmatge)! - Deux contextes `url-sync` qui partagent un nom de champ ne le font plus en silence ([#922](https://github.com/bmatge/dsfr-data/issues/922))
+  
+  Deux `dsfr-data-context url-sync` qui portent un filtre sur le **même champ**
+  écrivent le **même paramètre d'URL** : le dernier écrase les autres, et l'URL ne
+  garde qu'une valeur pour deux contextes. Rechargé, un comparateur de territoires
+  compare donc un territoire avec lui-même. Rien ne le disait — la détection de
+  conflit existante ([#773](https://github.com/bmatge/dsfr-data/issues/773)) ne couvrait qu'une facette autonome face à un contexte.
+  
+  La console le dit désormais, une fois par paramètre et par jeu de contextes :
+  elle nomme le paramètre, tous les contextes qui l'écrivent, et le geste qui sort
+  du piège — un seul contexte dans l'URL, ou `url-param-map` pour séparer les
+  paramètres.
+  
+  **Aucun comportement ne change** : l'URL écrite et l'ordre d'application restent
+  exactement ceux d'avant, pour ne casser aucun lien déjà partagé.
+
+- [#951](https://github.com/bmatge/dsfr-data/pull/951) [`05eaf40`](https://github.com/bmatge/dsfr-data/commit/05eaf4063048b1ccc927e1fd83d489a3ad5b3b81) Thanks [@bmatge](https://github.com/bmatge)! - Champs tableau : l'asymétrie entre `count:champ:valeur` et `where` est documentée, pas étendue
+  
+  Un champ multivalué arrive dans la page comme un tableau (`tags: ["urgent","social"]`).
+  Une seule grammaire sait regarder DEDANS : la valeur de filtre d'un `count` de
+  `dsfr-data-kpi` (`value="count:tags:urgent"`, [#673](https://github.com/bmatge/dsfr-data/issues/673)). Le dialecte colon de `where` —
+  sur la source, sur `dsfr-data-query`, sur le `where` du KPI, et jusque dans le filtre
+  entre accolades du KPI lui-même (`count{tags:eq:urgent}`) — compare la valeur du champ
+  telle quelle, comme `=` / `!=` de `compute`. Sur le même jeu, deux écritures voisines
+  rendent donc deux chiffres différents.
+  
+  Étendre la variante « contient » à `where` et `compute` a été écarté : une page qui
+  comptait zéro ligne sur un champ tableau en compterait soudain, sans un mot. C'est
+  la documentation qui manquait, et elle manquait d'autant plus que la panne n'est pas
+  franche : par repli sur le texte, une ligne à UNE seule étiquette (`["urgent"]`) matche
+  bien `tags:eq:urgent`, une ligne à deux ne matche pas. Le filtre a l'air de marcher sur
+  une partie du jeu.
+  
+  Le JSDoc de `where` (`dsfr-data-query`, `dsfr-data-kpi`), celui de `value` du KPI et
+  celui de `compute` (`dsfr-data-normalize`) disent désormais sur quoi porte la variante
+  tableau et sur quoi elle ne porte pas — et nomment la voie de remplacement, qui existe :
+  `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis
+  `where="a_urgent:eq:1"`. Il n'y a PAS d'opérateur `where` qui parcourt un tableau, et
+  `tags:contains:urgent` n'en est pas un (il cherche une sous-chaîne dans le rendu texte
+  du tableau : « non-urgent » y matche « urgent »). `docs/USER-GUIDE.md` et la skill
+  `dsfr-data` portent la même chose, et `tests/shared/array-equality-perimeter.test.ts`
+  fixe le périmètre exact pour que le prochain changement de sémantique soit délibéré.
+  
+  Aucun changement de comportement : documentation, commentaires et tests.
+  
+  > **Dépassé dans la même version.** L'arbitrage ci-dessus (« documenter plutôt
+  > qu'étendre ») a été pris avant de savoir qu'Opendatasoft lit déjà `=` comme un
+  > « contient » sur un champ multivalué. L'asymétrie n'était donc pas un contrat mais
+  > une incohérence interne, et elle est levée dans cette même version — voir l'entrée
+  > « l'égalité côté client regarde enfin DANS le tableau » ([#953](https://github.com/bmatge/dsfr-data/issues/953)). Ce qui reste vrai de
+  > ce paragraphe : `tags:contains:urgent` n'est toujours pas un équivalent d'`eq`, et la
+  > colonne dérivée par `compute` reste une écriture valide.
+
+- [#948](https://github.com/bmatge/dsfr-data/pull/948) [`98e46c9`](https://github.com/bmatge/dsfr-data/commit/98e46c916dc4f7a5d88111db4d542547f2c473b6) Thanks [@bmatge](https://github.com/bmatge)! - Un filtre de contexte qui compare « 01 » à un champ entier ne le fait plus en silence ([#924](https://github.com/bmatge/dsfr-data/issues/924))
+  
+  Un `dsfr-data-context-filter` lit une valeur de formulaire — toujours du texte —
+  et l'émet telle quelle : `reg = "01"`. Sur un champ que le jeu publie en
+  **entier**, le portail compare en texte et ne rencontre jamais l'entier 1 :
+  aucune ligne, aucun message, un KPI à « — ». Le `refine` du portail, lui,
+  trouvait la ligne. Les codes métropolitains (« 75 ») passent, ce qui cache le
+  défaut : seuls la Guadeloupe, la Martinique, la Guyane, La Réunion, Mayotte et
+  les neuf premiers départements restent muets.
+  
+  La console le dit désormais, **une fois par champ et par source** : elle nomme
+  le champ, la valeur émise, la source qui publie ce champ en nombre — avec un
+  exemple pris dans ses lignes — et le geste qui sort du piège. Elle se tait
+  quand la valeur survit à l'aller-retour texte ↔ nombre (« 75 »), quand le champ
+  est publié en texte, quand la source n'a encore rien rendu et quand le champ y
+  est hétérogène : un avertissement qui crie à tort serait pire que pas
+  d'avertissement.
+  
+  **Aucun comportement ne change** : la clause émise est exactement celle
+  d'avant. Émettre un littéral numérique ou basculer l'égalité sur `refine`
+  corrigerait le fond, mais changerait la requête de pages qui fonctionnent
+  aujourd'hui — les deux autres critères de [#924](https://github.com/bmatge/dsfr-data/issues/924) restent ouverts.
+
+- [#954](https://github.com/bmatge/dsfr-data/pull/954) [`a1da844`](https://github.com/bmatge/dsfr-data/commit/a1da8449293f822bc38d85111f5d600ed78c8636) Thanks [@bmatge](https://github.com/bmatge)! - Champ tableau : dire que le serveur, lui, lit `=` comme un « contient » ([#953](https://github.com/bmatge/dsfr-data/issues/953))
+  
+  La documentation livrée par [#842](https://github.com/bmatge/dsfr-data/issues/842) portait la mention « non vérifié à ce jour » sur ce
+  que fait Opendatasoft d'une égalité posée sur un champ multivalué. C'est mesuré, le
+  2026-09-19, sur le catalogue de `data.economie.gouv.fr`, champ `keyword` :
+  
+  ```
+  where=keyword = "budgets annexes"   -> HTTP 200, total_count = 1   (2e element)
+  where=keyword = "LFI 2011"          -> HTTP 200, total_count = 1   (1er element)
+  where=keyword = "inexistant-xyz"    -> HTTP 200, total_count = 0   (temoin)
+  ```
+  
+  Le serveur trouve la ligne sur n'importe quel élément du tableau. Il y a donc trois
+  comportements, pas deux : `['urgent']` matche des deux côtés, `['urgent','social']`
+  matche au serveur seulement, `['a','b']` comparé à `'a,b'` matche au client seulement.
+  
+  Et ce qui décide de la délégation n'est pas écrit dans la balise qui porte le `where` :
+  mode de la source, transformateur amont, partage de la source, `explode`. Ajouter un
+  second graphique à une page peut donc changer un chiffre sans qu'on touche au filtre.
+  
+  Documentation seule, aucun changement de comportement : JSDoc de `where` sur
+  `dsfr-data-query` et `dsfr-data-kpi`, section « Champs tableau » du guide, passages
+  correspondants de la skill.
+  
+  > **Suite, dans la même version.** Les trois comportements décrits ci-dessus ne sont
+  > plus que deux : le client a été aligné sur le serveur ([#953](https://github.com/bmatge/dsfr-data/issues/953)), en gardant le repli
+  > textuel — `['urgent','social']` matche désormais des deux côtés, `['a','b']` vs
+  > `'a,b'` reste un repli client que le portail n'a pas.
+
 ## 0.32.0
 
 ### Minor Changes
