@@ -1,0 +1,14 @@
+[
+  {"mois":"2026-01","jour":"2026-01-15","valeur":120,"objectif":150},
+  {"mois":"2026-02","jour":"2026-02-15","valeur":132,"objectif":150},
+  {"mois":"2026-03","jour":"2026-03-15","valeur":127,"objectif":150},
+  {"mois":"2026-04","jour":"2026-04-15","valeur":141,"objectif":155},
+  {"mois":"2026-05","jour":"2026-05-15","valeur":138,"objectif":155},
+  {"mois":"2026-06","jour":"2026-06-15","valeur":149,"objectif":155},
+  {"mois":"2026-07","jour":"2026-07-15","valeur":152,"objectif":160},
+  {"mois":"2026-08","jour":"2026-08-15","valeur":147,"objectif":160},
+  {"mois":"2026-09","jour":"2026-09-15","valeur":155,"objectif":160},
+  {"mois":"2026-10","jour":"2026-10-15","valeur":161,"objectif":165},
+  {"mois":"2026-11","jour":"2026-11-15","valeur":159,"objectif":165},
+  {"mois":"2026-12","jour":"2026-12-15","valeur":168,"objectif":165}
+]

@@ -72,10 +72,53 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-cap-n" source="s-cap" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-cap-pop" source="s-cap" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-cap-n', agg: 'count', pipeline: [{ op: 'limit', n: 120 }] },
+      {
+        kind: 'kpi',
+        id: 'k-cap-n',
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: 120 }],
+        // Le plafond tronque, la valeur affichée est celle du tronçon, et la
+        // bibliothèque le DIT : « value="count" sur "s-cap" compte 120 lignes
+        // reçues, mais l'amont en détient 137 » (#881 ; AM-002 répondu pour
+        // un KPI `count`). L'invariant tient par le diagnostic.
+        invariants: [{ kind: 'not-truncated' }],
+      },
       {
         kind: 'kpi',
         id: 'k-cap-pop',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'limit', n: 120 }],
+      },
+    ],
+  },
+
+  {
+    id: 'ods-plafond-sans-compteur',
+    mode: 'deterministic',
+    origin:
+      '#881, AM-002 — le même plafond, mais SANS KPI `count` en aval : c’est le KPI qui avertissait (« compte 120 lignes reçues, mais l’amont en détient 137 »), pas la source. Une page qui ne compte pas — une somme, un graphique — charge un tronçon sans qu’un mot ne soit dit. L’invariant `not-truncated` lit les lignes émises par la source et les silences de la page.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
+    markup: `
+  <dsfr-data-source id="s-cap2" ${SOURCE_ODS} max-records="120"></dsfr-data-source>
+  <dsfr-data-kpi id="k-cap2-pop" source="s-cap2" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-cap2',
+        key: 'code_dept',
+        columns: ['population'],
+        pipeline: [{ op: 'limit', n: 120 }],
+        invariants: [
+          {
+            kind: 'not-truncated',
+            skip: 'DÉFAUT (AM-002, #881) — `max-records="120"` sur 137 lignes, sans KPI `count` : 120 lignes émises par la source, et aucun diagnostic (ni marqueur, ni console). Seul un KPI `count` avertit ; une somme ou un graphique charge un tronçon en silence. Attendu : un mot de la SOURCE quand `max-records` borne un jeu qui le dépasse. Issue à ouvrir par la supervision.',
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-cap2-pop',
         agg: 'sum',
         field: 'population',
         pipeline: [{ op: 'limit', n: 120 }],

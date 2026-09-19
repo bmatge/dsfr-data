@@ -134,12 +134,26 @@ export function ecrireRapportBanc(
         lignes.push('');
         lignes.push(`${c.rawRows} lignes brutes.`);
         lignes.push('');
-        lignes.push('| Observation | Lib | Oracle | Valeurs | Verdict |');
-        lignes.push('|---|---|---|---|---|');
+        lignes.push('| Observation | Lib | Oracle | Serveur | Valeurs | Verdict |');
+        lignes.push('|---|---|---|---|---|---|');
       }
+      // Le troisième chiffre (#883) et son verdict à trois : qui est d'accord
+      // avec qui. Sans recoupement, la colonne reste vide et le verdict est
+      // celui à deux voix.
+      const base = c.verdict
+        ? `${c.ok ? '' : '**écart** — '}${echapper(c.verdict)}`
+        : c.ok
+          ? 'conforme'
+          : `**écart** — ${echapper(c.message)}`;
+      // Le verdict d'une nuit rouge (#884) — bibliothèque, donnée rejouée,
+      // indéterminé — et l'instabilité (vert au retry seulement) s'ajoutent.
+      const verdict =
+        base +
+        (c.fraicheur ? ` — nuit : ${echapper(c.fraicheur)}` : '') +
+        (c.instable ? ' — instable (vert au retry seulement)' : '');
       lignes.push(
         `| \`${echapper(c.observation)}\` | ${echapper(c.lib)} | ${echapper(c.oracle)} | ` +
-          `${c.comparaisons} | ${c.ok ? 'conforme' : `**écart** — ${echapper(c.message)}`} |`
+          `${c.serveur === undefined ? '' : echapper(c.serveur)} | ${c.comparaisons} | ${verdict} |`
       );
     }
     lignes.push('');

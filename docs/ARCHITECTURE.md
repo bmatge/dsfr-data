@@ -792,9 +792,9 @@ et compare) :
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
 |---|---|---|
 | Alimentation | fixtures du dépôt, servies par `page.route` | vraies API du banc d'essai, retéléchargées (mises en cache par URL pour la durée du run) |
-| Attendu | recalculé dans le run, depuis les **mêmes** lignes | `tools/oracle/out/expected.json`, produit juste avant le rendu |
-| Commande | `npm run verif` | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
-| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
+| Attendu | recalculé dans le run, depuis les **mêmes** lignes — et, troisième voix, `tests/verif-donnees/attendus.json` (Python, **versionné**) | `tools/oracle/out/expected.json`, produit juste avant le rendu — avec l'empreinte du jeu et le recoupement serveur |
+| Commande | `npm run verif` ; `npm run verif:attendus` régénère les attendus Python | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
+| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR ; job `attendus` : un attendu Python qui change sans être committé est un échec | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
 | Réseau | aucun (toute sortie inattendue fait échouer) | requis |
 
 **Le moteur** — `tools/oracle/`, hors du périmètre de la lib : `manifest.ts` (la grammaire, types
@@ -893,8 +893,50 @@ de son auteur, pas entre deux implémentations du même contrat — le débat su
 tranche dans la lib (une issue, une ADR), pas dans `tools/oracle`. Et là où la documentation ne dit
 rien, c'est l'oracle qui **énonce**, en toutes lettres, et la mutation qui garde.
 
-> Procédure complète — ajouter un contrôle, écrire une alimentation vivante, prouver une mutation,
-> lire le rapport : **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
+**Trois voix, deux régimes** (epic #886, lots 1 à 7, amendement de l'ADR-122). Le garde d'imports
+garantit que l'oracle n'emprunte rien à la lib ; il ne garantit pas qu'il ne *pense pas comme
+elle* — mêmes auteurs, même langage. D'où ce que la catégorie a gagné depuis :
+
+- **les silences** (#878) — un `Expect` `diagnostic` et le lecteur `lireDiagnostics` (marqueur
+  `data-dsfr-config-error`, journal des `console.warn` / `console.error` de la lib) : un contrôle
+  peut exiger que la bibliothèque **parle**, et dise quoi, ou qu'elle se taise. Les trois chiffres
+  faux du 18/09 avaient zéro erreur console ;
+- **la troisième voix** (#880) — `tools/oracle-py/oracle.py`, **Python standard, jamais pandas**
+  (`sum` toute-NaN = 0 et `groupby` qui supprime le groupe null reproduiraient les bugs au lieu de
+  les dénoncer) ; les jeux du régime déterministe en JSON partagés (`tests/verif-donnees/jeux/`,
+  #879), les attendus **versionnés** (`tests/verif-donnees/attendus.json`, `npm run verif:attendus`),
+  la rencontre TS ↔ Python sans navigateur (`tests/oracle/attendus.test.ts`) et le job `attendus`
+  de `verif-donnees.yml` qui refuse un attendu non committé — sur les **valeurs** seules : l'en-tête
+  du fichier gardé ne porte aucune métadonnée d'environnement, la version de l'interpréteur vit dans
+  `tools/oracle/out/attendus-provenance.json` (ignoré par git) et le workflow épingle Python 3.11,
+  faute de quoi le garde-fou rougissait sur cette seule ligne, toutes valeurs égales. Le régime
+  déterministe seul : en vivant, un attendu figé se périme au premier changement de données ;
+- **les invariants** (#881) — `sum-preserved`, `count-preserved`, `count-equals`, `null-group`,
+  `bounded`, `null-stays-null`, `not-truncated`, évalués sur ce que la page montre **contre les
+  lignes brutes, jamais contre l'attendu** ;
+- **le canari** (#882) — `jeux/canari.json`, quarante lignes écrites à la main, un contrôle par
+  piège payé par le banc, chacun citant le registre ;
+- **le recoupement serveur** (#883, vivant) — l'agrégation Opendatasoft elle-même comme troisième
+  voix vivante, clauses écrites à la main, sous quota, avec un **verdict à trois chiffres** ;
+- **le verdict d'une nuit rouge** (#884, vivant) — empreinte du jeu et `data_processed` du portail :
+  **bibliothèque** (l'échec est **gelé** en contrôle déterministe sous `tests/verif-donnees/gel/`,
+  rouge sans réseau jusqu'au correctif), **donnée** (rejoué une fois dans le run), **indéterminé**.
+  Règle de vie : une nuit rouge est gelée ou requalifiée sous 24 h, jamais un troisième état.
+
+**Ce que la catégorie ne couvre pas**, écrit noir sur blanc :
+
+- les erreurs d'auteur de page que la bibliothèque ne peut pas voir (source hors contexte, mauvais
+  jeu de données) : le dispositif garde le *chiffre de la page réelle* en vivant, la garde durable
+  est un oracle de page côté banc ;
+- les pixels, la mise en page, l'accessibilité : `e2e/` et `e2e-layout.yml` ;
+- les expressions `derive` (ADR-105) en Python, tant qu'une seconde réécriture de la grammaire n'est
+  pas décidée — 21 attentes restent à deux voix ;
+- la qualité de la donnée source (LIM-003, LIM-015, LIM-016) : aucun oracle ne répare un jeu faux ;
+- les API sans métadonnée de fraîcheur (Tabular, Melodi) : verdict `indéterminé`.
+
+> Procédure complète — ajouter un contrôle, un canari, un attendu Python, un recoupement, traiter
+> une nuit rouge, prouver une mutation, lire le rapport :
+> **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
 
 ### Structure
 

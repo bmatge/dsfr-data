@@ -62,7 +62,7 @@ const INTERDITS = [
  * composition, dont le travail est précisément de rapprocher le moteur et les
  * manifestes. Comme le spec Playwright, et pour la même raison.
  */
-const RACINES_DE_COMPOSITION = ['tools/oracle/run.ts'];
+const RACINES_DE_COMPOSITION = ['tools/oracle/run.ts', 'tools/oracle/manifests.ts'];
 
 function importeSesDonnees(depuisRelatif: string, cibleRelative: string): boolean {
   if (RACINES_DE_COMPOSITION.includes(depuisRelatif)) return false;
@@ -141,6 +141,26 @@ describe('vérification des données — garde d’indépendance', () => {
     expect(fautifs).toEqual([]);
     // Le garde ne prouve rien s'il n'a rien parcouru.
     expect(vus.size).toBeGreaterThan(5);
+  });
+
+  it('suit les imports JSON des jeux sans les refuser ni les parcourir (#879)', () => {
+    // Les lignes des fixtures vivent dans `tests/verif-donnees/jeux/*.json`
+    // depuis le lot 2 : un spécifieur `./jeux/x.json` n'est ni un interdit
+    // (rien de `packages/`) ni un module TypeScript à parcourir. Le garde le
+    // laisse passer — et ce test s'assure qu'il en a bien rencontré, sinon
+    // la tolérance ne serait qu'un cas jamais exercé.
+    const fixtures = fichiersTs(resolve(RACINE, 'tests/verif-donnees')).filter((f) =>
+      /fixtures.*\.ts$/.test(f)
+    );
+    const specifieursJson = fixtures.flatMap((f) =>
+      importsDe(readFileSync(f, 'utf-8')).filter((s) => s.endsWith('.json'))
+    );
+    expect(specifieursJson.length).toBeGreaterThan(20);
+    for (const s of specifieursJson) {
+      expect(s.startsWith('./jeux/')).toBe(true);
+      expect(INTERDITS.find((i) => i.test(s))).toBeUndefined();
+      expect(resoudre(resolve(RACINE, 'tests/verif-donnees/fixtures.ts'), s)).toBeNull();
+    }
   });
 
   it('refuse un import de `tests/verif-donnees` depuis `tools/oracle`', () => {

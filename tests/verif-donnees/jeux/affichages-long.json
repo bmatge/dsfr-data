@@ -1,0 +1,8 @@
+[
+  {"mois":"Janvier","groupe":"Cadres","valeur":120},
+  {"mois":"Janvier","groupe":"Agents","valeur":310},
+  {"mois":"Février","groupe":"Cadres","valeur":145},
+  {"mois":"Février","groupe":"Agents","valeur":288},
+  {"mois":"Mars","groupe":"Cadres","valeur":132},
+  {"mois":"Mars","groupe":"Agents","valeur":341}
+]

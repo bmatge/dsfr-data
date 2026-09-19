@@ -18,6 +18,9 @@ import {
   runPipeline,
   toNum,
 } from './compute.js';
+import { referenceInvariant, type AttenduInvariant } from './invariants.js';
+import type { AttenduServeur, EtatPortail } from './crosscheck.js';
+import type { Empreinte } from './fraicheur.js';
 
 export interface AttenduKpi {
   kind: 'kpi';
@@ -198,12 +201,38 @@ export interface ExpectedCheck {
   /** Instant du calcul — en mode vivant, il doit coller au rendu. */
   fetchedAt: string;
   values: Record<string, Attendu>;
+  /**
+   * Les RÉFÉRENCES des invariants (#881), par clé d'attente : ce que les
+   * lignes brutes disent (somme, compte, absents) — quelques nombres, jamais
+   * les lignes elles-mêmes, pour que le mode vivant les emporte dans
+   * `expected.json` sans le faire enfler.
+   */
+  invariants: Record<string, AttenduInvariant[]>;
+  /**
+   * Le RECOUPEMENT SERVEUR (#883), mode vivant seulement : ce que le portail
+   * a répondu à la clause écrite à la main, par clé d'attente — la troisième
+   * valeur à côté de `values` (oracle). Absent en déterministe.
+   */
+  serveur?: Record<string, AttenduServeur>;
+  /** L'état des portails recoupés dans ce run : quota lu, requêtes, coupure. */
+  recoupement?: Record<string, EtatPortail>;
+  /**
+   * L'EMPREINTE du jeu principal au calcul de l'attendu (#884), mode vivant :
+   * nombre de lignes, SHA-256 de leur forme JSON, et `data_processed` du
+   * portail. C'est ce que le spec relit après l'observation pour trancher
+   * « bibliothèque » ou « donnée ».
+   */
+  fingerprint?: Empreinte;
 }
 
 /** Calcule l'attendu d'un contrôle à partir de ses jeux de lignes brutes. */
 export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>): ExpectedCheck {
   const values: Record<string, Attendu> = {};
+  const invariants: Record<string, AttenduInvariant[]> = {};
   for (const e of check.expects) {
+    if ('invariants' in e && e.invariants && e.invariants.length > 0) {
+      invariants[cleAttendu(e)] = e.invariants.map((inv) => referenceInvariant(inv, datasets));
+    }
     // Les URL appelées ne se recalculent pas depuis les lignes : le contrôle
     // énonce lui-même ce que la page doit avoir demandé.
     if (e.kind === 'urls') {
@@ -370,5 +399,6 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
     rawRows: (datasets[JEU_PRINCIPAL] ?? []).length,
     fetchedAt: new Date().toISOString(),
     values,
+    invariants,
   };
 }
