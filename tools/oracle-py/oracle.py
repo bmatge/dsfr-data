@@ -439,6 +439,20 @@ def diff(rows: list[Row], champ: str, alias: str) -> list[Row]:
     return out
 
 
+def share(rows: list[Row], champ: str, alias: str, echelle: Fraction) -> list[Row]:
+    """Part du total (#926) : valeur / somme de la colonne sur toutes les lignes reçues.
+
+    ``echelle`` vaut 100 pour une part en points de pourcentage
+    (``share_percent``). Total nul, ou valeur non numérique : ``None``.
+    """
+    valeurs = [to_num(r.get(champ)) for r in rows]
+    total = sum((v for v in valeurs if v is not None), Fraction(0))
+    out = []
+    for r, v in zip(rows, valeurs):
+        out.append({**r, alias: None if v is None or total == 0 else (v / total) * echelle})
+    return out
+
+
 def ratio(rows: list[Row], num: str, den: str, alias: str) -> list[Row]:
     out = []
     for r in rows:
@@ -659,6 +673,8 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = rows[(s["number"] - 1) * s["size"] : s["number"] * s["size"]]
         elif op == "running":
             rows = running_sum(rows, s["from"], s["as"]) if s["kind"] == "running_sum" else diff(rows, s["from"], s["as"])
+        elif op == "share":
+            rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1))
         elif op == "ratio":
             rows = ratio(rows, s["numerator"], s["denominator"], s["as"])
         elif op == "join":

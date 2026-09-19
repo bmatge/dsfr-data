@@ -11,6 +11,8 @@ import type { SourceElement } from '../utils/source-element.js';
 import {
   AGGREGATE_FUNCTIONS,
   isRunningAggregate,
+  isShareAggregate,
+  isWindowAggregate,
   parseAggregates,
   validateAggregateFunctions,
   type ParsedAggregate,
@@ -272,6 +274,53 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * `order-by`, jamais délégué, avertissement sans `order-by`. La première
    * ligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément
    * nul ; une valeur non numérique donne `null` pour elle et pour la suivante.
+   *
+   * ## `share` et `share_percent` — la part du total (#926)
+   *
+   * `champ:share` rend, pour chaque ligne de sortie, **la valeur de la ligne
+   * divisée par la somme de cette colonne sur toutes les lignes de sortie** —
+   * une répartition, sans seconde source ni jointure.
+   * Ex. `group-by="typologie" aggregate="lics:sum, lics__sum:share"` produit
+   * `lics__sum__share` (0,334 pour 33,4 %).
+   * `share_percent` rend la même part **en points de pourcentage** (33,4), la
+   * forme qu'attend un axe de graphique : une fraction dessinée sur un axe
+   * intitulé « % » y afficherait 0,33. Réserver `share` à ce qui sera formaté
+   * (`dsfr-data-kpi format="pourcentage"`, qui met une fraction à l'échelle,
+   * comme le ratio de #673).
+   *
+   * **Le dénominateur, et ce qu'il signifie.** C'est la somme de la colonne
+   * sur les lignes de sortie **avant `limit`** — pas sur le jeu entier. Trois
+   * conséquences, qui sont le piège de cette fonction bien plus que sa
+   * syntaxe :
+   * - une part est toujours une part **de l'ensemble filtré** : `where`,
+   *   facettes, recherche et `dsfr-data-context` déplacent le dénominateur.
+   *   C'est presque toujours ce qu'on veut (« part des licences de cette
+   *   région »), mais il faut le dire en page : le même graphique montre
+   *   33,4 % sans filtre et 16,3 % en Bretagne, et les deux sont justes ;
+   * - avec `limit`, les parts affichées **ne somment pas à 100 %** : un top 10
+   *   montre la part de chaque ligne dans le TOUT, pas dans le top 10. C'est
+   *   volontaire — l'inverse ferait d'une troncature d'affichage une
+   *   redéfinition silencieuse du total ;
+   * - si la source est tronquée (`max-records`, pagination), le dénominateur
+   *   l'est aussi. Un total faux ne se voit pas : les parts somment quand même
+   *   à 100 %.
+   *
+   * **Ce qu'une part suppose.** Que les lignes soient une partition — chaque
+   * unité comptée une fois et une seule. Après `explode`, une ligne
+   * multivaluée compte dans N groupes : les parts somment alors à plus de
+   * 100 %, et il faut écrire au lecteur « part des licences portant ce
+   * label », pas « répartition ». Une colonne qui mêle des signes opposés n'a
+   * pas de part : la somme peut s'annuler.
+   *
+   * **Règles de calcul.** Total nul, absent ou non numérique : la part vaut
+   * `null`, jamais l'infini ni un zéro de complaisance. Une valeur non
+   * numérique donne `null` pour sa ligne et ne compte pas au dénominateur
+   * (même règle que `sum`, #301). Comme les cumulées : calcul toujours côté
+   * client, jamais délégué — et, comme elles, **demander une part empêche la
+   * délégation serveur du regroupement** : la query regroupe alors sur les
+   * lignes chargées, donc relever `max-records` avant de poser l'attribut sur
+   * un jeu volumineux. L'ordre des lignes, lui, est indifférent : pas
+   * d'`order-by` requis, pas d'avertissement.
    */
   @property({ type: String })
   aggregate = '';
@@ -722,16 +771,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * #672) : tout le group-by reste client-side, sur les lignes brutes —
    * comme pour un champ non delegable.
    *
-   * Un agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :
-   * aucun ne le traduit, et ceux qui n'implementent pas
-   * `supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc
-   * « delegable » — l'API recevrait `running_sum` et repondrait en erreur
-   * pour tous les abonnes de la source.
+   * Un agregat de FENETRE (cumule #738, part du total #926) est refuse avant
+   * meme d'interroger l'adapter : aucun ne le traduit, et ceux qui
+   * n'implementent pas `supportsServerAggregate` (ODS, Grist) repondent
+   * `undefined`, donc « delegable » — l'API recevrait `running_sum` ou `share`
+   * et repondrait en erreur pour tous les abonnes de la source.
    */
   private _canDelegateAggregates(adapter: ApiAdapter, aggs: ParsedAggregate[]): boolean {
     return aggs.every(
       (a) =>
-        !isRunningAggregate(a.function) && adapter.supportsServerAggregate?.(a.function) !== false
+        !isWindowAggregate(a.function) && adapter.supportsServerAggregate?.(a.function) !== false
     );
   }
 
@@ -1238,14 +1287,15 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       result = this._applySort(result);
     }
 
-    // 3 bis. Agregats cumules (#738) : transformation ORDONNEE, donc APRES le
-    // tri et sur les lignes de sortie (elle peut cumuler une colonne produite
-    // par le group-by). Toujours client-side. Avant ou apres `limit` est
-    // indifferent : un cumul est un prefixe, les N premieres valeurs sont les
-    // memes — la place ici evite d'y penser.
-    const runningAggregates = this._runningAggregates();
-    if (runningAggregates.length > 0) {
-      result = this._applyRunningAggregates(result, runningAggregates);
+    // 3 bis. Agregats de FENETRE : cumules (#738) et parts du total (#926).
+    // Ils portent sur les lignes de SORTIE (ils peuvent lire une colonne
+    // produite par le group-by), toujours client-side, et APRES le tri — un
+    // cumul en depend. Place AVANT `limit` : indifferent pour un cumul (un
+    // prefixe), determinant pour une part, dont le denominateur est alors le
+    // total des lignes de sortie et non celui des N premieres (#926).
+    const windowAggregates = this._windowAggregates();
+    if (windowAggregates.length > 0) {
+      result = this._applyWindowAggregates(result, windowAggregates);
     }
 
     // 4. Appliquer la limite (toujours client-side)
@@ -1559,10 +1609,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /** Agregats reducteurs : ceux qui replient un groupe en une valeur (#738). */
   private _groupAggregates(): ParsedAggregate[] {
-    return this._parseAggregates(this.aggregate).filter((a) => !isRunningAggregate(a.function));
+    return this._parseAggregates(this.aggregate).filter((a) => !isWindowAggregate(a.function));
   }
 
-  /** Agregats cumules, appliques apres le tri sur les lignes de sortie (#738). */
+  /**
+   * Agregats de fenetre (cumules #738, parts du total #926), appliques apres
+   * le tri sur les lignes de sortie.
+   */
+  private _windowAggregates(): ParsedAggregate[] {
+    return this._parseAggregates(this.aggregate).filter((a) => isWindowAggregate(a.function));
+  }
+
+  /** Agregats cumules seuls : eux seuls dependent de l'ordre des lignes (#738). */
   private _runningAggregates(): ParsedAggregate[] {
     return this._parseAggregates(this.aggregate).filter((a) => isRunningAggregate(a.function));
   }
@@ -1590,33 +1648,68 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Les lignes ne sont jamais mutées : sans group-by, ce sont les objets de
    * la source.
    */
-  private _applyRunningAggregates(
+  private _applyWindowAggregates(
     data: Record<string, unknown>[],
     aggregates: ParsedAggregate[]
   ): Record<string, unknown>[] {
-    const totals = new Map<string, number>();
+    // Une passe par agregat, dans l'ordre declare : un agregat de fenetre peut
+    // donc lire la colonne produite par le precedent de la meme liste
+    // (`x:running_sum, x__running_sum:diff`). Une part (#926) exige en plus de
+    // connaitre le total AVANT de diviser : elle ne se calcule pas ligne a
+    // ligne en un seul parcours.
+    let rows = data;
+    for (const agg of aggregates) {
+      rows = isShareAggregate(agg.function)
+        ? this._applyShareAggregate(rows, agg)
+        : this._applyRunningAggregate(rows, agg);
+    }
+    return rows;
+  }
+
+  /** Cumul (`running_sum`) ou ecart a la ligne precedente (`diff`), #738/#775. */
+  private _applyRunningAggregate(
+    data: Record<string, unknown>[],
+    agg: ParsedAggregate
+  ): Record<string, unknown>[] {
+    let total = 0;
     // `diff` (#775) : valeur de la ligne precedente. `undefined` = premiere
     // ligne, `null` = precedente non numerique ; les deux rendent `null`.
-    const previous = new Map<string, number | null>();
+    let previous: number | null | undefined;
     return data.map((row) => {
-      let out = row;
-      for (const agg of aggregates) {
-        // Lu sur `out` : un agregat cumule peut porter sur la colonne produite
-        // par le precedent dans la meme liste (`x:running_sum, x__running_sum:diff`).
-        const value = toNumber(getByPath(out, agg.field), true);
-        if (agg.function === 'diff') {
-          const before = previous.get(agg.alias);
-          previous.set(agg.alias, value);
-          const delta =
-            value === null || before === undefined || before === null ? null : value - before;
-          out = this._rowWithFieldValue(out, agg.alias, delta);
-          continue;
-        }
-        const total = (totals.get(agg.alias) ?? 0) + (value ?? 0);
-        totals.set(agg.alias, total);
-        out = this._rowWithFieldValue(out, agg.alias, total);
+      const value = toNumber(getByPath(row, agg.field), true);
+      if (agg.function === 'diff') {
+        const before = previous;
+        previous = value;
+        const delta =
+          value === null || before === undefined || before === null ? null : value - before;
+        return this._rowWithFieldValue(row, agg.alias, delta);
       }
-      return out;
+      total += value ?? 0;
+      return this._rowWithFieldValue(row, agg.alias, total);
+    });
+  }
+
+  /**
+   * Part du total (#926) : valeur de la ligne / somme de la colonne sur
+   * TOUTES les lignes de sortie (avant `limit`). `share` rend une fraction,
+   * `share_percent` la meme part en points de pourcentage.
+   *
+   * Total nul, absent ou non numerique : `null`, jamais l'infini ni un zero de
+   * complaisance — la regle de `ratioColumn` et du ratio de KPI (#673). Une
+   * valeur non numerique ne compte pas au denominateur (regle de `sum`, #301)
+   * et rend `null` pour sa ligne : une absence n'est pas une part nulle.
+   */
+  private _applyShareAggregate(
+    data: Record<string, unknown>[],
+    agg: ParsedAggregate
+  ): Record<string, unknown>[] {
+    const values = data.map((row) => toNumber(getByPath(row, agg.field), true));
+    const total = values.reduce<number>((acc, v) => acc + (v ?? 0), 0);
+    const scale = agg.function === 'share_percent' ? 100 : 1;
+    return data.map((row, i) => {
+      const value = values[i];
+      const share = value === null || total === 0 ? null : (value / total) * scale;
+      return this._rowWithFieldValue(row, agg.alias, share);
     });
   }
 
