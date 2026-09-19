@@ -15577,7 +15577,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.\n\n`diff` (#775) en est l'inverse : l'écart de chaque ligne avec la\nprécédente, pour retrouver le flux d'une série publiée déjà cumulée\n(`aggregate=\"cumul:diff\"` → colonne `cumul__diff`). Mêmes règles : après\n`order-by`, jamais délégué, avertissement sans `order-by`. La première\nligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément\nnul ; une valeur non numérique donne `null` pour elle et pour la suivante.",
+              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.\n\n`diff` (#775) en est l'inverse : l'écart de chaque ligne avec la\nprécédente, pour retrouver le flux d'une série publiée déjà cumulée\n(`aggregate=\"cumul:diff\"` → colonne `cumul__diff`). Mêmes règles : après\n`order-by`, jamais délégué, avertissement sans `order-by`. La première\nligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément\nnul ; une valeur non numérique donne `null` pour elle et pour la suivante.\n\n## `share` et `share_percent` — la part du total (#926)\n\n`champ:share` rend, pour chaque ligne de sortie, **la valeur de la ligne\ndivisée par la somme de cette colonne sur toutes les lignes de sortie** —\nune répartition, sans seconde source ni jointure.\nEx. `group-by=\"typologie\" aggregate=\"lics:sum, lics__sum:share\"` produit\n`lics__sum__share` (0,334 pour 33,4 %).\n`share_percent` rend la même part **en points de pourcentage** (33,4), la\nforme qu'attend un axe de graphique : une fraction dessinée sur un axe\nintitulé « % » y afficherait 0,33. Réserver `share` à ce qui sera formaté\n(`dsfr-data-kpi format=\"pourcentage\"`, qui met une fraction à l'échelle,\ncomme le ratio de #673).\n\n**Le dénominateur, et ce qu'il signifie.** C'est la somme de la colonne\nsur les lignes de sortie **avant `limit`** — pas sur le jeu entier. Trois\nconséquences, qui sont le piège de cette fonction bien plus que sa\nsyntaxe :\n- une part est toujours une part **de l'ensemble filtré** : `where`,\n  facettes, recherche et `dsfr-data-context` déplacent le dénominateur.\n  C'est presque toujours ce qu'on veut (« part des licences de cette\n  région »), mais il faut le dire en page : le même graphique montre\n  33,4 % sans filtre et 16,3 % en Bretagne, et les deux sont justes ;\n- avec `limit`, les parts affichées **ne somment pas à 100 %** : un top 10\n  montre la part de chaque ligne dans le TOUT, pas dans le top 10. C'est\n  volontaire — l'inverse ferait d'une troncature d'affichage une\n  redéfinition silencieuse du total ;\n- si la source est tronquée (`max-records`, pagination), le dénominateur\n  l'est aussi. Un total faux ne se voit pas : les parts somment quand même\n  à 100 %.\n\n**Ce qu'une part suppose.** Que les lignes soient une partition — chaque\nunité comptée une fois et une seule. Après `explode`, une ligne\nmultivaluée compte dans N groupes : les parts somment alors à plus de\n100 %, et il faut écrire au lecteur « part des licences portant ce\nlabel », pas « répartition ». Une colonne qui mêle des signes opposés n'a\npas de part : la somme peut s'annuler.\n\n**Règles de calcul.** Total nul, absent ou non numérique : la part vaut\n`null`, jamais l'infini ni un zéro de complaisance. Une valeur non\nnumérique donne `null` pour sa ligne et ne compte pas au dénominateur\n(même règle que `sum`, #301). Comme les cumulées : calcul toujours côté\nclient, jamais délégué — et, comme elles, **demander une part empêche la\ndélégation serveur du regroupement** : la query regroupe alors sur les\nlignes chargées, donc relever `max-records` avant de poser l'attribut sur\nun jeu volumineux. L'ordre des lignes, lui, est indifférent : pas\nd'`order-by` requis, pas d'avertissement.",
               "attribute": "aggregate"
             },
             {
@@ -15938,7 +15938,7 @@
                   }
                 }
               ],
-              "description": "Fonction non traduisible par l'adapter (Tabular n'a pas de `distinct`,\n#672) : tout le group-by reste client-side, sur les lignes brutes —\ncomme pour un champ non delegable.\n\nUn agregat CUMULE (#738) est refuse avant meme d'interroger l'adapter :\naucun ne le traduit, et ceux qui n'implementent pas\n`supportsServerAggregate` (ODS, Grist) repondent `undefined`, donc\n« delegable » — l'API recevrait `running_sum` et repondrait en erreur\npour tous les abonnes de la source."
+              "description": "Fonction non traduisible par l'adapter (Tabular n'a pas de `distinct`,\n#672) : tout le group-by reste client-side, sur les lignes brutes —\ncomme pour un champ non delegable.\n\nUn agregat de FENETRE (cumule #738, part du total #926) est refuse avant\nmeme d'interroger l'adapter : aucun ne le traduit, et ceux qui\nn'implementent pas `supportsServerAggregate` (ODS, Grist) repondent\n`undefined`, donc « delegable » — l'API recevrait `running_sum` ou `share`\net repondrait en erreur pour tous les abonnes de la source."
             },
             {
               "kind": "method",
@@ -16540,6 +16540,17 @@
             },
             {
               "kind": "method",
+              "name": "_windowAggregates",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ParsedAggregate[]"
+                }
+              },
+              "description": "Agregats de fenetre (cumules #738, parts du total #926), appliques apres\nle tri sur les lignes de sortie."
+            },
+            {
+              "kind": "method",
               "name": "_runningAggregates",
               "privacy": "private",
               "return": {
@@ -16547,7 +16558,7 @@
                   "text": "ParsedAggregate[]"
                 }
               },
-              "description": "Agregats cumules, appliques apres le tri sur les lignes de sortie (#738)."
+              "description": "Agregats cumules seuls : eux seuls dependent de l'ordre des lignes (#738)."
             },
             {
               "kind": "method",
@@ -16562,7 +16573,7 @@
             },
             {
               "kind": "method",
-              "name": "_applyRunningAggregates",
+              "name": "_applyWindowAggregates",
               "privacy": "private",
               "return": {
                 "type": {
@@ -16584,6 +16595,56 @@
                 }
               ],
               "description": "Applique les agrégats cumulés sur les lignes de sortie (#738), dans leur\nordre courant : chaque ligne porte la somme des valeurs des lignes\nprécédentes, la sienne comprise. Les valeurs non numériques sont ignorées\n(même règle que `sum`, #301) et la ligne porte alors le cumul en cours.\nLes lignes ne sont jamais mutées : sans group-by, ce sont les objets de\nla source."
+            },
+            {
+              "kind": "method",
+              "name": "_applyRunningAggregate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                },
+                {
+                  "name": "agg",
+                  "type": {
+                    "text": "ParsedAggregate"
+                  }
+                }
+              ],
+              "description": "Cumul (`running_sum`) ou ecart a la ligne precedente (`diff`), #738/#775."
+            },
+            {
+              "kind": "method",
+              "name": "_applyShareAggregate",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                },
+                {
+                  "name": "agg",
+                  "type": {
+                    "text": "ParsedAggregate"
+                  }
+                }
+              ],
+              "description": "Part du total (#926) : valeur de la ligne / somme de la colonne sur\nTOUTES les lignes de sortie (avant `limit`). `share` rend une fraction,\n`share_percent` la meme part en points de pourcentage.\n\nTotal nul, absent ou non numerique : `null`, jamais l'infini ni un zero de\ncomplaisance — la regle de `ratioColumn` et du ratio de KPI (#673). Une\nvaleur non numerique ne compte pas au denominateur (regle de `sum`, #301)\net rend `null` pour sa ligne : une absence n'est pas une part nulle."
             },
             {
               "kind": "method",
@@ -16795,7 +16856,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.\n\n`diff` (#775) en est l'inverse : l'écart de chaque ligne avec la\nprécédente, pour retrouver le flux d'une série publiée déjà cumulée\n(`aggregate=\"cumul:diff\"` → colonne `cumul__diff`). Mêmes règles : après\n`order-by`, jamais délégué, avertissement sans `order-by`. La première\nligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément\nnul ; une valeur non numérique donne `null` pour elle et pour la suivante.",
+              "description": "Agrégations pour mode generic/tabular\nFormat: \"field:function, field2:function\"\nEx: \"population:sum, count:count\"\n\n`running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :\nil produit une ligne par ligne de sortie, chacune portant la somme des\nprécédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des\nlignes reçues fait foi et le résultat n'a en général pas de sens : un\navertissement console le signale. Le cumul reste toujours côté client.\nEx. `group-by=\"mois\" aggregate=\"montant:sum, montant__sum:running_sum\"`\navec `order-by=\"mois:asc\"`.\n\n`diff` (#775) en est l'inverse : l'écart de chaque ligne avec la\nprécédente, pour retrouver le flux d'une série publiée déjà cumulée\n(`aggregate=\"cumul:diff\"` → colonne `cumul__diff`). Mêmes règles : après\n`order-by`, jamais délégué, avertissement sans `order-by`. La première\nligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément\nnul ; une valeur non numérique donne `null` pour elle et pour la suivante.\n\n## `share` et `share_percent` — la part du total (#926)\n\n`champ:share` rend, pour chaque ligne de sortie, **la valeur de la ligne\ndivisée par la somme de cette colonne sur toutes les lignes de sortie** —\nune répartition, sans seconde source ni jointure.\nEx. `group-by=\"typologie\" aggregate=\"lics:sum, lics__sum:share\"` produit\n`lics__sum__share` (0,334 pour 33,4 %).\n`share_percent` rend la même part **en points de pourcentage** (33,4), la\nforme qu'attend un axe de graphique : une fraction dessinée sur un axe\nintitulé « % » y afficherait 0,33. Réserver `share` à ce qui sera formaté\n(`dsfr-data-kpi format=\"pourcentage\"`, qui met une fraction à l'échelle,\ncomme le ratio de #673).\n\n**Le dénominateur, et ce qu'il signifie.** C'est la somme de la colonne\nsur les lignes de sortie **avant `limit`** — pas sur le jeu entier. Trois\nconséquences, qui sont le piège de cette fonction bien plus que sa\nsyntaxe :\n- une part est toujours une part **de l'ensemble filtré** : `where`,\n  facettes, recherche et `dsfr-data-context` déplacent le dénominateur.\n  C'est presque toujours ce qu'on veut (« part des licences de cette\n  région »), mais il faut le dire en page : le même graphique montre\n  33,4 % sans filtre et 16,3 % en Bretagne, et les deux sont justes ;\n- avec `limit`, les parts affichées **ne somment pas à 100 %** : un top 10\n  montre la part de chaque ligne dans le TOUT, pas dans le top 10. C'est\n  volontaire — l'inverse ferait d'une troncature d'affichage une\n  redéfinition silencieuse du total ;\n- si la source est tronquée (`max-records`, pagination), le dénominateur\n  l'est aussi. Un total faux ne se voit pas : les parts somment quand même\n  à 100 %.\n\n**Ce qu'une part suppose.** Que les lignes soient une partition — chaque\nunité comptée une fois et une seule. Après `explode`, une ligne\nmultivaluée compte dans N groupes : les parts somment alors à plus de\n100 %, et il faut écrire au lecteur « part des licences portant ce\nlabel », pas « répartition ». Une colonne qui mêle des signes opposés n'a\npas de part : la somme peut s'annuler.\n\n**Règles de calcul.** Total nul, absent ou non numérique : la part vaut\n`null`, jamais l'infini ni un zéro de complaisance. Une valeur non\nnumérique donne `null` pour sa ligne et ne compte pas au dénominateur\n(même règle que `sum`, #301). Comme les cumulées : calcul toujours côté\nclient, jamais délégué — et, comme elles, **demander une part empêche la\ndélégation serveur du regroupement** : la query regroupe alors sur les\nlignes chargées, donc relever `max-records` avant de poser l'attribut sur\nun jeu volumineux. L'ordre des lignes, lui, est indifférent : pas\nd'`order-by` requis, pas d'avertissement.",
               "fieldName": "aggregate"
             },
             {

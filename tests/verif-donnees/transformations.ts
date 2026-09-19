@@ -526,6 +526,58 @@ const AGREGATS: Check[] = [
   },
 
   {
+    id: 'agregat-part-du-total-926',
+    mode: 'deterministic',
+    origin:
+      '#926 — la part du total (`share`, `share_percent`) : une répartition sans seconde source ni jointure. Le dénominateur est la somme de la colonne sur les lignes de SORTIE, et une part fausse reste plausible — elle somme quand même à 100 %.',
+    feed: { kind: 'fixture', datasets: JEU_TERR },
+    markup: `${TERR}
+  <dsfr-data-query id="q-part" source="s-terr" group-by="zone"
+    aggregate="population:sum:pop, pop:share:fraction, pop:share_percent:part"
+    order-by="zone:asc"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part',
+        key: 'zone',
+        columns: ['pop', 'fraction', 'part'],
+        pipeline: [
+          { op: 'group-by', by: 'zone', columns: { pop: { agg: 'sum', field: 'population' } } },
+          { op: 'order-by', column: 'zone', dir: 'asc' },
+          { op: 'share', from: 'pop', as: 'fraction' },
+          { op: 'share', from: 'pop', as: 'part', scale: 100 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'agregat-part-du-total-avant-limit',
+    mode: 'deterministic',
+    origin:
+      '#926 — un top N montre la part de chaque ligne dans le TOUT, pas dans le top N : la part est calculée AVANT `limit`. L’inverse ferait d’une troncature d’affichage une redéfinition silencieuse du total, et les deux chiffres sont également plausibles.',
+    feed: { kind: 'fixture', datasets: JEU_TERR },
+    markup: `${TERR}
+  <dsfr-data-query id="q-part-top" source="s-terr" group-by="zone"
+    aggregate="population:sum:pop, pop:share_percent:part"
+    order-by="pop:desc" limit="2"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-top',
+        key: 'zone',
+        columns: ['pop', 'part'],
+        pipeline: [
+          { op: 'group-by', by: 'zone', columns: { pop: { agg: 'sum', field: 'population' } } },
+          { op: 'order-by', column: 'pop', dir: 'desc' },
+          { op: 'share', from: 'pop', as: 'part', scale: 100 },
+          { op: 'limit', n: 2 },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'regroupement-multi-champs',
     mode: 'deterministic',
     origin:

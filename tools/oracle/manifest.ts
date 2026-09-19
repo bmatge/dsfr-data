@@ -171,6 +171,19 @@ export type Step =
   | { op: 'running'; from: string; as: string; kind: 'running_sum' | 'diff' }
   | {
       /**
+       * PART DU TOTAL (#926) : valeur de la ligne divisée par la somme de la
+       * colonne sur TOUTES les lignes à cet instant du recalcul — donc avant
+       * `limit`, comme la lib. `scale: 100` rend la part en points de
+       * pourcentage (`share_percent`). Total nul ou valeur non numérique :
+       * `null`, jamais 0 ni l'infini.
+       */
+      op: 'share';
+      from: string;
+      as: string;
+      scale?: number;
+    }
+  | {
+      /**
        * Quotient de deux colonnes, ligne à ligne : la FRACTION qu'un ratio de
        * KPI affiche (`count:statut:ouvert / count`, #673). Dénominateur nul ou
        * non numérique : `null`, jamais 0 ni l'infini.

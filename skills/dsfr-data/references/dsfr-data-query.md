@@ -125,6 +125,8 @@ Nommage automatique sans alias : `champ__fonction` (ex: `population__sum`)
 | distinct | Nombre de valeurs distinctes (alias `count-distinct`) — null et chaîne vide exclus, `75` et `"75"` comptent pour une seule valeur | `"commune:distinct"` → colonne `commune__distinct` |
 | running_sum | **Cumul** : une ligne par ligne de sortie, chacune portant la somme des précédentes (#738) | `"montant:running_sum"` → colonne `montant__running_sum` |
 | diff | **Écart avec la ligne précédente**, inverse du cumul (#775) : retrouve le flux d'une série publiée déjà cumulée. Première ligne `null` | `"cumul:diff"` → colonne `cumul__diff` |
+| share | **Part du total** (#926) : valeur de la ligne / somme de la colonne sur les lignes de sortie. FRACTION (0,334) | `"lics__sum:share"` → colonne `lics__sum__share` |
+| share_percent | La même part **en points de pourcentage** (33,4), pour un axe de graphique | `"lics__sum:share_percent"` → colonne `lics__sum__share_percent` |
 
 Délégation de `distinct` : ODS `count(distinct champ)`, Grist SQL `COUNT(DISTINCT champ)` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
@@ -171,6 +173,38 @@ délégué, avertissement sans `order-by`). Cas type : un compteur publié **dé
   (le graphique la laisse vide, un `sum` aval l'exclut).
 - Une valeur non numérique rend `null` pour sa ligne **et pour la suivante**, qui n'a pas de
   précédente connue : l'écart n'enjambe jamais un trou.
+
+### Part du total (share / share_percent, #926)
+Une **répartition** — « part des licences par typologie de communes » — se posait jusqu'ici en
+deux sources, deux clés constantes (`compute="k = 1"`), un `dsfr-data-join on="k"` et une
+division. `share` la donne en un attribut :
+
+```html
+<dsfr-data-query id="repartition" source="licences"
+  group-by="typologie"
+  aggregate="lics:sum, lics__sum:share_percent:part">
+</dsfr-data-query>
+<!-- colonnes : typologie, lics__sum, part (33,4 · 36,0 · 19,7 · 10,9) -->
+```
+
+- `share` rend une **fraction** (0,334), `share_percent` la même part **en points de
+  pourcentage** (33,4). Sur un axe de graphique, prendre `share_percent` : une fraction
+  dessinée sous un axe intitulé « % » y afficherait 0,33. Sur un `dsfr-data-kpi`
+  `format="pourcentage"`, prendre `share` — le KPI met la fraction à l'échelle, comme le
+  ratio de #673.
+- **Le dénominateur est le total des lignes de SORTIE, avant `limit`.** Donc : une part est
+  toujours une part de l'**ensemble filtré** (`where`, facettes, recherche, contexte
+  déplacent le total — 33,4 % sans filtre, 16,3 % en Bretagne, et les deux sont justes ; le
+  dire en page) ; et avec `limit`, **les parts ne somment pas à 100 %**, un top 10 montrant
+  la part de chaque ligne dans le tout et non dans le top 10.
+- **Une part suppose une partition** : chaque unité comptée une fois. Après `explode`, une
+  ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
+  des licences portant ce label », pas « répartition ».
+- Total nul ou valeur non numérique : `null`, jamais l'infini ni un zéro de complaisance.
+- **Jamais délégué**, comme les cumuls : un `group-by` qui porte une part redescend
+  entièrement côté client — relever `max-records` avant, sinon le dénominateur est tronqué
+  sans que rien ne le montre (les parts somment quand même à 100 %).
+- L'ordre des lignes est indifférent : pas d'`order-by` requis, pas d'avertissement.
 
 Toute autre fonction (`somme`, `moyenne`, `median`…) est une **erreur de configuration**
 visible (console + `data-dsfr-config-error`, composants aval en erreur) — jamais un 0 silencieux.
@@ -254,7 +288,7 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL : il produit une ligne par ligne de sortie, chacune portant la somme des précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des lignes reçues fait foi et le résultat n'a en général pas de sens : un avertissement console le signale. Le cumul reste toujours côté client. Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"` avec `order-by="mois:asc"`. `diff` (#775) en est l'inverse : l'écart de chaque ligne avec la précédente, pour retrouver le flux d'une série publiée déjà cumulée (`aggregate="cumul:diff"` → colonne `cumul__diff`). Mêmes règles : après `order-by`, jamais délégué, avertissement sans `order-by`. La première ligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément nul ; une valeur non numérique donne `null` pour elle et pour la suivante. |
+| `aggregate` | `string` | `""` (vide) | Agrégations pour mode generic/tabular Format: "field:function, field2:function" Ex: "population:sum, count:count" `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL : il produit une ligne par ligne de sortie, chacune portant la somme des précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des lignes reçues fait foi et le résultat n'a en général pas de sens : un avertissement console le signale. Le cumul reste toujours côté client. Ex. `group-by="mois" aggregate="montant:sum, montant__sum:running_sum"` avec `order-by="mois:asc"`. `diff` (#775) en est l'inverse : l'écart de chaque ligne avec la précédente, pour retrouver le flux d'une série publiée déjà cumulée (`aggregate="cumul:diff"` → colonne `cumul__diff`). Mêmes règles : après `order-by`, jamais délégué, avertissement sans `order-by`. La première ligne vaut `null`, jamais 0 — un incrément inconnu n'est pas un incrément nul ; une valeur non numérique donne `null` pour elle et pour la suivante. ## `share` et `share_percent` — la part du total (#926) `champ:share` rend, pour chaque ligne de sortie, **la valeur de la ligne divisée par la somme de cette colonne sur toutes les lignes de sortie** — une répartition, sans seconde source ni jointure. Ex. `group-by="typologie" aggregate="lics:sum, lics__sum:share"` produit `lics__sum__share` (0,334 pour 33,4 %). `share_percent` rend la même part **en points de pourcentage** (33,4), la forme qu'attend un axe de graphique : une fraction dessinée sur un axe intitulé « % » y afficherait 0,33. Réserver `share` à ce qui sera formaté (`dsfr-data-kpi format="pourcentage"`, qui met une fraction à l'échelle, comme le ratio de #673). **Le dénominateur, et ce qu'il signifie.** C'est la somme de la colonne sur les lignes de sortie **avant `limit`** — pas sur le jeu entier. Trois conséquences, qui sont le piège de cette fonction bien plus que sa syntaxe : - une part est toujours une part **de l'ensemble filtré** : `where`, facettes, recherche et `dsfr-data-context` déplacent le dénominateur. C'est presque toujours ce qu'on veut (« part des licences de cette région »), mais il faut le dire en page : le même graphique montre 33,4 % sans filtre et 16,3 % en Bretagne, et les deux sont justes ; - avec `limit`, les parts affichées **ne somment pas à 100 %** : un top 10 montre la part de chaque ligne dans le TOUT, pas dans le top 10. C'est volontaire — l'inverse ferait d'une troncature d'affichage une redéfinition silencieuse du total ; - si la source est tronquée (`max-records`, pagination), le dénominateur l'est aussi. Un total faux ne se voit pas : les parts somment quand même à 100 %. **Ce qu'une part suppose.** Que les lignes soient une partition — chaque unité comptée une fois et une seule. Après `explode`, une ligne multivaluée compte dans N groupes : les parts somment alors à plus de 100 %, et il faut écrire au lecteur « part des licences portant ce label », pas « répartition ». Une colonne qui mêle des signes opposés n'a pas de part : la somme peut s'annuler. **Règles de calcul.** Total nul, absent ou non numérique : la part vaut `null`, jamais l'infini ni un zéro de complaisance. Une valeur non numérique donne `null` pour sa ligne et ne compte pas au dénominateur (même règle que `sum`, #301). Comme les cumulées : calcul toujours côté client, jamais délégué — et, comme elles, **demander une part empêche la délégation serveur du regroupement** : la query regroupe alors sur les lignes chargées, donc relever `max-records` avant de poser l'attribut sur un jeu volumineux. L'ordre des lignes, lui, est indifférent : pas d'`order-by` requis, pas d'avertissement. |
 | `explode` | `string` | `""` (vide) | Champs multivalués à éclater avant le regroupement (séparés par virgule). Sans cet attribut, une cellule tableau est ramenée en chaîne pour la clé de groupe : `["a", "b"]` devient la modalité `"a,b"`, une COMBINAISON comptée comme une valeur — là où `dsfr-data-facets` éclate le même champ (#421). Les deux composants branchés sur le même champ donnaient donc des chiffres différents, sans rien signaler (#736). Avec `explode="tags"`, chaque élément de la cellule produit sa propre ligne : les modalités du regroupement sont exactement celles de la facette du même champ, et une ligne portant N valeurs compte dans N groupes (les agrégats la comptent donc N fois). Règles, alignées sur les facettes : les éléments vides sont ignorés, et une cellule sans aucune valeur (tableau vide, `null`, chaîne vide) ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de modalité vide. Une cellule scalaire est inchangée. Chaque champ listé doit figurer dans `group-by` (sinon erreur de configuration et champ ignoré : éclater un champ hors regroupement dupliquerait les lignes et gonflerait les sommes). L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline ne sait éclater un champ multivalué, déléguer produirait à nouveau des combinaisons. Sur une source volumineuse, penser au plafond de lignes rapatriées. Par défaut vide : le comportement historique est conservé. |
 | `filter` | `string` | `""` (vide) | Alias pour where (compatibilite) |
 | `group-by` | `string` | `""` (vide) | Champs de regroupement (séparés par virgule). Ordre d'application : le filtre (`where` de la query, de la source ou d'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi l'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne peut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne n'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé, poser une seconde `dsfr-data-query` en aval avec son propre `where`. Délégation au serveur seulement si la query est la SEULE lectrice de sa source (#765) : la source n'a qu'un regroupement, servi à tous ses abonnés. Source partagée (un KPI, un autre graphique…) : calcul côté client sur les lignes chargées, avec un avertissement. Pour garder l'agrégation serveur, donner à la query sa propre `dsfr-data-source`. |
