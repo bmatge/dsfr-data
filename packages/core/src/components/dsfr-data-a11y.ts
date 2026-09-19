@@ -467,6 +467,18 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
         .dsfr-data-a11y {
           margin-top: 0.5rem;
         }
+        /*
+          La classe DSFR fr-accordion__btn est ecrite pour un bouton, dont le
+          box-sizing par defaut est border-box ; un summary est content-box. Il
+          recevait donc width:100% ET 16 px de padding de chaque cote : 390 px
+          dans un conteneur de 358 px, et toute page portant un dsfr-data-a11y
+          defilait horizontalement de 16 px sur telephone (#898). Regle bornee a
+          notre propre accordeon : sur summary tout court, elle re-ecrirait ceux
+          de la page hote.
+        */
+        .dsfr-data-a11y summary.fr-accordion__btn {
+          box-sizing: border-box;
+        }
         .dsfr-data-a11y__sr-only {
           position: absolute;
           width: 1px;

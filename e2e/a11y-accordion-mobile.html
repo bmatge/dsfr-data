@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — dsfr-data-a11y sur téléphone (#898)</title>
+  <!--
+    La page la plus simple qui reproduise le défaut : un graphique et son
+    `dsfr-data-a11y`, dans un conteneur DSFR ordinaire. C'est le DSFR complet
+    qui donne au `.fr-accordion__btn` ses 16 px de padding et son `width: 100 %`
+    — sans lui, rien à mesurer.
+
+    Aucune règle de page : le contournement du banc d'essai
+    (`dsfr-data-a11y summary { box-sizing: border-box }`) est précisément ce que
+    le composant doit rendre inutile.
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main class="fr-container">
+    <h1 class="fr-h3">Accessibilité et largeur</h1>
+    <dsfr-data-source id="rows" data='[
+      {"nom":"Paris","v":10},{"nom":"Lyon","v":20},{"nom":"Lille","v":30}
+    ]'></dsfr-data-source>
+    <dsfr-data-a11y id="a11y" for="rows" description="Trois villes et leurs valeurs."></dsfr-data-a11y>
+  </main>
+</body>
+</html>
