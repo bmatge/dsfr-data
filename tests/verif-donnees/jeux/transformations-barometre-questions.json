@@ -1,0 +1,7 @@
+[
+  {"code":"Q01","libelle":"Accès au service","pres":"bar"},
+  {"code":"Q02","libelle":"Délai de réponse","pres":"line"},
+  {"code":"Q03","libelle":"Clarté des courriers","pres":"bar"},
+  {"code":"Q04","libelle":"Écoute & suivi","pres":"bar"},
+  {"code":"Q05","libelle":"Coût d'usage","pres":"bar"}
+]

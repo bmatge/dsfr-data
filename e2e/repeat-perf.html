@@ -3,13 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fixture E2E — dsfr-data-repeat : 119 lignes × (query + graphique), mesure de référence (#890)</title>
+  <title>Fixture E2E — dsfr-data-repeat : 119 lignes × graphique, mesure de référence (#890, #891)</title>
   <!--
     Conditions du guide (#877) : sources inline, sans CSS, DSFR Chart réel depuis node_modules.
-    ?mode=repeat (défaut) | display — le second sert de référence (innerHTML, recréation totale).
-    Le spec lit window.__perf : firstRenderMs (119e canvas), puis __perfReemit() pour la
-    ré-émission de la source répétée.
+    ?mode=repeat (défaut) : une query par ligne, la voie du lot 1.
+    ?mode=display         : la référence (innerHTML, recréation totale).
+    ?mode=scopes          : la voie du lot 2 — AUCUNE query dans le gabarit, `scopes` partitionne.
+    ?mode=scopes-lazy     : idem, avec `lazy` (estampage à l'approche du viewport).
+    Le spec lit window.__perf : firstRenderMs (119e canvas), __perfReemit() pour la ré-émission
+    de la source RÉPÉTÉE, __perfReemitScope() pour celle de la source SCOPÉE, et __ecouteurs
+    pour le compte d'écouteurs `document` par type d'événement.
   -->
+  <script>
+    // Compteur d'écouteurs `document`, par type — posé AVANT la bibliothèque :
+    // les abonnements partent dès le connectedCallback des composants.
+    window.__ecouteurs = {};
+    (function () {
+      var brut = document.addEventListener.bind(document);
+      document.addEventListener = function (type) {
+        window.__ecouteurs[type] = (window.__ecouteurs[type] || 0) + 1;
+        return brut.apply(document, arguments);
+      };
+    })();
+  </script>
   <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
   <script type="module" src="/dist/dsfr-data.esm.js"></script>
 </head>
@@ -22,9 +38,16 @@
     <dsfr-data-chart id="c-{{code}}" source="q-{{code}}" type="{{pres}}"
       label-field="annee" value-field="score__sum" name="{{libelle}}"></dsfr-data-chart>
   </template>
+  <!-- Le même rendu sans une seule query : l'id scopé vient de `scopes`. -->
+  <template id="gabarit-scopes">
+    <h2>{{libelle}}</h2>
+    <dsfr-data-chart id="c-{{code}}" source="{{$scope.q}}" type="{{pres}}"
+      label-field="annee" value-field="score" name="{{libelle}}"></dsfr-data-chart>
+  </template>
   <script type="module">
     const N = 119;
     const mode = new URLSearchParams(location.search).get('mode') ?? 'repeat';
+    const scoped = mode === 'scopes' || mode === 'scopes-lazy';
     const questions = Array.from({ length: N }, (_, i) => ({
       code: String(i + 1).padStart(3, '0'),
       libelle: `Question ${i + 1}`,
@@ -49,22 +72,36 @@
       }
     }).observe(document.body, { childList: true, subtree: true });
 
-    const tpl = document.getElementById('gabarit').innerHTML;
+    // `lazy` ne réserve pas de hauteur à la place de l'auteur : sans elle, les
+    // 119 conteneurs (un titre chacun) tiennent presque tous dans le viewport
+    // et s'estampent d'un coup. C'est la règle documentée — donner au gabarit
+    // la hauteur qu'il aura une fois rendu.
+    if (mode === 'scopes-lazy') {
+      const style = document.createElement('style');
+      style.textContent = '.dsfr-data-repeat__row { min-height: 320px; }';
+      document.head.appendChild(style);
+    }
+
+    const tpl = document.getElementById(scoped ? 'gabarit-scopes' : 'gabarit').innerHTML;
     const tag = mode === 'display' ? 'dsfr-data-display' : 'dsfr-data-repeat';
+    const attrs = scoped ? ` scopes="scores:code:q"${mode === 'scopes-lazy' ? ' lazy' : ''}` : '';
     document.getElementById('scene').insertAdjacentHTML(
       'beforeend',
       `<dsfr-data-source id="scores" data='${JSON.stringify(scores)}'></dsfr-data-source>` +
         `<dsfr-data-source id="questions" data='${JSON.stringify(questions)}'></dsfr-data-source>` +
-        `<${tag} id="rep" source="questions" key-field="code"><template>${tpl}</template></${tag}>`
+        `<${tag} id="rep" source="questions" key-field="code"${attrs}><template>${tpl}</template></${tag}>`
     );
 
+    /** Les instances vivantes du gabarit, celles dont on suit l'identité. */
+    const instances = () => [...document.querySelectorAll(scoped ? '#rep dsfr-data-chart' : 'dsfr-data-query')];
+
     window.__perfReemit = () => {
-      const queries = [...document.querySelectorAll('dsfr-data-query')];
-      queries.forEach((q, i) => (q.__tag = i));
+      const avant = instances();
+      avant.forEach((q, i) => (q.__tag = i));
       perf.phase = 'reemit';
       sawDrop = false;
       perf.reemit = { t0: performance.now(), ms: null };
-      if (mode === 'repeat') {
+      if (mode !== 'display') {
         // Aucun canvas ne tombe : on mesure jusqu'au cadre suivant le rendu.
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (perf.reemit.ms === null) perf.reemit.ms = performance.now() - perf.reemit.t0;
@@ -74,10 +111,10 @@
       return new Promise((resolve) => {
         const tick = () => {
           if (perf.reemit.ms !== null) {
-            const after = [...document.querySelectorAll('dsfr-data-query')];
+            const apres = instances();
             resolve({
               ms: perf.reemit.ms,
-              identity: after.length === queries.length && after.every((q, i) => q.__tag === i),
+              identity: apres.length === avant.length && apres.every((q, i) => q.__tag === i),
               canvases: canvasCount(),
               libelle: document.querySelector('#rep h2')?.textContent.trim(),
             });
@@ -86,6 +123,75 @@
         tick();
       });
     };
+
+    /**
+     * Ré-émission de la source SCOPÉE (ce que fait un `dsfr-data-context
+     * sources="scores"`) : le répéteur re-partitionne et ré-émet 119 ids, sans
+     * toucher aux lignes. C'est le critère « refiltre ≤ 30 ms, 0 instance recréée ».
+     */
+    window.__perfReemitScope = () => {
+      const avant = instances();
+      avant.forEach((c, i) => (c.__tag2 = i));
+      // Deux horloges, et elles ne mesurent pas la même chose :
+      //   `msRefiltre` — du PREMIER au DERNIER id scopé (ré)émis : c'est le
+      //     REFILTRE des 119 lignes, la seule part qui change entre « une
+      //     partition » et « 119 queries qui refiltrent chacune la source » ;
+      //   `msTotal`    — jusqu'à ce que les 119 graphiques aient repeint, ce
+      //     qui est le coût de DSFR Chart, identique dans les deux modes.
+      let debut = null;
+      let fin = null;
+      let emissions = 0;
+      const sonde = (e) => {
+        const id = e.detail?.sourceId ?? '';
+        if (!id.startsWith('q-')) return;
+        emissions++;
+        if (debut === null) debut = performance.now();
+        fin = performance.now();
+      };
+      document.addEventListener('dsfr-data-loaded', sonde);
+      const t0 = performance.now();
+      document.getElementById('scores').setAttribute(
+        'data',
+        JSON.stringify(scores.map((s) => ({ ...s, score: s.score + 1 })))
+      );
+      return new Promise((resolve) => {
+        // L'attribut est posé de façon synchrone, la source ré-émet à la
+        // macrotâche suivante : on mesure jusqu'à la fin de la propagation.
+        const attendre = () => {
+          const apres = instances();
+          if (apres.length === avant.length && window.__scopeVu()) {
+            document.removeEventListener('dsfr-data-loaded', sonde);
+            resolve({
+              msRefiltre: debut === null || fin === null ? null : fin - debut,
+              msTotal: performance.now() - t0,
+              emissions,
+              identity: apres.every((c, i) => c.__tag2 === i),
+              canvases: canvasCount(),
+            });
+          } else setTimeout(attendre, 2);
+        };
+        setTimeout(attendre, 0);
+      });
+    };
+
+    /** La première série a-t-elle bien pris la nouvelle valeur (+1) ? */
+    // En mode `scopes`, `q-001` porte les lignes brutes de la clé ; en mode
+    // `repeat`, la query les a regroupées par année (une ligne par année, même
+    // compte ici) sous `score__sum`.
+    const attenduQ001 = scores.filter((s) => s.code === '001').map((s) => s.score + 1);
+    const champ = scoped ? 'score' : 'score__sum';
+    window.__scopeVu = () => {
+      const cache = window.__perfCache?.('q-001');
+      return (
+        Array.isArray(cache) &&
+        cache.length === attenduQ001.length &&
+        cache.every((r, i) => r[champ] === attenduQ001[i])
+      );
+    };
+  </script>
+  <script type="module">
+    import { getDataCache } from '/dist/dsfr-data.esm.js';
+    window.__perfCache = getDataCache;
   </script>
 </body>
 </html>

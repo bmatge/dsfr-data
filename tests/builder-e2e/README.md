@@ -16,7 +16,7 @@ Relevé sur un serveur de dev local, `npx playwright test --config tests/builder
 
 | Spec | Serveur de dev | Résultat mesuré | Ce qu'il faut en penser |
 |---|---|---|---|
-| `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | **58 vert / 3 rouge** | Le plus solide du dossier : déterministe, sans réseau, 30 s. Les 3 rouges portent tous sur ODS (2ᵉ page `offset=100`, KPI sur source partagée, `fetch-mode="export"`) et **pré-existent** — ils tombent à l'identique sur `main`. Demande `npm run build` avant. |
+| `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | **61 vert** (relevé du 2026-09-19, #866) | Le plus solide du dossier : déterministe, sans réseau, 11 s. Demande `npm run build` avant. |
 | `builder-ia-recette.spec.ts` | oui | **vert** | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
 | `layout-diagnostic-recette.spec.ts` | oui | **vert** | Idem. |
 | `quick-audit.spec.ts` | oui | **10 vert / 2 rouge** | Dérive de sélecteurs : « Filtre avancé » et « Série 2 » ne trouvent plus leur contrôle. |
@@ -31,9 +31,18 @@ ses identifiants HTML et par des `waitForTimeout` fixes ; chaque refonte de l'UI
 rien en CI ne le signalait. Les remettre au vert est un travail à part entière — ce n'est pas
 une question de fixtures à rafraîchir.
 
-**Ce qui pourrait être câblé en CI plus tard** : `builder-ia-recette` + `layout-diagnostic-recette`
-(43 cas, 16 s, verts et sans réseau) et `export-html-api-recette` une fois ses 3 rouges traités.
+**Ce qui pourrait être câblé en CI** : `builder-ia-recette` + `layout-diagnostic-recette`
+(43 cas, 16 s, verts et sans réseau) et `export-html-api-recette`, désormais vert (#866).
 Le modèle de workflow existe : `.github/workflows/e2e-layout.yml`.
+
+**Les trois rouges d'`export-html-api-recette`, requalifiés (#866)** : ce n'était ni le faux
+serveur ni le parseur ODSQL strict des fixtures, mais une **attente périmée**. Le document
+`pagePartagee()` n'avait que deux blocs — une liste paginée et un KPI — et depuis #810 un KPI
+Opendatasoft reçoit **toujours** sa source dédiée à agrégat serveur. La liste restait donc seule
+lectrice de la source de base, et l'export y posait `server-side` à bon droit : la source
+n'était plus partagée. Le document porte maintenant un troisième bloc — un graphique **non
+agrégé**, qu'aucune règle de dédicace ne peut lui prendre — et c'est lui qui tient le partage
+sur les trois variantes. Leçon générale : « partagée » se compte **après** `dedicatedSourcePlan`.
 
 ## Fichiers
 

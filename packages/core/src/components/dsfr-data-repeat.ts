@@ -1,6 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
+import { ScopeEmitter } from '../utils/scope-emitter.js';
 import {
   renderTemplateRow,
   applyRowBindings,
@@ -28,6 +29,11 @@ let repeatInstanceSeq = 0;
 interface RepeatRow {
   container: HTMLElement;
   bindings: RowBinding[];
+  /**
+   * Composants `dsfr-data-*` retenus hors du document par `lazy` (#891), avec
+   * leur marqueur d'emplacement. Vide quand la ligne est estampée.
+   */
+  held: Array<{ el: Element; marker: Comment }>;
 }
 
 /** Clé de repli (rang) : préfixée pour ne jamais entrer en collision avec une vraie clé. */
@@ -70,7 +76,15 @@ const RANK = '#';
  *   avant un élément et fermé après (« englober deux `<p>` »), il ne peut pas être un bloc :
  *   erreur de configuration, et le contenu est rendu quelle que soit la condition.
  * Variables : `{{$index}}` (rang, 0-based), `{{$key}}` (valeur de `key-field`, ou le rang),
- * `{{$uid}}` (identifiant DOM unique dérivé de la clé, sûr pour `id=` et `aria-labelledby`).
+ * `{{$uid}}` (identifiant DOM unique dérivé de la clé, sûr pour `id=` et `aria-labelledby`),
+ * et avec `scopes` : `{{$scope.alias}}` (l'id scopé de la ligne pour cette entrée) —
+ * `{{$scope}}` quand une seule entrée est déclarée.
+ *
+ * **`scopes` fait du répéteur un ÉMETTEUR** (#891) : il partitionne une source par champ
+ * — une passe, une `Map` — et émet un id par ligne, au lieu d'une `dsfr-data-query` par
+ * ligne qui refiltrerait chacune la source entière. Le gabarit n'a plus d'id à fabriquer,
+ * et le volet Diagnostic sait d'où vient `q-001`. `lazy` diffère l'estampage des
+ * composants d'une ligne à son approche du viewport, titres compris rendus d'emblée.
  *
  * Ce que ce composant ne fait pas : pas de délégation serveur derrière un id scopé (une
  * source lue par N queries reste calculée dans le navigateur, règle #765 — charger la source
@@ -94,6 +108,19 @@ const RANK = '#';
  *     <dsfr-data-chart source="q-{{code_unifie}}" type="{{type_graphique}}"
  *       label-field="annee" value-field="score__sum" name="{{libelle_unifie}}"
  *       data-if-horizontal="est_long"></dsfr-data-chart>
+ *   </template>
+ * </dsfr-data-repeat>
+ *
+ * @example
+ * <!-- La même page avec `scopes` : plus aucune query dans le gabarit, une seule
+ *      partition des scores pour les 119 lignes, et `lazy` pour n'estamper que ce
+ *      qui approche du viewport. -->
+ * <dsfr-data-repeat source="questions" key-field="code_unifie" per-row="1 md:2"
+ *   scopes="scores:code_unifie:q" lazy>
+ *   <template>
+ *     <h3 id="{{$uid}}">{{libelle_unifie}}</h3>
+ *     <dsfr-data-chart source="{{$scope.q}}" type="{{type_graphique}}"
+ *       label-field="annee" value-field="score" name="{{libelle_unifie}}"></dsfr-data-chart>
  *   </template>
  * </dsfr-data-repeat>
  */
@@ -128,6 +155,58 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   empty = '';
 
+  /**
+   * Partitionne une ou plusieurs sources par champ et émet **un id scopé par
+   * ligne répétée** — la voie native pour « un graphique par question » sans
+   * écrire une `dsfr-data-query` par ligne dans le gabarit (#891).
+   *
+   * Grammaire (#888, proposition A, celle de `champ:fonction:alias`) :
+   * `source:champ:alias`, entrées séparées par `|`, termes par `:`.
+   * L'alias est facultatif — à défaut, c'est l'id de la source.
+   *
+   * `scopes="scores:code_unifie:q | effectifs:code_unifie:e"` émet, pour
+   * chaque ligne de clé `001`, les ids `q-001` et `e-001` ; le gabarit les
+   * lit par `{{$scope.q}}` et `{{$scope.e}}` (`{{$scope}}` quand une seule
+   * entrée est déclarée). Les composants du gabarit les consomment par leur
+   * attribut `source` habituel : rien ne change pour eux.
+   *
+   * La clé d'appariement est celle de la ligne répétée (`key-field`, requis) :
+   * une clé sans lignes dans la source scopée émet un **tableau vide** — le
+   * graphique de la ligne est vide, pas absent. Les états `loading`, `error`
+   * et `idle` (`require-where`) de la source scopée sont relayés sur chaque id
+   * scopé, pour que la ligne affiche le bon message. Une ré-émission de la
+   * source scopée re-partitionne et ré-émet **sans toucher aux lignes**.
+   *
+   * La partition est faite **une fois** par émission (une `Map` par champ),
+   * là où N `dsfr-data-query` refiltraient chacune la source entière. Les ids
+   * scopés sont purgés du cache quand leur ligne disparaît et à la
+   * déconnexion du répéteur.
+   *
+   * Entrée fausse (nombre de termes, terme vide, alias en double, source
+   * introuvable, champ absent des lignes) : `reportConfigError` nommant
+   * l'entrée — rien de silencieux.
+   */
+  @property({ type: String })
+  scopes = '';
+
+  /**
+   * N'estampe les composants d'une ligne qu'à son approche du viewport
+   * (`IntersectionObserver`, marge 200 px — la même que `dsfr-data-map`).
+   *
+   * Les conteneurs et le contenu ORDINAIRE du gabarit (titres, textes, liens)
+   * sont rendus d'emblée : la page garde sa structure de titres, sa hauteur et
+   * son plan d'accessibilité. Seuls les éléments `dsfr-data-*` sont retenus
+   * hors du document, attributs déjà interpolés, et insérés à l'entrée de la
+   * ligne dans la marge — ils ne s'abonnent donc à rien et ne dessinent rien
+   * avant. Les ids scopés, eux, sont émis pour **toutes** les lignes dès le
+   * départ : le cache est là quand la ligne s'estampe.
+   *
+   * Sans `lazy`, comportement du lot 1 (tout est estampé d'emblée). Sans
+   * `IntersectionObserver` (environnement de test), `lazy` est sans effet.
+   */
+  @property({ type: Boolean })
+  lazy = false;
+
   /** Préfixe des `$uid` de l'instance (unique sur la page, comme `dsfr-display-N`). */
   private readonly _uid = `${REPEAT_TAG.replace('dsfr-data-', 'dsfr-')}-${++repeatInstanceSeq}`;
 
@@ -141,6 +220,23 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
   private _templateError: string | null = null;
   /** Dernier message posé : `console.error` une fois par message distinct, l'attribut suit. */
   private _lastError: string | null = null;
+
+  // --- scopes (#891) ---
+
+  /**
+   * L'émetteur de `scopes` : abonnement, partition, émission, purge. Sa logique
+   * vit dans `utils/scope-emitter.ts` — aucun composant ne recode un abonnement
+   * au bus (#280), et aucun mixin ne couvre « N sources en entrée, N ids
+   * fabriqués en sortie ».
+   */
+  private readonly _scopes = new ScopeEmitter(
+    (message) => this._report(message),
+    () => this.isConnected
+  );
+
+  /** Observateur de visibilité de `lazy` ; un seul pour toutes les lignes. */
+  private _lazyObserver: IntersectionObserver | null = null;
+  private _lazyPending = new Map<Element, RepeatRow>();
 
   /**
    * Light DOM pour les styles DSFR, mais Lit ne rend PAS dans `this` : sa
@@ -159,11 +255,29 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
     super.connectedCallback();
     sendWidgetBeacon(REPEAT_TAG);
     if (!this.source) this._report('attribut "source" requis');
+    this._scopes.configure(this.scopes, this.keyField);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this._unwatchTemplate();
+    this._scopes.teardown();
+    this._lazyObserver?.disconnect();
+    this._lazyObserver = null;
+    this._lazyPending.clear();
+  }
+
+  /**
+   * `source` est géré par le mixin ; `scopes` ne l'est pas — un répéteur dont
+   * on change la partition au runtime doit se réabonner, et purger les ids
+   * qu'il n'émet plus.
+   */
+  willUpdate(changedProperties: Map<string, unknown>) {
+    super.willUpdate(changedProperties);
+    if (changedProperties.has('scopes') && changedProperties.get('scopes') !== undefined) {
+      this._scopes.configure(this.scopes, this.keyField);
+      if (this._hasData) this._renderRows();
+    }
   }
 
   /**
@@ -303,8 +417,16 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
   }
 
   private _clearRows(): void {
-    for (const row of this._keyed.values()) row.container.remove();
+    for (const row of this._keyed.values()) {
+      this._lazyObserver?.unobserve(row.container);
+      this._lazyPending.delete(row.container);
+      row.container.remove();
+    }
     this._keyed.clear();
+    // Plus de lignes, plus d'ids scopés : le cache ne doit pas survivre aux
+    // lignes qu'il servait (même règle que la purge d'une ligne retirée).
+    this._scopes.setKeys([]);
+    this._scopes.emit();
     this.requestUpdate();
   }
 
@@ -364,14 +486,35 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
     return { keys, error };
   }
 
+  /** La clé telle que le gabarit la voit (`{{$key}}`) : le rang sans son préfixe. */
+  private static _plainKey(key: string): string {
+    return key.startsWith(RANK) ? key.slice(RANK.length) : key;
+  }
+
   private _vars(index: number, key: string): TemplateVars {
     const isRank = key.startsWith(RANK);
-    return {
+    const plain = DsfrDataRepeat._plainKey(key);
+    const vars: TemplateVars = {
       $index: () => String(index),
-      $key: () => (isRank ? key.slice(RANK.length) : key),
+      $key: () => plain,
       $uid: () =>
         `${this._uid}-${isRank ? `i${key.slice(RANK.length)}` : key.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
     };
+    // `{{$scope.alias}}` — et `{{$scope}}` quand une seule entrée est déclarée.
+    // `resolveTemplateExpression` teste `vars` sur l'expression ENTIÈRE avant
+    // toute interprétation : un nom à point y est une variable, pas un chemin.
+    Object.assign(vars, this._scopes.vars(plain));
+    return vars;
+  }
+
+  /**
+   * Les ids que ce répéteur ÉMET — lu par la reconstruction du graphe
+   * (`snapshotGraph`), qui n'a aucun autre moyen de savoir d'où sort `q-001` :
+   * aucun élément de la page ne porte cet id. Même doctrine que
+   * `getSkippedCount()` : une méthode publique du composant, pas un événement.
+   */
+  getScopedIds(): string[] {
+    return this._scopes.emittedIds();
   }
 
   // --- Rendu ---
@@ -387,13 +530,26 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
     const templateError = this._checkTemplate(tpl);
     const grid = this._gridClasses();
     const { keys, error: keyError } = this._keysOf(this._data);
-    const error = templateError ?? keyError ?? grid.error;
+
+    // Les ids scopés sont émis AVANT l'estampage : un composant du gabarit lit
+    // le cache à `connectedCallback` (#281) — émettre après le laisserait vide
+    // jusqu'à la prochaine émission de la source scopée.
+    this._scopes.setKeys(keys.map((k) => DsfrDataRepeat._plainKey(k)));
+    this._scopes.emit();
+
+    const error =
+      templateError ??
+      keyError ??
+      grid.error ??
+      this._scopes.configError ??
+      this._scopes.runtimeError;
     if (error) this._report(error);
     else if (this.source) this._clearError();
 
     const rows = this._getRows();
     rows.className = grid.rows;
     const seen = new Set<string>();
+    let created = false;
     let cursor: ChildNode | null = rows.firstChild;
 
     this._data.forEach((item, i) => {
@@ -408,9 +564,12 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
         container.className = grid.row;
         container.dataset.key = key;
         const rendered = renderTemplateRow(tpl, item, vars, { origin });
+        const held = this._lazyEnabled() ? holdDataComponents(rendered.fragment) : [];
         container.appendChild(rendered.fragment);
-        row = { container, bindings: rendered.bindings };
+        row = { container, bindings: rendered.bindings, held };
         this._keyed.set(key, row);
+        created = true;
+        if (held.length > 0) this._observeLazy(row);
       }
       seen.add(key);
       // L'ordre du DOM suit l'ordre des données : déplacement, jamais recréation.
@@ -423,12 +582,85 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
 
     for (const [key, row] of this._keyed) {
       if (!seen.has(key)) {
+        this._lazyObserver?.unobserve(row.container);
+        this._lazyPending.delete(row.container);
         row.container.remove();
         this._keyed.delete(key);
       }
     }
+
+    // `loaded` se rattrape au cache ; `loading`, `error` et `idle` sont des
+    // ÉVÉNEMENTS, et une ligne qui vient de naître les a manqués — elle
+    // resterait sur « aucune donnée » sous une source qui charge encore. On
+    // les rejoue pour les nouvelles lignes, jamais le chargement complet.
+    if (created && this._scopes.hasPendingState()) this._scopes.replayStates();
+
     this.requestUpdate();
   }
+
+  // --- lazy (#891) ---
+
+  /** `lazy` n'a de sens qu'avec un `IntersectionObserver` ; sinon tout est estampé. */
+  private _lazyEnabled(): boolean {
+    return this.lazy && typeof IntersectionObserver !== 'undefined';
+  }
+
+  private _observeLazy(row: RepeatRow): void {
+    if (!this._lazyObserver) {
+      this._lazyObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const pending = this._lazyPending.get(entry.target);
+            this._lazyObserver?.unobserve(entry.target);
+            this._lazyPending.delete(entry.target);
+            if (pending) this._stampRow(pending);
+          }
+        },
+        // Même marge que `dsfr-data-map` : la ligne est prête avant d'être vue.
+        { rootMargin: '200px 0px' }
+      );
+    }
+    this._lazyPending.set(row.container, row);
+    this._lazyObserver.observe(row.container);
+  }
+
+  /** Remet les composants retenus à leur place : c'est là qu'ils s'abonnent. */
+  private _stampRow(row: RepeatRow): void {
+    for (const { el, marker } of row.held) {
+      marker.parentNode?.replaceChild(el, marker);
+    }
+    row.held = [];
+  }
+}
+
+/**
+ * Retire du fragment les éléments `dsfr-data-*` les plus HAUTS (un composant
+ * dans un autre suit son parent) et laisse un commentaire à leur place.
+ *
+ * Retenus hors du document, ils ne sont jamais connectés : aucun abonnement,
+ * aucun écouteur, aucun canvas. Leurs attributs sont déjà interpolés — ce qui
+ * est remis en place à la visibilité est exactement ce qui aurait été inséré.
+ * Le reste du gabarit (titres, textes, liens) est rendu d'emblée : la page
+ * garde son plan et sa hauteur.
+ */
+function holdDataComponents(fragment: DocumentFragment): Array<{ el: Element; marker: Comment }> {
+  const doc = fragment.ownerDocument ?? document;
+  const held: Array<{ el: Element; marker: Comment }> = [];
+  const tops: Element[] = [];
+  const walk = (node: ParentNode): void => {
+    for (const child of Array.from(node.children)) {
+      if (child.tagName.toLowerCase().startsWith('dsfr-data-')) tops.push(child);
+      else walk(child);
+    }
+  };
+  walk(fragment);
+  for (const el of tops) {
+    const marker = doc.createComment(` ${el.tagName.toLowerCase()} — dsfr-data-repeat lazy `);
+    el.parentNode?.replaceChild(marker, el);
+    held.push({ el, marker });
+  }
+  return held;
 }
 
 declare global {

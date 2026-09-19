@@ -69,6 +69,8 @@ tables de correspondance du faux serveur, pas des lignes que l'oracle recalcule.
 | `transformations-composite-droite.json` | 3 | Idem, avec une année sans correspondance (`2023`). |
 | `transformations-pile-2024.json` | 3 | Deux millésimes de même schéma à empiler. |
 | `transformations-pile-2025.json` | 2 | Le second, plus court : l'ordre d'empilement doit être tenu. |
+| `transformations-barometre-questions.json` | 5 | Les lignes RÉPÉTÉES par `dsfr-data-repeat` (#891) : une question, une instance. Libellés à accent, esperluette et apostrophe — ceux qui cassent l'attribut `data` s'ils ne sont pas entités. `pres` choisit le type de graphique par ligne. |
+| `transformations-barometre-scores.json` | 11 | Les lignes PARTITIONNÉES par `scopes` : cinq clés d'effectifs inégaux (1 à 3 lignes), et `Q05` dont les deux observations (+5, −5) somment à ZÉRO — un scope qui déborderait sur ses voisines ne se verrait pas par un total non nul. |
 
 ## Le canari (#882)
 
