@@ -42,10 +42,16 @@ jobs:
       - run: npm ci
 
       # `export-html-api-recette` sert `packages/core/dist` à la place du CDN :
-      # le build complet est nécessaire, pas seulement shared + app-ui (que le
-      # serveur de dev exige par ailleurs, ARCHITECTURE.md §12).
+      # le build de core est nécessaire, et le serveur de dev exige app-ui par
+      # ailleurs (ARCHITECTURE.md §12).
+      #
+      # `npm run build` ne construit QUE le workspace `dsfr-data` : sur un
+      # runner propre, `packages/core` ne trouve alors pas `@dsfr-data/shared/lib`
+      # et `tsc` s'arrête sur une trentaine de TS2307. En local l'erreur ne se
+      # voit pas — `packages/shared/lib` traîne depuis un build antérieur.
+      # `build:shared` d'abord, donc, comme le fait `e2e-layout.yml`.
       - name: Build
-        run: npm run build
+        run: npm run build:shared && npm run build && npm run build:app-ui
 
       - name: Install Playwright (chromium)
         run: npx playwright install --with-deps chromium
