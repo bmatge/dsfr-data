@@ -201,11 +201,13 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
    * **4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est
    * porté par la position dans la liste, le chiffre n'en est qu'un rappel.
    *
-   * ⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), **pas**
-   * `PALETTE_COLORS.sequentialDescending` (5 tons) : `dsfr-palettes.ts` expose
-   * deux rampes homonymes et le podium sert la première. Lire la seconde donne
-   * un tableau de contraste plausible et faux — c'est arrivé. Ratios sur les
-   * 5 premiers tons, encre retenue en gras :
+   * ⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), de
+   * `constants/choropleth-scales.ts` — **pas**
+   * `PALETTE_COLORS.sequentialDescending` (5 tons), de
+   * `constants/palette-colors.ts`, qui porte le même nom de clé. Lire la
+   * seconde donne un tableau de contraste plausible et faux — c'est arrivé
+   * trois fois quand les deux vivaient dans le même fichier (#969). Ratios
+   * sur les 5 premiers tons, encre retenue en gras :
    *
    * | Rang | Couleur   | vs blanc  | vs `#161616` |
    * |------|-----------|-----------|--------------|
@@ -942,8 +944,9 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
  * Luminance relative WCAG 2.x d'une couleur `#rrggbb`. Sert a choisir l'encre
  * du chiffre d'une pastille : la rampe CHOROPLETH_SCALES s'eclaircit, et du
  * blanc des son 4e ton (`#6A6AF4`) serait illisible. Voir la table de ratios
- * au JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS, qui porte
- * une rampe homonyme a 5 tons que le podium ne sert pas.
+ * au JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS
+ * (`constants/palette-colors.ts`), qui porte une rampe homonyme a 5 tons que
+ * le podium ne sert pas.
  */
 export function relativeLuminance(hex: string): number {
   const clean = hex.replace('#', '');

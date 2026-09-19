@@ -108,6 +108,9 @@ export {
   PALETTE_PRIMARY_COLOR,
   PALETTE_COLORS,
   PALETTE_DISPLAY_NAMES,
+} from './constants/palette-colors.js';
+export type { PaletteType } from './constants/palette-colors.js';
+export {
   CHOROPLETH_SCALES,
   quantileBreaks,
   getColorForValue,
@@ -117,13 +120,12 @@ export {
   classifyValues,
   choroplethLegendEntries,
   formatLegendNumber,
-} from './constants/dsfr-palettes.js';
+} from './constants/choropleth-scales.js';
 export type {
-  PaletteType,
   ClassificationMethod,
   ClassificationOptions,
   LegendEntry,
-} from './constants/dsfr-palettes.js';
+} from './constants/choropleth-scales.js';
 
 // Charts
 export { DSFR_TAG_MAP, MAP_LEVEL_MAP } from './charts/chart-types.js';

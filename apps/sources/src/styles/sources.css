@@ -214,7 +214,7 @@ body {
   font-weight: 600;
 }
 
-/* Couleurs alignées sur la palette DSFR (cf. packages/shared/src/constants/dsfr-palettes.ts
+/* Couleurs alignées sur la palette DSFR (cf. packages/shared/src/constants/palette-colors.ts
    DSFR_COLORS) pour une cohérence institutionnelle — anciennes valeurs custom
    #16a34a/#2563eb/#9333ea/#d97706 remplacées par les équivalents DSFR
    « Vert émeraude / Bleu France / Violet macaron / Orange terre-battue ». */

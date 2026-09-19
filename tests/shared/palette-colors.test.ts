@@ -3,7 +3,7 @@ import {
   DSFR_COLORS,
   PALETTE_PRIMARY_COLOR,
   PALETTE_COLORS,
-} from '../../packages/shared/src/constants/dsfr-palettes';
+} from '../../packages/shared/src/constants/palette-colors';
 
 describe('DSFR Palettes', () => {
   describe('DSFR_COLORS', () => {
