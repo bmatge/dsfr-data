@@ -18645,6 +18645,26 @@
             },
             {
               "kind": "field",
+              "name": "lazy",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Ne rien charger tant que personne ne regarde (#931, AM-083).\n\nUne page à onglets déclare ses sources pour TOUS les panneaux ; cinq sur\nsix sont fermés à l'arrivée, et pourtant toutes les requêtes partent au\nchargement. Avec `lazy`, la première requête attend qu'un consommateur de\ncette source entre dans une marge de 200 px autour du viewport\n(`IntersectionObserver`, la même marge que `dsfr-data-map` et que le\n`lazy` de `dsfr-data-repeat`, #891). Un panneau d'onglet fermé est en\n`display:none` : il n'a pas de boîte, il n'intersecte donc jamais, et\nl'observateur se déclenche à l'ouverture de l'onglet.\n\n**Ce qui est observé** : les FEUILLES de la chaîne aval (chart, list,\nkpi, display, podium, a11y, repeat ; pour une couche de carte, la carte\nqui la porte), suivies à travers les transformateurs — un\n`dsfr-data-query` est un tuyau déclaré en haut de page, l'observer\nreviendrait à ne rien différer. `lazy-target` remplace cette détection\npar un sélecteur explicite.\n\n**Opt-in strict** : sans l'attribut, la source part au chargement,\nexactement comme avant.\n\n**Dégradations, toutes du côté « on charge » :** sans\n`IntersectionObserver`, la source part immédiatement ; si la page ne\ndéclare AUCUN consommateur (ou si `lazy-target` ne désigne rien), la\nsource part immédiatement et le dit en console — une source qui ne\nchargerait jamais serait pire que le trafic qu'on cherche à éviter.\n\n**Ce que `lazy` ne promet pas** : un `IntersectionObserver` n'est pas\ncontinu. Il échantillonne aux temps de rendu ; un défilement par crans\nrapides (barre de défilement jetée, `scrollIntoView` enchaînés) peut\ntraverser un consommateur sans jamais le rapporter comme visible — la\nsource reste alors en attente jusqu'au prochain passage. C'est le\ncomportement du navigateur, pas un bug de la bibliothèque.\n\nSe cumule avec `require-where` : les deux portes doivent s'ouvrir, et\n`require-where` est évalué en premier (c'est son message d'attente que\nl'utilisateur doit lire). Sans effet en mode données inline (`data`),\nqui ne fait aucune requête.",
+              "attribute": "lazy"
+            },
+            {
+              "kind": "field",
+              "name": "lazyTarget",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Sélecteur CSS de l'élément dont la visibilité déclenche le chargement,\nà la place des consommateurs détectés (#931). Sans effet sans `lazy`.\n\n`lazy lazy-target=\"#panneau-2\"` : la source part quand le panneau entre\ndans la marge de 200 px. À utiliser quand la détection automatique ne\npeut pas voir le bon élément — un consommateur créé en JavaScript, une\ncarte dont on préfère observer la section entière, ou plusieurs blocs\nqu'on veut traiter comme un seul (le sélecteur peut désigner plusieurs\néléments : le PREMIER vu ouvre la porte).\n\nSélecteur invalide, ou qui ne désigne aucun élément : la source part\nimmédiatement, avec un message en console. Rien de silencieux.",
+              "attribute": "lazy-target"
+            },
+            {
+              "kind": "field",
               "name": "_loading",
               "type": {
                 "text": "boolean"
@@ -18753,6 +18773,36 @@
               "privacy": "private",
               "default": "false",
               "description": "Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690)"
+            },
+            {
+              "kind": "field",
+              "name": "_lazyObserver",
+              "type": {
+                "text": "IntersectionObserver | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Observateur de visibilité des consommateurs ; détruit dès la première vue."
+            },
+            {
+              "kind": "field",
+              "name": "_lazySeen",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "La porte est-elle ouverte pour de bon ? Une fois vue, la source ne diffère plus."
+            },
+            {
+              "kind": "field",
+              "name": "_lazyWaitingDom",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Un réessai est-il déjà armé sur `DOMContentLoaded` ?"
             },
             {
               "kind": "field",
@@ -18918,12 +18968,43 @@
               "kind": "method",
               "name": "_enterIdle",
               "privacy": "private",
-              "description": "Entrée (ou retour) en attente d'un filtre : rien n'est chargé (#690)."
+              "parameters": [
+                {
+                  "name": "reason",
+                  "default": "'require-where'",
+                  "type": {
+                    "text": "DataIdleEvent['reason']"
+                  }
+                }
+              ],
+              "description": "Entrée (ou retour) en attente : rien n'est chargé — filtre manquant\n(#690) ou personne ne regarde encore (`lazy`, #931)."
             },
             {
               "kind": "method",
               "name": "_fetchData",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_lazyGateClosed",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La porte de `lazy` est-elle fermée ? Vrai = ne rien charger pour\nl'instant ; l'observateur rappellera `_scheduleFetch` le moment venu.\n\nToutes les sorties « faux » sont des sorties SÛRES : en cas de doute, on\ncharge. Une source qui ne partirait jamais est une page cassée, un\nchargement de trop n'est que le comportement d'avant l'attribut."
+            },
+            {
+              "kind": "method",
+              "name": "_lazyTargets",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Element[]"
+                }
+              },
+              "description": "Éléments dont la visibilité ouvre la porte : `lazy-target`, sinon les feuilles aval."
             },
             {
               "kind": "method",
@@ -19421,6 +19502,24 @@
               "default": "false",
               "description": "Ne rien charger tant qu'aucun filtre n'a été reçu (#690).\n\nPensé pour les pages d'exploration : sans cet attribut, une source\ninterroge l'API dès le montage et rapatrie le jeu entier — une requête\ncoûteuse dont personne ne regarde le résultat. Avec lui, la source reste\nen attente, émet `dsfr-data-idle` et ne part chercher les données qu'au\npremier filtre.\n\nCe qui compte comme filtre : les clauses reçues par commande — facettes,\nrecherche, `dsfr-data-context`, délégation d'un `dsfr-data-query` (son\n`where`, avec ou sans `group-by`, quand elle est seule lectrice de la\nchaîne — #856). Le `where` STATIQUE de la source ne compte PAS : il fait partie de la\ndéfinition du jeu, pas du geste de l'utilisateur ; le contraire rendrait\nl'attribut sans effet sur toute source qui restreint déjà son périmètre.\n\nQuand le dernier filtre est retiré, la source repasse en attente : jamais\nde requête « tout » implicite. Sans effet en mode données inline (`data`),\nqui ne fait aucune requête.",
               "fieldName": "requireWhere"
+            },
+            {
+              "name": "lazy",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Ne rien charger tant que personne ne regarde (#931, AM-083).\n\nUne page à onglets déclare ses sources pour TOUS les panneaux ; cinq sur\nsix sont fermés à l'arrivée, et pourtant toutes les requêtes partent au\nchargement. Avec `lazy`, la première requête attend qu'un consommateur de\ncette source entre dans une marge de 200 px autour du viewport\n(`IntersectionObserver`, la même marge que `dsfr-data-map` et que le\n`lazy` de `dsfr-data-repeat`, #891). Un panneau d'onglet fermé est en\n`display:none` : il n'a pas de boîte, il n'intersecte donc jamais, et\nl'observateur se déclenche à l'ouverture de l'onglet.\n\n**Ce qui est observé** : les FEUILLES de la chaîne aval (chart, list,\nkpi, display, podium, a11y, repeat ; pour une couche de carte, la carte\nqui la porte), suivies à travers les transformateurs — un\n`dsfr-data-query` est un tuyau déclaré en haut de page, l'observer\nreviendrait à ne rien différer. `lazy-target` remplace cette détection\npar un sélecteur explicite.\n\n**Opt-in strict** : sans l'attribut, la source part au chargement,\nexactement comme avant.\n\n**Dégradations, toutes du côté « on charge » :** sans\n`IntersectionObserver`, la source part immédiatement ; si la page ne\ndéclare AUCUN consommateur (ou si `lazy-target` ne désigne rien), la\nsource part immédiatement et le dit en console — une source qui ne\nchargerait jamais serait pire que le trafic qu'on cherche à éviter.\n\n**Ce que `lazy` ne promet pas** : un `IntersectionObserver` n'est pas\ncontinu. Il échantillonne aux temps de rendu ; un défilement par crans\nrapides (barre de défilement jetée, `scrollIntoView` enchaînés) peut\ntraverser un consommateur sans jamais le rapporter comme visible — la\nsource reste alors en attente jusqu'au prochain passage. C'est le\ncomportement du navigateur, pas un bug de la bibliothèque.\n\nSe cumule avec `require-where` : les deux portes doivent s'ouvrir, et\n`require-where` est évalué en premier (c'est son message d'attente que\nl'utilisateur doit lire). Sans effet en mode données inline (`data`),\nqui ne fait aucune requête.",
+              "fieldName": "lazy"
+            },
+            {
+              "name": "lazy-target",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Sélecteur CSS de l'élément dont la visibilité déclenche le chargement,\nà la place des consommateurs détectés (#931). Sans effet sans `lazy`.\n\n`lazy lazy-target=\"#panneau-2\"` : la source part quand le panneau entre\ndans la marge de 200 px. À utiliser quand la détection automatique ne\npeut pas voir le bon élément — un consommateur créé en JavaScript, une\ncarte dont on préfère observer la section entière, ou plusieurs blocs\nqu'on veut traiter comme un seul (le sélecteur peut désigner plusieurs\néléments : le PREMIER vu ouvre la porte).\n\nSélecteur invalide, ou qui ne désigne aucun élément : la source part\nimmédiatement, avec un message en console. Rien de silencieux.",
+              "fieldName": "lazyTarget"
             }
           ],
           "superclass": {

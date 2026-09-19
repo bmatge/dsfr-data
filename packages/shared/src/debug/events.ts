@@ -72,13 +72,17 @@ export interface BusLoadingDetail {
 }
 
 /**
- * Étape en attente d'un filtre (#690) : `require-where` posé, aucun filtre
- * reçu. Rien n'est parti, rien n'a échoué, aucune ligne n'a été produite —
- * les trois autres états mentiraient chacun à leur façon.
+ * Étape volontairement en attente. Rien n'est parti, rien n'a échoué, aucune
+ * ligne n'a été produite — les trois autres états mentiraient chacun à leur
+ * façon.
+ *
+ * Deux raisons : `require-where` (#690), aucun filtre reçu alors que la
+ * source en exige un ; `lazy` (#931), personne ne regarde encore — aucun
+ * consommateur n'est entré dans le viewport.
  */
 export interface BusIdleDetail {
   sourceId: string;
-  reason: 'require-where';
+  reason: 'require-where' | 'lazy';
 }
 
 export type BusCommandDetail = BusSourceCommand & { sourceId: string };

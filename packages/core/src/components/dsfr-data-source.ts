@@ -28,6 +28,8 @@ import {
   clearDataMeta,
   subscribeToSourceCommands,
 } from '../utils/data-bridge.js';
+import type { DataIdleEvent } from '../utils/data-bridge.js';
+import { visibleConsumers } from '../utils/visible-consumers.js';
 
 /**
  * Cles de requete que la bibliotheque construit elle-meme a partir des
@@ -296,6 +298,66 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Boolean, attribute: 'require-where' })
   requireWhere = false;
 
+  /**
+   * Ne rien charger tant que personne ne regarde (#931, AM-083).
+   *
+   * Une page à onglets déclare ses sources pour TOUS les panneaux ; cinq sur
+   * six sont fermés à l'arrivée, et pourtant toutes les requêtes partent au
+   * chargement. Avec `lazy`, la première requête attend qu'un consommateur de
+   * cette source entre dans une marge de 200 px autour du viewport
+   * (`IntersectionObserver`, la même marge que `dsfr-data-map` et que le
+   * `lazy` de `dsfr-data-repeat`, #891). Un panneau d'onglet fermé est en
+   * `display:none` : il n'a pas de boîte, il n'intersecte donc jamais, et
+   * l'observateur se déclenche à l'ouverture de l'onglet.
+   *
+   * **Ce qui est observé** : les FEUILLES de la chaîne aval (chart, list,
+   * kpi, display, podium, a11y, repeat ; pour une couche de carte, la carte
+   * qui la porte), suivies à travers les transformateurs — un
+   * `dsfr-data-query` est un tuyau déclaré en haut de page, l'observer
+   * reviendrait à ne rien différer. `lazy-target` remplace cette détection
+   * par un sélecteur explicite.
+   *
+   * **Opt-in strict** : sans l'attribut, la source part au chargement,
+   * exactement comme avant.
+   *
+   * **Dégradations, toutes du côté « on charge » :** sans
+   * `IntersectionObserver`, la source part immédiatement ; si la page ne
+   * déclare AUCUN consommateur (ou si `lazy-target` ne désigne rien), la
+   * source part immédiatement et le dit en console — une source qui ne
+   * chargerait jamais serait pire que le trafic qu'on cherche à éviter.
+   *
+   * **Ce que `lazy` ne promet pas** : un `IntersectionObserver` n'est pas
+   * continu. Il échantillonne aux temps de rendu ; un défilement par crans
+   * rapides (barre de défilement jetée, `scrollIntoView` enchaînés) peut
+   * traverser un consommateur sans jamais le rapporter comme visible — la
+   * source reste alors en attente jusqu'au prochain passage. C'est le
+   * comportement du navigateur, pas un bug de la bibliothèque.
+   *
+   * Se cumule avec `require-where` : les deux portes doivent s'ouvrir, et
+   * `require-where` est évalué en premier (c'est son message d'attente que
+   * l'utilisateur doit lire). Sans effet en mode données inline (`data`),
+   * qui ne fait aucune requête.
+   */
+  @property({ type: Boolean })
+  lazy = false;
+
+  /**
+   * Sélecteur CSS de l'élément dont la visibilité déclenche le chargement,
+   * à la place des consommateurs détectés (#931). Sans effet sans `lazy`.
+   *
+   * `lazy lazy-target="#panneau-2"` : la source part quand le panneau entre
+   * dans la marge de 200 px. À utiliser quand la détection automatique ne
+   * peut pas voir le bon élément — un consommateur créé en JavaScript, une
+   * carte dont on préfère observer la section entière, ou plusieurs blocs
+   * qu'on veut traiter comme un seul (le sélecteur peut désigner plusieurs
+   * éléments : le PREMIER vu ouvre la porte).
+   *
+   * Sélecteur invalide, ou qui ne désigne aucun élément : la source part
+   * immédiatement, avec un message en console. Rien de silencieux.
+   */
+  @property({ type: String, attribute: 'lazy-target' })
+  lazyTarget = '';
+
   // --- Internal state ---
 
   @state()
@@ -319,6 +381,14 @@ export class DsfrDataSource extends LitElement {
   private _urlModeCommandWarned = false;
   /** Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690) */
   private _requireWhereModeWarned = false;
+
+  // --- lazy (#931) ---
+  /** Observateur de visibilité des consommateurs ; détruit dès la première vue. */
+  private _lazyObserver: IntersectionObserver | null = null;
+  /** La porte est-elle ouverte pour de bon ? Une fois vue, la source ne diffère plus. */
+  private _lazySeen = false;
+  /** Un réessai est-il déjà armé sur `DOMContentLoaded` ? */
+  private _lazyWaitingDom = false;
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
@@ -519,6 +589,8 @@ export class DsfrDataSource extends LitElement {
       this._unsubscribeCommands();
       this._unsubscribeCommands = null;
     }
+    this._lazyObserver?.disconnect();
+    this._lazyObserver = null;
   }
 
   private _setupRefresh() {
@@ -652,12 +724,17 @@ export class DsfrDataSource extends LitElement {
     return false;
   }
 
-  /** Entrée (ou retour) en attente d'un filtre : rien n'est chargé (#690). */
-  private _enterIdle() {
+  /**
+   * Entrée (ou retour) en attente : rien n'est chargé — filtre manquant
+   * (#690) ou personne ne regarde encore (`lazy`, #931).
+   */
+  private _enterIdle(reason: DataIdleEvent['reason'] = 'require-where') {
     // Piège de configuration : en mode URL, les commandes where sont
     // refusées (#288) — aucun filtre ne pourra jamais lever l'attente, la
-    // source resterait muette pour toujours. Le dire une fois.
-    if (!this._isAdapterMode() && !this._requireWhereModeWarned) {
+    // source resterait muette pour toujours. Le dire une fois. L'attente de
+    // `lazy` n'est pas concernée : elle se lève au défilement, pas par un
+    // filtre, et vaut en mode URL comme en mode adaptateur.
+    if (reason === 'require-where' && !this._isAdapterMode() && !this._requireWhereModeWarned) {
       this._requireWhereModeWarned = true;
       console.warn(
         `dsfr-data-source[${this.id}]: require-where est sans issue en mode URL — ` +
@@ -673,7 +750,7 @@ export class DsfrDataSource extends LitElement {
     this._data = null;
     this._error = null;
     this._loading = false;
-    if (this.id) dispatchDataIdle(this.id);
+    if (this.id) dispatchDataIdle(this.id, reason);
   }
 
   private async _fetchData() {
@@ -685,10 +762,103 @@ export class DsfrDataSource extends LitElement {
       return;
     }
 
+    // Seconde porte (#931), après `require-where` : c'est le message
+    // d'attente d'un filtre que l'utilisateur doit lire quand les deux sont
+    // posés — l'attente de visibilité, elle, n'est jamais regardée.
+    if (this._lazyGateClosed()) {
+      this._enterIdle('lazy');
+      return;
+    }
+
     if (this._isAdapterMode()) {
       return this._fetchViaAdapter();
     }
     return this._fetchViaUrl();
+  }
+
+  // --- lazy : différer jusqu'à ce que quelqu'un regarde (#931) ---
+
+  /**
+   * La porte de `lazy` est-elle fermée ? Vrai = ne rien charger pour
+   * l'instant ; l'observateur rappellera `_scheduleFetch` le moment venu.
+   *
+   * Toutes les sorties « faux » sont des sorties SÛRES : en cas de doute, on
+   * charge. Une source qui ne partirait jamais est une page cassée, un
+   * chargement de trop n'est que le comportement d'avant l'attribut.
+   */
+  private _lazyGateClosed(): boolean {
+    if (!this.lazy || this._lazySeen) return false;
+
+    // Pas d'IntersectionObserver (vieux navigateur, environnement de test) :
+    // rien à observer, on charge (critère d'acceptation de #931).
+    if (typeof IntersectionObserver === 'undefined') {
+      this._lazySeen = true;
+      return false;
+    }
+
+    // Déjà armé : on attend la visibilité, sans re-résoudre les cibles.
+    if (this._lazyObserver) return true;
+
+    const targets = this._lazyTargets();
+    if (targets.length > 0) {
+      this._lazyObserver = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          this._lazySeen = true;
+          this._lazyObserver?.disconnect();
+          this._lazyObserver = null;
+          this._scheduleFetch();
+        },
+        // Même marge que `dsfr-data-map` et que le `lazy` de
+        // `dsfr-data-repeat` : la donnée est demandée avant d'être vue.
+        { rootMargin: '200px 0px' }
+      );
+      for (const target of targets) this._lazyObserver.observe(target);
+      return true;
+    }
+
+    // Aucune cible — mais la page est peut-être encore en cours d'analyse :
+    // une source déclarée en tête de document n'a pas encore de
+    // consommateurs dans le DOM. Réessayer une fois, au DOM complet.
+    if (document.readyState === 'loading') {
+      if (!this._lazyWaitingDom) {
+        this._lazyWaitingDom = true;
+        document.addEventListener(
+          'DOMContentLoaded',
+          () => {
+            this._lazyWaitingDom = false;
+            if (this.isConnected) this._scheduleFetch();
+          },
+          { once: true }
+        );
+      }
+      return true;
+    }
+
+    console.warn(
+      `dsfr-data-source[${this.id}]: lazy est sans cible — ` +
+        (this.lazyTarget
+          ? `le sélecteur lazy-target="${this.lazyTarget}" ne désigne aucun élément de la page. `
+          : `aucun afficheur (chart, list, kpi, display, podium, a11y, repeat) ne consomme cette source, ` +
+            `en direct ou à travers un transformateur. `) +
+        `La source charge immédiatement, comme sans l'attribut (#931).`
+    );
+    this._lazySeen = true;
+    return false;
+  }
+
+  /** Éléments dont la visibilité ouvre la porte : `lazy-target`, sinon les feuilles aval. */
+  private _lazyTargets(): Element[] {
+    if (!this.lazyTarget.trim()) return visibleConsumers(this.id);
+    try {
+      return Array.from(document.querySelectorAll(this.lazyTarget.trim()));
+    } catch {
+      console.warn(
+        `dsfr-data-source[${this.id}]: lazy-target="${this.lazyTarget}" n'est pas un ` +
+          `sélecteur CSS valide. La source charge immédiatement (#931).`
+      );
+      return [];
+    }
   }
 
   /**

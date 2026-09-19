@@ -1306,6 +1306,63 @@ le jeu complet au montage est une requete couteuse dont personne ne regarde le r
 
 ---
 
+### Pages a onglets : ne payer que l'onglet qu'on regarde
+
+Une page a onglets declare ses sources pour **tous** les panneaux ; cinq sur six sont fermes a
+l'arrivee, et pourtant toutes les requêtes partent au chargement. Sur un portail dont le quota
+anonyme est de 5 000 requêtes par jour et par IP, quelques dizaines de chargements suffisent a
+epuiser la journee. L'attribut `lazy` sur `<dsfr-data-source>` tient la premiere requête jusqu'a
+ce qu'un consommateur de cette source entre dans une marge de 200 px autour du viewport :
+
+```html
+<!-- Les sources de l'onglet 2 ne partent qu'a son ouverture -->
+<dsfr-data-source id="s-clubs" api-type="opendatasoft" lazy
+  base-url="https://data.sports.gouv.fr" dataset-id="clubs"></dsfr-data-source>
+
+<div class="fr-tabs__panel" id="panneau-2">
+  <dsfr-data-chart source="s-clubs" type="bar" label-field="dep" value-field="n"></dsfr-data-chart>
+</div>
+
+<!-- Cible explicite, quand la detection automatique ne voit pas le bon element -->
+<dsfr-data-source id="s-carte" api-type="opendatasoft" lazy lazy-target="#panneau-3"
+  base-url="https://data.sports.gouv.fr" dataset-id="equipements"></dsfr-data-source>
+```
+
+Mesure sur la fixture `e2e/source-lazy.html` (six onglets, huit sources chacun, 48 sources,
+Chromium) : **48 requêtes au repos sans l'attribut, 6 avec** ; 12 apres ouverture d'un second
+onglet ; 38 apres avoir ouvert les six et defile le dernier.
+
+- **Un panneau ferme est en `display:none`** : il n'a pas de boîte, il n'intersecte jamais, et
+  l'observateur se declenche a l'**ouverture** de l'onglet. Le meme mecanisme sert au contenu
+  sous la ligne de flottaison.
+- **Ce qui est observe** : les **feuilles** de la chaîne aval (chart, list, kpi, display, podium,
+  a11y, repeat ; pour une couche de carte, la carte qui la porte), suivies a travers les
+  transformateurs. Un `dsfr-data-query` est un tuyau declare en haut de page : l'observer
+  reviendrait a ne rien differer. `lazy-target="<selecteur>"` remplace cette detection.
+- **Toutes les degradations vont du côte « on charge »** : sans `IntersectionObserver`, ou si la
+  page ne declare aucun consommateur (ou si `lazy-target` ne designe rien), la source part
+  immediatement et le dit en console. Une source qui ne chargerait jamais serait pire que le
+  trafic qu'on cherche a eviter.
+- **Ce que `lazy` ne promet pas** : un `IntersectionObserver` n'est pas continu. Il echantillonne
+  aux temps de rendu ; un defilement par crans rapides (barre de defilement jetee,
+  `scrollIntoView` enchaînes) peut traverser un consommateur sans jamais le rapporter comme
+  visible — la source reste alors en attente jusqu'au prochain passage. C'est le comportement du
+  navigateur, pas un bug de la bibliotheque.
+- **Se cumule avec `require-where`** : les deux portes doivent s'ouvrir, et `require-where` est
+  evalue en premier — c'est son message d'attente que l'utilisateur doit lire. Corollaire :
+  pendant l'attente de `lazy`, les afficheurs rendent leur `idle-message`, dont le defaut parle
+  de filtre. En usage nominal il n'est jamais vu (le consommateur qui le porte est hors ecran,
+  c'est precisement pourquoi la source attend) ; avec `lazy-target` pointant ailleurs qu'un
+  consommateur, poser un `idle-message` adapte.
+- **Diagnostic** : le volet distingue les deux attentes — « en attente d'un regard (lazy) » et
+  « en attente d'un filtre (require-where) ». Sur le bus, l'evenement est `dsfr-data-idle`, avec
+  `reason: 'lazy'`.
+- **Sans effet** en mode donnees inline (`data`), qui ne fait aucune requête. `lazy` n'est pas
+  `dsfr-data-repeat lazy` (#891), qui differe l'**estampage** des composants d'une ligne repetee :
+  les deux se combinent, et portent le meme nom pour la meme raison.
+
+---
+
 ### Facettes : un tri different par champ
 
 `sort` accepte desormais la meme grammaire par champ que `labels`, `display` et `cols`

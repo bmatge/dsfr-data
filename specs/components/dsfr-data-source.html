@@ -272,6 +272,65 @@
           existe sur <a href="dsfr-data-query.html"><code>dsfr-data-query</code></a>.
         </p>
 
+        <h2 id="lazy" class="fr-mt-4w">Pages à onglets : ne charger que ce qu'on regarde</h2>
+        <p>
+          Une page à onglets déclare ses sources pour <strong>tous</strong> les panneaux ; cinq sur six sont
+          fermés à l'arrivée, et pourtant toutes les requêtes partent au chargement. Avec
+          <code>lazy</code>, la première requête attend qu'un consommateur de la source entre dans une marge
+          de 200 px autour du viewport. Un panneau fermé est en <code>display:none</code> : il n'a pas de
+          boîte, il n'intersecte jamais, et l'observateur se déclenche à l'ouverture de l'onglet.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="lazy,lazy-target" -->
+                <tr><td><code>lazy</code></td><td>Boolean</td><td><code>false</code></td><td>Ne rien charger tant que personne ne regarde (#931, AM-083). Une page à onglets déclare ses sources pour TOUS les panneaux ; cinq sur six sont fermés à l'arrivée, et pourtant toutes les requêtes partent au chargement. Avec <code>lazy</code>, la première requête attend qu'un consommateur de cette source entre dans une marge de 200 px autour du viewport (<code>IntersectionObserver</code>, la même marge que <code>dsfr-data-map</code> et que le <code>lazy</code> de <code>dsfr-data-repeat</code>, #891). Un panneau d'onglet fermé est en <code>display:none</code> : il n'a pas de boîte, il n'intersecte donc jamais, et l'observateur se déclenche à l'ouverture de l'onglet. **Ce qui est observé** : les FEUILLES de la chaîne aval (chart, list, kpi, display, podium, a11y, repeat ; pour une couche de carte, la carte qui la porte), suivies à travers les transformateurs — un <code>dsfr-data-query</code> est un tuyau déclaré en haut de page, l'observer reviendrait à ne rien différer. <code>lazy-target</code> remplace cette détection par un sélecteur explicite. **Opt-in strict** : sans l'attribut, la source part au chargement, exactement comme avant. **Dégradations, toutes du côté « on charge » :** sans <code>IntersectionObserver</code>, la source part immédiatement ; si la page ne déclare AUCUN consommateur (ou si <code>lazy-target</code> ne désigne rien), la source part immédiatement et le dit en console — une source qui ne chargerait jamais serait pire que le trafic qu'on cherche à éviter. **Ce que <code>lazy</code> ne promet pas** : un <code>IntersectionObserver</code> n'est pas continu. Il échantillonne aux temps de rendu ; un défilement par crans rapides (barre de défilement jetée, <code>scrollIntoView</code> enchaînés) peut traverser un consommateur sans jamais le rapporter comme visible — la source reste alors en attente jusqu'au prochain passage. C'est le comportement du navigateur, pas un bug de la bibliothèque. Se cumule avec <code>require-where</code> : les deux portes doivent s'ouvrir, et <code>require-where</code> est évalué en premier (c'est son message d'attente que l'utilisateur doit lire). Sans effet en mode données inline (<code>data</code>), qui ne fait aucune requête.</td></tr>
+                <tr><td><code>lazy-target</code></td><td>String</td><td><code>""</code></td><td>Sélecteur CSS de l'élément dont la visibilité déclenche le chargement, à la place des consommateurs détectés (#931). Sans effet sans <code>lazy</code>. <code>lazy lazy-target="#panneau-2"</code> : la source part quand le panneau entre dans la marge de 200 px. À utiliser quand la détection automatique ne peut pas voir le bon élément — un consommateur créé en JavaScript, une carte dont on préfère observer la section entière, ou plusieurs blocs qu'on veut traiter comme un seul (le sélecteur peut désigner plusieurs éléments : le PREMIER vu ouvre la porte). Sélecteur invalide, ou qui ne désigne aucun élément : la source part immédiatement, avec un message en console. Rien de silencieux.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;!-- Les sources de l'onglet 2 ne partent qu'à son ouverture --&gt;
+&lt;dsfr-data-source id="s-clubs" api-type="opendatasoft" lazy
+  base-url="https://data.sports.gouv.fr" dataset-id="clubs"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;div class="fr-tabs__panel" id="panneau-2"&gt;
+  &lt;dsfr-data-chart source="s-clubs" type="bar" label-field="dep" value-field="n"&gt;&lt;/dsfr-data-chart&gt;
+&lt;/div&gt;
+
+&lt;!-- Cible explicite, quand la détection automatique ne voit pas le bon élément --&gt;
+&lt;dsfr-data-source id="s-carte" api-type="opendatasoft" lazy lazy-target="#panneau-3"
+  base-url="https://data.sports.gouv.fr" dataset-id="equipements"&gt;
+&lt;/dsfr-data-source&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Ce qui est observé</strong> : les <em>feuilles</em> de la chaîne aval (chart, list, kpi,
+          display, podium, a11y, repeat ; pour une couche de carte, la carte qui la porte), suivies à travers
+          les transformateurs. Un <code>dsfr-data-query</code> est un tuyau déclaré en haut de page :
+          l'observer reviendrait à ne rien différer.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Toutes les dégradations vont du côté « on charge »</strong> : sans
+          <code>IntersectionObserver</code>, ou si la page ne déclare aucun consommateur (ou si
+          <code>lazy-target</code> ne désigne rien), la source part immédiatement et le dit en console. Une
+          source qui ne chargerait jamais serait pire que le trafic qu'on cherche à éviter.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Ce que <code>lazy</code> ne promet pas</strong> : un <code>IntersectionObserver</code>
+          n'est pas continu. Il échantillonne aux temps de rendu ; un défilement par crans rapides peut
+          traverser un consommateur sans jamais le rapporter comme visible — la source reste alors en
+          attente jusqu'au prochain passage. C'est le comportement du navigateur, pas un bug.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          Se cumule avec <code>require-where</code> : les deux portes doivent s'ouvrir, et
+          <code>require-where</code> est évalué en premier — c'est son message d'attente que l'utilisateur
+          doit lire. Pendant l'attente de <code>lazy</code>, la source publie <code>dsfr-data-idle</code>
+          avec la raison <code>lazy</code>, que le volet Diagnostic distingue de l'attente d'un filtre.
+        </p>
+
         <h2 id="filtres" class="fr-mt-4w">Filtres et WHERE dynamique</h2>
 
         <section class="demo-section">

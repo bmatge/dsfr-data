@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — dsfr-data-source lazy : une page a onglets ne paie que l'onglet regarde (#931)</title>
+  <!--
+    Six onglets, huit sources chacun, quarante-huit sources en tout — la forme
+    des deux generateurs de portrait du portail Sports. Les panneaux fermes
+    sont en `hidden` (donc `display:none`), comme les panneaux non selectionnes
+    du motif d'onglets DSFR : leurs consommateurs n'ont pas de boite, ils
+    n'intersectent jamais, et l'observateur se declenche a l'ouverture.
+
+    L'attribut `lazy` est pose par le parametre d'URL `?lazy=1`, pour mesurer
+    la MEME page avant et apres.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    .panneau { min-height: 40vh; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Portrait a onglets</h1>
+    <nav>
+      <button data-onglet="1">Onglet 1</button>
+      <button data-onglet="2">Onglet 2</button>
+      <button data-onglet="3">Onglet 3</button>
+      <button data-onglet="4">Onglet 4</button>
+      <button data-onglet="5">Onglet 5</button>
+      <button data-onglet="6">Onglet 6</button>
+    </nav>
+  <section class="panneau" id="panneau-1" >
+    <h2>Onglet 1</h2>
+    <dsfr-data-source id="s1-1" url="/e2e/source-lazy-data.json?s=s1-1" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-2" url="/e2e/source-lazy-data.json?s=s1-2" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-3" url="/e2e/source-lazy-data.json?s=s1-3" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-4" url="/e2e/source-lazy-data.json?s=s1-4" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-5" url="/e2e/source-lazy-data.json?s=s1-5" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-6" url="/e2e/source-lazy-data.json?s=s1-6" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-7" url="/e2e/source-lazy-data.json?s=s1-7" lazy></dsfr-data-source>
+    <dsfr-data-source id="s1-8" url="/e2e/source-lazy-data.json?s=s1-8" lazy></dsfr-data-source>
+    <dsfr-data-kpi source="s1-1" value="valeur:sum" label="KPI s1-1"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-2" value="valeur:sum" label="KPI s1-2"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-3" value="valeur:sum" label="KPI s1-3"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-4" value="valeur:sum" label="KPI s1-4"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-5" value="valeur:sum" label="KPI s1-5"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-6" value="valeur:sum" label="KPI s1-6"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-7" value="valeur:sum" label="KPI s1-7"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s1-8" value="valeur:sum" label="KPI s1-8"></dsfr-data-kpi>
+  </section>
+  <section class="panneau" id="panneau-2" hidden>
+    <h2>Onglet 2</h2>
+    <dsfr-data-source id="s2-1" url="/e2e/source-lazy-data.json?s=s2-1" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-2" url="/e2e/source-lazy-data.json?s=s2-2" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-3" url="/e2e/source-lazy-data.json?s=s2-3" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-4" url="/e2e/source-lazy-data.json?s=s2-4" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-5" url="/e2e/source-lazy-data.json?s=s2-5" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-6" url="/e2e/source-lazy-data.json?s=s2-6" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-7" url="/e2e/source-lazy-data.json?s=s2-7" lazy></dsfr-data-source>
+    <dsfr-data-source id="s2-8" url="/e2e/source-lazy-data.json?s=s2-8" lazy></dsfr-data-source>
+    <dsfr-data-kpi source="s2-1" value="valeur:sum" label="KPI s2-1"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-2" value="valeur:sum" label="KPI s2-2"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-3" value="valeur:sum" label="KPI s2-3"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-4" value="valeur:sum" label="KPI s2-4"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-5" value="valeur:sum" label="KPI s2-5"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-6" value="valeur:sum" label="KPI s2-6"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-7" value="valeur:sum" label="KPI s2-7"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s2-8" value="valeur:sum" label="KPI s2-8"></dsfr-data-kpi>
+  </section>
+  <section class="panneau" id="panneau-3" hidden>
+    <h2>Onglet 3</h2>
+    <dsfr-data-source id="s3-1" url="/e2e/source-lazy-data.json?s=s3-1" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-2" url="/e2e/source-lazy-data.json?s=s3-2" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-3" url="/e2e/source-lazy-data.json?s=s3-3" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-4" url="/e2e/source-lazy-data.json?s=s3-4" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-5" url="/e2e/source-lazy-data.json?s=s3-5" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-6" url="/e2e/source-lazy-data.json?s=s3-6" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-7" url="/e2e/source-lazy-data.json?s=s3-7" lazy></dsfr-data-source>
+    <dsfr-data-source id="s3-8" url="/e2e/source-lazy-data.json?s=s3-8" lazy></dsfr-data-source>
+    <dsfr-data-kpi source="s3-1" value="valeur:sum" label="KPI s3-1"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-2" value="valeur:sum" label="KPI s3-2"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-3" value="valeur:sum" label="KPI s3-3"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-4" value="valeur:sum" label="KPI s3-4"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-5" value="valeur:sum" label="KPI s3-5"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-6" value="valeur:sum" label="KPI s3-6"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-7" value="valeur:sum" label="KPI s3-7"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s3-8" value="valeur:sum" label="KPI s3-8"></dsfr-data-kpi>
+  </section>
+  <section class="panneau" id="panneau-4" hidden>
+    <h2>Onglet 4</h2>
+    <dsfr-data-source id="s4-1" url="/e2e/source-lazy-data.json?s=s4-1" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-2" url="/e2e/source-lazy-data.json?s=s4-2" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-3" url="/e2e/source-lazy-data.json?s=s4-3" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-4" url="/e2e/source-lazy-data.json?s=s4-4" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-5" url="/e2e/source-lazy-data.json?s=s4-5" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-6" url="/e2e/source-lazy-data.json?s=s4-6" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-7" url="/e2e/source-lazy-data.json?s=s4-7" lazy></dsfr-data-source>
+    <dsfr-data-source id="s4-8" url="/e2e/source-lazy-data.json?s=s4-8" lazy></dsfr-data-source>
+    <dsfr-data-kpi source="s4-1" value="valeur:sum" label="KPI s4-1"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-2" value="valeur:sum" label="KPI s4-2"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-3" value="valeur:sum" label="KPI s4-3"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-4" value="valeur:sum" label="KPI s4-4"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-5" value="valeur:sum" label="KPI s4-5"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-6" value="valeur:sum" label="KPI s4-6"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-7" value="valeur:sum" label="KPI s4-7"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s4-8" value="valeur:sum" label="KPI s4-8"></dsfr-data-kpi>
+  </section>
+  <section class="panneau" id="panneau-5" hidden>
+    <h2>Onglet 5</h2>
+    <dsfr-data-source id="s5-1" url="/e2e/source-lazy-data.json?s=s5-1" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-2" url="/e2e/source-lazy-data.json?s=s5-2" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-3" url="/e2e/source-lazy-data.json?s=s5-3" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-4" url="/e2e/source-lazy-data.json?s=s5-4" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-5" url="/e2e/source-lazy-data.json?s=s5-5" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-6" url="/e2e/source-lazy-data.json?s=s5-6" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-7" url="/e2e/source-lazy-data.json?s=s5-7" lazy></dsfr-data-source>
+    <dsfr-data-source id="s5-8" url="/e2e/source-lazy-data.json?s=s5-8" lazy></dsfr-data-source>
+    <dsfr-data-kpi source="s5-1" value="valeur:sum" label="KPI s5-1"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-2" value="valeur:sum" label="KPI s5-2"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-3" value="valeur:sum" label="KPI s5-3"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-4" value="valeur:sum" label="KPI s5-4"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-5" value="valeur:sum" label="KPI s5-5"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-6" value="valeur:sum" label="KPI s5-6"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-7" value="valeur:sum" label="KPI s5-7"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s5-8" value="valeur:sum" label="KPI s5-8"></dsfr-data-kpi>
+  </section>
+  <section class="panneau" id="panneau-6" hidden>
+    <h2>Onglet 6</h2>
+    <dsfr-data-source id="s6-1" url="/e2e/source-lazy-data.json?s=s6-1" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-2" url="/e2e/source-lazy-data.json?s=s6-2" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-3" url="/e2e/source-lazy-data.json?s=s6-3" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-4" url="/e2e/source-lazy-data.json?s=s6-4" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-5" url="/e2e/source-lazy-data.json?s=s6-5" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-6" url="/e2e/source-lazy-data.json?s=s6-6" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-7" url="/e2e/source-lazy-data.json?s=s6-7" lazy></dsfr-data-source>
+    <dsfr-data-source id="s6-8" url="/e2e/source-lazy-data.json?s=s6-8" lazy></dsfr-data-source>
+    <dsfr-data-kpi source="s6-1" value="valeur:sum" label="KPI s6-1"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-2" value="valeur:sum" label="KPI s6-2"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-3" value="valeur:sum" label="KPI s6-3"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-4" value="valeur:sum" label="KPI s6-4"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-5" value="valeur:sum" label="KPI s6-5"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-6" value="valeur:sum" label="KPI s6-6"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-7" value="valeur:sum" label="KPI s6-7"></dsfr-data-kpi>
+    <dsfr-data-kpi source="s6-8" value="valeur:sum" label="KPI s6-8"></dsfr-data-kpi>
+  </section>
+  </main>
+  <script>
+    // `lazy` pose avant l'analyse des balises : on reecrit le document ?
+    // Non — les attributs sont deja la, on les retire quand ?lazy=1 est absent.
+    document.querySelectorAll('button[data-onglet]').forEach((b) => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.panneau').forEach((p) => { p.hidden = true; });
+        document.getElementById('panneau-' + b.dataset.onglet).hidden = false;
+      });
+    });
+  </script>
+</body>
+</html>
