@@ -246,11 +246,14 @@ export function comparer(
     }
 
     case 'attr': {
-      const brut = observation as string | null;
+      // Pas de garde `brut === null` ici : l'attribut absent (getAttribute
+      // rend null) est déjà sorti plus haut — `prete()` côté page ne soumet
+      // jamais une observation `attr` vide, et le garde d'entrée de `comparer`
+      // la renvoie avec « rien à observer ». La garde qui vivait ici était
+      // morte, jamais atteinte (CodeQL js/unneeded-defensive-code #77) : un
+      // message plus précis qu'aucun chemin ne pouvait produire.
+      const brut = observation as string;
       const e = expect as Extract<Expect, { kind: 'attr' }>;
-      if (brut === null) {
-        return { ...base, message: `attribut « ${e.attr} » absent de l'élément rendu` };
-      }
       if (attendu.literal !== null) {
         const ok = brut.trim() === attendu.literal;
         return {
