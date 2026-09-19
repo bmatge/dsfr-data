@@ -298,17 +298,28 @@ const expectedSum = 23300;
 
 ## 🧪 Stratégie de tests automatisés
 
-### Tests unitaires (Playwright)
+### Tests Playwright
+
+> ⚠️ `comprehensive-test` est **archivé depuis #868** (`comprehensive-test.archive.ts`, hors
+> `testMatch`, 0 vert / 37 rouge au dernier relevé). Ce qui suit le relance à la main, avec
+> `BUILDER_E2E_ARCHIVES=1` ; ce n'est pas un garde-fou. La couverture réellement exécutée du
+> dossier est décrite dans `README.md` (« Ce qui n'est plus ramassé »).
 
 ```bash
-# Lancer tous les tests exhaustifs
-npx playwright test tests/builder-e2e/comprehensive-test.spec.ts
+# Un arbre construit, sinon on mesure son propre environnement
+npm run build:shared && npm run build && npm run build:app-ui
 
-# Lancer uniquement les tests d'agrégation
-npx playwright test tests/builder-e2e/comprehensive-test.spec.ts -g "agrégation"
+# Lancer tous les cas archives
+BUILDER_E2E_ARCHIVES=1 npx playwright test \
+  --config tests/builder-e2e/playwright.config.ts comprehensive-test.archive.ts
+
+# Lancer uniquement les cas d'agregation
+BUILDER_E2E_ARCHIVES=1 npx playwright test \
+  --config tests/builder-e2e/playwright.config.ts comprehensive-test.archive.ts -g "agrégation"
 
 # Lancer avec interface graphique (debug)
-npx playwright test tests/builder-e2e/comprehensive-test.spec.ts --ui
+BUILDER_E2E_ARCHIVES=1 npx playwright test \
+  --config tests/builder-e2e/playwright.config.ts comprehensive-test.archive.ts --ui
 ```
 
 ### Checklist de vérification manuelle
