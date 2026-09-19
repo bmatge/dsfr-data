@@ -59,6 +59,15 @@ import {
   readUrlSelections,
   writeUrlSelections,
 } from './facets/facets-url.js';
+import {
+  NO_LABEL_TABLE,
+  NO_VALUE_LABELS,
+  collectCompanionLabels,
+  facetValueText,
+  labelFacetValues,
+  parseValueLabels,
+  type ValueLabelSpec,
+} from './facets/facets-value-labels.js';
 import { facetsStyles } from './facets/facets-styles.js';
 
 /**
@@ -98,13 +107,16 @@ class FacetFieldFilter implements ContextFilterLike {
     return this.host._parseLabels().get(this.field) ?? this.field;
   }
 
+  /** Le tag montre le LIBELLÉ quand `value-labels` en pose un (#928) */
   displayValue(): string {
-    return this._values().join(', ');
+    return this._values()
+      .map((v) => this.host._valueText(this.field, v))
+      .join(', ');
   }
 
   /** Un tag par valeur dans context-tags (#679) */
   displayValues(): string[] {
-    return this._values();
+    return this._values().map((v) => this.host._valueText(this.field, v));
   }
 
   /** Meme chemin qu'un clic « Tout » : la facette re-pousse son etat au contexte */
@@ -112,9 +124,13 @@ class FacetFieldFilter implements ContextFilterLike {
     this.host._clearFieldSelections(this.field);
   }
 
-  /** Meme chemin qu'une case decochee : les autres valeurs du champ restent (#679) */
+  /**
+   * Meme chemin qu'une case decochee : les autres valeurs du champ restent
+   * (#679). `context-tags` rappelle ici ce que `displayValues()` a rendu :
+   * avec `value-labels`, c'est un LIBELLÉ, qu'on retraduit en valeur (#928).
+   */
   clearValue(value: string): void {
-    this.host._removeFieldValue(this.field, value);
+    this.host._removeFieldValue(this.field, this.host._valueForText(this.field, value));
   }
 
   urlValue(): string {
@@ -164,6 +180,53 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   /** Labels custom : "field:Label | field2:Label 2" */
   @property({ type: String })
   labels = '';
+
+  /**
+   * Libellé des VALEURS d'une facette (#928) — `labels` nomme les CHAMPS,
+   * celui-ci nomme ce qu'ils contiennent. Une facette posée sur un champ de
+   * code affiche « Finistère » et continue de filtrer « 29 » : la valeur
+   * diffusée au contexte, à l'URL et au `where` reste le CODE.
+   *
+   * Deux grammaires, distinguées par la première lettre :
+   * - champ compagnon, entrées séparées par `|` comme `labels` et `display` :
+   *   `value-labels="dep_code:dep_nom | code_fede_ref:federation"`. Le
+   *   libellé est lu dans les MÊMES lignes que la valeur ; il doit donc
+   *   figurer dans les données reçues (au besoin, l'ajouter au `select`) ;
+   * - table figée en JSON, quand aucun champ compagnon n'existe :
+   *   `value-labels='{"dep_code":{"29":"Finistère","56":"Morbihan"}}'`.
+   *   Une valeur absente de la table reste affichée telle quelle.
+   *
+   * Le tri `alpha` et la recherche portent alors sur le libellé. En
+   * `server-facets`, la réponse de l'API facettes ne porte que des valeurs :
+   * les libellés sont lus dans les lignes chargées par la source, donc
+   * connus pour les valeurs présentes dans ces lignes ; une valeur de
+   * facette absente de la page courante reste affichée par son code. Sur un
+   * champ de code, poser une table figée lève ce doute.
+   */
+  @property({ type: String, attribute: 'value-labels' })
+  valueLabels = '';
+
+  /**
+   * Valeur pré-sélectionnée par champ, même grammaire que `labels` :
+   * `default="region:Toutes régions | secteur:Tous secteurs"` (#932).
+   *
+   * Sans sélection, une facette n'émet aucun filtre — ce qui est juste quand
+   * l'absence de filtre veut dire « tout ». Ça ne l'est plus quand l'agrégat
+   * national est une LIGNE du jeu (« Toutes régions ») à côté d'une ligne par
+   * région : le total porte alors sur le cumul, sans avertissement. Un champ
+   * nommé ici porte donc TOUJOURS une valeur.
+   *
+   * Ordre de résolution : une valeur lue dans l'URL (`url-params`, ou l'URL
+   * du contexte en mode `context`) l'emporte ; le défaut ne s'applique qu'à
+   * un champ sans sélection. Conséquences sur un champ à défaut : la remise
+   * à zéro (bouton, tag retiré, dernière case décochée) revient au défaut et
+   * non à l'absence de filtre, et les options « Tous » de `select` et
+   * `radio-inline` ne sont plus rendues — elles ne pourraient que revenir au
+   * défaut. Une valeur par défaut absente des données est rendue cochée et
+   * « (indisponible) », comme toute sélection orpheline (#310).
+   */
+  @property({ type: String })
+  default = '';
 
   /** Nb de valeurs visibles par facette avant "Voir plus" */
   @property({ type: Number, attribute: 'max-values' })
@@ -511,6 +574,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     return [
       'fields',
       'labels',
+      'valueLabels',
+      'default',
       'sort',
       'weightField',
       'hideEmpty',
@@ -583,6 +648,13 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
         this._dispatchFacetCommand();
       }
     }
+
+    // Valeurs par défaut (#932) : APRÈS la lecture d'URL, qui l'emporte. En
+    // mode `context`, c'est `onContextBound` qui les pose — l'URL y est
+    // portée par le contexte, pas par la facette.
+    if (this._hasDefaults() && !this._contextMode && this._applyDefaultSelections()) {
+      if (isServerMode) this._dispatchFacetCommand();
+    }
   }
 
   protected onTransformerData(data: unknown): void {
@@ -600,6 +672,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
   private _onData(data: unknown) {
     this._rawData = Array.isArray(data) ? data : [];
+    // Les libellés de valeur sont lus dans les lignes (#928) : un nouveau lot
+    // invalide les tables mémorisées.
+    this._labelTables.clear();
     const isServerMode = this.serverFacets || !!this.staticValues;
     if (this._ownUrlParams && !this._urlParamsApplied) {
       this._applyUrlParams();
@@ -608,6 +683,14 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       if (isServerMode && this._hasActiveSelections()) {
         this._dispatchFacetCommand();
         return; // command will trigger a new data load
+      }
+    }
+    // Valeurs par défaut (#932), après l'URL. En mode serveur, la commande
+    // rechargera la source : rien d'autre à faire dans ce cycle.
+    if (this._hasDefaults() && !this._contextMode && this._applyDefaultSelections()) {
+      if (isServerMode) {
+        this._dispatchFacetCommand();
+        return;
       }
     }
     if (this.serverFacets) {
@@ -637,7 +720,23 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
   /** Selections orphelines reinjectees (#310) — `facets/facets-client.ts`. */
   private _appendOrphanSelections(groups: FacetGroup[]): FacetGroup[] {
-    return appendOrphanSelections(groups, this._activeSelections, this._parseLabels());
+    return this._labelGroups(
+      appendOrphanSelections(groups, this._activeSelections, this._parseLabels())
+    );
+  }
+
+  /**
+   * Libellés de valeur posés sur des groupes déjà constitués (#928) : les
+   * sélections orphelines réinjectées et les valeurs statiques n'ont pas
+   * traversé `_sortValues`. Sans `value-labels`, les groupes reçus sont
+   * rendus tels quels.
+   */
+  private _labelGroups(groups: FacetGroup[]): FacetGroup[] {
+    if (!this.valueLabels) return groups;
+    for (const group of groups) {
+      group.values = this._labelValues(group.values, group.field);
+    }
+    return groups;
   }
 
   // --- Templates partages entre les 3 modes de rendu (#313) ---
@@ -666,7 +765,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     const missingHint = fv.missing
       ? html`<span class="fr-hint-text">(indisponible)</span>`
       : nothing;
-    return html`${fv.value}${missingHint}${
+    return html`${facetValueText(fv)}${missingHint}${
       this._effectiveHideCounts || fv.missing
         ? nothing
         : html`<span class="dsfr-data-facets__count" aria-hidden="true"
@@ -765,7 +864,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       console.warn('dsfr-data-facets: static-values invalide (JSON attendu)');
       return;
     }
-    this._facetGroups = groups;
+    this._facetGroups = this._labelGroups(groups);
     this._syncContextFilters();
   }
 
@@ -901,8 +1000,12 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     return fallback;
   }
 
+  /**
+   * Les libellés de valeur sont posés AVANT le tri (#928) : `alpha` range ce
+   * que le lecteur voit, pas le code sous-jacent.
+   */
   _sortValues(values: FacetValue[], field?: string): FacetValue[] {
-    return sortFacetValues(values, this._resolveSort(field));
+    return sortFacetValues(this._labelValues(values, field), this._resolveSort(field));
   }
 
   // --- Server-facets ---
@@ -1147,7 +1250,14 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
         prefilled = true;
       }
     }
-    if (prefilled) {
+    // Valeurs par défaut (#932) : APRÈS l'URL du contexte, qui l'emporte.
+    let defaulted = false;
+    for (const [field, value] of this._parseDefaults()) {
+      if (!value || (selections[field]?.size ?? 0) > 0) continue;
+      selections[field] = new Set([value]);
+      defaulted = true;
+    }
+    if (prefilled || defaulted) {
       this._activeSelections = selections;
       this._afterSelectionChange();
     } else {
@@ -1176,6 +1286,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       ...parseCSV(this.fields),
       ...this._facetGroups.map((g) => g.field),
       ...Object.keys(this._activeSelections),
+      // Un champ nommé par `default` porte toujours une valeur (#932) : son
+      // filtre doit exister avant même que les données n'arrivent.
+      ...this._parseDefaults().keys(),
     ]);
     for (const field of fields) {
       if (this._contextFilters.has(field)) continue;
@@ -1221,7 +1334,11 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * `display="a:select, b:select"` rendait zéro liste déroulante sur une page
    * qui avait l'air juste.
    */
-  private _warnGrammar(attr: 'display' | 'labels', raw: string, message: string): void {
+  private _warnGrammar(
+    attr: 'display' | 'labels' | 'value-labels',
+    raw: string,
+    message: string
+  ): void {
     const key = `${attr}=${raw}`;
     if (this._grammarWarned.has(key)) return;
     this._grammarWarned.add(key);
@@ -1239,7 +1356,10 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * par une virgule ne déclenche rien. Dans `display`, dont les valeurs sont
    * une liste fermée de modes, toute virgule est suspecte.
    */
-  private _warnSeparatorIfSuspect(attr: 'display' | 'labels' | 'sort', raw: string): void {
+  private _warnSeparatorIfSuspect(
+    attr: 'display' | 'labels' | 'sort' | 'value-labels' | 'default',
+    raw: string
+  ): void {
     // Utilitaire partagé avec dsfr-data-normalize (#772) ; même ensemble que
     // `_warnGrammar` : un seul avertissement par attribut et par valeur.
     warnSuspectSeparator(
@@ -1251,7 +1371,10 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
         expected: '|',
         example:
           attr === 'sort' ? '"champ:alpha | champ2:count:desc"' : '"champ:valeur | champ2:valeur2"',
-        humanValues: attr === 'labels',
+        // `labels` et `default` portent des libellés et des valeurs humaines,
+        // où la virgule est légitime (« Département, région ») ; `value-labels`
+        // en forme courte ne porte que des noms de champ (#928).
+        humanValues: attr === 'labels' || attr === 'default',
       },
       this._grammarWarned
     );
@@ -1260,7 +1383,141 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   _parseLabels(): Map<string, string> {
     if (!this.labels) return new Map();
     this._warnSeparatorIfSuspect('labels', this.labels);
-    return parseFacetLabels(this.labels);
+    const parsed = parseFacetLabels(this.labels);
+    this._warnLabelsOnValues(parsed);
+    return parsed;
+  }
+
+  /**
+   * `labels` nomme des CHAMPS. Une entrée qui nomme une VALEUR
+   * (`labels="22:Côtes-d'Armor"`) était lue comme un nom de champ et ignorée
+   * sans un mot — la page affichait toujours ses codes et avait l'air juste
+   * (#928). Signalé seulement quand `fields` est explicite : la liste des
+   * champs est alors connue sans ambiguïté, et une entrée hors de cette
+   * liste ne peut pas servir.
+   */
+  private _warnLabelsOnValues(parsed: Map<string, string>): void {
+    if (!this.fields) return;
+    const known = new Set(parseCSV(this.fields));
+    const strays = [...parsed.keys()].filter((key) => !known.has(key));
+    if (strays.length === 0) return;
+    this._warnGrammar(
+      'labels',
+      this.labels,
+      `${strays.map((s) => `"${s}"`).join(', ')} n'est pas un champ de facette : ` +
+        `"labels" nomme des CHAMPS, pas leurs valeurs. Pour nommer une valeur, ` +
+        `utiliser value-labels (champ compagnon ou table figée).`
+    );
+  }
+
+  /** Tables de libellés mémorisées par champ (#928) — recalculées à chaque lot de lignes */
+  private _labelTables = new Map<string, ReadonlyMap<string, string>>();
+
+  /** Valeur d'attribut dont `_labelTables` dépend : un changement la purge */
+  private _labelTablesRaw: string | null = null;
+
+  /** Sources de libellé par champ (#928), ou la carte vide sans l'attribut */
+  private _parseValueLabels(): ReadonlyMap<string, ValueLabelSpec> {
+    const raw = this.valueLabels.trim();
+    if (!raw) return NO_VALUE_LABELS;
+    if (!raw.startsWith('{')) this._warnSeparatorIfSuspect('value-labels', raw);
+    return parseValueLabels(raw, (message) =>
+      this._warnGrammar('value-labels', this.valueLabels, message)
+    );
+  }
+
+  /** Table `valeur -> libellé` d'un champ (#928), mémorisée par lot de lignes */
+  private _valueLabelTable(field: string): ReadonlyMap<string, string> {
+    if (!this.valueLabels) return NO_LABEL_TABLE;
+    if (this._labelTablesRaw !== this.valueLabels) {
+      this._labelTables.clear();
+      this._labelTablesRaw = this.valueLabels;
+    }
+    const cached = this._labelTables.get(field);
+    if (cached) return cached;
+    const spec = this._parseValueLabels().get(field);
+    const table =
+      spec === undefined
+        ? NO_LABEL_TABLE
+        : spec.kind === 'table'
+          ? spec.table
+          : collectCompanionLabels(this._rawData, field, spec.labelField);
+    this._labelTables.set(field, table);
+    return table;
+  }
+
+  /** Copie des valeurs portant leur libellé (#928) — sans l'attribut, le tableau reçu */
+  private _labelValues(values: FacetValue[], field?: string): FacetValue[] {
+    if (!this.valueLabels || field === undefined) return values;
+    return labelFacetValues(values, this._valueLabelTable(field));
+  }
+
+  /** Texte affiché d'une valeur d'un champ (#928) : libellé s'il existe, valeur sinon */
+  _valueText(field: string, value: string): string {
+    if (!this.valueLabels) return value;
+    return this._valueLabelTable(field).get(value) ?? value;
+  }
+
+  /** Retraduit un texte affiché en valeur filtrée (#928) ; inchangé s'il n'est pas un libellé */
+  _valueForText(field: string, text: string): string {
+    if (!this.valueLabels) return text;
+    const group = this._facetGroups.find((g) => g.field === field);
+    const match = group?.values.find((fv) => fv.label === text);
+    return match?.value ?? text;
+  }
+
+  /** Une valeur ou son libellé contient-elle la recherche en cours ? (#928) */
+  private _matchesQuery(fv: FacetValue, query: string): boolean {
+    if (!query) return true;
+    return fv.value.toLowerCase().includes(query) || (fv.label ?? '').toLowerCase().includes(query);
+  }
+
+  /** Valeurs par défaut par champ (#932), même grammaire que `labels` */
+  private _parseDefaults(): Map<string, string> {
+    if (!this.default) return new Map();
+    this._warnSeparatorIfSuspect('default', this.default);
+    return parseFacetLabels(this.default);
+  }
+
+  /** Une valeur par défaut est-elle demandée ? (#932) */
+  private _hasDefaults(): boolean {
+    return this.default.trim() !== '';
+  }
+
+  /**
+   * Pré-sélectionne les valeurs par défaut des champs qui n'ont aucune
+   * sélection (#932). Rend `true` si l'état a changé — l'appelant décide
+   * alors s'il faut rediffuser. Un champ déjà servi par l'URL est laissé
+   * tel quel : `url-sync` l'emporte.
+   */
+  private _applyDefaultSelections(): boolean {
+    const defaults = this._parseDefaults();
+    if (defaults.size === 0) return false;
+    const selections = { ...this._activeSelections };
+    let changed = false;
+    for (const [field, value] of defaults) {
+      if (!value) continue;
+      if ((selections[field]?.size ?? 0) > 0) continue;
+      selections[field] = new Set([value]);
+      changed = true;
+    }
+    if (changed) this._activeSelections = selections;
+    return changed;
+  }
+
+  /**
+   * Remet le défaut d'un champ dans un jeu de sélections en cours de calcul
+   * (#932) : un champ à défaut n'est jamais vide, sinon le total afficherait
+   * de nouveau le cumul que le défaut sert justement à éviter.
+   */
+  private _restoreDefault(field: string, selections: Record<string, Set<string>>): void {
+    const value = this._parseDefaults().get(field);
+    if (value) selections[field] = new Set([value]);
+  }
+
+  /** Le champ porte-t-il une valeur par défaut ? (#932) */
+  private _hasDefaultFor(field: string): boolean {
+    return !!this._parseDefaults().get(field);
   }
 
   /** Parse display attribute into per-field mode map */
@@ -1338,6 +1595,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
     if (fieldSet.size === 0) {
       delete selections[field];
+      // Un champ à défaut ne redevient jamais vide (#932)
+      this._restoreDefault(field, selections);
     } else {
       selections[field] = fieldSet;
     }
@@ -1353,8 +1612,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       displayMode === 'checkbox'
     ) {
       const action = wasSelected ? 'désélectionnée' : 'sélectionnée';
+      const selected = this._activeSelections[field]?.size ?? 0;
       this._announce(
-        `${value} ${action}, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
+        `${this._valueText(field, value)} ${action}, ${selected} option${selected > 1 ? 's' : ''} sélectionnée${selected > 1 ? 's' : ''}`
       );
     }
   }
@@ -1366,6 +1626,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
     if (!value) {
       delete selections[field];
+      this._restoreDefault(field, selections);
     } else {
       selections[field] = new Set([value]);
     }
@@ -1377,9 +1638,16 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   _clearFieldSelections(field: string) {
     const selections = { ...this._activeSelections };
     delete selections[field];
+    // Remise à zéro = retour au défaut quand il y en a un (#932)
+    this._restoreDefault(field, selections);
     this._activeSelections = selections;
     this._afterSelectionChange();
-    this._announce('Aucune option sélectionnée');
+    const restored = selections[field];
+    this._announce(
+      restored
+        ? `${this._valueText(field, [...restored][0])} sélectionnée, 1 option sélectionnée`
+        : 'Aucune option sélectionnée'
+    );
   }
 
   /** Retire UNE valeur d'un champ (tag de context-tags, #679) — les autres restent */
@@ -1391,6 +1659,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     const selections = { ...this._activeSelections };
     if (fieldSet.size === 0) {
       delete selections[field];
+      this._restoreDefault(field, selections);
     } else {
       selections[field] = fieldSet;
     }
@@ -1399,7 +1668,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     this._announce(
       fieldSet.size === 0
         ? 'Aucune option sélectionnée'
-        : `${value} désélectionnée, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
+        : `${this._valueText(field, value)} désélectionnée, ${fieldSet.size} option${fieldSet.size > 1 ? 's' : ''} sélectionnée${fieldSet.size > 1 ? 's' : ''}`
     );
   }
 
@@ -1574,7 +1843,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       if (!group) return;
       const query = input.value.toLowerCase();
       const count = query
-        ? group.values.filter((v) => v.value.toLowerCase().includes(query)).length
+        ? group.values.filter((v) => this._matchesQuery(v, query)).length
         : group.values.length;
       this._announce(
         count === 0
@@ -1587,6 +1856,10 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   private _clearAll() {
     this._activeSelections = {};
     this._searchQueries = {};
+    // « Réinitialiser » revient aux valeurs par défaut, pas à l'absence de
+    // filtre : sur un jeu dont l'agrégat national est une ligne, l'absence
+    // de filtre cumulerait toutes les régions (#932).
+    this._applyDefaultSelections();
     this._afterSelectionChange();
   }
 
@@ -1864,7 +2137,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
     let displayValues = group.values;
     if (isSearchable && searchQuery) {
-      displayValues = displayValues.filter((v) => v.value.toLowerCase().includes(searchQuery));
+      displayValues = displayValues.filter((v) => this._matchesQuery(v, searchQuery));
     }
 
     const visibleValues = isExpanded ? displayValues : displayValues.slice(0, this.maxValues);
@@ -1931,14 +2204,20 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
           id="${uid}-select"
           @change="${(e: Event) => this._handleSelectChange(group.field, e)}"
         >
-          <option value="" ?selected="${!selectedValue}">Tous</option>
+          ${
+            // Un champ à défaut n'a pas d'état « Tous » : l'option ne pourrait
+            // que revenir au défaut (#932)
+            this._hasDefaultFor(group.field)
+              ? nothing
+              : html`<option value="" ?selected="${!selectedValue}">Tous</option>`
+          }
           ${group.values.map(
             (fv) => html`
               <option value="${fv.value}" ?selected="${fv.value === selectedValue}">
                 ${
                   this._effectiveHideCounts || fv.missing
-                    ? `${fv.value}${fv.missing ? ' (indisponible)' : ''}`
-                    : `${fv.value} (${this._formatCount(fv.count)})`
+                    ? `${facetValueText(fv)}${fv.missing ? ' (indisponible)' : ''}`
+                    : `${facetValueText(fv)} (${this._formatCount(fv.count)})`
                 }
               </option>
             `
@@ -1956,7 +2235,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
     let displayValues = group.values;
     if (searchQuery) {
-      displayValues = displayValues.filter((v) => v.value.toLowerCase().includes(searchQuery));
+      displayValues = displayValues.filter((v) => this._matchesQuery(v, searchQuery));
     }
 
     const triggerLabel =
@@ -1965,7 +2244,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
         : 'Sélectionnez des options';
 
     // Selected values description for screen readers
-    const selectedDesc = selected.size > 0 ? [...selected].join(', ') : '';
+    const selectedDesc =
+      selected.size > 0 ? [...selected].map((v) => this._valueText(group.field, v)).join(', ') : '';
 
     return html`
       <div
@@ -2061,19 +2341,26 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
         data-field="${group.field}"
       >
         <legend class="fr-fieldset__legend fr-text--bold" id="${uid}-legend">${group.label}</legend>
-        <div class="fr-fieldset__element fr-fieldset__element--inline">
-          <div class="fr-radio-group fr-radio-group--sm">
-            <input
-              type="radio"
-              id="${uid}-all"
-              name="${radioName}"
-              value=""
-              .checked="${!hasSelection}"
-              @change="${() => this._clearFieldSelections(group.field)}"
-            />
-            <label class="fr-label" for="${uid}-all">Tous</label>
-          </div>
-        </div>
+        ${
+          // Un champ à défaut n'a pas d'état « Tous » (#932)
+          this._hasDefaultFor(group.field)
+            ? nothing
+            : html`
+                <div class="fr-fieldset__element fr-fieldset__element--inline">
+                  <div class="fr-radio-group fr-radio-group--sm">
+                    <input
+                      type="radio"
+                      id="${uid}-all"
+                      name="${radioName}"
+                      value=""
+                      .checked="${!hasSelection}"
+                      @change="${() => this._clearFieldSelections(group.field)}"
+                    />
+                    <label class="fr-label" for="${uid}-all">Tous</label>
+                  </div>
+                </div>
+              `
+        }
         ${group.values.map((fv, fvIndex) =>
           this._renderToggleItem(group, fv, `${uid}-${fvIndex}`, 'radio', radioName, true)
         )}
@@ -2089,11 +2376,14 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
 
     let displayValues = group.values;
     if (searchQuery) {
-      displayValues = displayValues.filter((v) => v.value.toLowerCase().includes(searchQuery));
+      displayValues = displayValues.filter((v) => this._matchesQuery(v, searchQuery));
     }
 
     const selectedValue = selected.size > 0 ? [...selected][0] : null;
-    const triggerLabel = selectedValue ?? 'Sélectionnez une option';
+    const triggerLabel =
+      selectedValue === null
+        ? 'Sélectionnez une option'
+        : this._valueText(group.field, selectedValue);
 
     return html`
       <div

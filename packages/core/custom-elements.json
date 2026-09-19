@@ -93,6 +93,26 @@
             },
             {
               "kind": "field",
+              "name": "emptyLabel",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé substitué aux cellules VIDES (`null`, `undefined` ou `\"\"`) de la\ncolonne de libellé du tableau, et aux noms de série vides en mode\n`series-field` (#933). Même rôle que l'`empty-label` de\n`dsfr-data-chart` (#647) : sans lui, la barre du groupe non renseigné\nporte un nom sur l'axe alors que sa ligne dans le tableau équivalent a\nune cellule vide — le tableau dit autre chose que le graphique.\n\nColonne de libellé = `label-field` s'il est posé, sinon la PREMIÈRE\ncolonne rendue. Les colonnes de valeur ne sont jamais touchées : une\nmesure absente reste une cellule vide, on n'invente pas un libellé.\n\nAbsent (défaut), le rendu est inchangé : la cellule reste vide. La\nvaleur n'est PAS reprise du graphique visé par `for` — l'écrire sur les\ndeux balises est volontaire, pour qu'aucune page existante ne voie son\ntableau changer.\n\nLe CSV téléchargé porte le même libellé que le tableau affiché.",
+              "attribute": "empty-label"
+            },
+            {
+              "kind": "field",
+              "name": "seriesField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ « clé de série » d'un jeu au format long/tidy — typiquement\nl'`origin-field` d'un `dsfr-data-concat` (#807), ou le champ que\n`dsfr-data-chart series-field` consomme déjà côté graphique (#930).\n\nPosé, le tableau équivalent PIVOTE : une ligne par valeur de\n`label-field`, une colonne par valeur distincte de ce champ (dans leur\nordre d'apparition), au lieu d'une ligne par couple (libellé, série)\nsans colonne disant de quelle série la valeur provient. Le CSV\ntéléchargé suit la même structure.\n\nExige `label-field` ET `value-field` : sans eux on ne sait pas quelle\ncolonne porte la mesure. Le manque est signalé\n(`data-dsfr-config-error`) et le tableau retombe sur le rendu à plat,\njamais un pivot silencieusement faux. Seul le PREMIER champ de\n`value-field` est pivoté.\n\nUn couple (libellé, série) absent des données rend une cellule vide :\n`dsfr-data-chart` y trace 0, le tableau ne l'affirme pas.\n\nAbsent (défaut), le rendu est inchangé. La valeur n'est PAS reprise du\ngraphique visé par `for`.",
+              "attribute": "series-field"
+            },
+            {
+              "kind": "field",
               "name": "label",
               "type": {
                 "text": "string"
@@ -127,6 +147,16 @@
               "default": "IDLE_MESSAGE_DEFAULT",
               "description": "Message annoncé quand l'amont attend un filtre (`require-where`, #690).\nRemplace « aucune donnée disponible » dans la description lue par les\nlecteurs d'écran : rien n'a été chargé, rien n'a échoué.",
               "attribute": "idle-message"
+            },
+            {
+              "kind": "field",
+              "name": "_seriesConfigError",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Vrai quand l'erreur de configuration posée vient de `series-field`."
             },
             {
               "kind": "field",
@@ -192,6 +222,12 @@
               },
               "privacy": "private",
               "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_checkSeriesConfig",
+              "privacy": "private",
+              "description": "`series-field` sans `label-field` ni `value-field` ne peut pas pivoter :\non ne sait pas quelle colonne porte la mesure. Le manque est nommé plutôt\nque silencieux (le tableau retombe sur le rendu à plat) — une grammaire\nfausse qui ne dit rien coûte plus cher qu'une erreur en console."
             },
             {
               "kind": "method",
@@ -284,6 +320,136 @@
             },
             {
               "kind": "method",
+              "name": "_labelColumnKey",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Nom de la colonne de libellé : `label-field` s'il est posé, sinon la\nPREMIÈRE colonne rendue. C'est la seule colonne où `empty-label`\ns'applique (#933)."
+            },
+            {
+              "kind": "field",
+              "name": "_seriesMode",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "Vrai quand le pivot du format long est demandé ET exploitable.",
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_pivotSeries",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{\n    headers: string[];\n    rows: unknown[][];\n  }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Pivote un jeu au format long en tableau croisé : une ligne par valeur de\n`label-field`, une colonne par valeur distincte de `series-field`, dans\nleur ordre d'apparition — l'ordre que `dsfr-data-chart` donne déjà aux\nséries (#930). Les valeurs de cellule restent brutes : c'est le rendu qui\nles formate, comme pour le tableau à plat."
+            },
+            {
+              "kind": "method",
+              "name": "_tableModel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{\n    headers: string[];\n    rows: unknown[][];\n    seriesCount: number;\n  }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Modèle du tableau rendu : en-têtes, lignes de valeurs brutes, et rang de\nla colonne de libellé (toujours la première). Un seul point de vérité\npour le tableau affiché et pour la description lue."
+            },
+            {
+              "kind": "method",
+              "name": "_isEmptyValue",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Valeur « vide » au sens d'`empty-label` : mêmes cas que dsfr-data-chart."
+            },
+            {
+              "kind": "method",
+              "name": "_headerText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Texte d'un en-tête ou d'une clé de regroupement : `empty-label` quand la\nvaleur est vide, sinon la valeur telle quelle."
+            },
+            {
+              "kind": "method",
+              "name": "_bodyCellText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "unknown"
+                  }
+                },
+                {
+                  "name": "isLabelColumn",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "Texte d'une cellule du corps du tableau. La colonne de libellé porte\n`empty-label` quand la valeur est vide (#933) ; les colonnes de valeur\nrestent au rendu historique — une mesure absente reste une cellule vide."
+            },
+            {
+              "kind": "method",
               "name": "formatCellValue",
               "return": {
                 "type": {
@@ -320,6 +486,13 @@
                   "name": "data",
                   "type": {
                     "text": "unknown"
+                  }
+                },
+                {
+                  "name": "model",
+                  "optional": true,
+                  "type": {
+                    "text": "{ rows: unknown[][]; seriesCount: number }"
                   }
                 }
               ]
@@ -397,6 +570,24 @@
               "default": "''",
               "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).",
               "fieldName": "valueField"
+            },
+            {
+              "name": "empty-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé substitué aux cellules VIDES (`null`, `undefined` ou `\"\"`) de la\ncolonne de libellé du tableau, et aux noms de série vides en mode\n`series-field` (#933). Même rôle que l'`empty-label` de\n`dsfr-data-chart` (#647) : sans lui, la barre du groupe non renseigné\nporte un nom sur l'axe alors que sa ligne dans le tableau équivalent a\nune cellule vide — le tableau dit autre chose que le graphique.\n\nColonne de libellé = `label-field` s'il est posé, sinon la PREMIÈRE\ncolonne rendue. Les colonnes de valeur ne sont jamais touchées : une\nmesure absente reste une cellule vide, on n'invente pas un libellé.\n\nAbsent (défaut), le rendu est inchangé : la cellule reste vide. La\nvaleur n'est PAS reprise du graphique visé par `for` — l'écrire sur les\ndeux balises est volontaire, pour qu'aucune page existante ne voie son\ntableau changer.\n\nLe CSV téléchargé porte le même libellé que le tableau affiché.",
+              "fieldName": "emptyLabel"
+            },
+            {
+              "name": "series-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champ « clé de série » d'un jeu au format long/tidy — typiquement\nl'`origin-field` d'un `dsfr-data-concat` (#807), ou le champ que\n`dsfr-data-chart series-field` consomme déjà côté graphique (#930).\n\nPosé, le tableau équivalent PIVOTE : une ligne par valeur de\n`label-field`, une colonne par valeur distincte de ce champ (dans leur\nordre d'apparition), au lieu d'une ligne par couple (libellé, série)\nsans colonne disant de quelle série la valeur provient. Le CSV\ntéléchargé suit la même structure.\n\nExige `label-field` ET `value-field` : sans eux on ne sait pas quelle\ncolonne porte la mesure. Le manque est signalé\n(`data-dsfr-config-error`) et le tableau retombe sur le rendu à plat,\njamais un pivot silencieusement faux. Seul le PREMIER champ de\n`value-field` est pivoté.\n\nUn couple (libellé, série) absent des données rend une cellule vide :\n`dsfr-data-chart` y trace 0, le tableau ne l'affirme pas.\n\nAbsent (défaut), le rendu est inchangé. La valeur n'est PAS reprise du\ngraphique visé par `for`.",
+              "fieldName": "seriesField"
             },
             {
               "name": "label",
@@ -3014,6 +3205,31 @@
             },
             {
               "kind": "method",
+              "name": "_warnStaleSiblings",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "changed",
+                  "type": {
+                    "text": "HTMLElement[]"
+                  }
+                },
+                {
+                  "name": "origin",
+                  "type": {
+                    "text": "'URL' | 'default'"
+                  }
+                }
+              ],
+              "description": "Cherche les filtres DÉJÀ liés aux contrôles que ce pré-remplissage vient\nde changer (#923) : ceux-là ont lu la valeur d'avant et ne la reliront\njamais. Le message vit dans `utils/context-url-conflicts.ts`, avec sa\ndéduplication.\n\nN'avertit que si le pré-remplissage a RÉELLEMENT changé la valeur du\ncontrôle : deux filtres qui lisent la même valeur ne se contredisent\npas, et un message de plus serait un message de trop."
+            },
+            {
+              "kind": "method",
               "name": "_prefillUi",
               "privacy": "private",
               "return": {
@@ -3726,7 +3942,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.",
+              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.\n\nDEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).\n1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le\n   MÊME paramètre : le dernier écrase les autres, et au rechargement ils\n   relisent tous la même valeur — un comparateur se compare alors à\n   lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour\n   séparer les paramètres.\n2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre\n   d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle\n   reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN\n   PREMIER dans le document.",
               "attribute": "url-sync"
             },
             {
@@ -4115,7 +4331,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.",
+              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.\n\nDEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).\n1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le\n   MÊME paramètre : le dernier écrase les autres, et au rechargement ils\n   relisent tous la même valeur — un comparateur se compare alors à\n   lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour\n   séparer les paramètres.\n2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre\n   d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle\n   reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN\n   PREMIER dans le document.",
               "fieldName": "urlSync"
             },
             {
@@ -4997,6 +5213,26 @@
             },
             {
               "kind": "field",
+              "name": "valueLabels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé des VALEURS d'une facette (#928) — `labels` nomme les CHAMPS,\ncelui-ci nomme ce qu'ils contiennent. Une facette posée sur un champ de\ncode affiche « Finistère » et continue de filtrer « 29 » : la valeur\ndiffusée au contexte, à l'URL et au `where` reste le CODE.\n\nDeux grammaires, distinguées par la première lettre :\n- champ compagnon, entrées séparées par `|` comme `labels` et `display` :\n  `value-labels=\"dep_code:dep_nom | code_fede_ref:federation\"`. Le\n  libellé est lu dans les MÊMES lignes que la valeur ; il doit donc\n  figurer dans les données reçues (au besoin, l'ajouter au `select`) ;\n- table figée en JSON, quand aucun champ compagnon n'existe :\n  `value-labels='{\"dep_code\":{\"29\":\"Finistère\",\"56\":\"Morbihan\"}}'`.\n  Une valeur absente de la table reste affichée telle quelle.\n\nLe tri `alpha` et la recherche portent alors sur le libellé. En\n`server-facets`, la réponse de l'API facettes ne porte que des valeurs :\nles libellés sont lus dans les lignes chargées par la source, donc\nconnus pour les valeurs présentes dans ces lignes ; une valeur de\nfacette absente de la page courante reste affichée par son code. Sur un\nchamp de code, poser une table figée lève ce doute.",
+              "attribute": "value-labels"
+            },
+            {
+              "kind": "field",
+              "name": "default",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur pré-sélectionnée par champ, même grammaire que `labels` :\n`default=\"region:Toutes régions | secteur:Tous secteurs\"` (#932).\n\nSans sélection, une facette n'émet aucun filtre — ce qui est juste quand\nl'absence de filtre veut dire « tout ». Ça ne l'est plus quand l'agrégat\nnational est une LIGNE du jeu (« Toutes régions ») à côté d'une ligne par\nrégion : le total porte alors sur le cumul, sans avertissement. Un champ\nnommé ici porte donc TOUJOURS une valeur.\n\nOrdre de résolution : une valeur lue dans l'URL (`url-params`, ou l'URL\ndu contexte en mode `context`) l'emporte ; le défaut ne s'applique qu'à\nun champ sans sélection. Conséquences sur un champ à défaut : la remise\nà zéro (bouton, tag retiré, dernière case décochée) revient au défaut et\nnon à l'absence de filtre, et les options « Tous » de `select` et\n`radio-inline` ne sont plus rendues — elles ne pourraient que revenir au\ndéfaut. Une valeur par défaut absente des données est rendue cochée et\n« (indisponible) », comme toute sélection orpheline (#310).",
+              "attribute": "default"
+            },
+            {
+              "kind": "field",
               "name": "maxValues",
               "type": {
                 "text": "number"
@@ -5524,6 +5760,25 @@
             },
             {
               "kind": "method",
+              "name": "_labelGroups",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FacetGroup[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "groups",
+                  "type": {
+                    "text": "FacetGroup[]"
+                  }
+                }
+              ],
+              "description": "Libellés de valeur posés sur des groupes déjà constitués (#928) : les\nsélections orphelines réinjectées et les valeurs statiques n'ont pas\ntraversé `_sortValues`. Sans `value-labels`, les groupes reçus sont\nrendus tels quels."
+            },
+            {
+              "kind": "method",
               "name": "_formatCount",
               "return": {
                 "type": {
@@ -5830,7 +6085,8 @@
                     "text": "string"
                   }
                 }
-              ]
+              ],
+              "description": "Les libellés de valeur sont posés AVANT le tri (#928) : `alpha` range ce\nque le lecteur voit, pas le code sous-jacent."
             },
             {
               "kind": "method",
@@ -6142,7 +6398,7 @@
                 {
                   "name": "attr",
                   "type": {
-                    "text": "'display' | 'labels'"
+                    "text": "'display' | 'labels' | 'value-labels'"
                   }
                 },
                 {
@@ -6173,7 +6429,7 @@
                 {
                   "name": "attr",
                   "type": {
-                    "text": "'display' | 'labels' | 'sort'"
+                    "text": "'display' | 'labels' | 'sort' | 'value-labels' | 'default'"
                   }
                 },
                 {
@@ -6193,6 +6449,248 @@
                   "text": "Map<string, string>"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_warnLabelsOnValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "parsed",
+                  "type": {
+                    "text": "Map<string, string>"
+                  }
+                }
+              ],
+              "description": "`labels` nomme des CHAMPS. Une entrée qui nomme une VALEUR\n(`labels=\"22:Côtes-d'Armor\"`) était lue comme un nom de champ et ignorée\nsans un mot — la page affichait toujours ses codes et avait l'air juste\n(#928). Signalé seulement quand `fields` est explicite : la liste des\nchamps est alors connue sans ambiguïté, et une entrée hors de cette\nliste ne peut pas servir."
+            },
+            {
+              "kind": "field",
+              "name": "_labelTables",
+              "privacy": "private",
+              "default": "new Map<string, ReadonlyMap<string, string>>()",
+              "description": "Tables de libellés mémorisées par champ (#928) — recalculées à chaque lot de lignes"
+            },
+            {
+              "kind": "field",
+              "name": "_labelTablesRaw",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur d'attribut dont `_labelTables` dépend : un changement la purge"
+            },
+            {
+              "kind": "method",
+              "name": "_parseValueLabels",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ReadonlyMap<string, ValueLabelSpec>"
+                }
+              },
+              "description": "Sources de libellé par champ (#928), ou la carte vide sans l'attribut"
+            },
+            {
+              "kind": "method",
+              "name": "_valueLabelTable",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ReadonlyMap<string, string>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Table `valeur -> libellé` d'un champ (#928), mémorisée par lot de lignes"
+            },
+            {
+              "kind": "method",
+              "name": "_labelValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FacetValue[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "values",
+                  "type": {
+                    "text": "FacetValue[]"
+                  }
+                },
+                {
+                  "name": "field",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Copie des valeurs portant leur libellé (#928) — sans l'attribut, le tableau reçu"
+            },
+            {
+              "kind": "method",
+              "name": "_valueText",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Texte affiché d'une valeur d'un champ (#928) : libellé s'il existe, valeur sinon"
+            },
+            {
+              "kind": "method",
+              "name": "_valueForText",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "text",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Retraduit un texte affiché en valeur filtrée (#928) ; inchangé s'il n'est pas un libellé"
+            },
+            {
+              "kind": "method",
+              "name": "_matchesQuery",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "fv",
+                  "type": {
+                    "text": "FacetValue"
+                  }
+                },
+                {
+                  "name": "query",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Une valeur ou son libellé contient-elle la recherche en cours ? (#928)"
+            },
+            {
+              "kind": "method",
+              "name": "_parseDefaults",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Map<string, string>"
+                }
+              },
+              "description": "Valeurs par défaut par champ (#932), même grammaire que `labels`"
+            },
+            {
+              "kind": "method",
+              "name": "_hasDefaults",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Une valeur par défaut est-elle demandée ? (#932)"
+            },
+            {
+              "kind": "method",
+              "name": "_applyDefaultSelections",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Pré-sélectionne les valeurs par défaut des champs qui n'ont aucune\nsélection (#932). Rend `true` si l'état a changé — l'appelant décide\nalors s'il faut rediffuser. Un champ déjà servi par l'URL est laissé\ntel quel : `url-sync` l'emporte."
+            },
+            {
+              "kind": "method",
+              "name": "_restoreDefault",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "selections",
+                  "type": {
+                    "text": "Record<string, Set<string>>"
+                  }
+                }
+              ],
+              "description": "Remet le défaut d'un champ dans un jeu de sélections en cours de calcul\n(#932) : un champ à défaut n'est jamais vide, sinon le total afficherait\nde nouveau le cumul que le défaut sert justement à éviter."
+            },
+            {
+              "kind": "method",
+              "name": "_hasDefaultFor",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Le champ porte-t-il une valeur par défaut ? (#932)"
             },
             {
               "kind": "method",
@@ -6702,6 +7200,24 @@
               "default": "''",
               "description": "Labels custom : \"field:Label | field2:Label 2\"",
               "fieldName": "labels"
+            },
+            {
+              "name": "value-labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé des VALEURS d'une facette (#928) — `labels` nomme les CHAMPS,\ncelui-ci nomme ce qu'ils contiennent. Une facette posée sur un champ de\ncode affiche « Finistère » et continue de filtrer « 29 » : la valeur\ndiffusée au contexte, à l'URL et au `where` reste le CODE.\n\nDeux grammaires, distinguées par la première lettre :\n- champ compagnon, entrées séparées par `|` comme `labels` et `display` :\n  `value-labels=\"dep_code:dep_nom | code_fede_ref:federation\"`. Le\n  libellé est lu dans les MÊMES lignes que la valeur ; il doit donc\n  figurer dans les données reçues (au besoin, l'ajouter au `select`) ;\n- table figée en JSON, quand aucun champ compagnon n'existe :\n  `value-labels='{\"dep_code\":{\"29\":\"Finistère\",\"56\":\"Morbihan\"}}'`.\n  Une valeur absente de la table reste affichée telle quelle.\n\nLe tri `alpha` et la recherche portent alors sur le libellé. En\n`server-facets`, la réponse de l'API facettes ne porte que des valeurs :\nles libellés sont lus dans les lignes chargées par la source, donc\nconnus pour les valeurs présentes dans ces lignes ; une valeur de\nfacette absente de la page courante reste affichée par son code. Sur un\nchamp de code, poser une table figée lève ce doute.",
+              "fieldName": "valueLabels"
+            },
+            {
+              "name": "default",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur pré-sélectionnée par champ, même grammaire que `labels` :\n`default=\"region:Toutes régions | secteur:Tous secteurs\"` (#932).\n\nSans sélection, une facette n'émet aucun filtre — ce qui est juste quand\nl'absence de filtre veut dire « tout ». Ça ne l'est plus quand l'agrégat\nnational est une LIGNE du jeu (« Toutes régions ») à côté d'une ligne par\nrégion : le total porte alors sur le cumul, sans avertissement. Un champ\nnommé ici porte donc TOUJOURS une valeur.\n\nOrdre de résolution : une valeur lue dans l'URL (`url-params`, ou l'URL\ndu contexte en mode `context`) l'emporte ; le défaut ne s'applique qu'à\nun champ sans sélection. Conséquences sur un champ à défaut : la remise\nà zéro (bouton, tag retiré, dernière case décochée) revient au défaut et\nnon à l'absence de filtre, et les options « Tous » de `select` et\n`radio-inline` ne sont plus rendues — elles ne pourraient que revenir au\ndéfaut. Une valeur par défaut absente des données est rendue cochée et\n« (indisponible) », comme toute sélection orpheline (#310).",
+              "fieldName": "default"
             },
             {
               "name": "max-values",

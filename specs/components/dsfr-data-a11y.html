@@ -56,7 +56,7 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-a11y fields="source,for,table,download,filename,description,label-field,value-field,label,decimals,no-auto-aria,idle-message" -->
+              <!-- ATTRS:dsfr-data-a11y fields="source,for,table,download,filename,description,label-field,value-field,empty-label,series-field,label,decimals,no-auto-aria,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce complément accessible consomme les données.</td></tr>
                 <tr><td><code>for</code></td><td>String</td><td>Id de l'élément cible (graphique, carte) pour la liaison ARIA et le lien d'évitement.</td></tr>
                 <tr><td><code>table</code></td><td>Boolean</td><td>Affiche le tableau de données équivalent au graphique.</td></tr>
@@ -65,6 +65,8 @@
                 <tr><td><code>description</code></td><td>String</td><td>Description textuelle du graphique, lue par les lecteurs d'écran.</td></tr>
                 <tr><td><code>label-field</code></td><td>String</td><td>Colonne utilisée pour les labels du tableau.</td></tr>
                 <tr><td><code>value-field</code></td><td>String</td><td>Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).</td></tr>
+                <tr><td><code>empty-label</code></td><td>String</td><td>Libellé substitué aux cellules VIDES (<code>null</code>, <code>undefined</code> ou <code>""</code>) de la colonne de libellé du tableau, et aux noms de série vides en mode <code>series-field</code> (#933). Même rôle que l'<code>empty-label</code> de <code>dsfr-data-chart</code> (#647) : sans lui, la barre du groupe non renseigné porte un nom sur l'axe alors que sa ligne dans le tableau équivalent a une cellule vide — le tableau dit autre chose que le graphique. Colonne de libellé = <code>label-field</code> s'il est posé, sinon la PREMIÈRE colonne rendue. Les colonnes de valeur ne sont jamais touchées : une mesure absente reste une cellule vide, on n'invente pas un libellé. Absent (défaut), le rendu est inchangé : la cellule reste vide. La valeur n'est PAS reprise du graphique visé par <code>for</code> — l'écrire sur les deux balises est volontaire, pour qu'aucune page existante ne voie son tableau changer. Le CSV téléchargé porte le même libellé que le tableau affiché.</td></tr>
+                <tr><td><code>series-field</code></td><td>String</td><td>Champ « clé de série » d'un jeu au format long/tidy — typiquement l'<code>origin-field</code> d'un <code>dsfr-data-concat</code> (#807), ou le champ que <code>dsfr-data-chart series-field</code> consomme déjà côté graphique (#930). Posé, le tableau équivalent PIVOTE : une ligne par valeur de <code>label-field</code>, une colonne par valeur distincte de ce champ (dans leur ordre d'apparition), au lieu d'une ligne par couple (libellé, série) sans colonne disant de quelle série la valeur provient. Le CSV téléchargé suit la même structure. Exige <code>label-field</code> ET <code>value-field</code> : sans eux on ne sait pas quelle colonne porte la mesure. Le manque est signalé (<code>data-dsfr-config-error</code>) et le tableau retombe sur le rendu à plat, jamais un pivot silencieusement faux. Seul le PREMIER champ de <code>value-field</code> est pivoté. Un couple (libellé, série) absent des données rend une cellule vide : <code>dsfr-data-chart</code> y trace 0, le tableau ne l'affirme pas. Absent (défaut), le rendu est inchangé. La valeur n'est PAS reprise du graphique visé par <code>for</code>.</td></tr>
                 <tr><td><code>label</code></td><td>String</td><td>Libellé personnalisé de la section accessible.</td></tr>
                 <tr><td><code>decimals</code></td><td>Number</td><td>Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.</td></tr>
                 <tr><td><code>no-auto-aria</code></td><td>Boolean</td><td>Desactive la pose automatique des attributs ARIA et du lien d'évitement.</td></tr>
@@ -83,6 +85,32 @@
           disponible » : rien n'a été chargé, rien n'a échoué, et c'est cette nuance qu'un lecteur d'écran
           doit entendre. Le tableau et le bouton de téléchargement restent masqués tant que la source attend.
           Le mécanisme est décrit sur <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
+
+        <h3 class="fr-mt-3w">Le groupe non renseigné</h3>
+        <p>
+          Quand <code>&lt;dsfr-data-chart&gt;</code> porte <code>empty-label</code>, la barre du groupe
+          vide (<code>null</code>, <code>undefined</code> ou chaîne vide) est nommée sur l'axe et dans la
+          légende. Poser le même <code>empty-label</code> ici nomme la ligne correspondante du tableau
+          équivalent, qui sinon a une cellule de libellé vide : le tableau dirait autre chose que le
+          graphique qu'il double. Seule la colonne de libellé est concernée — <code>label-field</code> s'il
+          est posé, sinon la première colonne rendue ; une mesure absente reste une cellule vide. Le CSV
+          téléchargé porte le même libellé. Sans cet attribut, le rendu est celui d'avant : la valeur
+          n'est pas reprise du graphique visé par <code>for</code>.
+        </p>
+
+        <h3 class="fr-mt-3w">Un graphique multi-séries</h3>
+        <p>
+          Un jeu au format long — celui que produit <a href="dsfr-data-concat.html">dsfr-data-concat</a>
+          avec <code>origin-field</code>, et que <code>&lt;dsfr-data-chart series-field&gt;</code> consomme
+          déjà — a une ligne par couple (libellé, série). Rendu tel quel, le tableau équivalent répète
+          chaque libellé sans jamais dire de quelle série vient la valeur. Poser ici le même
+          <code>series-field</code> pivote le tableau : une ligne par libellé, une colonne par série, la
+          cellule de libellé en <code>&lt;th scope="row"&gt;</code> pour que chaque valeur garde ses deux
+          coordonnées. Le CSV suit la même structure. L'attribut exige <code>label-field</code> et
+          <code>value-field</code> : sans eux, le manque est signalé en console et le tableau reste à plat
+          plutôt que pivoté de travers. Un couple absent des données laisse une cellule vide — le
+          graphique y trace 0, le tableau ne l'affirme pas.
         </p>
 
         <h2 class="fr-mt-4w">Fonctionnement ARIA</h2>
