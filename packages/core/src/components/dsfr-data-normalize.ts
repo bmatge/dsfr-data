@@ -225,7 +225,13 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   une cellule vide n'égale jamais un nombre (`montant = 0` ne classe pas les
    *   montants non renseignés en zéro). Les comparaisons d'ordre se font en nombre
    *   quand les deux côtés sont numériques, en texte sinon (dates ISO comprises) ;
-   *   null, undefined et '' ne matchent jamais.
+   *   null, undefined et '' ne matchent jamais. CHAMP TABLEAU (#842) : `=` compare
+   *   la valeur telle quelle — `when tags = 'urgent'` est faux pour
+   *   `['urgent','social']` (et vrai pour `['urgent']`, par repli sur `String` :
+   *   le résultat dépend de la donnée). Pour parcourir le tableau, c'est
+   *   `contains(tags, 'urgent')`, et c'est aussi la façon de filtrer ensuite un
+   *   champ tableau avec `where` : calculer ici un booléen, puis
+   *   `where="a_urgent:eq:1"` en aval.
    * - arithmétique `- * /` et moins unaire : un opérande absent ou non numérique rend
    *   null (jamais un 0 plausible), une division par zéro rend null (jamais Infinity).
    *

@@ -75,6 +75,12 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
    * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
    * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
+   * C'est la SEULE grammaire du dépôt qui parcourt un tableau (#673) : le
+   * `where` ci-dessous et le filtre entre accolades `count{tags:eq:urgent}`
+   * comparent la valeur telle quelle et ne le font PAS (#842). Sur un même
+   * jeu d'étiquettes, `value="count:tags:urgent"` et
+   * `value="count{tags:eq:urgent}"` rendent donc deux chiffres différents,
+   * et c'est voulu.
    * Seul `count` accepte une valeur de filtre : `sum:champ:valeur` est une
    * erreur de configuration (#764).
    * Filtre propre à une expression (#776), dialecte du `where` entre
@@ -110,6 +116,12 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * porte sur les lignes reçues (derrière un `limit` ou une page, poser le
    * `where` sur la source ou une query amont). `meta:total` n'en tient pas
    * compte. Une clause non reconnue est une erreur de configuration.
+   * CHAMP TABLEAU (#842) : l'égalité porte sur la valeur du champ telle
+   * quelle. `where="tags:eq:urgent"` ne retient pas une ligne dont `tags`
+   * vaut `['urgent','social']` — contrairement à `value="count:tags:urgent"`,
+   * qui la compte. Dériver un booléen en amont (`dsfr-data-normalize`
+   * `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"`), puis
+   * `where="a_urgent:eq:1"`.
    */
   @property({ type: String })
   where = '';
