@@ -95,6 +95,64 @@ body {
   margin: 0;
 }
 
+/* Les trois axes croises + le select des exemples. Les axes restent etroits,
+   le select des exemples prend la place restante ; en dessous de 900 px la
+   grille repasse sur deux colonnes puis une seule. */
+.example-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+  gap: 0.5rem 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.example-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.example-filter .fr-label {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+.example-filter #compteur-exemples {
+  margin: 0 0 0 0.25rem;
+  display: inline;
+}
+
+/* Dans la grille, chaque select occupe sa cellule (la regle flex plus bas
+   vise l'ancien agencement en ligne et n'a pas d'effet ici). */
+.example-filter .fr-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Une valeur d'axe desactivee ne mene a aucun exemple : elle reste lisible
+   mais se distingue nettement (elle dit ce que le catalogue ne couvre pas). */
+.example-filter option:disabled {
+  color: var(--text-disabled-grey);
+}
+
+@media (max-width: 900px) {
+  .example-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .example-filter--large {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .example-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Le sélecteur d'exemple prend la place disponible sans jamais déborder
    (lot UX 8 : 495 px de large à 375 px avant). */
 .example-selector .fr-select {
