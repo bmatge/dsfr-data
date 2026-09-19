@@ -773,7 +773,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_applyColorMap` ne repeint plus la légende (`dsfr-data-chart.ts`) | `graphique-color-map-pastilles-databox` | aucune pastille ne porte de couleur déclarée — #813 |
 | affichages | `attrs['x-min']` (ou `horizontal`) n'est plus relayé | `graphique-bornes-des-axes`, `graphique-barres-horizontales-empilees` | l'attribut manque sur l'élément rendu |
 | affichages | `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` (le non pondéré reste vert) | résumé 41,02 au lieu de 43,07 — exactement #763 |
-| affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/dsfr-palettes.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
+| affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/choropleth-scales.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
 | affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |
 | affichages | `parseManualBreaks` perd la première borne | `carte-bornes-manuelles` | 3 entrées de légende, 4 classes recalculées |
 | affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |

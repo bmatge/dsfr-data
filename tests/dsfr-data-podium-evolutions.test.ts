@@ -448,7 +448,7 @@ describe('dsfr-data-podium — evolutions d’affichage', () => {
    * Les chiffres de contraste de la pastille sont ecrits a quatre endroits
    * (corps de PR, changeset, JSDoc de `rank`, spec vivante). Ils ont deja ete
    * faux trois fois : la planche de design cite une rampe qui n'est pas celle
-   * du composant, et `dsfr-palettes.ts` expose DEUX rampes homonymes —
+   * du composant, et le depot expose DEUX rampes homonymes —
    * `PALETTE_COLORS.sequentialDescending` (5 tons, celle de dsfr-charts) et
    * `CHOROPLETH_SCALES.sequentialDescending` (9 tons). Le podium importe la
    * SECONDE. Lire la premiere donne un tableau plausible et faux.

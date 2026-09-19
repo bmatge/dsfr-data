@@ -250,7 +250,7 @@ lookups déjà présents dans `continent-lookup.ts`).
   `scripts/build-lib.ts:88-100` (bundle world-map).
 - Composant `dsfr-data-world-map.ts` + assets `data/country-names.ts`,
   `data/continent-lookup.ts`, `world-countries-110m.json`.
-  ⚠️ **Ne pas** retirer `CHOROPLETH_SCALES` (`shared/.../dsfr-palettes.ts`) : **partagé**
+  ⚠️ **Ne pas** retirer `CHOROPLETH_SCALES` (`shared/constants/choropleth-scales.ts`) : **partagé**
   avec `dsfr-data-map-layer`.
 
 **Apps / doc / tests :**

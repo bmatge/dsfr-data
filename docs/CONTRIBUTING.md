@@ -123,7 +123,8 @@ tests/
   source-subscriber.test.ts    Mixin SourceSubscriber
   shared/                      Tests @dsfr-data/shared
     dept-codes.test.ts
-    dsfr-palettes.test.ts
+    palette-colors.test.ts
+    choropleth-scales.test.ts
     escape-html.test.ts
     formatters.test.ts
     local-storage.test.ts
