@@ -77,6 +77,28 @@ describe('dsfr-data-repeat', () => {
     expect(customElements.get(REPEAT_TAG)).toBe(DsfrDataRepeat);
   });
 
+  it('noms réservés (#888 § 4) : aucun attribut des lots 2-3 ne fait partie du lot 1', () => {
+    const observed = (DsfrDataRepeat as unknown as { observedAttributes: string[] })
+      .observedAttributes;
+    expect(observed.sort()).toEqual(['empty', 'key-field', 'per-row', 'source']);
+    for (const reserved of [
+      'lazy',
+      'lazy-margin',
+      'scopes',
+      'if',
+      'unless',
+      'else',
+      'when',
+      'each',
+      'key',
+      'template',
+      'depth',
+    ]) {
+      expect(observed, `${reserved} est réservé`).not.toContain(reserved);
+    }
+    expect(observed.some((a) => a.startsWith('if-') || a.startsWith('unless-'))).toBe(false);
+  });
+
   it('(a)(b)(c) de #877 : une instance par ligne, une query scope, type="{{champ}}"', async () => {
     dispatchDataLoaded('rep-scores', SCORES);
     dispatchDataLoaded('rep-questions', QUESTIONS);
@@ -314,6 +336,27 @@ describe('dsfr-data-repeat', () => {
       );
       expect(rep.getAttribute('data-dsfr-config-error')).toContain('code, libelle');
       expect([...rep.querySelectorAll('p')].map((p) => p.textContent)).toEqual(['0', '1', '2']);
+    });
+
+    it('key-field nul ou vide sur UNE ligne : repli sur le rang pour elle, sans erreur', async () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      dispatchDataLoaded('rep-questions', [
+        QUESTIONS[0],
+        { ...QUESTIONS[1], code: null },
+        { ...QUESTIONS[2], code: '' },
+      ]);
+      const rep = await mount(`
+        <${REPEAT_TAG} source="rep-questions" key-field="code">
+          <template><p data-k="{{$key}}">{{libelle}}</p></template>
+        </${REPEAT_TAG}>`);
+      await tick();
+      expect(rep.hasAttribute('data-dsfr-config-error')).toBe(false);
+      expect(error).not.toHaveBeenCalled();
+      expect([...rep.querySelectorAll('p')].map((p) => p.getAttribute('data-k'))).toEqual([
+        '001',
+        '1',
+        '2',
+      ]);
     });
 
     it('source manquante : erreur au montage', async () => {
