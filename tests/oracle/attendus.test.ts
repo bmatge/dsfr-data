@@ -41,9 +41,20 @@ interface EntreePython {
 
 interface Entete {
   source: string;
-  python: string;
+  conventions: Record<string, unknown>;
   couverture: { total: number; couverts: number; nonCouverts: Record<string, number> };
 }
+
+/**
+ * Les seules clés de l'en-tête. Le fichier est GARDÉ par
+ * `git diff --exit-code` dans `verif-donnees.yml` : y laisser une métadonnée
+ * d'environnement (la version de l'interpréteur, un horodatage, un chemin
+ * absolu) rend le garde-fou rouge dès que le runner diffère de la machine de
+ * l'auteur — ce qui était le cas de `python` (3.11.5 contre 3.12.3), alors que
+ * toutes les valeurs étaient égales. La provenance vit à côté, dans
+ * `tools/oracle/out/attendus-provenance.json`, hors zone gardée.
+ */
+const CLES_ENTETE = ['conventions', 'couverture', 'source'];
 
 function lireAttendus(): { entete: Entete; entrees: EntreePython[] } {
   const brut = JSON.parse(readFileSync(CHEMIN, 'utf-8')) as [Entete, ...EntreePython[]];
@@ -85,6 +96,11 @@ describe('vérification des données — la rencontre TS ↔ Python', () => {
     expect(existsSync(CHEMIN), `${CHEMIN} absent : lancer npm run verif:attendus`).toBe(true);
     const { entete, entrees } = lireAttendus();
     expect(entete.source).toBe('python-stdlib');
+    // La zone gardée ne compare que des chiffres : aucune métadonnée d'environnement.
+    expect(
+      Object.keys(entete).sort(),
+      'en-tête d’attendus.json : une clé d’environnement rendrait le garde-fou instable'
+    ).toEqual(CLES_ENTETE);
     // Les genres non numériques ne comptent pas dans la base : urls, diagnostic,
     // class, dots, csv ne sont pas des chiffres recalculés.
     const numeriques = entrees.filter(

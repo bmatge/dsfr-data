@@ -337,9 +337,13 @@ la page. Le scope de chaque instance est une `dsfr-data-query` par ligne dont l'
   (≈ 640 ms pour 119) ; pas de `facets` ni `search` sur un id scope (pas d'adaptateur
   derriere) ; un attribut booleen (`horizontal`) ne se conditionne pas — deux elements sous
   `{{#if}}` / `{{#unless}}`. Detail dans la reference `dsfr-data-display`.
-- Corrige en 0.30.1 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
+- Corrige en 0.31.0 : l'ancienne instance ne purge plus le cache de l'id que la nouvelle
   reutilise (#893), et le gabarit est recapture quand le bundle est charge dans le `<head>`
   (#894).
+- **Quand la ligne est un pipeline** (identite des instances entre deux emissions, imbrication,
+  attribut booleen conditionnel, aucun compteur ni region), c'est `dsfr-data-repeat` :
+  meme gabarit, meme grammaire, rendu par clonage DOM — reference `dsfr-data-repeat`.
+  Regle : `display` quand la ligne est du contenu, `repeat` quand la ligne est un pipeline.
 
 ### Regle generale
 

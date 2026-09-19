@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — dsfr-data-repeat : 119 lignes × (query + graphique), mesure de référence (#890)</title>
+  <!--
+    Conditions du guide (#877) : sources inline, sans CSS, DSFR Chart réel depuis node_modules.
+    ?mode=repeat (défaut) | display — le second sert de référence (innerHTML, recréation totale).
+    Le spec lit window.__perf : firstRenderMs (119e canvas), puis __perfReemit() pour la
+    ré-émission de la source répétée.
+  -->
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main id="scene"><h1>119 graphiques</h1></main>
+  <template id="gabarit">
+    <h2>{{libelle}}</h2>
+    <dsfr-data-query id="q-{{code}}" source="scores" where="code:eq:{{code}}"
+      group-by="annee" aggregate="score:sum" order-by="annee:asc"></dsfr-data-query>
+    <dsfr-data-chart id="c-{{code}}" source="q-{{code}}" type="{{pres}}"
+      label-field="annee" value-field="score__sum" name="{{libelle}}"></dsfr-data-chart>
+  </template>
+  <script type="module">
+    const N = 119;
+    const mode = new URLSearchParams(location.search).get('mode') ?? 'repeat';
+    const questions = Array.from({ length: N }, (_, i) => ({
+      code: String(i + 1).padStart(3, '0'),
+      libelle: `Question ${i + 1}`,
+      pres: i % 2 === 0 ? 'bar' : 'line',
+    }));
+    const scores = questions.flatMap((q) =>
+      ['2022', '2023', '2024'].map((annee, k) => ({ code: q.code, annee, score: 10 + ((q.code.charCodeAt(2) + k * 7) % 50) }))
+    );
+    const canvasCount = () => document.querySelectorAll('canvas').length;
+    const perf = { mode, firstRenderMs: null, t0: 0, phase: 'initial', reemit: null };
+    window.__perf = perf;
+    document.addEventListener('dsfr-data-loaded', (e) => {
+      if (e.detail?.sourceId === 'questions' && !perf.t0) perf.t0 = performance.now();
+    });
+    let sawDrop = false;
+    new MutationObserver(() => {
+      const c = canvasCount();
+      if (perf.phase === 'initial' && perf.firstRenderMs === null && c >= N) perf.firstRenderMs = performance.now() - perf.t0;
+      if (perf.phase === 'reemit' && perf.reemit && perf.reemit.ms === null) {
+        if (c < N) sawDrop = true;
+        if (sawDrop && c >= N) perf.reemit.ms = performance.now() - perf.reemit.t0;
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+
+    const tpl = document.getElementById('gabarit').innerHTML;
+    const tag = mode === 'display' ? 'dsfr-data-display' : 'dsfr-data-repeat';
+    document.getElementById('scene').insertAdjacentHTML(
+      'beforeend',
+      `<dsfr-data-source id="scores" data='${JSON.stringify(scores)}'></dsfr-data-source>` +
+        `<dsfr-data-source id="questions" data='${JSON.stringify(questions)}'></dsfr-data-source>` +
+        `<${tag} id="rep" source="questions" key-field="code"><template>${tpl}</template></${tag}>`
+    );
+
+    window.__perfReemit = () => {
+      const queries = [...document.querySelectorAll('dsfr-data-query')];
+      queries.forEach((q, i) => (q.__tag = i));
+      perf.phase = 'reemit';
+      sawDrop = false;
+      perf.reemit = { t0: performance.now(), ms: null };
+      if (mode === 'repeat') {
+        // Aucun canvas ne tombe : on mesure jusqu'au cadre suivant le rendu.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (perf.reemit.ms === null) perf.reemit.ms = performance.now() - perf.reemit.t0;
+        }));
+      }
+      document.getElementById('questions').setAttribute('data', JSON.stringify(questions.map((q) => ({ ...q, libelle: `${q.libelle} (v2)` }))));
+      return new Promise((resolve) => {
+        const tick = () => {
+          if (perf.reemit.ms !== null) {
+            const after = [...document.querySelectorAll('dsfr-data-query')];
+            resolve({
+              ms: perf.reemit.ms,
+              identity: after.length === queries.length && after.every((q, i) => q.__tag === i),
+              canvases: canvasCount(),
+              libelle: document.querySelector('#rep h2')?.textContent.trim(),
+            });
+          } else setTimeout(tick, 5);
+        };
+        tick();
+      });
+    };
+  </script>
+</body>
+</html>

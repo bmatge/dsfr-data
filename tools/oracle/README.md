@@ -105,6 +105,19 @@ silencieusement recalculé — c'est ce que le régime déterministe permet, et
 ce que le régime vivant interdit (ADR-122, amendée par le lot 8). Le job
 `attendus` de `verif-donnees.yml` le régénère et refuse un diff non committé.
 
+**Le fichier gardé ne porte que des chiffres.** Son en-tête se limite à
+`source`, `conventions` et `couverture` : aucune métadonnée d'environnement.
+La version exacte de l'interpréteur est écrite — mais dans
+`tools/oracle/out/attendus-provenance.json`, ignoré par git, affiché par le
+job juste avant le `git diff`. Tant qu'elle vivait dans l'en-tête, le garde-fou
+comparait l'environnement en même temps que les valeurs et rougissait sur la
+seule ligne d'en-tête dès que le runner n'avait pas le Python de l'auteur
+(3.12.3 contre 3.11.5, **toutes les valeurs égales**) ; le workflow épingle
+désormais `python-version: '3.11'`, et `oracle.py` refuse un interpréteur
+antérieur plutôt que de recalculer sous d'autres conventions. Un test de
+conformité qui devient instable est un test qu'on abandonne : la zone gardée
+est tenue à ce qu'elle doit détecter, la dérive des valeurs.
+
 Trois rencontres :
 
 | Où | Quoi |
@@ -290,7 +303,9 @@ tools/oracle/            LE MOTEUR
 
 tools/oracle-py/         LA TROISIÈME VOIX (Python standard, aucune dépendance)
   oracle.py                lit out/manifests.json et jeux/*.json, recalcule en Fraction,
-                             écrit tests/verif-donnees/attendus.json (versionné)
+                             écrit tests/verif-donnees/attendus.json (versionné) et
+                             out/attendus-provenance.json (la version de l'interpréteur,
+                             HORS de la zone gardée par `git diff --exit-code`)
 
 tests/verif-donnees/attendus.json   LES ATTENDUS FIGÉS de la troisième voix — une entrée par
                              observation, committés, régénérés par `npm run verif:attendus`
