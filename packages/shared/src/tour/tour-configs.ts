@@ -121,17 +121,25 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
 export const PLAYGROUND_TOUR: TourConfig = {
   id: 'playground',
   label: 'Playground',
-  version: 1,
+  // Version relevee : la premiere etape a change de cible et de propos, une
+  // visite deja vue merite d'etre reproposee.
+  version: 2,
   steps: [
     {
-      selector: '#example-select',
-      title: 'Charger un exemple',
+      // La bascule, et non le select : depuis le volet lateral, les quatre
+      // champs vivent dans un panneau ferme et `inert` au chargement. Une
+      // etape qui vise un element hors ecran ne montre rien.
+      selector: '#volet-btn',
+      title: 'Parcourir les exemples',
       description:
-        "Plus de 30 exemples prets a l'emploi : graphiques, tableaux, cartes, facettes... Choisissez-en un pour demarrer.",
+        "Le volet des exemples se croise sur trois axes : la SOURCE des donnees (Opendatasoft, data.gouv, Grist, INSEE...), le PIPELINE qui les transforme (requete, jointure, pivot, facettes...) et la SORTIE affichee (graphique, carte, tableau, indicateur...). Le compteur du bouton dit combien d'exemples repondent aux filtres poses.",
       position: 'bottom',
     },
     {
-      selector: '#code-editor',
+      // `.CodeMirror`, et non `#code-editor` : CodeMirror masque le textarea
+      // d'origine pour rendre le sien a cote. L'etape visait donc un element
+      // de taille nulle, et n'encadrait rien.
+      selector: '.CodeMirror',
       title: 'Editeur de code',
       description:
         "Modifiez le HTML/JS directement. Tous les composants dsfr-data sont disponibles. L'editeur propose la coloration syntaxique.",
