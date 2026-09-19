@@ -348,15 +348,25 @@ export function pagePour(chart: ChartConfig, variante: Variante): string {
 }
 
 /**
- * Document a DEUX blocs sur LA MEME source : une liste paginee et un KPI qui
- * somme la population.
+ * Document a TROIS blocs sur LA MEME source : une liste paginee, un graphique
+ * NON agrege, et un KPI qui somme la population.
  *
  * C'est la forme la plus frequente d'un tableau de bord, et celle qu'ADR-109
  * exclut explicitement de la pagination serveur : une source n'est emise
  * qu'une fois, `server-side` sur la balise partagee ne ferait plus parvenir
- * qu'une page au KPI, dont le total deviendrait FAUX sans une erreur. Le
- * document reste donc en chargement complet — c'est aussi le seul cas ou
- * `fetch-mode="export"` (#689, ADR-106) a un sens.
+ * qu'une page au graphique d'a cote, dont les lignes deviendraient FAUSSES
+ * sans une erreur. Le document reste donc en chargement complet — c'est aussi
+ * le seul cas ou `fetch-mode="export"` (#689, ADR-106) a un sens.
+ *
+ * POURQUOI LE GRAPHIQUE NON AGREGE (#866). Le document n'avait que la liste et
+ * le KPI, et sur Opendatasoft il ne partageait plus rien : depuis #810, un KPI
+ * ODS recoit TOUJOURS sa source dediee a agregat serveur (`dedicatedSourcePlan`
+ * regle 1), la liste restait seule lectrice de la source de base, et l'export
+ * y posait legitimement `server-side`. Trois cas de la recette tombaient en
+ * decrivant cela comme une regression, alors que la source n'etait simplement
+ * plus partagee. Le graphique non agrege (ni `aggregation`, ni `group-by`)
+ * n'est eligible a aucune dedicace : il tient le partage sur les trois
+ * variantes, et c'est lui qui rend la regle d'ADR-109 verifiable.
  *
  * Le KPI agrege via sa propre grammaire `value="champ:fn"` et n'a ni filtre ni
  * tri : l'export ne lui interpose donc AUCUN `dsfr-data-query`, et rien ne
@@ -371,14 +381,24 @@ export function documentPartage(variante: Variante): DashboardData {
       ...liste.widgets,
       blocDe(
         {
+          type: 'bar',
+          labelField: 'region',
+          valueField: 'population',
+          title: 'Population par territoire',
+        },
+        'w2',
+        1
+      ),
+      blocDe(
+        {
           type: 'kpi',
           valueField: 'population',
           aggregation: 'sum',
           unit: 'hab.',
           title: 'Population totale',
         },
-        'w2',
-        1
+        'w3',
+        2
       ),
     ],
   };
