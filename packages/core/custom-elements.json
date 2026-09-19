@@ -4978,6 +4978,26 @@
             },
             {
               "kind": "field",
+              "name": "valueLabels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé des VALEURS d'une facette (#928) — `labels` nomme les CHAMPS,\ncelui-ci nomme ce qu'ils contiennent. Une facette posée sur un champ de\ncode affiche « Finistère » et continue de filtrer « 29 » : la valeur\ndiffusée au contexte, à l'URL et au `where` reste le CODE.\n\nDeux grammaires, distinguées par la première lettre :\n- champ compagnon, entrées séparées par `|` comme `labels` et `display` :\n  `value-labels=\"dep_code:dep_nom | code_fede_ref:federation\"`. Le\n  libellé est lu dans les MÊMES lignes que la valeur ; il doit donc\n  figurer dans les données reçues (au besoin, l'ajouter au `select`) ;\n- table figée en JSON, quand aucun champ compagnon n'existe :\n  `value-labels='{\"dep_code\":{\"29\":\"Finistère\",\"56\":\"Morbihan\"}}'`.\n  Une valeur absente de la table reste affichée telle quelle.\n\nLe tri `alpha` et la recherche portent alors sur le libellé. En\n`server-facets`, la réponse de l'API facettes ne porte que des valeurs :\nles libellés sont lus dans les lignes chargées par la source, donc\nconnus pour les valeurs présentes dans ces lignes ; une valeur de\nfacette absente de la page courante reste affichée par son code. Sur un\nchamp de code, poser une table figée lève ce doute.",
+              "attribute": "value-labels"
+            },
+            {
+              "kind": "field",
+              "name": "default",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur pré-sélectionnée par champ, même grammaire que `labels` :\n`default=\"region:Toutes régions | secteur:Tous secteurs\"` (#932).\n\nSans sélection, une facette n'émet aucun filtre — ce qui est juste quand\nl'absence de filtre veut dire « tout ». Ça ne l'est plus quand l'agrégat\nnational est une LIGNE du jeu (« Toutes régions ») à côté d'une ligne par\nrégion : le total porte alors sur le cumul, sans avertissement. Un champ\nnommé ici porte donc TOUJOURS une valeur.\n\nOrdre de résolution : une valeur lue dans l'URL (`url-params`, ou l'URL\ndu contexte en mode `context`) l'emporte ; le défaut ne s'applique qu'à\nun champ sans sélection. Conséquences sur un champ à défaut : la remise\nà zéro (bouton, tag retiré, dernière case décochée) revient au défaut et\nnon à l'absence de filtre, et les options « Tous » de `select` et\n`radio-inline` ne sont plus rendues — elles ne pourraient que revenir au\ndéfaut. Une valeur par défaut absente des données est rendue cochée et\n« (indisponible) », comme toute sélection orpheline (#310).",
+              "attribute": "default"
+            },
+            {
+              "kind": "field",
               "name": "maxValues",
               "type": {
                 "text": "number"
@@ -5505,6 +5525,25 @@
             },
             {
               "kind": "method",
+              "name": "_labelGroups",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FacetGroup[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "groups",
+                  "type": {
+                    "text": "FacetGroup[]"
+                  }
+                }
+              ],
+              "description": "Libellés de valeur posés sur des groupes déjà constitués (#928) : les\nsélections orphelines réinjectées et les valeurs statiques n'ont pas\ntraversé `_sortValues`. Sans `value-labels`, les groupes reçus sont\nrendus tels quels."
+            },
+            {
+              "kind": "method",
               "name": "_formatCount",
               "return": {
                 "type": {
@@ -5811,7 +5850,8 @@
                     "text": "string"
                   }
                 }
-              ]
+              ],
+              "description": "Les libellés de valeur sont posés AVANT le tri (#928) : `alpha` range ce\nque le lecteur voit, pas le code sous-jacent."
             },
             {
               "kind": "method",
@@ -6123,7 +6163,7 @@
                 {
                   "name": "attr",
                   "type": {
-                    "text": "'display' | 'labels'"
+                    "text": "'display' | 'labels' | 'value-labels'"
                   }
                 },
                 {
@@ -6154,7 +6194,7 @@
                 {
                   "name": "attr",
                   "type": {
-                    "text": "'display' | 'labels' | 'sort'"
+                    "text": "'display' | 'labels' | 'sort' | 'value-labels' | 'default'"
                   }
                 },
                 {
@@ -6174,6 +6214,248 @@
                   "text": "Map<string, string>"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_warnLabelsOnValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "parsed",
+                  "type": {
+                    "text": "Map<string, string>"
+                  }
+                }
+              ],
+              "description": "`labels` nomme des CHAMPS. Une entrée qui nomme une VALEUR\n(`labels=\"22:Côtes-d'Armor\"`) était lue comme un nom de champ et ignorée\nsans un mot — la page affichait toujours ses codes et avait l'air juste\n(#928). Signalé seulement quand `fields` est explicite : la liste des\nchamps est alors connue sans ambiguïté, et une entrée hors de cette\nliste ne peut pas servir."
+            },
+            {
+              "kind": "field",
+              "name": "_labelTables",
+              "privacy": "private",
+              "default": "new Map<string, ReadonlyMap<string, string>>()",
+              "description": "Tables de libellés mémorisées par champ (#928) — recalculées à chaque lot de lignes"
+            },
+            {
+              "kind": "field",
+              "name": "_labelTablesRaw",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur d'attribut dont `_labelTables` dépend : un changement la purge"
+            },
+            {
+              "kind": "method",
+              "name": "_parseValueLabels",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ReadonlyMap<string, ValueLabelSpec>"
+                }
+              },
+              "description": "Sources de libellé par champ (#928), ou la carte vide sans l'attribut"
+            },
+            {
+              "kind": "method",
+              "name": "_valueLabelTable",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ReadonlyMap<string, string>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Table `valeur -> libellé` d'un champ (#928), mémorisée par lot de lignes"
+            },
+            {
+              "kind": "method",
+              "name": "_labelValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FacetValue[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "values",
+                  "type": {
+                    "text": "FacetValue[]"
+                  }
+                },
+                {
+                  "name": "field",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Copie des valeurs portant leur libellé (#928) — sans l'attribut, le tableau reçu"
+            },
+            {
+              "kind": "method",
+              "name": "_valueText",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Texte affiché d'une valeur d'un champ (#928) : libellé s'il existe, valeur sinon"
+            },
+            {
+              "kind": "method",
+              "name": "_valueForText",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "text",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Retraduit un texte affiché en valeur filtrée (#928) ; inchangé s'il n'est pas un libellé"
+            },
+            {
+              "kind": "method",
+              "name": "_matchesQuery",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "fv",
+                  "type": {
+                    "text": "FacetValue"
+                  }
+                },
+                {
+                  "name": "query",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Une valeur ou son libellé contient-elle la recherche en cours ? (#928)"
+            },
+            {
+              "kind": "method",
+              "name": "_parseDefaults",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Map<string, string>"
+                }
+              },
+              "description": "Valeurs par défaut par champ (#932), même grammaire que `labels`"
+            },
+            {
+              "kind": "method",
+              "name": "_hasDefaults",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Une valeur par défaut est-elle demandée ? (#932)"
+            },
+            {
+              "kind": "method",
+              "name": "_applyDefaultSelections",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Pré-sélectionne les valeurs par défaut des champs qui n'ont aucune\nsélection (#932). Rend `true` si l'état a changé — l'appelant décide\nalors s'il faut rediffuser. Un champ déjà servi par l'URL est laissé\ntel quel : `url-sync` l'emporte."
+            },
+            {
+              "kind": "method",
+              "name": "_restoreDefault",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "selections",
+                  "type": {
+                    "text": "Record<string, Set<string>>"
+                  }
+                }
+              ],
+              "description": "Remet le défaut d'un champ dans un jeu de sélections en cours de calcul\n(#932) : un champ à défaut n'est jamais vide, sinon le total afficherait\nde nouveau le cumul que le défaut sert justement à éviter."
+            },
+            {
+              "kind": "method",
+              "name": "_hasDefaultFor",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Le champ porte-t-il une valeur par défaut ? (#932)"
             },
             {
               "kind": "method",
@@ -6683,6 +6965,24 @@
               "default": "''",
               "description": "Labels custom : \"field:Label | field2:Label 2\"",
               "fieldName": "labels"
+            },
+            {
+              "name": "value-labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Libellé des VALEURS d'une facette (#928) — `labels` nomme les CHAMPS,\ncelui-ci nomme ce qu'ils contiennent. Une facette posée sur un champ de\ncode affiche « Finistère » et continue de filtrer « 29 » : la valeur\ndiffusée au contexte, à l'URL et au `where` reste le CODE.\n\nDeux grammaires, distinguées par la première lettre :\n- champ compagnon, entrées séparées par `|` comme `labels` et `display` :\n  `value-labels=\"dep_code:dep_nom | code_fede_ref:federation\"`. Le\n  libellé est lu dans les MÊMES lignes que la valeur ; il doit donc\n  figurer dans les données reçues (au besoin, l'ajouter au `select`) ;\n- table figée en JSON, quand aucun champ compagnon n'existe :\n  `value-labels='{\"dep_code\":{\"29\":\"Finistère\",\"56\":\"Morbihan\"}}'`.\n  Une valeur absente de la table reste affichée telle quelle.\n\nLe tri `alpha` et la recherche portent alors sur le libellé. En\n`server-facets`, la réponse de l'API facettes ne porte que des valeurs :\nles libellés sont lus dans les lignes chargées par la source, donc\nconnus pour les valeurs présentes dans ces lignes ; une valeur de\nfacette absente de la page courante reste affichée par son code. Sur un\nchamp de code, poser une table figée lève ce doute.",
+              "fieldName": "valueLabels"
+            },
+            {
+              "name": "default",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Valeur pré-sélectionnée par champ, même grammaire que `labels` :\n`default=\"region:Toutes régions | secteur:Tous secteurs\"` (#932).\n\nSans sélection, une facette n'émet aucun filtre — ce qui est juste quand\nl'absence de filtre veut dire « tout ». Ça ne l'est plus quand l'agrégat\nnational est une LIGNE du jeu (« Toutes régions ») à côté d'une ligne par\nrégion : le total porte alors sur le cumul, sans avertissement. Un champ\nnommé ici porte donc TOUJOURS une valeur.\n\nOrdre de résolution : une valeur lue dans l'URL (`url-params`, ou l'URL\ndu contexte en mode `context`) l'emporte ; le défaut ne s'applique qu'à\nun champ sans sélection. Conséquences sur un champ à défaut : la remise\nà zéro (bouton, tag retiré, dernière case décochée) revient au défaut et\nnon à l'absence de filtre, et les options « Tous » de `select` et\n`radio-inline` ne sont plus rendues — elles ne pourraient que revenir au\ndéfaut. Une valeur par défaut absente des données est rendue cochée et\n« (indisponible) », comme toute sélection orpheline (#310).",
+              "fieldName": "default"
             },
             {
               "name": "max-values",

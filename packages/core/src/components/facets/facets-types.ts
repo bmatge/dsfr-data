@@ -35,6 +35,13 @@ export const DEFAULT_FACET_SORT: FacetSort = { by: 'count', dir: 'desc' };
 export interface FacetValue {
   value: string;
   count: number;
+  /**
+   * Libellé lisible de la valeur (#928) : un champ de code (`dep_code`)
+   * affiche « Finistère » et continue de filtrer « 29 ». Posé par
+   * `value-labels` uniquement — absent, tout se comporte comme avant et la
+   * valeur brute reste affichée.
+   */
+  label?: string;
   /** Valeur selectionnee absente des données courantes (#310) : rendue
    * desactivable pour ne pas laisser un filtre invisible actif */
   missing?: boolean;

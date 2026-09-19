@@ -88,12 +88,19 @@ export function parseSortAttribute(
   return { fallback, byField };
 }
 
-/** Copie triee des valeurs, collation francaise pour `alpha`. */
+/**
+ * Copie triee des valeurs, collation francaise pour `alpha`.
+ *
+ * Le tri alphabetique porte sur ce qui est AFFICHE : le libelle de valeur
+ * quand `value-labels` en pose un (#928), la valeur brute sinon. Ranger par
+ * code une liste qui montre des noms donnerait un ordre incomprehensible
+ * (« Ain » derriere « Morbihan » parce que 75 > 56).
+ */
 export function sortFacetValues(values: FacetValue[], { by, dir }: FacetSort): FacetValue[] {
   const sign = dir === 'asc' ? 1 : -1;
   const sorted = [...values];
   if (by === 'alpha') {
-    sorted.sort((a, b) => sign * a.value.localeCompare(b.value, 'fr'));
+    sorted.sort((a, b) => sign * (a.label ?? a.value).localeCompare(b.label ?? b.value, 'fr'));
   } else {
     sorted.sort((a, b) => sign * (a.count - b.count));
   }
