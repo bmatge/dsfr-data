@@ -19,6 +19,7 @@ import {
   toNum,
 } from './compute.js';
 import { referenceInvariant, type AttenduInvariant } from './invariants.js';
+import type { AttenduServeur, EtatPortail } from './crosscheck.js';
 
 export interface AttenduKpi {
   kind: 'kpi';
@@ -206,6 +207,14 @@ export interface ExpectedCheck {
    * `expected.json` sans le faire enfler.
    */
   invariants: Record<string, AttenduInvariant[]>;
+  /**
+   * Le RECOUPEMENT SERVEUR (#883), mode vivant seulement : ce que le portail
+   * a répondu à la clause écrite à la main, par clé d'attente — la troisième
+   * valeur à côté de `values` (oracle). Absent en déterministe.
+   */
+  serveur?: Record<string, AttenduServeur>;
+  /** L'état des portails recoupés dans ce run : quota lu, requêtes, coupure. */
+  recoupement?: Record<string, EtatPortail>;
 }
 
 /** Calcule l'attendu d'un contrôle à partir de ses jeux de lignes brutes. */

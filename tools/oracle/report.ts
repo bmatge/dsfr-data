@@ -35,12 +35,22 @@ export interface Rapport {
   troisVoix: number;
   /** Les invariants (#881), comptés à part des valeurs : tenus, violés, en attente. */
   invariants: { tenus: number; violes: number; attente: number };
+  /**
+   * Le recoupement serveur (#883), mode vivant : les verdicts à trois chiffres,
+   * comptés par phrase — et les observations dont le serveur n'a rien dit
+   * (quota, échec), qui restent à deux voix.
+   */
+  recoupement: { verdicts: Record<string, number>; sansServeur: number };
   constats: Constat[];
 }
 
 export function construireRapport(constats: Constat[]): Rapport {
   const valeurs = constats.filter((c) => !c.invariant);
   const invariants = constats.filter((c) => c.invariant);
+  const verdicts: Record<string, number> = {};
+  for (const c of valeurs) {
+    if (c.verdict) verdicts[c.verdict] = (verdicts[c.verdict] ?? 0) + 1;
+  }
   return {
     run: RUN,
     generatedAt: new Date().toISOString(),
@@ -52,6 +62,10 @@ export function construireRapport(constats: Constat[]): Rapport {
       tenus: invariants.filter((c) => c.ok).length,
       violes: invariants.filter((c) => !c.ok && !c.attente).length,
       attente: invariants.filter((c) => !c.ok && c.attente).length,
+    },
+    recoupement: {
+      verdicts,
+      sansServeur: valeurs.filter((c) => c.serveur !== undefined && c.verdict === undefined).length,
     },
     constats,
   };
@@ -65,13 +79,20 @@ function colonne(texte: string, largeur: number): string {
 export function resumeTexte(rapport: Rapport): string {
   const lignes: string[] = [];
   const inv = rapport.invariants;
+  const rec = rapport.recoupement;
+  const verdicts = Object.entries(rec.verdicts);
   lignes.push(
     `Vérification des données — ${rapport.total} observations, ` +
       `${rapport.comparaisons} valeurs comparées, ${rapport.echecs} échec(s)` +
       (rapport.troisVoix > 0 ? `, ${rapport.troisVoix} à trois voix (lib, TS, Python)` : '') +
       (inv.tenus + inv.violes + inv.attente > 0
-        ? ` ; invariants : ${inv.tenus} tenu(s), ${inv.violes} violé(s), ${inv.attente} en attente.`
-        : '.')
+        ? ` ; invariants : ${inv.tenus} tenu(s), ${inv.violes} violé(s), ${inv.attente} en attente`
+        : '') +
+      (verdicts.length > 0 || rec.sansServeur > 0
+        ? ` ; recoupement serveur : ${verdicts.map(([v, n]) => `${n} × « ${v} »`).join(', ')}` +
+          (rec.sansServeur > 0 ? `, ${rec.sansServeur} sans réponse du serveur` : '')
+        : '') +
+      '.'
   );
   let controleCourant = '';
   for (const c of rapport.constats) {
@@ -90,11 +111,19 @@ export function resumeTexte(rapport: Rapport): string {
             ? ''
             : ` écart ${Math.round(c.ecartPython * 1e6) / 1e6}`);
     const etat = c.ok ? 'ok  ' : c.attente ? 'ATT.' : 'ÉCHEC';
+    const serveur =
+      c.serveur === undefined
+        ? ''
+        : ` serveur ${c.serveur}` +
+          (c.ecartServeur === null || c.ecartServeur === undefined
+            ? ''
+            : ` écart ${Math.round(c.ecartServeur * 1e6) / 1e6}`);
     lignes.push(
       `    ${etat} ${colonne(c.observation, 26)} ` +
-        `lib ${colonne(c.lib, 28)} ${c.invariant ? 'brut  ' : 'oracle'} ${colonne(c.oracle, 28)}${ecart}${python}`
+        `lib ${colonne(c.lib, 28)} ${c.invariant ? 'brut  ' : 'oracle'} ${colonne(c.oracle, 28)}${ecart}${python}${serveur}`
     );
-    if (!c.ok && c.message) lignes.push(`          ${c.message}`);
+    if (c.verdict) lignes.push(`          verdict : ${c.verdict}`);
+    if (!c.ok && c.message && c.message !== c.verdict) lignes.push(`          ${c.message}`);
     if (!c.ok && c.attente) lignes.push(`          en attente : ${c.attente}`);
   }
   return lignes.join('\n');

@@ -16,7 +16,8 @@ domaines, pour 489 observations et **26 invariants**. Un contrôle et cinq invar
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
 cités. Une troisième voix, en Python standard, recalcule 327 des attentes déterministes
-(« La troisième voix »).
+(« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
+Opendatasoft lui-même (« Le recoupement serveur »).
 
 ## Doctrine : l'oracle tient le contrat ÉCRIT
 
@@ -266,6 +267,8 @@ tools/oracle/            LE MOTEUR
                              l'oracle Python comme de l'oracle TS
   invariants.ts            les INVARIANTS (#881) : la référence depuis les lignes brutes,
                              l'évaluation sur ce que la page montre
+  crosscheck.ts            le RECOUPEMENT SERVEUR (#883) : validation des clauses, URL d'export
+                             agrégé, quota par portail, accord et verdict à trois chiffres
 
 tools/oracle-py/         LA TROISIÈME VOIX (Python standard, aucune dépendance)
   oracle.py                lit out/manifests.json et jeux/*.json, recalcule en Fraction,
@@ -286,6 +289,10 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
                              packages/, rien hors de la stdlib
   invariants.test.ts       les six sortes d'invariants, tenues et violées en tableaux nus
   canari-ops.test.ts       les deux opérations venues du canari : explode et eq-strict
+  crosscheck.test.ts       le recoupement serveur : ce que le serveur ne sait pas dire (refusé
+                             sur tous les manifestes), l'URL écrite à la main, le quota qui coupe,
+                             l'accord par clé, les cinq verdicts
+  report.test.ts           le résumé du rapport : verdicts comptés, serveur muet compté à part
   banc.test.ts             le rendu de out/banc.md, sur des fiches données à la main
   compare-urls.test.ts · compare-diagnostics.test.ts · raw.test.ts · stabilite.test.ts
 
@@ -474,6 +481,70 @@ compare la forme texte d'un code, comme le portail. La troisième voix couvre
 **les trente attentes** du canari : aucun `derive`, le quotient passe par
 `ratio`.
 
+## Le recoupement serveur
+
+Une vérité gratuite que personne n'utilisait : **le serveur Opendatasoft sait
+agréger**. Pour tout calcul qu'une page fait côté client sur une source ODS —
+un compte, une somme, une moyenne, par groupe ou globale, sous une clause —
+le portail produit le même chiffre (`/exports/json?select=sum(x) as v&group_by=k
+&where=…`) par une implémentation **tierce** : un autre éditeur, un autre
+langage, les mêmes lignes. C'est l'indépendance la plus forte qu'on puisse
+avoir, et elle coûte une requête. Le domaine `delegation` vérifie déjà
+« mêmes chiffres, serveur ou client », mais contre un faux serveur de notre
+main ; le recoupement (#883) le fait contre le vrai, en mode **vivant** seulement.
+
+```ts
+{ kind: 'kpi', id: 'k-etp', agg: 'sum', field: 'etp_total',
+  crosscheck: { select: 'sum(etp_total) as v' } }
+{ kind: 'rows', id: 'q-secteur', key: 'secteur', columns: ['ips_moyen', 'nb'], pipeline: […],
+  crosscheck: { select: 'avg(ips) as ips_moyen, count(uai) as nb', groupBy: 'secteur' } }
+```
+
+Les clauses s'écrivent **à la main** (`Crosscheck`, `manifest.ts`), jamais
+traduites par l'adaptateur — les alias et le backquotage sont précisément ce
+que le banc a payé (PG-014, PG-027, BUG-010). Le `where` est celui de la source
+brute, sauf clause écrite ; un KPI qui filtre lui-même doit l'écrire. Un KPI
+se recoupe par **un** agrégat aliasé `v` ; des lignes par un agrégat par
+colonne, aliasé de son nom, et un `group_by` qui devient la clé — comparées
+**par clé**, le serveur ne rendant pas ses groupes dans l'ordre de la page.
+
+**Ce que le serveur ne sait pas dire**, refusé par `validerCrosscheck` et
+éprouvé sur tous les manifestes (`tests/oracle/crosscheck.test.ts`) :
+`count(distinct)` (approximatif dès quelques centaines de valeurs, PG-026),
+`total_count` d'une requête agrégée (LIM-002), les fonctions de date et le
+fuseau dans ce qu'il calcule (FP-003, AM-064 — dans un `where`, elles filtrent
+l'export et l'agrégat de la même façon, côté serveur des deux fois), et tout
+ce qui vient d'une jointure, d'un pivot ou d'un `compute` : le serveur ne
+connaît qu'un jeu. Le groupe `null` : ODS le rend, le client rend `''` — une
+comparaison par clé les distingue, et c'est un « recoupement à qualifier ».
+
+**Le verdict à trois chiffres**, énoncé par `verdictRecoupement` et rendu tel
+quel au rapport et dans `out/banc.md` :
+
+| oracle = serveur | lib = oracle | lib = serveur | Verdict |
+|---|---|---|---|
+| oui | oui | — | juste, **trois voix** |
+| oui | non | non | **bibliothèque** |
+| non | oui | non | recoupement à qualifier (sémantique ODS : null, fuseau, arrondi) — jamais un échec de la lib |
+| non | non | oui | **oracle** — c'est le recalcul qui se trompe seul |
+| non | non | non | donnée en mouvement entre les deux téléchargements, ou clause fausse : rejouer (lot 7) |
+
+**Quota.** `x-ratelimit-remaining` est lu sur chaque réponse ; sous 500
+requêtes restantes sur un portail, le recoupement s'arrête **pour ce portail**
+et le rapport le dit (« quota : … — recoupement arrêté »). `data.sports.gouv.fr`
+plafonne à 5 000 requêtes par jour et par IP en anonyme ; un recoupement ajoute
+une requête par observation recoupée, en cache par URL pour le run. Jamais de
+clé d'API dans le dépôt : les jeux qui en exigent une restent hors
+recoupement. Le décompte par portail est écrit sur la sortie de
+`verif:expected` et dans `expected.json` (`recoupement`).
+
+Posé sur **25 observations** de `banc.ts` et `banc-pages.ts` — comptes, sommes,
+moyennes, un minimum, un maximum, et un regroupement par secteur ; Qualité
+Tourisme, plan de relance, comptabilité générale (le KPI filtré écrit sa
+clause), BOFiP, Baromètre v2, personnels des collèges, Euroscol, TNE,
+assistants de langues, IPS des écoles, contrôle technique, Tourisme &
+Handicap, fédérations sportives, IPS des collèges.
+
 ## Les gestes et l'horloge
 
 Certains chiffres n'existent qu'APRÈS un geste : un filtre de contexte, une
@@ -635,6 +706,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
 | canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |
 | canari | (par construction) `fetch-mode="export" max-records="1000"` sur 1 001 lignes | `canari-plafond-export#not-truncated` | « 1000 lignes, aucun diagnostic » — en attente, AM-002 |
+| recoupement | `sum` de l'ORACLE rend un de trop (`tools/oracle/compute.ts`, `aggregate`) — un défaut du recalcul, pas de la lib | `personnels-colleges-part-ponderee` / `kpi:k-etp`, `tne-personnels-formes-unpivot` / `kpi:k-tne-participants` (vivants) | « lib 289 592, oracle 289 593, serveur 289 592 — verdict : oracle ≠ serveur, lib = serveur : le recalcul se trompe seul » : c'est le **serveur** qui désigne l'oracle, la page n'y est pour rien |
+| recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
 
 ## Un contrôle que la bibliothèque ne passe pas
 

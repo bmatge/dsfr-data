@@ -40,11 +40,34 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-avg" source="ips" value="ips:avg" format="decimal" decimals="1"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-min" source="ips" value="ips:min" format="decimal" decimals="1"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-max" source="ips" value="ips:max" format="decimal" decimals="1"></dsfr-data-kpi>`,
+    // Recoupement serveur (#883) : les quatre agrégats, recalculés par le
+    // portail lui-même sur la même clause — la troisième voix vivante.
     expects: [
-      { kind: 'kpi', id: 'k-count', agg: 'count' },
-      { kind: 'kpi', id: 'k-avg', agg: 'avg', field: 'ips', decimals: 1 },
-      { kind: 'kpi', id: 'k-min', agg: 'min', field: 'ips', decimals: 1 },
-      { kind: 'kpi', id: 'k-max', agg: 'max', field: 'ips', decimals: 1 },
+      { kind: 'kpi', id: 'k-count', agg: 'count', crosscheck: { select: 'count(*) as v' } },
+      {
+        kind: 'kpi',
+        id: 'k-avg',
+        agg: 'avg',
+        field: 'ips',
+        decimals: 1,
+        crosscheck: { select: 'avg(ips) as v' },
+      },
+      {
+        kind: 'kpi',
+        id: 'k-min',
+        agg: 'min',
+        field: 'ips',
+        decimals: 1,
+        crosscheck: { select: 'min(ips) as v' },
+      },
+      {
+        kind: 'kpi',
+        id: 'k-max',
+        agg: 'max',
+        field: 'ips',
+        decimals: 1,
+        crosscheck: { select: 'max(ips) as v' },
+      },
     ],
   },
   {
@@ -62,7 +85,7 @@ const CHECKS: Check[] = [
     aggregate="ips:avg:ips_moyen, uai:count:nb" order-by="ips_moyen:desc" limit="12"></dsfr-data-query>
   <dsfr-data-kpi id="k-total" source="ips" value="count" format="nombre"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-total', agg: 'count' },
+      { kind: 'kpi', id: 'k-total', agg: 'count', crosscheck: { select: 'count(*) as v' } },
       {
         kind: 'rows',
         id: 'q-secteur',
@@ -79,6 +102,8 @@ const CHECKS: Check[] = [
           },
           { op: 'order-by', column: 'ips_moyen', dir: 'desc' },
         ],
+        // Le serveur regroupe par secteur, clés comparées PAR CLÉ (#883).
+        crosscheck: { select: 'avg(ips) as ips_moyen, count(uai) as nb', groupBy: 'secteur' },
       },
       {
         kind: 'rows',
