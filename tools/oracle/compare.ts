@@ -10,6 +10,7 @@ import type { CheckMode, Expect, Row } from './manifest.js';
 import {
   cleAttendu,
   type Attendu,
+  type AttenduDiagnostic,
   type AttenduTexte,
   type AttenduTextes,
   type AttenduUrls,
@@ -17,6 +18,7 @@ import {
 import type {
   ObservationChart,
   ObservationClasses,
+  ObservationDiagnostic,
   ObservationFacette,
   ObservationKpi,
   ObservationLegende,
@@ -55,6 +57,7 @@ export type Observation =
   | ObservationClasses
   | ObservationFacette[]
   | ObservationTexte
+  | ObservationDiagnostic
   | string[]
   | string
   | null;
@@ -253,6 +256,91 @@ export function comparer(
     case 'urls': {
       const obs = observation as string[];
       return comparerUrls(base, attendu, obs);
+    }
+
+    case 'diagnostic':
+      return comparerDiagnostic(base, attendu, observation as ObservationDiagnostic);
+  }
+}
+
+/**
+ * Ce que la bibliothèque a dit contre ce que le contrôle exige (#878).
+ *
+ * `config-error` : l'élément porte le marqueur, et son message porte
+ * `contains` s'il est donné. `warning` : au moins un message console de la
+ * bibliothèque porte `contains` (ou n'importe lequel, sans fragment).
+ * `silence` : ni marqueur, ni message — restreint aux messages portant
+ * `contains` quand il est donné, pour qu'un avertissement légitime sur un
+ * autre sujet ne rompe pas le silence attendu.
+ *
+ * `comparaisons` compte les deux canaux lus, jamais zéro : un silence
+ * constaté est une observation, pas une absence d'observation. Les trois
+ * chiffres faux du 18/09 avaient zéro erreur console — c'est précisément le
+ * cas qu'un constat à zéro comparaison ne saurait pas dire.
+ */
+function comparerDiagnostic(
+  base: Base,
+  attendu: AttenduDiagnostic,
+  obs: ObservationDiagnostic
+): Constat {
+  const fragment = attendu.contains;
+  const porte = (texte: string): boolean => fragment === undefined || texte.includes(fragment);
+  const messages = obs.console.filter((m) => porte(m.text));
+  const marqueur = obs.configError !== null && porte(obs.configError);
+
+  const lib =
+    (obs.configError === null ? 'aucun marqueur' : `marqueur « ${obs.configError} »`) +
+    `, ${obs.console.length} message(s) console` +
+    (fragment !== undefined ? ` dont ${messages.length} portant « ${fragment} »` : '');
+  const oracle = `${attendu.expect}${fragment !== undefined ? ` « ${fragment} »` : ''}`;
+  // Les deux canaux sont toujours lus : marqueur et journal.
+  const comparaisons = 2;
+
+  switch (attendu.expect) {
+    case 'config-error': {
+      const ok = marqueur;
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ok,
+        message: ok
+          ? ''
+          : obs.configError === null
+            ? `aucun marqueur data-dsfr-config-error sur l'élément — la bibliothèque n'a rien dit`
+            : `le marqueur « ${obs.configError} » ne porte pas « ${fragment} »`,
+      };
+    }
+    case 'warning': {
+      const ok = messages.length > 0;
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ok,
+        message: ok
+          ? ''
+          : obs.console.length === 0
+            ? `aucun message console de la bibliothèque — elle n'a rien dit`
+            : `aucun des ${obs.console.length} message(s) ne porte « ${fragment} » : ${obs.console.map((m) => m.text).join(' | ')}`,
+      };
+    }
+    case 'silence': {
+      const ok = !marqueur && messages.length === 0;
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ok,
+        message: ok
+          ? ''
+          : marqueur
+            ? `la bibliothèque a parlé : marqueur « ${obs.configError} »`
+            : `la bibliothèque a parlé : ${messages.map((m) => `[${m.level}] ${m.text}`).join(' | ')}`,
+      };
     }
   }
 }

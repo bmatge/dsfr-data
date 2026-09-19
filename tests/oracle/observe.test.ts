@@ -3,6 +3,7 @@ import {
   lireAttribut,
   lireCache,
   lireClasses,
+  lireDiagnostics,
   lireFacettes,
   lireGraphique,
   lireKpi,
@@ -244,6 +245,38 @@ describe('vérification des données — lecteurs d’observation', () => {
     // Sans élément rendu, rien — sinon on relirait l'attribut écrit par la page.
     expect(lireAttribut({ id: 'sans-chart', attribut: 'x-min' })).toBeNull();
     expect(lireAttribut({ id: 'absent', attribut: 'x-min' })).toBeNull();
+  });
+
+  it('diagnostics : le marqueur de l’élément, et les seuls messages de la bibliothèque', () => {
+    document.body.innerHTML = `
+      <div id="ctx" data-dsfr-config-error="attribut &quot;sources&quot; requis"></div>
+      <div id="sain"></div>`;
+    const w = window as unknown as { __verifConsole?: unknown };
+    w.__verifConsole = [
+      { level: 'warn', text: 'dsfr-data-context[ctx]: le champ "x" n’existe pas sur "s1"' },
+      { level: 'error', text: 'dsfr-data-facets: attribut "id" requis' },
+      // Ni l'un ni l'autre ne vient de la bibliothèque : ils ne comptent pas.
+      { level: 'warn', text: 'Lit is in dev mode. Not recommended for production!' },
+      { level: 'error', text: 'Failed to load resource: 404 (tile.png)' },
+      // Un niveau inconnu ou un texte manquant n'est pas un message.
+      { level: 'info', text: 'dsfr-data-source: chargé' },
+      { level: 'warn' },
+    ];
+    expect(lireDiagnostics('ctx')).toEqual({
+      configError: 'attribut "sources" requis',
+      console: [
+        { level: 'warn', text: 'dsfr-data-context[ctx]: le champ "x" n’existe pas sur "s1"' },
+        { level: 'error', text: 'dsfr-data-facets: attribut "id" requis' },
+      ],
+    });
+    // Le journal est celui de la PAGE : un autre élément lit les mêmes messages.
+    expect(lireDiagnostics('sain').configError).toBeNull();
+    expect(lireDiagnostics('sain').console).toHaveLength(2);
+    // Élément absent : pas de marqueur, le journal seul parle.
+    expect(lireDiagnostics('absent').configError).toBeNull();
+
+    delete w.__verifConsole;
+    expect(lireDiagnostics('sain')).toEqual({ configError: null, console: [] });
   });
 
   it('pastilles de légende : la couleur de chacune, dans l’ordre', () => {

@@ -1,0 +1,14 @@
+[
+  {"code":"01","nom":"Bouches-du-Rhône","zone":"sud","categorie":"A","population":2000000,"taux":"12,5","annee":"2024-03-15","statut":"ouvert","mois":"2026-01","flux":10,"mesure":250,"tags":"mer, soleil"},
+  {"code":"02","nom":"Côte-d'Or","zone":"est","categorie":"B","population":530000,"taux":"8,25","annee":"2023-11-02","statut":"ferme","mois":"2026-01","flux":20,"mesure":"NC","tags":"vigne"},
+  {"code":"03","nom":"Val-d'Oise","zone":"nord","categorie":"A","population":1250000,"taux":"15","annee":"2024-07-01","statut":"ouvert","mois":"2026-02","flux":30,"mesure":90,"tags":"ville, transport"},
+  {"code":"04","nom":"Ille-et-Vilaine","zone":"nord","categorie":"B","population":1080000,"taux":"9,75","annee":"2022-01-20","statut":"","mois":"2026-02","flux":40,"mesure":1200,"tags":"mer"},
+  {"code":"05","nom":"Haute-Garonne","zone":"sud","categorie":"A","population":1400000,"taux":"11","annee":"2024-03-15","statut":"ouvert","mois":"2026-03","flux":50,"mesure":"NC","tags":"ville"},
+  {"code":"06","nom":"Bas-Rhin","zone":"est","categorie":"B","population":1140000,"taux":"7,5","annee":"2023-05-09","statut":"ferme","mois":"2026-03","flux":60,"mesure":100,"tags":"vigne, ville"},
+  {"code":"07","nom":"Recherche & Essais","zone":"nord","categorie":"A","population":2600000,"taux":"14,25","annee":"2021-12-31","statut":"ouvert","mois":"2026-01","flux":70,"mesure":45,"tags":"ville"},
+  {"code":"08","nom":"Var","zone":"sud","categorie":"B","population":1080000,"taux":"10,5","annee":"2024-09-18","statut":"ferme","mois":"2026-02","flux":80,"mesure":"NC","tags":"mer, soleil"},
+  {"code":"09","nom":"Loire-Atlantique","zone":"nord","categorie":"A","population":1080000,"taux":"13","annee":"2022-06-05","statut":null,"mois":"2026-03","flux":90,"mesure":300,"tags":"mer"},
+  {"code":"10","nom":"Rhône","zone":"est","categorie":"B","population":1870000,"taux":"6,75","annee":"2023-02-14","statut":"ferme","mois":"2026-01","flux":100,"mesure":80,"tags":"ville"},
+  {"code":"11","nom":"Gironde","zone":"sud","categorie":"A","population":1620000,"taux":"16,5","annee":"2024-01-09","statut":"","mois":"2026-02","flux":110,"mesure":150,"tags":"vigne, mer"},
+  {"code":"0042","nom":"Territoire d'essai","zone":"nord","categorie":"B","population":42000,"taux":"5","annee":"2021-03-03","statut":"ouvert","mois":"2026-03","flux":120,"mesure":"NC","tags":""}
+]

@@ -21,123 +21,35 @@
  * parcourt son graphe d'imports et refuserait toute entrée par `packages/`.
  */
 import type { Row } from '../../tools/oracle/manifest.js';
+import communes from './jeux/affichages-communes.json' with { type: 'json' };
+import serie from './jeux/affichages-serie.json' with { type: 'json' };
+import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
+import long from './jeux/affichages-long.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
 
 /**
- * Quarante-huit libellés, accents compris : le tri d'une colonne texte n'est
- * pas un tri de codes de caractères, et une colonne de libellés sans accent
- * ne le dirait pas.
+ * Les 48 communes, libellés accentués compris. Le jeu a été ENGENDRÉ une fois
+ * par des formules (aucune colonne constante ni proportionnelle à une autre,
+ * sinon une moyenne pondérée vaudrait la moyenne simple et le contrôle de #763
+ * ne garderait rien) puis MATÉRIALISÉ dans `jeux/affichages-communes.json` :
+ * ce sont ces lignes-là que tout le monde lit (`jeux/README.md`).
  */
-const NOMS = [
-  'Arles',
-  'Avignon',
-  'Bordeaux',
-  'Brest',
-  'Caen',
-  'Calais',
-  'Cannes',
-  'Chartres',
-  'Cholet',
-  'Colmar',
-  'Dijon',
-  'Douai',
-  'Épernay',
-  'Épinal',
-  'Évreux',
-  'Évry',
-  'Foix',
-  'Gap',
-  'Grenoble',
-  'Hyères',
-  'Istres',
-  'Laval',
-  'Lille',
-  'Limoges',
-  'Lorient',
-  'Lyon',
-  'Mâcon',
-  'Melun',
-  'Metz',
-  'Nancy',
-  'Nantes',
-  'Nice',
-  'Nîmes',
-  'Niort',
-  'Orléans',
-  'Pau',
-  'Poitiers',
-  'Reims',
-  'Rennes',
-  'Roanne',
-  'Rodez',
-  'Rouen',
-  'Saintes',
-  'Sète',
-  'Toulon',
-  'Tours',
-  'Vannes',
-  'Vichy',
-];
-
-const ZONES = ['Nord', 'Sud', 'Est', 'Ouest'];
-
-/**
- * Les 48 communes. Chaque colonne est construite par une formule, donc
- * reproductible à la lecture ; aucune n'est constante, et aucune n'est
- * proportionnelle à une autre — sinon une moyenne pondérée vaudrait la moyenne
- * simple et le contrôle de #763 ne garderait rien.
- */
-export const COMMUNES: Row[] = NOMS.map((nom, i) => ({
-  code: String(101 + i),
-  dept: String(i + 1).padStart(2, '0'),
-  nom,
-  zone: ZONES[i % 4],
-  population: 12_345 * (i + 1) + (i % 7) * 9_871,
-  budget: 1_749.25 + i * 312.5,
-  taux: 12.5 + ((i * 7) % 61),
-  eleves: 100 + ((i * 13) % 37) * 50,
-  agents: 3 + (i % 9),
-  maj: `2026-${String(1 + (i % 9)).padStart(2, '0')}-${String(1 + (i % 28)).padStart(2, '0')}`,
-  lat: 43 + (i % 9) * 0.7,
-  lon: -2 + (i % 11) * 0.8,
-}));
+export const COMMUNES: Row[] = communes;
 
 /**
  * Douze mois d'une même série, dans l'ordre chronologique. La dernière valeur
  * vaut exactement 1,4 fois la première : l'évolution attendue est un taux rond
  * (40 %), qu'un affichage à la mauvaise unité rend illisible du premier coup.
  */
-export const SERIE: Row[] = [
-  { mois: '2026-01', jour: '2026-01-15', valeur: 120, objectif: 150 },
-  { mois: '2026-02', jour: '2026-02-15', valeur: 132, objectif: 150 },
-  { mois: '2026-03', jour: '2026-03-15', valeur: 127, objectif: 150 },
-  { mois: '2026-04', jour: '2026-04-15', valeur: 141, objectif: 155 },
-  { mois: '2026-05', jour: '2026-05-15', valeur: 138, objectif: 155 },
-  { mois: '2026-06', jour: '2026-06-15', valeur: 149, objectif: 155 },
-  { mois: '2026-07', jour: '2026-07-15', valeur: 152, objectif: 160 },
-  { mois: '2026-08', jour: '2026-08-15', valeur: 147, objectif: 160 },
-  { mois: '2026-09', jour: '2026-09-15', valeur: 155, objectif: 160 },
-  { mois: '2026-10', jour: '2026-10-15', valeur: 161, objectif: 165 },
-  { mois: '2026-11', jour: '2026-11-15', valeur: 159, objectif: 165 },
-  { mois: '2026-12', jour: '2026-12-15', valeur: 168, objectif: 165 },
-];
+export const SERIE: Row[] = serie;
 
 /**
  * Huit libellés dont l'ordre alphabétique français diffère de l'ordre des
  * codes de caractères : « É » (U+00C9) y passerait après « Z ».
  */
-export const LIBELLES: Row[] = [
-  { nom: 'Zutkerque', score: 12 },
-  { nom: 'Étampes', score: 45 },
-  { nom: 'Évry-Courcouronnes', score: 7 },
-  { nom: 'Arles', score: 103 },
-  { nom: 'Ölbronn', score: 58 },
-  { nom: 'Écully', score: 91 },
-  { nom: 'Avignon', score: 34 },
-  { nom: 'Ussel', score: 76 },
-];
+export const LIBELLES: Row[] = libelles;
 
 /**
  * Données au format LONG (une ligne par couple mois × groupe) : c'est ce que
@@ -145,14 +57,7 @@ export const LIBELLES: Row[] = [
  * allure que le groupe A — deux séries qui se suivraient ne diraient pas si
  * elles ont été aiguillées correctement.
  */
-export const LONG: Row[] = [
-  { mois: 'Janvier', groupe: 'Cadres', valeur: 120 },
-  { mois: 'Janvier', groupe: 'Agents', valeur: 310 },
-  { mois: 'Février', groupe: 'Cadres', valeur: 145 },
-  { mois: 'Février', groupe: 'Agents', valeur: 288 },
-  { mois: 'Mars', groupe: 'Cadres', valeur: 132 },
-  { mois: 'Mars', groupe: 'Agents', valeur: 341 },
-];
+export const LONG: Row[] = long;
 
 /** Les quatre jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {

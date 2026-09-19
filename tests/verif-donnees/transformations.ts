@@ -42,6 +42,7 @@ import {
   COMPOSITE_DROITE,
   COMPOSITE_GAUCHE,
   DROITE,
+  EDITIONS,
   GAUCHE,
   GAUCHE_GRAPHIE,
   LARGE,
@@ -1163,6 +1164,20 @@ const COMPUTE: Check[] = [
 const SRC_LONG = source('s-long', LONG);
 const JEU_LONG = { main: LONG };
 
+/** Le pivot des deux éditions du baromètre (#878, cas 2), côté oracle. */
+const PIVOT_EDITIONS = {
+  op: 'pivot',
+  row: 'question',
+  column: 'annee',
+  value: 'score',
+  aggregate: 'sum',
+  columnFormat: 'an_{value}',
+} as const;
+
+/** La variation de la page, réécrite telle quelle pour l'oracle. */
+const EXPR_DELTA =
+  "delta = an_2025 - an_2024; delta_abs = abs(an_2025 - an_2024); verdict = when is_null(delta) then 'non mesuré' else 'mesuré'";
+
 const PIVOT: Check[] = [
   {
     id: 'pivot-somme-et-cellule-sans-observation',
@@ -1395,6 +1410,53 @@ const PIVOT: Check[] = [
             columnFormat: 'm_{value}',
           },
         ],
+      },
+    ],
+  },
+
+  {
+    id: 'pivot-normalize-soustraction-sur-null',
+    mode: 'deterministic',
+    origin:
+      '#878, cas 2 du 18/09 (banc, viz/barometre-france-num-v2) — une question posée en 2024 et pas en 2025 sortait EN TÊTE du classement des variations à « −85,2 points » : sa cellule 2025, absente du pivot, avait été soustraite comme un zéro. Le pivot doit émettre `null` (doctrine #301), la soustraction propager `null` (compute.ts), et le tri décroissant sur la variation absolue laisser la question non mesurée HORS du top 3. Aucune erreur console dans les deux cas : c’est le chiffre qui tranche.',
+    feed: { kind: 'fixture', datasets: { main: EDITIONS } },
+    markup: `${source('s-editions', EDITIONS)}
+  <dsfr-data-pivot id="p-editions" source="s-editions" row="question" column="annee"
+    value="score" aggregate="sum" column-format="an_{value}"></dsfr-data-pivot>
+  <dsfr-data-normalize id="n-delta" source="p-editions" numeric="an_2024, an_2025"
+    compute="${EXPR_DELTA}"></dsfr-data-normalize>
+  <dsfr-data-query id="q-top" source="n-delta" order-by="delta_abs:desc" limit="3"></dsfr-data-query>
+  <dsfr-data-list id="l-verdict" source="n-delta"
+    columns="question:Question, verdict:Mesure"></dsfr-data-list>`,
+    expects: [
+      // Les deux questions à une seule édition : `delta` et `delta_abs`
+      // valent null, jamais −85,2 ni 33,3.
+      {
+        kind: 'rows',
+        id: 'n-delta',
+        key: 'question',
+        columns: ['an_2024', 'an_2025', 'delta', 'delta_abs'],
+        pipeline: [PIVOT_EDITIONS, { op: 'derive', expr: EXPR_DELTA }],
+      },
+      // Le top 3 des variations : la question non reposée n'y est pas.
+      {
+        kind: 'rows',
+        id: 'q-top',
+        key: 'question',
+        columns: ['delta', 'delta_abs'],
+        pipeline: [
+          PIVOT_EDITIONS,
+          { op: 'derive', expr: EXPR_DELTA },
+          { op: 'order-by', column: 'delta_abs', dir: 'desc' },
+          { op: 'limit', n: 3 },
+        ],
+      },
+      // Et le libellé AFFICHÉ le dit : « non mesuré », pas une variation.
+      {
+        kind: 'list',
+        id: 'l-verdict',
+        columns: [{ column: 'question' }, { column: 'verdict' }],
+        pipeline: [PIVOT_EDITIONS, { op: 'derive', expr: EXPR_DELTA }],
       },
     ],
   },
