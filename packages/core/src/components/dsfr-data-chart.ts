@@ -295,9 +295,34 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * national, là où la moyenne des taux départementaux s'en écarte. Les lignes
    * dont l'effectif n'est pas numérique sont écartées du calcul ; si aucune
    * n'en porte, erreur de configuration et pas de résumé.
+   *
+   * **Sur quoi porte le calcul** : la colonne `value-field` telle qu'elle
+   * arrive. L'arrondi au centième que la carte applique pour SE DESSINER ne
+   * compte pas — le résumé repart des lignes source. Mais un
+   * `dsfr-data-normalize round="champ:1"` en amont réécrit la colonne dans la
+   * donnée, et la pondération porte alors sur des valeurs arrondies : 4,5331
+   * au lieu de 4,5368 sur 101 départements (PG-031, #929).
+   * `map-summary-field` désigne alors la colonne brute.
    */
   @property({ type: String, attribute: 'map-summary-weight' })
   mapSummaryWeight = '';
+
+  /**
+   * Colonne sur laquelle le résumé d'une carte est CALCULÉ, quand elle n'est
+   * pas celle qu'on affiche (#929). Sans l'attribut le résumé porte sur
+   * `value-field` ; avec, `value-field` ne sert plus qu'au tracé et à
+   * l'infobulle. C'est la réponse au piège de composition d'un arrondi amont :
+   * `compute="taux_aff = round(taux, 1)"`, puis `value-field="taux_aff"
+   * map-summary-field="taux"`. Vaut pour les trois calculs (`sum`, `avg`,
+   * `weighted`), sans effet sous `map-summary-value` ou `map-summary="none"`.
+   * Un champ qu'aucune ligne dessinée ne porte en numérique est une erreur de
+   * configuration nommée : aucun résumé, jamais un repli silencieux sur la
+   * colonne affichée — qui serait le chiffre faux que l'attribut évite.
+   *
+   * **Attribut absent : rien ne change.**
+   */
+  @property({ type: String, attribute: 'map-summary-field' })
+  mapSummaryField = '';
 
   /**
    * MODE de synthèse du résumé affiché sous le titre d'une carte
@@ -345,9 +370,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * résumé — jamais un chiffre de repli qui aurait l'air juste.
    *
    * **Ce que le résumé lit** : la colonne `value-field`, telle qu'elle arrive
-   * — donc arrondis d'un `dsfr-data-normalize round="…"` en amont compris. Sur
-   * une somme l'écart reste marginal ; sur `weighted` il ne l'est pas
-   * (PG-031). Réserver `round` aux valeurs qui ne nourrissent aucun calcul.
+   * — donc arrondis d'un `dsfr-data-normalize round="…"` en amont compris,
+   * qui faussent `weighted` sans se voir (PG-031, #929). L'arrondi au centième
+   * que la carte applique pour SE DESSINER, lui, ne compte pas. Pour arrondir
+   * l'affichage sans fausser le calcul : `map-summary-field`.
    */
   @property({ type: String, attribute: 'map-summary' })
   mapSummary = '';
@@ -850,7 +876,25 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       return { value, error: null };
     }
 
-    const valueKey = this._valueFieldKey();
+    // Colonne de CALCUL : `map-summary-field` quand elle diffère de celle
+    // qu'on affiche (#929), sinon `value-field`. Un champ demandé mais absent
+    // de toutes les lignes dessinees n'est PAS un repli sur la colonne
+    // affichee : ce serait le chiffre faux que l'attribut existe pour eviter.
+    const summaryField = this.mapSummaryField.trim();
+    const valueKey = summaryField || this._valueFieldKey();
+    if (summaryField && this._mapRows.length > 0) {
+      const porte = this._mapRows.some(
+        (record) => toNumber(getByPath(record, summaryField), true) !== null
+      );
+      if (!porte) {
+        return {
+          value: null,
+          error:
+            `map-summary-field="${summaryField}" : aucune valeur numérique sur les ` +
+            `${this._mapRows.length} ligne(s) dessinée(s) — champ absent ou mal nommé`,
+        };
+      }
+    }
     const weightField = this.mapSummaryWeight.trim();
 
     // Pondere : demande explicitement, ou — attribut absent — des qu'un champ

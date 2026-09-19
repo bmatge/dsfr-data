@@ -900,6 +900,34 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'carte-resume-champ-de-calcul-929',
+    mode: 'deterministic',
+    origin:
+      '#929 (PG-031) — un arrondi posé EN AMONT réécrit la colonne dans la donnée : la pondération porte alors sur des valeurs arrondies, et le taux national est faux de peu — donc invisible (4,5331 au lieu de 4,5368 sur 101 départements). `map-summary-field` calcule sur la colonne brute pendant que la carte affiche l’arrondie. Le contrôle garde le CHIFFRE : sans l’attribut, le résumé vaudrait la pondérée des valeurs arrondies, qui n’est pas celle-ci.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-carte-calcul', 'communes')}
+  <dsfr-data-normalize id="n-carte-calcul" source="s-carte-calcul"
+    compute="taux_aff = round(taux, 0)"></dsfr-data-normalize>
+  <dsfr-data-chart id="g-carte-calcul" source="n-carte-calcul" type="map"
+    code-field="dept" value-field="taux_aff" map-summary-weight="eleves"
+    map-summary-field="taux" name="Taux"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'attr',
+        id: 'g-carte-calcul',
+        attr: 'value',
+        decimals: 2,
+        column: 'v',
+        pipeline: [
+          { op: 'global', columns: { v: { agg: 'wavg', field: 'taux', weight: 'eleves' } } },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'carte-resume-somme-927',
     mode: 'deterministic',
     origin:

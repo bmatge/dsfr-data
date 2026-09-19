@@ -1551,10 +1551,34 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | map-summary-weight | String | \`""\` | types map* | Champ d'effectif : le resume affiche sous le titre de la carte devient la moyenne PONDEREE (somme valeur x effectif / somme effectif). **A poser pour tout taux** : sans lui, le resume est la moyenne NON ponderee des territoires, qui n'est pas le taux national (ecart mesure : -24 %). Ex : \`map-summary-weight="nb_eleves"\` |
 | map-summary-value | String | \`""\` | types map* | Valeur nationale fournie par la page, nombre litteral (\`"5,6"\`), prime sur map-summary-weight |
 | map-summary | String | \`""\` | types map* | MODE de synthese du resume, calcule sur les lignes dessinees : \`sum\` (un VOLUME s'additionne — la moyenne d'un nombre de licencies par departement ne mesure rien), \`weighted\` (un TAUX se pondere, exige map-summary-weight), \`avg\` (moyenne non ponderee, le calcul historique), \`none\` (aucun chiffre ; l'en-tete « en France » est celui de DSFR Chart et reste). Absent : comportement inchange. Un mode inconnu est une erreur de configuration, sans resume de repli |
+| map-summary-field | String | \`""\` | types map* | Colonne sur laquelle le resume est CALCULE, quand elle n'est pas celle qu'on affiche. Sans lui, le resume porte sur value-field ; avec, value-field ne sert plus qu'au trace et a l'infobulle. Repond au piege de l'arrondi amont (voir plus bas). Ex : \`compute="taux_aff = round(taux, 1)"\` puis \`value-field="taux_aff" map-summary-field="taux"\`. Un champ qu'aucune ligne dessinee ne porte en numerique est une erreur de configuration : aucun resume, jamais de repli sur la colonne affichee |
 | reference-lines | String | \`""\` | non | Lignes de reference (overlay) en JSON. Cartesiens uniquement (line, bar, bar-line, scatter). Chaque item : \`{ axis: "x" ou "y", value (string ou number), label?, color?, dash?, position? }\`. \`axis:"x"\` → ligne verticale a une categorie/date ; \`axis:"y"\` → ligne horizontale a un seuil. Ex : \`reference-lines='[{"axis":"x","value":"2026-02","label":"Lancement","color":"#c9191e","dash":true},{"axis":"y","value":3000,"label":"Objectif"}]'\`. |
 | targets | String | \`""\` | non | Cibles / objectifs futurs (overlay) en JSON. Types line et bar-line uniquement. Chaque item : \`{ x (echeance, string ou number, requis), value (number, requis), series? (nom de dataset ou index, defaut 0), label?, color? }\`. L'axe X est etendu automatiquement si l'echeance depasse les donnees : trait plein jusqu'au dernier point reel, trajectoire pointillee vers un losange a l'echeance, zone future grisee. Ex : \`targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'\`. |
 | targets-zone | String | \`"on"\` | non | Bande grisee + frontiere pointillee realise/projete. \`"off"\` desactive. |
 | targets-legend | String | \`""\` | non | Legende sous le graphe : \`""\` = libelles par defaut (« Donnees historiques » / « Trajectoire, cible extrapolee »), \`"off"\` = masquee, \`'["a","b"]'\` = libelles personnalises. |
+
+### Piege : un arrondi en amont fausse le resume d'une carte
+Le resume porte sur la colonne \`value-field\` **telle qu'elle arrive au composant**.
+L'arrondi au centieme que la carte applique pour se dessiner ne compte pas — le calcul
+repart des lignes source. Mais un \`dsfr-data-normalize round="champ:1"\` en amont, qui
+est le reflexe pour une infobulle lisible, **reecrit la colonne dans la donnee** : le
+composant ne voit jamais la valeur brute, et \`weighted\` pondere alors des valeurs
+arrondies. Mesure sur les 101 departements d'une federation sportive : taux national
+exact 4,5368, ponderation sur la valeur brute 4,5368, ponderation sur round(x, 1)
+**4,5331**. L'ecart reste plausible, donc invisible.
+
+Les deux attributs sont corrects separement ; c'est leur composition qui ment. Le geste :
+deriver une colonne d'affichage et laisser la brute intacte, puis pointer le calcul dessus.
+
+\`\`\`html
+<dsfr-data-normalize id="n" source="licences"
+  compute="lics_pop_aff = round(lics_pop, 1)"></dsfr-data-normalize>
+<dsfr-data-chart source="n" type="map" code-field="dep"
+  value-field="lics_pop_aff" map-summary-weight="pop"
+  map-summary-field="lics_pop"></dsfr-data-chart>
+\`\`\`
+
+Sur une somme l'ecart d'un arrondi amont reste marginal ; sur \`weighted\` il ne l'est pas.
 
 ### Attributs par type de graphique
 | Type | Attributs essentiels | Attributs optionnels |

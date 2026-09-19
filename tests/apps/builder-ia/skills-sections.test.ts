@@ -162,10 +162,17 @@ describe('sections de skills (#513)', () => {
     });
 
     it('explique quand la section n’existe pas pour cette skill', () => {
-      // dsfrDataChart n'a pas de bloc classe en pieges.
-      const out = selectSkillSection(content, 'pieges');
+      // dsfrDataSource n'a pas de bloc classe en pieges. (dsfrDataChart en a
+      // un depuis #929 : l'arrondi amont qui fausse le resume d'une carte.)
+      const out = selectSkillSection(SKILLS.dsfrDataSource.content, 'pieges');
       expect(out).toContain("n'a pas de section");
       expect(out).toContain('Sections disponibles');
+    });
+
+    it('sert le piege de l’arrondi amont sur une carte (#929)', () => {
+      const out = selectSkillSection(content, 'pieges');
+      expect(out).toContain('map-summary-field');
+      expect(out.length).toBeLessThan(content.length);
     });
 
     it('explique quand la section est inconnue', () => {
