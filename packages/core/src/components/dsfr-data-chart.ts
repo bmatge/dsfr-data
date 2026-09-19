@@ -1240,13 +1240,40 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   } | null {
     const tag = CHART_TAG_MAP[this.type];
     if (!tag) return null;
-    const container = (this.querySelector('.dsfr-data-chart__wrapper') ||
+    const wrapper = (this.querySelector('.dsfr-data-chart__wrapper') ||
       this.querySelector('.dsfr-data-chart__databox-wrapper')) as HTMLElement | null;
     const chartEl = this.querySelector(tag) as HTMLElement | null;
     const canvas = (chartEl?.querySelector('canvas') ||
       this.querySelector('canvas')) as HTMLCanvasElement | null;
-    if (!container || !chartEl || !canvas) return null;
-    return { container, canvas, chartEl };
+    if (!wrapper || !chartEl || !canvas) return null;
+    return { container: this._overlayStackingHost(wrapper, canvas), canvas, chartEl };
+  }
+
+  /**
+   * Hôte des overlays : le conteneur dans lequel les SVG sont peints AU-DESSUS
+   * du canvas (#903).
+   *
+   * Sans `databox`, canvas et overlays sont frères dans le wrapper : rien à
+   * faire. Avec, DSFR Chart téléporte le canvas DANS la carte de la DataBox
+   * (`div.fr-card.databox`, `position: relative`, `z-index: 500`, fond blanc
+   * opaque) ; les overlays, restés à côté de `data-box`, étaient donc peints
+   * SOUS elle — `reference-lines` et `targets` invisibles, sans un message,
+   * puisque le dessin « réussissait ». Même famille que #813.
+   *
+   * On remonte depuis le canvas jusqu'au premier ancêtre POSITIONNÉ : la carte
+   * quand il y a une DataBox, le wrapper sinon. L'overlay se retrouve dans le
+   * contexte d'empilement du canvas, donc peint après lui (ordre de l'arbre).
+   * Plutôt qu'une course au `z-index` : un overlay à 501 passerait aussi
+   * au-dessus de la modale et du plein écran de la DataBox, qui vivent DANS la
+   * carte.
+   */
+  private _overlayStackingHost(wrapper: HTMLElement, canvas: HTMLCanvasElement): HTMLElement {
+    if (!wrapper.contains(canvas)) return wrapper;
+    for (let el = canvas.parentElement; el && el !== wrapper; el = el.parentElement) {
+      const position = getComputedStyle(el).position;
+      if (position !== 'static' && position !== '') return el;
+    }
+    return wrapper;
   }
 
   /** Dessine les overlays. Retourne false si l'instance Chart.js n'est pas prête. */
