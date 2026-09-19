@@ -114,3 +114,95 @@ export function applyColorMap(
   chart.update?.('none');
   return { applied: true, legendColors: labels.map((label) => colorMap.get(label)) };
 }
+
+// --- Modèle de couleurs de DSFR Chart : `colorParse` (#968) ------------------
+//
+// CAUSE COMMUNE de #813 (légende) et #968 (infobulle). Le composant Vue de
+// `@gouvfr/dsfr-chart` tient UNE source de vérité pour les couleurs de série,
+// `colorParse` (calculée par `loadColors()` depuis `selected-palette`), et
+// TROIS surfaces en dérivent :
+//
+//   1. le CANVAS — `datasets[d].borderColor = colorParse[d]` à la création ;
+//   2. la LÉGENDE — `legendColors = colorParse.map((c) => c[0])`, rendue une
+//      fois par le gabarit Vue ;
+//   3. l'INFOBULLE — lue PARESSEUSEMENT au survol, dans le `external` du
+//      tooltip Chart.js : `data-color="${colorParse[datasetIndex][dataIndex]}"`.
+//
+// `applyColorMap` n'écrit que sur les datasets de l'instance Chart.js, c'est-à-
+// dire sur la COPIE (1). La surface (2) a été rattrapée après coup en peignant
+// le DOM (#815). La surface (3) ne peut pas l'être : son DOM n'existe pas avant
+// le survol, et il est réécrit à chaque mouvement de souris depuis `colorParse`.
+//
+// D'où ce report dans le modèle lui-même, plutôt qu'un troisième rattrapage :
+// toute surface qui relit `colorParse` après coup voit les couleurs de
+// `color-map`. Le report SUIT LA FORME EXISTANTE, qui diffère selon le type —
+// un tableau par point pour `bar-chart` et `pie-chart`, un scalaire pour
+// `line-chart`, `radar-chart` et `scatter-chart` — parce que l'infobulle des
+// premiers indexe `colorParse[d][i]` : un scalaire y serait indexé comme une
+// chaîne et rendrait « # ».
+//
+// On mirroite `borderColor`, pas `backgroundColor` : c'est lui qui vaut
+// `colorParse[d]` dans TOUS les types (le radar teinte son fond en alpha).
+
+/** Sous-ensemble du modèle de couleurs du composant Vue de DSFR Chart. */
+export interface ChartColorModel {
+  colorParse?: unknown;
+  colorHover?: unknown;
+  /** `bar-line-chart` seulement : la série de barres a son propre couple. */
+  colorBarParse?: unknown;
+  colorBarHover?: unknown;
+}
+
+/** Reporte une couleur de dataset dans la forme qu'avait l'entrée du modèle. */
+function mirrorEntry(previous: unknown, applied: unknown): unknown {
+  if (Array.isArray(previous)) {
+    return previous.map((old, j) => colorAt(applied, j) ?? old);
+  }
+  return colorAt(applied, 0) ?? previous;
+}
+
+/**
+ * Reporte les couleurs appliquées aux datasets dans le `colorParse` du
+ * composant Vue, pour que les surfaces lues paresseusement — l'infobulle —
+ * ne contredisent plus le canvas et la légende (#968).
+ *
+ * Retourne `false` si le modèle est hors d'atteinte : l'appelant le signale,
+ * parce qu'une infobulle qui garde la palette par défaut APPARIE LA MAUVAISE
+ * VALEUR À LA MAUVAISE SÉRIE — l'infobulle de DSFR Chart ne nomme pas les
+ * séries, la couleur en est le seul lien.
+ */
+export function syncChartColorModel(
+  model: ChartColorModel | null | undefined,
+  datasets: readonly ColorableDataset[]
+): boolean {
+  if (!model || !Array.isArray(model.colorParse)) return false;
+
+  // `bar-line-chart` : dataset 0 = barres (colorBarParse), dataset 1 = courbe.
+  if (Array.isArray(model.colorBarParse)) {
+    const bar = datasets[0];
+    const line = datasets[1];
+    if (bar) {
+      model.colorBarParse = [mirrorEntry((model.colorBarParse as unknown[])[0], bar.borderColor)];
+      if (Array.isArray(model.colorBarHover)) {
+        model.colorBarHover = [mirrorEntry(model.colorBarHover[0], bar.hoverBorderColor)];
+      }
+    }
+    if (line) {
+      model.colorParse = [mirrorEntry((model.colorParse as unknown[])[0], line.borderColor)];
+      if (Array.isArray(model.colorHover)) {
+        model.colorHover = [mirrorEntry(model.colorHover[0], line.hoverBorderColor)];
+      }
+    }
+    return true;
+  }
+
+  const previous = model.colorParse as unknown[];
+  model.colorParse = datasets.map((dataset, i) => mirrorEntry(previous[i], dataset.borderColor));
+  if (Array.isArray(model.colorHover)) {
+    const previousHover = model.colorHover;
+    model.colorHover = datasets.map((dataset, i) =>
+      mirrorEntry(previousHover[i], dataset.hoverBorderColor)
+    );
+  }
+  return true;
+}
