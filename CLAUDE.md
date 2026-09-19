@@ -61,7 +61,13 @@ npm run verif         # Mode DETERMINISTE : fixtures du depot servies par page.r
 npm run verif:live    # Mode VIVANT : vraies API du banc d'essai, attendu produit juste avant le
                       #   rendu. Jamais bloquant (oracle.yml : nuit, workflow_dispatch, ou PR
                       #   portant le label `oracle`).
-npm run verif:expected  # Seulement l'attendu vivant (tools/oracle/out/expected.json)
+npm run verif:expected  # Seulement l'attendu vivant (tools/oracle/out/expected.json) — avec
+                      #   l'empreinte du jeu (verdict de nuit rouge) et le recoupement serveur.
+npm run verif:attendus  # La TROISIEME VOIX : projette les controles deterministes
+                      #   (verif:manifests → out/manifests.json) puis python3 tools/oracle-py/oracle.py
+                      #   (stdlib seule, jamais pandas) → tests/verif-donnees/attendus.json, VERSIONNE.
+                      #   A relancer apres tout controle deterministe ajoute ou modifie : le job
+                      #   `attendus` de verif-donnees.yml refuse un attendu qui change sans etre commite.
 
 # Lint / garde-fous
 npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique
@@ -234,6 +240,12 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
   peut pas echouer ne garde rien. Un controle legitime qu'on ne sait pas faire passer ne se supprime
   pas et ne s'adoucit pas : il reste en `skip` avec la RAISON (defaut de la lib, ou amelioration non
   promise par la doc) et **les deux chiffres**, lib et oracle. Procedure : `tools/oracle/README.md`.
+  **Tout piege paye par le banc a un canari** (`tests/verif-donnees/canari.ts`, un controle par piege,
+  chacun citant le registre) ; **tout nouvel operateur entre dans les DEUX oracles**, TS et Python
+  (`npm run verif:attendus`, attendus versionnes). **Une nuit rouge est gelee ou requalifiee sous
+  24 h** : verdict bibliotheque → le gel de `tools/oracle/out/gel/` est copie sous
+  `tests/verif-donnees/gel/` et une issue s'ouvre ; verdict donnee, clause perimee, jeu disparu → le
+  controle vivant est mis a jour ou mis en `skip`. Jamais un troisieme etat.
 - Ajouter un export lib-safe dans **les deux** barrels (`packages/shared/src/lib.ts` ET `src/index.ts`).
 - Lancer `npm run build` apres modification des composants.
 - Creer un changeset si `packages/core/src/` ou `packages/shared/` sont modifies.
