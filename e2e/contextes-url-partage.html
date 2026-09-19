@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — deux contextes url-sync sur le même champ (#922)</title>
+  <!--
+    Comparateur minimal : un territoire de référence, un territoire de
+    comparaison, les deux filtrés sur le MÊME champ `reg_nom`, les deux
+    contextes à `url-sync`.
+
+    Ce que seul un vrai navigateur prouve (#922) : ce qui est réellement
+    écrit dans la barre d'adresse par `history.replaceState`, et ce que les
+    deux contextes en relisent au rechargement. L'URL ne garde QU'UN
+    paramètre pour les deux — le second écrase le premier.
+
+    Le comportement ne change pas : c'est le silence qui change.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Comparer deux régions</h1>
+
+    <label for="sel-ref">Référence</label>
+    <select id="sel-ref">
+      <option value="">—</option>
+      <option value="Bretagne">Bretagne</option>
+      <option value="Normandie">Normandie</option>
+    </select>
+
+    <label for="sel-cmp">Comparaison</label>
+    <select id="sel-cmp">
+      <option value="">—</option>
+      <option value="Bretagne">Bretagne</option>
+      <option value="Normandie">Normandie</option>
+    </select>
+
+    <dsfr-data-source id="src-ref" data='[
+      {"reg_nom":"Bretagne","n":19138},{"reg_nom":"Normandie","n":16745}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="src-cmp" data='[
+      {"reg_nom":"Bretagne","n":19138},{"reg_nom":"Normandie","n":16745}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-context id="ctx-ref" sources="src-ref" url-sync>
+      <dsfr-data-context-filter field="reg_nom" operator="eq" ui="sel-ref"></dsfr-data-context-filter>
+    </dsfr-data-context>
+    <dsfr-data-context id="ctx-cmp" sources="src-cmp" url-sync>
+      <dsfr-data-context-filter field="reg_nom" operator="eq" ui="sel-cmp"></dsfr-data-context-filter>
+    </dsfr-data-context>
+
+    <dsfr-data-kpi id="kpi-ref" source="src-ref" value="n:sum" label="Référence"></dsfr-data-kpi>
+    <dsfr-data-kpi id="kpi-cmp" source="src-cmp" value="n:sum" label="Comparaison"></dsfr-data-kpi>
+  </main>
+</body>
+</html>
