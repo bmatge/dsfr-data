@@ -50,6 +50,122 @@
           </table>
         </div>
 
+        <h2 class="fr-mt-4w">Vignette : image, pictogramme ou icône</h2>
+        <p>
+          Une vignette de 40 px se pose entre le rang et le libellé. Les trois voies sont
+          exclusives — si plusieurs sont posées, l'image l'emporte, puis le pictogramme, puis
+          l'icône, et le cumul est signalé en console.
+        </p>
+        <p>
+          <strong>Ce qui vient de la donnée est contraint, jamais assaini après coup.</strong>
+          Une classe d'icône doit répondre à <code>^(fr-icon|ri)-[a-z0-9-]+$</code> : la donnée
+          ne pose qu'une classe CSS, jamais du balisage. Un nom de pictogramme doit répondre à
+          <code>^[a-z0-9-]+(/[a-z0-9-]+)*$</code> et l'URL est construite en le concaténant à
+          <code>picto-base</code>, attribut de la balise donc écrit par l'intégrateur — ce
+          découpage exclut <code>../</code> et <code>javascript:</code> par construction. Une URL
+          d'<code>image-field</code> passe par la même liste blanche de schémas que le format
+          <code>{{champ:url}}</code>. Dans les trois cas, une valeur refusée n'affiche rien et
+          avertit en console en nommant le champ et la valeur — une fois par valeur, pas une fois
+          par ligne.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-podium fields="image-field,image-shape,icon-field,icon,picto,picto-field,picto-base" -->
+                <tr><td><code>image-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ contenant l'URL d'une image (logo, blason), rendue en vignette 40 px entre le rang et le libellé. L'URL vient de la donnée : elle passe par la même liste blanche de schémas que le format <code>{{champ:url}}</code> (<code>http:</code>, <code>https:</code>, <code>mailto:</code>, <code>tel:</code> ou URL relative). Une URL refusée n'affiche rien et avertit en console, une fois par valeur. Exclusif avec <code>icon-field</code> / <code>icon</code> et <code>picto</code> / <code>picto-field</code> (l'image l'emporte, et le cumul est signalé).</td></tr>
+                <tr><td><code>image-shape</code></td><td>String</td><td><code>square</code></td><td>Forme de la vignette d'<code>image-field</code> : <code>square</code> (défaut) ou <code>circle</code>.</td></tr>
+                <tr><td><code>icon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ contenant une classe d'icône DSFR ou Remix (<code>fr-icon-building-line</code>, <code>ri-map-pin-line</code>), rendue 40 px en Bleu France. Liste blanche stricte <code>^(fr-icon|ri)-[a-z0-9-]+$</code> : ce qui vient de la donnée ne pose qu'une classe CSS, jamais du balisage. Une valeur hors motif est ignorée avec un avertissement nommant le champ et la valeur (dédupliqué : une fois par valeur refusée). ⚠️ 40 px sort de l'échelle documentée du DSFR, qui s'arrête à <code>fr-icon--lg</code> = 32 px ; au-delà le DSFR parle de pictogramme. Le rendu marche (le masque d'une <code>fr-icon-*</code> est en <code>1em</code>, donc pilotable par <code>font-size</code>), mais c'est un usage hors échelle : <code>picto</code> est la voie conforme pour une illustration de cette taille.</td></tr>
+                <tr><td><code>icon</code></td><td>String</td><td><code>""</code></td><td>Même classe d'icône pour tous les items. Même liste blanche qu'<code>icon-field</code>.</td></tr>
+                <tr><td><code>picto</code></td><td>String</td><td><code>""</code></td><td>Nom d'un pictogramme DSFR, identique pour tous les items. L'URL est construite en concaténant <code>picto-base</code> et ce nom (<code>&lt;base&gt;&lt;nom&gt;.svg</code>) : la donnée ne fournit jamais qu'un nom, contraint à <code>^[a-z0-9-]+(/[a-z0-9-]+)*$</code>. Le balisage rendu est le <code>fr-artwork</code> standard du DSFR, donc les couleurs viennent des classes DSFR et le mode sombre suit sans travail.</td></tr>
+                <tr><td><code>picto-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers un champ contenant le nom du pictogramme. Même contrainte que <code>picto</code>.</td></tr>
+                <tr><td><code>picto-base</code></td><td>String</td><td><code>""</code></td><td>Préfixe d'URL des pictogrammes, écrit par l'intégrateur (jamais par la donnée) — par exemple <code>/dsfr/artwork/pictograms/</code>. Sans lui, <code>picto</code> et <code>picto-field</code> ne rendent rien et avertissent : c'est ce découpage nom / base qui exclut <code>../</code> et <code>javascript:</code> par construction.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="fr-mt-4w">Rang, orientation et estrade</h2>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-podium fields="rank,orientation,layout" -->
+                <tr><td><code>rank</code></td><td>String</td><td><code>number</code></td><td>Rendu du rang : <code>number</code> (chiffre, défaut), <code>medal</code> (pastille de la couleur de l'item) ou <code>none</code> (masqué — l'ordre et la barre suffisent). En <code>medal</code>, la couleur d'encre du chiffre est choisie par calcul de luminance relative WCAG : la rampe s'éclaircit, et du blanc dès son **4e ton** serait illisible. Le chiffre reste <code>aria-hidden</code> : l'ordre est porté par la position dans la liste, le chiffre n'en est qu'un rappel. ⚠️ La rampe est <code>CHOROPLETH_SCALES.sequentialDescending</code> (9 tons), **pas** <code>PALETTE_COLORS.sequentialDescending</code> (5 tons) : <code>dsfr-palettes.ts</code> expose deux rampes homonymes et le podium sert la première. Lire la seconde donne un tableau de contraste plausible et faux — c'est arrivé. Ratios sur les 5 premiers tons, encre retenue en gras : | Rang | Couleur | vs blanc | vs <code>#161616</code> | |------|-----------|-----------|--------------| | 1 | <code>#000091</code> | **14,91** | 1,21 | | 2 | <code>#2323B4</code> | **10,65** | 1,70 | | 3 | <code>#4747E5</code> | **6,36** | 2,84 | | 4 | <code>#6A6AF4</code> | 4,22 | **4,29** | | 5 | <code>#8585F6</code> | 3,14 | **5,76** | Le point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et au-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5 sur <code>#6A6AF4</code>. Ces chiffres sont figés par <code>tests/dsfr-data-podium-evolutions.test.ts</code>.</td></tr>
+                <tr><td><code>orientation</code></td><td>String</td><td><code>horizontal</code></td><td><code>horizontal</code> (défaut) ou <code>vertical</code> : barres verticales en colonnes, une par item, dans l'ordre du classement.</td></tr>
+                <tr><td><code>layout</code></td><td>String</td><td><code>list</code></td><td><code>list</code> (défaut) ou <code>podium</code> : estrade 2‑1‑3, le premier au centre. L'inversion est **purement visuelle** (<code>order</code> CSS sur les éléments de grille) : le DOM reste dans l'ordre 1‑2‑3, donc un lecteur d'écran et la navigation clavier parcourent le classement dans l'ordre. Les items au‑delà du 3e passent en liste compacte sous l'estrade, dans le même <code>&lt;ol&gt;</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="fr-callout fr-mt-3w">
+          <p class="fr-callout__title">Contraste de la pastille (<code>rank="medal"</code>)</p>
+          <p class="fr-callout__text">
+            L'encre du chiffre est choisie au rendu par calcul de luminance relative WCAG sur la
+            couleur réellement servie. La rampe par défaut est
+            <code>CHOROPLETH_SCALES.sequentialDescending</code> — <strong>et non</strong>
+            <code>PALETTE_COLORS.sequentialDescending</code>, qui porte le même nom dans le même
+            fichier avec cinq tons différents. Recalculer sur la mauvaise donne un tableau
+            plausible et faux.
+          </p>
+        </div>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Rang</th><th>Couleur servie</th><th>vs blanc</th><th>vs gris de titre</th><th>Encre retenue</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td><code>#000091</code></td><td><strong>14,91:1</strong></td><td>1,21:1</td><td>blanc</td></tr>
+              <tr><td>2</td><td><code>#2323B4</code></td><td><strong>10,65:1</strong></td><td>1,70:1</td><td>blanc</td></tr>
+              <tr><td>3</td><td><code>#4747E5</code></td><td><strong>6,36:1</strong></td><td>2,84:1</td><td>blanc</td></tr>
+              <tr><td>4</td><td><code>#6A6AF4</code></td><td>4,22:1</td><td><strong>4,29:1</strong></td><td>gris de titre</td></tr>
+              <tr><td>5</td><td><code>#8585F6</code></td><td>3,14:1</td><td><strong>5,76:1</strong></td><td>gris de titre</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <strong>Le point bas est le rang 4</strong> : 4,29:1, sous le seuil AA « texte normal »
+          (4,5:1) et au-dessus du seuil AA « texte large » (3:1). Aucune des deux encres n'atteint
+          4,5:1 sur <code>#6A6AF4</code> — c'est le meilleur des deux choix possibles, pas un
+          oubli. Le chiffre reste <code>aria-hidden</code> et l'ordre est porté par la position
+          dans le <code>&lt;ol&gt;</code> : la pastille n'en est qu'un rappel. Ces cinq couples
+          (couleur, encre) et ces ratios sont figés par un test, pour qu'un changement de palette
+          casse la recette au lieu de faire mentir cette page.
+        </p>
+
+        <h2 class="fr-mt-4w">Barre de données, liseré et arrondis</h2>
+        <p>
+          <strong>Trois axes séparés, pas un attribut multivalué.</strong>
+          <code>bar</code> dit <em>ce que porte</em> la barre, <code>bar-position</code> dit
+          <em>où elle est</em>, <code>border</code> pose un liseré purement décoratif. Les trois
+          se combinent librement : <code>bar="proportional" bar-position="top" border="left"</code>
+          est une combinaison valide, et non une valeur composée.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-podium fields="bar,bar-position,border,square,rounded" -->
+                <tr><td><code>bar</code></td><td>String</td><td><code>proportional</code></td><td>Ce que porte la barre de donnée : <code>proportional</code> (longueur = la donnée, défaut), <code>full</code> (pleine largeur, la couleur seule distingue les rangs) ou <code>none</code> (aucune barre). Indépendant de <code>bar-position</code> et de <code>border</code>.</td></tr>
+                <tr><td><code>bar-position</code></td><td>String</td><td><code>inline</code></td><td>Où la barre se place : <code>inline</code> (6 px sous le libellé, défaut), <code>between</code> (16 px entre un libellé de 130 px et la valeur, façon graphique en barres horizontal), <code>top</code> ou <code>bottom</code> (trait de 4 px en haut ou en bas de l'item, façon liseré mais proportionnel). Indépendant de <code>bar</code> et de <code>border</code>.</td></tr>
+                <tr><td><code>border</code></td><td>String</td><td><code>left</code></td><td>Liseré gauche purement décoratif, à la couleur de l'item : <code>left</code> (défaut) ou <code>none</code>. Indépendant de <code>bar</code> et de <code>bar-position</code> — la barre porte la donnée, le liseré ne porte que la couleur.</td></tr>
+                <tr><td><code>square</code></td><td>Boolean</td><td><code>false</code></td><td>Supprime les arrondis (0 px), conforme DSFR strict. **C'est le rendu par défaut depuis la 0.34** : l'attribut n'existe que pour l'écrire explicitement. L'échappatoire est <code>rounded</code>, qui rétablit les anciens arrondis (4 px sur l'item, 3 px sur la barre) ; si les deux sont posés, <code>square</code> l'emporte.</td></tr>
+                <tr><td><code>rounded</code></td><td>Boolean</td><td><code>false</code></td><td>Rétablit les arrondis d'avant la 0.34 (item 4 px, barre 3 px).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="fr-callout fr-mt-4w">
+          <p class="fr-callout__title">Les arrondis sont à 0 depuis la 0.34</p>
+          <p class="fr-callout__text">
+            L'item passe de 4 px à 0, la barre de 3 px à 0 : c'est le rendu <code>square</code>,
+            devenu le défaut, plus conforme au DSFR. C'est le seul changement visuel qui
+            s'applique sans qu'aucun attribut soit posé. <code>rounded</code> rétablit les
+            anciens arrondis ; si <code>square</code> et <code>rounded</code> sont posés tous les
+            deux, <code>square</code> l'emporte.
+          </p>
+        </div>
+
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>
           Un classement n'a pas de sens avant qu'un périmètre soit choisi. Quand l'amont porte
@@ -199,6 +315,283 @@
   <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
   <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
   <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>6. Vignette image (image-field, 3a)</h3>
+          <p>Une image issue d'un champ de la donnée, 40 px, entre le rang et le libellé. <code>image-shape="circle"</code> la rend ronde.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            image-field="logo"
+            image-shape="square">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">image-field</span><span class="tok-punct">=</span><span class="tok-string">"logo"</span>
+  <span class="tok-attr">image-shape</span><span class="tok-punct">=</span><span class="tok-string">"square"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>7. Icône par item et rang en pastille (icon-field + rank, 3b)</h3>
+          <p>L'icône vient de la donnée, validée par liste blanche ; le rang chiffré migre en pastille de la couleur de l'item, dont l'encre est choisie par luminance.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            icon-field="icone"
+            rank="medal">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">icon-field</span><span class="tok-punct">=</span><span class="tok-string">"icone"</span>
+  <span class="tok-attr">rank</span><span class="tok-punct">=</span><span class="tok-string">"medal"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>8. Pastille seule, sans liseré (rank + border, 3c)</h3>
+          <p>Le rang dans un disque de 32 px à la couleur de l'item ; le liseré gauche devient facultatif.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            rank="medal"
+            border="none">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">rank</span><span class="tok-punct">=</span><span class="tok-string">"medal"</span>
+  <span class="tok-attr">border</span><span class="tok-punct">=</span><span class="tok-string">"none"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>9. Sans rang (rank="none", 3d)</h3>
+          <p>Le rang disparaît : l'ordre de la liste et la barre suffisent. Utile avec <code>no-sort</code> (étapes, progression).</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_dsfr"
+            value-unit="%"
+            bar-max="100"
+            max-items="4"
+            rank="none"
+            no-sort>
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_dsfr"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"%"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"4"</span>
+  <span class="tok-attr">rank</span><span class="tok-punct">=</span><span class="tok-string">"none"</span>
+  no-sort<span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>10. Colonnes (orientation="vertical", 3e)</h3>
+          <p>Barres verticales, une colonne par item, dans l'ordre du classement.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            orientation="vertical">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">orientation</span><span class="tok-punct">=</span><span class="tok-string">"vertical"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>11. Estrade 2-1-3 (layout="podium", 3f)</h3>
+          <p>Le podium au sens propre : trois marches, le premier au centre, les suivants en liste compacte dessous. <strong>Le DOM reste dans l'ordre 1‑2‑3</strong> — l'inversion est faite par <code>order</code> en CSS, pour qu'un lecteur d'écran et la navigation clavier parcourent le classement dans l'ordre.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            layout="podium"
+            icon-field="icone">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">layout</span><span class="tok-punct">=</span><span class="tok-string">"podium"</span>
+  <span class="tok-attr">icon-field</span><span class="tok-punct">=</span><span class="tok-string">"icone"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>12. Barre proportionnelle en haut, avec liseré (3g et 3h)</h3>
+          <p>La barre de données remplace le liseré haut : sa longueur est la donnée. Avec <code>border="left"</code> on garde en plus le liseré décoratif (3h) ; avec <code>border="none"</code> on a la vignette 3g.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            bar="proportional"
+            bar-position="top"
+            border="left">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar</span><span class="tok-punct">=</span><span class="tok-string">"proportional"</span>
+  <span class="tok-attr">bar-position</span><span class="tok-punct">=</span><span class="tok-string">"top"</span>
+  <span class="tok-attr">border</span><span class="tok-punct">=</span><span class="tok-string">"left"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>13. Barre dans la ligne (bar-position="between", 3i)</h3>
+          <p>La barre de 16 px prend la place entre un libellé de 130 px et la valeur, comme un graphique en barres horizontal. À distinguer d'<code>inline</code>, qui est le rendu historique : barre de 6 px sous le libellé.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            bar="proportional"
+            bar-position="between"
+            border="none">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar</span><span class="tok-punct">=</span><span class="tok-string">"proportional"</span>
+  <span class="tok-attr">bar-position</span><span class="tok-punct">=</span><span class="tok-string">"between"</span>
+  <span class="tok-attr">border</span><span class="tok-punct">=</span><span class="tok-string">"none"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>14. Barre pleine en haut (bar="full", 3j)</h3>
+          <p>Liseré haut non proportionnel : la couleur seule distingue les rangs. Pour un top N où l'écart chiffré ne doit pas être surinterprété.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            bar="full"
+            bar-position="top">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar</span><span class="tok-punct">=</span><span class="tok-string">"full"</span>
+  <span class="tok-attr">bar-position</span><span class="tok-punct">=</span><span class="tok-string">"top"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>15. Sans barre, liseré gauche (bar="none", 3k)</h3>
+          <p>Liste compacte : le liseré seul porte la couleur, aucune information de proportion.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            bar="none"
+            border="left">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar</span><span class="tok-punct">=</span><span class="tok-string">"none"</span>
+  <span class="tok-attr">border</span><span class="tok-punct">=</span><span class="tok-string">"left"</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
+        </section>
+
+        <section class="demo-section">
+          <h3>16. Barre proportionnelle en bas (bar-position="bottom", 3l)</h3>
+          <p>Variante de 3g : la barre souligne l'item. Convient quand le libellé est long ou sur deux lignes.</p>
+          <dsfr-data-podium
+            source="sites"
+            label-field="nom"
+            value-field="score_rgaa"
+            value-unit="/ 100"
+            bar-max="100"
+            max-items="5"
+            bar="proportional"
+            bar-position="bottom">
+          </dsfr-data-podium>
+          <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-podium</span>
+  <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"sites"</span>
+  <span class="tok-attr">label-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span>
+  <span class="tok-attr">value-field</span><span class="tok-punct">=</span><span class="tok-string">"score_rgaa"</span>
+  <span class="tok-attr">value-unit</span><span class="tok-punct">=</span><span class="tok-string">"/ 100"</span>
+  <span class="tok-attr">bar-max</span><span class="tok-punct">=</span><span class="tok-string">"100"</span>
+  <span class="tok-attr">max-items</span><span class="tok-punct">=</span><span class="tok-string">"5"</span>
+  <span class="tok-attr">bar</span><span class="tok-punct">=</span><span class="tok-string">"proportional"</span>
+  <span class="tok-attr">bar-position</span><span class="tok-punct">=</span><span class="tok-string">"bottom"</span><span class="tok-punct">&gt;</span>
 <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-podium</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
     </div>
