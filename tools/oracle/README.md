@@ -23,8 +23,8 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **214 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
-domaines, pour 494 observations et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt : **215 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
+domaines, pour 495 observations et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
 cités. Une troisième voix, en Python standard, recalcule 332 des attentes déterministes
@@ -756,6 +756,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | delegation | le bloc « `where` seul » de `_negotiateServerSide` neutralisé (`dsfr-data-query.ts`) | `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation` | 0 URL sur 2 portent `where=` ; la source `require-where` n'affiche jamais rien, 30 s de scrutation (#856, #854) |
 | delegation | `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
 | export-studio | `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | les 5 contrôles de source dédiée | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
+| affichages | `map-summary-field` ignoré, retour à `_valueFieldKey()` (`dsfr-data-chart.ts`) | `carte-resume-champ-de-calcul-929` | lib 43,57, oracle 43,07 : le résumé repasse sur la colonne d'affichage arrondie, et le chiffre reste plausible (#929) |
 | affichages | `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du domaine | mutation large : tout ce qui affiche un nombre recalculé tombe |
 | affichages | `formatNumberFr` ignore `decimals` (`shared/utils/formatters.ts`) | `liste-decimales-des-cellules` | « 43,25 » ne vérifie plus `^-?\d+,\d{3}$` |
 | affichages | `formatPercentage` cesse de poser `%` (`shared/utils/formatters.ts`) | `format-pourcentage-et-unite`, `kpi-evolution-en-pourcentage`, `kpi-tendance`, `kpi-lignes-secondaires` | « 41,0 » au lieu de « 41,0 % » : le chiffre est juste, la forme ne l'est pas |
