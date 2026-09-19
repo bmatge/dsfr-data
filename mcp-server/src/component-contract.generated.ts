@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 360 attributs.
+ * 28 balises, 375 attributs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -394,13 +394,28 @@ export const COMPONENT_CONTRACT = {
   },
   "dsfr-data-podium": {
     "attributes": [
+      "bar",
       "bar-max",
+      "bar-position",
+      "border",
+      "icon",
+      "icon-field",
       "idle-message",
+      "image-field",
+      "image-shape",
       "label-field",
+      "layout",
       "max-items",
       "no-sort",
+      "orientation",
+      "picto",
+      "picto-base",
+      "picto-field",
+      "rank",
+      "rounded",
       "selected-palette",
       "source",
+      "square",
       "subtitle",
       "subtitle-field",
       "value-field",

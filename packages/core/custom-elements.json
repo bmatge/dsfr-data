@@ -15792,8 +15792,18 @@
       "path": "packages/core/src/components/dsfr-data-podium.ts",
       "declarations": [
         {
+          "kind": "function",
+          "name": "resetPodiumMediaWarnings",
+          "return": {
+            "type": {
+              "text": "void"
+            }
+          },
+          "description": "Remet a zero la deduplication des avertissements (tests)."
+        },
+        {
           "kind": "class",
-          "description": "<dsfr-data-podium> - Classement visuel avec barres proportionnelles\n\nAffiche un podium (top N) avec rang, label, barre de progression et valeur.\nSe connecte au pipeline dsfr-data-source / dsfr-data-query.",
+          "description": "<dsfr-data-podium> - Classement visuel avec barres proportionnelles\n\nAffiche un podium (top N) avec rang, label, barre de progression et valeur.\nSe connecte au pipeline dsfr-data-source / dsfr-data-query.\n\nTrois axes de presentation independants, a ne pas confondre :\n`bar` dit CE QUE PORTE la barre, `bar-position` dit OU elle est, `border`\npose un lisere purement decoratif. Les trois se combinent librement.",
           "name": "DsfrDataPodium",
           "members": [
             {
@@ -15897,6 +15907,156 @@
             },
             {
               "kind": "field",
+              "name": "imageField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Chemin vers un champ contenant l'URL d'une image (logo, blason), rendue\nen vignette 40 px entre le rang et le libellé.\n\nL'URL vient de la donnée : elle passe par la même liste blanche de schémas\nque le format `{{champ:url}}` (`http:`, `https:`, `mailto:`, `tel:` ou URL\nrelative). Une URL refusée n'affiche rien et avertit en console, une fois\npar valeur. Exclusif avec `icon-field` / `icon` et `picto` / `picto-field`\n(l'image l'emporte, et le cumul est signalé).",
+              "attribute": "image-field"
+            },
+            {
+              "kind": "field",
+              "name": "imageShape",
+              "type": {
+                "text": "string"
+              },
+              "default": "'square'",
+              "description": "Forme de la vignette d'`image-field` : `square` (défaut) ou `circle`.",
+              "attribute": "image-shape"
+            },
+            {
+              "kind": "field",
+              "name": "iconField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Chemin vers un champ contenant une classe d'icône DSFR ou Remix\n(`fr-icon-building-line`, `ri-map-pin-line`), rendue 40 px en Bleu France.\n\nListe blanche stricte `^(fr-icon|ri)-[a-z0-9-]+$` : ce qui vient de la\ndonnée ne pose qu'une classe CSS, jamais du balisage. Une valeur hors\nmotif est ignorée avec un avertissement nommant le champ et la valeur\n(dédupliqué : une fois par valeur refusée).\n\n⚠️ 40 px sort de l'échelle documentée du DSFR, qui s'arrête à\n`fr-icon--lg` = 32 px ; au-delà le DSFR parle de pictogramme. Le rendu\nmarche (le masque d'une `fr-icon-*` est en `1em`, donc pilotable par\n`font-size`), mais c'est un usage hors échelle : `picto` est la voie\nconforme pour une illustration de cette taille.",
+              "attribute": "icon-field"
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Même classe d'icône pour tous les items. Même liste blanche qu'`icon-field`.",
+              "attribute": "icon"
+            },
+            {
+              "kind": "field",
+              "name": "picto",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom d'un pictogramme DSFR, identique pour tous les items. L'URL est\nconstruite en concaténant `picto-base` et ce nom (`<base><nom>.svg`) :\nla donnée ne fournit jamais qu'un nom, contraint à\n`^[a-z0-9-]+(/[a-z0-9-]+)*$`. Le balisage rendu est le `fr-artwork`\nstandard du DSFR, donc les couleurs viennent des classes DSFR et le mode\nsombre suit sans travail.",
+              "attribute": "picto"
+            },
+            {
+              "kind": "field",
+              "name": "pictoField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Chemin vers un champ contenant le nom du pictogramme. Même contrainte que `picto`.",
+              "attribute": "picto-field"
+            },
+            {
+              "kind": "field",
+              "name": "pictoBase",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Préfixe d'URL des pictogrammes, écrit par l'intégrateur (jamais par la\ndonnée) — par exemple `/dsfr/artwork/pictograms/`. Sans lui, `picto` et\n`picto-field` ne rendent rien et avertissent : c'est ce découpage\nnom / base qui exclut `../` et `javascript:` par construction.",
+              "attribute": "picto-base"
+            },
+            {
+              "kind": "field",
+              "name": "rank",
+              "type": {
+                "text": "string"
+              },
+              "default": "'number'",
+              "description": "Rendu du rang : `number` (chiffre, défaut), `medal` (pastille de la\ncouleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).\n\nEn `medal`, la couleur d'encre du chiffre est choisie par calcul de\nluminance relative WCAG : la rampe s'éclaircit, et du blanc dès son\n**4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est\nporté par la position dans la liste, le chiffre n'en est qu'un rappel.\n\n⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), **pas**\n`PALETTE_COLORS.sequentialDescending` (5 tons) : `dsfr-palettes.ts` expose\ndeux rampes homonymes et le podium sert la première. Lire la seconde donne\nun tableau de contraste plausible et faux — c'est arrivé. Ratios sur les\n5 premiers tons, encre retenue en gras :\n\n| Rang | Couleur   | vs blanc  | vs `#161616` |\n|------|-----------|-----------|--------------|\n| 1    | `#000091` | **14,91** | 1,21         |\n| 2    | `#2323B4` | **10,65** | 1,70         |\n| 3    | `#4747E5` | **6,36**  | 2,84         |\n| 4    | `#6A6AF4` | 4,22      | **4,29**     |\n| 5    | `#8585F6` | 3,14      | **5,76**     |\n\nLe point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et\nau-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5\nsur `#6A6AF4`. Ces chiffres sont figés par\n`tests/dsfr-data-podium-evolutions.test.ts`.",
+              "attribute": "rank"
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "string"
+              },
+              "default": "'horizontal'",
+              "description": "`horizontal` (défaut) ou `vertical` : barres verticales en colonnes,\nune par item, dans l'ordre du classement.",
+              "attribute": "orientation"
+            },
+            {
+              "kind": "field",
+              "name": "layout",
+              "type": {
+                "text": "string"
+              },
+              "default": "'list'",
+              "description": "`list` (défaut) ou `podium` : estrade 2‑1‑3, le premier au centre.\n\nL'inversion est **purement visuelle** (`order` CSS sur les éléments de\ngrille) : le DOM reste dans l'ordre 1‑2‑3, donc un lecteur d'écran et la\nnavigation clavier parcourent le classement dans l'ordre. Les items\nau‑delà du 3e passent en liste compacte sous l'estrade, dans le même\n`<ol>`.",
+              "attribute": "layout"
+            },
+            {
+              "kind": "field",
+              "name": "bar",
+              "type": {
+                "text": "string"
+              },
+              "default": "'proportional'",
+              "description": "Ce que porte la barre de donnée : `proportional` (longueur = la donnée,\ndéfaut), `full` (pleine largeur, la couleur seule distingue les rangs) ou\n`none` (aucune barre). Indépendant de `bar-position` et de `border`.",
+              "attribute": "bar"
+            },
+            {
+              "kind": "field",
+              "name": "barPosition",
+              "type": {
+                "text": "string"
+              },
+              "default": "'inline'",
+              "description": "Où la barre se place : `inline` (6 px sous le libellé, défaut),\n`between` (16 px entre un libellé de 130 px et la valeur, façon\ngraphique en barres horizontal), `top` ou `bottom` (trait de 4 px en\nhaut ou en bas de l'item, façon liseré mais proportionnel).\nIndépendant de `bar` et de `border`.",
+              "attribute": "bar-position"
+            },
+            {
+              "kind": "field",
+              "name": "border",
+              "type": {
+                "text": "string"
+              },
+              "default": "'left'",
+              "description": "Liseré gauche purement décoratif, à la couleur de l'item : `left`\n(défaut) ou `none`. Indépendant de `bar` et de `bar-position` — la barre\nporte la donnée, le liseré ne porte que la couleur.",
+              "attribute": "border"
+            },
+            {
+              "kind": "field",
+              "name": "square",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Supprime les arrondis (0 px), conforme DSFR strict. **C'est le rendu par\ndéfaut depuis la 0.34** : l'attribut n'existe que pour l'écrire\nexplicitement. L'échappatoire est `rounded`, qui rétablit les anciens\narrondis (4 px sur l'item, 3 px sur la barre) ; si les deux sont posés,\n`square` l'emporte.",
+              "attribute": "square"
+            },
+            {
+              "kind": "field",
+              "name": "rounded",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Rétablit les arrondis d'avant la 0.34 (item 4 px, barre 3 px).",
+              "attribute": "rounded"
+            },
+            {
+              "kind": "field",
               "name": "idleMessage",
               "default": "IDLE_MESSAGE_DEFAULT",
               "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
@@ -15938,6 +16098,70 @@
               ]
             },
             {
+              "kind": "field",
+              "name": "_hasMedia",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "description": "`true` des qu'une vignette (image, picto ou icone) est configuree.",
+              "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_resolveImage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_resolveIcon",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_resolvePicto",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ]
+            },
+            {
               "kind": "method",
               "name": "_processItems",
               "privacy": "private",
@@ -15974,6 +16198,162 @@
                   "text": "string"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_listClasses",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Classes de la liste : rien de plus que `dsfr-data-podium` tant que rien n'est pose."
+            },
+            {
+              "kind": "method",
+              "name": "_warnExclusiveMedia",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_barWidthPercent",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderMedia",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_medalInk",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "color",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Encre du chiffre d'une pastille : blanc ou gris de titre, choisi par\nluminance relative WCAG de la couleur de l'item. Aucun hexadecimal n'est\necrit ici : la classe rendue pointe vers deux tokens DSFR (grey-1000-50 /\ngrey-50-1000), croises sous [data-fr-theme=\"dark\"] pour que l'encre reste\nla meme dans les deux themes — le fond de la pastille, lui, est une\ncouleur de palette qui ne change pas avec le theme."
+            },
+            {
+              "kind": "method",
+              "name": "_renderRank",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderBar",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                },
+                {
+                  "name": "vertical",
+                  "default": "false"
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderItem",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderListItem",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ],
+              "description": "Item de liste — la forme historique. Sans aucun des attributs de\npresentation, ce gabarit produit exactement le DOM d'avant la 0.34."
+            },
+            {
+              "kind": "method",
+              "name": "_renderVerticalItem",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ],
+              "description": "Colonne du mode vertical : valeur, barre, rang, libelle."
+            },
+            {
+              "kind": "method",
+              "name": "_renderStepItem",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "PodiumItem"
+                  }
+                }
+              ],
+              "description": "Marche de l'estrade. Le DOM reste 1, 2, 3 : c'est `order` en CSS qui\nplace le premier au centre (cf. `layout`)."
             },
             {
               "kind": "method",
@@ -16072,6 +16452,141 @@
               "fieldName": "barMax"
             },
             {
+              "name": "image-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Chemin vers un champ contenant l'URL d'une image (logo, blason), rendue\nen vignette 40 px entre le rang et le libellé.\n\nL'URL vient de la donnée : elle passe par la même liste blanche de schémas\nque le format `{{champ:url}}` (`http:`, `https:`, `mailto:`, `tel:` ou URL\nrelative). Une URL refusée n'affiche rien et avertit en console, une fois\npar valeur. Exclusif avec `icon-field` / `icon` et `picto` / `picto-field`\n(l'image l'emporte, et le cumul est signalé).",
+              "fieldName": "imageField"
+            },
+            {
+              "name": "image-shape",
+              "type": {
+                "text": "string"
+              },
+              "default": "'square'",
+              "description": "Forme de la vignette d'`image-field` : `square` (défaut) ou `circle`.",
+              "fieldName": "imageShape"
+            },
+            {
+              "name": "icon-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Chemin vers un champ contenant une classe d'icône DSFR ou Remix\n(`fr-icon-building-line`, `ri-map-pin-line`), rendue 40 px en Bleu France.\n\nListe blanche stricte `^(fr-icon|ri)-[a-z0-9-]+$` : ce qui vient de la\ndonnée ne pose qu'une classe CSS, jamais du balisage. Une valeur hors\nmotif est ignorée avec un avertissement nommant le champ et la valeur\n(dédupliqué : une fois par valeur refusée).\n\n⚠️ 40 px sort de l'échelle documentée du DSFR, qui s'arrête à\n`fr-icon--lg` = 32 px ; au-delà le DSFR parle de pictogramme. Le rendu\nmarche (le masque d'une `fr-icon-*` est en `1em`, donc pilotable par\n`font-size`), mais c'est un usage hors échelle : `picto` est la voie\nconforme pour une illustration de cette taille.",
+              "fieldName": "iconField"
+            },
+            {
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Même classe d'icône pour tous les items. Même liste blanche qu'`icon-field`.",
+              "fieldName": "icon"
+            },
+            {
+              "name": "picto",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Nom d'un pictogramme DSFR, identique pour tous les items. L'URL est\nconstruite en concaténant `picto-base` et ce nom (`<base><nom>.svg`) :\nla donnée ne fournit jamais qu'un nom, contraint à\n`^[a-z0-9-]+(/[a-z0-9-]+)*$`. Le balisage rendu est le `fr-artwork`\nstandard du DSFR, donc les couleurs viennent des classes DSFR et le mode\nsombre suit sans travail.",
+              "fieldName": "picto"
+            },
+            {
+              "name": "picto-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Chemin vers un champ contenant le nom du pictogramme. Même contrainte que `picto`.",
+              "fieldName": "pictoField"
+            },
+            {
+              "name": "picto-base",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Préfixe d'URL des pictogrammes, écrit par l'intégrateur (jamais par la\ndonnée) — par exemple `/dsfr/artwork/pictograms/`. Sans lui, `picto` et\n`picto-field` ne rendent rien et avertissent : c'est ce découpage\nnom / base qui exclut `../` et `javascript:` par construction.",
+              "fieldName": "pictoBase"
+            },
+            {
+              "name": "rank",
+              "type": {
+                "text": "string"
+              },
+              "default": "'number'",
+              "description": "Rendu du rang : `number` (chiffre, défaut), `medal` (pastille de la\ncouleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).\n\nEn `medal`, la couleur d'encre du chiffre est choisie par calcul de\nluminance relative WCAG : la rampe s'éclaircit, et du blanc dès son\n**4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est\nporté par la position dans la liste, le chiffre n'en est qu'un rappel.\n\n⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), **pas**\n`PALETTE_COLORS.sequentialDescending` (5 tons) : `dsfr-palettes.ts` expose\ndeux rampes homonymes et le podium sert la première. Lire la seconde donne\nun tableau de contraste plausible et faux — c'est arrivé. Ratios sur les\n5 premiers tons, encre retenue en gras :\n\n| Rang | Couleur   | vs blanc  | vs `#161616` |\n|------|-----------|-----------|--------------|\n| 1    | `#000091` | **14,91** | 1,21         |\n| 2    | `#2323B4` | **10,65** | 1,70         |\n| 3    | `#4747E5` | **6,36**  | 2,84         |\n| 4    | `#6A6AF4` | 4,22      | **4,29**     |\n| 5    | `#8585F6` | 3,14      | **5,76**     |\n\nLe point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et\nau-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5\nsur `#6A6AF4`. Ces chiffres sont figés par\n`tests/dsfr-data-podium-evolutions.test.ts`.",
+              "fieldName": "rank"
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "string"
+              },
+              "default": "'horizontal'",
+              "description": "`horizontal` (défaut) ou `vertical` : barres verticales en colonnes,\nune par item, dans l'ordre du classement.",
+              "fieldName": "orientation"
+            },
+            {
+              "name": "layout",
+              "type": {
+                "text": "string"
+              },
+              "default": "'list'",
+              "description": "`list` (défaut) ou `podium` : estrade 2‑1‑3, le premier au centre.\n\nL'inversion est **purement visuelle** (`order` CSS sur les éléments de\ngrille) : le DOM reste dans l'ordre 1‑2‑3, donc un lecteur d'écran et la\nnavigation clavier parcourent le classement dans l'ordre. Les items\nau‑delà du 3e passent en liste compacte sous l'estrade, dans le même\n`<ol>`.",
+              "fieldName": "layout"
+            },
+            {
+              "name": "bar",
+              "type": {
+                "text": "string"
+              },
+              "default": "'proportional'",
+              "description": "Ce que porte la barre de donnée : `proportional` (longueur = la donnée,\ndéfaut), `full` (pleine largeur, la couleur seule distingue les rangs) ou\n`none` (aucune barre). Indépendant de `bar-position` et de `border`.",
+              "fieldName": "bar"
+            },
+            {
+              "name": "bar-position",
+              "type": {
+                "text": "string"
+              },
+              "default": "'inline'",
+              "description": "Où la barre se place : `inline` (6 px sous le libellé, défaut),\n`between` (16 px entre un libellé de 130 px et la valeur, façon\ngraphique en barres horizontal), `top` ou `bottom` (trait de 4 px en\nhaut ou en bas de l'item, façon liseré mais proportionnel).\nIndépendant de `bar` et de `border`.",
+              "fieldName": "barPosition"
+            },
+            {
+              "name": "border",
+              "type": {
+                "text": "string"
+              },
+              "default": "'left'",
+              "description": "Liseré gauche purement décoratif, à la couleur de l'item : `left`\n(défaut) ou `none`. Indépendant de `bar` et de `bar-position` — la barre\nporte la donnée, le liseré ne porte que la couleur.",
+              "fieldName": "border"
+            },
+            {
+              "name": "square",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Supprime les arrondis (0 px), conforme DSFR strict. **C'est le rendu par\ndéfaut depuis la 0.34** : l'attribut n'existe que pour l'écrire\nexplicitement. L'échappatoire est `rounded`, qui rétablit les anciens\narrondis (4 px sur l'item, 3 px sur la barre) ; si les deux sont posés,\n`square` l'emporte.",
+              "fieldName": "square"
+            },
+            {
+              "name": "rounded",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "description": "Rétablit les arrondis d'avant la 0.34 (item 4 px, barre 3 px).",
+              "fieldName": "rounded"
+            },
+            {
               "name": "idle-message",
               "default": "IDLE_MESSAGE_DEFAULT",
               "description": "Message rendu quand l'amont attend un filtre (`require-where`, #690).\nDistinct de « aucune donnée » : aucune requête n'a été faite. Vide,\nle libellé par défaut est utilisé.",
@@ -16090,9 +16605,35 @@
           },
           "tagName": "dsfr-data-podium",
           "customElement": true
+        },
+        {
+          "kind": "function",
+          "name": "relativeLuminance",
+          "return": {
+            "type": {
+              "text": "number"
+            }
+          },
+          "parameters": [
+            {
+              "name": "hex",
+              "type": {
+                "text": "string"
+              }
+            }
+          ],
+          "description": "Luminance relative WCAG 2.x d'une couleur `#rrggbb`. Sert a choisir l'encre\ndu chiffre d'une pastille : la rampe CHOROPLETH_SCALES s'eclaircit, et du\nblanc des son 4e ton (`#6A6AF4`) serait illisible. Voir la table de ratios\nau JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS, qui porte\nune rampe homonyme a 5 tons que le podium ne sert pas."
         }
       ],
       "exports": [
+        {
+          "kind": "js",
+          "name": "resetPodiumMediaWarnings",
+          "declaration": {
+            "name": "resetPodiumMediaWarnings",
+            "module": "packages/core/src/components/dsfr-data-podium.ts"
+          }
+        },
         {
           "kind": "js",
           "name": "DsfrDataPodium",
@@ -16106,6 +16647,14 @@
           "name": "dsfr-data-podium",
           "declaration": {
             "name": "DsfrDataPodium",
+            "module": "packages/core/src/components/dsfr-data-podium.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "relativeLuminance",
+          "declaration": {
+            "name": "relativeLuminance",
             "module": "packages/core/src/components/dsfr-data-podium.ts"
           }
         }

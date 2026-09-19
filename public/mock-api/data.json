@@ -12,7 +12,10 @@
       "score_dsfr": 92,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-28"
+      "date_derniere_analyse": "2025-01-28",
+      "icone": "fr-icon-money-euro-circle-line",
+      "picto": "buildings/city-hall",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/city-hall.svg"
     },
     {
       "nom": "interieur.gouv.fr",
@@ -22,7 +25,10 @@
       "score_dsfr": 85,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-25"
+      "date_derniere_analyse": "2025-01-25",
+      "icone": "fr-icon-book-2-line",
+      "picto": "buildings/school",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/school.svg"
     },
     {
       "nom": "education.gouv.fr",
@@ -32,7 +38,10 @@
       "score_dsfr": 95,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-30"
+      "date_derniere_analyse": "2025-01-30",
+      "icone": "fr-icon-hospital-line",
+      "picto": "buildings/factory",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/factory.svg"
     },
     {
       "nom": "sante.gouv.fr",
@@ -42,7 +51,10 @@
       "score_dsfr": 78,
       "statut": "actif",
       "certificat_valide": false,
-      "date_derniere_analyse": "2025-01-20"
+      "date_derniere_analyse": "2025-01-20",
+      "icone": "fr-icon-government-line",
+      "picto": "buildings/house",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/house.svg"
     },
     {
       "nom": "justice.gouv.fr",
@@ -52,7 +64,10 @@
       "score_dsfr": 88,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-27"
+      "date_derniere_analyse": "2025-01-27",
+      "icone": "fr-icon-scales-3-line",
+      "picto": "buildings/nuclear-plant",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/nuclear-plant.svg"
     },
     {
       "nom": "culture.gouv.fr",
@@ -62,7 +77,10 @@
       "score_dsfr": 97,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-29"
+      "date_derniere_analyse": "2025-01-29",
+      "icone": "fr-icon-plant-line",
+      "picto": "environment/leaf",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/environment/leaf.svg"
     },
     {
       "nom": "travail-emploi.gouv.fr",
@@ -72,7 +90,10 @@
       "score_dsfr": 82,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-22"
+      "date_derniere_analyse": "2025-01-22",
+      "icone": "fr-icon-community-fill",
+      "picto": "buildings/place-of-worship",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/place-of-worship.svg"
     },
     {
       "nom": "ecologie.gouv.fr",
@@ -82,7 +103,10 @@
       "score_dsfr": 91,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-26"
+      "date_derniere_analyse": "2025-01-26",
+      "icone": "fr-icon-france-line",
+      "picto": "buildings/city-hall",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/city-hall.svg"
     },
     {
       "nom": "diplomatie.gouv.fr",
@@ -92,7 +116,10 @@
       "score_dsfr": 84,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-24"
+      "date_derniere_analyse": "2025-01-24",
+      "icone": "fr-icon-briefcase-line",
+      "picto": "buildings/school",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/school.svg"
     },
     {
       "nom": "agriculture.gouv.fr",
@@ -102,7 +129,10 @@
       "score_dsfr": 71,
       "statut": "actif",
       "certificat_valide": false,
-      "date_derniere_analyse": "2025-01-18"
+      "date_derniere_analyse": "2025-01-18",
+      "icone": "fr-icon-bank-card-line",
+      "picto": "buildings/factory",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/factory.svg"
     },
     {
       "nom": "defense.gouv.fr",
@@ -112,7 +142,10 @@
       "score_dsfr": 86,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-23"
+      "date_derniere_analyse": "2025-01-23",
+      "icone": "fr-icon-money-euro-circle-line",
+      "picto": "buildings/city-hall",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/city-hall.svg"
     },
     {
       "nom": "sports.gouv.fr",
@@ -122,7 +155,10 @@
       "score_dsfr": 79,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-21"
+      "date_derniere_analyse": "2025-01-21",
+      "icone": "fr-icon-book-2-line",
+      "picto": "buildings/school",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/school.svg"
     },
     {
       "nom": "cohesion-territoires.gouv.fr",
@@ -132,7 +168,10 @@
       "score_dsfr": 65,
       "statut": "actif",
       "certificat_valide": false,
-      "date_derniere_analyse": "2025-01-15"
+      "date_derniere_analyse": "2025-01-15",
+      "icone": "fr-icon-hospital-line",
+      "picto": "buildings/factory",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/factory.svg"
     },
     {
       "nom": "mer.gouv.fr",
@@ -142,7 +181,10 @@
       "score_dsfr": 87,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-25"
+      "date_derniere_analyse": "2025-01-25",
+      "icone": "fr-icon-government-line",
+      "picto": "buildings/house",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/house.svg"
     },
     {
       "nom": "fonction-publique.gouv.fr",
@@ -152,7 +194,10 @@
       "score_dsfr": 83,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-22"
+      "date_derniere_analyse": "2025-01-22",
+      "icone": "fr-icon-scales-3-line",
+      "picto": "buildings/nuclear-plant",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/nuclear-plant.svg"
     },
     {
       "nom": "outre-mer.gouv.fr",
@@ -162,7 +207,10 @@
       "score_dsfr": 74,
       "statut": "inactif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-10"
+      "date_derniere_analyse": "2025-01-10",
+      "icone": "fr-icon-plant-line",
+      "picto": "environment/leaf",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/environment/leaf.svg"
     },
     {
       "nom": "industrie.gouv.fr",
@@ -172,7 +220,10 @@
       "score_dsfr": 90,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-28"
+      "date_derniere_analyse": "2025-01-28",
+      "icone": "fr-icon-community-fill",
+      "picto": "buildings/place-of-worship",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/place-of-worship.svg"
     },
     {
       "nom": "enseignementsup.gouv.fr",
@@ -182,7 +233,10 @@
       "score_dsfr": 93,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-29"
+      "date_derniere_analyse": "2025-01-29",
+      "icone": "fr-icon-france-line",
+      "picto": "buildings/city-hall",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/city-hall.svg"
     },
     {
       "nom": "solidarites.gouv.fr",
@@ -192,7 +246,10 @@
       "score_dsfr": 76,
       "statut": "actif",
       "certificat_valide": false,
-      "date_derniere_analyse": "2025-01-19"
+      "date_derniere_analyse": "2025-01-19",
+      "icone": "fr-icon-briefcase-line",
+      "picto": "buildings/school",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/school.svg"
     },
     {
       "nom": "numerique.gouv.fr",
@@ -202,7 +259,10 @@
       "score_dsfr": 99,
       "statut": "actif",
       "certificat_valide": true,
-      "date_derniere_analyse": "2025-01-31"
+      "date_derniere_analyse": "2025-01-31",
+      "icone": "fr-icon-bank-card-line",
+      "picto": "buildings/factory",
+      "logo": "https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/artwork/pictograms/buildings/factory.svg"
     }
   ]
 }
