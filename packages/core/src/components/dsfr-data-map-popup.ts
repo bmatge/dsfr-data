@@ -33,6 +33,7 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
+import { readChildTemplate } from '../utils/child-template.js';
 import { renderTemplate } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
@@ -84,7 +85,7 @@ export class DsfrDataMapPopup extends LitElement {
 
   private _getTemplate(): HTMLTemplateElement | null {
     if (!this._templateRead) {
-      this._templateEl = this.querySelector('template');
+      this._templateEl = readChildTemplate(this);
       this._templateRead = true;
     }
     return this._templateEl;
