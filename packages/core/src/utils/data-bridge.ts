@@ -43,8 +43,14 @@ export interface DataLoadingEvent {
  */
 export interface DataIdleEvent {
   sourceId: string;
-  /** Pourquoi l'étape attend. Seule valeur actuelle : `require-where`. */
-  reason: 'require-where';
+  /**
+   * Pourquoi l'étape attend.
+   * - `require-where` (#690) : aucun filtre reçu, et la source en exige un.
+   * - `lazy` (#931) : personne ne regarde encore — aucun consommateur de
+   *   cette source n'est entré dans le viewport. Se lève au défilement ou à
+   *   l'ouverture de l'onglet, pas par un filtre.
+   */
+  reason: 'require-where' | 'lazy';
 }
 
 /**

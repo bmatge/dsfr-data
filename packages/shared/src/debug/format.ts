@@ -292,7 +292,7 @@ function formatInputs(node: StageNode, states: Record<string, StageState>): stri
       return `     reçoit — ← ${up} (en échec : plus rien ne descend)`;
     }
     if (upstream?.status === 'waiting') {
-      return `     reçoit — ← ${up} (en attente d'un filtre)`;
+      return `     reçoit — ← ${up} (${waitingWording(upstream.waitingReason)})`;
     }
     if (!upstream || upstream.rows === undefined) {
       return `     reçoit — ← ${up} (aucune donnée observée en amont)`;
@@ -337,15 +337,26 @@ function formatFieldDelta(
  * sur le bus. Les déclarer « sans données » alors que leur amont vient de
  * livrer serait un faux négatif — c'est l'amont qui fait foi.
  */
+/**
+ * Ce qu'une étape en attente attend (#690, #931). Deux attentes, deux gestes
+ * pour en sortir : poser un filtre, ou regarder la page.
+ */
+function waitingWording(reason: StageState['waitingReason']): string {
+  return reason === 'lazy'
+    ? "en attente d'un regard (lazy) — la requête part à la visibilité d'un consommateur"
+    : "en attente d'un filtre (require-where)";
+}
+
 function statusLine(
   node: StageNode,
   state: StageState,
   upstreamHasData: boolean,
-  upstreamWaiting: boolean
+  upstreamWaiting: boolean,
+  upstreamWaitingReason?: StageState['waitingReason']
 ): string {
   switch (state.status) {
     case 'waiting':
-      return "     ⏳ en attente d'un filtre (require-where) — aucune requête lancée";
+      return `     ⏳ ${waitingWording(state.waitingReason)} — aucune requête lancée`;
     case 'loaded':
       return `     → ${plural(state.rows ?? 0, 'ligne')}, ${plural(state.fields?.length ?? 0, 'champ')}`;
     case 'error':
@@ -358,7 +369,7 @@ function statusLine(
         // l'amont qui dit s'il attend un filtre — le déclarer « rien reçu »
         // signalerait une panne là où la page fait exactement ce qu'on lui
         // a demandé (#690).
-        if (upstreamWaiting) return "     ⏳ en attente d'un filtre (require-where)";
+        if (upstreamWaiting) return `     ⏳ ${waitingWording(upstreamWaitingReason)}`;
         return upstreamHasData
           ? '     ✓ alimenté (un afficheur consomme sans réémettre)'
           : '     ⚠ aucune donnée reçue — rien à afficher';
@@ -507,7 +518,10 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
       return !!upstream && upstream.status !== 'error' && (upstream.rows ?? 0) > 0;
     });
     const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
-    out.push(statusLine(node, state, upstreamHasData, upstreamWaiting));
+    const upstreamWaitingReason = node.upstream
+      .map((up) => trace.states[up])
+      .find((up) => up?.status === 'waiting')?.waitingReason;
+    out.push(statusLine(node, state, upstreamHasData, upstreamWaiting, upstreamWaitingReason));
     out.push(...formatSkippedRows(node));
     out.push(...formatStackedPositions(node));
     out.push(...formatFieldIssues(champsIntrouvables[node.id]));

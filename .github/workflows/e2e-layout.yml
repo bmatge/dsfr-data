@@ -11,6 +11,12 @@ name: E2E layout
 # DETERMINISTE, donc sur PR (a la difference de guide-examples.yml, planifie) :
 # aucune API tierce — tuiles coupees par `page.route`, DSFR Chart charge depuis
 # node_modules, lib servie depuis la source par le serveur de dev.
+#
+# `source-lazy.spec.ts` (#931) n'est pas de la mise en page : il COMPTE des
+# requêtes reseau dans un vrai navigateur, sur des panneaux d'onglets en
+# `display:none`. Meme raison d'etre ici — happy-dom n'a pas
+# d'IntersectionObserver et ne connaît pas la notion de boîte — et memes
+# criteres : deterministe (JSON local), sans API tierce, sur PR.
 
 on:
   pull_request:
@@ -57,6 +63,7 @@ jobs:
           e2e/layout-map.spec.ts
           e2e/chart-legend.spec.ts
           e2e/mobile-chrome.spec.ts
+          e2e/source-lazy.spec.ts
           --project=chromium
 
       - name: Upload traces on failure

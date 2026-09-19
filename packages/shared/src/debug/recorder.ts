@@ -87,6 +87,13 @@ export interface StageState {
   meta?: BusPaginationMeta;
   message?: string;
   attemptedUrl?: string;
+  /**
+   * Pourquoi l'étape attend, quand `status` vaut `waiting` (#931) : un filtre
+   * qui ne vient pas (`require-where`) ou personne qui regarde (`lazy`). Les
+   * confondre dans le volet enverrait chercher un filtre là où il suffit de
+   * faire défiler.
+   */
+  waitingReason?: BusIdleDetail['reason'];
   /** Nombre d'émissions observées — révèle les boucles de rechargement. */
   emissions: number;
 }
@@ -319,6 +326,7 @@ export class DataflowRecorder {
     this.push({ kind: 'waiting', node: d.sourceId, reason: d.reason ?? 'require-where' } as const);
     this.patch(d.sourceId, {
       status: 'waiting',
+      waitingReason: d.reason ?? 'require-where',
       rows: undefined,
       fields: undefined,
       sample: undefined,
