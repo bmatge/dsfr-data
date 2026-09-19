@@ -1,9 +1,10 @@
 /**
- * Script d'inspection du Builder
+ * OUTIL, PAS UN TEST (#867) — inspection du Builder.
  *
- * Ce test analyse la structure réelle du builder pour adapter les autres tests.
+ * Aucune assertion : il imprime la structure réelle du Builder pour adapter
+ * les autres specs. D'où l'extension `.tool.ts`, hors du `testMatch`.
  *
- * Usage : npx playwright test inspect-builder.spec.ts --headed
+ * Usage : BUILDER_E2E_OUTILS=1 npx playwright test inspect-builder.tool.ts --headed
  */
 
 import { test } from '@playwright/test';
