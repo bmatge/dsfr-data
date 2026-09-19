@@ -42,7 +42,7 @@
               <tr><th>Attribut</th><th>Type</th><th>Description</th></tr>
             </thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-display fields="source,per-row,cols,pagination,empty,gap,uid-field,url-sync,url-page-param,idle-message" -->
+              <!-- ATTRS:dsfr-data-display fields="source,per-row,cols,pagination,empty,gap,uid-field,url-sync,url-page-param,idle-message,count-label" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce composant consomme les données.</td></tr>
                 <tr><td><code>per-row</code></td><td>String</td><td>Nombre d'éléments par ligne à partir de 768 px (en dessous : un par ligne) — 1, 2, 3, 4 ou 6, les diviseurs de la grille de 12 colonnes. Échelle mobile-first (#789) : <code>per-row="1 sm:2 lg:3"</code> — le premier terme sous 576 px, puis un palier par point de rupture DSFR (sm 576, md 768, lg 992, xl 1248 px). Remplace <code>cols</code>, même sens, sans l'ambiguïté du mot sur les autres composants (#790). Prime sur <code>cols</code> s'ils sont posés ensemble.</td></tr>
                 <tr><td><code>cols</code></td><td>Number</td><td>Nombre de colonnes dans la grille (1-6, défaut 1 = pleine largeur). Même rôle que <code>per-row</code>, qui est préféré : <code>cols</code> désigne une LARGEUR sur <code>dsfr-data-facets</code> (#790). Toujours accepté, avec le même sens.</td></tr>
@@ -53,6 +53,7 @@
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
                 <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
                 <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
+                <tr><td><code>count-label</code></td><td>String</td><td>Nom compté par le compteur rendu au-dessus de la grille, à la place de « resultat » : <code>count-label="établissement"</code> affiche « 12 345 établissements » (#925, AM-077 — même grammaire que <code>dsfr-data-search</code>, #779). Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou un mot invariable, donner les deux formes séparées par une **barre verticale** : <code>count-label="cheval|chevaux"</code>, <code>count-label="prix|prix"</code>. La virgule ne sépare PAS les deux formes. Poser l'attribut fait aussi passer le nombre par le formateur fr-FR (séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le compteur est rendu exactement comme avant — le corriger par défaut changerait le texte de toutes les pages existantes, et reste à trancher (#925, point résiduel). Cet attribut ne sait pas TAIRE le compteur : un <code>dsfr-data-display</code> est une liste de résultats, et sa région annoncée fait partie de son contrat (ADR-135). Pour mettre en forme une ligne sans landmark ni compteur — une fiche, un nom dans une phrase — le composant est <code>dsfr-data-repeat</code>.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>

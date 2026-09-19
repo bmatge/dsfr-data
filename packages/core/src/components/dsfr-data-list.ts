@@ -11,6 +11,7 @@ import {
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
 import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
+import { formatCountWithLabel } from '../utils/count-label.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 import { parseCellClassRules, cellClassTokens } from '../utils/cell-class.js';
@@ -128,6 +129,24 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
    */
   @property({ type: String })
   caption = '';
+
+  /**
+   * Nom compté par le compteur rendu au-dessus du tableau, à la place de
+   * « résultat » : `count-label="commune"` affiche « 1 234 communes »
+   * (#925, AM-077 — même grammaire que `dsfr-data-search`, #779).
+   *
+   * Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou
+   * un mot invariable, donner les deux formes séparées par une **barre
+   * verticale** : `count-label="cheval|chevaux"`, `count-label="prix|prix"`.
+   * La virgule ne sépare PAS les deux formes.
+   *
+   * Poser l'attribut fait aussi passer le nombre par le formateur fr-FR
+   * (séparateur de milliers). Sans l'attribut, le compteur est rendu
+   * exactement comme avant. La mention « (filtré) » suit le compteur dans
+   * les deux cas.
+   */
+  @property({ type: String, attribute: 'count-label' })
+  countLabel = '';
 
   /**
    * Nombre de décimales des cellules numériques (#666). Absent : au plus
@@ -1119,7 +1138,11 @@ ${bodyRows}
 
     return html`
       <p class="fr-text--sm" aria-live="polite" aria-atomic="true" role="status">
-        ${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}
+        ${
+          this.countLabel.trim()
+            ? formatCountWithLabel(this.countLabel, totalFiltered)
+            : `${totalFiltered} résultat${totalFiltered > 1 ? 's' : ''}`
+        }
         ${
           !this._serverPagination &&
           (this._searchQuery || Object.values(this._activeFilters).some((v) => v))
