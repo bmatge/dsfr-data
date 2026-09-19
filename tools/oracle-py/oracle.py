@@ -14,7 +14,11 @@ Ce programme lit la PROJECTION des contrôles déterministes
 (``tools/oracle/out/manifests.json``, produite par ``npm run verif:manifests``)
 et les JEUX (``tests/verif-donnees/jeux/*.json``), recalcule chaque attente
 en tableaux nus, et écrit ``tests/verif-donnees/attendus.json`` — versionné :
-un attendu qui change se voit dans le diff d'une PR.
+un attendu qui change se voit dans le diff d'une PR. Ce fichier ne porte QUE
+des chiffres et les conventions qui les produisent ; la version exacte de
+l'interpréteur va dans ``tools/oracle/out/attendus-provenance.json``, hors de
+la zone gardée — sans quoi le garde-fou compare l'environnement en même temps
+que les valeurs et rougit sur un runner qui n'a pas le Python de l'auteur.
 
 Il n'exécute jamais ``node``, ne lit jamais ``packages/`` : il ne connaît de
 la bibliothèque que ce que la projection lui dit (test-garde
@@ -66,6 +70,14 @@ RACINE = Path(__file__).resolve().parents[2]
 MANIFESTS_PAR_DEFAUT = RACINE / "tools" / "oracle" / "out" / "manifests.json"
 JEUX_PAR_DEFAUT = RACINE / "tests" / "verif-donnees" / "jeux"
 SORTIE_PAR_DEFAUT = RACINE / "tests" / "verif-donnees" / "attendus.json"
+# La PROVENANCE (version exacte de l'interpréteur) vit HORS du fichier versionné :
+# `tools/oracle/out/` est ignoré par git. Voir `ecrire()`.
+PROVENANCE_PAR_DEFAUT = RACINE / "tools" / "oracle" / "out" / "attendus-provenance.json"
+
+# Les conventions écrites plus haut (ROUND_HALF_UP, Fraction, NFD/casefold)
+# tiennent sur la stdlib de Python 3.11 et au-delà. En deçà, le recalcul n'est
+# pas celui que le fichier d'attendus dit : on refuse plutôt que de dériver.
+VERSION_MINIMALE = (3, 11)
 
 Row = dict[str, Any]
 
@@ -927,8 +939,20 @@ def calculer(projection: dict[str, Any], jeux: dict[str, list[Row]]) -> list[dic
     return attendus
 
 
-def ecrire(attendus: list[dict[str, Any]], sortie: Path, python_version: str) -> None:
-    """Une entrée par ligne — un fichier d'attendus se relit comme un tableau, et se diffe ligne à ligne."""
+def ecrire(attendus: list[dict[str, Any]], sortie: Path, provenance: Path, python_version: str) -> None:
+    """Une entrée par ligne — un fichier d'attendus se relit comme un tableau, et se diffe ligne à ligne.
+
+    Le fichier versionné ne porte QUE des chiffres et les conventions qui les
+    produisent : aucune métadonnée d'environnement. Le job `attendus` de
+    `verif-donnees.yml` régénère et refuse un diff (`git diff --exit-code`) —
+    tant que la version de l'interpréteur vivait dans l'en-tête, ce garde-fou
+    échouait dès que le runner n'avait pas le Python de l'auteur (3.12.3 contre
+    3.11.5), sur une ligne d'en-tête, toutes les valeurs égales par ailleurs.
+    Un contrôle de conformité qui devient instable est un contrôle qu'on
+    abandonne : la version part donc dans un fichier de PROVENANCE, à côté des
+    autres sorties de l'oracle (`tools/oracle/out/`, ignoré par git), où elle
+    reste lisible sans être comparée.
+    """
     couverts = sum(1 for a in attendus if a["couvert"])
     raisons: dict[str, int] = {}
     for a in attendus:
@@ -936,7 +960,6 @@ def ecrire(attendus: list[dict[str, Any]], sortie: Path, python_version: str) ->
             raisons[a["raison"]] = raisons.get(a["raison"], 0) + 1
     entete = {
         "source": "python-stdlib",
-        "python": python_version,
         "conventions": {
             "arrondi": "decimal.ROUND_HALF_UP à decimals (Math.round arrondit -2,5 à -2 ; cette voix dit -3)",
             "sommes": "fractions.Fraction, exactes, décimaux lus en Decimal",
@@ -950,6 +973,24 @@ def ecrire(attendus: list[dict[str, Any]], sortie: Path, python_version: str) ->
     lignes.extend(json.dumps(a, ensure_ascii=False) for a in attendus)
     sortie.parent.mkdir(parents=True, exist_ok=True)
     sortie.write_text("[\n" + ",\n".join(lignes) + "\n]\n", encoding="utf-8")
+    provenance.parent.mkdir(parents=True, exist_ok=True)
+    provenance.write_text(
+        json.dumps(
+            {
+                "source": "python-stdlib",
+                "python": python_version,
+                "implementation": sys.implementation.name,
+                "attendus": str(sortie.relative_to(RACINE)),
+                "total": len(attendus),
+                "couverts": couverts,
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -957,7 +998,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifests", type=Path, default=MANIFESTS_PAR_DEFAUT)
     parser.add_argument("--jeux", type=Path, default=JEUX_PAR_DEFAUT)
     parser.add_argument("--out", type=Path, default=SORTIE_PAR_DEFAUT)
+    parser.add_argument("--provenance", type=Path, default=PROVENANCE_PAR_DEFAUT)
     args = parser.parse_args(argv)
+    if sys.version_info[:2] < VERSION_MINIMALE:
+        vue = ".".join(str(n) for n in sys.version_info[:3])
+        attendue = ".".join(str(n) for n in VERSION_MINIMALE)
+        print(f"Python {attendue}+ requis (stdlib seule) ; interpréteur vu : {vue}.", file=sys.stderr)
+        return 2
     if not args.manifests.exists():
         print(f"{args.manifests} absent : lancer d'abord `npm run verif:manifests`.", file=sys.stderr)
         return 2
@@ -966,9 +1013,10 @@ def main(argv: list[str] | None = None) -> int:
     jeux = charger_jeux(args.jeux)
     attendus = calculer(projection, jeux)
     version = ".".join(str(n) for n in sys.version_info[:3])
-    ecrire(attendus, args.out, version)
+    ecrire(attendus, args.out, args.provenance, version)
     couverts = sum(1 for a in attendus if a["couvert"])
     print(f"{couverts}/{len(attendus)} attentes couvertes par la troisième voix → {args.out}")
+    print(f"provenance (hors zone gardée) : Python {version} → {args.provenance}")
     for a in attendus:
         if not a["couvert"]:
             print(f"  non couvert : {a['domaine']}/{a['controle']}/{a['cle']} — {a['raison']}")
