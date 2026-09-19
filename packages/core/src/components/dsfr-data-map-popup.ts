@@ -153,6 +153,33 @@ export class DsfrDataMapPopup extends LitElement {
 
   // --- Template rendering ---
 
+  /*
+   * Le HTML d'un enregistrement — SEULE origine de ce qui est écrit dans les
+   * `innerHTML` de `_showPanel` et `_showModal`.
+   *
+   * SÉCURITÉ (alertes CodeQL `js/html-constructed-from-input` #89/#90, écartées
+   * en commentaire au point d'écriture). Les deux chemins échappent la donnée :
+   * - avec gabarit : `renderTemplate(..., { raw: false })`, dont l'option
+   *   `escape` vaut `true` par défaut — toute valeur substituée passe par
+   *   `escapeHtml`, y compris la forme `{{{brut}}}` (raw=false la ramène à
+   *   `{{brut}}`), et une valeur substituée n'est jamais rescannée ;
+   * - sans gabarit : `_buildAutoTable` échappe la clé ET la valeur.
+   *
+   * Le seul HTML non échappé est le `<template>` de l'auteur de la page —
+   * même contrat que `dsfr-data-display`, et ce n'est pas de l'entrée
+   * utilisateur. CodeQL ne franchit pas l'indirection `out()` de
+   * `renderTemplate` et ne voit donc pas l'échappement.
+   *
+   * La preuve est rejouée à chaque `npm run test:run` par
+   * `tests/map-popup-xss.test.ts` : quatre charges utiles (`<script>`,
+   * `<img onerror>`, sortie de balise, sortie d'attribut) sur les deux modes ET
+   * les deux chemins. Passer `raw: true` ou `escape: false` ici, ou retirer un
+   * `escapeHtml` de `_buildAutoTable`, rend ce fichier de test ROUGE —
+   * vérifié par mutation.
+   *
+   * ⚠️ Reste à la charge de l'auteur : un `{{champ}}` nu dans un `href` laisse
+   * passer `javascript:`. C'est l'objet du format `{{champ:url}}`.
+   */
   private _renderTemplate(record: Record<string, unknown>): string {
     const tpl = this._getTemplate();
     if (!tpl) {
@@ -223,6 +250,8 @@ export class DsfrDataMapPopup extends LitElement {
       });
     }
 
+    // Le CHROME d'abord (aucune donnée hors du titre, déjà échappé), le corps
+    // ensuite : la donnée n'a ainsi qu'UN point d'entrée, nommé et commentable.
     this._panelEl.innerHTML = `
       <div class="dsfr-data-map-popup__panel-header">
         ${title ? `<h3 class="dsfr-data-map-popup__panel-title">${escapeHtml(title)}</h3>` : ''}
@@ -231,8 +260,13 @@ export class DsfrDataMapPopup extends LitElement {
           <span class="fr-icon-close-line" aria-hidden="true"></span>
         </button>
       </div>
-      <div class="dsfr-data-map-popup__panel-body">${html}</div>
     `;
+    const corps = document.createElement('div');
+    corps.className = 'dsfr-data-map-popup__panel-body';
+    // Échappé à la source (voir _renderTemplate) ; preuve : tests/map-popup-xss.test.ts
+    // codeql[js/html-constructed-from-input]
+    corps.innerHTML = html;
+    this._panelEl.appendChild(corps);
 
     // Close button
     const closeBtn = this._panelEl.querySelector('.dsfr-data-map-popup__panel-close');
@@ -294,9 +328,14 @@ export class DsfrDataMapPopup extends LitElement {
             <span class="fr-icon-close-line" aria-hidden="true"></span>
           </button>
         </div>
-        <div class="dsfr-data-map-popup__modal-body">${html}</div>
       </div>
     `;
+    const corps = document.createElement('div');
+    corps.className = 'dsfr-data-map-popup__modal-body';
+    // Échappé à la source (voir _renderTemplate) ; preuve : tests/map-popup-xss.test.ts
+    // codeql[js/html-constructed-from-input]
+    corps.innerHTML = html;
+    this._modalEl.querySelector('.dsfr-data-map-popup__modal')?.appendChild(corps);
 
     document.body.appendChild(this._modalEl);
 
