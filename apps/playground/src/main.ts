@@ -27,9 +27,12 @@ import {
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
 import { examples } from './examples/examples-data.js';
+import { EXEMPLE_PAR_DEFAUT } from './examples/catalogue.js';
+import { initSelecteurExemples, type SelecteurExemples } from './examples/selector.js';
 import { getPreviewHTML } from './preview.js';
 
 let editor: CodeMirrorEditor;
+let selecteur: SelecteurExemples | null = null;
 
 /** Standard dependency block for external use */
 const DEPS_BLOCK = `<!-- Dependances (DSFR + DSFR Chart + dsfr-data) -->
@@ -258,25 +261,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     sizeEditor();
   }
 
-  // Load example from URL param, favorites, or default
+  // Les trois selects croises peuplent eux-memes le select des exemples ; le
+  // chargement initial vient de `?example=` quand il designe un exemple connu.
+  selecteur = initSelecteurExemples((id) => loadExample(id));
+
   const exampleParam = new URLSearchParams(window.location.search).get('example');
   if (exampleParam && examples[exampleParam]) {
-    // Select the matching option in the dropdown
-    const select = document.getElementById('example-select') as HTMLSelectElement;
-    if (select) select.value = exampleParam;
+    selecteur?.pointerSur(exampleParam);
     loadExample(exampleParam, true);
   } else {
-    loadExample('direct-bar', true);
+    selecteur?.pointerSur(EXEMPLE_PAR_DEFAUT);
+    loadExample(EXEMPLE_PAR_DEFAUT, true);
   }
 
   // Event listeners
   document.getElementById('run-btn')?.addEventListener('click', runCode);
   document.getElementById('reset-btn')?.addEventListener('click', () => {
-    const select = document.getElementById('example-select') as HTMLSelectElement;
-    loadExample(select.value);
-  });
-  document.getElementById('example-select')?.addEventListener('change', (e) => {
-    loadExample((e.target as HTMLSelectElement).value);
+    const courant = selecteur?.courant();
+    if (courant) loadExample(courant);
   });
 
   // Ctrl+Enter shortcut

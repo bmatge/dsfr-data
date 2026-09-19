@@ -42,69 +42,29 @@
   <app-action-bar heading="Playground">
     <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <div slot="context" class="example-selector">
-      <label class="fr-label" for="example-select">Exemple</label>
-      <select id="example-select" class="fr-select fr-select--sm">
-      <optgroup label="Mode direct (dsfr-data-source)">
-        <option value="direct-bar">Barres — Fiscalite locale</option>
-        <option value="direct-bar-databox">Barres + DataBox complete — Fiscalite locale</option>
-        <option value="direct-line-databox">Ligne + DataBox — Fiscalite locale</option>
-        <option value="direct-kpi">KPI — Industrie du futur</option>
-        <option value="kpi-barometre">KPI baromètre — titre + évolution (Plan Électrification)</option>
-        <option value="chart-reference-lines">Ligne + repères — Immatriculations VE</option>
-        <option value="chart-targets">Ligne + cibles 2030 — Énergies fossiles</option>
-        <option value="unpivot-series-line">Unpivot + séries — Production par filière</option>
-        <option value="direct-datalist">Tableau — Maires de France (server-side)</option>
-      </optgroup>
-      <optgroup label="Pagination serveur">
-        <option value="server-paginate-datalist">Tableau — Maires pagination serveur</option>
-        <option value="server-paginate-display">Cartes — Maires pagination serveur</option>
-        <option value="paginate-kpi-global">Pagination + KPI — Industrie du futur</option>
-      </optgroup>
-      <optgroup label="Avec requête (dsfr-data-query)">
-        <option value="query-bar">Barres — Beneficiaires par region</option>
-        <option value="query-pie">Camembert — Investissement par region</option>
-        <option value="query-map">Carte — Taux TFB par departement</option>
-      </optgroup>
-      <optgroup label="Avec normalisation (dsfr-data-normalize)">
-        <option value="normalize-bar">Barres — LOVAC vacants par dept</option>
-        <option value="normalize-pie">Camembert — LOVAC vacants >2 ans</option>
-        <option value="normalize-datalist">Tableau — LOVAC données nettoyees</option>
-      </optgroup>
-      <optgroup label="Affichage dynamique (dsfr-data-display)">
-        <option value="direct-display">Cartes — Industrie du futur (server-side)</option>
-        <option value="query-display">Cartes — Communes de l'Ain (server-side)</option>
-        <option value="normalize-display">Tuiles — LOVAC logements vacants</option>
-      </optgroup>
-      <optgroup label="Avec recherche (dsfr-data-search)">
-        <option value="search-datalist">Tableau — Rappels produits (recherche serveur)</option>
-        <option value="search-display">Cartes — Industrie (recherche serveur)</option>
-        <option value="search-kpi-chart">KPI + Barres — Recherche dynamique</option>
-      </optgroup>
-      <optgroup label="Avec facettes (dsfr-data-facets)">
-        <option value="facets-datalist">Tableau — Industrie avec facettes</option>
-        <option value="facets-bar">Barres — Industrie filtree par region</option>
-        <option value="facets-map">Carte + KPI — Fiscalite par region</option>
-      </optgroup>
-      <optgroup label="Jointure multi-sources (dsfr-data-join)">
-        <option value="join-basic">Population vs Budget — 2 séries (left join)</option>
-        <option value="join-query">Recettes vs Depenses — inner join + tri</option>
-      </optgroup>
-      <optgroup label="Server-side (recherche + tri serveur)">
-        <option value="server-side-ods">Recherche serveur — Rappels (ODS)</option>
-        <option value="server-side-tabular-tri">Tri serveur — Communes (Tabular)</option>
-        <option value="server-facets-display">Facettes serveur + normalize — Industrie (ODS)</option>
-      </optgroup>
-      <optgroup label="Cartes DSFR Chart 2.1 (level)">
-        <option value="direct-map-reg">Carte régions — Population</option>
-        <option value="direct-map-aca">Carte académies — Effectifs élèves</option>
-        <option value="direct-map-monde">Carte monde — PIB par pays</option>
-      </optgroup>
-      <optgroup label="Carte interactive (dsfr-data-map)">
-        <option value="map-markers-cluster">Carte — 5000 CT avec clustering + panneau</option>
-        <option value="map-circles-proportional">Carte — Cercles proportionnels + modale</option>
-        <option value="map-multi-layer">Carte — Multi-couches heatmap + marqueurs</option>
-      </optgroup>
-    </select>
+      <!-- Trois axes croises (source x pipeline x sortie) : ce sont des FILTRES
+           sur le catalogue (src/examples/catalogue.ts), pas des generateurs.
+           Les <option> sont peuplees par selector.ts — ne rien saisir ici. -->
+      <div class="example-filters">
+        <div class="example-filter">
+          <label class="fr-label" for="filtre-source">Source</label>
+          <select id="filtre-source" class="fr-select fr-select--sm"></select>
+        </div>
+        <div class="example-filter">
+          <label class="fr-label" for="filtre-pipeline">Pipeline</label>
+          <select id="filtre-pipeline" class="fr-select fr-select--sm"></select>
+        </div>
+        <div class="example-filter">
+          <label class="fr-label" for="filtre-sortie">Sortie</label>
+          <select id="filtre-sortie" class="fr-select fr-select--sm"></select>
+        </div>
+        <div class="example-filter example-filter--large">
+          <label class="fr-label" for="example-select">
+            Exemple <span id="compteur-exemples" class="fr-hint-text"></span>
+          </label>
+          <select id="example-select" class="fr-select fr-select--sm"></select>
+        </div>
+      </div>
     </div>
     <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
     <button slot="tertiary" id="save-btn" class="fr-icon-star-line" title="Enregistrer ce code dans vos favoris">Ajouter aux favoris</button>

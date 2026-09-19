@@ -1868,4 +1868,1196 @@ export const examples: Record<string, string> = {
     </p>
   </div>
 </div>`,
+
+  // =====================================================================
+  // PODIUM — dsfr-data-podium
+  // Classement top N : rang, libelle, barre proportionnelle, valeur.
+  // =====================================================================
+
+  'podium-lycees-dept': `<!--
+  Podium — Les 10 departements les mieux dotes en lycees
+  Pipeline : dsfr-data-source → dsfr-data-query (group-by + count) → dsfr-data-podium
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Le regroupement part au serveur : seules 10 lignes agregees reviennent,
+  pas les 68 000 etablissements.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les 10 departements les mieux dotes en lycees</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="top" source="etab"
+    group-by="libelle_departement"
+    aggregate="libelle_departement:count:nb"
+    order-by="nb:desc"
+    limit="10">
+  </dsfr-data-query>
+
+  <dsfr-data-podium source="top"
+    label-field="libelle_departement"
+    value-field="nb"
+    subtitle="Lycees recenses"
+    value-unit="lycees"
+    selected-palette="sequentialDescending"
+    max-items="10">
+  </dsfr-data-podium>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Un classement n'est pas un graphique en barres.</strong> Le podium numerote les rangs
+      et cadre la lecture sur « qui est devant » ; il attend donc une liste deja triee et courte.
+      Le tri est fait par <code>dsfr-data-query</code> (<code>order-by</code> + <code>limit</code>),
+      pas dans le composant : c'est la requete qui decide du perimetre, l'affichage n'en decide pas.
+      <br><strong>Attention a la lecture :</strong> un departement peuple a mecaniquement plus de
+      lycees. Ce classement dit une dotation absolue, pas une densite.
+    </p>
+  </div>
+</div>`,
+
+  'podium-kpi-group-regions': `<!--
+  Podium + groupe de KPI — Lycees par region
+  Pipeline : dsfr-data-source → dsfr-data-query (group-by region) →
+             dsfr-data-kpi-group + dsfr-data-podium
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Les KPI agregent les MEMES lignes que le podium : les chiffres affiches
+  et le classement ne peuvent pas diverger.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Lycees par region</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="par-region" source="etab"
+    group-by="libelle_region"
+    aggregate="libelle_region:count:nb"
+    order-by="nb:desc">
+  </dsfr-data-query>
+
+  <dsfr-data-kpi-group per-row="2 md:4" gap="md" aria-label="Indicateurs des lycees par region">
+    <dsfr-data-kpi source="par-region"
+      value="count"
+      label="Regions representees"
+      format="nombre">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="par-region"
+      value="nb:sum"
+      label="Lycees au total"
+      format="nombre"
+      color-token="bleu">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="par-region"
+      value="nb:avg"
+      label="Moyenne par region"
+      format="nombre">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="par-region"
+      value="nb:max"
+      label="Region la mieux dotee"
+      format="nombre"
+      color-token="vert">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <dsfr-data-podium source="par-region"
+    label-field="libelle_region"
+    value-field="nb"
+    subtitle="Lycees recenses"
+    value-unit="lycees"
+    max-items="6">
+  </dsfr-data-podium>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong><code>dsfr-data-kpi-group</code> pose la grille</strong> (<code>per-row="2 md:4"</code> :
+      deux indicateurs par ligne sur telephone, quatre a partir de 768 px) — inutile d'ecrire
+      une grille CSS a la main. Chaque <code>dsfr-data-kpi</code> peut forcer sa largeur avec
+      <code>span</code>.
+      <br><strong>Le point qui compte :</strong> les KPI et le podium lisent la MEME requete.
+      Un total calcule sur un autre perimetre que le classement qu'il surmonte est la premiere
+      facon de faire mentir une page.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // SOURCES — INSEE Melodi, API JSON quelconque
+  // Au-dela d'Opendatasoft et de data.gouv : les autres adaptateurs.
+  // =====================================================================
+
+  'insee-population-bar': `<!--
+  INSEE Melodi — Population municipale des regions
+  Pipeline : dsfr-data-source (api-type="insee") → dsfr-data-query → dsfr-data-chart
+  Source : api.insee.fr/melodi — jeu DS_POPULATIONS_REFERENCE
+  CORS actif, aucune cle necessaire, 30 requetes/minute.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Population municipale par region (2023)</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : INSEE Melodi — Populations de reference
+  </p>
+
+  <!-- Le where d'une source INSEE filtre des DIMENSIONS : chaque clause
+       devient un parametre de l'API, et « in » repete le parametre.
+       C'est ce qui rend ce jeu utilisable : il porte 106 000 observations
+       (communes, arrondissements, departements, regions melanges), et
+       sans filtre de maille l'adaptateur les paginerait toutes.
+
+       L'adaptateur aplatit ensuite les observations SDMX (dimensions +
+       measures + attributes) en lignes plates : OBS_VALUE_NIVEAU.value
+       devient la colonne OBS_VALUE. Les libelles sont resolus : GEO vaut
+       « Bretagne » et non « 2025-REG-53 » — le code d'origine reste dans
+       GEO_CODE, a utiliser pour les filtres et les jointures. -->
+  <dsfr-data-source id="pop" api-type="insee"
+    base-url="https://api.insee.fr/melodi"
+    dataset-id="DS_POPULATIONS_REFERENCE"
+    where="POPREF_MEASURE:eq:PMUN, TIME_PERIOD:eq:2023, GEO:in:2025-REG-11|2025-REG-24|2025-REG-27|2025-REG-28|2025-REG-32|2025-REG-44|2025-REG-52|2025-REG-53|2025-REG-75|2025-REG-76|2025-REG-84|2025-REG-93|2025-REG-94">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="tri" source="pop"
+    order-by="OBS_VALUE:desc">
+  </dsfr-data-query>
+
+  <dsfr-data-chart source="tri"
+    type="bar"
+    label-field="GEO"
+    value-field="OBS_VALUE"
+    name="Population municipale"
+    selected-palette="sequentialDescending"
+    horizontal>
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Filtrer la maille a la SOURCE, pas en aval.</strong> Ce jeu melange les niveaux
+      geographiques. Un <code>where</code> pose sur la <code>dsfr-data-query</code> aurait
+      filtre APRES coup : l'adaptateur aurait d'abord telecharge les 106 000 observations,
+      page par page. Pose sur la source, le filtre devient un parametre de l'API et treize
+      lignes reviennent.
+      <br><strong>Deux colonnes par dimension.</strong> INSEE Melodi publie en codes SDMX ;
+      l'adaptateur resout les libelles et garde le code a cote, suffixe <code>_CODE</code>.
+      Afficher <code>GEO</code>, filtrer et joindre sur <code>GEO_CODE</code> : un libelle peut
+      changer d'orthographe d'un millesime a l'autre, un code non.
+    </p>
+  </div>
+</div>`,
+
+  'generic-geo-list': `<!--
+  API JSON quelconque — Geo API (adaptateur generique)
+  Pipeline : dsfr-data-source (url brute) → dsfr-data-list
+  Source : geo.api.gouv.fr — l'API geographique de l'Etat
+  Le mode « url brute » (attribut url, sans api-type) accepte n'importe
+  quelle API REST qui rend du JSON et autorise le CORS.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les departements francais</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : geo.api.gouv.fr — API Decoupage administratif
+  </p>
+
+  <!-- Cette API rend directement un tableau JSON : aucun attribut
+       transform n'est necessaire. Quand la reponse enveloppe les lignes
+       dans un objet (par exemple {"results": [...]}), transform="results"
+       designe le chemin du tableau. -->
+  <dsfr-data-source id="dept"
+    url="https://geo.api.gouv.fr/departements?fields=nom,code,codeRegion">
+  </dsfr-data-source>
+
+  <dsfr-data-list source="dept"
+    columns="code:Code, nom:Departement, codeRegion:Code region"
+    pagination="15"
+    sort="code:asc"
+    search>
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>C'est le mode a retenir pour votre propre API.</strong> Pas d'adaptateur, donc
+      pas de pagination automatique ni de filtre delegue au serveur : tout ce qui suit
+      (<code>query</code>, <code>search</code>, facettes, tri) s'execute dans le navigateur
+      sur les lignes recues. Convenable pour quelques milliers de lignes, a proscrire sur un
+      gros jeu — la ou un adaptateur (<code>opendatasoft</code>, <code>tabular</code>,
+      <code>grist</code>, <code>insee</code>) delegue le travail a l'API.
+    </p>
+  </div>
+</div>`,
+
+  'generic-join-ods': `<!--
+  Croiser une API quelconque et un portail Opendatasoft
+  Pipeline : 2 x dsfr-data-source (generic + opendatasoft) → dsfr-data-join → dsfr-data-chart
+  Sources : geo.api.gouv.fr (noms de regions) + data.education.gouv.fr (lycees)
+  Les deux adaptateurs se melangent sans precaution : join ne voit que des lignes.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Lycees par region, avec le nom officiel de la region</h2>
+  <p class="fr-text--sm fr-text--light">
+    Sources : geo.api.gouv.fr + data.education.gouv.fr
+  </p>
+
+  <!-- Source A : le referentiel geographique (API JSON brute) -->
+  <dsfr-data-source id="geo"
+    url="https://geo.api.gouv.fr/regions?fields=nom,code">
+  </dsfr-data-source>
+
+  <!-- Source B : le comptage des lycees, agrege cote serveur -->
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="compte" source="etab"
+    group-by="code_region"
+    aggregate="code_region:count:nb"
+    order-by="nb:desc">
+  </dsfr-data-query>
+
+  <!-- Les deux cotes codent la region de la meme facon (« 52 ») : la
+       jointure se pose directement, en nommant la colonne de chaque cote. -->
+  <dsfr-data-join id="croise"
+    left="compte" right="geo"
+    on="code_region=code"
+    type="left">
+  </dsfr-data-join>
+
+  <dsfr-data-chart source="croise"
+    type="bar"
+    label-field="nom"
+    value-field="nb"
+    name="Lycees"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>La clé est le vrai sujet d'une jointure.</strong> Ici les deux cotes codent la
+      region a l'identique et <code>on="code_region=code"</code> suffit. Ce n'est pas la regle :
+      le meme annuaire code le DEPARTEMENT sur trois caracteres (« 044 ») la ou la Geo API en
+      met deux (« 44 »). Une jointure sur des cles non alignees ne leve aucune erreur — elle
+      rend des lignes vides, ce qui se voit mal sur un graphique. Verifier le nombre de lignes
+      en sortie, au volet Diagnostic, est le geste qui evite cette panne silencieuse.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // EMPILEMENT — dsfr-data-concat
+  // Mettre les LIGNES de plusieurs sources bout a bout (une source par
+  // millesime, par region, par serie). A ne pas confondre avec join, qui
+  // juxtapose des COLONNES.
+  // =====================================================================
+
+  'concat-millesimes': `<!--
+  Empilement — Deux millesimes en une serie par annee
+  Pipeline : 2 x dsfr-data-source → dsfr-data-concat → dsfr-data-chart
+  Source : donnees en dur (le motif est le meme sur des sources distantes)
+  origin-field garde la trace de la source de chaque ligne : le resultat se
+  branche tel quel sur le series-field du graphique, sans pivot ni jointure.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Frequentation mensuelle, 2024 et 2025</h2>
+  <p class="fr-text--sm fr-text--light">
+    Deux sources aux MEMES colonnes, empilees par <code>dsfr-data-concat</code>.
+  </p>
+
+  <dsfr-data-source id="v2024" data='[
+    {"mois":"Janvier","visites":1200},{"mois":"Fevrier","visites":1450},
+    {"mois":"Mars","visites":1610},{"mois":"Avril","visites":1390},
+    {"mois":"Mai","visites":1720},{"mois":"Juin","visites":1880}
+  ]'>
+  </dsfr-data-source>
+
+  <dsfr-data-source id="v2025" data='[
+    {"mois":"Janvier","visites":1340},{"mois":"Fevrier","visites":1520},
+    {"mois":"Mars","visites":1780},{"mois":"Avril","visites":1660},
+    {"mois":"Mai","visites":2010},{"mois":"Juin","visites":2240}
+  ]'>
+  </dsfr-data-source>
+
+  <!-- origin-field ajoute une colonne qui dit d'ou vient chaque ligne ;
+       origin-labels lui donne un libelle lisible plutot que l'id. -->
+  <dsfr-data-concat id="visites" sources="v2024, v2025"
+    origin-field="millesime"
+    origin-labels="v2024:2024 | v2025:2025">
+  </dsfr-data-concat>
+
+  <dsfr-data-chart source="visites"
+    type="line"
+    label-field="mois"
+    value-field="visites"
+    series-field="millesime"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Empiler ou joindre ?</strong> <code>dsfr-data-join</code> juxtapose des COLONNES
+      (deux tables, une cle commune). <code>dsfr-data-concat</code> met des LIGNES bout a bout,
+      quand les sources ont les memes colonnes. Ici chaque millesime est publie separement :
+      l'empilement les remet dans un seul tableau, et <code>origin-field</code> fabrique la
+      colonne de serie qui manquait.
+      <br>Des schemas divergents sont une erreur de configuration qui liste, par source, les
+      colonnes en trop et en moins : rien n'est empile plutot qu'un tableau aux colonnes vides.
+    </p>
+  </div>
+</div>`,
+
+  'concat-deux-requetes': `<!--
+  Empilement de deux requetes agregees — Lycees et colleges par region
+  Pipeline : 2 x (source → query group-by) → dsfr-data-concat → dsfr-data-chart
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Chaque niveau est compte par le serveur dans sa propre chaine, puis les
+  deux resultats sont empiles pour donner deux series comparables.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Lycees et colleges par region</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="src-lyc" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="lyc" source="src-lyc"
+    group-by="libelle_region"
+    aggregate="libelle_region:count:nb">
+  </dsfr-data-query>
+
+  <dsfr-data-source id="src-col" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Collège'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="col" source="src-col"
+    group-by="libelle_region"
+    aggregate="libelle_region:count:nb">
+  </dsfr-data-query>
+
+  <dsfr-data-concat id="niveaux" sources="lyc, col"
+    origin-field="niveau"
+    origin-labels="lyc:Lycees | col:Colleges">
+  </dsfr-data-concat>
+
+  <dsfr-data-chart source="niveaux"
+    type="bar"
+    label-field="libelle_region"
+    value-field="nb"
+    series-field="niveau"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Une chaîne par série.</strong> Chaque niveau a sa propre source et sa propre
+      requete : le regroupement part au serveur des deux cotes (une query est seule lectrice de
+      sa source), et seules les lignes agregees reviennent. L'empilement se fait ensuite sur
+      deux fois dix-huit lignes.
+      <br><strong>Ce que concat ne fait pas :</strong> aucune commande aval (page, filtre, tri)
+      n'est relayee aux sources, faute de savoir a laquelle l'adresser. Derriere un empilement,
+      un filtre s'execute cote client — ou se pose sur chaque source.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // TABLEAU CROISE — dsfr-data-pivot
+  // Replie un tableau « long » (une observation par ligne) en tableau
+  // « wide » : une ligne par valeur de row, une colonne par valeur de column.
+  // =====================================================================
+
+  'pivot-region-type': `<!--
+  Tableau croise — Etablissements par region et par type
+  Pipeline : dsfr-data-source → dsfr-data-query (group-by) → dsfr-data-pivot → dsfr-data-list
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  La requete rend un tableau long (region, type, nombre) ; le pivot le
+  replie en une ligne par region et une colonne par type.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Etablissements par region et par type</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement IN ('Lycée', 'Collège', 'Ecole')">
+  </dsfr-data-source>
+
+  <!-- Tableau LONG : une ligne par couple (region, type) -->
+  <dsfr-data-query id="long" source="etab"
+    group-by="libelle_region, type_etablissement"
+    aggregate="type_etablissement:count:nb"
+    limit="200">
+  </dsfr-data-query>
+
+  <!-- Tableau WIDE : une ligne par region, une colonne par type -->
+  <dsfr-data-pivot id="croise" source="long"
+    row="libelle_region"
+    column="type_etablissement"
+    value="nb"
+    aggregate="sum"
+    column-order="asc">
+  </dsfr-data-pivot>
+
+  <dsfr-data-list source="croise"
+    pagination="20"
+    caption="Nombre d'etablissements par region et par type">
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Une cellule sans observation vaut <code>null</code>, jamais <code>0</code>.</strong>
+      L'absence de mesure et une mesure nulle ne se confondent pas : une region sans lycee
+      recense et une region a zero lycee ne disent pas la meme chose.
+      <br>Le <code>dsfr-data-list</code> n'a pas d'attribut <code>columns</code> : il derive ses
+      colonnes des donnees, et suit donc les colonnes que le pivot a generees. Leur nom vient
+      des VALEURS rencontrees — pour des noms stables et utilisables dans un
+      <code>compute</code>, poser <code>column-format</code>.
+    </p>
+  </div>
+</div>`,
+
+  'unpivot-pivot-aller-retour': `<!--
+  Depivot puis pivot — le meme tableau, dans les deux sens
+  Pipeline : dsfr-data-source (wide) → dsfr-data-unpivot (long) → dsfr-data-chart
+             et dsfr-data-source (wide) → dsfr-data-list
+  Source : donnees en dur
+  unpivot et pivot sont exactement symetriques : le premier deplie une
+  colonne par periode en une observation par ligne, le second replie.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Crédits par mission — le même tableau, deux formes</h2>
+  <p class="fr-text--sm fr-text--light">
+    Donnees en dur, en millions d'euros.
+  </p>
+
+  <!-- Forme WIDE : une colonne par annee. C'est la forme qu'on lit. -->
+  <dsfr-data-source id="wide" data='[
+    {"mission":"Ecologie","2023":21400,"2024":23900,"2025":24800},
+    {"mission":"Enseignement scolaire","2023":60200,"2024":62100,"2025":63400},
+    {"mission":"Justice","2023":11600,"2024":12200,"2025":12900}
+  ]'>
+  </dsfr-data-source>
+
+  <h3 class="fr-h5 fr-mt-4w">La forme lue : un tableau croise</h3>
+  <dsfr-data-list source="wide"
+    columns="mission:Mission, 2023:2023, 2024:2024, 2025:2025"
+    caption="Credits de paiement par mission et par annee (M EUR)">
+  </dsfr-data-list>
+
+  <h3 class="fr-h5 fr-mt-4w">La forme calculee : une observation par ligne</h3>
+  <!-- unpivot deplie les colonnes d'annees en deux colonnes : annee, credits.
+       C'est la forme « tidy » qu'attend un graphique a series. -->
+  <dsfr-data-unpivot id="long" source="wide"
+    id-cols="mission"
+    value-cols="2023, 2024, 2025"
+    var-name="annee"
+    value-name="credits">
+  </dsfr-data-unpivot>
+
+  <dsfr-data-chart source="long"
+    type="line"
+    label-field="annee"
+    value-field="credits"
+    series-field="mission"
+    unit-tooltip="M EUR"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Les deux formes ne servent pas le même lecteur.</strong> Un humain lit le tableau
+      croise : une ligne par sujet, une colonne par periode. Un graphique a series veut la forme
+      longue : une observation par ligne. <code>dsfr-data-unpivot</code> passe de la premiere a
+      la seconde, <code>dsfr-data-pivot</code> fait le chemin inverse.
+      <br>Publier en long et replier a l'affichage est le sens qui se tient : une colonne par
+      annee oblige a recrire la page a chaque millesime.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // REPETITION — dsfr-data-repeat
+  // Repete des INSTANCES VIVANTES : pour chaque ligne d'une source, le
+  // <template> est clone et ses composants dsfr-data-* estampes. Un
+  // graphique par question, un KPI par service.
+  // =====================================================================
+
+  'repeat-chart-par-type': `<!--
+  Repetition — Un graphique par type d'etablissement
+  Pipeline : dsfr-data-source (liste des types) → dsfr-data-repeat (scopes)
+             → un dsfr-data-chart par ligne
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  scopes partitionne la source de donnees UNE FOIS et emet un id par ligne
+  repetee : pas une dsfr-data-query par graphique.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Etablissements par region, un graphique par type</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <!-- La source REPETEE : une ligne = un graphique a produire. -->
+  <dsfr-data-source id="types" data='[
+    {"code":"Lycée","nom":"Lycees"},
+    {"code":"Collège","nom":"Colleges"},
+    {"code":"Ecole","nom":"Ecoles"}
+  ]'>
+  </dsfr-data-source>
+
+  <!-- La source SCOPEE : toutes les donnees, partitionnees par type. -->
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement IN ('Lycée', 'Collège', 'Ecole')">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="par-type" source="etab"
+    group-by="type_etablissement, libelle_region"
+    aggregate="libelle_region:count:nb"
+    limit="200">
+  </dsfr-data-query>
+
+  <dsfr-data-repeat source="types" key-field="code"
+    per-row="1 md:3"
+    scopes="par-type:type_etablissement:t">
+    <template>
+      <h3 class="fr-h6" id="{{$uid}}">{{nom}}</h3>
+      <dsfr-data-chart source="{{$scope.t}}"
+        type="bar"
+        label-field="libelle_region"
+        value-field="nb"
+        name="{{nom}}"
+        horizontal>
+      </dsfr-data-chart>
+    </template>
+  </dsfr-data-repeat>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong><code>scopes</code> évite N requêtes.</strong> Sans lui, il faudrait ecrire une
+      <code>dsfr-data-query</code> par ligne dans le gabarit, chacune refiltrant la source
+      entiere. <code>scopes="par-type:type_etablissement:t"</code> partitionne une seule fois et
+      emet un id par ligne, lu dans le gabarit par <code>{{$scope.t}}</code>.
+      <br><strong><code>repeat</code> ou <code>display</code> ?</strong> <code>display</code>
+      quand la ligne est du CONTENU (une liste de resultats). <code>repeat</code> quand la ligne
+      est un PIPELINE : il est transparent — aucun role, aucun compteur, aucune pagination — et
+      la structure de la page vient des titres que vous ecrivez dans le gabarit.
+    </p>
+  </div>
+</div>`,
+
+  'repeat-kpi-par-region': `<!--
+  Repetition — Un indicateur par region
+  Pipeline : dsfr-data-query (regions) → dsfr-data-repeat → un dsfr-data-kpi par ligne
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Ici la ligne repetee porte deja sa valeur : pas besoin de scopes, le
+  gabarit lit les champs de la ligne.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Lycees par region</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="regions" source="etab"
+    group-by="libelle_region"
+    aggregate="libelle_region:count:nb"
+    order-by="nb:desc"
+    limit="12">
+  </dsfr-data-query>
+
+  <!-- Le KPI n'a pas de source : sa valeur est un litteral interpole depuis
+       la ligne repetee (value="={{nb}}"). Un litteral numerique passe par
+       le format, exactement comme une valeur calculee. -->
+  <dsfr-data-repeat source="regions" key-field="libelle_region" per-row="2 md:4">
+    <template>
+      <dsfr-data-kpi
+        value="={{nb}}"
+        label="{{libelle_region}}"
+        format="nombre">
+      </dsfr-data-kpi>
+    </template>
+  </dsfr-data-repeat>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>L'identité par clé.</strong> <code>key-field</code> dit ce qui identifie une ligne
+      d'une emission a l'autre. Une cle qui subsiste garde ses noeuds : les instances ne sont ni
+      deconnectees ni recreees, leurs attributs sont mis a jour en place. C'est ce qui permet de
+      reemettre des dizaines de graphiques sans detruire un seul canvas.
+      <br>Sans <code>key-field</code>, la cle est le rang : au moindre reordonnancement, chaque
+      instance change de contenu.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // CONTEXTE PARTAGE — dsfr-data-context
+  // Filtres transverses : un controle d'UI, N sources filtrees. Le fan-out
+  // declaratif qui evite d'ecrire l'orchestration a la main.
+  // =====================================================================
+
+  'context-dashboard': `<!--
+  Contexte partage — Un filtre, trois affichages
+  Pipeline : UI native → dsfr-data-context → 2 sources → kpi + chart + podium
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Le contexte n'effectue aucun fetch et ne transforme aucune donnee : il
+  emet des commandes where vers les sources qu'il nomme.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Etablissements — tableau de bord a filtre commun</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <!-- L'UI est du DSFR ordinaire : le contexte ecoute des elements natifs. -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+    <div class="fr-col-12 fr-col-md-6">
+      <label class="fr-label" for="ui-region">Region</label>
+      <select id="ui-region" class="fr-select">
+        <option value="">Toutes les regions</option>
+        <option value="Bretagne">Bretagne</option>
+        <option value="Normandie">Normandie</option>
+        <option value="Occitanie">Occitanie</option>
+        <option value="Ile-de-France">Ile-de-France</option>
+      </select>
+    </div>
+    <div class="fr-col-12 fr-col-md-6">
+      <label class="fr-label" for="ui-statut">Statut</label>
+      <select id="ui-statut" class="fr-select">
+        <option value="">Tous les statuts</option>
+        <option value="Public">Public</option>
+        <option value="Privé">Prive</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Les sources sont declarees AVANT le contexte : il les resout par id
+       au moment de s'enregistrer. -->
+  <dsfr-data-source id="src-type" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="statut_public_prive is not null">
+  </dsfr-data-source>
+
+  <dsfr-data-source id="src-dept" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="statut_public_prive is not null">
+  </dsfr-data-source>
+
+  <!-- Chaque requete est SEULE lectrice de sa source : son regroupement
+       part au serveur, et seules les lignes agregees reviennent. -->
+  <!-- Les colonnes que le contexte filtre sont RANGEES DANS LE
+       REGROUPEMENT. C'est la condition pour qu'il puisse les deleguer :
+       un filtre de contexte part avant le group_by, mais le contexte ne
+       le pose que sur une colonne que la source lui declare. Sur une
+       source dont le seul lecteur regroupe par type, « libelle_region »
+       n'existe plus a ses yeux — et il refuse, en le disant. -->
+  <dsfr-data-query id="par-type" source="src-type"
+    group-by="libelle_region, statut_public_prive, type_etablissement"
+    aggregate="type_etablissement:count:nb"
+    order-by="nb:desc">
+  </dsfr-data-query>
+
+  <dsfr-data-query id="par-dept" source="src-dept"
+    group-by="libelle_region, statut_public_prive, libelle_departement"
+    aggregate="libelle_departement:count:nb"
+    order-by="nb:desc"
+    limit="8">
+  </dsfr-data-query>
+
+  <dsfr-data-context id="ctx" sources="src-type src-dept">
+    <dsfr-data-context-filter field="libelle_region" label="Region"
+      operator="eq" ui="ui-region">
+    </dsfr-data-context-filter>
+    <dsfr-data-context-filter field="statut_public_prive" label="Statut"
+      operator="eq" ui="ui-statut">
+    </dsfr-data-context-filter>
+  </dsfr-data-context>
+
+  <!-- Recapitulatif supprimable des filtres actifs -->
+  <dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+  <dsfr-data-kpi-group per-row="1 md:2" gap="md" aria-label="Indicateurs filtres">
+    <dsfr-data-kpi source="par-type" value="nb:sum"
+      label="Etablissements retenus" format="nombre" color-token="bleu">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="par-type" value="count"
+      label="Groupes type x statut" format="nombre">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <dsfr-data-chart source="par-type"
+    type="bar"
+    label-field="type_etablissement"
+    value-field="nb"
+    series-field="statut_public_prive"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <dsfr-data-podium source="par-dept"
+    label-field="libelle_departement"
+    value-field="nb"
+    subtitle="Etablissements recenses"
+    value-unit="etablissements"
+    max-items="8">
+  </dsfr-data-podium>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Un filtre, N sources.</strong> Le contexte diffuse la meme clause a toutes les
+      sources qu'il nomme dans <code>sources</code>. Les clauses sont posees en overlay, avec une
+      cle stable par filtre, et combinees en ET : elles se fusionnent avec celles des facettes,
+      de la recherche et d'une <code>dsfr-data-query</code> au lieu de s'ecraser.
+      <br><strong>Le champ filtre doit exister dans les SOURCES</strong>, telles que l'API les
+      connait : le filtre part avant tout regroupement. Ni un alias d'agregat (<code>nb</code>),
+      ni une colonne calculee en aval n'existent a ce stade — et, sur une source dont le seul
+      lecteur regroupe, une colonne absente du <code>group-by</code> n'existe plus non plus.
+      Le contexte le dit alors en clair plutot que de filtrer dans le vide : c'est pourquoi
+      <code>libelle_region</code> et <code>statut_public_prive</code> sont ranges dans les
+      deux regroupements.
+      <br><code>apply-to</code> restreint un filtre a certaines sources ; sans lui, il vise
+      toutes celles du contexte.
+      <br><strong>Nommer ce qu'on compte.</strong> Le second indicateur compte les LIGNES de la
+      requete regroupee, c'est-a-dire les couples type x statut — pas les types. Un libelle
+      « types representes » aurait annonce neuf la ou la requete en rend quatorze. Le
+      <code>where</code> des sources ecarte par ailleurs les etablissements sans statut
+      renseigne, qui formaient sinon une troisieme serie anonyme dans la legende.
+    </p>
+  </div>
+</div>`,
+
+  'context-url-sync-dates': `<!--
+  Contexte partage — Filtre de date et synchronisation d'URL
+  Pipeline : UI native → dsfr-data-context (url-sync) → source → list + kpi
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  url-sync serialise les filtres dans l'URL : la page filtree se partage
+  par simple copie du lien.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Etablissements ouverts depuis une date</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-3w">
+    <div class="fr-col-12 fr-col-md-6">
+      <label class="fr-label" for="ui-depuis">Ouvert a partir du</label>
+      <input id="ui-depuis" class="fr-input" type="date" value="2020-01-01">
+    </div>
+    <div class="fr-col-12 fr-col-md-6">
+      <label class="fr-label" for="ui-type">Type</label>
+      <select id="ui-type" class="fr-select">
+        <option value="">Tous les types</option>
+        <option value="Lycée">Lycee</option>
+        <option value="Collège">College</option>
+        <option value="Ecole">Ecole</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- url-sync est OPT-IN : il ecrit un parametre d'URL par champ, en
+       history.replaceState, et relit ces parametres au chargement. -->
+  <dsfr-data-context id="ctx" sources="src" url-sync>
+    <dsfr-data-context-filter field="date_ouverture" label="Ouvert depuis"
+      operator="gte" ui="ui-depuis">
+    </dsfr-data-context-filter>
+    <dsfr-data-context-filter field="type_etablissement" label="Type"
+      operator="eq" ui="ui-type">
+    </dsfr-data-context-filter>
+  </dsfr-data-context>
+
+  <dsfr-data-context-tags for="ctx"></dsfr-data-context-tags>
+
+  <dsfr-data-source id="src" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    server-side page-size="20">
+  </dsfr-data-source>
+
+  <dsfr-data-list source="src"
+    columns="nom_etablissement:Etablissement, type_etablissement:Type, libelle_departement:Departement, date_ouverture:Ouverture"
+    pagination="20">
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Dans CET aperçu, l'URL ne bouge pas.</strong> Le playground rend le code dans un
+      iframe sans adresse propre (<code>about:srcdoc</code>) : <code>url-sync</code> n'a pas
+      d'URL ou ecrire. Les filtres fonctionnent — la clause envoyee au serveur est bien
+      <code>date_ouverture &gt;= "…" AND type_etablissement = "…"</code> — mais la
+      synchronisation ne se constate que sur une vraie page. Copiez le code dans un fichier
+      HTML pour la voir a l'oeuvre.
+      <br><strong>Le piege a deux contextes.</strong> Deux contextes a <code>url-sync</code> qui
+      filtrent le MEME champ ecrivent le MEME parametre : le dernier ecrase les autres, et au
+      rechargement ils relisent tous la meme valeur — un comparateur se compare alors a lui-meme.
+      Un seul contexte dans l'URL, ou <code>url-param-map</code> pour separer les parametres.
+      <br><strong>Le type de la colonne compte.</strong> Un controle de formulaire rend toujours
+      du TEXTE. Sur une colonne que le jeu publie en ENTIER, le portail compare en texte et ne
+      trouve rien — sans erreur. Seuls les codes a zero de tete (01 a 09) sont muets, ce qui
+      cache longtemps le defaut.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // CARTE ENRICHIE — legende et encarts territoriaux
+  // dsfr-data-map-legend rend la legende des couches ; dsfr-data-map-inset
+  // ajoute les mini-cartes des territoires hors metropole.
+  // =====================================================================
+
+  'map-legend-statut': `<!--
+  Carte + legende — Les lycees bretons par statut
+  Pipeline : dsfr-data-source → dsfr-data-map → map-layer (color-map) + map-legend
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  278 lycees : le jeu entier tient sous le plafond de la source, aucune
+  troncature silencieuse.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les lycees bretons, par statut</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="lycees" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée' AND libelle_region = 'Bretagne'">
+  </dsfr-data-source>
+
+  <dsfr-data-map center="48.2,-2.9" zoom="8" height="520px"
+    name="Lycees de Bretagne par statut">
+    <!-- color-field designe la colonne, color-map associe une couleur a
+         chaque valeur. La legende se DEDUIT de ce couple : elle n'est pas
+         saisie a part, donc elle ne peut pas se desynchroniser. -->
+    <dsfr-data-map-layer id="couche" source="lycees" type="circle"
+      lat-field="latitude" lon-field="longitude"
+      radius="5"
+      color-field="statut_public_prive"
+      color-map="Public:#000091, Privé:#E1000F"
+      fill-opacity="0.7"
+      tooltip-field="nom_etablissement">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-legend for="couche" label="Statut de l'etablissement">
+    </dsfr-data-map-legend>
+
+    <dsfr-data-map-popup mode="popup" title-field="nom_etablissement">
+      <template>
+        <p class="fr-text--sm">{{statut_public_prive}} — {{nom_commune}}</p>
+        <p class="fr-text--sm">{{adresse_1}}</p>
+      </template>
+    </dsfr-data-map-popup>
+  </dsfr-data-map>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Une legende qui se deduit ne ment pas.</strong>
+      <code>dsfr-data-map-legend</code> lit les couches de la carte et rend leurs entrees :
+      classes d'une choroplethe, paires de <code>color-map</code>, ou entree unique d'une couche
+      monochrome. Une legende ecrite a la main a cote, elle, survit aux changements de couleurs.
+      <br><strong>Regardez la troisieme entree.</strong> La legende affiche « Autres valeurs »
+      en plus de Public et Prive : sur les 278 lycees bretons, un etablissement n'a pas de statut
+      renseigne. Le <code>color-map</code> ne l'avait pas prevu, la legende le dit quand meme —
+      elle decrit ce que la carte CONTIENT, pas ce que l'auteur avait en tete. Une legende
+      ecrite a la main aurait affirme « deux statuts » et le point serait passe inapercu.
+      <br><code>for</code> designe la couche decrite ; vide, la legende concatene les entrees de
+      toutes les couches directes de la carte.
+    </p>
+  </div>
+</div>`,
+
+  'map-inset-drom': `<!--
+  Carte + encarts territoriaux — Les lycees des DROM
+  Pipeline : dsfr-data-source → dsfr-data-map → map-layer + 5 x map-inset
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  dsfr-data-map-inset rend une mini-carte par territoire, alimentee par les
+  memes couches que la carte hote.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les lycees des departements et regions d'outre-mer</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education
+  </p>
+
+  <dsfr-data-source id="lycees" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée' AND code_region IN ('01','02','03','04','06')">
+  </dsfr-data-source>
+
+  <dsfr-data-map center="10,-40" zoom="3" height="420px"
+    name="Lycees des DROM">
+    <dsfr-data-map-layer id="couche" source="lycees" type="circle"
+      lat-field="latitude" lon-field="longitude"
+      radius="5"
+      color-field="statut_public_prive"
+      color-map="Public:#000091, Privé:#E1000F"
+      fill-opacity="0.7"
+      tooltip-field="nom_etablissement">
+    </dsfr-data-map-layer>
+
+    <dsfr-data-map-legend for="couche" label="Statut de l'etablissement">
+    </dsfr-data-map-legend>
+
+    <!-- Chaque encart est une mini-carte cadree sur son territoire. Le
+         preset « territory » fournit centre, zoom et libelle ; width
+         accepte une echelle mobile-first (une colonne sur telephone,
+         cinq sur ecran large). -->
+    <dsfr-data-map-inset territory="guadeloupe" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="martinique" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="guyane" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="la-reunion" width="100% md:20%"></dsfr-data-map-inset>
+    <dsfr-data-map-inset territory="mayotte" width="100% md:20%"></dsfr-data-map-inset>
+  </dsfr-data-map>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Les encarts ne sont pas un ornement.</strong> Une carte de France cadree sur la
+      metropole laisse cinq departements hors champ : ils ne sont pas « petits », ils sont
+      ailleurs. <code>dsfr-data-map-inset</code> leur donne une mini-carte a la bonne echelle,
+      alimentee par les MEMES couches — rien a dupliquer, rien a maintenir en double.
+      <br>Les presets <code>territory</code> couvrent les DROM, les collectivites et la Corse ;
+      <code>center</code> et <code>zoom</code> permettent un cadrage libre pour un zoom local.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // FACETTES ET RECHERCHE sur l'annuaire de l'education
+  // =====================================================================
+
+  'facets-education': `<!--
+  Facettes serveur — Explorer l'annuaire de l'education
+  Pipeline : dsfr-data-source (server-side) → dsfr-data-facets → dsfr-data-list
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  68 000 etablissements : les facettes et la pagination sont deleguees au
+  serveur, rien n'est charge d'avance.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Explorer l'annuaire de l'education</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'education (68 583 etablissements)
+  </p>
+
+  <dsfr-data-source id="src" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    server-side page-size="20">
+  </dsfr-data-source>
+
+  <!-- server-facets : les comptes de chaque modalite sont demandes a l'API,
+       pas calcules sur une page deja chargee. -->
+  <dsfr-data-facets id="filtres" source="src"
+    fields="type_etablissement, statut_public_prive, libelle_region"
+    labels="type_etablissement:Type | statut_public_prive:Statut | libelle_region:Region"
+    server-facets
+    cols="4">
+  </dsfr-data-facets>
+
+  <dsfr-data-list source="src"
+    columns="nom_etablissement:Etablissement, type_etablissement:Type, statut_public_prive:Statut, nom_commune:Commune"
+    pagination="20"
+    search>
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Des facettes calculees sur une page ne sont pas des facettes.</strong> Sans
+      <code>server-facets</code>, les comptes porteraient sur les vingt lignes chargees et
+      annonceraient « 3 lycees » sur un jeu qui en compte 5 644. Delegues au serveur, ils
+      portent sur le jeu filtre entier.
+      <br>Les clauses des facettes, de la recherche et d'un <code>dsfr-data-context</code> se
+      fusionnent en ET au lieu de s'ecraser : cocher une region et taper un nom restreint les
+      deux fois.
+      <br><strong>Deux attributs a ne pas confondre.</strong> <code>fields</code> ne prend que
+      des noms de colonnes ; les libelles vont dans <code>labels</code>, separes par des barres
+      verticales. Et <code>cols</code> est une LARGEUR sur la grille de douze, pas un nombre de
+      facettes par ligne : <code>cols="4"</code> en range trois par ligne.
+    </p>
+  </div>
+</div>`,
+
+  // =====================================================================
+  // GRIST — dsfr-data-source api-type="grist"
+  // L'adaptateur aplatit lui-meme records[].fields : aucun normalize
+  // n'est necessaire pour la mise a plat en mode adaptateur.
+  // =====================================================================
+
+  'grist-pdm-ve-line': `<!--
+  Grist — Part de marche des vehicules electriques, par segment
+  Pipeline : dsfr-data-source (grist) → dsfr-data-query → dsfr-data-unpivot
+             → dsfr-data-normalize → dsfr-data-chart
+  Source : Plan Electrification (grist.numerique.gouv.fr, document public)
+  Une table « wide » : une ligne par indicateur, une colonne par mois.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Part de marche des vehicules electriques, par segment</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : SDES, via le document Grist du Plan Electrification
+  </p>
+
+  <!-- En mode adaptateur, base-url pointe l'endpoint /records complet.
+       L'adaptateur aplatit records[].fields tout seul : les colonnes du
+       tableau Grist arrivent directement comme colonnes de lignes. -->
+  <dsfr-data-source id="plan" api-type="grist"
+    base-url="https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/Plan_Elec_Indic_dyanmiques/records">
+  </dsfr-data-source>
+
+  <!-- Le tableau melange tous les indicateurs du plan : on retient les
+       cinq lignes de part de marche, une par segment de vehicule. -->
+  <dsfr-data-query id="pdm" source="plan"
+    where="Indicateurs:eq:PDM %25 VE">
+  </dsfr-data-query>
+
+  <!-- 44 colonnes mensuelles c2023_01 … c2026_08 depliees en deux
+       colonnes (mois, pdm). Un mois de plus dans le document est pris en
+       compte sans toucher a ce code : c'est tout l'interet du motif. -->
+  <dsfr-data-unpivot id="mensuel" source="pdm"
+    id-cols="Sous_theme"
+    value-cols-pattern="c{YYYY}_{MM}"
+    var-name="mois" var-format="{YYYY}-{MM}"
+    value-name="pdm">
+  </dsfr-data-unpivot>
+
+  <!-- Les cellules valent « 16,2% » : une CHAINE, virgule decimale et
+       signe pourcent. numeric la convertit (16.2) ; sans lui, le
+       graphique trierait et additionnerait du texte. -->
+  <dsfr-data-normalize id="chiffres" source="mensuel" numeric="pdm">
+  </dsfr-data-normalize>
+
+  <dsfr-data-chart source="chiffres"
+    type="line"
+    label-field="mois"
+    value-field="pdm"
+    series-field="Sous_theme"
+    unit-tooltip="%"
+    selected-palette="categorical">
+  </dsfr-data-chart>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Grist publie ce qu'une equipe saisit, pas ce qu'une API normalise.</strong>
+      Les valeurs arrivent en texte francais (« 16,2% »), les libelles portent leurs
+      coquilles, et plusieurs lignes partagent le meme nom d'indicateur — c'est
+      <code>Sous_theme</code> qui les distingue. Ces trois traits sont la regle sur un
+      document collaboratif, pas l'exception : le <code>numeric</code> et le
+      <code>series-field</code> ci-dessus ne sont pas des precautions, ce sont les gestes
+      normaux.
+      <br><strong>Un pourcent litteral dans un <code>where</code> s'echappe.</strong> Le
+      dialecte colon decode les sequences pourcent : « PDM % VE » s'ecrit
+      <code>PDM %25 VE</code>, comme un <code>:</code> s'ecrit <code>%3A</code> et un
+      <code>|</code> <code>%7C</code>.
+    </p>
+  </div>
+</div>`,
+
+  'grist-catalogue-list': `<!--
+  Grist — Le catalogue des indicateurs d'un document collaboratif
+  Pipeline : dsfr-data-source (grist) → dsfr-data-normalize (compute) → dsfr-data-list
+  Source : Plan Electrification (grist.numerique.gouv.fr, document public)
+  Montre ce qu'un document Grist rend tel quel, avant toute dataviz.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Les indicateurs du Plan Electrification</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : grist.numerique.gouv.fr — document public du Plan Electrification
+  </p>
+
+  <dsfr-data-source id="plan" api-type="grist"
+    base-url="https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/Plan_Elec_Indic_dyanmiques/records">
+  </dsfr-data-source>
+
+  <!-- « Nombre immatriculations VE » apparait cinq fois : une par segment.
+       Le libelle seul ne designe donc rien. compute fabrique la colonne
+       qui identifie vraiment une serie, en concatenant les deux champs. -->
+  <!-- trim ecarte les espaces de saisie (« … 12 mois) » avec un blanc
+       final) ; a_libelle marque les lignes de separation, que le document
+       laisse a blanc. -->
+  <dsfr-data-normalize id="series" source="plan"
+    trim
+    compute="a_libelle = when is_empty(Indicateurs) then 0 else 1; serie = Indicateurs + ' — ' + Sous_theme">
+  </dsfr-data-normalize>
+
+  <dsfr-data-query id="renseignes" source="series"
+    where="a_libelle:eq:1"
+    order-by="Theme:asc">
+  </dsfr-data-query>
+
+  <dsfr-data-list source="renseignes"
+    columns="Theme:Theme, serie:Serie, Source:Source, Derniere_mise_a_jour:Mise a jour"
+    pagination="15"
+    search>
+  </dsfr-data-list>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Un libelle n'est pas un identifiant.</strong> « Nombre immatriculations VE »
+      figure cinq fois dans ce document, une fois par segment de vehicule. Brancher un
+      graphique sur cette colonne empilerait cinq series sous un seul nom, sans rien signaler.
+      La colonne calculee par <code>compute</code> — <code>Indicateurs + ' — ' + Sous_theme</code>
+      — rend l'identite explicite avant qu'un affichage en depende.
+      <br><strong>Aucun <code>flatten</code> n'a ete necessaire.</strong> En mode adaptateur,
+      Grist aplatit <code>records[].fields</code> de lui-meme. Le <code>flatten</code> de
+      <code>dsfr-data-normalize</code> ne sert qu'en mode URL brute (attribut <code>url</code>
+      sans <code>api-type</code>), ou la reponse arrive telle quelle.
+      <br><strong>Une cellule vide n'est pas une cellule nulle.</strong> Vingt-huit des
+      cinquante-sept lignes de ce document sont des separateurs laisses a blanc.
+      <code>where="Indicateurs:isnotnull"</code> les garde TOUTES : la chaine vide n'est pas
+      <code>null</code>. Et comme <code>order-by="Theme:asc"</code> range le vide en tete, la
+      premiere page du tableau n'affichait que des tirets. Le filtre correct passe par
+      <code>is_empty()</code>, qui couvre le null, la chaine vide et le tableau vide.
+      <br>Le document est lu en LECTURE SEULE et sans jeton : il est public. Un document
+      prive demanderait un <code>Authorization: Bearer</code>, visible dans le source de la
+      page — a reserver aux cles a acces restreint ou aux contextes proteges.
+    </p>
+  </div>
+</div>`,
 };
