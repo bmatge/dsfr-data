@@ -18,7 +18,7 @@ a appris en reproduisant des pages publiques avec `dsfr-data`.
 | lire une **part d'un tout** | camembert ≤ 5-7 parts, ou barres empilées | `type="pie"`, `type="bar" stacked` | des parts qui ne somment pas à 100 (groupe null écarté sans le dire) |
 | suivre une **évolution** | courbe | `type="line"` | des barres par année quand il y a 30 ans ; une courbe sur 3 points (voir « Trois points ») |
 | lire un **écart** à une référence | deux barres côte à côte, ou barre divergente **avec** les niveaux à portée | `type="bar"` deux séries ; `reference-lines` | une barre d'écart seule : −8,8 pt se lit pareil qu'on parte de 37 % ou de 8 % |
-| situer **son** territoire | carte choroplèthe d'un **taux** | `type="map"` + `map-summary-weight` | une choroplèthe de volumes (Paris gagne toujours ; résumé sans sens, AM-079) |
+| situer **son** territoire | carte choroplèthe d'un **taux** | `type="map"` + `map-summary="weighted"` | une choroplèthe de volumes (Paris gagne toujours) ; si elle s'impose, `map-summary="sum"` — jamais la moyenne (AM-079) |
 | lire un **classement** | podium / barres triées | `dsfr-data-podium`, `order-by="x:desc" limit` | un camembert à 15 parts |
 | lire **plus de ~7 classes** qui comptent toutes | tableau | `dsfr-data-list columns= sort=` | un graphique à 19 séries |
 | comparer **N questions** | un graphique par question | motif « un composant par ligne » (`dsfr-data-display` + gabarit) | un graphique de 236 lignes |

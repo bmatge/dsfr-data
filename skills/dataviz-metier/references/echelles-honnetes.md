@@ -19,10 +19,17 @@ champ d'effectif dans le jeu, `map-summary-value="…"` pose une valeur fournie 
 **littéral**, juste pour une fédération et faux dès qu'on change de filtre (AM-079) : ne l'employer
 que sur une carte sans filtre.
 
-**Ce qui reste sans réponse** : le résumé d'une carte de **volumes** est une moyenne de volumes
-(« 3 074,06 en France » pour 310 480 licences) et aucun mode ne calcule la somme (AM-079, ouvert
-en 0.30). Une choroplèthe de volumes est de toute façon une forme douteuse (voir
-[forme](forme.md)) ; si elle s'impose, le dire en page à côté du résumé.
+**Le geste, pour un volume** : `map-summary="sum"` (#927, AM-079). Le résumé d'une carte de
+volumes était une moyenne de volumes — « 3 074,06 en France » pour 310 480 licences, un chiffre
+sans signification — et la valeur littérale `map-summary-value` restait juste pour une seule
+fédération. `sum` calcule le total depuis la donnée, donc **il suit les filtres**. Quatre modes :
+`sum` pour un volume, `weighted` pour un taux, `avg` pour un indicateur dont les territoires
+pèsent pareil, `none` pour ne rien résumer (ce qui disparaît est le chiffre ; l'en-tête « en
+France » appartient à DSFR Chart et reste). Une somme n'a de sens que si les lignes forment une
+**partition** : deux lignes du même code sont additionnées toutes les deux alors que la carte
+n'en dessine qu'une — un avertissement console le dit, agréger en amont. Une choroplèthe de
+volumes reste une forme douteuse (voir [forme](forme.md)) ; si elle s'impose, le dire en page à
+côté du résumé.
 
 ## Arrondir pour l'affichage, jamais avant un calcul
 

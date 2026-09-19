@@ -84,6 +84,18 @@ const MAP_LEVEL: Record<string, string> = {
   'map-monde': 'monde',
 };
 
+/**
+ * Modes de synthese du resume d'une carte (`map-summary`, #927). Liste blanche :
+ * un mode inconnu est une erreur de configuration nommee, jamais un repli
+ * silencieux sur la moyenne.
+ *
+ * `sum` pour un VOLUME, `weighted` pour un TAUX, `avg` pour un indicateur dont
+ * les territoires pesent pareil, `none` pour ne rien resumer.
+ */
+export const MAP_SUMMARY_MODES = ['sum', 'avg', 'weighted', 'none'] as const;
+
+export type MapSummaryMode = (typeof MAP_SUMMARY_MODES)[number];
+
 /** Maps chart type -> DSFR custom élément tag name */
 const CHART_TAG_MAP: Record<string, string> = {
   line: 'line-chart',
@@ -286,6 +298,59 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    */
   @property({ type: String, attribute: 'map-summary-weight' })
   mapSummaryWeight = '';
+
+  /**
+   * MODE de synthèse du résumé affiché sous le titre d'une carte
+   * (`type="map*"`), #927 — calculé sur les lignes dessinées, donc suivant les
+   * filtres comme le reste de la carte :
+   *
+   * - `sum` — la **somme**. La seule synthèse juste d'une carte de VOLUMES :
+   *   le nombre de licenciés, d'établissements, de logements par territoire.
+   *   La moyenne d'un volume par territoire ne mesure rien (« 3 074,06 en
+   *   France » pour 310 480 licences) ;
+   * - `avg` — la moyenne NON pondérée, le calcul historique. Juste pour un
+   *   indicateur dont les territoires pèsent pareil, faux pour un taux dès
+   *   qu'ils diffèrent : la Lozère y pèse autant que le Nord ;
+   * - `weighted` — la moyenne pondérée, Σ(valeur × effectif) / Σ(effectif).
+   *   La synthèse juste d'une carte de TAUX (#763), et exige
+   *   `map-summary-weight` ;
+   * - `none` — **aucun résumé**. Le choix honnête quand la carte ne porte pas
+   *   un indicateur qui se résume en un nombre (un indice, un rang, une
+   *   catégorie recodée). Ce qui disparaît est le CHIFFRE : l'en-tête « …, en
+   *   France » appartient à DSFR Chart et reste affiché, sans valeur (vérifié
+   *   au navigateur le 2026-09-19).
+   *
+   * **La première question d'une carte thématique est volume ou taux**, et
+   * elle décide du mode : un volume s'additionne, un taux se pondère, et
+   * l'autre calcul est faux dans les deux sens. Une somme n'a de sens que si
+   * les lignes dessinées forment une PARTITION du territoire — chaque unité
+   * comptée une fois et une seule. Deux lignes portant le même code
+   * géographique sont additionnées toutes les deux alors que la carte n'en
+   * dessine qu'une (la dernière) : un avertissement console le signale en mode
+   * `sum`, et il faut alors agréger en amont (`dsfr-data-query
+   * group-by="dep"`). Les lignes écartées faute de code géographique
+   * exploitable ne sont dans aucun résumé — le compte de ces lignes est déjà
+   * journalisé.
+   *
+   * **Attribut absent : rien ne change.** Le résumé garde son ordre
+   * historique — valeur fournie, sinon moyenne pondérée si
+   * `map-summary-weight` est posé, sinon moyenne non pondérée. Cet attribut
+   * n'est qu'une façon de plus de résumer, jamais une redéfinition des chiffres
+   * déjà publiés.
+   *
+   * **Ordre de priorité** : `none` l'emporte sur tout ; `map-summary-value`
+   * (littéral, #763) l'emporte ensuite sur le mode, avec un avertissement
+   * console quand les deux sont posés. Un mode inconnu, ou `weighted` sans
+   * `map-summary-weight`, est une erreur de configuration et n'affiche AUCUN
+   * résumé — jamais un chiffre de repli qui aurait l'air juste.
+   *
+   * **Ce que le résumé lit** : la colonne `value-field`, telle qu'elle arrive
+   * — donc arrondis d'un `dsfr-data-normalize round="…"` en amont compris. Sur
+   * une somme l'écart reste marginal ; sur `weighted` il ne l'est pas
+   * (PG-031). Réserver `round` aux valeurs qui ne nourrissent aucun calcul.
+   */
+  @property({ type: String, attribute: 'map-summary' })
+  mapSummary = '';
 
   /** Envelopper le chart dans une DataBox DSFR native */
   @property({ type: Boolean })
@@ -653,8 +718,21 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    */
   private _mapRows: unknown[] = [];
 
+  /**
+   * Lignes du dernier `_processMapData` dont le code geographique avait deja
+   * ete vu : la carte n'en dessine qu'une (la derniere gagne) mais toutes
+   * comptent dans un resume. Une SOMME les additionne donc deux fois (#927).
+   */
+  private _mapDuplicateCodes = 0;
+
+  /** Jeu pour lequel le warn de doublons a deja ete emis (un warn par cycle). */
+  private _duplicateWarnedData: unknown[] | null = null;
+
   /** Erreur de configuration du resume de carte (#763), jointe aux overlays. */
   private _mapSummaryError: string | null = null;
+
+  /** Avertissements du resume deja emis, par cle et par jeu de donnees (#927). */
+  private _warnedSummaryKeys = new Map<string, unknown[] | null>();
 
   /**
    * Nombre de lignes ignorees par la dernière carte rendue (`type="map*"`) :
@@ -667,6 +745,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   private _processMapData(): string {
     this._skippedGeoCount = 0;
+    this._mapDuplicateCodes = 0;
     this._mapRows = [];
     if (!this._data || this._data.length === 0) return '{}';
 
@@ -708,6 +787,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         }
       }
       const value = toNumber(getByPath(record, this._valueFieldKey()));
+      if (code in mapData) this._mapDuplicateCodes++;
       mapData[code] = Math.round(value * 100) / 100;
       this._mapRows.push(record);
     }
@@ -725,17 +805,41 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Resume affiche sous le titre d'une carte (#763). A appeler APRES
-   * `_processMapData`, dont il lit les lignes dessinees.
+   * Resume affiche sous le titre d'une carte (#763, modes #927). A appeler
+   * APRES `_processMapData`, dont il lit les lignes dessinees.
    *
-   * Ordre : valeur fournie par la page (`map-summary-value`), sinon moyenne
-   * ponderee par `map-summary-weight`, sinon moyenne NON ponderee — le calcul
-   * historique, qui n'est un taux national que si les territoires pesent
-   * pareil. `value: null` : pas de resume, jamais un chiffre de repli faux.
+   * Ordre : `map-summary="none"` (aucun resume), puis la valeur fournie par la
+   * page (`map-summary-value`), puis le MODE demande (`sum`, `avg`,
+   * `weighted`), puis — attribut absent — le chemin historique : moyenne
+   * ponderee si `map-summary-weight` est pose, sinon moyenne NON ponderee.
+   * Aucun chiffre deja publie ne change tant que `map-summary` n'est pas pose.
+   * `value: null` : pas de resume, jamais un chiffre de repli faux.
    */
   private _computeMapSummary(): { value: number | null; error: string | null } {
+    const mode = this.mapSummary.trim().toLowerCase();
     const literal = this.mapSummaryValue.trim();
+
+    if (mode && !MAP_SUMMARY_MODES.includes(mode as MapSummaryMode)) {
+      return {
+        value: null,
+        error:
+          `map-summary="${this.mapSummary}" : mode inconnu — ` +
+          `modes acceptés : ${MAP_SUMMARY_MODES.join(', ')}`,
+      };
+    }
+
+    // `none` prime sur tout : retirer le resume est une demande explicite, que
+    // ni un litteral ni un champ d'effectif ne doit contredire.
+    if (mode === 'none') return { value: null, error: null };
+
     if (literal) {
+      if (mode) {
+        this._warnOnce(
+          'summary-mode-ignore',
+          `dsfr-data-chart[${this.id}]: map-summary="${mode}" est ignoré — ` +
+            `map-summary-value="${literal}" fait autorité. Retirer l'un des deux.`
+        );
+      }
       const value = toNumber(literal, true);
       if (value === null) {
         return {
@@ -748,7 +852,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     const valueKey = this._valueFieldKey();
     const weightField = this.mapSummaryWeight.trim();
-    if (weightField) {
+
+    // Pondere : demande explicitement, ou — attribut absent — des qu'un champ
+    // d'effectif est pose (chemin historique, inchange).
+    if (mode === 'weighted' || (!mode && weightField)) {
+      if (!weightField) {
+        return {
+          value: null,
+          error: 'map-summary="weighted" : exige map-summary-weight="champ d\'effectif"',
+        };
+      }
       let weighted = 0;
       let totalWeight = 0;
       let weightedRows = 0;
@@ -771,6 +884,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       return { value: totalWeight !== 0 ? weighted / totalWeight : null, error: null };
     }
 
+    // Un champ d'effectif pose a cote d'un mode qui ne s'en sert pas est une
+    // intention contredite : le dire plutot que de l'ignorer en silence.
+    if (mode && weightField) {
+      this._warnOnce(
+        'summary-weight-ignore',
+        `dsfr-data-chart[${this.id}]: map-summary-weight="${weightField}" est ignoré ` +
+          `par map-summary="${mode}" — seul "weighted" pondère.`
+      );
+    }
+
     let total = 0;
     let count = 0;
     for (const record of this._mapRows) {
@@ -780,7 +903,33 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         count++;
       }
     }
+
+    if (mode === 'sum') {
+      // Une somme n'a de sens que sur une PARTITION : deux lignes du meme code
+      // sont additionnees toutes les deux alors que la carte n'en dessine
+      // qu'une. Le total depasse alors ce que la carte montre, et reste
+      // plausible (#927).
+      if (this._mapDuplicateCodes > 0 && this._duplicateWarnedData !== this._data) {
+        this._duplicateWarnedData = this._data;
+        console.warn(
+          `dsfr-data-chart[${this.id}]: map-summary="sum" additionne ${this._mapRows.length} ` +
+            `ligne(s) pour ${this._mapRows.length - this._mapDuplicateCodes} territoire(s) ` +
+            `dessiné(s) — ${this._mapDuplicateCodes} ligne(s) portent un code déjà vu et sont ` +
+            `comptées en plus de celle que la carte affiche. Agréger en amont ` +
+            `(dsfr-data-query group-by="${this.codeField || this.labelField}").`
+        );
+      }
+      return { value: count > 0 ? total : null, error: null };
+    }
+
     return { value: count > 0 ? total / count : null, error: null };
+  }
+
+  /** Un avertissement par message et par jeu de donnees (updated() repasse). */
+  private _warnOnce(cle: string, message: string): void {
+    if (this._warnedSummaryKeys.get(cle) === this._data) return;
+    this._warnedSummaryKeys.set(cle, this._data);
+    console.warn(message);
   }
 
   // --- Attribute builders ---
