@@ -792,9 +792,9 @@ et compare) :
 | | déterministe (défaut) | vivant (`VERIF_MODE=live`) |
 |---|---|---|
 | Alimentation | fixtures du dépôt, servies par `page.route` | vraies API du banc d'essai, retéléchargées (mises en cache par URL pour la durée du run) |
-| Attendu | recalculé dans le run, depuis les **mêmes** lignes | `tools/oracle/out/expected.json`, produit juste avant le rendu |
-| Commande | `npm run verif` | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
-| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
+| Attendu | recalculé dans le run, depuis les **mêmes** lignes — et, troisième voix, `tests/verif-donnees/attendus.json` (Python, **versionné**) | `tools/oracle/out/expected.json`, produit juste avant le rendu — avec l'empreinte du jeu et le recoupement serveur |
+| Commande | `npm run verif` ; `npm run verif:attendus` régénère les attendus Python | `npm run verif:live` (`verif:expected` seul pour l'attendu) |
+| Workflow | `.github/workflows/verif-donnees.yml` — **bloquant** sur chaque PR ; job `attendus` : un attendu Python qui change sans être committé est un échec | `.github/workflows/oracle.yml` — nuit, `workflow_dispatch`, label `oracle` ; **jamais** bloquant |
 | Réseau | aucun (toute sortie inattendue fait échouer) | requis |
 
 **Le moteur** — `tools/oracle/`, hors du périmètre de la lib : `manifest.ts` (la grammaire, types
@@ -893,8 +893,50 @@ de son auteur, pas entre deux implémentations du même contrat — le débat su
 tranche dans la lib (une issue, une ADR), pas dans `tools/oracle`. Et là où la documentation ne dit
 rien, c'est l'oracle qui **énonce**, en toutes lettres, et la mutation qui garde.
 
-> Procédure complète — ajouter un contrôle, écrire une alimentation vivante, prouver une mutation,
-> lire le rapport : **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
+**Trois voix, deux régimes** (epic #886, lots 1 à 7, amendement de l'ADR-122). Le garde d'imports
+garantit que l'oracle n'emprunte rien à la lib ; il ne garantit pas qu'il ne *pense pas comme
+elle* — mêmes auteurs, même langage. D'où ce que la catégorie a gagné depuis :
+
+- **les silences** (#878) — un `Expect` `diagnostic` et le lecteur `lireDiagnostics` (marqueur
+  `data-dsfr-config-error`, journal des `console.warn` / `console.error` de la lib) : un contrôle
+  peut exiger que la bibliothèque **parle**, et dise quoi, ou qu'elle se taise. Les trois chiffres
+  faux du 18/09 avaient zéro erreur console ;
+- **la troisième voix** (#880) — `tools/oracle-py/oracle.py`, **Python standard, jamais pandas**
+  (`sum` toute-NaN = 0 et `groupby` qui supprime le groupe null reproduiraient les bugs au lieu de
+  les dénoncer) ; les jeux du régime déterministe en JSON partagés (`tests/verif-donnees/jeux/`,
+  #879), les attendus **versionnés** (`tests/verif-donnees/attendus.json`, `npm run verif:attendus`),
+  la rencontre TS ↔ Python sans navigateur (`tests/oracle/attendus.test.ts`) et le job `attendus`
+  de `verif-donnees.yml` qui refuse un attendu non committé — sur les **valeurs** seules : l'en-tête
+  du fichier gardé ne porte aucune métadonnée d'environnement, la version de l'interpréteur vit dans
+  `tools/oracle/out/attendus-provenance.json` (ignoré par git) et le workflow épingle Python 3.11,
+  faute de quoi le garde-fou rougissait sur cette seule ligne, toutes valeurs égales. Le régime
+  déterministe seul : en vivant, un attendu figé se périme au premier changement de données ;
+- **les invariants** (#881) — `sum-preserved`, `count-preserved`, `count-equals`, `null-group`,
+  `bounded`, `null-stays-null`, `not-truncated`, évalués sur ce que la page montre **contre les
+  lignes brutes, jamais contre l'attendu** ;
+- **le canari** (#882) — `jeux/canari.json`, quarante lignes écrites à la main, un contrôle par
+  piège payé par le banc, chacun citant le registre ;
+- **le recoupement serveur** (#883, vivant) — l'agrégation Opendatasoft elle-même comme troisième
+  voix vivante, clauses écrites à la main, sous quota, avec un **verdict à trois chiffres** ;
+- **le verdict d'une nuit rouge** (#884, vivant) — empreinte du jeu et `data_processed` du portail :
+  **bibliothèque** (l'échec est **gelé** en contrôle déterministe sous `tests/verif-donnees/gel/`,
+  rouge sans réseau jusqu'au correctif), **donnée** (rejoué une fois dans le run), **indéterminé**.
+  Règle de vie : une nuit rouge est gelée ou requalifiée sous 24 h, jamais un troisième état.
+
+**Ce que la catégorie ne couvre pas**, écrit noir sur blanc :
+
+- les erreurs d'auteur de page que la bibliothèque ne peut pas voir (source hors contexte, mauvais
+  jeu de données) : le dispositif garde le *chiffre de la page réelle* en vivant, la garde durable
+  est un oracle de page côté banc ;
+- les pixels, la mise en page, l'accessibilité : `e2e/` et `e2e-layout.yml` ;
+- les expressions `derive` (ADR-105) en Python, tant qu'une seconde réécriture de la grammaire n'est
+  pas décidée — 21 attentes restent à deux voix ;
+- la qualité de la donnée source (LIM-003, LIM-015, LIM-016) : aucun oracle ne répare un jeu faux ;
+- les API sans métadonnée de fraîcheur (Tabular, Melodi) : verdict `indéterminé`.
+
+> Procédure complète — ajouter un contrôle, un canari, un attendu Python, un recoupement, traiter
+> une nuit rouge, prouver une mutation, lire le rapport :
+> **[`tools/oracle/README.md`](../tools/oracle/README.md)**.
 
 ### Structure
 
@@ -1111,7 +1153,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 - **`reuseExistingServer` fait tester le worktree du voisin** (appris aux lots de la vérification des données) — `e2e/playwright.config.ts:16`, port 5173 (`:15`). Playwright démarre `npm run dev` lui-même, **sauf** si le port répond déjà : il réutilise alors ce serveur, quel que soit le checkout qui le sert. Avec plusieurs worktrees ouverts en parallèle (le cas normal d'un plan en lots), `npm run verif`, `npm run test:e2e` et les specs de mise en page éprouvent les **sources d'un autre worktree** — et une preuve de mutation passe au vert à tort, puisque le défaut injecté ici n'est pas dans le code servi là-bas. Le symptôme est muet : tout est vert. **Réflexe** : `lsof -i :5173` avant de lancer ; si le port est pris par un autre checkout, démarrer son propre serveur sur un port libre et jouer le spec avec une copie temporaire de la configuration Playwright.
 
-- **Le gabarit d'un `dsfr-data-display` peut contenir des composants `dsfr-data-*`** (voie native « un graphique par ligne », documentée dans `docs/USER-GUIDE.md`, la skill `attributeGrammars` et `specs/components/dsfr-data-display.html`, verrouillée par `tests/dsfr-data-display.test.ts`) — `packages/core/src/components/dsfr-data-display.ts:419-423` (`.innerHTML` du conteneur Lit). Une `dsfr-data-query id="q-{{clé}}" where="clé:eq:{{clé}}"` par ligne scope une source chargée une fois ; N lectrices ⇒ chaîne partagée ⇒ `where` client, sans avertissement (point #765 ci-dessus). Mesuré en 0.30.0 : 119 × (query + chart) en 410 ms, refiltre en 29 ms. **Trois couplages à connaître avant de toucher display ou les mixins** : (a) toute émission de la source répétée réécrit l'`innerHTML` entier, donc détruit et recrée les instances (≈ 640 ms pour 119 graphiques) ; (b) à cette re-création, `TransformerMixin.disconnectedCallback` (`utils/transformer-mixin.ts:446-454`) purge le cache de l'`id` de l'ancienne instance **après** que la nouvelle, de même `id`, l'a rempli — un consommateur monté plus tard lit du vide ; le correctif évident (ne purger que si `document.getElementById(this.id)` n'est plus une autre instance) n'est pas fait ; (c) `_captureTemplate` lit le `<template>` à `connectedCallback` (`display.ts:218-223`) : bundle chargé dans `<head>` sans `defer`, le gabarit n'est pas encore analysé et n'est recapturé qu'au prochain `render()` — `dsfr-data-map-popup.ts:77-80` documente et évite ce piège, display non. Un display dans le gabarit d'un display ne fonctionne pas : la passe unique de `renderTemplate` (`utils/template-expression.ts:337-357`) substitue aussi les `{{…}}` du `<template>` intérieur avec la ligne extérieure, sans échappement possible.
+- **Le gabarit d'un `dsfr-data-display` peut contenir des composants `dsfr-data-*`** (voie native « un graphique par ligne », documentée dans `docs/USER-GUIDE.md`, la skill `attributeGrammars` et `specs/components/dsfr-data-display.html`, verrouillée par `tests/dsfr-data-display.test.ts`) — `packages/core/src/components/dsfr-data-display.ts:444-449` (`.innerHTML` du conteneur Lit). Une `dsfr-data-query id="q-{{clé}}" where="clé:eq:{{clé}}"` par ligne scope une source chargée une fois ; N lectrices ⇒ chaîne partagée ⇒ `where` client, sans avertissement (point #765 ci-dessus). Mesuré en 0.30.0 : 119 × (query + chart) en 410 ms, refiltre en 29 ms. **Trois couplages à connaître avant de toucher display ou les mixins** : (a) toute émission de la source répétée réécrit l'`innerHTML` entier, donc détruit et recrée les instances (≈ 640 ms pour 119 graphiques) — toujours vrai ; (b) à cette re-création, le navigateur connecte les NOUVELLES instances **avant** de déconnecter les anciennes (mesuré sous Chromium ; happy-dom ordonne l'inverse, donc un test qui se contente de réécrire l'`innerHTML` ne voit rien), si bien que la purge de cache au `disconnectedCallback` emportait celui de l'instance homonyme qui venait de le remplir — **corrigé en 0.30.1** (#893) : `TransformerMixin.disconnectedCallback` (`utils/transformer-mixin.ts:462-470`) et `dsfr-data-source.disconnectedCallback` (`dsfr-data-source.ts:360-367`) ne purgent que si `document.getElementById(this.id)` ne rend plus rien ; (c) `_captureTemplate` lit le `<template>` à `connectedCallback` (`display.ts:227-241`) : bundle chargé dans `<head>` sans `defer`, le gabarit n'est pas encore analysé — le repli de `render()` ne rattrape que s'il y a un rendu ultérieur, d'où **une seconde capture à `DOMContentLoaded`, corrigée en 0.30.1** (#894), sur le modèle de `dsfr-data-map-popup.ts:77-80`. Un display dans le gabarit d'un display ne fonctionne pas : la passe unique de `renderTemplate` (`utils/template-expression.ts:337-357`) substitue aussi les `{{…}}` du `<template>` intérieur avec la ligne extérieure, sans échappement possible.
 
 - **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission d'un ancien domaine (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
 

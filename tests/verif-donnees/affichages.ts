@@ -302,7 +302,17 @@ const CHECKS: Check[] = [
   <dsfr-data-kpi id="k-unite" source="s-fmt" value="agents:sum" format="nombre"
     unit="agents" label="Effectif"></dsfr-data-kpi>`,
     expects: [
-      { kind: 'kpi', id: 'k-pct', agg: 'avg', field: 'taux', decimals: 1, pattern: POURCENT },
+      {
+        kind: 'kpi',
+        id: 'k-pct',
+        agg: 'avg',
+        field: 'taux',
+        decimals: 1,
+        pattern: POURCENT,
+        // Un taux moyen affiché en pourcentage reste entre 0 et 100 (#881) :
+        // une mise à l'échelle appliquée deux fois se voit ici, pas ailleurs.
+        invariants: [{ kind: 'bounded', min: 0, max: 100 }],
+      },
       {
         kind: 'kpi',
         id: 'k-unite',

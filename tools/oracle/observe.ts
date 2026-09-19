@@ -422,6 +422,55 @@ export function lireFacettes(id: string): ObservationFacette[] | null {
   return groupes;
 }
 
+/** Un message que la bibliothèque a écrit en console. */
+export interface MessageConsole {
+  level: 'warn' | 'error';
+  text: string;
+}
+
+/**
+ * Ce que la bibliothèque a DIT pendant le rendu, et ce qu'elle a tu (#878).
+ *
+ * `configError` : le marqueur `data-dsfr-config-error` de l'élément observé
+ * (le canal de `reportConfigError`), ou `null`. `console` : les messages
+ * `warn` / `error` émis par la bibliothèque — ceux qui la nomment
+ * (`dsfr-data-…`) — dans l'ordre. Un message qui ne vient pas d'elle (un
+ * 404 de tuile, un avertissement Lit) n'est pas un diagnostic.
+ */
+export interface ObservationDiagnostic {
+  configError: string | null;
+  console: MessageConsole[];
+}
+
+/**
+ * Lit les SILENCES : le marqueur d'erreur de configuration de l'élément, et
+ * le journal des messages console de la bibliothèque.
+ *
+ * Le journal est tenu par la page elle-même (`window.__verifConsole`), posé
+ * AVANT le chargement de la bibliothèque : les premières validations partent
+ * dès le `connectedCallback` des composants, un observateur installé après
+ * coup arriverait trop tard — même raison que `lireUrls`. Un élément absent
+ * du document n'a pas de marqueur : `configError` est alors `null`, et c'est
+ * le journal seul qui parle.
+ */
+export function lireDiagnostics(id: string): ObservationDiagnostic {
+  const hote = document.getElementById(id);
+  const configError = hote?.getAttribute('data-dsfr-config-error') ?? null;
+  const w = window as unknown as { __verifConsole?: unknown };
+  const brut = w.__verifConsole;
+  const console: MessageConsole[] = [];
+  if (Array.isArray(brut)) {
+    for (const entree of brut) {
+      const e = entree as { level?: unknown; text?: unknown };
+      const level = e.level === 'error' ? 'error' : e.level === 'warn' ? 'warn' : null;
+      const text = typeof e.text === 'string' ? e.text : '';
+      if (level === null || !/dsfr-data-/.test(text)) continue;
+      console.push({ level, text });
+    }
+  }
+  return { configError, console };
+}
+
 /** Un texte affiché, et le nombre qu'un lecteur y lit s'il y en a un. */
 export interface ObservationTexte {
   text: string;

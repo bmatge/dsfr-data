@@ -18,7 +18,6 @@
  */
 import {
   HOTES,
-  JEU,
   RESSOURCES,
   repondreOdsExport,
   repondreOdsFacets,
@@ -26,6 +25,10 @@ import {
   repondreTabular,
 } from '../builder-e2e/api-fixtures.js';
 import type { Row } from '../../tools/oracle/manifest.js';
+import territoires from './jeux/territoires.json' with { type: 'json' };
+import melodi from './jeux/adaptateurs-melodi.json' with { type: 'json' };
+import grist from './jeux/adaptateurs-grist.json' with { type: 'json' };
+import jsonLignes from './jeux/adaptateurs-json.json' with { type: 'json' };
 
 /** Hôtes fictifs — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_ODS_ADAPT = 'https://portail.adaptateurs.invalid';
@@ -49,7 +52,7 @@ export const DATASET_ADAPT = 'jeu-adaptateurs';
 export const CLE_ODS = 'cle-de-verif-a-ne-pas-journaliser';
 
 /** Les 137 territoires du harnais de recette, partagés par ODS et Tabular. */
-export const TERRITOIRES_ADAPT: Row[] = JEU as unknown as Row[];
+export const TERRITOIRES_ADAPT: Row[] = territoires;
 
 // ---------------------------------------------------------------------------
 // INSEE Melodi — deux ressources, un seul aplatissement (#586)
@@ -71,17 +74,7 @@ export const DATASET_INSEE = 'DS_VERIF_DECES';
  * Les observations portent l'`id` géographique (`2025-DEP-01`), pas le code
  * court (`01`) : c'est la clé de jointure qui a coûté #586.
  */
-// Une ligne par observation : un jeu de fixtures se lit comme un tableau.
-// prettier-ignore
-export const MELODI_LIGNES: Row[] = [
-  { GEO: 'Ain',          GEO_CODE: '2025-DEP-01', SEX: 'Hommes', SEX_CODE: 'M', TIME_PERIOD: '2026-01', OBS_VALUE: 120, OBS_STATUS: 'A' },
-  { GEO: 'Ain',          GEO_CODE: '2025-DEP-01', SEX: 'Femmes', SEX_CODE: 'F', TIME_PERIOD: '2026-01', OBS_VALUE: 95,  OBS_STATUS: 'A' },
-  { GEO: 'Aisne',        GEO_CODE: '2025-DEP-02', SEX: 'Hommes', SEX_CODE: 'M', TIME_PERIOD: '2026-01', OBS_VALUE: 210, OBS_STATUS: 'A' },
-  { GEO: 'Aisne',        GEO_CODE: '2025-DEP-02', SEX: 'Femmes', SEX_CODE: 'F', TIME_PERIOD: '2026-01', OBS_VALUE: 180, OBS_STATUS: 'P' },
-  { GEO: "Côte-d'Or",    GEO_CODE: '2025-DEP-21', SEX: 'Hommes', SEX_CODE: 'M', TIME_PERIOD: '2026-01', OBS_VALUE: 64,  OBS_STATUS: 'A' },
-  { GEO: "Côte-d'Or",    GEO_CODE: '2025-DEP-21', SEX: 'Femmes', SEX_CODE: 'F', TIME_PERIOD: '2026-01', OBS_VALUE: 58,  OBS_STATUS: 'A' },
-  { GEO: '2025-DEP-99',                           SEX: 'Hommes', SEX_CODE: 'M', TIME_PERIOD: '2026-01', OBS_VALUE: 7,   OBS_STATUS: 'P' },
-];
+export const MELODI_LIGNES: Row[] = melodi;
 
 /** Modalités de `/range` : le géo porte `code` ET `id`, les autres le seul `code`. */
 const MELODI_GEO: Array<{ code: string; id: string; label: string }> = [
@@ -156,14 +149,7 @@ export const URL_GRIST = `${HOTE_GRIST}/api/docs/${GRIST_DOC}/tables/${GRIST_TAB
  * piégeux (espaces, apostrophe, accents) : ce sont eux qui cassent quand
  * l'aplatissement passe par une clé construite plutôt que recopiée.
  */
-// prettier-ignore
-export const GRIST_LIGNES: Row[] = [
-  { Region: 'Hauts-de-France', "Nom de l'unité": 'Lille',      Population: 232741, 'Écart en %': 1.2 },
-  { Region: 'Hauts-de-France', "Nom de l'unité": 'Amiens',     Population: 133755, 'Écart en %': -0.4 },
-  { Region: 'Occitanie',       "Nom de l'unité": 'Montpellier', Population: 299096, 'Écart en %': 2.7 },
-  { Region: 'Occitanie',       "Nom de l'unité": 'Toulouse',   Population: 498003, 'Écart en %': 3.1 },
-  { Region: 'Bretagne',        "Nom de l'unité": 'Rennes',     Population: 222485, 'Écart en %': 0.9 },
-];
+export const GRIST_LIGNES: Row[] = grist;
 
 /**
  * `GET {docUrl}/records` — l'enveloppe Grist.
@@ -189,14 +175,7 @@ export function repondreGrist(): Record<string, unknown> {
  * `effectif` mélange nombres et chaînes dans la même colonne, ce qui arrive
  * dès qu'un export a été repris à la main.
  */
-// prettier-ignore
-export const JSON_LIGNES: Row[] = [
-  { commune: 'Lille',       zone: 'nord',  montant: '1 234,56', effectif: '120' },
-  { commune: 'Amiens',      zone: 'nord',  montant: '987,40',   effectif: 45 },
-  { commune: 'Montpellier', zone: 'sud',   montant: '12 000,05', effectif: '310' },
-  { commune: 'Toulouse',    zone: 'sud',   montant: '3 456,78', effectif: 210 },
-  { commune: 'Rennes',      zone: 'ouest', montant: '89,90',    effectif: '15' },
-];
+export const JSON_LIGNES: Row[] = jsonLignes;
 
 /** L'enveloppe que `transform="resultats.lignes"` doit savoir traverser. */
 export function repondreJsonEnveloppe(): Record<string, unknown> {

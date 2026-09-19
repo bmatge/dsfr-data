@@ -42,6 +42,7 @@ import {
   COMPOSITE_DROITE,
   COMPOSITE_GAUCHE,
   DROITE,
+  EDITIONS,
   GAUCHE,
   GAUCHE_GRAPHIE,
   LARGE,
@@ -890,6 +891,12 @@ const COMPUTE: Check[] = [
         key: 'cle',
         columns: ['quotient', 'ecart', 'produit', 'oppose'],
         pipeline: [{ op: 'derive', expr: EXPR_ARITH }],
+        // La ligne dont `a` est absent en amont ne porte AUCUNE valeur en
+        // aval — ni écart, ni produit : un null n'est jamais devenu un 0 (#881).
+        invariants: [
+          { kind: 'null-stays-null', field: 'ecart', rawField: 'a', key: 'cle' },
+          { kind: 'null-stays-null', field: 'produit', rawField: 'a', key: 'cle' },
+        ],
       },
       // Un quotient impossible rend NULL, et non l'infini. Le cache ne sait
       // pas les distinguer (l'infini ne survit pas à la sérialisation d'une
@@ -1163,6 +1170,20 @@ const COMPUTE: Check[] = [
 const SRC_LONG = source('s-long', LONG);
 const JEU_LONG = { main: LONG };
 
+/** Le pivot des deux éditions du baromètre (#878, cas 2), côté oracle. */
+const PIVOT_EDITIONS = {
+  op: 'pivot',
+  row: 'question',
+  column: 'annee',
+  value: 'score',
+  aggregate: 'sum',
+  columnFormat: 'an_{value}',
+} as const;
+
+/** La variation de la page, réécrite telle quelle pour l'oracle. */
+const EXPR_DELTA =
+  "delta = an_2025 - an_2024; delta_abs = abs(an_2025 - an_2024); verdict = when is_null(delta) then 'non mesuré' else 'mesuré'";
+
 const PIVOT: Check[] = [
   {
     id: 'pivot-somme-et-cellule-sans-observation',
@@ -1398,6 +1419,53 @@ const PIVOT: Check[] = [
       },
     ],
   },
+
+  {
+    id: 'pivot-normalize-soustraction-sur-null',
+    mode: 'deterministic',
+    origin:
+      '#878, cas 2 du 18/09 (banc, viz/barometre-france-num-v2) — une question posée en 2024 et pas en 2025 sortait EN TÊTE du classement des variations à « −85,2 points » : sa cellule 2025, absente du pivot, avait été soustraite comme un zéro. Le pivot doit émettre `null` (doctrine #301), la soustraction propager `null` (compute.ts), et le tri décroissant sur la variation absolue laisser la question non mesurée HORS du top 3. Aucune erreur console dans les deux cas : c’est le chiffre qui tranche.',
+    feed: { kind: 'fixture', datasets: { main: EDITIONS } },
+    markup: `${source('s-editions', EDITIONS)}
+  <dsfr-data-pivot id="p-editions" source="s-editions" row="question" column="annee"
+    value="score" aggregate="sum" column-format="an_{value}"></dsfr-data-pivot>
+  <dsfr-data-normalize id="n-delta" source="p-editions" numeric="an_2024, an_2025"
+    compute="${EXPR_DELTA}"></dsfr-data-normalize>
+  <dsfr-data-query id="q-top" source="n-delta" order-by="delta_abs:desc" limit="3"></dsfr-data-query>
+  <dsfr-data-list id="l-verdict" source="n-delta"
+    columns="question:Question, verdict:Mesure"></dsfr-data-list>`,
+    expects: [
+      // Les deux questions à une seule édition : `delta` et `delta_abs`
+      // valent null, jamais −85,2 ni 33,3.
+      {
+        kind: 'rows',
+        id: 'n-delta',
+        key: 'question',
+        columns: ['an_2024', 'an_2025', 'delta', 'delta_abs'],
+        pipeline: [PIVOT_EDITIONS, { op: 'derive', expr: EXPR_DELTA }],
+      },
+      // Le top 3 des variations : la question non reposée n'y est pas.
+      {
+        kind: 'rows',
+        id: 'q-top',
+        key: 'question',
+        columns: ['delta', 'delta_abs'],
+        pipeline: [
+          PIVOT_EDITIONS,
+          { op: 'derive', expr: EXPR_DELTA },
+          { op: 'order-by', column: 'delta_abs', dir: 'desc' },
+          { op: 'limit', n: 3 },
+        ],
+      },
+      // Et le libellé AFFICHÉ le dit : « non mesuré », pas une variation.
+      {
+        kind: 'list',
+        id: 'l-verdict',
+        columns: [{ column: 'question' }, { column: 'verdict' }],
+        pipeline: [PIVOT_EDITIONS, { op: 'derive', expr: EXPR_DELTA }],
+      },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1563,6 +1631,8 @@ ${kpi('k-inner', 'j-inner')}`,
         key: ['code', 'region'],
         columns: ['valeur', 'poids'],
         pipeline: [{ op: 'join', right: 'droite', on: 'code', type: 'inner' }],
+        // Trois paires exactement (01, 02, 03) : une clé accueillante en ferait plus.
+        invariants: [{ kind: 'count-equals', n: 3 }],
       },
       {
         kind: 'kpi',
@@ -1589,6 +1659,10 @@ ${kpi('k-left', 'j-left')}`,
         key: ['libelle', 'region'],
         columns: ['valeur', 'poids'],
         pipeline: [{ op: 'join', right: 'droite', on: 'code', type: 'left' }],
+        // Sur une clé UNIQUE à droite, une jointure gauche ne crée ni ne perd
+        // de ligne, et la somme de gauche traverse intacte (#881). Une
+        // relation 1-N gonflerait les deux — c'est le point.
+        invariants: [{ kind: 'count-preserved' }, { kind: 'sum-preserved', field: 'valeur' }],
       },
       {
         kind: 'kpi',
@@ -1768,6 +1842,12 @@ ${kpi('k-pile', 'c-pile')}`,
             originLabels: { main: '2024', p25: '2025' },
           },
         ],
+        // Un empilement ne perd ni ligne ni montant : les deux jeux bruts,
+        // ensemble, font la référence (#881).
+        invariants: [
+          { kind: 'count-preserved', from: ['main', 'p25'] },
+          { kind: 'sum-preserved', field: 'montant', from: ['main', 'p25'] },
+        ],
       },
       {
         kind: 'kpi',
@@ -1845,6 +1925,70 @@ ${kpi('k-pile', 'c-pile')}`,
   },
 ];
 
+// ---------------------------------------------------------------------------
+// invariants (#881) — des propriétés plutôt que des valeurs seules
+// ---------------------------------------------------------------------------
+
+const INVARIANTS: Check[] = [
+  {
+    id: 'pivot-unpivot-aller-retour',
+    mode: 'deterministic',
+    origin:
+      '#881 — un pivot puis un dépliage (`drop-empty`) rendent le compte de lignes de départ et la somme de départ : les dix observations des deux éditions, ni plus (une cellule absente remplie par un zéro en ferait douze), ni moins. Les valeurs sont comparées aussi, mais ce sont les deux invariants qui portent le sens.',
+    feed: { kind: 'fixture', datasets: { main: EDITIONS } },
+    markup: `${source('s-ar', EDITIONS)}
+  <dsfr-data-pivot id="p-ar" source="s-ar" row="question" column="annee"
+    value="score" aggregate="sum" column-format="an_{value}"></dsfr-data-pivot>
+  <dsfr-data-unpivot id="u-ar" source="p-ar" id-cols="question"
+    value-cols="an_2024:2024, an_2025:2025" var-name="annee" value-name="score" drop-empty></dsfr-data-unpivot>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'u-ar',
+        key: ['question', 'annee'],
+        columns: ['score'],
+        pipeline: [
+          PIVOT_EDITIONS,
+          {
+            op: 'unpivot',
+            idCols: ['question'],
+            valueCols: [
+              { column: 'an_2024', as: '2024' },
+              { column: 'an_2025', as: '2025' },
+            ],
+            varName: 'annee',
+            valueName: 'score',
+            dropEmpty: true,
+          },
+        ],
+        invariants: [{ kind: 'count-preserved' }, { kind: 'sum-preserved', field: 'score' }],
+      },
+    ],
+  },
+
+  {
+    id: 'groupby-groupe-null-visible',
+    mode: 'deterministic',
+    origin:
+      "#881, PG-015 — un regroupement CLIENT sur une colonne à trous rend le groupe des lignes sans valeur sous la clé `''`, avec son compte (trois territoires : deux `statut` vides, un `null`), jamais fondu dans un autre groupe. L’invariant `null-group` le tient face aux lignes brutes ; la comparaison des lignes vérifie les autres groupes.",
+    feed: { kind: 'fixture', datasets: JEU_TERR },
+    markup: `${TERR}
+  <dsfr-data-query id="q-statut" source="s-terr" group-by="statut" aggregate="code:count:nb"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-statut',
+        key: 'statut',
+        columns: ['nb'],
+        pipeline: [
+          { op: 'group-by', by: 'statut', columns: { nb: { agg: 'count', field: 'code' } } },
+        ],
+        invariants: [{ kind: 'null-group', field: 'statut', expect: 'visible', count: 'nb' }],
+      },
+    ],
+  },
+];
+
 export const TRANSFORMATIONS: Manifest = {
   domain: 'transformations',
   checks: [
@@ -1856,5 +2000,6 @@ export const TRANSFORMATIONS: Manifest = {
     ...UNPIVOT,
     ...JOINTURE,
     ...EMPILEMENT,
+    ...INVARIANTS,
   ],
 };

@@ -1,0 +1,10 @@
+[
+  {"cle":"a","montant_txt":"1 234,5","part":0.123456,"lib_dep":"Nord","etat":"N/A","annee":"2024","axes":"eau|air","acces_moteur":"Oui","acces_visuel":"Non"},
+  {"cle":"b","montant_txt":"2 000","part":0.5,"lib_dep":"Sud","etat":"ok","annee":"2025","axes":"air","acces_moteur":"Non","acces_visuel":"Oui"},
+  {"cle":"c","montant_txt":"12,75","part":0.987654,"lib_dep":"Est","etat":"n.d.","annee":"2024","axes":"eau|sol|air","acces_moteur":"Oui","acces_visuel":"Oui"},
+  {"cle":"d","montant_txt":"0","part":0,"lib_dep":"Ouest","etat":"ok","annee":"2026","axes":"","acces_moteur":"Non","acces_visuel":"Non"},
+  {"cle":"e","montant_txt":"","part":0.25,"lib_dep":"Centre","etat":"N/A","annee":"2025","axes":"sol","acces_moteur":"Oui","acces_visuel":"Non"},
+  {"cle":"f","montant_txt":"3 000,25","part":0.75,"lib_dep":"Corse","etat":"ok","annee":"2024","axes":"eau|sol","acces_moteur":"Non","acces_visuel":"Oui"},
+  {"cle":"g","montant_txt":"45","part":0.019,"lib_dep":"Guadeloupe","etat":"n.d.","annee":"2026","axes":"air|sol","acces_moteur":"Oui","acces_visuel":"Non"},
+  {"cle":"h","montant_txt":"7,5","part":0.4445,"lib_dep":"Réunion","etat":"ok","annee":"2025","axes":"eau","acces_moteur":"Non","acces_visuel":"Non"}
+]

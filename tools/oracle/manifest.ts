@@ -48,7 +48,15 @@ export type Agg =
 export type RowFilter =
   | {
       field: string;
-      op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notcontains';
+      /**
+       * `eq-strict` : l'égalité de la FORME TEXTE, sans lecture numérique —
+       * `'1'` et `1` s'écrivent pareil et s'égalent, `'01'` n'égale ni l'un ni
+       * l'autre, un absent n'égale rien. C'est ce qu'un filtre de contexte
+       * délégué à un serveur obtient sur un code (PG-030 : « aucune ligne pour
+       * un code à zéro de tête »), à l'inverse de l'égalité lâche du client
+       * (`eq`), pour qui `'01'` vaut `1`.
+       */
+      op: 'eq' | 'eq-strict' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'notcontains';
       value: string | number;
       /**
        * Compare sans accents ni casse (`eq` et `contains`) — ce que fait une
@@ -186,6 +194,12 @@ export type Step =
     }
   /** Colonnes calculées : la MÊME expression que l'attribut `compute`, réévaluée à part. */
   | { op: 'derive'; expr: string }
+  /**
+   * Éclate un champ MULTIVALUÉ (tableau) : une ligne par valeur, le champ
+   * portant cette valeur ; une ligne sans tableau (absent, vide) n'en produit
+   * aucune. C'est ce qu'une facette fait d'un champ tableau (BUG-006).
+   */
+  | { op: 'explode'; field: string }
   /** Repli long → large, symétrique de `unpivot` (`dsfr-data-pivot`). */
   | {
       op: 'pivot';
@@ -225,6 +239,103 @@ export type Step =
 /** Réductions de cellule d'un pivot (grammaire commune du pipeline). */
 export type PivotAgg = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'first' | 'last';
 
+/**
+ * Un INVARIANT (#881) : une propriété que les lignes ÉMISES par la bibliothèque
+ * doivent tenir face aux lignes BRUTES — jamais face à l'attendu recalculé,
+ * sinon l'invariant ne dirait rien de plus que la valeur.
+ *
+ * Un contrôle par valeur ne garde que ce qu'on a pensé à recalculer. Les trois
+ * chiffres faux du 18/09 violaient chacun un invariant (une part à 5 724 %,
+ * une somme cumulée sur toutes les régions, un `null` devenu un nombre) sans
+ * qu'aucun contrôle par valeur n'ait été écrit pour eux.
+ *
+ * `from` nomme le ou les jeux bruts de référence (défaut : `main`) ; `skip`
+ * met l'invariant EN ATTENTE, avec sa raison et les deux chiffres, quand la
+ * bibliothèque ne le tient pas encore (la troncature silencieuse de
+ * `max-records`, AM-002) — il est rendu au rapport, il ne bloque pas.
+ */
+export type Invariant =
+  /** Somme du champ sur les lignes émises = somme sur les lignes brutes (jointure gauche, concat, unpivot). */
+  | { kind: 'sum-preserved'; field: string; from?: string | string[]; skip?: string }
+  /** Autant de lignes émises que de lignes brutes. */
+  | { kind: 'count-preserved'; from?: string | string[]; skip?: string }
+  /** Exactement `n` lignes émises. */
+  | { kind: 'count-equals'; n: number; skip?: string }
+  /**
+   * Le groupe NULL d'un regroupement : `visible` (une ligne à clé vide existe,
+   * et `count` — le nom de la colonne de compte — y vaut le nombre de lignes
+   * brutes sans valeur) ou `excluded` (aucune ligne à clé vide, et la somme
+   * des comptes vaut le nombre de lignes brutes AVEC valeur). Un client rend
+   * la clé `''`, un serveur `null` (PG-015) : l'invariant sait les deux.
+   */
+  | {
+      kind: 'null-group';
+      field: string;
+      expect: 'visible' | 'excluded';
+      count?: string;
+      from?: string;
+      skip?: string;
+    }
+  /**
+   * Toute valeur numérique de `field` (ou la valeur affichée d'un KPI) est
+   * dans `[min ; max]` — parts, taux, pourcentages. Rien à borner est un échec.
+   */
+  | { kind: 'bounded'; field?: string; min?: number; max?: number; skip?: string }
+  /**
+   * Aucune cellule absente EN AMONT (`rawField` sur les lignes brutes, défaut :
+   * `field`) n'est devenue une valeur EN AVAL (`field` sur les lignes émises).
+   * Avec `key`, les lignes s'apparient une à une ; sans, on exige au moins
+   * autant d'absents en aval qu'en amont.
+   */
+  | {
+      kind: 'null-stays-null';
+      field: string;
+      rawField?: string;
+      key?: string | string[];
+      from?: string;
+      skip?: string;
+    }
+  /**
+   * Autant de lignes émises que de lignes brutes — OU un diagnostic émis par
+   * la bibliothèque (lecteur de silences, #878). Une troncature qui ne se dit
+   * pas est le cas fondateur (AM-002).
+   */
+  | { kind: 'not-truncated'; from?: string; skip?: string };
+
+/**
+ * Le RECOUPEMENT SERVEUR (#883) : une troisième voix VIVANTE, gratuite et
+ * tierce. Pour tout agrégat qu'une page calcule sur une source Opendatasoft,
+ * le portail sait produire le même chiffre — `/exports/json?select=…&group_by=…
+ * &where=…` — par une implémentation d'un autre éditeur, dans un autre
+ * langage, sur les mêmes lignes. L'indépendance la plus forte qu'on puisse
+ * avoir, pour une requête.
+ *
+ * Les clauses s'écrivent À LA MAIN, jamais traduites par l'adaptateur — les
+ * alias et le backquotage sont précisément ce que le banc a payé (PG-014,
+ * PG-027, BUG-010). Ce que le serveur ne sait PAS dire, et qu'un test refuse :
+ * `count(distinct)` (approximatif, PG-026), `total_count` d'une requête
+ * agrégée (LIM-002), les fonctions de date et le fuseau (FP-003, AM-064), et
+ * tout ce qui vient d'une jointure, d'un pivot ou d'un `compute` — le serveur
+ * ne connaît qu'un jeu.
+ */
+export interface Crosscheck {
+  /**
+   * `select` ODSQL, écrit à la main. Pour un KPI : UN agrégat aliasé `v`
+   * (`sum(population) as v`, `count(*) as v`). Pour des lignes : un agrégat
+   * par colonne comparée, aliasé du nom de la colonne.
+   */
+  select: string;
+  /** `group_by` ODSQL (lignes) : le champ de regroupement, qui devient la clé. */
+  groupBy?: string;
+  /**
+   * Clause ODSQL complète. À défaut, celle de la source brute (`where` d'une
+   * `RawSource`, paramètre `where` de l'URL d'une `RawUrlSource`).
+   */
+  where?: string;
+  /** Décimales de la comparaison (défaut : celles de l'attente). */
+  decimals?: number;
+}
+
 interface ExpectBase {
   /** id de l'élément `dsfr-data-*` observé dans la page. */
   id: string;
@@ -232,6 +343,10 @@ interface ExpectBase {
   from?: string;
   /** Recalcul appliqué aux lignes brutes avant comparaison. */
   pipeline?: Step[];
+  /** Invariants évalués sur l'observation, face aux lignes BRUTES (#881). */
+  invariants?: Invariant[];
+  /** Recoupement par le serveur Opendatasoft, mode vivant seulement (#883). */
+  crosscheck?: Crosscheck;
 }
 
 /** Valeur affichée par un `dsfr-data-kpi` (texte fr-FR de `.dsfr-data-kpi__value`). */
@@ -489,6 +604,45 @@ export interface ExpectUrls {
   verdict: 'none' | 'some' | 'all' | 'last' | 'notLast';
 }
 
+/**
+ * Ce que la bibliothèque a DIT — ou tu — pendant le rendu (#878).
+ *
+ * Les trois chiffres faux du 18/09 (banc, `viz/barometre-france-num-v2`)
+ * avaient la même signature : un chiffre plausible et AUCUNE erreur. Un
+ * `sources="a,b"` lu comme un seul id qui ne désigne rien, une source hors
+ * contexte, une soustraction sur une cellule absente — chaque unité marchait,
+ * la page se rendait, et personne ne savait exiger qu'il y ait eu un mot.
+ * C'est la dimension que ce lecteur ajoute : un contrôle peut demander que
+ * la bibliothèque PARLE, et dire quoi, ou qu'elle se TAISE.
+ *
+ * Deux canaux, tous deux lus dans la page :
+ *   - le marqueur `data-dsfr-config-error` posé par `reportConfigError` sur
+ *     l'élément fautif (`config-error`) ;
+ *   - le journal des `console.warn` / `console.error` émis par la bibliothèque
+ *     (`warning` : au moins un message qui la nomme, `dsfr-data-…`), tenu par
+ *     la page de fixture avant le chargement de la lib — comme `lireUrls`.
+ *
+ * `silence` exige les deux absences à la fois. Comme `urls`, l'attendu n'est
+ * pas recalculé depuis les lignes : c'est le contrôle qui l'énonce.
+ */
+export interface ExpectDiagnostic {
+  kind: 'diagnostic';
+  /** Élément dont on lit le marqueur d'erreur de configuration. */
+  id: string;
+  /**
+   * `config-error` : l'élément porte `data-dsfr-config-error` ·
+   * `warning` : la bibliothèque a écrit en console (warn ou error) ·
+   * `silence` : ni l'un ni l'autre.
+   */
+  expect: 'config-error' | 'warning' | 'silence';
+  /**
+   * Fragment que le message doit porter (`config-error`, `warning`), ou dont
+   * l'absence fait le silence (`silence`, restreint aux messages qui le
+   * portent — sans lui, tout message de la bibliothèque rompt le silence).
+   */
+  contains?: string;
+}
+
 export type Expect =
   | ExpectKpi
   | ExpectRows
@@ -502,7 +656,8 @@ export type Expect =
   | ExpectAttr
   | ExpectCsv
   | ExpectDots
-  | ExpectUrls;
+  | ExpectUrls
+  | ExpectDiagnostic;
 
 /** Déterministe (bloquant sur PR, zéro réseau) ou vivant (nuit / à la demande). */
 export type CheckMode = 'deterministic' | 'live';

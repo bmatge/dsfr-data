@@ -1,0 +1,5 @@
+[
+  {"indicateur":"Consommation","unite":"MWh","c2026_01":"120","c2026_02":"110,5","c2026_03":"95"},
+  {"indicateur":"Production","unite":"MWh","c2026_01":"80","c2026_02":"","c2026_03":"130"},
+  {"indicateur":"Solde","unite":"MWh","c2026_01":"-40","c2026_02":"20","c2026_03":"35"}
+]

@@ -10,6 +10,7 @@ import type { CheckMode, Expect, Row } from './manifest.js';
 import {
   cleAttendu,
   type Attendu,
+  type AttenduDiagnostic,
   type AttenduTexte,
   type AttenduTextes,
   type AttenduUrls,
@@ -17,6 +18,7 @@ import {
 import type {
   ObservationChart,
   ObservationClasses,
+  ObservationDiagnostic,
   ObservationFacette,
   ObservationKpi,
   ObservationLegende,
@@ -44,6 +46,48 @@ export interface Constat {
   ok: boolean;
   /** Vide si le contrôle passe ; sinon la première divergence, en toutes lettres. */
   message: string;
+  /**
+   * La TROISIÈME VOIX (#880) : ce que l'oracle Python a recalculé, rendu
+   * court, quand `tests/verif-donnees/attendus.json` couvre l'observation.
+   * Absent sinon — l'observation n'a alors que deux voix, et le rapport le dit.
+   */
+  python?: string;
+  /** Écart lib ↔ Python, ou `null` si la comparaison est textuelle. */
+  ecartPython?: number | null;
+  /**
+   * Un INVARIANT (#881), évalué sur l'observation face aux lignes brutes —
+   * `lib` porte ce que la page montre, `oracle` ce que les lignes brutes
+   * disent. Compté à part des valeurs dans le rapport.
+   */
+  invariant?: boolean;
+  /**
+   * Invariant EN ATTENTE : la raison pour laquelle la bibliothèque ne le tient
+   * pas encore. Le constat est rendu, avec ses deux chiffres, et ne bloque pas.
+   */
+  attente?: string;
+  /**
+   * Le RECOUPEMENT SERVEUR (#883), mode vivant : ce que le portail a répondu,
+   * rendu court — ou la raison pour laquelle il n'a pas été interrogé (quota,
+   * échec). Troisième chiffre à côté de `lib` et `oracle`.
+   */
+  serveur?: string;
+  /** Écart lib ↔ serveur, ou `null` si le serveur n'a rien dit. */
+  ecartServeur?: number | null;
+  /** Le verdict à trois chiffres, en toutes lettres (`verdictRecoupement`). */
+  verdict?: string;
+  /**
+   * Le verdict d'une NUIT ROUGE (#884), mode vivant, posé sur un écart :
+   * `bibliothèque` (empreinte stable), `donnée, rejoué` (la date de traitement
+   * a changé entre l'attendu et l'observation, le contrôle a été rejoué sur un
+   * attendu recalculé), `indéterminé` (pas de métadonnée de fraîcheur).
+   */
+  fraicheur?: string;
+  /**
+   * Le constat vient d'un contrôle qui a échoué puis RÉUSSI au retry (#884) :
+   * vert, mais compté à part — trois instabilités sur le même contrôle en un
+   * mois ouvrent une issue sur le contrôle lui-même.
+   */
+  instable?: boolean;
 }
 
 export type Observation =
@@ -55,6 +99,7 @@ export type Observation =
   | ObservationClasses
   | ObservationFacette[]
   | ObservationTexte
+  | ObservationDiagnostic
   | string[]
   | string
   | null;
@@ -253,6 +298,91 @@ export function comparer(
     case 'urls': {
       const obs = observation as string[];
       return comparerUrls(base, attendu, obs);
+    }
+
+    case 'diagnostic':
+      return comparerDiagnostic(base, attendu, observation as ObservationDiagnostic);
+  }
+}
+
+/**
+ * Ce que la bibliothèque a dit contre ce que le contrôle exige (#878).
+ *
+ * `config-error` : l'élément porte le marqueur, et son message porte
+ * `contains` s'il est donné. `warning` : au moins un message console de la
+ * bibliothèque porte `contains` (ou n'importe lequel, sans fragment).
+ * `silence` : ni marqueur, ni message — restreint aux messages portant
+ * `contains` quand il est donné, pour qu'un avertissement légitime sur un
+ * autre sujet ne rompe pas le silence attendu.
+ *
+ * `comparaisons` compte les deux canaux lus, jamais zéro : un silence
+ * constaté est une observation, pas une absence d'observation. Les trois
+ * chiffres faux du 18/09 avaient zéro erreur console — c'est précisément le
+ * cas qu'un constat à zéro comparaison ne saurait pas dire.
+ */
+function comparerDiagnostic(
+  base: Base,
+  attendu: AttenduDiagnostic,
+  obs: ObservationDiagnostic
+): Constat {
+  const fragment = attendu.contains;
+  const porte = (texte: string): boolean => fragment === undefined || texte.includes(fragment);
+  const messages = obs.console.filter((m) => porte(m.text));
+  const marqueur = obs.configError !== null && porte(obs.configError);
+
+  const lib =
+    (obs.configError === null ? 'aucun marqueur' : `marqueur « ${obs.configError} »`) +
+    `, ${obs.console.length} message(s) console` +
+    (fragment !== undefined ? ` dont ${messages.length} portant « ${fragment} »` : '');
+  const oracle = `${attendu.expect}${fragment !== undefined ? ` « ${fragment} »` : ''}`;
+  // Les deux canaux sont toujours lus : marqueur et journal.
+  const comparaisons = 2;
+
+  switch (attendu.expect) {
+    case 'config-error': {
+      const ok = marqueur;
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ok,
+        message: ok
+          ? ''
+          : obs.configError === null
+            ? `aucun marqueur data-dsfr-config-error sur l'élément — la bibliothèque n'a rien dit`
+            : `le marqueur « ${obs.configError} » ne porte pas « ${fragment} »`,
+      };
+    }
+    case 'warning': {
+      const ok = messages.length > 0;
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ok,
+        message: ok
+          ? ''
+          : obs.console.length === 0
+            ? `aucun message console de la bibliothèque — elle n'a rien dit`
+            : `aucun des ${obs.console.length} message(s) ne porte « ${fragment} » : ${obs.console.map((m) => m.text).join(' | ')}`,
+      };
+    }
+    case 'silence': {
+      const ok = !marqueur && messages.length === 0;
+      return {
+        ...base,
+        lib,
+        oracle,
+        comparaisons,
+        ok,
+        message: ok
+          ? ''
+          : marqueur
+            ? `la bibliothèque a parlé : marqueur « ${obs.configError} »`
+            : `la bibliothèque a parlé : ${messages.map((m) => `[${m.level}] ${m.text}`).join(' | ')}`,
+      };
     }
   }
 }
