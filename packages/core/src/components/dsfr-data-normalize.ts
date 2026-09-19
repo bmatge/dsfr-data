@@ -225,13 +225,16 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   une cellule vide n'égale jamais un nombre (`montant = 0` ne classe pas les
    *   montants non renseignés en zéro). Les comparaisons d'ordre se font en nombre
    *   quand les deux côtés sont numériques, en texte sinon (dates ISO comprises) ;
-   *   null, undefined et '' ne matchent jamais. CHAMP TABLEAU (#842) : `=` compare
-   *   la valeur telle quelle — `when tags = 'urgent'` est faux pour
-   *   `['urgent','social']` (et vrai pour `['urgent']`, par repli sur `String` :
-   *   le résultat dépend de la donnée). Pour parcourir le tableau, c'est
-   *   `contains(tags, 'urgent')`, et c'est aussi la façon de filtrer ensuite un
-   *   champ tableau avec `where` : calculer ici un booléen, puis
-   *   `where="a_urgent:eq:1"` en aval.
+   *   null, undefined et '' ne matchent jamais. CHAMP TABLEAU (#953, ex-#842) :
+   *   `=` regarde DANS le tableau — `when tags = 'urgent'` est VRAI pour
+   *   `['urgent','social']`, comme `contains(tags, 'urgent')`, et comme le
+   *   portail sur une clause déléguée. `!=` en est la négation, donc faux sur
+   *   cette même ligne. `contains()` garde son utilité sur du TEXTE, où il
+   *   cherche une sous-chaîne ; sur un tableau, les deux se rejoignent.
+   *   Dériver ici un booléen puis filtrer `where="a_urgent:eq:1"` en aval
+   *   reste valide — et utile, le filtre portant alors sur un scalaire
+   *   regroupable et délégable — mais n'est plus NÉCESSAIRE pour filtrer un
+   *   champ tableau : `where="tags:eq:urgent"` le fait directement.
    * - arithmétique `- * /` et moins unaire : un opérande absent ou non numérique rend
    *   null (jamais un 0 plausible), une division par zéro rend null (jamais Infinity).
    *

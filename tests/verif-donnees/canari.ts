@@ -373,6 +373,64 @@ const CHECKS: Check[] = [
   },
 
   // -------------------------------------------------------------------------
+  // le `where` sur le champ multivalué
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-multivalue-where',
+    mode: 'deterministic',
+    constats: ['BUG-006'],
+    origin:
+      'Canari — #953 : un `where` sur `tags` (tableau) regarde DANS le tableau, comme le fait le portail sur une clause déléguée (mesuré : `where=themes_attendus = "Elèves"` → 124 lignes sur un élément, 0 sur le rendu texte complet). `tags:eq:eau` retient donc les 16 lignes où « eau » est un élément, et non les 7 dont le rendu texte vaut exactement « eau ». `neq` en est la négation, `in` l’union des `eq`, et les deux écritures du KPI (`count:tags:eau` et `count{tags:eq:eau}`) rendent enfin le même chiffre — c’était l’asymétrie de #842.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${SRC}
+  <dsfr-data-query id="q-eq-eau" source="s-canari" where="tags:eq:eau"></dsfr-data-query>
+  ${kpi('k-eq-eau', 'q-eq-eau', 'count')}
+  <dsfr-data-query id="q-neq-eau" source="s-canari" where="tags:neq:eau"></dsfr-data-query>
+  ${kpi('k-neq-eau', 'q-neq-eau', 'count')}
+  <dsfr-data-query id="q-in-eau-sol" source="s-canari" where="tags:in:eau|sol"></dsfr-data-query>
+  ${kpi('k-in-eau-sol', 'q-in-eau-sol', 'count')}
+  ${kpi('k-count-champ', 's-canari', 'count:tags:eau')}
+  ${kpi('k-count-accolades', 's-canari', 'count{tags:eq:eau}')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-eq-eau',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'tags', op: 'eq', value: 'eau' }] }],
+      },
+      // La négation garde les absents (`null`, `[]`) : même règle que le
+      // `neq` de la bibliothèque, et que le `!=` d'ODS hors valeurs nulles.
+      {
+        kind: 'kpi',
+        id: 'k-neq-eau',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'tags', op: 'neq', value: 'eau' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-in-eau-sol',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'tags', op: 'in', values: ['eau', 'sol'] }] },
+        ],
+      },
+      // Les deux écritures du KPI, sur la MÊME source : un seul chiffre.
+      {
+        kind: 'kpi',
+        id: 'k-count-champ',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'tags', op: 'eq', value: 'eau' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-count-accolades',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'tags', op: 'eq', value: 'eau' }] }],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
   // le plafond
   // -------------------------------------------------------------------------
   {

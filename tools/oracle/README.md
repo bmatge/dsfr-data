@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **215 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
-domaines, pour 495 observations et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt : **216 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
+domaines, pour 500 observations et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 332 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 337 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -804,6 +804,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | le regroupement saute la clé vide (`dsfr-data-query.ts`) | `canari-groupe-null-client` | 6 groupes au lieu de 7, « aucun groupe vide » |
 | canari | l'adaptateur jette les lignes à valeur nulle (`opendatasoft-adapter.ts`, `_fetchViaExport`) | `canari-groupe-null-serveur` | 6 groupes au lieu de 7, « aucun groupe vide » |
 | canari | `facetValuesOf` stringifie le tableau, « a,b » — l'ancien comportement d'avant #421 (`facets/facets-client.ts`) | `canari-multivalue` | 5 valeurs de facette au lieu de 3 |
+| canari | `looseEquals` ne regarde plus dans le tableau — l'ancien comportement d'avant #953, `if (false && Array.isArray(a) …)` dans `packages/shared/src/query/filter-translator.ts` (puis `npm run build:shared`) | `canari-multivalue-where` | `tags:eq:eau` affiche 7 au lieu de 16, `neq` 33 au lieu de 24, `in` 11 au lieu de 21, et les deux écritures du KPI retombent à 7 |
 | canari | `_compareForRange` sans repli lexicographique (`dsfr-data-query.ts`) | `canari-date-partielle` | 4 lignes au lieu de 32 : seules les dates réduites à l'année, numériques, survivent au filtre |
 | canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
 | canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |

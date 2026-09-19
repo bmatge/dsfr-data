@@ -30,3 +30,11 @@ du tableau : « non-urgent » y matche « urgent »). `docs/USER-GUIDE.md` et la
 fixe le périmètre exact pour que le prochain changement de sémantique soit délibéré.
 
 Aucun changement de comportement : documentation, commentaires et tests.
+
+> **Dépassé dans la même version.** L'arbitrage ci-dessus (« documenter plutôt
+> qu'étendre ») a été pris avant de savoir qu'Opendatasoft lit déjà `=` comme un
+> « contient » sur un champ multivalué. L'asymétrie n'était donc pas un contrat mais
+> une incohérence interne, et elle est levée dans cette même version — voir l'entrée
+> « l'égalité côté client regarde enfin DANS le tableau » (#953). Ce qui reste vrai de
+> ce paragraphe : `tags:contains:urgent` n'est toujours pas un équivalent d'`eq`, et la
+> colonne dérivée par `compute` reste une écriture valide.

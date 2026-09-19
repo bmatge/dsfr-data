@@ -79,37 +79,40 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | `"email:isnull"` |
 | isnotnull | N'est pas vide | `"telephone:isnotnull"` |
 
-**Champs tableau (#842)** : ces opérateurs comparent la valeur du champ TELLE QUELLE.
-`tags:eq:urgent` ne retient PAS une ligne dont `tags` vaut `["urgent","social"]` — alors que
-`value="count:tags:urgent"` de dsfr-data-kpi, lui, la compte (seule la grammaire d'agrégation
-parcourt les tableaux, #673). Piège : une ligne à UNE seule étiquette (`["urgent"]`) matche quand
-même, par repli sur le texte — le filtre a donc l'air de marcher sur une partie du jeu. L'asymétrie
-est voulue (l'étendre changerait en silence les chiffres de pages publiées). Pour filtrer un champ
-tableau, dériver un booléen en amont puis filtrer dessus :
-`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis
-`where="a_urgent:eq:1"`. Ne PAS proposer `tags:contains:urgent` comme équivalent : il cherche une
-sous-chaîne dans `String(tableau)`, donc « non-urgent » y matche « urgent ». `explode` éclate un
-multivalué avant un `group-by`, ce n'est pas un filtre ; une `dsfr-data-facets` sur le champ,
-elle, éclate et filtre correctement (#421) quand le filtre revient à l'utilisateur.
+**Champs tableau (#953, ex-#842)** : `eq` / `neq` / `in` / `notin` regardent DANS le tableau.
+`tags:eq:urgent` retient une ligne dont `tags` vaut `["urgent","social"]`, exactement comme
+`value="count:tags:urgent"` de dsfr-data-kpi la compte, et comme le portail la retient quand la
+clause lui est déléguée. La règle exacte côté client :
 
-**…et le serveur, lui, regarde DANS le tableau (#953)**. Ce qui précède décrit l'évaluation côté
-client. Mesuré le 2026-09-19 sur le catalogue de data.economie.gouv.fr (champ `keyword`) :
-`where=keyword = "budgets annexes"` rend `total_count = 1` sur une ligne dont `keyword` porte
-quatre valeurs. Opendatasoft lit `=` comme un « contient ».
+```
+eq(valeur, v) = (valeur est un tableau ET un de ses éléments vaut v)
+                OU String(valeur) === String(v)
+```
 
-| Donnée du champ, comparée à la valeur du filtre | Client | Serveur (ODS délégué) |
-|---|---|---|
-| `["urgent"]` vs `"urgent"` (un seul élément) | matche | matche |
-| `["urgent","social"]` vs `"urgent"` (plusieurs) | ne matche pas | matche |
-| `["a","b"]` vs `"a,b"` (le rendu texte) | matche | ne matche pas |
+Le second terme est un repli textuel que le portail n'a pas (`["a","b"]` matche `"a,b"` en local,
+le portail rend 0) : il est gardé pour que `eq` / `in` ne puissent que gagner des correspondances.
+`neq` / `notin` en sont la négation, donc eux en perdent — le portail fait pareil (son `!=` est la
+négation stricte de son `=`, valeurs nulles exclues des deux côtés).
 
-⚠️ **Ce n'est pas la balise portant le `where` qui décide** si la clause est déléguée : c'est le
-mode de la source (`fetch-mode`, `server-side`), un transformateur amont, le partage de la source
-avec un autre consommateur, un `explode`. Ajouter un second graphique à une page peut faire perdre
-la dédicace de la source, basculer l'évaluation au client et **changer un chiffre affiché**, sans
-qu'on touche au filtre et sans message. Ne jamais répondre « ce filtre compte X » sur un champ
-multivalué sans dire de quel côté il est évalué — et préférer le booléen dérivé par `compute`,
-seule écriture qui rende le même chiffre des deux côtés.
+Mesuré le 2026-09-19 sur deux portails et deux endpoints — `keyword` du catalogue de
+data.economie.gouv.fr, `themes_attendus` de `retours-formulaire-votre-avis-copie` sur
+data.education.gouv.fr (176 lignes, 21 nulles) : `= "Elèves"` → 124, `!= "Elèves"` → 31,
+`in ("Elèves","Finances")` → 130, et le rendu texte complet du tableau → 0. Opendatasoft lit `=`
+sur un champ multivalué comme un « contient ». C'est sur cette sémantique que le client est aligné,
+et le chiffre ne dépend donc plus de l'endroit où la clause est évaluée.
+
+⚠️ Ne PAS proposer `tags:contains:urgent` comme équivalent de `eq` : il cherche une sous-chaîne dans
+`String(tableau)`, donc « non-urgent » y matche « urgent », et la recherche traverse la virgule
+entre deux éléments. `explode` éclate un multivalué avant un `group-by`, ce n'est pas un filtre ;
+une `dsfr-data-facets` sur le champ éclate et filtre correctement (#421) quand le filtre revient à
+l'utilisateur. Le booléen dérivé par `compute`
+(`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis
+`where="a_urgent:eq:1"`) reste valide — utile quand on veut aussi REGROUPER par cette distinction,
+le filtre portant alors sur un scalaire — mais il n'est plus NÉCESSAIRE pour filtrer un champ
+tableau.
+
+Pendant une version mineure, un avertissement de transition nomme en console le champ et la valeur
+des lignes qui se mettent à compter, dédupliqué par couple champ/valeur.
 
 **Catégories vides et parité ods-chart** : un group-by sur un champ partiellement
 renseigné produit un groupe `null` (jamais `""`), que dsfr-data-chart libelle
@@ -328,7 +331,7 @@ visible (console + `data-dsfr-config-error`, composants aval en erreur) — jama
 | `order-by` | `string` | `""` (vide) | Tri des résultats Format: "field:direction" ou "field__function:direction" Ex: "total_pop:desc" ou "population__sum:desc" |
 | `require-where` | `boolean` | `false` | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690). Pendant de `require-where` sur `dsfr-data-source`, pour les pages d'exploration : la requête reste en attente, émet `dsfr-data-idle`, et les afficheurs en aval rendent « choisissez un filtre » au lieu du jeu entier. Ce qui compte comme filtre : le `where` (ou `filter`) de CETTE requête — sur un query, c'est la surface de filtrage que la page pilote — et toute clause `where` non vide reçue par commande (facettes, recherche, `dsfr-data-context`). Tout retirer fait repasser la requête en attente. |
 | `source` | `string` | `""` (vide) | ID de la source de données (dsfr-data-source ou dsfr-data-normalize) |
-| `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). **La clause part au serveur** dès lors que l'amont a un adaptateur qui sait la traduire et que cette requête est seule lectrice de sa chaîne (#856) — avec ou sans `group-by`. Elle est traduite au dialecte de l'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) : elle se fusionne avec les clauses des facettes, de la recherche et du contexte au lieu de les écraser, et elle lève l'attente d'un `require-where` posé sur la source (#854). Elle reste calculée dans le navigateur quand la chaîne est partagée (#765), quand un transformateur amont renomme des colonnes (#394), quand une clause est intraduisible, ou avec `explode` (#736). CHAMP TABLEAU (#842) : `eq` / `neq` / `in` / `notin` comparent la valeur du champ TELLE QUELLE. Un champ tableau (`tags: ['urgent','social']`) ne matche donc pas `tags:eq:urgent` — alors qu'un `value="count:tags:urgent"` de dsfr-data-kpi, lui, le compte (seule la grammaire d'agrégation connaît la variante « contient », #673). Pire, le résultat dépend de la donnée : par repli sur `String`, `tags: ['urgent']` (un seul élément) matche bien. L'asymétrie est assumée — l'étendre changerait en silence le compte de pages existantes. Pour filtrer un champ tableau, dériver le booléen en amont : `dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis `where="a_urgent:eq:1"`. `tags:contains:urgent` cherche une sous-chaîne dans `String(tableau)` : « non-urgent » y matche « urgent ». Pour éclater un multivalué avant un `group-by`, c'est `explode` (#736). ⚠️ Tout ceci décrit l'évaluation CÔTÉ CLIENT. Quand la clause part au serveur (voir ci-dessus), c'est le portail qui décide ce que `=` veut dire sur un champ multivalué — et il en décide AUTREMENT. Mesuré le 2026-09-19 sur le catalogue de data.economie.gouv.fr, champ `keyword` (#953) : Opendatasoft lit `=` comme un « contient », il trouve la ligne sur n'importe quel élément du tableau. - `['urgent']` (un seul élément) : client **matche**, serveur **matche**. - `['urgent','social']` (plusieurs éléments) : client ne matche pas, serveur **matche**. - `['a','b']` comparé à `'a,b'` : client **matche** (repli sur `String`), serveur ne matche pas. Le même `where="tags:eq:urgent"` sur le même jeu ne compte donc pas la même chose selon qu'il est délégué ou non. Et ce n'est PAS cette balise qui en décide : c'est le mode de la source (`fetch-mode`, `server-side`), un transformateur amont, le partage de la chaîne avec un autre lecteur (#765), un `explode`. Ajouter un second graphique à la page peut faire perdre la dédicace de la source, basculer l'évaluation au client et **changer le chiffre affiché**, sans qu'on ait touché au filtre ni qu'un message soit émis. Sur un champ multivalué, dériver le booléen en amont (ci-dessus) : c'est la seule écriture qui donne le même compte des deux côtés. |
+| `where` | `string` | `""` (vide) | Clause WHERE / Filtres — syntaxe colon UNIQUEMENT : "champ:opérateur:valeur, champ2:opérateur:valeur2" (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull — multi-valeurs séparées par \|). La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de dsfr-data-source) : une clause non parsable est signalee via reportConfigError (#277). **La clause part au serveur** dès lors que l'amont a un adaptateur qui sait la traduire et que cette requête est seule lectrice de sa chaîne (#856) — avec ou sans `group-by`. Elle est traduite au dialecte de l'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) : elle se fusionne avec les clauses des facettes, de la recherche et du contexte au lieu de les écraser, et elle lève l'attente d'un `require-where` posé sur la source (#854). Elle reste calculée dans le navigateur quand la chaîne est partagée (#765), quand un transformateur amont renomme des colonnes (#394), quand une clause est intraduisible, ou avec `explode` (#736). CHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent DANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`, comme le compte déjà `value="count:tags:urgent"` de dsfr-data-kpi, et comme le retient le portail quand la clause lui est déléguée. C'est ce qui a été mesuré le 2026-09-19 sur deux portails et deux endpoints — `keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de `retours-formulaire-votre-avis-copie` sur data.education.gouv.fr : `where=champ = "x"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais sur le rendu texte complet du tableau. La règle exacte, côté client : eq(valeur, v) = (valeur est un tableau et un élément vaut v) OU String(valeur) === String(v) Le second terme est un repli que le portail n'a pas (`['a','b']` matche `'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in` ne puissent que GAGNER des correspondances, jamais en perdre. `neq` / `notin` en sont la négation, donc eux en perdent — et le portail fait pareil (son `!=` est la négation stricte de son `=`, valeurs nulles exclues des deux côtés). ⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y matche « urgent », et la recherche traverse la virgule entre deux éléments. Pour éclater un multivalué avant un `group-by`, c'est `explode` (#736). Le booléen dérivé en amont (`dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis `where="a_urgent:eq:1"`) reste valide — le filtre final porte sur un scalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE pour obtenir le même compte des deux côtés. Pendant une version mineure, un avertissement de transition nomme le champ et la valeur des lignes qui se mettent à compter (dédupliqué par couple champ/valeur, jamais par ligne). |
 
 
 **Méthodes publiques**

@@ -229,39 +229,40 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
    *
-   * CHAMP TABLEAU (#842) : `eq` / `neq` / `in` / `notin` comparent la valeur du
-   * champ TELLE QUELLE. Un champ tableau (`tags: ['urgent','social']`) ne matche
-   * donc pas `tags:eq:urgent` — alors qu'un `value="count:tags:urgent"` de
-   * dsfr-data-kpi, lui, le compte (seule la grammaire d'agrégation connaît la
-   * variante « contient », #673). Pire, le résultat dépend de la donnée : par
-   * repli sur `String`, `tags: ['urgent']` (un seul élément) matche bien.
-   * L'asymétrie est assumée — l'étendre changerait en silence le compte de pages
-   * existantes. Pour filtrer un champ tableau, dériver le booléen en amont :
-   * `dsfr-data-normalize compute="a_urgent = when contains(tags,'urgent') then 1
-   * else 0"` puis `where="a_urgent:eq:1"`. `tags:contains:urgent` cherche une
-   * sous-chaîne dans `String(tableau)` : « non-urgent » y matche « urgent ».
-   * Pour éclater un multivalué avant un `group-by`, c'est `explode` (#736).
-   * ⚠️ Tout ceci décrit l'évaluation CÔTÉ CLIENT. Quand la clause part au
-   * serveur (voir ci-dessus), c'est le portail qui décide ce que `=` veut dire
-   * sur un champ multivalué — et il en décide AUTREMENT. Mesuré le 2026-09-19
-   * sur le catalogue de data.economie.gouv.fr, champ `keyword` (#953) :
-   * Opendatasoft lit `=` comme un « contient », il trouve la ligne sur
-   * n'importe quel élément du tableau.
-   * - `['urgent']` (un seul élément) : client **matche**, serveur **matche**.
-   * - `['urgent','social']` (plusieurs éléments) : client ne matche pas,
-   *   serveur **matche**.
-   * - `['a','b']` comparé à `'a,b'` : client **matche** (repli sur `String`),
-   *   serveur ne matche pas.
-   * Le même `where="tags:eq:urgent"` sur le même jeu ne compte donc pas la
-   * même chose selon qu'il est délégué ou non. Et ce n'est PAS cette balise
-   * qui en décide : c'est le mode de la source (`fetch-mode`, `server-side`),
-   * un transformateur amont, le partage de la chaîne avec un autre lecteur
-   * (#765), un `explode`. Ajouter un second graphique à la page peut faire
-   * perdre la dédicace de la source, basculer l'évaluation au client et
-   * **changer le chiffre affiché**, sans qu'on ait touché au filtre ni qu'un
-   * message soit émis. Sur un champ multivalué, dériver le booléen en amont
-   * (ci-dessus) : c'est la seule écriture qui donne le même compte des deux
-   * côtés.
+   * CHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent
+   * DANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,
+   * comme le compte déjà `value="count:tags:urgent"` de dsfr-data-kpi, et
+   * comme le retient le portail quand la clause lui est déléguée. C'est ce
+   * qui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —
+   * `keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de
+   * `retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :
+   * `where=champ = "x"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais
+   * sur le rendu texte complet du tableau.
+   *
+   * La règle exacte, côté client :
+   *   eq(valeur, v) = (valeur est un tableau et un élément vaut v)
+   *                   OU String(valeur) === String(v)
+   *
+   * Le second terme est un repli que le portail n'a pas (`['a','b']` matche
+   * `'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`
+   * ne puissent que GAGNER des correspondances, jamais en perdre. `neq` /
+   * `notin` en sont la négation, donc eux en perdent — et le portail fait
+   * pareil (son `!=` est la négation stricte de son `=`, valeurs nulles
+   * exclues des deux côtés).
+   *
+   * ⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il
+   * cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y
+   * matche « urgent », et la recherche traverse la virgule entre deux
+   * éléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`
+   * (#736). Le booléen dérivé en amont (`dsfr-data-normalize
+   * compute="a_urgent = when contains(tags,'urgent') then 1 else 0"` puis
+   * `where="a_urgent:eq:1"`) reste valide — le filtre final porte sur un
+   * scalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE
+   * pour obtenir le même compte des deux côtés.
+   *
+   * Pendant une version mineure, un avertissement de transition nomme le
+   * champ et la valeur des lignes qui se mettent à compter (dédupliqué par
+   * couple champ/valeur, jamais par ligne).
    */
   @property({ type: String })
   where = '';
@@ -1430,9 +1431,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
     switch (filter.operator) {
       case 'eq':
-        return looseEquals(value, filter.value);
+        return looseEquals(value, filter.value, filter.field);
       case 'neq':
-        return !looseEquals(value, filter.value);
+        return !looseEquals(value, filter.value, filter.field);
       case 'gt': {
         const cmp = this._compareForRange(value, filter.value);
         return cmp !== null && cmp > 0;
@@ -1469,14 +1470,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           value !== null &&
           value !== undefined &&
           Array.isArray(filter.value) &&
-          filter.value.some((v) => looseEquals(value, v))
+          filter.value.some((v) => looseEquals(value, v, filter.field))
         );
       case 'notin':
         return (
           value === null ||
           value === undefined ||
           !Array.isArray(filter.value) ||
-          !filter.value.some((v) => looseEquals(value, v))
+          !filter.value.some((v) => looseEquals(value, v, filter.field))
         );
       case 'isnull':
         return value === null || value === undefined;

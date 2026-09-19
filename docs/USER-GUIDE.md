@@ -878,104 +878,111 @@ Hors perimetre : le clic sur une barre ou un secteur de `dsfr-data-chart` (#749)
 - **Litteral `value="=…"`** : affiche la valeur telle quelle, sans source de donnees (`value="=667"`, `value="=87 %"`).
 - Chaque KPI enfant peut porter `col="1..12"` pour moduler sa largeur dans la grille.
 
-### Champs tableau : ou l'egalite regarde dans le tableau, et ou elle ne regarde pas
+### Champs tableau : l'egalite regarde dans le tableau
 
 Un champ multivalue (etiquettes ODS, ChoiceList Grist, colonne repliee par `fold`) arrive dans la
-page comme un **tableau** : `tags: ["urgent", "social"]`. Une seule grammaire de la bibliotheque
-sait regarder DANS ce tableau — la valeur de filtre d'un `count` de `dsfr-data-kpi` :
+page comme un **tableau** : `tags: ["urgent", "social"]`. **Toutes** les grammaires de la
+bibliotheque regardent DANS ce tableau : un element egal suffit.
 
 ```html
-<!-- Compte les lignes dont les tags CONTIENNENT « urgent » : la ligne
-     tags=["urgent","social"] est comptee. -->
+<!-- Les trois ecritures comptent la MEME chose : la ligne tags=["urgent","social"] est retenue. -->
 <dsfr-data-kpi source="data" value="count:tags:urgent" label="Dossiers urgents"></dsfr-data-kpi>
+<dsfr-data-kpi source="data" value="count{tags:eq:urgent}" label="Dossiers urgents"></dsfr-data-kpi>
+<dsfr-data-query source="data" where="tags:eq:urgent"></dsfr-data-query>
 ```
-
-Partout ailleurs, l'egalite compare la valeur du champ **telle quelle**, sans l'ouvrir — tant
-qu'elle est evaluee dans le navigateur ; deleguee au portail, elle change de sens, voir
-« Quand la clause part au serveur » plus bas :
 
 | Ecriture | Regarde dans le tableau ? |
 |---|---|
-| `value="count:tags:urgent"` (KPI) | **oui** — un element egal suffit |
-| `where="tags:eq:urgent"` (source, query, KPI) | non |
-| `where="tags:in:urgent\|social"` | non |
-| `value="count{tags:eq:urgent}"` (filtre entre accolades du KPI) | non |
-| `compute="… when tags = 'urgent' …"` | non |
+| `value="count:tags:urgent"` (KPI) | **oui** |
+| `where="tags:eq:urgent"` (source, query, KPI) | **oui** |
+| `where="tags:in:urgent\|social"` | **oui** — union des `eq` |
+| `value="count{tags:eq:urgent}"` (filtre entre accolades du KPI) | **oui** |
+| `compute="… when tags = 'urgent' …"` | **oui** |
+| `where="tags:contains:urgent"` | **non** — sous-chaine du rendu texte, voir plus bas |
 
-Deux consequences a connaitre avant de debugger une page :
+La regle exacte, cote client :
 
-- **Sur le meme jeu, `value="count:tags:urgent"` et `value="count{tags:eq:urgent}"` donnent deux
-  chiffres differents.** Ce n'est pas un bug : c'est la meme asymetrie, vue depuis un seul attribut.
-- **Le `where` n'echoue pas franchement : il echoue par endroits.** Une ligne dont `tags` ne porte
-  qu'une valeur (`["urgent"]`) matche quand meme `tags:eq:urgent`, parce que la comparaison retombe
-  sur le texte. Une ligne a deux etiquettes ne matche pas. Le filtre a donc l'air de marcher sur une
-  partie du jeu, ce qui est la pire forme de panne.
-
-L'asymetrie est **voulue** : etendre la variante « contient » a `where` changerait en silence les
-chiffres de toutes les pages deja publiees qui comptent zero ligne sur un champ tableau.
-
-#### Ce qu'il faut ecrire pour filtrer un champ tableau
-
-Il n'existe **pas** d'operateur `where` qui parcourt un tableau. La voie native passe par une
-colonne calculee : `contains()` de `compute` sait, lui, parcourir le tableau avec la meme egalite
-lache. On derive un booleen, puis on filtre dessus.
-
-```html
-<dsfr-data-source id="brut" api-type="opendatasoft"
-  base-url="https://data.economie.gouv.fr" dataset-id="mon-jeu"></dsfr-data-source>
-
-<!-- 1. Deriver le booleen : contains() ouvre le tableau -->
-<dsfr-data-normalize id="enrichi" source="brut"
-  compute="a_urgent = when contains(tags, 'urgent') then 1 else 0"></dsfr-data-normalize>
-
-<!-- 2. Filtrer sur la colonne derivee, avec le where habituel -->
-<dsfr-data-query id="urgents" source="enrichi" where="a_urgent:eq:1"></dsfr-data-query>
-<dsfr-data-list source="urgents" columns="titre, tags"></dsfr-data-list>
+```
+eq(valeur, v) = (valeur est un tableau ET un de ses elements vaut v)
+                OU String(valeur) === String(v)
 ```
 
-Deux fausses pistes, a ecarter explicitement :
+Le second terme est un repli textuel. Il est garde : sur `eq` et `in`, le client ne peut donc que
+**gagner** des correspondances, jamais en perdre.
 
-- **`where="tags:contains:urgent"` n'est pas un equivalent.** Cet operateur cherche une sous-chaine
-  dans le rendu texte du tableau (`"urgent,social"`). Il tombe juste tant qu'aucune etiquette n'est
-  sous-chaine d'une autre — et devient faux des qu'il en existe une : sur un jeu qui contient
-  « non-urgent », `tags:contains:urgent` retient les lignes « non-urgent ».
+#### Pourquoi c'etait faux avant, et ce qui a change
+
+Jusqu'a la 0.32, seule la valeur de filtre d'un `count` de KPI regardait dans le tableau. Partout
+ailleurs, l'egalite comparait la valeur telle quelle — ce qui n'etait pas une semantique mais un
+effet de `Array.prototype.toString` : une ligne a UNE etiquette (`["urgent"]`) matchait quand meme,
+une ligne a deux ne matchait pas. Le filtre avait l'air de marcher sur une partie du jeu.
+
+Surtout, **le portail, lui, faisait deja « contient »**. Mesure le 2026-09-19 sur deux portails et
+deux endpoints :
+
+```
+data.economie.gouv.fr, catalogue, champ keyword (tableau)
+  where=keyword = "budgets annexes"  -> total_count = 1   (2e element)
+  where=keyword = "LFI 2011,budgets annexes,finances publiques,loi de finances initiale" -> 0
+
+data.education.gouv.fr, retours-formulaire-votre-avis-copie, champ themes_attendus
+  176 lignes, dont 21 nulles
+  where=themes_attendus = "Elèves"    -> 124
+  where=themes_attendus != "Elèves"   ->  31   (= 155 non nulles - 124)
+  where=themes_attendus in ("Elèves","Finances") -> 130  (= l'union du OU)
+```
+
+Des qu'une clause etait deleguee — et ce n'est pas la balise qui porte le `where` qui en decide,
+mais le mode de la source, un transformateur amont, le partage de la chaine — le meme attribut
+comptait autre chose. Ajouter un second graphique a une page pouvait faire basculer l'evaluation du
+serveur vers le client et **changer un chiffre affiche**, sans un message. C'est cette incoherence
+qui est levee : **le client compte desormais ce que compte le portail.**
+
+#### Ce qui se met a compter, et ce qui cesse
+
+- `eq`, `in` et le `=` de `compute` **gagnent** des lignes : celles dont la valeur cherchee est un
+  element parmi d'autres. Ce sont exactement les pages qui sous-comptaient par rapport au portail.
+- `neq`, `notin` et le `!=` de `compute` **en perdent**, etant la negation des precedents. Le portail
+  fait pareil : son `!=` est la negation stricte de son `=`, valeurs nulles exclues des deux cotes.
+  C'est la seule perte, et elle est assumee.
+- Le repli textuel reste : `["a","b"]` matche encore `"a,b"` cote client, la ou le portail rend 0.
+
+Pendant une version mineure, un **avertissement de transition** nomme en console le champ et la
+valeur des lignes qui se mettent a compter. Il est deduplique par couple champ/valeur : un jeu ou
+des milliers de lignes basculent produit un message, pas des milliers.
+
+#### `contains` reste un piege, et `explode` n'est pas un filtre
+
+- **`where="tags:contains:urgent"` n'est toujours pas un equivalent de `eq`.** Cet operateur cherche
+  une sous-chaine dans le rendu texte du tableau (`"urgent,social"`). Sur un jeu qui contient
+  « non-urgent », il retient les lignes « non-urgent » ; et il traverse la virgule entre deux
+  elements. Pour filtrer un champ tableau, c'est `eq` qu'il faut ecrire, pas `contains`.
 - **`explode` de `dsfr-data-query` n'est pas un filtre.** Il eclate un multivalue *avant un
-  `group-by`* (une ligne a N valeurs compte dans N groupes) ; il ne repond pas a « garder les lignes
-  portant cette etiquette ».
+  `group-by`* (une ligne a N valeurs compte dans N groupes).
 
-#### Quand la clause part au serveur, `=` ne veut plus dire la meme chose
+#### La colonne derivee par `compute` : toujours valide, plus obligatoire
 
-Tout ce qui precede decrit l'evaluation **cote client**. Un `where` de `dsfr-data-query` peut partir
-au serveur (source non partagee, clause traduisible) : c'est alors le portail qui decide ce que `=`
-veut dire sur un champ multivalue. **Mesure le 2026-09-19** sur le catalogue de
-`data.economie.gouv.fr`, champ `keyword` (un vrai tableau) : `where=keyword = "budgets annexes"`
-rend `total_count = 1` sur la ligne dont `keyword` vaut
-`["LFI 2011","budgets annexes","finances publiques","loi de finances initiale"]`, et
-`where=keyword = "LFI 2011"` rend `1` aussi. **Opendatasoft lit `=` comme un « contient »** : il
-trouve la ligne sur n'importe quel element du tableau.
+Le motif recommande jusqu'ici reste juste — il n'est simplement plus **necessaire** :
 
-| Donnee du champ, comparee a la valeur du filtre | Client (repli `String`) | Serveur (ODS delegue) |
-|---|---|---|
-| `["urgent"]` vs `"urgent"` — un seul element | **matche** | **matche** |
-| `["urgent","social"]` vs `"urgent"` — plusieurs | ne matche pas | **matche** |
-| `["a","b"]` vs `"a,b"` — le rendu texte | **matche** | ne matche pas |
+```html
+<dsfr-data-normalize id="enrichi" source="brut"
+  compute="a_urgent = when contains(tags, 'urgent') then 1 else 0"></dsfr-data-normalize>
+<dsfr-data-query id="urgents" source="enrichi" where="a_urgent:eq:1"></dsfr-data-query>
+```
 
-Le meme `where="tags:eq:urgent"`, sur le meme jeu, **ne compte donc pas la meme chose** selon que la
-clause est delegue au portail ou evaluee localement.
+… rend aujourd'hui les memes lignes que, directement :
 
-> ⚠️ **Ce n'est pas la balise qui porte le `where` qui decide de la delegation.** C'est le mode de la
-> source (`fetch-mode`, `server-side`), la presence d'un transformateur en amont, le partage de la
-> source avec un autre consommateur, un `explode`. Ajouter un **second graphique** a la page peut
-> faire perdre a la source sa dedicace, donc basculer l'evaluation du filtre du serveur vers le
-> client, donc **changer un chiffre affiche** — sans qu'on ait touche au filtre, et sans un message.
+```html
+<dsfr-data-query id="urgents" source="brut" where="tags:eq:urgent"></dsfr-data-query>
+```
 
-Sur un champ multivalue, la colonne derivee par `compute` ci-dessus n'est donc pas seulement la voie
-« native » : c'est la seule ecriture qui rende le **meme** chiffre des deux cotes, parce que le
-filtre final porte sur un booleen scalaire.
+Le booleen derive garde un interet propre : le filtre final porte sur un **scalaire**, donc une
+colonne regroupable, affichable et delegable telle quelle. C'est ce qu'il faut ecrire quand on veut
+aussi **compter par** cette distinction, pas seulement filtrer dessus.
 
-Enfin, une **facette** (`dsfr-data-facets`) sur un champ tableau, elle, eclate bien les valeurs et
-filtre correctement : quand le filtre est destine a l'utilisateur plutot qu'ecrit en dur, c'est la
-voie la plus courte.
+Enfin, une **facette** (`dsfr-data-facets`) sur un champ tableau eclate les valeurs et filtre
+correctement : quand le filtre est destine a l'utilisateur plutot qu'ecrit en dur, c'est la voie la
+plus courte.
 
 ### Un ratio entre DEUX sources : agreger, joindre, diviser
 

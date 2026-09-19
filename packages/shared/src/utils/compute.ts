@@ -20,15 +20,18 @@
  * lexicographic otherwise (ISO dates compare correctly); null, undefined and
  * '' never match.
  *
- * ARRAY FIELDS (#842): `=` / `!=` compare the field value AS IS — they do not
- * look inside an array. `when tags = 'urgent'` is false for
- * `['urgent','social']` (and true for `['urgent']`, via the `String` fallback:
- * the outcome is data-dependent). Use `contains(tags, 'urgent')`, which walks
- * the array with the same loose equality. This asymmetry with the aggregation
- * grammar of dsfr-data-kpi (`count:tags:urgent` DOES walk the array,
- * `looseEqualsOrContains`, #673) is deliberate: widening `=` would silently
- * change the output of published pages. Locked by
- * tests/shared/array-equality-perimeter.test.ts.
+ * ARRAY FIELDS (#953, formerly #842): `=` / `!=` DO look inside an array.
+ * `when tags = 'urgent'` is true for `['urgent','social']`, exactly like
+ * `contains(tags, 'urgent')` and like the portal on a delegated clause
+ * (measured 2026-09-19 on two portals: Opendatasoft reads `=` on a
+ * multivalued field as a "contains"). The textual fallback is kept in OR, so
+ * `=` can only gain matches; `!=`, being its negation, loses the rows `=`
+ * used to miss — the server behaves the same way. The old asymmetry with the
+ * aggregation grammar of dsfr-data-kpi (`count:tags:urgent`) is gone, and
+ * `looseEqualsOrContains` with it: one single equality. `contains()` keeps its
+ * own job on TEXT, where it is a substring search. Locked by
+ * tests/shared/array-equality-perimeter.test.ts and
+ * tests/shared/array-equality-alignment.test.ts.
  *
  * Arithmetic `- * /` and unary minus: a missing or non-numeric operand
  * yields null (never a plausible 0), and a division by zero yields null
@@ -237,9 +240,9 @@ const FUNCTIONS: Record<string, FunctionSpec> = {
     impl: (a) => {
       const haystack = a[0];
       if (isNil(haystack)) return false;
-      // Array: loose equality per element. NOT the same as `where` `in`, which
-      // compares the whole field value as is (#842): `contains()` is the only
-      // markup-level way to walk an array outside the KPI aggregation grammar.
+      // Array: loose equality per element — same as `where` `eq` / `in` since
+      // #953, which now walk the array too. `contains()` remains distinct on
+      // TEXT, where it is a case-insensitive substring search.
       if (Array.isArray(haystack)) return haystack.some((v) => looseEquals(v, a[1]));
       // Text: case-insensitive substring (same as `where` `contains`).
       if (isNil(a[1])) return false;
@@ -745,19 +748,19 @@ function compareOrder(a: unknown, b: unknown): number | null {
  * string equals only another blank string — not null either: `''` is a
  * value for `coalesce`, and `is_empty` exists to catch both.
  */
-function computeEquals(l: unknown, r: unknown): boolean {
+function computeEquals(l: unknown, r: unknown, field?: string): boolean {
   const lBlank = typeof l === 'string' && l.trim() === '';
   const rBlank = typeof r === 'string' && r.trim() === '';
   if (lBlank || rBlank) return lBlank && rBlank;
-  return looseEquals(l, r);
+  return looseEquals(l, r, field);
 }
 
-function evalCmp(op: CmpOp, l: unknown, r: unknown): boolean {
+function evalCmp(op: CmpOp, l: unknown, r: unknown, field?: string): boolean {
   switch (op) {
     case '=':
-      return computeEquals(l, r);
+      return computeEquals(l, r, field);
     case '!=':
-      return !computeEquals(l, r);
+      return !computeEquals(l, r, field);
     default: {
       const cmp = compareOrder(l, r);
       if (cmp === null) return false;
@@ -798,7 +801,12 @@ function evalNode(node: Node, row: Row): unknown {
     case 'or':
       return truthy(evalNode(node.left, row)) || truthy(evalNode(node.right, row));
     case 'cmp':
-      return evalCmp(node.op, evalNode(node.left, row), evalNode(node.right, row));
+      return evalCmp(
+        node.op,
+        evalNode(node.left, row),
+        evalNode(node.right, row),
+        node.left.type === 'field' ? node.left.name : undefined
+      );
     case 'call':
       return node.fn.impl(node.args.map((arg) => evalNode(arg, row)));
     case 'when': {

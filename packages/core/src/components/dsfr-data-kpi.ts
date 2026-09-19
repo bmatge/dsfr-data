@@ -75,12 +75,12 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
    * seuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».
    * `count:champ:valeur` accepte un champ tableau (un élément égal suffit).
-   * C'est la SEULE grammaire du dépôt qui parcourt un tableau (#673) : le
-   * `where` ci-dessous et le filtre entre accolades `count{tags:eq:urgent}`
-   * comparent la valeur telle quelle et ne le font PAS (#842). Sur un même
-   * jeu d'étiquettes, `value="count:tags:urgent"` et
-   * `value="count{tags:eq:urgent}"` rendent donc deux chiffres différents,
-   * et c'est voulu.
+   * Depuis #953, le `where` ci-dessous et le filtre entre accolades
+   * `count{tags:eq:urgent}` font PAREIL : `value="count:tags:urgent"` et
+   * `value="count{tags:eq:urgent}"` rendent le MÊME chiffre. L'asymétrie de
+   * #842 — deux chiffres sur le même jeu, et c'était « voulu » — a disparu :
+   * l'égalité client est alignée sur celle du portail, qui lit déjà `=` sur
+   * un champ multivalué comme un « contient » (mesuré le 2026-09-19).
    * Seul `count` accepte une valeur de filtre : `sum:champ:valeur` est une
    * erreur de configuration (#764).
    * Filtre propre à une expression (#776), dialecte du `where` entre
@@ -116,21 +116,22 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * porte sur les lignes reçues (derrière un `limit` ou une page, poser le
    * `where` sur la source ou une query amont). `meta:total` n'en tient pas
    * compte. Une clause non reconnue est une erreur de configuration.
-   * CHAMP TABLEAU (#842) : l'égalité porte sur la valeur du champ telle
-   * quelle. `where="tags:eq:urgent"` ne retient pas une ligne dont `tags`
-   * vaut `['urgent','social']` — contrairement à `value="count:tags:urgent"`,
-   * qui la compte. Dériver un booléen en amont (`dsfr-data-normalize`
-   * `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"`), puis
-   * `where="a_urgent:eq:1"`.
-   * ⚠️ Le KPI ne délègue jamais : son `where` évalue donc TOUJOURS la variante
-   * client. Le même texte porté par une `dsfr-data-query` peut, lui, partir au
-   * portail — et Opendatasoft lit `=` comme un « contient » sur un champ
-   * tableau (mesuré le 2026-09-19 sur data.economie.gouv.fr, champ `keyword`,
-   * #953) : `['urgent']` matche des deux côtés, `['urgent','social']` matche
-   * au serveur seulement, `['a','b']` comparé à `'a,b'` matche au client
-   * seulement. Un KPI et un graphique qui portent le MÊME `where` sur le même
-   * jeu peuvent donc afficher deux chiffres — le booléen dérivé en amont est
-   * la seule écriture qui les réconcilie.
+   * CHAMP TABLEAU (#953, ex-#842) : `eq` / `in` regardent DANS le tableau.
+   * `where="tags:eq:urgent"` retient une ligne dont `tags` vaut
+   * `['urgent','social']`, exactement comme `value="count:tags:urgent"` la
+   * compte, et comme le portail la retiendrait sur une clause déléguée. Le
+   * repli textuel est gardé en OU : `['a','b']` matche encore `'a,b'` côté
+   * client, là où le portail rend 0 — le client ne peut donc que gagner des
+   * lignes, jamais en perdre. `neq` / `notin`, étant la négation, en perdent
+   * (le portail aussi : son `!=` est la négation stricte de son `=`).
+   * ⚠️ Le KPI ne délègue jamais : son `where` évalue toujours la voie client.
+   * Depuis l'alignement, c'est sans conséquence sur un champ tableau — un KPI
+   * et un graphique portant le même `where` rendent le même chiffre, au repli
+   * textuel près. Le booléen dérivé en amont (`dsfr-data-normalize`
+   * `compute="a_urgent = when contains(tags,'urgent') then 1 else 0"`, puis
+   * `where="a_urgent:eq:1"`) reste valide et garde un intérêt — le filtre
+   * final porte sur un scalaire, donc regroupable et délégable — mais il
+   * n'est plus NÉCESSAIRE.
    */
   @property({ type: String })
   where = '';
