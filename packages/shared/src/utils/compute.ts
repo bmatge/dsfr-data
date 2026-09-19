@@ -29,7 +29,13 @@
  * used to miss — the server behaves the same way. The old asymmetry with the
  * aggregation grammar of dsfr-data-kpi (`count:tags:urgent`) is gone, and
  * `looseEqualsOrContains` with it: one single equality. `contains()` keeps its
- * own job on TEXT, where it is a substring search. Locked by
+ * own job on TEXT, where it is a substring search.
+ *
+ * ABSENT VALUES (#958): a null or undefined operand satisfies NEITHER `=` NOR
+ * `!=` — the three-valued logic Opendatasoft applies, now applied by
+ * `where="field:neq:…"` too, so that `when f != 'x'` and `where="f:neq:x"`
+ * keep the same rows as this header promises. A BLANK string is still a
+ * value on both sides. Locked by
  * tests/shared/array-equality-perimeter.test.ts and
  * tests/shared/array-equality-alignment.test.ts.
  *
@@ -48,7 +54,7 @@
 
 import { toNumber, looksLikeNumber } from './number-parser.js';
 import { isUnsafeKey } from './security.js';
-import { looseEquals } from '../query/filter-translator.js';
+import { looseEquals, warnNeqNullTransition } from '../query/filter-translator.js';
 
 type Row = Record<string, unknown>;
 
@@ -760,6 +766,16 @@ function evalCmp(op: CmpOp, l: unknown, r: unknown, field?: string): boolean {
     case '=':
       return computeEquals(l, r, field);
     case '!=':
+      // Une valeur ABSENTE ne satisfait ni `=` ni `!=` (#958) : la logique à
+      // trois valeurs du portail, que `where="champ:neq:…"` applique
+      // désormais — et l'en-tête de ce fichier promet que les deux gardent
+      // les mêmes lignes. `''` reste une VALEUR (voir `computeEquals`), donc
+      // une cellule vide passe toujours un `!=` ; c'est `is_empty` qui
+      // attrape les deux.
+      if (l === null || l === undefined) {
+        warnNeqNullTransition(field);
+        return false;
+      }
       return !computeEquals(l, r, field);
     default: {
       const cmp = compareOrder(l, r);

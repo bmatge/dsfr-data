@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **216 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
+État du dépôt : **218 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
 domaines, pour 500 observations et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 337 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 342 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -487,7 +487,7 @@ en NFC et en NFD, une clé qui apparaît deux fois à droite, un champ
 multivalué, un jeu de 1 001 lignes derrière un plafond de 1 000. Le canari
 (#882) est **un jeu de quarante lignes écrites à la main** — `jeux/canari.json`,
 chaque ligne décrite dans `jeux/README.md` —, une table de droite à doublon,
-un jeu de volume engendré à graine, et **treize contrôles** dans
+un jeu de volume engendré à graine, et **seize contrôles** dans
 `tests/verif-donnees/canari.ts`, un par piège, chacun citant le registre
 (`constats`) et nommant le contrôle existant qui couvrait déjà le cas plutôt
 que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
@@ -505,6 +505,7 @@ que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
 | plafond | `canari-plafond-export` | mille lignes sur 1 001, et aucun mot : `not-truncated` en attente (AM-002) |
 | dates partielles | `canari-date-partielle` | un filtre d'ordre compare en texte : « 2024 » ≤ « 2024-03 » < « 2025 » |
 | `distinct` | `canari-distinct` | ni les vides ni les doublons ; `'1'` et `1` sont une modalité, `'01'` une autre |
+| `neq` et les nuls | `canari-neq-nuls-exclus`, `-delegue` | une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : `eq` 7 + `neq` 27 = 34 renseignées sur 40, `notin` 33 (il garde les nuls, comme le `NOT … in (…)` qu'il délègue), `isnull` 6 — et le même 27 que la clause parte au serveur ou non |
 
 Ce que le canari a **appris en s'écrivant** — trois faux pas d'auteur, tous
 silencieux, tous sans erreur console : un KPI `champ:count` compte **tous** les
@@ -513,8 +514,9 @@ qui ne voit que `null`, une chaîne vide étant une valeur) ; les clauses d'un
 `where` se séparent par une **virgule**, et un `AND` devient la fin de la valeur
 (deux dates de 2025 passaient un `date:lt:2025 AND …`) ; le faux serveur ODS
 compare la forme texte d'un code, comme le portail. La troisième voix couvre
-**les trente attentes** du canari : aucun `derive`, le quotient passe par
-`ratio`.
+**quarante des quarante et une attentes** du canari : aucun `derive`, le
+quotient passe par `ratio`, et la seule non couverte est un contrôle d'URL
+(la délégation du `neq`), qui n'est pas un chiffre.
 
 ## Le recoupement serveur
 

@@ -156,6 +156,12 @@ const COMPARAISON = new RegExp(
 );
 
 function comparer(gauche: unknown, operateur: string, droite: string, numerique: boolean): boolean {
+  // Logique SQL à TROIS VALEURS (#958) : une valeur ABSENTE ne satisfait ni
+  // `=` ni `!=` — mesuré sur le portail (`!= "Elèves"` rend 31, la négation
+  // stricte, et non 52). Les comparaisons d'ordre l'excluaient déjà.
+  if ((operateur === '=' || operateur === '!=') && (gauche === null || gauche === undefined)) {
+    return false;
+  }
   if (numerique) {
     const a = Number(gauche);
     const b = Number(droite);

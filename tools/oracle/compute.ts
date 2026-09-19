@@ -109,8 +109,18 @@ export function passeFiltre(row: Row, filter: RowFilter): boolean {
     // `'01'` non ; un absent n'égale rien. Aucune lecture numérique.
     case 'eq-strict':
       return !absent(v) && String(v) === String(filter.value);
+    // `neq` : la logique SQL à TROIS VALEURS du portail (#958). Une valeur
+    // ABSENTE — `null` ou champ manquant — ne satisfait NI `eq` NI `neq`.
+    // Mesuré le 2026-09-20 sur data.education.gouv.fr, `themes_attendus`
+    // (176 lignes, 21 nulles) : `= "Elèves"` -> 124, `!= "Elèves"` -> 31,
+    // soit 155 − 124, et non 176 − 124. La CHAÎNE VIDE reste une valeur pour
+    // la bibliothèque : elle passe le `neq`, comme `''` passait déjà un `eq:`
+    // vide — d'où le test strict et non `absent()`.
+    // `notin` / `notcontains`, eux, gardent les absents : ODSQL n'a pas
+    // d'infixe `not in` / `not like`, ils se délèguent en `NOT …`, qui les
+    // garde (mesuré : 52).
     case 'neq':
-      return !egal(v, filter.value);
+      return v !== null && v !== undefined && !egal(v, filter.value);
     case 'contains':
       return filter.fold
         ? replier(v).includes(replier(filter.value))

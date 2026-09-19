@@ -456,7 +456,13 @@ function evaluer(noeud: Noeud, row: Row): unknown {
       const a = evaluer(noeud.gauche, row);
       const b = evaluer(noeud.droite, row);
       if (noeud.op === '=') return egal(a, b);
-      if (noeud.op === '!=') return !egal(a, b);
+      // `!=` : logique SQL à TROIS VALEURS (#958). Un opérande ABSENT ne
+      // satisfait ni `=` ni `!=` — c'est ce que fait le portail sur un `where`
+      // délégué, c'est ce que fait `where="champ:neq:…"` côté client, et
+      // l'en-tête de `compute.ts` de la bibliothèque promet que les deux
+      // gardent les mêmes lignes. La chaîne VIDE reste une valeur : elle passe
+      // le `!=` (d'où le test strict, et non `absent()`).
+      if (noeud.op === '!=') return a !== null && a !== undefined && !egal(a, b);
       if (noeud.op === '<' || noeud.op === '<=' || noeud.op === '>' || noeud.op === '>=') {
         return ordre(noeud.op, a, b);
       }

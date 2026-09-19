@@ -44,6 +44,13 @@ export type Agg =
  * `isnull-strict` / `isnotnull-strict` disent absent SEULEMENT (null ou
  * undefined) : c'est la distinction que fait le `where` de la bibliothèque,
  * pour qui une chaîne vide est une valeur renseignée.
+ *
+ * `neq` (#958) : une valeur ABSENTE ne satisfait NI `eq` NI `neq` — la logique
+ * SQL à trois valeurs du portail, mesurée (`!= "Elèves"` rend 155 − 124 = 31,
+ * et non 176 − 124 = 52). `notin` et `notcontains`, eux, GARDENT les absents :
+ * ODSQL n'a pas d'infixe `not in` / `not like`, ils se délèguent en `NOT …`,
+ * une négation booléenne qui les garde (mesurée à 52). Les deux écritures
+ * serveur n'ont pas le même sens, et l'oracle tient les deux.
  */
 export type RowFilter =
   | {

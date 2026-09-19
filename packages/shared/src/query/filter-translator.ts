@@ -37,6 +37,32 @@ function odsqlLiteral(value: string, preferNumeric: boolean): string {
 /**
  * Convert a dsfr-data-query filter expression (field:operator:value) to an ODSQL where clause.
  * Supports 12 operators: eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull.
+ *
+ * LES DEUX ÉCRITURES DE LA NÉGATION EN ODSQL (#958), mesurées le 2026-09-20 sur
+ * `retours-formulaire-votre-avis-copie` de data.education.gouv.fr, champ
+ * `themes_attendus` (176 lignes, 21 nulles, 155 renseignées, `= "Elèves"` -> 124) :
+ *
+ *   themes_attendus != "Elèves"          ->  31   logique à TROIS valeurs,
+ *                                                 les nulles sont EXCLUES
+ *   NOT themes_attendus = "Elèves"       ->  52   complément exact de la clause,
+ *   not(themes_attendus = "Elèves")      ->  52   les nulles sont GARDÉES
+ *   NOT themes_attendus in ("Elèves")    ->  52
+ *   NOT themes_attendus like "%Elèves%"  ->  52
+ *   themes_attendus not in (…)                   ODSQL syntax exception
+ *   themes_attendus not like "%…%"               ODSQL syntax exception
+ *
+ * Ce ne sont donc pas deux façons d'écrire la même chose : `!=` est la seule
+ * écriture à trois valeurs, `NOT <clause>` est une négation booléenne à deux.
+ * Conséquence sur ce qu'on émet, et sur ce que le client doit imiter :
+ *
+ *   `neq`         -> `champ != v`             nulls exclus  -> le client aussi (#958)
+ *   `notin`       -> `NOT champ in (…)`       nulls gardés  -> le client aussi
+ *   `notcontains` -> `NOT champ like "%…%"`   nulls gardés  -> le client aussi
+ *
+ * `notin` et `notcontains` ne sont PAS alignés sur `neq` : ODSQL n'ayant pas
+ * d'infixe `not in` / `not like`, la seule traduction possible est `NOT …`,
+ * qui garde les nulles. Les aligner « par symétrie » rouvrirait la divergence
+ * client/serveur que #958 ferme.
  */
 export function filterToOdsql(filterExpr: string): string {
   const opMap: Record<string, string> = {
@@ -135,6 +161,38 @@ export function looseEquals(a: unknown, b: unknown, field?: string): boolean {
   return String(a) === String(b);
 }
 
+/**
+ * Négation lâche de {@link looseEquals}, avec la logique SQL à TROIS VALEURS
+ * du portail (#958) : **une valeur absente ne satisfait ni `=` ni `!=`**.
+ *
+ * `eq` excluait déjà les nulles (`looseEquals(null, 'x')` est faux) ; `neq`,
+ * écrit `!looseEquals(…)`, les gardait — d'où le même `champ:neq:valeur`
+ * rendant deux comptes selon qu'il partait au serveur ou non, ce que ne dit
+ * aucune balise. Mesuré le 2026-09-20 sur `themes_attendus` de
+ * `retours-formulaire-votre-avis-copie` (data.education.gouv.fr), 176 lignes
+ * dont 21 nulles :
+ *
+ *   themes_attendus = "Elèves"   -> 124
+ *   themes_attendus != "Elèves"  ->  31 = 155 − 124, et NON 52 = 176 − 124
+ *   themes_attendus != "zzz"     -> 155, et non 176
+ *
+ * `eq` et `neq` ne partitionnent donc plus le jeu : les lignes absentes ne
+ * sont d'aucun côté. C'est `isnull` / `isnotnull` qui les nomment.
+ *
+ * La chaîne VIDE reste une valeur, pas une absence : `''` passe un `neq`,
+ * comme elle passait déjà un `eq:` vide.
+ *
+ * `field` est purement diagnostique : il nomme le champ dans l'avertissement
+ * de transition (voir {@link warnNeqNullTransition}).
+ */
+export function looseNotEquals(a: unknown, b: unknown, field?: string): boolean {
+  if (a === null || a === undefined) {
+    warnNeqNullTransition(field);
+    return false;
+  }
+  return !looseEquals(a, b, field);
+}
+
 /** `looseEquals` sans l'avertissement — récursion interne et tableaux imbriqués. */
 function looseEqualsQuiet(a: unknown, b: unknown): boolean {
   if (a === null || a === undefined) return b === null || b === undefined;
@@ -185,6 +243,72 @@ function warnArrayEqualityTransition(field: string | undefined, value: unknown):
 export function resetArrayEqualityTransitionWarnings(): void {
   arrayEqualityWarned.clear();
   arrayEqualitySilenced = false;
+}
+
+/** Plafond de champs mémorisés — la dédup ne doit pas fuir. */
+const NEQ_NULL_WARN_MAX = 50;
+const neqNullWarned = new Set<string>();
+const neqNullEnAttente = new Map<string, number>();
+let neqNullSilenced = false;
+let neqNullFlushPrevu = false;
+
+/**
+ * Avertissement de TRANSITION (#958), destiné à vivre une version mineure.
+ *
+ * Il ne sort que sur les lignes dont le compte change — celles dont le champ
+ * est absent et qu'un `neq` retenait. Contrairement à #953, ce changement en
+ * RETIRE : une page peut perdre des lignes sans que son balisage ait bougé,
+ * donc le message doit nommer le champ ET dire combien de lignes cessent
+ * d'être comptées, sans quoi personne ne retrouve la cause.
+ *
+ * Le compte n'est connu qu'une fois le filtre passé sur toutes les lignes :
+ * les lignes concernées sont accumulées par champ et le message part en fin
+ * de tâche (microtâche), une seule fois par champ. Dédupliqué par CHAMP, pas
+ * par ligne : ce dépôt a déjà payé une régression de 7 139 avertissements.
+ * Au-delà de {@link NEQ_NULL_WARN_MAX} champs distincts, un dernier message
+ * dit qu'on se tait et le Set cesse de croître.
+ */
+export function warnNeqNullTransition(field: string | undefined): void {
+  if (neqNullSilenced) return;
+  const cle = field ?? '(champ non nommé)';
+  if (neqNullWarned.has(cle)) return;
+  neqNullEnAttente.set(cle, (neqNullEnAttente.get(cle) ?? 0) + 1);
+  if (neqNullFlushPrevu) return;
+  neqNullFlushPrevu = true;
+  queueMicrotask(viderNeqNullEnAttente);
+}
+
+function viderNeqNullEnAttente(): void {
+  neqNullFlushPrevu = false;
+  for (const [cle, lignes] of neqNullEnAttente) {
+    if (neqNullWarned.has(cle)) continue;
+    if (neqNullWarned.size >= NEQ_NULL_WARN_MAX) {
+      neqNullSilenced = true;
+      console.warn(
+        `dsfr-data: plus de ${NEQ_NULL_WARN_MAX} champs concernés par l'alignement des ` +
+          `valeurs absentes sur un filtre de non-égalité — avertissements coupés pour la suite.`
+      );
+      break;
+    }
+    neqNullWarned.add(cle);
+    console.warn(
+      `dsfr-data: champ "${cle}" — ${lignes} ligne(s) dont la valeur est ABSENTE ne sont ` +
+        `plus retenues par un filtre de non-égalité (\`${cle}:neq:…\`, \`!=\`). Une valeur ` +
+        `absente ne satisfait ni l'égalité ni la non-égalité, comme le fait le portail ` +
+        `Opendatasoft quand la même clause lui est déléguée (#958) : le compte baisse ici, ` +
+        `mais les deux chemins donnent enfin le même. Pour les retrouver, ajouter une clause ` +
+        `\`${cle}:isnull\`. Avertissement de transition : il disparaîtra à la prochaine mineure.`
+    );
+  }
+  neqNullEnAttente.clear();
+}
+
+/** Remet à zéro la déduplication des avertissements de #958 (tests). */
+export function resetNeqNullTransitionWarnings(): void {
+  neqNullWarned.clear();
+  neqNullEnAttente.clear();
+  neqNullSilenced = false;
+  neqNullFlushPrevu = false;
 }
 
 function isNumericValue(v: unknown): boolean {
@@ -253,9 +377,14 @@ export function validateColonFilter(filterExpr: string): string | null {
 /**
  * Apply a dsfr-data-query style filter (field:operator:value) to local data rows.
  * Supports the same 12 operators as filterToOdsql — same input, same rows kept.
- * Sémantique null alignée sur dsfr-data-query (#278) : les opérateurs positifs
- * (eq, in, contains, comparaisons) ne matchent jamais null/undefined, les
- * négatifs (neq, notin, notcontains) les laissent passer.
+ * Sémantique null alignée sur dsfr-data-query (#278), puis sur le portail
+ * (#958) : les opérateurs positifs (eq, in, contains, comparaisons) ne
+ * matchent jamais null/undefined ; `neq` non plus désormais — une valeur
+ * absente ne satisfait NI `=` NI `!=`, c'est la logique SQL à trois valeurs
+ * qu'applique Opendatasoft (`champ != v` -> 31 lignes là où le client en
+ * rendait 52, mesuré). `notin` et `notcontains` les laissent toujours passer,
+ * parce que l'adaptateur les traduit en `NOT …`, qui les garde aussi : voir
+ * le tableau des deux écritures en tête de `filterToOdsql`.
  *
  * `getField` (#674) : résolution de la valeur d'un champ dans une ligne —
  * par défaut la clé directe `row[field]` ; un consommateur qui accepte des
@@ -294,7 +423,8 @@ export function applyLocalFilter(
         case 'eq':
           return looseEquals(v, value, f.field);
         case 'neq':
-          return !looseEquals(v, value, f.field);
+          // Une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958).
+          return looseNotEquals(v, value, f.field);
         case 'gt': {
           const cmp = compareForRange(v, value);
           return cmp !== null && cmp > 0;
