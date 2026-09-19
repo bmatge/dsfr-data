@@ -152,6 +152,29 @@ describe('#805 — champ absent des sources ciblées', () => {
     unsub();
   });
 
+  it('#841 — lignes hétérogènes : le champ n’apparaît qu’à la 250ᵉ ligne, le filtre part quand même', async () => {
+    // L'heuristique jugeait l'absence sur les 200 PREMIÈRES lignes : un jeu
+    // JSON générique aux lignes hétérogènes (le seul cas où elles le sont —
+    // les adaptateurs ODS, Grist et Tabular rendent toutes les clés, `null`
+    // compris) voyait son filtre SILENCIEUSEMENT écarté. Le contrat écrit de
+    // la méthode est « absent à coup sûr » : présent à la 250ᵉ ligne, le champ
+    // n'est pas absent.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    source('pix');
+    const rows: Record<string, unknown>[] = Array.from({ length: 249 }, (_, i) => ({
+      annee: String(2000 + i),
+    }));
+    rows.push({ annee: '2249', tranche_envoi: 'Moins de 70 %' });
+    const { ctx, filterEl, commands, choose, unsub } = setup('pix', { pix: rows });
+    await ctx.updateComplete;
+    choose('Moins de 70 %');
+
+    expect(lastWhere(commands, 'pix')).toContain('tranche_envoi');
+    expect(filterEl.hasAttribute('data-dsfr-config-error')).toBe(false);
+    expect(warn.mock.calls.map((c) => String(c[0])).join(' ')).not.toContain('n\'existe pas');
+    unsub();
+  });
+
   it('AC : l’erreur se lève quand le filtre est vidé', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     source('pix');

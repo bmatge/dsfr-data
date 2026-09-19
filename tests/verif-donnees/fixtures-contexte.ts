@@ -28,6 +28,7 @@
 import type { Row } from '../../tools/oracle/manifest.js';
 import etablissements from './jeux/contexte-etablissements.json' with { type: 'json' };
 import budgets from './jeux/contexte-budgets.json' with { type: 'json' };
+import heterogenes from './jeux/contexte-heterogenes.json' with { type: 'json' };
 
 /** Hôtes fictifs — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_API_CONTEXTE = 'https://api.contexte.invalid';
@@ -47,10 +48,26 @@ export const ETABLISSEMENTS: Row[] = etablissements;
  */
 export const BUDGETS: Row[] = budgets;
 
+/**
+ * Le jeu aux lignes HÉTÉROGÈNES (#841) : 250 lignes, une seule porte la
+ * colonne `zone`, et c'est la DERNIÈRE.
+ *
+ * `_fieldMissingOn` jugeait l'absence d'un champ sur les 200 PREMIÈRES lignes
+ * reçues, et écartait alors silencieusement le filtre qui le vise. Les
+ * adaptateurs Opendatasoft, Grist et Tabular rendent d'ordinaire toutes les
+ * colonnes du schéma (`null` compris) — mais rien ne l'impose : un back-office
+ * qui ne renvoie que les champs renseignés, un JSON générique, des lignes
+ * inline, et l'heuristique tranche selon la taille de la page. Les 250 lignes
+ * sont les 25 établissements répétés dix fois (`id` suffixé par le tour), et
+ * seule la 250ᵉ porte `zone: "sud"`.
+ */
+export const ETABLISSEMENTS_HETEROGENES: Row[] = heterogenes;
+
 /** Les jeux du lot, sous le nom que le manifeste leur donne. */
 export const JEUX_CONTEXTE = {
   etablissements: ETABLISSEMENTS,
   budgets: BUDGETS,
+  heterogenes: ETABLISSEMENTS_HETEROGENES,
 } as const;
 
 /** URL du jeu servi en tableau nu (API générique). */

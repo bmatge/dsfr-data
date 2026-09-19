@@ -240,6 +240,19 @@ export class DsfrDataContext extends LitElement {
    * pas. Tant que la source n'a rien emis, on ne sait rien non plus : le
    * filtre est diffuse et l'API repondra — un retour franc plutot qu'une
    * attente qui pourrait figer la page.
+   *
+   * COUT ET LIGNES HETEROGENES (#841). La reponse ne depend du nombre de
+   * lignes que dans UN cas : des lignes qui ne portent pas les memes cles.
+   * Les adaptateurs Opendatasoft, Grist et Tabular rendent toutes les
+   * colonnes du schema, `null` compris — une seule ligne decide, et la
+   * boucle s'arrete a la premiere. Seuls le JSON generique et les donnees
+   * inline peuvent etre heterogenes ; l'heuristique jugeait alors sur les
+   * 200 PREMIERES lignes, et un champ apparu a la 250e faisait
+   * SILENCIEUSEMENT ecarter le filtre. On parcourt donc tout : le balayage
+   * complet n'a lieu que lorsque le champ est vraiment absent (la boucle
+   * sort au premier porteur), c'est-a-dire dans le cas ou l'on s'apprete a
+   * NE PAS emettre de requete — un test de presence de cle par ligne, contre
+   * un aller-retour reseau economise.
    */
   private _fieldMissingOn(sourceId: string, field: string): boolean {
     if (!field) return false;
@@ -255,7 +268,7 @@ export class DsfrDataContext extends LitElement {
     const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
     if (rows.length === 0) return false;
     const root = field.split('.')[0];
-    for (const row of rows.slice(0, 200)) {
+    for (const row of rows) {
       if (row && typeof row === 'object' && root in row) return false;
     }
     return true;

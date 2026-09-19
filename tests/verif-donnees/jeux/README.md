@@ -30,6 +30,7 @@ est lu par au moins un contrôle et que chaque `feed.datasets` déterministe vie
 |---|---|---|
 | `contexte-etablissements.json` | 25 | `date` couvre mars 2025 → octobre 2026 avec les voisinages qui font échouer une borne fausse (15 et 16 mars 2026 ; 24 et 25 mai, J-7 d'une horloge posée au 1er juin ; 31 mai et 1er juin, bascule de mois en jour civil LOCAL). `region` et `categorie` ont des effectifs tous différents (8/7/6/4 et 10/8/7) : un tri par compteur n'a qu'un ordre juste. `libelle` porte des accents (« École », « Sète », « Béziers »). `effectif` sert de `weight-field`. |
 | `contexte-budgets.json` | 4 | Pas de colonne `categorie` (#805) : la source cible dont un filtre de contexte doit s'exclure — et le dire — plutôt que partir chercher un HTTP 400. |
+| `contexte-heterogenes.json` | 250 | Le REVERS du précédent (#841) : les 25 établissements répétés dix fois (`id` suffixé par le tour), et une SEULE ligne — la 250ᵉ — qui porte la colonne `zone`. L'heuristique d'absence jugeait sur les 200 premières lignes reçues : au-delà, elle écartait le filtre sans un mot. Il faut donc plus de 200 lignes, et le porteur à la fin. |
 
 ## Domaine `adaptateurs`
 
