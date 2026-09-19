@@ -11,6 +11,7 @@ import type { SourceElement } from '../utils/source-element.js';
 import { ContextBindingMixin } from '../utils/context-binding.js';
 import type { ContextHost } from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
+import { countNoun } from '../utils/count-label.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
 
@@ -711,13 +712,13 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     return false;
   }
 
-  /** Nom compté, accordé au nombre (`count-label`, sinon « résultat »). */
+  /**
+   * Nom compté, accordé au nombre (`count-label`, sinon « résultat »).
+   * Grammaire partagée avec `display` et `list` depuis #925 : une seule
+   * implémentation, `utils/count-label.ts`.
+   */
   private _countNoun(n: number): string {
-    const [singular, plural] = (this.countLabel.trim() || 'résultat')
-      .split('|')
-      .map((form) => form.trim());
-    if (n === 1) return singular;
-    return plural || `${singular}s`;
+    return countNoun(this.countLabel, n);
   }
   render() {
     if (this._configError) {

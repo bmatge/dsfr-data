@@ -17,6 +17,7 @@ import {
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
 import { getDataMeta } from '../utils/data-bridge.js';
+import { formatCountWithLabel } from '../utils/count-label.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 import {
   parseScale,
@@ -123,6 +124,31 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   /** Message quand aucune donnee */
   @property({ type: String })
   empty = 'Aucun resultat';
+
+  /**
+   * Nom compté par le compteur rendu au-dessus de la grille, à la place de
+   * « resultat » : `count-label="établissement"` affiche
+   * « 12 345 établissements » (#925, AM-077 — même grammaire que
+   * `dsfr-data-search`, #779).
+   *
+   * Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou
+   * un mot invariable, donner les deux formes séparées par une **barre
+   * verticale** : `count-label="cheval|chevaux"`, `count-label="prix|prix"`.
+   * La virgule ne sépare PAS les deux formes.
+   *
+   * Poser l'attribut fait aussi passer le nombre par le formateur fr-FR
+   * (séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le
+   * compteur est rendu exactement comme avant — le corriger par défaut
+   * changerait le texte de toutes les pages existantes, et reste à trancher
+   * (#925, point résiduel).
+   *
+   * Cet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est
+   * une liste de résultats, et sa région annoncée fait partie de son contrat
+   * (ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —
+   * une fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.
+   */
+  @property({ type: String, attribute: 'count-label' })
+  countLabel = '';
 
   /** Classe CSS de gap pour la grille (défaut: fr-grid-row--gutters) */
   @property({ type: String })
@@ -620,7 +646,11 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
                         aria-atomic="true"
                         role="status"
                       >
-                        ${totalItems} resultat${totalItems > 1 ? 's' : ''}
+                        ${
+                          this.countLabel.trim()
+                            ? formatCountWithLabel(this.countLabel, totalItems)
+                            : `${totalItems} resultat${totalItems > 1 ? 's' : ''}`
+                        }
                       </p>
                       ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
                     `
