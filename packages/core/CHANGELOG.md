@@ -1,5 +1,153 @@
 # dsfr-data
 
+## 0.35.0
+
+### Minor Changes
+
+- [#977](https://github.com/bmatge/dsfr-data/pull/977) [`f99ea1b`](https://github.com/bmatge/dsfr-data/commit/f99ea1bdc31d8da5011d1dbbc07bad890a6b555a) Thanks [@bmatge](https://github.com/bmatge)! - `neq` : une valeur ABSENTE ne satisfait ni `=` ni `!=` — des comptes vont BAISSER
+  
+  **Si un compte de votre page a baissé sans que son balisage ait bougé, c'est ici.** Un filtre
+  `champ:neq:valeur` (ou un `!=` de `compute`) ne retient plus les lignes dont le champ est nul.
+  Sur le jeu qui a servi à mesurer — `retours-formulaire-votre-avis-copie` de
+  data.education.gouv.fr, champ `themes_attendus`, **176 lignes dont 21 nulles** — un
+  `where="themes_attendus:neq:Elèves"` évalué dans le navigateur affichait **52**, il affiche
+  désormais **31**. Vingt et une lignes en moins, et c'est voulu : **31 est ce que le portail
+  répond depuis toujours à la même clause.** Pour retrouver les lignes perdues, les nommer :
+  `champ:isnull`.
+  
+  La proportion dépend entièrement du taux de valeurs absentes du champ filtré : 21 sur 176 ici,
+  davantage sur un jeu plus lacunaire. Pendant cette mineure, un **avertissement de transition**
+  le dit en console, nomme le champ et **compte** les lignes concernées — un message par champ,
+  jamais par ligne (mesuré sur le jeu ci-dessus : **un seul message**, « 21 ligne(s) »).
+  
+  ## Ce qui a été mesuré
+  
+  Opendatasoft applique la **logique SQL à trois valeurs** : sur une ligne dont le champ est nul,
+  `=` comme `!=` valent « inconnu », et l'inconnu ne retient pas la ligne (2026-09-20) :
+  
+  ```
+  data.education.gouv.fr, retours-formulaire-votre-avis-copie, champ themes_attendus
+    176 lignes, dont 21 nulles et 155 renseignées
+    where=themes_attendus is null      ->  21
+    where=themes_attendus = "Elèves"   -> 124
+    where=themes_attendus != "Elèves"  ->  31   = 155 - 124, les nulles EXCLUES
+                                                et non 52 = 176 - 124
+    where=themes_attendus != "zzz"     -> 155   (et non 176)
+  ```
+  
+  `eq` excluait déjà les nulles côté client ; `neq`, écrit `!looseEquals(…)`, les gardait. Le même
+  `champ:neq:valeur` rendait donc **31 lignes s'il partait au serveur et 52 s'il était évalué au
+  client** — et ce qui en décidait n'était pas la balise qui porte le `where`, mais le mode de la
+  source, un transformateur amont ou le partage de la chaîne. C'est la dernière divergence connue
+  entre les deux chemins, et c'est la suite directe de [#953](https://github.com/bmatge/dsfr-data/issues/953), sur l'autre moitié de l'opérateur.
+  
+  Vérifié au navigateur sur le jeu réel, le même `where` deux fois (délégué / client) :
+  
+  | | délégué au portail | évalué au client |
+  |---|---|---|
+  | avant | 31 | **52** |
+  | après | 31 | **31** |
+  
+  ## Ce qui ne change PAS, et pourquoi ce n'est pas une inconséquence
+  
+  `notin` et `notcontains` continuent de garder les valeurs absentes. **Le serveur a deux écritures
+  de la négation, et elles n'ont pas le même sens** — mesuré le même jour, même jeu :
+  
+  ```
+  themes_attendus != "Elèves"          ->  31   trois valeurs, nulles EXCLUES
+  NOT themes_attendus = "Elèves"       ->  52   complément de la clause, nulles GARDÉES
+  not(themes_attendus = "Elèves")      ->  52
+  NOT themes_attendus in ("Elèves")    ->  52
+  NOT themes_attendus like "%Elèves%"  ->  52
+  themes_attendus not in (…)                  ODSQL syntax exception
+  themes_attendus not like "%…%"              ODSQL syntax exception
+  ```
+  
+  ODSQL n'ayant pas d'infixe `not in` / `not like`, `notin` et `notcontains` ne peuvent se déléguer
+  qu'en `NOT …`, qui garde les nulles. Le client les gardait déjà : il est donc **déjà aligné**, et
+  les « corriger par symétrie » aurait rouvert la divergence que cette version ferme. Seul `!=`
+  est à trois valeurs, et c'est écrit dans le JSDoc de `where` comme en tête de `filterToOdsql`.
+  
+  ## Périmètre exact
+  
+  - `where="champ:neq:v"` de `dsfr-data-query`, de `dsfr-data-source` et du filtre entre accolades
+    du KPI (`looseNotEquals`, une seule fonction pour les trois chemins) ;
+  - `when champ != 'v'` de `compute` — l'en-tête de `compute.ts` promet depuis [#671](https://github.com/bmatge/dsfr-data/issues/671) que
+    `when f != 'x'` et `where="f:neq:x"` gardent les mêmes lignes, et c'est la raison de l'inclure ;
+  - inchangés : `eq`, `in`, `contains`, `notin`, `notcontains`, `isnull` / `isnotnull`, les
+    comparaisons d'ordre (qui excluaient déjà les absents), et la **chaîne vide**, qui reste une
+    valeur et passe toujours un `neq`.
+  
+  Un contrôle de l'oracle tient les deux chemins sur le canari (`canari-neq-nuls-exclus` et sa
+  variante déléguée) : `eq` 7 + `neq` 27 = 34 lignes renseignées sur 40, `notin` 33, `isnull` 6, le
+  même 27 délégué et client, et les trois voix (bibliothèque, oracle TS, oracle Python) d'accord.
+  Éprouvé en échec : sans le correctif, la variante client affiche 33 contre 27 aux deux oracles —
+  exactement les six lignes sans région — pendant que la variante déléguée reste à 27.
+  
+  Closes [#958](https://github.com/bmatge/dsfr-data/issues/958).
+
+### Patch Changes
+
+- [#972](https://github.com/bmatge/dsfr-data/pull/972) [`84aa32e`](https://github.com/bmatge/dsfr-data/commit/84aa32e90811eaebc64b2e366bb64c7235134976) Thanks [@bmatge](https://github.com/bmatge)! - Les deux jeux de palettes vivent désormais dans deux fichiers, et l'un d'eux gagne
+  un garde-fou. `packages/shared/src/constants/dsfr-palettes.ts` exportait
+  `PALETTE_COLORS` (5 tons, les graphiques) et `CHOROPLETH_SCALES` (9 pas, les cartes
+  et le podium) avec **les mêmes noms de clés** — `sequentialDescending` y désignait
+  deux rampes Bleu France différentes, toutes deux plausibles. Un
+  `grep sequentialDescending` répondait, la réponse était cohérente, et elle était
+  fausse : trois tableaux de contraste erronés en une journée sur la pastille de rang
+  du podium. Le fichier est scindé en `constants/palette-colors.ts` et
+  `constants/choropleth-scales.ts` : le chemin d'import dit maintenant laquelle on
+  lit. **Aucun ré-export depuis l'ancien chemin** — il recréerait exactement
+  l'ambiguïté qu'on supprime.
+  
+  Rien ne bouge pour qui écrit du HTML : les noms de clés sont les valeurs de
+  l'attribut public `selected-palette` et ils sont inchangés, la surface d'export de
+  `@dsfr-data/shared` est identique (140 exports sur `lib`, 265 sur `index`), et les
+  bundles construits sont octet pour octet les mêmes à deux lignes de commentaire de
+  découpage près. `dsfr-data-map-layer`, qui lisait déjà la bonne constante mais
+  n'avait aucun test pour le dire, en a un : `tests/map-layer-rampe-choroplethe.test.ts`
+  fige en clair les couleurs posées sur les polygones pour les cinq palettes et
+  vérifie qu'aucune ne vient de la rampe homonyme à 5 tons.
+
+- [#973](https://github.com/bmatge/dsfr-data/pull/973) [`391f8d2`](https://github.com/bmatge/dsfr-data/commit/391f8d2dd3655f3b221be0b4517bad7de20e6d8c) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-chart` : les pastilles de l'infobulle suivent `color-map` ([#968](https://github.com/bmatge/dsfr-data/issues/968)).
+  
+  `color-map` recolorait les barres et la légende, mais pas les pastilles de
+  l'infobulle, restées à la palette `categorical` par défaut. Comme l'infobulle
+  de DSFR Chart **ne nomme pas les séries**, la couleur est le seul lien entre
+  une ligne et la série qu'elle décrit : une pastille fausse appariait la
+  mauvaise valeur à la mauvaise série. Contrairement à [#813](https://github.com/bmatge/dsfr-data/issues/813) / [#815](https://github.com/bmatge/dsfr-data/issues/815) (la légende),
+  le défaut ne demandait pas `databox` : il se produisait sur un graphique nu.
+  
+  Cause commune des trois surfaces : DSFR Chart tient une seule source de vérité
+  pour les couleurs de série, `colorParse`, dont dérivent le canvas, la légende
+  et l'infobulle. `color-map` n'écrivait que sur les datasets de l'instance
+  Chart.js — une copie — et la légende avait été rattrapée en peignant son DOM
+  ([#815](https://github.com/bmatge/dsfr-data/issues/815)). La correction reporte désormais les couleurs dans `colorParse`
+  lui-même, en respectant sa forme (un tableau par point pour `bar` et `pie`, un
+  scalaire pour `line`, `radar` et `scatter`, `colorBarParse` pour `bar-line`).
+  
+  Reste vrai : `color-map` s'applique après le rendu, l'infobulle est peinte par
+  DSFR Chart et son gabarit ne nomme toujours pas les séries ; `color-map` reste
+  sans effet sur les types carte (`selected-palette`). Si le modèle interne
+  devenait inatteignable, un avertissement console le dit désormais au lieu
+  d'une infobulle silencieusement fausse.
+
+- [#975](https://github.com/bmatge/dsfr-data/pull/975) [`a40e51f`](https://github.com/bmatge/dsfr-data/commit/a40e51f9800756aebcf6191cac157bc163b8d575) Thanks [@bmatge](https://github.com/bmatge)! - La visite guidee du playground visait `#example-select`, qui vient de passer
+  dans le volet lateral des exemples — un panneau ferme, `inert` et hors ecran
+  au chargement. La premiere etape montrait donc un element invisible.
+  
+  Elle vise desormais la bascule du volet et decrit ce qu'il apporte : les trois
+  axes croises (source des donnees, pipeline de transformation, sortie affichee).
+  Le decompte en dur (« plus de 30 exemples ») disparait au profit du compteur
+  que le bouton affiche en direct : il ne peut plus se perimer.
+  
+  Une seconde etape ne montrait rien non plus, depuis plus longtemps : « Editeur
+  de code » visait `#code-editor`, le textarea que CodeMirror masque pour rendre
+  le sien a cote — donc un element de taille nulle. Elle vise `.CodeMirror`.
+  
+  `version` du tour passe a 2, ce que ce champ prevoit exactement — une visite
+  deja vue est reproposee quand son contenu a change.
+
 ## 0.34.0
 
 ### Minor Changes
