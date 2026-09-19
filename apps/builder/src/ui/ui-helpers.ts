@@ -15,6 +15,8 @@ import {
   PALETTE_COLORS,
   isValidDeptCode,
   normalizeDeptCode,
+  CLE_ETAT_BUILDER,
+  CLE_CODE_CONFIE,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
 import { getLastGeneratedCode } from './code-generator.js';
@@ -75,9 +77,13 @@ export function openInPlayground(): void {
     return;
   }
 
-  // Store builder state so we can restore it on round-trip back
+  // Store builder state so we can restore it on round-trip back.
+  // `CLE_CODE_CONFIE` garde le code exact qui part avec cet instantané : au
+  // retour, il dit si l'utilisateur a modifié quoi que ce soit entre-temps, et
+  // donc s'il faut l'avertir avant de tout écraser (#965).
   try {
-    sessionStorage.setItem('builder-state', JSON.stringify(getBuilderStateToSave()));
+    sessionStorage.setItem(CLE_ETAT_BUILDER, JSON.stringify(getBuilderStateToSave()));
+    sessionStorage.setItem(CLE_CODE_CONFIE, code);
   } catch {
     // QuotaExceededError — proceed without state backup
   }
@@ -102,7 +108,8 @@ export function openInPipeline(): void {
     return;
   }
   try {
-    sessionStorage.setItem('builder-state', JSON.stringify(getBuilderStateToSave()));
+    sessionStorage.setItem(CLE_ETAT_BUILDER, JSON.stringify(getBuilderStateToSave()));
+    sessionStorage.setItem(CLE_CODE_CONFIE, code);
   } catch {
     // QuotaExceededError — proceed without state backup
   }

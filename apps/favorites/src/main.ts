@@ -7,7 +7,6 @@ import {
   formatDateShort,
   closeModal,
   setupModalOverlayClose,
-  toastInfo,
   toastSuccess,
   toastError,
   exportPreviewImage,
@@ -21,11 +20,13 @@ import {
   initAuth,
   getApiAdapter,
   confirmDialog,
+  CLE_ETAT_BUILDER,
 } from '@dsfr-data/shared';
 import { loadFavorites, saveFavorites, deleteFavorite, findFavorite } from './favorites-manager.js';
 import type { Favorite } from './favorites-manager.js';
 import { getPreviewHTML } from './preview.js';
 import { openShareModal } from './share-link.js';
+import { ouvertureDepuisFavori } from './ouverture-builder.js';
 
 // State (re-loaded after initAuth in DOMContentLoaded)
 let favorites = loadFavorites();
@@ -309,19 +310,27 @@ function openInPlayground(id: string): void {
   }
 }
 
-function openInBuilder(id: string): void {
+async function openInBuilder(id: string): Promise<void> {
   const fav = findFavorite(favorites, id);
-  if (fav) {
-    const builderState = fav.builderStateJson ?? fav.builderState;
-    if (builderState) {
-      sessionStorage.setItem('builder-state', JSON.stringify(builderState));
-      navigateTo('builder', { from: 'favorites' });
-    } else {
-      toastInfo('Ce favori a ete cree avant la mise a jour. Il sera ouvert dans le Playground.');
-      sessionStorage.setItem('playground-code', fav.code);
-      navigateTo('playground', { from: 'favorites' });
-    }
+  if (!fav) return;
+  const ouverture = ouvertureDepuisFavori(fav);
+  if (ouverture.cible === 'builder') {
+    sessionStorage.setItem(CLE_ETAT_BUILDER, JSON.stringify(ouverture.etat));
+    navigateTo('builder', { from: 'favorites' });
+    return;
   }
+  // Le motif est nommé : l'origine du favori, ou l'absence de configuration —
+  // jamais son âge, qui n'a jamais été la raison (#965). Et il est dit dans une
+  // boîte, pas dans un toast : le toast partait avec la navigation qui le
+  // suivait dans la foulée, donc personne ne l'a jamais lu.
+  const ouvrir = await confirmDialog(ouverture.message, {
+    title: 'Ce favori ne se rouvre pas dans le Builder',
+    confirmLabel: 'Ouvrir dans le Playground',
+    cancelLabel: 'Rester sur les favoris',
+  });
+  if (!ouvrir) return;
+  sessionStorage.setItem('playground-code', fav.code);
+  navigateTo('playground', { from: 'favorites' });
 }
 
 function copyCode(id: string): void {
@@ -447,7 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (selectedId) copyCode(selectedId);
   });
   document.getElementById('fav-panel-builder-btn')?.addEventListener('click', () => {
-    if (selectedId) openInBuilder(selectedId);
+    if (selectedId) void openInBuilder(selectedId);
   });
   document.getElementById('fav-panel-playground-btn')?.addEventListener('click', () => {
     if (selectedId) openInPlayground(selectedId);

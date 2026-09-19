@@ -388,17 +388,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   initFilterBuilder();
   initSmartGuards();
 
-  // Load a favorite if coming from the favorites page
-  loadFavoriteState();
-
-  // La restauration d'un favori remplit #query-filter et l'état : resynchroniser
-  // le builder visuel et les indicateurs (léger différé : loadFavoriteState
-  // peuple certains champs dans un setTimeout).
-  setTimeout(() => {
-    refreshFilterBuilder();
-    updateCardinalityGuard();
-    updateDirtyStatus();
-  }, 250);
+  // Load a favorite if coming from the favorites page.
+  // Asynchrone depuis #965 : un retour du Playground avec un code modifié pose
+  // d'abord la question avant d'écraser — la resynchronisation attend donc la
+  // réponse, sinon elle mesurerait un état encore vide.
+  void loadFavoriteState().finally(() => {
+    // La restauration d'un favori remplit #query-filter et l'état : resynchroniser
+    // le builder visuel et les indicateurs (léger différé : loadFavoriteState
+    // peuple certains champs dans un setTimeout).
+    setTimeout(() => {
+      refreshFilterBuilder();
+      updateCardinalityGuard();
+      updateDirtyStatus();
+    }, 250);
+  });
 
   // Initialize help tooltips
   initHelpTooltips();
