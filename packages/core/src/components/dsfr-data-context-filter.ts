@@ -4,6 +4,7 @@ import { escapeColonValue } from '../utils/where.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
+import { warnStaleSiblingFilter } from '../utils/context-url-conflicts.js';
 
 /** YYYY-MM-DD en UTC (#230) */
 function isoDate(d: Date): string {
@@ -441,11 +442,20 @@ export class DsfrDataContextFilter extends LitElement {
     // par l'UI puis par le MÊME chemin d'émission qu'un clic utilisateur —
     // jamais injectées directement dans un where
     const urlValues = this._context._urlValuesFor(this.field);
+    const before = this._currentValues();
+    let origin: 'URL' | 'default' | null = null;
     if (urlValues) {
       this._prefillUi(urlValues);
+      origin = 'URL';
     } else if (this.defaultValue) {
       // Valeur initiale (#682) : APRES l'URL, qui gagne — meme chemin
       this._prefillUi(this._resolvedDefault());
+      origin = 'default';
+    }
+    if (origin) {
+      const after = this._currentValues();
+      const changed = this._uiEls.filter((_, i) => before[i] !== after[i]);
+      if (changed.length > 0) this._warnStaleSiblings(changed, origin);
     }
 
     // Une UI déjà remplie au montage applique son filtre immédiatement
@@ -467,6 +477,32 @@ export class DsfrDataContextFilter extends LitElement {
       const inputType = el instanceof HTMLInputElement ? el.type : '';
       return fitDefaultToInput(resolveDefaultKeyword(v.trim()), inputType, this.operator);
     });
+  }
+
+  /**
+   * Cherche les filtres DÉJÀ liés aux contrôles que ce pré-remplissage vient
+   * de changer (#923) : ceux-là ont lu la valeur d'avant et ne la reliront
+   * jamais. Le message vit dans `utils/context-url-conflicts.ts`, avec sa
+   * déduplication.
+   *
+   * N'avertit que si le pré-remplissage a RÉELLEMENT changé la valeur du
+   * contrôle : deux filtres qui lisent la même valeur ne se contredisent
+   * pas, et un message de plus serait un message de trop.
+   */
+  private _warnStaleSiblings(changed: HTMLElement[], origin: 'URL' | 'default'): void {
+    for (const el of document.querySelectorAll('dsfr-data-context-filter')) {
+      if (el === this || !(el instanceof DsfrDataContextFilter)) continue;
+      for (const control of changed) {
+        if (!el._uiEls.includes(control)) continue;
+        warnStaleSiblingFilter({
+          field: this.field,
+          controlId: control.id,
+          otherField: el.field,
+          otherContextId: el._context?.id ?? '',
+          origin,
+        });
+      }
+    }
   }
 
   /** Écrit des valeurs (issues de l'URL ou de `default`) dans les contrôles d'UI liés */

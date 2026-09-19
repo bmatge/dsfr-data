@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — deux contextes sur un select, non synchronisé d'abord (#923)</title>
+  <!--
+    Jumelle de contextes-ordre-sync-dabord.html : les deux pages sont
+    IDENTIQUES à l'ordre de déclaration des deux contextes près.
+
+    Ce que seul un vrai navigateur prouve (#923) : l'ordre des callbacks de
+    cycle de vie, donc le moment où chaque filtre lit le `<select>` partagé.
+    Ici le contexte NON synchronisé est déclaré en premier : son filtre lit
+    « Normandie » (l'option sélectionnée par défaut) avant que l'URL
+    (« Bretagne ») ne soit écrite dans le contrôle, et ne la relit jamais.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Deux contextes, un seul sélecteur — non synchronisé déclaré en premier</h1>
+
+    <label for="sel-reg">Région</label>
+    <select id="sel-reg">
+      <option value="Normandie">Normandie</option>
+      <option value="Bretagne">Bretagne</option>
+    </select>
+
+    <dsfr-data-source id="src-a" data='[
+      {"reg_nom":"Bretagne","n":19138},{"reg_nom":"Normandie","n":16745}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="src-b" data='[
+      {"nom_region":"Bretagne","n":1207},{"nom_region":"Normandie","n":2651}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-context id="ctx-plain" sources="src-b">
+      <dsfr-data-context-filter field="nom_region" operator="eq" ui="sel-reg"></dsfr-data-context-filter>
+    </dsfr-data-context>
+    <dsfr-data-context id="ctx-sync" sources="src-a" url-sync>
+      <dsfr-data-context-filter field="reg_nom" operator="eq" ui="sel-reg"></dsfr-data-context-filter>
+    </dsfr-data-context>
+
+    <dsfr-data-kpi id="kpi-a" source="src-a" value="n:sum" label="A"></dsfr-data-kpi>
+    <dsfr-data-kpi id="kpi-b" source="src-b" value="n:sum" label="B"></dsfr-data-kpi>
+  </main>
+</body>
+</html>

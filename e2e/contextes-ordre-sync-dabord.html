@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — deux contextes sur un select, synchronise d'abord (#923)</title>
+  <!--
+    Jumelle de contextes-ordre-plain-dabord.html : les deux pages sont
+    IDENTIQUES a l'ordre de declaration des deux contextes pres.
+
+    Ici le contexte a `url-sync` est declare EN PREMIER : son filtre
+    pre-remplit le `<select>` depuis l'URL avant que l'autre filtre ne s'y
+    lie, donc les deux lisent « Bretagne ». C'est l'ordre sain — aucun
+    avertissement ne doit sortir.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Deux contextes, un seul selecteur — synchronise declare en premier</h1>
+
+    <label for="sel-reg">Region</label>
+    <select id="sel-reg">
+      <option value="Normandie">Normandie</option>
+      <option value="Bretagne">Bretagne</option>
+    </select>
+
+    <dsfr-data-source id="src-a" data='[
+      {"reg_nom":"Bretagne","n":19138},{"reg_nom":"Normandie","n":16745}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="src-b" data='[
+      {"nom_region":"Bretagne","n":1207},{"nom_region":"Normandie","n":2651}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-context id="ctx-sync" sources="src-a" url-sync>
+      <dsfr-data-context-filter field="reg_nom" operator="eq" ui="sel-reg"></dsfr-data-context-filter>
+    </dsfr-data-context>
+    <dsfr-data-context id="ctx-plain" sources="src-b">
+      <dsfr-data-context-filter field="nom_region" operator="eq" ui="sel-reg"></dsfr-data-context-filter>
+    </dsfr-data-context>
+
+    <dsfr-data-kpi id="kpi-a" source="src-a" value="n:sum" label="A"></dsfr-data-kpi>
+    <dsfr-data-kpi id="kpi-b" source="src-b" value="n:sum" label="B"></dsfr-data-kpi>
+  </main>
+</body>
+</html>
