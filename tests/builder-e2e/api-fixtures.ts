@@ -312,7 +312,14 @@ function analyserOdsql(where: string): PredicatOdsql {
     if (where[i] === '"' || where[i] === "'") {
       const attendue = chaine();
       return (ligne) => {
-        const gauche = String(ligne[champ] ?? '');
+        // Logique SQL a TROIS valeurs (#958) : une valeur ABSENTE ne satisfait
+        // NI `=` NI `!=`. Mesure du 2026-09-20 sur data.education.gouv.fr,
+        // `themes_attendus` (176 lignes dont 21 nulles) : `= "Eleves"` -> 124,
+        // `!= "Eleves"` -> 31 (= 155 renseignees - 124), et non 52. La fixture
+        // rendait 52 : elle aurait fait passer pour juste un client divergent.
+        const brut = ligne[champ];
+        if (brut === null || brut === undefined) return false;
+        const gauche = String(brut);
         return operateur === '!=' ? gauche !== attendue : gauche === attendue;
       };
     }
@@ -322,7 +329,10 @@ function analyserOdsql(where: string): PredicatOdsql {
     if (i === debut) throw refus(where, i, 'litteral chaine ou numerique attendu');
     const droite = Number(where.slice(debut, i));
     return (ligne) => {
-      const valeur = nombre(ligne[champ]);
+      const brut = ligne[champ];
+      // Absent : ni `=` ni `!=` (#958), comme ci-dessus.
+      if (brut === null || brut === undefined) return false;
+      const valeur = nombre(brut);
       switch (operateur) {
         case '=':
           return valeur === droite;

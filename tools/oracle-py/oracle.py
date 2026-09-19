@@ -274,7 +274,14 @@ def passe_filtre(row: Row, f: dict[str, Any]) -> bool:
         # '01' non ; un absent n'égale rien. Aucune lecture numérique.
         return not absent(v) and str_js(v) == str_js(f["value"])
     if op == "neq":
-        return not egal(v, f["value"])
+        # Logique SQL à TROIS VALEURS (#958) : une valeur ABSENTE ne satisfait
+        # NI `eq` NI `neq`. Mesuré le 2026-09-20 sur data.education.gouv.fr,
+        # champ `themes_attendus` (176 lignes, 21 nulles) : `= "Elèves"` -> 124,
+        # `!= "Elèves"` -> 31 (= 155 − 124), et non 52. La chaîne VIDE reste
+        # une valeur, d'où le test strict et non `absent()`.
+        # `notin` garde les absents : il se délègue en `NOT … in (…)`, une
+        # négation booléenne que le portail rend à 52.
+        return v is not None and not egal(v, f["value"])
     if op in ("contains", "notcontains"):
         if fold:
             trouve = replier(f["value"]) in replier(v)

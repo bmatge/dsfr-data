@@ -951,6 +951,37 @@ Pendant une version mineure, un **avertissement de transition** nomme en console
 valeur des lignes qui se mettent a compter. Il est deduplique par couple champ/valeur : un jeu ou
 des milliers de lignes basculent produit un message, pas des milliers.
 
+#### Une valeur ABSENTE ne satisfait ni `=` ni `!=`
+
+Suite du meme alignement, sur l'autre moitie de l'operateur. Opendatasoft applique la **logique SQL
+a trois valeurs** : sur une ligne dont le champ est nul, `=` comme `!=` valent « inconnu », et
+l'inconnu ne retient pas la ligne. Le client excluait deja les nulles sur `eq` ; il les GARDAIT sur
+`neq`. Mesure du 2026-09-20, meme jeu :
+
+```
+data.education.gouv.fr, retours-formulaire-votre-avis-copie, champ themes_attendus
+  176 lignes, dont 21 nulles et 155 renseignees
+  where=themes_attendus = "Elèves"   -> 124
+  where=themes_attendus != "Elèves"  ->  31   = 155 - 124, les nulles EXCLUES
+                                              et non 52 = 176 - 124
+  where=themes_attendus != "zzz"     -> 155   (et non 176)
+```
+
+Le meme `where="themes_attendus:neq:Elèves"` rendait donc **31 lignes s'il partait au serveur et 52
+s'il etait evalue dans le navigateur** — et ce qui en decidait n'etait pas la balise, mais le mode
+de la source. Depuis la 0.35, les deux chemins rendent 31 (verifie au navigateur sur ce jeu).
+
+**Ce que ca change pour une page** : un compte peut BAISSER sans que le balisage ait bouge, d'autant
+plus que le champ filtre est lacunaire. Les lignes absentes ne sont plus d'aucun cote : c'est
+`champ:isnull` / `champ:isnotnull` qui les nomment, et `eq` + `neq` ne fait plus le total du jeu
+mais le total des lignes RENSEIGNEES. Un avertissement de transition nomme en console le champ et
+**compte** les lignes qui cessent d'etre retenues (un message par champ, jamais par ligne).
+
+**`notin` et `notcontains` ne changent pas**, et c'est volontaire : ODSQL n'a pas d'infixe
+`not in` / `not like`, ces deux-la se deleguent en `NOT champ in (…)` / `NOT champ like "%…%"`,
+une negation booleenne qui GARDE les nulles (mesure : 52). Le client les gardait deja ; les aligner
+« par symetrie » aurait rouvert la divergence qu'on vient de fermer. Seul `!=` est a trois valeurs.
+
 #### `contains` reste un piege, et `explode` n'est pas un filtre
 
 - **`where="tags:contains:urgent"` n'est toujours pas un equivalent de `eq`.** Cet operateur cherche

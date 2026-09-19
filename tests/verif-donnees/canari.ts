@@ -398,8 +398,9 @@ const CHECKS: Check[] = [
         agg: 'count',
         pipeline: [{ op: 'filter', filters: [{ field: 'tags', op: 'eq', value: 'eau' }] }],
       },
-      // La négation garde les absents (`null`, `[]`) : même règle que le
-      // `neq` de la bibliothèque, et que le `!=` d'ODS hors valeurs nulles.
+      // La négation ne garde PLUS les absents (#958) : `tags: null` sort du
+      // `neq`, comme il sort du `!=` du portail — qui est à trois valeurs.
+      // Le tableau VIDE `[]`, lui, reste : c'est une valeur, pas une absence.
       {
         kind: 'kpi',
         id: 'k-neq-eau',
@@ -537,6 +538,80 @@ const CHECKS: Check[] = [
             ],
           },
         ],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // `neq` et les valeurs absentes : la logique à trois valeurs du portail
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-neq-nuls-exclus',
+    mode: 'deterministic',
+    constats: ['PG-015'],
+    origin:
+      "Canari — #958 : `region` est nulle sur six lignes. Une ligne dont le champ est ABSENT ne satisfait NI `eq` NI `neq` — la logique SQL à trois valeurs qu'applique Opendatasoft, mesurée le 2026-09-20 sur `retours-formulaire-votre-avis-copie` de data.education.gouv.fr (176 lignes dont 21 nulles) : `= \"Elèves\"` → 124, `!= \"Elèves\"` → 31, c'est-à-dire 155 − 124 et non 176 − 124. `eq` les excluait déjà côté client, `neq` les gardait : le même `champ:neq:valeur` rendait donc deux comptes selon qu'il partait au serveur ou non. Ce contrôle exige que `eq` + `neq` = les RENSEIGNÉES, et que les six sans-région ne se retrouvent que par `isnull`. `notin` fait exception et garde les absents : ODSQL n'a pas d'infixe `not in`, il se délègue en `NOT region in (…)`, une négation booléenne que le portail rend à 52 = 176 − 124.",
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${SRC}
+  <dsfr-data-query id="q-eq" source="s-canari" where="region:eq:Nord"></dsfr-data-query>
+  <dsfr-data-query id="q-neq" source="s-canari" where="region:neq:Nord"></dsfr-data-query>
+  <dsfr-data-query id="q-notin" source="s-canari" where="region:notin:Nord"></dsfr-data-query>
+  <dsfr-data-query id="q-nulles" source="s-canari" where="region:isnull"></dsfr-data-query>
+  ${kpi('k-eq', 'q-eq', 'count')}${kpi('k-neq', 'q-neq', 'count')}
+  ${kpi('k-notin', 'q-notin', 'count')}${kpi('k-nulles', 'q-nulles', 'count')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-eq',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'eq', value: 'Nord' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-neq',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'neq', value: 'Nord' }] }],
+      },
+      // `notin` garde les six nulles : 40 − (lignes « Nord »).
+      {
+        kind: 'kpi',
+        id: 'k-notin',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'notin', values: ['Nord'] }] }],
+      },
+      // Et c'est `isnull` qui les nomme — la seule façon de les retrouver.
+      {
+        kind: 'kpi',
+        id: 'k-nulles',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'isnull-strict' }] }],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-neq-nuls-exclus-delegue',
+    mode: 'deterministic',
+    constats: ['PG-015'],
+    origin:
+      "Canari — #958, l'autre moitié : le MÊME `where=\"region:neq:Nord\"`, mais sur une source Opendatasoft, donc traduit en `region != \"Nord\"` et évalué par le serveur. C'est le point de l'issue : ce qui décide du chemin n'est pas la balise mais le mode de la source, et les deux chiffres doivent être égaux. Le contrôle d'URL vérifie que la clause est bien PARTIE (sans quoi il serait vert en mesurant deux fois le client).",
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-ods', DATASET_CANARI, 'max-records="100"')}
+  <dsfr-data-query id="q-neq-ods" source="s-ods" where="region:neq:Nord"></dsfr-data-query>
+  ${kpi('k-neq-ods', 'q-neq-ods', 'count')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-neq-ods',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'neq', value: 'Nord' }] }],
+      },
+      {
+        kind: 'urls',
+        id: 'neq-delegue',
+        among: `/datasets/${DATASET_CANARI}/`,
+        contains: 'region != "Nord"',
+        verdict: 'last',
       },
     ],
   },

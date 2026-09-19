@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { isUnsafeKey, toNumber, looseEquals } from '@dsfr-data/shared/lib';
+import { isUnsafeKey, toNumber, looseEquals, looseNotEquals } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
@@ -247,8 +247,22 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * `'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`
    * ne puissent que GAGNER des correspondances, jamais en perdre. `neq` /
    * `notin` en sont la négation, donc eux en perdent — et le portail fait
-   * pareil (son `!=` est la négation stricte de son `=`, valeurs nulles
-   * exclues des deux côtés).
+   * pareil.
+   *
+   * VALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait
+   * **ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique
+   * Opendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de
+   * `retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :
+   * `= "Elèves"` -> 124, `!= "Elèves"` -> **31** (= 155 renseignées − 124),
+   * et non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même
+   * `champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour
+   * retrouver les lignes absentes, les nommer : `champ:isnull`.
+   *
+   * ⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est
+   * aligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se
+   * délèguent en `NOT champ in (…)` / `NOT champ like "%…%"`, une négation
+   * booléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois
+   * valeurs.
    *
    * ⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il
    * cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y
@@ -1433,7 +1447,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       case 'eq':
         return looseEquals(value, filter.value, filter.field);
       case 'neq':
-        return !looseEquals(value, filter.value, filter.field);
+        // Une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : c'est la
+        // logique a trois valeurs du portail, et `eq` l'appliquait deja.
+        return looseNotEquals(value, filter.value, filter.field);
       case 'gt': {
         const cmp = this._compareForRange(value, filter.value);
         return cmp !== null && cmp > 0;

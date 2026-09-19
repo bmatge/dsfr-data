@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>#958 — `neq` et les valeurs nulles, délégué contre client, sur le vrai portail</title>
+  <!--
+    LA PREUVE AU NAVIGATEUR de #958, sur le jeu mesuré à l'API :
+    data.education.gouv.fr / retours-formulaire-votre-avis-copie /
+    `themes_attendus` — 176 lignes, 21 nulles, 155 renseignées.
+
+      where=themes_attendus = "Elèves"   -> 124
+      where=themes_attendus != "Elèves"  ->  31   (= 155 − 124)
+
+    Deux fois le MÊME `where="themes_attendus:neq:Elèves"` :
+      - `q-serveur` sur une source Opendatasoft : la clause est traduite en
+        `themes_attendus != "Elèves"` et part au portail ;
+      - `q-client` sur une source d'URL générique (l'export JSON) : aucun
+        adaptateur, donc la clause est évaluée dans le navigateur.
+
+    Avant #958 : 31 d'un côté, 52 de l'autre. Après : 31 des deux côtés.
+    Cette page demande le réseau : elle n'est PAS un contrôle de l'oracle.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>#958 — la même clause, deux chemins</h1>
+
+    <!-- 1. DÉLÉGUÉ : adaptateur Opendatasoft, la clause part au portail -->
+    <dsfr-data-source id="s-ods" api-type="opendatasoft"
+      base-url="https://data.education.gouv.fr"
+      dataset-id="retours-formulaire-votre-avis-copie"
+      max-records="5000"></dsfr-data-source>
+    <dsfr-data-query id="q-serveur" source="s-ods"
+      where="themes_attendus:neq:Elèves"></dsfr-data-query>
+    <dsfr-data-kpi id="k-serveur" source="q-serveur" value="count"
+      label="neq délégué"></dsfr-data-kpi>
+
+    <!-- 2. CLIENT : URL générique, les 176 lignes arrivent et le filtre est local -->
+    <dsfr-data-source id="s-url"
+      url="https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/retours-formulaire-votre-avis-copie/exports/json?limit=-1"></dsfr-data-source>
+    <dsfr-data-query id="q-client" source="s-url"
+      where="themes_attendus:neq:Elèves"></dsfr-data-query>
+    <dsfr-data-kpi id="k-client" source="q-client" value="count"
+      label="neq client"></dsfr-data-kpi>
+
+    <!-- Les témoins : le tout, l'égalité, et les nulles nommées -->
+    <dsfr-data-kpi id="k-total" source="s-url" value="count"
+      label="lignes reçues"></dsfr-data-kpi>
+    <dsfr-data-query id="q-eq" source="s-url"
+      where="themes_attendus:eq:Elèves"></dsfr-data-query>
+    <dsfr-data-kpi id="k-eq" source="q-eq" value="count"
+      label="eq client"></dsfr-data-kpi>
+    <dsfr-data-query id="q-null" source="s-url"
+      where="themes_attendus:isnull"></dsfr-data-query>
+    <dsfr-data-kpi id="k-null" source="q-null" value="count"
+      label="nulles"></dsfr-data-kpi>
+  </main>
+</body>
+</html>

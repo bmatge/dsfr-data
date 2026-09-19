@@ -183,10 +183,15 @@ describe('#953 — le client compte désormais ce que compte le portail', () => 
   });
 
   it('`where` neq : négation stricte de eq, nuls exclus — LA ligne qui se perd', () => {
-    // Avant : [1, 2, 5]. La ligne 1 sortait du compte du portail sans sortir
-    // de celui du client. Le serveur mesuré dit 155 − 124 = 31, soit la
-    // négation stricte, nuls exclus des deux côtés.
-    expect(ids(applyLocalFilter(ROWS, 'tags:neq:urgent'))).toEqual([2, 5]);
+    // Avant #953 : [1, 2, 5]. La ligne 1 sortait du compte du portail sans
+    // sortir de celui du client.
+    // Depuis #958, la ligne 5 (tags: null) sort à son tour : le serveur
+    // mesuré dit 155 − 124 = 31, c'est-à-dire la négation stricte de `=`,
+    // nuls exclus des DEUX côtés — ce que ce fichier disait déjà de lui, et
+    // que le client ne faisait pas encore.
+    expect(ids(applyLocalFilter(ROWS, 'tags:neq:urgent'))).toEqual([2]);
+    // `notin`, lui, garde le nul : il se délègue en `NOT tags in (…)`, une
+    // négation booléenne dont le portail rend 52 (= 176 − 124), pas 31.
     expect(ids(applyLocalFilter(ROWS, 'tags:notin:urgent|social'))).toEqual([5]);
   });
 
@@ -215,7 +220,9 @@ describe('#953 — le client compte désormais ce que compte le portail', () => 
       { id: 5, dep: '' },
     ];
     expect(ids(applyLocalFilter(scalaires, 'dep:eq:75'))).toEqual([1, 2]);
-    expect(ids(applyLocalFilter(scalaires, 'dep:neq:75'))).toEqual([3, 4, 5]);
+    // #958 : la ligne 4 (dep: null) sort du `neq`, et elle seule — le nul est
+    // le seul mouvement d'un champ scalaire, la chaîne vide restant une valeur.
+    expect(ids(applyLocalFilter(scalaires, 'dep:neq:75'))).toEqual([3, 5]);
     expect(ids(applyLocalFilter(scalaires, 'dep:in:75|13'))).toEqual([1, 2, 3]);
   });
 });
