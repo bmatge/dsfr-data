@@ -48,9 +48,13 @@ npm run test:coverage # Couverture
 npm run test:e2e      # Playwright E2E
 npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
 npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
-                      # RECETTE MANUELLE du Builder, hors CI et pas verte (#844) : etat mesure
-                      #   par spec dans tests/builder-e2e/README.md. Requiert `npm run dev`.
+                      # TROIS specs bloquantes sur PR (builder-e2e.yml, #869) :
+                      #   export-html-api-recette, builder-ia-recette, layout-diagnostic-recette.
+                      #   Le RESTE du dossier est une recette manuelle, hors CI et pas verte
+                      #   (#868) : etat mesure par spec dans tests/builder-e2e/README.md.
+                      #   Playwright demarre `npm run dev` lui-meme (et reutilise le tien).
                       #   Un spec a la fois : le dossier entier depasse l'heure.
+                      #   Les `*.tool.ts` n'ont aucune assertion : BUILDER_E2E_OUTILS=1 (#867).
 
 # Verification des donnees (ADR-122) — tout chiffre affiche est recalcule par un oracle
 #   independant (`tools/oracle/`), qui n'importe rien de la lib. Doc : tools/oracle/README.md.

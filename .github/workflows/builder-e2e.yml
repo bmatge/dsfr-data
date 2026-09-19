@@ -1,0 +1,77 @@
+name: Builder E2E
+
+# Les TROIS specs déterministes de `tests/builder-e2e`, sur chaque PR (#869).
+#
+# Le reste du dossier n'est PAS câblé ici, et ce n'est pas un oubli : les specs
+# historiques du Builder pilotent l'UI par ses `id` HTML et par des
+# `waitForTimeout` fixes, et 56 de leurs cas sont rouges (#868). Ils restent un
+# outil de recette manuelle. Les fichiers `*.tool.ts` n'ont aucune assertion et
+# sont hors `testMatch` (#867).
+#
+# Ce qui rend ces trois-là bloquants :
+#   - `builder-ia-recette` + `layout-diagnostic-recette` : 43 cas, 16 s, aucune
+#     API tierce (réseau figé par `api-harness.ts`, DSFR Chart depuis
+#     node_modules, lib servie depuis la source par le serveur de dev) ;
+#   - `export-html-api-recette` : 61 cas, 11 s, ni serveur ni réseau (tout par
+#     `page.route()`), vert depuis #866 — mais il lit le bundle construit,
+#     d'où le `npm run build` ci-dessous.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  builder-e2e:
+    name: Recette Builder et export (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # `export-html-api-recette` sert `packages/core/dist` à la place du CDN :
+      # le build de core est nécessaire, et le serveur de dev exige app-ui par
+      # ailleurs (ARCHITECTURE.md §12).
+      #
+      # `npm run build` ne construit QUE le workspace `dsfr-data` : sur un
+      # runner propre, `packages/core` ne trouve alors pas `@dsfr-data/shared/lib`
+      # et `tsc` s'arrête sur une trentaine de TS2307. En local l'erreur ne se
+      # voit pas — `packages/shared/lib` traîne depuis un build antérieur.
+      # `build:shared` d'abord, donc, comme le fait `e2e-layout.yml`.
+      - name: Build
+        run: npm run build:shared && npm run build && npm run build:app-ui
+
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+
+      # Playwright démarre `npm run dev` lui-même (webServer dans
+      # tests/builder-e2e/playwright.config.ts) et attend le port 5173.
+      - name: Specs déterministes
+        run: >-
+          npx playwright test --config tests/builder-e2e/playwright.config.ts
+          tests/builder-e2e/export-html-api-recette.spec.ts
+          tests/builder-e2e/builder-ia-recette.spec.ts
+          tests/builder-e2e/layout-diagnostic-recette.spec.ts
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: builder-e2e-results
+          path: |
+            test-results/
+            tests/builder-e2e/report/
+          if-no-files-found: ignore
+          retention-days: 7

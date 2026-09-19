@@ -1010,30 +1010,34 @@ e2e/                         Playwright (config e2e/playwright.config.ts, serveu
 - Les dependances `lit` et `@lit` sont inlinees par le serveur de test pour eviter les problemes de resolution ESM dans jsdom.
 - La couverture inclut `packages/core/src/**/*.ts` et `packages/shared/src/**/*.ts` (sauf les barrels et `components/layout/**`), seuils 85 / 77 / 82 / 85 (#829).
 
-### 7.1 `tests/builder-e2e/` — outil de recette MANUELLE
+### 7.1 `tests/builder-e2e/` — trois specs bloquantes, le reste en recette MANUELLE
 
-> Ce dossier ne tourne dans aucun workflow. Ce n'est pas un oubli : la suite n'est pas verte.
-> État mesuré par spec, causes, et ce qui pourrait être câblé : `tests/builder-e2e/README.md`
-> (relevé du 2026-09-14, #844). Ne pas s'y fier comme à un garde-fou.
+> **Trois specs seulement tournent en CI** (`builder-e2e.yml`, #869) : `export-html-api-recette`
+> (61 cas, vert depuis #866), `builder-ia-recette` et `layout-diagnostic-recette` (43 cas).
+> 104 cas, 27 s, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
+> dans aucun workflow : 56 cas rouges par dérive de sélecteurs (#868). État mesuré par spec :
+> `tests/builder-e2e/README.md`. Ne pas se fier au dossier entier comme à un garde-fou.
 
-Les garde-fous BLOQUANTS sont ailleurs : `vitest` (unitaires), `e2e-layout.yml` (mise en page
+Les autres garde-fous BLOQUANTS : `vitest` (unitaires), `e2e-layout.yml` (mise en page
 mesurée, §7 ci-dessus), `verif-donnees.yml` (ADR-122).
 
-**Pré-requis** : serveur de dev sur le port 5173 (`npm run dev`), sauf pour
-`export-html-api-recette.spec.ts` qui sert tout par `page.route()` mais demande `npm run build`.
+**Pré-requis** : le serveur de dev (port 5173) est démarré par Playwright lui-même (`webServer`
+dans `tests/builder-e2e/playwright.config.ts`, `reuseExistingServer`) — un `npm run dev` déjà
+lancé est réutilisé. `export-html-api-recette.spec.ts` n'en a pas besoin (tout par
+`page.route()`) mais demande `npm run build`.
 
 ```bash
-npm run dev   # terminal séparé
 npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
 ```
 
 Lancer le dossier entier dépasse l'heure et finit rouge : un spec à la fois.
 
-Deux fichiers y portent l'extension `.spec.ts` sans contenir **aucune assertion** — ce sont des
-outils, pas des tests : `inspect-builder.spec.ts` (imprime la structure du Builder) et
-`builder-exhaustive.spec.ts` (génère `RESULTS.md` et `screenshots/`, tous deux ignorés par git,
-pour 4 sources × 11 types × modes). Ce dernier passe toujours au vert, y compris quand il
-journalise `code=false` : ses 110 cas ne sont pas de la couverture.
+Deux fichiers ne contiennent **aucune assertion** — ce sont des outils, pas des tests :
+`inspect-builder.tool.ts` (imprime la structure du Builder) et `builder-exhaustive.tool.ts`
+(génère `RESULTS.md` et `screenshots/`, tous deux ignorés par git, pour 4 sources × 11 types ×
+modes). Le second passait toujours au vert, y compris quand il journalisait `code=false` : ses
+110 cas n'ont jamais été de la couverture. Depuis #867 ils portent l'extension `.tool.ts` et
+sortent du `testMatch` ; ils se lancent à la demande avec `BUILDER_E2E_OUTILS=1`.
 
 **Exposition du state** : les specs historiques injectent leurs données dans
 `(window as …).__BUILDER_STATE__`, exposé par `apps/builder/src/main.ts` (vérifié en place). Ce

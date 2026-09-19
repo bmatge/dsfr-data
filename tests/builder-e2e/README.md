@@ -1,10 +1,14 @@
-# tests/builder-e2e — OUTIL DE RECETTE MANUELLE
+# tests/builder-e2e — trois specs bloquantes, le reste en recette manuelle
 
-> **Cette suite ne tourne dans AUCUN workflow CI, et ce n'est pas un oubli : elle n'est pas
-> verte.** Elle se lance à la main, avec `npm run dev` à côté, quand on veut inspecter le
-> Builder ou l'Assistant IA dans un vrai navigateur. Les garde-fous qui BLOQUENT une PR sont
-> ailleurs : `vitest` (unitaires), `e2e-layout.yml` (mise en page mesurée),
-> `verif-donnees.yml` (tout chiffre affiché recalculé par un oracle).
+> **Trois specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869) :
+> `export-html-api-recette` (61 cas, vert depuis #866), `builder-ia-recette` et
+> `layout-diagnostic-recette` (43 cas). 104 cas, 27 s, aucune API tierce.
+>
+> **Le reste du dossier ne tourne dans aucun workflow, et ce n'est pas un oubli : il n'est pas
+> vert** (#868). Il se lance à la main quand on veut inspecter le Builder ou l'Assistant IA
+> dans un vrai navigateur. Les autres garde-fous qui BLOQUENT une PR : `vitest` (unitaires),
+> `e2e-layout.yml` (mise en page mesurée), `verif-donnees.yml` (tout chiffre affiché recalculé
+> par un oracle).
 >
 > L'état ci-dessous est **mesuré**, pas déclaré (relevé du 2026-09-14, #844). Les pourcentages
 > de l'ancienne version de ce fichier (« 11/12 passent », « 7/8 passent ») dataient d'avant
@@ -23,17 +27,17 @@ Relevé sur un serveur de dev local, `npx playwright test --config tests/builder
 | `simple-test.spec.ts` | oui | **6 vert / 2 rouge** | Idem (« Bouton générer », « Zone de code généré »). |
 | `aggregation-consistency.spec.ts` | oui | **0 vert / 15 rouge** | Entièrement rouge. Le harnais pilote le Builder par ses `id` HTML ; l'UI a bougé, le harnais non. |
 | `comprehensive-test.spec.ts` | oui | **0 vert / 37 rouge** | Même harnais, mêmes causes. Run très long : chaque cas va au bout de son délai avant d'expirer. |
-| `inspect-builder.spec.ts` | oui | **aucune assertion** | Ce n'est pas un test : c'est un inspecteur qui imprime la structure du Builder. Le lancer `--headed`. |
-| `builder-exhaustive.spec.ts` | oui | **aucune assertion** (110 cas) | Ce n'est pas un test non plus : c'est un **générateur de rapport** (`RESULTS.md` + `screenshots/`, tous deux ignorés par git). Il passe toujours au vert, même quand il journalise `code=false` — autrement dit quand le Builder n'a rien généré. Compter ses 110 « tests » comme de la couverture est une illusion. |
+| `inspect-builder.tool.ts` | oui | **aucune assertion**, hors `testMatch` (#867) | Ce n'est pas un test : c'est un inspecteur qui imprime la structure du Builder. Le lancer `--headed`. |
+| `builder-exhaustive.tool.ts` | oui | **aucune assertion** (110 cas), hors `testMatch` (#867) | Ce n'est pas un test non plus : c'est un **générateur de rapport** (`RESULTS.md` + `screenshots/`, tous deux ignorés par git). Il passe toujours au vert, même quand il journalise `code=false` — autrement dit quand le Builder n'a rien généré. Compter ses 110 « tests » comme de la couverture est une illusion. |
 
 **Pourquoi c'est rouge, en une phrase** : les specs les plus anciens conduisent le Builder par
 ses identifiants HTML et par des `waitForTimeout` fixes ; chaque refonte de l'UI les décale, et
 rien en CI ne le signalait. Les remettre au vert est un travail à part entière — ce n'est pas
 une question de fixtures à rafraîchir.
 
-**Ce qui pourrait être câblé en CI** : `builder-ia-recette` + `layout-diagnostic-recette`
-(43 cas, 16 s, verts et sans réseau) et `export-html-api-recette`, désormais vert (#866).
-Le modèle de workflow existe : `.github/workflows/e2e-layout.yml`.
+**Ce qui est câblé en CI** (#869, sur le modèle d'`e2e-layout.yml`) : `builder-ia-recette` +
+`layout-diagnostic-recette` (43 cas, 16 s, verts et sans réseau) et `export-html-api-recette`
+(61 cas, vert depuis #866). Le reste ne l'est pas, et ne le sera pas avant que #868 soit tranchée.
 
 **Les trois rouges d'`export-html-api-recette`, requalifiés (#866)** : ce n'était ni le faux
 serveur ni le parseur ODSQL strict des fixtures, mais une **attente périmée**. Le document
@@ -61,9 +65,19 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   **`aggregation-consistency.spec.ts`** : les specs historiques du Builder (agrégations, types,
   palettes, tri, filtres). Partiellement à entièrement rouges — voir le tableau ci-dessus.
 
-### Outils (sans assertion)
-- **`inspect-builder.spec.ts`** : imprime la structure du Builder.
-- **`builder-exhaustive.spec.ts`** : génère `RESULTS.md` et `screenshots/` pour 4 sources ×
+### Outils (sans assertion, extension `.tool.ts`, hors `testMatch`)
+
+Ils passent toujours au vert — ils n'assertent rien. Les compter comme de la couverture était
+une illusion (#867) : ils portent donc `.tool.ts` et Playwright ne les ramasse plus. Pour les
+lancer, poser `BUILDER_E2E_OUTILS=1` :
+
+```bash
+BUILDER_E2E_OUTILS=1 npx playwright test \
+  --config tests/builder-e2e/playwright.config.ts builder-exhaustive --headed
+```
+
+- **`inspect-builder.tool.ts`** : imprime la structure du Builder.
+- **`builder-exhaustive.tool.ts`** : génère `RESULTS.md` et `screenshots/` pour 4 sources ×
   11 types × modes.
 
 ### Utilitaires
@@ -79,18 +93,18 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
 - **`TESTING_MATRIX.md`** : matrice des paramètres à tester.
 - **`playwright.config.ts`** : configuration Playwright. `testMatch` y est restreint à
   `*.spec.ts` — sans quoi Playwright ramasse `api-fixtures.test.ts`, qui relève de vitest, et
-  plante avant le premier test.
+  plante avant le premier test ; les outils `*.tool.ts` en sont exclus sauf
+  `BUILDER_E2E_OUTILS=1`. `webServer` y démarre `npm run dev` au besoin et **réutilise** celui
+  qui tourne déjà.
 
 ## Lancement
 
 ```bash
-# 1. Serveur de dev (port 5173) — requis par tous les specs SAUF export-html-api-recette
-npm run dev
-
-# 2. Playwright
+# 1. Playwright
 npx playwright install chromium
 
-# 3. Un spec, depuis la racine du dépôt
+# 2. Un spec, depuis la racine du dépôt. Le serveur de dev (port 5173) est démarré par
+#    Playwright lui-même ; un `npm run dev` déjà lancé est réutilisé.
 npx playwright test --config tests/builder-e2e/playwright.config.ts builder-ia-recette.spec.ts
 
 # export-html-api-recette est le seul à ne demander aucun serveur, mais il demande
@@ -383,7 +397,7 @@ propres yeux quand on ouvre le Builder.
 ### Performance
 
 - `playwright.config.ts` impose `workers: 1` (tableau de résultats partagé par
-  `builder-exhaustive.spec.ts`) : les specs de ce dossier ne sont PAS parallélisés.
+  `builder-exhaustive.tool.ts`) : les specs de ce dossier ne sont PAS parallélisés.
 - Lancer un spec à la fois ; le dossier entier dépasse l'heure.
 
 ### Stabilité

@@ -1,7 +1,16 @@
 /**
- * Tests exhaustifs du Builder dsfr-data
+ * OUTIL, PAS UN TEST (#867) — générateur de rapport du Builder dsfr-data.
  *
- * Teste TOUTES les combinaisons :
+ * Ce fichier ne contient AUCUNE assertion : ses 110 cas passent toujours au
+ * vert, y compris quand le journal dit `code=false`, c'est-à-dire quand le
+ * Builder n'a rien généré. Les compter comme de la couverture est une
+ * illusion — d'où l'extension `.tool.ts`, hors du `testMatch`. Il produit
+ * `RESULTS.md` et `screenshots/` (tous deux ignorés par git).
+ *
+ * Usage : BUILDER_E2E_OUTILS=1 npx playwright test \
+ *           --config tests/builder-e2e/playwright.config.ts builder-exhaustive
+ *
+ * Parcourt TOUTES les combinaisons :
  *   - Sources : locale, ODS, Tabular
  *   - 11 types de graphique
  *   - Modes : embedded / dynamic
