@@ -24,6 +24,7 @@ import {
   legacyConflictMessage,
   syncLayoutError,
 } from '../utils/grid-layout.js';
+import { readChildTemplateHtml } from '../utils/child-template.js';
 
 /**
  * <dsfr-data-display> - Affichage dynamique de données via template HTML
@@ -305,10 +306,8 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   }
 
   private _captureTemplate(): void {
-    const tpl = this.querySelector('template');
-    if (tpl) {
-      this._templateContent = tpl.innerHTML;
-    }
+    const html = readChildTemplateHtml(this);
+    if (html) this._templateContent = html;
   }
 
   /** Remplace les placeholders dans le template pour un item donne */
