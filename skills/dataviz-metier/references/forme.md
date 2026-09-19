@@ -59,10 +59,18 @@ On voit l'écart *et* ce sur quoi il porte. Prix payé et écrit en page : DSFR 
 ## Une part se calcule, elle ne se dessine pas depuis n'importe quoi
 
 - Une **répartition** (part des licences par type de commune) divise chaque groupe par le total
-  de tous les groupes. Aucun agrégat ne produit ce total à côté des lignes groupées (AM-078,
-  ouvert en 0.30) : la voie qui marche coûte une seconde source `limit="1"`, `compute="k = 1"`
-  des deux côtés, `dsfr-data-join on="k"`, puis `compute="part = l / lt * 100"`. Quatre
-  composants par répartition — le dire plutôt que remplacer la part par un `avg`.
+  de tous les groupes. Le geste (#926, AM-078) :
+  `aggregate="lics:sum, lics__sum:share_percent:part"` sur la `dsfr-data-query` déjà posée —
+  `share` rend la fraction, `share_percent` la part en points de pourcentage, la forme qu'attend
+  un axe. Avant, il fallait une seconde source `limit="1"`, `compute="k = 1"` des deux côtés,
+  `dsfr-data-join on="k"` et une division : quatre composants par répartition.
+  **Le dénominateur est le total des lignes de sortie, avant `limit`** — donc une part est
+  toujours une part de l'ensemble **filtré** (33,4 % sans filtre, 16,3 % en Bretagne : les deux
+  sont justes, le dire en page), et un top N ne somme pas à 100 %. Sur une source tronquée
+  (`max-records`), le total est faux sans que rien ne le montre : les parts somment quand même
+  à 100 %. Et une part suppose une **partition** : après `explode`, une ligne multivaluée compte
+  dans N groupes et le total dépasse 100 % — écrire « part des licences portant ce label »,
+  pas « répartition ».
 - Une part **en KPI** est un ratio de sommes filtré d'un seul côté :
   `value="lics:sum{sexe:eq:F} / lics:sum"` (0.29.0). Vérifié au navigateur le 2026-09-19
   (dsfr-data 0.30.0) : 9 597 / 30 056 → « 31,9 % ». Le `where` du KPI filtre les **deux** côtés
