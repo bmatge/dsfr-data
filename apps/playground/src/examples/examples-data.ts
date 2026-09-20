@@ -3060,4 +3060,327 @@ export const examples: Record<string, string> = {
     </p>
   </div>
 </div>`,
+
+  // =====================================================================
+  // HABILLAGE DES KPI ET DES PODIUMS (#967, #966)
+  // Icone, lisere, teinte, couleurs illustratives ; estrade, pastille,
+  // orientation, barre sur trois axes.
+  // =====================================================================
+
+  'kpi-habillage': `<!--
+  KPI — La planche d'habillage : icone, lisere, teinte
+  Mode direct : dsfr-data-source (data inline) → dsfr-data-kpi-group
+  Donnees en dur : l'exemple porte sur la FORME, pas sur le pipeline.
+  Chaque carte isole un reglage, pour comparer d'un coup d'oeil.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Habillage des indicateurs</h2>
+  <p class="fr-text--sm fr-text--light">
+    Un même chiffre, huit habillages. Icône, position, liseré, teinte.
+  </p>
+
+  <dsfr-data-source id="d" data='[{"n":12463,"pct":38.2,"eur":248900}]'>
+  </dsfr-data-source>
+
+  <h3 class="fr-h6 fr-mt-3w">Où se place l'icône</h3>
+  <dsfr-data-kpi-group per-row="1 md:3" gap="md" aria-label="Position de l'icône">
+    <dsfr-data-kpi source="d" value="n" format="nombre"
+      heading="Position par défaut"
+      label="icon-position=&quot;label&quot;"
+      icon="fr-icon-user-line">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="d" value="n" format="nombre"
+      heading="En tête de carte"
+      label="icon-position=&quot;top&quot; icon-size=&quot;md&quot;"
+      icon="fr-icon-user-line" icon-position="top" icon-size="md"
+      color-token="blue-cumulus">
+    </dsfr-data-kpi>
+
+    <dsfr-data-kpi source="d" value="n" format="nombre"
+      heading="Dans la marge"
+      label="icon-position=&quot;right&quot;"
+      icon="fr-icon-user-line" icon-position="right" icon-size="md"
+      color-token="green-emeraude">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <h3 class="fr-h6 fr-mt-4w">Ce que trace le liseré</h3>
+  <dsfr-data-kpi-group per-row="2 md:4" gap="md" aria-label="Tracé du liseré">
+    <dsfr-data-kpi source="d" value="pct" format="pourcentage"
+      label="border=&quot;left&quot; (défaut)" color-token="purple-glycine">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="d" value="pct" format="pourcentage"
+      label="border=&quot;top&quot;" border="top" color-token="purple-glycine">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="d" value="pct" format="pourcentage"
+      label="border=&quot;outline&quot;" border="outline" color-token="purple-glycine">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="d" value="pct" format="pourcentage"
+      label="border=&quot;left-short&quot;" border="left-short" color-token="purple-glycine">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <h3 class="fr-h6 fr-mt-4w">Le fond teinté</h3>
+  <dsfr-data-kpi-group per-row="1 md:3" gap="md" aria-label="Fond teinté">
+    <dsfr-data-kpi source="d" value="eur" format="euro"
+      heading="Le plus clair"
+      label="tint=&quot;975&quot; border=&quot;none&quot;"
+      tint="975" border="none" color-token="orange-terre-battue"
+      icon="fr-icon-money-euro-circle-line" icon-position="top">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="d" value="eur" format="euro"
+      heading="Par défaut"
+      label="tint border=&quot;none&quot;"
+      tint border="none" color-token="orange-terre-battue"
+      icon="fr-icon-money-euro-circle-line" icon-position="top">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="d" value="eur" format="euro"
+      heading="Le plus soutenu"
+      label="tint=&quot;925&quot; border=&quot;none&quot;"
+      tint="925" border="none" color-token="orange-terre-battue"
+      icon="fr-icon-money-euro-circle-line" icon-position="top">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Aucun hexadécimal dans tout cet habillage.</strong> Les couleurs passent par les
+      tokens DSFR (<code>--border-plain-*</code>, <code>--background-contrast-*</code>) :
+      le mode sombre suit sans travail, et une page ne peut pas dériver du système.
+      <br><strong>La valeur reste en gris titre</strong>, même sur fond teinté. Les teintes
+      pleines claires — tournesol, café-crème, galet — ne tiennent pas le contraste pour du
+      texte : la contrainte est dans le composant, pas dans la vigilance de l'auteur.
+      <br><strong>Le pictogramme, lui, n'est pas démontrable ici.</strong> <code>picto</code>
+      rend un <code>fr-artwork</code> dont l'adresse vient de <code>picto-base</code>, et
+      <code>&lt;use href&gt;</code> n'accepte pas une autre origine (aucun CORS sur
+      <code>use</code>). Il faut donc servir une copie de <code>dist/artwork/pictograms/</code>
+      depuis votre propre domaine ; ce playground charge le DSFR depuis un CDN, donc rien ne
+      s'afficherait.
+    </p>
+  </div>
+</div>`,
+
+  'kpi-etat-vs-categorie': `<!--
+  KPI — Une couleur d'ETAT et une couleur de CATEGORIE ne disent pas la meme chose
+  Pipeline : dsfr-data-source → dsfr-data-query (group-by) → dsfr-data-kpi-group
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Les seuils posent un etat ; les couleurs illustratives posent un theme.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>État ou catégorie : deux familles de couleurs</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'éducation
+  </p>
+
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="statut_public_prive is not null">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="par-statut" source="etab"
+    group-by="statut_public_prive"
+    aggregate="statut_public_prive:count:nb"
+    order-by="nb:desc">
+  </dsfr-data-query>
+
+  <h3 class="fr-h6 fr-mt-3w">Un ÉTAT — porté par les seuils</h3>
+  <p class="fr-text--sm">
+    La couleur est calculée à partir de la valeur. Elle est aussi annoncée aux lecteurs d'écran
+    (« état bon »), donc elle doit vouloir dire quelque chose.
+  </p>
+  <dsfr-data-kpi-group per-row="1 md:3" gap="md" aria-label="Indicateurs d'état">
+    <dsfr-data-kpi source="par-statut" value="nb:sum"
+      heading="Volume" label="Établissements recensés" format="nombre"
+      threshold-green="50000" threshold-orange="20000"
+      icon="fr-icon-school-line" icon-position="top">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="par-statut" value="nb:max"
+      heading="Volume" label="Plus grand statut" format="nombre"
+      threshold-green="50000" threshold-orange="20000"
+      icon="fr-icon-school-line" icon-position="top">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="par-statut" value="nb:min"
+      heading="Volume" label="Plus petit statut" format="nombre"
+      threshold-green="50000" threshold-orange="20000"
+      icon="fr-icon-school-line" icon-position="top">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <h3 class="fr-h6 fr-mt-4w">Une CATÉGORIE — posée par l'auteur</h3>
+  <p class="fr-text--sm">
+    La couleur identifie un thème, pas une performance. Les mêmes chiffres, sans aucun jugement.
+  </p>
+  <dsfr-data-kpi-group per-row="1 md:3" gap="md" aria-label="Indicateurs par thème">
+    <dsfr-data-kpi source="par-statut" value="nb:sum"
+      heading="Éducation" label="Établissements recensés" format="nombre"
+      color-token="blue-cumulus" tint border="none"
+      icon="fr-icon-school-line" icon-position="top">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="par-statut" value="nb:max"
+      heading="Éducation" label="Plus grand statut" format="nombre"
+      color-token="blue-cumulus" tint border="none"
+      icon="fr-icon-school-line" icon-position="top">
+    </dsfr-data-kpi>
+    <dsfr-data-kpi source="par-statut" value="nb:min"
+      heading="Éducation" label="Plus petit statut" format="nombre"
+      color-token="blue-cumulus" tint border="none"
+      icon="fr-icon-school-line" icon-position="top">
+    </dsfr-data-kpi>
+  </dsfr-data-kpi-group>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Deux familles, deux sens.</strong> Les quatre tokens sémantiques — vert, orange,
+      rouge, bleu — disent un ÉTAT, et c'est ce que le libellé accessible annonce. Les dix-sept
+      couleurs illustratives disent une CATÉGORIE et n'annoncent rien.
+      <br><strong>Le contresens à éviter :</strong> un indicateur en rouge illustratif
+      (<code>pink-tuile</code>) qui ne veut pas dire « mauvais ». Un lecteur y lira une alerte.
+      L'état reste aux tokens sémantiques ; le thème aux couleurs illustratives.
+      <br>Les seuils ci-dessus (<code>threshold-green</code>, <code>threshold-orange</code>) sont
+      posés pour la démonstration : un vrai seuil se justifie, sinon il fabrique un jugement à
+      partir de rien.
+    </p>
+  </div>
+</div>`,
+
+  'podium-estrade': `<!--
+  Podium — Estrade 2-1-3, pastilles de rang, orientation verticale
+  Pipeline : dsfr-data-source → dsfr-data-query (group-by) → dsfr-data-podium
+  Source : Annuaire de l'education (OpenDataSoft, data.education.gouv.fr)
+  Le meme classement, trois mises en forme.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>Un classement, trois mises en forme</h2>
+  <p class="fr-text--sm fr-text--light">
+    Source : data.education.gouv.fr — Annuaire de l'éducation
+  </p>
+
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    dataset-id="fr-en-annuaire-education"
+    base-url="https://data.education.gouv.fr"
+    where="type_etablissement = 'Lycée'">
+  </dsfr-data-source>
+
+  <dsfr-data-query id="top" source="etab"
+    group-by="libelle_region"
+    aggregate="libelle_region:count:nb"
+    order-by="nb:desc"
+    limit="6">
+  </dsfr-data-query>
+
+  <h3 class="fr-h6 fr-mt-3w">Estrade — le premier au centre</h3>
+  <dsfr-data-podium source="top"
+    label-field="libelle_region" value-field="nb"
+    value-unit="lycées"
+    layout="podium" rank="medal" max-items="6">
+  </dsfr-data-podium>
+
+  <h3 class="fr-h6 fr-mt-4w">Colonnes verticales</h3>
+  <dsfr-data-podium source="top"
+    label-field="libelle_region" value-field="nb"
+    value-unit="lycées"
+    orientation="vertical" rank="medal" max-items="6">
+  </dsfr-data-podium>
+
+  <h3 class="fr-h6 fr-mt-4w">Liste sans rang — l'ordre et la barre suffisent</h3>
+  <dsfr-data-podium source="top"
+    label-field="libelle_region" value-field="nb"
+    subtitle="Lycées recensés" value-unit="lycées"
+    rank="none" bar-position="between" border="none" max-items="6">
+  </dsfr-data-podium>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>L'estrade est purement visuelle.</strong> <code>layout="podium"</code> place le
+      premier au centre par <code>order</code> CSS : le DOM reste dans l'ordre 1‑2‑3. Un lecteur
+      d'écran et la navigation clavier parcourent donc le classement dans le bon ordre, pas dans
+      l'ordre des colonnes. Les items au-delà du troisième passent en liste compacte sous
+      l'estrade, dans la même liste ordonnée.
+      <br><strong>La pastille choisit son encre par calcul.</strong> En <code>rank="medal"</code>,
+      la couleur du chiffre est décidée par luminance relative WCAG — la rampe s'éclaircit, et du
+      blanc dès son quatrième ton serait illisible. Le chiffre reste <code>aria-hidden</code> :
+      l'ordre est porté par la position dans la liste, le chiffre n'en est qu'un rappel.
+      <br><strong>Le rang n'est pas obligatoire.</strong> <code>rank="none"</code> laisse l'ordre
+      et la barre faire le travail — souvent plus lisible quand les écarts parlent d'eux-mêmes.
+    </p>
+  </div>
+</div>`,
+
+  'podium-barre-et-vignettes': `<!--
+  Podium — La barre sur trois axes, et des vignettes par ligne
+  Mode direct : dsfr-data-source (data inline) → dsfr-data-podium
+  bar (ce qu'elle porte), bar-position (ou elle est), border (le lisere)
+  sont TROIS reglages independants.
+-->
+
+<div class="fr-container fr-my-4w">
+  <h2>La barre, le liseré et la vignette</h2>
+  <p class="fr-text--sm fr-text--light">
+    Données en dur — taux de conformité RGAA déclarés, en pourcentage.
+  </p>
+
+  <!-- icon-field : chaque ligne porte SA classe d'icône. La valeur est
+       contrainte a ^(fr-icon|ri)-[a-z0-9-]+$ : ce qui vient de la donnée
+       ne pose jamais qu'une classe CSS, jamais du balisage. -->
+  <dsfr-data-source id="sites" data='[
+    {"nom":"Portail des démarches","score":94,"famille":"Services en ligne","ico":"fr-icon-computer-line"},
+    {"nom":"Annuaire des services","score":88,"famille":"Référentiels","ico":"fr-icon-book-2-line"},
+    {"nom":"Observatoire des données","score":81,"famille":"Données ouvertes","ico":"fr-icon-line-chart-line"},
+    {"nom":"Espace agents","score":73,"famille":"Intranet","ico":"fr-icon-team-line"},
+    {"nom":"Cartographie du territoire","score":66,"famille":"Cartographie","ico":"fr-icon-map-pin-2-line"}
+  ]'>
+  </dsfr-data-source>
+
+  <h3 class="fr-h6 fr-mt-3w">Barre proportionnelle, façon graphique en barres</h3>
+  <dsfr-data-podium source="sites"
+    label-field="nom" value-field="score" subtitle-field="famille"
+    icon-field="ico"
+    value-unit="/ 100" bar-max="100"
+    bar-position="between" max-items="5">
+  </dsfr-data-podium>
+
+  <h3 class="fr-h6 fr-mt-4w">Barre pleine — seule la couleur classe</h3>
+  <dsfr-data-podium source="sites"
+    label-field="nom" value-field="score" subtitle-field="famille"
+    icon-field="ico"
+    value-unit="/ 100" bar-max="100"
+    bar="full" rank="medal" border="none" max-items="5">
+  </dsfr-data-podium>
+
+  <h3 class="fr-h6 fr-mt-4w">Sans barre, liseré seul</h3>
+  <dsfr-data-podium source="sites"
+    label-field="nom" value-field="score" subtitle-field="famille"
+    icon-field="ico"
+    value-unit="/ 100" bar-max="100"
+    bar="none" max-items="5">
+  </dsfr-data-podium>
+
+  <div class="fr-callout fr-mt-4w">
+    <p class="fr-callout__text">
+      <strong>Trois réglages indépendants, et une règle.</strong> <code>bar</code> dit ce que la
+      barre PORTE (proportionnelle, pleine, aucune), <code>bar-position</code> dit OÙ elle est,
+      <code>border</code> ne pose qu'une couleur. La règle : <strong>la barre porte la donnée, le
+      liseré ne porte que la couleur.</strong> Un liseré de longueur variable laisserait croire à
+      une mesure.
+      <br><strong><code>bar-max="100"</code> est ce qui rend ces barres comparables.</strong> Sans
+      lui, la plus grande valeur du jeu ferait la barre pleine : un premier à 66 % occuperait toute
+      la largeur, comme un premier à 94 %. Sur une échelle bornée — un pourcentage, une note sur
+      100 — forcer le maximum est ce qui empêche de lire un écart qui n'existe pas.
+      <br><strong>Ce que coûte <code>bar-position="between"</code> :</strong> il fixe la colonne
+      de libellé à 130 px pour aligner toutes les barres sur la même origine — c'est ce qui rend
+      la comparaison possible, et c'est aussi ce qui tronque « Portail des démarches » en
+      « Portail des dé… ». Sur des libellés longs, <code>inline</code> (le défaut) leur laisse
+      toute la largeur, au prix d'une origine de barre qui ne s'aligne plus.
+      <br><strong>Vignettes :</strong> <code>icon-field</code> lit une classe d'icône par ligne ;
+      <code>image-field</code> fait de même avec l'URL d'un logo ou d'un blason, en vignette de
+      40 px, carrée ou ronde (<code>image-shape</code>). Les deux sont exclusifs — si les deux sont
+      posés, l'image l'emporte et le cumul est signalé.
+    </p>
+  </div>
+</div>`,
 };
