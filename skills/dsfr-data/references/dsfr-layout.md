@@ -6,7 +6,8 @@
 
 ## Mise en page DSFR d'un tableau de bord
 
-Les autres fiches disent quoi mettre dans la page (source, transformation, graphique).
+Les autres fiches disent quoi mettre dans la page (source, transformation, graphique) et
+`pagePatterns` dit **quel gabarit** choisir selon la question que pose la page.
 Celle-ci dit **où le poser** : la grille 12 colonnes du DSFR, ses points de rupture, ses
 gouttières, ses espacements, et les classes utilitaires qui permettent de fabriquer un
 encadré quand aucun composant DSFR ne correspond.
@@ -277,10 +278,16 @@ la méthode. C'est le gabarit par défaut d'une page publiée.
 
 ### Gabarit — exemple d'un tableau de bord filtré
 
-Les filtres partagés se posent en haut, sur toute la largeur, au-dessus des visualisations
-qu'ils pilotent : l'usager doit voir ce qu'il filtre avant de voir le résultat. La barre de
-filtres est une ligne de grille ordinaire ; `dsfr-data-context` et ses filtres, eux, ne
-dessinent rien et se posent à côté.
+Les filtres partagés se posent **en barre, en haut, sur toute la largeur** quand ils sont
+peu nombreux — jusqu'à quatre, sans compteurs. Au-delà, ou dès que les facettes affichent
+des compteurs, ils passent en **colonne latérale** (`fr-col-12 fr-col-md-4 fr-col-lg-3`),
+alignés horizontalement avec la donnée qu'ils pilotent ; la fiche `pagePatterns` donne la
+règle complète et les quatre familles de gabarits. Dans les deux cas l'usager doit voir ce
+qu'il filtre avant de voir le résultat, et les filtres actifs restent visibles en chips
+(`dsfr-data-context-tags`). Le gabarit ci-dessous est la variante « barre ».
+
+La barre de filtres est une ligne de grille ordinaire ; `dsfr-data-context` et ses filtres,
+eux, ne dessinent rien et se posent à côté.
 
 ```html
 <div class="fr-container fr-my-8v">

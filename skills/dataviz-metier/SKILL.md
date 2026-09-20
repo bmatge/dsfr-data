@@ -15,6 +15,11 @@ est ancrée dans un cas réel du banc d'essai [open-data-viz](https://github.com
 l'API, registre `public/data/retours.json`) et, quand un attribut porte la réponse, traduite en
 **geste `dsfr-data`** vérifié dans la version indiquée.
 
+Le **gabarit de la page** — quelle famille de page pour quelle question, où vont les filtres,
+dans quel ordre le lecteur descend — est traité par la fiche
+[`pagePatterns`](../dsfr-data/references/page-patterns.md) de la skill `dsfr-data` : la question
+posée ici (« quelle question, pour quel lecteur ») est ce qui détermine la famille là-bas.
+
 Pour la **forme et la couleur** en général (règle du double axe, palettes séquentielles /
 divergentes, marques, validateur daltonien), le skill `dataviz` livré avec Claude Code fait
 autorité et n'est pas dupliqué ici : ce skill-ci est le regard **éditorial**, ancré DSFR et dans

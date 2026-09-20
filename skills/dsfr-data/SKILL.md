@@ -87,6 +87,7 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 | Référence | Quand la lire | Déclencheurs |
 |---|---|---|
 | [Patterns de composition](references/composition-patterns.md) | Assembler source, query et visualisations en dashboards | dashboard, tableau de bord, assembler, combiner, pipeline, plusieurs |
+| [Gabarits de page](references/page-patterns.md) | Quatre familles de pages de donnees publiques (localisateur, tableau de bord, corpus, portrait) et huit gabarits : quelle page pour quelle question, ou placer les filtres (barre ou colonne), et quand demander l'avis de l'usager plutot que trancher | gabarit de page, patterns de page, famille de page, structure de la page, plan de page, quelle page |
 | [Mise en page DSFR](references/dsfr-layout.md) | Grille 12 colonnes, points de rupture, alignements, espacements et classes utilitaires du DSFR pour composer la page complete d'un tableau de bord | grille, grid, colonnage, mise en page, layout, gabarit |
 | [Types de graphiques](references/chart-types.md) | Quand utiliser quel type de graphique | quel graphique, quel type, quel chart, recommand |
 | [Couleurs DSFR](references/dsfr-colors.md) | Palette officielle du Design System de l'État | couleur, color, palette, style |

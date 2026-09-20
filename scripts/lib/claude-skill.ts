@@ -80,6 +80,7 @@ const GROUPS: Array<[string, string[]]> = [
     'Guides transverses',
     [
       'compositionPatterns',
+      'pagePatterns',
       'dsfrLayout',
       'chartTypes',
       'dsfrColors',
