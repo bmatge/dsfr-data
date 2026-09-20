@@ -6,8 +6,8 @@ import type { Source } from '../../../apps/builder-ia/src/state';
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
 describe('builder-ia skills', () => {
-  it('should have 35 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(35);
+  it('should have 36 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(36);
   });
 
   it('should have expected skill IDs', () => {
@@ -27,6 +27,7 @@ describe('builder-ia skills', () => {
     expect(SKILLS).toHaveProperty('dsfrChartNative');
     expect(SKILLS).toHaveProperty('compositionPatterns');
     expect(SKILLS).toHaveProperty('dsfrLayout');
+    expect(SKILLS).toHaveProperty('pagePatterns');
     expect(SKILLS).toHaveProperty('odsql');
     expect(SKILLS).toHaveProperty('odsApiVersions');
     expect(SKILLS).toHaveProperty('chartTypes');
@@ -156,6 +157,21 @@ describe('builder-ia skills', () => {
     ])('« %s » remonte dsfrLayout', (question) => {
       const ids = getRelevantSkills(question, null).map((s) => s.id);
       expect(ids).toContain('dsfrLayout');
+    });
+
+    // Gabarits de page : la question de la page doit reveiller pagePatterns, et
+    // la fiche de mise en page reste la suivante a lire (grille DSFR).
+    it.each([
+      'ou placer les filtres sur ma page',
+      'je veux une colonne de filtres a gauche de la carte',
+      'un annuaire avec une carte et une liste',
+      'une page portrait de territoire',
+      'un moteur de recherche dans un corpus de documents',
+      'quel gabarit de page pour ce jeu de donnees',
+      'une barre de filtres collante sur une page longue',
+    ])('« %s » remonte pagePatterns', (question) => {
+      const ids = getRelevantSkills(question, null).map((s) => s.id);
+      expect(ids).toContain('pagePatterns');
     });
 
     it('une demande de tableau de bord remonte la composition ET la mise en page', () => {
