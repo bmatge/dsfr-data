@@ -87,6 +87,47 @@ test.describe('dsfr-data-map — géométrie mesurée', () => {
     expect(l.top).toBeGreaterThanOrEqual(basEncarts - 1);
   });
 
+  /**
+   * Le volet latéral est du MOBILIER de premier plan : il doit recouvrir le
+   * sélecteur de fonds, pas l'inverse. Aucune valeur de `z-index` ne le dit —
+   * le volet vit DANS le conteneur Leaflet, le sélecteur en est un frère : dès
+   * que le conteneur ouvre un contexte d'empilement, tout son sous-arbre passe
+   * en bloc sous le sélecteur, quel que soit son `z-index`. On mesure donc
+   * l'empilement RÉEL, par `elementFromPoint`, et non le texte de la feuille.
+   */
+  test('le volet latéral recouvre le sélecteur de fonds', async ({ page }) => {
+    await ouvrir(page, BUREAU);
+    await page.locator(MARQUEURS_PRINCIPAUX).first().click();
+    const panel = page.locator('#carte .dsfr-data-map-popup__panel');
+    await expect(panel).toHaveClass(/dsfr-data-map-popup__panel--open/);
+    const carte = await rect(page, '#carte .dsfr-data-map__container');
+    await expect
+      .poll(async () => (await rect(page, '#carte .dsfr-data-map-popup__panel')).right, {
+        timeout: 3_000,
+      })
+      .toBeLessThanOrEqual(carte.right + 1);
+
+    // Les deux se chevauchent bien : sinon le test ne prouverait rien.
+    const sel = await rect(page, '#carte .dsfr-data-map__tiles-switcher');
+    const p = await rect(page, '#carte .dsfr-data-map-popup__panel');
+    expect(sel.left).toBeLessThan(p.right);
+    expect(sel.right).toBeGreaterThan(p.left);
+    expect(sel.top).toBeLessThan(p.bottom);
+
+    // Au centre du sélecteur, c'est le volet qu'on touche.
+    const dessus = await page.evaluate(
+      ([x, y]) => {
+        const el = document.elementFromPoint(x as number, y as number);
+        return {
+          dansLeVolet: !!el?.closest('.dsfr-data-map-popup__panel'),
+          classe: el?.className ?? null,
+        };
+      },
+      [(sel.left + sel.right) / 2, (sel.top + sel.bottom) / 2]
+    );
+    expect(dessus.dansLeVolet, `element touche : ${dessus.classe}`).toBe(true);
+  });
+
   test('volet latéral width="380px" borné à la carte sur 390 px (#782)', async ({ page }) => {
     await ouvrir(page, TELEPHONE);
     await page.locator(MARQUEURS_PRINCIPAUX).first().click();
