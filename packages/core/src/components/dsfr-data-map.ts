@@ -1171,10 +1171,18 @@ export class DsfrDataMap extends LitElement {
     const style = document.createElement('style');
     style.setAttribute('data-dsfr-data-map', '');
     style.textContent = `
+      /* Contexte d'empilement de la CARTE ENTIERE : isolation:isolate pose
+         la frontiere sur l'HOTE, pas sur le conteneur Leaflet. Tout ce qui
+         flotte au-dessus de la carte s'empile donc librement entre soi (volet
+         lateral a 1001 au-dessus du selecteur de fond a 1000...), sans qu'aucun
+         z-index interne ne puisse recouvrir l'en-tete de la page qui l'accueille
+         — le selecteur et le bandeau max-items, poses a 1000 en frere du
+         conteneur, en sortaient jusqu'ici. */
       dsfr-data-map {
         display: block;
         position: relative;
         overflow: hidden;
+        isolation: isolate;
       }
       /* Encarts territoriaux (#643) : largeur par defaut et gouttiere. Selecteur
          :where() = specificite nulle, pour qu'une regle de page
@@ -1220,8 +1228,14 @@ export class DsfrDataMap extends LitElement {
           width: var(--dsfr-data-inset-w-xl, var(--dsfr-data-inset-w-lg, var(--dsfr-data-inset-w-md, var(--dsfr-data-inset-w-sm, var(--dsfr-data-inset-w, 10rem)))));
         }
       }
+      /* PAS de z-index ici, et surtout pas z-index:0. Leaflet pose
+         position:relative en style en ligne sur ce conteneur : une valeur de
+         z-index autre que auto en ferait un contexte d'empilement, et TOUT son
+         sous-arbre — volet lateral du popup compris, pourtant a 1001 —
+         passerait en bloc sous le selecteur de fond, pose a 1000 en frere du
+         conteneur. Aucun z-index de descendant ne peut rattraper cela : la
+         frontiere est portee par l'hote (isolation:isolate ci-dessus). */
       .dsfr-data-map__container {
-        z-index: 0;
         overflow: hidden;
       }
       /* Fond attenue pour les cartes thematiques (#686) : filtre sur le volet
@@ -1235,11 +1249,21 @@ export class DsfrDataMap extends LitElement {
         filter: grayscale(1);
       }
       /* Selecteur de fond de carte (#744) : encart flottant en haut a droite,
-         au-dessus du volet Leaflet mais sous les popups. Le coin haut-gauche
-         est pris par les boutons de zoom, le bas-droit par l'attribution.
-         Largeur bornee pour ne pas deborder d'une carte etroite ; le contenu
-         reste un label + un select natifs (classes DSFR si la page charge le
-         DSFR, presentation par defaut du navigateur sinon). */
+         au-dessus du volet Leaflet. Le coin haut-gauche est pris par les
+         boutons de zoom, le bas-droit par l'attribution. Largeur bornee pour
+         ne pas deborder d'une carte etroite ; le contenu reste un label + un
+         select natifs (classes DSFR si la page charge le DSFR, presentation
+         par defaut du navigateur sinon).
+
+         MOBILIER FLOTTANT DE LA CARTE — 1000, partage avec le bouton de plein
+         ecran et le bandeau max-items. Il recouvre necessairement les bulles
+         Leaflet : .leaflet-map-pane est lui-meme un contexte d'empilement
+         (position:absolute + z-index:400 + transform), ses volets internes
+         — dont les popups a 700 — n'ordonnent qu'entre eux. Aucune valeur ne
+         glisse entre le fond de carte et ses bulles : au-dessus de 400 on
+         couvre tout, en dessous on passe sous les tuiles. Ce qui DOIT couvrir
+         le mobilier (le volet lateral de dsfr-data-map-popup, a 1001) est donc
+         pose hors de ce volet, et c'est l'hote qui porte la frontiere. */
       .dsfr-data-map__tiles-switcher {
         position: absolute;
         top: 0.5rem;
@@ -1270,7 +1294,7 @@ export class DsfrDataMap extends LitElement {
         position: absolute;
         top: 10px;
         left: 50px;
-        z-index: 1000;
+        z-index: 1000; /* mobilier flottant — voir tiles-switcher */
         margin: 0;
         background: var(--background-default-grey, #fff);
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
@@ -1362,7 +1386,7 @@ export class DsfrDataMap extends LitElement {
         bottom: 10px;
         left: 50%;
         transform: translateX(-50%);
-        z-index: 1000;
+        z-index: 1000; /* mobilier flottant — voir tiles-switcher */
         background: var(--background-contrast-warning, #FFE9E6);
         color: var(--text-default-warning, #B34000);
         padding: 0.5rem 1rem;

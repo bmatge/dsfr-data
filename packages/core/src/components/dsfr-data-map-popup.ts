@@ -414,6 +414,14 @@ export class DsfrDataMapPopup extends LitElement {
         position: absolute;
         top: 0;
         bottom: 0;
+        /* 1001 : au-dessus du mobilier flottant de la carte (selecteur de fond,
+           plein ecran, bandeau max-items, tous a 1000). Ce nombre ne suffit
+           PAS a lui seul — le volet vit dans le conteneur Leaflet, le mobilier
+           en est un frere : si le conteneur ouvre un contexte d'empilement
+           (un z-index y suffit, Leaflet y posant position:relative), tout le
+           sous-arbre passe en bloc sous le mobilier. La frontiere est donc
+           portee par l'hote dsfr-data-map (isolation:isolate) et le conteneur
+           n'a aucun z-index. Garde-fou : tests/map-empilement.test.ts. */
         z-index: 1001;
         /* La largeur demandee (attribut width, style en ligne) est bornee a
            celle de la carte. Le panneau est ancre a droite dans un
