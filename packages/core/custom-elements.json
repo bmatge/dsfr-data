@@ -17239,7 +17239,7 @@
                   }
                 }
               ],
-              "description": "Delegate order-by"
+              "description": "Delegate order-by.\n\nJamais quand un regroupement ou un agregat est demande SANS avoir ete\ndelegue (#1045) : le tri porte alors sur les lignes de SORTIE, calculees\nici, et son champ (`pop`, `population__sum`) n'existe pas dans les lignes\nbrutes que le serveur trierait — Tabular repond 400 (42703 « column …\ndoes not exist », mesure du 2026-09-23), sans en-tete CORS. Le tri reste\ncote client, apres le regroupement, qui seul le rend juste."
             },
             {
               "kind": "method",
@@ -17532,25 +17532,6 @@
                   }
                 }
               ]
-            },
-            {
-              "kind": "method",
-              "name": "_isNumericValue",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "boolean"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "v",
-                  "type": {
-                    "text": "unknown"
-                  }
-                }
-              ],
-              "description": "True si la valeur est interpretable comme nombre (hors null/'')."
             },
             {
               "kind": "method",
@@ -17899,31 +17880,6 @@
             },
             {
               "kind": "method",
-              "name": "_compareValues",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "number"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "valA",
-                  "type": {
-                    "text": "unknown"
-                  }
-                },
-                {
-                  "name": "valB",
-                  "type": {
-                    "text": "unknown"
-                  }
-                }
-              ],
-              "description": "Comparateur total a 3 niveaux : null/vide < numerique < chaîne (#278).\nTransitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs\nsont numeriques, sinon string) produisait un ordre arbitraire sur les\ncolonnes mixtes, et `Number(null) === 0` classait les nulls parmi les\nnombres."
-            },
-            {
-              "kind": "method",
               "name": "_applySort",
               "privacy": "private",
               "return": {
@@ -17939,7 +17895,7 @@
                   }
                 }
               ],
-              "description": "Applique le tri — grammaire commune du pipeline `\"field:dir, field2:dir\"`\n(#273), tri stable, comparateur total (#278). En desc, l'ordre est\nexactement inverse (nulls en dernier)."
+              "description": "Applique le tri — grammaire commune du pipeline `\"field:dir, field2:dir\"`\n(#273), tri stable, comparateur total (#278), partage avec les\nadaptateurs qui trient eux-memes (`utils/sort.ts`, #1045)."
             },
             {
               "kind": "method",
