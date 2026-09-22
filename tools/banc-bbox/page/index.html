@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Banc zone visible (#1023)</title>
+  </head>
+  <body>
+    <p>
+      Page de banc pilotée par <code>banc.spec.ts</code> : relit un jeu entier depuis son export
+      Parquet pour compter exactement les points d'un rectangle. Voir le README du dossier.
+    </p>
+    <script type="module">
+      // hyparquet + fzstd depuis jsDelivr : aucune dependance du depot (#1022, arbitrage).
+      const H = await import('https://cdn.jsdelivr.net/npm/hyparquet@1.31.1/+esm');
+      const z = await import('https://cdn.jsdelivr.net/npm/fzstd@0.1.1/+esm');
+      const compressors = { ZSTD: (i, n) => z.decompress(i, new Uint8Array(n)) };
+
+      async function compter({ rid, lat, lon, rects }) {
+        // URL de l'export par convention (hydra.s3/parquet/{rid}.parquet) : aucune
+        // requete a data.gouv.fr ; la taille vient d'un HEAD sur le S3.
+        const file = await H.asyncBufferFromUrl({
+          url: `https://hydra.s3.rbx.io.cloud.ovh.net/parquet/${rid}.parquet`,
+        });
+        const metadata = await H.parquetMetadataAsync(file, { initialFetchSize: 64 * 1024 });
+        const cols = lon ? [lat, lon] : [lat];
+        const blocs = new Map();
+        await H.parquetRead({
+          file,
+          metadata,
+          columns: cols,
+          compressors,
+          onChunk(c) {
+            const b = blocs.get(c.rowStart) || {};
+            b[c.columnName] = c.columnData;
+            blocs.set(c.rowStart, b);
+          },
+        });
+        const la = [];
+        const lo = [];
+        const brut = [];
+        for (const k of [...blocs.keys()].sort((a, b) => a - b)) {
+          const b = blocs.get(k);
+          for (let i = 0; i < b[lat].length; i++) {
+            if (lon) {
+              la.push(b[lat][i]);
+              lo.push(b[lon][i]);
+            } else {
+              const t = b[lat][i];
+              brut.push(t);
+              const [x, y] = t ? String(t).split(',').map((v) => Number(v.trim())) : [NaN, NaN];
+              la.push(t ? x : null);
+              lo.push(t ? y : null);
+            }
+          }
+        }
+        const ok = (i) => la[i] !== null && lo[i] !== null && Number.isFinite(la[i]) && Number.isFinite(lo[i]);
+        const dans = (i, q) => ok(i) && la[i] >= q.s && la[i] <= q.n && lo[i] >= q.o && lo[i] <= q.e;
+        const res = [];
+        for (const q of rects) {
+          let exact = 0;
+          let client25k = 0;
+          let texte = 0;
+          let bandeLat = 0;
+          for (let i = 0; i < la.length; i++) {
+            if (dans(i, q)) {
+              exact++;
+              if (i < 25000) client25k++;
+            }
+            if (ok(i) && la[i] >= q.s && la[i] <= q.n) bandeLat++;
+            // Comparaison TEXTUELLE de la colonne « lat, lon », comme le fait
+            // l'API sur une colonne string (bornes incluses).
+            if (!lon && brut[i] && brut[i] >= String(q.s) && brut[i] <= String(q.n)) texte++;
+          }
+          res.push({ rect: q.cle, exact, client25k, bandeLat, texte: lon ? null : texte });
+        }
+        let sansCoord = 0;
+        for (let i = 0; i < la.length; i++) if (!ok(i)) sansCoord++;
+        return { lignes: la.length, sansCoord, res };
+      }
+      window.banc = { compter };
+    </script>
+  </body>
+</html>
