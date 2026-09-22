@@ -94,6 +94,10 @@ sont les seules admises en plus du cœur.
 | Favoris | **Révoquer le lien** | secondaire | supprimer un lien de partage |
 | Admin | **Révoquer les sessions** | secondaire | déconnecter un utilisateur |
 | Suivi | *(aucune)* | — | Exporter ▾ + Actualiser suffisent |
+| Toutes (assistant contextuel) | **Assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` (#1011) : où se trouve un réglage, ce qu'il faut corriger. Bouton `assistant-btn` ajouté à `app-action-bar` par `mountAssistant()` (`ajouterBoutonAssistant()`), avec `aria-expanded`, `aria-controls` et la pastille `data-count` des constats non-info. Bascule d'interface, comme « Diagnostic » |
+| Toutes (panneau Assistant) | **Dire** · **Guider** | bascule du panneau | mode de révélation d'un repère (ADR-143 §7) : « Dire » surligne et annonce le chemin sans déplacer le focus (défaut), « Guider » y amène l'écran et le focus. Mémorisé dans `TourState` |
+| Toutes (panneau Assistant) | **Nouvelle conversation** · **Réduire l'assistant** | icône seule (`fr-icon-refresh-line`, `fr-icon-subtract-line`) | en-tête du panneau, format des assistants `proto-ecosysteme-sircom` / `proto-catalogue-donnees` |
+| Toutes (panneau Assistant) | **Continuer** | bouton plein dans la bulle | montrer de nouveau un repère après avoir levé le prérequis signalé |
 | Toutes (volet Diagnostic) | **Me montrer** | tertiaire sans contour, `fr-icon-eye-line` | désigner le contrôle qui corrige un constat (#1001) ; désactivé quand le constat ne cite aucun repère. Le volet émet `constat-montrer`, l'app résout (`montrer()`) |
 
 Toute nouvelle extension s'ajoute à ce tableau **dans la PR qui l'introduit**.

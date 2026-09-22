@@ -1,0 +1,682 @@
+import { LitElement, html, nothing, type TemplateResult } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import type {
+  CandidatAssistant,
+  Constat,
+  GraviteConstat,
+  MessageAssistant,
+  ModeReperage,
+  SuggestionAssistant,
+} from '@dsfr-data/shared';
+import { PINNED } from './chrome-breakpoints.js';
+
+/**
+ * <app-assistant> — le panneau de l'assistant contextuel (#1011, ADR-143)
+ *
+ * Un panneau d'AFFICHAGE, sans logique : en-tête, fil de messages, résumé des
+ * constats avec « Me montrer », bascule « Dire » / « Guider », saisie. Il
+ * émet, `mountAssistant()` (packages/shared/src/ui/mount-assistant.ts)
+ * résout : correspondance sans modèle, secours par un modèle injecté par
+ * l'app, `montrer()`, persistance du mode. Ce fichier n'importe que des TYPES
+ * de `@dsfr-data/shared` : jamais `ia/transport`, `agent-loop` ni
+ * `reperes-matching` (test-garde `tests/apps/app-ui/app-assistant.test.ts`).
+ *
+ * **Anatomie** : celle des assistants de `proto-ecosysteme-sircom` et
+ * `proto-catalogue-donnees` (`public/assistant.{css,js}`), classes et valeurs
+ * comprises — avatar, bulles, état vide à suggestions, trois points, saisie en
+ * pilule, pied. Seuls les variables de couleur, `fr-icon-*`, `fr-sr-only` et
+ * `fr-link` viennent du DSFR : aucun composant de formulaire, par choix.
+ *
+ * **Placement** (arbitré le 2026-09-23, écart assumé aux protos) : volet
+ * latéral droit pleine hauteur en surimpression au-dessus de l'aperçu, du bas
+ * de l'en-tête au mobilier bas (rail du Diagnostic, barre d'actions fixe),
+ * SOUS le volet Diagnostic (770 < 780) ; il se réduit quand le Diagnostic
+ * s'ouvre, jamais l'inverse. Sous 35.98em : feuille plein écran.
+ *
+ * **Accessibilité** : `role=dialog` non modal, sans piège à focus ; jamais
+ * d'ouverture spontanée (seule la réouverture après navigation, mémorisée,
+ * et alors SANS prendre le focus) ; ouvrir par le bouton place le focus dans
+ * le champ ; Échap réduit et `mountAssistant` rend le focus au bouton. Le fil
+ * est un `role=log` ; le résumé des constats est HORS du log (le volet
+ * Diagnostic annonce déjà les nouvelles erreurs : pas de double annonce).
+ *
+ * Light DOM pour hériter des styles DSFR. Textes rendus par templates Lit
+ * (échappés), jamais par `innerHTML`.
+ *
+ * @fires assistant-envoyer - { question } l'usager envoie une question.
+ * @fires assistant-montrer - { repere } voir un repère (constat, candidat, « Continuer »).
+ * @fires assistant-mode - { mode } bascule « Dire » / « Guider ».
+ * @fires assistant-nouvelle - « Nouvelle conversation ».
+ * @fires assistant-diagnostic - « Voir le détail dans le Diagnostic ».
+ * @fires assistant-construire - « Construire pour moi dans le Studio ».
+ * @fires assistant-toggle - { open, focusDedans } ouverture / réduction.
+ */
+
+const LIBELLES_GRAVITE: Record<GraviteConstat, string> = {
+  erreur: 'Erreur',
+  avertissement: 'Avertissement',
+  info: 'Information',
+};
+
+const ICONES_GRAVITE: Record<GraviteConstat, string> = {
+  erreur: 'fr-icon-error-warning-line',
+  avertissement: 'fr-icon-warning-line',
+  info: 'fr-icon-information-line',
+};
+
+/** Mémoire ouvert / réduit, comme les protos (`ecosysteme-assistant-ouvert`). */
+export const CLE_ASSISTANT_OUVERT = 'dsfr-data-assistant-ouvert';
+
+/** Au-delà, la zone de saisie défile (protos : `HAUTEUR_MAX_SAISIE`). */
+const HAUTEUR_MAX_SAISIE = 128;
+
+/** Seuil de la feuille plein écran (protos). */
+export const PLEIN_ECRAN_QUERY = '(max-width: 35.98em)';
+
+/** Au plus trois suggestions dans l'état vide. */
+const MAX_SUGGESTIONS = 3;
+
+const PHRASE_SUGGESTION = 'Une suggestion remplit le champ, sans l’envoyer.';
+
+let assistantSeq = 0;
+
+/**
+ * Texte brut vers lignes : paragraphes sur `\n\n`, sauts de ligne sur `\n`,
+ * `**` retiré (aucun Markdown). Aucune regex : c'est du texte externe.
+ */
+export function paragraphesDe(texte: string): string[][] {
+  return String(texte)
+    .split('**')
+    .join('')
+    .split('\n\n')
+    .filter((p) => p.trim() !== '')
+    .map((p) => p.split('\n'));
+}
+
+export function injectAppAssistantStyles(): void {
+  if (document.getElementById('app-assistant-style')) return;
+  const style = document.createElement('style');
+  style.id = 'app-assistant-style';
+  style.textContent = `
+app-assistant{display:contents}
+/* \`hidden\` doit l'emporter sur les \`display\` declares ci-dessous : sans cette
+   regle, « Reduire » et Echap semblent sans effet (protos). */
+.assistant-panneau[hidden],.assistant-accueil[hidden],.assistant-saisie-en-cours[hidden]{display:none !important}
+/* Volet lateral pleine hauteur, en surimpression a droite. z-index 770 : sous
+   le volet Diagnostic (780), au-dessus de la barre d'actions collante (700).
+   Le bas s'arrete au mobilier bas : rail du Diagnostic, barre d'actions fixe
+   (0 hors mobile) — jamais recouverts. */
+.assistant-panneau{--assistant-rayon:.75rem;position:fixed;right:0;top:0;bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px));z-index:770;display:flex;flex-direction:column;width:max(24rem,min(30rem,40vw));max-width:100vw;overflow:hidden;color:var(--text-default-grey);background-color:var(--background-default-grey);border-left:1px solid var(--border-default-grey);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16))}
+/* Decalage derive de l'en-tete : seulement la ou il est epingle (chrome-breakpoints). */
+@media ${PINNED}{
+  .assistant-panneau{top:var(--app-header-h,0px)}
+}
+.assistant-entete{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;padding:.25rem .25rem .25rem .75rem;border-bottom:1px solid var(--border-default-grey)}
+.assistant-identite{display:flex;align-items:center;gap:.625rem;flex:1 1 auto;min-width:0}
+.assistant-avatar{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;color:var(--text-action-high-blue-france);background-color:var(--background-action-low-blue-france)}
+.assistant-titre{margin:0;font-size:1rem;line-height:1.5rem;font-weight:700}
+.assistant-sous-titre{margin:0;font-size:.75rem;line-height:1rem;color:var(--text-mention-grey)}
+.assistant-entete-actions{flex:0 0 auto;display:flex}
+.assistant-icone{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;margin:0;padding:0;border:0;border-radius:.375rem;color:var(--text-action-high-blue-france);background-color:transparent;cursor:pointer}
+.assistant-icone:hover{background-color:var(--background-default-grey-hover)}
+.assistant-icone:active{background-color:var(--background-default-grey-active)}
+.assistant-mode{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;margin:0;padding:.375rem .75rem;border-bottom:1px solid var(--border-default-grey);font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
+.assistant-mode-choix{display:inline-flex;border:1px solid var(--border-action-high-blue-france);border-radius:1.375rem;overflow:hidden}
+.assistant-mode-choix button{min-height:2rem;margin:0;padding:0 .875rem;border:0;font:inherit;font-size:.75rem;color:var(--text-action-high-blue-france);background-color:var(--background-default-grey);cursor:pointer}
+.assistant-mode-choix button[aria-pressed="true"]{color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france)}
+.assistant-fil{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1rem .75rem .5rem;background-color:var(--background-default-grey)}
+.assistant-messages{display:flex;flex-direction:column;gap:.75rem;list-style:none;margin:0;padding:0}
+.assistant-messages>li{padding:0}
+.assistant-message{display:flex;flex-direction:column;align-items:flex-start;max-width:100%}
+.assistant-message--utilisateur{align-items:flex-end}
+.assistant-bulle{max-width:88%;padding:.5rem .875rem;border-radius:var(--assistant-rayon);font-size:.875rem;line-height:1.5rem;overflow-wrap:anywhere}
+.assistant-message--assistant .assistant-bulle,.assistant-message--erreur .assistant-bulle{border-bottom-left-radius:.25rem;color:var(--text-default-grey);background-color:var(--background-alt-grey)}
+.assistant-bulle--large{width:100%;max-width:100%}
+.assistant-message--utilisateur .assistant-bulle{border-bottom-right-radius:.25rem;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france)}
+.assistant-message--erreur .assistant-bulle{display:flex;gap:.5rem;color:var(--text-default-warning);background-color:var(--background-contrast-warning);box-shadow:inset 3px 0 0 var(--border-plain-warning)}
+.assistant-message--erreur .assistant-bulle::before{--icon-size:1rem;flex:0 0 auto;margin-top:.25rem}
+.assistant-texte{margin:0;font-size:inherit;line-height:inherit}
+.assistant-texte+.assistant-texte{margin-top:.5rem}
+.assistant-mention{margin:.375rem 0 0;font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
+.assistant-saisie-en-cours{display:inline-flex;align-items:center;gap:.25rem;margin-top:.75rem;padding:.75rem 1rem;border-radius:var(--assistant-rayon);border-bottom-left-radius:.25rem;background-color:var(--background-alt-grey)}
+.assistant-saisie-en-cours span{width:.4375rem;height:.4375rem;border-radius:50%;background-color:var(--text-mention-grey);animation:assistant-points 1.2s infinite ease-in-out}
+.assistant-saisie-en-cours span:nth-child(2){animation-delay:.15s}
+.assistant-saisie-en-cours span:nth-child(3){animation-delay:.3s}
+@keyframes assistant-points{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-.1875rem)}}
+.assistant-accueil{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;padding:.5rem .25rem .75rem}
+.assistant-accueil .assistant-avatar{width:2.5rem;height:2.5rem;margin-bottom:.5rem}
+.assistant-accueil-titre{margin:0;font-size:1.125rem;line-height:1.75rem;font-weight:700}
+.assistant-accueil-texte{margin:0 0 .75rem;font-size:.875rem;line-height:1.5rem;color:var(--text-mention-grey)}
+.assistant-suggestions{display:flex;flex-direction:column;align-items:flex-start;gap:.5rem;list-style:none;margin:0;padding:0}
+.assistant-suggestions>li{padding:0;max-width:100%}
+.assistant-suggestion{display:inline-flex;align-items:center;min-height:2.75rem;margin:0;padding:.5rem 1rem;border:1px solid var(--border-default-blue-france);border-radius:1.375rem;font:inherit;font-size:.875rem;line-height:1.25rem;text-align:left;color:var(--text-action-high-blue-france);background-color:var(--background-default-grey);cursor:pointer}
+.assistant-suggestion:hover{background-color:var(--background-default-grey-hover)}
+.assistant-constats{margin:0 0 .75rem}
+.assistant-recap{margin:.75rem 0 0;padding:.75rem;border:1px solid var(--border-default-grey);border-radius:.5rem;background-color:var(--background-default-grey)}
+.assistant-recap-titre{display:flex;align-items:center;gap:.375rem;margin:0 0 .5rem;font-size:.875rem;font-weight:700;line-height:1.5rem}
+.assistant-recap ul{display:flex;flex-direction:column;gap:.5rem;list-style:none;margin:0;padding:0}
+.assistant-recap li{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;padding:0;font-size:.8125rem;line-height:1.25rem}
+.assistant-recap-constat{flex:1 1 12rem;min-width:0;display:flex;gap:.375rem}
+.assistant-recap-constat::before{--icon-size:1rem;flex:0 0 auto;margin-top:.125rem}
+.assistant-recap li[data-gravite="erreur"] .assistant-recap-constat::before{color:var(--text-default-error)}
+.assistant-recap li[data-gravite="avertissement"] .assistant-recap-constat::before{color:var(--text-default-warning)}
+.assistant-recap .fr-link{margin-top:.75rem;font-size:.8125rem}
+.assistant-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0 0}
+.assistant-bouton{display:inline-flex;align-items:center;gap:.375rem;min-height:2.75rem;margin:0;padding:.5rem 1rem;border:1px solid var(--background-action-high-blue-france);border-radius:.375rem;font:inherit;font-size:.875rem;font-weight:500;line-height:1.25rem;text-decoration:none;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);background-image:none;cursor:pointer}
+.assistant-bouton:hover{background-color:var(--background-action-high-blue-france-hover)}
+.assistant-bouton::before{--icon-size:1rem}
+.assistant-bouton--secondaire{color:var(--text-action-high-blue-france);background-color:var(--background-default-grey);border-color:var(--border-action-high-blue-france)}
+.assistant-bouton--secondaire:hover{background-color:var(--background-default-grey-hover)}
+.assistant-bouton[aria-disabled="true"]{opacity:.6;cursor:progress}
+.assistant-bouton:disabled{opacity:.6;cursor:not-allowed}
+.assistant-form{flex:0 0 auto;margin:0;padding:.5rem .75rem 0;background-color:var(--background-default-grey)}
+.assistant-composeur{display:flex;align-items:flex-end;gap:.25rem;padding:.25rem .25rem .25rem .875rem;border:1px solid var(--border-plain-grey);border-radius:1.5rem;background-color:var(--background-contrast-grey)}
+.assistant-composeur:focus-within{border-color:var(--border-active-blue-france);box-shadow:0 0 0 1px var(--border-active-blue-france)}
+.assistant-saisie{flex:1 1 auto;min-width:0;height:2.75rem;max-height:8rem;margin:0;padding:.625rem 0;border:0;font:inherit;font-size:.875rem;line-height:1.5rem;color:var(--text-default-grey);background:transparent;resize:none;overflow-y:auto}
+.assistant-saisie:focus,.assistant-saisie:focus-visible{outline:none}
+.assistant-saisie::placeholder{color:var(--text-mention-grey);opacity:1}
+.assistant-envoi{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;margin:0;padding:0;border:0;border-radius:50%;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);cursor:pointer}
+.assistant-envoi:hover{background-color:var(--background-action-high-blue-france-hover)}
+.assistant-envoi::before{--icon-size:1.25rem}
+.assistant-envoi[aria-disabled="true"]{color:var(--text-disabled-grey);background-color:var(--background-disabled-grey);cursor:not-allowed}
+.assistant-pied{flex:0 0 auto;margin:0;padding:.375rem .75rem .5rem;font-size:.75rem;line-height:1.25rem;text-align:center;color:var(--text-mention-grey)}
+.assistant-pied .fr-link{font-size:inherit}
+/* Pastille du bouton « Assistant » (posee par mountAssistant) : visible en
+   barre comme dans « Plus d'actions ». */
+#assistant-btn[data-count]::after{content:attr(data-count);display:inline-flex;align-items:center;justify-content:center;min-width:1.25rem;height:1.25rem;margin-left:.4rem;padding:0 .35rem;border-radius:.625rem;font-size:.75rem;font-weight:700;line-height:1;background:var(--background-flat-warning);color:var(--text-inverted-warning)}
+@media (max-width:47.99em){
+  /* La raison de desactivation de la primaire est fixe au-dessus du rail, a
+     800 : elle recouvrirait la zone de saisie. Masquee a l'ecran tant que le
+     panneau est ouvert ; le lien aria-describedby de la primaire reste. */
+  body:has(.assistant-panneau:not([hidden])) .app-action-bar__reason{display:none}
+}
+@media (max-width:35.98em){
+  /* Feuille plein ecran (protos), mais AU-DESSUS du mobilier bas : le rail du
+     Diagnostic et la barre d'actions fixe restent visibles et atteignables. */
+  .assistant-panneau{top:0;left:0;right:0;width:100%;border:0;border-radius:0;box-shadow:none}
+  .assistant-entete{padding-top:calc(.25rem + env(safe-area-inset-top,0px))}
+}
+@media (prefers-reduced-motion:reduce){
+  .assistant-saisie-en-cours span{animation:none;opacity:.6}
+  .assistant-fil{scroll-behavior:auto}
+}
+`;
+  document.head.appendChild(style);
+}
+
+@customElement('app-assistant')
+export class AppAssistant extends LitElement {
+  /** App hôte (`builder-carto`), reflétée en `data-app`. */
+  @property({ type: String, reflect: true, attribute: 'data-app' })
+  app = '';
+
+  @property({ attribute: false })
+  messages: readonly MessageAssistant[] = [];
+
+  /** Constats courants : le panneau n'en montre qu'un RÉSUMÉ (les non-info). */
+  @property({ attribute: false })
+  constats: readonly Constat[] = [];
+
+  /** Au plus trois ; une suggestion remplit le champ sans l'envoyer. */
+  @property({ attribute: false })
+  suggestions: readonly SuggestionAssistant[] = [];
+
+  /** Phrase d'aide de l'état vide, propre à l'app. */
+  @property({ type: String })
+  aide = 'Demandez où se trouve un réglage, ou pourquoi l’aperçu reste vide.';
+
+  @property({ type: String, attribute: 'sous-titre' })
+  sousTitre = 'Albert, IA de l’État';
+
+  @property({ type: String })
+  pied = 'IA de l’État : réponses à vérifier';
+
+  /** Mode de révélation ; la bascule émet `assistant-mode`, le montage persiste. */
+  @property({ type: String, reflect: true })
+  mode: ModeReperage = 'dire';
+
+  /** Une réponse est attendue : trois points, envoi en `aria-disabled`. */
+  @property({ type: Boolean, reflect: true })
+  busy = false;
+
+  @property({ type: Boolean, reflect: true })
+  open = false;
+
+  /** Affiche « Voir le détail dans le Diagnostic ». */
+  @property({ type: Boolean })
+  diagnostic = false;
+
+  /** Affiche « Construire pour moi dans le Studio ». */
+  @property({ type: Boolean })
+  construire = false;
+
+  /** Texte de la région `role=status` (attente, nouvelle conversation). */
+  @property({ type: String })
+  statut = '';
+
+  private readonly _uid = `app-assistant-${++assistantSeq}`;
+
+  /** Id du `section role=dialog` : cible d'`aria-controls` du bouton. */
+  readonly panneauId = `${this._uid}-panneau`;
+
+  createRenderRoot() {
+    return this;
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    injectAppAssistantStyles();
+    document.addEventListener('diagnostic-toggle', this._onDiagnosticToggle);
+    // Réouverture après navigation : l'état mémorisé, SANS prendre le focus.
+    try {
+      if (localStorage.getItem(CLE_ASSISTANT_OUVERT) === '1') this.open = true;
+    } catch {
+      // Stockage indisponible : le panneau reste réduit.
+    }
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    document.removeEventListener('diagnostic-toggle', this._onDiagnosticToggle);
+  }
+
+  /** Le Diagnostic qui s'ouvre passe devant : l'assistant se réduit. Jamais l'inverse. */
+  private _onDiagnosticToggle = (e: Event): void => {
+    if ((e as CustomEvent<{ open: boolean }>).detail?.open && this.open) this.toggle(false);
+  };
+
+  /**
+   * Ouvre, réduit, ou bascule. Ouvrir place le focus dans le champ (sauf
+   * `{ focus: false }`) ; réduire émet `focusDedans`, que `mountAssistant`
+   * lit pour rendre le focus au bouton.
+   */
+  toggle(open?: boolean, options: { focus?: boolean } = {}): void {
+    const suivant = open ?? !this.open;
+    if (suivant === this.open) {
+      if (suivant && options.focus !== false) this.champ?.focus();
+      return;
+    }
+    const focusDedans = this.contains(document.activeElement);
+    this.open = suivant;
+    try {
+      localStorage.setItem(CLE_ASSISTANT_OUVERT, suivant ? '1' : '0');
+    } catch {
+      // Stockage indisponible : l'état reste en mémoire.
+    }
+    this.dispatchEvent(
+      new CustomEvent('assistant-toggle', {
+        detail: { open: suivant, focusDedans },
+        bubbles: true,
+        composed: true,
+      })
+    );
+    if (suivant && options.focus !== false) {
+      void this.updateComplete.then(() => {
+        this.champ?.focus();
+        this._defilerEnBas();
+      });
+    }
+  }
+
+  /** Le champ de saisie. */
+  get champ(): HTMLTextAreaElement | null {
+    return this.querySelector<HTMLTextAreaElement>('.assistant-saisie');
+  }
+
+  /** Constats non-info : ceux que compte la pastille du rail. */
+  get constatsResumes(): readonly Constat[] {
+    return this.constats.filter((c) => c.gravite !== 'info');
+  }
+
+  /** Remplit le champ SANS envoyer, et sélectionne la partie à compléter. */
+  remplir(s: SuggestionAssistant): void {
+    const champ = this.champ;
+    if (!champ) return;
+    champ.value = s.texte;
+    this._ajusterSaisie();
+    champ.focus();
+    const i = s.aCompleter ? s.texte.indexOf(s.aCompleter) : -1;
+    if (i >= 0 && s.aCompleter) champ.setSelectionRange(i, i + s.aCompleter.length);
+    else champ.setSelectionRange(champ.value.length, champ.value.length);
+  }
+
+  private _emettre(type: string, detail?: unknown): void {
+    this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
+  }
+
+  /**
+   * « Me montrer » : en plein écran, le panneau masquerait le contrôle — il se
+   * réduit d'abord (sans rendre le focus au bouton : `montrer()` s'en charge
+   * selon le mode). Sur un écran large, il reste ouvert.
+   */
+  private _montrer(repere: string | undefined): void {
+    if (!repere || this.busy) return;
+    if (this.open && this._pleinEcran()) {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      this.toggle(false);
+    }
+    this._emettre('assistant-montrer', { repere });
+  }
+
+  private _pleinEcran(): boolean {
+    return typeof window.matchMedia === 'function' && window.matchMedia(PLEIN_ECRAN_QUERY).matches;
+  }
+
+  private _choisirMode(mode: ModeReperage): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    this._emettre('assistant-mode', { mode });
+  }
+
+  private _envoyer(e: Event): void {
+    e.preventDefault();
+    const champ = this.champ;
+    if (!champ || this.busy) return;
+    const question = champ.value.trim();
+    if (!question) return;
+    champ.value = '';
+    this._ajusterSaisie();
+    this._emettre('assistant-envoyer', { question });
+  }
+
+  /** Entrée envoie, Maj+Entrée va à la ligne, rien pendant une composition IME. */
+  private _onChampKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing || e.keyCode === 229) return;
+    this._envoyer(e);
+  }
+
+  /** Échap réduit le panneau (il n'est pas modal). */
+  private _onKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Escape' || !this.open) return;
+    e.stopPropagation();
+    this.toggle(false);
+  }
+
+  /** Une ligne, qui grandit avec le texte jusqu'à `HAUTEUR_MAX_SAISIE`. */
+  private _ajusterSaisie(): void {
+    const champ = this.champ;
+    if (!champ) return;
+    champ.style.height = 'auto';
+    champ.style.height = `${Math.min(champ.scrollHeight, HAUTEUR_MAX_SAISIE)}px`;
+  }
+
+  private _defilerEnBas(): void {
+    const fil = this.querySelector<HTMLElement>('.assistant-fil');
+    if (fil) fil.scrollTop = fil.scrollHeight;
+  }
+
+  protected updated(changed: Map<PropertyKey, unknown>): void {
+    if (changed.has('messages') || changed.has('busy')) this._defilerEnBas();
+  }
+
+  // --- Rendu ---
+
+  private _renderAccueil(): TemplateResult {
+    const suggestions = this.suggestions.slice(0, MAX_SUGGESTIONS);
+    return html`<div class="assistant-accueil" ?hidden=${this.messages.length > 0}>
+      <span class="assistant-avatar fr-icon-sparkling-2-line" aria-hidden="true"></span>
+      <p class="assistant-accueil-titre">Bonjour, que puis-je faire pour vous ?</p>
+      <p class="assistant-accueil-texte">${this.aide} ${PHRASE_SUGGESTION}</p>
+      ${
+        suggestions.length > 0
+          ? html`<ul class="assistant-suggestions" aria-label="Suggestions">
+              ${suggestions.map(
+                (s) =>
+                  html`<li>
+                    <button
+                      type="button"
+                      class="assistant-suggestion"
+                      @click=${() => this.remplir(s)}
+                    >
+                      ${s.texte}
+                    </button>
+                  </li>`
+              )}
+            </ul>`
+          : nothing
+      }
+    </div>`;
+  }
+
+  /** Résumé des constats : une bulle de l'assistant, HORS du `role=log`. */
+  private _renderConstats(): TemplateResult | typeof nothing {
+    const resumes = this.constatsResumes;
+    if (resumes.length === 0) return nothing;
+    const titreId = `${this._uid}-constats`;
+    const n = resumes.length;
+    return html`<section class="assistant-constats" aria-labelledby=${titreId}>
+      <div class="assistant-message assistant-message--assistant">
+        <div class="assistant-bulle assistant-bulle--large">
+          <div class="assistant-recap">
+            <h3 class="assistant-recap-titre fr-icon-warning-line" id=${titreId}>
+              ${n} constat${n > 1 ? 's' : ''} à corriger
+            </h3>
+            <ul>
+              ${resumes.map((c, i) => {
+                const id = `${titreId}-${i}`;
+                return html`<li data-gravite=${c.gravite}>
+                  <span class="assistant-recap-constat ${ICONES_GRAVITE[c.gravite]}" id=${id}
+                    ><span class="fr-sr-only">${LIBELLES_GRAVITE[c.gravite]} : </span
+                    >${c.titre}</span
+                  >
+                  <button
+                    type="button"
+                    class="assistant-bouton assistant-bouton--secondaire fr-icon-eye-line"
+                    aria-describedby=${id}
+                    ?disabled=${c.reperes.length === 0}
+                    @click=${() => this._montrer(c.reperes[0])}
+                  >
+                    Me montrer
+                  </button>
+                </li>`;
+              })}
+            </ul>
+            ${
+              this.diagnostic
+                ? html`<button
+                    type="button"
+                    class="fr-link fr-icon-arrow-right-line fr-link--icon-right"
+                    @click=${() => this._emettre('assistant-diagnostic')}
+                  >
+                    Voir le détail dans le Diagnostic
+                  </button>`
+                : nothing
+            }
+          </div>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  private _renderCandidat(c: CandidatAssistant): TemplateResult {
+    const chemin = c.chemin.join(' › ');
+    return html`<button
+      type="button"
+      class="assistant-bouton assistant-bouton--secondaire fr-icon-eye-line"
+      title=${chemin || nothing}
+      aria-disabled=${this.busy ? 'true' : 'false'}
+      @click=${() => this._montrer(c.id)}
+    >
+      ${c.libelle}
+    </button>`;
+  }
+
+  private _renderMessage(m: MessageAssistant): TemplateResult {
+    const usager = m.role === 'usager';
+    const classe = m.erreur ? 'erreur' : usager ? 'utilisateur' : 'assistant';
+    const candidats = m.candidats ?? [];
+    const actions = candidats.length > 0 || !!m.continuer;
+    return html`<li class="assistant-message assistant-message--${classe}">
+      <h3 class="fr-sr-only">${usager ? 'Votre message' : 'Réponse de l’assistant'}</h3>
+      <div class="assistant-bulle ${m.erreur ? 'fr-icon-warning-line' : ''}">
+        <div>
+          ${paragraphesDe(m.texte).map(
+            (lignes) =>
+              html`<p class="assistant-texte">
+                ${lignes.map((l, i) => (i > 0 ? html`<br />${l}` : l))}
+              </p>`
+          )}
+          ${
+            actions
+              ? html`<div class="assistant-actions">
+                  ${candidats.map((c) => this._renderCandidat(c))}
+                  ${
+                    m.continuer
+                      ? html`<button
+                          type="button"
+                          class="assistant-bouton fr-icon-arrow-right-line"
+                          aria-disabled=${this.busy ? 'true' : 'false'}
+                          @click=${() => this._montrer(m.continuer)}
+                        >
+                          Continuer
+                        </button>`
+                      : nothing
+                  }
+                </div>`
+              : nothing
+          }
+          ${
+            m.role === 'assistant' && m.source === 'modele'
+              ? html`<p class="assistant-mention">Réponse rédigée par Albert, à vérifier.</p>`
+              : nothing
+          }
+        </div>
+      </div>
+    </li>`;
+  }
+
+  render() {
+    const titreId = `${this._uid}-titre`;
+    const champId = `${this._uid}-saisie`;
+    return html`
+      <section
+        class="assistant-panneau"
+        id=${this.panneauId}
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby=${titreId}
+        ?hidden=${!this.open}
+        @keydown=${this._onKeydown}
+      >
+        <div class="assistant-entete">
+          <div class="assistant-identite">
+            <span
+              class="assistant-avatar fr-icon-sparkling-2-line fr-icon--sm"
+              aria-hidden="true"
+            ></span>
+            <div>
+              <h2 class="assistant-titre" id=${titreId}>Assistant</h2>
+              <p class="assistant-sous-titre">${this.sousTitre}</p>
+            </div>
+          </div>
+          <div class="assistant-entete-actions">
+            <button
+              type="button"
+              class="assistant-icone"
+              title="Nouvelle conversation"
+              @click=${() => {
+                if (!this.busy) this._emettre('assistant-nouvelle');
+              }}
+            >
+              <span class="fr-icon-refresh-line fr-icon--sm" aria-hidden="true"></span>
+              <span class="fr-sr-only">Nouvelle conversation</span>
+            </button>
+            <button
+              type="button"
+              class="assistant-icone"
+              title="Réduire l’assistant"
+              @click=${() => this.toggle(false)}
+            >
+              <span class="fr-icon-subtract-line fr-icon--sm" aria-hidden="true"></span>
+              <span class="fr-sr-only">Réduire l’assistant</span>
+            </button>
+          </div>
+        </div>
+        <div class="assistant-mode">
+          <span id=${`${this._uid}-mode`}>Me montrer un réglage :</span>
+          <div class="assistant-mode-choix" role="group" aria-labelledby=${`${this._uid}-mode`}>
+            <button
+              type="button"
+              aria-pressed=${this.mode === 'dire' ? 'true' : 'false'}
+              title="Le surligner et annoncer son chemin, sans déplacer le focus"
+              @click=${() => this._choisirMode('dire')}
+            >
+              Dire
+            </button>
+            <button
+              type="button"
+              aria-pressed=${this.mode === 'guider' ? 'true' : 'false'}
+              title="Y amener l’écran et le focus"
+              @click=${() => this._choisirMode('guider')}
+            >
+              Guider
+            </button>
+          </div>
+        </div>
+        <div class="assistant-fil" tabindex="0" role="region" aria-label="Fil de l’assistant">
+          ${this._renderAccueil()} ${this._renderConstats()}
+          <ol
+            class="assistant-messages"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            aria-label="Conversation avec l’assistant"
+          >
+            ${this.messages.map((m) => this._renderMessage(m))}
+          </ol>
+          <div class="assistant-saisie-en-cours" aria-hidden="true" ?hidden=${!this.busy}>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+        <p class="fr-sr-only" role="status">${this.statut}</p>
+        <form class="assistant-form" @submit=${this._envoyer}>
+          <label class="fr-sr-only" for=${champId}
+            >Votre message pour l’assistant (Entrée pour envoyer, Maj+Entrée pour aller à la
+            ligne)</label
+          >
+          <div class="assistant-composeur">
+            <textarea
+              class="assistant-saisie"
+              id=${champId}
+              rows="1"
+              maxlength="2000"
+              placeholder="Posez votre question…"
+              aria-keyshortcuts="Enter"
+              @input=${this._ajusterSaisie}
+              @keydown=${this._onChampKeydown}
+            ></textarea>
+            <button
+              type="submit"
+              class="assistant-envoi fr-icon-send-plane-fill"
+              title="Envoyer"
+              aria-disabled=${this.busy ? 'true' : 'false'}
+            >
+              <span class="fr-sr-only">Envoyer</span>
+            </button>
+          </div>
+        </form>
+        <p class="assistant-pied">
+          ${this.pied}
+          ${
+            this.construire
+              ? html`·
+                  <button
+                    type="button"
+                    class="fr-link"
+                    @click=${() => this._emettre('assistant-construire')}
+                  >
+                    Construire pour moi dans le Studio
+                  </button>`
+              : nothing
+          }
+        </p>
+      </section>
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'app-assistant': AppAssistant;
+  }
+}

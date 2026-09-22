@@ -307,6 +307,27 @@ export {
   DUREE_SURBRILLANCE_MS,
 } from './ui/reperage.js';
 
+// Assistant contextuel : montage du panneau app-assistant (#1011, app-side).
+// La correspondance sans modèle d'abord, le modèle injecté par l'app en secours.
+export type {
+  SourceReponse,
+  SuggestionAssistant,
+  CandidatAssistant,
+  MessageAssistant,
+  Reponse,
+  ContexteAssistant,
+  AssistantPanelElement,
+  OptionsAssistant,
+  MountedAssistant,
+} from './ui/mount-assistant.js';
+export {
+  mountAssistant,
+  messageAucunReglage,
+  ID_BOUTON_ASSISTANT,
+  PIED_SANS_MODELE,
+  SOUS_TITRE_SANS_MODELE,
+} from './ui/mount-assistant.js';
+
 // Sample data
 export type { SampleDataset } from './data/sample-datasets.js';
 export { SAMPLE_DATASETS } from './data/sample-datasets.js';

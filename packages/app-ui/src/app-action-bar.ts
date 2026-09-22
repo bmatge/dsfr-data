@@ -253,6 +253,27 @@ export class AppActionBar extends LitElement {
     this._layout();
   }
 
+  /**
+   * Bouton « Assistant » (#1011, docs/ux/actions.md §2.2) : tertiaire,
+   * `fr-icon-question-answer-line`, id `assistant-btn`. Réutilisé s'il est déjà
+   * dans la barre (balisage de l'app), créé sinon. `mountAssistant()` le relie
+   * au panneau (`aria-expanded`, `aria-controls`) et y pose la pastille
+   * `data-count` des constats à corriger.
+   */
+  ajouterBoutonAssistant(): HTMLButtonElement {
+    const existant = this.querySelector<HTMLButtonElement>('#assistant-btn');
+    if (existant) return existant;
+    const bouton = document.createElement('button');
+    bouton.type = 'button';
+    bouton.id = 'assistant-btn';
+    bouton.className = 'fr-icon-question-answer-line';
+    bouton.title = "Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger";
+    bouton.setAttribute('aria-expanded', 'false');
+    bouton.textContent = 'Assistant';
+    this.addAction(bouton, 'tertiary');
+    return bouton;
+  }
+
   /** Retire une action de la barre et la rend (écouteurs conservés). */
   removeAction(el: HTMLElement): HTMLElement {
     const idx = this._items.findIndex((it) => it.el === el);
