@@ -16,6 +16,8 @@ import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { getProxiedUrl, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
 import { parseAggregates } from '../utils/aggregates.js';
 import { buildColonFacetWhere, unescapeColonValue, parseOrderBy } from '../utils/where.js';
+import type { OrderByPart } from '../utils/where.js';
+import { sortRows } from '../utils/sort.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -142,6 +144,27 @@ const TABULAR_PAGE_SIZE = 200;
  */
 const TABULAR_MAX_PAGES = 125;
 
+/**
+ * Duree de vie des groupes complets gardes pour un tri local en pagination
+ * serveur (#1045) : les pages suivantes d'une meme liste les relisent au lieu
+ * de refaire toutes les requetes, sans servir indefiniment une donnee
+ * perimee.
+ */
+const TABULAR_GROUPS_TTL_MS = 60_000;
+
+/**
+ * Repartition d'un `order-by` entre l'API et l'adaptateur (#1045).
+ *
+ * - `server` : parties emises en `champ__sort` ;
+ * - `local` : parties que l'adaptateur applique lui-meme, sur les groupes
+ *   COMPLETS (jamais sur une page de groupes : ce ne serait pas un tri
+ *   global, et un « top 10 » pris sur la premiere page serait faux).
+ */
+interface SortPlan {
+  server: OrderByPart[];
+  local: OrderByPart[];
+}
+
 export class TabularAdapter implements ApiAdapter {
   readonly type = 'tabular';
 
@@ -153,6 +176,12 @@ export class TabularAdapter implements ApiAdapter {
 
   /** Profils lus, par `base|ressource` (#985) : un seul appel par ressource. */
   private readonly _profiles = new Map<string, ProfileEntry>();
+
+  /**
+   * Derniers groupes complets lus pour un tri local en pagination serveur
+   * (#1045), par URL de premiere page : une seule entree, `TABULAR_GROUPS_TTL_MS`.
+   */
+  private _completeGroups: { key: string; at: number; result: FetchResult } | null = null;
 
   readonly capabilities: AdapterCapabilities = {
     serverFetch: true,
@@ -260,6 +289,42 @@ export class TabularAdapter implements ApiAdapter {
     }
 
     return flags;
+  }
+
+  /**
+   * Ce que l'API sait trier dans une requete regroupee (#1045).
+   *
+   * Mesure du 2026-09-23 (ressource 90e0d717…, `EPCI__groupby&NB_VP__sum`) :
+   * - `EPCI__sort=desc` → 200 : la colonne de REGROUPEMENT se trie ;
+   * - `NB_VP__sum__sort=desc` → 400, 42703 « column …NB_VP__sum does not
+   *   exist » (aussi sans le flag `NB_VP__sum`) : une colonne d'agregat n'est
+   *   pas une colonne de la table, le tri ne la voit pas ;
+   * - `NB_VP__sort=desc` → 400, 42803 « must appear in the GROUP BY clause ».
+   * Le 400 part sans en-tete CORS : le navigateur n'en voit qu'une erreur
+   * reseau opaque (#598). Tout graphique regroupe et trie sur sa valeur
+   * (« top 10 ») echouait ainsi.
+   *
+   * Donc, quand un regroupement ou un agregat est demande :
+   * - tri sur les seules colonnes de regroupement → delegue ;
+   * - sinon, regroupement delegue → le tri ENTIER est applique ici, sur les
+   *   groupes complets (un tri mixte serveur puis local ne serait pas stable
+   *   sur la premiere cle) ;
+   * - sinon (regroupement non delegable, lignes brutes) → rien n'est emis :
+   *   l'aval regroupe puis trie, et le champ trie n'existe pas encore.
+   */
+  private _sortPlan(params: AdapterParams, orderBy: string | undefined): SortPlan {
+    const parts = parseOrderBy(orderBy || '');
+    const asked = !!(params.groupBy?.trim() || params.aggregate?.trim());
+    if (parts.length === 0 || !asked) return { server: parts, local: [] };
+    const groupFields = new Set(
+      (params.groupBy || '')
+        .split(',')
+        .map((f) => f.trim())
+        .filter(Boolean)
+    );
+    if (parts.every((p) => groupFields.has(p.field))) return { server: parts, local: [] };
+    if (this._canServerProcessGroupBy(params)) return { server: [], local: parts };
+    return { server: [], local: [] };
   }
 
   /**
@@ -449,6 +514,10 @@ export class TabularAdapter implements ApiAdapter {
    * une requete group-by, dont l'API ne donne pas le total.
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
+    // Tri sur une colonne d'agregat (#1045) : groupes complets, puis tri ici
+    const localSort = this._sortPlan(params, params.orderBy).local;
+    if (localSort.length > 0) return this._fetchAllSortedLocally(params, localSort, signal);
+
     const fetchAllRecords = params.limit <= 0;
     const maxRecords =
       params.maxRecords && params.maxRecords > 0
@@ -583,6 +652,86 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
+   * Fetch complet trie ICI (#1045) : l'API ne trie pas une colonne d'agregat.
+   *
+   * Tous les groupes sont lus SANS `limit` — un `limit="10"` borne sinon la
+   * lecture aux dix premiers groupes dans l'ordre de l'API, et le tri en
+   * ferait un faux « top 10 » —, puis tries, puis coupes au `limit`.
+   * Quand le plafond `max-records` a coupe la lecture, le tri ne porte que
+   * sur les groupes lus : on le dit.
+   */
+  private async _fetchAllSortedLocally(
+    params: AdapterParams,
+    parts: OrderByPart[],
+    signal: AbortSignal
+  ): Promise<FetchResult> {
+    const complete = await this.fetchAll({ ...params, orderBy: '', limit: 0 }, signal);
+    this._warnPartialSort(params, complete);
+    let data = sortRows(complete.data, parts);
+    if (params.limit > 0) data = data.slice(0, params.limit);
+    return { ...complete, data };
+  }
+
+  /**
+   * Page trie ICI en pagination serveur (#1045) : l'API pagine les groupes
+   * dans SON ordre, et un tri applique a une page n'est pas un tri global —
+   * la premiere page triee ne serait pas le « top » du jeu. Les groupes
+   * complets sont donc lus (et gardes `TABULAR_GROUPS_TTL_MS` pour les pages
+   * suivantes), tries, puis la page demandee y est decoupee. Le nombre de
+   * groupes est alors connu : il devient le total de la pagination.
+   */
+  private async _fetchPageSortedLocally(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    parts: OrderByPart[],
+    signal: AbortSignal
+  ): Promise<FetchResult> {
+    const completeParams: AdapterParams = {
+      ...params,
+      where: overlay.effectiveWhere || params.filter || params.where,
+      filter: '',
+      orderBy: '',
+      limit: 0,
+    };
+    const key = [
+      this.buildUrl(completeParams, TABULAR_PAGE_SIZE, 1),
+      params.proxyUrl ?? '',
+      JSON.stringify(params.headers ?? {}),
+      params.maxRecords ?? '',
+    ].join('|');
+    const cached = this._completeGroups;
+    let complete: FetchResult;
+    if (cached && cached.key === key && Date.now() - cached.at < TABULAR_GROUPS_TTL_MS) {
+      complete = cached.result;
+    } else {
+      complete = await this.fetchAll(completeParams, signal);
+      this._completeGroups = { key, at: Date.now(), result: complete };
+      this._warnPartialSort(params, complete);
+    }
+
+    const sorted = sortRows(complete.data, parts);
+    const size = params.pageSize > 0 ? this._clampPageSize(params.pageSize) : TABULAR_PAGE_SIZE;
+    const start = (Math.max(1, overlay.page) - 1) * size;
+    return {
+      data: sorted.slice(start, start + size),
+      // Groupes tous lus : le total est connu. Plafond atteint : il ne l'est pas.
+      totalCount: complete.truncated ? undefined : sorted.length,
+      needsClientProcessing: false,
+      ...(complete.truncated ? { truncated: true } : {}),
+    };
+  }
+
+  /** Tri local sur des groupes TRONQUES par le plafond : global, il ne l'est pas (#1045). */
+  private _warnPartialSort(params: AdapterParams, complete: FetchResult): void {
+    if (!complete.truncated) return;
+    console.warn(
+      `[dsfr-data] tabular: tri sur "${params.orderBy}" calculé sur les ${complete.data.length} ` +
+        `premiers groupes seulement — l'API Tabular ne trie pas une colonne d'agrégat, et le ` +
+        `plafond max-records a coupé la lecture ; relevez max-records pour un tri sur tous les groupes`
+    );
+  }
+
+  /**
    * Fetch une seule page en mode server-side.
    *
    * Le group-by/aggregate demande est delegue comme en fetch complet (#852) ;
@@ -595,6 +744,12 @@ export class TabularAdapter implements ApiAdapter {
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
+    // Tri sur une colonne d'agregat (#1045) : jamais sur une page de groupes
+    const localSort = this._sortPlan(params, overlay.orderBy).local;
+    if (localSort.length > 0) {
+      return this._fetchPageSortedLocally(params, overlay, localSort, signal);
+    }
+
     const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
     const asked = !!(params.groupBy || params.aggregate);
     const serverHandled = this._warnUndelegable(params, this._canServerProcessGroupBy(params));
@@ -645,13 +800,11 @@ export class TabularAdapter implements ApiAdapter {
     const columns = this._columnsFlag(params);
     if (columns) bareFlags.push(columns);
 
-    // Tri
-    if (params.orderBy) {
-      // Grammaire commune "field:dir, field2:dir2" (#273) — le split(':')
-      // global produisait un tri malforme en multi-champs
-      for (const part of parseOrderBy(params.orderBy)) {
-        url.searchParams.set(`${part.field}__sort`, part.direction);
-      }
+    // Tri — grammaire commune "field:dir, field2:dir2" (#273). Seules les
+    // parties que l'API sait trier partent (#1045) : jamais une colonne
+    // d'agregat, que `fetchAll` trie lui-meme.
+    for (const part of this._sortPlan(params, params.orderBy).server) {
+      url.searchParams.set(`${part.field}__sort`, part.direction);
     }
 
     // Pagination
@@ -715,13 +868,11 @@ export class TabularAdapter implements ApiAdapter {
     const columns = this._columnsFlag(params);
     if (columns) bareFlags.push(columns);
 
-    // ORDER BY: overlay prioritaire, fallback statique
-    const effectiveOrderBy = overlay.orderBy;
-    if (effectiveOrderBy) {
-      // Grammaire commune "field:dir, field2:dir2" (#273)
-      for (const part of parseOrderBy(effectiveOrderBy)) {
-        url.searchParams.set(`${part.field}__sort`, part.direction);
-      }
+    // ORDER BY de l'overlay — grammaire commune "field:dir, field2:dir2"
+    // (#273). Jamais une colonne d'agregat (#1045) : `fetchPage` la trie
+    // lui-meme, sur les groupes complets.
+    for (const part of this._sortPlan(params, overlay.orderBy).server) {
+      url.searchParams.set(`${part.field}__sort`, part.direction);
     }
 
     // PAGINATION: une seule page, bornee au maximum de l'API (#1019) : au-dela,
