@@ -184,14 +184,51 @@ function lireAppel(src: string, i: number, helpers: readonly HelperLexer[]): str
   const attrs: string[] = [`data-appel-fonction="${h.fonction}"`];
   const noms: Record<string, string> = { [h.parametre]: 'data-repere', ...PROPS_APPEL };
   for (const e of entrees) {
-    const kv = /^\s*(?:\/\/[^\n]*\n\s*)*([\w$]+)\s*(:\s*([\s\S]*?))?\s*$/.exec(e);
-    if (!kv) continue;
-    const attr = noms[kv[1]];
+    const entree = sansCommentairesEnTete(e).trimEnd();
+    const cle = /^[\w$]+/.exec(entree);
+    if (!cle) continue;
+    const attr = noms[cle[0]];
     if (!attr) continue;
-    const lit = kv[3] !== undefined ? /^(['"])((?:(?!\1)[^\\\n])*)\1$/.exec(kv[3]) : null;
-    attrs.push(`${attr}="${lit ? escapeHtml(lit[2]) : DYN}"`);
+    const reste = entree.slice(cle[0].length).trimStart();
+    // Raccourci `{ repere }` : valeur non litterale ; sinon `: valeur`.
+    const valeur = reste.startsWith(':') ? reste.slice(1).trim() : null;
+    const lit = valeur === null ? null : litteralChaine(valeur);
+    attrs.push(`${attr}="${lit !== null ? escapeHtml(lit) : DYN}"`);
   }
   return `<${BALISE_APPEL} ${attrs.join(' ')}></${BALISE_APPEL}>`;
+}
+
+/** Contenu d'un litteral `'…'` ou `"…"` simple (sans echappement ni saut de ligne), sinon null. */
+function litteralChaine(v: string): string | null {
+  const q = v[0];
+  if ((q !== "'" && q !== '"') || v.length < 2 || v[v.length - 1] !== q) return null;
+  const contenu = v.slice(1, -1);
+  return contenu.includes(q) || contenu.includes('\\') || contenu.includes('\n') ? null : contenu;
+}
+
+/**
+ * Retire les blancs et commentaires (`//…`, `/* … *\/`) en tete d'un morceau de
+ * code. Parcours manuel, en temps lineaire : la version regex
+ * `(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*` backtrackait de facon exponentielle
+ * sur `/*` suivi de `*\/\/*` repete (CodeQL js/redos, alerte #95).
+ */
+export function sansCommentairesEnTete(s: string): string {
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r') {
+      i++;
+    } else if (ch === '/' && s[i + 1] === '/') {
+      const nl = s.indexOf('\n', i + 2);
+      if (nl === -1) return '';
+      i = nl + 1;
+    } else if (ch === '/' && s[i + 1] === '*') {
+      const fin = s.indexOf('*/', i + 2);
+      if (fin === -1) return '';
+      i = fin + 2;
+    } else break;
+  }
+  return s.slice(i);
 }
 
 /**
@@ -586,7 +623,7 @@ export function lireObjetExporte(
   const out = new Map<string, { repereQuiLeve?: string }>();
   const { entrees } = lireEntreesObjet(src, m.index + m[0].length);
   for (const e of entrees) {
-    const k = /^(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*(['"]?)([\w-]+)\1\s*:/.exec(e);
+    const k = /^(['"]?)([\w-]+)\1\s*:/.exec(sansCommentairesEnTete(e));
     if (!k) continue;
     const leve = /\brepereQuiLeve\s*:\s*(['"])([^'"\n]+)\1/.exec(e);
     out.set(k[2], leve ? { repereQuiLeve: leve[2] } : {});

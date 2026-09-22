@@ -14,7 +14,13 @@ import {
   type EntreesExtraction,
   type FichierSource,
 } from '../../scripts/lib/reperes-extract';
-import { DYN, fragmentsTs, lireElements, lireObjetExporte } from '../../scripts/lib/reperes-lexer';
+import {
+  DYN,
+  fragmentsTs,
+  lireElements,
+  lireObjetExporte,
+  sansCommentairesEnTete,
+} from '../../scripts/lib/reperes-lexer';
 
 const MANIFEST: CemManifest = {
   modules: [
@@ -360,5 +366,42 @@ describe('zoneDe et rendu', () => {
     expect(src).toContain("export type RepereId = (typeof REPERES)[number]['id'];");
     expect(src).toContain('export const REGISTRE: RegistreReperes = {');
     expect(src).not.toContain('REPERES_PAR_ID');
+  });
+});
+
+describe('temps lineaire (CodeQL js/redos, alerte #95)', () => {
+  // `/*` suivi de `*//*` repete : l'ancienne regex des commentaires en tete,
+  // `(?:\s|\/\/[^\n]*\n|\/\*[\s\S]*?\*\/)*`, y backtrackait de facon
+  // exponentielle. Le parcours manuel doit rester sous 200 ms.
+  const pathologique = '/*' + '*//*'.repeat(50_000);
+
+  // Taille BORNEE : sous l'ancienne regex, le temps triple tous les deux motifs
+  // (28 ms a 22 repetitions, 27 s a 30, mesure le 2026-09-23). C'est ce cas qui
+  // rend la preuve de mutation lisible : le test echoue en temps fini, alors que
+  // l'entree de 50 000 motifs bloquerait le thread indefiniment (une regex
+  // synchrone n'est pas interruptible par le timeout de vitest).
+  it('sansCommentairesEnTete : preuve de mutation, entree bornee', () => {
+    const t0 = performance.now();
+    sansCommentairesEnTete('/*' + '*//*'.repeat(30) + ' x');
+    expect(performance.now() - t0).toBeLessThan(200);
+  });
+
+  it('sansCommentairesEnTete sur une entree pathologique', () => {
+    const t0 = performance.now();
+    sansCommentairesEnTete(pathologique + ' x');
+    expect(performance.now() - t0).toBeLessThan(200);
+  });
+
+  it('lireObjetExporte sur une cle precedee de commentaires pathologiques', () => {
+    const src = `export const PREREQUIS = { ${pathologique} ok: { repereQuiLeve: 'a.b' } };`;
+    const t0 = performance.now();
+    lireObjetExporte(src, 'PREREQUIS');
+    expect(performance.now() - t0).toBeLessThan(200);
+  });
+
+  it('sansCommentairesEnTete retire blancs et commentaires, et seulement eux', () => {
+    expect(sansCommentairesEnTete('  // a\n /* b */ cle: 1')).toBe('cle: 1');
+    expect(sansCommentairesEnTete('/* non ferme')).toBe('');
+    expect(sansCommentairesEnTete('cle /* garde */')).toBe('cle /* garde */');
   });
 });

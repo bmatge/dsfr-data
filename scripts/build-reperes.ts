@@ -13,13 +13,18 @@
  * L'extraction est dans `scripts/lib/reperes-extract.ts` (pure, testee par
  * `tests/reperes/`) ; ce script ne fait que lire et ecrire les fichiers.
  *
+ * Acces disque : tout chemin vient d'une config d'app (constantes commitees),
+ * mais il est quand meme borne a la racine du depot (`sousRacine`) avant tout
+ * acces, et aucun fichier n'est teste avant d'etre lu ou ecrit (pas de fenetre
+ * entre le test et l'usage : on lit dans un try/catch sur ENOENT).
+ *
  * Usage : npx vite-node scripts/build-reperes.ts [--check]
  *   --check : ne recrit rien, sort en erreur si un probleme est trouve ou si un
  *             registre commite n'est pas le rendu exact de l'extraction (CI).
  */
 
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs';
-import { dirname, join, relative, resolve } from 'path';
+import { readFileSync, readdirSync, writeFileSync } from 'fs';
+import { dirname, isAbsolute, relative, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import type { ReperesConfig } from '../packages/shared/src/ui/reperes-types';
 import type { CemManifest } from './lib/cem-reference.js';
@@ -34,29 +39,65 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const checkOnly = process.argv.includes('--check');
 
+/**
+ * Chemin absolu de `morceaux` sous la racine du depot. Leve si le chemin
+ * resolu en sort (`..`, chemin absolu dans une config) : un generateur de build
+ * n'a rien a lire ni ecrire ailleurs.
+ */
+function sousRacine(...morceaux: string[]): string {
+  const abs = resolve(root, ...morceaux);
+  const rel = relative(root, abs);
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) {
+    throw new Error(`Chemin hors du depot refuse : ${morceaux.join('/')}`);
+  }
+  return abs;
+}
+
+/** Contenu du fichier, ou null s'il n'existe pas (toute autre erreur remonte). */
+function lireSiPresent(abs: string): string | null {
+  try {
+    return readFileSync(abs, 'utf-8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
+function source(abs: string): FichierSource | null {
+  const contenu = lireSiPresent(abs);
+  return contenu === null ? null : { chemin: relative(root, abs).split('\\').join('/'), contenu };
+}
+
 const manifest = JSON.parse(
-  readFileSync(resolve(root, 'packages/core/custom-elements.json'), 'utf-8')
+  readFileSync(sousRacine('packages/core/custom-elements.json'), 'utf-8')
 ) as CemManifest;
-
-function lire(abs: string): FichierSource {
-  return { chemin: relative(root, abs).split('\\').join('/'), contenu: readFileSync(abs, 'utf-8') };
-}
-
-/** Apps actives : celles qui declarent une configuration de reperes. */
-function appsActives(): string[] {
-  return readdirSync(resolve(root, 'apps'))
-    .filter((app) => existsSync(join(root, 'apps', app, 'src/assistant/reperes.config.ts')))
-    .sort();
-}
 
 const problemes: Probleme[] = [];
 const avertissements: Probleme[] = [];
 const perimes: string[] = [];
 let ecrits = 0;
 
-for (const app of appsActives()) {
-  const dossier = join(root, 'apps', app);
-  const mod = (await import(join(dossier, 'src/assistant/reperes.config.ts'))) as {
+/** Noms des fichiers d'un dossier, ou [] s'il n'existe pas (ou si `apps/X` est un fichier). */
+function listerSiPresent(abs: string): string[] {
+  try {
+    return readdirSync(abs);
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'ENOTDIR') return [];
+    throw e;
+  }
+}
+
+// Apps actives : celles qui declarent une configuration de reperes. Une config
+// qui echoue a l'import fait echouer le script : on ne la saute jamais.
+const apps = readdirSync(sousRacine('apps'))
+  .filter((app) =>
+    listerSiPresent(sousRacine('apps', app, 'src/assistant')).includes('reperes.config.ts')
+  )
+  .sort();
+
+for (const app of apps) {
+  const mod = (await import(sousRacine('apps', app, 'src/assistant/reperes.config.ts'))) as {
     default: ReperesConfig;
   };
   const config = mod.default;
@@ -69,32 +110,31 @@ for (const app of appsActives()) {
   }
   const sources: FichierSource[] = [];
   for (const s of config.sources) {
-    const abs = join(dossier, s);
-    if (!existsSync(abs)) {
+    const f = source(sousRacine('apps', app, s));
+    if (!f) {
       problemes.push({ fichier: `apps/${app}/${s}`, message: 'source declaree introuvable' });
       continue;
     }
-    sources.push(lire(abs));
+    sources.push(f);
   }
-  const prerequisAbs = config.prerequis ? join(dossier, config.prerequis) : null;
   const res = extraireReperes({
     config,
     sources,
     manifest,
-    prerequis: prerequisAbs && existsSync(prerequisAbs) ? lire(prerequisAbs) : undefined,
+    prerequis: config.prerequis
+      ? (source(sousRacine('apps', app, config.prerequis)) ?? undefined)
+      : undefined,
     constats: (config.constats ?? [])
-      .map((c) => resolve(root, c))
-      .filter((abs) => existsSync(abs))
-      .map(lire),
+      .map((c) => source(sousRacine(c)))
+      .filter((f): f is FichierSource => f !== null),
   });
   problemes.push(...res.problemes);
   avertissements.push(...res.avertissements);
 
-  const sortie = join(dossier, 'src/assistant/reperes.generated.ts');
+  const sortie = sousRacine('apps', app, 'src/assistant/reperes.generated.ts');
   const rendu = rendreRegistre(config, res.reperes);
-  const actuel = existsSync(sortie) ? readFileSync(sortie, 'utf-8') : null;
   console.log(`${app} : ${res.reperes.length} repere(s)`);
-  if (actuel !== rendu) {
+  if (lireSiPresent(sortie) !== rendu) {
     if (checkOnly) perimes.push(relative(root, sortie));
     else {
       writeFileSync(sortie, rendu);
