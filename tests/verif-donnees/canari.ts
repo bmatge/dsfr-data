@@ -439,7 +439,7 @@ const CHECKS: Check[] = [
     mode: 'deterministic',
     constats: ['AM-002'],
     origin:
-      'Canari — AM-002 : 1 001 lignes derrière `max-records="1000"` en `fetch-mode="export"`. La page charge mille, la somme porte sur mille, et PERSONNE ne le dit : l’export n’a pas de total, le KPI `count` reste muet (voir `ods-plafond-sans-compteur` et `plan-de-relance-plafond-max-records`). L’invariant est en attente avec les deux chiffres.',
+      'Canari — AM-002 : 1 001 lignes derrière `max-records="1000"` en `fetch-mode="export"`. La page charge mille, la somme porte sur mille : l’export n’a pas de total, le KPI `count` reste muet (voir `ods-plafond-sans-compteur` et `plan-de-relance-plafond-max-records`). Seule la SOURCE peut le dire ; elle avertissait en console sans nommer le composant (« [dsfr-data] opendatasoft: export JSON tronque »), donc sans être lue. Depuis #1032, l’avertissement cite « l’attribut max-records de dsfr-data-source » : l’invariant tient.',
     feed: { kind: 'fixture', datasets: { main: CANARI_VOLUME } },
     markup: `${sourceOds('s-vol', DATASET_VOLUME, 'fetch-mode="export" max-records="1000"')}
   ${kpi('k-vol-n', 's-vol', 'count')}${kpi('k-vol-somme', 's-vol', 'valeur:sum')}`,
@@ -449,12 +449,7 @@ const CHECKS: Check[] = [
         id: 'k-vol-n',
         agg: 'count',
         pipeline: [{ op: 'limit', n: 1000 }],
-        invariants: [
-          {
-            kind: 'not-truncated',
-            skip: 'DÉFAUT (AM-002, #882) — `fetch-mode="export" max-records="1000"` sur 1 001 lignes : 1 000 reçues, aucun diagnostic. Attendu : un mot de la source. Issue à ouvrir par la supervision (la même que pour ods-plafond-sans-compteur).',
-          },
-        ],
+        invariants: [{ kind: 'not-truncated' }],
       },
       {
         kind: 'kpi',
