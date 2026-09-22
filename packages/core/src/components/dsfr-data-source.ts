@@ -245,10 +245,16 @@ export class DsfrDataSource extends LitElement {
   limit = 0;
 
   /**
-   * Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par
-   * défaut de l'adapter (ODS : 1000). A relever explicitement pour les
-   * dashboards « un fetch, N agrégations client » — attention au nombre de
-   * requêtes en boucle et au poids mémoire.
+   * Plafond de lignes du chargement complet en mode adaptateur, honoré par
+   * Opendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de
+   * l'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever
+   * explicitement pour charger un jeu plus long par la pagination — par
+   * exemple une carte des ≈ 35 000 communes sur Tabular (`max-records="40000"`)
+   * — ou pour les tableaux de bord « un fetch, N agrégations client » :
+   * attention au nombre de requêtes en boucle (Tabular : une par tranche de
+   * 200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.
+   * Quand le plafond coupe le jeu, la source signale la troncature
+   * (`truncated`) et un avertissement console cite `max-records`.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;

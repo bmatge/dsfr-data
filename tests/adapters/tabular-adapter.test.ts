@@ -481,34 +481,198 @@ describe('TabularAdapter', () => {
       warnSpy.mockRestore();
     });
 
-    it('#1019 / #289 — derniere page bornee a remaining (limit=450 : 200, 200, 50)', async () => {
+    /**
+     * Transport factice fidele a l'API : une page est lue a
+     * `(page - 1) × page_size` — c'est ce qui rend une derniere page reduite
+     * fausse (page=3, page_size=50 relirait les lignes 100 a 149).
+     */
+    function offsetTransport(total: number): void {
       mockFetch.mockImplementation((input: string) => {
         const u = new URL(input);
         const page = Number(u.searchParams.get('page'));
         const size = Number(u.searchParams.get('page_size'));
+        const start = (page - 1) * size;
+        const n = Math.max(0, Math.min(size, total - start));
         return Promise.resolve({
           ok: true,
           json: () =>
             Promise.resolve({
-              data: Array.from({ length: size }, (_, i) => ({ id: i })),
+              data: Array.from({ length: n }, (_, i) => ({ id: start + i })),
               links: {
                 next: `https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=${page + 1}&page_size=${size}`,
               },
-              meta: { page, page_size: size, total: 100000 },
+              meta: { page, page_size: size, total },
             }),
         });
       });
+    }
+
+    it('#1027 — limit=450 : pages de 200 inchangees (page=3 lit 400-599), surplus retranche, lignes 0 a 449 sans doublon', async () => {
+      offsetTransport(100000);
 
       const result = await adapter.fetchAll(
         makeParams({ limit: 450 }),
         new AbortController().signal
       );
 
-      const sizes = mockFetch.mock.calls.map(([url]) =>
-        new URL(url as string).searchParams.get('page_size')
+      const pages = mockFetch.mock.calls.map(([url]) => {
+        const sp = new URL(url as string).searchParams;
+        return `${sp.get('page')}x${sp.get('page_size')}`;
+      });
+      // Avant #1027 : 200, 200, 50 → la page 3 de 50 relisait les lignes 100 a 149
+      expect(pages).toEqual(['1x200', '2x200', '3x200']);
+      expect((result.data as Array<{ id: number }>).map((r) => r.id)).toEqual(
+        Array.from({ length: 450 }, (_, i) => i)
       );
-      expect(sizes).toEqual(['200', '200', '50']);
-      expect(result.data).toHaveLength(450);
+    });
+
+    it('#289 — un limit plus petit qu une page ne coute qu une petite requete', async () => {
+      offsetTransport(100000);
+
+      const result = await adapter.fetchAll(
+        makeParams({ limit: 50 }),
+        new AbortController().signal
+      );
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(new URL(mockFetch.mock.calls[0][0] as string).searchParams.get('page_size')).toBe(
+        '50'
+      );
+      expect(result.data).toHaveLength(50);
+    });
+  });
+
+  describe('#1027 — max-records honore comme ODS', () => {
+    /**
+     * Transport factice : un jeu de `total` lignes, pages de `page_size`
+     * demande, `links.next` tant qu'il reste des lignes. `withTotal=false`
+     * imite une requete group-by : l'API ne donne pas `meta.total`.
+     */
+    function fakeTransport(total: number, withTotal = true): void {
+      mockFetch.mockImplementation((input: string) => {
+        const u = new URL(input);
+        const page = Number(u.searchParams.get('page'));
+        const size = Number(u.searchParams.get('page_size'));
+        const start = (page - 1) * size;
+        const n = Math.max(0, Math.min(size, total - start));
+        const hasMore = start + n < total;
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              data: Array.from({ length: n }, (_, i) => ({ id: start + i })),
+              links: hasMore
+                ? {
+                    next: `https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=${page + 1}&page_size=${size}`,
+                  }
+                : {},
+              meta: withTotal ? { page, page_size: size, total } : { page, page_size: size },
+            }),
+        });
+      });
+    }
+
+    let warnSpy: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it('defaut (max-records absent) : 125 pages, 25 000 lignes, truncated', async () => {
+      fakeTransport(35000);
+      const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+      expect(mockFetch).toHaveBeenCalledTimes(125);
+      expect(result.data).toHaveLength(25000);
+      expect(result.totalCount).toBe(35000);
+      expect(result.truncated).toBe(true);
+      // Le warn cite l'attribut qui leve le plafond (le plafond atteint pile
+      // ne declenchait aucun warn avant #1027)
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('max-records'));
+    });
+
+    it('maxRecords = 40 000 sur 35 000 lignes : 175 pages de 200, tout le jeu, sans troncature', async () => {
+      fakeTransport(35000);
+      const result = await adapter.fetchAll(
+        makeParams({ maxRecords: 40000 }),
+        new AbortController().signal
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(175);
+      expect(result.data).toHaveLength(35000);
+      expect(result.truncated).toBeUndefined();
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('maxRecords = 40 000 sur un jeu plus long : 200 pages, 40 000 lignes, truncated', async () => {
+      fakeTransport(50000);
+      const result = await adapter.fetchAll(
+        makeParams({ maxRecords: 40000 }),
+        new AbortController().signal
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(200);
+      expect(result.data).toHaveLength(40000);
+      expect(result.truncated).toBe(true);
+    });
+
+    it('limit = 1 000 + maxRecords = 40 000 : le limit, plus petit, prime (5 pages)', async () => {
+      fakeTransport(50000);
+      const result = await adapter.fetchAll(
+        makeParams({ limit: 1000, maxRecords: 40000 }),
+        new AbortController().signal
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+      expect(result.data).toHaveLength(1000);
+      // Troncature voulue par l'auteur : pas de signal d'adaptateur ni de warn
+      expect(result.truncated).toBeUndefined();
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('limit plus grand que maxRecords : le plafond borne (maxRecords = 300 → lignes 0 a 299)', async () => {
+      fakeTransport(50000);
+      const result = await adapter.fetchAll(
+        makeParams({ limit: 1000, maxRecords: 300 }),
+        new AbortController().signal
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect((result.data as Array<{ id: number }>).map((r) => r.id)).toEqual(
+        Array.from({ length: 300 }, (_, i) => i)
+      );
+      expect(result.truncated).toBe(true);
+    });
+
+    it('total inconnu, surplus de la derniere page retranche : truncated pose', async () => {
+      // 350 lignes, plafond 300 : la page 2 rend 150 lignes (fin du jeu), 50 sont retranchees
+      fakeTransport(350, false);
+      const result = await adapter.fetchAll(
+        makeParams({ maxRecords: 300 }),
+        new AbortController().signal
+      );
+      expect(result.data).toHaveLength(300);
+      expect(result.truncated).toBe(true);
+    });
+
+    it('total inconnu (group-by) : truncated pose quand le plafond coupe avant la fin', async () => {
+      fakeTransport(1000, false);
+      const result = await adapter.fetchAll(
+        makeParams({ maxRecords: 400 }),
+        new AbortController().signal
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(result.data).toHaveLength(400);
+      expect(result.truncated).toBe(true);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('max-records'));
+    });
+
+    it('total inconnu, jeu entierement charge sous le plafond : pas de truncated', async () => {
+      fakeTransport(400, false);
+      const result = await adapter.fetchAll(
+        makeParams({ maxRecords: 400 }),
+        new AbortController().signal
+      );
+      expect(result.data).toHaveLength(400);
+      expect(result.truncated).toBeUndefined();
+      expect(warnSpy).not.toHaveBeenCalled();
     });
   });
 
