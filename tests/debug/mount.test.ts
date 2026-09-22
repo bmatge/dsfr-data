@@ -5,7 +5,10 @@ import {
   transmettreDiagnostic,
   recupererDiagnostic,
   DIAGNOSTIC_HANDOFF_KEY,
+  type Constat,
   type MountedDiagnostic,
+  type RegleConstat,
+  type Trace,
 } from '@dsfr-data/shared';
 
 /**
@@ -318,5 +321,168 @@ describe('clôture de quiescence en mode « même document » (B3)', () => {
 
     // Ne doit pas toucher un volet demonte.
     expect(() => vi.advanceTimersByTime(600)).not.toThrow();
+  });
+});
+
+describe('constats et « Me montrer » (#1001)', () => {
+  let mounted: MountedDiagnostic | undefined;
+  let host: HTMLElement | undefined;
+
+  afterEach(() => {
+    mounted?.destroy();
+    mounted = undefined;
+    host?.remove();
+    host = undefined;
+    localStorage.removeItem(STORAGE_KEY);
+  });
+
+  /**
+   * Trace minimale : un afficheur dont l'amont est absent de la page suffit à
+   * produire un constat générique. Le nœud est nécessaire : une trace sans
+   * étape ni événement est « pas encore exécutée », et le volet n'y montre rien.
+   */
+  function traceAmontManquant(): Trace {
+    return {
+      graph: {
+        nodes: [
+          {
+            id: 'c1',
+            tag: 'dsfr-data-chart',
+            role: 'display',
+            synthetic: false,
+            ambiguous: false,
+            upstream: [],
+            attrs: { source: 'fantome' },
+          },
+        ],
+        dangling: [{ node: 'c1', missing: 'fantome' }],
+      },
+      events: [],
+      states: {},
+      order: [],
+      sinceLastEventMs: null,
+      lastEventAt: null,
+      quiescent: true,
+      delegation: {},
+      reseau: [],
+      console: [],
+    };
+  }
+
+  function constatFixe(id: string, reperes: string[] = []): Constat {
+    return { id, regle: id, gravite: 'erreur', titre: id, explication: '', reperes, preuve: '' };
+  }
+
+  it('évalue les constats génériques sans option, à chaque setTrace', () => {
+    mounted = mountDiagnosticPanel({});
+    mounted.setTrace(traceAmontManquant());
+
+    expect(mounted.constats().map((c) => c.id)).toEqual(['pipeline/amont-manquant@c1']);
+    // Le volet reçoit la MÊME liste que l'app : une seule évaluation.
+    expect(mounted.panel.constats).toBe(mounted.constats());
+
+    mounted.setTrace(null);
+    expect(mounted.constats()).toEqual([]);
+    expect(mounted.panel.constats).toEqual([]);
+  });
+
+  it('compose les règles de l’app et relit son contexte à chaque évaluation', () => {
+    let etat = 'avant';
+    const vus: unknown[] = [];
+    const regle: RegleConstat = {
+      id: 'test/etat',
+      appliesTo: ['mon-app'],
+      evaluer: (_trace, ctx) => {
+        vus.push(ctx.etat);
+        return [{ ...constatFixe('test/etat'), titre: `état ${String(ctx.etat)}` }];
+      },
+    };
+    mounted = mountDiagnosticPanel({
+      constats: { contexte: () => ({ app: 'mon-app', etat }), regles: [regle] },
+    });
+
+    mounted.setTrace(traceAmontManquant());
+    etat = 'après';
+    mounted.setTrace(traceAmontManquant());
+
+    expect(vus).toEqual(['avant', 'après']);
+    // Les règles de l'app REMPLACENT le défaut : pas d'amont-manquant ici.
+    expect(mounted.constats().map((c) => c.titre)).toEqual(['état après']);
+  });
+
+  it('accepte un contexte fixe', () => {
+    const regle: RegleConstat = {
+      id: 'test/app',
+      appliesTo: ['*'],
+      evaluer: (_t, ctx) => [constatFixe(ctx.app)],
+    };
+    mounted = mountDiagnosticPanel({ constats: { contexte: { app: 'fixe' }, regles: [regle] } });
+    mounted.setTrace(traceAmontManquant());
+
+    expect(mounted.constats().map((c) => c.id)).toEqual(['fixe']);
+  });
+
+  it('évalue aussi en mode live / même document', async () => {
+    const canvas = document.createElement('div');
+    canvas.innerHTML = `<dsfr-data-source id="carto-vide"></dsfr-data-source>`;
+    document.body.appendChild(canvas);
+    host = canvas;
+    mounted = mountDiagnosticPanel({ liveRoot: canvas });
+
+    document.dispatchEvent(
+      new CustomEvent('dsfr-data-loaded', { detail: { sourceId: 'carto-vide', data: [] } })
+    );
+    await Promise.resolve();
+
+    expect(mounted.constats().map((c) => c.id)).toContain('pipeline/zero-ligne@carto-vide');
+  });
+
+  it('évalue aussi en mode live / iframe', async () => {
+    const frame = document.createElement('iframe');
+    document.body.appendChild(frame);
+    host = frame;
+    const doc = frame.contentDocument!;
+    doc.body.innerHTML = `<dsfr-data-source id="src-vide"></dsfr-data-source>`;
+    mounted = mountDiagnosticPanel({ frame });
+
+    doc.dispatchEvent(
+      new CustomEvent('dsfr-data-loaded', { detail: { sourceId: 'src-vide', data: [] } })
+    );
+    await Promise.resolve();
+
+    expect(mounted.constats().map((c) => c.id)).toContain('pipeline/zero-ligne@src-vide');
+  });
+
+  it('onMontrer reçoit le repère et le constat', async () => {
+    const onMontrer = vi.fn();
+    const regle: RegleConstat = {
+      id: 'test/montrer',
+      appliesTo: ['*'],
+      evaluer: () => [constatFixe('test/montrer', ['carto.couches.liste', 'carto.autre'])],
+    };
+    mounted = mountDiagnosticPanel({
+      constats: { contexte: { app: 'x' }, regles: [regle] },
+      onMontrer,
+    });
+    mounted.setTrace(traceAmontManquant());
+    mounted.panel.toggle(true);
+    await (mounted.panel as AppDiagnosticPanel).updateComplete;
+
+    const bouton = Array.from(mounted.panel.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Me montrer'
+    );
+    bouton!.click();
+
+    expect(onMontrer).toHaveBeenCalledTimes(1);
+    expect(onMontrer).toHaveBeenCalledWith('carto.couches.liste', mounted.constats()[0]);
+  });
+
+  it('n’ouvre jamais le volet de lui-même quand une erreur arrive', async () => {
+    mounted = mountDiagnosticPanel({});
+    mounted.setTrace(traceAmontManquant());
+    await (mounted.panel as AppDiagnosticPanel).updateComplete;
+
+    expect(mounted.constats()[0].gravite).toBe('erreur');
+    expect(mounted.panel.isOpen).toBe(false);
   });
 });

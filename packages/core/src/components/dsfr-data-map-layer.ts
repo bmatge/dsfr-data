@@ -84,6 +84,17 @@ async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefine
 
 let layerBoundsSeq = 0;
 
+/**
+ * Colonnes geometriques essayees, dans l'ordre, par une couche `geoshape` sans
+ * `geo-field` (#1053) — les memes que le filtre client de la zone visible.
+ * `geo_point_2d` n'y figure pas : c'est un point {lat, lon}, sans forme a
+ * tracer, et un jeu Opendatasoft porte les deux colonnes.
+ */
+const CHAMPS_FORME_DEVINES = ['geo_shape', 'geometry', 'geom'] as const;
+
+/** Lignes examinees pour detecter la colonne geometrique (#1053). */
+const LIGNES_DETECTION_FORME = 20;
+
 /** Chiffre du bandeau de troncature, balise pour etre relu seul (#1020). */
 interface BannerCount {
   count: 'shown' | 'total';
@@ -128,7 +139,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: String, attribute: 'lon-field' })
   lonField = '';
 
-  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) */
+  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053). */
   @property({ type: String, attribute: 'geo-field' })
   geoField = '';
 
@@ -371,6 +382,13 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   /** Dernier compte journalise — evite de repeter le warn a chaque re-rendu (pan en bbox client) */
   private _skippedWarned = -1;
+
+  /**
+   * Colonne geometrique lue par une couche `geoshape` au dernier rendu :
+   * `geo-field`, ou a defaut la colonne detectee (#1053). Vide quand aucune
+   * n'a ete trouvee — la couche le dit au lieu de rester vide en silence.
+   */
+  private _shapeField = '';
 
   /**
    * Positions distinctes des points dessines au dernier rendu (#770), cles
@@ -858,6 +876,29 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     return 'geo_point_2d';
   }
 
+  /**
+   * Colonne geometrique d'une couche `geoshape` sans `geo-field` (#1053) : la
+   * premiere des colonnes devinees qui porte un objet GeoJSON (un `type`) sur
+   * l'une des premieres lignes. Chaine vide si aucune — jamais de repli sur
+   * une colonne qui ne tracerait rien.
+   */
+  private _autoDetectShapeField(rows: Record<string, unknown>[]): string {
+    const echantillon = rows.slice(0, LIGNES_DETECTION_FORME);
+    for (const candidate of CHAMPS_FORME_DEVINES) {
+      for (const row of echantillon) {
+        const geo = parseGeoValue(row[candidate]);
+        if (
+          geo &&
+          typeof geo === 'object' &&
+          typeof (geo as { type?: unknown }).type === 'string'
+        ) {
+          return candidate;
+        }
+      }
+    }
+    return '';
+  }
+
   // --- Render layer ---
 
   private async _renderLayer(
@@ -884,6 +925,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     }
 
     let items = itemsOverride ?? this._data;
+
+    // Colonne geometrique d'une couche geoshape (#1053) : resolue une fois
+    // par rendu, sur les donnees recues, avant tout filtrage.
+    this._shapeField =
+      this.type === 'geoshape' ? this.geoField || this._autoDetectShapeField(this._data) : '';
 
     // Compagnon popup resolu une fois par rendu (#297) — _findPopupCompanion
     // etait appele PAR RECORD (jusqu'a maxItems querySelector par rendu)
@@ -1028,11 +1074,15 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       if (this._skippedGeoCount > 0) {
         const who = `dsfr-data-map-layer[${this.id || this.source}]`;
         console.warn(
-          this.type === 'geoshape'
-            ? `${who}: la colonne "${this.geoField || '(geo-field non renseigné)'}" ` +
-                `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
-            : `${who}: ${this._skippedGeoCount} ligne(s) sur ${items.length} sans coordonnées exploitables ` +
+          this.type !== 'geoshape'
+            ? `${who}: ${this._skippedGeoCount} ligne(s) sur ${items.length} sans coordonnées exploitables ` +
                 `(${this._describeCoordFields()}) — lignes ignorées`
+            : this._shapeField
+              ? `${who}: la colonne "${this._shapeField}"${this.geoField ? '' : ' (détectée automatiquement, geo-field absent)'} ` +
+                `ne contient pas de géométrie valide pour ${this._skippedGeoCount} enregistrement(s) sur ${items.length} — lignes ignorées`
+              : `${who}: type="geoshape" sans geo-field, et aucune colonne géométrique détectée ` +
+                `(${CHAMPS_FORME_DEVINES.join(', ')}) — aucune forme dessinée, ${this._skippedGeoCount} ` +
+                `enregistrement(s) sur ${items.length} ignoré(s). Indiquer la colonne GeoJSON dans geo-field.`
         );
       }
     }
@@ -1170,7 +1220,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     breaks: number[],
     palette: readonly string[]
   ) {
-    const geoData = this.geoField ? parseGeoValue(getByPath(record, this.geoField)) : null;
+    // geo-field, ou la colonne detectee au debut du rendu (#1053)
+    const field = this._shapeField || this.geoField;
+    const geoData = field ? parseGeoValue(getByPath(record, field)) : null;
     if (!geoData || typeof geoData !== 'object') {
       this._skippedGeoCount++;
       return;
@@ -1366,9 +1418,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       return bounds.contains([coords.lat, coords.lon]);
     }
 
+    const geoField = this.geoField || this._shapeField;
     const geoValue = parseGeoValue(
-      this.geoField
-        ? getByPath(record, this.geoField)
+      geoField
+        ? getByPath(record, geoField)
         : (record['geo_shape'] ?? record['geometry'] ?? record['geom'])
     );
     const bbox = this._geometryBbox(geoValue);
