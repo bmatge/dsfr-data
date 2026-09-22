@@ -379,6 +379,12 @@ export {
   diagnoseConfig,
 } from './ia/data-tools.js';
 
+// --- Boucle agentique generique (#1004, ADR-143) — app-side, jamais dans lib.ts ---
+// Les types du dialogue (PostChat, OpenAIResponse...) sont exportes par le bloc
+// du transport (#998), depuis chat-types.js.
+export type { AgentLoopEnd, AgentLoopOptions, AgentLoopResult } from './ia/agent-loop.js';
+export { runAgentLoop, parseToolArgs, DEFAULT_DUPLICATE_MESSAGE } from './ia/agent-loop.js';
+
 // --- Vocabulaire et schema JSON de la ChartConfig (promus du builder-IA, #515) ---
 export {
   CHART_CONFIG_TYPES,
