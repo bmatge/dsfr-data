@@ -78,6 +78,9 @@
         </div>
         <div class="carto-panel__body" id="couches-body" tabindex="0">
           <ul id="layers-list" class="carto-layers__list" aria-label="Couches de la carte" data-zone="carto.couches.liste"></ul>
+          <!-- Composition par échelle (#1021) : encart rendu par main.ts quand le jeu dépasse le plafond. -->
+          <div id="composition-echelle"></div>
+          <p id="composition-echelle-annonce" class="fr-sr-only" role="status"></p>
           <div id="layer-data-config"></div>
         </div>
       </section>

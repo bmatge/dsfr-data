@@ -66,6 +66,24 @@ export interface FieldInfo {
   fillRate: number;
 }
 
+/** Niveau d'un champ territoire (#1021) : celui d'un fond livré avec le paquet. */
+export type NiveauTerritoire = 'departement' | 'region';
+
+/** Champ portant un code de département ou de région, détecté sur l'échantillon. */
+export interface ChampTerritoire {
+  champ: string;
+  niveau: NiveauTerritoire;
+}
+
+/**
+ * Couche AGRÉGÉE d'une composition par échelle (#1021) : nombre
+ * d'enregistrements par territoire, joint au fond administratif. `depuis` :
+ * id de la couche de points dont elle est issue.
+ */
+export interface AgregatConfig extends ChampTerritoire {
+  depuis: string;
+}
+
 export interface LayerConfig {
   id: string;
   name: string;
@@ -140,6 +158,14 @@ export interface LayerConfig {
   bboxDebounce: number;
   bboxField: string;
   maxItems: number;
+
+  /**
+   * Champ territoire détecté par l'analyse de la source (#1021) : il rend
+   * possible la composition par échelle. `null` si aucun n'est sûr.
+   */
+  territoire: ChampTerritoire | null;
+  /** Couche agrégée d'une composition par échelle (#1021), `null` sinon. */
+  agregat: AgregatConfig | null;
 
   /** Resolved fields from source data (assistance de saisie) */
   fields: FieldInfo[];
@@ -249,6 +275,9 @@ export function createLayer(): LayerConfig {
     bboxDebounce: 300,
     bboxField: '',
     maxItems: DEFAULT_LAYER_MAX_ITEMS,
+
+    territoire: null,
+    agregat: null,
 
     fields: [],
     data: [],

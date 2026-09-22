@@ -30,6 +30,7 @@ const config: ReperesConfig = {
     'carto.carte.avancees',
     'carto.couches',
     'carto.couches.liste',
+    'carto.couches.composition',
     'carto.elements',
     'carto.elements.representation',
     'carto.elements.couleur',
@@ -50,6 +51,13 @@ const config: ReperesConfig = {
   constats: ['packages/shared/src/debug/constats-carto.ts'],
   synonymes: {
     'carto.elements.clic.popup-mode': ['fiche', 'popup', 'infobulle', 'panneau latéral', 'au clic'],
+    'carto.couches.composition.composer': [
+      'trop de points',
+      'rendu tronqué',
+      'agréger par département',
+      'agréger par région',
+      'choroplèthe par département',
+    ],
   },
 };
 

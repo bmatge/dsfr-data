@@ -23,8 +23,10 @@
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 import { DATASET, HOTE_ODS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
+import { urlsDe } from './fixtures-delegation.js';
 import {
   COMMUNES,
+  CONTOURS_DEPARTEMENTS,
   LIBELLES,
   LONG,
   RESSOURCE_TABULAR_AFFICHAGES,
@@ -1203,6 +1205,98 @@ const CHECKS: Check[] = [
           { op: 'order-by', column: 'moyenne', dir: 'desc' },
         ],
       },
+    ],
+  },
+
+  {
+    id: 'carte-composition-echelle',
+    mode: 'deterministic',
+    origin:
+      '#1021 — la composition par échelle que la Carto génère, telle quelle : une source Tabular propre, un comptage par code de département DÉLÉGUÉ à l’API (seule lectrice de sa source, #765), le fond des départements du paquet aplati et joint sur `code`, la choroplèthe jusqu’au zoom 7 ; la couche de points, sur sa propre source plafonnée, à partir du zoom 8. La légende porte sur le nombre d’enregistrements de CHAQUE département, compté sur tout le jeu.',
+    feed: {
+      kind: 'fixture',
+      datasets: { main: TERRITOIRES, contours: CONTOURS_DEPARTEMENTS },
+    },
+    markup: `
+  <dsfr-data-source id="layer-2" api-type="tabular"
+    base-url="https://tabular-api.data.gouv.fr" resource="${RESSOURCE_TABULAR}">
+  </dsfr-data-source>
+  <dsfr-data-query id="layer-2-agrege" source="layer-2" group-by="code_dept" aggregate="code_dept:count">
+  </dsfr-data-query>
+  <dsfr-data-source id="layer-2-contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/departements.json" transform="features">
+  </dsfr-data-source>
+  <dsfr-data-normalize id="layer-2-contours-plats" source="layer-2-contours" flatten="properties">
+  </dsfr-data-normalize>
+  <dsfr-data-join id="layer-2-zones" left="layer-2-contours-plats" right="layer-2-agrege" on="code=code_dept" type="inner">
+  </dsfr-data-join>
+
+  <dsfr-data-source id="layer-1" api-type="tabular"
+    base-url="https://tabular-api.data.gouv.fr" resource="${RESSOURCE_TABULAR}" limit="1000">
+  </dsfr-data-source>
+
+  <dsfr-data-map id="carte-echelle" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-echelle" source="layer-2-zones" type="geoshape"
+      geo-field="geometry" tooltip-field="nom" fill-field="code_dept__count"
+      max-zoom="7" max-items="1000"></dsfr-data-map-layer>
+    <dsfr-data-map-layer source="layer-1" type="marker" lat-field="lat" lon-field="lon"
+      min-zoom="8" max-items="1000"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Le comptage par département — la voix Python le recalcule aussi,
+        // la légende étant hors de sa v1.
+        kind: 'rows',
+        id: 'layer-2-agrege',
+        key: 'code_dept',
+        columns: ['code_dept__count'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { code_dept__count: { agg: 'count', field: 'code_dept' } },
+          },
+        ],
+      },
+      {
+        // Ce que la couche dessine : chaque département du fond, avec SON
+        // comptage — une jointure sur une graphie de code différente perdrait
+        // des départements sans erreur.
+        kind: 'rows',
+        // La page joint le fond (à gauche) au comptage : ses lignes suivent
+        // l'ordre du fond, celui des codes. Le recalcul part du comptage, puis
+        // trie sur le code ; la clé comparée est le nom, porté des deux côtés.
+        id: 'layer-2-zones',
+        key: 'nom',
+        columns: ['code_dept__count'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { code_dept__count: { agg: 'count', field: 'code_dept' } },
+          },
+          { op: 'join', right: 'contours', on: 'code_dept=code', type: 'inner' },
+          { op: 'order-by', column: 'code_dept', dir: 'asc' },
+        ],
+      },
+      {
+        // Sans `classes` ni `method` : le défaut de la couche, neuf classes par
+        // quantiles — ce que la Carto émet.
+        kind: 'legend',
+        id: 'couche-echelle',
+        field: 'code_dept__count',
+        classes: 9,
+        method: 'quantile',
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { code_dept__count: { agg: 'count', field: 'code_dept' } },
+          },
+          { op: 'join', right: 'contours', on: 'code_dept=code', type: 'inner' },
+        ],
+      },
+      // Le comptage est bien calculé par l'API, pas sur les lignes reçues.
+      urlsDe('composition-comptage-delegue', 'tabular', 'code_dept__count', 'some'),
     ],
   },
 

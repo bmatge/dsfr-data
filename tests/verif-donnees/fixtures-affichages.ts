@@ -26,6 +26,7 @@ import communes from './jeux/affichages-communes.json' with { type: 'json' };
 import serie from './jeux/affichages-serie.json' with { type: 'json' };
 import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
 import long from './jeux/affichages-long.json' with { type: 'json' };
+import contoursDepartements from './jeux/affichages-contours-departements.json' with { type: 'json' };
 import zones from './jeux/affichages-zones.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
@@ -79,6 +80,16 @@ export const JEUX_AFFICHAGES = {
   zones: ZONES,
 } as const;
 
+/**
+ * Fond des départements de la composition par échelle de la Carto (#1021) :
+ * les 101 codes du fond livré avec le paquet, sous des carrés. Servi à l'URL
+ * EXACTE que la Carto génère, en `FeatureCollection` — la page l'aplatit
+ * (`flatten="properties"`) et le joint au comptage sur `code`.
+ */
+export const CONTOURS_DEPARTEMENTS: Row[] = contoursDepartements;
+export const URL_CONTOURS_DEPARTEMENTS =
+  'https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/departements.json';
+
 /** URL d'un jeu servi en tableau nu. */
 export function urlAffichage(nom: keyof typeof JEUX_AFFICHAGES): string {
   return `${HOTE_AFFICHAGES}/${nom}`;
@@ -86,6 +97,16 @@ export function urlAffichage(nom: keyof typeof JEUX_AFFICHAGES): string {
 
 /** Le faux serveur du lot : une URL, une réponse — ou `null` si imprévue. */
 export function repondreAffichages(url: URL): unknown | null {
+  if (url.href === URL_CONTOURS_DEPARTEMENTS) {
+    return {
+      type: 'FeatureCollection',
+      features: CONTOURS_DEPARTEMENTS.map(({ geometry, ...properties }) => ({
+        type: 'Feature',
+        properties,
+        geometry,
+      })),
+    };
+  }
   if (url.origin !== HOTE_AFFICHAGES) return null;
   const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX_AFFICHAGES;
   return JEUX_AFFICHAGES[nom] ?? null;

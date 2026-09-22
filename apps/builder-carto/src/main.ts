@@ -24,9 +24,19 @@ import {
   DEFAULT_LAYER_MAX_ITEMS,
 } from './state.js';
 import type { AnySource, FieldInfo, LayerConfig, LayerType, PopupMode } from './state.js';
-import { generateCode } from './ui/code-generator.js';
+import { generateCode, layerOutputId } from './ui/code-generator.js';
 import { statutDepuisConstats } from './ui/preview-status.js';
 import { scanLayerFields } from './field-service.js';
+import {
+  champsAgregat,
+  colonneComptage,
+  composerParEchelle,
+  defaireComposition,
+  libelleNiveau,
+  MAX_ZOOM_AGREGAT,
+  MIN_ZOOM_POINTS,
+  proposerComposition,
+} from './composition-echelle.js';
 import {
   loadFromStorage,
   saveToStorage,
@@ -159,6 +169,13 @@ const ui = {
   /** Modale « Obtenir le code » ouverte */
   /** Une carte a déjà été exécutée : re-exécution auto sur modification */
   executed: false,
+  /**
+   * Total du jeu de chaque couche, rapporté par la couche de l'aperçu après
+   * son rendu (`dsfr-data-map-layer-render`, #1020) : c'est lui qui dit que
+   * le jeu dépasse le plafond et déclenche la proposition de composition
+   * par échelle (#1021). Jamais persisté : il vaut pour la source chargée.
+   */
+  totaux: new Map<string, number>(),
 };
 
 // ---------------------------------------------------------------------------
@@ -389,6 +406,8 @@ function renderLayersPanel() {
       e.stopPropagation();
       const id = btn.getAttribute('data-del-id')!;
       if (state.layers.length <= 1) return;
+      const supprimee = state.layers.find((l) => l.id === id);
+      if (supprimee) defaireComposition(state, supprimee);
       state.layers = state.layers.filter((l) => l.id !== id);
       if (state.activeLayerId === id) state.activeLayerId = state.layers[0].id;
       renderAll();
@@ -413,9 +432,11 @@ function renderLayerDataConfig() {
   const sourceName = layer.source
     ? String(layer.source.name || layer.source.datasetId || layer.source.apiUrl || 'Source')
     : '';
-  const sourceDetail = fields.length
-    ? `${fields.length} champs détectés`
-    : 'Analyse des champs en cours…';
+  const sourceDetail = layer.agregat
+    ? `Nombre d'enregistrements par ${libelleNiveau(layer.agregat.niveau)}, compté sur tout le jeu`
+    : fields.length
+      ? `${fields.length} champs détectés`
+      : 'Analyse des champs en cours…';
 
   container.innerHTML = `
     <div class="carto-section">
@@ -454,8 +475,16 @@ function renderLayerDataConfig() {
       </div>
     </div>
     ${
-      layer.source
+      layer.source && layer.agregat
         ? `
+    <div class="carto-section">
+      <div class="carto-section__label"><span>Localisation</span></div>
+      <p class="carto-msg carto-msg--ok"><i class="ri-map-2-line" aria-hidden="true"></i>
+        Contours des ${libelleNiveau(layer.agregat.niveau)}s livrés avec dsfr-data, joints sur le champ
+        <code>${escapeAttr(layer.agregat.champ)}</code>. Couleur : <code>${escapeAttr(colonneComptage(layer.agregat))}</code>.</p>
+    </div>`
+        : layer.source
+          ? `
     <div class="carto-section">
       <div class="carto-section__label"><span>Localisation</span></div>
       ${
@@ -502,7 +531,7 @@ function renderLayerDataConfig() {
         })}
       </details>
     </div>`
-        : ''
+          : ''
     }
   `;
 
@@ -536,7 +565,132 @@ function renderLayerDataConfig() {
   bindGeo('layer-lat', 'latField');
   bindGeo('layer-lon', 'lonField');
   bindGeo('layer-geo-field', 'geoField');
+
+  renderCompositionEchelle();
 }
+
+// ---------------------------------------------------------------------------
+// Composition par échelle (#1021)
+// ---------------------------------------------------------------------------
+
+const nombreFr = (n: number) => n.toLocaleString('fr-FR');
+
+/** Dernière proposition annoncée (couche + total) : on ne la répète pas. */
+let propositionAnnoncee = '';
+
+function annoncer(texte: string) {
+  const el = document.getElementById('composition-echelle-annonce');
+  if (el) el.textContent = texte;
+}
+
+/**
+ * Encart « Composer par échelle » de la couche active. Il n'apparaît que si
+ * le jeu dépasse le plafond (total rapporté par l'aperçu) ET qu'un champ
+ * territoire a été détecté. Rien ne s'ouvre de soi-même : l'encart se pose
+ * dans le panneau Couches, la confirmation ne vient qu'au clic.
+ */
+function renderCompositionEchelle() {
+  const slot = document.getElementById('composition-echelle');
+  if (!slot) return;
+  const layer = getActiveLayer();
+  if (!layer?.source) {
+    slot.innerHTML = '';
+    return;
+  }
+
+  if (layer.agregat) {
+    slot.innerHTML = `
+      <p class="carto-msg carto-msg--muted carto-section"><i class="ri-stack-line" aria-hidden="true"></i>
+        Couche d'une composition par échelle : visible jusqu'au zoom ${layer.maxZoom}.</p>`;
+    return;
+  }
+
+  const zones = state.layers.find((l) => l.agregat?.depuis === layer.id);
+  if (zones) {
+    slot.innerHTML = `
+      <p class="carto-msg carto-msg--ok carto-section"><i class="ri-stack-line" aria-hidden="true"></i>
+        Composée par échelle : « ${escapeAttr(zones.name)} » jusqu'au zoom ${zones.maxZoom},
+        cette couche à partir du zoom ${layer.minZoom}.</p>`;
+    return;
+  }
+
+  const total = ui.totaux.get(layer.id);
+  if (!proposerComposition(state, layer, total) || total === undefined || !layer.territoire) {
+    slot.innerHTML = '';
+    return;
+  }
+
+  const niveau = libelleNiveau(layer.territoire.niveau);
+  slot.innerHTML = `
+    <div class="carto-composition" data-zone="carto.couches.composition"
+         data-repere-libelle="Composition par échelle"
+         role="group" aria-labelledby="carto-composition-titre">
+      <p class="carto-composition__titre" id="carto-composition-titre">
+        <i class="ri-stack-line" aria-hidden="true"></i> Trop de points pour la vue nationale
+      </p>
+      <p class="carto-composition__texte">
+        Le jeu compte ${nombreFr(total)} enregistrements : la couche n'en dessine que
+        ${nombreFr(layer.maxItems)}, les premiers du fichier. Composez par échelle : jusqu'au
+        zoom ${MAX_ZOOM_AGREGAT}, chaque ${niveau} coloré selon son nombre d'enregistrements, compté
+        sur tout le jeu (champ <code>${escapeAttr(layer.territoire.champ)}</code>) ; à partir du
+        zoom ${MIN_ZOOM_POINTS}, les points.
+      </p>
+      <button type="button" id="btn-composer-echelle" class="fr-btn fr-btn--secondary fr-btn--sm"
+              data-repere="carto.couches.composition.composer">Composer par échelle</button>
+    </div>`;
+  document
+    .getElementById('btn-composer-echelle')
+    ?.addEventListener('click', () => void confirmerComposition(layer));
+
+  const cle = `${layer.id}:${total}`;
+  if (propositionAnnoncee !== cle) {
+    propositionAnnoncee = cle;
+    annoncer(
+      `Le jeu dépasse le plafond de la couche : le panneau Couches propose de composer par échelle.`
+    );
+  }
+}
+
+async function confirmerComposition(layer: LayerConfig) {
+  const t = layer.territoire;
+  const total = ui.totaux.get(layer.id);
+  if (!t || total === undefined) return;
+  const niveau = libelleNiveau(t.niveau);
+  const ok = await confirmDialog(
+    `Une couche « ${layer.name} par ${niveau} » est ajoutée sous « ${layer.name} » : ` +
+      `le nombre d'enregistrements de chaque ${niveau}, compté par l'API sur les ` +
+      `${nombreFr(total)} enregistrements, visible jusqu'au zoom ${MAX_ZOOM_AGREGAT}. ` +
+      `« ${layer.name} » n'apparaît plus qu'à partir du zoom ${MIN_ZOOM_POINTS}, ` +
+      `toujours limitée à ${nombreFr(layer.maxItems)} points.`,
+    { title: 'Composer par échelle ?', confirmLabel: 'Composer par échelle' }
+  );
+  if (!ok) return;
+  const zones = composerParEchelle(state, layer, createLayer);
+  renderAll();
+  updateCodePreview();
+  annoncer(
+    `Couche « ${zones.name} » ajoutée, visible jusqu'au zoom ${MAX_ZOOM_AGREGAT} ; ` +
+      `« ${layer.name} » à partir du zoom ${MIN_ZOOM_POINTS}.`
+  );
+}
+
+/**
+ * Total du jeu rapporté par chaque couche de l'aperçu après son rendu (#1020).
+ * Les encarts territoriaux clonent les couches : seule la carte principale
+ * compte.
+ */
+document.addEventListener('dsfr-data-map-layer-render', (e) => {
+  const el = e.target as Element | null;
+  if (!el || !el.closest('#map-canvas') || el.closest('dsfr-data-map-inset')) return;
+  const source = el.getAttribute('source');
+  const layer = state.layers.find((l) => layerOutputId(l) === source);
+  if (!layer || layer.agregat) return;
+  const total = (e as CustomEvent<{ total?: number }>).detail?.total;
+  if (typeof total !== 'number' || !Number.isFinite(total)) return;
+  if (ui.totaux.get(layer.id) === total) return;
+  ui.totaux.set(layer.id, total);
+  if (layer.id === state.activeLayerId) renderCompositionEchelle();
+});
 
 // ---------------------------------------------------------------------------
 // Panneau Éléments : représentation, couleur, interactions, animation, avancé
@@ -1384,6 +1538,15 @@ function setLayerSource(layer: LayerConfig, src: AnySource) {
   layer.latField = '';
   layer.lonField = '';
   layer.geoField = '';
+  // Autres donnees : le champ territoire et le total ne valent plus, et une
+  // couche agregee redevient une couche ordinaire (#1021).
+  layer.territoire = null;
+  ui.totaux.delete(layer.id);
+  if (layer.agregat) {
+    defaireComposition(state, layer);
+    layer.agregat = null;
+    layer.fillField = '';
+  }
   ui.forceChooser = false;
   ui.urlMode = false;
   ui.savedOpen = false;
@@ -1584,12 +1747,24 @@ function setScanStatus(html: string) {
 }
 
 async function scanAndSuggest(layer: LayerConfig, opts: { fit?: boolean } = {}) {
+  // Couche agregee (#1021) : ses champs sont ceux des lignes jointes, pas
+  // ceux de la source brute — l'analyse effacerait `geometry`, inconnu de
+  // l'echantillon.
+  if (layer.agregat) {
+    layer.fields = champsAgregat(layer.agregat);
+    renderLayersPanel();
+    renderElementsPanel();
+    updateCodePreview();
+    executePreview(opts.fit ?? false);
+    return;
+  }
   setScanStatus(
     '<i class="ri-loader-4-line carto-spin" aria-hidden="true"></i> Analyse des champs de la source…'
   );
   try {
     const result = await scanLayerFields(layer);
     layer.fields = result.fields;
+    layer.territoire = result.suggestions.territoire;
 
     // Purge des champs geographiques fantomes (#482 bugs 2/11) : un etat
     // persiste par une ancienne version pouvait contenir des litteraux type
@@ -1680,6 +1855,7 @@ async function resetBuilder() {
   )
     return;
   resetState();
+  ui.totaux.clear();
   ui.executed = false;
   ui.forceChooser = false;
   const canvas = document.getElementById('map-canvas');

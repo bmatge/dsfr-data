@@ -250,6 +250,23 @@ describe('repères de la carto : complétude par le rendu (#1002)', () => {
     expect(constats).toEqual([]);
   });
 
+  it('jeu au-delà du plafond : encart « Composer par échelle » conforme au registre (#1021)', () => {
+    const l = couche(e, 'marker', 'tooltip', 'fermees');
+    l.territoire = { champ: 'dep', niveau: 'departement' };
+    rendre(e, [l], false);
+    // Le total arrive comme dans l'aperçu : rapporté par la couche rendue.
+    const rendue = document.createElement('dsfr-data-map-layer');
+    rendue.setAttribute('source', l.id);
+    document.getElementById('map-canvas')!.appendChild(rendue);
+    rendue.dispatchEvent(
+      new CustomEvent('dsfr-data-map-layer-render', { bubbles: true, detail: { total: 5000 } })
+    );
+    rendue.remove();
+    expect(document.querySelector('[data-zone="carto.couches.composition"]')).not.toBeNull();
+    releve('composition-echelle');
+    expect(constats).toEqual([]);
+  });
+
   it("l'union des repères rendus est exactement le registre", () => {
     expect([...rendus].sort()).toEqual(idsDuGenre('controle'));
     expect([...zonesRendues].sort()).toEqual(idsDuGenre('zone'));

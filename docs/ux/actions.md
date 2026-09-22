@@ -88,6 +88,7 @@ sont les seules admises en plus du cœur.
 | Playground | **Ajouter des dépendances** | tertiaire | injecter les balises CSS/JS nécessaires |
 | Pipeline | **Ajouter une étape ▾** | secondaire (menu) | insérer un nœud (voir §7 pour les entrées) |
 | Pipeline | **Réorganiser** · **Recentrer** | tertiaire | actions de canevas |
+| Carto | **Composer par échelle** | secondaire (encart du panneau Couches) | quand le jeu dépasse le plafond d'une couche : ajouter une choroplèthe du nombre d'enregistrements par territoire aux petits zooms, les points aux grands ; confirmation avant création (#1021) |
 | Dashboard | **Ouvrir** | secondaire | charger un tableau de bord enregistré |
 | Dashboard | **Ajouter une ligne** · **Ajouter une source** | secondaire | actions de composition |
 | Favoris | **Partager** · **Renommer** | secondaire · icône | partage de lien, renommage |
