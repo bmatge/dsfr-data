@@ -646,7 +646,10 @@ function concerne(regle: RegleConstat, app: string): boolean {
 /**
  * La règle remplaçante vise-t-elle l'étape du constat ? Sans `tags`, toujours.
  * Avec : l'étape est un nœud de ces balises, ou un tel nœud la consomme
- * directement. Un constat sans étape n'est visé que par une règle sans `tags`.
+ * DIRECTEMENT — un seul niveau, à dessein : la source lue par une couche perd
+ * son « zéro ligne » au profit de `carte/aucune-donnee`, mais dans une chaîne
+ * source → query → couche, `zero-ligne@query` reste dit par la générique.
+ * Un constat sans étape n'est visé que par une règle sans `tags`.
  */
 function vise(regle: RegleConstat, trace: Trace, etape: string | undefined): boolean {
   if (!regle.tags) return true;
