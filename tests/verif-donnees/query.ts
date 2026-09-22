@@ -19,7 +19,44 @@ const TETE_CHART = `
   <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
   <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>`;
 
+/** « a » dans la région OU l'académie (#1026) : la disjonction, pour l'oracle. */
+const REGION_OU_ACADEMIE = {
+  op: 'or' as const,
+  any: [
+    { field: 'region', op: 'contains' as const, value: 'a' },
+    { field: 'academie', op: 'contains' as const, value: 'a' },
+  ],
+};
+
 const CHECKS: Check[] = [
+  {
+    id: 'where-multi-champs-client',
+    mode: 'deterministic',
+    origin:
+      '#1026 — `where="region|academie:contains:a"` sur une source sans adaptateur : le OU entre champs est calculé dans le navigateur. 3 régions et 52 académies contiennent « a », une ligne dans les deux : 54, ni 1 (un ET), ni 55 (une somme), ni 3 (le seul premier champ).',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-ou" url="${urlJeu('territoires')}"></dsfr-data-source>
+  <dsfr-data-query id="q-ou" source="s-ou" where="region|academie:contains:a"></dsfr-data-query>
+  <dsfr-data-kpi id="k-ou-n" source="q-ou" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-ou-somme" source="q-ou" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-ou-n',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [REGION_OU_ACADEMIE] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-ou-somme',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'filter', filters: [REGION_OU_ACADEMIE] }],
+      },
+    ],
+  },
+
   {
     id: 'kpi-where-et-agregats',
     mode: 'deterministic',

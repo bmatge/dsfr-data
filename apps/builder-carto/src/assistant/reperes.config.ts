@@ -48,7 +48,7 @@ const config: ReperesConfig = {
   ],
   helpers: [{ fonction: 'fieldInput', parametre: 'repere' }],
   prerequis: 'src/assistant/prerequis.ts',
-  constats: [],
+  constats: ['packages/shared/src/debug/constats-carto.ts'],
   synonymes: {
     'carto.elements.clic.popup-mode': ['fiche', 'popup', 'infobulle', 'panneau latéral', 'au clic'],
     'carto.couches.composition.composer': [

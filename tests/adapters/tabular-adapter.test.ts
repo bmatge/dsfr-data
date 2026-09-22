@@ -964,8 +964,8 @@ describe('TabularAdapter', () => {
   });
 
   describe('getDefaultSearchTemplate', () => {
-    it('returns null', () => {
-      expect(adapter.getDefaultSearchTemplate!()).toBeNull();
+    it('returns the multi-field template (#1026)', () => {
+      expect(adapter.getDefaultSearchTemplate!()).toBe('{fields}:contains:{q}');
     });
   });
 

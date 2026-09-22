@@ -119,7 +119,17 @@ export const SHAPE_ATTRS: Record<string, string[]> = {
   'dsfr-data-podium': ['label-field', 'value-field', 'max-items'],
   'dsfr-data-display': ['per-row', 'cols', 'pagination', 'uid-field'],
   'dsfr-data-repeat': ['key-field', 'per-row', 'scopes', 'lazy'],
-  'dsfr-data-map-layer': ['type', 'lat-field', 'lon-field', 'geo-field'],
+  // `max-items`, `cluster`, `bbox` : les règles cartographiques (#1000) en
+  // lisent le plafond et les remèdes déjà posés, sans nommer un champ.
+  'dsfr-data-map-layer': [
+    'type',
+    'lat-field',
+    'lon-field',
+    'geo-field',
+    'max-items',
+    'cluster',
+    'bbox',
+  ],
   'dsfr-data-a11y': ['label-field', 'value-field', 'for', 'table'],
 };
 
@@ -191,6 +201,20 @@ export interface StageNode {
    */
   stackedPositions?: { positions: number; items: number };
   /**
+   * Éléments effectivement dessinés par une couche cartographique au dernier
+   * rendu (#482 bug 7, #1000) : marqueurs, formes, cercles ou points de
+   * chaleur, bulles de cluster exclues. Lu sur `getRenderedCount()` du
+   * composant rehaussé, même doctrine que `skippedRows` ; présent même à 0 —
+   * « chargé mais rien dessiné » est précisément le cas à voir.
+   */
+  renderedCount?: number;
+  /**
+   * Nœud cloné dans un encart territorial (`dsfr-data-map-inset`) : la
+   * couche principale en dit déjà tout, les règles cartographiques ne le
+   * recomptent pas (#1000).
+   */
+  inset?: true;
+  /**
    * Colonnes dérivées par l'attribut `compute` d'un normalize (#671), avec
    * la valeur de la première ligne en exemple — ce qu'un recodage a produit,
    * visible sans ouvrir l'échantillon. Lu sur `getComputedColumns()` du
@@ -260,6 +284,24 @@ function readSkippedRows(el: Element): number | undefined {
   try {
     const n = counting.getSkippedCount();
     return typeof n === 'number' && n > 0 ? n : undefined;
+  } catch {
+    // Un composant à moitié initialisé ne doit jamais casser la trace.
+    return undefined;
+  }
+}
+
+/** Couche qui sait dire combien d'éléments elle a dessinés (#482, #1000). */
+interface RenderCountingElement extends Element {
+  getRenderedCount?: () => number;
+}
+
+/** Éléments dessinés, même doctrine que `readSkippedRows` — mais 0 est gardé. */
+function readRenderedCount(el: Element): number | undefined {
+  const counting = el as RenderCountingElement;
+  if (typeof counting.getRenderedCount !== 'function') return undefined;
+  try {
+    const n = counting.getRenderedCount();
+    return typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : undefined;
   } catch {
     // Un composant à moitié initialisé ne doit jamais casser la trace.
     return undefined;
@@ -385,6 +427,8 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       .filter(Boolean);
     const skippedRows = role === 'display' ? readSkippedRows(el) : undefined;
     const stackedPositions = role === 'display' ? readStackedPositions(el) : undefined;
+    const renderedCount = tag === 'dsfr-data-map-layer' ? readRenderedCount(el) : undefined;
+    const inset = tag === 'dsfr-data-map-layer' && el.closest('dsfr-data-map-inset') !== null;
     const computedColumns = role === 'transform' ? readComputedColumns(el) : undefined;
     const emits = tag === 'dsfr-data-repeat' ? readEmittedIds(el) : undefined;
 
@@ -400,6 +444,8 @@ export function snapshotGraph(root: ParentNode): DataflowGraph {
       ...(unknownAttrs.length > 0 ? { unknownAttrs } : {}),
       ...(skippedRows !== undefined ? { skippedRows } : {}),
       ...(stackedPositions !== undefined ? { stackedPositions } : {}),
+      ...(renderedCount !== undefined ? { renderedCount } : {}),
+      ...(inset ? { inset: true as const } : {}),
       ...(computedColumns !== undefined ? { computedColumns } : {}),
       ...(emits !== undefined ? { emits } : {}),
     });

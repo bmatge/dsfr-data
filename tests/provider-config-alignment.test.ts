@@ -50,10 +50,12 @@ describe('#285 — AC : un adapter qui dévie de sa config fait échouer un test
     expect(adapter.getDefaultSearchTemplate!()).toBe('search("{q}")');
   });
 
-  it('Tabular : getDefaultSearchTemplate() lit la config (null = pas de recherche serveur)', () => {
+  it('Tabular : getDefaultSearchTemplate() lit la config (recherche multi-colonnes, #1026)', () => {
     const adapter = getAdapter('tabular')!;
-    expect(adapter.getDefaultSearchTemplate!()).toBeNull();
-    expect(adapter.getProviderConfig!().query.searchTemplate).toBeNull();
+    expect(adapter.getDefaultSearchTemplate!()).toBe(
+      adapter.getProviderConfig!().query.searchTemplate
+    );
+    expect(adapter.getDefaultSearchTemplate!()).toBe('{fields}:contains:{q}');
   });
 
   it('Tabular : _mapOperator délègue à config.query.operatorMapping (12 opérateurs)', () => {
