@@ -1,15 +1,14 @@
 import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import {
-  fieldIssuesByNode,
+  compterAlertes,
   fieldMatrix,
   formatTrace,
   plural,
-  formatInt,
-  JOIN_MATCH_ALERT_RATIO,
   summarizeTrace,
   topoOrder,
-  type FieldIssue,
+  type Constat,
+  type GraviteConstat,
   type StageNode,
   type StageState,
   type Trace,
@@ -41,17 +40,46 @@ import {
  * @fires diagnostic-copy - Le diagnostic textuel a été copié.
  * @fires diagnostic-send - { text } demande d'envoi vers l'assistant.
  * @fires diagnostic-toggle - { open } ouverture/fermeture du tiroir.
+ * @fires constat-montrer - { repere, constat } l'usager demande à voir le
+ *   contrôle qui corrige un constat (#1001). Le volet ne résout rien lui-même :
+ *   l'app branche `montrer()` (#1005).
+ *
+ * **Une seule source de pannes (#1001).** Les marqueurs des cartes d'étape,
+ * la pastille du rail, le compte d'alertes et l'onglet Constats lisent tous
+ * `constats` — la sortie de `evaluerConstats` (#996). Le volet ne calcule
+ * plus lui-même ce qui est une panne.
  */
 
 const STORAGE_KEY = 'dsfr-data-diagnostic-open';
 const REDACT_KEY = 'dsfr-data-diagnostic-redact';
-const TABS = ['flux', 'champs', 'journal'] as const;
+const TABS = ['constats', 'flux', 'champs', 'journal'] as const;
 type DiagnosticTab = (typeof TABS)[number];
 
 const TAB_LABELS: Record<DiagnosticTab, string> = {
+  constats: 'Constats',
   flux: 'Flux',
   champs: 'Champs',
   journal: 'Journal',
+};
+
+const ICONES_GRAVITE: Record<GraviteConstat, string> = {
+  erreur: 'fr-icon-error-warning-line',
+  avertissement: 'fr-icon-warning-line',
+  info: 'fr-icon-information-line',
+};
+
+/** Gravité dite au lecteur d'écran : l'icône et la couleur ne la portent pas seules. */
+const LIBELLES_GRAVITE: Record<GraviteConstat, string> = {
+  erreur: 'Erreur',
+  avertissement: 'Avertissement',
+  info: 'Information',
+};
+
+/** Marque d'une note d'étape, selon la gravité du constat qu'elle rend. */
+const MARQUES_GRAVITE: Record<GraviteConstat, string> = {
+  erreur: '✗',
+  avertissement: '⚠',
+  info: 'ℹ',
 };
 
 let panelSeq = 0;
@@ -105,6 +133,19 @@ app-diagnostic-panel[hidden]{display:none}
 .app-diag__journal li{display:flex;gap:.6rem;padding:.25rem 0;border-bottom:1px solid var(--border-default-grey)}
 .app-diag__journal-kind{flex:0 0 5.5rem;color:var(--text-mention-grey);font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}
 .app-diag__journal-body{flex:1 1 auto;min-width:0;word-break:break-word}
+.app-diag__badge{display:inline-flex;align-items:center;justify-content:center;min-width:1.25rem;height:1.25rem;padding:0 .35rem;border-radius:.625rem;font-size:.75rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;background:var(--background-flat-warning);color:var(--text-inverted-warning)}
+.app-diag__badge[data-gravite="erreur"]{background:var(--background-flat-error);color:var(--text-inverted-error)}
+.app-diag__constats{margin:0;padding:0;list-style:none}
+.app-diag__constat{padding:.6rem .75rem;margin-bottom:.5rem;border:1px solid var(--border-default-grey);border-left:3px solid var(--border-plain-info);background:var(--background-alt-grey)}
+.app-diag__constat[data-gravite="erreur"]{border-left-color:var(--border-plain-error)}
+.app-diag__constat[data-gravite="avertissement"]{border-left-color:var(--border-plain-warning)}
+.app-diag__constat p{margin:0 0 .35rem;font-size:.8125rem}
+.app-diag__constat-titre{display:flex;gap:.4rem;align-items:baseline;font-weight:700;color:var(--text-title-grey)}
+.app-diag__constat[data-gravite="erreur"] .app-diag__constat-icone{color:var(--text-default-error)}
+.app-diag__constat[data-gravite="avertissement"] .app-diag__constat-icone{color:var(--text-default-warning)}
+.app-diag__constat[data-gravite="info"] .app-diag__constat-icone{color:var(--text-default-info)}
+.app-diag__constat-preuve{color:var(--text-mention-grey);word-break:break-word}
+.app-diag__constat .fr-btn{margin-top:.15rem}
 /* Le rail masquerait le bas du contenu : on lui reserve sa hauteur.
    La double :has monte la specificite au-dessus de la regle mobile de
    app-action-bar, qui pose deja un padding-bottom sur body — sinon le
@@ -170,6 +211,17 @@ export class AppDiagnosticPanel extends LitElement {
   @property({ type: Boolean, attribute: 'partial-trace' })
   partialTrace = false;
 
+  /**
+   * Constats de la trace, posés par `mountDiagnosticPanel` à chaque changement
+   * de trace (#1001), avec le contexte et les règles de l'app.
+   *
+   * C'est `evaluerConstats` qui décide de ce qu'est une panne, jamais le
+   * volet : il ne fait que rendre cette liste (marqueurs d'étape, pastille,
+   * compte d'alertes, onglet Constats).
+   */
+  @property({ attribute: false })
+  constats: readonly Constat[] = [];
+
   @state() private _open = false;
   /**
    * Masque les VALEURS dans le diagnostic copié ou envoyé.
@@ -181,8 +233,16 @@ export class AppDiagnosticPanel extends LitElement {
    * et ce que reçoit l'assistant restent le même texte.
    */
   @state() private _redact = false;
+  /** Onglet affiché ; choisi à chaque ouverture par `_ongletAOuvrir()`. */
   @state() private _tab: DiagnosticTab = 'flux';
   @state() private _copied = false;
+  /** Dernière annonce `aria-live` : l'arrivée d'un constat d'erreur. */
+  @state() private _annonce = '';
+
+  /** Constats effectivement rendus, recalculés quand la trace ou `constats` change. */
+  private _constats: readonly Constat[] = [];
+  /** Ids des constats d'erreur déjà annoncés, pour n'annoncer que les nouveaux. */
+  private _erreursAnnoncees = new Set<string>();
 
   private readonly _uid = `app-diag-${++panelSeq}`;
   private _copyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -231,6 +291,33 @@ export class AppDiagnosticPanel extends LitElement {
       this._railHeight = height;
       document.documentElement.style.setProperty('--app-diagnostic-h', `${height}px`);
     }
+  }
+
+  protected willUpdate(changed: Map<PropertyKey, unknown>): void {
+    if (!changed.has('trace') && !changed.has('constats')) return;
+    // Une trace vide ne porte aucun constat : en garder d'anciens ferait
+    // compter des pannes d'une exécution qui n'est plus affichée.
+    this._constats = this._isBlank ? [] : this.constats;
+    this._annoncerNouvellesErreurs();
+  }
+
+  /**
+   * Annonce polie de l'arrivée d'un constat d'erreur (ADR-143 §7) : jamais
+   * d'ouverture spontanée du tiroir, jamais de déplacement du focus. Seules
+   * les erreurs NOUVELLES sont dites : une trace republiée à l'identique ne
+   * doit pas répéter l'annonce.
+   */
+  private _annoncerNouvellesErreurs(): void {
+    const erreurs = this._constats.filter((c) => c.gravite === 'erreur');
+    const nouvelles = erreurs.filter((c) => !this._erreursAnnoncees.has(c.id));
+    this._erreursAnnoncees = new Set(erreurs.map((c) => c.id));
+    // Texte = titres (contrat #1001) ; aucun nombre ajouté à ce que dit la trace.
+    if (nouvelles.length > 0) this._annonce = nouvelles.map((c) => c.titre).join(' ; ');
+  }
+
+  /** Constats de la trace courante, tels que le volet les rend. */
+  get constatsAffiches(): readonly Constat[] {
+    return this._constats;
   }
 
   protected updated(): void {
@@ -283,9 +370,25 @@ export class AppDiagnosticPanel extends LitElement {
     this._selectTab(TABS[next], true);
   };
 
+  /**
+   * Constats s'il y a quelque chose à corriger, Flux sinon : ouvrir sur un
+   * onglet vide renverrait l'usager à une page blanche, et quand tout va bien
+   * le volet garde son comportement historique.
+   *
+   * Lit `constats` et non `_constats` : `toggle()` peut suivre la pose d'une
+   * trace dans le même tour, avant que `willUpdate` ait recalculé.
+   */
+  private _ongletAOuvrir(): DiagnosticTab {
+    const constats = this._isBlank ? [] : this.constats;
+    return compterAlertes(constats) > 0 ? 'constats' : 'flux';
+  }
+
   /** Ouvre, ferme, ou bascule. Point d'entrée public pour la barre d'actions. */
   toggle(open?: boolean): void {
+    const etaitOuvert = this._open;
     this._open = open ?? !this._open;
+    // À l'ouverture seulement : l'usager garde ensuite l'onglet qu'il choisit.
+    if (this._open && !etaitOuvert) this._tab = this._ongletAOuvrir();
     try {
       localStorage.setItem(STORAGE_KEY, this._open ? '1' : '0');
     } catch {
@@ -324,7 +427,7 @@ export class AppDiagnosticPanel extends LitElement {
 
   private _summaryText(): TemplateResult | string {
     if (this._isBlank || !this.trace) return 'aucune exécution observée';
-    const s = summarizeTrace(this.trace);
+    const s = summarizeTrace(this.trace, this._constats);
     if (s.stages === 0) return 'aucun composant dsfr-data';
 
     const flow =
@@ -367,7 +470,75 @@ export class AppDiagnosticPanel extends LitElement {
     );
   }
 
+  /**
+   * « Me montrer » : le volet ÉMET, l'app résout (#1005). Il ne connaît ni le
+   * registre de repères ni `montrer()` — app-ui reste hors du socle IA.
+   * Premier repère cité : les règles les rangent du plus direct au moins direct.
+   */
+  private _montrer(constat: Constat): void {
+    const repere = constat.reperes[0];
+    if (!repere) return;
+    this.dispatchEvent(
+      new CustomEvent('constat-montrer', {
+        detail: { repere, constat },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  /** Pastille du rail : les constats non-info, colorée par la pire gravité. */
+  private _renderPastille(): TemplateResult | typeof nothing {
+    const n = compterAlertes(this._constats);
+    if (n === 0) return nothing;
+    const gravite: GraviteConstat = this._constats.some((c) => c.gravite === 'erreur')
+      ? 'erreur'
+      : 'avertissement';
+    return html`<span class="app-diag__badge" data-gravite=${gravite}
+      >${n}<span class="fr-sr-only"> constat${n > 1 ? 's' : ''} à corriger</span></span
+    >`;
+  }
+
   // --- Onglets ---
+
+  private _renderConstats(): TemplateResult {
+    if (this._constats.length === 0) {
+      return html`<p class="app-diag__empty">
+        Aucun constat : rien à corriger dans ce qui a été observé.
+      </p>`;
+    }
+    return html`
+      <ul class="app-diag__constats">
+        ${this._constats.map((c, i) => {
+          const titreId = `${this._uid}-constat-${i}`;
+          const montrable = c.reperes.length > 0;
+          return html`<li class="app-diag__constat" data-gravite=${c.gravite}>
+            <p class="app-diag__constat-titre" id=${titreId}>
+              <span
+                class="app-diag__constat-icone ${ICONES_GRAVITE[c.gravite]} fr-icon--sm"
+                aria-hidden="true"
+              ></span>
+              <span
+                ><span class="fr-sr-only">${LIBELLES_GRAVITE[c.gravite]} : </span>${c.titre}</span
+              >
+            </p>
+            <p>${c.explication}</p>
+            ${c.action ? html`<p><strong>À faire :</strong> ${c.action}</p>` : nothing}
+            <p class="app-diag__constat-preuve">Observé : ${c.preuve}</p>
+            <button
+              type="button"
+              class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-eye-line fr-btn--icon-left"
+              aria-describedby=${titreId}
+              ?disabled=${!montrable}
+              @click=${() => this._montrer(c)}
+            >
+              Me montrer
+            </button>
+          </li>`;
+        })}
+      </ul>
+    `;
+  }
 
   private _renderFlux(trace: Trace): TemplateResult {
     const nodes = topoOrder(trace.graph);
@@ -376,59 +547,62 @@ export class AppDiagnosticPanel extends LitElement {
         Aucun composant dsfr-data dans cette page — rien à diagnostiquer.
       </p>`;
     }
-    // Champs nommés par un attribut et absents de ce que l'étape reçoit
-    // (#727) : calculé une fois pour tout le pipeline, comme dans formatTrace.
-    const champs = fieldIssuesByNode(trace.graph, trace.states);
+    // Les marqueurs d'étape SONT les constats (#1001) : aucune seconde liste
+    // de pannes calculée ici, qu'il faudrait tenir d'accord avec la première.
+    const parEtape = new Map<string, Constat[]>();
+    const horsEtape: Constat[] = [];
+    for (const c of this._constats) {
+      if (c.etape === undefined) {
+        horsEtape.push(c);
+        continue;
+      }
+      const liste = parEtape.get(c.etape);
+      if (liste) liste.push(c);
+      else parEtape.set(c.etape, [c]);
+    }
     return html`
       <div class="app-diag__chain">
-        ${nodes.map((node) => this._renderStage(node, trace, champs[node.id] ?? []))}
+        ${nodes.map((node) => this._renderStage(node, trace, parEtape.get(node.id) ?? []))}
       </div>
-      ${
-        trace.graph.dangling.length > 0
-          ? html`<p class="app-diag__stage-note app-diag__stage-note--error">
-              ${trace.graph.dangling.map(
-                (d) =>
-                  html`✗ ${d.node} déclare une source « ${d.missing} » absente de la page — il
-                    attend un signal qui ne viendra jamais.<br />`
-              )}
-            </p>`
-          : nothing
-      }
+      ${horsEtape.map((c) => this._renderNote(c))}
     `;
   }
 
-  private _renderStage(node: StageNode, trace: Trace, champs: FieldIssue[]): TemplateResult {
+  /** Une note d'étape : la marque de gravité et le titre du constat. */
+  private _renderNote(c: Constat, etape?: string): TemplateResult {
+    // Le titre répète l'étape (« q1 : aucune ligne ») : sur la carte de q1,
+    // l'id est déjà en tête.
+    const prefixe = etape !== undefined ? `${etape} : ` : '';
+    const titre = prefixe && c.titre.startsWith(prefixe) ? c.titre.slice(prefixe.length) : c.titre;
+    const classe =
+      c.gravite === 'erreur'
+        ? 'app-diag__stage-note--error'
+        : c.gravite === 'avertissement'
+          ? 'app-diag__stage-note--warn'
+          : '';
+    return html`<div class="app-diag__stage-note ${classe}" data-constat=${c.id}>
+      ${MARQUES_GRAVITE[c.gravite]} ${titre}
+    </div>`;
+  }
+
+  private _renderStage(node: StageNode, trace: Trace, constats: Constat[]): TemplateResult {
     const state: StageState = trace.states[node.id] ?? { status: 'idle', emissions: 0 };
     const upstreamRows = node.upstream
       .map((up) => trace.states[up]?.rows)
       .filter((n): n is number => n !== undefined);
     const delegation = trace.delegation[node.id];
-    // MEME garde que `formatDelegation` : l'avertissement n'a de sens que si
-    // l'etape DEMANDE un regroupement. Le coller a un query qui ne fait que
-    // filtrer — le cas majoritaire — apprendrait a ignorer l'alerte.
+    // MEME garde que `formatDelegation` : la note n'a de sens que si l'etape
+    // DEMANDE un regroupement. La coller a un query qui ne fait que filtrer —
+    // le cas majoritaire — apprendrait a l'ignorer. Aucune regle de constat
+    // ne lit encore la delegation : la note reste ici, comme dans
+    // `formatTrace`, sans compter dans les alertes.
     const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
     const clientSide =
       !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
-    // Appariement d'une jointure (#660) : sous 50 % de lignes gauche
-    // appariees, meme seuil que formatTrace / summarizeTrace.
-    const join = state.meta?.join;
-    const joinRatio = join && join.leftTotal > 0 ? join.leftMatched / join.leftTotal : null;
-    const joinAlert = joinRatio !== null && joinRatio < JOIN_MATCH_ALERT_RATIO;
     // Un afficheur sous une etape en attente d'un filtre n'est pas une
     // alerte : la page fait exactement ce qu'on lui a demande (#690).
     const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
-    const warn =
-      state.meta?.needsClientProcessing ||
-      !!state.meta?.truncated ||
-      joinAlert ||
-      (state.status === 'loaded' && state.rows === 0) ||
-      !!node.configError ||
-      champs.length > 0 ||
-      (node.unknownAttrs?.length ?? 0) > 0 ||
-      (node.role === 'display' &&
-        state.status === 'idle' &&
-        !upstreamWaiting &&
-        upstreamRows.every((n) => n === 0));
+    const warn = constats.some((c) => c.gravite !== 'info');
 
     return html`
       <div class="app-diag__stage" data-status=${state.status} data-warn=${warn ? 'true' : 'false'}>
@@ -460,47 +634,15 @@ export class AppDiagnosticPanel extends LitElement {
                             ? 'en attente d’un filtre'
                             : upstreamRows.some((n) => n > 0)
                               ? '✓ alimenté'
-                              : '⚠ rien reçu'
+                              : 'rien reçu'
                         }`
                       : html`inerte`
           }
         </div>
+        ${constats.map((c) => this._renderNote(c, node.id))}
         ${
-          node.configError
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--error">
-                ✗ ${node.configError}
-              </div>`
-            : nothing
-        }
-        ${
-          // Un attribut que le bundle chargé ne connaît pas est ignoré en
-          // silence : la page est juste, la bibliothèque est en retard (#727).
-          node.unknownAttrs?.length
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ ${plural(node.unknownAttrs.length, 'attribut')}
-                inconnu${node.unknownAttrs.length > 1 ? 's' : ''} de la version chargée :
-                ${node.unknownAttrs.join(', ')} — ignoré${node.unknownAttrs.length > 1 ? 's' : ''}
-                en silence.
-              </div>`
-            : nothing
-        }
-        ${
-          // Un champ nommé par un attribut et absent du schéma reçu : la
-          // panne muette n°1 du banc d'essai (#727).
-          champs.map(
-            (issue) =>
-              html`<div
-                class="app-diag__stage-note ${
-                issue.reason === 'absent'
-                  ? 'app-diag__stage-note--error'
-                  : 'app-diag__stage-note--warn'
-              }"
-              >
-                ${issue.reason === 'absent' ? '✗' : '⚠'} ${issue.message}
-              </div>`
-          )
-        }
-        ${
+          // Le message brut et l'URL COMPLETE : le constat n'en garde que
+          // l'hote et le chemin (jetons et donnees logent dans la requete).
           state.status === 'error'
             ? html`<div class="app-diag__stage-note app-diag__stage-note--error">
                 ${state.message}${
@@ -510,56 +652,14 @@ export class AppDiagnosticPanel extends LitElement {
             : nothing
         }
         ${
-          state.status === 'loaded' && state.rows === 0
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ zéro ligne : l’aval ne rendra rien.
-              </div>`
-            : nothing
-        }
-        ${
-          state.meta?.truncated
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ tronqué à
-                ${formatInt(state.rows ?? 0)}${
-                  state.meta.total !== undefined
-                    ? ` / ${formatInt(state.meta.total)}`
-                    : ' (total inconnu)'
-                }
-                lignes
-                (${node.tag === 'dsfr-data-query' || node.attrs.limit ? 'limit' : 'max-records'}).
-              </div>`
-            : nothing
-        }
-        ${
-          join && joinRatio !== null
-            ? html`<div
-                class="app-diag__stage-note ${joinAlert ? 'app-diag__stage-note--warn' : ''}"
-              >
-                ${joinAlert ? '⚠ ' : ''}${formatInt(join.leftMatched)} /
-                ${formatInt(join.leftTotal)} lignes gauche appariées (${Math.round(joinRatio * 100)}
-                %), ${formatInt(join.rightMatched)} / ${formatInt(join.rightTotal)} lignes droite.
-              </div>`
-            : nothing
-        }
-        ${
-          state.meta?.needsClientProcessing
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ group-by / agrégation non traités côté serveur : repli client sur ${state.rows}
-                lignes rapatriées.
-              </div>`
-            : nothing
-        }
-        ${
           clientSide
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ agrégation exécutée côté client.
-              </div>`
+            ? html`<div class="app-diag__stage-note">agrégation exécutée côté client.</div>`
             : nothing
         }
         ${
           state.emissions > 3
-            ? html`<div class="app-diag__stage-note app-diag__stage-note--warn">
-                ⚠ ${plural(state.emissions, 'émission')} — rechargements en boucle ?
+            ? html`<div class="app-diag__stage-note">
+                ${plural(state.emissions, 'émission')} — rechargements en boucle ?
               </div>`
             : nothing
         }
@@ -681,6 +781,8 @@ export class AppDiagnosticPanel extends LitElement {
     const trace = this.trace;
     if (!trace) return html`<p class="app-diag__empty">Aucune trace disponible.</p>`;
     switch (this._tab) {
+      case 'constats':
+        return this._renderConstats();
       case 'champs':
         return this._renderChamps(trace);
       case 'journal':
@@ -703,7 +805,7 @@ export class AppDiagnosticPanel extends LitElement {
         >
           <span class="app-diag__rail-title">
             <span class="fr-icon-tools-line fr-icon--sm" aria-hidden="true"></span>
-            Diagnostic
+            Diagnostic ${this._renderPastille()}
           </span>
           <span class="app-diag__rail-summary">${this._summaryText()}</span>
           <span
@@ -713,6 +815,7 @@ export class AppDiagnosticPanel extends LitElement {
             aria-hidden="true"
           ></span>
         </button>
+        <p class="fr-sr-only" aria-live="polite" data-annonce-constats>${this._annonce}</p>
 
         <div
           id=${bodyId}
