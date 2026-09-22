@@ -9,6 +9,11 @@
  *   data-repere="carto.elements.clic.popup-mode"         (contrôle)
  *   data-attribut="dsfr-data-map-popup:mode"             (attribut(s) de la lib pilotés)
  *   data-prerequis="couche-active"                       (règle(s) nommée(s) de l'app)
+ *   data-repere-libelle="Couleur"                        (libellé littéral, prioritaire)
+ *
+ * `data-repere-libelle` est réservé aux contrôles répétés dont le nom accessible
+ * est dynamique (une pastille par couleur, un bouton par couche) : il donne le
+ * libellé de la famille, l'`aria-label` dynamique reste le nom accessible.
  *
  * Grammaire des identifiants : `<prefixe>.<zone>…` ; une zone a au moins deux
  * segments, un contrôle au moins trois. La zone d'un repère est TOUJOURS son
@@ -47,7 +52,8 @@ export interface Repere {
   readonly id: string;
   readonly genre: GenreRepere;
   /**
-   * Libellé tel que l'usager le lit : `<label for>`, sinon `aria-label`, sinon
+   * Libellé tel que l'usager le lit : `data-repere-libelle` (famille d'un
+   * contrôle répété), sinon `<label for>`, sinon `aria-label`, sinon
    * `aria-labelledby`, sinon le `<label>` englobant, sinon le texte, sinon
    * `title` (pour une zone : son premier titre, `legend` ou `summary`).
    */

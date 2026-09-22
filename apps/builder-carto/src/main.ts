@@ -323,7 +323,8 @@ function renderLayersPanel() {
     .map(
       (layer) => `
     <li class="carto-layers__item ${layer.id === state.activeLayerId ? 'carto-layers__item--active' : ''}"
-        data-layer-id="${layer.id}">
+        data-layer-id="${layer.id}" data-repere="carto.couches.liste.selectionner"
+        data-repere-libelle="Sélectionner la couche">
       <div class="carto-layers__item-info">
         <div class="carto-layers__item-header">
           <span class="carto-layers__item-name">${escapeAttr(layer.name)}</span>
@@ -336,6 +337,7 @@ function renderLayersPanel() {
         }</span>
       </div>
       <button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-eye-id="${layer.id}" type="button"
+              data-repere="carto.couches.liste.visibilite" data-repere-libelle="Afficher ou masquer la couche"
               title="${layer.visible ? 'Masquer la couche' : 'Afficher la couche'}"
               aria-label="${layer.visible ? 'Masquer la couche' : 'Afficher la couche'} ${escapeAttr(layer.name)}">
         <i class="${layer.visible ? 'ri-eye-line' : 'ri-eye-off-line'}" aria-hidden="true"></i>
@@ -343,6 +345,7 @@ function renderLayersPanel() {
       ${
         removable
           ? `<button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-del-id="${layer.id}" type="button"
+              data-repere="carto.couches.liste.supprimer" data-repere-libelle="Supprimer la couche"
               title="Supprimer la couche" aria-label="Supprimer la couche ${escapeAttr(layer.name)}">
               <i class="ri-delete-bin-line" aria-hidden="true"></i>
             </button>`
@@ -414,7 +417,7 @@ function renderLayerDataConfig() {
     <div class="carto-section">
       <div class="carto-section__label">
         <span>Données</span>
-        ${layer.source ? '<button id="btn-change-source" class="carto-text-link" type="button">Changer</button>' : ''}
+        ${layer.source ? '<button id="btn-change-source" class="carto-text-link" type="button" data-repere="carto.couches.source" data-repere-libelle="Données de la couche">Changer</button>' : ''}
       </div>
       ${
         layer.source
@@ -427,10 +430,12 @@ function renderLayerDataConfig() {
         </div>
       </div>`
           : `
-      <button id="btn-choose-source" class="carto-source-choose app-card-choice app-card-choice--dashed" type="button">
+      <button id="btn-choose-source" class="carto-source-choose app-card-choice app-card-choice--dashed" type="button"
+              data-repere="carto.couches.source" data-repere-libelle="Données de la couche">
         <i class="ri-database-2-line" aria-hidden="true"></i> Choisir les données de cette couche
       </button>
-      <button id="btn-sample-source" class="app-card-choice fr-mt-1w" type="button">
+      <button id="btn-sample-source" class="app-card-choice fr-mt-1w" type="button"
+              data-repere="carto.couches.source" data-repere-libelle="Données de la couche">
         <i class="ri-lightbulb-line" aria-hidden="true"></i>
         <span class="carto-choice__body">
           <span class="carto-choice__title">Essayer avec un jeu d'exemple</span>
@@ -441,7 +446,7 @@ function renderLayerDataConfig() {
       <div id="source-scan-status" class="carto-scan-status" aria-live="polite"></div>
       <div class="carto-field fr-mt-1w">
         <label for="layer-name">Nom de la couche</label>
-        <input type="text" id="layer-name" value="${escapeAttr(layer.name)}">
+        <input type="text" id="layer-name" data-repere="carto.couches.nom" value="${escapeAttr(layer.name)}">
       </div>
     </div>
     ${
@@ -455,8 +460,28 @@ function renderLayerDataConfig() {
           : `<p class="carto-msg carto-msg--warn"><i class="ri-alert-line" aria-hidden="true"></i> Requis : sans localisation, rien ne s'affiche sur la carte</p>`
       }
       <div class="carto-inline">
-        ${fieldInput({ id: 'layer-lat', label: 'Latitude', value: layer.latField, fields, numericOnly: true, placeholder: 'ex : latitude' })}
-        ${fieldInput({ id: 'layer-lon', label: 'Longitude', value: layer.lonField, fields, numericOnly: true, placeholder: 'ex : longitude' })}
+        ${fieldInput({
+          id: 'layer-lat',
+          label: 'Latitude',
+          value: layer.latField,
+          fields,
+          numericOnly: true,
+          placeholder: 'ex : latitude',
+          repere: 'carto.couches.lat',
+          attribut: 'dsfr-data-map-layer:lat-field',
+          prerequis: 'couche-source',
+        })}
+        ${fieldInput({
+          id: 'layer-lon',
+          label: 'Longitude',
+          value: layer.lonField,
+          fields,
+          numericOnly: true,
+          placeholder: 'ex : longitude',
+          repere: 'carto.couches.lon',
+          attribut: 'dsfr-data-map-layer:lon-field',
+          prerequis: 'couche-source',
+        })}
       </div>
       <details class="carto-advanced" ${layer.geoField ? 'open' : ''}>
         <summary>…ou un champ géographique unique</summary>
@@ -467,6 +492,9 @@ function renderLayerDataConfig() {
           fields,
           hint: 'Colonne contenant la géométrie (GeoJSON, point, texte JSON)',
           placeholder: 'ex : geo_point_2d, geo_shape…',
+          repere: 'carto.couches.geo-field',
+          attribut: 'dsfr-data-map-layer:geo-field',
+          prerequis: 'couche-source',
         })}
       </details>
     </div>`
@@ -523,7 +551,9 @@ function popupFieldsHtml(layer: LayerConfig): string {
         <label for="layer-popup-fields">Champs à afficher
           <span class="fr-hint-text">Noms de colonnes séparés par des virgules. Vide = toutes les colonnes.</span>
         </label>
-        <input type="text" id="layer-popup-fields" value="${escapeAttr(layer.popupFields)}" placeholder="nom,adresse,prix">
+        <input type="text" id="layer-popup-fields" data-repere="carto.elements.clic.popup-fields"
+               data-attribut="dsfr-data-map-layer:popup-fields" data-prerequis="couche-active"
+               value="${escapeAttr(layer.popupFields)}" placeholder="nom,adresse,prix">
       </div>`;
   }
   const all = [...new Set([...known, ...chosen])];
@@ -536,7 +566,9 @@ function popupFieldsHtml(layer: LayerConfig): string {
         ${all
           .map(
             (f) => `
-        <label><input type="checkbox" data-pf="${escapeAttr(f)}" ${chosen.includes(f) ? 'checked' : ''}>${escapeAttr(f)}</label>`
+        <label><input type="checkbox" data-pf="${escapeAttr(f)}" data-repere="carto.elements.clic.popup-fields"
+               data-repere-libelle="Champs à afficher" data-attribut="dsfr-data-map-layer:popup-fields"
+               data-prerequis="couche-active" ${chosen.includes(f) ? 'checked' : ''}>${escapeAttr(f)}</label>`
           )
           .join('')}
       </div>
@@ -576,12 +608,13 @@ function renderElementsPanel() {
 
   container.innerHTML = `
     <div class="carto-section fr-pt-1w">
-      <div class="carto-section__label"><span>Représentation</span></div>
-      <div class="carto-tiles">
+      <div class="carto-section__label"><span id="carto-section-representation">Représentation</span></div>
+      <div class="carto-tiles" data-zone="carto.elements.representation" role="group" aria-labelledby="carto-section-representation">
         ${TYPE_TILES.map(
           (t) => `
         <button type="button" class="carto-tile ${layer.type === t.k ? 'carto-tile--active' : ''}"
-                data-type="${t.k}" title="${t.desc}">
+                data-type="${t.k}" title="${t.desc}" data-repere="carto.elements.representation.type"
+                data-repere-libelle="Type de représentation" data-attribut="dsfr-data-map-layer:type">
           <i class="${t.icon}" aria-hidden="true"></i>
           <span class="carto-tile__label">${t.label}</span>
           <span class="carto-tile__desc">${t.desc}</span>
@@ -594,7 +627,8 @@ function renderElementsPanel() {
           ? `
       <div class="fr-mt-1w">
         <div class="carto-checkbox">
-          <input type="checkbox" id="layer-cluster" ${layer.cluster ? 'checked' : ''}>
+          <input type="checkbox" id="layer-cluster" data-repere="carto.elements.cluster"
+                 data-attribut="dsfr-data-map-layer:cluster" ${layer.cluster ? 'checked' : ''}>
           <label for="layer-cluster">Regrouper les points proches (clustering)</label>
         </div>
         ${
@@ -602,7 +636,8 @@ function renderElementsPanel() {
             ? `
         <div class="carto-field">
           <label for="layer-cluster-radius">Rayon de regroupement (px)</label>
-          <input type="number" id="layer-cluster-radius" value="${layer.clusterRadius}" min="10" max="200">
+          <input type="number" id="layer-cluster-radius" data-repere="carto.elements.cluster-rayon"
+                 data-attribut="dsfr-data-map-layer:cluster-radius" value="${layer.clusterRadius}" min="10" max="200">
         </div>`
             : ''
         }
@@ -622,18 +657,20 @@ function renderElementsPanel() {
           numericOnly: true,
           hint: 'La taille du cercle varie selon la valeur',
           placeholder: 'population',
+          repere: 'carto.elements.rayon-champ',
+          attribut: 'dsfr-data-map-layer:radius-field',
         })}
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-radius-unit">Unité</label>
-            <select id="layer-radius-unit">
+            <select id="layer-radius-unit" data-repere="carto.elements.rayon-unite" data-attribut="dsfr-data-map-layer:radius-unit">
               <option value="px" ${layer.radiusUnit === 'px' ? 'selected' : ''}>Pixels (px)</option>
               <option value="m" ${layer.radiusUnit === 'm' ? 'selected' : ''}>Mètres réels (m)</option>
             </select>
           </div>
           <div class="carto-field">
             <label for="layer-radius">Rayon fixe</label>
-            <input type="number" id="layer-radius" value="${layer.radius}" min="1">
+            <input type="number" id="layer-radius" data-repere="carto.elements.rayon" data-attribut="dsfr-data-map-layer:radius" value="${layer.radius}" min="1">
           </div>
         </div>
         ${
@@ -642,11 +679,11 @@ function renderElementsPanel() {
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-radius-min">Rayon min (px)</label>
-            <input type="number" id="layer-radius-min" value="${layer.radiusMin}" min="1" max="100">
+            <input type="number" id="layer-radius-min" data-repere="carto.elements.rayon-min" data-attribut="dsfr-data-map-layer:radius-min" value="${layer.radiusMin}" min="1" max="100">
           </div>
           <div class="carto-field">
             <label for="layer-radius-max">Rayon max (px)</label>
-            <input type="number" id="layer-radius-max" value="${layer.radiusMax}" min="1" max="200">
+            <input type="number" id="layer-radius-max" data-repere="carto.elements.rayon-max" data-attribut="dsfr-data-map-layer:radius-max" value="${layer.radiusMax}" min="1" max="200">
           </div>
         </div>`
             : ''
@@ -667,15 +704,17 @@ function renderElementsPanel() {
           numericOnly: true,
           hint: 'Vide = chaque point compte 1',
           placeholder: 'population',
+          repere: 'carto.elements.chaleur-champ',
+          attribut: 'dsfr-data-map-layer:heat-field',
         })}
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-heat-radius">Rayon</label>
-            <input type="number" id="layer-heat-radius" value="${layer.heatRadius}" min="1" max="100">
+            <input type="number" id="layer-heat-radius" data-repere="carto.elements.chaleur-rayon" data-attribut="dsfr-data-map-layer:heat-radius" value="${layer.heatRadius}" min="1" max="100">
           </div>
           <div class="carto-field">
             <label for="layer-heat-blur">Flou</label>
-            <input type="number" id="layer-heat-blur" value="${layer.heatBlur}" min="1" max="100">
+            <input type="number" id="layer-heat-blur" data-repere="carto.elements.chaleur-flou" data-attribut="dsfr-data-map-layer:heat-blur" value="${layer.heatBlur}" min="1" max="100">
           </div>
         </div>
       </div>`
@@ -694,10 +733,12 @@ function renderElementsPanel() {
           numericOnly: true,
           hint: 'Chaque zone prend une teinte selon sa valeur',
           placeholder: 'population',
+          repere: 'carto.elements.remplissage-champ',
+          attribut: 'dsfr-data-map-layer:fill-field',
         })}
         <div class="carto-field">
           <label for="layer-palette">Palette</label>
-          <select id="layer-palette">
+          <select id="layer-palette" data-repere="carto.elements.palette" data-attribut="dsfr-data-map-layer:selected-palette">
             <option value="" ${!layer.selectedPalette ? 'selected' : ''}>Séquentielle (clair → foncé) — défaut</option>
             <option value="sequentialDescending" ${layer.selectedPalette === 'sequentialDescending' ? 'selected' : ''}>Séquentielle (foncé → clair)</option>
             <option value="divergentAscending" ${layer.selectedPalette === 'divergentAscending' ? 'selected' : ''}>Divergente (négatif ↔ positif)</option>
@@ -708,7 +749,8 @@ function renderElementsPanel() {
         </div>
         <div class="carto-field" style="max-width:120px">
           <label for="layer-fill-opacity">Opacité</label>
-          <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
+          <input type="number" id="layer-fill-opacity" data-repere="carto.elements.opacite"
+                 data-attribut="dsfr-data-map-layer:fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
         </div>
         ${
           layer.fillField
@@ -720,7 +762,7 @@ function renderElementsPanel() {
           <div class="carto-inline">
             <div class="carto-field">
               <label for="layer-class-method">Méthode</label>
-              <select id="layer-class-method">
+              <select id="layer-class-method" data-repere="carto.elements.methode" data-attribut="dsfr-data-map-layer:method">
                 <option value="quantile" ${layer.classMethod === 'quantile' ? 'selected' : ''}>Effectifs égaux (quantiles) — défaut</option>
                 <option value="equal" ${layer.classMethod === 'equal' ? 'selected' : ''}>Intervalles de même largeur</option>
                 <option value="manual" ${layer.classMethod === 'manual' ? 'selected' : ''}>Bornes choisies</option>
@@ -733,7 +775,7 @@ function renderElementsPanel() {
               <label for="layer-classes">Nombre de classes
                 <span class="fr-hint-text">0 = autant que de couleurs</span>
               </label>
-              <input type="number" id="layer-classes" value="${layer.classes}" min="0" max="9">
+              <input type="number" id="layer-classes" data-repere="carto.elements.classes" data-attribut="dsfr-data-map-layer:classes" value="${layer.classes}" min="0" max="9">
             </div>`
                 : ''
             }
@@ -745,7 +787,7 @@ function renderElementsPanel() {
             <label for="layer-breaks">Bornes hautes
               <span class="fr-hint-text">Valeur maximale de chaque classe, séparées par des virgules</span>
             </label>
-            <input type="text" id="layer-breaks" value="${escapeAttr(layer.breaks)}" placeholder="10,50,100">
+            <input type="text" id="layer-breaks" data-repere="carto.elements.bornes" data-attribut="dsfr-data-map-layer:breaks" value="${escapeAttr(layer.breaks)}" placeholder="10,50,100">
           </div>`
               : ''
           }
@@ -761,14 +803,17 @@ function renderElementsPanel() {
       layer.type !== 'heatmap'
         ? `
     <div class="carto-section">
-      <div class="carto-section__label"><span>Couleur</span></div>
-      <div class="carto-swatches">
+      <div class="carto-section__label"><span id="carto-section-couleur">Couleur</span></div>
+      <div class="carto-swatches" data-zone="carto.elements.couleur" role="group" aria-labelledby="carto-section-couleur">
         ${SWATCHES.map(
           (sw) => `
         <button type="button" class="carto-swatch ${layer.color === sw.c ? 'carto-swatch--active' : ''}"
-                data-swatch="${sw.c}" style="background:${sw.c}" title="${sw.n}" aria-label="${sw.n}"></button>`
+                data-swatch="${sw.c}" style="background:${sw.c}" title="${sw.n}" aria-label="${sw.n}"
+                data-repere="carto.elements.couleur.pastille" data-repere-libelle="Couleur"
+                data-attribut="dsfr-data-map-layer:color"></button>`
         ).join('')}
-        <input type="color" id="layer-color" class="carto-swatch-custom ${customColor ? 'carto-swatch--active' : ''}"
+        <input type="color" id="layer-color" data-repere="carto.elements.couleur.perso" data-attribut="dsfr-data-map-layer:color"
+               class="carto-swatch-custom ${customColor ? 'carto-swatch--active' : ''}"
                value="${layer.color}" title="Couleur personnalisée" aria-label="Couleur personnalisée">
       </div>
       <details class="carto-advanced fr-mt-1w" ${layer.colorField ? 'open' : ''}>
@@ -780,6 +825,8 @@ function renderElementsPanel() {
           fields,
           hint: 'Chaque valeur du champ reçoit sa couleur',
           placeholder: 'region',
+          repere: 'carto.elements.couleur-champ',
+          attribut: 'dsfr-data-map-layer:color-field',
         })}
         ${
           layer.colorField
@@ -788,7 +835,7 @@ function renderElementsPanel() {
           <label for="layer-color-map">Couleur par valeur
             <span class="fr-hint-text">valeur:#couleur séparées par des virgules</span>
           </label>
-          <textarea id="layer-color-map" rows="2" placeholder="Corse:#e1000f,Bretagne:#000091">${escapeAttr(layer.colorMap)}</textarea>
+          <textarea id="layer-color-map" data-repere="carto.elements.couleur-valeurs" data-attribut="dsfr-data-map-layer:color-map" rows="2" placeholder="Corse:#e1000f,Bretagne:#000091">${escapeAttr(layer.colorMap)}</textarea>
         </div>`
             : ''
         }
@@ -807,7 +854,7 @@ function renderElementsPanel() {
       <div class="carto-field">
         <label for="layer-popup-mode" class="fr-sr-only">Comportement au clic</label>
         <select id="layer-popup-mode" data-repere="carto.elements.clic.popup-mode"
-                data-attribut="dsfr-data-map-popup:mode" data-prerequis="couche-active">
+                data-attribut="dsfr-data-map-popup:mode" data-prerequis="couche-active couche-interactive">
           <option value="none" ${layer.popupMode === 'none' ? 'selected' : ''}>Ne rien afficher</option>
           <option value="tooltip" ${layer.popupMode === 'tooltip' ? 'selected' : ''}>Le nom, au survol</option>
           <option value="popup" ${layer.popupMode === 'popup' ? 'selected' : ''}>Une fiche (popup) au clic</option>
@@ -841,6 +888,7 @@ function renderElementsPanel() {
           placeholder: 'nom',
           repere: 'carto.elements.clic.title-field',
           attribut: 'dsfr-data-map-popup:title-field',
+          prerequis: 'couche-active',
         })}
         ${popupFieldsHtml(layer)}
         <details class="carto-advanced" ${layer.popupTemplate ? 'open' : ''}>
@@ -850,7 +898,7 @@ function renderElementsPanel() {
               <span class="fr-hint-text">Écrivez le nom du champ entre doubles accolades pour insérer sa valeur ; ajoutez :number pour formater un nombre</span>
             </label>
             <textarea id="layer-popup-template" data-repere="carto.elements.clic.popup-template"
-                      data-attribut="dsfr-data-map-layer:popup-template" rows="3" placeholder="&lt;h3&gt;{{nom}}&lt;/h3&gt;&#10;&lt;p&gt;{{adresse}}&lt;/p&gt;">${escapeAttr(layer.popupTemplate)}</textarea>
+                      data-attribut="dsfr-data-map-layer:popup-template" data-prerequis="couche-active" rows="3" placeholder="&lt;h3&gt;{{nom}}&lt;/h3&gt;&#10;&lt;p&gt;{{adresse}}&lt;/p&gt;">${escapeAttr(layer.popupTemplate)}</textarea>
           </div>
           ${
             isPanel
@@ -869,7 +917,7 @@ function renderElementsPanel() {
       }
     </div>
 
-    <details class="carto-advanced carto-section" ${layer.timeField ? 'open' : ''}>
+    <details class="carto-advanced carto-section" data-zone="carto.elements.temps" ${layer.timeField ? 'open' : ''}>
       <summary>Animation temporelle</summary>
       ${fieldInput({
         id: 'layer-time-field',
@@ -878,6 +926,8 @@ function renderElementsPanel() {
         fields,
         hint: 'Renseigner ce champ active les contrôles de lecture sur la carte',
         placeholder: 'date_mesure',
+        repere: 'carto.elements.temps.champ',
+        attribut: 'dsfr-data-map-layer:time-field',
       })}
       ${
         layer.timeField
@@ -885,7 +935,7 @@ function renderElementsPanel() {
       <div class="carto-inline">
         <div class="carto-field">
           <label for="layer-time-bucket">Granularité</label>
-          <select id="layer-time-bucket">
+          <select id="layer-time-bucket" data-repere="carto.elements.temps.granularite" data-attribut="dsfr-data-map-layer:time-bucket">
             <option value="none" ${layer.timeBucket === 'none' ? 'selected' : ''}>Valeurs brutes</option>
             <option value="hour" ${layer.timeBucket === 'hour' ? 'selected' : ''}>Heure</option>
             <option value="day" ${layer.timeBucket === 'day' ? 'selected' : ''}>Jour</option>
@@ -895,7 +945,7 @@ function renderElementsPanel() {
         </div>
         <div class="carto-field">
           <label for="layer-time-mode">Mode</label>
-          <select id="layer-time-mode">
+          <select id="layer-time-mode" data-repere="carto.elements.temps.mode" data-attribut="dsfr-data-map-layer:time-mode">
             <option value="snapshot" ${layer.timeMode === 'snapshot' ? 'selected' : ''}>Instantané (pas à pas)</option>
             <option value="cumulative" ${layer.timeMode === 'cumulative' ? 'selected' : ''}>Cumulatif</option>
           </select>
@@ -904,41 +954,41 @@ function renderElementsPanel() {
       <div class="carto-inline">
         <div class="carto-field">
           <label for="map-timeline-speed">Vitesse</label>
-          <select id="map-timeline-speed">
+          <select id="map-timeline-speed" data-repere="carto.elements.temps.vitesse" data-attribut="dsfr-data-map-timeline:speed">
             ${[0.5, 1, 2, 4].map((v) => `<option value="${v}" ${state.map.timelineSpeed === v ? 'selected' : ''}>× ${v}</option>`).join('')}
           </select>
         </div>
         <div class="carto-field">
           <label for="map-timeline-interval">Intervalle (ms)</label>
-          <input type="number" id="map-timeline-interval" value="${state.map.timelineInterval}" min="50" max="10000" step="50">
+          <input type="number" id="map-timeline-interval" data-repere="carto.elements.temps.intervalle" data-attribut="dsfr-data-map-timeline:interval" value="${state.map.timelineInterval}" min="50" max="10000" step="50">
         </div>
       </div>`
           : ''
       }
     </details>
 
-    <details class="carto-advanced carto-section" ${advancedOpen ? 'open' : ''}>
+    <details class="carto-advanced carto-section" data-zone="carto.elements.avancees" ${advancedOpen ? 'open' : ''}>
       <summary>Options avancées</summary>
       <div class="carto-field">
         <label for="layer-filter">Filtrer les données
           <span class="fr-hint-text">champ:opérateur:valeur — ex : population:gt:200000</span>
         </label>
-        <input type="text" id="layer-filter" value="${escapeAttr(layer.filter)}" placeholder="champ:eq:valeur">
+        <input type="text" id="layer-filter" data-repere="carto.elements.avancees.filtre" data-prerequis="couche-source" value="${escapeAttr(layer.filter)}" placeholder="champ:eq:valeur">
       </div>
       <div class="carto-field">
         <label for="layer-max-items">Nombre max d'éléments affichés
           <span class="fr-hint-text">Une source d'API n'en charge pas davantage. Quand le jeu en compte plus, un bandeau « N affichés sur M » apparaît sur la carte</span>
         </label>
-        <input type="number" id="layer-max-items" value="${layer.maxItems}" min="1" max="100000">
+        <input type="number" id="layer-max-items" data-repere="carto.elements.avancees.max-items" data-attribut="dsfr-data-map-layer:max-items" value="${layer.maxItems}" min="1" max="100000">
       </div>
       <div class="carto-inline">
         <div class="carto-field">
           <label for="layer-min-zoom">Visible dès le zoom</label>
-          <input type="number" id="layer-min-zoom" value="${layer.minZoom}" min="0" max="18">
+          <input type="number" id="layer-min-zoom" data-repere="carto.elements.avancees.min-zoom" data-attribut="dsfr-data-map-layer:min-zoom" value="${layer.minZoom}" min="0" max="18">
         </div>
         <div class="carto-field">
           <label for="layer-max-zoom">Jusqu'au zoom</label>
-          <input type="number" id="layer-max-zoom" value="${layer.maxZoom}" min="0" max="18">
+          <input type="number" id="layer-max-zoom" data-repere="carto.elements.avancees.max-zoom" data-attribut="dsfr-data-map-layer:max-zoom" value="${layer.maxZoom}" min="0" max="18">
         </div>
       </div>
       ${
@@ -948,10 +998,11 @@ function renderElementsPanel() {
         layer.type === 'circle'
           ? `
       <div class="carto-field">
-        <label for="layer-fill-opacity">Opacité de remplissage
+        <label for="layer-circle-fill-opacity">Opacité de remplissage
           <span class="fr-hint-text">0 = contours seuls, 1 = opaque</span>
         </label>
-        <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
+        <input type="number" id="layer-circle-fill-opacity" data-repere="carto.elements.avancees.opacite"
+               data-attribut="dsfr-data-map-layer:fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
       </div>`
           : ''
       }
@@ -959,12 +1010,12 @@ function renderElementsPanel() {
         <label for="layer-shape-class">Classe CSS des tracés (shape-class)
           <span class="fr-hint-text">Pour appliquer un style de la page (hachures, pointillés…)</span>
         </label>
-        <input type="text" id="layer-shape-class" value="${escapeAttr(layer.shapeClass)}" placeholder="territoire-hachure">
+        <input type="text" id="layer-shape-class" data-repere="carto.elements.avancees.shape-class" data-attribut="dsfr-data-map-layer:shape-class" value="${escapeAttr(layer.shapeClass)}" placeholder="territoire-hachure">
       </div>`
           : ''
       }
       <div class="carto-checkbox">
-        <input type="checkbox" id="layer-bbox" ${layer.bbox ? 'checked' : ''}>
+        <input type="checkbox" id="layer-bbox" data-repere="carto.elements.avancees.bbox" data-attribut="dsfr-data-map-layer:bbox" ${layer.bbox ? 'checked' : ''}>
         <label for="layer-bbox">Charger selon la zone visible (bbox) — gros jeux de données</label>
       </div>
       ${
@@ -973,14 +1024,22 @@ function renderElementsPanel() {
       <div class="carto-inline">
         <div class="carto-field">
           <label for="layer-bbox-debounce">Délai après déplacement (ms)</label>
-          <input type="number" id="layer-bbox-debounce" value="${layer.bboxDebounce}" min="0" max="2000">
+          <input type="number" id="layer-bbox-debounce" data-repere="carto.elements.avancees.bbox-debounce" data-attribut="dsfr-data-map-layer:bbox-debounce" value="${layer.bboxDebounce}" min="0" max="2000">
         </div>
-        ${fieldInput({ id: 'layer-bbox-field', label: 'Champ géo du filtre', value: layer.bboxField, fields, hint: 'Vide = champ géo de la couche' })}
+        ${fieldInput({
+          id: 'layer-bbox-field',
+          label: 'Champ géo du filtre',
+          value: layer.bboxField,
+          fields,
+          hint: 'Vide = champ géo de la couche',
+          repere: 'carto.elements.avancees.bbox-champ',
+          attribut: 'dsfr-data-map-layer:bbox-field',
+        })}
       </div>`
           : ''
       }
       <div class="carto-checkbox">
-        <input type="checkbox" id="layer-no-interactive" ${layer.noInteractive ? 'checked' : ''}>
+        <input type="checkbox" id="layer-no-interactive" data-repere="carto.elements.avancees.no-interactive" data-attribut="dsfr-data-map-layer:no-interactive" ${layer.noInteractive ? 'checked' : ''}>
         <label for="layer-no-interactive">Couche décorative — ni clic, ni infobulle</label>
       </div>
     </details>
@@ -1047,6 +1106,7 @@ function bindElementsInputs(layer: LayerConfig) {
   });
   bind('layer-palette', 'selectedPalette');
   bind('layer-fill-opacity', 'fillOpacity', Number);
+  bind('layer-circle-fill-opacity', 'fillOpacity', Number);
   // Decoupage en classes de la choroplethe : la methode pilote les champs
   // affiches (nombre de classes ou bornes manuelles).
   bindRerender('layer-class-method', (v) => {
@@ -1144,7 +1204,7 @@ function renderMapPanel() {
     <div class="carto-section">
       <div class="carto-field">
         <label for="map-tiles">Fond de carte</label>
-        <select id="map-tiles">
+        <select id="map-tiles" data-repere="carto.carte.fond" data-attribut="dsfr-data-map:tiles">
           <optgroup label="IGN (souverain)">
             <option value="ign-plan" ${DEPRECATED_TILES.includes(m.tiles) || m.tiles === 'ign-plan' ? 'selected' : ''}>IGN Plan</option>
             <option value="ign-ortho" ${m.tiles === 'ign-ortho' ? 'selected' : ''}>IGN Ortho (satellite)</option>
@@ -1161,17 +1221,17 @@ function renderMapPanel() {
         <label for="map-name">Nom de la carte
           <span class="fr-hint-text">Décrit la carte aux lecteurs d'écran</span>
         </label>
-        <input type="text" id="map-name" value="${escapeAttr(m.name)}" placeholder="Ma carte">
+        <input type="text" id="map-name" data-repere="carto.carte.nom" data-attribut="dsfr-data-map:name" value="${escapeAttr(m.name)}" placeholder="Ma carte">
       </div>
       <div class="carto-checkbox">
-        <input type="checkbox" id="inset-drom" ${allDromChecked ? 'checked' : ''}>
+        <input type="checkbox" id="inset-drom" data-repere="carto.carte.drom" data-attribut="dsfr-data-map:insets" ${allDromChecked ? 'checked' : ''}>
         <label for="inset-drom">Les 5 DROM en vignettes (encarts)</label>
       </div>
       <div class="carto-checkbox">
-        <input type="checkbox" id="inset-corse" ${m.insets.includes('corse') ? 'checked' : ''}>
+        <input type="checkbox" id="inset-corse" data-repere="carto.carte.corse" data-attribut="dsfr-data-map:insets" ${m.insets.includes('corse') ? 'checked' : ''}>
         <label for="inset-corse">La Corse en vignette</label>
       </div>
-      <details class="carto-advanced" ${otherInsets.length ? 'open' : ''}>
+      <details class="carto-advanced" data-zone="carto.carte.encarts" ${otherInsets.length ? 'open' : ''}>
         <summary>Territoire par territoire</summary>
         ${INSET_TERRITORIES.map(
           // Prefixe inset-terr- : « corse » a deja sa case dediee plus haut
@@ -1179,55 +1239,56 @@ function renderMapPanel() {
           // case et invalidait le DOM (#482 bug 12)
           (t) => `
         <div class="carto-checkbox">
-          <input type="checkbox" id="inset-terr-${t.id}" data-inset="${t.id}" ${m.insets.includes(t.id) ? 'checked' : ''}>
+          <input type="checkbox" id="inset-terr-${t.id}" data-inset="${t.id}" data-repere="carto.carte.encarts.territoire"
+                 data-repere-libelle="Encart de ce territoire" data-attribut="dsfr-data-map:insets" ${m.insets.includes(t.id) ? 'checked' : ''}>
           <label for="inset-terr-${t.id}">${t.label}</label>
         </div>`
         ).join('')}
       </details>
       <div class="carto-checkbox">
-        <input type="checkbox" id="map-a11y" ${m.a11y ? 'checked' : ''}>
+        <input type="checkbox" id="map-a11y" data-repere="carto.carte.accessibilite" ${m.a11y ? 'checked' : ''}>
         <label for="map-a11y">Tableau des données sous la carte (accessibilité)
           <span class="fr-hint-text">Dans le code exporté : tableau + export CSV liés à la carte</span>
         </label>
       </div>
-      <details class="carto-advanced">
+      <details class="carto-advanced" data-zone="carto.carte.avancees">
         <summary>Réglages avancés de la carte</summary>
         <div class="carto-inline">
           <div class="carto-field">
             <label for="map-min-zoom">Zoom min</label>
-            <input type="number" id="map-min-zoom" value="${m.minZoom}" min="1" max="18">
+            <input type="number" id="map-min-zoom" data-repere="carto.carte.avancees.zoom-min" data-attribut="dsfr-data-map:min-zoom" value="${m.minZoom}" min="1" max="18">
           </div>
           <div class="carto-field">
             <label for="map-max-zoom">Zoom max</label>
-            <input type="number" id="map-max-zoom" value="${m.maxZoom}" min="1" max="18">
+            <input type="number" id="map-max-zoom" data-repere="carto.carte.avancees.zoom-max" data-attribut="dsfr-data-map:max-zoom" value="${m.maxZoom}" min="1" max="18">
           </div>
         </div>
         <div class="carto-field">
           <label for="map-max-bounds">Limites (max-bounds)
             <span class="fr-hint-text">lat-sud,lon-ouest,lat-nord,lon-est</span>
           </label>
-          <input type="text" id="map-max-bounds" value="${escapeAttr(m.maxBounds)}" placeholder="41.0,-5.5,51.5,10.0">
+          <input type="text" id="map-max-bounds" data-repere="carto.carte.avancees.limites" data-attribut="dsfr-data-map:max-bounds" value="${escapeAttr(m.maxBounds)}" placeholder="41.0,-5.5,51.5,10.0">
         </div>
         <div class="carto-field">
           <label for="map-height">Hauteur de la carte exportée
             <span class="fr-hint-text">px, vh, ou % de la largeur (ex : 500px, 60%)</span>
           </label>
-          <input type="text" id="map-height" value="${escapeAttr(m.height)}" placeholder="500px">
+          <input type="text" id="map-height" data-repere="carto.carte.avancees.hauteur" data-attribut="dsfr-data-map:height" value="${escapeAttr(m.height)}" placeholder="500px">
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-fit-bounds" ${m.fitBounds ? 'checked' : ''}>
+          <input type="checkbox" id="map-fit-bounds" data-repere="carto.carte.avancees.cadrage" data-attribut="dsfr-data-map:fit-bounds" ${m.fitBounds ? 'checked' : ''}>
           <label for="map-fit-bounds">Cadrer automatiquement sur les données (fit-bounds)</label>
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-no-controls" ${m.noControls ? 'checked' : ''}>
+          <input type="checkbox" id="map-no-controls" data-repere="carto.carte.avancees.sans-controles" data-attribut="dsfr-data-map:no-controls" ${m.noControls ? 'checked' : ''}>
           <label for="map-no-controls">Masquer les contrôles de zoom (no-controls)</label>
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-locked" ${m.locked ? 'checked' : ''}>
+          <input type="checkbox" id="map-locked" data-repere="carto.carte.avancees.verrouillee" data-attribut="dsfr-data-map:locked" ${m.locked ? 'checked' : ''}>
           <label for="map-locked">Carte figée, aucune interaction (locked)</label>
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-sovereign" ${m.sovereignOnly ? 'checked' : ''}>
+          <input type="checkbox" id="map-sovereign" data-repere="carto.carte.avancees.souverain" data-attribut="dsfr-data-map:sovereign-only" ${m.sovereignOnly ? 'checked' : ''}>
           <label for="map-sovereign">Fonds souverains uniquement (sovereign-only)</label>
         </div>
       </details>
