@@ -96,6 +96,9 @@ jobs:
       - name: Check generated attribute tables in specs
         run: npm run check:specs-tables
 
+      - name: Check generated interface landmarks (reperes)
+        run: npm run check:reperes
+
       - name: Typecheck
         run: npm run typecheck
 

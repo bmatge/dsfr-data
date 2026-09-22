@@ -266,6 +266,19 @@ export {
 } from './ui/passation.js';
 export type { VerdictRetour } from './ui/passation.js';
 
+// Repères d'interface : contrat du registre généré (#997, ADR-143) — app-side, types seuls
+export type {
+  GenreRepere,
+  AttributRepere,
+  Repere,
+  RegistreReperes,
+  Prerequis,
+  PrerequisParId,
+  HelperRepere,
+  ExceptionRepere,
+  ReperesConfig,
+} from './ui/reperes-types.js';
+
 // Sample data
 export type { SampleDataset } from './data/sample-datasets.js';
 export { SAMPLE_DATASETS } from './data/sample-datasets.js';
