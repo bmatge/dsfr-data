@@ -309,7 +309,8 @@ apps/<app>/index.html + gabarits TS    data-zone="carto.elements.clic"
         |                              data-repere="carto.elements.clic.popup-mode"
         |                              data-attribut="dsfr-data-map-popup:mode"   (vérifié dans le manifeste)
         |                              data-prerequis="couche-active"            (règle de prerequis.ts)
-        |  npm run build:reperes   (scripts/build-reperes.ts, extraction pure : scripts/lib/reperes-extract.ts)
+        |  npm run build:reperes   (scripts/build-reperes.ts, extraction pure : scripts/lib/reperes-extract.ts ;
+        |                          aussi en FIN de `npm run build:skills`, car le registre recopie les descriptions du manifeste)
         v
 apps/<app>/src/assistant/reperes.generated.ts   (commité, NE PAS EDITER)
         REPERES (trié par id) · RepereId (enum fermée, pour montrer() #1003) · REGISTRE
