@@ -52,6 +52,7 @@ tables de correspondance du faux serveur, pas des lignes que l'oracle recalcule.
 | `affichages-serie.json` | 12 | Douze mois croissants ; la dernière valeur vaut exactement 1,4 fois la première — l'évolution attendue est un taux rond (40 %). |
 | `affichages-libelles.json` | 8 | Huit libellés dont l'ordre alphabétique français diffère de l'ordre des codes de caractères (« É », U+00C9, passerait après « Z »). |
 | `affichages-long.json` | 6 | Format long mois × groupe pour `series-field` ; le groupe B n'a pas l'allure du groupe A. |
+| `affichages-zones.json` | 10 | Dix polygones à la manière d'un jeu Opendatasoft (#1053) : chaque ligne porte `geo_point_2d` ET `geo_shape`. Une couche `geoshape` sans `geo-field` doit tracer la forme ; le calcul d'emprise devine le point en premier, et reprendre sa détection telle quelle ne tracerait rien. |
 
 ## Domaine `transformations`
 

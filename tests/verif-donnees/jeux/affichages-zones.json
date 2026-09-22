@@ -1,0 +1,12 @@
+[
+  {"code":"Z01","nom":"Armor","geo_point_2d":{"lat":44.75,"lon":-0.4},"geo_shape":{"type":"Polygon","coordinates":[[[-1,44],[0.2,44],[0.2,45.5],[-1,45.5],[-1,44]]]}},
+  {"code":"Z02","nom":"Bocage","geo_point_2d":{"lat":44.75,"lon":1.1},"geo_shape":{"type":"Polygon","coordinates":[[[0.5,44],[1.7,44],[1.7,45.5],[0.5,45.5],[0.5,44]]]}},
+  {"code":"Z03","nom":"Causse","geo_point_2d":{"lat":44.75,"lon":2.6},"geo_shape":{"type":"Polygon","coordinates":[[[2,44],[3.2,44],[3.2,45.5],[2,45.5],[2,44]]]}},
+  {"code":"Z04","nom":"Dombes","geo_point_2d":{"lat":44.75,"lon":4.1},"geo_shape":{"type":"Polygon","coordinates":[[[3.5,44],[4.7,44],[4.7,45.5],[3.5,45.5],[3.5,44]]]}},
+  {"code":"Z05","nom":"Estuaire","geo_point_2d":{"lat":44.75,"lon":5.6},"geo_shape":{"type":"Polygon","coordinates":[[[5,44],[6.2,44],[6.2,45.5],[5,45.5],[5,44]]]}},
+  {"code":"Z06","nom":"Faille","geo_point_2d":{"lat":46.75,"lon":-0.4},"geo_shape":{"type":"Polygon","coordinates":[[[-1,46],[0.2,46],[0.2,47.5],[-1,47.5],[-1,46]]]}},
+  {"code":"Z07","nom":"Garrigue","geo_point_2d":{"lat":46.75,"lon":1.1},"geo_shape":{"type":"Polygon","coordinates":[[[0.5,46],[1.7,46],[1.7,47.5],[0.5,47.5],[0.5,46]]]}},
+  {"code":"Z08","nom":"Hautes-Terres","geo_point_2d":{"lat":46.75,"lon":2.6},"geo_shape":{"type":"Polygon","coordinates":[[[2,46],[3.2,46],[3.2,47.5],[2,47.5],[2,46]]]}},
+  {"code":"Z09","nom":"Île-Verte","geo_point_2d":{"lat":46.75,"lon":4.1},"geo_shape":{"type":"Polygon","coordinates":[[[3.5,46],[4.7,46],[4.7,47.5],[3.5,47.5],[3.5,46]]]}},
+  {"code":"Z10","nom":"Jura-Sud","geo_point_2d":{"lat":46.75,"lon":5.6},"geo_shape":{"type":"Polygon","coordinates":[[[5,46],[6.2,46],[6.2,47.5],[5,47.5],[5,46]]]}}
+]

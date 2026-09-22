@@ -26,6 +26,7 @@ import communes from './jeux/affichages-communes.json' with { type: 'json' };
 import serie from './jeux/affichages-serie.json' with { type: 'json' };
 import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
 import long from './jeux/affichages-long.json' with { type: 'json' };
+import zones from './jeux/affichages-zones.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
@@ -60,12 +61,22 @@ export const LIBELLES: Row[] = libelles;
  */
 export const LONG: Row[] = long;
 
-/** Les quatre jeux, sous le nom que les manifestes leur donnent. */
+/**
+ * Dix zones à la manière d'un jeu Opendatasoft (#1053) : chaque ligne porte
+ * À LA FOIS `geo_point_2d` (un point {lat, lon}) et `geo_shape` (un polygone
+ * GeoJSON). Une couche `geoshape` sans `geo-field` doit tracer la FORME : le
+ * calcul d'emprise, lui, devine `geo_point_2d` en premier — reprendre sa
+ * détection telle quelle ne tracerait rien.
+ */
+export const ZONES: Row[] = zones;
+
+/** Les cinq jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
   libelles: LIBELLES,
   long: LONG,
+  zones: ZONES,
 } as const;
 
 /** URL d'un jeu servi en tableau nu. */
