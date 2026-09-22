@@ -279,6 +279,34 @@ export type {
   ReperesConfig,
 } from './ui/reperes-types.js';
 
+// Révélation d'un repère : montrer(), modes « dire » / « guider » (#1003, app-side)
+export type {
+  ModeReperage,
+  AdaptateurReperage,
+  OptionsMontrer,
+  ResultatMontrer,
+} from './ui/reperage.js';
+export {
+  montrer,
+  chemin,
+  prerequisManquants,
+  indexerReperes,
+  estIdRepere,
+  selecteurRepere,
+  getReperageMode,
+  setReperageMode,
+  regionReperage,
+  annoncerReperage,
+  injectReperageStyles,
+  effacerSurbrillance,
+  mouvementReduit,
+  SEPARATEUR_CHEMIN,
+  ID_REGION_REPERAGE,
+  CLASSE_REPERE_MONTRE,
+  CLASSE_REPERE_ANIME,
+  DUREE_SURBRILLANCE_MS,
+} from './ui/reperage.js';
+
 // Sample data
 export type { SampleDataset } from './data/sample-datasets.js';
 export { SAMPLE_DATASETS } from './data/sample-datasets.js';

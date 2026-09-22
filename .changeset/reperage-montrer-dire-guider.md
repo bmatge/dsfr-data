@@ -1,0 +1,5 @@
+---
+'dsfr-data': patch
+---
+
+Révélation d'un repère d'interface (#1003, ADR-143) : `@dsfr-data/shared` exporte `montrer(id, { registre, adaptateur, mode })`, côté app seulement. La fonction commence par vérifier les prérequis. S'il en manque un, elle montre le repère qui le lève, annonce le message du prérequis et rend la main. Sinon, l'adaptateur de l'app révèle le contrôle (il ouvre le panneau ou l'onglet et attend le rendu), puis `montrer()` le met en évidence. En mode « dire », le mode par défaut, le contrôle est surligné et son chemin est annoncé dans une région `aria-live="polite"` unique (« Éléments › Au clic sur un élément › Comportement au clic »), sans que le focus bouge. En mode « guider », la page défile jusqu'au contrôle et le focus s'y place. Le choix de l'usager est mémorisé dans `TourState.reperageMode`, que le serveur conserve désormais. Aucune animation sous `prefers-reduced-motion`. Les identifiants sont validés par la grammaire des repères avant de servir à construire un sélecteur. Aucun changement pour la bibliothèque publiée.

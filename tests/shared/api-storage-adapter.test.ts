@@ -300,6 +300,37 @@ describe('ApiStorageAdapter', () => {
     });
   });
 
+  describe('load — état de tour (singleton)', () => {
+    // Réponse vide du serveur : l'usager n'a encore rien enregistré.
+    function serveurVide(): void {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ tours: {} }),
+      });
+    }
+
+    it('un mode de révélation mémorisé en local n’est pas un état vide (#1003)', async () => {
+      const local = { reperageMode: 'guider', tours: {} };
+      localStorage.setItem(STORAGE_KEYS.TOURS, JSON.stringify(local));
+      serveurVide();
+
+      const result = await adapter.load(STORAGE_KEYS.TOURS, { tours: {} });
+
+      // Le mode local l'emporte sur le vide du serveur et sera renvoyé au serveur.
+      expect(result).toEqual(local);
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.TOURS)!)).toEqual(local);
+    });
+
+    it('sans préférence locale, l’état vide du serveur est retenu', async () => {
+      localStorage.setItem(STORAGE_KEYS.TOURS, JSON.stringify({ tours: {} }));
+      serveurVide();
+
+      const result = await adapter.load(STORAGE_KEYS.TOURS, { tours: {} });
+
+      expect(result).toEqual({ tours: {} });
+    });
+  });
+
   describe('remove', () => {
     it('removes from localStorage', async () => {
       localStorage.setItem(STORAGE_KEYS.SOURCES, '"data"');
