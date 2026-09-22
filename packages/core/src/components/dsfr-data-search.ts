@@ -183,9 +183,17 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
   /**
    * Template pour la recherche serveur.
-   * {q} est remplace par le terme de recherche.
-   * Si vide et server-search active, lu depuis l'adapter de la source amont.
-   * Ex ODS: 'search("{q}")', custom: '{q} IN nom'
+   * {q} est remplacé par le terme de recherche, {fields} par les champs de
+   * `fields` séparés par `|` (#1026) — la grammaire colon des champs
+   * multiples, un OU entre eux.
+   * Si vide et server-search activé, lu depuis l'adaptateur de la source amont :
+   * ODS `search("{q}")`, Tabular `{fields}:contains:{q}` (traduit en
+   * `or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais
+   * sensible aux accents : « ecole » n'y trouve pas « École »).
+   * Ex. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.
+   * Une clause que l'adaptateur ne sait pas transmettre (terme portant
+   * `,` `.` `(` `)` `"` `&` sur Tabular) retombe sur une recherche locale,
+   * signalée en console.
    */
   @property({ type: String, attribute: 'search-template' })
   searchTemplate = '';
@@ -193,8 +201,8 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   /**
    * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la
    * recherche devient un filtre `contains` du contexte sur le champ UNIQUE
-   * de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs
-   * champs). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`
+   * de `fields` (un filtre de contexte porte un seul champ ; le OU entre
+   * champs, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`
    * et `url-search-param` sont ignorés — le paramètre est nommé d'après le
    * champ, ou via `url-param-map` du contexte). Le contexte peut être
    * déclaré après la recherche dans la page. Vide = comportement autonome.
@@ -223,6 +231,16 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
   /** Le filtre unique enregistre aupres du contexte (#678) */
   private _contextFilter: SearchContextFilter | null = null;
+
+  /**
+   * `server-search` retombe en local pour le terme courant (#1026) : la clause
+   * n'est pas traduisible par l'adaptateur amont (`supportsServerWhere`), ou
+   * le gabarit vise `{fields}` sans `fields`.
+   */
+  private _serverRefused = false;
+
+  /** Motifs de repli deja signales (un avertissement par motif). */
+  private readonly _serverRefusedWarned = new Set<string>();
 
   /** Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange */
   private _lastPushedWhere: string | null = null;
@@ -435,11 +453,19 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
    * change : pas de meta (#282).
    */
   protected transformMeta(meta: import('../utils/data-bridge.js').PaginationMeta) {
-    return this.serverSearch ? meta : null;
+    return this.serverSearch && !this._serverRefused ? meta : null;
   }
 
   private _onData(data: unknown) {
     const rows = Array.isArray(data) ? data : [];
+
+    if (this.serverSearch && this._serverRefused) {
+      // Repli local (#1026) : la clause n'a pas pu partir au serveur, le
+      // terme filtre les lignes recues, comme sans `server-search`.
+      this._allData = rows;
+      this._filterLocally();
+      return;
+    }
 
     if (this.serverSearch) {
       // Server-search mode: data arrives pre-filtered from the server.
@@ -500,6 +526,11 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       return;
     }
 
+    this._filterLocally();
+  }
+
+  /** Filtre local des lignes recues, puis emission (hors `server-search`, ou son repli #1026). */
+  private _filterLocally() {
     const term = this._term;
 
     if (!term || term.length < this.minLength) {
@@ -529,18 +560,48 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   private _applyServerSearch() {
     const term = this._term;
     let where = '';
+    let refusal: string | null = null;
 
     if (term && term.length >= this.minLength) {
       // Echappement selon le dialecte du provider (#271) : ODSQL echappe
       // \ et " (valeur entre guillemets), colon percent-encode , : |
       // (caracteres structurels de la clause)
-      const format = this.getAdapter()?.capabilities?.whereFormat ?? 'odsql';
+      const adapter = this.getAdapter();
+      const format = adapter?.capabilities?.whereFormat ?? 'odsql';
       const escaped =
         format === 'colon'
           ? escapeColonValue(term)
           : term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      where = this.searchTemplate.replace(/\{q\}/g, escaped);
+      // `{fields}` (#1026) : les champs de la recherche, separes par `|` —
+      // la grammaire colon des champs multiples, un OU entre eux
+      const fields = this._getFields();
+      if (this.searchTemplate.includes('{fields}') && fields.length === 0) {
+        refusal =
+          `le gabarit "${this.searchTemplate}" cherche dans {fields}, mais l'attribut ` +
+          `"fields" est vide — nommez les colonnes a interroger`;
+      } else {
+        where = this.searchTemplate
+          .replace(/\{fields\}/g, fields.join('|'))
+          .replace(/\{q\}/g, escaped);
+        if (adapter?.supportsServerWhere?.(where) === false) {
+          refusal =
+            `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
+            `par exemple un terme portant , . ( ) " ou & sur Tabular`;
+        }
+      }
     }
+
+    // Repli local (#1026) : jamais une recherche perdue en silence. La clause
+    // serveur de cette recherche est levee, le terme filtre les lignes recues
+    // (compte local, sans `meta.total`) et un avertissement le dit.
+    if (refusal !== null) {
+      this._warnServerRefused(refusal);
+      this._serverRefused = true;
+      dispatchSourceCommand(this.source, { where: '', whereKey: this.id, origin: this.id });
+      this._filterLocally();
+      return;
+    }
+    this._serverRefused = false;
 
     // Dispatch command to upstream source (dsfr-data-query server-side)
     dispatchSourceCommand(this.source, { where, whereKey: this.id, origin: this.id });
@@ -551,6 +612,16 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     }
 
     this._emitSearchChange(this._resultCount);
+  }
+
+  /** Une recherche serveur retombee en local (#1026) : dit une fois par motif. */
+  private _warnServerRefused(reason: string): void {
+    if (this._serverRefusedWarned.has(reason)) return;
+    this._serverRefusedWarned.add(reason);
+    console.warn(
+      `dsfr-data-search[${this.id}]: server-search — ${reason}. Recherche faite dans le ` +
+        `navigateur, sur les seules lignes chargees : le compte peut differer du total serveur.`
+    );
   }
 
   /** Emit dsfr-data-search-change event */

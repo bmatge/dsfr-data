@@ -148,7 +148,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 |----------|:---:|:---:|:---:|:---:|:---:|
 | serverFetch | oui | oui | oui | oui | non |
 | serverFacets | oui | non | oui | non | non |
-| serverSearch | oui | non | non | non | non |
+| serverSearch | oui | oui, multi-colonnes `or=(…)` (#1026) | non | non | non |
 | serverGroupBy | oui | oui | oui | non | non |
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
@@ -226,6 +226,7 @@ la recette ont decrit ce comportement correct comme une regression avant d'etre 
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
 - **Colon** (Tabular, Grist, INSEE, Generic) : `field:operator:value, field2:operator:value2`. Les caracteres structurels (`,` `:` `|`) dans une VALEUR sont percent-encodes (`escapeColonValue`/`unescapeColonValue` dans `packages/core/src/utils/where.ts`, #271) ; tous les parseurs colon decodent apres decoupage.
+- **Champs multiples** (#1026) : `a|b:op:valeur` — meme operateur, meme valeur, un OU entre les champs (`splitColonFields`), les clauses restant en ET. Seul OU de la grammaire ; il ne reserve aucun caractere de plus. Traductions : Tabular `or=(a__op.v,b__op.v)` (une clause multi-champs par requete ; refus d'une valeur a `,` `.` `(` `)` `"` `&` et de `in`/`notin`, mesures dans `tabular-adapter.ts`), ODSQL et Grist SQL `(… OR …)` (Grist passe en mode SQL), client (`applyLocalFilter`, query) en OU. INSEE et generic refusent. **Couplage** : un refus passe par `supportsServerWhere` de l'adaptateur — la query ne delegue alors rien (filtre client sur les lignes brutes), `dsfr-data-search server-search` retombe en recherche locale avec avertissement. Un nouvel adaptateur qui ne sait pas dire « ou » DOIT l'implementer, sinon la clause part telle quelle a son API. Le gabarit de recherche Tabular `{fields}:contains:{q}` : `{fields}` = champs de `fields` joints par `|`.
 
 #### Attributs dsfr-data-source
 

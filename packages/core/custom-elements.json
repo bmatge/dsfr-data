@@ -16784,7 +16784,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
+              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE\net les sources sans adaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
               "attribute": "where"
             },
             {
@@ -17468,6 +17468,13 @@
                   "type": {
                     "text": "AdapterCapabilities['whereFormat']"
                   }
+                },
+                {
+                  "name": "adapter",
+                  "optional": true,
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
                 }
               ],
               "description": "Prépare la délégation serveur du where (#275) : valide que chaque clause\nest exprimable dans la grammaire colon (`field:op[:value]`) puis la\ntraduit au dialecte de l'adapter (ODSQL ou colon pass-through).\n\nRetourne ok=false si une clause est intraduisible (syntaxe non-colon,\nopérateur inconnu) — l'appelant ne délègue alors RIEN."
@@ -17601,6 +17608,37 @@
                   "name": "item",
                   "type": {
                     "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "filter",
+                  "type": {
+                    "text": "QueryFilter"
+                  }
+                }
+              ],
+              "description": "Une clause, sur une ligne. Champs multiples (#1026) : `a|b:op:v` passe\ndes qu'UN de ses champs la satisfait (OU) — meme operateur, meme valeur."
+            },
+            {
+              "kind": "method",
+              "name": "_matchesField",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "item",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                },
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
                   }
                 },
                 {
@@ -18022,7 +18060,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
+              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE\net les sources sans adaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
               "fieldName": "where"
             },
             {
@@ -18864,7 +18902,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Template pour la recherche serveur.\n{q} est remplace par le terme de recherche.\nSi vide et server-search active, lu depuis l'adapter de la source amont.\nEx ODS: 'search(\"{q}\")', custom: '{q} IN nom'",
+              "description": "Template pour la recherche serveur.\n{q} est remplacé par le terme de recherche, {fields} par les champs de\n`fields` séparés par `|` (#1026) — la grammaire colon des champs\nmultiples, un OU entre eux.\nSi vide et server-search activé, lu depuis l'adaptateur de la source amont :\nODS `search(\"{q}\")`, Tabular `{fields}:contains:{q}` (traduit en\n`or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais\nsensible aux accents : « ecole » n'y trouve pas « École »).\nEx. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.\nUne clause que l'adaptateur ne sait pas transmettre (terme portant\n`,` `.` `(` `)` `\"` `&` sur Tabular) retombe sur une recherche locale,\nsignalée en console.",
               "attribute": "search-template"
             },
             {
@@ -18874,7 +18912,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (un filtre de contexte porte un seul champ ; le OU entre\nchamps, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
               "attribute": "context"
             },
             {
@@ -18950,6 +18988,24 @@
               "privacy": "private",
               "default": "null",
               "description": "Le filtre unique enregistre aupres du contexte (#678)"
+            },
+            {
+              "kind": "field",
+              "name": "_serverRefused",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "`server-search` retombe en local pour le terme courant (#1026) : la clause\nn'est pas traduisible par l'adaptateur amont (`supportsServerWhere`), ou\nle gabarit vise `{fields}` sans `fields`."
+            },
+            {
+              "kind": "field",
+              "name": "_serverRefusedWarned",
+              "privacy": "private",
+              "readonly": true,
+              "default": "new Set<string>()",
+              "description": "Motifs de repli deja signales (un avertissement par motif)."
             },
             {
               "kind": "field",
@@ -19246,9 +19302,34 @@
             },
             {
               "kind": "method",
+              "name": "_filterLocally",
+              "privacy": "private",
+              "description": "Filtre local des lignes recues, puis emission (hors `server-search`, ou son repli #1026)."
+            },
+            {
+              "kind": "method",
               "name": "_applyServerSearch",
               "privacy": "private",
               "description": "Server-search: envoie une commande { where } au source upstream\nau lieu de filtrer localement."
+            },
+            {
+              "kind": "method",
+              "name": "_warnServerRefused",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reason",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Une recherche serveur retombee en local (#1026) : dit une fois par motif."
             },
             {
               "kind": "method",
@@ -19568,7 +19649,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Template pour la recherche serveur.\n{q} est remplace par le terme de recherche.\nSi vide et server-search active, lu depuis l'adapter de la source amont.\nEx ODS: 'search(\"{q}\")', custom: '{q} IN nom'",
+              "description": "Template pour la recherche serveur.\n{q} est remplacé par le terme de recherche, {fields} par les champs de\n`fields` séparés par `|` (#1026) — la grammaire colon des champs\nmultiples, un OU entre eux.\nSi vide et server-search activé, lu depuis l'adaptateur de la source amont :\nODS `search(\"{q}\")`, Tabular `{fields}:contains:{q}` (traduit en\n`or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais\nsensible aux accents : « ecole » n'y trouve pas « École »).\nEx. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.\nUne clause que l'adaptateur ne sait pas transmettre (terme portant\n`,` `.` `(` `)` `\"` `&` sur Tabular) retombe sur une recherche locale,\nsignalée en console.",
               "fieldName": "searchTemplate"
             },
             {
@@ -19577,7 +19658,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (la clause colon ne sait pas dire « ou » entre plusieurs\nchamps). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (un filtre de contexte porte un seul champ ; le OU entre\nchamps, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
               "fieldName": "context"
             }
           ],
