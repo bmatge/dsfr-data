@@ -595,6 +595,89 @@ describe('evaluerConstats — registre', () => {
     expect(evaluerConstats(SAINE, { app: 'studio' }, regles)).toEqual([]);
   });
 
+  it('`remplace` retire les constats génériques sur les nœuds visés par `tags`, et là seulement', () => {
+    // Deux sources vides : l'une lue par une couche, l'autre par un graphique
+    // inerte. Une règle témoin d'app dit mieux « zéro ligne » et « afficheur
+    // inerte » sur les couches et ce qu'elles lisent.
+    const t = trace({
+      nodes: [
+        noeud('a', 'dsfr-data-source', 'source'),
+        noeud('couche', 'dsfr-data-map-layer', 'display', { upstream: ['a'] }),
+        noeud('b', 'dsfr-data-source', 'source'),
+        noeud('graphique', 'dsfr-data-chart', 'display', { upstream: ['b'] }),
+      ],
+      states: {
+        a: charge(0),
+        couche: { status: 'idle', emissions: 0 },
+        b: charge(0),
+        graphique: { status: 'idle', emissions: 0 },
+      },
+    });
+    const temoin: RegleConstat = {
+      id: 'temoin/couche-vide',
+      appliesTo: ['builder-carto'],
+      tags: ['dsfr-data-map-layer'],
+      remplace: ['pipeline/zero-ligne', 'pipeline/afficheur-inerte'],
+      evaluer: () => [
+        {
+          id: 'temoin/couche-vide@couche',
+          regle: 'temoin/couche-vide',
+          gravite: 'erreur',
+          titre: 'couche : aucune donnée',
+          explication: '',
+          reperes: ['carto.couches.source'],
+          preuve: 'a → 0 ligne',
+          etape: 'couche',
+        },
+      ],
+    };
+    const regles = [...REGLES_GENERIQUES, temoin];
+    // App visée : la couche et sa source sont dites par le témoin ; le
+    // graphique et sa source gardent leurs génériques.
+    expect(evaluerConstats(t, { app: 'builder-carto' }, regles).map((c) => c.id)).toEqual([
+      'temoin/couche-vide@couche',
+      'pipeline/zero-ligne@b',
+      'pipeline/afficheur-inerte@graphique',
+    ]);
+    // Règle non applicable à l'app : elle ne remplace rien.
+    expect(evaluerConstats(t, { app: 'studio' }, regles).map((c) => c.id)).toEqual([
+      'pipeline/zero-ligne@a',
+      'pipeline/afficheur-inerte@couche',
+      'pipeline/zero-ligne@b',
+      'pipeline/afficheur-inerte@graphique',
+    ]);
+    // Sans `tags` : partout dans l'app, y compris les constats sans étape.
+    const partout: RegleConstat = { ...temoin, tags: undefined, remplace: ['pipeline/zero-ligne'] };
+    delete (partout as { tags?: unknown }).tags;
+    expect(
+      evaluerConstats(t, { app: 'builder-carto' }, [...REGLES_GENERIQUES, partout]).map((c) => c.id)
+    ).toEqual([
+      'temoin/couche-vide@couche',
+      'pipeline/afficheur-inerte@couche',
+      'pipeline/afficheur-inerte@graphique',
+    ]);
+  });
+
+  it('un constat sans étape n’est remplacé que par une règle sans `tags`', () => {
+    const t = trace({
+      nodes: [SOURCE, CARTE],
+      states: { src: charge(3) },
+      console: [message('Uncaught ReferenceError: leaflet is not defined')],
+    });
+    const cible: RegleConstat = {
+      id: 'temoin/console',
+      appliesTo: ['*'],
+      tags: ['dsfr-data-chart'],
+      remplace: ['console/erreur-non-rattachee'],
+      evaluer: () => [],
+    };
+    const avecTags = evaluerConstats(t, CTX, [...REGLES_GENERIQUES, cible]).map((c) => c.regle);
+    expect(avecTags).toContain('console/erreur-non-rattachee');
+    const { tags: _t, ...sansTags } = cible;
+    const partout = evaluerConstats(t, CTX, [...REGLES_GENERIQUES, sansTags]).map((c) => c.regle);
+    expect(partout).not.toContain('console/erreur-non-rattachee');
+  });
+
   it('dédoublonne par id : la première occurrence gagne', () => {
     const doublon = {
       id: 'x/doublon',
