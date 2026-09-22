@@ -108,6 +108,10 @@ describe('#658 — adapter ODS : signal de troncature quand le total est inconnu
     expect(result.totalCount).toBeUndefined();
     expect(result.truncated).toBe(true);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('plafond max-records'));
+    // #1032 : le diagnostic nomme le composant qui porte le reglage
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("l'attribut max-records de dsfr-data-source")
+    );
   });
 
   it('jeu complet → pas de signal de troncature', async () => {
