@@ -435,6 +435,49 @@ describe('formatTrace — sections Réseau et Console', () => {
     expect(texte).not.toMatch(/SECRET/);
   });
 
+  /** Rend la section Console d'un seul message, sous redactValues. */
+  const messageMasque = (message: string): string =>
+    formatTrace(trace({ console: [{ t: 1, niveau: 'error', source: 'console', message }] }), {
+      now: () => 0,
+      redactValues: true,
+    })
+      .split('\n')
+      .find((l) => l.includes('console (error)'))!
+      .replace('  ✗ console (error) : ', '');
+
+  it('sous redactValues, coupe la requête des URL citées dans un message', () => {
+    expect(messageMasque('échec https://a.fr/x?q=Dupont#f fin')).toBe('échec https://a.fr/x fin');
+    // URL au milieu d'un mot, casse quelconque, fragment seul.
+    expect(messageMasque('url=HTTP://A.fr/p#frag')).toBe('url=HTTP://A.fr/p');
+    // Hôte vide : pas une URL, on cherche la suivante dans le même mot.
+    expect(messageMasque('http://?x,https://b.fr/y?z')).toBe('http://?x,https://b.fr/y');
+    // Sans requête, rien ne change ; les guillemets bornent l'URL.
+    expect(messageMasque('voir "https://a.fr/p?q=1" ou http://b.fr/q')).toBe(
+      'voir "https://a.fr/p" ou http://b.fr/q'
+    );
+  });
+
+  it('reste linéaire sur un message hostile (CodeQL js/polynomial-redos)', () => {
+    // L'ancienne expression repartait de chaque `http://` et rescannait
+    // jusqu'au bout : quadratique. 20 000 répétitions y coûtaient des secondes.
+    for (const hostile of [
+      'http://'.repeat(20000),
+      'http://?'.repeat(20000),
+      '?key='.repeat(20000),
+    ]) {
+      const t0 = performance.now();
+      formatTrace(
+        trace({
+          reseau: [{ ...reseau[0], url: hostile }],
+          console: [{ t: 1, niveau: 'error', source: 'console', message: hostile }],
+        }),
+        { now: () => 0, redactValues: true }
+      );
+      masquerUrl(hostile);
+      expect(performance.now() - t0).toBeLessThan(200);
+    }
+  });
+
   it('sans journal, le texte ne change pas', () => {
     const texte = formatTrace(trace({}), { now: () => 0 });
     expect(texte).not.toContain('Réseau');

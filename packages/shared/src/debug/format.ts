@@ -601,8 +601,48 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     .trimEnd();
 }
 
-/** Retire requête et fragment des URL citées dans un texte. */
-const URL_AVEC_REQUETE_RE = /(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/gi;
+/** Un « mot » d'un texte libre : ce qui peut porter une URL. */
+const JETON_RE = /[^\s"'<>]+/g;
+
+/**
+ * Premier `?` ou `#` à partir de `depart`, ou -1. Un seul parcours qui
+ * s'arrête au premier trouvé : deux `indexOf` iraient chacun jusqu'au bout,
+ * et répétés sur `http://?http://?…`, redeviendraient quadratiques.
+ */
+function premiereRequete(jeton: string, depart: number): number {
+  for (let k = depart; k < jeton.length; k++) {
+    const c = jeton.charCodeAt(k);
+    if (c === 63 /* ? */ || c === 35 /* # */) return k;
+  }
+  return -1;
+}
+
+/**
+ * Coupe la requête et le fragment de la première URL `http(s)://` d'un jeton.
+ *
+ * Écrit sans expression régulière à retour arrière : l'ancienne forme
+ * repartait de chaque `http://` et rescannait jusqu'à la fin du texte, coût
+ * quadratique sur un message hostile (`'http://'.repeat(n)`, alerte CodeQL
+ * `js/polynomial-redos`). Ici, chaque recherche de `?`/`#` s'arrête soit en
+ * rendant le résultat, soit tout de suite (hôte vide) : parcours linéaire.
+ */
+function couperRequete(jeton: string): string {
+  const bas = jeton.toLowerCase();
+  let depart = 0;
+  for (;;) {
+    const i = bas.indexOf('http', depart);
+    if (i < 0) return jeton;
+    const hote = bas.startsWith('https://', i) ? i + 8 : bas.startsWith('http://', i) ? i + 7 : -1;
+    if (hote >= 0) {
+      const coupe = premiereRequete(jeton, hote);
+      // Sans `?` ni `#` après cette URL, aucune URL plus loin n'en a non plus.
+      if (coupe < 0) return jeton;
+      // Hôte vide (`http://?x`) : ce n'est pas une URL, on cherche plus loin.
+      if (coupe > hote) return jeton.slice(0, coupe);
+    }
+    depart = i + 1;
+  }
+}
 
 /**
  * Texte libre (message de console, erreur réseau) : les jetons des URL qu'il
@@ -610,7 +650,7 @@ const URL_AVEC_REQUETE_RE = /(https?:\/\/[^\s?#"'<>]+)[?#][^\s"'<>]*/gi;
  */
 function masquerTexte(texte: string, opts: FormatOptions): string {
   const sansJeton = masquerUrl(texte);
-  return opts.redactValues ? sansJeton.replace(URL_AVEC_REQUETE_RE, '$1') : sansJeton;
+  return opts.redactValues ? sansJeton.replace(JETON_RE, couperRequete) : sansJeton;
 }
 
 /** Octets en unité lisible — « 850 o », « 1,2 Ko ». */
