@@ -181,6 +181,16 @@ export interface CartoState {
 
 let layerCounter = 0;
 
+/**
+ * Plafond de points d'une nouvelle couche dans la Carto (#1020) : 1 000, pour
+ * que la carte s'affiche vite sur un gros jeu (5 requetes Tabular de 200,
+ * #1019). Le generateur l'emet en `max-items` ET en `limit` de la source :
+ * la source ne charge pas plus que la couche ne dessine, et le bandeau de la
+ * couche donne les deux chiffres. La bibliotheque garde son propre defaut
+ * (`max-items` = 5000) : aucune page publiee ne change.
+ */
+export const DEFAULT_LAYER_MAX_ITEMS = 1000;
+
 export function createLayer(): LayerConfig {
   layerCounter++;
   return {
@@ -238,7 +248,7 @@ export function createLayer(): LayerConfig {
     bbox: false,
     bboxDebounce: 300,
     bboxField: '',
-    maxItems: 5000,
+    maxItems: DEFAULT_LAYER_MAX_ITEMS,
 
     fields: [],
     data: [],

@@ -170,11 +170,39 @@
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
               <!-- ATTRS:dsfr-data-map-layer fields="max-items" -->
-                <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège les marqueurs DOM (<code>divIcon</code>), le fit et les popups ; au-delà, un bandeau indique combien d'éléments sont affichés sur le total. Avec <code>cluster</code>, <code>max-items="20000"</code> est sans risque : les marqueurs regroupés ne pèsent pas sur le DOM. En mode <code>bbox</code>, zoomer recharge la zone visible ; hors <code>bbox</code>, seul un <code>max-items</code> plus haut (ou un filtre amont) affiche le reste.</td></tr>
+                <tr><td><code>max-items</code></td><td>Number</td><td><code>5000</code></td><td>Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège les marqueurs DOM (<code>divIcon</code>), le fit et les popups. Un bandeau (<code>role="status"</code>) donne les deux chiffres — éléments affichés et total connu — dès que la carte n'en montre qu'une partie : plafond <code>max-items</code> dépassé, OU source qui n'a chargé qu'une partie du jeu (<code>limit</code>, <code>max-records</code>, plafond de pages : le total vient alors de la source, #1020). Il précise que les premiers enregistrements suivent l'ordre du fichier (ou le tri <code>order-by</code> de la source) : leur répartition n'est pas représentative. Aligner le <code>limit</code> de la source sur <code>max-items</code> évite de charger des lignes que la couche ne dessinera pas. Avec <code>cluster</code>, <code>max-items="20000"</code> est sans risque : les marqueurs regroupés ne pèsent pas sur le DOM. En mode <code>bbox</code>, zoomer recharge la zone visible ; hors <code>bbox</code>, seul un plafond plus haut (ou un filtre amont) affiche le reste.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
+        <p>
+          <strong>Bandeau « N affichés sur M »</strong> (#1020). Dès que la carte ne montre qu'une
+          partie du jeu, la couche pose sous la carte un bandeau <code>role="status"</code>, sans
+          aucun contrôle interactif, qui donne <strong>les deux chiffres</strong> — éléments affichés
+          et total connu — et le <strong>biais</strong> : ce sont les premiers enregistrements, dans
+          l'ordre du fichier (ou du tri <code>order-by</code> de la source), leur répartition n'est donc
+          pas représentative. Deux cas le déclenchent :
+        </p>
+        <ul>
+          <li><strong>plafond de rendu</strong> : la couche a reçu plus de lignes que
+            <code>max-items</code> ; le total est le nombre de lignes reçues ;</li>
+          <li><strong>troncature amont</strong> : la source n'a chargé qu'une partie du jeu
+            (<code>limit</code>, <code>max-records</code>, plafond de pages de l'adaptateur) ; la couche
+            lit la meta de la source, et le total est celui que l'API annonce.</li>
+        </ul>
+        <p>
+          C'est ce second cas qui rend sûr d'<strong>aligner le <code>limit</code> de la source sur
+          <code>max-items</code></strong> : la source ne charge plus de lignes que la couche ne
+          dessinerait pas, et le bandeau reste là. Le Builder Carto le fait par défaut, avec un
+          plafond de 1 000 points (la bibliothèque garde 5 000). Pas de bandeau sur une carte
+          verrouillée (encarts) ; plusieurs couches tronquées empilent leurs bandeaux.
+        </p>
+        <pre><code>&lt;dsfr-data-source id="elus" api-type="tabular" resource="…" limit="1000"&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-map&gt;
+  &lt;dsfr-data-map-layer source="elus" lat-field="lat" lon-field="lon" max-items="1000"&gt;&lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;
+&lt;!-- Bandeau : « 1 000 premiers enregistrements affichés sur 34 826, dans l'ordre du fichier :
+     la répartition affichée n'est pas représentative. La source n'a chargé qu'une partie du jeu. » --&gt;</code></pre>
         <p class="fr-text--sm fr-text--light">
           <strong>Attribut retiré</strong> : <code>filter</code> (retiré en #297, warn console s'il est
           présent) — filtrer en amont avec <code>dsfr-data-query</code> ou l'attribut <code>where</code>

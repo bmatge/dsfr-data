@@ -33,7 +33,7 @@ import { repondreContexte } from './fixtures-contexte.js';
 import { repondreGel } from '../../tools/oracle/gel.js';
 import { GELS } from './gel.js';
 import type { Row } from '../../tools/oracle/manifest.js';
-import { repondreAffichages } from './fixtures-affichages.js';
+import { repondreAffichages, repondreAffichagesTabular } from './fixtures-affichages.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
 import mesures from './jeux/mesures.json' with { type: 'json' };
 import regions from './jeux/regions.json' with { type: 'json' };
@@ -198,7 +198,8 @@ export function repondre(url: URL): unknown | null {
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR}/data/`) {
       return repondreTabular(url, TERRITOIRES);
     }
-    return null;
+    // La ressource Tabular du lot AFFICHAGES (#1020) : meme hote, autre chemin.
+    return repondreAffichagesTabular(url);
   }
   if (url.origin === HOTE_API) {
     const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX;
