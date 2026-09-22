@@ -9,7 +9,7 @@
  * (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull).
  */
 
-import { unescapeColonValue } from '../utils/colon-escape.js';
+import { splitColonFields, unescapeColonValue } from '../utils/colon-escape.js';
 
 /**
  * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).
@@ -38,6 +38,10 @@ function odsqlLiteral(value: string, preferNumeric: boolean): string {
  * Convert a dsfr-data-query filter expression (field:operator:value) to an ODSQL where clause.
  * Supports 12 operators: eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull.
  *
+ * CHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le même
+ * opérateur et la même valeur à chaque champ, reliés par un OU parenthésé —
+ * `(nom like "%martin%" OR commune like "%martin%")`.
+ *
  * LES DEUX ÉCRITURES DE LA NÉGATION EN ODSQL (#958), mesurées le 2026-09-20 sur
  * `retours-formulaire-votre-avis-copie` de data.education.gouv.fr, champ
  * `themes_attendus` (176 lignes, 21 nulles, 155 renseignées, `= "Elèves"` -> 124) :
@@ -65,6 +69,27 @@ function odsqlLiteral(value: string, preferNumeric: boolean): string {
  * client/serveur que #958 ferme.
  */
 export function filterToOdsql(filterExpr: string): string {
+  return filterExpr
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const segs = part.split(':');
+      if (segs.length < 2) return '';
+      const fields = splitColonFields(segs[0]);
+      const rawVal = segs.slice(2).join(':');
+      const clauses = fields.map((f) => odsqlClause(f, segs[1], rawVal, segs.length >= 3));
+      if (clauses.length === 0 || clauses.some((c) => !c)) return '';
+      // Champs multiples (#1026) : même opérateur, même valeur, reliés par un
+      // OU — parenthésés, puisque les clauses se joignent par ` AND `.
+      return clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
+    })
+    .filter(Boolean)
+    .join(' AND ');
+}
+
+/** La traduction ODSQL d'une clause à UN champ (voir {@link filterToOdsql}). */
+function odsqlClause(field: string, op: string, rawVal: string, hasValue: boolean): string {
   const opMap: Record<string, string> = {
     eq: '=',
     neq: '!=',
@@ -73,42 +98,29 @@ export function filterToOdsql(filterExpr: string): string {
     lt: '<',
     lte: '<=',
   };
-  return filterExpr
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const segs = part.split(':');
-      if (segs.length < 2) return '';
-      const field = segs[0];
-      const op = segs[1];
-      // Operateurs sans valeur (2 segments seulement)
-      if (op === 'isnull') return `${field} is null`;
-      if (op === 'isnotnull') return `${field} is not null`;
-      if (segs.length < 3) return '';
-      const rawVal = segs.slice(2).join(':');
-      const val = unescapeColonValue(rawVal);
-      if (op === 'contains') return `${field} like "%${escapeOdsql(val)}%"`;
-      if (op === 'notcontains') return `NOT ${field} like "%${escapeOdsql(val)}%"`;
-      if (op === 'in')
-        return `${field} in (${rawVal
-          .split('|')
-          .map((v) => `"${escapeOdsql(unescapeColonValue(v))}"`)
-          .join(', ')})`;
-      if (op === 'notin')
-        return `NOT ${field} in (${rawVal
-          .split('|')
-          .map((v) => `"${escapeOdsql(unescapeColonValue(v))}"`)
-          .join(', ')})`;
-      const sqlOp = opMap[op];
-      if (!sqlOp) return '';
-      // Comparaisons arithmétiques : littéral numérique NON quoté, sinon ODS
-      // compare des strings ("9" > "10")
-      const numeric = op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte';
-      return `${field} ${sqlOp} ${odsqlLiteral(val, numeric)}`;
-    })
-    .filter(Boolean)
-    .join(' AND ');
+  // Operateurs sans valeur (2 segments seulement)
+  if (op === 'isnull') return `${field} is null`;
+  if (op === 'isnotnull') return `${field} is not null`;
+  if (!hasValue) return '';
+  const val = unescapeColonValue(rawVal);
+  if (op === 'contains') return `${field} like "%${escapeOdsql(val)}%"`;
+  if (op === 'notcontains') return `NOT ${field} like "%${escapeOdsql(val)}%"`;
+  if (op === 'in')
+    return `${field} in (${rawVal
+      .split('|')
+      .map((v) => `"${escapeOdsql(unescapeColonValue(v))}"`)
+      .join(', ')})`;
+  if (op === 'notin')
+    return `NOT ${field} in (${rawVal
+      .split('|')
+      .map((v) => `"${escapeOdsql(unescapeColonValue(v))}"`)
+      .join(', ')})`;
+  const sqlOp = opMap[op];
+  if (!sqlOp) return '';
+  // Comparaisons arithmétiques : littéral numérique NON quoté, sinon ODS
+  // compare des strings ("9" > "10")
+  const numeric = op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte';
+  return `${field} ${sqlOp} ${odsqlLiteral(val, numeric)}`;
 }
 
 /**
@@ -363,6 +375,10 @@ export function validateColonFilter(filterExpr: string): string | null {
     if (segs.length < 2 || !segs[0].trim()) {
       return `clause "${part}" non reconnue — syntaxe attendue "champ:opérateur[:valeur]" (ex. "categorie:eq:Actif")`;
     }
+    // Champs multiples (#1026) : `a|b:op:v` — aucun champ vide dans la liste.
+    if (segs[0].split('|').some((f) => !f.trim())) {
+      return `champ vide dans la clause "${part}" — syntaxe attendue "champ1|champ2:opérateur:valeur" (ex. "nom|commune:contains:martin")`;
+    }
     const op = segs[1];
     if (!known.includes(op)) {
       return `opérateur inconnu "${op}" dans la clause "${part}" — opérateurs acceptés : ${known.join(', ')}`;
@@ -411,72 +427,76 @@ export function applyLocalFilter(
     .map((part) => {
       const segs = part.split(':');
       if (segs.length < 2) return null;
-      return { field: segs[0], op: segs[1], rawValue: segs.slice(2).join(':') };
+      return {
+        fields: splitColonFields(segs[0]),
+        op: segs[1],
+        rawValue: segs.slice(2).join(':'),
+      };
     })
-    .filter(Boolean) as { field: string; op: string; rawValue: string }[];
+    .filter(Boolean) as { fields: string[]; op: string; rawValue: string }[];
 
+  // Champs multiples (#1026) : une clause `a|b:op:v` passe dès qu'UN de ses
+  // champs la satisfait (OU) ; les clauses entre elles restent en ET.
   return data.filter((row) =>
-    filters.every((f) => {
-      const v = getField(row, f.field);
-      const value = unescapeColonValue(f.rawValue);
-      switch (f.op) {
-        case 'eq':
-          return looseEquals(v, value, f.field);
-        case 'neq':
-          // Une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958).
-          return looseNotEquals(v, value, f.field);
-        case 'gt': {
-          const cmp = compareForRange(v, value);
-          return cmp !== null && cmp > 0;
-        }
-        case 'gte': {
-          const cmp = compareForRange(v, value);
-          return cmp !== null && cmp >= 0;
-        }
-        case 'lt': {
-          const cmp = compareForRange(v, value);
-          return cmp !== null && cmp < 0;
-        }
-        case 'lte': {
-          const cmp = compareForRange(v, value);
-          return cmp !== null && cmp <= 0;
-        }
-        case 'contains':
-          // null ne contient rien (String(undefined)="undefined" matchait, #278)
-          return (
-            v !== null && v !== undefined && String(v).toLowerCase().includes(value.toLowerCase())
-          );
-        case 'notcontains':
-          return (
-            v === null || v === undefined || !String(v).toLowerCase().includes(value.toLowerCase())
-          );
-        case 'in':
-          // Même sémantique lâche que eq, sur chaque token (#315/#278)
-          return (
-            v !== null &&
-            v !== undefined &&
-            f.rawValue
-              .split('|')
-              .some((token) => looseEquals(v, unescapeColonValue(token), f.field))
-          );
-        case 'notin':
-          return (
-            v === null ||
-            v === undefined ||
-            !f.rawValue
-              .split('|')
-              .some((token) => looseEquals(v, unescapeColonValue(token), f.field))
-          );
-        case 'isnull':
-          return v === null || v === undefined;
-        case 'isnotnull':
-          return v !== null && v !== undefined;
-        default:
-          console.warn(
-            `filter-translator: opérateur inconnu "${f.op}" ignoré (toutes lignes conservées)`
-          );
-          return true;
-      }
-    })
+    filters.every((clause) =>
+      clause.fields.some((field) => passeClause(getField(row, field), { ...clause, field }))
+    )
   );
+}
+
+/** Une clause à UN champ, sur la valeur de ce champ (voir {@link applyLocalFilter}). */
+function passeClause(v: unknown, f: { field: string; op: string; rawValue: string }): boolean {
+  const value = unescapeColonValue(f.rawValue);
+  switch (f.op) {
+    case 'eq':
+      return looseEquals(v, value, f.field);
+    case 'neq':
+      // Une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958).
+      return looseNotEquals(v, value, f.field);
+    case 'gt': {
+      const cmp = compareForRange(v, value);
+      return cmp !== null && cmp > 0;
+    }
+    case 'gte': {
+      const cmp = compareForRange(v, value);
+      return cmp !== null && cmp >= 0;
+    }
+    case 'lt': {
+      const cmp = compareForRange(v, value);
+      return cmp !== null && cmp < 0;
+    }
+    case 'lte': {
+      const cmp = compareForRange(v, value);
+      return cmp !== null && cmp <= 0;
+    }
+    case 'contains':
+      // null ne contient rien (String(undefined)="undefined" matchait, #278)
+      return v !== null && v !== undefined && String(v).toLowerCase().includes(value.toLowerCase());
+    case 'notcontains':
+      return (
+        v === null || v === undefined || !String(v).toLowerCase().includes(value.toLowerCase())
+      );
+    case 'in':
+      // Même sémantique lâche que eq, sur chaque token (#315/#278)
+      return (
+        v !== null &&
+        v !== undefined &&
+        f.rawValue.split('|').some((token) => looseEquals(v, unescapeColonValue(token), f.field))
+      );
+    case 'notin':
+      return (
+        v === null ||
+        v === undefined ||
+        !f.rawValue.split('|').some((token) => looseEquals(v, unescapeColonValue(token), f.field))
+      );
+    case 'isnull':
+      return v === null || v === undefined;
+    case 'isnotnull':
+      return v !== null && v !== undefined;
+    default:
+      console.warn(
+        `filter-translator: opérateur inconnu "${f.op}" ignoré (toutes lignes conservées)`
+      );
+      return true;
+  }
 }
