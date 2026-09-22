@@ -11,9 +11,15 @@
  *
  * Le transport HTTP est injecte (`post`) : la boucle reste testable et
  * agnostique du provider (meme contrat PostChat que le builder-IA).
+ *
+ * La mecanique de boucle (anti-doublon, outils repetables, plafond de tours,
+ * dernier tour sans outils) vit dans `runAgentLoop` de @dsfr-data/shared
+ * (#1004, ADR-143). Ce module n'en garde que la COMPOSITION propre au studio :
+ * les outils (document, donnees, skills, diagnostic, code), leur execution,
+ * les budgets et `humanizeStep`.
  */
 
-import { countWhere, distinctValues, inspectData } from '@dsfr-data/shared';
+import { countWhere, distinctValues, inspectData, runAgentLoop } from '@dsfr-data/shared';
 import type { Row } from '@dsfr-data/shared';
 import {
   DOCUMENT_TOOLS,
@@ -40,19 +46,6 @@ import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools
 import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import type { DashboardData, Field } from '../state.js';
-
-interface ToolCall {
-  id: string;
-  type: 'function';
-  function: { name: string; arguments: string };
-}
-
-interface ChatMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | null;
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
-}
 
 // ---------------------------------------------------------------------------
 // Outils d'introspection (memes noms que le builder-IA)
@@ -131,6 +124,7 @@ const SKILL_LOOKUP_TOOLS = [
 // Chaque tour = 1 appel Albert (jeton partage, rate-limite). Un document se
 // construit en ~4 tours utiles (inspect -> add_blocks batch -> correction ->
 // finish) ; 8 laisse la place a une consultation de skill et une retouche.
+// Le 8e tour est sans outils (boucle commune) : il sert a conclure en texte.
 const MAX_ROUNDS = 8;
 
 /**
@@ -215,14 +209,32 @@ function humanizeStep(name: string, args: Record<string, unknown>): string {
   }
 }
 
-function parseArgs(raw: string): Record<string, unknown> {
-  try {
-    const parsed = JSON.parse(raw || '{}');
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
+const DOCUMENT_TOOL_NAMES: ReadonlySet<string> = new Set([
+  'add_blocks',
+  'update_block',
+  'remove_block',
+  'move_block',
+  'set_page',
+  'reset_document',
+]);
+
+/**
+ * Outils exemptés de l'anti-doublon de la boucle commune :
+ *   - les actions de document (deux add_blocks identiques ajoutent deux blocs) ;
+ *   - la lecture du code, qui change à chaque action de document — la relire
+ *     après une contestation est précisément ce qu'on attend (#787) ;
+ *   - les outils de diagnostic, qui observent un état mutable : rejouer la même
+ *     observation après un correctif, c'est tout leur intérêt (#607).
+ */
+const STUDIO_REPEATABLE_TOOLS: ReadonlySet<string> = new Set([
+  ...DOCUMENT_TOOL_NAMES,
+  ...CODE_TOOL_NAMES,
+  ...REPEATABLE_TOOLS,
+]);
+
+const STUDIO_TERMINAL_TOOLS: ReadonlySet<string> = new Set(['finish']);
+
+const DUPLICATE_MESSAGE = 'Déjà fourni ci-dessus. Passe aux actions de document ou à finish.';
 
 export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoopResult> {
   const { document: doc, post, model, onProgress, onDocumentChange } = opts;
@@ -237,15 +249,15 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   ];
   const maxRounds = diagnostic ? MAX_ROUNDS_DEBUG : MAX_ROUNDS;
 
-  const messages: ChatMessage[] = [
-    { role: 'system', content: opts.systemPrompt },
-    ...opts.conversation.map((m) => ({ role: m.role, content: m.content }) as ChatMessage),
-  ];
-
-  const lookupCalls = new Set<string>();
-  const steps: string[] = [];
   let applied = 0;
-  let lastContent = '';
+
+  const finalize = (outcome: { ok: boolean; summary: string }): string => {
+    if (outcome.ok) {
+      applied += 1;
+      onDocumentChange?.();
+    }
+    return outcome.summary;
+  };
 
   const applyDocumentTool = (name: string, args: Record<string, unknown>): string => {
     switch (name) {
@@ -279,14 +291,6 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
       default:
         return `Outil inconnu : ${name}`;
     }
-
-    function finalize(outcome: { ok: boolean; summary: string }): string {
-      if (outcome.ok) {
-        applied += 1;
-        onDocumentChange?.();
-      }
-      return outcome.summary;
-    }
   };
 
   const dispatchLookup = async (name: string, args: Record<string, unknown>): Promise<string> => {
@@ -316,92 +320,57 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
     }
   };
 
-  const DOCUMENT_TOOL_NAMES = new Set([
-    'add_blocks',
-    'update_block',
-    'remove_block',
-    'move_block',
-    'set_page',
-    'reset_document',
-  ]);
-
-  for (let round = 0; round < maxRounds; round++) {
-    const body: Record<string, unknown> = {
-      model,
-      messages,
-      tools,
-      tool_choice: 'auto',
-      temperature: 0.1,
-      ...(opts.extra ?? {}),
-    };
-
-    const data = await post(body);
-    const msg = data.choices?.[0]?.message;
-    if (!msg) return { text: lastContent, steps, applied };
-    lastContent = msg.content ?? lastContent;
-
-    const toolCalls = (msg.tool_calls ?? []) as ToolCall[];
-    if (toolCalls.length === 0) {
-      // Reponse conversationnelle pure (question de clarification, etc.).
-      return { text: msg.content ?? '', steps, applied };
+  /** Aiguillage des outils non terminaux : document, code, diagnostic, lookups. */
+  const executer = async (name: string, args: Record<string, unknown>): Promise<string> => {
+    if (DOCUMENT_TOOL_NAMES.has(name)) return applyDocumentTool(name, args);
+    if (CODE_TOOL_NAMES.has(name)) {
+      return generatedCode
+        ? describeGeneratedCode(generatedCode())
+        : "La lecture du code n'est pas disponible ici.";
     }
-
-    messages.push({ role: 'assistant', content: msg.content ?? '', tool_calls: toolCalls });
-
-    for (const call of toolCalls) {
-      const name = call.function.name;
-      const args = parseArgs(call.function.arguments);
-      steps.push(humanizeStep(name, args));
-      onProgress?.(steps);
-
-      if (name === 'finish') {
-        const text =
-          (typeof args.message === 'string' && args.message) ||
-          msg.content ||
-          'Document mis à jour.';
-        return { text, steps, applied };
-      }
-
-      let content: string;
-      if (DOCUMENT_TOOL_NAMES.has(name)) {
-        content = applyDocumentTool(name, args);
-      } else if (CODE_TOOL_NAMES.has(name)) {
-        // Jamais dédupliqué : le code change à chaque action de document, et
-        // le relire après une contestation est précisément ce qu'on attend.
-        content = generatedCode
-          ? describeGeneratedCode(generatedCode())
-          : "La lecture du code n'est pas disponible ici.";
-      } else if (REPEATABLE_TOOLS.has(name)) {
-        // Anti-boucle DÉLIBÉRÉMENT contournée : ces outils observent un état
-        // mutable. Rejouer la même observation après un correctif, c'est
-        // tout leur intérêt — la dédupliquer refuserait au modèle sa
-        // vérification au moment précis où il en a besoin.
-        content = DIAGNOSTIC_TOOL_NAMES.has(name)
-          ? diagnostic
-            ? await runDiagnosticTool(name, args, diagnostic)
-            : "Le diagnostic n'est pas disponible ici."
-          : await dispatchLookup(name, args);
-      } else {
-        // Anti-boucle : ne pas re-payer le même lookup.
-        const key = `${name}:${call.function.arguments}`;
-        if (lookupCalls.has(key)) {
-          content = 'Déjà fourni ci-dessus. Passe aux actions de document ou à finish.';
-        } else {
-          lookupCalls.add(key);
-          content = await dispatchLookup(name, args);
-        }
-      }
-      messages.push({ role: 'tool', tool_call_id: call.id, content });
+    if (DIAGNOSTIC_TOOL_NAMES.has(name)) {
+      return diagnostic
+        ? runDiagnosticTool(name, args, diagnostic)
+        : "Le diagnostic n'est pas disponible ici.";
     }
-  }
-
-  // Budget epuise : le document reflète les actions déjà appliquées.
-  return {
-    text:
-      applied > 0
-        ? `${lastContent || 'Document mis à jour.'}\n\n${describeDocument(doc)}`
-        : lastContent,
-    steps,
-    applied,
+    return dispatchLookup(name, args);
   };
+
+  const result = await runAgentLoop({
+    post,
+    model,
+    systemPrompt: opts.systemPrompt,
+    conversation: opts.conversation,
+    tools,
+    executer,
+    terminaux: STUDIO_TERMINAL_TOOLS,
+    repetables: STUDIO_REPEATABLE_TOOLS,
+    maxRounds,
+    onProgress,
+    decrireEtape: humanizeStep,
+    messageDoublon: DUPLICATE_MESSAGE,
+    temperature: 0.1,
+    extra: opts.extra,
+  });
+
+  const { steps } = result;
+  switch (result.fin) {
+    case 'terminal':
+      // `finish` : son message, sinon le contenu du message (boucle commune).
+      return { text: result.text || 'Document mis à jour.', steps, applied };
+    case 'plafond':
+      // Budget épuisé : le document reflète les actions déjà appliquées.
+      return {
+        text:
+          applied > 0
+            ? `${result.text || 'Document mis à jour.'}\n\n${describeDocument(doc)}`
+            : result.text,
+        steps,
+        applied,
+      };
+    default:
+      // Réponse sans outil (clarification, ou conclusion du dernier tour),
+      // ou transport muet.
+      return { text: result.text, steps, applied };
+  }
 }
