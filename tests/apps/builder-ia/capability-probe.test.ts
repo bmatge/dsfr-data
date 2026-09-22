@@ -12,7 +12,7 @@ import {
   getCapabilities,
   resetCapabilities,
   setCapabilities,
-} from '../../../apps/builder-ia/src/ia/albert-capabilities';
+} from '../../../packages/shared/src/ia/albert-capabilities';
 
 const okChat = (content = 'OK') => ({
   status: 200,

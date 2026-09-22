@@ -18,7 +18,7 @@
  * choix serveur-defaut vs jeton utilisateur, que seul l'appelant connait.
  */
 
-import { setCapabilities, type AlbertCapabilities } from './albert-capabilities.js';
+import { setCapabilities, type AlbertCapabilities } from '@dsfr-data/shared';
 import { rerankUrlFrom } from './skill-rerank.js';
 
 /** Reponse HTTP minimale remontee par le transport injecte. */

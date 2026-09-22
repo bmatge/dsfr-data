@@ -4,7 +4,13 @@
  * `runCapabilityProbe` et rend le rapport etape par etape.
  */
 
-import { escapeHtml } from '@dsfr-data/shared';
+import {
+  escapeHtml,
+  proxyFetch,
+  userProxyHeaders,
+  IA_PROXY_DEFAULT_ENDPOINT,
+  IA_PROXY_ENDPOINT,
+} from '@dsfr-data/shared';
 import { getIAConfig, isServerMode } from './ia-config.js';
 import { runCapabilityProbe, type ProbeIO, type ProbeHttpResult } from './capability-probe.js';
 
@@ -22,51 +28,28 @@ function buildIO(): ProbeIO | null {
   const config = getIAConfig();
   const serverMode = !config.token && isServerMode();
 
+  // Une seule tentative par etape (proxyFetch, pas postProxy) : la sonde lit
+  // elle-meme le statut HTTP, qu'un retry sur 429 ou une exception sur 4xx
+  // lui cacheraient.
   if (serverMode) {
     return {
       model: config.model,
       serverMode: true,
-      chat: async (body) =>
-        toResult(
-          await fetch('/ia-proxy-default', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          })
-        ),
+      chat: async (body) => toResult(await proxyFetch(IA_PROXY_DEFAULT_ENDPOINT, {}, { body })),
     };
   }
 
   if (!config.token || !config.apiUrl) return null;
 
-  const headers = {
-    'X-Target-URL': config.apiUrl,
-    Authorization: `Bearer ${config.token}`,
-  };
+  const vers = (url: string) => userProxyHeaders(url, config.token);
   return {
     model: config.model,
     serverMode: false,
     apiUrl: config.apiUrl,
     chat: async (body) =>
-      toResult(
-        await fetch('/ia-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify(body),
-        })
-      ),
-    get: async (url) =>
-      toResult(
-        await fetch('/ia-proxy', { method: 'GET', headers: { ...headers, 'X-Target-URL': url } })
-      ),
-    post: async (url, body) =>
-      toResult(
-        await fetch('/ia-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers, 'X-Target-URL': url },
-          body: JSON.stringify(body),
-        })
-      ),
+      toResult(await proxyFetch(IA_PROXY_ENDPOINT, vers(config.apiUrl), { body })),
+    get: async (url) => toResult(await proxyFetch(IA_PROXY_ENDPOINT, vers(url), { method: 'GET' })),
+    post: async (url, body) => toResult(await proxyFetch(IA_PROXY_ENDPOINT, vers(url), { body })),
   };
 }
 
