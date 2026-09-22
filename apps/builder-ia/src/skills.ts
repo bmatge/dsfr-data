@@ -1386,7 +1386,9 @@ isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne 
 \`server-side\` (une page) ou un plafond \`max-records\`, c'est un chiffre partiel — un warn console
 le signale quand la meta annonce davantage. Pour le total, \`value="meta:total"\` lit la meta de
 l'amont : \`total_count\` serveur en \`server-side\` (suit recherche et facettes), nombre de lignes
-avant \`limit\` derrière un query, nombre de lignes sur une source non paginée.
+avant \`limit\` derrière un query, nombre de lignes sur une source non paginée. Total INCONNU de
+l'amont (page serveur sans total, comme une page agrégée Tabular, ou lot tronqué sans total) :
+« — », jamais le nombre de lignes reçues (#1046).
 \`\`\`html
 <dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
 <dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
@@ -2914,7 +2916,7 @@ OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. \`fetch-
 « un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
 groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
 \`server-side\`. En mode export le total serveur est inconnu : le KPI \`meta:total\` retombe sur le
-nombre de lignes recues, et la troncature est detectee via \`max-records\`.
+nombre de lignes recues, et la troncature est detectee via \`max-records\` (lot tronque : « — »).
 \`\`\`html
 <dsfr-data-source id="src" api-type="opendatasoft"
   base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"

@@ -15,6 +15,7 @@ import {
   parseExpression,
   countsReceivedRows,
   isRateExpression,
+  resolveMetaTotal,
   type AggregationContext,
 } from '../utils/aggregations.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
@@ -160,7 +161,8 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * distinctes, null et chaîne vide exclus, calculé sur les lignes reçues.
    * `meta:total` (#659) : total publié par l'amont (total serveur en
    * server-side, lignes avant `limit` derrière un query) — `count` ne
-   * compte que les lignes reçues.
+   * compte que les lignes reçues. Total inconnu de l'amont (page serveur
+   * ou lot tronqué sans total, #1046) : « — ».
    * Ratio (#673) : `value="count:statut:ouvert / count"`, chaque côté dans
    * la grammaire ci-dessus (`meta:total` compris). Résultat = fraction
    * (0,35) ; `format="pourcentage"` la rend en pourcentage (35 %) — les
@@ -584,9 +586,12 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return this._scaleRate(raw, expr, this.format);
   }
 
-  /** Contexte d'évaluation : total publié par l'amont (`meta:total`, #659). */
+  /**
+   * Contexte d'évaluation : total publié par l'amont (`meta:total`, #659),
+   * `null` quand l'amont pagine ou tronque sans connaître son total (#1046).
+   */
   private _aggregationContext(): AggregationContext {
-    return { metaTotal: getDataMeta(this.source)?.total };
+    return { metaTotal: resolveMetaTotal(getDataMeta(this.source)) };
   }
 
   /**

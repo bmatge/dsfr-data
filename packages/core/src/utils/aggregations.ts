@@ -54,9 +54,42 @@ export interface ParsedExpression {
 /**
  * Contexte d'évaluation optionnel : `metaTotal` = total publié par l'amont
  * (`meta:total`, #659), fourni par le composant qui connaît sa source.
+ *
+ * Trois états, qui ne se confondent pas (#1046) :
+ * - un nombre : le total de l'amont ;
+ * - `null` : l'amont a dit qu'il ne connaît PAS son total (page serveur ou
+ *   lot tronqué sans total, cf. `resolveMetaTotal`) → `meta:total` vaut
+ *   `null`, rendu « — » ;
+ * - `undefined` : pas de meta, ou une meta qui a tout livré → les lignes
+ *   reçues sont le total.
  */
 export interface AggregationContext {
-  metaTotal?: number;
+  metaTotal?: number | null;
+}
+
+/** Ce que `resolveMetaTotal` lit de la meta publiée par une source. */
+export interface MetaTotalSource {
+  total?: number;
+  serverSide?: boolean;
+  truncated?: boolean;
+}
+
+/**
+ * Total de l'amont pour `meta:total` (#659), lu dans la meta PUBLIÉE par la
+ * source — jamais deviné (#1046) :
+ * - total numérique → ce total ;
+ * - total absent d'une page serveur (`serverSide`) ou d'un lot tronqué
+ *   (`truncated`) → `null`, INCONNU : les lignes reçues ne sont qu'une page
+ *   ou un plafond (une page agrégée Tabular n'a pas de `meta.total`, #1033 —
+ *   compter ses lignes annonçait « 40 », la taille de page) ;
+ * - sinon (pas de meta, ou lot complet) → `undefined` : les lignes reçues
+ *   sont tout le jeu, les compter est juste.
+ */
+export function resolveMetaTotal(meta: MetaTotalSource | undefined): number | null | undefined {
+  if (!meta) return undefined;
+  if (typeof meta.total === 'number') return meta.total;
+  if (meta.serverSide === true || meta.truncated === true) return null;
+  return undefined;
 }
 
 /** Expression spéciale `meta:total` (#659). */
@@ -469,7 +502,9 @@ function evaluateOnItems(
 ): number | string | null {
   switch (parsed.type) {
     case 'meta':
-      // Total de l'amont (#659) ; sans meta, les lignes reçues.
+      // Total de l'amont (#659) ; total INCONNU de l'amont → null, « — »
+      // (#1046) ; sans meta, ou lot complet, les lignes reçues.
+      if (context.metaTotal === null) return null;
       return context.metaTotal ?? items.length;
 
     case 'ratio': {

@@ -793,6 +793,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `localeCompare` remplacé par une comparaison de codes | `liste-tri-texte-accentue` | ligne 2 : affiché « Ussel », recalculé « Écully » |
 | affichages | `parseColumns` ignore `columns-auto` | `liste-colonnes-auto` | ligne 0 / pop : affiché « », recalculé 4 187 254 |
 | affichages | `buildCsv` met la clé en en-tête au lieu du libellé | `liste-export-csv` | ligne 0, cellule 0 : « zone » exportée, « Zone » recalculée |
+| affichages | garde `metaTotal === null` retirée de `evaluateOnItems` (`aggregations.ts`) | `kpi-meta-total-inconnu` | affiché « 40 » (la taille de page), attendu « — » : une page agrégée Tabular n'a pas de total (#1046) |
 | banc-pages | troncature retirée de `_fetchViaExport` (`opendatasoft-adapter.ts`) | `plan-de-relance-plafond-max-records` | 1 001 projets chargés au lieu de 1 000 : `max-records` ne borne plus rien |
 | banc-pages | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) | `bofip-total-publie-par-la-source-serveur` | 10 au lieu de 9 148 : le compteur annonce la page, pas le jeu |
 | banc-pages | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `ips-ecoles-facettes-ponderees` | l'ordre des départements change (Dordogne en tête au lieu de la Gironde) : une facette sur source pré-agrégée recompte des lignes, pas des écoles |
