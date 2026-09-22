@@ -640,4 +640,26 @@ describe('lireBalises — imbrication', () => {
     );
     expect(b.map((x) => x.parents)).toEqual([[], ['dsfr-data-map'], ['dsfr-data-map']]);
   });
+
+  it('un fragment tronqué ou mal fermé ne fait pas dériver la pile', () => {
+    // Une fermante qui ne correspond a rien d'ouvert (la couche n'a jamais
+    // ete ouverte) ne doit pas depiler la carte ; une balise coupee en plein
+    // attribut ne doit ni planter ni polluer les parents des suivantes.
+    const b = lireBalises(
+      `<dsfr-data-map></dsfr-data-map-layer><dsfr-data-map-popup></dsfr-data-map-popup>
+       <dsfr-data-map-layer source="s" geo-fi`
+    );
+    expect(b.map((x) => [x.tag, x.parents])).toEqual([
+      ['dsfr-data-map', []],
+      ['dsfr-data-map-popup', ['dsfr-data-map']],
+      ['dsfr-data-map-layer', ['dsfr-data-map']],
+    ]);
+
+    // Fermante d'un ancetre plus lointain : tout ce qui est au-dessus est
+    // depile d'un coup, sans laisser la couche « ouverte » pour la suite.
+    const c = lireBalises(
+      `<dsfr-data-map><dsfr-data-map-layer></dsfr-data-map><dsfr-data-chart></dsfr-data-chart>`
+    );
+    expect(c.map((x) => x.parents)).toEqual([[], ['dsfr-data-map'], []]);
+  });
 });
