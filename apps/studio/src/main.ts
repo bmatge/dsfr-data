@@ -15,6 +15,7 @@ import {
   startTourIfFirstVisit,
   STUDIO_TOUR,
   mountDiagnosticPanel,
+  resolveTransport,
   type MountedDiagnostic,
 } from '@dsfr-data/shared';
 import type { DashboardData } from '@dsfr-data/shared';
@@ -31,7 +32,6 @@ import {
 import { currentExportHtml, renderPreview, schedulePreviewRender } from './ui/preview.js';
 import { runStudioLoop } from './ia/agent-loop.js';
 import { buildSystemPrompt } from './ia/system-prompt.js';
-import { resolveTransport } from './ia/transport.js';
 
 const SESSION_KEY = 'studio-messages';
 /**

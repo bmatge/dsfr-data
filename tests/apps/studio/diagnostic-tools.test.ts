@@ -10,7 +10,7 @@ import {
 import { runStudioLoop } from '../../../apps/studio/src/ia/agent-loop.js';
 import { buildSystemPrompt } from '../../../apps/studio/src/ia/system-prompt.js';
 import { createEmptyDashboard } from '@dsfr-data/shared';
-import type { FrameAttachment, Trace } from '@dsfr-data/shared';
+import type { FrameAttachment, Trace, PostChat } from '@dsfr-data/shared';
 
 /**
  * Outils de diagnostic de l'assistant (#607).
@@ -255,7 +255,7 @@ describe('l’anti-boucle ne doit PAS avaler run_and_trace', () => {
     // « Déjà fourni ci-dessus » et le modele conclurait sans avoir verifie.
     const calls: string[] = [];
     let round = 0;
-    const post = vi.fn(async () => {
+    const post = vi.fn<PostChat>(async () => {
       round += 1;
       if (round <= 2) {
         return {
@@ -330,7 +330,7 @@ describe('budget de tours', () => {
     // verification, le pire moment possible.
     const rounds = async (withDiagnostic: boolean) => {
       let n = 0;
-      const post = vi.fn(async () => {
+      const post = vi.fn<PostChat>(async () => {
         n += 1;
         return {
           choices: [

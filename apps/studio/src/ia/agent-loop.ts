@@ -37,7 +37,7 @@ import {
   type DiagnosticContext,
 } from './diagnostic-tools.js';
 import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
-import type { PostChat } from './transport.js';
+import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import type { DashboardData, Field } from '../state.js';
 
