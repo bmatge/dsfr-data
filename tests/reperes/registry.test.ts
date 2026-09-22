@@ -60,7 +60,7 @@ describe('registre de reperes de la carto', () => {
     expect(mode).toMatchObject({
       genre: 'controle',
       zone: 'carto.elements.clic',
-      prerequis: ['couche-active'],
+      prerequis: ['couche-active', 'couche-interactive'],
       attributs: [{ tag: 'dsfr-data-map-popup', nom: 'mode' }],
     });
     // Un controle pose par le helper fieldInput, lu sur son site d'appel

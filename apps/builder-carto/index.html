@@ -17,14 +17,14 @@
   <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Ids
        historiques conservés (#btn-execute, #btn-export, #btn-reset) ; la
        modale « code » reste jusqu'au PreviewPanel du lot 4 (#541). -->
-  <app-action-bar heading="Créer une carte">
-    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
-    <button slot="secondary" id="btn-export" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-    <button slot="tertiary" id="save-favorite-btn" class="fr-icon-star-line">Ajouter aux favoris</button>
-    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code de la carte dans le Playground">Ouvrir dans le Playground</button>
-    <button slot="tertiary" id="btn-reset" class="fr-icon-add-line" title="Repartir d'une carte vierge">Nouveau</button>
-    <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="primary" id="btn-execute" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
+  <app-action-bar heading="Créer une carte" data-zone="carto.actions" data-repere-libelle="Barre d'actions">
+    <button slot="help" id="tour-btn" data-repere="carto.actions.visite" class="fr-icon-question-line">Visite guidée</button>
+    <button slot="secondary" id="btn-export" data-repere="carto.actions.exporter" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <button slot="tertiary" id="save-favorite-btn" data-repere="carto.actions.favori" class="fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" data-repere="carto.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code de la carte dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="btn-reset" data-repere="carto.actions.reinitialiser" class="fr-icon-add-line" title="Repartir d'une carte vierge">Nouveau</button>
+    <button slot="tertiary" id="diagnostic-btn" data-repere="carto.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <button slot="primary" id="btn-execute" data-repere="carto.actions.generer" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 
   <!-- Onglets DSFR natifs Aperçu · Code (lot UX 4 #541) : la carte reste en
@@ -36,7 +36,7 @@
         <button type="button" id="carto-tab-preview-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="carto-tab-preview">Aperçu</button>
       </li>
       <li role="presentation">
-        <button type="button" id="carto-tab-code-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="carto-tab-code">Code</button>
+        <button type="button" id="carto-tab-code-btn" data-repere="carto.code.onglet" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="carto-tab-code">Code</button>
       </li>
     </ul>
     <div id="carto-tab-preview" class="fr-tabs__panel fr-tabs__panel--selected carto-tabs__panel" role="tabpanel" aria-labelledby="carto-tab-preview-btn" tabindex="0">
@@ -53,8 +53,8 @@
     <!-- Colonne de panneaux flottants -->
     <div class="carto-panels">
 
-      <section class="carto-panel carto-panel--collapsed" id="panel-carte" aria-label="Réglages de la carte">
-        <button class="carto-panel__header" type="button" data-panel-toggle="panel-carte"
+      <section class="carto-panel carto-panel--collapsed" id="panel-carte" aria-label="Réglages de la carte" data-zone="carto.carte">
+        <button class="carto-panel__header" type="button" data-panel-toggle="panel-carte" data-repere="carto.carte.plier"
                 aria-expanded="false" aria-controls="map-config">
           <span class="carto-panel__title"><i class="ri-map-2-line" aria-hidden="true"></i>Carte</span>
           <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
@@ -64,12 +64,12 @@
 
       <section class="carto-panel" id="panel-couches" aria-label="Couches de données" data-zone="carto.couches">
         <div class="carto-panel__header carto-panel__header--split">
-          <button class="carto-panel__header-toggle" type="button" data-panel-toggle="panel-couches"
+          <button class="carto-panel__header-toggle" type="button" data-panel-toggle="panel-couches" data-repere="carto.couches.plier"
                   aria-expanded="true" aria-controls="couches-body">
             <span class="carto-panel__title"><i class="ri-stack-line" aria-hidden="true"></i>Couches</span>
           </button>
           <div class="carto-panel__header-actions">
-            <button id="btn-add-layer" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
+            <button id="btn-add-layer" data-repere="carto.couches.ajouter" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
             <button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted carto-panel__header-arrow" type="button" data-panel-toggle="panel-couches"
                     aria-expanded="true" aria-controls="couches-body" aria-label="Replier le panneau Couches">
               <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
@@ -77,13 +77,13 @@
           </div>
         </div>
         <div class="carto-panel__body" id="couches-body" tabindex="0">
-          <ul id="layers-list" class="carto-layers__list"></ul>
+          <ul id="layers-list" class="carto-layers__list" aria-label="Couches de la carte" data-zone="carto.couches.liste"></ul>
           <div id="layer-data-config"></div>
         </div>
       </section>
 
       <section class="carto-panel" id="panel-elements" aria-label="Éléments de la couche" data-zone="carto.elements">
-        <button class="carto-panel__header" type="button" data-panel-toggle="panel-elements"
+        <button class="carto-panel__header" type="button" data-panel-toggle="panel-elements" data-repere="carto.elements.plier"
                 aria-expanded="true" aria-controls="layer-config">
           <span class="carto-panel__title"><i class="ri-paint-brush-line" aria-hidden="true"></i>Éléments</span>
           <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
@@ -101,12 +101,12 @@
 
   </main>
     </div>
-    <div id="carto-tab-code" class="fr-tabs__panel carto-tabs__panel" role="tabpanel" aria-labelledby="carto-tab-code-btn" tabindex="0">
+    <div id="carto-tab-code" data-zone="carto.code" class="fr-tabs__panel carto-tabs__panel" role="tabpanel" aria-labelledby="carto-tab-code-btn" tabindex="0">
       <div class="carto-export__body">
         <p class="carto-msg carto-msg--muted">Copiez ce code et collez-le dans votre CMS ou votre page HTML — « Copier le code » dans la barre d'actions copie le mode sélectionné.</p>
         <div class="carto-export__toolbar">
           <label for="gen-mode" class="fr-label">Mode de génération</label>
-          <select id="gen-mode" class="fr-select">
+          <select id="gen-mode" class="fr-select" data-repere="carto.code.mode">
             <option value="embedded">Ma page charge déjà dsfr-data (composants seuls)</option>
             <option value="dynamic">Page autonome (avec scripts et CSS)</option>
           </select>

@@ -343,6 +343,41 @@ describe('extraction', () => {
     ]);
   });
 
+  it('controle repete : data-repere-libelle litteral passe avant tout le reste (#1002)', () => {
+    const r = extraire({
+      'apps/demo/index.html': HTML_BASE,
+      'apps/demo/src/main.ts': `
+        el.innerHTML = COULEURS.map((c) => \`
+          <button type="button" data-repere="demo.panneau.pastille" aria-label="\${c.nom}"
+                  data-repere-libelle="Couleur" title="\${c.nom}"></button>\`).join('');`,
+    });
+    expect(messages(r)).toEqual([]);
+    expect(r.reperes.find((x) => x.id === 'demo.panneau.pastille')).toMatchObject({
+      libelle: 'Couleur',
+      element: 'button',
+    });
+    // Prioritaire meme sur un <label for> : c'est le libelle de la famille.
+    const prioritaire = extraire({
+      'apps/demo/index.html': HTML_BASE.replace(
+        'data-repere="demo.panneau.mode"',
+        'data-repere="demo.panneau.mode" data-repere-libelle="Mode"'
+      ),
+    });
+    expect(prioritaire.reperes.find((x) => x.id === 'demo.panneau.mode')!.libelle).toBe('Mode');
+  });
+
+  it('data-repere-libelle dynamique refuse', () => {
+    const r = extraire({
+      'apps/demo/index.html': HTML_BASE,
+      'apps/demo/src/main.ts': `
+        el.innerHTML = \`<button type="button" data-repere="demo.panneau.pastille"
+          data-repere-libelle="\${c.nom}">Couleur</button>\`;`,
+    });
+    expect(messages(r)).toEqual([
+      expect.stringContaining('demo.panneau.pastille : data-repere-libelle dynamique refuse'),
+    ]);
+  });
+
   it('repere sans libelle refuse', () => {
     const r = extraire({
       'apps/demo/index.html': HTML_BASE + '<input data-repere="demo.panneau.nu">',

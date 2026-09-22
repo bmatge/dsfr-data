@@ -17,7 +17,7 @@
  *   4. (script) le registre commite n'est pas le rendu exact de l'extraction ;
  *   5. un repere cite par un constat n'existe pas dans le registre.
  * Plus les erreurs de format : valeur dynamique (`data-repere="${…}"` hors
- * helper declare), identifiant mal forme, hors prefixe ou trop court, zone
+ * helper declare, ou `data-repere-libelle="${…}"`), identifiant mal forme, hors prefixe ou trop court, zone
  * parente absente, repere hors de sa zone, repere sans libelle, doublon
  * contradictoire, synonyme orphelin, zone de reglage introuvable.
  */
@@ -171,6 +171,9 @@ function libelleDe(elements: Element[], el: Element, idx: IndexLibelles, zone: b
     return a && !a.dynamique ? a.valeur.trim() : '';
   };
   if (el.tag === BALISE_APPEL) return attr('data-appel-libelle');
+  // Controle repete (un par couche, par couleur…) dont le nom accessible est
+  // dynamique : le libelle de la FAMILLE est donne en litteral, en premier.
+  if (attr('data-repere-libelle')) return attr('data-repere-libelle');
   const id = attr('id');
   if (id && idx.labelsFor.has(id)) return idx.labelsFor.get(id)!;
   if (attr('aria-label')) return attr('aria-label');
@@ -336,6 +339,13 @@ export function extraireReperes(entrees: EntreesExtraction): ResultatExtraction 
           }`,
         });
         continue;
+      }
+
+      if (el.attrs.get('data-repere-libelle')?.dynamique) {
+        problemes.push({
+          fichier: chemin,
+          message: `${id} : data-repere-libelle dynamique refuse (le libelle d'une famille est un litteral)`,
+        });
       }
 
       // Attributs pilotes (regle 2)
