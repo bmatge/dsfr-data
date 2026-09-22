@@ -260,9 +260,7 @@ describe('app-diagnostic-panel', () => {
         await panel!.updateComplete;
       };
 
-      // Constats en tête et par défaut : c'est l'onglet qui dit quoi corriger.
-      expect(selected()).toBe('Constats');
-      await press('ArrowRight');
+      // Constats en tête ; sans rien à corriger, le volet s'ouvre sur Flux.
       expect(selected()).toBe('Flux');
       await press('ArrowRight');
       expect(selected()).toBe('Champs');
@@ -289,7 +287,7 @@ describe('app-diagnostic-panel', () => {
       await panel.updateComplete;
 
       expect(panel.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim()).toBe(
-        'Constats'
+        'Flux'
       );
     });
 
@@ -695,7 +693,53 @@ describe('les constats dans le volet (#1001)', () => {
   });
 
   describe('l’onglet Constats', () => {
-    it('est l’onglet par défaut et rend titre, explication, geste et preuve', async () => {
+    const selectionne = (p: AppDiagnosticPanel) =>
+      p.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim();
+
+    it('s’ouvre sur Constats quand il y a quelque chose à corriger', async () => {
+      panel = await monterSain([constat({ id: 'a/avert', gravite: 'avertissement' })]);
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(selectionne(panel)).toBe('Constats');
+    });
+
+    it('s’ouvre sur Flux quand il n’y a que des informations — pas de page blanche', async () => {
+      panel = await monterSain([constat({ id: 'a/info', gravite: 'info' })]);
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(selectionne(panel)).toBe('Flux');
+    });
+
+    it('s’ouvre sur Flux sans aucun constat', async () => {
+      panel = await monterSain([]);
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      expect(selectionne(panel)).toBe('Flux');
+    });
+
+    it('respecte l’onglet choisi tant que le volet reste ouvert, réévalue à la réouverture', async () => {
+      panel = await monterSain([constat({ id: 'a/erreur', gravite: 'erreur' })]);
+      panel.toggle(true);
+      await panel.updateComplete;
+      await ouvrirOnglet(panel, 'Journal');
+
+      // Nouvelle trace, volet toujours ouvert : l'usager garde son onglet.
+      panel.toggle(true);
+      panel.constats = [constat({ id: 'a/autre', gravite: 'erreur' })];
+      await panel.updateComplete;
+      expect(selectionne(panel)).toBe('Journal');
+
+      // Fermé puis rouvert : le choix repart de ce qu'il y a à corriger.
+      panel.toggle(false);
+      panel.toggle(true);
+      await panel.updateComplete;
+      expect(selectionne(panel)).toBe('Constats');
+    });
+
+    it('rend titre, explication, geste et preuve', async () => {
       panel = await monterSain([
         constat({ id: 'a/erreur', gravite: 'erreur', action: 'Faire ceci' }),
       ]);
@@ -714,7 +758,7 @@ describe('les constats dans le volet (#1001)', () => {
     it('dit qu’il n’y a rien à corriger', async () => {
       panel = await monterSain([]);
       panel.toggle(true);
-      await panel.updateComplete;
+      await ouvrirOnglet(panel, 'Constats');
 
       expect(panel.textContent).toContain('Aucun constat');
     });

@@ -233,7 +233,8 @@ export class AppDiagnosticPanel extends LitElement {
    * et ce que reçoit l'assistant restent le même texte.
    */
   @state() private _redact = false;
-  @state() private _tab: DiagnosticTab = 'constats';
+  /** Onglet affiché ; choisi à chaque ouverture par `_ongletAOuvrir()`. */
+  @state() private _tab: DiagnosticTab = 'flux';
   @state() private _copied = false;
   /** Dernière annonce `aria-live` : l'arrivée d'un constat d'erreur. */
   @state() private _annonce = '';
@@ -369,9 +370,25 @@ export class AppDiagnosticPanel extends LitElement {
     this._selectTab(TABS[next], true);
   };
 
+  /**
+   * Constats s'il y a quelque chose à corriger, Flux sinon : ouvrir sur un
+   * onglet vide renverrait l'usager à une page blanche, et quand tout va bien
+   * le volet garde son comportement historique.
+   *
+   * Lit `constats` et non `_constats` : `toggle()` peut suivre la pose d'une
+   * trace dans le même tour, avant que `willUpdate` ait recalculé.
+   */
+  private _ongletAOuvrir(): DiagnosticTab {
+    const constats = this._isBlank ? [] : this.constats;
+    return compterAlertes(constats) > 0 ? 'constats' : 'flux';
+  }
+
   /** Ouvre, ferme, ou bascule. Point d'entrée public pour la barre d'actions. */
   toggle(open?: boolean): void {
+    const etaitOuvert = this._open;
     this._open = open ?? !this._open;
+    // À l'ouverture seulement : l'usager garde ensuite l'onglet qu'il choisit.
+    if (this._open && !etaitOuvert) this._tab = this._ongletAOuvrir();
     try {
       localStorage.setItem(STORAGE_KEY, this._open ? '1' : '0');
     } catch {
