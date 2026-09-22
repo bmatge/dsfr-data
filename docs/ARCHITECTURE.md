@@ -594,6 +594,8 @@ n'est epingle en haut sur telephone, en portrait comme en paysage).
 | `format.ts` | `formatTrace()` — le rendu texte francais |
 | `frame.ts` | Rattachement a une iframe d'apercu |
 | `mount.ts` | Montage du volet en un appel |
+| `journal.ts` | Journal reseau et console (#994) : enveloppes, tampons, drainage, `masquerUrl` |
+| `installer-journal.ts` | Module a effet de bord : pose le journal dans le document courant |
 
 #### Couplages non-evidents
 
@@ -604,6 +606,17 @@ n'est epingle en haut sur telephone, en portrait comme en paysage).
 - **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
 - **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Envoyer a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
 - **Le module est lib-safe mais hors des bundles publies.** Exporte depuis les DEUX barrels de `shared` (`index.ts` ET `lib.ts`), parce que l'entree autonome `packages/core/src/index-debug.ts` en depend et que la frontiere #319 interdit a `core` le barrel racine. Aucun COMPOSANT ne l'importe : il n'entre donc dans aucun des six bundles publies. Verrouille par `tests/debug/standalone-bundle.test.ts`, qui grepe les bundles **et** verifie qu'aucun fichier de `components/` ne reference le collecteur — la seconde moitie attrape la regression avant meme le build.
+
+#### Journal reseau et console (#994, ADR-143 §3)
+
+Le bus ne dit pas ce que seuls les outils de developpement montraient : la requete reellement partie (URL apres proxy, methode, statut, duree, type, taille, erreur) et ce que la page a crie en console. `journal.ts` le capture dans deux tampons plafonnes a 500 entrees (la plus ANCIENNE evincee), `window.__dsfrDataNet` et `window.__dsfrDataConsole`, et `Trace` gagne `reseau: EntreeReseau[]` et `console: EntreeConsole[]` (champs requis, vides par defaut).
+
+- **Deux poses, un seul tampon.** Iframe d'apercu : `journalScript()` (ES5), dans la MEME balise que `earlyBufferScript()` — donc uniquement sous `debug: true`, jamais dans le code exporte. Meme document (Carto, Pipeline) : `import '@dsfr-data/shared/debug/installer-journal'` en **premiere** ligne du `main.ts` — les modules ES s'evaluent dans l'ordre des imports, plus bas il manquerait les requetes du demarrage. Les deux implementations ne partagent pas de code : `tests/debug/journal.test.ts` execute chaque cas sur les DEUX.
+- **Drainage en PULL.** `DataflowRecorder.snapshot()` vide les tampons de `doc.defaultView` et garde sa copie : un `console.warn` seul n'emet rien sur le bus, seul le pull le rattrape. `frame.ts` et le mode `liveRoot` n'ont rien de specifique a faire.
+- **Enveloppe transparente.** `fetch` rend LA MEME promesse (meme resolution, meme rejet) ; aucun corps lu (ni `json`, ni `text`, ni `clone`), seuls `content-type` et `content-length` de la reponse. `PerformanceResourceTiming` complete duree et taille au drainage, jamais le statut. Un CORS n'est vu qu'en `TypeError: Failed to fetch`, indiscernable d'un hote injoignable.
+- **Masquage.** Aucun en-tete de requete n'est conserve (un `Authorization` ne peut pas fuir). Les URL sont BRUTES dans le tampon ; `formatTrace` appelle `masquerUrl` : `token|apikey|api_key|key|access_token` → `***` (nom exact), et sous `redactValues` l'URL est reduite a hote + chemin.
+- **Exclusions** (`JOURNAL_EXCLUSIONS`) : le chemin `…/beacon` (pas `BEACON_BASE_URL`, qui est aussi la base du proxy) et les appels same-origin `/api/*` de l'app (auth, stockage, favoris : pas du trafic de pipeline, et porteurs du jeton de session).
+- **`sideEffects`.** `packages/shared/package.json` declare `installer-journal` a effet de bord (le paquet etait `sideEffects: false`, qui ferait elaguer l'import nu au build) et expose `./debug/*` : `tsc` suit `exports`, Vite l'alias `src` (§12).
 
 #### Ce que le bus publie pour le diagnostic (#603)
 

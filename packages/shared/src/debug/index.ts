@@ -25,6 +25,17 @@ export {
   readCacheSnapshot,
 } from './early-buffer.js';
 export type { BufferedBusEvent } from './early-buffer.js';
+export {
+  JOURNAL_RESEAU_KEY,
+  JOURNAL_CONSOLE_KEY,
+  JOURNAL_MAX,
+  JOURNAL_EXCLUSIONS,
+  installerJournal,
+  drainerJournal,
+  masquerUrl,
+  journalScript,
+} from './journal.js';
+export type { EntreeReseau, EntreeConsole, JournalDraine } from './journal.js';
 export { STAGE_ROLES, SHAPE_ATTRS, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
 export type { StageRole, StageNode, DataflowGraph, ComputedColumn } from './graph.js';
 

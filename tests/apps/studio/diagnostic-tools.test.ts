@@ -74,6 +74,8 @@ function makeTrace(over: Partial<Trace> = {}): Trace {
     lastEventAt: 1_000_000,
     quiescent: true,
     delegation: { q1: { groupBy: false, aggregate: false, orderBy: false, where: false } },
+    reseau: [],
+    console: [],
     ...over,
   };
 }
