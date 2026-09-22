@@ -9,6 +9,7 @@ import {
   REGLES_GENERIQUES,
   type Constat,
   type ContexteConstats,
+  type RegleConstat,
   type EntreeConsole,
   type EntreeReseau,
   type StageNode,
@@ -302,16 +303,23 @@ describe('evaluerConstats — une table par règle', () => {
 // ADR-122 : aucun nombre nouveau
 // ---------------------------------------------------------------------------
 
-/** Tous les nombres de la trace : valeurs numériques, longueurs de tableaux, chiffres des chaînes. */
-function nombresDeLaTrace(valeur: unknown, out = new Set<number>()): Set<number> {
-  if (typeof valeur === 'number') out.add(valeur);
-  else if (typeof valeur === 'string') {
-    for (const m of valeur.match(/\d+/g) ?? []) out.add(Number(m));
-  } else if (Array.isArray(valeur)) {
-    out.add(valeur.length);
-    for (const v of valeur) nombresDeLaTrace(v, out);
+/** Ce que la trace contient : ses valeurs numériques (et longueurs de tableaux), et ses chaînes. */
+interface InventaireTrace {
+  valeurs: Set<number>;
+  chaines: Set<string>;
+}
+
+function inventaireDeLaTrace(
+  valeur: unknown,
+  out: InventaireTrace = { valeurs: new Set(), chaines: new Set() }
+): InventaireTrace {
+  if (typeof valeur === 'number') out.valeurs.add(valeur);
+  else if (typeof valeur === 'string') out.chaines.add(valeur);
+  else if (Array.isArray(valeur)) {
+    out.valeurs.add(valeur.length);
+    for (const v of valeur) inventaireDeLaTrace(v, out);
   } else if (valeur && typeof valeur === 'object') {
-    for (const v of Object.values(valeur)) nombresDeLaTrace(v, out);
+    for (const v of Object.values(valeur)) inventaireDeLaTrace(v, out);
   }
   return out;
 }
@@ -332,36 +340,89 @@ function recollerMilliers(texte: string): string {
   return out;
 }
 
-function nombresDuConstat(c: Constat): number[] {
-  const texte = recollerMilliers([c.titre, c.explication, c.action ?? '', c.preuve].join(' | '));
-  return (texte.match(/\d+/g) ?? []).map(Number);
+function texteDuConstat(c: Constat): string {
+  return [c.titre, c.explication, c.action ?? '', c.preuve].join(' | ');
+}
+
+/**
+ * Les nombres du constat que la trace ne contient pas.
+ *
+ * Un nombre est admis s'il est une valeur numérique de la trace (ou la
+ * longueur d'un de ses tableaux), ou s'il figure dans une chaîne de la trace
+ * que le constat CITE EN ENTIER (un message, une URL) : citer n'est pas
+ * inventer. Les chiffres d'une chaîne non citée ne comptent pas — sinon un
+ * `50` calculé passerait dès qu'une URL contient `v50`.
+ */
+function nombresInventes(trace: Trace, c: Constat): number[] {
+  const inv = inventaireDeLaTrace(trace);
+  const texte = texteDuConstat(c);
+  const admis = new Set(inv.valeurs);
+  for (const chaine of inv.chaines) {
+    if (chaine.length === 0 || !texte.includes(chaine)) continue;
+    for (const m of chaine.match(/\d+/g) ?? []) admis.add(Number(m));
+  }
+  const cites = (recollerMilliers(texte).match(/\d+/g) ?? []).map(Number);
+  return cites.filter((n) => !admis.has(n));
 }
 
 describe('ADR-122 — non applicable : aucune règle ne rend un nombre absent de la trace', () => {
   it.each(CAS)('$regle', ({ fautive }) => {
-    const connus = nombresDeLaTrace(fautive);
     for (const c of evaluerConstats(fautive, CTX)) {
-      for (const n of nombresDuConstat(c)) {
-        expect(connus, `${c.id} cite ${n}`).toContain(n);
-      }
+      expect(nombresInventes(fautive, c), c.id).toEqual([]);
     }
   });
 
-  it('le test refuse bien un pourcentage calculé (mutation du garde-fou)', () => {
-    const fautive = CAS.find((c) => c.regle === 'pipeline/jointure-faible')!.fautive;
-    const inventeur: Constat = {
+  it('le garde mord : une règle témoin qui rend un pourcentage calculé est refusée', () => {
+    // Preuve de mutation du garde lui-même : une règle qui calcule
+    // `rows * 100 / total` sur la fixture de troncature (1 000 / 34 955)
+    // rend 3, un nombre que la trace ne porte nulle part.
+    const temoin: RegleConstat = {
+      id: 'temoin/pourcentage',
+      appliesTo: ['*'],
+      evaluer: (trace) =>
+        Object.entries(trace.states).flatMap(([etape, s]) =>
+          s.rows !== undefined && s.meta?.total
+            ? [
+                {
+                  id: `temoin/pourcentage@${etape}`,
+                  regle: 'temoin/pourcentage',
+                  gravite: 'info' as const,
+                  titre: `${etape} : part du jeu`,
+                  explication: '',
+                  reperes: [],
+                  preuve: `${Math.round((s.rows * 100) / s.meta.total)} % du jeu`,
+                  etape,
+                },
+              ]
+            : []
+        ),
+    };
+    const fautive = CAS.find((c) => c.regle === 'pipeline/tronque')!.fautive;
+    const [rendu] = evaluerConstats(fautive, CTX, [temoin]);
+    expect(rendu.preuve).toBe('3 % du jeu');
+    expect(nombresInventes(fautive, rendu)).toEqual([3]);
+  });
+
+  it('un nombre lu dans une chaîne non citée reste refusé', () => {
+    const t = trace({
+      nodes: [SOURCE],
+      states: { src: { status: 'error', message: 'HTTP 503: Service Unavailable', emissions: 0 } },
+      reseau: [requete('https://api.exemple.fr/v50/data', 503)],
+    });
+    const base: Constat = {
       id: 'x',
       regle: 'x',
-      gravite: 'avertissement',
-      titre: 'jointure : 12 % appariées',
+      gravite: 'erreur',
+      titre: '',
       explication: '',
       reperes: [],
       preuve: '',
     };
-    const connus = nombresDeLaTrace(fautive);
-    expect(nombresDuConstat(inventeur).every((n) => connus.has(n))).toBe(true); // 12 est dans la trace
-    const pourcent = { ...inventeur, titre: 'jointure : 88 % perdues' };
-    expect(nombresDuConstat(pourcent).every((n) => connus.has(n))).toBe(false);
+    // 503 est une valeur de la trace : admis sans citer la chaîne.
+    expect(nombresInventes(t, { ...base, preuve: 'réponse 503' })).toEqual([]);
+    // 50 n'est que dans l'URL : admis si l'URL est citée, refusé sinon.
+    expect(nombresInventes(t, { ...base, preuve: 'https://api.exemple.fr/v50/data' })).toEqual([]);
+    expect(nombresInventes(t, { ...base, preuve: '50 % perdus' })).toEqual([50]);
   });
 });
 

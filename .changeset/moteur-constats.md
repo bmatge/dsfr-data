@@ -12,6 +12,8 @@ introuvable, attribut inconnu, amont manquant, configuration invalide, lignes ig
 empilés, regroupement calculé dans le navigateur ; et, depuis le journal réseau et console, les
 réponses HTTP 4xx/5xx rattachées à leur étape, le blocage CORS déduit (proposition de
 `getProxiedUrl()`) et les erreurs de console qu'aucune étape ne revendique. Le compte d'alertes du
-rail replié (`summarizeTrace`) est désormais calculé depuis ces constats ; le regroupement
+rail replié (`summarizeTrace`) est désormais calculé depuis ces constats : il compte des constats,
+un par étape et par règle, et non plus des occurrences (plusieurs attributs inconnus sur une même
+étape font une alerte, un échec expliqué par le journal réseau une seule), et le regroupement
 calculé dans le navigateur y passe en simple information. Les bundles publiés
 de la bibliothèque ne changent pas.
