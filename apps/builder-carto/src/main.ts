@@ -206,6 +206,10 @@ const SWATCHES: { c: string; n: string }[] = [
 /**
  * Input texte assisté par datalist : suggestions = champs détectés de la
  * couche (avec type et taux de remplissage), saisie libre toujours possible.
+ *
+ * `repere`, `attribut`, `prerequis` : marques de l'assistant (#997). Helper
+ * declare dans `assistant/reperes.config.ts` : l'extracteur lit ces proprietes
+ * sur chaque SITE D'APPEL, elles doivent donc y etre des litteraux.
  */
 function fieldInput(opts: {
   id: string;
@@ -215,6 +219,9 @@ function fieldInput(opts: {
   hint?: string;
   placeholder?: string;
   numericOnly?: boolean;
+  repere?: string;
+  attribut?: string;
+  prerequis?: string;
 }): string {
   const candidates = opts.numericOnly
     ? opts.fields.filter((f) => f.type === 'number')
@@ -234,6 +241,9 @@ function fieldInput(opts: {
       </label>
       <input type="text" id="${opts.id}" value="${escapeAttr(opts.value)}"
              list="${opts.id}-list" ${opts.placeholder ? `placeholder="${escapeAttr(opts.placeholder)}"` : ''}
+             ${opts.repere ? `data-repere="${opts.repere}"` : ''}
+             ${opts.attribut ? `data-attribut="${opts.attribut}"` : ''}
+             ${opts.prerequis ? `data-prerequis="${opts.prerequis}"` : ''}
              autocomplete="off">
       <datalist id="${opts.id}-list">${options}</datalist>
     </div>`;
@@ -787,8 +797,8 @@ function renderElementsPanel() {
         : ''
     }
 
-    <div class="carto-section">
-      <div class="carto-section__label"><span>Au clic sur un élément</span></div>
+    <div class="carto-section" data-zone="carto.elements.clic" role="group" aria-labelledby="carto-section-clic">
+      <div class="carto-section__label"><span id="carto-section-clic">Au clic sur un élément</span></div>
       ${
         layer.noInteractive
           ? `<p class="carto-msg carto-msg--muted"><i class="ri-eye-off-line" aria-hidden="true"></i>
@@ -796,7 +806,8 @@ function renderElementsPanel() {
           : `
       <div class="carto-field">
         <label for="layer-popup-mode" class="fr-sr-only">Comportement au clic</label>
-        <select id="layer-popup-mode">
+        <select id="layer-popup-mode" data-repere="carto.elements.clic.popup-mode"
+                data-attribut="dsfr-data-map-popup:mode" data-prerequis="couche-active">
           <option value="none" ${layer.popupMode === 'none' ? 'selected' : ''}>Ne rien afficher</option>
           <option value="tooltip" ${layer.popupMode === 'tooltip' ? 'selected' : ''}>Le nom, au survol</option>
           <option value="popup" ${layer.popupMode === 'popup' ? 'selected' : ''}>Une fiche (popup) au clic</option>
@@ -812,6 +823,8 @@ function renderElementsPanel() {
               value: layer.tooltipField,
               fields,
               placeholder: 'nom, denomination…',
+              repere: 'carto.elements.clic.tooltip-field',
+              attribut: 'dsfr-data-map-layer:tooltip-field',
             })
           : ''
       }
@@ -826,6 +839,8 @@ function renderElementsPanel() {
           value: layer.titleField,
           fields,
           placeholder: 'nom',
+          repere: 'carto.elements.clic.title-field',
+          attribut: 'dsfr-data-map-popup:title-field',
         })}
         ${popupFieldsHtml(layer)}
         <details class="carto-advanced" ${layer.popupTemplate ? 'open' : ''}>
@@ -834,14 +849,16 @@ function renderElementsPanel() {
             <label for="layer-popup-template">Template
               <span class="fr-hint-text">Écrivez le nom du champ entre doubles accolades pour insérer sa valeur ; ajoutez :number pour formater un nombre</span>
             </label>
-            <textarea id="layer-popup-template" rows="3" placeholder="&lt;h3&gt;{{nom}}&lt;/h3&gt;&#10;&lt;p&gt;{{adresse}}&lt;/p&gt;">${escapeAttr(layer.popupTemplate)}</textarea>
+            <textarea id="layer-popup-template" data-repere="carto.elements.clic.popup-template"
+                      data-attribut="dsfr-data-map-layer:popup-template" rows="3" placeholder="&lt;h3&gt;{{nom}}&lt;/h3&gt;&#10;&lt;p&gt;{{adresse}}&lt;/p&gt;">${escapeAttr(layer.popupTemplate)}</textarea>
           </div>
           ${
             isPanel
               ? `
           <div class="carto-field">
             <label for="layer-popup-width">Largeur du panneau</label>
-            <input type="text" id="layer-popup-width" value="${escapeAttr(layer.popupWidth)}" placeholder="350px">
+            <input type="text" id="layer-popup-width" data-repere="carto.elements.clic.popup-width"
+                   data-attribut="dsfr-data-map-popup:width" value="${escapeAttr(layer.popupWidth)}" placeholder="350px">
           </div>`
               : ''
           }
