@@ -1086,6 +1086,8 @@ describe('DsfrDataSource', () => {
       source.baseUrl = 'https://tabular-api.data.gouv.fr';
       source.resource = 'resource-456';
       source.groupBy = 'region';
+      // Avec un agregat : un group-by seul n'est plus delegue a Tabular (#1025)
+      source.aggregate = 'population:sum';
 
       await (source as any)._fetchData();
 

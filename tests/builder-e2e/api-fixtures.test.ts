@@ -256,6 +256,22 @@ describe('Tabular', () => {
     expect(total).toBe(SOMME_TOTALE);
   });
 
+  it('une reponse agregee ne porte pas de meta.total, comme l’API (#1025)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=5&code_dept__groupby&population__sum')
+    );
+    expect(reponse.meta).toEqual({ page: 1, page_size: 5 });
+    expect(reponse.links.next).toContain('page=2');
+  });
+
+  it('colonne__groupby SEUL repete les modalites, comme l’API (#1025)', () => {
+    const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&academie__groupby'));
+    expect(reponse.data).toHaveLength(50);
+    expect(Object.keys(reponse.data[0])).toEqual(['academie']);
+    expect(new Set(reponse.data.map((l) => l.academie)).size).toBeLessThan(50);
+    expect(reponse.meta.total).toBe(NOMBRE_DE_LIGNES);
+  });
+
   it('trie via colonne__sort', () => {
     const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=3&population__sort=desc'));
     expect(reponse.data[0].region).toBe("Val-d'Oise");

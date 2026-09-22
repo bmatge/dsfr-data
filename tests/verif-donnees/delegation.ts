@@ -25,6 +25,7 @@ import {
   pairePaginee,
   sourceOds,
   sourceTabular,
+  TAILLE_PAGE,
   urlsDe,
   type Forme,
 } from './fixtures-delegation.js';
@@ -716,7 +717,76 @@ const SANS_ADAPTATEUR: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 6. Tabular : ce que l'API ne fait pas, et ce qu'elle ne dit pas (#1025)
+// ---------------------------------------------------------------------------
+
+/** Les départements, par population décroissante : 101 groupes, trois pages de 40. */
+const GROUPE_DEPT: Step[] = [
+  {
+    op: 'group-by',
+    by: 'code_dept',
+    columns: { population__sum: { agg: 'sum', field: 'population' } },
+  },
+  { op: 'order-by', column: 'population__sum', dir: 'desc' },
+];
+
+const TABULAR_API: Check[] = [
+  {
+    id: 'tabular-groupby-sans-agregat',
+    mode: 'deterministic',
+    origin:
+      '#1025 — `champ__groupby` SEUL ne regroupe pas : l’API rend une ligne par ligne brute, réduite au champ (`Code sexe__groupby&page_size=5` → F, M, M, F, M, mesuré le 2026-09-22, api-tabular#119). Déléguer un `group-by` sans agrégat affichait donc 137 lignes répétées pour 8 académies. Il n’est plus délégué : la query regroupe les lignes brutes.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-modalites')}
+  <dsfr-data-query id="q-modalites" source="s-modalites" group-by="academie"></dsfr-data-query>
+  <dsfr-data-kpi id="k-modalites" source="q-modalites" value="count" format="nombre"
+    label="Académies"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-modalites',
+        key: 'academie',
+        columns: [],
+        pipeline: [{ op: 'group-by', by: 'academie', columns: {} }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-modalites',
+        agg: 'count',
+        pipeline: [{ op: 'group-by', by: 'academie', columns: {} }],
+      },
+      urlsDe('groupby-seul-non-delegue', 'tabular', 'academie__groupby', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-groupes-page-deux',
+    mode: 'deterministic',
+    origin:
+      '#1025 — une réponse Tabular agrégée ne porte pas de `meta.total` (`{page, page_size}` seulement, `links.next` pagine les groupes, mesuré le 2026-09-22). Lu comme un total de 0, il masquait la pagination d’une liste `server-side` : seuls les 40 premiers des 101 départements étaient atteignables. Total inconnu = `undefined` : la page suivante est proposée tant que la page est pleine, et la page 2 montre les groupes 41 à 80.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-dept', { serverSide: true })}
+  <dsfr-data-query id="q-dept" source="s-dept" group-by="code_dept" aggregate="population:sum"
+    order-by="population__sum:desc"></dsfr-data-query>
+  <dsfr-data-list id="l-dept" source="q-dept" columns="code_dept:Département, population__sum:Population"
+    server-sort></dsfr-data-list>`,
+    actions: [{ kind: 'click', selector: '#l-dept .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-dept',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      urlsDe('groupes-page-deux', 'tabular', 'page=2', 'last'),
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
-  checks: [...PAIRES, ...PARTAGE, ...PLAFOND, ...ATTENTE, ...SANS_ADAPTATEUR],
+  checks: [...PAIRES, ...PARTAGE, ...PLAFOND, ...ATTENTE, ...SANS_ADAPTATEUR, ...TABULAR_API],
 };
