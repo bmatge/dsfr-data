@@ -3,14 +3,7 @@
  */
 
 import type { TourConfig } from '@dsfr-data/shared';
-
-/** Open a collapsed section by ID */
-function openSection(sectionId: string): void {
-  const section = document.getElementById(sectionId);
-  if (section?.classList.contains('collapsed')) {
-    section.classList.remove('collapsed');
-  }
-}
+import { openSection } from './ui-helpers.js';
 
 export const BUILDER_TOUR: TourConfig = {
   id: 'builder',

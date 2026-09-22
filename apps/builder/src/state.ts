@@ -23,6 +23,18 @@ export type ChartType =
   | 'map'
   | 'datalist';
 
+/**
+ * Types qui acceptent plusieurs séries (bouton « Ajouter une série »). Source
+ * unique : `chart-type-selector.ts` (affichage du groupe) et le prérequis
+ * `type-multi-series` de l'assistant (#1006) la lisent.
+ */
+export const MULTI_SERIES_TYPES: readonly ChartType[] = ['bar', 'horizontalBar', 'line', 'radar'];
+
+/** Le type accepte-t-il plusieurs séries ? */
+export function supportsMultiSeries(type: ChartType): boolean {
+  return MULTI_SERIES_TYPES.includes(type);
+}
+
 /** Source types */
 export type SourceType = 'saved';
 

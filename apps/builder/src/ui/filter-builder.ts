@@ -26,6 +26,17 @@ const OPERATORS: { value: string; label: string; noValue?: boolean }[] = [
   { value: 'isnotnull', label: 'non vide', noValue: true },
 ];
 
+/**
+ * Squelette d'une ligne de filtre : constante, sans donnée interpolée.
+ * Porte les repères littéraux de la ligne (famille répétée : `data-repere-libelle`).
+ */
+const FILTER_ROW_SKELETON = `
+  <select class="fr-select fr-select--sm filter-row__field" aria-label="Champ du filtre" data-repere="builder.donnees.filtres.champ" data-attribut="dsfr-data-query:filter" data-prerequis="source-chargee" data-repere-libelle="Champ du filtre"></select>
+  <select class="fr-select fr-select--sm filter-row__op" aria-label="Opérateur du filtre" data-repere="builder.donnees.filtres.operateur" data-repere-libelle="Opérateur du filtre"></select>
+  <input type="text" class="fr-input fr-input--sm filter-row__value" aria-label="Valeur du filtre" data-repere="builder.donnees.filtres.valeur" data-repere-libelle="Valeur du filtre">
+  <button type="button" class="filter-row__remove" title="Retirer ce filtre" aria-label="Retirer ce filtre" data-repere="builder.donnees.filtres.retirer" data-repere-libelle="Retirer un filtre"><i class="ri-close-line" aria-hidden="true"></i></button>
+`;
+
 interface FilterRow {
   field: string;
   op: string;
@@ -120,19 +131,21 @@ function renderRows(): void {
   rows.forEach((row, i) => {
     const el = document.createElement('div');
     el.className = 'filter-row';
+    // Squelette CONSTANT (aucune donnée interpolée) : les repères y sont des
+    // littéraux, lus par `check:reperes` (#1006). Les valeurs (champs,
+    // opérateurs, saisie) sont posées ensuite par createElement / value.
+    el.innerHTML = FILTER_ROW_SKELETON;
+    const fieldSel = el.querySelector('.filter-row__field') as HTMLSelectElement;
+    const opSel = el.querySelector('.filter-row__op') as HTMLSelectElement;
+    const valInput = el.querySelector('.filter-row__value') as HTMLInputElement;
+    const removeBtn = el.querySelector('.filter-row__remove') as HTMLButtonElement;
 
-    const fieldSel = document.createElement('select');
-    fieldSel.className = 'fr-select fr-select--sm filter-row__field';
-    fieldSel.setAttribute('aria-label', 'Champ du filtre');
     populateFieldSelect(fieldSel, row.field);
     fieldSel.addEventListener('change', () => {
       rows[i].field = fieldSel.value;
       commit();
     });
 
-    const opSel = document.createElement('select');
-    opSel.className = 'fr-select fr-select--sm filter-row__op';
-    opSel.setAttribute('aria-label', 'Opérateur du filtre');
     OPERATORS.forEach((o) => {
       const opt = document.createElement('option');
       opt.value = o.value;
@@ -141,10 +154,6 @@ function renderRows(): void {
       opSel.appendChild(opt);
     });
 
-    const valInput = document.createElement('input');
-    valInput.type = 'text';
-    valInput.className = 'fr-input fr-input--sm filter-row__value';
-    valInput.setAttribute('aria-label', 'Valeur du filtre');
     valInput.placeholder = row.op === 'in' ? 'val1|val2|val3' : 'valeur';
     valInput.value = row.value;
     valInput.addEventListener('input', () => {
@@ -166,19 +175,12 @@ function renderRows(): void {
     });
     applyOpUi();
 
-    const removeBtn = document.createElement('button');
-    removeBtn.type = 'button';
-    removeBtn.className = 'filter-row__remove';
-    removeBtn.title = 'Retirer ce filtre';
-    removeBtn.setAttribute('aria-label', 'Retirer ce filtre');
-    removeBtn.innerHTML = '<i class="ri-close-line" aria-hidden="true"></i>';
     removeBtn.addEventListener('click', () => {
       rows.splice(i, 1);
       renderRows();
       commit();
     });
 
-    el.append(fieldSel, opSel, valInput, removeBtn);
     host.appendChild(el);
   });
 }
