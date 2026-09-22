@@ -784,6 +784,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/choropleth-scales.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
 | affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |
 | affichages | `parseManualBreaks` perd la première borne | `carte-bornes-manuelles` | 3 entrées de légende, 4 classes recalculées |
+| affichages | `_addGeoshape` ne lit plus que `geo-field` (`dsfr-data-map-layer.ts`, l'état d'avant #1053) | `carte-geoshape-sans-geo-field-1053` | « #carte-zones (texts) n'a rien affiché » : aucune forme tracée pour 10 lignes recalculées |
+| affichages | la couche geoshape reprend la détection du calcul d'emprise (`_autoDetectGeoField()`, `geo_point_2d` en tête) | `carte-geoshape-sans-geo-field-1053` | idem : la colonne devinée est le POINT, un `{lat, lon}` sans forme à tracer |
 | affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |
 | affichages | le tri de `dsfr-data-list` rend toujours 0 | `liste-tri-numerique`, `liste-tri-croissant` | ligne 0 : affiché « Arles », recalculé « Vichy » |
 | affichages | `localeCompare` remplacé par une comparaison de codes | `liste-tri-texte-accentue` | ligne 2 : affiché « Ussel », recalculé « Écully » |

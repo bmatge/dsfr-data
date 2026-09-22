@@ -3288,7 +3288,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 1. \`lat-field\` + \`lon-field\` : coordonnees separees
 2. \`geo-field\` vers GeoJSON Point : \`{ type: "Point", coordinates: [lon, lat] }\`
 3. \`geo-field\` vers ODS : \`{ lat: N, lon: N }\`
-4. Auto-detection : cherche \`geo_point_2d\`, \`geo_shape\`, \`geometry\`
+4. Auto-detection sans \`geo-field\` : les points (marker, circle, heatmap) cherchent
+   \`geo_point_2d\`, \`geopoint\`, \`geo_point\` ; une couche \`geoshape\` prend la premiere
+   colonne \`geo_shape\`, \`geometry\` ou \`geom\` qui porte du GeoJSON (objet ou chaine).
+   Si aucune ne convient, la couche le dit en console et ne trace rien : poser alors
+   \`geo-field\`.
 
 ### Fonds de carte predefinis (sans clé API)
 
