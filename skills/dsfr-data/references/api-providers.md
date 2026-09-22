@@ -61,7 +61,7 @@ OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. `fetch-m
 « un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
 groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
 `server-side`. En mode export le total serveur est inconnu : le KPI `meta:total` retombe sur le
-nombre de lignes recues, et la troncature est detectee via `max-records`.
+nombre de lignes recues, et la troncature est detectee via `max-records` (lot tronque : « — »).
 ```html
 <dsfr-data-source id="src" api-type="opendatasoft"
   base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"

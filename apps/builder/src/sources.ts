@@ -81,7 +81,7 @@ export function loadSavedSources(): void {
         <p class="empty-sources-desc">Essayez avec des donn\u00e9es d'exemple :</p>
         <div class="sample-datasets-grid">${SAMPLE_DATASETS.map(
           (ds) => `
-        <button type="button" class="sample-dataset-card app-card-choice" data-sample-id="${ds.id}">
+        <button type="button" class="sample-dataset-card app-card-choice" data-sample-id="${ds.id}" data-repere="builder.source.exemple" data-repere-libelle="Jeu de données d'exemple">
           <i class="${ds.icon}"></i>
           <span class="sample-dataset-name">${ds.name}</span>
           <span class="sample-dataset-desc">${ds.description}</span>
@@ -758,7 +758,7 @@ function showDataPreviewButton(): void {
   const statusEl = document.getElementById('fields-status');
   if (statusEl) {
     statusEl.innerHTML =
-      '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn"><i class="ri-database-2-line"></i> Voir</button>';
+      '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn" data-repere="builder.source.apercu" data-repere-libelle="Voir les données"><i class="ri-database-2-line"></i> Voir</button>';
     document.getElementById('show-data-preview-btn')?.addEventListener('click', showDataPreview);
   }
 }

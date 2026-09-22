@@ -30,7 +30,7 @@ export function addExtraSeries(): void {
         Série ${index + 2}
         <span class="fr-hint-text">Champ numérique</span>
       </label>
-      <select class="fr-select extra-series-field" id="extra-series-field-${seriesCounter}">
+      <select class="fr-select extra-series-field" id="extra-series-field-${seriesCounter}" data-repere="builder.donnees.series.champ" data-attribut="dsfr-data-chart:value-fields" data-repere-libelle="Champ de la série">
         ${buildSeriesFieldOptions()}
       </select>
     </div>
@@ -39,9 +39,9 @@ export function addExtraSeries(): void {
         Libelle
         <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
       </label>
-      <input type="text" class="fr-input fr-input--sm extra-series-label" id="extra-series-label-${seriesCounter}" placeholder="Nom de la série">
+      <input type="text" class="fr-input fr-input--sm extra-series-label" id="extra-series-label-${seriesCounter}" placeholder="Nom de la série" data-repere="builder.donnees.series.libelle" data-repere-libelle="Nom affiché de la série">
     </div>
-    <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline remove-series-btn" title="Supprimer cette série" style="margin-bottom: 2px;">
+    <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline remove-series-btn" title="Supprimer cette série" aria-label="Supprimer cette série" data-repere="builder.donnees.series.supprimer" data-repere-libelle="Supprimer une série" style="margin-bottom: 2px;">
       <i class="ri-delete-bin-line"></i>
     </button>
   `;

@@ -298,6 +298,54 @@ const CHECKS: Check[] = [
     ],
   },
 
+  {
+    id: 'kpi-meta-total-inconnu',
+    mode: 'deterministic',
+    origin:
+      '#1046 — une page Tabular AGRÉGÉE ne porte pas de `meta.total` (`{page, page_size}` seulement, mesuré le 2026-09-22, #1033) : le total des groupes est inconnu. `meta:total` retombait alors sur les lignes reçues et annonçait « 40 » (la taille de la page) pour 101 départements. Total inconnu → « — » ; les 40 groupes de la page restent comptés par `count`, qui dit bien ce qu’il compte.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-groupes" api-type="tabular" resource="${RESSOURCE_TABULAR}"
+    server-side page-size="40"></dsfr-data-source>
+  <dsfr-data-query id="q-groupes" source="s-groupes" group-by="code_dept"
+    aggregate="population:sum" order-by="code_dept:asc"></dsfr-data-query>
+  <dsfr-data-kpi id="k-groupes-total" source="q-groupes" value="meta:total" format="nombre"
+    label="Départements"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-groupes-recus" source="q-groupes" value="count" format="nombre"
+    label="Groupes de la page"></dsfr-data-kpi>`,
+    expects: [
+      // La page est bien arrivée : ses 40 groupes, recalculés.
+      {
+        kind: 'kpi',
+        id: 'k-groupes-recus',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { population__sum: { agg: 'sum', field: 'population' } },
+          },
+          { op: 'order-by', column: 'code_dept', dir: 'asc' },
+          { op: 'limit', n: 40 },
+        ],
+      },
+      // Total inconnu : le tiret du composant, jamais un chiffre. Le texte
+      // attendu n'est pas un résultat de calcul — l'oracle ne sait pas plus
+      // que la page combien de groupes l'API détient, et c'est le constat.
+      // Lu APRÈS le comptage : la page est chargée, le tiret n'est pas celui
+      // d'un composant qui attend encore ses lignes.
+      { kind: 'text', id: 'k-groupes-total', selector: '.dsfr-data-kpi__value', prefix: '—' },
+      // Le regroupement est bien parti au serveur : c'est la page agrégée.
+      {
+        kind: 'urls',
+        id: 'meta-total-page-agregee',
+        among: `/api/resources/${RESSOURCE_TABULAR}/data/`,
+        contains: 'code_dept__groupby',
+        verdict: 'all',
+      },
+    ],
+  },
+
   // ------------------------------------------------------------ Formats ----
   {
     id: 'format-pourcentage-et-unite',

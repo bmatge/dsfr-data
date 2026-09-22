@@ -31,6 +31,19 @@ function modules(dir = SRC, prefixe = ''): string[] {
   return out;
 }
 
+/**
+ * Modules sans appelant DANS l'app, déclarés avec leur raison. Chaque entrée
+ * est une dette datée : elle sort de la liste quand son consommateur arrive.
+ */
+const SANS_APPELANT_DECLARES: Record<string, string> = {
+  'assistant/reperes.config.ts':
+    'lu par scripts/build-reperes.ts (check:reperes), jamais importé par l’app (#1006)',
+  'assistant/reperes.generated.ts':
+    'registre des repères, consommé par l’assistant contextuel à venir (#1017) ; testé par reperes-completude',
+  'assistant/adaptateur.ts':
+    'adaptateur de révélation, branché par l’assistant contextuel (#1017) ; testé par adaptateur.test.ts',
+};
+
 describe('le Builder n’embarque aucun module mort', () => {
   const tous = modules();
   const sources = tous.map((rel) => readFileSync(join(SRC, rel), 'utf-8'));
@@ -44,10 +57,20 @@ describe('le Builder n’embarque aucun module mort', () => {
     // `main.ts` est le point d'entree : personne ne l'importe, c'est normal.
     const orphelins = tous.filter((rel) => {
       if (rel === 'main.ts') return false;
+      if (rel in SANS_APPELANT_DECLARES) return false;
       const nom = rel.replace(/\.ts$/, '').split('/').pop()!;
       return !sources.some((src) => new RegExp(`from '[^']*${nom}\\.js'`).test(src));
     });
 
     expect(orphelins, `modules sans appelant : ${orphelins.join(', ')}`).toEqual([]);
+  });
+
+  it('chaque exception déclarée existe encore et reste sans appelant', () => {
+    for (const rel of Object.keys(SANS_APPELANT_DECLARES)) {
+      expect(tous, rel).toContain(rel);
+      const nom = rel.replace(/\.ts$/, '').split('/').pop()!;
+      const appele = sources.some((src) => src.includes(`${nom}.js'`));
+      expect(appele, `${rel} a désormais un appelant : retirer l’exception`).toBe(false);
+    }
   });
 });
