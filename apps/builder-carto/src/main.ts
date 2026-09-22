@@ -17,6 +17,7 @@ import {
   resetState,
   INSET_TERRITORIES,
   DROM_IDS,
+  DEFAULT_LAYER_MAX_ITEMS,
 } from './state.js';
 import type { AnySource, FieldInfo, LayerConfig, LayerType, PopupMode } from './state.js';
 import { generateCode } from './ui/code-generator.js';
@@ -551,7 +552,7 @@ function renderElementsPanel() {
   const customColor = !SWATCHES.some((sw) => sw.c === layer.color);
   const advancedOpen =
     layer.filter ||
-    layer.maxItems !== 5000 ||
+    layer.maxItems !== DEFAULT_LAYER_MAX_ITEMS ||
     layer.minZoom !== 0 ||
     layer.maxZoom !== 18 ||
     layer.bbox ||
@@ -905,7 +906,7 @@ function renderElementsPanel() {
       </div>
       <div class="carto-field">
         <label for="layer-max-items">Nombre max d'éléments affichés
-          <span class="fr-hint-text">Au-delà, un bandeau « N affichés sur M » apparaît</span>
+          <span class="fr-hint-text">Une source d'API n'en charge pas davantage. Quand le jeu en compte plus, un bandeau « N affichés sur M » apparaît sur la carte</span>
         </label>
         <input type="number" id="layer-max-items" value="${layer.maxItems}" min="1" max="100000">
       </div>

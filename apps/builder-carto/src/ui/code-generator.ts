@@ -108,7 +108,10 @@ function layerAttrs(layer: LayerConfig): string {
     if (layer.bboxDebounce !== 300) attrs.push(`bbox-debounce="${esc(layer.bboxDebounce)}"`);
     if (layer.bboxField) attrs.push(`bbox-field="${esc(layer.bboxField)}"`);
   }
-  if (layer.maxItems !== 5000) attrs.push(`max-items="${esc(layer.maxItems)}"`);
+  // Plafond toujours explicite (#1020) : le defaut de la Carto (1 000) n'est
+  // pas celui de la bibliotheque (5 000), et le `limit` de la source en est
+  // la copie — le lecteur du code doit voir les deux.
+  attrs.push(`max-items="${esc(layer.maxItems)}"`);
 
   // Timeline
   if (layer.timeField) {
@@ -216,8 +219,12 @@ export function buildSourceTag(
     return '';
   }
 
-  // limit : echantillonnage (field-service) ou plafond utilisateur (max-items)
-  const limit = opts.limit ?? (isAdapter.current && layer.maxItems !== 5000 ? layer.maxItems : 0);
+  // limit : echantillonnage (field-service), sinon TOUJOURS le plafond de la
+  // couche en mode adaptateur (#1020) — y compris au defaut. Sans lui, la
+  // source chargeait jusqu'a 25 000 lignes pour qu'une couche en dessine
+  // 5 000 ; la couche lit la meta de la source et son bandeau dit ce qui
+  // n'est pas montre.
+  const limit = opts.limit ?? (isAdapter.current ? layer.maxItems : 0);
   if (limit && isAdapter.current) attrs.push(`limit="${esc(limit)}"`);
 
   return `<dsfr-data-source ${attrs.join('\n  ')}>\n</dsfr-data-source>`;

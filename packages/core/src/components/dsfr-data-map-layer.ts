@@ -15,7 +15,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { dispatchSourceCommand } from '../utils/data-bridge.js';
+import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { getByPath } from '../utils/json-path.js';
 import { parseGeoValue } from '../utils/geo-value.js';
 import { parseColorMap } from '../utils/color-map.js';
@@ -84,11 +84,17 @@ async function resolveLeafletPluginSymbol<T>(name: string): Promise<T | undefine
 
 let layerBoundsSeq = 0;
 
+/** Chiffre du bandeau de troncature, balise pour etre relu seul (#1020). */
+interface BannerCount {
+  count: 'shown' | 'total';
+  text: string;
+}
+
 /**
  * @fires dsfr-data-map-select - `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse.
  * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur.
- * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
+ * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
  */
 @customElement('dsfr-data-map-layer')
 export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
@@ -316,11 +322,18 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   /**
    * Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège
-   * les marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau
-   * indique combien d'éléments sont affichés sur le total. Avec `cluster`,
-   * `max-items="20000"` est sans risque : les marqueurs regroupés ne pèsent
-   * pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors
-   * `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.
+   * les marqueurs DOM (`divIcon`), le fit et les popups. Un bandeau (`role="status"`)
+   * donne les deux chiffres — éléments affichés et total connu — dès que la carte
+   * n'en montre qu'une partie : plafond `max-items` dépassé, OU source qui n'a
+   * chargé qu'une partie du jeu (`limit`, `max-records`, plafond de pages : le
+   * total vient alors de la source, #1020). Il précise que les premiers
+   * enregistrements suivent l'ordre du fichier (ou le tri `order-by` de la
+   * source) : leur répartition n'est pas représentative. Aligner le `limit` de
+   * la source sur `max-items` évite de charger des lignes que la couche ne
+   * dessinera pas. Avec `cluster`, `max-items="20000"` est sans risque : les
+   * marqueurs regroupés ne pèsent pas sur le DOM. En mode `bbox`, zoomer
+   * recharge la zone visible ; hors `bbox`, seul un plafond plus haut (ou un
+   * filtre amont) affiche le reste.
    */
   @property({ type: Number, attribute: 'max-items' })
   maxItems = 5000;
@@ -337,6 +350,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   private _bboxTimer: ReturnType<typeof setTimeout> | null = null;
   private _banner: HTMLDivElement | null = null;
   private _totalCount = 0;
+  /** La source n'a livre qu'une partie du jeu au dernier rendu (#1020). */
+  private _upstreamTruncated = false;
   private _clusterLoaded = false;
   private _markerClusterFactory: ClusterFactory | null = null;
   private _heatLayer: LeafletLayer | null = null;
@@ -881,13 +896,22 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       items = items.filter((record) => this._recordIntersectsBounds(record, clientBounds));
     }
 
-    this._totalCount = items.length;
+    // Troncature AMONT (#1020) : la source n'a livre qu'une partie du jeu
+    // (limit, max-records, plafond de pages). Lue dans la meta publiee AVANT
+    // le dispatch des donnees — aucun rendu supplementaire. Seulement quand
+    // la couche dessine tout ce qu'elle a recu : un pas de timeline ou un
+    // filtre client de la zone visible ne se compare pas au total du jeu.
+    const upstream =
+      itemsOverride === undefined && !clientBounds ? this._upstreamTruncation(items.length) : null;
+    this._upstreamTruncated = upstream !== null;
+    this._totalCount = upstream?.total ?? items.length;
 
     // Max items safety
-    const truncated = this.maxItems > 0 && items.length > this.maxItems;
-    if (truncated) {
+    const capped = this.maxItems > 0 && items.length > this.maxItems;
+    if (capped) {
       items = items.slice(0, this.maxItems);
     }
+    const truncated = capped || upstream !== null;
 
     // Parse color-map (categorical color mapping)
     this._colorMapParsed = this.colorField && this.colorMap ? parseColorMap(this.colorMap) : null;
@@ -1671,39 +1695,121 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   // --- Max-items banner ---
 
-  private _updateBanner(truncated: boolean, displayedCount: number) {
-    this._removeBanner();
-    if (!truncated) return;
-    // Carte verrouillee (encart territorial, vignette) : pas de bandeau —
-    // 160 px de haut, il recouvrait les libelles et se repetait dans chaque
-    // encart (#644). La carte principale porte deja l'information.
-    if (this._mapParent?.locked) return;
-
-    this._banner = document.createElement('div');
-    this._banner.className = 'dsfr-data-map__max-items-banner';
-    this._banner.textContent = this._bannerText(displayedCount);
-    // Plusieurs layers tronques : empiler les banners au lieu de les
-    // superposer (#297)
-    const existing =
-      this._mapParent?.querySelectorAll('.dsfr-data-map__max-items-banner').length ?? 0;
-    if (existing > 0) {
-      this._banner.style.bottom = `${10 + existing * 36}px`;
-    }
-    this._mapParent?.appendChild(this._banner);
+  /**
+   * Troncature AMONT (#1020) : la couche ne lisait jamais la meta de sa
+   * source. Avec un `limit` aligne sur `max-items`, les lignes recues
+   * valaient le plafond, rien ne depassait — et le bandeau disparaissait
+   * precisement quand la carte ne montrait que les 1 000 premiers
+   * enregistrements sur 34 826.
+   *
+   * Tronque = `meta.truncated` (limit, max-records, plafond de pages, #658)
+   * ou `meta.total` superieur aux lignes recues. `total` n'est retenu que
+   * s'il depasse les lignes recues ; `null` quand rien n'est tronque.
+   */
+  private _upstreamTruncation(received: number): { total: number | undefined } | null {
+    if (!this.source) return null;
+    const meta = getDataMeta(this.source);
+    if (!meta) return null;
+    const total =
+      typeof meta.total === 'number' && Number.isFinite(meta.total) && meta.total > received
+        ? meta.total
+        : undefined;
+    if (total === undefined && meta.truncated !== true) return null;
+    return { total };
   }
 
   /**
-   * Libellé du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode
-   * `bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est
-   * recharge, le seul remede est de relever `max-items` — le dire.
+   * Bandeau « N affichés sur M » (#644, #1020). Pose en FRERE du conteneur
+   * Leaflet (empilement porte par l'hote, ARCHITECTURE §12), sans aucun
+   * controle interactif. `role="status"` : le lecteur d'ecran l'annonce
+   * sans deplacer le focus. Il est mis a jour EN PLACE d'un rendu a
+   * l'autre : une region live recreee a chaque rendu n'est pas annoncee de
+   * facon fiable, et un texte inchange (pan en bbox) ne se repete pas.
    */
-  private _bannerText(displayedCount: number): string {
-    const shown = displayedCount.toLocaleString('fr-FR');
-    const total = this._totalCount.toLocaleString('fr-FR');
-    if (this.bbox) {
-      return `${shown} éléments affichés sur ${total} disponibles. Zoomez pour voir plus de détail.`;
+  private _updateBanner(truncated: boolean, displayedCount: number) {
+    // Carte verrouillee (encart territorial, vignette) : pas de bandeau —
+    // 160 px de haut, il recouvrait les libelles et se repetait dans chaque
+    // encart (#644). La carte principale porte deja l'information.
+    if (!truncated || !this._mapParent || this._mapParent.locked) {
+      this._removeBanner();
+      return;
     }
-    return `${shown} affichés sur ${total} — relevez max-items pour voir le reste.`;
+
+    if (!this._banner || this._banner.parentNode !== this._mapParent) {
+      this._removeBanner();
+      this._banner = document.createElement('div');
+      this._banner.className = 'dsfr-data-map__max-items-banner';
+      this._banner.setAttribute('role', 'status');
+      this._banner.setAttribute('aria-live', 'polite');
+      this._banner.setAttribute('aria-atomic', 'true');
+      this._mapParent.appendChild(this._banner);
+    }
+
+    const segments = this._bannerText(displayedCount);
+    const plain = segments.map((seg) => (typeof seg === 'string' ? seg : seg.text)).join('');
+    if (this._banner.textContent !== plain) {
+      const frag = document.createDocumentFragment();
+      for (const seg of segments) {
+        if (typeof seg === 'string') {
+          frag.appendChild(document.createTextNode(seg));
+        } else {
+          const strong = document.createElement('strong');
+          strong.className = `dsfr-data-map__max-items-${seg.count}`;
+          strong.textContent = seg.text;
+          frag.appendChild(strong);
+        }
+      }
+      this._banner.replaceChildren(frag);
+    }
+
+    // Plusieurs couches tronquees : empiler les bandeaux au lieu de les
+    // superposer (#297). Hauteur mesuree — le texte passe a la ligne sur
+    // un ecran etroit ; 30 px quand rien n'est mesurable.
+    const all = Array.from(
+      this._mapParent.querySelectorAll<HTMLElement>('.dsfr-data-map__max-items-banner')
+    );
+    let bottom = 10;
+    for (const other of all) {
+      if (other === this._banner) break;
+      bottom += (other.offsetHeight || 30) + 6;
+    }
+    this._banner.style.bottom = bottom > 10 ? `${bottom}px` : '';
+  }
+
+  /**
+   * Libellé du bandeau (#644, #1020), en segments : les deux chiffres sont
+   * balisés (`dsfr-data-map__max-items-shown` / `-total`) pour être relus
+   * un à un par le contrôle de données (ADR-122).
+   *
+   * Deux chiffres et le biais : les éléments affichés sont les PREMIERS,
+   * dans l'ordre du fichier (ou du tri `order-by` de la source), leur
+   * répartition n'est donc pas représentative. Le remède dépend du cas :
+   * en `bbox`, zoomer recharge la zone visible ; plafond de rendu seul,
+   * relever `max-items` ; troncature amont, c'est la source qui n'a chargé
+   * qu'une partie du jeu.
+   */
+  private _bannerText(displayedCount: number): Array<string | BannerCount> {
+    const shown: BannerCount = { count: 'shown', text: displayedCount.toLocaleString('fr-FR') };
+    const total: BannerCount = { count: 'total', text: this._totalCount.toLocaleString('fr-FR') };
+    const totalKnown = this._totalCount > displayedCount;
+    const sourceEl = this.source ? document.getElementById(this.source) : null;
+    const sorted = !!sourceEl?.getAttribute('order-by');
+    const order = sorted ? "dans l'ordre du tri de la source" : "dans l'ordre du fichier";
+
+    if (this.bbox) {
+      return totalKnown
+        ? [shown, ' éléments affichés sur ', total, `, ${order}. Zoomez pour voir plus de détail.`]
+        : [shown, ` premiers éléments affichés, ${order}. Zoomez pour voir plus de détail.`];
+    }
+
+    const bias = sorted ? '.' : " : la répartition affichée n'est pas représentative.";
+    const head: Array<string | BannerCount> = totalKnown
+      ? [shown, ' premiers enregistrements affichés sur ', total, `, ${order}${bias}`]
+      : [shown, ` premiers enregistrements affichés, ${order}${bias}`];
+    if (this._upstreamTruncated) {
+      return [...head, " La source n'a chargé qu'une partie du jeu."];
+    }
+    return [...head, ' Relevez max-items pour voir le reste.'];
   }
 
   private _removeBanner() {

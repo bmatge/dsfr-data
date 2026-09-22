@@ -23,7 +23,14 @@
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 import { DATASET, HOTE_ODS, TERRITOIRES } from './fixtures.js';
-import { COMMUNES, LIBELLES, LONG, SERIE, urlAffichage } from './fixtures-affichages.js';
+import {
+  COMMUNES,
+  LIBELLES,
+  LONG,
+  RESSOURCE_TABULAR_AFFICHAGES,
+  SERIE,
+  urlAffichage,
+} from './fixtures-affichages.js';
 
 /** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
 const TETE_CHART = `
@@ -1052,6 +1059,41 @@ const CHECKS: Check[] = [
         classes: 4,
         method: 'manual',
         breaks: [20, 40, 60],
+      },
+    ],
+  },
+
+  // --------------------------------------- Carte : bandeau de troncature ----
+  {
+    id: 'carte-bandeau-troncature-amont',
+    mode: 'deterministic',
+    origin:
+      '#1020 — `limit` de la source aligné sur `max-items` (le défaut de la Carto) : la couche reçoit exactement son plafond, rien ne dépasse, et le bandeau disparaissait alors que la carte ne montre que les 10 premiers enregistrements sur 48. Il relit désormais la meta de la source et donne les DEUX chiffres — affichés et total du jeu —, chacun relu seul.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-plafond" api-type="tabular"
+    resource="${RESSOURCE_TABULAR_AFFICHAGES}" limit="10"></dsfr-data-source>
+  <dsfr-data-map id="carte-plafond" center="46.6,2.3" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-plafond" source="s-plafond" type="circle"
+      lat-field="lat" lon-field="lon" max-items="10"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Affichés : les 10 PREMIERS enregistrements, dans l'ordre du fichier.
+        kind: 'text',
+        id: 'carte-plafond',
+        selector: '.dsfr-data-map__max-items-shown',
+        numeric: true,
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: 10 }],
+      },
+      {
+        // Total : le jeu entier, que seule la meta de la source connaît.
+        kind: 'text',
+        id: 'carte-plafond',
+        selector: '.dsfr-data-map__max-items-total',
+        numeric: true,
+        agg: 'count',
       },
     ],
   },

@@ -4,7 +4,13 @@
  * timeline configurée, compagnon a11y et template auto des popups.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { state, createLayer, resetState, DROM_IDS } from '../../../apps/builder-carto/src/state';
+import {
+  state,
+  createLayer,
+  resetState,
+  DROM_IDS,
+  DEFAULT_LAYER_MAX_ITEMS,
+} from '../../../apps/builder-carto/src/state';
 import {
   generateCode,
   buildSourceTag,
@@ -254,6 +260,47 @@ describe('buildSourceTag', () => {
     layer.maxItems = 200;
     const tag = buildSourceTag(layer);
     expect(tag).toContain('limit="200"');
+  });
+
+  // #1020 — la source ne charge pas plus que la couche ne dessine, y compris
+  // au defaut de la Carto (1 000) : avant, `limit` n'etait emis que hors
+  // defaut, et la source chargeait jusqu'a 25 000 lignes pour 5 000 points.
+  it('#1020 limit egal a max-items au defaut (1 000) pour un adaptateur Tabular', () => {
+    const layer = createLayer();
+    expect(layer.maxItems).toBe(DEFAULT_LAYER_MAX_ITEMS);
+    expect(DEFAULT_LAYER_MAX_ITEMS).toBe(1000);
+    layer.source = {
+      id: 's1',
+      name: 'Tabular',
+      type: 'api',
+      apiUrl:
+        'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/',
+    };
+    const tag = buildSourceTag(layer);
+    expect(tag).toContain('api-type="tabular"');
+    expect(tag).toContain('limit="1000"');
+  });
+
+  it('#1020 max-items toujours emis, et egal au limit de la source', () => {
+    const layer = state.layers[0];
+    layer.source = {
+      id: 's1',
+      name: 'ODS',
+      type: 'api',
+      apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/mon-jeu/records',
+    };
+    for (const n of [DEFAULT_LAYER_MAX_ITEMS, 5000, 250]) {
+      layer.maxItems = n;
+      const code = generateCode();
+      expect(code).toContain(`max-items="${n}"`);
+      expect(code).toContain(`limit="${n}"`);
+    }
+  });
+
+  it('#1020 pas de limit hors adaptateur (donnees inline), max-items quand meme', () => {
+    const layer = withManualSource();
+    expect(buildSourceTag(layer)).not.toContain('limit=');
+    expect(generateCode()).toContain(`max-items="${DEFAULT_LAYER_MAX_ITEMS}"`);
   });
 
   it('source manuelle : données inline', () => {

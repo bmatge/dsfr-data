@@ -11158,7 +11158,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau\nindique combien d'éléments sont affichés sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupés ne pèsent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
+              "description": "Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège\nles marqueurs DOM (`divIcon`), le fit et les popups. Un bandeau (`role=\"status\"`)\ndonne les deux chiffres — éléments affichés et total connu — dès que la carte\nn'en montre qu'une partie : plafond `max-items` dépassé, OU source qui n'a\nchargé qu'une partie du jeu (`limit`, `max-records`, plafond de pages : le\ntotal vient alors de la source, #1020). Il précise que les premiers\nenregistrements suivent l'ordre du fichier (ou le tri `order-by` de la\nsource) : leur répartition n'est pas représentative. Aligner le `limit` de\nla source sur `max-items` évite de charger des lignes que la couche ne\ndessinera pas. Avec `cluster`, `max-items=\"20000\"` est sans risque : les\nmarqueurs regroupés ne pèsent pas sur le DOM. En mode `bbox`, zoomer\nrecharge la zone visible ; hors `bbox`, seul un plafond plus haut (ou un\nfiltre amont) affiche le reste.",
               "attribute": "max-items"
             },
             {
@@ -11250,6 +11250,16 @@
               },
               "privacy": "private",
               "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "_upstreamTruncated",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "La source n'a livre qu'une partie du jeu au dernier rendu (#1020)."
             },
             {
               "kind": "field",
@@ -12185,6 +12195,25 @@
             },
             {
               "kind": "method",
+              "name": "_upstreamTruncation",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ total: number | undefined } | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "received",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Troncature AMONT (#1020) : la couche ne lisait jamais la meta de sa\nsource. Avec un `limit` aligne sur `max-items`, les lignes recues\nvalaient le plafond, rien ne depassait — et le bandeau disparaissait\nprecisement quand la carte ne montrait que les 1 000 premiers\nenregistrements sur 34 826.\n\nTronque = `meta.truncated` (limit, max-records, plafond de pages, #658)\nou `meta.total` superieur aux lignes recues. `total` n'est retenu que\ns'il depasse les lignes recues ; `null` quand rien n'est tronque."
+            },
+            {
+              "kind": "method",
               "name": "_updateBanner",
               "privacy": "private",
               "parameters": [
@@ -12200,7 +12229,8 @@
                     "text": "number"
                   }
                 }
-              ]
+              ],
+              "description": "Bandeau « N affichés sur M » (#644, #1020). Pose en FRERE du conteneur\nLeaflet (empilement porte par l'hote, ARCHITECTURE §12), sans aucun\ncontrole interactif. `role=\"status\"` : le lecteur d'ecran l'annonce\nsans deplacer le focus. Il est mis a jour EN PLACE d'un rendu a\nl'autre : une region live recreee a chaque rendu n'est pas annoncee de\nfacon fiable, et un texte inchange (pan en bbox) ne se repete pas."
             },
             {
               "kind": "method",
@@ -12208,7 +12238,7 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "string"
+                  "text": "Array<string | BannerCount>"
                 }
               },
               "parameters": [
@@ -12219,7 +12249,7 @@
                   }
                 }
               ],
-              "description": "Libellé du bandeau max-items (#644). « Zoomez » n'a de sens qu'en mode\n`bbox` (la zone visible est rechargee au zoom) ; hors bbox rien n'est\nrecharge, le seul remede est de relever `max-items` — le dire."
+              "description": "Libellé du bandeau (#644, #1020), en segments : les deux chiffres sont\nbalisés (`dsfr-data-map__max-items-shown` / `-total`) pour être relus\nun à un par le contrôle de données (ADR-122).\n\nDeux chiffres et le biais : les éléments affichés sont les PREMIERS,\ndans l'ordre du fichier (ou du tri `order-by` de la source), leur\nrépartition n'est donc pas représentative. Le remède dépend du cas :\nen `bbox`, zoomer recharge la zone visible ; plafond de rendu seul,\nrelever `max-items` ; troncature amont, c'est la source qui n'a chargé\nqu'une partie du jeu."
             },
             {
               "kind": "method",
@@ -12240,7 +12270,7 @@
               "type": {
                 "text": "CustomEvent"
               },
-              "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
+              "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
             },
             {
               "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).",
@@ -12618,7 +12648,7 @@
                 "text": "number"
               },
               "default": "5000",
-              "description": "Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège\nles marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau\nindique combien d'éléments sont affichés sur le total. Avec `cluster`,\n`max-items=\"20000\"` est sans risque : les marqueurs regroupés ne pèsent\npas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors\n`bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste.",
+              "description": "Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège\nles marqueurs DOM (`divIcon`), le fit et les popups. Un bandeau (`role=\"status\"`)\ndonne les deux chiffres — éléments affichés et total connu — dès que la carte\nn'en montre qu'une partie : plafond `max-items` dépassé, OU source qui n'a\nchargé qu'une partie du jeu (`limit`, `max-records`, plafond de pages : le\ntotal vient alors de la source, #1020). Il précise que les premiers\nenregistrements suivent l'ordre du fichier (ou le tri `order-by` de la\nsource) : leur répartition n'est pas représentative. Aligner le `limit` de\nla source sur `max-items` évite de charger des lignes que la couche ne\ndessinera pas. Avec `cluster`, `max-items=\"20000\"` est sans risque : les\nmarqueurs regroupés ne pèsent pas sur le DOM. En mode `bbox`, zoomer\nrecharge la zone visible ; hors `bbox`, seul un plafond plus haut (ou un\nfiltre amont) affiche le reste.",
               "fieldName": "maxItems"
             }
           ],

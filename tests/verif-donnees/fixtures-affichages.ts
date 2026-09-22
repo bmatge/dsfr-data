@@ -21,6 +21,7 @@
  * parcourt son graphe d'imports et refuserait toute entrée par `packages/`.
  */
 import type { Row } from '../../tools/oracle/manifest.js';
+import { repondreTabular } from '../builder-e2e/api-fixtures.js';
 import communes from './jeux/affichages-communes.json' with { type: 'json' };
 import serie from './jeux/affichages-serie.json' with { type: 'json' };
 import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
@@ -77,4 +78,23 @@ export function repondreAffichages(url: URL): unknown | null {
   if (url.origin !== HOTE_AFFICHAGES) return null;
   const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX_AFFICHAGES;
   return JEUX_AFFICHAGES[nom] ?? null;
+}
+
+/**
+ * Ressource Tabular du lot (#1020) : les 48 communes servies dans l'enveloppe
+ * Tabular (`{ data, links, meta }`, `meta.total` = 48), pour qu'une source
+ * `limit="10"` soit TRONQUÉE EN AMONT et que la couche de carte le dise.
+ *
+ * Tabular garde le VRAI hôte (l'adaptateur n'accepte pas de `base-url` pour
+ * cette variante, voir `fixtures.ts`) : une ressource propre à ce domaine,
+ * pour ne partager ses lignes avec aucun autre.
+ */
+export const RESSOURCE_TABULAR_AFFICHAGES = 'ea1b5c3d-0000-4000-8000-affichages001';
+const HOTE_TABULAR_AFFICHAGES = 'https://tabular-api.data.gouv.fr';
+
+/** Réponse Tabular du lot, ou `null` si l'URL ne désigne pas sa ressource. */
+export function repondreAffichagesTabular(url: URL): unknown | null {
+  if (url.origin !== HOTE_TABULAR_AFFICHAGES) return null;
+  if (url.pathname !== `/api/resources/${RESSOURCE_TABULAR_AFFICHAGES}/data/`) return null;
+  return repondreTabular(url, COMMUNES);
 }
