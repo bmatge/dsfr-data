@@ -19889,7 +19889,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndéfaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agrégations client » — attention au nombre de\nrequêtes en boucle et au poids mémoire.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur, honoré par\nOpendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de\nl'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever\nexplicitement pour charger un jeu plus long par la pagination — par\nexemple une carte des ≈ 35 000 communes sur Tabular (`max-records=\"40000\"`)\n— ou pour les tableaux de bord « un fetch, N agrégations client » :\nattention au nombre de requêtes en boucle (Tabular : une par tranche de\n200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.\nQuand le plafond coupe le jeu, la source signale la troncature\n(`truncated`) et un avertissement console cite `max-records`.",
               "attribute": "max-records"
             },
             {
@@ -20751,7 +20751,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par\ndéfaut de l'adapter (ODS : 1000). A relever explicitement pour les\ndashboards « un fetch, N agrégations client » — attention au nombre de\nrequêtes en boucle et au poids mémoire.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur, honoré par\nOpendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de\nl'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever\nexplicitement pour charger un jeu plus long par la pagination — par\nexemple une carte des ≈ 35 000 communes sur Tabular (`max-records=\"40000\"`)\n— ou pour les tableaux de bord « un fetch, N agrégations client » :\nattention au nombre de requêtes en boucle (Tabular : une par tranche de\n200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.\nQuand le plafond coupe le jeu, la source signale la troncature\n(`truncated`) et un avertissement console cite `max-records`.",
               "fieldName": "maxRecords"
             },
             {

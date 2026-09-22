@@ -153,7 +153,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
-| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (125×200, 200 = maximum de l'API, #1019) | illimite (1 requete) | 100 000 (100×1000) | n/a |
+| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (125×200, 200 = maximum de l'API, #1019), relevable via `max-records` (#1027) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
 
 **`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
@@ -209,7 +209,7 @@ la recette ont decrit ce comportement correct comme une regression avant d'etre 
 dsfr-data-source fonctionne en deux modes :
 
 - **Mode URL (fetch direct)** : `url`, `method`, `headers`, `params`, `refresh`, `transform`, `paginate`, `page-size`, `cache-ttl`, `data` (inline JSON).
-- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire), `fetch-mode` (#689 — `records` par defaut, `export` pour un chargement ODS en une requete ; voir la table des capacites ci-dessus).
+- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233, #1027 — plafond du fetchAll ODS et Tabular, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire), `fetch-mode` (#689 — `records` par defaut, `export` pour un chargement ODS en une requete ; voir la table des capacites ci-dessus).
 
 **`cache-ttl` et le hook de cache (#307)** : la lib publiee n'appelle aucune API applicative. `cache-ttl` n'a d'effet que si la page hote enregistre un provider via `window.DSFR_DATA_CACHE_PROVIDER = { get(key), put(key, data, ttl) }` AVANT le chargement des composants (sans provider : no-op, embed anonyme). La cle inclut un hash du fingerprint de la requete (URL/params/where/page) — deux requetes differentes ne partagent jamais une entree. Les apps du repo enregistrent le provider `/api/cache` (mode DB) via `registerServerCacheProvider()` de `@dsfr-data/shared`, appele par `@dsfr-data/app-ui`.
 
@@ -584,7 +584,7 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 
 Les chiffres faux plausibles du banc d'essai venaient tous d'un plafond muet : `max-records`, `limit` de query, page serveur, jointure partielle. Trois champs de `PaginationMeta` (`data-bridge.ts`, dupliques dans `BusPaginationMeta`) les rendent lisibles par le volet, sans attribut d'affichage ad hoc :
 
-- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS signale une page pleine au plafond sur un `group_by` (total inconnu, #641 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
+- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS ou Tabular signale une page pleine au plafond sur un regroupement (total inconnu, #641, #1027 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
 - **`total` pre-limite** (#659) — `dsfr-data-query.transformMeta` republie `total` = lignes avant `limit`, **sauf en pagination serveur** ou le total serveur est conserve : list/display paginent dessus, le remplacer par la taille de page casserait leur pagination. Sans meta amont (source inline), la query publie quand meme ses comptes via le hook `transformerOwnMeta()` du mixin (defaut null, comportement historique des autres transformateurs). Consommateurs : le warn `count` de `dsfr-data-kpi` et `value="meta:total"`.
 - **`join`** (#660) — `performJoinWithStats` (shared) compte `leftMatched/leftTotal/rightMatched/rightTotal` independamment du type ; `dsfr-data-join` le pose dans sa meta et l'expose par `getJoinStats()`. Alerte sous `JOIN_MATCH_ALERT_RATIO` (50 %) — meme seuil dans `formatTrace`, `summarizeTrace` et le volet. Les cles sont comparees en chaine, sans trim (`201` = `"201"`, `"0201"` ≠ `"201"`).
 

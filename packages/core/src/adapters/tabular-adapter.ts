@@ -63,7 +63,10 @@ function appendBareFlags(url: URL, flags: string[]): string {
  */
 const TABULAR_PAGE_SIZE = 200;
 
-/** Nombre max de pages a fetcher (limite de securite : 125 x 200 = 25 000 records, #286, #1019) */
+/**
+ * Nombre de pages par defaut (plafond de securite : 125 x 200 = 25 000 records,
+ * #286, #1019) — relevable par l'attribut `max-records` de la source (#1027).
+ */
 const TABULAR_MAX_PAGES = 125;
 
 export class TabularAdapter implements ApiAdapter {
@@ -204,10 +207,22 @@ export class TabularAdapter implements ApiAdapter {
    * Fetch toutes les données avec pagination automatique via links.next.
    * Quand groupBy/aggregate sont presents, l'API Tabular les execute
    * cote serveur et retourne les données déjà agregees (needsClientProcessing=false).
+   *
+   * Plafond `max-records` (#1027, comme ODS #233) : 25 000 lignes par defaut
+   * (`TABULAR_MAX_PAGES` pages de `TABULAR_PAGE_SIZE`), relevable par
+   * l'auteur (`max-records="40000"` → 200 pages). Un `limit` explicite plus
+   * petit reste prioritaire. Quand le plafond coupe alors qu'il reste des
+   * pages, le resultat porte `truncated` (#658) — seul signal disponible sur
+   * une requete group-by, dont l'API ne donne pas le total.
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
-    const requestedLimit = fetchAllRecords ? TABULAR_MAX_PAGES * TABULAR_PAGE_SIZE : params.limit;
+    const maxRecords =
+      params.maxRecords && params.maxRecords > 0
+        ? params.maxRecords
+        : TABULAR_MAX_PAGES * TABULAR_PAGE_SIZE;
+    const maxPages = Math.ceil(maxRecords / TABULAR_PAGE_SIZE);
+    const requestedLimit = fetchAllRecords ? maxRecords : Math.min(params.limit, maxRecords);
 
     // Champs non delegables (#289) : prevenu une fois, lignes brutes +
     // needsClientProcessing — l'aval (query) retraite client-side
@@ -219,16 +234,22 @@ export class TabularAdapter implements ApiAdapter {
     let allResults: unknown[] = [];
     let totalCount = -1;
     let currentPage = 1;
+    // Il restait une page (links.next) quand la boucle s'est arretee
+    let moreAvailable = false;
 
-    for (let i = 0; i < TABULAR_MAX_PAGES; i++) {
+    for (let i = 0; i < maxPages; i++) {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
-      // Derniere page bornee a remaining : pas d'over-fetch d'une page entiere (#289)
-      const url = getProxiedUrl(
-        this.buildUrl(params, Math.min(TABULAR_PAGE_SIZE, remaining), currentPage),
-        params.proxyUrl
-      );
+      // La premiere page est bornee a remaining (#289) : un petit `limit` ne
+      // coute qu'une petite requete. Les suivantes gardent la taille de la
+      // premiere page pleine : l'API place une page a `(page - 1) × page_size`,
+      // et une derniere page reduite (page=2, page_size=100) relirait les
+      // lignes 100 a 199 au lieu de 200 a 299 (#1027). Le surplus eventuel
+      // (moins d'une page) est retranche apres la boucle.
+      const pageSize =
+        currentPage === 1 ? Math.min(TABULAR_PAGE_SIZE, remaining) : TABULAR_PAGE_SIZE;
+      const url = getProxiedUrl(this.buildUrl(params, pageSize, currentPage), params.proxyUrl);
 
       const response = await fetch(url, buildFetchOptions(params, signal));
       if (!response.ok) {
@@ -258,25 +279,54 @@ export class TabularAdapter implements ApiAdapter {
         }
       }
 
-      if (
-        !hasNext ||
-        (totalCount >= 0 && allResults.length >= totalCount) ||
-        pageResults.length < TABULAR_PAGE_SIZE
-      ) {
+      // Page pleine + page suivante annoncee + total non atteint : il reste
+      // des lignes si la boucle s'arrete ici (plafond ou limit atteint)
+      moreAvailable =
+        hasNext &&
+        pageResults.length >= pageSize &&
+        !(totalCount >= 0 && allResults.length >= totalCount);
+      if (!moreAvailable || pageResults.length < TABULAR_PAGE_SIZE) {
         break;
       }
     }
 
-    // Trim au limit demande
-    if (!fetchAllRecords && allResults.length > requestedLimit) {
+    // Trim au limit demande (surplus de la derniere page pleine)
+    const overflow = allResults.length > requestedLimit;
+    if (overflow) {
       allResults = allResults.slice(0, requestedLimit);
     }
 
-    // Avertir si pagination incomplete
-    if (totalCount >= 0 && allResults.length < totalCount && allResults.length < requestedLimit) {
+    // Le plafond max-records (et non un limit plus petit) a coupe la
+    // pagination alors qu'il restait des lignes : surplus retranche, total
+    // connu superieur, ou page suivante annoncee quand le total est inconnu
+    // (group-by).
+    const capBinding = fetchAllRecords || params.limit >= maxRecords;
+    const cappedWithMore =
+      capBinding &&
+      (overflow ||
+        (allResults.length >= maxRecords &&
+          (moreAvailable || (totalCount >= 0 && totalCount > allResults.length))));
+
+    // Avertir si la recuperation est incomplete : short-read sous un limit
+    // explicite (anomalie serveur) OU troncature par le plafond (qui ne
+    // declenchait jamais le warn quand il etait atteint pile, comme ODS #233).
+    // Un limit explicite atteint = troncature voulue, pas de warn.
+    const incomplete =
+      totalCount >= 0 &&
+      allResults.length < totalCount &&
+      (capBinding || allResults.length < requestedLimit);
+    const plafond =
+      `plafond max-records : ${maxRecords} lignes, ${maxPages} pages de ${TABULAR_PAGE_SIZE} ` +
+      `— relevable via l'attribut max-records de dsfr-data-source, #1027`;
+    if (incomplete) {
       console.warn(
         `[dsfr-data] tabular: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
-          `(limite de securite: ${TABULAR_MAX_PAGES} pages de ${TABULAR_PAGE_SIZE})`
+          `(${plafond})`
+      );
+    } else if (cappedWithMore) {
+      console.warn(
+        `[dsfr-data] tabular: ${allResults.length} lignes recuperees, d'autres restent a charger ` +
+          `(total inconnu ; ${plafond})`
       );
     }
 
@@ -287,7 +337,7 @@ export class TabularAdapter implements ApiAdapter {
       console.warn(
         `[dsfr-data] tabular: "distinct" calculé sur ${allResults.length} lignes reçues ` +
           `alors que l'API en détient ${totalCount} (meta.total) — comptage distinct partiel ` +
-          `(limit, max-records ou plafond de ${TABULAR_MAX_PAGES} pages)`
+          `(limit ou plafond max-records de ${maxRecords} lignes)`
       );
     }
 
@@ -295,6 +345,7 @@ export class TabularAdapter implements ApiAdapter {
       data: allResults,
       totalCount: totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: !serverHandled,
+      ...(cappedWithMore ? { truncated: true } : {}),
     };
   }
 
