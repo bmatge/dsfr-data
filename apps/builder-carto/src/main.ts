@@ -8,6 +8,10 @@
  * L'état complet est persisté (reprise de session) et la saisie des champs
  * est assistée par un échantillonnage réel de la source (field-service).
  */
+// Journal réseau et console (#994) : EN PREMIER, avant la bibliothèque et le
+// code de l'app, pour voir leurs premières requêtes. Les modules ES
+// s'évaluent dans l'ordre des imports.
+import '@dsfr-data/shared/debug/installer-journal';
 import './styles/carto.css';
 import {
   state,

@@ -4,7 +4,10 @@
   "private": true,
   "description": "Utilitaires partagés pour les apps dsfr-data",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./src/debug/installer-journal.ts",
+    "./dist/debug/installer-journal.js"
+  ],
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -36,6 +39,10 @@
     "./ui/*": {
       "types": "./dist/ui/*.d.ts",
       "import": "./dist/ui/*.js"
+    },
+    "./debug/*": {
+      "types": "./dist/debug/*.d.ts",
+      "import": "./dist/debug/*.js"
     }
   },
   "files": [

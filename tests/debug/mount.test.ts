@@ -139,6 +139,8 @@ describe('mountDiagnosticPanel — les trois modes', () => {
         lastEventAt: null,
         quiescent: true,
         delegation: {},
+        reseau: [],
+        console: [],
       };
 
       mounted.setTrace(trace);

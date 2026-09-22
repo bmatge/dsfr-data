@@ -21,6 +21,7 @@ import type { DelegationState, StageState, Trace } from './recorder.js';
 import { topoOrder } from './graph.js';
 import { fieldIssuesByNode, type FieldIssue } from './field-check.js';
 import type { Field } from '../ia/data-tools.js';
+import { masquerUrl, type EntreeConsole, type EntreeReseau } from './journal.js';
 
 export interface FormatOptions {
   /**
@@ -480,7 +481,11 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
 
   const stageCount = ordered.length;
   if (stageCount === 0) {
-    return 'Aucun composant dsfr-data trouvé dans la page — rien à diagnostiquer.';
+    // Sans composant, le journal peut encore dire POURQUOI : la bibliothèque
+    // elle-même n'a pas pu être chargée (404, CORS), ou a levé au démarrage.
+    const journal = [...formatReseau(trace.reseau, opts), ...formatConsole(trace.console, opts)];
+    const vide = 'Aucun composant dsfr-data trouvé dans la page — rien à diagnostiquer.';
+    return journal.length > 0 ? [vide, '', ...journal].join('\n').trimEnd() : vide;
   }
 
   // On recalcule l'ecart DEPUIS l'horodatage absolu plutot que de reprendre
@@ -583,6 +588,9 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     out.push('');
   }
 
+  out.push(...formatReseau(trace.reseau, opts));
+  out.push(...formatConsole(trace.console, opts));
+
   if (opts.redactValues) {
     out.push('(valeurs masquées — seuls les noms de champs et les comptes sont rendus)');
   }
@@ -591,6 +599,149 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trimEnd();
+}
+
+/** Un « mot » d'un texte libre : ce qui peut porter une URL. */
+const JETON_RE = /[^\s"'<>]+/g;
+
+/**
+ * Premier `?` ou `#` à partir de `depart`, ou -1. Un seul parcours qui
+ * s'arrête au premier trouvé : deux `indexOf` iraient chacun jusqu'au bout,
+ * et répétés sur `http://?http://?…`, redeviendraient quadratiques.
+ */
+function premiereRequete(jeton: string, depart: number): number {
+  for (let k = depart; k < jeton.length; k++) {
+    const c = jeton.charCodeAt(k);
+    if (c === 63 /* ? */ || c === 35 /* # */) return k;
+  }
+  return -1;
+}
+
+/**
+ * Coupe la requête et le fragment de la première URL `http(s)://` d'un jeton.
+ *
+ * Écrit sans expression régulière à retour arrière : l'ancienne forme
+ * repartait de chaque `http://` et rescannait jusqu'à la fin du texte, coût
+ * quadratique sur un message hostile (`'http://'.repeat(n)`, alerte CodeQL
+ * `js/polynomial-redos`). Ici, chaque recherche de `?`/`#` s'arrête soit en
+ * rendant le résultat, soit tout de suite (hôte vide) : parcours linéaire.
+ */
+function couperRequete(jeton: string): string {
+  const bas = jeton.toLowerCase();
+  let depart = 0;
+  for (;;) {
+    const i = bas.indexOf('http', depart);
+    if (i < 0) return jeton;
+    const hote = bas.startsWith('https://', i) ? i + 8 : bas.startsWith('http://', i) ? i + 7 : -1;
+    if (hote >= 0) {
+      const coupe = premiereRequete(jeton, hote);
+      // Sans `?` ni `#` après cette URL, aucune URL plus loin n'en a non plus.
+      if (coupe < 0) return jeton;
+      // Hôte vide (`http://?x`) : ce n'est pas une URL, on cherche plus loin.
+      if (coupe > hote) return jeton.slice(0, coupe);
+    }
+    depart = i + 1;
+  }
+}
+
+/**
+ * Texte libre (message de console, erreur réseau) : les jetons des URL qu'il
+ * cite sont masqués, et sous `redactValues` leurs requêtes retirées (#994).
+ */
+function masquerTexte(texte: string, opts: FormatOptions): string {
+  const sansJeton = masquerUrl(texte);
+  return opts.redactValues ? sansJeton.replace(JETON_RE, couperRequete) : sansJeton;
+}
+
+/** Octets en unité lisible — « 850 o », « 1,2 Ko ». */
+function formatOctets(n: number): string {
+  if (n < 1024) return `${n} o`;
+  const ko = n / 1024;
+  if (ko < 1024) return `${ko.toFixed(1).replace('.', ',')} Ko`;
+  return `${(ko / 1024).toFixed(1).replace('.', ',')} Mo`;
+}
+
+/** Échecs listés au plus, puis réussites (les plus récentes). */
+const ECHECS_RENDUS = 10;
+const REUSSITES_RENDUES = 5;
+const MESSAGES_RENDUS = 10;
+
+/** Échec : pas de réponse, ou un statut HTTP d'erreur. Dérivé, jamais stocké. */
+function estEnEchec(e: EntreeReseau): boolean {
+  return e.statut === null || e.statut >= 400;
+}
+
+function ligneReseau(e: EntreeReseau, opts: FormatOptions): string {
+  const url = masquerUrl(e.url, { hoteEtCheminSeulement: opts.redactValues });
+  if (e.statut === null) {
+    // Un blocage CORS et un hôte injoignable donnent le MÊME `TypeError` :
+    // le navigateur ne dit pas lequel, on ne prétend pas le savoir.
+    return (
+      `  ✗ ${e.methode} ${url} — sans réponse : ${masquerTexte(e.erreur ?? 'erreur inconnue', opts)}` +
+      ' (CORS, hôte injoignable ou requête annulée)'
+    );
+  }
+  const details: string[] = [];
+  if (e.dureeMs !== null) details.push(`${formatInt(e.dureeMs)} ms`);
+  if (e.type) details.push(e.type.split(';')[0].trim());
+  if (e.taille !== null) details.push(formatOctets(e.taille));
+  const suite = details.length > 0 ? ` — ${details.join(', ')}` : '';
+  return `  ${estEnEchec(e) ? '✗' : '✓'} ${e.methode} ${e.statut} ${url}${suite}`;
+}
+
+/**
+ * Section « Réseau » (#994) : les requêtes en échec, puis les dernières
+ * réussies, rendues en ordre chronologique. Un échec ancien ne doit pas être
+ * poussé hors du rapport par dix réussites récentes.
+ */
+function formatReseau(reseau: EntreeReseau[] | undefined, opts: FormatOptions): string[] {
+  if (!reseau || reseau.length === 0) return [];
+  const echecs = reseau.filter(estEnEchec);
+  const reussites = reseau.filter((e) => !estEnEchec(e));
+  const retenues = new Set<EntreeReseau>([
+    ...echecs.slice(-ECHECS_RENDUS),
+    ...reussites.slice(-REUSSITES_RENDUES),
+  ]);
+  const titre =
+    `Réseau — ${plural(reseau.length, 'requête')}` +
+    (echecs.length > 0 ? `, ${echecs.length} en échec` : ', aucune en échec') +
+    ' :';
+  const out = [titre];
+  for (const e of reseau) if (retenues.has(e)) out.push(ligneReseau(e, opts));
+  const omises = reseau.length - retenues.size;
+  if (omises > 0) {
+    const s = omises > 1 ? 's' : '';
+    out.push(`  … ${plural(omises, 'requête')} plus ancienne${s} non listée${s}`);
+  }
+  out.push('');
+  return out;
+}
+
+const LIBELLE_SOURCE: Record<EntreeConsole['source'], string> = {
+  console: 'console',
+  onerror: 'erreur non rattrapée',
+  unhandledrejection: 'promesse rejetée',
+};
+
+/** Section « Console » (#994) : les derniers avertissements et erreurs. */
+function formatConsole(entrees: EntreeConsole[] | undefined, opts: FormatOptions): string[] {
+  if (!entrees || entrees.length === 0) return [];
+  const erreurs = entrees.filter((e) => e.niveau === 'error').length;
+  const out = [
+    `Console — ${plural(entrees.length, 'message')}, dont ${plural(erreurs, 'erreur')} :`,
+  ];
+  for (const e of entrees.slice(-MESSAGES_RENDUS)) {
+    const signe = e.niveau === 'error' ? '✗' : '⚠';
+    const message = borner(masquerTexte(e.message.replace(/\s+/g, ' '), opts), 200);
+    out.push(`  ${signe} ${LIBELLE_SOURCE[e.source] ?? e.source} (${e.niveau}) : ${message}`);
+  }
+  const omis = entrees.length - MESSAGES_RENDUS;
+  if (omis > 0) {
+    const s = omis > 1 ? 's' : '';
+    out.push(`  … ${plural(omis, 'message')} plus ancien${s} non listé${s}`);
+  }
+  out.push('');
+  return out;
 }
 
 /** Résumé d'une ligne pour le rail replié du volet. */
