@@ -222,6 +222,12 @@ const TYPES_SENSIBLES_NO_INTERACTIVE = ['geoshape', 'circle'];
 /** Champs geographiques que la couche devine seule, sans `geo-field`. */
 const CHAMPS_GEO_DEVINES = ['geo_point_2d', 'geopoint', 'geo_point'];
 
+/**
+ * Colonnes geometriques qu'une couche `geoshape` devine seule, sans
+ * `geo-field` (#1053) — `CHAMPS_FORME_DEVINES` de dsfr-data-map-layer.ts.
+ */
+const CHAMPS_FORME_DEVINES = ['geo_shape', 'geometry', 'geom'];
+
 type Situer = (message: string, severity: LintSeverity, regle: string) => LintFinding;
 
 /** Un attribut present ET renseigne. */
@@ -282,16 +288,17 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
       );
     }
 
-    // geoshape : `_addGeoshape` (dsfr-data-map-layer.ts l.1173) ne lit QUE
-    // `geo-field`, sans autre voie (ni lat/lon, ni jointure) : erreur certaine.
-    // Autres types : `_extractCoords` (l.1423) enchaine lat/lon, puis
-    // geo-field, puis devine geo_point_2d / geopoint / geo_point (l.1466) —
-    // d'ou un simple avertissement.
+    // geoshape : sans `geo-field`, `_autoDetectShapeField` (dsfr-data-map-layer.ts)
+    // cherche le GeoJSON dans geo_shape, geometry puis geom (#1053) — et le
+    // dit en console s'il ne trouve rien. Pas une erreur certaine : un simple
+    // avertissement, qui explicite la colonne.
+    // Autres types : `_extractCoords` enchaine lat/lon, puis geo-field, puis
+    // devine geo_point_2d / geopoint / geo_point — avertissement aussi.
     if (type === 'geoshape' && !geo) {
       out.push(
         situer(
-          'Couche "geoshape" sans "geo-field" : aucune geometrie n\'est lue, tous les objets sont ignores. Indiquer le champ qui porte le GeoJSON.',
-          'erreur',
+          `Couche "geoshape" sans "geo-field" : la couche cherche la geometrie dans ${CHAMPS_FORME_DEVINES.join(', ')}, dans cet ordre. Si les donnees la portent sous un autre nom, aucune forme n'est dessinee ; indiquer le champ qui porte le GeoJSON rend la page explicite.`,
+          'avertissement',
           'carte/geoshape-sans-geo-field'
         )
       );
