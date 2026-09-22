@@ -99,7 +99,7 @@ const CHECKS: Check[] = [
     id: 'ods-plafond-sans-compteur',
     mode: 'deterministic',
     origin:
-      '#881, AM-002 — le même plafond, mais SANS KPI `count` en aval : c’est le KPI qui avertissait (« compte 120 lignes reçues, mais l’amont en détient 137 »), pas la source. Une page qui ne compte pas — une somme, un graphique — charge un tronçon sans qu’un mot ne soit dit. L’invariant `not-truncated` lit les lignes émises par la source et les silences de la page.',
+      '#881, AM-002 — le même plafond, mais SANS KPI `count` en aval : c’est le KPI qui avertissait (« compte 120 lignes reçues, mais l’amont en détient 137 »), pas la source. Une page qui ne compte pas — une somme, un graphique — chargeait un tronçon sans qu’un mot lisible ne soit dit : l’adaptateur avertissait bien en console, mais sans nommer le composant (« [dsfr-data] opendatasoft: pagination incomplete »). Depuis #1032, l’avertissement cite « l’attribut max-records de dsfr-data-source », comme Tabular (#1027). L’invariant `not-truncated` lit les lignes émises par la source et les silences de la page.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
     markup: `
   <dsfr-data-source id="s-cap2" ${SOURCE_ODS} max-records="120"></dsfr-data-source>
@@ -111,12 +111,9 @@ const CHECKS: Check[] = [
         key: 'code_dept',
         columns: ['population'],
         pipeline: [{ op: 'limit', n: 120 }],
-        invariants: [
-          {
-            kind: 'not-truncated',
-            skip: 'DÉFAUT (AM-002, #881) — `max-records="120"` sur 137 lignes, sans KPI `count` : 120 lignes émises par la source, et aucun diagnostic (ni marqueur, ni console). Seul un KPI `count` avertit ; une somme ou un graphique charge un tronçon en silence. Attendu : un mot de la SOURCE quand `max-records` borne un jeu qui le dépasse. Issue à ouvrir par la supervision.',
-          },
-        ],
+        // 120 lignes émises sur 137 : l'invariant tient parce que la SOURCE
+        // le dit (#1032), sans KPI `count` pour avertir.
+        invariants: [{ kind: 'not-truncated' }],
       },
       {
         kind: 'kpi',
@@ -124,6 +121,13 @@ const CHECKS: Check[] = [
         agg: 'sum',
         field: 'population',
         pipeline: [{ op: 'limit', n: 120 }],
+      },
+      // Le mot de la SOURCE, qui nomme le composant portant le réglage.
+      {
+        kind: 'diagnostic',
+        id: 's-cap2',
+        expect: 'warning',
+        contains: "l'attribut max-records de dsfr-data-source",
       },
     ],
   },
@@ -328,7 +332,7 @@ const CHECKS: Check[] = [
         columns: ['population'],
         pipeline: [{ op: 'limit', n: 300 }],
         // 300 lignes émises sur 411 brutes : l'invariant tient parce que la
-        // SOURCE le dit (le cas que `ods-plafond-sans-compteur` laisse en skip).
+        // SOURCE le dit (comme `ods-plafond-sans-compteur` depuis #1032).
         invariants: [{ kind: 'not-truncated' }],
       },
       // Le mot de la SOURCE, pas celui du KPI `count` (qui avertit aussi) :

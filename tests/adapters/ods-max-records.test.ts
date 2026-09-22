@@ -60,6 +60,10 @@ describe('#233 — AC : max-records non défini → comportement actuel (cap 100
     expect(result.data).toHaveLength(1000);
     expect(mockFetch).toHaveBeenCalledTimes(10);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pagination incomplete'));
+    // #1032 : le diagnostic nomme le composant qui porte le reglage
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("l'attribut max-records de dsfr-data-source")
+    );
     warnSpy.mockRestore();
   });
 });

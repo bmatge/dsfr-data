@@ -405,12 +405,12 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     if (incomplete) {
       console.warn(
         `[dsfr-data] opendatasoft: pagination incomplete - ${allResults.length}/${totalCount} resultats recuperes ` +
-          `(plafond max-records: ${maxRecords} — relevable via l'attribut max-records, #233)`
+          `(plafond max-records: ${maxRecords} — relevable via l'attribut max-records de dsfr-data-source, #233)`
       );
     } else if (groupedAtCap) {
       console.warn(
         `[dsfr-data] opendatasoft: plafond max-records (${maxRecords}) atteint sur une requete group-by, ` +
-          `des groupes peuvent manquer (total inconnu — relevable via l'attribut max-records, #233)`
+          `des groupes peuvent manquer (total inconnu — relevable via l'attribut max-records de dsfr-data-source, #233)`
       );
     }
 
@@ -821,7 +821,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     if (truncated) {
       console.warn(
         `[dsfr-data] opendatasoft: export JSON tronque a ${cap} lignes pour "${params.datasetId}" ` +
-          `(total inconnu — plafond relevable via l'attribut max-records, #233)`
+          `(total inconnu — plafond relevable via l'attribut max-records de dsfr-data-source, #233)`
       );
     }
 
