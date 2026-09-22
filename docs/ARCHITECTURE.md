@@ -300,6 +300,27 @@ Deux garde-fous complementaires (voir §12) :
 - `tests/apps/builder-ia/skills-reference.test.ts` controle la chaine **maillon par maillon** : le manifeste decrit exactement les attributs qui existent au runtime (introspection Lit `elementProperties`), le module genere commite est le rendu exact du manifeste, et chaque skill embarque sa section generee tout en gardant un guide. **Un attribut ajoute sans `npm run build:skills` fait echouer le test.**
 - `tests/apps/builder-ia/skills.test.ts` ne garde plus que les alignements portant sur le texte redige a la main (types de graphiques, operateurs, agregations, palettes).
 
+### Repères d'interface : registre généré par app (#997, ADR-143)
+
+Même doctrine que la référence des skills et les tableaux de specs (#757), appliquée à l'**interface** : chaque contrôle et chaque zone de réglage porte un repère **littéral** dans son balisage, et l'assistant contextuel (epic #992) ne désigne jamais un contrôle autrement que par ce repère.
+
+```
+apps/<app>/index.html + gabarits TS    data-zone="carto.elements.clic"
+        |                              data-repere="carto.elements.clic.popup-mode"
+        |                              data-attribut="dsfr-data-map-popup:mode"   (vérifié dans le manifeste)
+        |                              data-prerequis="couche-active"            (règle de prerequis.ts)
+        |  npm run build:reperes   (scripts/build-reperes.ts, extraction pure : scripts/lib/reperes-extract.ts)
+        v
+apps/<app>/src/assistant/reperes.generated.ts   (commité, NE PAS EDITER)
+        REPERES (trié par id) · RepereId (enum fermée, pour montrer() #1003) · REGISTRE
+```
+
+- **Contrat** : `packages/shared/src/ui/reperes-types.ts` (`Repere`, `RegistreReperes`, `ReperesConfig`, `Prerequis`), types seuls, exportés par `@dsfr-data/shared` et jamais par `/lib` (#319).
+- **Grammaire** : une zone a au moins deux segments (`carto.elements`), un contrôle au moins trois (`carto.elements.clic.popup-mode`). La zone d'un repère est **son identifiant privé du dernier segment**, et elle doit exister comme `data-zone` : un gabarit rendu par `innerHTML` n'a pas d'ancêtre lexical, le préfixe porte donc le chemin.
+- **Config par app** : `apps/<app>/src/assistant/reperes.config.ts` — sources balisées, zones de réglage (id `data-zone` ou `#id`), exceptions avec leur raison, helpers de gabarit, module des prérequis, fichiers de constats, synonymes (recopiés dans le registre pour la correspondance sans modèle, #1012). Une app est active dès que ce fichier existe (la carto seulement à #997).
+- **Lecture sans dépendance** : un lecteur de gabarits TS (les gabarits imbriqués dans `${…}` sont inlinés dans leur parent, toute autre expression devient un marqueur « dynamique ») et un lecteur de balises tolérant. `data-repere="${…}"` est refusé, sauf dans le corps d'un **helper déclaré** (`fieldInput`) : on lit alors ses sites d'appel, dont `repere`, `label`, `attribut` et `prerequis` doivent être littéraux.
+- **`npm run check:reperes`** (bloquant, job `quality`) échoue si : (1) un `input`/`select`/`textarea`/`button` d'une zone de réglage n'a pas de repère, (2) un `data-attribut` n'existe pas dans le manifeste, (3) un prérequis cité n'a pas de règle dans `prerequis.ts` (ou sa règle cite un `repereQuiLeve` absent), (4) le registre commité n'est pas à jour, (5) un repère cité par un constat n'existe pas. `tests/reperes/registry.test.ts` vérifie en plus que le module commité est le rendu exact de l'extraction.
+
 ---
 
 ## 1. Vue d'ensemble
@@ -1192,6 +1213,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 - **`dsfr-data-repeat` : Lit ne rend pas dans `this`** (#890) — `dsfr-data-repeat.ts`, `createRenderRoot()`. Le composant est en light DOM comme les autres, mais sa racine de rendu Lit est un `<div class="dsfr-data-repeat__status">` enfant, pas `this` : une `ChildPart` Lit s'etend de son marqueur a la **fin du parent**, et tout noeud rattache apres (les lignes, gerees a la main par `_renderRows`) serait emporte au re-rendu suivant — vu en test : `empty` rendu puis `nothing`, lignes disparues. Les lignes vivent dans un frere (`__rows`), hors de portee de Lit. **Second couplage** : le clone d'un `<template>` est **rehausse des `importNode`** (constructeur execute, `id` encore egal a `q-{{code}}`) — c'est l'init a `connectedCallback` des deux mixins (#281) qui garantit qu'aucun abonnement ne part sous un placeholder ; un composant qui lirait `source` ou `id` dans son constructeur verrait le placeholder. Verifie en Chromium par `e2e/repeat.spec.ts` ; happy-dom connecte avant de rattacher les enfants, d'ou le `MutationObserver` sur `childList` qui attend le `<template>` (aussi le cas reel du bundle dans `<head>`, #894).
 - **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission d'un ancien domaine (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
+- **Un repère est un littéral, et sa complétude n'est que lexicale** (#997) — `scripts/lib/reperes-lexer.ts`, `scripts/lib/reperes-extract.ts`. `check:reperes` lit le source, il ne rend rien : (a) un contrôle produit par une **fonction non déclarée comme helper** (`popupFieldsHtml(layer)` dans la carto) est invisible pour la règle 1 — soit la fonction est déclarée dans `helpers` de `reperes.config.ts`, soit ses contrôles portent leur repère en dur ; la preuve de complétude par rendu est l'affaire de #1002. (b) Renommer un helper déclaré (`fieldInput`) sans mettre à jour la config fait échouer le check (« aucun data-repere="${…}" dans son corps »), c'est voulu. (c) `prerequis.ts` est lu **statiquement** : les clés de `PREREQUIS` et leur `repereQuiLeve` doivent rester des littéraux, sans calcul ni spread. (d) Un `data-attribut` casse la CI quand l'attribut de la lib est renommé : relancer `npm run build:skills` puis `npm run build:reperes`, dans cet ordre (le registre lit le manifeste commité).
 
 ---
 
