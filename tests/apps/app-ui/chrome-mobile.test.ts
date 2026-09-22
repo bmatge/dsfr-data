@@ -228,6 +228,10 @@ describe('le panneau Assistant cohabite avec le mobilier bas (#1011)', () => {
     const racine = corps(reglesRacine(css()), '.assistant-panneau');
     expect(racine).not.toContain('--app-header-h');
     expect(conditionEnglobante(css(), '.assistant-panneau{top:var(--app-header-h')).toBe(PINNED);
+    // Et sous ce seuil, l'en-tete est epingle (T2) : le volet, qui commence a
+    // sa hauteur, ne le recouvre jamais — son menu utilisateur reste atteignable.
+    const enTete = feuille(injectAppHeaderStyles, 'app-header-active-style');
+    expect(conditionEnglobante(enTete, 'app-header{position:sticky')).toBe(PINNED);
   });
 
   it('en plein ecran (< 35.98em) la feuille couvre la largeur, safe-area en haut', () => {
