@@ -19,7 +19,18 @@
  * les budgets et `humanizeStep`.
  */
 
-import { countWhere, distinctValues, inspectData, runAgentLoop } from '@dsfr-data/shared';
+import {
+  DIAGNOSTIC_TOOLS,
+  DIAGNOSTIC_TOOL_NAMES,
+  REPEATABLE_TOOLS,
+  countWhere,
+  distinctValues,
+  humanizeDiagnosticStep,
+  inspectData,
+  runAgentLoop,
+  runDiagnosticTool,
+  type DiagnosticContext,
+} from '@dsfr-data/shared';
 import type { Row } from '@dsfr-data/shared';
 import {
   DOCUMENT_TOOLS,
@@ -34,14 +45,6 @@ import {
   type DocumentContext,
 } from '../document.js';
 import { loadSkills, relevantSkillsText, skillText } from './skills-client.js';
-import {
-  DIAGNOSTIC_TOOLS,
-  DIAGNOSTIC_TOOL_NAMES,
-  REPEATABLE_TOOLS,
-  humanizeDiagnosticStep,
-  runDiagnosticTool,
-  type DiagnosticContext,
-} from './diagnostic-tools.js';
 import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
 import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
