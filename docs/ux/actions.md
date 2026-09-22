@@ -95,6 +95,7 @@ sont les seules admises en plus du cœur.
 | Favoris | **Révoquer le lien** | secondaire | supprimer un lien de partage |
 | Admin | **Révoquer les sessions** | secondaire | déconnecter un utilisateur |
 | Suivi | *(aucune)* | — | Exporter ▾ + Actualiser suffisent |
+| Toutes (volet Diagnostic) | **Me montrer** | tertiaire sans contour, `fr-icon-eye-line` | désigner le contrôle qui corrige un constat (#1001) ; désactivé quand le constat ne cite aucun repère. Le volet émet `constat-montrer`, l'app résout (`montrer()`) |
 
 Toute nouvelle extension s'ajoute à ce tableau **dans la PR qui l'introduit**.
 

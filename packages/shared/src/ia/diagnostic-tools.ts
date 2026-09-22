@@ -1,5 +1,10 @@
 /**
- * Outils de diagnostic de la boucle agentique (#607).
+ * Outils de diagnostic de la boucle agentique (#607, partagés depuis #1010).
+ *
+ * Nés dans le studio, ils vivent ici pour servir tous les assistants du socle
+ * IA commun (ADR-143) : le studio, l'assistant contextuel (#1011, #1014), le
+ * builder IA (#1015). App-side (frontière lib/app #319) : exportés par
+ * `index.ts`, JAMAIS par `lib.ts`.
  *
  * L'assistant compose un document ; il doit aussi pouvoir REGARDER ce que
  * ce document produit une fois rendu — sans quoi il corrige à l'aveugle.
@@ -23,14 +28,12 @@
  * entre le contexte de données et `inspect_data`.
  */
 
-import {
-  fieldMatrix,
-  formatTrace,
-  topoOrder,
-  type FrameAttachment,
-  type StageState,
-  type Trace,
-} from '@dsfr-data/shared';
+import { fieldMatrix } from '../debug/summarize.js';
+import { formatTrace, plural } from '../debug/format.js';
+import { topoOrder } from '../debug/graph.js';
+import { evaluerConstats, type Constat } from '../debug/constats.js';
+import type { FrameAttachment } from '../debug/frame.js';
+import type { StageState, Trace } from '../debug/recorder.js';
 
 /** Ce que la boucle doit savoir faire pour servir ces outils. */
 export interface DiagnosticContext {
@@ -46,6 +49,16 @@ export interface DiagnosticContext {
    * suffisent à diagnostiquer une chaîne cassée.
    */
   redactValues: () => boolean;
+  /**
+   * Constats de l'app sur l'aperçu courant (#1010), ou null sans aperçu
+   * observable.
+   *
+   * L'app compose ses règles (`[...REGLES_GENERIQUES, ...REGLES_CARTO]`) et son
+   * contexte (`app`, `etat`, `origine`) : c'est la MÊME liste que son volet
+   * Diagnostic, pour que l'assistant et l'usager lisent la même chose.
+   * Absente, `lister_constats` évalue les règles génériques sur la trace.
+   */
+  constats?: () => readonly Constat[] | null;
 }
 
 /**
@@ -90,12 +103,22 @@ export const DIAGNOSTIC_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'lister_constats',
+      description:
+        "Les pannes et alertes relevées sur l'aperçu, classées par gravité : pour chacune, le constat, sa preuve et les repères de l'interface qui la corrigent. Le plus court chemin vers la cause ; compléter avec trace_pipeline ou inspect_stage.",
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
 ] as const;
 
 export const DIAGNOSTIC_TOOL_NAMES: ReadonlySet<string> = new Set([
   'run_and_trace',
   'trace_pipeline',
   'inspect_stage',
+  'lister_constats',
 ]);
 
 /**
@@ -116,6 +139,7 @@ export const REPEATABLE_TOOLS: ReadonlySet<string> = new Set([
   'run_and_trace',
   'trace_pipeline',
   'inspect_stage',
+  'lister_constats',
 ]);
 
 const NO_TRACE =
@@ -238,6 +262,83 @@ Champs présents en entrée mais absents en sortie — cause fréquente d'un aff
 ${disparus.map((r) => `  ${r.field} : ${r.byStage.map((t) => t ?? '—').join(' → ')}`).join('\n')}`;
 }
 
+// ---------------------------------------------------------------------------
+// lister_constats (#1010)
+// ---------------------------------------------------------------------------
+
+/** Remplace la preuve d'un constat masqué sous `redactValues`. */
+export const PREUVE_MASQUEE = '(masquée : valeurs de données)';
+
+/** Options de rendu des constats. */
+export interface FormaterConstatsOptions {
+  /**
+   * Masque la preuve de chaque constat (réglage du volet Diagnostic) : elle
+   * peut citer un message d'erreur, une URL ou une valeur d'échantillon.
+   * Titre, cause et geste restent : ce sont des textes de règles, qui ne
+   * citent que des métadonnées (noms de champs, ids d'étapes), comme
+   * `inspectData` sous `redactValues`.
+   */
+  redactValues?: boolean;
+}
+
+/**
+ * Rend des constats en texte français, lisible par le modèle comme par
+ * l'usager. Forme (contrat avec #1014) :
+ *
+ * ```
+ * 2 constats : 1 erreur, 1 avertissement.
+ *
+ * 1. reseau/http-erreur@src — [erreur] src : réponse HTTP 404
+ *    Cause : …
+ *    À faire : …            (omise sans geste)
+ *    Preuve : …             (« (masquée : valeurs de données) » sous redactValues)
+ *    Repères : carto.x.y    (« aucun » si vide)
+ * ```
+ *
+ * Les ids de repères sont rendus tels quels : c'est ce que l'assistant passe
+ * à `montrer(id)` (#1014). Aucun nombre n'est calculé ici hors des comptes
+ * de constats : les chiffres de la preuve viennent de la trace (ADR-122).
+ */
+export function formaterConstats(
+  constats: readonly Constat[],
+  options: FormaterConstatsOptions = {}
+): string {
+  if (constats.length === 0) {
+    return 'Aucun constat : le pipeline ne signale ni erreur ni avertissement.';
+  }
+  const compte = (g: Constat['gravite']) => constats.filter((c) => c.gravite === g).length;
+  const erreurs = compte('erreur');
+  const avertissements = compte('avertissement');
+  const infos = compte('info');
+  const repartition = [
+    erreurs > 0 ? plural(erreurs, 'erreur') : '',
+    avertissements > 0 ? plural(avertissements, 'avertissement') : '',
+    infos > 0 ? `${infos} info` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const lignes: string[] = [`${plural(constats.length, 'constat')} : ${repartition}.`];
+
+  constats.forEach((c, i) => {
+    lignes.push('');
+    // L'id en tête : c'est la clé que l'assistant relie aux repères (#1014).
+    lignes.push(`${i + 1}. ${c.id} — [${c.gravite}] ${c.titre}`);
+    lignes.push(`   Cause : ${c.explication}`);
+    if (c.action) lignes.push(`   À faire : ${c.action}`);
+    lignes.push(`   Preuve : ${options.redactValues ? PREUVE_MASQUEE : c.preuve}`);
+    // Toujours rendue : « aucun » dit au modèle qu'il n'y a rien à montrer.
+    lignes.push(`   Repères : ${c.reperes.length > 0 ? c.reperes.join(', ') : 'aucun'}`);
+  });
+  return lignes.join('\n');
+}
+
+/** Les constats de l'app, ou à défaut ceux des règles génériques sur la trace. */
+function lireConstats(ctx: DiagnosticContext): readonly Constat[] | null {
+  if (ctx.constats) return ctx.constats();
+  const trace = ctx.attachment()?.snapshot();
+  return trace ? evaluerConstats(trace, { app: '*' }) : null;
+}
+
 /**
  * Exécute un outil de diagnostic. Rend toujours du texte, jamais une erreur :
  * un diagnostic indisponible est lui-même une information exploitable.
@@ -275,6 +376,11 @@ export async function runDiagnosticTool(
     return describeStage(trace, typeof args.node_id === 'string' ? args.node_id : '', redact);
   }
 
+  if (name === 'lister_constats') {
+    const constats = lireConstats(ctx);
+    return constats ? formaterConstats(constats, { redactValues: redact }) : NO_TRACE;
+  }
+
   return `Outil de diagnostic inconnu : ${name}`;
 }
 
@@ -287,6 +393,8 @@ export function humanizeDiagnosticStep(name: string, args: Record<string, unknow
       return 'J’examine le flux du document…';
     case 'inspect_stage':
       return `J’inspecte l’étape « ${String(args.node_id ?? '')} »…`;
+    case 'lister_constats':
+      return 'Je relis les constats…';
     default:
       return null;
   }

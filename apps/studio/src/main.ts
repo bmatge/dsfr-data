@@ -14,6 +14,7 @@ import {
   startTour,
   startTourIfFirstVisit,
   STUDIO_TOUR,
+  evaluerConstats,
   mountDiagnosticPanel,
   resolveTransport,
   type MountedDiagnostic,
@@ -93,6 +94,14 @@ async function sendMessage(): Promise<void> {
             // fois ce qui sort du navigateur, et ce que l'assistant recoit
             // est exactement ce qu'il voit.
             redactValues: () => diagnosticMonte?.panel.redactValues ?? false,
+            // Les constats de la MEME trace, par les regles generiques : le
+            // studio n'a pas de regles propres (#1010).
+            constats: () => {
+              const trace = diagnosticMonte?.attachment?.snapshot();
+              return trace
+                ? evaluerConstats(trace, { app: 'studio', origine: window.location.origin })
+                : null;
+            },
           }
         : undefined,
       // Le code COPIÉ par l'utilisateur, relu par l'assistant avant d'en

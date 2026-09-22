@@ -31,6 +31,7 @@ import {
   LONG,
   RESSOURCE_TABULAR_AFFICHAGES,
   SERIE,
+  ZONES,
   urlAffichage,
 } from './fixtures-affichages.js';
 
@@ -67,7 +68,7 @@ const CLASSES_KPI = {
 };
 
 /** Une source qui sert un jeu du lot, en tableau nu. */
-const source = (id: string, jeu: 'communes' | 'serie' | 'libelles' | 'long'): string =>
+const source = (id: string, jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'zones'): string =>
   `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 const CHECKS: Check[] = [
@@ -1186,7 +1187,7 @@ const CHECKS: Check[] = [
   </dsfr-data-source>
 
   <dsfr-data-map id="carte-echelle" height="300px" tiles="osm">
-    <dsfr-data-map-layer id="couche-zones" source="layer-2-zones" type="geoshape"
+    <dsfr-data-map-layer id="couche-echelle" source="layer-2-zones" type="geoshape"
       geo-field="geometry" tooltip-field="nom" fill-field="code_dept__count"
       max-zoom="7" max-items="1000"></dsfr-data-map-layer>
     <dsfr-data-map-layer source="layer-1" type="marker" lat-field="lat" lon-field="lon"
@@ -1233,7 +1234,7 @@ const CHECKS: Check[] = [
         // Sans `classes` ni `method` : le défaut de la couche, neuf classes par
         // quantiles — ce que la Carto émet.
         kind: 'legend',
-        id: 'couche-zones',
+        id: 'couche-echelle',
         field: 'code_dept__count',
         classes: 9,
         method: 'quantile',
@@ -1248,6 +1249,40 @@ const CHECKS: Check[] = [
       },
       // Le comptage est bien calculé par l'API, pas sur les lignes reçues.
       urlsDe('composition-comptage-delegue', 'tabular', 'code_dept__count', 'some'),
+    ],
+  },
+
+  // ------------------------------------- Carte : formes sans geo-field ----
+  {
+    id: 'carte-geoshape-sans-geo-field-1053',
+    mode: 'deterministic',
+    origin:
+      '#1053 — une couche `geoshape` SANS `geo-field`, comme les exemples de la documentation : la colonne géométrique est détectée seule. `_addGeoshape` ne lisait que `geo-field` : aucune forme tracée, pour dix lignes reçues — et la carte restait muette. Le jeu porte `geo_point_2d` ET `geo_shape`, comme un jeu Opendatasoft : c’est la FORME qui doit être tracée, pas le point que devine le calcul d’emprise.',
+    feed: { kind: 'fixture', datasets: { main: ZONES } },
+    markup: `
+  ${source('s-zones', 'zones')}
+  <dsfr-data-map id="carte-zones" center="46,2.5" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-zones" source="s-zones" type="geoshape"
+      shape-class="verif-zone"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Le NOMBRE de formes tracées : un tracé SVG n'a pas de texte, la
+        // colonne `sans_texte` n'existe pas et rend donc « » pour chaque ligne
+        // recalculée. Ce qui est comparé, c'est le compte — un tracé par zone.
+        kind: 'texts',
+        id: 'carte-zones',
+        selector: 'path.verif-zone',
+        column: 'sans_texte',
+        pipeline: [],
+      },
+      // Et la couche n'a écarté aucune ligne.
+      {
+        kind: 'diagnostic',
+        id: 'couche-zones',
+        expect: 'silence',
+        contains: 'géométrie',
+      },
     ],
   },
 

@@ -1,4 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Monter une source grist lance une vraie requete vers grist.example.org, en
+// differe : son echec (ENOTFOUND) etait journalise APRES la fin du fichier et
+// faisait sortir `npm run test:run` en erreur, tous tests verts (#1047,
+// EnvironmentTeardownError « onUserConsoleLog was pending »). Ces tests ne
+// lisent que des parametres : pour tout le fichier, la requete reste en
+// attente, sans reseau.
+vi.stubGlobal(
+  'fetch',
+  vi.fn(() => new Promise<Response>(() => {}))
+);
 import { DsfrDataSource } from '@/components/dsfr-data-source.js';
 import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
 import { DsfrDataUnpivot } from '@/components/dsfr-data-unpivot.js';
