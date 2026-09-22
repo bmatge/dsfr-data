@@ -65,6 +65,7 @@ services:
       - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
       - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
       - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-openweight-large}
+      - IA_MAX_RPM=${IA_MAX_RPM:-10}  # plafond global /ia-proxy-default (#999)
       # Proxy HTTP sortant runtime (ia-default-server + mcp-server).
       - HTTP_PROXY=${HTTP_PROXY:-}
       - HTTPS_PROXY=${HTTPS_PROXY:-}
