@@ -189,6 +189,79 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'tabular-elus-top-agregat-vivant',
+    mode: 'live',
+    origin:
+      'data.gouv / Répertoire national des élus — #1045 : un regroupement trié sur son AGRÉGAT (« top 2 » des départements par nombre d’élus). L’API ne trie pas une colonne d’agrégat : `NB_VP__sum__sort=desc` avec `EPCI__groupby&NB_VP__sum` → 400, 42703 « column …NB_VP__sum does not exist », mesuré le 2026-09-23, sans en-tête CORS. Le regroupement part au serveur, le tri non : l’adaptateur trie les groupes complets, en chargement complet comme en pagination serveur. L’oracle relève les lignes brutes, regroupe et trie seul.',
+    feed: {
+      kind: 'raw',
+      source: { url: ELUS_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-elus-top" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03"></dsfr-data-source>
+  <dsfr-data-query id="q-elus-top" source="s-elus-top" group-by="Libellé du département"
+    aggregate="Code sexe:count" order-by="Code sexe__count:desc" limit="2"></dsfr-data-query>
+  <dsfr-data-list id="l-elus-top" source="q-elus-top"
+    columns="Libellé du département:Département, Code sexe__count:Élus"></dsfr-data-list>
+  <dsfr-data-source id="s-elus-page" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03" server-side page-size="2"></dsfr-data-source>
+  <dsfr-data-query id="q-elus-page" source="s-elus-page" group-by="Libellé du département"
+    aggregate="Code sexe:count" order-by="Code sexe__count:desc"></dsfr-data-query>
+  <dsfr-data-list id="l-elus-page" source="q-elus-page" server-sort
+    columns="Libellé du département:Département, Code sexe__count:Élus"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-elus-top',
+        key: 'Libellé du département',
+        columns: ['Code sexe__count'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'Libellé du département',
+            columns: { 'Code sexe__count': { agg: 'count', field: 'Code sexe' } },
+          },
+          { op: 'order-by', column: 'Code sexe__count', dir: 'desc' },
+          { op: 'limit', n: 2 },
+        ],
+      },
+      {
+        kind: 'list',
+        id: 'l-elus-page',
+        columns: [
+          { column: 'Libellé du département' },
+          { column: 'Code sexe__count', numeric: true },
+        ],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'Libellé du département',
+            columns: { 'Code sexe__count': { agg: 'count', field: 'Code sexe' } },
+          },
+          { op: 'order-by', column: 'Code sexe__count', dir: 'desc' },
+          { op: 'page', size: 2, number: 1 },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'elus-top-groupby-delegue',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: 'Libellé du département__groupby',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'elus-top-tri-non-delegue',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        contains: '__sort',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
     id: 'insee-melodi-observations-vivant',
     mode: 'live',
     origin:

@@ -169,6 +169,16 @@ Assistant IA) emettent `select` depuis les champs configures, seulement quand ch
 colonne detectee — sinon rien, toutes les colonnes. Faux serveur (`repondreTabular`) : honore
 `columns`, et le refuse a cote d'un agregateur ou sur une colonne inconnue, comme le vrai.
 
+**Tabular : tri sur un agregat (#1045).** L'API ne trie que des colonnes de la table :
+`champ__fonction__sort` rend 400 (42703), une colonne brute hors regroupement 42803 ; seule la colonne
+de regroupement se trie. `_sortPlan` (unique source des `__sort`, pour `buildUrl` et
+`buildServerSideUrl`) n'emet que ce tri-la ; un tri qui vise autre chose alors que le regroupement est
+delegue est fait PAR L'ADAPTATEUR, sur les groupes COMPLETS : `fetchAll` relit sans `limit`, trie, puis
+coupe ; `fetchPage` lit tous les groupes (memorises 60 s, une entree), trie et decoupe la page — le
+total devient connu. Le comparateur est celui de la query (`utils/sort.ts`). Cote query,
+`_delegateOrderBy` ne delegue plus un tri quand le regroupement ou l'agregat reste client (le champ
+trie n'existe pas dans les lignes brutes). Faux serveur : refuse ces tris comme l'API.
+
 **`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
 inchange). En `export`, `fetchAll` appelle **une fois** `{base}/api/explore/v2.1/catalog/datasets/{id}/exports/json`
 avec les memes clauses ODSQL que `/records` (meme `_applyOdsqlClauses` : select derive de l'agregat,

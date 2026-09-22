@@ -277,6 +277,38 @@ describe('Tabular', () => {
     expect(reponse.data[0].region).toBe("Val-d'Oise");
   });
 
+  it('refuse un tri sur une colonne d’agrégat, comme l’API (#1045, 42703)', () => {
+    const avecFlag = repondreTabular(
+      url(
+        TABULAR,
+        'page=1&page_size=3&code_reg__groupby&population__sum&population__sum__sort=desc'
+      )
+    );
+    expect(avecFlag.data).toEqual([]);
+    expect(avecFlag.errors?.[0].detail).toContain('population__sum does not exist');
+    // Sans le flag d'agregat : meme refus
+    const sansFlag = repondreTabular(
+      url(TABULAR, 'page=1&page_size=3&code_reg__groupby&population__sum__sort=desc')
+    );
+    expect(sansFlag.errors?.[0].detail).toContain('does not exist');
+  });
+
+  it('refuse un tri sur une colonne brute hors regroupement (#1045, 42803)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=3&code_reg__groupby&population__sum&population__sort=desc')
+    );
+    expect(reponse.errors?.[0].detail).toContain('GROUP BY');
+  });
+
+  it('accepte un tri sur la colonne de regroupement (#1045)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=50&code_reg__groupby&population__sum&code_reg__sort=desc')
+    );
+    expect(reponse.errors).toBeUndefined();
+    const codes = reponse.data.map((l) => String(l.code_reg));
+    expect(codes).toEqual([...codes].sort().reverse());
+  });
+
   it('filtre via colonne__operateur', () => {
     const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&code_reg__exact=11'));
     expect(reponse.meta.total).toBe(JEU.filter((l) => l.code_reg === '11').length);

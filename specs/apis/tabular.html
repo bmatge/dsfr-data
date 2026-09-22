@@ -78,7 +78,8 @@
                 <tr>
                   <td>Tri serveur</td>
                   <td class="capability-yes">Oui</td>
-                  <td>Paramètre <code>column__sort=asc|desc</code></td>
+                  <td>Paramètre <code>column__sort=asc|desc</code>. Dans une requête regroupée, seule la
+                    colonne de regroupement se trie : un tri sur un agrégat est fait par l'adaptateur (#1045)</td>
                 </tr>
                 <tr>
                   <td>Agrégation serveur</td>
@@ -231,6 +232,27 @@
             (<code>Libellé du département__groupby&amp;Code sexe__count</code>, #985). Seuls les
             séparateurs de la grammaire colon — <code>,</code>, <code>:</code> et <code>|</code> — rendent
             un nom non délégable : le calcul se fait alors dans le navigateur, sur toutes les lignes.
+          </p>
+        </section>
+
+        <!-- Tri sur un agrégat -->
+        <section class="fr-mt-4w">
+          <h2>Tri sur un agrégat</h2>
+          <p>
+            L'API ne trie que des colonnes de la table. Dans une requête regroupée, elle accepte un tri
+            sur la colonne de regroupement (<code>EPCI__groupby&amp;NB_VP__sum&amp;EPCI__sort=desc</code>
+            → 200) et refuse un tri sur l'agrégat (<code>NB_VP__sum__sort=desc</code> → 400, 42703
+            « column … does not exist », sans en-tête CORS) ou sur une autre colonne brute (42803),
+            mesuré le 2026-09-23 (#1045).
+          </p>
+          <p>
+            L'adaptateur n'envoie donc au serveur que le tri sur la colonne de regroupement. Pour un tri
+            sur un agrégat (<code>order-by="population__sum:desc"</code>, le cas d'un « top 10 »), il lit
+            <strong>tous</strong> les groupes, les trie, puis applique le <code>limit</code>. En pagination
+            serveur, la page est découpée dans les groupes complets triés, gardés une minute pour les
+            pages suivantes, et le nombre de groupes devient le total de la pagination. Trier la seule
+            page reçue donnerait un faux classement. Si le plafond <code>max-records</code> coupe la
+            lecture, le tri ne porte que sur les groupes lus, et un avertissement le signale en console.
           </p>
         </section>
 
