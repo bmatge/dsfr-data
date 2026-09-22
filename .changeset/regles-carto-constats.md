@@ -1,0 +1,5 @@
+---
+'dsfr-data': minor
+---
+
+Diagnostic carto : quatorze règles `carte/…` (`REGLES_CARTO`, composées dans `REGLES_BUILDER_CARTO`) transforment les pannes silencieuses d'une couche `dsfr-data-map-layer` en constats qui désignent le contrôle du builder carto à reprendre : pas de champ de localisation, adresse ou code INSEE seuls, Lambert 93, latitude et longitude inversées, décimales à virgule, points en (0, 0) ou empilés, lignes ignorées, plus de lignes que `max-items`, volume ou latence excessifs, données chargées mais rien dessiné, aucune donnée. La trace porte désormais le compte d'éléments dessinés par une couche (`renderedCount`), le marquage des clones d'encart (`inset`) et les attributs `max-items`, `cluster` et `bbox`. Dans le builder carto, la ligne de statut de l'aperçu est rendue depuis ces constats (#1000).
