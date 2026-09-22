@@ -35,6 +35,9 @@
             Tabular supporte la <strong>pagination par page</strong> (125 pages de 200, soit 25 000 enregistrements par défaut, relevable par <code>max-records</code>),
             le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agrégation cote serveur</strong>
             (<code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code>).
+            Un <code>group-by</code> sans agrégat n'est pas délégué : l'API ne regroupe pas
+            (<code>column__groupby</code> seul rend une ligne par ligne brute, modalités répétées),
+            le regroupement se fait côté client (#1025).
             La recherche full-text et les facettes restent cote client.
           </p>
         </div>
@@ -110,7 +113,9 @@
               La pagination est geree automatiquement par l'adapter (suivi de <code>links.next</code>) ;
               le mode page-a-page se pilote avec l'attribut <code>server-side</code> de <code>dsfr-data-source</code>.
               Les metadonnees serveur sont accessibles via <code>meta.page</code>, <code>meta.page_size</code>
-              et <code>meta.total</code>.
+              et <code>meta.total</code>. Une réponse agrégée (group-by) ne porte pas de <code>meta.total</code> :
+              le total est alors inconnu, la liste propose la page suivante tant que la page est pleine
+              et affiche « Page N » sans total (#1025).
             </p>
           </div>
         </section>

@@ -106,8 +106,10 @@ describe('TabularAdapter', () => {
     // que l'ancien `toContain` restait vert sur l'URL qui declenchait un 400
     // « Malformed query » cote API.
     it('emet les group-by en flags nus, sans "="', () => {
-      const url = adapter.buildUrl(makeParams({ groupBy: 'region, departement' }));
-      expect(query(url)).toBe('?region__groupby&departement__groupby');
+      const url = adapter.buildUrl(
+        makeParams({ groupBy: 'region, departement', aggregate: 'population:sum' })
+      );
+      expect(query(url)).toBe('?region__groupby&departement__groupby&population__sum');
     });
 
     it('emet les agregations en flags nus, sans "="', () => {
@@ -133,9 +135,9 @@ describe('TabularAdapter', () => {
     });
 
     it('ouvre la query avec "?" quand les flags nus sont les seuls parametres', () => {
-      const url = adapter.buildUrl(makeParams({ groupBy: 'region' }));
+      const url = adapter.buildUrl(makeParams({ groupBy: 'region', aggregate: 'population:sum' }));
       expect(url).toBe(
-        'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?region__groupby'
+        'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?region__groupby&population__sum'
       );
     });
 
@@ -347,14 +349,37 @@ describe('TabularAdapter', () => {
       expect(result.needsClientProcessing).toBe(true);
     });
 
-    it('returns needsClientProcessing=false when groupBy is set', async () => {
+    it('returns needsClientProcessing=false when groupBy + aggregate are set', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
           Promise.resolve({
-            data: [{ region: 'IDF', count: 100 }],
+            data: [{ region: 'IDF', population__sum: 100 }],
             links: {},
-            meta: { page: 1, page_size: 50, total: 1 },
+            meta: { page: 1, page_size: 50 },
+          }),
+      });
+
+      const result = await adapter.fetchAll(
+        makeParams({ groupBy: 'region', aggregate: 'population:sum' }),
+        new AbortController().signal
+      );
+
+      expect(result.needsClientProcessing).toBe(false);
+    });
+
+    // #1025 — `champ__groupby` seul ne regroupe pas : l'API rend une ligne par
+    // ligne brute (`Code sexe__groupby&page_size=5` → F, M, M, F, M). Delegue,
+    // il faisait passer des modalites repetees pour des groupes.
+    it('ne delegue pas un group-by SANS agregat : lignes brutes + needsClientProcessing (#1025)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [{ region: 'IDF' }, { region: 'IDF' }, { region: 'PACA' }],
+            links: {},
+            meta: { page: 1, page_size: 200, total: 3 },
           }),
       });
 
@@ -363,7 +388,35 @@ describe('TabularAdapter', () => {
         new AbortController().signal
       );
 
-      expect(result.needsClientProcessing).toBe(false);
+      const url = String(mockFetch.mock.calls[0][0]);
+      expect(url).not.toContain('__groupby');
+      expect(result.needsClientProcessing).toBe(true);
+      expect(result.data).toHaveLength(3);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('group-by sans agrégat'));
+      warn.mockRestore();
+    });
+
+    it('ne delegue pas un group-by SANS agregat en server-side non plus (#1025)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: [{ region: 'IDF' }],
+            links: {},
+            meta: { page: 1, page_size: 20, total: 1 },
+          }),
+      });
+
+      const result = await adapter.fetchPage(
+        makeParams({ groupBy: 'region' }),
+        { page: 1, effectiveWhere: '', orderBy: '' },
+        new AbortController().signal
+      );
+
+      expect(String(mockFetch.mock.calls[0][0])).not.toContain('__groupby');
+      expect(result.needsClientProcessing).toBe(true);
+      warn.mockRestore();
     });
 
     it('returns needsClientProcessing=false when aggregate is set', async () => {
@@ -775,7 +828,9 @@ describe('TabularAdapter', () => {
       ).rejects.toThrow('HTTP 500');
     });
 
-    it('handles missing meta.total gracefully', async () => {
+    // #1025 — total absent = total INCONNU (contrat #270), pas 0 : lu comme 0,
+    // il masquait la pagination de la liste et un KPI `meta:total` affichait 0.
+    it('meta.total absent : totalCount undefined, pas 0 (#1025)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -783,6 +838,43 @@ describe('TabularAdapter', () => {
             data: [{ id: 1 }],
             meta: {},
           }),
+      });
+
+      const result = await adapter.fetchPage(
+        makeParams(),
+        { page: 1, effectiveWhere: '', orderBy: '' },
+        new AbortController().signal
+      );
+
+      expect(result.totalCount).toBeUndefined();
+    });
+
+    it('page agregee sans meta.total (forme reelle de l’API) : total inconnu (#1025)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: Array.from({ length: 20 }, (_, i) => ({ commune: String(i), sexe__count: 1 })),
+            links: { next: '/api/resources/r/data/?page=2&page_size=20', prev: null },
+            meta: { page: 1, page_size: 20 },
+          }),
+      });
+
+      const result = await adapter.fetchPage(
+        makeParams({ groupBy: 'commune', aggregate: 'sexe:count' }),
+        { page: 1, effectiveWhere: '', orderBy: '' },
+        new AbortController().signal
+      );
+
+      expect(result.totalCount).toBeUndefined();
+      expect(result.needsClientProcessing).toBe(false);
+      expect(result.data).toHaveLength(20);
+    });
+
+    it('meta.total present (y compris 0) : relaye tel quel', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: [], meta: { page: 1, page_size: 20, total: 0 } }),
       });
 
       const result = await adapter.fetchPage(

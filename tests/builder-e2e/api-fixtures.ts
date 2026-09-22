@@ -566,7 +566,11 @@ export function repondreOdsMetadonnees(): Record<string, unknown> {
 export interface EnveloppeTabular {
   data: Ligne[];
   links: { next: string | null; prev: string | null };
-  meta: { page: number; page_size: number; total: number };
+  /**
+   * `total` ABSENT d'une reponse agregee : l'API ne le donne pas, seul
+   * `links.next` pagine les groupes (mesure du 2026-09-22, #1025).
+   */
+  meta: { page: number; page_size: number; total?: number };
 }
 
 /**
@@ -609,7 +613,15 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
   }
 
   let lignes = filtrees;
-  if (groupes.length > 0) {
+  if (groupes.length > 0 && agregats.length === 0) {
+    // `champ__groupby` SEUL : l'API ne regroupe pas, elle rend une ligne par
+    // ligne brute, reduite aux champs de regroupement — des modalites
+    // REPETEES (`Code sexe__groupby&page_size=5` → F, M, M, F, M, mesure du
+    // 2026-09-22, api-tabular#119, #1025).
+    lignes = filtrees.map((ligne) =>
+      Object.fromEntries(groupes.map((g) => [g, ligne[g]] as const))
+    );
+  } else if (groupes.length > 0) {
     const select = [
       ...agregats.map((a) => `${a.fonction}(\`${a.champ}\`) as \`${a.champ}__${a.fonction}\``),
       ...groupes.map((g) => `\`${g}\``),
@@ -634,7 +646,13 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
       next: restant ? suivante : null,
       prev: page > 1 ? `/api/resources/${RESSOURCES.resourceId}/data/?page=${page - 1}` : null,
     },
-    meta: { page, page_size: taille, total: lignes.length },
+    // Reponse agregee : pas de `meta.total` (`{page, page_size}` seulement,
+    // mesure du 2026-09-22, #1025) — un faux serveur qui le fournirait
+    // cacherait le defaut que le vrai revele.
+    meta:
+      agregats.length > 0
+        ? { page, page_size: taille }
+        : { page, page_size: taille, total: lignes.length },
   };
 }
 
