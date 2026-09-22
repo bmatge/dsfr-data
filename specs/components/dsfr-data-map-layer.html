@@ -52,7 +52,7 @@
                 <tr><td><code>type</code></td><td><code>marker</code> · <code>geoshape</code> · <code>circle</code> · <code>heatmap</code></td><td><code>marker</code></td><td>Rendu de la couche : <code>marker</code> (epingles), <code>geoshape</code> (polygones/lignes GeoJSON), <code>circle</code> (cercles proportionnels), <code>heatmap</code> (carte de chaleur).</td></tr>
                 <tr><td><code>lat-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ latitude (mode coordonnées séparées).</td></tr>
                 <tr><td><code>lon-field</code></td><td>String</td><td><code>""</code></td><td>Chemin vers le champ longitude (mode coordonnées séparées).</td></tr>
-                <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426)</td></tr>
+                <tr><td><code>geo-field</code></td><td>String</td><td><code>""</code></td><td>Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche <code>geoshape</code> : la première colonne <code>geo_shape</code>, <code>geometry</code> ou <code>geom</code> qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053).</td></tr>
                 <tr><td><code>shape-class</code></td><td>String</td><td><code>""</code></td><td>Classe CSS appliquee aux traces SVG de la couche (geoshape/circle) — permet un style page (motif hachure, pointilles...) via CSS/SVG &lt;pattern&gt;</td></tr>
                 <tr><td><code>no-interactive</code></td><td>Boolean</td><td><code>false</code></td><td>Couche decorative : aucune interaction (pas de clic, tooltip ni popup) — contours administratifs, habillage</td></tr>
               <!-- /ATTRS -->
@@ -63,6 +63,19 @@
           Sans <code>lat-field</code>/<code>geo-field</code>, la couche auto-détecte les champs
           <code>geo_point_2d</code>, <code>geopoint</code>, <code>geo_point</code> (points) puis
           <code>geo_shape</code>, <code>geometry</code>, <code>geom</code> (formes).
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Couche <code>geoshape</code> sans <code>geo-field</code></strong> (#1053) : la couche
+          trace la première colonne <code>geo_shape</code>, <code>geometry</code> ou <code>geom</code>
+          qui porte du GeoJSON, objet ou chaîne sérialisée, sur l'une des vingt premières lignes.
+          <code>geo_point_2d</code> n'est jamais retenu pour tracer des formes : un jeu Opendatasoft
+          porte le point et la forme, et c'est la forme qui est dessinée. Les
+          <code>Feature</code> d'une source <code>transform="features"</code> sont lues par leur
+          <code>geometry</code>. La colonne détectée est nommée dans l'avertissement des lignes
+          ignorées. Si aucune ne convient, la couche ne trace rien et le dit en console
+          (« aucune colonne géométrique détectée ») : poser alors <code>geo-field</code>.
+          Le calcul d'emprise (<code>bbox</code>) garde sa propre détection, qui commence par
+          <code>geo_point_2d</code> : voir <code>bbox-field</code>.
         </p>
 
         <h3>Affichage</h3>

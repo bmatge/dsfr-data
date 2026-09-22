@@ -10798,7 +10798,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426)",
+              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053).",
               "attribute": "geo-field"
             },
             {
@@ -11347,6 +11347,16 @@
             },
             {
               "kind": "field",
+              "name": "_shapeField",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Colonne geometrique lue par une couche `geoshape` au dernier rendu :\n`geo-field`, ou a defaut la colonne detectee (#1053). Vide quand aucune\nn'a ete trouvee — la couche le dit au lieu de rester vide en silence."
+            },
+            {
+              "kind": "field",
               "name": "_positionKeys",
               "privacy": "private",
               "default": "new Set<string>()",
@@ -11819,6 +11829,25 @@
                   "text": "string"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_autoDetectShapeField",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "rows",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Colonne geometrique d'une couche `geoshape` sans `geo-field` (#1053) : la\npremiere des colonnes devinees qui porte un objet GeoJSON (un `type`) sur\nl'une des premieres lignes. Chaine vide si aucune — jamais de repli sur\nune colonne qui ne tracerait rien."
             },
             {
               "kind": "method",
@@ -12324,7 +12353,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426)",
+              "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053).",
               "fieldName": "geoField"
             },
             {
