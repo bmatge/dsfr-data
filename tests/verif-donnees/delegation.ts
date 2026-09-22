@@ -20,7 +20,7 @@
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
 import type { Check, Expect, Manifest, Step } from '../../tools/oracle/manifest.js';
-import { MESURES, TERRITOIRES, urlJeu } from './fixtures.js';
+import { MESURES, RESSOURCE_TABULAR, TERRITOIRES, urlJeu } from './fixtures.js';
 import {
   pairePaginee,
   sourceOds,
@@ -721,15 +721,27 @@ const SANS_ADAPTATEUR: Check[] = [
 // 6. Tabular : ce que l'API ne fait pas, et ce qu'elle ne dit pas (#1025)
 // ---------------------------------------------------------------------------
 
-/** Les départements, par population décroissante : 101 groupes, trois pages de 40. */
-const GROUPE_DEPT: Step[] = [
-  {
-    op: 'group-by',
-    by: 'code_dept',
-    columns: { population__sum: { agg: 'sum', field: 'population' } },
-  },
-  { op: 'order-by', column: 'population__sum', dir: 'desc' },
+/** Population par département : 101 groupes, trois pages de 40. */
+const PAR_DEPT: Step = {
+  op: 'group-by',
+  by: 'code_dept',
+  columns: { population__sum: { agg: 'sum', field: 'population' } },
+};
+
+/**
+ * Les départements, du MOINS peuplé au plus peuplé. Le jeu range ses lignes à
+ * peu près par population décroissante : les dix premiers groupes rendus par
+ * le serveur SONT les dix plus peuplés, et un faux « top 10 » décroissant
+ * (dix groupes lus, puis triés) passerait inaperçu. Le « top 10 » croissant,
+ * lui, ne tient que si les 101 groupes ont été lus.
+ */
+const GROUPE_DEPT_ASC: Step[] = [
+  PAR_DEPT,
+  { op: 'order-by', column: 'population__sum', dir: 'asc' },
 ];
+
+/** Les départements, par code : un tri sur la colonne de regroupement. */
+const GROUPE_DEPT_CLE: Step[] = [PAR_DEPT, { op: 'order-by', column: 'code_dept', dir: 'asc' }];
 
 const TABULAR_API: Check[] = [
   {
@@ -765,12 +777,12 @@ const TABULAR_API: Check[] = [
     id: 'tabular-groupes-page-deux',
     mode: 'deterministic',
     origin:
-      '#1025 — une réponse Tabular agrégée ne porte pas de `meta.total` (`{page, page_size}` seulement, `links.next` pagine les groupes, mesuré le 2026-09-22). Lu comme un total de 0, il masquait la pagination d’une liste `server-side` : seuls les 40 premiers des 101 départements étaient atteignables. Total inconnu = `undefined` : la page suivante est proposée tant que la page est pleine, et la page 2 montre les groupes 41 à 80.',
+      '#1025 — une réponse Tabular agrégée ne porte pas de `meta.total` (`{page, page_size}` seulement, `links.next` pagine les groupes, mesuré le 2026-09-22). Lu comme un total de 0, il masquait la pagination d’une liste `server-side` : seuls les 40 premiers des 101 départements étaient atteignables. Total inconnu = `undefined` : la page suivante est proposée tant que la page est pleine, et la page 2 montre les groupes 41 à 80. Trié sur la colonne de REGROUPEMENT, que l’API sait trier (`EPCI__sort` → 200, mesuré le 2026-09-23) : c’est elle qui pagine les groupes. Un tri sur l’agrégat suit un autre chemin (#1045, `tabular-top-agregat-page-deux`).',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
     markup: `
   ${sourceTabular('s-dept', { serverSide: true })}
   <dsfr-data-query id="q-dept" source="s-dept" group-by="code_dept" aggregate="population:sum"
-    order-by="population__sum:desc"></dsfr-data-query>
+    order-by="code_dept:asc"></dsfr-data-query>
   <dsfr-data-list id="l-dept" source="q-dept" columns="code_dept:Département, population__sum:Population"
     server-sort></dsfr-data-list>`,
     actions: [{ kind: 'click', selector: '#l-dept .fr-pagination__link--next' }],
@@ -779,9 +791,96 @@ const TABULAR_API: Check[] = [
         kind: 'list',
         id: 'l-dept',
         columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
-        pipeline: [...GROUPE_DEPT, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+        pipeline: [...GROUPE_DEPT_CLE, { op: 'page', size: TAILLE_PAGE, number: 2 }],
       },
       urlsDe('groupes-page-deux', 'tabular', 'page=2', 'last'),
+      urlsDe('groupes-tri-sur-la-cle', 'tabular', 'code_dept__sort=asc', 'last'),
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 6 bis. Tabular : un tri sur l'agrégat ne part pas au serveur (#1045)
+// ---------------------------------------------------------------------------
+
+/**
+ * L'API Tabular ne trie pas une colonne d'agrégat : `NB_VP__sum__sort=desc`
+ * avec `EPCI__groupby&NB_VP__sum` rend 400, 42703 « column …NB_VP__sum does
+ * not exist » (mesuré le 2026-09-23), sans en-tête CORS. Le faux serveur
+ * acceptait tout, et les contrôles qui délèguent ce tri passaient au vert.
+ * L'adaptateur lit désormais les groupes COMPLETS et trie lui-même — jamais
+ * une page de groupes, dont le tri ne serait pas un « top » du jeu.
+ */
+const TABULAR_TRI_AGREGAT: Check[] = [
+  {
+    id: 'tabular-top-n-source',
+    mode: 'deterministic',
+    origin:
+      '#1045 — le « top 10 » posé sur la source elle-même : regroupement, agrégat, tri sur l’agrégat et `limit="10"` — ici les dix départements les MOINS peuplés. Le tri ne part plus au serveur (400 sur l’API réelle) ; les 101 groupes sont lus, triés, PUIS coupés à dix. Lire dix groupes et les trier rendrait un faux top 10 : les dix premiers groupes rendus, rangés par population.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-top" api-type="tabular" resource="${RESSOURCE_TABULAR}"
+    group-by="code_dept" aggregate="population:sum" order-by="population__sum:asc"
+    limit="10"></dsfr-data-source>
+  <dsfr-data-list id="l-top" source="s-top"
+    columns="code_dept:Département, population__sum:Population"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-top',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_ASC, { op: 'limit', n: 10 }],
+      },
+      urlsDe('top-n-regroupement-delegue', 'tabular', 'code_dept__groupby', 'all'),
+      urlsDe('top-n-tri-non-delegue', 'tabular', '__sort', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-top-agregat-serveur',
+    mode: 'deterministic',
+    origin:
+      '#1045 — le même « top » en pagination serveur : la première page d’une liste `server-side` triée sur l’agrégat doit montrer les 40 départements les MOINS peuplés des 101, pas les 40 premiers groupes rendus par l’API rangés entre eux. Trier la page reçue donnerait un faux top 40.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-top-page', { serverSide: true })}
+  <dsfr-data-query id="q-top-page" source="s-top-page" group-by="code_dept"
+    aggregate="population:sum" order-by="population__sum:asc"></dsfr-data-query>
+  <dsfr-data-list id="l-top-page" source="q-top-page"
+    columns="code_dept:Département, population__sum:Population" server-sort></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-top-page',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_ASC, { op: 'page', size: TAILLE_PAGE, number: 1 }],
+      },
+      urlsDe('top-page-regroupement-delegue', 'tabular', 'code_dept__groupby', 'last'),
+      urlsDe('top-page-tri-non-delegue', 'tabular', 'population__sum__sort', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-top-agregat-page-deux',
+    mode: 'deterministic',
+    origin:
+      '#1045 — la page 2 de la même liste : les départements classés 41 à 80 par population croissante, découpés dans les groupes complets triés. Le nombre de groupes est alors connu (101) : la pagination n’a plus à le deviner.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-top-p2', { serverSide: true })}
+  <dsfr-data-query id="q-top-p2" source="s-top-p2" group-by="code_dept"
+    aggregate="population:sum" order-by="population__sum:asc"></dsfr-data-query>
+  <dsfr-data-list id="l-top-p2" source="q-top-p2"
+    columns="code_dept:Département, population__sum:Population" server-sort></dsfr-data-list>`,
+    actions: [{ kind: 'click', selector: '#l-top-p2 .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-top-p2',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_ASC, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      urlsDe('top-page-deux-tri-non-delegue', 'tabular', 'population__sum__sort', 'none'),
     ],
   },
 ];
@@ -919,6 +1018,7 @@ export const DELEGATION: Manifest = {
     ...ATTENTE,
     ...SANS_ADAPTATEUR,
     ...TABULAR_API,
+    ...TABULAR_TRI_AGREGAT,
     ...TABULAR_VOLUME,
   ],
 };

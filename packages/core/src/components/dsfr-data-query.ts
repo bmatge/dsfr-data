@@ -20,6 +20,7 @@ import {
 import { countDistinct } from '../utils/aggregations.js';
 import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
+import { isNumericValue, sortRows } from '../utils/sort.js';
 import { dsfrDataInstances, onDsfrDataInstance } from '../utils/instance-registry.js';
 
 /**
@@ -928,13 +929,26 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     this._serverDelegated.where = true;
   }
 
-  /** Delegate order-by */
+  /**
+   * Delegate order-by.
+   *
+   * Jamais quand un regroupement ou un agregat est demande SANS avoir ete
+   * delegue (#1045) : le tri porte alors sur les lignes de SORTIE, calculees
+   * ici, et son champ (`pop`, `population__sum`) n'existe pas dans les lignes
+   * brutes que le serveur trierait — Tabular repond 400 (42703 « column …
+   * does not exist », mesure du 2026-09-23), sans en-tete CORS. Le tri reste
+   * cote client, apres le regroupement, qui seul le rend juste.
+   */
   private _delegateOrderBy(
     cmd: Record<string, string>,
     { sourceEl, adapter, caps }: DelegationTarget,
     exclusive: boolean
   ): void {
     if (!this.orderBy || !exclusive || !caps.serverOrderBy || sourceEl.orderBy) return;
+    // Un agregat de fenetre seul (cumul, part) garde une ligne par ligne : le
+    // tri serveur des lignes brutes reste valable.
+    const regroupe = !!this.groupBy || this._groupAggregates().length > 0;
+    if (regroupe && !this._serverDelegated.groupBy) return;
     const orderField = this.orderBy.split(':')[0] || '';
     if (!this._canDelegateFields(adapter, [orderField])) return;
     cmd.orderBy = this.orderBy;
@@ -1419,13 +1433,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return val;
   }
 
-  /** True si la valeur est interpretable comme nombre (hors null/''). */
-  private _isNumericValue(v: unknown): boolean {
-    if (typeof v === 'number') return !isNaN(v);
-    if (typeof v === 'string') return v.trim() !== '' && !isNaN(Number(v));
-    return false;
-  }
-
   /**
    * Comparaison pour gt/gte/lt/lte (#278). Retourne null si la valeur est
    * absente — null/undefined ne matchent JAMAIS une comparaison
@@ -1434,7 +1441,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _compareForRange(value: unknown, ref: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
-    if (this._isNumericValue(value) && this._isNumericValue(ref)) {
+    if (isNumericValue(value) && isNumericValue(ref)) {
       return Number(value) - Number(ref);
     }
     return String(value).localeCompare(String(ref));
@@ -1808,41 +1815,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Comparateur total a 3 niveaux : null/vide < numerique < chaîne (#278).
-   * Transitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs
-   * sont numeriques, sinon string) produisait un ordre arbitraire sur les
-   * colonnes mixtes, et `Number(null) === 0` classait les nulls parmi les
-   * nombres.
-   */
-  private _compareValues(valA: unknown, valB: unknown): number {
-    const rank = (v: unknown): number => {
-      if (v === null || v === undefined || v === '') return 0;
-      return this._isNumericValue(v) ? 1 : 2;
-    };
-    const rankA = rank(valA);
-    const rankB = rank(valB);
-    if (rankA !== rankB) return rankA - rankB;
-    if (rankA === 0) return 0;
-    if (rankA === 1) return Number(valA) - Number(valB);
-    return String(valA).localeCompare(String(valB));
-  }
-
-  /**
    * Applique le tri — grammaire commune du pipeline `"field:dir, field2:dir"`
-   * (#273), tri stable, comparateur total (#278). En desc, l'ordre est
-   * exactement inverse (nulls en dernier).
+   * (#273), tri stable, comparateur total (#278), partage avec les
+   * adaptateurs qui trient eux-memes (`utils/sort.ts`, #1045).
    */
   private _applySort(data: Record<string, unknown>[]): Record<string, unknown>[] {
-    const parts = parseOrderBy(this.orderBy);
-    if (parts.length === 0) return data;
-
-    return [...data].sort((a, b) => {
-      for (const { field, direction } of parts) {
-        const cmp = this._compareValues(getByPath(a, field), getByPath(b, field));
-        if (cmp !== 0) return direction === 'desc' ? -cmp : cmp;
-      }
-      return 0;
-    });
+    return sortRows(data, parseOrderBy(this.orderBy));
   }
 
   // --- Public API ---

@@ -658,6 +658,31 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
     }
   }
 
+  // Tri refuse (#1045), comme l'API (mesure du 2026-09-23, ressource
+  // 90e0d717…, `EPCI__groupby&NB_VP__sum`) : le tri ne vise que des colonnes
+  // de la TABLE, jamais une colonne calculee — `NB_VP__sum__sort=desc` rend
+  // 42703 « column …NB_VP__sum does not exist », avec ou sans le flag
+  // `NB_VP__sum` ; et dans une requete agregee, une colonne brute hors du
+  // regroupement rend 42803 (`NB_VP__sort` : « must appear in the GROUP BY
+  // clause »). Seule la colonne de regroupement se trie (`EPCI__sort` → 200).
+  // Le faux serveur acceptait tout : les controles qui deleguaient un tri sur
+  // agregat passaient au vert, l'API reelle repondait 400.
+  if (tris.length > 0) {
+    const connues = new Set(jeu.flatMap((ligne) => Object.keys(ligne)));
+    for (const { champ } of tris) {
+      if (!connues.has(champ)) {
+        return erreurTabular(page, taille, `column ${champ} does not exist`);
+      }
+      if (groupes.length > 0 && agregats.length > 0 && !groupes.includes(champ)) {
+        return erreurTabular(
+          page,
+          taille,
+          `column "${champ}" must appear in the GROUP BY clause or be used in an aggregate function`
+        );
+      }
+    }
+  }
+
   let lignes = filtrees;
   if (groupes.length > 0 && agregats.length === 0) {
     // `champ__groupby` SEUL : l'API ne regroupe pas, elle rend une ligne par

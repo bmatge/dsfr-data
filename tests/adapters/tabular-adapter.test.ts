@@ -135,13 +135,15 @@ describe('TabularAdapter', () => {
           groupBy: 'region',
           aggregate: 'population:sum',
           filter: 'statut:eq:actif',
-          orderBy: 'population__sum:desc',
+          // Tri sur la colonne de regroupement : le seul que l'API accepte
+          // dans une requete regroupee (#1045)
+          orderBy: 'region:desc',
         }),
         50,
         1
       );
       expect(query(url)).toBe(
-        '?statut__exact=actif&population__sum__sort=desc&page_size=50&page=1' +
+        '?statut__exact=actif&region__sort=desc&page_size=50&page=1' +
           '&region__groupby&population__sum'
       );
     });
