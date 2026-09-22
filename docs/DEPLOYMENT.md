@@ -82,6 +82,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 | `APP_URL` | serveur **[REQUISE en mode serveur]** | URL publique de l'app, utilisee dans les emails de verification / reset (ex. `https://mondomaine.gouv.fr`). Sans cette variable, le serveur leve une erreur au demarrage si l'envoi d'email est tente. | throw si absent et SMTP configure |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | serveur | Configuration SMTP pour l'envoi d'emails de verification / reset | non configure |
 | `IA_DEFAULT_TOKEN`, `IA_DEFAULT_API_URL`, `IA_DEFAULT_MODEL` | les 2 | Cle Albert partagee cote serveur (Builder IA fonctionne sans config utilisateur) | `albert-large` |
+| `IA_MAX_RPM` | les 2 | Plafond global d'appels a `/ia-proxy-default` par minute glissante, **tous utilisateurs confondus** (#999). Au-dela, le proxy repond `429` avec un en-tete `Retry-After` en secondes entieres, **sans appeler Albert** : la cle partagee ne s'epuise pas sur la limite amont. Entier >= 1 ; toute autre valeur retombe sur le defaut. Le compteur vit en memoire du process (`scripts/ia-default-server.js` en production, middlewares Vite en dev) : il repart a zero au redemarrage. Voir ci-dessous. | `10` |
 
 **Securite** : `JWT_SECRET`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `ENCRYPTION_KEY` sont **generes automatiquement** par `deploy-server.sh` s'ils manquent dans `.env`. Une fois generes, ne JAMAIS les changer en place : `JWT_SECRET` invalide les sessions actives, `ENCRYPTION_KEY` rend les cles API stockees illisibles. Les sauvegarder hors du serveur.
 
@@ -667,6 +668,28 @@ done
 curl -sf "https://${APP_DOMAIN}/ia-server-config" | python3 -m json.tool
 # Attendu : { "available": true, "apiUrl": "...", "model": "..." } (sans le token)
 ```
+
+**Plafond global `IA_MAX_RPM`** (#999). Le proxy `/ia-proxy-default` accepte au plus `IA_MAX_RPM`
+appels (defaut `10`) sur les 60 dernieres secondes, pour toute l'instance. L'appel suivant recoit
+`429 Too Many Requests` avec `Retry-After: <secondes>` (entier, RFC 9110) et un corps
+`{ "error": { "type": "rate_limit_exceeded", "message": "... réessayez dans N s" } }`, sans
+qu'aucune requete ne parte vers Albert ; un refus ne consomme pas de place. Seul
+`/ia-proxy-default` (cle partagee) est plafonne : `/ia-proxy`, qui porte la cle de l'usager, ne
+l'est pas. Le module est commun a la production et aux deux middlewares de dev (`vite.config.ts`
+racine et `apps/builder-ia/vite.config.ts`) : `scripts/lib/debit.cjs`, a copier dans l'image a cote
+de `ia-default-server.js` (les deux Dockerfiles le font). Au demarrage, le log l'annonce :
+
+```bash
+docker compose --env-file .env -f docker/docker-compose.yml ${COMPOSE_DB:+-f docker/docker-compose.db.yml} \
+  logs chartsbuilder | grep -E "ia-default-server.*IA_MAX_RPM"
+# Attendu : "[ia-default-server] Listening on 127.0.0.1:3003 (IA_MAX_RPM=10)"
+# Chaque refus local laisse une ligne "LOCAL-RATE-LIMIT max=10/min retry-after=<n>s",
+# distincte du "RATE-LIMIT" que renvoie Albert lui-meme.
+```
+
+Pour le relever, definir `IA_MAX_RPM` dans le `.env` puis recreer le conteneur (les fichiers compose
+le transmettent, defaut `10`). Le plafond est par process : plusieurs replicas multiplient d'autant
+le debit total vers Albert.
 
 ### 6. Security headers + CSP
 
