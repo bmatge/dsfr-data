@@ -1,5 +1,12 @@
 import { attachRecorderToFrame, type FrameAttachment } from './frame.js';
 import { DataflowRecorder, type Trace } from './recorder.js';
+import {
+  evaluerConstats,
+  REGLES_GENERIQUES,
+  type Constat,
+  type ContexteConstats,
+  type RegleConstat,
+} from './constats.js';
 
 /**
  * Montage du volet Diagnostic dans une app, en un appel (#605).
@@ -38,6 +45,8 @@ export interface DiagnosticPanelElement extends HTMLElement {
   readonly redactValues: boolean;
   /** La trace a ete reconstituee faute de tampon precoce. */
   partialTrace: boolean;
+  /** Constats de la trace courante (#1001), posés par `mountDiagnosticPanel`. */
+  constats: readonly Constat[];
   readonly diagnosticText: string;
   toggle(open?: boolean): void;
 }
@@ -58,6 +67,22 @@ export interface MountDiagnosticOptions {
   onSend?: (text: string) => void;
   /** Message affiché quand aucune trace n'est disponible. */
   emptyHint?: string;
+  /**
+   * Évaluation des constats (#1001). Sans cette option : contexte
+   * `{ app: '*', origine: location.origin }` et règles génériques — toute app
+   * reçoit les constats génériques sans rien déclarer.
+   */
+  constats?: {
+    /** Contexte passé à evaluerConstats ; fonction pour lire l'état courant de l'app à chaque évaluation. */
+    contexte: ContexteConstats | (() => ContexteConstats);
+    /** Règles composées par l'app ; défaut REGLES_GENERIQUES. */
+    regles?: readonly RegleConstat[];
+  };
+  /**
+   * Reçoit le repère à montrer quand l'usager clique « Me montrer » sur un
+   * constat. Le volet émet, l'app résout (`montrer()`, #1005).
+   */
+  onMontrer?: (repere: string, constat: Constat) => void;
   /** Hôte du volet (défaut : `document.body`). */
   host?: HTMLElement;
 }
@@ -70,6 +95,8 @@ export interface MountedDiagnostic {
   recorder: DataflowRecorder | null;
   /** Alimente le volet en mode rapporté. */
   setTrace(trace: Trace | null): void;
+  /** Constats de la dernière évaluation, sans réévaluer (lus par l'app, #1000). */
+  constats(): readonly Constat[];
   /** Le texte que copient et envoient les boutons. */
   text(): string;
   destroy(): void;
@@ -113,6 +140,30 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
   if (options.emptyHint) panel.emptyHint = options.emptyHint;
   host.appendChild(panel);
 
+  if (options.onMontrer) {
+    panel.addEventListener('constat-montrer', (e) => {
+      const { repere, constat } = (e as CustomEvent<{ repere: string; constat: Constat }>).detail;
+      options.onMontrer?.(repere, constat);
+    });
+  }
+
+  // Une seule évaluation par trace, partagée par le volet et l'app : le rail,
+  // l'onglet Constats et `updatePreviewStatus()` lisent la même liste.
+  const regles = options.constats?.regles ?? REGLES_GENERIQUES;
+  const contexte = (): ContexteConstats => {
+    const c = options.constats?.contexte;
+    if (typeof c === 'function') return c();
+    if (c) return c;
+    return { app: '*', origine: typeof location !== 'undefined' ? location.origin : undefined };
+  };
+  let derniers: readonly Constat[] = [];
+  const poserTrace = (trace: Trace | null): void => {
+    derniers = trace ? evaluerConstats(trace, contexte(), regles) : [];
+    // Constats d'abord : le volet les lit au rendu que déclenche la trace.
+    panel.constats = derniers;
+    panel.trace = trace;
+  };
+
   if (options.onSend) {
     panel.addEventListener('diagnostic-send', (e) => {
       options.onSend?.((e as CustomEvent<{ text: string }>).detail.text);
@@ -141,7 +192,7 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
   if (options.frame) {
     attachment = attachRecorderToFrame(options.frame, {
       onChange: (trace) => {
-        panel.trace = trace;
+        poserTrace(trace);
         // Avouer une trace RECONSTITUEE plutot que de la presenter comme
         // complete : sans tampon precoce, la chronologie et les erreurs deja
         // passees manquent. Se taire ici reproduirait le faux calme que tout
@@ -151,7 +202,7 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
       onReset: () => {
         // Une iframe rechargée repart de zéro : garder l'ancienne trace
         // afficherait des chiffres qui ne correspondent plus au rendu.
-        panel.trace = null;
+        poserTrace(null);
       },
     });
   } else if (options.liveRoot) {
@@ -163,7 +214,7 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
     const active = recorder;
     let pending = false;
     const publish = () => {
-      panel.trace = active.snapshot();
+      poserTrace(active.snapshot());
     };
     // MEME cloture de quiescence que le mode iframe (`frame.ts`), et pour la
     // meme raison : un instantane pris en pleine rafale porte
@@ -191,9 +242,8 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
     panel,
     attachment,
     recorder,
-    setTrace: (trace) => {
-      panel.trace = trace;
-    },
+    setTrace: poserTrace,
+    constats: () => derniers,
     text: () => panel.diagnosticText,
     destroy: () => {
       attachment?.detach();
