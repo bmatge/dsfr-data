@@ -61,25 +61,25 @@ export function openFacetsModal(): void {
 
       return `
     <tr data-field="${field.name}">
-      <td><input type="checkbox" class="facets-field-active" ${isActive ? 'checked' : ''}></td>
+      <td><input type="checkbox" class="facets-field-active" data-repere="builder.facettes.champs.active" data-attribut="dsfr-data-facets:fields" data-repere-libelle="Utiliser le champ comme facette" ${isActive ? 'checked' : ''}></td>
       <td><code>${field.name}</code></td>
-      <td><input type="text" class="fr-input fr-input--sm facets-field-label" value="${label}" placeholder="Label"></td>
-      <td><select class="fr-select fr-select--sm facets-field-display">
+      <td><input type="text" class="fr-input fr-input--sm facets-field-label" data-repere="builder.facettes.champs.libelle" data-attribut="dsfr-data-facets:labels" data-repere-libelle="Libellé de la facette" value="${label}" placeholder="Label"></td>
+      <td><select class="fr-select fr-select--sm facets-field-display" data-repere="builder.facettes.champs.affichage" data-attribut="dsfr-data-facets:display" data-repere-libelle="Affichage de la facette">
         <option value="checkbox" ${display === 'checkbox' ? 'selected' : ''}>Cases a cocher</option>
         <option value="radio" ${display === 'radio' ? 'selected' : ''}>Boutons radio</option>
         <option value="select" ${display === 'select' ? 'selected' : ''}>Liste deroulante</option>
         <option value="multiselect" ${display === 'multiselect' ? 'selected' : ''}>Multi-selection</option>
       </select></td>
-      <td class="text-center"><input type="checkbox" class="facets-field-searchable" ${searchable ? 'checked' : ''}></td>
-      <td class="text-center"><input type="checkbox" class="facets-field-disjunctive" ${disjunctive ? 'checked' : ''}></td>
+      <td class="text-center"><input type="checkbox" class="facets-field-searchable" data-repere="builder.facettes.champs.recherche" data-attribut="dsfr-data-facets:searchable" data-repere-libelle="Recherche dans la facette" ${searchable ? 'checked' : ''}></td>
+      <td class="text-center"><input type="checkbox" class="facets-field-disjunctive" data-repere="builder.facettes.champs.multi" data-attribut="dsfr-data-facets:disjunctive" data-repere-libelle="Sélection multiple (OU)" ${disjunctive ? 'checked' : ''}></td>
     </tr>`;
     })
     .join('');
 
   listEl.innerHTML = `
     <div class="facets-toolbar">
-      <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-all" type="button">Tout sélectionner</button>
-      <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-none" type="button">Tout deselectionner</button>
+      <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-all" type="button" data-repere="builder.facettes.champs.tout-selectionner">Tout sélectionner</button>
+      <button class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" id="facets-select-none" type="button" data-repere="builder.facettes.champs.tout-deselectionner">Tout désélectionner</button>
     </div>
     <table class="fr-table fr-table--no-caption facets-table">
       <thead>

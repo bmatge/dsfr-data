@@ -323,6 +323,18 @@ export function copyCode(): void {
 }
 
 /**
+ * Ouvre une section repliée, sans refermer les autres (visite guidée,
+ * révélation d'un repère par l'assistant, #1006). Sans effet si elle est déjà
+ * ouverte ou absente.
+ */
+export function openSection(sectionId: string): void {
+  const section = document.getElementById(sectionId);
+  if (section?.classList.contains('collapsed')) {
+    section.classList.remove('collapsed');
+  }
+}
+
+/**
  * Toggle a collapsible section (accordion behavior: closes others when opening one).
  */
 export function toggleSection(sectionId: string): void {
