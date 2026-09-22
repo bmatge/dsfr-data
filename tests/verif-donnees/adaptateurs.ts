@@ -32,7 +32,9 @@ import {
   JSON_LIGNES,
   MELODI_LIGNES,
   RESSOURCE_TABULAR,
+  RESSOURCE_TABULAR_LONGUE,
   TERRITOIRES_ADAPT,
+  TERRITOIRES_TABULAR_LONG,
   URL_GRIST,
 } from './fixtures-adaptateurs.js';
 
@@ -284,10 +286,10 @@ const CHECKS: Check[] = [
     id: 'tabular-pagination-links-next',
     mode: 'deterministic',
     origin:
-      'Tabular pagine par `page` et annonce la suite dans `links.next` : 137 lignes en trois pages de 50. `meta.total` est un repère, pas une autorisation d’arrêter.',
-    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
+      'Tabular pagine par `page` et annonce la suite dans `links.next` : 411 lignes en trois pages de 200, le maximum de l’API (#1019). `meta.total` est un repère, pas une autorisation d’arrêter.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
     markup: `
-  <dsfr-data-source id="s-tab" api-type="tabular" resource="${RESSOURCE_TABULAR}"></dsfr-data-source>
+  <dsfr-data-source id="s-tab" api-type="tabular" resource="${RESSOURCE_TABULAR_LONGUE}"></dsfr-data-source>
   <dsfr-data-kpi id="k-tab-n" source="s-tab" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-tab-pop" source="s-tab" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-tab-dept" source="s-tab" value="code_dept:distinct" format="nombre" label="Départements"></dsfr-data-kpi>`,

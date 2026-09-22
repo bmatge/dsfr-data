@@ -38,7 +38,13 @@ import {
   verifierBundleConstruit,
   type Harnais,
 } from './api-harness.js';
-import { CHAMP_PIEGE, JEU, NOMBRE_DE_LIGNES, ODS_PAGE_SIZE } from './api-fixtures.js';
+import {
+  CHAMP_PIEGE,
+  JEU,
+  NOMBRE_DE_LIGNES,
+  ODS_PAGE_SIZE,
+  TABULAR_PAGE_SIZE,
+} from './api-fixtures.js';
 
 const TYPES: ChartConfig['type'][] = [
   'bar',
@@ -250,14 +256,25 @@ test.describe('la pagination des adaptateurs enchaine reellement', () => {
     expect(harnais.journal.inattendues).toEqual([]);
   });
 
-  test('Tabular — les pages s’enchainent via links.next', async ({ page }) => {
+  test(`Tabular — le jeu tient en une page de ${TABULAR_PAGE_SIZE} (#1019)`, async ({ page }) => {
+    // L'API sert jusqu'a TABULAR_PAGE_SIZE lignes par page (#1019) : les
+    // NOMBRE_DE_LIGNES du jeu arrivent en UNE requete, sans page 2 superflue.
+    // Le suivi de `links.next` est eprouve la ou le jeu depasse une page :
+    // tests/adapters/tabular-adapter.test.ts (25 000 lignes en 125 appels)
+    // et le controle `tabular-pagination-links-next` de verif-donnees
+    // (411 lignes, trois pages).
+    expect(NOMBRE_DE_LIGNES).toBeLessThan(TABULAR_PAGE_SIZE);
     await harnais.ouvrir(pagePartagee('tabular'));
 
     await expect
       .poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 })
       .toBe(NOMBRE_DE_LIGNES);
 
-    expect(appelsContenant(harnais.journal, 'page=2').length).toBeGreaterThan(0);
+    expect(
+      appelsContenant(harnais.journal, `page_size=${TABULAR_PAGE_SIZE}`).length,
+      `aucune requete Tabular en page_size=${TABULAR_PAGE_SIZE}`
+    ).toBeGreaterThan(0);
+    expect(appelsContenant(harnais.journal, 'page=2')).toEqual([]);
     expect(harnais.journal.inattendues).toEqual([]);
   });
 });

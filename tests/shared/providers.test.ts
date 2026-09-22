@@ -103,7 +103,8 @@ describe('ODS config', () => {
 describe('Tabular config', () => {
   it('should have page-based pagination', () => {
     expect(TABULAR_CONFIG.pagination.type).toBe('page');
-    expect(TABULAR_CONFIG.pagination.maxPages).toBe(500);
+    expect(TABULAR_CONFIG.pagination.pageSize).toBe(200);
+    expect(TABULAR_CONFIG.pagination.maxPages).toBe(125);
     expect(TABULAR_CONFIG.pagination.maxRecords).toBe(25000);
   });
 

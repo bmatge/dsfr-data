@@ -32,7 +32,7 @@
         <div class="fr-callout fr-callout--green-emeraude">
           <h4 class="fr-callout__title">Agrégation et group-by serveur</h4>
           <p class="fr-callout__text">
-            Tabular supporte la <strong>pagination par page</strong> (500 pages de 50, soit 25 000 enregistrements),
+            Tabular supporte la <strong>pagination par page</strong> (125 pages de 200, soit 25 000 enregistrements),
             le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agrégation cote serveur</strong>
             (<code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code>).
             La recherche full-text et les facettes restent cote client.
@@ -97,8 +97,8 @@
               </thead>
               <tbody>
                 <tr><td>Type</td><td><code>page</code> (par numero de page)</td></tr>
-                <tr><td>Taille de page</td><td>50 enregistrements (maximum API)</td></tr>
-                <tr><td>Pages max</td><td>500</td></tr>
+                <tr><td>Taille de page</td><td>200 enregistrements (maximum de l'API : au-delà, elle répond 400 sans en-tête CORS ; un <code>page-size</code> supérieur est ramené à 200)</td></tr>
+                <tr><td>Pages max</td><td>125</td></tr>
                 <tr><td>Enregistrements max</td><td>25 000</td></tr>
                 <tr><td>Paramètres URL</td><td><code>page</code>, <code>page_size</code></td></tr>
                 <tr><td>Page suivante</td><td>Champ <code>next</code> dans la reponse</td></tr>

@@ -34,8 +34,8 @@ const WHERE_IPS = "(rentree_scolaire = '2023-2024') and (secteur = 'public')";
 
 /**
  * Tabular — communes de l'Ariège dans le Code officiel géographique.
- * 325 lignes, soit sept pages de 50 côté adaptateur : la pagination est
- * réellement exercée. Le filtre est délégué (`DEP__exact`).
+ * 325 lignes, soit deux pages de 200 côté adaptateur (#1019) : la pagination
+ * est réellement exercée. Le filtre est délégué (`DEP__exact`).
  */
 const TABULAR_RESSOURCE = '91a95bee-c7c8-45f9-a8aa-f14cc4697545';
 const TABULAR_URL =

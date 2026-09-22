@@ -34,8 +34,8 @@ export const TABULAR_CONFIG: ProviderConfig = {
 
   pagination: {
     type: 'page',
-    pageSize: 50,
-    maxPages: 500,
+    pageSize: 200, // maximum reel de l'API (201 → 400), #1019
+    maxPages: 125,
     maxRecords: 25000,
     params: { page: 'page', pageSize: 'page_size' },
     nextPagePath: 'next',

@@ -38,6 +38,7 @@ est lu par au moins un contrôle et que chaque `feed.datasets` déterministe vie
 |---|---|---|
 | `adaptateurs-melodi.json` | 7 | Les lignes PLATES attendues après aplatissement INSEE Melodi (#586) : la mesure `OBS_VALUE_NIVEAU` perd son suffixe, une dimension traduite garde son nom et prend le libellé (le code part dans `<DIM>_CODE`), la dernière ligne porte un code géographique ABSENT de `/range` et n'ouvre pas de `GEO_CODE`. Les observations portent l'`id` géographique (`2025-DEP-01`), pas le code court. |
 | `adaptateurs-grist.json` | 5 | Champs imbriqués sous `fields` ; noms de colonnes piégeux (espaces, apostrophe, accents) — ce qui casse quand l'aplatissement passe par une clé construite plutôt que recopiée. |
+| `adaptateurs-tabular-long.json` | 411 | Les 137 territoires posés TROIS fois, chaque copie marquée par `copie` (1, 2, 3), en même ordre de colonnes. Tabular sert 200 lignes par page (#1019) : `territoires` y tient en une seule et `links.next` ne serait plus suivi. Trois pages (200, 200, 11) : une page oubliée, ou la première relue au lieu de la suivante, change le compte et la somme. |
 | `adaptateurs-json.json` | 5 | Colonnes numériques servies EN CHAÎNES à la française (espace de milliers, virgule décimale) ; `effectif` mêle nombres et chaînes dans la même colonne. |
 
 Les modalités de `/range` (Melodi) restent dans `fixtures-adaptateurs.ts` : ce sont des

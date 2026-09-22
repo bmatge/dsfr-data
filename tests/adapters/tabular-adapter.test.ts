@@ -244,27 +244,27 @@ describe('TabularAdapter', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+            data: Array.from({ length: 200 }, (_, i) => ({ id: i })),
             links: {
-              next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=100',
+              next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=200',
             },
-            meta: { page: 1, page_size: 100, total: 150 },
+            meta: { page: 1, page_size: 200, total: 250 },
           }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
           Promise.resolve({
-            data: Array.from({ length: 50 }, (_, i) => ({ id: 100 + i })),
+            data: Array.from({ length: 50 }, (_, i) => ({ id: 200 + i })),
             links: {},
-            meta: { page: 2, page_size: 100, total: 150 },
+            meta: { page: 2, page_size: 200, total: 250 },
           }),
       });
 
       const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(result.data).toHaveLength(150);
+      expect(result.data).toHaveLength(250);
       expect(result.needsClientProcessing).toBe(true);
     });
 
@@ -309,20 +309,20 @@ describe('TabularAdapter', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            data: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+            data: Array.from({ length: 200 }, (_, i) => ({ id: i })),
             links: {
-              next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=100',
+              next: 'https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=2&page_size=200',
             },
-            meta: { page: 1, page_size: 100, total: 200 },
+            meta: { page: 1, page_size: 200, total: 400 },
           }),
       });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
           Promise.resolve({
-            data: Array.from({ length: 100 }, (_, i) => ({ id: 100 + i })),
+            data: Array.from({ length: 200 }, (_, i) => ({ id: 200 + i })),
             links: {},
-            meta: { page: 2, page_size: 100, total: 200 },
+            meta: { page: 2, page_size: 200, total: 400 },
           }),
       });
 
@@ -416,15 +416,16 @@ describe('TabularAdapter', () => {
         ok: true,
         json: () =>
           Promise.resolve({
-            data: Array.from({ length: 50 }, (_, i) => ({ id: i })),
+            data: Array.from({ length: 200 }, (_, i) => ({ id: i })),
             links: { next: 'not-a-valid-url' },
-            meta: { page: 1, page_size: 50, total: 100 },
+            meta: { page: 1, page_size: 200, total: 400 },
           }),
       });
 
-      // Should not throw, just stop pagination
+      // Page pleine : seul le links.next invalide arrete la pagination
       const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
-      expect(result.data).toHaveLength(50);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(result.data).toHaveLength(200);
     });
 
     it('warns on incomplete pagination', async () => {
@@ -445,6 +446,69 @@ describe('TabularAdapter', () => {
 
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pagination incomplete'));
       warnSpy.mockRestore();
+    });
+
+    it('#1019 — 25 000 lignes en 125 requetes de 200 (maximum reel de l API)', async () => {
+      // Transport factice : un jeu de 30 000 lignes, pages de page_size demande
+      const TOTAL = 30000;
+      mockFetch.mockImplementation((input: string) => {
+        const u = new URL(input);
+        const page = Number(u.searchParams.get('page'));
+        const size = Number(u.searchParams.get('page_size'));
+        const start = (page - 1) * size;
+        const n = Math.max(0, Math.min(size, TOTAL - start));
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              data: Array.from({ length: n }, (_, i) => ({ id: start + i })),
+              links: {
+                next: `https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=${page + 1}&page_size=${size}`,
+              },
+              meta: { page, page_size: size, total: TOTAL },
+            }),
+        });
+      });
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+
+      expect(mockFetch).toHaveBeenCalledTimes(125);
+      expect(result.data).toHaveLength(25000);
+      for (const [url] of mockFetch.mock.calls) {
+        expect(new URL(url as string).searchParams.get('page_size')).toBe('200');
+      }
+      warnSpy.mockRestore();
+    });
+
+    it('#1019 / #289 — derniere page bornee a remaining (limit=450 : 200, 200, 50)', async () => {
+      mockFetch.mockImplementation((input: string) => {
+        const u = new URL(input);
+        const page = Number(u.searchParams.get('page'));
+        const size = Number(u.searchParams.get('page_size'));
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              data: Array.from({ length: size }, (_, i) => ({ id: i })),
+              links: {
+                next: `https://tabular-api.data.gouv.fr/api/resources/resource-456/data/?page=${page + 1}&page_size=${size}`,
+              },
+              meta: { page, page_size: size, total: 100000 },
+            }),
+        });
+      });
+
+      const result = await adapter.fetchAll(
+        makeParams({ limit: 450 }),
+        new AbortController().signal
+      );
+
+      const sizes = mockFetch.mock.calls.map(([url]) =>
+        new URL(url as string).searchParams.get('page_size')
+      );
+      expect(sizes).toEqual(['200', '200', '50']);
+      expect(result.data).toHaveLength(450);
     });
   });
 
@@ -716,13 +780,13 @@ describe('#597 — Tabular : le proxy s’applique meme avec un base-url explici
       new AbortController().signal
     );
     expect(fetchedUrl()).toBe(
-      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=50&page=1`
+      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=200&page=1`
     );
   });
 
   it('base-url data.gouv sans proxy : appel direct, inchange', async () => {
     await adapter.fetchAll(makeParams({ baseUrl: TARGET }), new AbortController().signal);
-    expect(fetchedUrl()).toBe(`${TARGET}/api/resources/resource-456/data/?page_size=50&page=1`);
+    expect(fetchedUrl()).toBe(`${TARGET}/api/resources/resource-456/data/?page_size=200&page=1`);
   });
 
   it('sans base-url, avec proxy : comportement actuel preserve', async () => {
@@ -731,7 +795,7 @@ describe('#597 — Tabular : le proxy s’applique meme avec un base-url explici
       new AbortController().signal
     );
     expect(fetchedUrl()).toBe(
-      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=50&page=1`
+      `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=200&page=1`
     );
   });
 
@@ -743,7 +807,7 @@ describe('#597 — Tabular : le proxy s’applique meme avec un base-url explici
       new AbortController().signal
     );
     expect(fetchedUrl()).toBe(
-      'https://tabular.mon-ministere.gouv.fr/api/resources/resource-456/data/?page_size=50&page=1'
+      'https://tabular.mon-ministere.gouv.fr/api/resources/resource-456/data/?page_size=200&page=1'
     );
   });
 
@@ -756,5 +820,47 @@ describe('#597 — Tabular : le proxy s’applique meme avec un base-url explici
     expect(fetchedUrl()).toBe(
       `${PROXY}/tabular-proxy/api/resources/resource-456/data/?page_size=20&page=2`
     );
+  });
+});
+
+describe('#1019 — page-size au-dela du maximum Tabular (200)', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('page-size="500" : URL en page_size=200 et un seul avertissement', async () => {
+    const adapter = new TabularAdapter();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ov: ServerSideOverlay = { page: 1, effectiveWhere: '', orderBy: '' };
+
+    const url = adapter.buildServerSideUrl(makeParams({ pageSize: 500 }), ov);
+    adapter.buildServerSideUrl(makeParams({ pageSize: 500 }), ov);
+
+    expect(new URL(url).searchParams.get('page_size')).toBe('200');
+    const avertissements = warnSpy.mock.calls.filter(([m]) =>
+      String(m).includes('dépasse le maximum')
+    );
+    expect(avertissements).toHaveLength(1);
+    expect(String(avertissements[0][0])).toContain('page-size="500"');
+    warnSpy.mockRestore();
+  });
+
+  it('page-size="200" ou moins : emis tel quel, sans avertissement', () => {
+    const adapter = new TabularAdapter();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const ov: ServerSideOverlay = { page: 1, effectiveWhere: '', orderBy: '' };
+
+    expect(
+      new URL(adapter.buildServerSideUrl(makeParams({ pageSize: 200 }), ov)).searchParams.get(
+        'page_size'
+      )
+    ).toBe('200');
+    expect(
+      new URL(adapter.buildServerSideUrl(makeParams({ pageSize: 20 }), ov)).searchParams.get(
+        'page_size'
+      )
+    ).toBe('20');
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });

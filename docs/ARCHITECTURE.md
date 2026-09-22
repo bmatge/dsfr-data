@@ -153,7 +153,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
-| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
+| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (125×200, 200 = maximum de l'API, #1019) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
 
 **`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
