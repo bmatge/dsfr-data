@@ -452,6 +452,13 @@ describe('formatTrace — sections Réseau et Console', () => {
     // Hôte vide : pas une URL, on cherche la suivante dans le même mot.
     expect(messageMasque('http://?x,https://b.fr/y?z')).toBe('http://?x,https://b.fr/y');
     // Sans requête, rien ne change ; les guillemets bornent l'URL.
+    // Mêmes délimiteurs que l'ancienne expression : guillemets et chevrons
+    // bornent l'URL, qu'elle soit citée ou dans une balise.
+    expect(messageMasque(`"http://x.fr/p?a=1"`)).toBe(`"http://x.fr/p"`);
+    expect(messageMasque(`'http://x.fr/p#a'`)).toBe(`'http://x.fr/p'`);
+    expect(messageMasque('<a href=http://x.fr/p?a=1>lien</a>')).toBe(
+      '<a href=http://x.fr/p>lien</a>'
+    );
     expect(messageMasque('voir "https://a.fr/p?q=1" ou http://b.fr/q')).toBe(
       'voir "https://a.fr/p" ou http://b.fr/q'
     );
@@ -459,11 +466,12 @@ describe('formatTrace — sections Réseau et Console', () => {
 
   it('reste linéaire sur un message hostile (CodeQL js/polynomial-redos)', () => {
     // L'ancienne expression repartait de chaque `http://` et rescannait
-    // jusqu'au bout : quadratique. 20 000 répétitions y coûtaient des secondes.
+    // jusqu'au bout : quadratique. Le texte vient des API interrogées : une
+    // réponse d'erreur démesurée ne doit pas bloquer l'onglet.
     for (const hostile of [
-      'http://'.repeat(20000),
-      'http://?'.repeat(20000),
-      '?key='.repeat(20000),
+      'http://'.repeat(50_000),
+      'http://?'.repeat(50_000),
+      '?key='.repeat(50_000),
     ]) {
       const t0 = performance.now();
       formatTrace(
