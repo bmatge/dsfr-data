@@ -454,7 +454,7 @@ rien de plus que la valeur.
 | `null-group` (`field`, `expect`, `count?`) | `visible` : une ligne à clé vide existe et son compte vaut les lignes brutes sans valeur ; `excluded` : aucune, et la somme des comptes vaut les lignes brutes AVEC valeur — clé `''` d'un client, `null` d'un serveur (PG-015) | `groupby-groupe-null-visible`, `qualite-tourisme-group-by-null-exclu` (vivant) |
 | `bounded` (`field?`, `min?`, `max?`) | toute valeur numérique — ou la valeur d'un KPI — dans les bornes ; rien à borner est un échec | `format-pourcentage-et-unite`, `personnels-colleges-part-ponderee` (vivant) |
 | `null-stays-null` (`field`, `rawField?`, `key?`) | aucune absence en amont devenue valeur en aval, ligne à ligne par clé, ou par compte | `compute-arithmetique-absence-et-division-par-zero` |
-| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur` (**en attente**), `plan-de-relance-plafond-max-records` (vivant, **en attente**) |
+| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur`, `plan-de-relance-plafond-max-records` (vivant, **en attente**) |
 
 Le rapport compte les invariants **à part** des valeurs (« invariants : 12
 tenus, 0 violé, 1 en attente ») ; une ligne d'invariant s'écrit
@@ -472,12 +472,12 @@ prémisse « `max-records` tronque en silence » se découpe en trois cas :
 | Cas | La bibliothèque dit-elle quelque chose ? | Contrôle |
 |---|---|---|
 | mode `/records`, un KPI `count` en aval | **oui** — « `value="count"` sur "s-cap" compte 120 lignes reçues, mais l'amont en détient 137 » (#659, `meta.total`) | `ods-plafond-max-records` : tenu par le diagnostic |
-| mode `/records`, sans KPI `count` (somme, graphique) | **non** — la source charge un tronçon sans un mot | `ods-plafond-sans-compteur` : **en attente**, 120 lignes sur 137 |
-| `fetch-mode="export"`, même avec un KPI `count` | **non** — l'export ne porte pas de total, `meta.total` est absent, le KPI ne peut rien dire | `plan-de-relance-plafond-max-records` (vivant) : **en attente**, 1 000 lignes sur 3 080 |
+| mode `/records`, sans KPI `count` (somme, graphique) | **oui depuis #1032** — la source avertit en nommant « l'attribut max-records de dsfr-data-source » ; avant, son message ne nommait aucun composant et le lecteur de silences l'écartait | `ods-plafond-sans-compteur` : tenu par le diagnostic, 120 lignes sur 137 |
+| `fetch-mode="export"`, même avec un KPI `count` | **la source, depuis #1032** — l'export ne porte pas de total, le KPI ne peut rien dire ; la source demande `plafond + 1` lignes et avertit en nommant dsfr-data-source | `canari-plafond-export` : tenu par le diagnostic ; `plan-de-relance-plafond-max-records` (vivant) : **en attente** d'une nuit qui le constate, 1 000 lignes sur 3 080 |
 
-Deux invariants en attente, une seule demande : un mot de la **source** quand
-`max-records` borne un jeu qui le dépasse, export compris. Issue à ouvrir par
-la supervision.
+La demande était une seule : un mot de la **source** quand `max-records` borne
+un jeu qui le dépasse, export compris. Les avertissements existaient, mais sans
+nommer le composant : #1032 les aligne sur Tabular (#1027).
 
 ## Le canari
 
@@ -502,7 +502,7 @@ que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
 | accents et formes Unicode | `canari-accents-nfc-nfd` | NFC et NFD font DEUX groupes (aucune normalisation n'est promise) ; la recherche replie tout et trouve les trois |
 | doublon de clé | `canari-jointure-doublon` | 42 lignes pour 40, somme gonflée de 20 : `count-preserved` et `sum-preserved` **violés par les données**, rendus en attente |
 | champ multivalué | `canari-multivalue` | la facette éclate (eau 16, air 13, sol 10 — étape `explode` de l'oracle), le regroupement client compte les combinaisons |
-| plafond | `canari-plafond-export` | mille lignes sur 1 001, et aucun mot : `not-truncated` en attente (AM-002) |
+| plafond | `canari-plafond-export` | mille lignes sur 1 001 : `not-truncated` tenu parce que la source le dit en nommant dsfr-data-source (AM-002, #1032) |
 | dates partielles | `canari-date-partielle` | un filtre d'ordre compare en texte : « 2024 » ≤ « 2024-03 » < « 2025 » |
 | `distinct` | `canari-distinct` | ni les vides ni les doublons ; `'1'` et `1` sont une modalité, `'01'` une autre |
 | `neq` et les nuls | `canari-neq-nuls-exclus`, `-delegue` | une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : `eq` 7 + `neq` 27 = 34 renseignées sur 40, `notin` 33 (il garde les nuls, comme le `NOT … in (…)` qu'il délègue), `isnull` 6 — et le même 27 que la clause parte au serveur ou non |
@@ -812,7 +812,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | `_compareForRange` sans repli lexicographique (`dsfr-data-query.ts`) | `canari-date-partielle` | 4 lignes au lieu de 32 : seules les dates réduites à l'année, numériques, survivent au filtre |
 | canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
 | canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |
-| canari | (par construction) `fetch-mode="export" max-records="1000"` sur 1 001 lignes | `canari-plafond-export#not-truncated` | « 1000 lignes, aucun diagnostic » — en attente, AM-002 |
+| canari | l'avertissement d'export tronqué sans « dsfr-data- » (l'ancien texte d'avant #1032), ou supprimé (`opendatasoft-adapter.ts`, `_fetchViaExport`) | `canari-plafond-export#not-truncated`, `ods-plafond-sans-compteur` (avertissement de pagination incomplète, idem) | « 1000 lignes, aucun diagnostic » ; « 120 lignes sur 137 » et le diagnostic `s-cap2` introuvable |
 | recoupement | `sum` de l'ORACLE rend un de trop (`tools/oracle/compute.ts`, `aggregate`) — un défaut du recalcul, pas de la lib | `personnels-colleges-part-ponderee` / `kpi:k-etp`, `tne-personnels-formes-unpivot` / `kpi:k-tne-participants` (vivants) | « lib 289 592, oracle 289 593, serveur 289 592 — verdict : oracle ≠ serveur, lib = serveur : le recalcul se trompe seul » : c'est le **serveur** qui désigne l'oracle, la page n'y est pour rien |
 | recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
 | nuit rouge | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) sur le contrôle VIVANT `bofip-total-publie-par-la-source-serveur` | verdict **bibliothèque** | « Verdicts de la nuit — 1 × « bibliothèque » » ; « lib 10, oracle 9 148, serveur 9 148 » ; le gel `out/gel/bofip-total-publie-par-la-source-serveur-gel.json` est écrit — copié sous `tests/verif-donnees/gel/`, il est **rouge en `npm run verif` sans réseau** (« affiché 10, recalculé 9148 », aucune requête sortie du faux réseau) et **vert** une fois la mutation retirée |
@@ -838,14 +838,12 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**En attente à ce jour** — un contrôle et deux invariants :
+**En attente à ce jour** — un contrôle et trois invariants :
 
 | Contrôle ou invariant en attente | Domaine | Défaut ou amélioration |
 |---|---|---|
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
-| `ods-plafond-sans-compteur#not-truncated` | adaptateurs | **défaut** (AM-002, #881) : `max-records="120"` sur 137 lignes, sans KPI `count` en aval — 120 lignes émises, aucun diagnostic. Seul un KPI `count` avertit (mode `/records`). |
-| `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic ; en export, `meta.total` est absent et même le KPI `count` se tait. Une seule demande pour les deux : un mot de la **source**. |
-| `canari-plafond-export#not-truncated` | canari | **défaut** (AM-002, #882) : le même, sur 1 001 lignes engendrées — 1 000 reçues, aucun diagnostic. À noter : `_fetchViaExport` porte un avertissement `truncated = rows.length > cap`, qui ne peut jamais partir puisque l'export est demandé avec `limit = cap` exactement. |
+| `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic lu ; en export, `meta.total` est absent et même le KPI `count` se tait. Depuis #1032, la source avertit en nommant dsfr-data-source (ses jumeaux déterministes `ods-plafond-sans-compteur` et `canari-plafond-export` ont reverdi) : à lever après une nuit vivante qui le constate. |
 | `canari-jointure-doublon#count-preserved`, `#sum-preserved:montant` | canari | **violés par les données**, pas par la bibliothèque (PG-001) : 42 lignes pour 40, somme +20 — rendus en attente pour être LUS, c'est le point du canari. Aucune issue à ouvrir. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une
