@@ -72,11 +72,13 @@ export { attachRecorderToFrame } from './frame.js';
 export type { FrameAttachment, FrameAttachOptions } from './frame.js';
 export { lintMarkup, formatLintFindings, lireBalises } from './lint-markup.js';
 export type { ComponentContract, TagContract, LintFinding, LintSeverity } from './lint-markup.js';
-export {
-  formatTrace,
-  summarizeTrace,
-  plural,
-  formatInt,
-  JOIN_MATCH_ALERT_RATIO,
-} from './format.js';
+export { formatTrace, plural, formatInt, JOIN_MATCH_ALERT_RATIO } from './format.js';
 export type { FormatOptions } from './format.js';
+export {
+  evaluerConstats,
+  compterAlertes,
+  summarizeTrace,
+  urlDejaProxifiee,
+  REGLES_GENERIQUES,
+} from './constats.js';
+export type { Constat, ContexteConstats, GraviteConstat, RegleConstat } from './constats.js';

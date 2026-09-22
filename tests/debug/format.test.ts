@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { DataflowRecorder, formatTrace, summarizeTrace } from '@dsfr-data/shared';
+import { DataflowRecorder, evaluerConstats, formatTrace, summarizeTrace } from '@dsfr-data/shared';
 import {
   dispatchDataLoaded,
   dispatchDataError,
@@ -281,6 +281,27 @@ describe('summarizeTrace — le rail replié', () => {
     dispatchDataLoaded('src', [{ a: 1 }]);
 
     expect(summarizeTrace(recorder.snapshot()).alerts).toBe(0);
+  });
+
+  it('compte exactement les constats non-info : une seule source (#996)', () => {
+    unmount = mount(`
+      <dsfr-data-source id="src"></dsfr-data-source>
+      <dsfr-data-query id="q1" source="src" group-by="dept"></dsfr-data-query>
+      <dsfr-data-chart id="c1" source="q1" label-field="departement"></dsfr-data-chart>
+      <dsfr-data-chart id="c2" source="fantome"></dsfr-data-chart>
+    `);
+    recorder = freshRecorder();
+    setDataMeta('src', { page: 1, pageSize: 2, needsClientProcessing: true, truncated: true });
+    dispatchDataLoaded('src', [{ dept: 'A' }, { dept: 'B' }]);
+    dispatchDataLoaded('q1', [{ dept: 'A' }]);
+    const trace = recorder.snapshot();
+
+    const constats = evaluerConstats(trace, { app: '*' });
+    const nonInfo = constats.filter((c) => c.gravite !== 'info');
+    // Tous les genres sont representes : sinon l'egalite ne prouverait rien.
+    expect(constats.some((c) => c.gravite === 'info')).toBe(true);
+    expect(nonInfo.length).toBeGreaterThanOrEqual(3);
+    expect(summarizeTrace(trace).alerts).toBe(nonInfo.length);
   });
 });
 
