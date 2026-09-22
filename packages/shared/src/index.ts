@@ -407,6 +407,20 @@ export {
   diagnoseConfig,
 } from './ia/data-tools.js';
 
+// --- Outils de diagnostic du socle IA (#607, partagés par #1010, ADR-143) ---
+// App-side (ils pilotent un aperçu et partent vers un modèle) : JAMAIS dans
+// lib.ts (frontière lib/app #319).
+export type { DiagnosticContext, FormaterConstatsOptions } from './ia/diagnostic-tools.js';
+export {
+  DIAGNOSTIC_TOOLS,
+  DIAGNOSTIC_TOOL_NAMES,
+  REPEATABLE_TOOLS,
+  PREUVE_MASQUEE,
+  formaterConstats,
+  runDiagnosticTool,
+  humanizeDiagnosticStep,
+} from './ia/diagnostic-tools.js';
+
 // --- Boucle agentique generique (#1004, ADR-143) — app-side, jamais dans lib.ts ---
 // Les types du dialogue (PostChat, OpenAIResponse...) sont exportes par le bloc
 // du transport (#998), depuis chat-types.js.
