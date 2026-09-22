@@ -26,6 +26,7 @@ import {
 } from '../builder-e2e/api-fixtures.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
+import tabularLong from './jeux/adaptateurs-tabular-long.json' with { type: 'json' };
 import melodi from './jeux/adaptateurs-melodi.json' with { type: 'json' };
 import grist from './jeux/adaptateurs-grist.json' with { type: 'json' };
 import jsonLignes from './jeux/adaptateurs-json.json' with { type: 'json' };
@@ -53,6 +54,18 @@ export const CLE_ODS = 'cle-de-verif-a-ne-pas-journaliser';
 
 /** Les 137 territoires du harnais de recette, partagés par ODS et Tabular. */
 export const TERRITOIRES_ADAPT: Row[] = territoires;
+
+/**
+ * Ressource Tabular LONGUE (#1019) : l'API sert 200 lignes par page, les 137
+ * territoires tiennent donc en une seule — et `links.next` ne serait plus
+ * suivi. Ce jeu (`jeux/adaptateurs-tabular-long.json`) les pose trois fois
+ * (411 lignes, trois pages : 200, 200, 11), chaque copie marquée par
+ * `copie`, pour que la pagination reste éprouvée :
+ * une page oubliée, ou la première relue au lieu de la suivante, change le
+ * compte.
+ */
+export const RESSOURCE_TABULAR_LONGUE = 'ea1b5c3d-0000-4000-8000-tabularlongue01';
+export const TERRITOIRES_TABULAR_LONG: Row[] = tabularLong;
 
 // ---------------------------------------------------------------------------
 // INSEE Melodi — deux ressources, un seul aplatissement (#586)
@@ -262,6 +275,9 @@ export function repondreAdaptateurs(url: URL): unknown | null {
   if (url.origin === HOTE_TABULAR) {
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR}/data/`) {
       return repondreTabular(url, TERRITOIRES_ADAPT);
+    }
+    if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_LONGUE}/data/`) {
+      return repondreTabular(url, TERRITOIRES_TABULAR_LONG);
     }
     return null;
   }

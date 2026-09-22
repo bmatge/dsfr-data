@@ -220,22 +220,28 @@ describe('OpenDataSoft — /facets', () => {
 });
 
 describe('Tabular', () => {
-  it('rend l’enveloppe { data, links, meta }', () => {
+  it('rend l’enveloppe { data, links, meta } — le jeu tient en une page de 200 (#1019)', () => {
+    expect(NOMBRE_DE_LIGNES).toBeLessThan(TABULAR_PAGE_SIZE);
     const reponse = repondreTabular(url(TABULAR, `page=1&page_size=${TABULAR_PAGE_SIZE}`));
-    expect(reponse.data).toHaveLength(TABULAR_PAGE_SIZE);
+    expect(reponse.data).toHaveLength(NOMBRE_DE_LIGNES);
     expect(reponse.meta).toEqual({
       page: 1,
       page_size: TABULAR_PAGE_SIZE,
       total: NOMBRE_DE_LIGNES,
     });
+    expect(reponse.links.next).toBeNull();
+  });
+
+  it('annonce la suite dans links.next quand la page est plus petite que le jeu', () => {
+    const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50'));
+    expect(reponse.data).toHaveLength(50);
     expect(reponse.links.next).toContain('page=2');
   });
 
   it('ferme la pagination sur la derniere page', () => {
-    const derniere = Math.ceil(NOMBRE_DE_LIGNES / TABULAR_PAGE_SIZE);
-    const reponse = repondreTabular(
-      url(TABULAR, `page=${derniere}&page_size=${TABULAR_PAGE_SIZE}`)
-    );
+    const derniere = Math.ceil(NOMBRE_DE_LIGNES / 50);
+    const reponse = repondreTabular(url(TABULAR, `page=${derniere}&page_size=50`));
+    expect(reponse.data).toHaveLength(NOMBRE_DE_LIGNES - (derniere - 1) * 50);
     expect(reponse.links.next).toBeNull();
   });
 

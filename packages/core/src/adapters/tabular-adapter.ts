@@ -56,14 +56,21 @@ function appendBareFlags(url: URL, flags: string[]): string {
   return `${serialized}${url.search ? '&' : '?'}${flags.join('&')}`;
 }
 
-/** Nombre max de records par requête Tabular (API max = 50) */
-const TABULAR_PAGE_SIZE = 50;
+/**
+ * Nombre max de records par requête Tabular : 200, le maximum réel de l'API
+ * (mesuré le 2026-09-22 : `page_size=201` rend une 400 « Page size exceeds
+ * allowed maximum: 200 », sans en-tête CORS — illisible en navigateur, #1019).
+ */
+const TABULAR_PAGE_SIZE = 200;
 
-/** Nombre max de pages a fetcher (limite de securite : 500 x 50 = 25 000 records, #286) */
-const TABULAR_MAX_PAGES = 500;
+/** Nombre max de pages a fetcher (limite de securite : 125 x 200 = 25 000 records, #286, #1019) */
+const TABULAR_MAX_PAGES = 125;
 
 export class TabularAdapter implements ApiAdapter {
   readonly type = 'tabular';
+
+  /** Avertissement « page-size borne » deja emis (une fois par adaptateur). */
+  private _pageSizeClampWarned = false;
 
   readonly capabilities: AdapterCapabilities = {
     serverFetch: true,
@@ -217,7 +224,7 @@ export class TabularAdapter implements ApiAdapter {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
-      // Derniere page bornee a remaining : plus d'over-fetch de 50 (#289)
+      // Derniere page bornee a remaining : pas d'over-fetch d'une page entiere (#289)
       const url = getProxiedUrl(
         this.buildUrl(params, Math.min(TABULAR_PAGE_SIZE, remaining), currentPage),
         params.proxyUrl
@@ -377,6 +384,23 @@ export class TabularAdapter implements ApiAdapter {
    * les deux modes tient a la pagination (une page), au `where` effectif de
    * l'overlay et a son tri — pas a ce qui est delegue.
    */
+  /**
+   * Borne une taille de page demandee au maximum de l'API Tabular (200, #1019),
+   * avec un `console.warn` unique : un `page-size="500"` produirait sinon une
+   * 400 sans en-tete CORS, illisible dans le navigateur.
+   */
+  private _clampPageSize(pageSize: number): number {
+    if (pageSize <= TABULAR_PAGE_SIZE) return pageSize;
+    if (!this._pageSizeClampWarned) {
+      this._pageSizeClampWarned = true;
+      console.warn(
+        `[dsfr-data] tabular: page-size="${pageSize}" dépasse le maximum de l'API ` +
+          `(${TABULAR_PAGE_SIZE} lignes par page) — ramené à ${TABULAR_PAGE_SIZE}`
+      );
+    }
+    return TABULAR_PAGE_SIZE;
+  }
+
   buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string {
     const base = this._getBaseUrl(params);
     const origin =
@@ -405,8 +429,9 @@ export class TabularAdapter implements ApiAdapter {
       }
     }
 
-    // PAGINATION: une seule page
-    url.searchParams.set('page_size', String(params.pageSize));
+    // PAGINATION: une seule page, bornee au maximum de l'API (#1019) : au-dela,
+    // Tabular rend une 400 sans en-tete CORS, que le navigateur rend muette.
+    url.searchParams.set('page_size', String(this._clampPageSize(params.pageSize)));
     url.searchParams.set('page', String(overlay.page));
 
     return appendBareFlags(url, bareFlags);

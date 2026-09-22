@@ -100,7 +100,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > aux facettes, datalist ou graphiques. Voir la doc de dsfr-data-normalize.
 
 > **Mode adapter** : avec `api-type`, dsfr-data-source gere la pagination automatiquement.
-> ODS: max 1000 records, Tabular: max 25000 records (500 pages de 50), Grist: toutes les données.
+> ODS: max 1000 records, Tabular: max 25000 records (125 pages de 200), Grist: toutes les données.
 > Le mode adapter ecoute aussi les commandes `dsfr-data-source-command` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 

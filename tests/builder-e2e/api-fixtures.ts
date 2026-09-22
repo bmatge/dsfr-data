@@ -47,8 +47,8 @@ export type LigneRecette = {
 /** Taille de page de l'API ODS — doit rester alignee sur `ODS_PAGE_SIZE`. */
 export const ODS_PAGE_SIZE = 100;
 
-/** Taille de page de l'API Tabular — doit rester alignee sur `TABULAR_PAGE_SIZE`. */
-export const TABULAR_PAGE_SIZE = 50;
+/** Taille de page de l'API Tabular (200, son maximum reel, #1019) — doit rester alignee sur `TABULAR_PAGE_SIZE`. */
+export const TABULAR_PAGE_SIZE = 200;
 
 /**
  * Hotes des trois variantes.
