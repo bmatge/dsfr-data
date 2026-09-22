@@ -301,6 +301,48 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'tabular-plafond-max-records',
+    mode: 'deterministic',
+    origin:
+      '#1027 — Tabular honore `max-records` comme Opendatasoft (#233) : 300 sur 411 lignes, soit une page pleine de 200 puis le reste. L’API lit une page à `(page − 1) × page_size` : une seconde page réduite à 100 relirait les lignes 100 à 199 — un compte juste, une somme fausse. Et la troncature se DIT (console, `truncated`), sans KPI `count` pour avertir.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
+    markup: `
+  <dsfr-data-source id="s-tab-cap" api-type="tabular" resource="${RESSOURCE_TABULAR_LONGUE}"
+    max-records="300"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tab-cap-n" source="s-tab-cap" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-tab-cap-pop" source="s-tab-cap" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-tab-cap-n', agg: 'count', pipeline: [{ op: 'limit', n: 300 }] },
+      {
+        kind: 'kpi',
+        id: 'k-tab-cap-pop',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'limit', n: 300 }],
+      },
+      {
+        kind: 'rows',
+        id: 's-tab-cap',
+        // Clé composite : le jeu long répète les 137 territoires (`copie` 1 à 3)
+        key: ['region', 'copie'],
+        columns: ['population'],
+        pipeline: [{ op: 'limit', n: 300 }],
+        // 300 lignes émises sur 411 brutes : l'invariant tient parce que la
+        // SOURCE le dit (le cas que `ods-plafond-sans-compteur` laisse en skip).
+        invariants: [{ kind: 'not-truncated' }],
+      },
+      // Le mot de la SOURCE, pas celui du KPI `count` (qui avertit aussi) :
+      // c'est lui qui reste quand aucun compteur n'est posé.
+      {
+        kind: 'diagnostic',
+        id: 's-tab-cap',
+        expect: 'warning',
+        contains: "l'attribut max-records de dsfr-data-source",
+      },
+    ],
+  },
+
+  {
     id: 'tabular-filtres-delegues',
     mode: 'deterministic',
     origin:

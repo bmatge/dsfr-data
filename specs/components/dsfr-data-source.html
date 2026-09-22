@@ -88,14 +88,14 @@
                 <td>OpenDataSoft (v2.1)</td>
                 <td><code>dataset-id</code></td>
                 <td>offset, 100/page, max 10 pages</td>
-                <td>1 000</td>
+                <td>1 000 (relevable : <code>max-records</code>)</td>
               </tr>
               <tr>
                 <td><code>tabular</code></td>
                 <td>Tabular API (data.gouv.fr)</td>
                 <td><code>resource</code></td>
                 <td>page, 200/page, max 125 pages</td>
-                <td>25 000</td>
+                <td>25 000 (relevable : <code>max-records</code>)</td>
               </tr>
               <tr>
                 <td><code>grist</code></td>
@@ -168,12 +168,36 @@
                 <tr><td><code>aggregate</code></td><td>String</td><td><code>"champ:fn"</code> ou <code>"champ:fn:alias"</code></td><td>Agrégation (pour les APIs qui le supportent server-side)</td></tr>
                 <tr><td><code>order-by</code></td><td>String</td><td><code>"champ:asc"</code> ou <code>"champ:desc"</code></td><td>Order-by</td></tr>
                 <tr><td><code>limit</code></td><td>Number</td><td>Entier positif. <code>0</code> = illimite</td><td>Limite du nombre de résultats</td></tr>
-                <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par défaut de l'adapter</td><td>Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par défaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agrégations client » — attention au nombre de requêtes en boucle et au poids mémoire.</td></tr>
+                <tr><td><code>max-records</code></td><td>Number</td><td>Entier positif. <code>0</code> = plafond par défaut de l'adapter</td><td>Plafond de lignes du chargement complet en mode adaptateur, honoré par Opendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de l'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever explicitement pour charger un jeu plus long par la pagination — par exemple une carte des ≈ 35 000 communes sur Tabular (<code>max-records="40000"</code>) — ou pour les tableaux de bord « un fetch, N agrégations client » : attention au nombre de requêtes en boucle (Tabular : une par tranche de 200 lignes) et au poids mémoire. Un <code>limit</code> plus petit reste prioritaire. Quand le plafond coupe le jeu, la source signale la troncature (<code>truncated</code>) et un avertissement console cite <code>max-records</code>.</td></tr>
                 <tr><td><code>server-side</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Mode pagination serveur (datalist, tableaux). Ce qui est délégué ne change pas avec ce mode : une page porte les mêmes filtres, le même regroupement et les mêmes agrégats qu'un chargement complet — seule la façon dont les lignes arrivent change (#852). Un adaptateur qui ne sait pas déléguer une opération rend les lignes brutes et le signale, et l'aval la calcule côté client.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
+
+        <h4 class="fr-mt-3w">Relever le plafond de lignes : <code>max-records</code></h4>
+        <p>
+          En mode adaptateur, le chargement complet s'arrête à un plafond de sécurité : 1 000 lignes sur
+          Opendatasoft, 25 000 sur Tabular (125 pages de 200). <code>max-records</code> le relève
+          explicitement, et vaut pour les deux adaptateurs : Opendatasoft (#233) et Tabular (#1027). Sur
+          Tabular, une carte de toutes les communes (environ 35 000 lignes) demande
+          <code>max-records="40000"</code>, soit jusqu'à 200 requêtes de 200 lignes : c'est le prix à
+          peser, en requêtes comme en mémoire. Un <code>limit</code> plus petit reste prioritaire.
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-source id="communes"
+  api-type="tabular"
+  resource="…"
+  max-records="40000"&gt;
+&lt;/dsfr-data-source&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Quand le plafond coupe le jeu, la troncature n'est pas muette : la source la signale
+          (<code>truncated</code>, lisible dans le volet Diagnostic) et un avertissement console cite
+          <code>max-records</code> comme moyen de la lever. C'est vrai aussi sur un <code>group-by</code>
+          délégué, dont l'API ne donne pas le total : une page pleine au plafond avec une page suivante
+          annoncée suffit à la signaler. Les autres adaptateurs (Grist, INSEE Melodi) ignorent l'attribut.
+        </p>
 
         <h4 class="fr-mt-3w">Tout charger en un seul appel : <code>fetch-mode</code></h4>
         <p>
