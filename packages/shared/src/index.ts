@@ -434,6 +434,22 @@ export {
   matchSkills,
 } from './ia/skill-matching.js';
 
+// --- Correspondance sans modele : phrase -> repere d'interface (#1012, app-side) ---
+export type {
+  OptionsCorrespondance,
+  RepereMatchable,
+  CorrespondanceRepere,
+  ResultatCorrespondance,
+} from './ia/reperes-matching.js';
+export {
+  SEUIL_REPERE,
+  ECART_AMBIGUITE,
+  MAX_CANDIDATS,
+  projeterReperes,
+  trouverRepere,
+  formulerCorrespondance,
+} from './ia/reperes-matching.js';
+
 // --- Export d'image PNG/JPG depuis un apercu (app-side) ---
 export type {
   ImageExportFormat,
