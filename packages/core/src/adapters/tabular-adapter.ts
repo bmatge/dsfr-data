@@ -115,10 +115,18 @@ export class TabularAdapter implements ApiAdapter {
   /**
    * True si le group-by/aggregate de params est entierement delegable
    * (tous les champs surs pour la syntaxe a suffixe `colonne__op`, #289).
+   *
+   * Un `group-by` SANS agregat ne l'est pas (#1025) : `champ__groupby` seul
+   * ne regroupe pas, l'API rend une ligne par ligne brute reduite au champ
+   * (`Code sexe__groupby&page_size=5` → F, M, M, F, M, mesure du
+   * 2026-09-22, api-tabular#119). Delegue, il faisait passer des modalites
+   * REPETEES pour des groupes. Lignes brutes + `needsClientProcessing`,
+   * comme pour `distinct` : l'aval regroupe.
    */
   private _canServerProcessGroupBy(params: AdapterParams): boolean {
     if (!params.groupBy && !params.aggregate) return true;
     const aggregates = parseAggregates(params.aggregate || '');
+    if (this._isGroupByWithoutAggregate(params, aggregates.length)) return false;
     if (!aggregates.every((a) => this.supportsServerAggregate(a.function))) return false;
     const fields = [
       ...(params.groupBy
@@ -184,7 +192,13 @@ export class TabularAdapter implements ApiAdapter {
   private _warnUndelegable(params: AdapterParams, canServerProcess: boolean): boolean {
     const asked = !!(params.groupBy || params.aggregate);
     if (!asked || canServerProcess) return asked;
-    if (this._hasDistinct(params)) {
+    if (this._isGroupByWithoutAggregate(params)) {
+      console.warn(
+        `[dsfr-data] tabular: group-by sans agrégat non délégable (group-by="${params.groupBy}") — ` +
+          `l'API Tabular répète les lignes au lieu de les regrouper ; lignes brutes renvoyées, ` +
+          `regroupement calculé côté client`
+      );
+    } else if (this._hasDistinct(params)) {
       console.warn(
         `[dsfr-data] tabular: "distinct" n'est pas délégable à l'API Tabular (aggregate="${params.aggregate}") — ` +
           `lignes brutes renvoyées, comptage distinct calculé côté client`
@@ -196,6 +210,12 @@ export class TabularAdapter implements ApiAdapter {
       );
     }
     return false;
+  }
+
+  /** `group-by` pose sans aucun agregat : non delegable a Tabular (#1025). */
+  private _isGroupByWithoutAggregate(params: AdapterParams, aggregateCount?: number): boolean {
+    const count = aggregateCount ?? parseAggregates(params.aggregate || '').length;
+    return !!params.groupBy?.trim() && count === 0;
   }
 
   /** True si l'expression d'agrégat contient un `distinct` (#672). */
@@ -373,7 +393,12 @@ export class TabularAdapter implements ApiAdapter {
 
     const json = await response.json();
     const data = json.data || [];
-    const totalCount = json.meta?.total ?? 0;
+    // Total ABSENT = total INCONNU (contrat #270), jamais 0 (#1025) : une
+    // reponse agregee ne porte pas de `meta.total` (`{page, page_size}`
+    // seulement, `links.next` pagine les groupes). Lu comme 0, il masquait la
+    // pagination de la liste (une seule page) et un KPI `meta:total` affichait 0.
+    const totalCount: number | undefined =
+      typeof json.meta?.total === 'number' ? json.meta.total : undefined;
 
     return {
       data,
