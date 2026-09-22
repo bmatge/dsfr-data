@@ -416,3 +416,40 @@ export {
 // source de verite, `debug/index.ts`, qui sert aussi de point d'entree au
 // bundle autonome de #608.
 export * from './debug/index.js';
+
+// --- Transport IA commun et capacites Albert (#998, ADR-143) ---
+// App-side (fetch, localStorage) : JAMAIS dans lib.ts (frontiere lib/app #319).
+// Les types du dialogue viennent de chat-types.ts SEULEMENT (partages avec la
+// boucle agentique, #1004) : transport.ts les importe sans les re-exporter.
+export type { ToolCall, ChatMessage, OpenAIResponse, PostChat } from './ia/chat-types.js';
+export type {
+  UserIAConfig,
+  ServerIAConfig,
+  ProxyFetchInit,
+  ResolvedTransport,
+  ResolveTransportOptions,
+} from './ia/transport.js';
+export {
+  IA_PROXY_DEFAULT_ENDPOINT,
+  IA_PROXY_ENDPOINT,
+  IA_CONFIG_KEY,
+  userProxyHeaders,
+  proxyFetch,
+  postProxy,
+  fetchServerConfig,
+  getServerConfig,
+  resetServerConfigCache,
+  loadUserConfig,
+  isServerMode,
+  isAlbertUrl,
+  resolveTransport,
+} from './ia/transport.js';
+export type { AlbertCapabilities } from './ia/albert-capabilities.js';
+export {
+  DEFAULT_CAPABILITIES,
+  ALBERT_DEFAULT_CAPABILITIES,
+  getCapabilities,
+  setCapabilities,
+  resetCapabilities,
+  effectiveCapabilities,
+} from './ia/albert-capabilities.js';

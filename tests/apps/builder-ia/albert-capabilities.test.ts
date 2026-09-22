@@ -5,7 +5,7 @@ import {
   setCapabilities,
   resetCapabilities,
   effectiveCapabilities,
-} from '../../../apps/builder-ia/src/ia/albert-capabilities';
+} from '../../../packages/shared/src/ia/albert-capabilities';
 
 describe('builder-ia albert-capabilities', () => {
   beforeEach(() => {

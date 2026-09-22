@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'path';
 import { request as httpsRequest } from 'https';
 import { request as httpRequest } from 'http';
+import { creerDebit, lireMaxRpm, reponseRefus } from '../../scripts/lib/debit.cjs';
 
 // Load .env from project root so IA_DEFAULT_* vars are available in server plugins
 const rootEnv = loadEnv('development', resolve(__dirname, '../..'), '');
@@ -59,7 +60,12 @@ export default defineConfig({
           );
         });
 
-        // POST /ia-proxy-default — proxy with server-side token injection
+        // POST /ia-proxy-default — proxy with server-side token injection.
+        // Plafond global (#999) : meme module que scripts/ia-default-server.js,
+        // IA_MAX_RPM lu dans l'environnement du process ou dans le .env racine.
+        const iaDebit = creerDebit({
+          maxParMinute: lireMaxRpm(process.env.IA_MAX_RPM ?? rootEnv.IA_MAX_RPM),
+        });
         server.middlewares.use('/ia-proxy-default', (req, res) => {
           if (req.method === 'OPTIONS') {
             res.writeHead(204, {
@@ -105,6 +111,18 @@ export default defineConfig({
             } catch {
               res.writeHead(400, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+              return;
+            }
+
+            // Plafond global (#999) : 429 + Retry-After AVANT tout appel amont.
+            const jeton = iaDebit.tenter();
+            if (!jeton.ok) {
+              const refus = reponseRefus(jeton.retryAfter);
+              res.writeHead(refus.status, {
+                ...refus.headers,
+                'Access-Control-Allow-Origin': '*',
+              });
+              res.end(refus.body);
               return;
             }
 

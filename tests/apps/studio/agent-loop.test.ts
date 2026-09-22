@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import { runStudioLoop } from '../../../apps/studio/src/ia/agent-loop';
-import type { PostChat, OpenAIResponse } from '../../../apps/studio/src/ia/transport';
+import type { PostChat, OpenAIResponse } from '@dsfr-data/shared';
 
 const DATA = [
   { region: 'IDF', population: 12000 },

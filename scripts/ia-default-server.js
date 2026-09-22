@@ -7,6 +7,11 @@
  *   GET  /ia-server-config   — returns { available, apiUrl, model } (no token)
  *   POST /ia-proxy-default   — forwards to Albert API with server-side token injected
  *
+ * Plafond global (#999) : au-dela de IA_MAX_RPM appels acceptes par minute
+ * glissante (defaut 10, tous utilisateurs confondus), /ia-proxy-default repond
+ * 429 avec `Retry-After` (secondes entieres) SANS appeler l'amont. Module
+ * partage avec le middleware de dev de vite.config.ts : ./lib/debit.cjs.
+ *
  * Proxy d'entreprise (runtime) : si HTTP_PROXY/HTTPS_PROXY est défini au
  * niveau du conteneur (cf. docker-compose `environment:`), les appels
  * sortants vers l'API Albert sont routés via le proxy. NO_PROXY est honoré.
@@ -15,12 +20,15 @@
 
 const http = require('http');
 const { request, EnvHttpProxyAgent, setGlobalDispatcher } = require('undici');
+const { creerDebit, lireMaxRpm, reponseRefus } = require('./lib/debit.cjs');
 
 const TOKEN = process.env.IA_DEFAULT_TOKEN || '';
 const API_URL =
   process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
 const MODEL = process.env.IA_DEFAULT_MODEL || 'openweight-large';
 const PORT = 3003;
+const MAX_RPM = lireMaxRpm(process.env.IA_MAX_RPM);
+const debit = creerDebit({ maxParMinute: MAX_RPM });
 
 // Active le proxy HTTP sortant si HTTP_PROXY ou HTTPS_PROXY est défini.
 // EnvHttpProxyAgent lit HTTP_PROXY/HTTPS_PROXY/NO_PROXY (et variantes
@@ -101,6 +109,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Plafond global (#999) : refuse AVANT tout appel amont.
+    const jeton = debit.tenter();
+    if (!jeton.ok) {
+      console.log(
+        `[ia-default-server] ${new Date().toISOString()} LOCAL-RATE-LIMIT ` +
+          `max=${MAX_RPM}/min retry-after=${jeton.retryAfter}s`
+      );
+      const refus = reponseRefus(jeton.retryAfter);
+      res.writeHead(refus.status, refus.headers);
+      res.end(refus.body);
+      return;
+    }
+
     const payload = JSON.stringify(parsed);
 
     // Observabilite du volume/taille des echanges (diagnostic rate-limit 429).
@@ -148,5 +169,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[ia-default-server] Listening on 127.0.0.1:${PORT}`);
+  console.log(`[ia-default-server] Listening on 127.0.0.1:${PORT} (IA_MAX_RPM=${MAX_RPM})`);
 });
