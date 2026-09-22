@@ -94,7 +94,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 1. `lat-field` + `lon-field` : coordonnees separees
 2. `geo-field` vers GeoJSON Point : `{ type: "Point", coordinates: [lon, lat] }`
 3. `geo-field` vers ODS : `{ lat: N, lon: N }`
-4. Auto-detection : cherche `geo_point_2d`, `geo_shape`, `geometry`
+4. Auto-detection sans `geo-field` : les points (marker, circle, heatmap) cherchent
+   `geo_point_2d`, `geopoint`, `geo_point` ; une couche `geoshape` prend la premiere
+   colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON (objet ou chaine).
+   Si aucune ne convient, la couche le dit en console et ne trace rien : poser alors
+   `geo-field`.
 
 ### Fonds de carte predefinis (sans clé API)
 
@@ -488,7 +492,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ; `color-field` / `color` donnent alors le contour, et la légende décrit les classes. Sans effet sur `marker` et `heatmap`. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
-| `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) |
+| `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053). |
 | `heat-blur` | `number` | `15` | Flou applique a la heatmap, en pixels. |
 | `heat-field` | `string` | `""` (vide) | Champ de ponderation des points de la heatmap. |
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |

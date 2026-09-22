@@ -419,6 +419,15 @@ describe('lintMarkup — règles cartographiques', () => {
         attendu: false,
       },
     ]);
+
+    it('#1053 — avertissement, pas erreur : la couche devine geo_shape, geometry, geom', () => {
+      const f = lintMarkup(
+        carte('<dsfr-data-map-layer id="z" source="s" type="geoshape"></dsfr-data-map-layer>'),
+        CONTRAT_REEL
+      ).find((x) => x.regle === 'carte/geoshape-sans-geo-field');
+      expect(f?.severity).toBe('avertissement');
+      expect(f?.message).toContain('geo_shape, geometry, geom');
+    });
   });
 
   describe('carte/sans-coordonnees (avertissement : la couche devine geo_point_2d…)', () => {
