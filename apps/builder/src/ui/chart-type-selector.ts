@@ -3,7 +3,7 @@
  * Updates state.chartType and toggles visibility of type-specific config options.
  */
 
-import { state, type ChartType } from '../state.js';
+import { state, supportsMultiSeries, type ChartType } from '../state.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
 import { updateUrlSyncSection } from './url-sync-config.js';
@@ -99,11 +99,11 @@ export function selectChartType(type: ChartType): void {
     }
   }
 
-  // Types that support multiple séries: bar, horizontalBar, line, radar
-  const supportsMultiSeries = ['bar', 'horizontalBar', 'line', 'radar'].includes(type);
+  // Types that support multiple séries (MULTI_SERIES_TYPES, state.ts)
+  const multiSeries = supportsMultiSeries(type);
   const extraSeriesGroup = document.getElementById('extra-series-group') as HTMLElement | null;
-  if (extraSeriesGroup) extraSeriesGroup.style.display = supportsMultiSeries ? 'block' : 'none';
-  if (!supportsMultiSeries) {
+  if (extraSeriesGroup) extraSeriesGroup.style.display = multiSeries ? 'block' : 'none';
+  if (!multiSeries) {
     state.valueField2 = '';
     state.extraSeries = [];
     const container = document.getElementById('extra-series-container');

@@ -84,6 +84,9 @@ describe('#673 — grammaire ratio', () => {
     expect(computeAggregation(DOSSIERS, 'count / meta:total', { metaTotal: 8 })).toBe(0.5);
     expect(computeAggregation(DOSSIERS, 'count / meta:total')).toBe(1);
     expect(computeAggregation(DOSSIERS, 'meta:total', { metaTotal: 8 })).toBe(8);
+    // Total INCONNU de l'amont (#1046) : ni les lignes reçues, ni un ratio.
+    expect(computeAggregation(DOSSIERS, 'meta:total', { metaTotal: null })).toBeNull();
+    expect(computeAggregation(DOSSIERS, 'count / meta:total', { metaTotal: null })).toBeNull();
   });
 
   it('countsReceivedRows : vrai si un côté compte les lignes reçues', () => {
