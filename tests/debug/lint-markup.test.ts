@@ -25,6 +25,66 @@ const CONTRAT: ComponentContract = {
   'dsfr-data-chart': { attributes: ['source', 'type', 'label-field', 'value-field'] },
 };
 
+/**
+ * Compte le travail que `lireBalises` fait sur le document (#1047).
+ *
+ * Le document est passe dans un Proxy de `String` qui facture chaque acces :
+ * 1 par caractere lu (`html[k]`) ou par `length`, et pour une methode le
+ * nombre de caracteres qu'elle parcourt — `indexOf` jusqu'au resultat,
+ * `slice` la longueur rendue, et le document ENTIER pour toute autre methode
+ * ou conversion (hypothese prudente : une methode inconnue est facturee comme
+ * un balayage complet). Aucune instrumentation du module : il est copie tel
+ * quel dans le serveur MCP.
+ *
+ * `copiesIntegrales` compte les appels qui rendent une chaine de plus de la
+ * moitie du document : sur une telle copie, les acces suivants echappent au
+ * compteur.
+ */
+function mesurerLecture(html: string): {
+  operations: number;
+  copiesIntegrales: number;
+  balises: number;
+} {
+  let operations = 0;
+  let copiesIntegrales = 0;
+  const n = html.length;
+  const noterCopie = (r: unknown) => {
+    if (typeof r === 'string' && r.length > n / 2) copiesIntegrales++;
+    return r;
+  };
+
+  const document = new Proxy(new String(html), {
+    get(_cible, cle) {
+      if (typeof cle === 'string' && /^\d+$/.test(cle)) {
+        operations += 1;
+        return html[Number(cle)];
+      }
+      if (cle === 'length') {
+        operations += 1;
+        return n;
+      }
+      const valeur: unknown = Reflect.get(String.prototype, cle);
+      if (typeof valeur !== 'function') return valeur;
+      const methode = valeur as (...args: unknown[]) => unknown;
+      return (...args: unknown[]) => {
+        const r = methode.apply(html, args);
+        if (cle === 'indexOf') {
+          const depart = typeof args[1] === 'number' ? Math.max(0, args[1]) : 0;
+          operations += (r === -1 ? n : (r as number)) - depart + 1;
+        } else if (cle === 'slice' || cle === 'substring' || cle === 'charAt') {
+          operations += (r as string).length + 1;
+        } else {
+          operations += n;
+        }
+        return noterCopie(r);
+      };
+    },
+  });
+
+  const balises = lireBalises(document as unknown as string).length;
+  return { operations, copiesIntegrales, balises };
+}
+
 describe('lireBalises', () => {
   it('relève les balises dsfr-data et leurs attributs', () => {
     const balises = lireBalises(
@@ -242,21 +302,28 @@ describe('robustesse du scan de balises (N1, N2)', () => {
     // Le parcours etait quadratique : `toLowerCase()` du document entier a
     // chaque tour. Ce module tourne cote serveur MCP sur du HTML recu de
     // l'exterieur, le cout doit rester borne.
+    //
+    // On COMPTE le travail au lieu de le chronometrer (#1047) : un rapport de
+    // durees depend de la charge de la machine (13,5 mesure sous la suite
+    // complete, pour un seuil a 10), un compte d'operations non.
     const balise = '<dsfr-data-source id="s" url="/x"></dsfr-data-source>\n';
-    const mesurer = (n: number) => {
-      const html = balise.repeat(n);
-      const t0 = performance.now();
-      lireBalises(html);
-      return performance.now() - t0;
-    };
+    const petit = mesurerLecture(balise.repeat(200));
+    const grand = mesurerLecture(balise.repeat(2000));
 
-    mesurer(500); // chauffe
-    const petit = Math.max(mesurer(1000), 0.5);
-    const grand = mesurer(4000);
+    expect(grand.balises).toBe(2000);
 
-    // Quadratique : x4 d'entree -> x16 de temps. Lineaire : ~x4. On laisse
-    // une marge large pour ne pas rendre le test instable en CI.
-    expect(grand / petit).toBeLessThan(10);
+    // x10 d'entree : lineaire -> x10 d'operations (9,99 mesure), quadratique
+    // -> ~x100. Un compte est deterministe : l'ecart ne depend plus de la
+    // machine, et le seuil a 20 laisse un ordre de grandeur de chaque cote.
+    expect(grand.operations / petit.operations).toBeLessThan(20);
+
+    // Garde de la mesure elle-meme : si la fonction copie le document entier
+    // (conversion, `toLowerCase()` global...), la suite du parcours porte sur
+    // une chaine que le compteur ne voit plus, et le rapport ci-dessus
+    // pourrait rester bas sur un parcours quadratique. Une copie UNIQUE et
+    // legitime ferait donc aussi rougir ce test : il faudrait alors facturer
+    // le parcours autrement, pas retirer la garde.
+    expect(grand.copiesIntegrales, 'lireBalises copie le document entier').toBe(0);
   });
 
   it('n’est pas troublé par un « < » dans une valeur', () => {
