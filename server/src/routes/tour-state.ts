@@ -21,6 +21,8 @@ interface StoredTourEntry {
 interface TourState {
   disabled?: boolean;
   demoDatasetsDisabled?: boolean;
+  /** Mode de révélation des repères (#1003) : `dire` par défaut, `guider` sur choix. */
+  reperageMode?: 'dire' | 'guider';
   tours: Record<string, StoredTourEntry>;
 }
 
@@ -43,6 +45,9 @@ function validate(body: unknown): TourState | null {
   const state: TourState = { tours: {} };
   if (obj.disabled === true) state.disabled = true;
   if (obj.demoDatasetsDisabled === true) state.demoDatasetsDisabled = true;
+  if (obj.reperageMode === 'dire' || obj.reperageMode === 'guider') {
+    state.reperageMode = obj.reperageMode;
+  }
 
   if (obj.tours && typeof obj.tours === 'object') {
     for (const [id, entry] of Object.entries(obj.tours as Record<string, unknown>)) {

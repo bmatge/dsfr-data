@@ -62,6 +62,13 @@ export interface TourState {
    * pickers. Managed from /guide, next to the product-tour toggle.
    */
   demoDatasetsDisabled?: boolean;
+  /**
+   * Mode de révélation des repères (#1003, ADR-143 §7) : `dire` (défaut :
+   * surbrillance + annonce, focus intact) ou `guider` (fait défiler, déplace le
+   * focus). Choix explicite de l'usager ; absent = `dire`. Lu et écrit par
+   * `getReperageMode()` / `setReperageMode()` (`ui/reperage.ts`).
+   */
+  reperageMode?: 'dire' | 'guider';
   /** Seen tours keyed by tour id. */
   tours: Record<string, StoredTourEntry>;
 }
@@ -113,14 +120,16 @@ function _normalizeState(raw: unknown): { state: TourState; migrated: boolean } 
         tours[id] = { at: entry, version: 1 };
       }
     }
-    return {
-      state: {
-        disabled: obj.disabled === true,
-        demoDatasetsDisabled: obj.demoDatasetsDisabled === true,
-        tours,
-      },
-      migrated: false,
+    const state: TourState = {
+      disabled: obj.disabled === true,
+      demoDatasetsDisabled: obj.demoDatasetsDisabled === true,
+      tours,
     };
+    // Valeur hors union → champ absent (mode par défaut : `dire`).
+    if (obj.reperageMode === 'dire' || obj.reperageMode === 'guider') {
+      state.reperageMode = obj.reperageMode;
+    }
+    return { state, migrated: false };
   }
   // Old format: every key is a tour id mapped to an ISO string.
   const tours: Record<string, StoredTourEntry> = {};
