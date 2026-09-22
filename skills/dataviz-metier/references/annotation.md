@@ -3,6 +3,8 @@
 > Un graphique sans phrase laisse le lecteur seul. Titre qui dit le message, repère et cible dessinés, valeur du filtre reprise dans le titre, source et date lues dans la donnée, description pour les lecteurs d'écran.
 >
 > Déclencheurs : phrase de lecture, annotation, titre du graphique, repère, ligne de référence, seuil, cible, objectif, résultats pour, titre dynamique, source de la donnée, date de la donnée, à jour au, mise à jour, description, légende
+>
+> Niveaux : intermédiaire, avancé
 
 ## Le titre porte le message, le libellé porte la mesure
 
@@ -10,7 +12,7 @@
 |---|---|---|
 | Titre du bloc | `databox-title="Part des femmes parmi les licenciés, 2024"` ; `heading-level="2"` pour le rang RGAA 9.1 (#670) | un titre = nom du jeu |
 | Nom de série | `value-field="lics_f:Licenciées"` (alias inline `champ:Libellé`, #668) ; vérifié le 2026-09-19 : la légende affiche l'alias | `name='["…"]'` sur une carte s'affiche littéralement (AM-023) |
-| Modalité vide | `empty-label="Non renseigné"` (0.21.1) — vérifié : l'axe affiche « Non renseigné » | le tableau `a11y` du même graphique rend la cellule **vide** (vérifié 2026-09-19) : nommer aussi dans la donnée si le tableau compte |
+| Modalité vide | `empty-label="Non renseigné"` (0.21.1) — vérifié : l'axe affiche « Non renseigné » | le tableau `a11y` du même graphique rend la cellule **vide** (vérifié 2026-09-19, 0.30.0) : poser aussi `empty-label` sur `dsfr-data-a11y` (0.33.0) |
 | Unité | `unit-tooltip="%"`, `unit="€"` sur un KPI | l'unité dans `label` quand la valeur n'en est pas une |
 
 ## Calculer la phrase dans la donnée

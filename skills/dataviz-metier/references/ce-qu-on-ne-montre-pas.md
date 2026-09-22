@@ -3,6 +3,8 @@
 > Groupe null, troncature silencieuse, lignes sans code géographique, clé hors référentiel, jeu vide, échantillon réduit par le cumul des filtres, données manquantes qui ne sont pas des zéros, agrégat sans sens : le graphique montre ce qui reste, la page doit dire ce qui manque.
 >
 > Déclencheurs : ce qu'on ne montre pas, données manquantes, non renseigné, groupe null, valeurs nulles, troncature, max-records, tronqué en silence, lignes ignorées, carte muette, hors référentiel, jeu vide, aucun résultat, échantillon, représentativité, cumul de filtres, données manquantes zéro, agrégat sans sens, attendre un filtre
+>
+> Niveaux : base (§ troncature, via niveau-base), intermédiaire (§ groupe null, § lignes non dessinées), avancé (tout)
 
 ## Le groupe null : nommer ou écarter, mais décider
 
@@ -20,8 +22,9 @@ Deux gestes, deux lectures — vérifiés au navigateur le 2026-09-19 (dsfr-data
 
 Dans les deux cas, **le dire** : dans `description`, ou en légende (« 21 projets sans type
 d'entreprise, non représentés »). Côté client la clé vide ressort en `''`, pas en `null` : un
-`isnull` posé en aval ne l'attrape pas (PG-015). Le tableau `a11y` rend la cellule vide même
-avec `empty-label` (vérifié) — voir [accessibilite-comme-sens](accessibilite-comme-sens.md).
+`isnull` posé en aval ne l'attrape pas (PG-015). Le tableau `a11y` rend la cellule vide avec
+le seul `empty-label` du graphique (vérifié 0.30.0) : poser aussi `empty-label` sur
+`dsfr-data-a11y` (0.33.0) — voir [accessibilite-comme-sens](accessibilite-comme-sens.md).
 
 ## La troncature silencieuse : trois plafonds
 
