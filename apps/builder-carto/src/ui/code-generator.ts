@@ -163,6 +163,87 @@ function popupTag(layer: LayerConfig): string {
 }
 
 /**
+ * Noms de colonnes lus par un gabarit de popup (`{{chemin[:format][|defaut]}}`,
+ * `{{#if champ}}`, `{{/if}}`) : le premier segment de chaque chemin.
+ */
+function templateFields(template: string): string[] {
+  const out: string[] = [];
+  for (const m of template.matchAll(/\{\{\{?\s*([^}]*?)\s*\}?\}\}/g)) {
+    let expr = m[1];
+    if (expr.startsWith('/')) continue;
+    expr = expr.replace(/^#(?:if|unless)\s+/, '');
+    const path = expr.split(/[:|]/)[0].trim();
+    if (path) out.push(path);
+  }
+  return out;
+}
+
+/**
+ * Colonnes que la couche lit reellement (#985) — ce que la source doit
+ * demander, et rien d'autre : `select` devient `columns=` sur Tabular, et
+ * l'API ne rend que ces colonnes (366 892 → 22 383 octets pour 200 bornes
+ * IRVE a trois colonnes, mesure du 2026-09-22).
+ *
+ * Rend `null` — toutes les colonnes — des qu'un doute existe, car une colonne
+ * OUBLIEE est une colonne vide sur la carte, et une colonne INCONNUE fait
+ * repondre 400 a l'API :
+ * - aucun champ detecte (`layer.fields` vide) ;
+ * - un popup sans liste de champs ni gabarit, qui affiche TOUTES les colonnes ;
+ * - un champ reference qui n'est pas une colonne detectee (chemin imbrique
+ *   `{{a.b}}`, faute de frappe) ;
+ * - un nom portant `,` (separateur de `columns=`).
+ */
+export function layerSelectFields(layer: LayerConfig): string[] | null {
+  const known = new Set(layer.fields.map((f) => f.name));
+  if (known.size === 0) return null;
+
+  const wanted: string[] = [
+    layer.latField,
+    layer.lonField,
+    layer.geoField,
+    layer.colorField,
+    layer.timeField,
+    layer.bbox ? layer.bboxField : '',
+  ];
+  if (layer.type === 'geoshape') wanted.push(layer.fillField);
+  if (layer.type === 'circle') wanted.push(layer.radiusField);
+  if (layer.type === 'heatmap') wanted.push(layer.heatField);
+
+  if (!layer.noInteractive) {
+    const mode = layer.popupMode;
+    if (mode === 'tooltip') {
+      wanted.push(layer.tooltipField);
+    } else if (mode !== 'none') {
+      wanted.push(layer.titleField);
+      if (layer.popupTemplate) {
+        wanted.push(...templateFields(layer.popupTemplate));
+      } else {
+        const popupFields = layer.popupFields
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean);
+        if (popupFields.length === 0) return null;
+        wanted.push(...popupFields);
+      }
+    }
+  }
+
+  // Filtre de la couche (`champ:op:valeur, …`) : la query intermediaire le
+  // calcule sur les lignes recues, la colonne doit donc y etre.
+  if (layer.filter) {
+    for (const clause of layer.filter.split(',')) {
+      const field = clause.split(':')[0].trim();
+      if (field) wanted.push(field);
+    }
+  }
+
+  const fields = [...new Set(wanted.map((f) => (f ?? '').trim()).filter(Boolean))];
+  if (fields.length === 0) return null;
+  if (fields.some((f) => !known.has(f) || f.includes(','))) return null;
+  return fields;
+}
+
+/**
  * Balise <dsfr-data-source> d'une couche. Reutilisee par l'assistance de
  * champs (field-service) avec un id/limit d'echantillonnage.
  */
@@ -226,6 +307,14 @@ export function buildSourceTag(
   // n'est pas montre.
   const limit = opts.limit ?? (isAdapter.current ? layer.maxItems : 0);
   if (limit && isAdapter.current) attrs.push(`limit="${esc(limit)}"`);
+
+  // select : les seules colonnes lues par la couche (#985), sur Tabular (ou
+  // il devient `columns=`). Jamais pour l'echantillonnage de field-service
+  // (`opts.limit`), qui doit voir TOUTES les colonnes pour les proposer.
+  if (provider.id === 'tabular' && isAdapter.current && opts.limit === undefined) {
+    const select = layerSelectFields(layer);
+    if (select) attrs.push(`select="${esc(select.join(', '))}"`);
+  }
 
   return `<dsfr-data-source ${attrs.join('\n  ')}>\n</dsfr-data-source>`;
 }

@@ -11,6 +11,7 @@ import {
   generateOdsQueryCode,
   generateTabularQueryCode,
   computeStaticFacetValues,
+  buildTabularDatalistSelectAttr,
 } from '../../../apps/builder/src/ui/code-generator';
 import { filterToOdsql, applyLocalFilter } from '@dsfr-data/shared';
 import { state, PROXY_BASE_URL_EMBED } from '../../../apps/builder/src/state';
@@ -893,6 +894,58 @@ describe('applyLocalFilter', () => {
 // =====================================================================
 // generateFacetsElement
 // =====================================================================
+describe('#985 — select d’une source Tabular de tableau (→ columns=)', () => {
+  const champ = (name: string) => ({ name, type: 'string', sample: '' });
+
+  beforeEach(() => {
+    resetState();
+    state.fields = ['nom', 'Code sexe', "Libellé de l'élu", 'region', 'date'].map(champ);
+    state.sortOrder = 'none';
+    state.sortField = '';
+  });
+
+  it('colonnes visibles de la liste, facettes et tri, sans doublon', () => {
+    state.datalistColumns = [
+      { field: 'nom', label: 'Nom', visible: true, filtrable: false },
+      { field: "Libellé de l'élu", label: 'Libellé', visible: true, filtrable: false },
+      { field: 'date', label: 'Date', visible: false, filtrable: false },
+    ];
+    state.facetsConfig.enabled = true;
+    state.facetsConfig.fields = [
+      {
+        field: 'Code sexe',
+        label: 'Sexe',
+        display: 'checkbox',
+        searchable: false,
+        disjunctive: false,
+      },
+      { field: 'nom', label: 'Nom', display: 'checkbox', searchable: false, disjunctive: false },
+    ];
+    state.sortOrder = 'asc';
+    state.sortField = 'region';
+    expect(buildTabularDatalistSelectAttr()).toBe(
+      '\n    select="nom, Libellé de l&#039;élu, Code sexe, region"'
+    );
+  });
+
+  it('aucune colonne choisie (la liste affiche tout) : pas de select', () => {
+    expect(buildTabularDatalistSelectAttr()).toBe('');
+  });
+
+  it('colonne inconnue des champs détectés : pas de select (l’API répondrait 400)', () => {
+    state.datalistColumns = [{ field: 'inconnue', label: 'X', visible: true, filtrable: false }];
+    expect(buildTabularDatalistSelectAttr()).toBe('');
+  });
+
+  it('facettes désactivées : leurs champs ne comptent pas', () => {
+    state.datalistColumns = [{ field: 'nom', label: 'Nom', visible: true, filtrable: false }];
+    state.facetsConfig.fields = [
+      { field: 'region', label: 'R', display: 'checkbox', searchable: false, disjunctive: false },
+    ];
+    expect(buildTabularDatalistSelectAttr()).toBe('\n    select="nom"');
+  });
+});
+
 describe('generateFacetsElement', () => {
   beforeEach(() => {
     resetState();

@@ -220,7 +220,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
 | where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). |
-| select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\` |
+| select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
 | order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
@@ -290,6 +290,10 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > **Mode adapter** : avec \`api-type\`, dsfr-data-source gere la pagination automatiquement.
 > ODS: max 1000 records, Tabular: max 25000 records (125 pages de 200), Grist: toutes les données.
 > ODS et Tabular : plafond relevable par \`max-records\` (ex. \`max-records="40000"\` sur Tabular = 200 pages de 200).
+> Tabular : \`select="col1, col2"\` ne charge que ces colonnes (\`columns=\`, dix fois moins d'octets sur un jeu large) —
+> y mettre TOUTES les colonnes lues en aval (graphique, liste, facettes, filtres), aucune n'est ajoutee d'office ;
+> un nom inconnu fait repondre l'API en erreur. Sans effet avec \`group-by\`/\`aggregate\`. Les noms a espaces et
+> accents se deleguent tels quels (group-by, agregat, filtre, tri) ; seuls \`,\` \`:\` \`|\` restent reserves.
 > Le mode adapter ecoute aussi les commandes \`dsfr-data-source-command\` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 

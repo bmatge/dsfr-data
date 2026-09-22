@@ -43,6 +43,20 @@ const TABULAR_URL =
   `?DEP__exact=09&page_size=100`;
 
 /**
+ * Tabular — élus municipaux (RNE) de trois départements, par des colonnes à
+ * espaces et accents (#985) : `Code du département`, `Libellé du
+ * département`, `Code sexe`. 1 468 lignes au 2026-09-22, huit pages de 200
+ * pour l'oracle. L'URL de l'oracle est écrite à la main, percent-encodée ; la
+ * projection `columns=` n'y sert qu'à alléger le relevé (deux colonnes sur
+ * quinze), elle ne change aucune ligne.
+ */
+const ELUS_RESSOURCE = '2876a346-d50c-4911-934e-19ee07b0e503';
+const ELUS_URL =
+  `https://tabular-api.data.gouv.fr/api/resources/${ELUS_RESSOURCE}/data/` +
+  `?Code%20du%20d%C3%A9partement__in=01,02,03` +
+  `&columns=Libell%C3%A9%20du%20d%C3%A9partement,Code%20sexe&page_size=200`;
+
+/**
  * INSEE Melodi — décès quotidiens d'un département, pour une date figée.
  * L'oracle compte les OBSERVATIONS brutes ; la page compte les lignes
  * aplaties. Les deux doivent donner le même nombre : un aplatissement qui
@@ -114,6 +128,62 @@ const CHECKS: Check[] = [
           { op: 'group-by', by: 'ARR', columns: { nb: { agg: 'count', field: 'COM' } } },
           { op: 'order-by', column: 'nb', dir: 'desc' },
         ],
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-elus-colonne-a-espaces-vivant',
+    mode: 'live',
+    origin:
+      'data.gouv / Répertoire national des élus — #985 : des noms de colonnes à espaces et accents se délèguent à l’API réelle. Mesuré le 2026-09-22 : `Libellé du département__groupby&Code sexe__count` → 200 (le parseur accepte le nom nu, percent-encodé), là où l’ancien garde-fou (#244, #289) forçait le téléchargement de toutes les lignes. Le regroupement, le filtre `in` et la projection `select` → `columns=` partent au serveur ; l’oracle, lui, relève les lignes brutes et regroupe seul.',
+    feed: {
+      kind: 'raw',
+      source: { url: ELUS_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-elus" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03"
+    select="Libellé du département, Code sexe"></dsfr-data-source>
+  <dsfr-data-kpi id="k-elus-n" source="s-elus" value="count" format="nombre" label="Élus"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-elus-dep" source="s-elus" value="Libellé du département:distinct" format="nombre"
+    label="Départements"></dsfr-data-kpi>
+  <dsfr-data-source id="s-elus-g" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03"></dsfr-data-source>
+  <dsfr-data-query id="q-elus" source="s-elus-g" group-by="Libellé du département"
+    aggregate="Code sexe:count"></dsfr-data-query>
+  <dsfr-data-list id="l-elus" source="q-elus"
+    columns="Libellé du département:Département, Code sexe__count:Élus"></dsfr-data-list>`,
+    expects: [
+      { kind: 'kpi', id: 'k-elus-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-elus-dep', agg: 'distinct', field: 'Libellé du département' },
+      {
+        kind: 'rows',
+        id: 'q-elus',
+        key: 'Libellé du département',
+        columns: ['Code sexe__count'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'Libellé du département',
+            columns: { 'Code sexe__count': { agg: 'count', field: 'Code sexe' } },
+          },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'elus-groupby-delegue',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: 'Libellé du département__groupby',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'elus-projection',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        contains: 'columns=Libellé du département,Code sexe',
+        verdict: 'some',
       },
     ],
   },

@@ -807,7 +807,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /**
    * Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
-   * contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
+   * porte un separateur de la grammaire colon (`,` `:` `|`, #985). On les
    * interroge avant de deleguer ; sinon on retombe sur le client-side.
    */
   private _canDelegateFields(adapter: ApiAdapter, fields: string[]): boolean {
