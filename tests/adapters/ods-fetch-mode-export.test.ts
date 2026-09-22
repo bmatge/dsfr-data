@@ -157,6 +157,10 @@ describe('#689 — AC : troncature via limit + 1', () => {
     );
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('communes-france'));
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('max-records'));
+    // #1032 : le diagnostic nomme le composant qui porte le reglage
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("l'attribut max-records de dsfr-data-source")
+    );
   });
 
   it('pile le plafond : pas de troncature signalee', async () => {
