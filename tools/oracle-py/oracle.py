@@ -252,8 +252,12 @@ def arrondir(n: Fraction, decimals: int) -> float:
 
 
 def passe_filtre(row: Row, f: dict[str, Any]) -> bool:
-    v = row.get(f["field"])
     op = f["op"]
+    if op == "or":
+        # Le OU entre champs (#1026) : la ligne passe dès qu'UN filtre passe —
+        # miroir de la clause multi-champs `a|b:op:valeur` de la bibliothèque.
+        return any(passe_filtre(row, g) for g in f["any"])
+    v = row.get(f["field"])
     if op == "isnotnull":
         return not absent(v)
     if op == "isnull":

@@ -105,6 +105,7 @@ describe('DsfrDataQuery', () => {
       expect(filters).toHaveLength(1);
       expect(filters[0]).toEqual({
         field: 'status',
+        fields: ['status'],
         operator: 'eq',
         value: 'active',
       });

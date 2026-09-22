@@ -31,7 +31,13 @@ import type {
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
-import { buildColonFacetWhere, unescapeColonValue, parseOrderBy } from '../utils/where.js';
+import {
+  buildColonFacetWhere,
+  unescapeColonValue,
+  parseOrderBy,
+  splitColonFields,
+  isMultiFieldClause,
+} from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
 
@@ -399,6 +405,9 @@ export class GristAdapter implements ApiAdapter {
     for (const part of parts) {
       const [field, op, ...rest] = part.split(':');
       const value = rest.join(':');
+      // Champs multiples (#1026) : un OU que le filtre Records ne sait pas
+      // dire — la clause fait passer en mode SQL (`_hasAdvancedOperators`).
+      if (isMultiFieldClause(part)) continue;
 
       if (op === 'eq') {
         filter[field] = [unescapeColonValue(value)];
@@ -462,6 +471,8 @@ export class GristAdapter implements ApiAdapter {
       'notin',
     ];
     return where.split(',').some((part) => {
+      // Champs multiples (#1026) : seul le SQL sait relier deux champs par un OU
+      if (isMultiFieldClause(part.trim())) return true;
       const segments = part.trim().split(':');
       return segments.length >= 2 && advancedOps.includes(segments[1]);
     });
@@ -650,63 +661,82 @@ export class GristAdapter implements ApiAdapter {
       if (!field || !op) continue;
       // Valeurs percent-encodees par buildColonFacetWhere (#271)
       const value = unescapeColonValue(rest.join(':'));
-      const col = this._escapeIdentifier(field);
-
-      switch (op) {
-        case 'eq':
-          clauses.push(`${col} = ?`);
-          args.push(value);
-          break;
-        case 'neq':
-          clauses.push(`${col} != ?`);
-          args.push(value);
-          break;
-        case 'gt':
-          clauses.push(`${col} > ?`);
-          args.push(this._toNumberOrString(value));
-          break;
-        case 'gte':
-          clauses.push(`${col} >= ?`);
-          args.push(this._toNumberOrString(value));
-          break;
-        case 'lt':
-          clauses.push(`${col} < ?`);
-          args.push(this._toNumberOrString(value));
-          break;
-        case 'lte':
-          clauses.push(`${col} <= ?`);
-          args.push(this._toNumberOrString(value));
-          break;
-        case 'contains':
-          clauses.push(`${col} LIKE ?`);
-          args.push(`%${value}%`);
-          break;
-        case 'notcontains':
-          clauses.push(`${col} NOT LIKE ?`);
-          args.push(`%${value}%`);
-          break;
-        case 'in': {
-          const vals = rest.join(':').split('|').map(unescapeColonValue);
-          clauses.push(`${col} IN (${vals.map(() => '?').join(',')})`);
-          args.push(...vals);
-          break;
-        }
-        case 'notin': {
-          const vals = rest.join(':').split('|').map(unescapeColonValue);
-          clauses.push(`${col} NOT IN (${vals.map(() => '?').join(',')})`);
-          args.push(...vals);
-          break;
-        }
-        case 'isnull':
-          clauses.push(`${col} IS NULL`);
-          break;
-        case 'isnotnull':
-          clauses.push(`${col} IS NOT NULL`);
-          break;
+      // Champs multiples (#1026) : `a|b:op:v` → `(a … OR b …)`, meme operateur
+      // et meme valeur ; les arguments suivent l'ordre des `?`.
+      const sub: string[] = [];
+      for (const oneField of splitColonFields(field)) {
+        this._sqlClause(oneField, op, rest, value, sub, args);
       }
+      if (sub.length === 1) clauses.push(sub[0]);
+      else if (sub.length > 1) clauses.push(`(${sub.join(' OR ')})`);
     }
 
     return clauses.join(' AND ');
+  }
+
+  /** Une clause SQL a UN champ (voir `_colonWhereToSql`), poussee dans `sub`. */
+  private _sqlClause(
+    field: string,
+    op: string,
+    rest: string[],
+    value: string,
+    sub: string[],
+    args: (string | number)[]
+  ): void {
+    const col = this._escapeIdentifier(field);
+
+    switch (op) {
+      case 'eq':
+        sub.push(`${col} = ?`);
+        args.push(value);
+        break;
+      case 'neq':
+        sub.push(`${col} != ?`);
+        args.push(value);
+        break;
+      case 'gt':
+        sub.push(`${col} > ?`);
+        args.push(this._toNumberOrString(value));
+        break;
+      case 'gte':
+        sub.push(`${col} >= ?`);
+        args.push(this._toNumberOrString(value));
+        break;
+      case 'lt':
+        sub.push(`${col} < ?`);
+        args.push(this._toNumberOrString(value));
+        break;
+      case 'lte':
+        sub.push(`${col} <= ?`);
+        args.push(this._toNumberOrString(value));
+        break;
+      case 'contains':
+        sub.push(`${col} LIKE ?`);
+        args.push(`%${value}%`);
+        break;
+      case 'notcontains':
+        sub.push(`${col} NOT LIKE ?`);
+        args.push(`%${value}%`);
+        break;
+      case 'in': {
+        const vals = rest.join(':').split('|').map(unescapeColonValue);
+        sub.push(`${col} IN (${vals.map(() => '?').join(',')})`);
+        args.push(...vals);
+        break;
+      }
+      case 'notin': {
+        const vals = rest.join(':').split('|').map(unescapeColonValue);
+        sub.push(`${col} NOT IN (${vals.map(() => '?').join(',')})`);
+        args.push(...vals);
+        break;
+      }
+      case 'isnull':
+        sub.push(`${col} IS NULL`);
+        break;
+      case 'isnotnull':
+        sub.push(`${col} IS NOT NULL`);
+        break;
+    }
   }
 
   // =========================================================================

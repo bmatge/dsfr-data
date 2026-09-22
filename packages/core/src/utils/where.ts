@@ -11,6 +11,15 @@
  * une VALEUR sont percent-encodés par `escapeColonValue` (avec `%` lui-même,
  * pour la réversibilité). Tous les parseurs colon (query, Grist SQL/Records,
  * Tabular, INSEE) décodent via `unescapeColonValue` après découpage.
+ *
+ * CHAMPS MULTIPLES (#1026) : `a|b:op:valeur` applique le MÊME opérateur et la
+ * MÊME valeur à plusieurs champs, reliés par un OU (`splitColonFields`) ; les
+ * clauses restent reliées par un ET. C'est le seul OU de la grammaire — pas de
+ * clause `or(...)` générale — et il ne réserve aucun caractère de plus : `,`
+ * `:` `|` restent les trois séparateurs. Traductions : Tabular
+ * `or=(a__op.v,b__op.v)`, ODSQL `(a … OR b …)`, Grist SQL `(a … OR b …)`,
+ * client (query, KPI) en OU ; INSEE et generic refusent (`supportsServerWhere`)
+ * et laissent le filtre au client.
  */
 
 import type { AdapterCapabilities } from '../adapters/api-adapter.js';
@@ -20,7 +29,13 @@ export type WhereFormat = AdapterCapabilities['whereFormat'];
 // Implementation partagee avec les utilitaires app-side (filter-translator) :
 // definie dans @dsfr-data/shared (lib-safe), re-exportee ici pour les
 // consommateurs de packages/core (#315).
-export { escapeColonValue, unescapeColonValue, filterToOdsql } from '@dsfr-data/shared/lib';
+export {
+  escapeColonValue,
+  unescapeColonValue,
+  filterToOdsql,
+  splitColonFields,
+  isMultiFieldClause,
+} from '@dsfr-data/shared/lib';
 import { escapeColonValue } from '@dsfr-data/shared/lib';
 
 /**

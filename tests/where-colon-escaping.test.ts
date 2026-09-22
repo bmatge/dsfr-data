@@ -105,7 +105,9 @@ describe('échappement colon des valeurs WHERE (#271)', () => {
     const filters = (query as unknown as { _parseFilters: (e: string) => unknown[] })._parseFilters(
       where
     );
-    expect(filters).toEqual([{ field: 'region', operator: 'eq', value: TRICKY }]);
+    expect(filters).toEqual([
+      { field: 'region', fields: ['region'], operator: 'eq', value: TRICKY },
+    ]);
   });
 
   it('multi-sélection : tokens in séparés par | avec valeurs à virgule/pipe', () => {

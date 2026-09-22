@@ -44,6 +44,19 @@ Avec `server-search`, au lieu de filtrer localement, dsfr-data-search envoie une
 `{ where }` au source upstream (relais automatique du dsfr-data-query). Le template par défaut utilise
 la fonction ODSQL `search()` pour une recherche full-text. Personnalisable via `search-template`.
 
+Sur **Tabular** (#1026), le template par défaut est `{fields}:contains:{q}` : `{fields}` devient les
+champs de `fields` séparés par `|` (un OU entre champs), traduit en
+`or=(nom__contains.q,commune__contains.q)`. Le compteur lit alors le total serveur, juste sur tout le
+jeu. `fields` est donc obligatoire. `contains` y est insensible à la casse mais SENSIBLE aux accents :
+« ecole » ne trouve pas « École » côté serveur. Un terme que l'API ne sait pas transmettre (`,` `.`
+`(` `)` `"` `&`) retombe sur une recherche locale, signalée en console.
+
+```html
+<dsfr-data-source id="src" api-type="tabular" resource="…" server-side page-size="20"></dsfr-data-source>
+<dsfr-data-search id="r" source="src" fields="nom,commune" server-search count></dsfr-data-search>
+<dsfr-data-list id="l" source="r" columns="nom:Nom, commune:Commune" pagination="20"></dsfr-data-list>
+```
+
 ### Accessibilité : une seule région live par chaîne
 Le compte de résultats n'est annoncé au lecteur d'écran (`aria-live`) qu'une fois par chaîne,
 par le composant terminal. Quand un afficheur aval (`dsfr-data-list`, `dsfr-data-display`)
@@ -113,7 +126,7 @@ contradictoires (#654).
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est nommé d'après le champ, ou via `url-param-map` du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (un filtre de contexte porte un seul champ ; le OU entre champs, `a\|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est nommé d'après le champ, ou via `url-param-map` du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. |
 | `count` | `boolean` | `false` | Affiche un compteur de résultats sous le champ (compte serveur `meta.total` en `server-search`), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (`require-where`), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide. |
 | `count-label` | `string` | `""` (vide) | Nom compté par le compteur de `count`, à la place de « résultat » : `count-label="établissement"` affiche « 12 345 établissements ». Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier, donner les deux formes séparées par une barre verticale : `count-label="cheval\|chevaux"`, `count-label="prix\|prix"`. |
 | `debounce` | `number` | `300` | Délai en ms avant déclenchement du filtre après la dernière frappe |
@@ -124,7 +137,7 @@ contradictoires (#654).
 | `min-length` | `number` | `0` | Nombre minimum de caractères avant déclenchement |
 | `operator` | `SearchOperator` | `'contains'` | Mode de recherche : contains, starts, words |
 | `placeholder` | `string` | `'Rechercher…'` | Placeholder du champ de saisie |
-| `search-template` | `string` | `""` (vide) | Template pour la recherche serveur. {q} est remplace par le terme de recherche. Si vide et server-search active, lu depuis l'adapter de la source amont. Ex ODS: 'search("{q}")', custom: '{q} IN nom' |
+| `search-template` | `string` | `""` (vide) | Template pour la recherche serveur. {q} est remplacé par le terme de recherche, {fields} par les champs de `fields` séparés par `\|` (#1026) — la grammaire colon des champs multiples, un OU entre eux. Si vide et server-search activé, lu depuis l'adaptateur de la source amont : ODS `search("{q}")`, Tabular `{fields}:contains:{q}` (traduit en `or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais sensible aux accents : « ecole » n'y trouve pas « École »). Ex. personnalisés : '{q} IN nom', 'nom\|commune:contains:{q}'. Une clause que l'adaptateur ne sait pas transmettre (terme portant `,` `.` `(` `)` `"` `&` sur Tabular) retombe sur une recherche locale, signalée en console. |
 | `server-search` | `boolean` | `false` | Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search. |
 | `source` | `string` | `""` (vide) | ID de la source de données a ecouter |
 | `sr-label` | `boolean` | `false` | Si true, le label est en sr-only (visuellement masque, accessible) |

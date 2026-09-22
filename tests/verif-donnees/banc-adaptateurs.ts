@@ -57,6 +57,28 @@ const ELUS_URL =
   `&columns=Libell%C3%A9%20du%20d%C3%A9partement,Code%20sexe&page_size=200`;
 
 /**
+ * Tabular — la recherche serveur multi-colonnes (#1026) sur les mêmes élus,
+ * relevés par nom et prénom. L'oracle ne délègue RIEN : il relève les lignes
+ * brutes des trois départements et applique lui-même le OU entre les deux
+ * colonnes. Sur la ressource entière, mesuré le 2026-09-23 :
+ * `or=(Nom de l'élu__contains.MARTIN,Prénom de l'élu__contains.MARTIN)` →
+ * 351 = 189 + 164 − 2.
+ */
+const ELUS_NOMS_URL =
+  `https://tabular-api.data.gouv.fr/api/resources/${ELUS_RESSOURCE}/data/` +
+  `?Code%20du%20d%C3%A9partement__in=01,02,03` +
+  `&columns=Nom%20de%20l%27%C3%A9lu,Pr%C3%A9nom%20de%20l%27%C3%A9lu&page_size=200`;
+
+/** Le OU entre les deux colonnes, pour l'oracle (Tabular : `ilike`, sans repliement d'accents). */
+const MARTIN_NOM_OU_PRENOM = {
+  op: 'or' as const,
+  any: [
+    { field: "Nom de l'élu", op: 'contains' as const, value: 'MARTIN' },
+    { field: "Prénom de l'élu", op: 'contains' as const, value: 'MARTIN' },
+  ],
+};
+
+/**
  * INSEE Melodi — décès quotidiens d'un département, pour une date figée.
  * L'oracle compte les OBSERVATIONS brutes ; la page compte les lignes
  * aplaties. Les deux doivent donner le même nombre : un aplatissement qui
@@ -184,6 +206,49 @@ const CHECKS: Check[] = [
         among: `/api/resources/${ELUS_RESSOURCE}/data/`,
         contains: 'columns=Libellé du département,Code sexe',
         verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-elus-recherche-multi-colonnes-vivant',
+    mode: 'live',
+    origin:
+      'data.gouv / Répertoire national des élus — #1026 : `dsfr-data-search fields="Nom de l’élu,Prénom de l’élu" server-search` part à l’API réelle en `or=(Nom de l’élu__contains.MARTIN,Prénom de l’élu__contains.MARTIN)`, en ET avec le filtre de la source. Le compteur lit `meta.total`, sur tout le jeu et non sur la page de 20 chargée. L’oracle relève les lignes brutes des trois départements et fait le OU lui-même.',
+    feed: {
+      kind: 'raw',
+      source: { url: ELUS_NOMS_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-elus-ou" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03" server-side page-size="20"></dsfr-data-source>
+  <dsfr-data-search id="r-elus-ou" source="s-elus-ou" fields="Nom de l'élu,Prénom de l'élu"
+    server-search count debounce="0" min-length="0" label="Rechercher un élu"></dsfr-data-search>
+  <dsfr-data-kpi id="k-elus-ou" source="r-elus-ou" value="meta:total" format="nombre"
+    label="Élus trouvés"></dsfr-data-kpi>`,
+    actions: [{ kind: 'fill', selector: '#r-elus-ou input', value: 'MARTIN' }],
+    expects: [
+      {
+        kind: 'text',
+        id: 'r-elus-ou',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [MARTIN_NOM_OU_PRENOM] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-elus-ou',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [MARTIN_NOM_OU_PRENOM] }],
+      },
+      {
+        kind: 'urls',
+        id: 'elus-or-delegue',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: "or=(Nom de l'élu__contains.MARTIN,Prénom de l'élu__contains.MARTIN)",
+        verdict: 'last',
       },
     ],
   },

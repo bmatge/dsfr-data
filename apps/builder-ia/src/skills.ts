@@ -447,6 +447,15 @@ Multiples filtres separes par virgule (logique ET) :
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
 
+**Champs multiples — un OU entre champs (#1026)** : \`"nom|commune:contains:martin"\` applique le
+MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
+clause. Les clauses entre elles restent en ET : \`where="nom|commune:contains:martin, dept:eq:75"\`.
+\`|\` sépare les champs AVANT le premier \`:\`, les valeurs d'un \`in\` APRÈS le second. C'est le seul
+OU de la grammaire (pas de clause \`or(...)\` générale). Traduction serveur : Tabular
+\`or=(nom__contains.martin,commune__contains.martin)\` (une seule clause multi-champs par requête,
+valeur sans \`,\` \`.\` \`(\` \`)\` \`"\` \`&\`, pas de \`in\`/\`notin\`), Opendatasoft et Grist
+\`(… OR …)\` ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
+
 **Champs tableau (#953, ex-#842)** : \`eq\` / \`neq\` / \`in\` / \`notin\` regardent DANS le tableau.
 \`tags:eq:urgent\` retient une ligne dont \`tags\` vaut \`["urgent","social"]\`, exactement comme
 \`value="count:tags:urgent"\` de dsfr-data-kpi la compte, et comme le portail la retient quand la
@@ -1183,6 +1192,19 @@ Les compteurs de facettes se recalculent dynamiquement.
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
 \`{ where }\` au source upstream (relais automatique du dsfr-data-query). Le template par défaut utilise
 la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via \`search-template\`.
+
+Sur **Tabular** (#1026), le template par défaut est \`{fields}:contains:{q}\` : \`{fields}\` devient les
+champs de \`fields\` séparés par \`|\` (un OU entre champs), traduit en
+\`or=(nom__contains.q,commune__contains.q)\`. Le compteur lit alors le total serveur, juste sur tout le
+jeu. \`fields\` est donc obligatoire. \`contains\` y est insensible à la casse mais SENSIBLE aux accents :
+« ecole » ne trouve pas « École » côté serveur. Un terme que l'API ne sait pas transmettre (\`,\` \`.\`
+\`(\` \`)\` \`"\` \`&\`) retombe sur une recherche locale, signalée en console.
+
+\`\`\`html
+<dsfr-data-source id="src" api-type="tabular" resource="…" server-side page-size="20"></dsfr-data-source>
+<dsfr-data-search id="r" source="src" fields="nom,commune" server-search count></dsfr-data-search>
+<dsfr-data-list id="l" source="r" columns="nom:Nom, commune:Commune" pagination="20"></dsfr-data-list>
+\`\`\`
 
 ### Accessibilité : une seule région live par chaîne
 Le compte de résultats n'est annoncé au lecteur d'écran (\`aria-live\`) qu'une fois par chaîne,

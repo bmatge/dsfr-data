@@ -85,6 +85,8 @@ export function replier(v: unknown): string {
 
 /** Un filtre ligne à ligne. */
 export function passeFiltre(row: Row, filter: RowFilter): boolean {
+  // Le OU entre champs (#1026) : une disjonction, évaluée filtre par filtre.
+  if (filter.op === 'or') return filter.any.some((f) => passeFiltre(row, f));
   const v = row[filter.field];
   switch (filter.op) {
     case 'isnotnull':
