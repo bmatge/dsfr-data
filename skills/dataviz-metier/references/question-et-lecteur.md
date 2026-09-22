@@ -3,6 +3,8 @@
 > Avant la première balise : à quoi ce bloc répond-il, qui le lit, et que doit-il retenir ?
 >
 > Déclencheurs : quelle question, quel lecteur, message, objectif de la page, à quoi sert ce graphique, hors objet, indice de synthèse, score moyen
+>
+> Niveaux : base (§ quatre lignes, via niveau-base), intermédiaire (§ lecteur), avancé (§ Score moyen, § hypothèses)
 
 ## Les quatre lignes à écrire avant de coder
 
