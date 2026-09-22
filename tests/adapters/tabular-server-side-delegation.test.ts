@@ -119,9 +119,22 @@ describe('#852 — Tabular : la pagination serveur delegue comme le fetch comple
     expect(result.totalCount).toBe(8);
   });
 
-  it('champ non delegable : rien n’est emis, et fetchPage rend la main au client', async () => {
+  it('champ a espaces : delegue percent-encode, comme en fetch complet (#985)', () => {
     const params = tabularParams({
       groupBy: 'Date - Journee gaziere',
+      aggregate: 'population:sum',
+    });
+
+    const q = query(adapter.buildServerSideUrl(params, overlay()));
+    expect(q).toContain('Date%20-%20Journee%20gaziere__groupby');
+    expect(q).toContain('population__sum');
+  });
+
+  it('champ non delegable : rien n’est emis, et fetchPage rend la main au client', async () => {
+    // Seul un separateur de la grammaire colon (`,` `:` `|`) rend un nom
+    // non delegable depuis #985
+    const params = tabularParams({
+      groupBy: 'Code|Libelle',
       aggregate: 'population:sum',
     });
 

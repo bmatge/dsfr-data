@@ -85,6 +85,11 @@
                   <td class="capability-yes">Oui</td>
                   <td>Paramètres <code>column__sum</code>, <code>__avg</code>, <code>__count</code>, <code>__min</code>, <code>__max</code></td>
                 </tr>
+                <tr>
+                  <td>Sélection de colonnes</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Attribut <code>select</code> de la source → paramètre <code>columns</code> (sans group-by ni agrégat)</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -183,13 +188,61 @@
 
         <!-- Selection de colonnes -->
         <section class="fr-mt-4w">
-          <h2>Selection de colonnes</h2>
+          <h2>Sélection de colonnes</h2>
           <p>
-            L'API supporte la selection de colonnes spécifiques via le paramètre <code>columns</code> :
+            L'attribut <code>select</code> de <code>dsfr-data-source</code> devient le paramètre
+            <code>columns</code> de l'API : elle ne rend que les colonnes nommées, en chargement
+            complet comme en pagination serveur (#985).
           </p>
-          <pre><code>?columns=nom,prenom,commune</code></pre>
+          <pre><code>&lt;dsfr-data-source id="bornes" api-type="tabular"
+  resource="eb76d20a-8501-400e-b336-d85724de5435"
+  select="nom_station, consolidated_latitude, consolidated_longitude"&gt;
+&lt;/dsfr-data-source&gt;
+&lt;!-- ?columns=nom_station,consolidated_latitude,consolidated_longitude --&gt;</code></pre>
           <p class="fr-mt-1w">
-            Cela reduit la taille de la reponse en ne retournant que les colonnes demandees.
+            Mesuré le 22 septembre 2026 : 200 bornes IRVE passent de 366 892 à 22 383 octets avec trois
+            colonnes, 50 élus de 34 721 à 3 098 octets avec deux. La projection retire des colonnes,
+            jamais des lignes : aucun chiffre ne change.
+          </p>
+          <ul>
+            <li>
+              La liste est celle de l'auteur, <strong>rien n'est ajouté d'office</strong> : une colonne
+              lue en aval (graphique, liste, facette, filtre calculé dans le navigateur) doit y figurer.
+              Un nom inconnu du jeu fait répondre l'API en erreur.
+            </li>
+            <li>
+              Sans effet avec un <code>group-by</code> ou un <code>aggregate</code>, posé sur la source
+              ou délégué par une <code>dsfr-data-query</code> : l'API refuse <code>columns</code> à côté
+              d'un agrégateur, et le résultat agrégé ne porte de toute façon que ses groupes.
+            </li>
+            <li>
+              Tabular n'a pas d'expression : un <code>select</code> à fonction, alias ou
+              <code>*</code> (grammaire Opendatasoft) est ignoré avec un avertissement en console.
+            </li>
+          </ul>
+        </section>
+
+        <!-- Noms de colonnes -->
+        <section class="fr-mt-4w">
+          <h2>Noms de colonnes à espaces et accents</h2>
+          <p>
+            Filtres, regroupement, agrégats et tri se délèguent à l'API quel que soit le nom de colonne :
+            espaces, accents, apostrophes et ponctuation sont percent-encodés
+            (<code>Libellé du département__groupby&amp;Code sexe__count</code>, #985). Seuls les
+            séparateurs de la grammaire colon — <code>,</code>, <code>:</code> et <code>|</code> — rendent
+            un nom non délégable : le calcul se fait alors dans le navigateur, sur toutes les lignes.
+          </p>
+        </section>
+
+        <!-- Profil -->
+        <section class="fr-mt-4w">
+          <h2>Profil d'une ressource</h2>
+          <p>
+            <code>GET /api/resources/{id}/profile/</code> décrit chaque colonne : format détecté
+            (<code>latitude_wgs</code>, <code>date</code>, <code>int</code>…), type, modalités les plus
+            fréquentes, nombre de valeurs distinctes et manquantes. L'adaptateur le lit par
+            <code>fetchProfile()</code>, une fois par ressource, et jamais pendant un chargement de
+            données : c'est une requête de plus, réservée à qui en a besoin.
           </p>
         </section>
 

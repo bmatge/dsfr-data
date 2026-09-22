@@ -60,9 +60,14 @@ export function sourceOds(
 }
 
 /** La source Tabular du lot, avec ou sans pagination serveur. */
-export function sourceTabular(id: string, options: { serverSide?: boolean } = {}): string {
+export function sourceTabular(
+  id: string,
+  options: { serverSide?: boolean; select?: string } = {}
+): string {
   const attrs = [`id="${id}"`, 'api-type="tabular"', `resource="${RESSOURCE_TABULAR}"`];
   if (options.serverSide) attrs.push(`server-side page-size="${TAILLE_PAGE}"`);
+  // `select` devient `columns=` (#985) : la projection de l'API
+  if (options.select) attrs.push(`select="${options.select}"`);
   return `<dsfr-data-source ${attrs.join(' ')}></dsfr-data-source>`;
 }
 

@@ -63,16 +63,28 @@ describe('TabularAdapter', () => {
       expect(adapter.supportsServerFields(['population__sum'])).toBe(true);
     });
 
-    it('rejects columns containing spaces or hyphens', () => {
-      expect(adapter.supportsServerFields(['Date - Journée gazière'])).toBe(false);
+    // #985 : le parseur de l'API accepte espaces, accents et ponctuation
+    // percent-encodes (`Libellé du département__groupby` → 200, mesure du
+    // 2026-09-22) — l'ancien garde-fou forcait un telechargement complet.
+    it('accepts columns containing spaces or hyphens (#985)', () => {
+      expect(adapter.supportsServerFields(['Date - Journée gazière'])).toBe(true);
     });
 
-    it('rejects columns containing parentheses', () => {
-      expect(adapter.supportsServerFields(['Inventaire LNG (m3 LNG)'])).toBe(false);
+    it('accepts columns containing parentheses, apostrophes and dots (#985)', () => {
+      expect(
+        adapter.supportsServerFields(['Inventaire LNG (m3 LNG)', "Nom de l'élu", 'Foo.Bar'])
+      ).toBe(true);
     });
 
-    it('rejects if ANY field is unsafe', () => {
-      expect(adapter.supportsServerFields(['region', 'Inventaire LNG (m3 LNG)'])).toBe(false);
+    it.each([',', ':', '|'])(
+      'rejects a column containing « %s », reserved by the colon grammar (#985)',
+      (sep) => {
+        expect(adapter.supportsServerFields([`Code${sep}Libellé`])).toBe(false);
+      }
+    );
+
+    it('rejects if ANY field carries a reserved separator', () => {
+      expect(adapter.supportsServerFields(['region', 'Code|Libellé'])).toBe(false);
     });
 
     it('accepts an empty field list', () => {

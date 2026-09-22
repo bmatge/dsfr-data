@@ -31,15 +31,88 @@ function buildFetchOptions(
 }
 
 /**
- * Un nom de colonne est utilisable dans la syntaxe a suffixe Tabular
- * (`colonne__op`) seulement s'il ne contient que des lettres, chiffres et
- * underscores. Les espaces, tirets et parentheses (ex. "Date - Journee
- * gaziere", "Inventaire LNG (m3 LNG)") cassent le parser de l'API et
- * provoquent un "Malformed query". Les noms d'agregats post-traitement
- * (`population__sum`) restent valides (seulement lettres/chiffres/underscores).
+ * Caracteres qu'un nom de colonne ne peut pas porter dans une delegation
+ * Tabular : ce sont les separateurs de la grammaire colon (`utils/where.ts`)
+ * — `,` entre les clauses, `:` entre champ, operateur et valeur, `|` entre
+ * les valeurs d'une liste. Un nom qui en contient un ne survivrait pas au
+ * decoupage d'un `where`, d'un `group-by` ou d'un `aggregate`.
+ *
+ * Tout le reste est delegable (#985) : le parseur de l'API accepte espaces,
+ * accents et ponctuation, percent-encodes (mesure du 2026-09-22 :
+ * `Libellé du département__groupby&Code sexe__count` → 200 ; `Foo - Bar`,
+ * `Foo (m3)`, `Foo.Bar`, `Foo'Bar` → 42703 « column does not exist », donc
+ * parses). L'ancien garde-fou (#244, #289) refusait tout nom hors
+ * `[\p{L}\p{N}_]` et forcait un telechargement complet pour agreger cote
+ * client — jusqu'a 25 000 lignes pour un resultat que l'API rend en une
+ * requete.
  */
-function isTabularServerFieldSafe(field: string): boolean {
-  return /^[\p{L}\p{N}_]+$/u.test(field);
+const TABULAR_RESERVED_FIELD_CHARS = /[,:|]/;
+
+/**
+ * Un element de `select` qui releve de la grammaire ODSQL (fonction, alias
+ * `as`, `*`, identifiant backquote) et non d'un nom de colonne : Tabular n'a
+ * pas d'expression, seulement une liste de colonnes (`columns=`, #985).
+ * Une fonction se reconnait a sa parenthese COLLEE au nom (`count(*)`) : un
+ * nom de colonne a parenthese en porte une espace avant (`Inventaire LNG
+ * (m3 LNG)`).
+ */
+function isSelectExpression(item: string): boolean {
+  return (
+    item === '*' ||
+    item.includes('`') ||
+    /\sas\s/i.test(item) ||
+    /^[\p{L}_][\p{L}\p{N}_.]*\(/u.test(item)
+  );
+}
+
+/**
+ * Reponse de `GET /api/resources/{id}/profile/` (#985), reduite a ce que la
+ * bibliotheque sait lire. Mesure du 2026-09-22 : `application/json`, CORS `*`.
+ *
+ * - `columns[col].format` : format detecte (`latitude_wgs`, `longitude_wgs`,
+ *   `date`, `int`, `float`, `sexe`, `code_departement`…), et
+ *   `columns[col].python_type` (`int`, `float`, `string`, `date`…) ;
+ * - `profile[col]` : `tops` (modalites les plus frequentes), `nb_distinct`,
+ *   `nb_missing_values` ;
+ * - `categorical` : colonnes a peu de modalites ;
+ * - `total_lines` : nombre de lignes de la ressource.
+ *
+ * Les autres cles de l'API sont conservees telles quelles (index ouvert).
+ */
+export interface TabularProfile {
+  columns?: Record<string, { format?: string; python_type?: string; score?: number }>;
+  profile?: Record<
+    string,
+    {
+      tops?: Array<{ value: unknown; count: number }> | unknown[];
+      nb_distinct?: number;
+      nb_missing_values?: number;
+      [key: string]: unknown;
+    }
+  >;
+  categorical?: string[];
+  total_lines?: number;
+  [key: string]: unknown;
+}
+
+/** Parametres de `fetchProfile` : la ressource et son acheminement. */
+export type TabularProfileParams = Pick<AdapterParams, 'resource'> &
+  Partial<Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl'>>;
+
+/** Une lecture de profil partagee entre ses demandeurs (memoisation, #985). */
+interface ProfileEntry {
+  promise: Promise<TabularProfile>;
+  controller: AbortController;
+  /** Demandeurs encore en attente : a zero, la requete est annulee. */
+  waiting: number;
+  settled: boolean;
+}
+
+/** Erreur d'annulation, de la meme forme que celle de `fetch`. */
+function abortError(): Error {
+  const err = new Error('The operation was aborted.');
+  err.name = 'AbortError';
+  return err;
 }
 
 /**
@@ -75,6 +148,12 @@ export class TabularAdapter implements ApiAdapter {
   /** Avertissement « page-size borne » deja emis (une fois par adaptateur). */
   private _pageSizeClampWarned = false;
 
+  /** Avertissement « select ignore » deja emis (une fois par adaptateur). */
+  private _selectIgnoredWarned = false;
+
+  /** Profils lus, par `base|ressource` (#985) : un seul appel par ressource. */
+  private readonly _profiles = new Map<string, ProfileEntry>();
+
   readonly capabilities: AdapterCapabilities = {
     serverFetch: true,
     serverFacets: false,
@@ -93,14 +172,14 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
-   * Tabular delegue group-by/aggregate/order-by via une syntaxe a suffixe
-   * (`colonne__op`) qui ne tolere pas les noms de colonnes avec espaces ou
-   * ponctuation. On ne delegue cote serveur que si TOUS les champs sont "safe" ;
-   * sinon dsfr-data-query agrege client-side (resultat identique, sur toutes
-   * les lignes).
+   * Tabular delegue group-by/aggregate/order-by/where via une syntaxe a
+   * suffixe (`colonne__op`) dont le parseur accepte espaces, accents et
+   * ponctuation percent-encodes (#985). Seuls les separateurs de la grammaire
+   * colon (`,` `:` `|`) rendent un nom non delegable : dsfr-data-query
+   * calcule alors cote client (resultat identique, sur toutes les lignes).
    */
   supportsServerFields(fields: string[]): boolean {
-    return fields.every((f) => isTabularServerFieldSafe(f));
+    return fields.every((f) => !TABULAR_RESERVED_FIELD_CHARS.test(f));
   }
 
   /**
@@ -114,7 +193,7 @@ export class TabularAdapter implements ApiAdapter {
 
   /**
    * True si le group-by/aggregate de params est entierement delegable
-   * (tous les champs surs pour la syntaxe a suffixe `colonne__op`, #289).
+   * (aucun nom portant un separateur colon, #289, #985).
    *
    * Un `group-by` SANS agregat ne l'est pas (#1025) : `champ__groupby` seul
    * ne regroupe pas, l'API rend une ligne par ligne brute reduite au champ
@@ -151,12 +230,11 @@ export class TabularAdapter implements ApiAdapter {
    * d'agregat, absente de la reponse, s'affichait « — ». Un seul emetteur
    * pour les deux modes : ils ne peuvent plus diverger.
    *
-   * Group by + agregations : seulement si TOUS les champs sont surs (#289).
-   * Le garde-fou isTabularServerFieldSafe n'etait consulte que par la
-   * delegation query (#275) — un group-by pose directement sur la source
-   * (mode documente) avec un champ a espaces produisait le "Malformed
-   * query" que la fonction pretend eviter. Champs non surs → lignes brutes
-   * (needsClientProcessing signale par fetchAll / fetchPage).
+   * Group by + agregations : seulement si `_canServerProcessGroupBy` l'admet
+   * (pas de `distinct`, pas de group-by sans agregat, aucun nom portant un
+   * separateur colon). Sinon lignes brutes (needsClientProcessing signale
+   * par fetchAll / fetchPage). Les noms a espaces, accents ou ponctuation
+   * sont delegues, percent-encodes (#985).
    */
   private _groupByFlags(params: AdapterParams): string[] {
     const flags: string[] = [];
@@ -185,6 +263,138 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
+   * Projection `columns=` depuis l'attribut `select` de la source (#985).
+   *
+   * L'API ne rend alors que les colonnes nommees : 34 721 → 3 098 octets
+   * pour 50 lignes d'elus a deux colonnes, 366 892 → 22 383 octets pour
+   * 200 bornes IRVE a trois colonnes (mesures du 2026-09-22). Le chiffre
+   * affiche ne change pas : la projection retire des colonnes, jamais des
+   * lignes.
+   *
+   * Pas de projection quand :
+   * - un `group-by` ou un `aggregate` est pose (sur la source ou delegue par
+   *   une query) : l'API refuse `columns` a cote d'un agregateur (400
+   *   « the argument `columns` cannot be set alongside aggregators »), et un
+   *   regroupement non delegable (`distinct`, #1025) a besoin des lignes
+   *   brutes completes ;
+   * - un element du `select` est une expression ODSQL (`count(*) as n`,
+   *   `*`) : Tabular n'a pas d'expression, le `select` est ignore avec un
+   *   avertissement unique.
+   *
+   * Aucune inference : la liste est celle de l'auteur (ou du builder qui l'a
+   * ecrite). Une colonne absente du `select` est absente des lignes.
+   * Separateur `,` nu, chaque nom percent-encode : l'API decoupe sur la
+   * virgule, qui ne peut donc pas figurer dans un nom.
+   */
+  private _columnsFlag(params: AdapterParams): string | null {
+    const select = params.select?.trim();
+    if (!select) return null;
+    if (params.groupBy?.trim() || params.aggregate?.trim()) return null;
+    const columns = [
+      ...new Set(
+        select
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean)
+      ),
+    ];
+    if (columns.length === 0) return null;
+    if (columns.some(isSelectExpression)) {
+      if (!this._selectIgnoredWarned) {
+        this._selectIgnoredWarned = true;
+        console.warn(
+          `[dsfr-data] tabular: select="${select}" ignoré — l'API Tabular ne sélectionne que des ` +
+            `colonnes nommées (columns=), sans fonction, alias ni « * » ; toutes les colonnes ` +
+            `sont chargées`
+        );
+      }
+      return null;
+    }
+    return `columns=${columns.map(encodeURIComponent).join(',')}`;
+  }
+
+  /**
+   * Profil d'une ressource (#985) : `GET /api/resources/{id}/profile/`,
+   * format detecte et type de chaque colonne, modalites frequentes, nombre
+   * de valeurs distinctes et manquantes.
+   *
+   * Memorise par ressource (et hote) : un seul appel, quel que soit le nombre
+   * de demandeurs. Annulable : `signal` retire le demandeur, et la requete
+   * elle-meme est annulee quand plus personne ne l'attend. Une lecture en
+   * echec ou annulee n'est pas memorisee — la suivante reessaie.
+   *
+   * Jamais appele par `fetchAll` ni `fetchPage` : une requete de plus par
+   * source n'est pas gratuite. Consommateurs : l'activation du filtrage par
+   * emprise d'une couche (format `latitude_wgs` / `longitude_wgs`, #1023) et
+   * l'application Sources.
+   */
+  fetchProfile(params: TabularProfileParams, signal?: AbortSignal): Promise<TabularProfile> {
+    if (signal?.aborted) return Promise.reject(abortError());
+    const base = this._getBaseUrl(params);
+    const key = `${base}|${params.resource}`;
+
+    let entry = this._profiles.get(key);
+    if (!entry) {
+      const controller = new AbortController();
+      const url = getProxiedUrl(
+        `${base}/api/resources/${encodeURIComponent(params.resource)}/profile/`,
+        params.proxyUrl
+      );
+      const created: ProfileEntry = {
+        controller,
+        waiting: 0,
+        settled: false,
+        promise: fetch(url, buildFetchOptions(params, controller.signal)).then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const json = (await response.json()) as { profile?: TabularProfile };
+          return json.profile ?? {};
+        }),
+      };
+      created.promise.then(
+        () => {
+          created.settled = true;
+        },
+        () => {
+          created.settled = true;
+          if (this._profiles.get(key) === created) this._profiles.delete(key);
+        }
+      );
+      this._profiles.set(key, created);
+      entry = created;
+    }
+
+    const shared = entry;
+    shared.waiting++;
+    return new Promise<TabularProfile>((resolve, reject) => {
+      let done = false;
+      const release = () => {
+        if (done) return false;
+        done = true;
+        shared.waiting--;
+        signal?.removeEventListener('abort', onAbort);
+        return true;
+      };
+      const onAbort = () => {
+        if (!release()) return;
+        if (shared.waiting === 0 && !shared.settled) {
+          if (this._profiles.get(key) === shared) this._profiles.delete(key);
+          shared.controller.abort();
+        }
+        reject(abortError());
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+      shared.promise.then(
+        (profile) => {
+          if (release()) resolve(profile);
+        },
+        (err: unknown) => {
+          if (release()) reject(err);
+        }
+      );
+    });
+  }
+
+  /**
    * Avertit une fois quand un group-by/aggregate demande n'est PAS delegable
    * (#289, #672) : les lignes brutes reviennent et l'aval retraite.
    * Rend `true` quand la delegation a bien eu lieu.
@@ -204,9 +414,12 @@ export class TabularAdapter implements ApiAdapter {
           `lignes brutes renvoyées, comptage distinct calculé côté client`
       );
     } else {
+      // Seule cause restante (#985) : un nom de colonne portant un
+      // separateur de la grammaire colon.
       console.warn(
-        `[dsfr-data] tabular: group-by/aggregate non delegables (champ avec espaces/ponctuation : ` +
-          `"${params.groupBy || params.aggregate}") — lignes brutes renvoyees, traitement client requis`
+        `[dsfr-data] tabular: group-by/aggregate non délégables (nom de colonne contenant ` +
+          `« , », « : » ou « | » : "${params.groupBy || params.aggregate}") — lignes brutes ` +
+          `renvoyées, traitement client requis`
       );
     }
     return false;
@@ -427,7 +640,10 @@ export class TabularAdapter implements ApiAdapter {
 
     // Flags nus : emis hors de `url.searchParams`, qui ajouterait un `=` que
     // l'API rejette (#596). L'ordre des parametres est indifferent cote API.
+    // `columns=` passe par le meme canal : sa virgule doit rester nue (#985).
     const bareFlags = this._groupByFlags(params);
+    const columns = this._columnsFlag(params);
+    if (columns) bareFlags.push(columns);
 
     // Tri
     if (params.orderBy) {
@@ -495,6 +711,9 @@ export class TabularAdapter implements ApiAdapter {
     // complet : la query qui a delegue saute son calcul client, la reponse
     // doit donc porter des GROUPES et la colonne d'agregat (#852).
     const bareFlags = this._groupByFlags(params);
+    // Projection `columns=` depuis `select`, comme en fetch complet (#985).
+    const columns = this._columnsFlag(params);
+    if (columns) bareFlags.push(columns);
 
     // ORDER BY: overlay prioritaire, fallback statique
     const effectiveOrderBy = overlay.orderBy;
@@ -566,7 +785,7 @@ export class TabularAdapter implements ApiAdapter {
    * Builder emettant TOUJOURS `base-url`, les attributs `use-proxy` et
    * `proxy-url` etaient inertes sur ce provider (#597).
    */
-  private _getBaseUrl(params: AdapterParams): string {
+  private _getBaseUrl(params: Partial<Pick<AdapterParams, 'baseUrl'>>): string {
     return params.baseUrl || TABULAR_CONFIG.defaultBaseUrl || 'https://tabular-api.data.gouv.fr';
   }
 }

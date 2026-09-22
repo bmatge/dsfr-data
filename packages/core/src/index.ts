@@ -72,3 +72,9 @@ export type {
   ServerSideOverlay,
 } from './adapters/api-adapter.js';
 export { getAdapter, registerAdapter } from './adapters/api-adapter.js';
+// Profil d'une ressource Tabular (#985) : `(getAdapter('tabular') as TabularAdapter).fetchProfile(...)`
+export type {
+  TabularAdapter,
+  TabularProfile,
+  TabularProfileParams,
+} from './adapters/tabular-adapter.js';

@@ -187,7 +187,7 @@ export class DsfrDataSource extends LitElement {
   where = '';
 
   /**
-   * Clause SELECT (pour ODS), liste séparée par des virgules :
+   * Clause SELECT (ODS, et projection de colonnes sur Tabular), liste séparée par des virgules :
    * `select="count(*) as total, region"`. Une expression (fonction, alias
    * `as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom
    * de champ qui n'est pas un identifiant nu (espace, accent, chiffre
@@ -205,6 +205,16 @@ export class DsfrDataSource extends LitElement {
    * serait faux (#859). S'il définit une colonne par une expression aliasée
    * (`year(date) as annee`) que le regroupement vise, la délégation est
    * refusée — avertissement en console, regroupement calculé côté client.
+   *
+   * Tabular (#985) : une liste de NOMS de colonnes (`select="nom, Code sexe"`,
+   * espaces et accents admis), traduite en `columns=` — l'API ne rend que ces
+   * colonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne
+   * n'est ajoutée d'office : une colonne lue en aval (graphique, liste,
+   * facette, filtre client) doit y figurer, et un nom inconnu du jeu fait
+   * répondre l'API en erreur. Sans effet quand un `group-by` ou un
+   * `aggregate` est posé (sur la source ou délégué par une query) : l'API
+   * refuse `columns` à côté d'un agrégateur. Une expression (fonction, alias,
+   * `*`) est ignorée avec un avertissement : toutes les colonnes sont chargées.
    */
   @property({ type: String })
   select = '';

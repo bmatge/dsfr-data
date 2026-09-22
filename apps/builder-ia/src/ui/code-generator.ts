@@ -539,6 +539,35 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
 // Datalist (table)
 // ---------------------------------------------------------------------------
 
+/**
+ * Attribut `select` de la source Tabular d'un tableau (#985) : les colonnes
+ * de la liste (`champ:Libellé`) et le champ de tri, que l'adaptateur traduit
+ * en `columns=` — l'API ne rend que ces colonnes (366 892 → 22 383 octets
+ * pour 200 bornes IRVE a trois colonnes, mesure du 2026-09-22).
+ *
+ * Vide quand la configuration ne choisit pas ses colonnes (le tableau les
+ * affiche toutes) ou quand un nom n'est pas un champ detecte de la source :
+ * une colonne inconnue — nom invente par le modele, faute de frappe — ferait
+ * repondre 400 a l'API.
+ */
+export function tabularDatalistSelectAttr(config: ChartConfig): string {
+  if (!config.colonnes) return '';
+  const known = new Set(state.fields.map((f) => f.name));
+  const fields = [
+    ...new Set(
+      [
+        ...config.colonnes.split(',').map((c) => c.split(':')[0]),
+        config.sortOrder ? config.labelField : '',
+      ]
+        .map((f) => (f ?? '').trim())
+        .filter(Boolean)
+    ),
+  ];
+  if (fields.length === 0 || known.size === 0) return '';
+  if (fields.some((f) => !known.has(f))) return '';
+  return `\n    select="${escapeHtml(fields.join(', '))}"`;
+}
+
 function generateDatalistCode(config: ChartConfig): string {
   // Build colonnes attribute: from config or auto-detect from fields
   let colonnes: string;
@@ -632,7 +661,7 @@ function generateDatalistCode(config: ChartConfig): string {
     id="table-src"
     api-type="tabular"
     base-url="${escapeHtml(apiBaseUrl)}"
-    resource="${escapeHtml(resourceIds.resourceId)}"${whereAttr}
+    resource="${escapeHtml(resourceIds.resourceId)}"${whereAttr}${tabularDatalistSelectAttr(config)}
     server-side
     page-size="${escapeHtml(pagination)}">
   </dsfr-data-source>

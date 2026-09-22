@@ -380,10 +380,13 @@ const CHECKS: Check[] = [
   },
 
   {
-    id: 'tabular-group-by-non-delegable',
+    // Renommé par #985 (ex-`tabular-group-by-non-delegable`) : depuis que les
+    // noms à espaces se délèguent, `distinct` est la seule cause d'agrégat
+    // non délégable qu'il éprouve.
+    id: 'tabular-distinct-non-delegable',
     mode: 'deterministic',
     origin:
-      '#289 — Tabular ne sait pas compter des valeurs distinctes : l’adaptateur REFUSE de déléguer, rapatrie les lignes brutes et laisse le client regrouper. Déléguer quand même rendrait des colonnes muettes.',
+      '#289, #672 — Tabular ne sait pas compter des valeurs distinctes : l’adaptateur REFUSE de déléguer, rapatrie les lignes brutes et laisse le client regrouper. Déléguer quand même rendrait des colonnes muettes.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
     markup: `
   <dsfr-data-source id="s-tab-g" api-type="tabular" resource="${RESSOURCE_TABULAR}"></dsfr-data-source>

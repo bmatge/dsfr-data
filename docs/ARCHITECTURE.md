@@ -155,6 +155,19 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | whereFormat | odsql | colon | colon | colon | colon |
 | plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (125×200, 200 = maximum de l'API, #1019), relevable via `max-records` (#1027) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
+| projection `select` | clause ODSQL (expressions, alias) | `columns=` : noms seuls, ignore avec group-by/aggregate (#985) | non | non | non |
+| noms delegables (group-by, agregat, filtre, tri) | tous, backquotes (#767) | tous sauf `,` `:` `|` (grammaire colon), percent-encodes (#985) | tous | n/a | n/a |
+
+**Tabular : projection et profil (#985).** `select` devient `columns=` (`_columnsFlag`, emis par
+`buildUrl` ET `buildServerSideUrl`) — aucune inference : une colonne lue en aval doit y figurer, et
+un nom inconnu fait repondre 400. L'API refuse `columns` a cote d'un agregateur : un `group-by` ou un
+`aggregate` (pose ou delegue par une query via l'overlay) desactive la projection. Le garde-fou
+`isTabularServerFieldSafe` (#244, #289) est supprime : `supportsServerFields` ne refuse plus que les
+separateurs `,` `:` `|`. `fetchProfile()` lit `/profile/` (format et type par colonne), memorise par
+ressource, annulable ; jamais appele par `fetchAll`/`fetchPage`. Les builders (Carto, Builder,
+Assistant IA) emettent `select` depuis les champs configures, seulement quand chaque nom est une
+colonne detectee — sinon rien, toutes les colonnes. Faux serveur (`repondreTabular`) : honore
+`columns`, et le refuse a cote d'un agregateur ou sur une colonne inconnue, comme le vrai.
 
 **`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
 inchange). En `export`, `fetchAll` appelle **une fois** `{base}/api/explore/v2.1/catalog/datasets/{id}/exports/json`

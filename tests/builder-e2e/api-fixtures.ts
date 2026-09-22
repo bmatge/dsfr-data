@@ -20,10 +20,11 @@
  *   - sur une requete `group_by`, ODS renvoie un `total_count` egal a la
  *     TAILLE DE PAGE, pas au nombre de groupes (#641). L'adaptateur a raison
  *     de l'ignorer ; le faux serveur ment donc comme le vrai.
- *   - Tabular n'accepte `colonne__op` que sur des noms alphanumeriques : un
- *     nom a espace ou apostrophe n'est pas delegable (#289). Le faux serveur
- *     n'a rien a faire de special — l'adaptateur ne lui envoie simplement pas
- *     ces parametres.
+ *   - Tabular accepte `colonne__op` sur un nom a espaces, accents ou
+ *     apostrophe, percent-encode (#985, mesure du 2026-09-22) : l'adaptateur
+ *     les delegue, et le faux serveur les lit tels quels (`URLSearchParams`
+ *     decode). `columns=` projette les lignes, et le refuse a cote d'un
+ *     agregateur, comme le vrai.
  */
 
 /**
@@ -571,6 +572,23 @@ export interface EnveloppeTabular {
    * `links.next` pagine les groupes (mesure du 2026-09-22, #1025).
    */
   meta: { page: number; page_size: number; total?: number };
+  /**
+   * Requete refusee (#985). Le vrai serveur repond 400 avec ce seul champ ;
+   * le faux le sert en 200 avec `data` VIDE — l'adaptateur lit alors zero
+   * ligne, et tout chiffre calcule dessus tombe, ce qui suffit a rougir le
+   * controle qui l'aurait provoque.
+   */
+  errors?: Array<{ title: string; detail: string }>;
+}
+
+/** Reponse d'erreur Tabular : pas de lignes, le motif dans `errors`. */
+function erreurTabular(page: number, taille: number, detail: string): EnveloppeTabular {
+  return {
+    data: [],
+    links: { next: null, prev: null },
+    meta: { page, page_size: taille },
+    errors: [{ title: 'Invalid query string', detail }],
+  };
 }
 
 /**
@@ -579,11 +597,24 @@ export interface EnveloppeTabular {
  * Les flags nus (`colonne__groupby`, `colonne__sum`) arrivent SANS `=` :
  * `URLSearchParams` les rend avec une valeur vide, ce qui suffit a les
  * distinguer des parametres values (#596).
+ *
+ * `columns=a,b` (#985) projette les lignes sur ces colonnes, comme l'API
+ * (mesure du 2026-09-22) : une colonne inconnue est une erreur (42703), et
+ * `columns` a cote d'un agregateur aussi (« the argument `columns` cannot be
+ * set alongside aggregators »). Sans cette fidelite, le deterministe ne
+ * verrait pas la projection — ni une projection qui retirerait une colonne
+ * lue en aval.
  */
 export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular {
   const p = url.searchParams;
   const page = Number(p.get('page') ?? '1');
   const taille = Number(p.get('page_size') ?? String(TABULAR_PAGE_SIZE));
+  const colonnes = p.has('columns')
+    ? (p.get('columns') ?? '')
+        .split(',')
+        .map((c) => c.trim())
+        .filter(Boolean)
+    : null;
 
   const groupes: string[] = [];
   const agregats: Array<{ champ: string; fonction: string }> = [];
@@ -609,6 +640,21 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
     if (filtre) {
       const [, champ, operateur] = filtre;
       filtrees = filtrerTabular(filtrees, champ, operateur, valeur);
+    }
+  }
+
+  if (colonnes !== null) {
+    if (groupes.length > 0 || agregats.length > 0) {
+      return erreurTabular(
+        page,
+        taille,
+        'Malformed query: the argument `columns` cannot be set alongside aggregators'
+      );
+    }
+    const connues = new Set(jeu.flatMap((ligne) => Object.keys(ligne)));
+    const inconnue = colonnes.find((c) => !connues.has(c));
+    if (inconnue !== undefined) {
+      return erreurTabular(page, taille, `column ${inconnue} does not exist`);
     }
   }
 
@@ -641,7 +687,12 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
   const suivante = `/api/resources/${RESSOURCES.resourceId}/data/?page=${page + 1}&page_size=${taille}`;
 
   return {
-    data: tranche,
+    // Projection APRES filtres et tris : un filtre ou un tri peut porter sur
+    // une colonne que `columns` ne rend pas (mesure du 2026-09-22).
+    data:
+      colonnes === null
+        ? tranche
+        : tranche.map((ligne) => Object.fromEntries(colonnes.map((c) => [c, ligne[c]] as const))),
     links: {
       next: restant ? suivante : null,
       prev: page > 1 ? `/api/resources/${RESSOURCES.resourceId}/data/?page=${page - 1}` : null,
