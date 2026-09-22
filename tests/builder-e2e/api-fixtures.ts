@@ -622,6 +622,12 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
   let filtrees: Ligne[] = jeu;
 
   for (const [cle, valeur] of p.entries()) {
+    if (cle === 'or') {
+      const ou = filtrerOuTabular(filtrees, valeur);
+      if (typeof ou === 'string') return erreurTabular(page, taille, ou);
+      filtrees = ou;
+      continue;
+    }
     if (valeur === '' && cle.endsWith('__groupby')) {
       groupes.push(cle.slice(0, -'__groupby'.length));
       continue;
@@ -730,6 +736,67 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
         ? { page, page_size: taille }
         : { page, page_size: taille, total: lignes.length },
   };
+}
+
+/**
+ * `or=(a__op.v,b__op.v)` (#1026) : l'union des membres, comme l'API.
+ *
+ * Mesures du 2026-09-23 (ressource des elus) : `or=(Nom…__contains.MARTIN,
+ * Prénom…__contains.MARTIN)` → 351 = 189 + 164 − 2 ; compose en ET avec un
+ * autre filtre. Le parseur de l'API (`api_tabular/core/query.py`) decoupe le
+ * groupe sur les virgules HORS parentheses, puis chaque membre sur le point :
+ * un membre qui n'a pas exactement un point sans guillemets est « Malformed
+ * query » (400, mesure : `A%2CB`, `J.`). Une valeur citee (`"J."`) garde ses
+ * guillemets jusqu'a PostgREST : elle ne trouve rien (0, mesure). Le faux
+ * serveur fait pareil, sans quoi un adaptateur qui enverrait ces formes
+ * passerait au vert ici et rendrait 400 ou 0 en vrai.
+ */
+function filtrerOuTabular(lignes: Ligne[], groupe: string): Ligne[] | string {
+  const malforme = (membre: string) => `Malformed query: argument '${membre}' could not be parsed`;
+  if (!groupe.startsWith('(') || !groupe.endsWith(')')) return malforme(groupe);
+  const membres: string[] = [];
+  let courant = '';
+  let profondeur = 0;
+  for (const car of groupe.slice(1, -1)) {
+    if (car === '(') profondeur++;
+    if (car === ')') profondeur--;
+    if (car === ',' && profondeur === 0) {
+      membres.push(courant);
+      courant = '';
+    } else courant += car;
+  }
+  if (courant) membres.push(courant);
+
+  const predicats: Array<(ligne: Ligne) => boolean> = [];
+  for (const membre of membres) {
+    const nul = /^"?(.+?)"?__(isnull|isnotnull)$/.exec(membre);
+    if (nul) {
+      const [, champ, operateur] = nul;
+      predicats.push((ligne) => {
+        const absent = ligne[champ] === null || ligne[champ] === undefined;
+        return operateur === 'isnull' ? absent : !absent;
+      });
+      continue;
+    }
+    // Colonne citee (`"col.umn"__op.val`) ou nue (`col__op.val`, un seul point)
+    const cite = /^"([^"]*)"__([a-z_]+)\.(.*)$/.exec(membre);
+    let champOp: string;
+    let valeur: string;
+    if (cite) {
+      champOp = `${cite[1]}__${cite[2]}`;
+      valeur = cite[3];
+    } else {
+      const morceaux = membre.split('.');
+      if (morceaux.length !== 2) return malforme(membre);
+      [champOp, valeur] = morceaux;
+    }
+    const filtre =
+      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains)$/.exec(champOp);
+    if (!filtre) return malforme(membre);
+    const [, champ, operateur] = filtre;
+    predicats.push((ligne) => filtrerTabular([ligne], champ, operateur, valeur).length === 1);
+  }
+  return lignes.filter((ligne) => predicats.some((p) => p(ligne)));
 }
 
 function filtrerTabular(

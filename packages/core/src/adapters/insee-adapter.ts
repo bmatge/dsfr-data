@@ -23,7 +23,7 @@ import {
   fetchInseeLabelIndex,
   applyInseeLabels,
 } from '@dsfr-data/shared/lib';
-import { buildColonFacetWhere, unescapeColonValue } from '../utils/where.js';
+import { buildColonFacetWhere, unescapeColonValue, isMultiFieldClause } from '../utils/where.js';
 
 /** Default base URL for the Melodi API */
 const INSEE_BASE_URL = 'https://api.insee.fr/melodi';
@@ -215,6 +215,15 @@ export class InseeAdapter implements ApiAdapter {
     return url.toString();
   }
 
+  /**
+   * Melodi ne filtre qu'en egalite sur des dimensions, jamais en OU entre deux
+   * dimensions : une clause multi-champs (`a|b:op:v`, #1026) est refusee et
+   * reste au filtre client de dsfr-data-query.
+   */
+  supportsServerWhere(where: string): boolean {
+    return !where.split(',').some((clause) => isMultiFieldClause(clause.trim()));
+  }
+
   getDefaultSearchTemplate(): null {
     return null;
   }
@@ -293,6 +302,11 @@ export class InseeAdapter implements ApiAdapter {
       .filter(Boolean);
 
     for (const part of parts) {
+      // Champs multiples (#1026) : Melodi ne sait pas relier deux dimensions
+      // par un OU — la clause n'est jamais traduite (sinon `a|b` deviendrait
+      // un parametre de dimension inconnu), et `supportsServerWhere` la laisse
+      // a dsfr-data-query, qui la filtre cote client.
+      if (isMultiFieldClause(part)) continue;
       const segments = part.split(':');
       if (segments.length < 3) {
         // Simple DIMENSION=VALUE format (no operator)

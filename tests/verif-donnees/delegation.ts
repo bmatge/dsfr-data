@@ -1009,6 +1009,132 @@ const TABULAR_VOLUME: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 7. Le OU entre champs : `a|b:op:valeur` (#1026)
+// ---------------------------------------------------------------------------
+
+/**
+ * La clause multi-champs de la bibliothèque, écrite pour l'oracle comme une
+ * disjonction de filtres ordinaires. `contains` sans repliement : Tabular est
+ * insensible à la casse et SENSIBLE aux accents (`ilike`, mesuré le
+ * 2026-09-22 : `ELIE` → 48, `ÉLIE` → 3).
+ */
+function ou(fields: string[], op: 'contains' | 'eq', value: string) {
+  return { op: 'or' as const, any: fields.map((field) => ({ field, op, value })) };
+}
+
+/** « a » dans la région OU l'académie : 3 + 52 lignes, 1 en commun → 54. */
+const REGION_OU_ACADEMIE = ou(['region', 'academie'], 'contains', 'a');
+
+const TABULAR_OU: Check[] = [
+  // La recherche serveur multi-colonnes : l'objectif de #1026
+  {
+    id: 'tabular-recherche-serveur-multi-colonnes',
+    mode: 'deterministic',
+    origin:
+      '#1026 — `dsfr-data-search fields="region,academie" server-search` sur Tabular : le terme part au serveur en `or=(region__contains.a,academie__contains.a)` (gabarit par défaut `{fields}:contains:{q}`), et le compteur lit `meta.total`, l’union VRAIE sur tout le jeu (mesuré sur l’API : 351 = 189 + 164 − 2 pour MARTIN chez les élus). La source pagine par 40 : un filtre resté client ne verrait que la première page et compterait au plus 40.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-rm', { serverSide: true })}
+  <dsfr-data-search id="r-mc" source="s-rm" fields="region,academie" server-search count
+    debounce="0" min-length="0" label="Rechercher un territoire"></dsfr-data-search>
+  <dsfr-data-kpi id="k-rm-total" source="r-mc" value="meta:total" format="nombre"
+    label="Territoires trouvés"></dsfr-data-kpi>`,
+    actions: [{ kind: 'fill', selector: '#r-mc input', value: 'a' }],
+    expects: [
+      {
+        kind: 'text',
+        id: 'r-mc',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [REGION_OU_ACADEMIE] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rm-total',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [REGION_OU_ACADEMIE] }],
+      },
+      urlsDe(
+        'recherche-multi-colonnes-or',
+        'tabular',
+        'or=(region__contains.a,academie__contains.a)',
+        'last'
+      ),
+    ],
+  },
+
+  // Le `where` d'une query, délégué en `or=` puis regroupé par le serveur
+  ...pairePaginee(
+    {
+      id: 'tabular-where-multi-champs',
+      api: 'tabular',
+      origin:
+        '#1026 — `where="region|academie:contains:a"` : même opérateur, même valeur sur deux champs, reliés par un OU. Délégué en `or=(…)` avec le regroupement, il doit donner les groupes que l’oracle recalcule sur l’union — ni l’intersection (1 ligne), ni le seul premier champ (3 lignes).',
+      query:
+        'where="region|academie:contains:a" group-by="academie" aggregate="population:sum" order-by="academie:asc"',
+      colonnes: 'academie:Académie, population__sum:Population',
+      expects: [
+        {
+          kind: 'rows',
+          id: 'q',
+          key: 'academie',
+          columns: ['population__sum'],
+          pipeline: [
+            { op: 'filter', filters: [REGION_OU_ACADEMIE] },
+            {
+              op: 'group-by',
+              by: 'academie',
+              columns: { population__sum: { agg: 'sum', field: 'population' } },
+            },
+            { op: 'order-by', column: 'academie', dir: 'asc' },
+          ],
+        },
+      ],
+    },
+    [
+      urlsDe(
+        'where-multi-champs-or',
+        'tabular',
+        'or=(region__contains.a,academie__contains.a)',
+        'last'
+      ),
+    ]
+  ),
+
+  // La même grammaire sur Opendatasoft : `(… OR …)` en ODSQL
+  ...pairePaginee(
+    {
+      id: 'ods-where-multi-champs',
+      api: 'ods',
+      origin:
+        '#1026 — `where="code_dept|code_reg:eq:11"` sur Opendatasoft : la clause devient `(code_dept = "11" OR code_reg = "11")`, parenthésée parce que les clauses se joignent par AND. 2 départements + 11 lignes de la région 11 → 13.',
+      query:
+        'where="code_dept|code_reg:eq:11" group-by="pays_iso2" aggregate="population:sum:pop" order-by="pop:desc"',
+      colonnes: 'pays_iso2:Pays, pop:Population',
+      expects: [
+        {
+          kind: 'rows',
+          id: 'q',
+          key: 'pays_iso2',
+          columns: ['pop'],
+          pipeline: [
+            { op: 'filter', filters: [ou(['code_dept', 'code_reg'], 'eq', '11')] },
+            {
+              op: 'group-by',
+              by: 'pays_iso2',
+              columns: { pop: { agg: 'sum', field: 'population' } },
+            },
+            { op: 'order-by', column: 'pop', dir: 'desc' },
+          ],
+        },
+      ],
+    },
+    [urlsDe('where-multi-champs-odsql', 'ods', '(code_dept = "11" OR code_reg = "11")', 'last')]
+  ),
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -1020,5 +1146,6 @@ export const DELEGATION: Manifest = {
     ...TABULAR_API,
     ...TABULAR_TRI_AGREGAT,
     ...TABULAR_VOLUME,
+    ...TABULAR_OU,
   ],
 };

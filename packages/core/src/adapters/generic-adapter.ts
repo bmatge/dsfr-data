@@ -6,7 +6,7 @@
 import type { ApiAdapter, AdapterCapabilities, AdapterParams, FetchResult } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { GENERIC_CONFIG } from '@dsfr-data/shared/lib';
-import { buildColonFacetWhere } from '../utils/where.js';
+import { buildColonFacetWhere, isMultiFieldClause } from '../utils/where.js';
 
 export class GenericAdapter implements ApiAdapter {
   readonly type = 'generic';
@@ -48,6 +48,14 @@ export class GenericAdapter implements ApiAdapter {
 
   buildServerSideUrl(): string {
     throw new Error('GenericAdapter ne supporte pas le mode server-side');
+  }
+
+  /**
+   * Pas de requete serveur : une clause multi-champs (`a|b:op:v`, #1026) est
+   * refusee explicitement et reste au filtre client de dsfr-data-query.
+   */
+  supportsServerWhere(where: string): boolean {
+    return !where.split(',').some((clause) => isMultiFieldClause(clause.trim()));
   }
 
   getDefaultSearchTemplate(): null {

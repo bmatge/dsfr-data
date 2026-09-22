@@ -111,13 +111,28 @@
                 <tr><td><code>url-search-param</code></td><td>String</td><td><code>""</code></td><td>Nom du paramètre d'URL à lire comme terme de recherche initial. Vide = désactivé</td></tr>
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState)</td></tr>
                 <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search.</td></tr>
-                <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template pour la recherche serveur. {q} est remplace par le terme de recherche. Si vide et server-search active, lu depuis l'adapter de la source amont. Ex ODS: 'search("{q}")', custom: '{q} IN nom'</td></tr>
-                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>contains</code> du contexte sur le champ UNIQUE de <code>fields</code> (la clause colon ne sait pas dire « ou » entre plusieurs champs). Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome.</td></tr>
+                <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template pour la recherche serveur. {q} est remplacé par le terme de recherche, {fields} par les champs de <code>fields</code> séparés par <code>|</code> (#1026) — la grammaire colon des champs multiples, un OU entre eux. Si vide et server-search activé, lu depuis l'adaptateur de la source amont : ODS <code>search("{q}")</code>, Tabular <code>{fields}:contains:{q}</code> (traduit en <code>or=(nom__contains.q,commune__contains.q)</code>, insensible à la casse mais sensible aux accents : « ecole » n'y trouve pas « École »). Ex. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'. Une clause que l'adaptateur ne sait pas transmettre (terme portant <code>,</code> <code>.</code> <code>(</code> <code>)</code> <code>"</code> <code>&amp;</code> sur Tabular) retombe sur une recherche locale, signalée en console.</td></tr>
+                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>contains</code> du contexte sur le champ UNIQUE de <code>fields</code> (un filtre de contexte porte un seul champ ; le OU entre champs, <code>a|b:contains:q</code> #1026, reste propre à <code>server-search</code>). Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome.</td></tr>
                 <tr><td><code>idle-message</code></td><td>String</td><td><code>IDLE_MESSAGE_DEFAULT</code></td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
+
+        <h3 class="fr-mt-3w">Recherche serveur sur plusieurs colonnes (#1026)</h3>
+        <p>
+          En <code>server-search</code>, le gabarit <code>search-template</code> accepte <code>{fields}</code> :
+          il devient les champs de <code>fields</code> séparés par <code>|</code>, la grammaire des champs
+          multiples (<code>nom|commune:contains:martin</code>, un OU entre les champs). C'est le gabarit par
+          défaut sur Tabular, <code>{fields}:contains:{q}</code>, traduit en
+          <code>or=(nom__contains.martin,commune__contains.martin)</code> : le compteur lit le total serveur,
+          juste sur tout le jeu et non sur les lignes chargées. <code>fields</code> est alors obligatoire.
+          Côté serveur, <code>contains</code> est insensible à la casse mais sensible aux accents ; la
+          recherche locale, elle, les ignore — on ne l'aligne pas, pour ne pas rendre deux compteurs
+          différents selon le chemin. Un terme que l'API ne sait pas transmettre (<code>,</code>
+          <code>.</code> <code>(</code> <code>)</code> <code>"</code> <code>&amp;</code> sur Tabular) retombe sur
+          une recherche dans le navigateur, sur les seules lignes chargées, et un avertissement le dit.
+        </p>
 
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>

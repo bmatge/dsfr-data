@@ -15,7 +15,13 @@ import type {
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { getProxiedUrl, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
 import { parseAggregates } from '../utils/aggregates.js';
-import { buildColonFacetWhere, unescapeColonValue, parseOrderBy } from '../utils/where.js';
+import {
+  buildColonFacetWhere,
+  unescapeColonValue,
+  parseOrderBy,
+  splitColonFields,
+  isMultiFieldClause,
+} from '../utils/where.js';
 import type { OrderByPart } from '../utils/where.js';
 import { sortRows } from '../utils/sort.js';
 
@@ -49,6 +55,24 @@ function buildFetchOptions(
  * requete.
  */
 const TABULAR_RESERVED_FIELD_CHARS = /[,:|]/;
+
+/**
+ * Caracteres qu'une VALEUR ne peut pas porter dans un groupe `or=(…)` (#1026,
+ * mesures dans `_orGroup`) : le parseur de l'API decoupe le groupe sur `,`
+ * hors parentheses, chaque membre sur `.`, et la query string sur `&`, apres
+ * decodage ; un `"` y est passe tel quel a PostgREST.
+ */
+const TABULAR_OR_UNSAFE_VALUE = /[,.()"&]/;
+
+/** Parentheses equilibrees : le groupe `or=(…)` est decoupe par profondeur. */
+function parenthesesBalanced(text: string): boolean {
+  let depth = 0;
+  for (const char of text) {
+    if (char === '(') depth++;
+    else if (char === ')' && --depth < 0) return false;
+  }
+  return depth === 0;
+}
 
 /**
  * Un element de `select` qui releve de la grammaire ODSQL (fonction, alias
@@ -174,6 +198,9 @@ export class TabularAdapter implements ApiAdapter {
   /** Avertissement « select ignore » deja emis (une fois par adaptateur). */
   private _selectIgnoredWarned = false;
 
+  /** Clauses multi-champs deja signalees comme non transmissibles (#1026). */
+  private readonly _orRefusedWarned = new Set<string>();
+
   /** Profils lus, par `base|ressource` (#985) : un seul appel par ressource. */
   private readonly _profiles = new Map<string, ProfileEntry>();
 
@@ -186,7 +213,7 @@ export class TabularAdapter implements ApiAdapter {
   readonly capabilities: AdapterCapabilities = {
     serverFetch: true,
     serverFacets: false,
-    serverSearch: false,
+    serverSearch: true,
     serverGroupBy: true,
     serverOrderBy: true,
     serverGeo: false,
@@ -888,8 +915,21 @@ export class TabularAdapter implements ApiAdapter {
    */
   private _applyColonFilters(url: URL, filterExpr: string): void {
     const filters = filterExpr.split(',').map((f) => f.trim());
+    let orEmitted = false;
     for (const filter of filters) {
       const parts = filter.split(':');
+      if (isMultiFieldClause(filter)) {
+        // Champs multiples (#1026) : un OU entre champs, `or=(a__op.v,b__op.v)`
+        // — un seul groupe par requete (voir `supportsServerWhere`)
+        const group = orEmitted ? null : this._orGroup(parts);
+        if (group !== null) {
+          orEmitted = true;
+          url.searchParams.append('or', group);
+        } else {
+          this._warnOrRefused(filter);
+        }
+        continue;
+      }
       if (parts.length >= 3) {
         const field = parts[0];
         const op = this._mapOperator(parts[1]);
@@ -904,6 +944,74 @@ export class TabularAdapter implements ApiAdapter {
         url.searchParams.append(`${field}__${op}`, value);
       }
     }
+  }
+
+  /**
+   * Une clause multi-champs du `where` colon traduite en groupe `or=(…)`
+   * (#1026), ou null quand l'API ne saurait pas le lire.
+   *
+   * Mesures du 2026-09-23 sur la ressource des elus (2876a346…) :
+   * `or=(Nom de l'élu__contains.MARTIN,Prénom de l'élu__contains.MARTIN)` →
+   * `total 351` = 189 + 164 − 2, l'union vraie ; compose en ET avec un autre
+   * filtre (`&Code sexe__exact=F` → 194) ; espace et apostrophe passent
+   * (`DE LA` → 33 comme le filtre simple, `D'` → 41 idem). Le parseur de l'API
+   * (`api_tabular/core/query.py`) decoupe le groupe sur les virgules hors
+   * parentheses et chaque membre sur le point, APRES decodage de la query
+   * string : une valeur a virgule (`A%2CB`) ou a point (`J.`) rend 400, et la
+   * forme citee (`"J."`) passe les guillemets TELS QUELS a PostgREST, qui
+   * rend 0 sans erreur. D'ou les refus :
+   * - valeur portant `,` `.` `(` `)` `"` ou `&` (la query string est coupee
+   *   sur `&` apres decodage) ;
+   * - `in` / `notin` : leur liste s'ecrit avec des virgules ;
+   * - colonne portant `"`, ou des parentheses desequilibrees ; une colonne a
+   *   point est citee (`"col.umn"__op.v`, forme prevue par l'API).
+   *
+   * `contains` y garde sa semantique : insensible a la casse, SENSIBLE aux
+   * accents (`ilike`) — « ecole » ne trouve pas « École » cote serveur.
+   */
+  private _orGroup(parts: string[]): string | null {
+    const [fieldPart, op = ''] = parts;
+    if (op === 'in' || op === 'notin') return null;
+    const native = this._mapOperator(op);
+    const noValue = op === 'isnull' || op === 'isnotnull';
+    if (!noValue && parts.length < 3) return null;
+    const value = unescapeColonValue(parts.slice(2).join(':'));
+    if (!noValue && TABULAR_OR_UNSAFE_VALUE.test(value)) return null;
+    const members: string[] = [];
+    for (const field of splitColonFields(fieldPart)) {
+      if (field.includes('"') || !parenthesesBalanced(field)) return null;
+      const column = field.includes('.') ? `"${field}"` : field;
+      members.push(noValue ? `${column}__${native}` : `${column}__${native}.${value}`);
+    }
+    return `(${members.join(',')})`;
+  }
+
+  /**
+   * Le `where` est-il traduisible tel quel (#1026) ? Les clauses a un champ le
+   * sont toujours ; une clause multi-champs l'est si `_orGroup` sait l'ecrire,
+   * et une SEULE par requete — deux groupes `or=` repetes n'ont pas ete
+   * mesures, la seconde clause retombe donc sur le filtre client.
+   */
+  supportsServerWhere(where: string): boolean {
+    const multi = where
+      .split(',')
+      .map((c) => c.trim())
+      .filter((c) => c && isMultiFieldClause(c));
+    if (multi.length === 0) return true;
+    if (multi.length > 1) return false;
+    return this._orGroup(multi[0].split(':')) !== null;
+  }
+
+  /** Une clause multi-champs non traduisible : ignoree cote serveur, et dit (#1026). */
+  private _warnOrRefused(clause: string): void {
+    if (this._orRefusedWarned.has(clause)) return;
+    this._orRefusedWarned.add(clause);
+    console.warn(
+      `dsfr-data: Tabular ne sait pas transmettre la clause "${clause}" dans or=(…) ` +
+        `(valeur portant , . ( ) " ou &, liste in/notin, ou plus d'une clause multi-champs) — ` +
+        `elle n'est PAS appliquee par le serveur. Filtrez-la avec dsfr-data-query, qui ` +
+        `l'applique alors sur les lignes chargees.`
+    );
   }
 
   /**

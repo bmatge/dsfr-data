@@ -74,7 +74,14 @@ export type RowFilter =
     }
   /** Appartenance à un ensemble — le OU multi-valeurs d'un `in` ou d'une facette. */
   | { field: string; op: 'in' | 'notin'; values: Array<string | number> }
-  | { field: string; op: 'isnotnull' | 'isnull' | 'isnull-strict' | 'isnotnull-strict' };
+  | { field: string; op: 'isnotnull' | 'isnull' | 'isnull-strict' | 'isnotnull-strict' }
+  /**
+   * Le OU entre champs (#1026) : la ligne passe dès qu'UN des filtres passe.
+   * Miroir de la clause multi-champs `a|b:op:valeur` de la bibliothèque —
+   * écrit ici comme une disjonction de filtres ordinaires, pas comme sa
+   * grammaire, que l'oracle ne lit pas.
+   */
+  | { op: 'or'; any: RowFilter[] };
 
 /** Une colonne agrégée : `{ agg: 'sum', field: 'population' }`. */
 export interface AggSpec {

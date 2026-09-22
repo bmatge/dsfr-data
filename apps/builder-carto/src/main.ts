@@ -25,6 +25,7 @@ import {
 } from './state.js';
 import type { AnySource, FieldInfo, LayerConfig, LayerType, PopupMode } from './state.js';
 import { generateCode, layerOutputId } from './ui/code-generator.js';
+import { statutDepuisConstats } from './ui/preview-status.js';
 import { scanLayerFields } from './field-service.js';
 import {
   champsAgregat,
@@ -50,6 +51,9 @@ import {
   type Source,
   confirmDialog,
   mountDiagnosticPanel,
+  REGLES_GENERIQUES,
+  REGLES_CARTO,
+  type MountedDiagnostic,
   transmettreDiagnostic,
   appHref,
   escapeHtml,
@@ -1912,97 +1916,50 @@ function saveFavorite(feedbackBtnId = 'save-favorite-btn') {
 // Aperçu plein écran + diagnostic
 // ---------------------------------------------------------------------------
 
-function setPreviewStatus(html: string, tone: 'ok' | 'warn' | 'err' | '' = '') {
+/**
+ * Pose la ligne de statut de l'aperçu. Nœuds construits, jamais `innerHTML` :
+ * le texte vient des constats, qui citent des noms de champs et des URL.
+ */
+function setPreviewStatus(
+  texte: string,
+  tone: 'ok' | 'warn' | 'err' | '' = '',
+  icone = '',
+  spin = false
+) {
   const el = document.getElementById('preview-status');
   if (!el) return;
-  el.innerHTML = html;
-  el.hidden = !html;
+  el.replaceChildren();
+  if (icone) {
+    const i = document.createElement('i');
+    i.className = spin ? `${icone} carto-spin` : icone;
+    i.setAttribute('aria-hidden', 'true');
+    el.append(i, ' ');
+  }
+  el.append(texte);
+  el.hidden = !texte;
   el.className = `carto-status${tone ? ` carto-status--${tone}` : ''}`;
 }
 
 let statusTimers: ReturnType<typeof setTimeout>[] = [];
 
+/** Volet Diagnostic monté au chargement : il porte la trace ET les constats évalués. */
+let diagnostic: MountedDiagnostic | null = null;
+
 /**
- * Diagnostic post-exécution : compare les éléments dessinés par Leaflet aux
- * enregistrements chargés — c'est LE signal qui manquait quand un champ géo
- * était mal choisi (carte vide silencieuse).
+ * Diagnostic post-exécution (#482, #1000) : la ligne de statut ne compte plus
+ * rien elle-même, elle rend les constats du volet — une seule évaluation, la
+ * même que celle du Diagnostic et de l'assistant (`statutDepuisConstats`).
+ * Les sondes temporelles restent : Leaflet se charge paresseusement, et un
+ * « rien dessiné » pris trop tôt serait faux une seconde plus tard.
  */
 function updatePreviewStatus() {
   statusTimers.forEach(clearTimeout);
   statusTimers = [];
 
-  const check = (attempt: number) => {
-    const preview = document.getElementById('map-canvas');
-    if (!preview) return;
-
-    const sources = [...preview.querySelectorAll('dsfr-data-source')] as (HTMLElement & {
-      getData?: () => unknown[];
-      getError?: () => Error | null;
-      isLoading?: () => boolean;
-    })[];
-    const errors = sources.map((s) => s.getError?.()).filter(Boolean) as Error[];
-    const loading = sources.some((s) => s.isLoading?.());
-    const records = sources.reduce((acc, s) => {
-      const d = s.getData?.();
-      return acc + (Array.isArray(d) ? d.length : 0);
-    }, 0);
-
-    // Les vignettes territoriales clonent les couches : on ne compte que la
-    // carte principale, sinon N est multiplié par le nombre d'encarts.
-    const notInInset = (el: Element) => !el.closest('dsfr-data-map-inset');
-
-    // Compte réel via les couches (#482 bug 7) : le comptage DOM voyait les
-    // bulles de cluster comme des éléments et « 1 » pour une heatmap de N
-    // points. Repli DOM si la lib chargée n'expose pas getRenderedCount.
-    const layerEls = [...preview.querySelectorAll('dsfr-data-map-layer')].filter(
-      notInInset
-    ) as (Element & { getRenderedCount?: () => number })[];
-    const drawn =
-      layerEls.length && layerEls.every((el) => typeof el.getRenderedCount === 'function')
-        ? layerEls.reduce((acc, el) => acc + el.getRenderedCount!(), 0)
-        : [...preview.querySelectorAll('.leaflet-marker-icon')].filter(notInInset).length +
-          [...preview.querySelectorAll('.leaflet-overlay-pane path')].filter(notInInset).length +
-          [
-            ...preview.querySelectorAll('.leaflet-heatmap-layer, .leaflet-overlay-pane canvas'),
-          ].filter(notInInset).length;
-
-    if (errors.length) {
-      setPreviewStatus(
-        `<i class="ri-error-warning-line" aria-hidden="true"></i> Erreur de chargement : ${escapeAttr(errors[0].message ?? String(errors[0]))}`,
-        'err'
-      );
-      return;
-    }
-    if (loading && attempt < 4) return; // on laisse les timers suivants re-vérifier
-
-    const n = (count: number, mot: string) =>
-      `${count.toLocaleString('fr-FR')} ${mot}${count > 1 ? 's' : ''}`;
-
-    if (records > 0 && drawn === 0 && attempt >= 2) {
-      // Diagnostic cible (#482 bug 8) : en mode Zones sans champ géométrie,
-      // c'est la représentation qui bloque, pas la localisation — envoyer
-      // l'utilisateur au bon endroit.
-      const zonesSansGeo = state.layers.some(
-        (l) => l.visible && l.source && l.type === 'geoshape' && !l.geoField
-      );
-      const conseil = zonesSansGeo
-        ? 'la représentation « Zones » nécessite un champ géographique (géométrie) — choisissez « Marqueurs » ou « Cercles » (panneau Éléments), ou renseignez le champ géographique (panneau Couches).'
-        : 'vérifiez la localisation (panneau Couches) et la représentation (panneau Éléments).';
-      setPreviewStatus(
-        `<i class="ri-alert-line" aria-hidden="true"></i> ${n(records, 'enregistrement')} chargé${records > 1 ? 's' : ''} mais aucun élément dessiné — ${conseil}`,
-        'warn'
-      );
-    } else if (records === 0 && sources.length && attempt >= 4) {
-      setPreviewStatus(
-        `<i class="ri-alert-line" aria-hidden="true"></i> Aucune donnée reçue de la source.`,
-        'warn'
-      );
-    } else if (drawn > 0) {
-      setPreviewStatus(
-        `<i class="ri-check-line" aria-hidden="true"></i> ${n(drawn, 'élément')} affiché${drawn > 1 ? 's' : ''} (${n(records, 'enregistrement')})`,
-        'ok'
-      );
-    }
+  const check = (sonde: number) => {
+    if (!diagnostic) return;
+    const statut = statutDepuisConstats(diagnostic.constats(), diagnostic.panel.trace, sonde);
+    if (statut) setPreviewStatus(statut.texte, statut.ton, statut.icone);
   };
 
   [800, 2000, 4000, 8000, 15000].forEach((ms, i) => {
@@ -2107,7 +2064,7 @@ function executePreview(fit = false) {
 
   canvas.innerHTML = code;
   ui.executed = true;
-  setPreviewStatus('<i class="ri-loader-4-line carto-spin" aria-hidden="true"></i> Chargement…');
+  setPreviewStatus('Chargement…', '', 'ri-loader-4-line', true);
   updatePreviewStatus();
   watchViewport();
   refreshCodeOutput();
@@ -2208,8 +2165,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // instancie de vrais composants dans #map-canvas. On observe donc une
   // racine du document courant. Choix légitime et conservé (cf. #609) :
   // l'éditeur inspecte son propre rendu pour compter marqueurs et couches.
-  mountDiagnosticPanel({
+  diagnostic = mountDiagnosticPanel({
     liveRoot: document.getElementById('map-canvas'),
+    // Constats évalués par le volet à chaque trace (#1001) : la ligne de
+    // statut de l'aperçu les lit telle quelle (#1000).
+    constats: {
+      contexte: () => ({ app: 'builder-carto', etat: state, origine: location.origin }),
+      regles: [...REGLES_GENERIQUES, ...REGLES_CARTO],
+    },
     toggleButtonId: 'diagnostic-btn',
     canSend: true,
     onSend: envoyerDiagnosticVersAssistant,

@@ -38,7 +38,8 @@
             Un <code>group-by</code> sans agrégat n'est pas délégué : l'API ne regroupe pas
             (<code>column__groupby</code> seul rend une ligne par ligne brute, modalités répétées),
             le regroupement se fait côté client (#1025).
-            La recherche full-text et les facettes restent cote client.
+            La recherche passe au serveur sur plusieurs colonnes (<code>or=(…)</code>, #1026, ci-dessous) ;
+            les facettes restent cote client.
           </p>
         </div>
 
@@ -67,8 +68,8 @@
                 </tr>
                 <tr>
                   <td>Recherche serveur</td>
-                  <td class="capability-no">Non</td>
-                  <td>Recherche effectuee cote client</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Sur plusieurs colonnes, en <code>or=(…)</code> : gabarit <code>{fields}:contains:{q}</code> (#1026)</td>
                 </tr>
                 <tr>
                   <td>Group-by serveur</td>
@@ -159,6 +160,31 @@
 
           <h3 class="fr-mt-2w">Separateur WHERE</h3>
           <p>Les clauses WHERE multiples sont jointes par <code>, </code> (virgule + espace).</p>
+
+          <h3 class="fr-mt-2w">Un OU entre champs : <code>or=(…)</code> (#1026)</h3>
+          <p>
+            La clause à champs multiples <code>nom|commune:contains:martin</code> — même opérateur, même
+            valeur, sur plusieurs champs reliés par un OU — devient
+            <code>or=(nom__contains.martin,commune__contains.martin)</code>. Elle se combine en ET avec les
+            autres clauses. Mesuré le 2026-09-23 sur la ressource des élus :
+            <code>or=(Nom de l'élu__contains.MARTIN,Prénom de l'élu__contains.MARTIN)</code> rend
+            <code>total 351</code> = 189 + 164 − 2, l'union vraie ; ajouter <code>Code sexe__exact=F</code>
+            rend 194.
+          </p>
+          <p>
+            Le parseur de l'API découpe le groupe sur la virgule et chaque membre sur le point, après
+            décodage de l'URL. L'adaptateur refuse donc — et laisse le filtre au navigateur, avec un
+            avertissement — une valeur portant <code>,</code> <code>.</code> <code>(</code> <code>)</code>
+            <code>"</code> ou <code>&amp;</code> (mesuré : virgule et point rendent 400, une valeur citée
+            <code>"J."</code> rend 0 sans erreur), les listes <code>in</code> / <code>notin</code>, et une
+            seconde clause multi-champs dans la même requête. <code>contains</code> y est insensible à la casse
+            mais <strong>sensible aux accents</strong> : « ecole » ne trouve pas « École » côté serveur.
+          </p>
+          <p>
+            <code>dsfr-data-search fields="nom,commune" server-search</code> s'en sert sans gabarit : le
+            gabarit par défaut de Tabular est <code>{fields}:contains:{q}</code>, et le compteur lit le
+            <code>meta.total</code> de la réponse, juste sur tout le jeu.
+          </p>
 
           <h3 class="fr-mt-2w">Agrégation serveur</h3>
           <p>

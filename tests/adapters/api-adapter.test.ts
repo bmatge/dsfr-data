@@ -67,7 +67,8 @@ describe('Adapter Capabilities', () => {
     const caps = requireAdapter('tabular').capabilities;
     expect(caps.serverFetch).toBe(true);
     expect(caps.serverFacets).toBe(false);
-    expect(caps.serverSearch).toBe(false);
+    // Recherche serveur multi-colonnes (#1026) : `or=(…)`
+    expect(caps.serverSearch).toBe(true);
     expect(caps.serverGroupBy).toBe(true);
     expect(caps.serverOrderBy).toBe(true);
     expect(caps.whereFormat).toBe('colon');
@@ -200,8 +201,8 @@ describe('getDefaultSearchTemplate', () => {
     expect(requireAdapter('opendatasoft').getDefaultSearchTemplate!()).toBe('search("{q}")');
   });
 
-  it('Tabular returns null', () => {
-    expect(requireAdapter('tabular').getDefaultSearchTemplate!()).toBeNull();
+  it('Tabular returns the multi-field template (#1026)', () => {
+    expect(requireAdapter('tabular').getDefaultSearchTemplate!()).toBe('{fields}:contains:{q}');
   });
 
   it('Grist returns null', () => {
