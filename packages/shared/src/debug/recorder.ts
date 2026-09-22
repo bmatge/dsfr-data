@@ -31,6 +31,7 @@ import {
 import { snapshotGraph, topoOrder, type DataflowGraph } from './graph.js';
 import { drainEarlyBuffer, readCacheSnapshot, type BufferedBusEvent } from './early-buffer.js';
 import { summarizeStage, type StageSummary } from './summarize.js';
+import { drainerJournal, JOURNAL_MAX, type EntreeConsole, type EntreeReseau } from './journal.js';
 import type { Field, Row } from '../ia/data-tools.js';
 
 export type TraceEvent =
@@ -124,6 +125,14 @@ export interface Trace {
   quiescent: boolean;
   /** Délégation serveur relevée sur les dsfr-data-query (#603). */
   delegation: Record<string, DelegationState>;
+  /**
+   * Requêtes observées dans le document (#994), en ordre chronologique.
+   * Vide si la page ne porte pas le journal (aperçu sans `debug: true`,
+   * page tierce observée par le bundle autonome).
+   */
+  reseau: EntreeReseau[];
+  /** `console.warn/error`, erreurs non rattrapées, promesses rejetées (#994). */
+  console: EntreeConsole[];
 }
 
 export interface DelegationState {
@@ -162,6 +171,11 @@ interface QueryLike extends Element {
   getDelegation?: () => DelegationState;
 }
 
+/** Garde les JOURNAL_MAX entrées les plus récentes. */
+function borner<T>(entrees: T[]): T[] {
+  return entrees.length > JOURNAL_MAX ? entrees.slice(entrees.length - JOURNAL_MAX) : entrees;
+}
+
 export class DataflowRecorder {
   private readonly doc: Document;
   private readonly root: ParentNode;
@@ -174,6 +188,8 @@ export class DataflowRecorder {
   private listeners: Array<() => void> = [];
   private changeHandlers = new Set<() => void>();
   private running = false;
+  private reseau: EntreeReseau[] = [];
+  private consoleLog: EntreeConsole[] = [];
 
   constructor(options: RecorderOptions = {}) {
     this.doc = options.doc ?? document;
@@ -203,6 +219,23 @@ export class DataflowRecorder {
     const buffered = drainEarlyBuffer(win);
     for (const event of buffered) this.ingest(event);
     return buffered.length;
+  }
+
+  /**
+   * Vide le journal réseau et console de la fenêtre observée (#994) et le
+   * garde : comme pour le bus, le collecteur tient SA copie.
+   *
+   * Mode PULL, appelé par `snapshot()` : un `console.warn` seul n'émet aucun
+   * événement de bus, seule une lecture à l'instantané le rattrape. Le même
+   * chemin sert l'iframe (tampon posé par le script précoce) et le même
+   * document (tampon posé par `installer-journal`).
+   */
+  ingestJournal(win: Window | null | undefined = this.doc.defaultView): number {
+    const { reseau, console: cons } = drainerJournal(win);
+    if (reseau.length === 0 && cons.length === 0) return 0;
+    this.reseau = borner(this.reseau.concat(reseau));
+    this.consoleLog = borner(this.consoleLog.concat(cons));
+    return reseau.length + cons.length;
   }
 
   /**
@@ -261,6 +294,11 @@ export class DataflowRecorder {
     for (const [id, state] of precoce.states) {
       if (!this.states.has(id)) this.states.set(id, state);
     }
+
+    // Journal (#994) : memes regles — fusion chronologique, les plus anciens
+    // sacrifies au plafond.
+    this.reseau = borner([...precoce.reseau, ...this.reseau].sort((a, b) => a.t - b.t));
+    this.consoleLog = borner([...precoce.consoleLog, ...this.consoleLog].sort((a, b) => a.t - b.t));
 
     const dernier = this.events[this.events.length - 1];
     if (dernier) this.lastEventAt = Math.max(this.lastEventAt ?? dernier.t, dernier.t);
@@ -415,6 +453,8 @@ export class DataflowRecorder {
     this.states.clear();
     this.seq = 0;
     this.lastEventAt = null;
+    this.reseau = [];
+    this.consoleLog = [];
     this.notify();
   }
 
@@ -503,6 +543,7 @@ export class DataflowRecorder {
 
   /** Instantané complet : topologie + journal + état par étape. */
   snapshot(): Trace {
+    this.ingestJournal();
     const graph = snapshotGraph(this.root);
     const states: Record<string, StageState> = {};
     const order: string[] = [];
@@ -531,6 +572,8 @@ export class DataflowRecorder {
       lastEventAt: this.lastEventAt,
       quiescent: this.isQuiescent(),
       delegation: this.readDelegation(),
+      reseau: this.reseau.map((e) => ({ ...e })),
+      console: this.consoleLog.map((e) => ({ ...e })),
     };
   }
 }

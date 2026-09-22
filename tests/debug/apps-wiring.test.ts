@@ -69,6 +69,30 @@ describe('le tampon ne fuit JAMAIS dans le code exporté', () => {
     expect(generateDashboardHTML(createEmptyDashboard())).not.toContain('__dsfrDataTrace');
   });
 
+  it('ni le journal réseau ni le journal console ne fuient sans option (#994)', () => {
+    // La sonde enveloppe `fetch` et `console` : dans la page exportée de
+    // l'utilisateur, ce serait une modification de SON runtime.
+    const exports = [
+      getPreviewHTML('<dsfr-data-source id="s"></dsfr-data-source>'),
+      generateDashboardHTML(createEmptyDashboard()),
+    ];
+    for (const html of exports) {
+      expect(html).not.toContain('__dsfrDataNet');
+      expect(html).not.toContain('__dsfrDataConsole');
+    }
+  });
+
+  it('avec debug, le journal part dans la même balise que le tampon, avant la lib (#994)', () => {
+    for (const html of [
+      getPreviewHTML('<dsfr-data-source id="s"></dsfr-data-source>', { debug: true }),
+      generateDashboardHTML(createEmptyDashboard(), { debug: true }),
+    ]) {
+      expect(html).toContain('__dsfrDataNet');
+      expect(html).toContain('__dsfrDataConsole');
+      expect(html.indexOf('__dsfrDataNet')).toBeLessThan(html.indexOf('dsfr-data.'));
+    }
+  });
+
   it('generateDashboardHTML avec debug l’injecte avant tout le reste', () => {
     const html = generateDashboardHTML(createEmptyDashboard(), { debug: true });
 
@@ -109,6 +133,34 @@ describe('les apps sans iframe observent une racine locale', () => {
       expect(src).not.toContain('frame:');
     });
   }
+
+  for (const { app, fichier } of LOCALES) {
+    it(`${app} importe l’installateur du journal EN PREMIER (#994)`, () => {
+      // Plus bas, les imports précédents (bibliothèque, code de l'app)
+      // seraient évalués avant lui : leurs premières requêtes échapperaient
+      // au journal.
+      const imports = lire(fichier)
+        .split('\n')
+        .filter((l) => /^import\s/.test(l));
+      expect(imports[0]).toBe("import '@dsfr-data/shared/debug/installer-journal';");
+    });
+  }
+
+  it('l’installateur du journal est déclaré à effet de bord (#994)', () => {
+    // `sideEffects: false` sur le paquet ferait élaguer un import nu au build :
+    // l'app tournerait sans journal, sans la moindre erreur.
+    const pkg = JSON.parse(lire('packages/shared/package.json')) as {
+      sideEffects: unknown;
+      exports: Record<string, unknown>;
+    };
+    expect(pkg.sideEffects).toEqual(
+      expect.arrayContaining([
+        './src/debug/installer-journal.ts',
+        './dist/debug/installer-journal.js',
+      ])
+    );
+    expect(pkg.exports['./debug/*']).toBeDefined();
+  });
 
   it('l’Assistant IA est passé en mode live (#609)', () => {
     // Ce test affirmait l'inverse jusqu'a #609 : l'app dessinait son apercu

@@ -24,6 +24,8 @@
  * autonome de #608 généralisera.
  */
 
+import { journalScript } from './journal.js';
+
 /** Nom de la variable globale portant le tampon, côté page observée. */
 export const EARLY_BUFFER_KEY = '__dsfrDataTrace';
 
@@ -45,6 +47,10 @@ interface WindowWithBuffer extends Window {
  * compris avant la bibliothèque, et ne doit jamais faire échouer la page
  * qu'il observe. Le plafond de 500 événements évite qu'une page en boucle
  * de rechargement ne mange la mémoire de l'onglet.
+ *
+ * Porte aussi le journal réseau et console (#994, `journal.ts`) : enveloppe
+ * de `fetch` et de `console.warn/error`, `onerror`, `unhandledrejection`,
+ * vidés par le collecteur avec le reste.
  */
 export function earlyBufferScript(): string {
   return (
@@ -53,7 +59,11 @@ export function earlyBufferScript(): string {
     `'dsfr-data-source-command'];` +
     `for(var i=0;i<n.length;i++){(function(k){document.addEventListener(k,function(e){` +
     `if(b.length<500){b.push({name:k,detail:e.detail,t:Date.now()});}});})(n[i]);}` +
-    `}catch(e){}})();</script>`
+    `}catch(e){}})();` +
+    // Journal réseau et console (#994) : même balise, même moment — avant la
+    // bibliothèque, donc avant sa première requête.
+    journalScript() +
+    `</script>`
   );
 }
 

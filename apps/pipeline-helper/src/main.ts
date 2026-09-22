@@ -1,3 +1,7 @@
+// Journal réseau et console (#994) : EN PREMIER, avant la bibliothèque et le
+// code de l'app, pour voir leurs premières requêtes. Les modules ES
+// s'évaluent dans l'ordre des imports.
+import '@dsfr-data/shared/debug/installer-journal';
 import './styles/pipeline-helper.css';
 import { PipelineEditor } from './editor.js';
 import { generateCode } from './code-generator.js';
