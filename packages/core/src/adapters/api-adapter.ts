@@ -234,11 +234,12 @@ export interface ApiAdapter {
    * group-by / aggregate / order-by.
    *
    * Certains providers encodent ces operations via une syntaxe a suffixe dans
-   * la query string (Tabular : `colonne__groupby`, `colonne__sum`) qui ne
-   * supporte pas les noms de colonnes contenant des espaces ou de la
-   * ponctuation (ex. "Date - Journee gaziere"). Dans ce cas l'adapter retourne
-   * false et dsfr-data-query retombe sur un traitement client-side (qui fetch
-   * toutes les lignes brutes puis agrege localement — resultat identique).
+   * la query string (Tabular : `colonne__groupby`, `colonne__sum`). Un nom qui
+   * porte un separateur de la grammaire colon (`,` `:` `|`) ne survit pas au
+   * decoupage : l'adapter retourne false et dsfr-data-query retombe sur un
+   * traitement client-side (qui fetch toutes les lignes brutes puis agrege
+   * localement — resultat identique). Espaces, accents et ponctuation sont,
+   * eux, delegues percent-encodes (Tabular, #985).
    *
    * Non implemente = tous les champs sont delegables (comportement par defaut).
    */

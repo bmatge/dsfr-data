@@ -281,6 +281,42 @@ describe('Tabular', () => {
     const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&code_reg__exact=11'));
     expect(reponse.meta.total).toBe(JEU.filter((l) => l.code_reg === '11').length);
   });
+
+  it('columns= projette les lignes, apres filtre et tri (#985)', () => {
+    const colonnes = encodeURIComponent(CHAMP_PIEGE);
+    const reponse = repondreTabular(
+      url(
+        TABULAR,
+        `page=1&page_size=3&code_reg__exact=11&population__sort=desc&columns=region,${colonnes}`
+      )
+    );
+    expect(Object.keys(reponse.data[0])).toEqual(['region', CHAMP_PIEGE]);
+    expect(reponse.data[0].region).toBe("Val-d'Oise");
+    expect(reponse.meta.total).toBe(JEU.filter((l) => l.code_reg === '11').length);
+  });
+
+  it('columns= avec un agregateur : refuse, comme l’API (#985)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=50&code_reg__groupby&population__sum&columns=code_reg')
+    );
+    expect(reponse.data).toEqual([]);
+    expect(reponse.errors?.[0].detail).toContain('alongside aggregators');
+  });
+
+  it('columns= sur une colonne inconnue : refuse, comme l’API (#985)', () => {
+    const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&columns=region,inconnue'));
+    expect(reponse.data).toEqual([]);
+    expect(reponse.errors?.[0].detail).toContain('inconnue');
+  });
+
+  it('un nom a espaces et apostrophe se delegue percent-encode (#985)', () => {
+    const champ = encodeURIComponent(CHAMP_PIEGE);
+    const reponse = repondreTabular(
+      url(TABULAR, `page=1&page_size=50&academie__groupby&${champ}__sum`)
+    );
+    const total = reponse.data.reduce((t, l) => t + Number(l[`${CHAMP_PIEGE}__sum`]), 0);
+    expect(total).toBe(JEU.reduce((t, l) => t + l[CHAMP_PIEGE], 0));
+  });
 });
 
 describe('API generique', () => {

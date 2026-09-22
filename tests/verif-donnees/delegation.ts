@@ -786,7 +786,139 @@ const TABULAR_API: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 7. Tabular : moins d'octets, pas un chiffre de change (#985)
+// ---------------------------------------------------------------------------
+
+/** Le nom de colonne piégeux du jeu : apostrophe et espaces (#615). */
+const HABITANTS = "Nombre d'habitants";
+
+const TABULAR_VOLUME: Check[] = [
+  {
+    id: 'tabular-select-projection',
+    mode: 'deterministic',
+    origin:
+      '#985 — le `select` d’une source Tabular devient `columns=` : l’API ne rend que les colonnes nommées (34 721 → 3 098 octets pour 50 élus à deux colonnes, 366 892 → 22 383 octets pour 200 bornes IRVE à trois colonnes, mesuré le 2026-09-22). La projection retire des colonnes, jamais des lignes : le compte, la somme et les modalités ne bougent pas — et une colonne oubliée dans la projection vide la somme.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-proj', { select: 'academie, population' })}
+  <dsfr-data-kpi id="k-proj-n" source="s-proj" value="count" format="nombre"
+    label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-proj-pop" source="s-proj" value="population:sum" format="nombre"
+    label="Population"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-proj-aca" source="s-proj" value="academie:distinct" format="nombre"
+    label="Académies"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-proj-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-proj-pop', agg: 'sum', field: 'population' },
+      { kind: 'kpi', id: 'k-proj-aca', agg: 'distinct', field: 'academie' },
+      urlsDe('select-projection', 'tabular', 'columns=academie,population', 'all'),
+    ],
+  },
+
+  {
+    id: 'tabular-select-projection-serveur',
+    mode: 'deterministic',
+    origin:
+      '#985 — la même projection en pagination serveur (`fetchPage`) : la liste montre les mêmes valeurs, colonne pour colonne, avec deux colonnes au lieu de sept.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-proj-page', { serverSide: true, select: `region, ${HABITANTS}` })}
+  <dsfr-data-list id="l-proj-page" source="s-proj-page"
+    columns="region:Territoire, ${HABITANTS}:Habitants"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-proj-page',
+        columns: [{ column: 'region' }, { column: HABITANTS, numeric: true }],
+        pipeline: [{ op: 'page', size: TAILLE_PAGE, number: 1 }],
+      },
+      // Le journal de la page consigne les URL DÉCODÉES
+      urlsDe('select-projection-page', 'tabular', `columns=region,${HABITANTS}`, 'all'),
+    ],
+  },
+
+  {
+    id: 'tabular-select-et-regroupement',
+    mode: 'deterministic',
+    origin:
+      '#985 — un regroupement délégué désactive la projection : l’API refuse `columns` à côté d’un agrégateur (400 « the argument `columns` cannot be set alongside aggregators », mesuré le 2026-09-22). Le `select` de la source reste posé, la query délègue quand même, et les sommes par académie sont justes.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-proj-g', { select: 'academie, population' })}
+  <dsfr-data-query id="q-proj-g" source="s-proj-g" group-by="academie"
+    aggregate="population:sum"></dsfr-data-query>
+  <dsfr-data-kpi id="k-proj-g" source="q-proj-g" value="population__sum:sum" format="nombre"
+    label="Population"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-proj-g',
+        key: 'academie',
+        columns: ['population__sum'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'academie',
+            columns: { population__sum: { agg: 'sum', field: 'population' } },
+          },
+        ],
+      },
+      { kind: 'kpi', id: 'k-proj-g', agg: 'sum', field: 'population' },
+      urlsDe('regroupement-delegue-avec-select', 'tabular', 'academie__groupby', 'last'),
+      urlsDe('regroupement-sans-projection', 'tabular', 'columns=', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-colonne-a-espaces-deleguee',
+    mode: 'deterministic',
+    origin:
+      '#985 — un nom de colonne à espaces et apostrophe se délègue, percent-encodé : le parseur de l’API l’accepte (`Libellé du département__groupby&Code sexe__count` → 200, mesuré le 2026-09-22). L’ancien garde-fou (#244, #289) le refusait et faisait télécharger tout le jeu pour agréger dans le navigateur : même chiffre, jusqu’à 25 000 lignes. Le filtre du `where` part aussi au serveur.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-esp')}
+  <dsfr-data-query id="q-esp" source="s-esp" where="${HABITANTS}:gt:900000"
+    group-by="academie" aggregate="${HABITANTS}:sum"></dsfr-data-query>
+  <dsfr-data-list id="l-esp" source="q-esp"
+    columns="academie:Académie, ${HABITANTS}__sum:Habitants"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-esp',
+        key: 'academie',
+        columns: [`${HABITANTS}__sum`],
+        pipeline: [
+          { op: 'filter', filters: [{ field: HABITANTS, op: 'gt', value: 900000 }] },
+          {
+            op: 'group-by',
+            by: 'academie',
+            columns: { [`${HABITANTS}__sum`]: { agg: 'sum', field: HABITANTS } },
+          },
+        ],
+      },
+      urlsDe('colonne-a-espaces-groupby', 'tabular', 'academie__groupby', 'last'),
+      // Le journal de la page consigne les URL DÉCODÉES
+      urlsDe('colonne-a-espaces-agregat', 'tabular', `${HABITANTS}__sum`, 'last'),
+      urlsDe(
+        'colonne-a-espaces-filtre',
+        'tabular',
+        `${HABITANTS}__strictly_greater=900000`,
+        'last'
+      ),
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
-  checks: [...PAIRES, ...PARTAGE, ...PLAFOND, ...ATTENTE, ...SANS_ADAPTATEUR, ...TABULAR_API],
+  checks: [
+    ...PAIRES,
+    ...PARTAGE,
+    ...PLAFOND,
+    ...ATTENTE,
+    ...SANS_ADAPTATEUR,
+    ...TABULAR_API,
+    ...TABULAR_VOLUME,
+  ],
 };
