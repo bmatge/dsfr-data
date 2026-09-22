@@ -41,7 +41,8 @@ import {
   type Source,
   confirmDialog,
   mountDiagnosticPanel,
-  REGLES_BUILDER_CARTO,
+  REGLES_GENERIQUES,
+  REGLES_CARTO,
   type MountedDiagnostic,
   transmettreDiagnostic,
   appHref,
@@ -1994,7 +1995,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // statut de l'aperçu les lit telle quelle (#1000).
     constats: {
       contexte: () => ({ app: 'builder-carto', etat: state, origine: location.origin }),
-      regles: REGLES_BUILDER_CARTO,
+      regles: [...REGLES_GENERIQUES, ...REGLES_CARTO],
     },
     toggleButtonId: 'diagnostic-btn',
     canSend: true,

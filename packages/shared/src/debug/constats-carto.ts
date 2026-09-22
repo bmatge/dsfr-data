@@ -22,10 +22,14 @@
  * 4. **Aucune expression régulière sur du texte externe** (noms de champs,
  *    valeurs) : `includes`, `indexOf`, `===`.
  *
- * Composition (app `builder-carto`) : `REGLES_BUILDER_CARTO`, soit les règles
- * génériques moins celles que les règles carto disent plus précisément, par
- * couche et avec leurs repères (`GENERIQUES_REMPLACEES_EN_CARTO`), plus
- * `REGLES_CARTO`. Garder les deux compterait deux alertes pour une panne.
+ * Composition (app `builder-carto`) : `[...REGLES_GENERIQUES, ...REGLES_CARTO]`
+ * (alias `REGLES_BUILDER_CARTO`). Quatre génériques sont dites mieux ici, par
+ * couche et avec leurs repères : les règles carto les déclarent dans
+ * `remplace`, et le moteur retire leurs constats sur les couches (et sur les
+ * étapes qu'une couche lit), nulle part ailleurs. Les garder sur une même
+ * couche compterait deux alertes pour une panne : une couche sans ligne
+ * ferait parler `pipeline/zero-ligne` (sur la source), `pipeline/afficheur-
+ * inerte` (sur la couche) ET `carte/aucune-donnee`.
  */
 
 import type { StageNode } from './graph.js';
@@ -42,6 +46,8 @@ import {
 
 /** L'app dont ces règles désignent les repères. */
 const APP: readonly string[] = ['builder-carto'];
+/** Les nœuds que ces règles visent : les couches. */
+const TAGS: readonly string[] = ['dsfr-data-map-layer'];
 
 /**
  * Plafond `max-items` par défaut de `dsfr-data-map-layer`. Il décide, il ne
@@ -320,11 +326,14 @@ function constatCouche(regle: string, gravite: GraviteConstat, c: Couche, champs
 /** Une règle qui juge chaque couche de la carte principale. */
 function regleParCouche(
   id: string,
-  juger: (c: Couche, d: Diagnostic, trace: Trace) => Constat | null
+  juger: (c: Couche, d: Diagnostic, trace: Trace) => Constat | null,
+  remplace?: readonly string[]
 ): RegleConstat {
   return {
     id,
     appliesTo: APP,
+    tags: TAGS,
+    ...(remplace ? { remplace } : {}),
     evaluer: (trace) =>
       couches(trace).flatMap((c) => {
         const out = juger(c, diagnostiquerCouche(c), trace);
@@ -450,35 +459,43 @@ const pointsZero = regleParCouche('carte/points-zero', (c, d) => {
 // Comptes de la couche
 // ---------------------------------------------------------------------------
 
-const pointsEmpiles = regleParCouche('carte/points-empiles', (c, d) => {
-  const p = c.node.stackedPositions;
-  if (!p || d.coordonnees?.cause === 'points-zero') return null;
-  const s = p.positions > 1 ? 's' : '';
-  return constatCouche('carte/points-empiles', 'avertissement', c, {
-    titre: `${c.node.id} : points empilés`,
-    explication:
-      'Des points distincts tombent à la même position : colonne de coordonnées constante, ou mal jointe.',
-    action: 'Vérifier la colonne de coordonnées choisie',
-    reperes: reperesLocalisation(c),
-    preuve: `${plural(p.items, 'point')} sur ${plural(p.positions, 'position')} distincte${s}`,
-  });
-});
+const pointsEmpiles = regleParCouche(
+  'carte/points-empiles',
+  (c, d) => {
+    const p = c.node.stackedPositions;
+    if (!p || d.coordonnees?.cause === 'points-zero') return null;
+    const s = p.positions > 1 ? 's' : '';
+    return constatCouche('carte/points-empiles', 'avertissement', c, {
+      titre: `${c.node.id} : points empilés`,
+      explication:
+        'Des points distincts tombent à la même position : colonne de coordonnées constante, ou mal jointe.',
+      action: 'Vérifier la colonne de coordonnées choisie',
+      reperes: reperesLocalisation(c),
+      preuve: `${plural(p.items, 'point')} sur ${plural(p.positions, 'position')} distincte${s}`,
+    });
+  },
+  ['pipeline/points-empiles']
+);
 
-const lignesIgnorees = regleParCouche('carte/lignes-ignorees', (c, d) => {
-  const n = c.node.skippedRows;
-  if (!n || d.coordonnees?.cause === 'decimales-virgule') return null;
-  const s = n > 1 ? 's' : '';
-  const rows = lignesRecues(c);
-  return constatCouche('carte/lignes-ignorees', 'avertissement', c, {
-    titre: `${c.node.id} : lignes reçues mais non dessinées`,
-    explication: `Ces lignes n’ont pas de position exploitable (${c.type === 'geoshape' ? 'géométrie' : 'coordonnées'} absentes ou invalides) : la carte en montre moins que la source n’en livre.`,
-    action: 'Vérifier le champ de localisation, ou filtrer les lignes sans position',
-    reperes: [...reperesLocalisation(c), 'carto.elements.avancees.filtre'],
-    preuve:
-      `${plural(n, 'ligne')} ignorée${s}` +
-      (rows > 0 ? ` sur ${formatInt(rows)} reçue${rows > 1 ? 's' : ''}` : ''),
-  });
-});
+const lignesIgnorees = regleParCouche(
+  'carte/lignes-ignorees',
+  (c, d) => {
+    const n = c.node.skippedRows;
+    if (!n || d.coordonnees?.cause === 'decimales-virgule') return null;
+    const s = n > 1 ? 's' : '';
+    const rows = lignesRecues(c);
+    return constatCouche('carte/lignes-ignorees', 'avertissement', c, {
+      titre: `${c.node.id} : lignes reçues mais non dessinées`,
+      explication: `Ces lignes n’ont pas de position exploitable (${c.type === 'geoshape' ? 'géométrie' : 'coordonnées'} absentes ou invalides) : la carte en montre moins que la source n’en livre.`,
+      action: 'Vérifier le champ de localisation, ou filtrer les lignes sans position',
+      reperes: [...reperesLocalisation(c), 'carto.elements.avancees.filtre'],
+      preuve:
+        `${plural(n, 'ligne')} ignorée${s}` +
+        (rows > 0 ? ` sur ${formatInt(rows)} reçue${rows > 1 ? 's' : ''}` : ''),
+    });
+  },
+  ['pipeline/lignes-ignorees']
+);
 
 /** Le plafond effectif et sa citation, sans jamais afficher la valeur par défaut. */
 function plafond(c: Couche): { max: number; cite: string } {
@@ -548,6 +565,7 @@ function urlCourte(url: string): string {
 const volumeExcessif: RegleConstat = {
   id: 'carte/volume-excessif',
   appliesTo: APP,
+  tags: TAGS,
   evaluer: (trace) => {
     const toutes = couches(trace);
     return toutes.flatMap((c) => {
@@ -586,6 +604,7 @@ const volumeExcessif: RegleConstat = {
 const latenceExcessive: RegleConstat = {
   id: 'carte/latence-excessive',
   appliesTo: APP,
+  tags: TAGS,
   evaluer: (trace) => {
     const toutes = couches(trace);
     return toutes.flatMap((c) => {
@@ -638,6 +657,10 @@ const rienDessine = regleParCouche('carte/rien-dessine', (c, d) => {
 const aucuneDonnee: RegleConstat = {
   id: 'carte/aucune-donnee',
   appliesTo: APP,
+  tags: TAGS,
+  // Le « zéro ligne » de la source qu'une couche lit, et l'afficheur inerte
+  // qu'est cette couche, sont dits ici, avec les repères qui les corrigent.
+  remplace: ['pipeline/zero-ligne', 'pipeline/afficheur-inerte'],
   evaluer: (trace) =>
     couches(trace).flatMap((c) => {
       const a = c.amont;
@@ -683,20 +706,10 @@ export const REGLES_CARTO: readonly RegleConstat[] = [
 ];
 
 /**
- * Règles génériques que les règles carto disent plus précisément, par couche
- * et avec leurs repères. Les garder compterait deux alertes pour une panne :
- * une couche sans ligne ferait parler `pipeline/zero-ligne` (sur la source),
- * `pipeline/afficheur-inerte` (sur la couche) ET `carte/aucune-donnee`.
+ * Registre du builder carto : la composition au contrat, `remplace` faisant
+ * le reste. Alias : l'app comme les tests n'ont qu'un nom à écrire.
  */
-export const GENERIQUES_REMPLACEES_EN_CARTO: readonly string[] = [
-  'pipeline/zero-ligne',
-  'pipeline/afficheur-inerte',
-  'pipeline/lignes-ignorees',
-  'pipeline/points-empiles',
-];
-
-/** Registre du builder carto : génériques non remplacées, puis le lot carto. */
 export const REGLES_BUILDER_CARTO: readonly RegleConstat[] = [
-  ...REGLES_GENERIQUES.filter((r) => !GENERIQUES_REMPLACEES_EN_CARTO.includes(r.id)),
+  ...REGLES_GENERIQUES,
   ...REGLES_CARTO,
 ];

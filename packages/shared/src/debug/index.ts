@@ -82,9 +82,4 @@ export {
   REGLES_GENERIQUES,
 } from './constats.js';
 export type { Constat, ContexteConstats, GraviteConstat, RegleConstat } from './constats.js';
-export {
-  REGLES_CARTO,
-  REGLES_BUILDER_CARTO,
-  GENERIQUES_REMPLACEES_EN_CARTO,
-  MAX_ITEMS_PAR_DEFAUT,
-} from './constats-carto.js';
+export { REGLES_CARTO, REGLES_BUILDER_CARTO, MAX_ITEMS_PAR_DEFAUT } from './constats-carto.js';

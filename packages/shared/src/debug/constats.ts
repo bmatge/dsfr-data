@@ -29,6 +29,10 @@
  *    URL) : `startsWith`, `includes`, `===` et `new URL()` sous `try`.
  * 5. **Pas de registre mutable.** Une app compose :
  *    `evaluerConstats(trace, ctx, [...REGLES_GENERIQUES, ...REGLES_CARTO])`.
+ *    Une règle d'app qui dit mieux une générique la déclare dans `remplace`
+ *    (avec ses `tags`) : le moteur retire les constats génériques sur les
+ *    nœuds visés, et nulle part ailleurs. Chaque app n'a pas à refaire son
+ *    filtrage.
  */
 
 import type { StageNode } from './graph.js';
@@ -78,6 +82,16 @@ export interface RegleConstat {
   id: string;
   /** Apps concernées ; `['*']` = toutes. Une liste, pas un prédicat : sérialisable et listable. */
   appliesTo: readonly string[];
+  /** Balises des nœuds visés (`dsfr-data-map-layer`) ; absent = tous. */
+  tags?: readonly string[];
+  /**
+   * Ids de règles génériques que celle-ci dit mieux, et dont les constats
+   * sont retirés sur les nœuds de ses `tags` — le nœud lui-même, ou une
+   * étape dont il consomme directement la sortie (le « zéro ligne » d'une
+   * source est dit par le « aucune donnée » de la couche qui la lit). Sans
+   * `tags`, partout. Une règle non applicable à l'app ne remplace rien.
+   */
+  remplace?: readonly string[];
   evaluer(trace: Trace, contexte: ContexteConstats): Constat[];
 }
 
@@ -630,23 +644,42 @@ function concerne(regle: RegleConstat, app: string): boolean {
 }
 
 /**
+ * La règle remplaçante vise-t-elle l'étape du constat ? Sans `tags`, toujours.
+ * Avec : l'étape est un nœud de ces balises, ou un tel nœud la consomme
+ * directement. Un constat sans étape n'est visé que par une règle sans `tags`.
+ */
+function vise(regle: RegleConstat, trace: Trace, etape: string | undefined): boolean {
+  if (!regle.tags) return true;
+  if (etape === undefined) return false;
+  const tags = regle.tags;
+  return trace.graph.nodes.some(
+    (n) => tags.includes(n.tag) && (n.id === etape || n.upstream.includes(etape))
+  );
+}
+
+/**
  * Évalue les règles qui concernent l'app.
  *
- * Sortie dédoublonnée par `id` (la première occurrence gagne), triée par
- * gravité (erreur → avertissement → info), puis par ordre topologique de
- * l'étape ; les constats sans étape viennent après, dans l'ordre des règles.
+ * Les constats d'une règle qu'une autre règle applicable déclare `remplace`
+ * sont retirés sur les nœuds que celle-ci vise (`tags`). Sortie dédoublonnée
+ * par `id` (la première occurrence gagne), triée par gravité (erreur →
+ * avertissement → info), puis par ordre topologique de l'étape ; les constats
+ * sans étape viennent après, dans l'ordre des règles.
  */
 export function evaluerConstats(
   trace: Trace,
   contexte: ContexteConstats,
   regles: readonly RegleConstat[] = REGLES_GENERIQUES
 ): Constat[] {
+  const applicables = regles.filter((r) => concerne(r, contexte.app));
+  const remplacants = applicables.filter((r) => (r.remplace ?? []).length > 0);
+  const remplace = (c: Constat): boolean =>
+    remplacants.some((r) => r.remplace!.includes(c.regle) && vise(r, trace, c.etape));
   const vus = new Set<string>();
   const constats: Constat[] = [];
-  for (const regle of regles) {
-    if (!concerne(regle, contexte.app)) continue;
+  for (const regle of applicables) {
     for (const c of regle.evaluer(trace, contexte)) {
-      if (vus.has(c.id)) continue;
+      if (vus.has(c.id) || remplace(c)) continue;
       vus.add(c.id);
       constats.push(c);
     }

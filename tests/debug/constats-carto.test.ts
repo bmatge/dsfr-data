@@ -6,7 +6,6 @@ import {
   REGLES_GENERIQUES,
   REGLES_CARTO,
   REGLES_BUILDER_CARTO,
-  GENERIQUES_REMPLACEES_EN_CARTO,
   MAX_ITEMS_PAR_DEFAUT,
   snapshotGraph,
   type Constat,
@@ -513,23 +512,32 @@ describe('règles carto — cas particuliers', () => {
 // Composition avec les génériques
 // ---------------------------------------------------------------------------
 
+/** Génériques que le lot carto déclare remplacer. */
+const GENERIQUES_REMPLACEES = [...new Set(REGLES_CARTO.flatMap((r) => r.remplace ?? []))];
+
 describe('REGLES_BUILDER_CARTO — composition', () => {
-  it('garde toutes les génériques sauf celles que le lot carto remplace', () => {
-    const ids = REGLES_BUILDER_CARTO.map((r) => r.id);
-    for (const r of REGLES_GENERIQUES) {
-      expect(ids.includes(r.id)).toBe(!GENERIQUES_REMPLACEES_EN_CARTO.includes(r.id));
-    }
-    for (const r of REGLES_CARTO) expect(ids).toContain(r.id);
+  it('est la composition au contrat : génériques puis lot carto', () => {
+    expect(REGLES_BUILDER_CARTO.map((r) => r.id)).toEqual(
+      [...REGLES_GENERIQUES, ...REGLES_CARTO].map((r) => r.id)
+    );
   });
 
-  it('chaque générique remplacée existe (pas de nom périmé)', () => {
+  it('toute règle carto vise les couches ; chaque générique remplacée existe', () => {
+    for (const r of REGLES_CARTO) expect(r.tags).toEqual(['dsfr-data-map-layer']);
     const generiques = REGLES_GENERIQUES.map((r) => r.id);
-    for (const id of GENERIQUES_REMPLACEES_EN_CARTO) expect(generiques).toContain(id);
+    expect(GENERIQUES_REMPLACEES.sort()).toEqual([
+      'pipeline/afficheur-inerte',
+      'pipeline/lignes-ignorees',
+      'pipeline/points-empiles',
+      'pipeline/zero-ligne',
+    ]);
+    for (const id of GENERIQUES_REMPLACEES) expect(generiques).toContain(id);
   });
 
-  it('preuve de mutation de la composition : sans le remplacement, une couche vide compte trois alertes', () => {
+  it('preuve de mutation : sans `remplace`, une couche vide compte trois alertes', () => {
     const t = CAS.find((c) => c.regle === 'carte/aucune-donnee')!.fautive;
-    const naif = evaluerConstats(t, CTX, [...REGLES_GENERIQUES, ...REGLES_CARTO]);
+    const sansRemplace = REGLES_CARTO.map(({ remplace: _r, ...r }) => r);
+    const naif = evaluerConstats(t, CTX, [...REGLES_GENERIQUES, ...sansRemplace]);
     expect(naif.map((c) => c.regle).sort()).toEqual([
       'carte/aucune-donnee',
       'pipeline/afficheur-inerte',
@@ -538,6 +546,126 @@ describe('REGLES_BUILDER_CARTO — composition', () => {
     expect(evaluerConstats(t, CTX, REGLES_BUILDER_CARTO).map((c) => c.regle)).toEqual([
       'carte/aucune-donnee',
     ]);
+  });
+
+  /**
+   * Couverture du remplacement : la fixture minimale qui fait parler chaque
+   * générique remplacée (celles de `constats.test.ts`, portées sur une couche)
+   * fait parler au moins une règle carto, avec un repère. Sans quoi retirer
+   * la générique ferait taire une panne réelle.
+   */
+  const COUVERTURE: Array<{ generique: string; fixtures: Trace[] }> = [
+    {
+      generique: 'pipeline/zero-ligne',
+      fixtures: [carte({ couche: { renderedCount: 0 }, source: charge([], 0) })],
+    },
+    {
+      generique: 'pipeline/afficheur-inerte',
+      fixtures: [
+        carte({ couche: { renderedCount: 0 }, source: { status: 'idle', emissions: 0 } }),
+        carte({ couche: { renderedCount: 0 }, source: charge([], 0) }),
+      ],
+    },
+    {
+      generique: 'pipeline/lignes-ignorees',
+      fixtures: [
+        carte({ couche: { skippedRows: 7 } }),
+        CAS.find((c) => c.regle === 'carte/decimales-virgule')!.fautive,
+      ],
+    },
+    {
+      generique: 'pipeline/points-empiles',
+      fixtures: [
+        carte({ couche: { stackedPositions: { positions: 1, items: 40 } } }),
+        carte({
+          couche: { stackedPositions: { positions: 1, items: 40 } },
+          source: charge([{ lat: 0, lon: 0 }], 40),
+        }),
+      ],
+    },
+  ];
+
+  it('couvre les quatre remplacées, et elles seules', () => {
+    expect(COUVERTURE.map((c) => c.generique).sort()).toEqual([...GENERIQUES_REMPLACEES].sort());
+  });
+
+  describe.each(COUVERTURE)('$generique', ({ generique, fixtures }) => {
+    it('la générique parle sur chaque fixture, seule dans le registre générique', () => {
+      for (const t of fixtures) {
+        expect(deLaRegle(evaluerConstats(t, CTX, REGLES_GENERIQUES), generique)).not.toEqual([]);
+      }
+    });
+
+    it('sur une couche, une règle carto avec repère la remplace, et elle se tait', () => {
+      for (const t of fixtures) {
+        const constats = evaluerConstats(t, CTX, REGLES_BUILDER_CARTO);
+        const carto = constats.filter((c) => c.regle.startsWith('carte/') && c.reperes.length > 0);
+        expect(carto.length, generique).toBeGreaterThan(0);
+        expect(deLaRegle(constats, generique)).toEqual([]);
+      }
+    });
+  });
+
+  it('un amont en échec : « étape en erreur » (générique gardée) parle seule pour la couche', () => {
+    const t = carte({
+      couche: { renderedCount: 0 },
+      source: { status: 'error', message: 'x', emissions: 0 },
+    });
+    expect(evaluerConstats(t, CTX, REGLES_BUILDER_CARTO).map((c) => c.regle)).toEqual([
+      'pipeline/etape-en-erreur',
+    ]);
+  });
+
+  it('un nœud qui n’est pas une couche garde ses constats génériques', () => {
+    const graphique = noeud('graphique', 'dsfr-data-chart', 'display', {
+      upstream: ['kpi'],
+      attrs: { 'label-field': 'commune' },
+    });
+    const kpi = noeud('kpi', 'dsfr-data-source', 'source');
+    const t: Trace = {
+      ...SAINE,
+      graph: { nodes: [...SAINE.graph.nodes, kpi, graphique], dangling: [] },
+      states: { ...SAINE.states, kpi: charge([], 0), graphique: { status: 'idle', emissions: 0 } },
+      order: [...SAINE.order, 'kpi', 'graphique'],
+    };
+    expect(evaluerConstats(t, CTX, REGLES_BUILDER_CARTO).map((c) => c.id)).toEqual([
+      'pipeline/zero-ligne@kpi',
+      'pipeline/afficheur-inerte@graphique',
+    ]);
+  });
+
+  it('pipeline/tronque et carte/tronque-max-items portent sur deux faits distincts', () => {
+    // Fait 1 : la SOURCE a coupé (limit / max-records, meta.truncated) — la
+    // couche dessine tout ce qu'elle reçoit.
+    const source = carte({
+      sourceAttrs: { limit: '1000' },
+      couche: { renderedCount: 1000 },
+      source: charge(PARIS, 1000, {
+        meta: { page: 1, pageSize: 1000, total: 34955, truncated: true },
+      }),
+    });
+    expect(evaluerConstats(source, CTX, REGLES_BUILDER_CARTO).map((c) => c.regle)).toEqual([
+      'pipeline/tronque',
+    ]);
+    // Fait 2 : la source a tout livré, c'est la COUCHE qui coupe à max-items.
+    const couche = CAS.find((c) => c.regle === 'carte/tronque-max-items')!.fautive;
+    expect(evaluerConstats(couche, CTX, REGLES_BUILDER_CARTO).map((c) => c.regle)).toEqual([
+      'carte/tronque-max-items',
+    ]);
+    // Les deux à la fois : deux coupes, deux remèdes (limit, puis max-items).
+    const deux = carte({
+      sourceAttrs: { limit: '10000' },
+      attrs: { 'max-items': '1000' },
+      couche: { renderedCount: 1000 },
+      source: charge(PARIS, 10000, {
+        meta: { page: 1, pageSize: 10000, total: 34955, truncated: true },
+      }),
+    });
+    expect(
+      evaluerConstats(deux, CTX, REGLES_BUILDER_CARTO)
+        .map((c) => c.regle)
+        .sort()
+    ).toEqual(['carte/tronque-max-items', 'pipeline/tronque']);
   });
 
   it('MAX_ITEMS_PAR_DEFAUT suit le défaut de max-items dans le custom-elements manifest', () => {
