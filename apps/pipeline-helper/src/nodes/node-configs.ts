@@ -121,16 +121,14 @@ export const FACETS_CONFIG: PipelineNodeConfig = {
       type: 'text',
       placeholder: 'catégorie,region',
     },
+    // `display` est une grammaire par champ, « champ:mode | champ2:mode » (#1073) :
+    // un mode seul ne pilote rien. Modes acceptés par dsfr-data-facets :
+    // checkbox (défaut), select, multiselect, radio, radio-inline.
     {
-      name: 'type',
-      label: 'Type',
-      type: 'select',
-      options: [
-        { value: 'checkbox', label: 'Checkbox' },
-        { value: 'radio', label: 'Radio' },
-        { value: 'select', label: 'Select' },
-      ],
-      default: 'checkbox',
+      name: 'display',
+      label: 'Affichage',
+      type: 'text',
+      placeholder: 'categorie:select | region:multiselect',
     },
   ],
 };
