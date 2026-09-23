@@ -3870,8 +3870,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
   passent, ce qui cache le defaut ; seuls la Guadeloupe (01), la Martinique, la Guyane, La
   Reunion, Mayotte et les departements 01 a 09 sont muets. Des que les lignes rendues par une
   source montrent la colonne numerique, un console.warn le dit (une fois par colonne et par
-  source). Le geste : alimenter le filtre avec la valeur sans zero de tete, ou reserver ce filtre
-  aux sources qui publient le code en texte avec \`apply-to\`.
+  source). Sur une source dont les lignes ne portent pas la colonne (KPI agrege cote serveur,
+  \`select="sum(...)"\`, filtre delegue au portail, #980), c'est le type DECLARE par le jeu
+  Opendatasoft qui decide, lu une fois par jeu. Le geste : alimenter le filtre avec la valeur sans
+  zero de tete, ou reserver ce filtre aux sources qui publient le code en texte avec \`apply-to\`.
 
 \`\`\`html
 <dsfr-data-context-filter field="date_rentree" label="Année scolaire" operator="year-of"
