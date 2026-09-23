@@ -819,6 +819,19 @@ Le script `scripts/build-lib.ts` produit trois bundles via Vite en mode `lib` :
 | `dsfr-data.map.{esm,umd}.js` | `dsfr-data-map` + `map-layer` + `map-popup` + `map-inset` + `map-legend` + `map-timeline` (Leaflet charge dynamiquement : chunks separes en ESM, inline en UMD) | ~35 Ko | ~85 Ko |
 | `dsfr-data.{esm,umd}.js` | Tout-en-un | ~107 Ko | ~150 Ko |
 
+**Lecteur Parquet (#1055)** — `hyparquet` + `fzstd`, pour le `fetch-mode="export"` d'une source
+Tabular, sont chargés par `import()` (`packages/core/src/adapters/parquet-modules.ts`) et ne sont
+**jamais** dans un bundle principal. En ESM : chunks `dist/hyparquet-*.js` + `dist/fzstd-*.js`
+(~26 Ko gzip à eux deux, noms fixés par `chunkFileNames`). En UMD, qui ne se découpe pas (Vite y
+inline tout `import()`, comme Leaflet dans `dsfr-data.map.umd.js`) : le build est fait **par format**,
+ESM d'abord, et l'UMD substitue `parquet-modules-umd.ts` (alias), qui importe **ces mêmes chunks**
+par rapport à l'URL de son propre script (`document.currentScript`, relevée à l'exécution) — sur le
+CDN qui sert la lib comme en auto-hébergement, jamais depuis un hôte tiers (#292,
+`tests/no-cdn-in-core.test.ts`). Leurs noms hachés sont relevés dans `dist/` après les builds ESM
+et injectés par `define` (`__DSFR_DATA_PARQUET_CHUNKS__`). Un UMD ré-empaqueté hors balise
+`<script>` ne connaît pas son URL : la source retombe alors sur la pagination, en le disant.
+Garde : `tests/lib-parquet-lazy-guard.test.ts` (après build, CI).
+
 La source du JS dans le code genere est configurable via `VITE_LIB_URL` :
 - Non defini / `"jsdelivr"` → `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist` (defaut)
 - `"unpkg"` → `https://unpkg.com/dsfr-data@0/dist`

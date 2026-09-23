@@ -33,6 +33,7 @@ import {
   MELODI_LIGNES,
   RESSOURCE_TABULAR,
   RESSOURCE_TABULAR_LONGUE,
+  RESSOURCE_TABULAR_PARQUET,
   TERRITOIRES_ADAPT,
   TERRITOIRES_TABULAR_LONG,
   URL_GRIST,
@@ -342,6 +343,133 @@ const CHECKS: Check[] = [
         id: 's-tab-cap',
         expect: 'warning',
         contains: "l'attribut max-records de dsfr-data-source",
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-export-parquet',
+    mode: 'deterministic',
+    origin:
+      '#1055, étude #1022 — `fetch-mode="export"` lit l’export PARQUET de data.gouv (résolu par `/api/2/datasets/resources/{rid}/`, servi par plages) au lieu de paginer. Le même jeu de 411 lignes, par les deux chemins : même `count`, même somme, mêmes lignes. Le Parquet compte cinq groupes de 100 lignes et ses entiers sont en INT64 : un groupe sauté change le compte, un entier resté `BigInt` casse la somme.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
+    markup: `
+  <dsfr-data-source id="s-tab-rec" api-type="tabular" resource="${RESSOURCE_TABULAR_LONGUE}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tab-rec-n" source="s-tab-rec" value="count" format="nombre" label="Lignes (pagination)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-tab-rec-pop" source="s-tab-rec" value="population:sum" format="nombre" label="Population (pagination)"></dsfr-data-kpi>
+  <dsfr-data-source id="s-tab-pq" api-type="tabular" resource="${RESSOURCE_TABULAR_PARQUET}"
+    fetch-mode="export"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tab-pq-n" source="s-tab-pq" value="count" format="nombre" label="Lignes (Parquet)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-tab-pq-pop" source="s-tab-pq" value="population:sum" format="nombre" label="Population (Parquet)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-tab-pq-hab" source="s-tab-pq" value="Nombre d'habitants:sum" format="nombre" label="Habitants (Parquet)"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-tab-rec-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-tab-rec-pop', agg: 'sum', field: 'population' },
+      { kind: 'kpi', id: 'k-tab-pq-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-tab-pq-pop', agg: 'sum', field: 'population' },
+      { kind: 'kpi', id: 'k-tab-pq-hab', agg: 'sum', field: "Nombre d'habitants" },
+      {
+        kind: 'rows',
+        id: 's-tab-pq',
+        key: ['region', 'copie'],
+        columns: ['population', 'code_dept', 'academie'],
+        pipeline: [],
+      },
+      // Le chemin : le fichier est lu, l'API paginée jamais appelée.
+      {
+        kind: 'urls',
+        id: 'parquet-lu',
+        among: 'tabularparquet',
+        contains: '.parquet',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'parquet-sans-pagination',
+        among: 'tabularparquet',
+        contains: '/data/',
+        verdict: 'none',
+      },
+      { kind: 'diagnostic', id: 's-tab-pq', expect: 'silence', contains: 'fetch-mode="export"' },
+    ],
+  },
+
+  {
+    id: 'tabular-export-parquet-plafond',
+    mode: 'deterministic',
+    origin:
+      '#1055 — `max-records` borne les lignes LUES dans le Parquet (703 k lignes occupent 39 Mo en objets, #1022), et la troncature se dit comme en pagination (#1027) : le fichier annonce son nombre de lignes, le total est connu.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
+    markup: `
+  <dsfr-data-source id="s-tab-pq-cap" api-type="tabular" resource="${RESSOURCE_TABULAR_PARQUET}"
+    fetch-mode="export" max-records="250"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tab-pq-cap-pop" source="s-tab-pq-cap" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-tab-pq-cap-pop',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'limit', n: 250 }],
+      },
+      {
+        kind: 'rows',
+        id: 's-tab-pq-cap',
+        key: ['region', 'copie'],
+        columns: ['population'],
+        pipeline: [{ op: 'limit', n: 250 }],
+        invariants: [{ kind: 'not-truncated' }],
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-tab-pq-cap',
+        expect: 'warning',
+        contains: "l'attribut max-records de dsfr-data-source",
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-export-parquet-repli-where',
+    mode: 'deterministic',
+    origin:
+      '#1055 — le Parquet ne porte que des lignes BRUTES : avec un `where` délégué, la source reste sur la pagination, qui filtre côté serveur, et le DIT en nommant dsfr-data-source. Un export lu malgré le filtre rendrait les 411 lignes.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
+    markup: `
+  <dsfr-data-source id="s-tab-pq-w" api-type="tabular" resource="${RESSOURCE_TABULAR_PARQUET}"
+    fetch-mode="export" where="copie:eq:2"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tab-pq-w-n" source="s-tab-pq-w" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-tab-pq-w-pop" source="s-tab-pq-w" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
+    expects: [
+      ...(
+        [
+          ['k-tab-pq-w-n', 'count', undefined],
+          ['k-tab-pq-w-pop', 'sum', 'population'],
+        ] as const
+      ).map(([id, agg, field]) => ({
+        kind: 'kpi' as const,
+        id,
+        agg,
+        field,
+        pipeline: [
+          {
+            op: 'filter' as const,
+            filters: [{ field: 'copie', op: 'eq' as const, value: 2 }],
+          },
+        ],
+      })),
+      {
+        kind: 'urls',
+        id: 'repli-pagination',
+        among: 'tabularparquet',
+        contains: '.parquet',
+        verdict: 'none',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-tab-pq-w',
+        expect: 'warning',
+        contains: 'fetch-mode="export" ignoré sur dsfr-data-source',
       },
     ],
   },

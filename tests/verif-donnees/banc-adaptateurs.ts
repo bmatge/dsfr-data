@@ -69,6 +69,17 @@ const ELUS_NOMS_URL =
   `?Code%20du%20d%C3%A9partement__in=01,02,03` +
   `&columns=Nom%20de%20l%27%C3%A9lu,Pr%C3%A9nom%20de%20l%27%C3%A9lu&page_size=200`;
 
+/**
+ * Tabular — export Parquet (#1055) : arrondissements du COG au 01/01/2025,
+ * 333 lignes, millésime figé. L'oracle relève les lignes par l'API paginée
+ * (deux pages de 200), la bibliothèque par l'export Parquet de la même
+ * analyse. Le jeu est petit à dessein : le relevé de l'oracle ne coûte que
+ * deux requêtes à l'API, qui a déjà bloqué une IP à ~250 requêtes en 15 s
+ * (étude #1022).
+ */
+const ARR_RESSOURCE = 'e3bd015d-7593-4bc5-a236-8410167e4599';
+const ARR_URL = `https://tabular-api.data.gouv.fr/api/resources/${ARR_RESSOURCE}/data/?page_size=200`;
+
 /** Le OU entre les deux colonnes, pour l'oracle (Tabular : `ilike`, sans repliement d'accents). */
 const MARTIN_NOM_OU_PRENOM = {
   op: 'or' as const,
@@ -206,6 +217,49 @@ const CHECKS: Check[] = [
         among: `/api/resources/${ELUS_RESSOURCE}/data/`,
         contains: 'columns=Libellé du département,Code sexe',
         verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-export-parquet-vivant',
+    mode: 'live',
+    origin:
+      'data.gouv / Code officiel géographique, arrondissements au 01/01/2025 — #1055, étude #1022 : `fetch-mode="export"` lit le VRAI export Parquet (résolu par `/api/2/datasets/resources/{rid}/`, servi par `hydra.s3` par plages), là où l’oracle relève les lignes par l’API paginée. Même nombre de lignes, même somme, mêmes modalités : les deux sorties de la même analyse hydra doivent coller. Millésime figé, 333 lignes au 2026-09-23, deux pages pour l’oracle.',
+    feed: {
+      kind: 'raw',
+      source: { url: ARR_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-arr-pq" api-type="tabular" resource="${ARR_RESSOURCE}"
+    fetch-mode="export"></dsfr-data-source>
+  <dsfr-data-kpi id="k-arr-n" source="s-arr-pq" value="count" format="nombre" label="Arrondissements"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-arr-tncc" source="s-arr-pq" value="TNCC:sum" format="nombre" label="Somme TNCC"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-arr-dep" source="s-arr-pq" value="DEP:distinct" format="nombre" label="Départements"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-arr-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-arr-tncc', agg: 'sum', field: 'TNCC' },
+      { kind: 'kpi', id: 'k-arr-dep', agg: 'distinct', field: 'DEP' },
+      {
+        kind: 'rows',
+        id: 's-arr-pq',
+        key: 'ARR',
+        columns: ['DEP', 'REG', 'TNCC', 'LIBELLE'],
+        pipeline: [],
+      },
+      {
+        kind: 'urls',
+        id: 'arr-parquet-lu',
+        among: 'hydra.s3',
+        contains: '.parquet',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'arr-sans-pagination',
+        among: ARR_RESSOURCE,
+        contains: '/data/',
+        verdict: 'none',
       },
     ],
   },

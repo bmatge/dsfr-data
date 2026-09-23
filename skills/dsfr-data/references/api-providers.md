@@ -14,7 +14,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
 | Pagination auto | oui (offset, 10 pages) | oui (page, 125 pages, max 200/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
-| Chargement en une requete | oui (`fetch-mode="export"`) | non | oui (natif) | non | non |
+| Chargement en une requete | oui (`fetch-mode="export"`) | oui (`fetch-mode="export"`, export Parquet, sans clause deleguee) | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
 | Group-by serveur | oui | oui (column__groupby) | oui (SQL) | non | non |
@@ -81,6 +81,20 @@ nombre de lignes recues, et la troncature est detectee via `max-records` (lot tr
   aggregate="population:sum"
   order-by="population__sum:desc">
 </dsfr-data-query>
+```
+
+Tabular pagine par 200 : 25 000 lignes coutent 125 requetes (et data.gouv a deja bloque une IP a
+~250 requetes en 15 s). `fetch-mode="export"` (#1055) lit a la place l'export PARQUET de data.gouv,
+par plages, colonnes projetees depuis `select` : le jeu IRVE entier (223 174 lignes) en 17 requetes.
+Lignes BRUTES seulement : un `where`, `group-by`, `aggregate` ou `order-by` delegue a la source
+garde la pagination (avertissement console). A activer pour une carte ou une page qui veut le jeu
+entier (plus de 2 000 lignes), avec des calculs cote client ; `max-records` borne les lignes lues.
+```html
+<dsfr-data-source id="bornes" api-type="tabular"
+  resource="eb76d20a-8501-400e-b336-d85724de5435"
+  select="nom_station, consolidated_latitude, consolidated_longitude"
+  fetch-mode="export" max-records="250000">
+</dsfr-data-source>
 ```
 
 **Grist** (fetch serveur + auto-flatten, aggregation via SQL) :

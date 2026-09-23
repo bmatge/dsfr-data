@@ -24,6 +24,12 @@ import {
 } from '../utils/where.js';
 import type { OrderByPart } from '../utils/where.js';
 import { sortRows } from '../utils/sort.js';
+import {
+  DATAGOUV_RESOURCE_API,
+  parquetExportFromResource,
+  readParquetRows,
+} from './tabular-parquet.js';
+import type { ParquetExport } from './tabular-parquet.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -125,9 +131,12 @@ export interface TabularProfile {
 export type TabularProfileParams = Pick<AdapterParams, 'resource'> &
   Partial<Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl'>>;
 
-/** Une lecture de profil partagee entre ses demandeurs (memoisation, #985). */
-interface ProfileEntry {
-  promise: Promise<TabularProfile>;
+/**
+ * Une lecture partagee entre ses demandeurs (memoisation) : le profil d'une
+ * ressource (#985), son export Parquet (#1055).
+ */
+interface SharedEntry<T> {
+  promise: Promise<T>;
   controller: AbortController;
   /** Demandeurs encore en attente : a zero, la requete est annulee. */
   waiting: number;
@@ -139,6 +148,11 @@ function abortError(): Error {
   const err = new Error('The operation was aborted.');
   err.name = 'AbortError';
   return err;
+}
+
+/** Une annulation (le signal de la source, ou une `AbortError`) — jamais un repli. */
+function isAbort(err: unknown, signal: AbortSignal): boolean {
+  return signal.aborted || (err instanceof Error && err.name === 'AbortError');
 }
 
 /**
@@ -202,7 +216,13 @@ export class TabularAdapter implements ApiAdapter {
   private readonly _orRefusedWarned = new Set<string>();
 
   /** Profils lus, par `base|ressource` (#985) : un seul appel par ressource. */
-  private readonly _profiles = new Map<string, ProfileEntry>();
+  private readonly _profiles = new Map<string, SharedEntry<TabularProfile>>();
+
+  /** Exports Parquet resolus, par ressource (#1055) : un seul appel par ressource. */
+  private readonly _parquetExports = new Map<string, SharedEntry<ParquetExport | null>>();
+
+  /** Avertissements `fetch-mode="export"` deja emis (une fois par cause, #1055). */
+  private readonly _exportWarned = new Set<string>();
 
   /**
    * Derniers groupes complets lus pour un tri local en pagination serveur
@@ -379,9 +399,20 @@ export class TabularAdapter implements ApiAdapter {
    * virgule, qui ne peut donc pas figurer dans un nom.
    */
   private _columnsFlag(params: AdapterParams): string | null {
+    if (params.groupBy?.trim() || params.aggregate?.trim()) return null;
+    const columns = this._selectColumns(params);
+    return columns ? `columns=${columns.map(encodeURIComponent).join(',')}` : null;
+  }
+
+  /**
+   * Colonnes nommees par le `select` de la source, ou null (pas de `select`,
+   * ou une expression ODSQL, ignoree avec un avertissement unique). Partage
+   * par la projection `columns=` de l'API (#985) et celle de l'export Parquet
+   * (#1055).
+   */
+  private _selectColumns(params: AdapterParams): string[] | null {
     const select = params.select?.trim();
     if (!select) return null;
-    if (params.groupBy?.trim() || params.aggregate?.trim()) return null;
     const columns = [
       ...new Set(
         select
@@ -402,7 +433,7 @@ export class TabularAdapter implements ApiAdapter {
       }
       return null;
     }
-    return `columns=${columns.map(encodeURIComponent).join(',')}`;
+    return columns;
   }
 
   /**
@@ -421,26 +452,77 @@ export class TabularAdapter implements ApiAdapter {
    * l'application Sources.
    */
   fetchProfile(params: TabularProfileParams, signal?: AbortSignal): Promise<TabularProfile> {
-    if (signal?.aborted) return Promise.reject(abortError());
     const base = this._getBaseUrl(params);
-    const key = `${base}|${params.resource}`;
+    const url = getProxiedUrl(
+      `${base}/api/resources/${encodeURIComponent(params.resource)}/profile/`,
+      params.proxyUrl
+    );
+    return this._shared(
+      this._profiles,
+      `${base}|${params.resource}`,
+      async (ownSignal) => {
+        const response = await fetch(url, buildFetchOptions(params, ownSignal));
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const json = (await response.json()) as { profile?: TabularProfile };
+        return json.profile ?? {};
+      },
+      signal
+    );
+  }
 
-    let entry = this._profiles.get(key);
+  /**
+   * Export Parquet d'une ressource (#1055) : `parquet_url` et sa taille, lus
+   * sur `GET https://www.data.gouv.fr/api/2/datasets/resources/{rid}/`, ou
+   * `null` quand la ressource n'en a pas.
+   *
+   * Memes regles que `fetchProfile` : un seul appel par ressource, quel que
+   * soit le nombre de demandeurs ; annulable, la requete l'est quand plus
+   * personne ne l'attend ; un echec n'est pas memorise. L'API repond
+   * `Access-Control-Allow-Origin: *` : pas de proxy, pas de credentials, et
+   * JAMAIS les en-tetes de la source (ils visent l'API tabulaire).
+   */
+  resolveParquetExport(
+    params: Pick<AdapterParams, 'resource'>,
+    signal?: AbortSignal
+  ): Promise<ParquetExport | null> {
+    const url = `${DATAGOUV_RESOURCE_API}${encodeURIComponent(params.resource)}/`;
+    return this._shared(
+      this._parquetExports,
+      params.resource,
+      async (ownSignal) => {
+        const response = await fetch(url, { credentials: 'omit', signal: ownSignal });
+        // 404 : ressource inconnue de data.gouv (hote tabulaire tiers) — pas d'export
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        return parquetExportFromResource(await response.json());
+      },
+      signal
+    );
+  }
+
+  /**
+   * Partage une lecture entre ses demandeurs, par cle (#985, #1055).
+   *
+   * Une lecture reussie reste memorisee ; une lecture en echec ou annulee ne
+   * l'est pas — la suivante reessaie. `signal` retire le demandeur, et la
+   * requete elle-meme est annulee quand plus personne ne l'attend.
+   */
+  private _shared<T>(
+    cache: Map<string, SharedEntry<T>>,
+    key: string,
+    start: (signal: AbortSignal) => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> {
+    if (signal?.aborted) return Promise.reject(abortError());
+
+    let entry = cache.get(key);
     if (!entry) {
       const controller = new AbortController();
-      const url = getProxiedUrl(
-        `${base}/api/resources/${encodeURIComponent(params.resource)}/profile/`,
-        params.proxyUrl
-      );
-      const created: ProfileEntry = {
+      const created: SharedEntry<T> = {
         controller,
         waiting: 0,
         settled: false,
-        promise: fetch(url, buildFetchOptions(params, controller.signal)).then(async (response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          const json = (await response.json()) as { profile?: TabularProfile };
-          return json.profile ?? {};
-        }),
+        promise: start(controller.signal),
       };
       created.promise.then(
         () => {
@@ -448,16 +530,16 @@ export class TabularAdapter implements ApiAdapter {
         },
         () => {
           created.settled = true;
-          if (this._profiles.get(key) === created) this._profiles.delete(key);
+          if (cache.get(key) === created) cache.delete(key);
         }
       );
-      this._profiles.set(key, created);
+      cache.set(key, created);
       entry = created;
     }
 
     const shared = entry;
     shared.waiting++;
-    return new Promise<TabularProfile>((resolve, reject) => {
+    return new Promise<T>((resolve, reject) => {
       let done = false;
       const release = () => {
         if (done) return false;
@@ -469,15 +551,15 @@ export class TabularAdapter implements ApiAdapter {
       const onAbort = () => {
         if (!release()) return;
         if (shared.waiting === 0 && !shared.settled) {
-          if (this._profiles.get(key) === shared) this._profiles.delete(key);
+          if (cache.get(key) === shared) cache.delete(key);
           shared.controller.abort();
         }
         reject(abortError());
       };
       signal?.addEventListener('abort', onAbort, { once: true });
       shared.promise.then(
-        (profile) => {
-          if (release()) resolve(profile);
+        (value) => {
+          if (release()) resolve(value);
         },
         (err: unknown) => {
           if (release()) reject(err);
@@ -539,17 +621,23 @@ export class TabularAdapter implements ApiAdapter {
    * petit reste prioritaire. Quand le plafond coupe alors qu'il reste des
    * pages, le resultat porte `truncated` (#658) — seul signal disponible sur
    * une requete group-by, dont l'API ne donne pas le total.
+   *
+   * `fetch-mode="export"` (#1055) lit le jeu dans l'export Parquet de
+   * data.gouv quand rien n'est delegue ; sinon, ou sans export, retour a la
+   * pagination ci-dessous (voir `_fetchViaParquet`).
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
+    if (params.fetchMode === 'export') {
+      const exported = await this._fetchViaParquet(params, signal);
+      if (exported) return exported;
+    }
+
     // Tri sur une colonne d'agregat (#1045) : groupes complets, puis tri ici
     const localSort = this._sortPlan(params, params.orderBy).local;
     if (localSort.length > 0) return this._fetchAllSortedLocally(params, localSort, signal);
 
     const fetchAllRecords = params.limit <= 0;
-    const maxRecords =
-      params.maxRecords && params.maxRecords > 0
-        ? params.maxRecords
-        : TABULAR_MAX_PAGES * TABULAR_PAGE_SIZE;
+    const maxRecords = this._maxRecords(params);
     const maxPages = Math.ceil(maxRecords / TABULAR_PAGE_SIZE);
     const requestedLimit = fetchAllRecords ? maxRecords : Math.min(params.limit, maxRecords);
 
@@ -676,6 +764,142 @@ export class TabularAdapter implements ApiAdapter {
       needsClientProcessing: !serverHandled,
       ...(cappedWithMore ? { truncated: true } : {}),
     };
+  }
+
+  /**
+   * Charge le jeu par son export Parquet (#1055, etude #1022).
+   *
+   * Conditions :
+   * - aucun `where`, `group-by`, `aggregate` ni `order-by` delegue (pose sur
+   *   la source ou transmis par une query) : le Parquet ne porte que les
+   *   lignes BRUTES, dans l'ordre du fichier. Sinon la pagination les
+   *   execute cote serveur, et on le dit une fois ;
+   * - la ressource a un export (`parquet_url`) : sinon pagination, et on le
+   *   dit une fois par ressource (meme repli que l'export ODS, #689).
+   *
+   * Le `select` projette les colonnes lues (#985) ; `max-records` (defaut :
+   * 25 000, comme la pagination) et un `limit` plus petit bornent les lignes
+   * LUES, pas seulement gardees — 703 k lignes occupent 39 Mo en objets.
+   * Le fichier annonce son nombre de lignes : le total serveur est connu,
+   * la troncature se deduit et se dit comme en pagination.
+   *
+   * Retourne `null` pour revenir a la pagination ; une annulation remonte
+   * telle quelle. Un echec de resolution, de chargement du lecteur (reseau,
+   * CSP) ou de lecture n'est jamais fatal : pagination, avec un avertissement.
+   */
+  private async _fetchViaParquet(
+    params: AdapterParams,
+    signal: AbortSignal
+  ): Promise<FetchResult | null> {
+    const delegated = this._delegatedClauses(params);
+    if (delegated.length > 0) {
+      this._warnExportOnce(
+        `delegated:${delegated.join('|')}`,
+        `[dsfr-data] tabular: fetch-mode="export" ignoré sur dsfr-data-source ` +
+          `(${delegated.join(', ')}) — l'export Parquet ne porte que des lignes brutes, ` +
+          `la clause est exécutée par l'API paginée. Pour lire tout le jeu en une fois, ` +
+          `retirez la clause de dsfr-data-source et calculez-la avec dsfr-data-query`
+      );
+      return null;
+    }
+
+    let exported: ParquetExport | null;
+    try {
+      exported = await this.resolveParquetExport(params, signal);
+    } catch (err) {
+      if (isAbort(err, signal)) throw err;
+      this._warnExportFailure(params, 'résolution de l’export impossible', err);
+      return null;
+    }
+    if (!exported) {
+      this._warnExportOnce(
+        `absent:${params.resource}`,
+        `[dsfr-data] tabular: pas d'export Parquet pour la ressource "${params.resource}" — ` +
+          `fetch-mode="export" de dsfr-data-source retombe sur le chargement paginé`
+      );
+      return null;
+    }
+
+    const maxRecords = this._maxRecords(params);
+    const fetchAllRecords = params.limit <= 0;
+    const cap = fetchAllRecords ? maxRecords : Math.min(params.limit, maxRecords);
+    const columns = this._selectColumns(params);
+
+    let read: Awaited<ReturnType<typeof readParquetRows>>;
+    try {
+      read = await readParquetRows({
+        url: exported.url,
+        size: exported.size,
+        ...(columns ? { columns } : {}),
+        maxRows: cap,
+        signal,
+      });
+    } catch (err) {
+      if (isAbort(err, signal)) throw err;
+      this._warnExportFailure(params, 'lecture de l’export impossible', err);
+      return null;
+    }
+
+    if (read.missingColumns.length > 0) {
+      this._warnExportOnce(
+        `missing:${params.resource}|${read.missingColumns.join('|')}`,
+        `[dsfr-data] tabular: select de dsfr-data-source — colonne(s) absente(s) de l'export ` +
+          `Parquet : ${read.missingColumns.map((c) => `"${c}"`).join(', ')}`
+      );
+    }
+
+    // Plafond max-records (et non un limit plus petit) atteint alors que le
+    // fichier porte plus de lignes : dit comme en pagination (#1027).
+    const capBinding = fetchAllRecords || params.limit >= maxRecords;
+    const truncated = capBinding && read.numRows > read.rows.length;
+    if (truncated) {
+      console.warn(
+        `[dsfr-data] tabular: export Parquet lu jusqu'à ${read.rows.length}/${read.numRows} lignes ` +
+          `(plafond max-records : ${maxRecords} lignes — relevable via l'attribut max-records ` +
+          `de dsfr-data-source, #1027)`
+      );
+    }
+
+    return {
+      data: read.rows,
+      totalCount: read.numRows,
+      needsClientProcessing: false,
+      ...(truncated ? { truncated: true } : {}),
+    };
+  }
+
+  /** Clauses deleguees qui interdisent l'export Parquet (#1055), nommees pour le message. */
+  private _delegatedClauses(params: AdapterParams): string[] {
+    const clauses: string[] = [];
+    const where = (params.filter || params.where || '').trim();
+    if (where) clauses.push(`where="${where}"`);
+    if (params.groupBy?.trim()) clauses.push(`group-by="${params.groupBy.trim()}"`);
+    if (params.aggregate?.trim()) clauses.push(`aggregate="${params.aggregate.trim()}"`);
+    if (params.orderBy?.trim()) clauses.push(`order-by="${params.orderBy.trim()}"`);
+    return clauses;
+  }
+
+  /** Un avertissement `fetch-mode="export"` par cause et par adaptateur (#1055). */
+  private _warnExportOnce(key: string, message: string): void {
+    if (this._exportWarned.has(key)) return;
+    this._exportWarned.add(key);
+    console.warn(message);
+  }
+
+  /** Echec transitoire de l'export : dit a chaque fois, jamais memorise. */
+  private _warnExportFailure(params: AdapterParams, what: string, err: unknown): void {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[dsfr-data] tabular: ${what} pour la ressource "${params.resource}" (${detail}) — ` +
+        `fetch-mode="export" de dsfr-data-source retombe sur le chargement paginé`
+    );
+  }
+
+  /** Plafond `max-records` effectif (#1027) : l'attribut, ou 25 000 lignes. */
+  private _maxRecords(params: AdapterParams): number {
+    return params.maxRecords && params.maxRecords > 0
+      ? params.maxRecords
+      : TABULAR_MAX_PAGES * TABULAR_PAGE_SIZE;
   }
 
   /**

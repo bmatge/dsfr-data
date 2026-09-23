@@ -57,7 +57,8 @@ export interface AdapterParams {
    * Stratégie de chargement du `fetchAll` (#689, ADR-106) : `records`
    * (défaut — pagination par pages) ou `export` (une seule requête sur
    * l'endpoint d'export du provider). Les adaptateurs qui ne connaissent
-   * pas ce mode l'ignorent ; seul OpenDataSoft l'implémente aujourd'hui.
+   * pas ce mode l'ignorent ; OpenDataSoft (`/exports/json`) et Tabular
+   * (export Parquet de data.gouv, #1055) l'implémentent.
    */
   fetchMode?: 'records' | 'export';
   transform: string;

@@ -227,7 +227,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter, honore par ODS (#233) et Tabular (#1027). 0 = plafond par defaut de l'adapter (ODS : 1000, Tabular : 25000). A relever pour charger un jeu plus long (ex. les ~35 000 communes sur Tabular : \`max-records="40000"\`) ou pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
-| fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft seulement ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. |
+| fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft et Tabular ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. Tabular (#1055) : lit l'export Parquet de data.gouv (lecteur ~22 Ko gzip charge a la demande), lignes brutes seulement — un where/group-by/aggregate/order-by delegue garde la pagination ; \`max-records\` borne les lignes lues. |
 | require-where | Boolean | \`false\` | non | Ne rien charger tant qu'aucun filtre n'a été reçu (#690) : la source reste en attente et émet \`dsfr-data-idle\`, les afficheurs rendent « Choisissez un filtre pour afficher les données ». Le \`where\` STATIQUE ne compte pas — seules les clauses reçues par commande (facettes, recherche, dsfr-data-context, délégation d'un dsfr-data-query). Retirer le dernier filtre repasse en attente : jamais de requête « tout ». Réservé au mode adapter (les commandes where sont refusées en mode URL). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (\`proxy-url\`, \`window.DSFR_DATA_PROXY\`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
@@ -2891,7 +2891,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
 | Pagination auto | oui (offset, 10 pages) | oui (page, 125 pages, max 200/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
-| Chargement en une requete | oui (\`fetch-mode="export"\`) | non | oui (natif) | non | non |
+| Chargement en une requete | oui (\`fetch-mode="export"\`) | oui (\`fetch-mode="export"\`, export Parquet, sans clause deleguee) | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
 | Group-by serveur | oui | oui (column__groupby) | oui (SQL) | non | non |
@@ -2958,6 +2958,20 @@ nombre de lignes recues, et la troncature est detectee via \`max-records\` (lot 
   aggregate="population:sum"
   order-by="population__sum:desc">
 </dsfr-data-query>
+\`\`\`
+
+Tabular pagine par 200 : 25 000 lignes coutent 125 requetes (et data.gouv a deja bloque une IP a
+~250 requetes en 15 s). \`fetch-mode="export"\` (#1055) lit a la place l'export PARQUET de data.gouv,
+par plages, colonnes projetees depuis \`select\` : le jeu IRVE entier (223 174 lignes) en 17 requetes.
+Lignes BRUTES seulement : un \`where\`, \`group-by\`, \`aggregate\` ou \`order-by\` delegue a la source
+garde la pagination (avertissement console). A activer pour une carte ou une page qui veut le jeu
+entier (plus de 2 000 lignes), avec des calculs cote client ; \`max-records\` borne les lignes lues.
+\`\`\`html
+<dsfr-data-source id="bornes" api-type="tabular"
+  resource="eb76d20a-8501-400e-b336-d85724de5435"
+  select="nom_station, consolidated_latitude, consolidated_longitude"
+  fetch-mode="export" max-records="250000">
+</dsfr-data-source>
 \`\`\`
 
 **Grist** (fetch serveur + auto-flatten, aggregation via SQL) :
