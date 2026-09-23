@@ -69,8 +69,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (from === 'playground' || arriveDuBuilder(from)) {
     const code = sessionStorage.getItem('pipeline-helper-code');
+    // `from` vient de l'URL : en argument, jamais dans la chaîne de format
+    // (CodeQL js/tainted-format-string, alerte #98).
     // eslint-disable-next-line no-console -- debug trace for cross-app handoff
-    console.log(`[pipeline-helper] from=${from}, code length:`, code?.length ?? 0);
+    console.log('[pipeline-helper] from=', from, 'code length:', code?.length ?? 0);
     if (code) {
       sessionStorage.removeItem('pipeline-helper-code');
       // Clean URL — sauf au départ du Builder : `from=builder` garde le

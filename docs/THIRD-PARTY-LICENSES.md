@@ -13,8 +13,12 @@ Le projet `dsfr-data` lui-même est distribué sous licence **MIT** (voir [`LICE
 | [`leaflet`](https://leafletjs.com/) | ^1.9.4 | BSD-2-Clause | Moteur de carte (chargé dynamiquement) |
 | [`leaflet.markercluster`](https://github.com/Leaflet/Leaflet.markercluster) | ^1.5.3 | MIT | Plugin clustering de markers (chargé dynamiquement) |
 | [`leaflet.heat`](https://github.com/Leaflet/Leaflet.heat) | ^0.2.0 | BSD-2-Clause | Plugin heatmap (chargé dynamiquement) |
+| [`hyparquet`](https://github.com/hyparam/hyparquet) | ^1.31.1 | MIT | Lecteur Parquet de l'export data.gouv, `fetch-mode="export"` d'une source Tabular (chargé dynamiquement, #1055) |
+| [`fzstd`](https://github.com/101arrowz/fzstd) | ^0.1.1 | MIT | Décompresseur ZSTD des exports Parquet de data.gouv (chargé dynamiquement, #1055) |
 
 Les plugins Leaflet (`leaflet.markercluster`, `leaflet.heat`) sont chargés **dynamiquement via `import()`** uniquement quand un composant `dsfr-data-map-layer` les active (attributs `cluster` ou `type="heatmap"`). Ils ne sont donc pas inclus dans le bundle `dsfr-data` distribué sur npm — leur redistribution dans vos applications dépend de votre outil de build.
+
+`hyparquet` et `fzstd` (deux paquets MIT, sans dépendance) ne sont chargés que par une source Tabular en `fetch-mode="export"` (#1055). Ils sont publiés en chunks séparés (`dist/hyparquet-*.js`, `dist/fzstd-*.js`, ≈ 26 Ko gzip à eux deux), jamais inclus dans un bundle principal : les bundles **ESM** les importent par `import()`, les bundles **UMD** importent les mêmes fichiers à côté d'eux, au premier usage — jamais depuis un CDN tiers.
 
 ## Fonds de carte (runtime, non redistribués)
 

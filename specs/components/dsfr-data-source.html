@@ -213,7 +213,7 @@
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
               <!-- ATTRS:dsfr-data-source fields="fetch-mode" -->
-                <tr><td><code>fetch-mode</code></td><td><code>records</code> · <code>export</code></td><td><code>records</code></td><td>Stratégie de chargement en mode adaptateur (#689) : <code>records</code> (défaut, comportement historique — pagination par pages de 100) ou <code>export</code>, qui charge tout le jeu en **une seule requête** sur l'endpoint d'export du portail, avec les mêmes clauses (<code>select</code>, <code>where</code>, <code>group-by</code>, <code>order-by</code>). Implémenté par OpenDataSoft seulement ; les autres adaptateurs ignorent l'attribut. À activer pour une page « un fetch, N agrégations client », un jeu de plus de 1 000 lignes, ou un <code>group-by</code> à beaucoup de groupes : le portail les rend tous d'un coup au lieu d'une page. À ne pas activer avec <code>server-side</code> (pagination page par page), qui reste sur l'endpoint paginé et signale la contradiction dans la console. En mode <code>export</code> le total serveur est inconnu : la troncature est détectée en demandant une ligne de plus que le plafond <code>max-records</code>. Si le portail n'expose pas d'endpoint d'export, la source retombe une fois sur le chargement paginé, avec un avertissement en console.</td></tr>
+                <tr><td><code>fetch-mode</code></td><td><code>records</code> · <code>export</code></td><td><code>records</code></td><td>Stratégie de chargement en mode adaptateur (#689) : <code>records</code> (défaut, comportement historique — pagination par pages de 100) ou <code>export</code>, qui charge tout le jeu en **une seule requête** sur l'endpoint d'export du portail, avec les mêmes clauses (<code>select</code>, <code>where</code>, <code>group-by</code>, <code>order-by</code>). Implémenté par OpenDataSoft et Tabular ; les autres adaptateurs ignorent l'attribut. **Tabular** (#1055) : lit l'export **Parquet** que data.gouv publie pour chaque ressource, par plages, colonnes projetées depuis <code>select</code> — le jeu entier en quelques requêtes au lieu de pages de 200. Le lecteur (≈ 22 Ko gzip) n'est chargé qu'à ce moment-là. Lignes brutes seulement : avec un <code>where</code>, <code>group-by</code>, <code>aggregate</code> ou <code>order-by</code> délégué (posé sur la source ou transmis par une <code>dsfr-data-query</code>), la source reste sur la pagination, qui les exécute côté serveur, et le dit en console. <code>max-records</code> (25 000 par défaut) borne les lignes lues. Les entiers et les dates arrivent dans la forme de l'API (nombre, <code>AAAA-MM-JJ</code>). Pour une première page rapide sur un petit jeu, la pagination reste plus vive ; l'export l'emporte au-delà de 1 000 à 2 000 lignes. À activer pour une page « un fetch, N agrégations client », un jeu de plus de 1 000 lignes, ou un <code>group-by</code> à beaucoup de groupes : le portail les rend tous d'un coup au lieu d'une page. À ne pas activer avec <code>server-side</code> (pagination page par page), qui reste sur l'endpoint paginé et signale la contradiction dans la console. En mode <code>export</code> le total serveur est inconnu : la troncature est détectée en demandant une ligne de plus que le plafond <code>max-records</code>. Si le portail n'expose pas d'endpoint d'export, la source retombe une fois sur le chargement paginé, avec un avertissement en console.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -228,13 +228,53 @@
 &lt;/dsfr-data-source&gt;</pre>
         </div>
         <p class="fr-text--sm fr-text--light">
-          Implémenté par l'adaptateur OpenDataSoft seulement ; les autres l'ignorent, et une source dont le
+          Implémenté par les adaptateurs OpenDataSoft et Tabular ; les autres l'ignorent, et une source dont le
           portail n'expose pas d'endpoint d'export retombe une fois sur le chargement paginé, avec un
           avertissement console. À ne pas combiner avec <code>server-side</code>, qui pagine page par page
-          et reste sur l'endpoint paginé : la contradiction est signalée dans la console. En mode export le
-          total serveur est inconnu, donc la troncature est détectée en demandant une ligne de plus que le
-          plafond <code>max-records</code> — pensez à relever ce plafond en même temps.
+          et reste sur l'endpoint paginé : la contradiction est signalée dans la console. Sur OpenDataSoft, le
+          total serveur est inconnu en mode export, donc la troncature est détectée en demandant une ligne de
+          plus que le plafond <code>max-records</code> — pensez à relever ce plafond en même temps.
         </p>
+        <h5 class="fr-mt-2w">Tabular : l'export Parquet de data.gouv (#1055)</h5>
+        <p>
+          Sur une source <code>api-type="tabular"</code>, <code>fetch-mode="export"</code> lit l'export
+          <strong>Parquet</strong> que data.gouv publie pour chaque ressource, par plages, en ne lisant que les
+          colonnes du <code>select</code>. Mesuré sur le jeu IRVE (223 174 lignes) : le jeu entier en 0,66 s et
+          17 requêtes, là où la pagination met 10,8 s et 125 requêtes pour 25 000 lignes. Le lecteur
+          (≈ 22 Ko gzip) n'est chargé qu'à ce moment-là : il n'alourdit pas les autres pages.
+        </p>
+        <ul>
+          <li>
+            <strong>Lignes brutes seulement.</strong> Avec un <code>where</code>, un <code>group-by</code>, un
+            <code>aggregate</code> ou un <code>order-by</code> délégué — posé sur la source ou transmis par une
+            <code>dsfr-data-query</code> —, la source reste sur la pagination, qui les exécute côté serveur, et
+            le dit une fois en console. Pour « un fetch, N agrégations », posez les calculs sur des
+            <code>dsfr-data-query</code> qui partagent la source : ils restent alors côté client.
+          </li>
+          <li>
+            <strong><code>max-records</code></strong> (25 000 par défaut, comme la pagination) borne les lignes
+            <em>lues</em>. Le fichier annonce son nombre de lignes : le total est connu, et une troncature se dit
+            comme en pagination.
+          </li>
+          <li>
+            <strong>Forme des lignes</strong> identique à celle de l'API : entiers en nombres, dates en
+            <code>AAAA-MM-JJ</code>, colonne <code>__id</code> quand aucun <code>select</code> n'est posé. Une
+            ressource sans export retombe sur la pagination, avec un avertissement.
+          </li>
+          <li>
+            Pour la <strong>première page</strong> d'un petit jeu, la pagination reste plus rapide ; l'export
+            l'emporte au-delà de 1 000 à 2 000 lignes.
+          </li>
+        </ul>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-source id="bornes"
+  api-type="tabular"
+  resource="eb76d20a-8501-400e-b336-d85724de5435"
+  select="nom_station, consolidated_latitude, consolidated_longitude"
+  fetch-mode="export"
+  max-records="250000"&gt;
+&lt;/dsfr-data-source&gt;</pre>
+        </div>
 
         <h3 class="fr-mt-3w">Attribut mode inline</h3>
         <div class="fr-table">

@@ -127,6 +127,38 @@
           </div>
         </section>
 
+        <!-- Export Parquet -->
+        <section class="fr-mt-4w">
+          <h2>Tout le jeu en une lecture : l'export Parquet (#1055)</h2>
+          <p>
+            data.gouv publie, pour chaque ressource tabulaire analysée, un export <strong>Parquet</strong>
+            issu de la même analyse que l'API : <code>extras["analysis:parsing:parquet_url"]</code> de
+            <code>GET https://www.data.gouv.fr/api/2/datasets/resources/{rid}/</code>, servi par un S3
+            (<code>hydra.s3.rbx.io.cloud.ovh.net</code>) qui répond <code>Access-Control-Allow-Origin: *</code>
+            et lit par plage. <code>fetch-mode="export"</code> sur la source le lit à la place de la pagination :
+            le pied du fichier, puis les seuls groupes de lignes et colonnes nécessaires.
+          </p>
+          <div class="fr-table">
+            <table>
+              <thead>
+                <tr><th>Jeu (étude #1022, poste)</th><th>Export Parquet, jeu entier</th><th>Pagination, 25 000 lignes</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Élus municipaux (34 826 lignes)</td><td>0,34 s · 5 requêtes</td><td>8,3 s · 125 requêtes</td></tr>
+                <tr><td>Bornes IRVE (223 174 lignes)</td><td>0,66 s · 17 requêtes</td><td>10,8 s · 125 requêtes</td></tr>
+                <tr><td>Véhicules par commune (703 545 lignes)</td><td>0,63 s · 47 requêtes</td><td>10,9 s · 125 requêtes</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul>
+            <li>Lecteur <code>hyparquet</code> + <code>fzstd</code> (MIT, ≈ 26 Ko gzip), chargé à la demande : chunks séparés publiés à côté des bundles, importés par l’ESM comme par l’UMD — jamais depuis un CDN tiers.</li>
+            <li>Requêtes <strong>sans credentials</strong> ni en-têtes de la source, sans proxy : les deux hôtes répondent en CORS <code>*</code>.</li>
+            <li>Lignes brutes : un <code>where</code>, <code>group-by</code>, <code>aggregate</code> ou <code>order-by</code> délégué garde la pagination, avec un avertissement unique.</li>
+            <li><code>max-records</code> borne les lignes lues ; entiers rendus en nombres, dates en <code>AAAA-MM-JJ</code>. Deux colonnes horodatées de l'IRVE (<code>created_at</code>, <code>last_modified</code>) sont écrites en date dans le Parquet : l'heure y est perdue.</li>
+            <li>Ressource sans export (analysée avant son arrivée) : retour à la pagination, avec un avertissement.</li>
+          </ul>
+        </section>
+
         <!-- Syntaxe de requete -->
         <section class="fr-mt-4w">
           <h2>Syntaxe de requête</h2>
