@@ -14,10 +14,28 @@ declare const __DSFR_DATA_COMMIT__: string;
  *
  * Affiche le footer conforme DSFR avec logo, liens et mentions légales.
  *
+ * `variant="slim"` : une seule ligne pour les apps de travail (Sources,
+ * Playground, Tableau de bord...), ou le pied complet (~280 px) coutait une
+ * fin de page entiere. Elle garde le bloc-marque et les liens obligatoires
+ * (accessibilite, mentions legales, licence) ; l'accueil, le Guide et les
+ * Specs gardent le pied complet.
+ *
  * @example
  * <app-footer base-path=""></app-footer>
- * <app-footer base-path="../../"></app-footer>
+ * <app-footer base-path="../../" variant="slim"></app-footer>
  */
+/**
+ * Feuille de la variante une ligne, injectee une fois par document. Le
+ * bloc-marque y est mis en ligne comme dans l'en-tete compact (`app-header`).
+ */
+export function injectAppFooterStyles(): void {
+  if (document.getElementById('app-footer-style')) return;
+  const style = document.createElement('style');
+  style.id = 'app-footer-style';
+  style.textContent = `.app-footer--slim{padding-top:0}.app-footer--slim .fr-footer__bottom{margin-top:0;box-shadow:none;flex-wrap:wrap;gap:0 1.5rem}.app-footer--slim .fr-footer__bottom-list{width:auto;flex:1 1 auto}.app-footer--slim .fr-footer__bottom-item:last-child{margin-left:auto}.app-footer--slim .app-footer__brand{background-image:none}.app-footer--slim .fr-logo{display:flex;align-items:center;gap:.5rem;line-height:1rem}.app-footer--slim .fr-logo br{display:none}.app-footer--slim .fr-logo::before{margin:0}.app-footer--slim .fr-logo::after{display:none}`;
+  document.head.appendChild(style);
+}
+
 @customElement('app-footer')
 export class AppFooter extends LitElement {
   /**
@@ -42,12 +60,87 @@ export class AppFooter extends LitElement {
     return typeof __DSFR_DATA_COMMIT__ !== 'undefined' ? __DSFR_DATA_COMMIT__ : '';
   }
 
+  /** `slim` : une seule ligne (apps de travail). Vide : pied DSFR complet. */
+  @property({ type: String })
+  variant: '' | 'slim' = '';
+
+  connectedCallback() {
+    super.connectedCallback();
+    injectAppFooterStyles();
+  }
+
   // Light DOM pour hériter des styles DSFR
   createRenderRoot() {
     return this;
   }
 
+  private _renderSlim() {
+    return html`
+      <footer class="fr-footer app-footer--slim" role="contentinfo" id="footer">
+        <div class="fr-container">
+          <div class="fr-footer__bottom">
+            <a
+              class="app-footer__brand"
+              href="${this._base}index.html"
+              title="Retour à l'accueil du site - République Française"
+            >
+              <p class="fr-logo fr-logo--sm">République <br />Française</p>
+            </a>
+            <ul class="fr-footer__bottom-list">
+              <li class="fr-footer__bottom-item">
+                <a class="fr-footer__bottom-link" href="#">Accessibilité : non conforme</a>
+              </li>
+              <li class="fr-footer__bottom-item">
+                <a class="fr-footer__bottom-link" href="#">Mentions légales</a>
+              </li>
+              <li class="fr-footer__bottom-item">
+                <a
+                  class="fr-footer__bottom-link"
+                  href="https://github.com/etalab/licence-ouverte/blob/master/LO.md"
+                  target="_blank"
+                  rel="noopener"
+                  >Licence etalab-2.0</a
+                >
+              </li>
+              <li class="fr-footer__bottom-item">
+                <a
+                  class="fr-footer__bottom-link"
+                  href="https://github.com/bmatge/dsfr-data"
+                  target="_blank"
+                  rel="noopener"
+                  >GitHub</a
+                >
+              </li>
+              ${
+                this._version
+                  ? html`<li class="fr-footer__bottom-item">
+                      <span class="fr-footer__bottom-link">
+                        dsfr-data
+                        v${this._version}${
+                          this._commit
+                            ? html` ·
+                                <a
+                                  href="https://github.com/bmatge/dsfr-data/commit/${this._commit}"
+                                  target="_blank"
+                                  rel="noopener"
+                                  title="Voir le commit sur GitHub"
+                                  >${this._commit}</a
+                                >`
+                            : ''
+                        }
+                      </span>
+                    </li>`
+                  : ''
+              }
+            </ul>
+          </div>
+        </div>
+      </footer>
+    `;
+  }
+
   render() {
+    if (this.variant === 'slim') return this._renderSlim();
     return html`
       <footer class="fr-footer" role="contentinfo" id="footer">
         <div class="fr-container">

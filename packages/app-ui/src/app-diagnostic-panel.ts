@@ -35,11 +35,22 @@ import {
  * utile là où il n'y a rien à observer — l'Assistant IA rend son aperçu sans
  * aucun composant dsfr-data, donc sans trafic sur le bus.
  *
+ * **Intégré à l'assistant.** Dans les apps qui ont l'assistant contextuel,
+ * `mountAssistant({ diagnostic })` loge le volet dans l'onglet « Diagnostic »
+ * du panneau et pose l'attribut `integre` : plus de rail en bas d'écran, le
+ * corps est toujours rendu, et l'assistant porte l'unique compteur de
+ * constats. `toggle()` garde son sens — l'assistant écoute
+ * `diagnostic-toggle` et ouvre, ou referme, son onglet. Le Studio et l'ancien
+ * Assistant IA, sans assistant contextuel, gardent le tiroir.
+ *
  * Light DOM pour hériter des styles DSFR.
  *
  * @fires diagnostic-copy - Le diagnostic textuel a été copié.
  * @fires diagnostic-send - { text } « Demander à l'assistant » (geste selon `sendAction`).
- * @fires diagnostic-toggle - { open } ouverture/fermeture du tiroir.
+ * @fires diagnostic-toggle - { open } ouverture/fermeture du tiroir (ou de l'onglet, intégré).
+ * @fires diagnostic-annonce - { texte } intégré seulement : erreurs nouvelles à
+ *   annoncer. Le panneau de l'assistant peut être masqué, une région `aria-live`
+ *   à l'intérieur se tairait : l'assistant la rend hors du panneau.
  * @fires constat-montrer - { repere, constat } l'usager demande à voir le
  *   contrôle qui corrige un constat (#1001). Le volet ne résout rien lui-même :
  *   l'app branche `montrer()` (#1005).
@@ -94,6 +105,11 @@ export function injectAppDiagnosticStyles(): void {
   style.textContent = `
 app-diagnostic-panel{position:fixed;left:0;right:0;bottom:0;z-index:780;display:block;font-size:.875rem}
 app-diagnostic-panel[hidden]{display:none}
+app-diagnostic-panel[integre]{position:static;z-index:auto}
+.app-diag--integre{background:none;border-top:0;box-shadow:none}
+.app-diag--integre .app-diag__body{max-height:none;overflow:visible;border-top:0;padding:0}
+.app-diag--integre .app-diag__toolbar{justify-content:flex-start;padding-top:0}
+.app-diag__resume{margin:0 0 .5rem;color:var(--text-mention-grey);font-size:.8125rem;font-variant-numeric:tabular-nums}
 .app-diag{background:var(--background-default-grey);border-top:1px solid var(--border-default-grey);box-shadow:0 -4px 12px rgba(0,0,0,.08)}
 .app-diag__rail{display:flex;align-items:center;gap:.75rem;width:100%;padding:.4rem 1rem;margin:0;border:0;background:none;color:var(--text-title-grey);font:inherit;font-weight:500;text-align:left;cursor:pointer;min-height:2.25rem}
 .app-diag__rail:hover{background:var(--background-alt-grey)}
@@ -150,12 +166,12 @@ app-diagnostic-panel[hidden]{display:none}
    La double :has monte la specificite au-dessus de la regle mobile de
    app-action-bar, qui pose deja un padding-bottom sur body — sinon le
    gagnant dependrait de l'ordre d'injection des feuilles. */
-body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h,2.25rem)}
+body:has(app-diagnostic-panel:not([integre])){padding-bottom:var(--app-diagnostic-h,2.25rem)}
 /* Le padding reserve la place, l'ancrage du defilement est un reglage a part
    (WCAG 2.2 SC 2.4.11, #627) : sans lui, un element amene au focus se range
    sous le rail. Le rail est fixe a TOUTES les largeurs, la regle l'est donc
    aussi — c'est le cumul avec la barre d'actions qui, lui, est mobile. */
-html:has(app-diagnostic-panel){scroll-padding-bottom:var(--app-diagnostic-h,2.25rem)}
+html:has(app-diagnostic-panel:not([integre])){scroll-padding-bottom:var(--app-diagnostic-h,2.25rem)}
 @media (max-width:47.99em){
   app-diagnostic-panel{bottom:var(--app-action-bar-fixed-h,0px)}
   /* La raison de desactivation de l'action primaire est FIXE dans la meme
@@ -168,11 +184,11 @@ html:has(app-diagnostic-panel){scroll-padding-bottom:var(--app-diagnostic-h,2.25
      Le Builder y echappait par reason-host ; les six autres apps a barre
      d'actions, non. Meme double :has, meme raison, que le padding ci-dessous :
      gagner quel que soit l'ordre d'injection des feuilles. */
-  body:has(app-diagnostic-panel) .app-action-bar__reason{bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
+  body:has(app-diagnostic-panel:not([integre])) .app-action-bar__reason{bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
   .app-diag__body{max-height:60vh}
   .app-diag__rail-summary{display:none}
-  body:has(app-diagnostic-panel):has(app-action-bar){padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
-  html:has(app-diagnostic-panel):has(app-action-bar){scroll-padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
+  body:has(app-diagnostic-panel:not([integre])):has(app-action-bar){padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
+  html:has(app-diagnostic-panel:not([integre])):has(app-action-bar){scroll-padding-bottom:calc(var(--app-action-bar-fixed-h,3.5rem) + var(--app-diagnostic-h,2.25rem))}
 }
 `;
   document.head.appendChild(style);
@@ -235,6 +251,14 @@ export class AppDiagnosticPanel extends LitElement {
   @property({ attribute: false })
   constats: readonly Constat[] = [];
 
+  /**
+   * Logé dans l'onglet « Diagnostic » de l'assistant (posé par
+   * `integrerDiagnostic`). Ni rail, ni position fixe, ni mémoire d'ouverture :
+   * c'est l'assistant qui s'ouvre et se referme.
+   */
+  @property({ type: Boolean, reflect: true })
+  integre = false;
+
   @state() private _open = false;
   /**
    * Masque les VALEURS dans le diagnostic copié ou envoyé.
@@ -269,11 +293,14 @@ export class AppDiagnosticPanel extends LitElement {
     injectAppDiagnosticStyles();
     // Fermé au premier lancement : le volet ne doit pas s'imposer.
     try {
-      this._open = localStorage.getItem(STORAGE_KEY) === '1';
+      this._open = !this.integre && localStorage.getItem(STORAGE_KEY) === '1';
       this._redact = localStorage.getItem(REDACT_KEY) === '1';
     } catch {
       this._open = false;
     }
+    // Sans rail, rien à réserver en bas. Publié à 0 et non retiré : des
+    // feuilles d'app lisent la variable avec un repli de 2.25rem.
+    if (this.integre) document.documentElement.style.setProperty('--app-diagnostic-h', '0px');
     document.addEventListener('keydown', this._onKeydown);
   }
 
@@ -285,7 +312,8 @@ export class AppDiagnosticPanel extends LitElement {
 
   /** Échap referme le tiroir — le volet n'est pas modal, rien d'autre à faire. */
   private _onKeydown = (e: KeyboardEvent): void => {
-    if (e.key === 'Escape' && this._open) this.toggle(false);
+    // Intégré, Échap appartient au panneau de l'assistant.
+    if (e.key === 'Escape' && this._open && !this.integre) this.toggle(false);
   };
 
   /**
@@ -297,6 +325,7 @@ export class AppDiagnosticPanel extends LitElement {
   private _railHeight = 0;
 
   private _publishRailHeight(): void {
+    if (this.integre) return;
     const rail = this.querySelector('.app-diag__rail');
     if (!rail) return;
     const height = (rail as HTMLElement).offsetHeight;
@@ -325,7 +354,13 @@ export class AppDiagnosticPanel extends LitElement {
     const nouvelles = erreurs.filter((c) => !this._erreursAnnoncees.has(c.id));
     this._erreursAnnoncees = new Set(erreurs.map((c) => c.id));
     // Texte = titres (contrat #1001) ; aucun nombre ajouté à ce que dit la trace.
-    if (nouvelles.length > 0) this._annonce = nouvelles.map((c) => c.titre).join(' ; ');
+    if (nouvelles.length === 0) return;
+    this._annonce = nouvelles.map((c) => c.titre).join(' ; ');
+    if (this.integre) {
+      this.dispatchEvent(
+        new CustomEvent('diagnostic-annonce', { detail: { texte: this._annonce }, bubbles: true })
+      );
+    }
   }
 
   /** Constats de la trace courante, tels que le volet les rend. */
@@ -403,7 +438,7 @@ export class AppDiagnosticPanel extends LitElement {
     // À l'ouverture seulement : l'usager garde ensuite l'onglet qu'il choisit.
     if (this._open && !etaitOuvert) this._tab = this._ongletAOuvrir();
     try {
-      localStorage.setItem(STORAGE_KEY, this._open ? '1' : '0');
+      if (!this.integre) localStorage.setItem(STORAGE_KEY, this._open ? '1' : '0');
     } catch {
       // Stockage indisponible (navigation privée) : l'état reste en mémoire.
     }
@@ -785,7 +820,109 @@ export class AppDiagnosticPanel extends LitElement {
     }
   }
 
+  /** Barre d'outils et vue courante : communs au tiroir et à l'onglet intégré. */
+  private _renderContenu(): TemplateResult {
+    return html`
+      ${
+        this.partialTrace && !this._isBlank
+          ? html`<p class="app-diag__partial">
+              ⚠ Trace reconstituée depuis le cache : le collecteur n’a pas pu observer le
+              chargement. La chronologie et les erreurs déjà survenues manquent.
+            </p>`
+          : nothing
+      }
+      <div class="app-diag__toolbar">
+        <div
+          class="app-diag__tabs"
+          role="tablist"
+          aria-label="Vues du diagnostic"
+          @keydown=${this._onTabKeydown}
+        >
+          ${TABS.map(
+            (tab) => html`
+              <button
+                type="button"
+                role="tab"
+                id=${`${this._uid}-tab-${tab}`}
+                class="app-diag__tab"
+                aria-selected=${this._tab === tab ? 'true' : 'false'}
+                aria-controls=${`${this._uid}-panel`}
+                tabindex=${this._tab === tab ? '0' : '-1'}
+                @click=${() => this._selectTab(tab)}
+              >
+                ${TAB_LABELS[tab]}
+              </button>
+            `
+          )}
+        </div>
+        <div class="app-diag__redact">
+          <input
+            type="checkbox"
+            id=${`${this._uid}-redact`}
+            .checked=${this._redact}
+            @change=${this._toggleRedact}
+          />
+          <label
+            for=${`${this._uid}-redact`}
+            title="Ne sortir que les comptes et les noms de champs — utile pour une source sensible"
+            >Masquer les valeurs</label
+          >
+        </div>
+        ${
+          this.canSend && !this.integre
+            ? this.sendAction === 'demander'
+              ? html`<button
+                  type="button"
+                  class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-question-answer-line fr-btn--icon-left"
+                  @click=${this._send}
+                >
+                  Demander à l’assistant
+                </button>`
+              : html`<button
+                  type="button"
+                  class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-question-answer-line fr-btn--icon-left"
+                  aria-disabled=${this._isBlank ? 'true' : 'false'}
+                  title=${
+                    this._isBlank
+                      ? 'Aucun diagnostic à transmettre : exécutez d’abord le pipeline'
+                      : 'Pose le diagnostic dans la conversation, sans l’envoyer : relisez-le et complétez votre question'
+                  }
+                  @click=${this._send}
+                >
+                  Demander à l’assistant
+                </button>`
+            : nothing
+        }
+        <button
+          type="button"
+          class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left"
+          aria-disabled=${this._isBlank ? 'true' : 'false'}
+          title=${this._isBlank ? 'Aucun diagnostic à copier : exécutez d’abord le pipeline' : ''}
+          @click=${this._copy}
+        >
+          ${this._copied ? 'Diagnostic copié' : 'Copier le diagnostic'}
+        </button>
+      </div>
+      <div
+        id=${`${this._uid}-panel`}
+        role="tabpanel"
+        tabindex="0"
+        aria-labelledby=${`${this._uid}-tab-${this._tab}`}
+      >
+        ${this._renderBody()}
+      </div>
+    `;
+  }
+
   render() {
+    if (this.integre) {
+      return html`<div class="app-diag app-diag--integre">
+        <p class="app-diag__resume">${this._summaryText()}</p>
+        <div class="app-diag__body" role="region" aria-label="Diagnostic du pipeline">
+          ${this._renderContenu()}
+        </div>
+      </div>`;
+    }
     const bodyId = `${this._uid}-body`;
     return html`
       <div class="app-diag">
@@ -817,96 +954,7 @@ export class AppDiagnosticPanel extends LitElement {
           aria-label="Diagnostic du pipeline"
           ?hidden=${!this._open}
         >
-          ${
-            this.partialTrace && !this._isBlank
-              ? html`<p class="app-diag__partial">
-                  ⚠ Trace reconstituée depuis le cache : le collecteur n’a pas pu observer le
-                  chargement. La chronologie et les erreurs déjà survenues manquent.
-                </p>`
-              : nothing
-          }
-          <div class="app-diag__toolbar">
-            <div
-              class="app-diag__tabs"
-              role="tablist"
-              aria-label="Vues du diagnostic"
-              @keydown=${this._onTabKeydown}
-            >
-              ${TABS.map(
-                (tab) => html`
-                  <button
-                    type="button"
-                    role="tab"
-                    id=${`${this._uid}-tab-${tab}`}
-                    class="app-diag__tab"
-                    aria-selected=${this._tab === tab ? 'true' : 'false'}
-                    aria-controls=${`${this._uid}-panel`}
-                    tabindex=${this._tab === tab ? '0' : '-1'}
-                    @click=${() => this._selectTab(tab)}
-                  >
-                    ${TAB_LABELS[tab]}
-                  </button>
-                `
-              )}
-            </div>
-            <div class="app-diag__redact">
-              <input
-                type="checkbox"
-                id=${`${this._uid}-redact`}
-                .checked=${this._redact}
-                @change=${this._toggleRedact}
-              />
-              <label
-                for=${`${this._uid}-redact`}
-                title="Ne sortir que les comptes et les noms de champs — utile pour une source sensible"
-                >Masquer les valeurs</label
-              >
-            </div>
-            ${
-              this.canSend
-                ? this.sendAction === 'demander'
-                  ? html`<button
-                      type="button"
-                      class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-question-answer-line fr-btn--icon-left"
-                      @click=${this._send}
-                    >
-                      Demander à l’assistant
-                    </button>`
-                  : html`<button
-                      type="button"
-                      class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-question-answer-line fr-btn--icon-left"
-                      aria-disabled=${this._isBlank ? 'true' : 'false'}
-                      title=${
-                        this._isBlank
-                          ? 'Aucun diagnostic à transmettre : exécutez d’abord le pipeline'
-                          : 'Pose le diagnostic dans la conversation, sans l’envoyer : relisez-le et complétez votre question'
-                      }
-                      @click=${this._send}
-                    >
-                      Demander à l’assistant
-                    </button>`
-                : nothing
-            }
-            <button
-              type="button"
-              class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-clipboard-line fr-btn--icon-left"
-              aria-disabled=${this._isBlank ? 'true' : 'false'}
-              title=${
-                this._isBlank ? 'Aucun diagnostic à copier : exécutez d’abord le pipeline' : ''
-              }
-              @click=${this._copy}
-            >
-              ${this._copied ? 'Diagnostic copié' : 'Copier le diagnostic'}
-            </button>
-          </div>
-          <div
-            id=${`${this._uid}-panel`}
-            role="tabpanel"
-            tabindex="0"
-            aria-labelledby=${`${this._uid}-tab-${this._tab}`}
-          >
-            ${this._renderBody()}
-          </div>
+          ${this._renderContenu()}
         </div>
       </div>
     `;

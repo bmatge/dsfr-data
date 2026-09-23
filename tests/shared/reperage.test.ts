@@ -534,8 +534,8 @@ describe('montrer — prefers-reduced-motion', () => {
 // ─── Préférence de mode ────────────────────────────────────────────────
 
 describe('préférence de mode dans TourState', () => {
-  it('« dire » par défaut', () => {
-    expect(getReperageMode()).toBe('dire');
+  it('« guider » par défaut', () => {
+    expect(getReperageMode()).toBe('guider');
   });
 
   it('setReperageMode mémorise dans TourState sans toucher au reste', () => {
@@ -551,7 +551,7 @@ describe('préférence de mode dans TourState', () => {
   it('une valeur hors union est ignorée à la lecture', () => {
     localStorage.setItem(STORAGE_KEYS.TOURS, JSON.stringify({ reperageMode: 'crier', tours: {} }));
     expect(getToursState().reperageMode).toBeUndefined();
-    expect(getReperageMode()).toBe('dire');
+    expect(getReperageMode()).toBe('guider');
   });
 
   it('montrer sans mode applique le mode mémorisé', async () => {

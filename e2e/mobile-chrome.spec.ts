@@ -92,6 +92,15 @@ test.describe('telephone 390x844', () => {
       // E2. LE test du signalement. La barre restait epinglee a 189px du haut,
       // avec 189px de contenu defilant AU-DESSUS d'elle.
       await ouvrir(page, app);
+      // De quoi defiler, quelle que soit la hauteur du contenu au moment de la
+      // mesure : c'etait le pied de page complet (~280px) qui la fournissait au
+      // Playground, et le pied d'une ligne des apps de travail ne suffit plus.
+      // Une barre epinglee resterait en haut malgre tout : le test garde sa prise.
+      await page.evaluate(() => {
+        const cale = document.createElement('div');
+        cale.style.height = '2000px';
+        document.body.appendChild(cale);
+      });
       await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       await page.evaluate(() => new Promise(requestAnimationFrame));
 

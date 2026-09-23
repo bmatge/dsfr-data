@@ -100,9 +100,14 @@ app-action-bar{display:block}
    zone contexte) restent en haut, dans le flux. »
    \`position\`, \`top\` et \`z-index\` partent ensemble : un z-index sur un
    element static est inerte, le laisser entretiendrait l'illusion d'un
-   contexte d'empilement. */
+   contexte d'empilement.
+   775 : AU-DESSUS du volet de l'assistant (770). Le menu « Plus d'actions »
+   est enferme dans ce contexte : a 700, il s'ouvrait SOUS le volet, et le
+   bouton « Diagnostic » qui s'y replie devenait inatteignable volet ouvert.
+   La barre elle-meme ne recouvre rien : le volet commence sous son bas.
+   L'en-tete reste au-dessus (776), pour ses propres menus. */
 @media ${PINNED}{
-  app-action-bar{position:sticky;top:var(--app-header-h,0px);z-index:700}
+  app-action-bar{position:sticky;top:var(--app-header-h,0px);z-index:775}
 }
 @media (max-width:47.99em){
   .app-action-bar__actions{position:fixed;left:0;right:0;bottom:0;z-index:800;margin:0;padding:.5rem 1rem;justify-content:flex-end;background:var(--background-default-grey);border-top:1px solid var(--border-default-grey);box-shadow:0 -4px 12px rgba(0,0,0,.08)}

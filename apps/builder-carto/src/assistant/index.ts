@@ -129,6 +129,7 @@ export function monterAssistantCarto(opts: OptionsAssistantCarto): MountedAssist
     suggestions: () => suggestionsCarto(adaptateur.etat()),
     aide: AIDE_CARTO,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,
+    diagnostic: diagnostic?.panel,
     construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
     host: opts.host,
   });

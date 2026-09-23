@@ -111,6 +111,7 @@ export function monterAssistantDashboard(opts: OptionsAssistantDashboard): Mount
     suggestions: () => suggestionsDashboard(adaptateur.etat()),
     aide: AIDE_DASHBOARD,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,
+    diagnostic: diagnostic?.panel,
     construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
     host: opts.host,
   });

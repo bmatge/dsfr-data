@@ -1,5 +1,5 @@
 import { LitElement, html, nothing, type TemplateResult } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import type {
   CandidatAssistant,
   Constat,
@@ -50,6 +50,12 @@ import { PINNED } from './chrome-breakpoints.js';
  * est un `role=log` ; le résumé des constats est HORS du log (le volet
  * Diagnostic annonce déjà les nouvelles erreurs : pas de double annonce).
  *
+ * **Onglet Diagnostic** : dans les apps qui ont les deux, le volet Diagnostic
+ * n'est plus un tiroir en bas d'écran — `integrerDiagnostic()` le loge dans un
+ * second onglet du panneau, et la languette porte le seul compteur de
+ * constats. Le bouton « Diagnostic » de la barre d'actions et « Voir le
+ * détail » ouvrent le panneau sur cet onglet (via `diagnostic-toggle`).
+ *
  * Light DOM pour hériter des styles DSFR. Textes rendus par templates Lit
  * (échappés), jamais par `innerHTML`.
  *
@@ -61,6 +67,12 @@ import { PINNED } from './chrome-breakpoints.js';
  * @fires assistant-construire - « Construire pour moi dans le Studio ».
  * @fires assistant-toggle - { open, focusDedans } ouverture / réduction.
  */
+
+/** Surface du volet Diagnostic utilisée ici, sans dépendre de sa classe. */
+interface DiagnosticIntegre extends HTMLElement {
+  readonly isOpen: boolean;
+  toggle(open?: boolean): void;
+}
 
 const LIBELLES_GRAVITE: Record<GraviteConstat, string> = {
   erreur: 'Erreur',
@@ -111,14 +123,21 @@ export function injectAppAssistantStyles(): void {
 app-assistant{display:contents}
 /* \`hidden\` doit l'emporter sur les \`display\` declares ci-dessous : sans cette
    regle, « Reduire » et Echap semblent sans effet (protos). */
-.assistant-panneau[hidden],.assistant-lanceur[hidden],.assistant-accueil[hidden],.assistant-saisie-en-cours[hidden]{display:none !important}
+.assistant-panneau[hidden],.assistant-lanceur[hidden],.assistant-accueil[hidden],.assistant-saisie-en-cours[hidden],.assistant-conversation[hidden],.assistant-detail[hidden]{display:none !important}
+/* Onglets Conversation / Diagnostic (volet Diagnostic integre). */
+.assistant-onglets{display:flex;gap:.25rem}
+.assistant-onglet{padding:.5rem .625rem;margin-bottom:-1px;border:0;border-bottom:2px solid transparent;background:none;color:var(--text-mention-grey);font:inherit;font-size:.875rem;line-height:1.25rem;cursor:pointer}
+.assistant-onglet[aria-selected="true"]{color:var(--text-active-blue-france);border-bottom-color:var(--border-active-blue-france);font-weight:500}
+.assistant-onglet:focus-visible{outline:2px solid var(--border-active-blue-france);outline-offset:-2px}
+.assistant-conversation{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.assistant-detail{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:.75rem;font-size:.875rem}
 /* Volet lateral en surimpression a droite. z-index 770 : sous le volet
    Diagnostic (780). Le haut commence SOUS la barre d'actions
    (--app-action-bar-bas, position mesuree, donc valable a toute largeur) :
    la barre et sa primaire restent cliquables volet ouvert. Le bas s'arrete au
    mobilier bas : rail du Diagnostic, barre d'actions fixe (0 hors mobile) —
    jamais recouverts. */
-.assistant-panneau{--assistant-rayon:.75rem;position:fixed;right:0;top:var(--app-action-bar-bas,0px);bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px));z-index:770;display:flex;flex-direction:column;width:max(24rem,min(30rem,40vw));max-width:100vw;overflow:hidden;color:var(--text-default-grey);background-color:var(--background-default-grey);border-left:1px solid var(--border-default-grey);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16))}
+.assistant-panneau{--assistant-rayon:.75rem;position:fixed;right:0;top:var(--app-action-bar-bas,0px);bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px));z-index:770;display:flex;flex-direction:column;width:max(24rem,min(34rem,40vw));max-width:100vw;overflow:hidden;color:var(--text-default-grey);background-color:var(--background-default-grey);border-left:1px solid var(--border-default-grey);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16))}
 /* Decalage derive de l'en-tete : seulement la ou il est epingle (chrome-breakpoints).
    Sans barre d'actions (Sources), le volet commence sous l'en-tete. */
 @media ${PINNED}{
@@ -140,14 +159,20 @@ app-assistant{display:contents}
 .assistant-avatar{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;color:var(--text-action-high-blue-france);background-color:var(--background-action-low-blue-france)}
 .assistant-titre{margin:0;font-size:1rem;line-height:1.5rem;font-weight:700}
 .assistant-sous-titre{margin:0;font-size:.75rem;line-height:1rem;color:var(--text-mention-grey)}
+/* Une seule ligne d'en-tete : titre, onglets, actions. Le sous-titre (IA ou
+   non) reste lu par les lecteurs d'ecran ; le pied le dit aux voyants. */
+.assistant-identite{flex:0 1 auto}
+.assistant-entete .assistant-onglets{flex:1 1 auto;align-self:stretch;align-items:stretch;justify-content:center;padding:0;border-bottom:0}
 .assistant-entete-actions{flex:0 0 auto;display:flex}
 .assistant-icone{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;margin:0;padding:0;border:0;border-radius:.375rem;color:var(--text-action-high-blue-france);background-color:transparent;cursor:pointer}
 .assistant-icone:hover{background-color:var(--background-default-grey-hover)}
 .assistant-icone:active{background-color:var(--background-default-grey-active)}
-.assistant-mode{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;margin:0;padding:.375rem .75rem;border-bottom:1px solid var(--border-default-grey);font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
-.assistant-mode-choix{display:inline-flex;border:1px solid var(--border-action-high-blue-france);border-radius:1.375rem;overflow:hidden}
-.assistant-mode-choix button{min-height:2rem;margin:0;padding:0 .875rem;border:0;font:inherit;font-size:.75rem;color:var(--text-action-high-blue-france);background-color:var(--background-default-grey);cursor:pointer}
-.assistant-mode-choix button[aria-pressed="true"]{color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france)}
+.assistant-mode{display:flex;align-items:center;gap:.5rem;margin:0;font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
+.assistant-mode-choix{display:inline-flex;align-items:center;gap:.125rem}
+.assistant-mode-choix button{min-height:1.5rem;margin:0;padding:0 .25rem;border:0;border-radius:.25rem;font:inherit;font-size:.75rem;color:var(--text-action-high-blue-france);background:none;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.assistant-mode-choix button:hover{background-color:var(--background-default-grey-hover)}
+.assistant-mode-choix button[aria-pressed="true"]{color:var(--text-title-grey);font-weight:700;text-decoration:none;cursor:default}
+.assistant-mode-choix button+button::before{content:"·";display:inline-block;text-decoration:none;margin-right:.375rem;color:var(--text-mention-grey);font-weight:400}
 .assistant-fil{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1rem .75rem .5rem;background-color:var(--background-default-grey)}
 .assistant-messages{display:flex;flex-direction:column;gap:.75rem;list-style:none;margin:0;padding:0}
 .assistant-messages>li{padding:0}
@@ -203,7 +228,7 @@ app-assistant{display:contents}
 .assistant-envoi:hover{background-color:var(--background-action-high-blue-france-hover)}
 .assistant-envoi::before{--icon-size:1.25rem}
 .assistant-envoi[aria-disabled="true"]{color:var(--text-disabled-grey);background-color:var(--background-disabled-grey);cursor:not-allowed}
-.assistant-pied{flex:0 0 auto;margin:0;padding:.375rem .75rem .5rem;font-size:.75rem;line-height:1.25rem;text-align:center;color:var(--text-mention-grey)}
+.assistant-pied{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.25rem .75rem;margin:0;padding:.375rem .75rem .5rem;font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
 .assistant-pied .fr-link{font-size:inherit}
 /* Pastille du bouton « Assistant » (posee par mountAssistant) : visible en
    barre comme dans « Plus d'actions ». */
@@ -263,7 +288,7 @@ export class AppAssistant extends LitElement {
 
   /** Mode de révélation ; la bascule émet `assistant-mode`, le montage persiste. */
   @property({ type: String, reflect: true })
-  mode: ModeReperage = 'dire';
+  mode: ModeReperage = 'guider';
 
   /** Une réponse est attendue : trois points, envoi en `aria-disabled`. */
   @property({ type: Boolean, reflect: true })
@@ -279,6 +304,15 @@ export class AppAssistant extends LitElement {
   /** Affiche « Construire pour moi dans le Studio ». */
   @property({ type: Boolean })
   construire = false;
+
+  /** Onglet affiché quand le volet Diagnostic est intégré. */
+  @state() private _onglet: 'conversation' | 'diagnostic' = 'conversation';
+  /** Volet Diagnostic logé dans l'onglet, ou null (tiroir, ou pas de volet). */
+  @state() private _diagnostic: DiagnosticIntegre | null = null;
+  /** Erreurs nouvelles relayées par le volet intégré (`diagnostic-annonce`). */
+  @state() private _annonceDiagnostic = '';
+  /** Vrai pendant que le panneau pilote lui-même le volet : ignore l'écho. */
+  private _synchro = false;
 
   /** Texte de la région `role=status` (attente, nouvelle conversation). */
   @property({ type: String })
@@ -297,6 +331,7 @@ export class AppAssistant extends LitElement {
     super.connectedCallback();
     injectAppAssistantStyles();
     document.addEventListener('diagnostic-toggle', this._onDiagnosticToggle);
+    this.addEventListener('diagnostic-annonce', this._onDiagnosticAnnonce);
     // Réouverture après navigation : l'état mémorisé, SANS prendre le focus.
     try {
       if (localStorage.getItem(CLE_ASSISTANT_OUVERT) === '1') this.open = true;
@@ -308,12 +343,86 @@ export class AppAssistant extends LitElement {
   disconnectedCallback(): void {
     super.disconnectedCallback();
     document.removeEventListener('diagnostic-toggle', this._onDiagnosticToggle);
+    this.removeEventListener('diagnostic-annonce', this._onDiagnosticAnnonce);
   }
 
-  /** Le Diagnostic qui s'ouvre passe devant : l'assistant se réduit. Jamais l'inverse. */
+  /**
+   * Volet intégré : son ouverture (bouton « Diagnostic » de la barre, « Voir le
+   * détail ») ouvre le panneau sur l'onglet Diagnostic ; sa fermeture le
+   * referme s'il était affiché. Tiroir : le Diagnostic qui s'ouvre passe
+   * devant, l'assistant se réduit. Jamais l'inverse.
+   */
   private _onDiagnosticToggle = (e: Event): void => {
-    if ((e as CustomEvent<{ open: boolean }>).detail?.open && this.open) this.toggle(false);
+    const open = (e as CustomEvent<{ open: boolean }>).detail?.open;
+    if (this._diagnostic && e.target === this._diagnostic) {
+      if (this._synchro) return;
+      if (open) {
+        this._onglet = 'diagnostic';
+        this.toggle(true, { focus: false });
+        this._focusOnglet('diagnostic');
+      } else if (this.open && this._onglet === 'diagnostic') {
+        this.toggle(false);
+      }
+      return;
+    }
+    if (open && this.open) this.toggle(false);
   };
+
+  private _onDiagnosticAnnonce = (e: Event): void => {
+    this._annonceDiagnostic = (e as CustomEvent<{ texte: string }>).detail?.texte ?? '';
+  };
+
+  /**
+   * Loge le volet Diagnostic dans l'onglet du même nom. Le volet passe en mode
+   * `integre` AVANT d'être déplacé : son `connectedCallback` le lit.
+   */
+  integrerDiagnostic(el: HTMLElement): void {
+    const volet = el as DiagnosticIntegre;
+    volet.setAttribute('integre', '');
+    this._diagnostic = volet;
+    void this.updateComplete.then(() => {
+      this.querySelector('.assistant-detail')?.appendChild(volet);
+    });
+  }
+
+  /** Le panneau pilote le volet (onglet, réduction) sans provoquer d'écho. */
+  private _synchroniserDiagnostic(open: boolean): void {
+    const volet = this._diagnostic;
+    if (!volet || volet.isOpen === open) return;
+    this._synchro = true;
+    try {
+      volet.toggle(open);
+    } finally {
+      this._synchro = false;
+    }
+  }
+
+  private _choisirOnglet(onglet: 'conversation' | 'diagnostic', focus = false): void {
+    this._onglet = onglet;
+    this._synchroniserDiagnostic(onglet === 'diagnostic');
+    if (focus) this._focusOnglet(onglet);
+  }
+
+  private _focusOnglet(onglet: 'conversation' | 'diagnostic'): void {
+    void this.updateComplete.then(() => {
+      this.querySelector<HTMLButtonElement>(`#${this._uid}-onglet-${onglet}`)?.focus();
+    });
+  }
+
+  /** Motif WAI-ARIA « Tabs » à deux onglets : flèches, Début et Fin. */
+  private _onOngletKeydown(e: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const suivant =
+      e.key === 'Home'
+        ? 'conversation'
+        : e.key === 'End'
+          ? 'diagnostic'
+          : this._onglet === 'conversation'
+            ? 'diagnostic'
+            : 'conversation';
+    this._choisirOnglet(suivant, true);
+  }
 
   /**
    * Ouvre, réduit, ou bascule. Ouvrir place le focus dans le champ (sauf
@@ -333,6 +442,11 @@ export class AppAssistant extends LitElement {
     if (suivant) this._parLanceur = options.lanceur === true;
     const parLanceur = this._parLanceur;
     this.open = suivant;
+    // Réduit, le panneau rouvrira sur la conversation ; le volet intégré suit.
+    if (!suivant) {
+      this._onglet = 'conversation';
+      this._synchroniserDiagnostic(false);
+    }
     try {
       localStorage.setItem(CLE_ASSISTANT_OUVERT, suivant ? '1' : '0');
     } catch {
@@ -345,7 +459,7 @@ export class AppAssistant extends LitElement {
         composed: true,
       })
     );
-    if (suivant && options.focus !== false) {
+    if (suivant && options.focus !== false && this._onglet === 'conversation') {
       void this.updateComplete.then(() => {
         this.champ?.focus();
         this._defilerEnBas();
@@ -465,7 +579,9 @@ export class AppAssistant extends LitElement {
     return html`<div class="assistant-accueil" ?hidden=${this.messages.length > 0}>
       <span class="assistant-avatar fr-icon-sparkling-2-line" aria-hidden="true"></span>
       <p class="assistant-accueil-titre">Bonjour, que puis-je faire pour vous ?</p>
-      <p class="assistant-accueil-texte">${this.aide} ${PHRASE_SUGGESTION}</p>
+      <p class="assistant-accueil-texte">
+        ${this.aide.includes(PHRASE_SUGGESTION) ? this.aide : `${this.aide} ${PHRASE_SUGGESTION}`}
+      </p>
       ${
         suggestions.length > 0
           ? html`<ul class="assistant-suggestions" aria-label="Suggestions">
@@ -521,11 +637,14 @@ export class AppAssistant extends LitElement {
               })}
             </ul>
             ${
-              this.diagnostic
+              this.diagnostic || this._diagnostic
                 ? html`<button
                     type="button"
                     class="fr-link fr-icon-arrow-right-line fr-link--icon-right"
-                    @click=${() => this._emettre('assistant-diagnostic')}
+                    @click=${() =>
+                      this._diagnostic
+                        ? this._choisirOnglet('diagnostic', true)
+                        : this._emettre('assistant-diagnostic')}
                   >
                     Voir le détail dans le Diagnostic
                   </button>`
@@ -594,6 +713,62 @@ export class AppAssistant extends LitElement {
     </li>`;
   }
 
+  /**
+   * Préférence « Dire » / « Guider », sous le champ de saisie : elle prenait
+   * une bande entière au-dessus du fil.
+   */
+  private _renderMode(): TemplateResult {
+    return html`
+      <div class="assistant-mode">
+        <span id=${`${this._uid}-mode`}>Me montrer un réglage :</span>
+        <div class="assistant-mode-choix" role="group" aria-labelledby=${`${this._uid}-mode`}>
+          <button
+            type="button"
+            aria-pressed=${this.mode === 'dire' ? 'true' : 'false'}
+            title="Le surligner et annoncer son chemin, sans déplacer le focus"
+            @click=${() => this._choisirMode('dire')}
+          >
+            Dire
+          </button>
+          <button
+            type="button"
+            aria-pressed=${this.mode === 'guider' ? 'true' : 'false'}
+            title="Y amener l’écran et le focus"
+            @click=${() => this._choisirMode('guider')}
+          >
+            Guider
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Onglets Conversation / Diagnostic, seulement avec un volet intégré. */
+  private _renderOnglets(): TemplateResult | typeof nothing {
+    if (!this._diagnostic) return nothing;
+    const onglet = (id: 'conversation' | 'diagnostic', libelle: string) =>
+      html`<button
+        type="button"
+        role="tab"
+        class="assistant-onglet"
+        id=${`${this._uid}-onglet-${id}`}
+        aria-selected=${this._onglet === id ? 'true' : 'false'}
+        aria-controls=${`${this._uid}-panneau-${id}`}
+        tabindex=${this._onglet === id ? '0' : '-1'}
+        @click=${() => this._choisirOnglet(id)}
+      >
+        ${libelle}
+      </button>`;
+    return html`<div
+      class="assistant-onglets"
+      role="tablist"
+      aria-label="Vues de l’assistant"
+      @keydown=${this._onOngletKeydown}
+    >
+      ${onglet('conversation', 'Conversation')} ${onglet('diagnostic', 'Diagnostic')}
+    </div>`;
+  }
+
   render() {
     const titreId = `${this._uid}-titre`;
     const champId = `${this._uid}-saisie`;
@@ -616,6 +791,13 @@ export class AppAssistant extends LitElement {
             : nothing
         }
       </button>
+      ${
+        this._diagnostic
+          ? html`<p class="fr-sr-only" aria-live="polite" data-annonce-constats>
+              ${this._annonceDiagnostic}
+            </p>`
+          : nothing
+      }
       <section
         class="assistant-panneau"
         id=${this.panneauId}
@@ -633,9 +815,10 @@ export class AppAssistant extends LitElement {
             ></span>
             <div>
               <h2 class="assistant-titre" id=${titreId}>Assistant</h2>
-              <p class="assistant-sous-titre">${this.sousTitre}</p>
+              <p class="assistant-sous-titre fr-sr-only">${this.sousTitre}</p>
             </div>
           </div>
+          ${this._renderOnglets()}
           <div class="assistant-entete-actions">
             <button
               type="button"
@@ -659,84 +842,83 @@ export class AppAssistant extends LitElement {
             </button>
           </div>
         </div>
-        <div class="assistant-mode">
-          <span id=${`${this._uid}-mode`}>Me montrer un réglage :</span>
-          <div class="assistant-mode-choix" role="group" aria-labelledby=${`${this._uid}-mode`}>
-            <button
-              type="button"
-              aria-pressed=${this.mode === 'dire' ? 'true' : 'false'}
-              title="Le surligner et annoncer son chemin, sans déplacer le focus"
-              @click=${() => this._choisirMode('dire')}
+        <div
+          class="assistant-conversation"
+          id=${`${this._uid}-panneau-conversation`}
+          role=${this._diagnostic ? 'tabpanel' : nothing}
+          aria-labelledby=${this._diagnostic ? `${this._uid}-onglet-conversation` : nothing}
+          ?hidden=${this._onglet !== 'conversation'}
+        >
+          <div class="assistant-fil" tabindex="0" role="region" aria-label="Fil de l’assistant">
+            ${this._renderAccueil()} ${this._renderConstats()}
+            <ol
+              class="assistant-messages"
+              role="log"
+              aria-live="polite"
+              aria-relevant="additions"
+              aria-label="Conversation avec l’assistant"
             >
-              Dire
-            </button>
-            <button
-              type="button"
-              aria-pressed=${this.mode === 'guider' ? 'true' : 'false'}
-              title="Y amener l’écran et le focus"
-              @click=${() => this._choisirMode('guider')}
+              ${this.messages.map((m) => this._renderMessage(m))}
+            </ol>
+            <div class="assistant-saisie-en-cours" aria-hidden="true" ?hidden=${!this.busy}>
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+          <p class="fr-sr-only" role="status">${this.statut}</p>
+          <form class="assistant-form" @submit=${this._envoyer}>
+            <label class="fr-sr-only" for=${champId}
+              >Votre message pour l’assistant (Entrée pour envoyer, Maj+Entrée pour aller à la
+              ligne)</label
             >
-              Guider
-            </button>
-          </div>
-        </div>
-        <div class="assistant-fil" tabindex="0" role="region" aria-label="Fil de l’assistant">
-          ${this._renderAccueil()} ${this._renderConstats()}
-          <ol
-            class="assistant-messages"
-            role="log"
-            aria-live="polite"
-            aria-relevant="additions"
-            aria-label="Conversation avec l’assistant"
-          >
-            ${this.messages.map((m) => this._renderMessage(m))}
-          </ol>
-          <div class="assistant-saisie-en-cours" aria-hidden="true" ?hidden=${!this.busy}>
-            <span></span><span></span><span></span>
-          </div>
-        </div>
-        <p class="fr-sr-only" role="status">${this.statut}</p>
-        <form class="assistant-form" @submit=${this._envoyer}>
-          <label class="fr-sr-only" for=${champId}
-            >Votre message pour l’assistant (Entrée pour envoyer, Maj+Entrée pour aller à la
-            ligne)</label
-          >
-          <div class="assistant-composeur">
-            <textarea
-              class="assistant-saisie"
-              id=${champId}
-              rows="1"
-              maxlength="2000"
-              placeholder="Posez votre question…"
-              aria-keyshortcuts="Enter"
-              @input=${this._ajusterSaisie}
-              @keydown=${this._onChampKeydown}
-            ></textarea>
-            <button
-              type="submit"
-              class="assistant-envoi fr-icon-send-plane-fill"
-              title="Envoyer"
-              aria-disabled=${this.busy ? 'true' : 'false'}
-            >
-              <span class="fr-sr-only">Envoyer</span>
-            </button>
-          </div>
-        </form>
-        <p class="assistant-pied">
-          ${this.pied}
-          ${
-            this.construire
-              ? html`·
-                  <button
+            <div class="assistant-composeur">
+              <textarea
+                class="assistant-saisie"
+                id=${champId}
+                rows="1"
+                maxlength="2000"
+                placeholder="Posez votre question…"
+                aria-keyshortcuts="Enter"
+                @input=${this._ajusterSaisie}
+                @keydown=${this._onChampKeydown}
+              ></textarea>
+              <button
+                type="submit"
+                class="assistant-envoi fr-icon-send-plane-fill"
+                title="Envoyer"
+                aria-disabled=${this.busy ? 'true' : 'false'}
+              >
+                <span class="fr-sr-only">Envoyer</span>
+              </button>
+            </div>
+          </form>
+          <div class="assistant-pied">
+            ${this._renderMode()}
+            <span class="fr-sr-only">${this.pied}</span>
+            ${
+              this.construire
+                ? html`<button
                     type="button"
                     class="fr-link"
                     @click=${() => this._emettre('assistant-construire')}
                   >
                     Construire pour moi dans le Studio
                   </button>`
-              : nothing
-          }
-        </p>
+                : nothing
+            }
+          </div>
+        </div>
+        ${
+          this._diagnostic
+            ? html`<div
+                class="assistant-detail"
+                id=${`${this._uid}-panneau-diagnostic`}
+                role="tabpanel"
+                tabindex="-1"
+                aria-labelledby=${`${this._uid}-onglet-diagnostic`}
+                ?hidden=${this._onglet !== 'diagnostic'}
+              ></div>`
+            : nothing
+        }
       </section>
     `;
   }

@@ -102,6 +102,7 @@ export function monterAssistantPipeline(opts: OptionsAssistantPipeline): Mounted
     suggestions: () => suggestionsPipeline(adaptateur.etat()),
     aide: AIDE_PIPELINE,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,
+    diagnostic: diagnostic?.panel,
     construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
     host: opts.host,
   });

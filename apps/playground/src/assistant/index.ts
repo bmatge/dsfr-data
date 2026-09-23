@@ -123,6 +123,7 @@ export function monterAssistantPlayground(opts: OptionsAssistantPlayground): Mou
     suggestions: () => suggestionsPlayground(adaptateur.etat()),
     aide: AIDE_PLAYGROUND,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,
+    diagnostic: diagnostic?.panel,
     construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
     host: opts.host,
   });

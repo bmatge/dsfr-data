@@ -149,7 +149,7 @@ function _normalizeState(raw: unknown): { state: TourState; migrated: boolean } 
       demoDatasetsDisabled: obj.demoDatasetsDisabled === true,
       tours,
     };
-    // Valeur hors union → champ absent (mode par défaut : `dire`).
+    // Valeur hors union → champ absent (mode par défaut : `guider`).
     if (obj.reperageMode === 'dire' || obj.reperageMode === 'guider') {
       state.reperageMode = obj.reperageMode;
     }

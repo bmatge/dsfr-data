@@ -136,6 +136,8 @@ export interface AssistantPanelElement extends HTMLElement {
   diagnostic: boolean;
   /** Affiche « Construire pour moi dans le Studio ». */
   construire: boolean;
+  /** Loge le volet Diagnostic dans l'onglet « Diagnostic » du panneau. */
+  integrerDiagnostic?(el: HTMLElement): void;
   toggle(open?: boolean, options?: { focus?: boolean; lanceur?: boolean }): void;
   /** Rend le focus à la languette flottante du panneau (après son rendu). */
   focusLanceur(): void;
@@ -174,6 +176,13 @@ export interface OptionsAssistant<Etat = unknown> {
   boutonId?: string | false;
   /** « Voir le détail dans le Diagnostic » ; absent = pas de lien. */
   ouvrirDiagnostic?: (onglet?: 'constats') => void;
+  /**
+   * Volet Diagnostic à loger dans l'onglet « Diagnostic » du panneau
+   * (`MountedDiagnostic.panel`). Il perd alors son rail en bas d'écran, et la
+   * languette de l'assistant porte le seul compteur de constats. Absent : le
+   * volet reste un tiroir (Studio, ancien Assistant IA).
+   */
+  diagnostic?: HTMLElement | null;
   /** « Construire pour moi dans le Studio » ; absent = pas de bouton. */
   construire?: () => void;
   /** Hôte du panneau (défaut : `document.body`). */
@@ -288,6 +297,9 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
   panel.constats = lireConstats();
   panel.busy = false;
   host.appendChild(panel);
+  // Un vrai élément seulement : les doublures de test des apps n'en sont pas.
+  const diagnostic = opts.diagnostic instanceof HTMLElement ? opts.diagnostic : null;
+  if (diagnostic) panel.integrerDiagnostic?.(diagnostic);
 
   // ── Bouton d'ouverture ──
   let bouton: HTMLElement | null = null;
@@ -565,6 +577,11 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
       panel.removeEventListener('assistant-diagnostic', onDiagnostic);
       panel.removeEventListener('assistant-construire', onConstruire);
       panel.removeEventListener('assistant-toggle', onToggle);
+      // Le volet intégré survit à l'assistant : il redevient un tiroir.
+      if (diagnostic && panel.contains(diagnostic)) {
+        diagnostic.removeAttribute('integre');
+        document.body.appendChild(diagnostic);
+      }
       panel.remove();
     },
   };
