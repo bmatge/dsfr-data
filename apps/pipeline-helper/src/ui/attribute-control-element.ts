@@ -5,6 +5,11 @@ import { AttributeControl } from '../nodes/base-node.js';
 /**
  * Renders an AttributeControl as a form field inside a Rete node.
  * Uses Light DOM so Rete's event system works correctly.
+ *
+ * Repère (#1008, ADR-143) : le contrôle porte `data-repere` =
+ * `ctrl.repere` (`pipeline.<type>.<attribut>`), CALCULÉ depuis la définition
+ * du nœud (`repereAttribut`, `node-configs.ts`) et jamais écrit en littéral ;
+ * `reperes-donnees.ts` projette la même définition dans le registre.
  */
 @customElement('attribute-control-element')
 export class AttributeControlElement extends LitElement {
@@ -51,6 +56,7 @@ export class AttributeControlElement extends LitElement {
           <select
             class="attr-input"
             aria-label=${def.label}
+            data-repere=${this.ctrl.repere || nothing}
             .value=${this.ctrl.value}
             @change=${this._onChange}
             @pointerdown=${this._stop}
@@ -74,6 +80,7 @@ export class AttributeControlElement extends LitElement {
           <input
             type="checkbox"
             aria-label=${def.label}
+            data-repere=${this.ctrl.repere || nothing}
             ?checked=${this.ctrl.value === 'true'}
             @change=${this._onChange}
             @pointerdown=${this._stop}
@@ -90,6 +97,7 @@ export class AttributeControlElement extends LitElement {
           class="attr-input"
           type=${def.type === 'number' ? 'number' : 'text'}
           aria-label=${def.label}
+          data-repere=${this.ctrl.repere || nothing}
           .value=${this.ctrl.value}
           placeholder=${def.placeholder ?? ''}
           @input=${this._onChange}

@@ -1,8 +1,14 @@
 import { ClassicPreset } from 'rete';
+import { repereAttribut } from '../assistant/reperes-ids.js';
 
 export type NodeCategory = 'source' | 'transform' | 'interact' | 'display' | 'a11y';
 
 export interface PipelineNodeConfig {
+  /**
+   * Clé du type de nœud (celle de `NODE_CONFIGS` et `NODE_FACTORIES`) : segment
+   * des repères de ses contrôles, `pipeline.<type>.<attribut>` (#1008).
+   */
+  type: string;
   label: string;
   component: string; // dsfr-data-* tag name
   category: NodeCategory;
@@ -28,7 +34,12 @@ export class AttributeControl extends ClassicPreset.Control {
 
   constructor(
     public def: AttributeDef,
-    public value: string = def.default ?? ''
+    public value: string = def.default ?? '',
+    /**
+     * Repère du contrôle, `pipeline.<type>.<attribut>` (#1008), calculé depuis
+     * la définition du nœud par `PipelineNode` ; vide hors d'un nœud.
+     */
+    public repere: string = ''
   ) {
     super();
   }
@@ -188,7 +199,10 @@ export class PipelineNode extends ClassicPreset.Node {
 
     // Add attribute controls
     for (const attr of config.attributes) {
-      this.addControl(attr.name, new AttributeControl(attr));
+      this.addControl(
+        attr.name,
+        new AttributeControl(attr, attr.default ?? '', repereAttribut(config.type, attr.name))
+      );
     }
 
     // Add status control (always last)

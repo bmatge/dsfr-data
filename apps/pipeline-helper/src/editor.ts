@@ -29,6 +29,7 @@ export class PipelineEditor {
   editor: NodeEditor<S>;
   area: AreaPlugin<S, S>;
   private arrange: AutoArrangePlugin<S>;
+  private selection: { select(nodeId: string, accumulate: boolean): Promise<void> };
   private nodeCounter = 0;
 
   constructor(container: HTMLElement) {
@@ -84,8 +85,8 @@ export class PipelineEditor {
     this.area.use(render);
     this.area.use(this.arrange);
 
-    // Enable selection
-    AreaExtensions.selectableNodes(this.area, AreaExtensions.selector(), {
+    // Enable selection (gardée : l'adaptateur de repères sélectionne un nœud, #1008)
+    this.selection = AreaExtensions.selectableNodes(this.area, AreaExtensions.selector(), {
       accumulating: AreaExtensions.accumulateOnCtrl(),
     });
 
@@ -178,6 +179,25 @@ export class PipelineEditor {
   /** Fit viewport to show all nodes */
   async zoomToFit(): Promise<void> {
     await AreaExtensions.zoomAt(this.area, this.editor.getNodes());
+  }
+
+  /**
+   * Sélectionne un nœud (seul) sans rien changer à ses valeurs ni au graphe :
+   * révélation d'un repère de contrôle d'étape (#1008).
+   */
+  async selectionner(nodeId: string): Promise<void> {
+    await this.selection.select(nodeId, false);
+  }
+
+  /** Centre la vue sur un nœud (zoom compris) ; le graphe n'est pas modifié. */
+  async centrerSur(nodeId: string): Promise<void> {
+    const node = this.editor.getNode(nodeId);
+    if (node) await AreaExtensions.zoomAt(this.area, [node]);
+  }
+
+  /** Élément DOM rendu pour un nœud (les contrôles y sont, en shadow DOM), ou null. */
+  elementDuNoeud(nodeId: string): HTMLElement | null {
+    return this.area.nodeViews.get(nodeId)?.element ?? null;
   }
 
   /** Get all nodes */
