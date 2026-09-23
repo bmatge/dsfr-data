@@ -633,16 +633,21 @@ const CHECKS: Check[] = [
         agg: 'count',
         pipeline: [{ op: 'limit', n: 1000 }],
         // Le cas fondateur de `not-truncated` (#881) : le jeu dépasse le
-        // plafond, la page charge le plafond, et PERSONNE ne le dit — en
-        // `fetch-mode="export"`, l'export ne porte pas de total, donc le KPI
-        // `count` (qui avertit en mode /records, `adaptateurs/ods-plafond-max-records`)
-        // reste muet lui aussi. En attente, avec les deux chiffres.
-        invariants: [
-          {
-            kind: 'not-truncated',
-            skip: 'DÉFAUT (AM-002, #881) — `fetch-mode="export" max-records="1000"` sur 3 080 projets (mesuré le 2026-09-19) : 1 000 lignes reçues, aucun diagnostic, ni marqueur ni console. En mode export, `meta.total` est absent, donc même le KPI `count` — qui avertit en mode /records — ne dit rien. Attendu : un mot de la SOURCE quand `max-records` borne un export qui le dépasse. Issue à ouvrir par la supervision.',
-          },
-        ],
+        // plafond, la page charge le plafond — et depuis #1032 la SOURCE le
+        // dit. En `fetch-mode="export"`, l'export ne porte pas de total, donc
+        // le KPI `count` (qui avertit en mode /records,
+        // `adaptateurs/ods-plafond-max-records`) ne peut rien dire : seul
+        // l'avertissement de la source tient l'invariant (AM-002).
+        //
+        // Avant #1032 (mesuré le 2026-09-19) : 1 000 lignes reçues sur 3 080,
+        // aucun diagnostic lu — l'invariant était en attente.
+        // Levé (#1048) sur la preuve de la nuit vivante du 2026-09-23
+        // (oracle.yml, run 35857170149, `schedule`, commit 97eb932, postérieur
+        // au merge de #1039) : l'invariant, encore en attente, y était TENU —
+        // lib 1 000 lignes avec le diagnostic « [dsfr-data] opendatasoft:
+        // export JSON tronque a 1000 lignes pour "plan-de-relance" … », brut
+        // 3 080 lignes ; « 0 en attente » au rapport de la nuit.
+        invariants: [{ kind: 'not-truncated' }],
       },
     ],
   },
