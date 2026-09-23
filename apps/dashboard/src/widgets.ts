@@ -2,7 +2,7 @@
  * Dashboard app - Widget management
  */
 
-import { navigateTo, confirmDialog } from '@dsfr-data/shared';
+import { navigateTo, confirmDialog, toastWarning, CLE_ETAT_BUILDER } from '@dsfr-data/shared';
 import { state, createWidget, isFavoriteChart, isBuilderChart } from './state.js';
 import { openConfigModal } from './widget-config.js';
 import { updateGeneratedCode } from './code-generator.js';
@@ -237,8 +237,18 @@ export function openInBuilder(widgetId: string): void {
   const widget = state.dashboard.widgets.find((w) => w.id === widgetId);
   if (!widget || widget.type !== 'chart') return;
   const config = widget.config;
-  if (!isFavoriteChart(config) || !config.builderState) return;
-  sessionStorage.setItem('builder-state', JSON.stringify(config.builderState));
+  if (!isFavoriteChart(config)) return;
+  if (!config.builderState) {
+    // Le bouton est proposé pour tout graphique issu d'un favori : quand le
+    // favori n'a pas de configuration, on le dit plutôt que de ne rien faire.
+    toastWarning(
+      "Ce graphique n'a pas de configuration de Builder enregistrée : seul son code a été " +
+        'conservé, et le Builder ne sait pas relire du code.'
+    );
+    return;
+  }
+  // Même dépôt que les favoris ; le Builder relit l'origine `dashboard` (#978).
+  sessionStorage.setItem(CLE_ETAT_BUILDER, JSON.stringify(config.builderState));
   navigateTo('builder', { from: 'dashboard' });
 }
 
