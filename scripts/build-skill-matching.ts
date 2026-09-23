@@ -6,6 +6,9 @@
  *        v
  *   mcp-server/src/skill-matching.generated.ts  (commite, NE PAS EDITER)
  *
+ * Meme chemin pour l'adressage par niveau / reference (#1035) :
+ *   packages/shared/src/ia/skill-levels.ts -> mcp-server/src/skill-levels.generated.ts
+ *
  * Pourquoi une copie et pas un import : `mcp-server/` est hors des workspaces
  * npm et publie separement sur npm (`dsfr-data-mcp`), avec ses propres
  * dependances. Il ne peut pas importer un module du monorepo. Le moteur est
@@ -21,17 +24,17 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { buildCopy } from './lib/skill-matching-copy.js';
+import { buildCopy, MCP_COPIES } from './lib/skill-matching-copy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
-const sourcePath = resolve(root, 'packages/shared/src/ia/skill-matching.ts');
-const outPath = resolve(root, 'mcp-server/src/skill-matching.generated.ts');
 
-const source = readFileSync(sourcePath, 'utf-8');
-
-writeFileSync(outPath, buildCopy(source));
-
-console.log(
-  `skill-matching.generated.ts : ${(Buffer.byteLength(source, 'utf-8') / 1024).toFixed(1)} Ko -> ${outPath}`
-);
+// Le moteur de matching (#514) et l'adressage par niveau / reference (#1035).
+for (const copie of MCP_COPIES) {
+  const source = readFileSync(resolve(root, copie.source), 'utf-8');
+  const outPath = resolve(root, copie.copy);
+  writeFileSync(outPath, buildCopy(source, copie));
+  console.log(
+    `${copie.copy} : ${(Buffer.byteLength(source, 'utf-8') / 1024).toFixed(1)} Ko -> ${outPath}`
+  );
+}

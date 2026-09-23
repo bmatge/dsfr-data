@@ -10,6 +10,28 @@ import {
   type SkillMatch,
   type SearchOptions,
 } from './skill-matching.generated.js';
+import {
+  selectLevelOrReference,
+  describeLevels,
+  levelIndexText,
+  isLeveledSkill,
+  SKILL_LEVEL_IDS,
+  DEFAULT_SKILL_LEVEL,
+  type SkillLevelId,
+  type SkillReferencePart,
+  type SkillAddress,
+  type SkillSelection,
+} from './skill-levels.generated.js';
+
+export {
+  selectLevelOrReference,
+  describeLevels,
+  levelIndexText,
+  isLeveledSkill,
+  SKILL_LEVEL_IDS,
+  DEFAULT_SKILL_LEVEL,
+};
+export type { SkillLevelId, SkillReferencePart, SkillAddress, SkillSelection };
 
 /**
  * Sections adressables d'une skill (#513). Definies cote builder-IA dans
@@ -35,6 +57,14 @@ export interface Skill {
    */
   sections?: Partial<Record<SkillSectionId, string>>;
   availableSections?: SkillSectionId[];
+  /**
+   * Skill ecrite a la main et multiniveau (#1035) : index (SKILL.md), niveau ->
+   * references, references. Absents pour les skills generees et face a une
+   * instance anterieure a #1035 : tout retombe alors sur les sections.
+   */
+  index?: string;
+  levels?: Partial<Record<SkillLevelId, string[]>>;
+  references?: SkillReferencePart[];
 }
 
 /** Sections reellement disponibles pour une skill, `[]` si la source est ancienne. */
@@ -70,6 +100,40 @@ export function selectSection(skill: Skill, section?: string): string {
     return `La skill "${skill.id}" n'a pas de section "${section}". Sections disponibles : ${available.join(', ')}, tout.`;
   }
   return text;
+}
+
+/**
+ * Reponse complete de `get_skill(skill_id, section | niveau | reference)`.
+ *
+ * `niveau` et `reference` sont un SECOND parametre (arbitrage #1035) : le
+ * vocabulaire des sections reste ferme (#513). Une skill a niveaux interrogee
+ * sans rien sert l'intermediaire, annonce ; `section: "tout"` rend toujours la
+ * fiche entiere, et une section seule garde le decoupage en quatre.
+ */
+export function selectSkillText(skill: Skill, address: SkillAddress = {}): SkillSelection {
+  const leveled = selectLevelOrReference(skill, address);
+  if (leveled) return leveled;
+  return { text: selectSection(skill, address.section), error: false };
+}
+
+/**
+ * Ce que `get_relevant_skills` rend pour une skill : sans section demandee,
+ * une skill a niveaux ne rend que son index et ce qui est adressable (#1035) —
+ * ses references concatenees depassent 1 500 lignes.
+ */
+export function relevantSkillText(skill: Skill, section?: string): string {
+  if (!section && isLeveledSkill(skill)) return levelIndexText(skill);
+  return selectSection(skill, section);
+}
+
+/** Ligne de `list_skills` : sections (#513), puis niveaux et references (#1035). */
+export function describeSkillLine(skill: Skill): string {
+  const sections = sectionsOf(skill);
+  const levels = describeLevels(skill);
+  const suffix =
+    (sections.length > 0 ? ` — sections: ${sections.join(', ')}` : '') +
+    (levels ? ` — ${levels}` : '');
+  return `- **${skill.name}** (${skill.id}): ${skill.description}${suffix}`;
 }
 
 /**

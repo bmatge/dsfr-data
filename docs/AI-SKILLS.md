@@ -86,9 +86,45 @@ ajoute à `skills.json` toute skill markdown trouvée dans `skills/` hors dossie
 donc comme les autres (`list_skills`, `get_relevant_skills`, `get_skill("datavizMetier")`) ;
 `skills-meta.json` la compte.
 
-Ce que ce chemin **ne couvre pas** : le builder-IA lit `SKILLS` (`apps/builder-ia/src/skills.ts`)
-directement, pas `skills.json` — il ne voit pas les skills markdown. Les y faire entrer est une
-décision à part (ADR-136, § Révision).
+### Niveaux et références adressables (#1035)
+
+Une skill multiniveau (`dataviz-metier` : base, intermédiaire, avancé) publie en plus, dans
+`skills.json`, son `index` (le corps du `SKILL.md`), ses `references` (une par fichier
+`references/*.md`, avec son titre) et `levels` (niveau → références). La correspondance est lue
+dans la table « Choisir le niveau » du `SKILL.md` : c'est la même que celle que Claude Code suit,
+rien n'est recopié ailleurs (« les précédentes » dans la ligne de l'avancé reprend base et
+intermédiaire). Une référence citée par la table mais absente du dossier fait échouer le build.
+
+Désignation par un **second paramètre** (arbitrage du 2026-09-24) — le vocabulaire des sections
+reste fermé à quatre valeurs (#513), et les sections restent une partition du `content` :
+
+```
+get_skill("datavizMetier", niveau: "base")           # un graphique : index + niveau-base
+get_skill("datavizMetier", niveau: "intermediaire")  # un bloc : index + 4 références
+get_skill("datavizMetier", niveau: "avance")         # une page : les précédentes + le cas d'école
+get_skill("datavizMetier", reference: "echelles-honnetes")  # une seule référence
+get_skill("datavizMetier")                           # intermédiaire, ANNONCÉ comme défaut
+get_skill("datavizMetier", section: "tout")          # la fiche entière
+```
+
+- **Repli** : sans niveau, là où la question ne peut pas être posée (appel MCP, génération en un
+  tour), l'intermédiaire est servi et la réponse commence par le dire, avec la façon de demander
+  base ou avancé.
+- `niveau`, `reference` et `section` sont exclusifs ; un niveau ou une référence inconnus rendent
+  la liste valide. Une `reference` est cherchée dans la liste publiée, jamais concaténée à un
+  chemin (`references/x.md` recopié d'un lien est toléré).
+- `list_skills` annonce, après les sections, `niveaux: base, intermediaire (défaut), avance —
+  références: …` ; `get_relevant_skills` rend l'**index** et ce qui est adressable plutôt que les
+  quelque 1 400 lignes concaténées.
+- La sélection vit dans `packages/shared/src/ia/skill-levels.ts` (aucun import), copiée dans
+  `mcp-server/src/skill-levels.generated.ts` par `npm run build:skill-matching` — comme le moteur
+  de matching. Garde : `tests/mcp/skill-levels.test.ts`.
+
+**Côté IA des usagers**, c'est le **Studio IA** (et l'assistant contextuel) qui consomme les
+skills : il lit `skills.json` par le client partagé (`packages/shared/src/ia/skills-client.ts`),
+dont l'outil `get_skill` accepte les mêmes `niveau` / `reference`. L'ancien Assistant IA
+(`apps/builder-ia`, en retrait, #1081) lit toujours `SKILLS` directement et ne voit pas les
+skills markdown : on ne l'y branche pas, il disparaîtra (ADR-136, § Révision).
 
 Garde : `tests/skills-markdown.test.ts` vérifie la forme (même frontmatter que la skill générée,
 références citées ⇔ présentes, id sans collision) et que la skill remonte par le moteur de
@@ -97,8 +133,9 @@ de syntaxe.
 
 ## 2. Serveur MCP (`mcp-server/`)
 
-Le serveur expose `list_skills`, `get_relevant_skills(question)`, `get_skill(id, section)` et
-`generate_widget_code`. Détails et options dans [`mcp-server/README.md`](../mcp-server/README.md).
+Le serveur expose `list_skills`, `get_relevant_skills(question)`, `get_skill(id, section)` —
+ou `get_skill(id, niveau | reference)` pour une skill à niveaux (§ 1 bis) —,
+`generate_widget_code` et `diagnose_widget_code`. Détails et options dans [`mcp-server/README.md`](../mcp-server/README.md).
 
 ```bash
 cd mcp-server && npm ci && npm run build
@@ -125,8 +162,9 @@ Le `--skills-file` local exige un `npm run build` à la racine (il produit `pack
 
 ## 3. `skills.json`
 
-Tableau JSON des 34 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
-`sections` (`guide` / `reference` / `exemples` / `pieges`) et `availableSections`. Servi par toute
+Tableau JSON des 37 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
+`sections` (`guide` / `reference` / `exemples` / `pieges`) et `availableSections` ; pour une skill à
+niveaux, en plus `index`, `levels` et `references` (§ 1 bis). Servi par toute
 instance déployée sur `/dist/skills.json`.
 
 ### Tampon de fraîcheur — `skills-meta.json` (#733)
