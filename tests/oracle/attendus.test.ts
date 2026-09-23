@@ -292,6 +292,13 @@ describe('vérification des données — la rencontre TS ↔ Python', () => {
             });
             break;
           }
+          case 'count': {
+            comparaisons++;
+            if (e.valeur !== attendu.value) {
+              ecarts.push(`${ou} : ${String(e.valeur)} tracés Python, ${attendu.value} TS`);
+            }
+            break;
+          }
           default:
             ecarts.push(`${ou} : genre ${attendu.kind} couvert par Python mais pas comparé ici`);
         }

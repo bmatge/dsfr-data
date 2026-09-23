@@ -352,6 +352,7 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
 | `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`), avec le nombre qu'on y lit |
 | `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
+| `lireCompte` | le NOMBRE d'éléments tracés sous un sélecteur — formes d'une couche de carte (voir « Les éléments tracés ») |
 | `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
 | `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, bornes d'axes) ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
 | `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
@@ -373,6 +374,29 @@ Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'e
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
 not a function` dans le navigateur — d'où la lecture d'un nombre fr-FR réécrite dans chaque
 lecteur. Leur contrat est fixé sur un DOM minimal par `tests/oracle/observe.test.ts`.
+
+## Les éléments tracés
+
+Un tracé de carte n'a ni texte ni chiffre à relire : ce qui se compare, c'est le **nombre** de
+formes posées, contre le nombre de lignes que le recalcul laisse — une forme par ligne (#1059).
+
+```ts
+{ kind: 'count', id: 'carte', selector: 'path.verif-zone' }                     // tout le jeu
+{ kind: 'count', id: 'carte', selector: '.dsfr-data-map__marker', pipeline: [/* filtre */] }
+```
+
+- **Observation** : `lireCompte({ id, selecteur })` rend le nombre d'éléments que `selector`
+  désigne sous `#id` (light DOM ou shadow root), `null` si l'élément n'existe pas. **Attendu** :
+  `{ kind: 'count', value }`, où `value` est le nombre de lignes après `pipeline` (défaut : le jeu
+  `from`, ou `main`). Égalité exacte ; la clé du rapport porte le sélecteur
+  (`count:carte:path.verif-zone`), deux couches d'une même carte ne s'écrasent donc pas.
+- **Quoi compter** : `path.<shape-class>` pour une couche `geoshape` ou `circle` — la `shape-class`
+  fait la couche ; `.dsfr-data-map__marker` pour une couche `marker`, classe commune à **toutes** les
+  couches `marker` de la carte (une seule par carte contrôlée). Un `cluster` trace des grappes, pas
+  des marqueurs : il ne se compte pas ainsi. Une `heatmap` ne trace aucun élément.
+- **Zéro ne s'observe pas** : c'est l'état d'avant le rendu. Une couche qui ne trace rien tombe sur
+  « n'a rien affiché » (le défaut de #1053) ; une absence voulue se constate par un `diagnostic`.
+- **Troisième voix** : `oracle.py` le couvre (`valeur` = nombre de lignes recalculées).
 
 ## Les silences
 
@@ -793,7 +817,10 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/choropleth-scales.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
 | affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |
 | affichages | `parseManualBreaks` perd la première borne | `carte-bornes-manuelles` | 3 entrées de légende, 4 classes recalculées |
-| affichages | `_addGeoshape` ne lit plus que `geo-field` (`dsfr-data-map-layer.ts`, l'état d'avant #1053) | `carte-geoshape-sans-geo-field-1053` | « #carte-zones (texts) n'a rien affiché » : aucune forme tracée pour 10 lignes recalculées |
+| affichages | `_addGeoshape` ne lit plus que `geo-field` (`dsfr-data-map-layer.ts`, l'état d'avant #1053) | `carte-geoshape-sans-geo-field-1053` | « #carte-zones (count) n'a rien affiché » : aucune forme tracée pour 10 lignes recalculées |
+| affichages | `_addGeoshape` n'ajoute pas la première forme au groupe, sans rien compter d'ignoré (`if (this._renderedCount > 0) group.addLayer(layer)`) | `carte-geoshape-sans-geo-field-1053` (le silence reste vert) | « 9 élément(s) tracé(s) sous « path.verif-zone », 10 ligne(s) recalculée(s) » : une ligne tue, et la bibliothèque n'en dit rien (#1059) |
+| affichages | `_addMarker` n'ajoute que les marqueurs de longitude positive (`if (coords.lon >= 0) group.addLayer(marker)`) | `carte-marqueurs-et-cercles-comptes-1059` (les cercles restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `.dsfr-data-map__marker` (#1059) |
+| affichages | même défaut dans `_addCircle` | `carte-marqueurs-et-cercles-comptes-1059` (les marqueurs restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `path.verif-cercle` : le compte suit la couche que la `shape-class` désigne (#1059) |
 | affichages | la couche geoshape reprend la détection du calcul d'emprise (`_autoDetectGeoField()`, `geo_point_2d` en tête) | `carte-geoshape-sans-geo-field-1053` | idem : la colonne devinée est le POINT, un `{lat, lon}` sans forme à tracer |
 | affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |
 | affichages | le tri de `dsfr-data-list` rend toujours 0 | `liste-tri-numerique`, `liste-tri-croissant` | ligne 0 : affiché « Arles », recalculé « Vichy » |

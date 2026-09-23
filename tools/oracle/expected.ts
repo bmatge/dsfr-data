@@ -62,6 +62,15 @@ export interface AttenduTextes {
   pattern?: string;
 }
 
+/**
+ * Nombre d'éléments tracés attendu (#1059) : une forme par ligne que le
+ * recalcul laisse.
+ */
+export interface AttenduCompte {
+  kind: 'count';
+  value: number;
+}
+
 export interface AttenduClasse {
   kind: 'class';
   /** Classe que la valeur recalculée impose. */
@@ -136,6 +145,7 @@ export type Attendu =
   | AttenduListe
   | AttenduLegende
   | AttenduTextes
+  | AttenduCompte
   | AttenduClasse
   | AttenduAttr
   | AttenduCsv
@@ -186,7 +196,9 @@ export function cleAttendu(e: Expect): string {
   if (e.kind === 'facets') return `${base}:${e.group}`;
   if (e.kind === 'attr') return `${base}:${e.attr}`;
   if (e.kind === 'text' && e.selector) return `${base}:${e.selector}`;
-  if (e.kind === 'texts' || e.kind === 'class') return `${base}:${e.selector}`;
+  if (e.kind === 'texts' || e.kind === 'class' || e.kind === 'count') {
+    return `${base}:${e.selector}`;
+  }
   // Un même élément peut être interrogé sur deux verdicts (un marqueur ET un
   // silence sur un autre fragment) : le verdict fait partie de la clé.
   if (e.kind === 'diagnostic') return `${base}:${e.expect}`;
@@ -316,6 +328,9 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
         };
         break;
       }
+      case 'count':
+        values[cleAttendu(e)] = { kind: 'count', value: rows.length };
+        break;
       case 'class': {
         const valeur = e.forced ? null : scalaire(rows, e.column, e.scale);
         const couleur: CouleurKpi = e.forced ?? couleurParSeuils(valeur, e.thresholds);
