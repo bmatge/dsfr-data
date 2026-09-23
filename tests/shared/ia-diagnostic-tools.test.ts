@@ -279,7 +279,7 @@ describe('lister_constats', () => {
     const { ctx } = makeContext(traceFautive());
     const out = await runDiagnosticTool('lister_constats', {}, ctx);
 
-    expect(out).toContain('3 constats : 1 erreur, 2 avertissements.');
+    expect(out).toContain('4 constats : 1 erreur, 2 avertissements, 1 info.');
     // L'id en tête : la clé que #1014 relie aux repères.
     expect(out).toContain('1. pipeline/etape-en-erreur@src — [erreur] src : échec du chargement');
     expect(out).toContain('. pipeline/zero-ligne@q1 — [avertissement] q1 : aucune ligne');
@@ -301,7 +301,7 @@ describe('lister_constats', () => {
     expect(out).not.toContain('Preuve : Valeur');
     // Le diagnostic reste exploitable : constats, ids, causes.
     expect(out).toContain('1. pipeline/etape-en-erreur@src — [erreur]');
-    expect(out).toContain('3 constats : 1 erreur, 2 avertissements.');
+    expect(out).toContain('4 constats : 1 erreur, 2 avertissements, 1 info.');
   });
 
   it('sans redactValues, la même trace cite ses preuves (le masquage est bien la cause)', async () => {
@@ -353,7 +353,10 @@ describe('lister_constats', () => {
   });
 
   it('dit qu’il n’y a rien à signaler sur un pipeline sain', async () => {
-    const { ctx } = makeContext(makeTrace());
+    // Regroupement délégué au serveur : sans lui, `pipeline/delegation-client`
+    // (info, #1066) parlerait sur le group-by de q1.
+    const delegation = { q1: { groupBy: true, aggregate: false, orderBy: false, where: false } };
+    const { ctx } = makeContext(makeTrace({ delegation }));
     expect(await runDiagnosticTool('lister_constats', {}, ctx)).toContain('Aucun constat');
   });
 

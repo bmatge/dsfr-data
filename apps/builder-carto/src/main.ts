@@ -54,10 +54,11 @@ import {
   REGLES_GENERIQUES,
   REGLES_CARTO,
   type MountedDiagnostic,
-  transmettreDiagnostic,
-  appHref,
+  type MountedAssistant,
   escapeHtml,
 } from '@dsfr-data/shared';
+import { creerAdaptateurCarto } from './assistant/adaptateur.js';
+import { monterAssistantCarto, montrerRepereCarto } from './assistant/index.js';
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
 
@@ -279,7 +280,8 @@ function hasLocation(layer: LayerConfig): boolean {
 // Rendu global
 // ---------------------------------------------------------------------------
 
-function renderAll() {
+/** Rendu complet des panneaux ; exporté pour l'adaptateur de révélation (tests, #1005). */
+export function renderAll() {
   renderLayersPanel();
   renderElementsPanel();
   renderMapPanel();
@@ -1012,7 +1014,7 @@ function renderElementsPanel() {
       <div class="carto-field">
         <label for="layer-popup-mode" class="fr-sr-only">Comportement au clic</label>
         <select id="layer-popup-mode" data-repere="carto.elements.clic.popup-mode"
-                data-attribut="dsfr-data-map-popup:mode" data-prerequis="couche-active couche-interactive">
+                data-attribut="dsfr-data-map-popup:mode" data-prerequis="couche-active couche-source couche-interactive">
           <option value="none" ${layer.popupMode === 'none' ? 'selected' : ''}>Ne rien afficher</option>
           <option value="tooltip" ${layer.popupMode === 'tooltip' ? 'selected' : ''}>Le nom, au survol</option>
           <option value="popup" ${layer.popupMode === 'popup' ? 'selected' : ''}>Une fiche (popup) au clic</option>
@@ -2150,15 +2152,15 @@ function bindStaticUi() {
   });
 }
 
+/** Assistant contextuel (#1016), monté au chargement après le volet Diagnostic. */
+let assistant: MountedAssistant | null = null;
+
 /**
- * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
- * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
- * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ * Adaptateur de révélation (#1005) : partagé par l'assistant et par « Me
+ * montrer » du volet Diagnostic. Il ne change jamais l'état ; il relance
+ * seulement le rendu des panneaux quand le DOM est en retard sur l'état.
  */
-function envoyerDiagnosticVersAssistant(texte: string): void {
-  transmettreDiagnostic(texte);
-  window.location.href = appHref('builder-ia', { from: 'builder-carto' });
-}
+const adaptateur = creerAdaptateurCarto({ rendre: () => renderAll() });
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Volet Diagnostic (#606) — la Carto ne rend PAS dans une iframe : elle
@@ -2174,10 +2176,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       regles: [...REGLES_GENERIQUES, ...REGLES_CARTO],
     },
     toggleButtonId: 'diagnostic-btn',
+    // « Demander à l'assistant » (#1016) : ouvre l'assistant de la carto, sans
+    // quitter l'app. Il lit les mêmes constats que le volet.
     canSend: true,
-    onSend: envoyerDiagnosticVersAssistant,
+    envoi: 'demander',
+    onSend: () => assistant?.ouvrir(),
+    onMontrer: (repere) => void montrerRepereCarto(repere, adaptateur),
+    onConstats: () => assistant?.rafraichirConstats(),
     emptyHint: 'Générez la carte pour observer ce qui transite entre les composants.',
   });
+  // Sans modèle pour l'instant : correspondance locale seule. Le repli Albert
+  // (#1014) se branchera par l'option `repondre` de monterAssistantCarto().
+  assistant = monterAssistantCarto({ adaptateur, diagnostic });
   // Hook saveToStorage to /api/* sync (when authenticated). Without this,
   // favorites saved here stay only in localStorage and get wiped by the
   // ApiStorageAdapter prefetch the next time another app loads.

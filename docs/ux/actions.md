@@ -100,6 +100,9 @@ sont les seules admises en plus du cœur.
 | Toutes (panneau Assistant) | **Nouvelle conversation** · **Réduire l'assistant** | icône seule (`fr-icon-refresh-line`, `fr-icon-subtract-line`) | en-tête du panneau, format des assistants `proto-ecosysteme-sircom` / `proto-catalogue-donnees` |
 | Toutes (panneau Assistant) | **Continuer** | bouton plein dans la bulle | montrer de nouveau un repère après avoir levé le prérequis signalé |
 | Toutes (volet Diagnostic) | **Me montrer** | tertiaire sans contour, `fr-icon-eye-line` | désigner le contrôle qui corrige un constat (#1001) ; désactivé quand le constat ne cite aucun repère. Le volet émet `constat-montrer`, l'app résout (`montrer()`) |
+| Apps avec assistant contextuel (volet Diagnostic) | **Demander à l'assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` de l'app, sans la quitter (#1016) : il lit les mêmes constats que le volet. Actif même sans trace. Option `envoi: 'demander'` de `mountDiagnosticPanel()`. Aujourd'hui : Carto |
+| Autres apps (volet Diagnostic) | **Envoyer à l'assistant** | tertiaire, `fr-icon-send-plane-fill` | déposer le texte du diagnostic dans un chat : celui de l'app (Assistant IA, Studio IA), ou celui de l'Assistant IA après navigation (Builder, Tableau de bord, Playground). Désactivé sans trace. Défaut de `mountDiagnosticPanel()` (`envoi: 'envoyer'`) ; une app passe à « Demander » quand elle monte son assistant contextuel |
+| Toutes (panneau Assistant) | **Construire pour moi dans le Studio** | bouton du panneau | passation vers le Studio IA : le diagnostic de l'app est déposé (`transmettreDiagnostic`) puis posé, sans être envoyé, dans le champ du Studio (`recupererDiagnostic()`) (#1016) |
 
 Toute nouvelle extension s'ajoute à ce tableau **dans la PR qui l'introduit**.
 
@@ -226,7 +229,7 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 | App | Primaire | Secondaire visible | Plus d'actions ▾ (secondaires repliées · **|** · tertiaires) |
 |---|---|---|---|
 | Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · **Diagnostic** |
-| Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau · **Diagnostic** |
+| Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau · **Diagnostic** · **Assistant** |
 | Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau · **Diagnostic** |
 | Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · **Diagnostic** |
 | Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation · **Diagnostic** |

@@ -2,8 +2,9 @@
 
 > **Trois specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869) :
 > `export-html-api-recette` (61 cas, vert depuis #866), `builder-ia-recette` et
-> `layout-diagnostic-recette` (43 cas). **104 cas**, 27 s, aucune API tierce. C'est
-> exactement ce que Playwright ramasse par défaut dans ce dossier depuis #868.
+> `layout-diagnostic-recette` (43 cas). **104 cas**, 27 s, aucune API tierce. Playwright
+> ramasse en plus par défaut `assistant-carto.spec.ts` (3 cas, recette manuelle de #1016, que la
+> CI ne nomme pas) : **107 cas** au total.
 >
 > **Quatre specs historiques du Builder ont été ARCHIVÉES** (#868, 2026-09-19) : elles portent
 > l'extension `.archive.ts`, sortent du `testMatch`, et se relancent avec
@@ -34,7 +35,8 @@ lance rien : le chiffre ne dépend ni du serveur de dev ni de l'état de l'UI). 
 | `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | 61 | **61 vert** (2026-09-19, #866) | Le plus solide du dossier : déterministe, sans réseau, 11 s. Demande `npm run build` avant. |
 | `builder-ia-recette.spec.ts` | oui | 16 | **vert** (2026-09-14, #844) | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
 | `layout-diagnostic-recette.spec.ts` | oui | 27 | **vert** (2026-09-14, #844) | Idem. |
-| | | **104** | | C'est le total que Playwright ramasse, et le total que la CI exécute. |
+| `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses trois specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
+| | | **107** | | Le total que Playwright ramasse. La CI en exécute **104** (les trois premiers specs). |
 
 ### Archivés — hors `testMatch` depuis #868 (2026-09-19)
 
@@ -74,7 +76,7 @@ Aucun de ces 176 cas ne tournait en CI hors des 104 : l'archivage ne retire donc
 qui bloquait une PR, et le nombre de cas exécutés par `builder-e2e.yml` est inchangé.
 
 ```bash
-# Ce que Playwright ramasse par defaut : 104 cas, 3 fichiers
+# Ce que Playwright ramasse par defaut : 107 cas, 4 fichiers (la CI en nomme 3, 104 cas)
 npx playwright test --config tests/builder-e2e/playwright.config.ts --list
 
 # Avec les archives : 176 cas, 7 fichiers
@@ -142,6 +144,15 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   (Builder, Assistant IA, Playground, Studio, Carto) : pas de défilement horizontal, mode de
   hauteur déclaré, fin de document bordant le rail, et volet Diagnostic qui **reçoit réellement
   le clic**.
+- **`assistant-carto.spec.ts`** (recette manuelle, hors CI) : l'assistant contextuel de la carto
+  (#1005, #1016, ADR-143) dans un vrai navigateur — surbrillance visible, mode « Dire » qui ne
+  déplace pas le focus, zéro requête POST dans le parcours sans modèle, pastille des constats et
+  « Me montrer », « Demander à l'assistant » qui ouvre le panneau sans quitter la carto. La
+  logique est couverte en CI par `tests/apps/builder-carto/{adaptateur,assistant}.test.ts`
+  (happy-dom). Piège relevé : la reprise de session ré-analyse les champs et re-rend les panneaux
+  par `innerHTML`, ce qui efface une surbrillance posée avant la fin de l'analyse ; le spec
+  attend donc `#source-scan-status`.
+
 ### Specs archivés (extension `.archive.ts`, hors `testMatch`)
 
 Les specs historiques du Builder (agrégations, types, palettes, tri, filtres). Ils **assertent**,

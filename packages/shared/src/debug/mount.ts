@@ -39,6 +39,7 @@ export interface DiagnosticPanelElement extends HTMLElement {
   trace: Trace | null;
   mode: 'live' | 'rapporte';
   canSend: boolean;
+  sendAction: 'envoyer' | 'demander';
   emptyHint: string;
   readonly isOpen: boolean;
   /** Les valeurs sont-elles masquées dans le diagnostic sortant ? */
@@ -61,9 +62,15 @@ export interface MountDiagnosticOptions {
   liveRoot?: ParentNode | null;
   /** Id d'un bouton de la barre d'actions qui ouvre/ferme le volet. */
   toggleButtonId?: string;
-  /** Affiche « Envoyer à l'assistant » (apps conversationnelles). */
+  /** Affiche le bouton vers l'assistant (voir `envoi`). */
   canSend?: boolean;
-  /** Reçoit le texte du diagnostic quand l'utilisateur l'envoie. */
+  /**
+   * Geste de ce bouton (#1016) : `envoyer` (défaut) — « Envoyer à
+   * l'assistant », le diagnostic part vers un chat ; `demander` — « Demander à
+   * l'assistant », l'app ouvre son assistant contextuel sans quitter l'écran.
+   */
+  envoi?: 'envoyer' | 'demander';
+  /** Reçoit le texte du diagnostic quand l'utilisateur clique ce bouton. */
   onSend?: (text: string) => void;
   /** Message affiché quand aucune trace n'est disponible. */
   emptyHint?: string;
@@ -83,6 +90,12 @@ export interface MountDiagnosticOptions {
    * constat. Le volet émet, l'app résout (`montrer()`, #1005).
    */
   onMontrer?: (repere: string, constat: Constat) => void;
+  /**
+   * Rappelé après chaque évaluation des constats, avec la nouvelle liste :
+   * l'app y rafraîchit ce qui les montre ailleurs (pastille de l'assistant,
+   * `MountedAssistant.rafraichirConstats()`, #1016).
+   */
+  onConstats?: (constats: readonly Constat[]) => void;
   /** Hôte du volet (défaut : `document.body`). */
   host?: HTMLElement;
 }
@@ -137,6 +150,7 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
   const panel = document.createElement('app-diagnostic-panel') as DiagnosticPanelElement;
   panel.mode = options.frame || options.liveRoot ? 'live' : 'rapporte';
   panel.canSend = !!options.canSend;
+  panel.sendAction = options.envoi ?? 'envoyer';
   if (options.emptyHint) panel.emptyHint = options.emptyHint;
   host.appendChild(panel);
 
@@ -162,6 +176,7 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
     // Constats d'abord : le volet les lit au rendu que déclenche la trace.
     panel.constats = derniers;
     panel.trace = trace;
+    options.onConstats?.(derniers);
   };
 
   if (options.onSend) {

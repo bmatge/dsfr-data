@@ -11,7 +11,8 @@ type AppId =
   | 'playground'
   | 'sources'
   | 'favorites'
-  | 'pipeline-helper';
+  | 'pipeline-helper'
+  | 'studio';
 
 const APP_FILES: Record<AppId, string> = {
   builder: 'apps/builder/index.html',
@@ -22,6 +23,7 @@ const APP_FILES: Record<AppId, string> = {
   sources: 'apps/sources/index.html',
   favorites: 'apps/favorites/index.html',
   'pipeline-helper': 'apps/pipeline-helper/index.html',
+  studio: 'apps/studio/index.html',
 };
 
 /**

@@ -49,8 +49,15 @@ const config: ReperesConfig = {
   helpers: [{ fonction: 'fieldInput', parametre: 'repere' }],
   prerequis: 'src/assistant/prerequis.ts',
   constats: ['packages/shared/src/debug/constats-carto.ts'],
+  // Relevés par #1012 et la recette de #1016 : une phrase courante qui ne
+  // trouvait rien, ou menait ailleurs (« mode sombre » → mode de l'animation).
   synonymes: {
     'carto.elements.clic.popup-mode': ['fiche', 'popup', 'infobulle', 'panneau latéral', 'au clic'],
+    'carto.elements.clic.popup-fields': ['champs de la fiche', 'contenu de la fiche'],
+    'carto.elements.cluster': ['regrouper les points', 'clustering', 'grappes de points'],
+    'carto.elements.remplissage-champ': ['colorer les zones', 'colorer selon une valeur'],
+    'carto.carte.fond': ['mode sombre', 'fond sombre', 'fond clair'],
+    'carto.carte.drom': ['outre-mer', 'drom en vignettes'],
     'carto.couches.composition.composer': [
       'trop de points',
       'rendu tronqué',

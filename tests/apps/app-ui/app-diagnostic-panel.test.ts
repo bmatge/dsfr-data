@@ -980,6 +980,57 @@ describe('mountDiagnosticPanel', () => {
 
     expect(document.querySelector('app-diagnostic-panel')).toBeNull();
   });
+
+  it('« Demander à l’assistant » (#1016) : actif sans trace, il émet vers l’app', async () => {
+    const recus: string[] = [];
+    const mounted = mountDiagnosticPanel({
+      canSend: true,
+      envoi: 'demander',
+      onSend: (texte) => recus.push(texte),
+    });
+    const panneau = mounted.panel as unknown as AppDiagnosticPanel;
+    expect(panneau.sendAction).toBe('demander');
+    panneau.toggle(true);
+    await panneau.updateComplete;
+
+    const boutons = Array.from(panneau.querySelectorAll('button'));
+    expect(boutons.some((b) => b.textContent?.includes('Envoyer à l’assistant'))).toBe(false);
+    const demander = boutons.find((b) => b.textContent?.includes('Demander à l’assistant'))!;
+    expect(demander.classList.contains('fr-icon-question-answer-line')).toBe(true);
+    expect(demander.hasAttribute('aria-disabled')).toBe(false);
+    demander.click();
+    expect(recus).toHaveLength(1);
+
+    mounted.destroy();
+  });
+
+  it('par défaut, le bouton reste « Envoyer à l’assistant » (apps conversationnelles)', async () => {
+    const mounted = mountDiagnosticPanel({ canSend: true });
+    const panneau = mounted.panel as unknown as AppDiagnosticPanel;
+    expect(panneau.sendAction).toBe('envoyer');
+    panneau.toggle(true);
+    await panneau.updateComplete;
+    const envoyer = Array.from(panneau.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Envoyer à l’assistant')
+    )!;
+    // Sans trace, rien à envoyer.
+    expect(envoyer.getAttribute('aria-disabled')).toBe('true');
+    mounted.destroy();
+  });
+
+  it('onConstats reçoit chaque évaluation (pastille de l’assistant, #1016)', () => {
+    const recues: (readonly Constat[])[] = [];
+    const mounted = mountDiagnosticPanel({ onConstats: (c) => recues.push(c) });
+    const built = buildTrace(`<dsfr-data-source id="src"></dsfr-data-source>`, () =>
+      dispatchDataLoaded('src', [])
+    );
+    mounted.setTrace(built.trace);
+    expect(recues.at(-1)?.map((c) => c.regle)).toContain('pipeline/zero-ligne');
+    mounted.setTrace(null);
+    expect(recues.at(-1)).toEqual([]);
+    built.cleanup();
+    mounted.destroy();
+  });
 });
 
 describe('masquage des valeurs — ce qui sort du navigateur', () => {
