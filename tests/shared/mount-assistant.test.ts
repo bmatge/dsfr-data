@@ -245,7 +245,7 @@ describe('poser() : la correspondance sans modèle d’abord', () => {
     expect(ctx.question).toBe('quelle heure est-il à Tokyo');
     expect(ctx.correspondance.statut).toBe('aucun');
     expect(ctx.constats).toEqual(constats);
-    expect(ctx.mode).toBe('dire');
+    expect(ctx.mode).toBe('guider');
     expect(ctx.historique).toEqual([]);
     expect(ctx.signal).toBeInstanceOf(AbortSignal);
 

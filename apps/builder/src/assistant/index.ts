@@ -121,6 +121,7 @@ export function monterAssistantBuilder(opts: OptionsAssistantBuilder): MountedAs
     suggestions: () => suggestionsBuilder(adaptateur.etat()),
     aide: AIDE_BUILDER,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,
+    diagnostic: diagnostic?.panel,
     construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
     host: opts.host,
   });

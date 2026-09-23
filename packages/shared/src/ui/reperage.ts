@@ -93,9 +93,13 @@ export const DUREE_SURBRILLANCE_MS = 4000;
 
 // ─── Préférence de mode (TourState) ────────────────────────────────────
 
-/** Mode mémorisé dans `TourState.reperageMode` ; `dire` tant que l'usager n'a rien choisi. */
+/**
+ * Mode mémorisé dans `TourState.reperageMode` ; `guider` tant que l'usager n'a
+ * rien choisi (arbitrage du 2026-09-23 : amener l'écran au réglage est ce
+ * qu'on attend de « Me montrer » ; « Dire » reste à un clic, sous le champ).
+ */
 export function getReperageMode(): ModeReperage {
-  return getToursState().reperageMode === 'guider' ? 'guider' : 'dire';
+  return getToursState().reperageMode === 'dire' ? 'dire' : 'guider';
 }
 
 /** Mémorise le mode (synchronisé serveur avec le reste du `TourState`). */

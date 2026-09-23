@@ -168,7 +168,7 @@ export interface ResultatMontrerCode {
  * Montre un endroit du code : curseur au début, marque (l'attribut s'il est
  * nommé et trouvé sur la balise, sinon la ligne entière), défilement. La marque
  * précédente est retirée ; celle-ci l'est à la première modification du code.
- * Le focus n'est pas déplacé (mode « dire » par défaut, ADR-143 §7).
+ * Le focus n’est pas déplacé (comportement du mode « dire », ADR-143 §7).
  */
 export function montrerCode(editor: CodeMirrorEditor, repere: RepereCode): ResultatMontrerCode {
   effacerMarqueCode(editor);

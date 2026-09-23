@@ -10,6 +10,11 @@
  *   - le volet Diagnostic est visible et utilisable dans TOUTES les apps ou
  *     il est monte, Carto comprise.
  *
+ * Deux formes du volet depuis que l'assistant contextuel l'accueille : un
+ * TIROIR en bas d'ecran (Studio, ancien Assistant IA, sans assistant
+ * contextuel) ou un ONGLET du panneau de l'assistant (`integre`), sans rail ni
+ * reserve en bas. Le bouton « Diagnostic » de la barre ouvre l'un ou l'autre.
+ *
  * L'empilement en est l'exemple : `.carto-panels` est passe de `z-index: 1000`
  * a `600`, un test statique le verifie — mais seul un navigateur dit si le
  * tiroir recoit vraiment le clic. C'est la question que #612 posait.
@@ -31,18 +36,26 @@ interface AppSousTest {
    * donc reserver le rail par lui-meme. Seule la Carto en a.
    */
   mobilierFlottant?: string;
+  /** Volet loge dans l'onglet « Diagnostic » de l'assistant (pas de tiroir). */
+  integre?: boolean;
 }
 
 const APPS: AppSousTest[] = [
-  { nom: 'Builder', url: '/apps/builder/', mode: 'fullscreen' },
+  { nom: 'Builder', url: '/apps/builder/', mode: 'fullscreen', integre: true },
   // `?ancien=1` : sans lui, l'ancien Assistant redirige vers le Studio IA (#1081).
   { nom: 'Assistant IA (ancien)', url: '/apps/builder-ia/?ancien=1', mode: 'fullscreen' },
-  { nom: 'Playground', url: '/apps/playground/', mode: 'sticky-left' },
+  { nom: 'Playground', url: '/apps/playground/', mode: 'sticky-left', integre: true },
   { nom: 'Studio', url: '/apps/studio/', mode: 'page-scroll' },
   // La Carto assume un layout maison (canevas plein ecran + panneaux
   // flottants) : l'epic la sort de l'harmonisation, mais pas du critere sur
   // le volet.
-  { nom: 'Carto', url: '/apps/builder-carto/', mode: null, mobilierFlottant: '.carto-status' },
+  {
+    nom: 'Carto',
+    url: '/apps/builder-carto/',
+    mode: null,
+    mobilierFlottant: '.carto-status',
+    integre: true,
+  },
 ];
 
 const BASE = 'http://localhost:5173';
@@ -127,90 +140,161 @@ for (const app of APPS) {
       });
     }
 
-    test('le volet Diagnostic s’ouvre et recoit le clic', async ({ page }) => {
-      await ouvrirLeVolet(page);
-      const volet = page.locator('app-diagnostic-panel');
-      await expect(volet).toBeVisible();
-      await expect(page.locator('#diagnostic-btn')).toHaveAttribute('aria-expanded', 'true');
+    if (app.integre) {
+      test('le bouton Diagnostic ouvre l’onglet de l’assistant, qui recoit le clic', async ({
+        page,
+      }) => {
+        await basculerLeVolet(page);
+        const panneau = page.locator('app-assistant .assistant-panneau');
+        await expect(panneau).toBeVisible();
+        await expect(page.getByRole('tab', { name: 'Diagnostic' })).toHaveAttribute(
+          'aria-selected',
+          'true'
+        );
+        await expect(panneau.locator('app-diagnostic-panel[integre]')).toBeVisible();
+        await expect(page.locator('#diagnostic-btn')).toHaveAttribute('aria-expanded', 'true');
 
-      // LE point de #612 : au-dela de la visibilite, l'element qui occupe
-      // reellement chaque pixel doit etre le tiroir. Sur la Carto, les
-      // panneaux flottants le recouvraient tout en le laissant « visible ».
-      //
-      // BALAYAGE sur toute la largeur, et non un seul point au centre : le
-      // recouvrement etait LATERAL (`.carto-panels` tient la bande gauche,
-      // `left: 16px; width: 344px`). Une sonde centrale passait a cote du
-      // defaut et rendait ce test decoratif — verifie en le reintroduisant.
-      const boite = (await volet.boundingBox())!;
-      const intrus = await page.evaluate(
-        ([x0, largeur, y]) => {
-          const trouves: string[] = [];
-          for (let i = 0; i <= 12; i++) {
-            const x = x0 + (largeur * i) / 12;
-            const cible = document.elementFromPoint(Math.min(x, x0 + largeur - 1), y);
-            if (!cible?.closest('app-diagnostic-panel')) {
-              trouves.push(
-                `x=${Math.round(x)} → ${cible?.tagName.toLowerCase()}.${cible?.className}`
-              );
+        // Meme balayage que pour le tiroir : le panneau recoit vraiment le clic.
+        const boite = (await panneau.boundingBox())!;
+        const intrus = await page.evaluate(
+          ([x0, largeur, y]) => {
+            const trouves: string[] = [];
+            for (let i = 0; i <= 8; i++) {
+              const x = Math.min(x0 + (largeur * i) / 8, x0 + largeur - 1);
+              const cible = document.elementFromPoint(x, y);
+              if (!cible?.closest('.assistant-panneau')) {
+                trouves.push(`x=${Math.round(x)} → ${cible?.tagName.toLowerCase()}`);
+              }
             }
-          }
-          return trouves;
-        },
-        [boite.x, boite.width, boite.y + 12] as [number, number, number]
-      );
-
-      expect(intrus, 'un autre element recouvre le volet').toEqual([]);
-    });
-
-    test('la fin du document s’arrete au rail, reserve UNE seule fois', async ({ page }) => {
-      // `app-diagnostic-panel` pose
-      // `body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h)}` :
-      // le flux s'arrete pile au sommet du rail replie. Rien ne doit passer
-      // dessous, et rien ne doit s'arreter une hauteur de rail trop tot — la
-      // Carto reservait la place DEUX fois (#612).
-      //
-      // Mesure volet FERME (ouvert, le tiroir se superpose au contenu, c'est
-      // voulu) et EN BAS DE PAGE (les modes `page-scroll` et `sticky-left`
-      // laissent volontairement le document depasser la fenetre).
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await page.waitForTimeout(200);
-      const { basContenu, hautRail } = await page.evaluate(() => {
-        const corps = document.body;
-        const reserve = parseFloat(getComputedStyle(corps).paddingBottom) || 0;
-        return {
-          basContenu: corps.getBoundingClientRect().bottom - reserve,
-          hautRail: document.querySelector('app-diagnostic-panel')!.getBoundingClientRect().top,
-        };
+            return trouves;
+          },
+          [boite.x, boite.width, boite.y + boite.height / 2] as [number, number, number]
+        );
+        expect(intrus, 'un autre element recouvre le panneau').toEqual([]);
       });
 
-      expect(Math.abs(basContenu - hautRail), 'le flux ne borde pas le rail').toBeLessThan(8);
-    });
+      test('aucun rail en bas : rien n’est reserve', async ({ page }) => {
+        // Deux gardes : `:not([integre])` sur les regles `body:has(...)` du
+        // volet, et `--app-diagnostic-h` publie a 0px. Mutation verifiee : les
+        // retirer TOUTES DEUX → le corps reserve 36 px pour un rail absent
+        // (une seule ne suffit pas a faire rougir, l'autre tient).
+        await expect(page.locator('app-diagnostic-panel[integre]')).toBeAttached();
+        const { rail, reserve } = await page.evaluate(() => ({
+          rail: document.querySelectorAll('.app-diag__rail').length,
+          reserve: parseFloat(getComputedStyle(document.body).paddingBottom) || 0,
+        }));
+        expect(rail, 'un rail est rendu').toBe(0);
+        expect(reserve, 'le corps reserve une bande en bas').toBe(0);
+      });
 
-    if (app.mobilierFlottant) {
-      test('le mobilier flottant se pose sur le rail, pas 40 px plus haut', async ({ page }) => {
-        // Hors flux, le `padding-bottom` du corps ne le concerne pas : il
-        // reserve le rail lui-meme. La Carto ajoutait `--app-diagnostic-h` a
-        // son `bottom` alors que le corps l'avait deja fait — 52 px mesures
-        // la ou 16 etaient prevus, et une pastille de statut en apesanteur.
-        const { basMobilier, hautRail } = await page.evaluate((selecteur) => {
-          const mobilier = document.querySelector(selecteur)!;
+      if (app.mobilierFlottant) {
+        test('le mobilier flottant se pose en bas de la fenetre', async ({ page }) => {
+          await expect(page.locator('app-diagnostic-panel[integre]')).toBeAttached();
+          const ecart = await page.evaluate(
+            (selecteur) =>
+              window.innerHeight -
+              document.querySelector(selecteur)!.getBoundingClientRect().bottom,
+            app.mobilierFlottant!
+          );
+          expect(ecart, 'le mobilier passe sous le bas de la fenetre').toBeGreaterThanOrEqual(0);
+          expect(ecart, 'une bande de rail est encore reservee').toBeLessThan(40);
+        });
+      }
+
+      test('le bouton Diagnostic referme le panneau', async ({ page }) => {
+        await basculerLeVolet(page);
+        await expect(page.locator('app-assistant .assistant-panneau')).toBeVisible();
+        await basculerLeVolet(page);
+
+        await expect(page.locator('app-assistant .assistant-panneau')).toBeHidden();
+        await expect(page.locator('#diagnostic-btn')).toHaveAttribute('aria-expanded', 'false');
+      });
+    } else {
+      test('le volet Diagnostic s’ouvre et recoit le clic', async ({ page }) => {
+        await ouvrirLeVolet(page);
+        const volet = page.locator('app-diagnostic-panel');
+        await expect(volet).toBeVisible();
+        await expect(page.locator('#diagnostic-btn')).toHaveAttribute('aria-expanded', 'true');
+
+        // LE point de #612 : au-dela de la visibilite, l'element qui occupe
+        // reellement chaque pixel doit etre le tiroir. Sur la Carto, les
+        // panneaux flottants le recouvraient tout en le laissant « visible ».
+        //
+        // BALAYAGE sur toute la largeur, et non un seul point au centre : le
+        // recouvrement etait LATERAL (`.carto-panels` tient la bande gauche,
+        // `left: 16px; width: 344px`). Une sonde centrale passait a cote du
+        // defaut et rendait ce test decoratif — verifie en le reintroduisant.
+        const boite = (await volet.boundingBox())!;
+        const intrus = await page.evaluate(
+          ([x0, largeur, y]) => {
+            const trouves: string[] = [];
+            for (let i = 0; i <= 12; i++) {
+              const x = x0 + (largeur * i) / 12;
+              const cible = document.elementFromPoint(Math.min(x, x0 + largeur - 1), y);
+              if (!cible?.closest('app-diagnostic-panel')) {
+                trouves.push(
+                  `x=${Math.round(x)} → ${cible?.tagName.toLowerCase()}.${cible?.className}`
+                );
+              }
+            }
+            return trouves;
+          },
+          [boite.x, boite.width, boite.y + 12] as [number, number, number]
+        );
+
+        expect(intrus, 'un autre element recouvre le volet').toEqual([]);
+      });
+
+      test('la fin du document s’arrete au rail, reserve UNE seule fois', async ({ page }) => {
+        // `app-diagnostic-panel` pose
+        // `body:has(app-diagnostic-panel){padding-bottom:var(--app-diagnostic-h)}` :
+        // le flux s'arrete pile au sommet du rail replie. Rien ne doit passer
+        // dessous, et rien ne doit s'arreter une hauteur de rail trop tot — la
+        // Carto reservait la place DEUX fois (#612).
+        //
+        // Mesure volet FERME (ouvert, le tiroir se superpose au contenu, c'est
+        // voulu) et EN BAS DE PAGE (les modes `page-scroll` et `sticky-left`
+        // laissent volontairement le document depasser la fenetre).
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(200);
+        const { basContenu, hautRail } = await page.evaluate(() => {
+          const corps = document.body;
+          const reserve = parseFloat(getComputedStyle(corps).paddingBottom) || 0;
           return {
-            basMobilier: mobilier.getBoundingClientRect().bottom,
+            basContenu: corps.getBoundingClientRect().bottom - reserve,
             hautRail: document.querySelector('app-diagnostic-panel')!.getBoundingClientRect().top,
           };
-        }, app.mobilierFlottant!);
+        });
 
-        expect(basMobilier, 'le mobilier passe sous le rail').toBeLessThanOrEqual(hautRail);
-        expect(hautRail - basMobilier, 'le rail est reserve deux fois').toBeLessThan(40);
+        expect(Math.abs(basContenu - hautRail), 'le flux ne borde pas le rail').toBeLessThan(8);
+      });
+
+      if (app.mobilierFlottant) {
+        test('le mobilier flottant se pose sur le rail, pas 40 px plus haut', async ({ page }) => {
+          // Hors flux, le `padding-bottom` du corps ne le concerne pas : il
+          // reserve le rail lui-meme. La Carto ajoutait `--app-diagnostic-h` a
+          // son `bottom` alors que le corps l'avait deja fait — 52 px mesures
+          // la ou 16 etaient prevus, et une pastille de statut en apesanteur.
+          const { basMobilier, hautRail } = await page.evaluate((selecteur) => {
+            const mobilier = document.querySelector(selecteur)!;
+            return {
+              basMobilier: mobilier.getBoundingClientRect().bottom,
+              hautRail: document.querySelector('app-diagnostic-panel')!.getBoundingClientRect().top,
+            };
+          }, app.mobilierFlottant!);
+
+          expect(basMobilier, 'le mobilier passe sous le rail').toBeLessThanOrEqual(hautRail);
+          expect(hautRail - basMobilier, 'le rail est reserve deux fois').toBeLessThan(40);
+        });
+      }
+
+      test('le volet se referme', async ({ page }) => {
+        await ouvrirLeVolet(page);
+        await basculerLeVolet(page);
+
+        await expect(corpsDuVolet(page)).toBeHidden();
+        await expect(page.locator('#diagnostic-btn')).toHaveAttribute('aria-expanded', 'false');
       });
     }
-
-    test('le volet se referme', async ({ page }) => {
-      await ouvrirLeVolet(page);
-      await basculerLeVolet(page);
-
-      await expect(corpsDuVolet(page)).toBeHidden();
-      await expect(page.locator('#diagnostic-btn')).toHaveAttribute('aria-expanded', 'false');
-    });
   });
 }
