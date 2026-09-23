@@ -282,6 +282,7 @@ export type {
   HelperRepere,
   ExceptionRepere,
   ReperesConfig,
+  RepereDonnee,
 } from './ui/reperes-types.js';
 
 // Révélation d'un repère : montrer(), modes « dire » / « guider » (#1003, app-side)

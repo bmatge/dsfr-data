@@ -7,6 +7,17 @@ declare const CodeMirror: {
   fromTextArea(el: HTMLTextAreaElement, options: Record<string, unknown>): CodeMirrorEditor;
 };
 
+/** Position CodeMirror 5 : ligne et caractère, tous deux à partir de 0. */
+export interface PositionCode {
+  line: number;
+  ch: number;
+}
+
+/** Marque posée par `markText` (CodeMirror 5). */
+export interface MarqueCode {
+  clear(): void;
+}
+
 export interface CodeMirrorEditor {
   getValue(): string;
   setValue(value: string): void;
@@ -15,6 +26,12 @@ export interface CodeMirrorEditor {
   getWrapperElement(): HTMLElement;
   getScrollerElement(): HTMLElement;
   refresh(): void;
+  // Repères de code (#1009) : curseur, marque et défilement sur une ligne.
+  lineCount(): number;
+  getLine(n: number): string;
+  setCursor(pos: PositionCode): void;
+  markText(from: PositionCode, to: PositionCode, options: { className: string }): MarqueCode;
+  scrollIntoView(pos: PositionCode, margin?: number): void;
 }
 
 export function initEditor(textareaId: string): CodeMirrorEditor {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { lintMarkup, formatLintFindings, lireBalises } from '@dsfr-data/shared';
+import { debutsDeLigne, positionDe } from '../../packages/shared/src/debug/lint-markup';
 import type { ComponentContract } from '@dsfr-data/shared';
 import { COMPONENT_CONTRACT } from '../../mcp-server/src/component-contract.generated.js';
 
@@ -226,6 +227,13 @@ describe('formatLintFindings', () => {
     expect(texte.indexOf('ERREUR')).toBeLessThan(texte.indexOf('ATTENTION'));
     expect(texte).toContain('volet Diagnostic');
   });
+
+  it('situe chaque constat par sa ligne (#1009)', () => {
+    const texte = formatLintFindings(
+      lintMarkup('<div>\n  <dsfr-data-source id="s" inconnu="x"></dsfr-data-source>', CONTRAT)
+    );
+    expect(texte).toContain('ERREUR  dsfr-data-source#s (ligne 2)');
+  });
 });
 
 describe('les valeurs d’attribut contenant « > » — syntaxe ODSQL officielle', () => {
@@ -383,12 +391,14 @@ describe('lintMarkup — règles cartographiques', () => {
       id: 'l',
       message: expect.stringContaining('<dsfr-data-map>'),
       regle: 'carte/couche-hors-carte',
+      ligne: 1,
+      colonne: expect.any(Number),
     });
   });
 
-  it('les règles historiques ne portent pas de code', () => {
+  it('les règles génériques portent aussi un code stable (#1009)', () => {
     const [f] = lintMarkup('<dsfr-data-query></dsfr-data-query>', CONTRAT_REEL);
-    expect(f.regle).toBeUndefined();
+    expect(f.regle).toBe('balisage/id-manquant');
   });
 
   describe('carte/couche-hors-carte', () => {
@@ -737,5 +747,80 @@ describe('lireBalises — imbrication', () => {
       `<dsfr-data-map><dsfr-data-map-layer></dsfr-data-map><dsfr-data-chart></dsfr-data-chart>`
     );
     expect(c.map((x) => x.parents)).toEqual([[], ['dsfr-data-map'], []]);
+  });
+});
+
+/**
+ * Ligne et colonne de chaque constat (#1009) : le Playground y pose son
+ * curseur et sa marque. Une position fausse d'une ligne enverrait l'usager
+ * corriger du code sain.
+ */
+describe('lintMarkup — ligne, colonne et attribut des constats (#1009)', () => {
+  const trouver = (html: string, regle: string) =>
+    lintMarkup(html, CONTRAT).filter((f) => f.regle === regle);
+
+  it('situe la balise sur plusieurs lignes, colonne du « < »', () => {
+    const html = [
+      '<div>',
+      '  <dsfr-data-source id="s" api-type="tabular"></dsfr-data-source>',
+      '',
+      '    <dsfr-data-query id="q" source="absente"></dsfr-data-query>',
+    ].join('\n');
+    const [f] = trouver(html, 'balisage/amont-absent');
+    expect(f).toMatchObject({ ligne: 4, colonne: 5, attribut: 'source', tag: 'dsfr-data-query' });
+  });
+
+  it('un « > » entre guillemets ne décale pas la position de la balise suivante', () => {
+    const html =
+      '<dsfr-data-source id="s" where="population > 5000"></dsfr-data-source>\n' +
+      '<dsfr-data-query id="q" source="s" typo="1"></dsfr-data-query>';
+    const [f] = trouver(html, 'balisage/attribut-inconnu');
+    expect(f).toMatchObject({ ligne: 2, colonne: 1, attribut: 'typo' });
+  });
+
+  it('les fins de ligne CRLF et CR seul comptent une ligne chacune, comme CodeMirror', () => {
+    const crlf = '<div>\r\n\r\n  <dsfr-data-query source="s"></dsfr-data-query>';
+    expect(trouver(crlf, 'balisage/id-manquant')[0]).toMatchObject({ ligne: 3, colonne: 3 });
+    const cr = '<div>\r<dsfr-data-query source="s"></dsfr-data-query>';
+    expect(trouver(cr, 'balisage/id-manquant')[0]).toMatchObject({ ligne: 2, colonne: 1 });
+  });
+
+  it('attribut retiré, balise inconnue, join incomplet, id dupliqué : chacun situé', () => {
+    const html = [
+      '<dsfr-data-source id="s" server-side></dsfr-data-source>',
+      '<dsfr-data-inconnu></dsfr-data-inconnu>',
+      '<dsfr-data-join id="j" left="s"></dsfr-data-join>',
+      '<dsfr-data-source id="s"></dsfr-data-source>',
+    ].join('\n');
+    const f = lintMarkup(html, CONTRAT);
+    const par = (r: string) => f.find((x) => x.regle === r);
+    expect(par('balisage/attribut-retire')).toMatchObject({ ligne: 1, attribut: 'server-side' });
+    expect(par('balisage/balise-inconnue')).toMatchObject({ ligne: 2, colonne: 1 });
+    expect(par('balisage/join-incomplet')).toMatchObject({ ligne: 3, attribut: 'right' });
+    // La DEUXIEME declaration : c'est elle qui ecrase la premiere.
+    expect(par('balisage/id-duplique')).toMatchObject({ ligne: 4, attribut: 'id', id: 's' });
+  });
+
+  it('« aucune balise » ne vise aucune ligne', () => {
+    const [f] = lintMarkup('<p>rien</p>', CONTRAT);
+    expect(f.regle).toBe('balisage/aucune-balise');
+    expect(f.ligne).toBeUndefined();
+  });
+
+  it('tout constat porte un code de règle', () => {
+    const html =
+      '<dsfr-data-source server-side typo></dsfr-data-source><dsfr-data-x></dsfr-data-x>' +
+      '<dsfr-data-join></dsfr-data-join><dsfr-data-query source="z"></dsfr-data-query>';
+    for (const f of lintMarkup(html, CONTRAT)) expect(f.regle).toMatch(/^balisage\//);
+  });
+
+  it('debutsDeLigne / positionDe : dichotomie exacte aux bornes', () => {
+    const debuts = debutsDeLigne('ab\ncd\r\nef\rg');
+    expect(debuts).toEqual([0, 3, 7, 10]);
+    expect(positionDe(debuts, 0)).toEqual({ ligne: 1, colonne: 1 });
+    expect(positionDe(debuts, 2)).toEqual({ ligne: 1, colonne: 3 });
+    expect(positionDe(debuts, 3)).toEqual({ ligne: 2, colonne: 1 });
+    expect(positionDe(debuts, 8)).toEqual({ ligne: 3, colonne: 2 });
+    expect(positionDe(debuts, 10)).toEqual({ ligne: 4, colonne: 1 });
   });
 });

@@ -39,43 +39,47 @@
   <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539) : les ids
        historiques (#run-btn, #reset-btn, #deps-btn, #export-*-btn, #copy-btn,
        #save-btn, #pipeline-btn) sont conservés, main.ts ne change pas de câblage. -->
-  <app-action-bar heading="Playground">
-    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
+  <app-action-bar heading="Playground" data-zone="playground.actions" data-repere-libelle="Barre d'actions">
+    <button slot="help" id="tour-btn" data-repere="playground.actions.visite" class="fr-icon-question-line">Visite guidée</button>
     <div slot="context" class="example-selector">
       <!-- La barre ne garde qu'une bascule : filtres, liste et actions vivent
            dans le volet lateral, ancre sur la colonne de code. -->
-      <button id="volet-btn" type="button"
+      <button id="volet-btn" type="button" data-repere="playground.actions.exemples"
         class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-menu-2-fill fr-btn--icon-left"
         aria-expanded="false" aria-controls="volet-exemples">
         Exemples <span id="compteur-exemples" class="volet-compteur"></span>
       </button>
     </div>
-    <button slot="secondary" id="copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-    <button slot="tertiary" id="save-btn" class="fr-icon-star-line" title="Enregistrer ce code dans vos favoris">Ajouter aux favoris</button>
-    <button slot="tertiary" id="pipeline-btn" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants dans le Pipeline Helper">Ouvrir dans le Pipeline</button>
-    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
-    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
-    <button slot="tertiary" id="deps-btn" class="fr-icon-code-s-slash-line" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
-    <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="primary" id="run-btn" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
+    <button slot="secondary" id="copy-btn" data-repere="playground.actions.copier" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <button slot="tertiary" id="save-btn" data-repere="playground.actions.favori" class="fr-icon-star-line" title="Enregistrer ce code dans vos favoris">Ajouter aux favoris</button>
+    <button slot="tertiary" id="pipeline-btn" data-repere="playground.actions.pipeline" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants dans le Pipeline Helper">Ouvrir dans le Pipeline</button>
+    <button slot="tertiary" id="export-png-btn" data-repere="playground.actions.png" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" data-repere="playground.actions.jpg" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
+    <button slot="tertiary" id="deps-btn" data-repere="playground.actions.dependances" class="fr-icon-code-s-slash-line" title="Ajouter les CSS/JS nécessaires pour intégrer le code dans une page externe">Ajouter des dépendances</button>
+    <button slot="tertiary" id="diagnostic-btn" data-repere="playground.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <button slot="primary" id="run-btn" data-repere="playground.actions.executer" class="fr-icon-play-line fr-btn--icon-left">Exécuter</button>
   </app-action-bar>
 
 
   <app-layout-builder mode="sticky-left" left-ratio="50">
     <div slot="left" class="playground-editor">
-      <textarea id="code-editor"></textarea>
+      <!-- Zone de l'editeur (#1009) : le textarea d'origine, que CodeMirror
+           masque pour inserer son rendu juste a cote, dans cette meme zone. -->
+      <div class="pg-editeur" data-zone="playground.editeur" role="group" aria-label="Éditeur de code">
+        <textarea id="code-editor" data-repere="playground.editeur.code" aria-label="Code HTML"></textarea>
+      </div>
 
       <!-- Volet lateral, sur le modele de dsfr-data-map-popup mode="panel-left" :
            ancre en absolu dans son conteneur (pas en fixed sur le viewport),
            glisse depuis la gauche, se ferme par sa croix ou par Echap.
            Les <option> des quatre selects sont peuplees par selector.ts. -->
-      <aside id="volet-exemples" class="pg-volet" role="complementary"
+      <aside id="volet-exemples" class="pg-volet" role="complementary" data-zone="playground.exemples"
         aria-label="Parcourir les exemples" inert>
         <div class="pg-volet__entete">
           <h2 class="pg-volet__titre">
             Exemples <span id="compteur-volet" class="pg-volet__compteur"></span>
           </h2>
-          <button id="volet-fermer" type="button"
+          <button id="volet-fermer" type="button" data-repere="playground.exemples.fermer"
             class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-close-line"
             title="Fermer le volet" aria-label="Fermer le volet"></button>
         </div>
@@ -84,15 +88,15 @@
           <div class="example-filters">
             <div class="example-filter">
               <label class="fr-label" for="filtre-source">Source</label>
-              <select id="filtre-source" class="fr-select fr-select--sm"></select>
+              <select id="filtre-source" data-repere="playground.exemples.source" class="fr-select fr-select--sm"></select>
             </div>
             <div class="example-filter">
               <label class="fr-label" for="filtre-pipeline">Pipeline</label>
-              <select id="filtre-pipeline" class="fr-select fr-select--sm"></select>
+              <select id="filtre-pipeline" data-repere="playground.exemples.pipeline" class="fr-select fr-select--sm"></select>
             </div>
             <div class="example-filter">
               <label class="fr-label" for="filtre-sortie">Sortie</label>
-              <select id="filtre-sortie" class="fr-select fr-select--sm"></select>
+              <select id="filtre-sortie" data-repere="playground.exemples.sortie" class="fr-select fr-select--sm"></select>
             </div>
           </div>
         </div>
@@ -102,24 +106,24 @@
         <div class="pg-volet__choix">
           <div class="example-filter">
             <label class="fr-label" for="example-select">Exemple</label>
-            <select id="example-select" class="fr-select fr-select--sm"></select>
+            <select id="example-select" data-repere="playground.exemples.exemple" class="fr-select fr-select--sm"></select>
           </div>
         </div>
 
         <div class="pg-volet__pied">
-          <button id="voir-exemple-btn" type="button"
+          <button id="voir-exemple-btn" type="button" data-repere="playground.exemples.voir"
             class="fr-btn fr-btn--sm fr-icon-eye-line fr-btn--icon-left">
             Voir l'exemple
           </button>
-          <button id="reset-btn" type="button"
+          <button id="reset-btn" type="button" data-repere="playground.exemples.reinitialiser"
             class="fr-btn fr-btn--sm fr-btn--secondary fr-icon-refresh-line fr-btn--icon-left"
-            title="Recharger l'exemple selectionne">
-            Reinitialiser
+            title="Recharger l’exemple sélectionné">
+            Réinitialiser
           </button>
         </div>
       </aside>
     </div>
-    <div slot="right" class="playground-preview">
+    <div slot="right" class="playground-preview" data-zone="playground.apercu" role="region" aria-label="Aperçu">
       <iframe id="preview-frame" class="preview-frame" sandbox="allow-scripts allow-same-origin allow-downloads allow-popups" title="Aperçu du code"></iframe>
     </div>
   </app-layout-builder>

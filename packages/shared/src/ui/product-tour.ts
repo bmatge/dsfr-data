@@ -2,22 +2,40 @@
  * Lightweight product tour system.
  * Highlights elements with an overlay and shows a popover with step info.
  * Tour completion state is stored via saveToStorage (synced to server when authenticated).
+ *
+ * Visites exprimées en repères (#1013, ADR-143) : une étape désigne un repère
+ * du registre de l'app (`data-repere` d'un contrôle ou `data-zone` d'une zone),
+ * plus un sélecteur. Avant d'afficher l'étape, la visite demande à
+ * l'adaptateur de l'app de le RÉVÉLER (`reveler()` ouvre la section, le
+ * panneau, l'onglet ou la modale qui le porte : le même geste que « Me
+ * montrer ») ; sans adaptateur, le repère est cherché tel quel dans le DOM.
+ * `selector` reste un repli pour les apps sans registre (builder IA, studio).
+ * `check:reperes` (règle 6) refuse une étape qui cite un repère absent du
+ * registre de son app.
  */
+
+import type { AdaptateurReperage } from './reperage.js';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 
 export interface TourStep {
-  /** CSS selector for the target element */
-  selector: string;
+  /**
+   * Repère ciblé : identifiant `data-repere` (contrôle) ou `data-zone` (zone)
+   * du registre généré de l'app (#1013). Prioritaire sur `selector`.
+   */
+  repere?: string;
+  /** Sélecteur CSS de repli, pour une app sans registre de repères. */
+  selector?: string;
   /** Step title */
   title: string;
-  /** Step description (plain text or HTML) */
+  /** Step description (plain text) */
   description: string;
   /** Preferred popover position */
   position?: 'top' | 'bottom' | 'left' | 'right';
-  /** Called before showing this step — can open collapsed sections, etc. */
-  onBeforeShow?: () => void;
 }
+
+/** Ce dont la visite a besoin de l'adaptateur de révélation d'une app. */
+export type RevelateurVisite = Pick<AdaptateurReperage, 'reveler'>;
 
 export interface TourConfig {
   /** Unique tour ID (used for localStorage key) */
@@ -31,6 +49,12 @@ export interface TourConfig {
   version?: number;
   /** Human label displayed on the /guide page (defaults to id) */
   label?: string;
+  /**
+   * Adaptateur de révélation de l'app (#1013) : révèle le repère de chaque
+   * étape avant de l'afficher. Une app dont la visite est définie dans
+   * `shared` le fournit à l'appel : `startTour({ ...DASHBOARD_TOUR, adaptateur })`.
+   */
+  adaptateur?: RevelateurVisite;
   /** Called when tour completes or is skipped */
   onComplete?: () => void;
 }
@@ -296,29 +320,72 @@ function handleEscape(e: KeyboardEvent): void {
   if (e.key === 'Escape') endTour();
 }
 
+/**
+ * Élément qui porte le repère `id` sous `racine` : `data-repere` (contrôle),
+ * sinon `data-zone` (zone). Comparaison d'attribut : aucun sélecteur n'est
+ * construit depuis l'identifiant.
+ */
+export function trouverRepere(id: string, racine: ParentNode = document): HTMLElement | null {
+  for (const el of racine.querySelectorAll<HTMLElement>('[data-repere]')) {
+    if (el.getAttribute('data-repere') === id) return el;
+  }
+  for (const el of racine.querySelectorAll<HTMLElement>('[data-zone]')) {
+    if (el.getAttribute('data-zone') === id) return el;
+  }
+  return null;
+}
+
+/**
+ * Cible d'une étape. Par repère : révélé par l'adaptateur s'il y en a un — il
+ * rend `null` quand le repère ne peut pas être montré dans l'état courant, et
+ * l'étape est alors sautée —, sinon cherché dans le DOM. À défaut, le
+ * `selector` de repli.
+ */
+export async function resoudreEtape(
+  step: TourStep,
+  adaptateur?: RevelateurVisite
+): Promise<HTMLElement | null> {
+  if (step.repere) {
+    let element: HTMLElement | null;
+    if (adaptateur) {
+      try {
+        element = await adaptateur.reveler(step.repere);
+      } catch {
+        element = null;
+      }
+    } else {
+      element = trouverRepere(step.repere);
+    }
+    if (element) return element;
+  }
+  return step.selector ? document.querySelector<HTMLElement>(step.selector) : null;
+}
+
+/** Jeton : une étape demandée plus tard l'emporte sur une révélation encore en cours. */
+let etapeDemandee = 0;
+
 function showStep(index: number): void {
   if (!currentTour || !popoverEl || !overlayEl) return;
-  const step = currentTour.steps[index];
+  const tour = currentTour;
+  const step = tour.steps[index];
   if (!step) {
     endTour();
     return;
   }
 
-  // onBeforeShow hook (e.g. open collapsed section)
-  if (step.onBeforeShow) {
-    step.onBeforeShow();
-    // Small delay to let DOM update
-    requestAnimationFrame(() => requestAnimationFrame(() => positionStep(step, index)));
-    return;
-  }
-
-  positionStep(step, index);
+  // Révéler AVANT d'afficher : la section, le panneau ou la modale qui porte
+  // le repère est ouvert par l'adaptateur de l'app.
+  const jeton = ++etapeDemandee;
+  void resoudreEtape(step, tour.adaptateur).then((target) => {
+    // Visite fermée, ou autre étape demandée pendant la révélation.
+    if (jeton !== etapeDemandee || currentTour !== tour) return;
+    positionStep(step, index, target);
+  });
 }
 
-function positionStep(step: TourStep, index: number): void {
+function positionStep(step: TourStep, index: number, target: HTMLElement | null): void {
   if (!currentTour || !popoverEl || !overlayEl) return;
 
-  const target = document.querySelector(step.selector) as HTMLElement | null;
   if (!target) {
     // Skip this step if element not found
     if (index < currentTour.steps.length - 1) {
@@ -331,7 +398,9 @@ function positionStep(step: TourStep, index: number): void {
   }
 
   // Scroll target into view
-  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (typeof target.scrollIntoView === 'function') {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   // Wait for scroll to settle
   setTimeout(() => {

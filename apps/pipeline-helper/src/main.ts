@@ -8,6 +8,7 @@ import { generateCode } from './code-generator.js';
 import { PipelineExecutor } from './pipeline-executor.js';
 import { importFromHtml } from './html-parser.js';
 import { showInspector } from './ui/inspector.js';
+import { creerAdaptateurPipeline } from './assistant/adaptateur.js';
 import {
   confirmDialog,
   injectTourStyles,
@@ -179,12 +180,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-playground')?.addEventListener('click', openInPlayground);
   document.getElementById('open-playground-btn')?.addEventListener('click', openInPlayground);
 
-  // « Visite guidée » (lot UX 7, #544) : tour partagé, auto au premier passage
+  // « Visite guidée » (lot UX 7, #544) : tour partagé, auto au premier passage.
+  // Étapes en repères (#1013) : l'adaptateur sélectionne l'onglet avant de montrer.
   injectTourStyles();
-  document
-    .getElementById('btn-toggle-help')
-    ?.addEventListener('click', () => startTour(PIPELINE_TOUR));
-  startTourIfFirstVisit(PIPELINE_TOUR);
+  const visite = { ...PIPELINE_TOUR, adaptateur: creerAdaptateurPipeline(editor) };
+  document.getElementById('btn-toggle-help')?.addEventListener('click', () => startTour(visite));
+  startTourIfFirstVisit(visite);
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {

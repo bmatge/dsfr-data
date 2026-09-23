@@ -2,9 +2,16 @@
  * Product tour configurations for all apps.
  * Each app imports its own config and calls startTourIfFirstVisit().
  *
- * The BUILDER tour is defined inside apps/builder because its steps rely on
- * DOM hooks (openSection) specific to the builder app. It still registers its
- * metadata via TOURS_REGISTRY so the /guide page can list it.
+ * Étapes en REPÈRES (#1013, ADR-143) pour toute app qui a un registre
+ * (`apps/<app>/src/assistant/reperes.generated.ts`) : `repere: '<id>'`, jamais
+ * de sélecteur. `check:reperes` (règle 6) refuse un repère absent du registre
+ * de son app. L'app passe son adaptateur de révélation à l'appel :
+ * `startTour({ ...DASHBOARD_TOUR, adaptateur })`. `selector` ne reste que pour
+ * les apps sans registre (builder IA, studio).
+ *
+ * The BUILDER tour is defined inside apps/builder (it carries the builder's
+ * adapter). It still registers its metadata via TOURS_REGISTRY so the /guide
+ * page can list it.
  */
 
 import type { TourConfig } from '../ui/product-tour.js';
@@ -17,21 +24,21 @@ export const SOURCES_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: '#add-connection-btn',
+      repere: 'sources.actions.nouvelle-connexion',
       title: 'Connecter une base de données',
       description:
         'Ajoutez une connexion a une base Grist ou une API publique (data.gouv.fr, OpenDataSoft...) pour acceder a vos données.',
       position: 'right',
     },
     {
-      selector: '#add-source-btn',
+      repere: 'sources.locaux.creer',
       title: 'Créer une source manuelle',
       description:
         "Pas d'API ? Creez une source en collant du JSON, en important un CSV, ou en saisissant un tableau directement.",
       position: 'right',
     },
     {
-      selector: '#main-content',
+      repere: 'sources.connexions',
       title: 'Explorer et prévisualiser',
       description:
         'Une fois une connexion ajoutée, vous pourrez parcourir ses tables et prévisualiser les données avant de les utiliser dans le Builder.',
@@ -79,35 +86,35 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
   version: 2,
   steps: [
     {
-      selector: '#panel-couches',
+      repere: 'carto.couches',
       title: 'Vos couches de données',
       description:
         'Chaque couche a sa source de données et sa localisation. Ajoutez-en pour superposer plusieurs jeux de données sur la même carte.',
       position: 'right',
     },
     {
-      selector: '#panel-elements',
+      repere: 'carto.elements',
       title: 'La représentation',
       description:
         'Marqueurs, zones colorees, cercles proportionnels ou carte de chaleur — puis couleurs, contenu du clic et options avancees.',
       position: 'right',
     },
     {
-      selector: '#panel-carte',
+      repere: 'carto.carte',
       title: 'La carte elle-même',
       description:
         "Fond de carte, encarts DROM et Corse, tableau d'accessibilite et reglages avances.",
       position: 'right',
     },
     {
-      selector: '#btn-execute',
+      repere: 'carto.actions.generer',
       title: 'La carte est l’aperçu',
       description:
         'La carte occupe tout l’écran : déplacez et zoomez, le cadrage exporté suit. "Générer" recharge l’aperçu et recadre sur les données.',
       position: 'bottom',
     },
     {
-      selector: '#btn-export',
+      repere: 'carto.actions.exporter',
       title: 'Copier le code',
       description:
         'Le HTML pret a copier-coller dans votre site, en mode composants seuls ou page autonome.',
@@ -127,33 +134,31 @@ export const PLAYGROUND_TOUR: TourConfig = {
   steps: [
     {
       // La bascule, et non le select : depuis le volet lateral, les quatre
-      // champs vivent dans un panneau ferme et `inert` au chargement. Une
-      // etape qui vise un element hors ecran ne montre rien.
-      selector: '#volet-btn',
+      // champs vivent dans un panneau ferme et `inert` au chargement.
+      repere: 'playground.actions.exemples',
       title: 'Parcourir les exemples',
       description:
         "Le volet des exemples se croise sur trois axes : la SOURCE des donnees (Opendatasoft, data.gouv, Grist, INSEE...), le PIPELINE qui les transforme (requete, jointure, pivot, facettes...) et la SORTIE affichee (graphique, carte, tableau, indicateur...). Le compteur du bouton dit combien d'exemples repondent aux filtres poses.",
       position: 'bottom',
     },
     {
-      // `.CodeMirror`, et non `#code-editor` : CodeMirror masque le textarea
-      // d'origine pour rendre le sien a cote. L'etape visait donc un element
-      // de taille nulle, et n'encadrait rien.
-      selector: '.CodeMirror',
+      // La zone de l'editeur, et non le textarea que CodeMirror masque pour
+      // rendre le sien a cote.
+      repere: 'playground.editeur',
       title: 'Editeur de code',
       description:
         "Modifiez le HTML/JS directement. Tous les composants dsfr-data sont disponibles. L'editeur propose la coloration syntaxique.",
       position: 'right',
     },
     {
-      selector: '#run-btn',
+      repere: 'playground.actions.executer',
       title: 'Exécuter',
       description:
         'Cliquez pour voir le rendu en direct dans le panneau de droite. Le resultat se met a jour a chaque execution.',
       position: 'bottom',
     },
     {
-      selector: '#preview-frame',
+      repere: 'playground.apercu',
       title: 'Aperçu en direct',
       description:
         'Le rendu de votre code s\'affiche ici. Utilisez les boutons "Copier le code" ou "Ajouter des dépendances" pour obtenir un code autonome.',
@@ -170,21 +175,21 @@ export const DASHBOARD_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: '#widget-library',
+      repere: 'dashboard.bibliotheque',
       title: 'Bibliothèque de widgets',
       description:
         'Glissez un widget (KPI, graphique, tableau ou texte) sur la grille pour commencer a construire votre tableau de bord.',
       position: 'right',
     },
     {
-      selector: '#dashboard-grid',
+      repere: 'dashboard.canevas.grille',
       title: 'Votre grille',
       description:
         'Deposez les widgets ici. Cliquez sur un widget pour le configurer (source de données, type de graphique, titre...).',
       position: 'left',
     },
     {
-      selector: 'app-action-bar',
+      repere: 'dashboard.actions',
       title: "Barre d'actions",
       description:
         'Enregistrez, ouvrez ou exportez votre tableau de bord. Le menu "Templates" du canevas permet de partir d\'un modèle pré-construit.',
@@ -201,28 +206,28 @@ export const PIPELINE_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: 'app-action-bar',
+      repere: 'pipeline.actions',
       title: 'Composer le flux',
       description:
         'Ajoutez des étapes avec le menu « Ajouter une étape » (source, normalisation, requête, jointure, recherche, facettes, sortie), puis Exécuter fait circuler les données.',
       position: 'bottom',
     },
     {
-      selector: '#rete-container',
+      repere: 'pipeline.editeur',
       title: 'Connecter les nœuds',
       description:
         'Glissez d’un cercle de sortie (à droite d’un nœud) vers un cercle d’entrée (à gauche du suivant). Chaque nœud se configure dans ses champs.',
       position: 'right',
     },
     {
-      selector: '#pipeline-tab-inspector-btn',
+      repere: 'pipeline.panneau.inspecteur',
       title: 'Inspecter',
       description:
         'Après Exécuter, cliquez sur un nœud pour voir les données qui le traversent dans l’inspecteur.',
       position: 'left',
     },
     {
-      selector: '#pipeline-tab-code-btn',
+      repere: 'pipeline.panneau.code',
       title: 'Récupérer le code',
       description:
         'L’onglet Code montre le HTML équivalent, prêt à intégrer ; « Copier le code » dans la barre le copie directement.',
