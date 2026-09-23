@@ -478,6 +478,25 @@ export interface ExpectTexts extends ExpectBase {
   pattern?: string;
 }
 
+/**
+ * NOMBRE d'éléments TRACÉS sous `selector` dans le composant (#1059) : les
+ * formes d'une couche de carte (`path` d'une `geoshape` ou d'un `circle` via
+ * `shape-class`, `.dsfr-data-map__marker` d'une couche `marker`). Un tracé n'a
+ * ni texte ni chiffre à relire : ce qui se compare, c'est le COMPTE, à celui
+ * des lignes que le recalcul laisse — une forme par ligne.
+ *
+ * `selector` fait la couche : une `shape-class` propre à chaque couche
+ * `geoshape` / `circle` les distingue sur une même carte ; les marqueurs
+ * n'ont que la classe commune, un compte de marqueurs vaut donc pour TOUTES
+ * les couches `marker` de la carte. Un regroupement (`cluster`) trace des
+ * grappes, pas des marqueurs : il ne se compte pas ainsi.
+ */
+export interface ExpectCount extends ExpectBase {
+  kind: 'count';
+  /** Sélecteur CSS cherché DANS le composant (light DOM ou shadow root). */
+  selector: string;
+}
+
 /** Couleurs sémantiques d'un KPI (seuils), telles que le DOM les porte. */
 export type CouleurKpi = 'vert' | 'orange' | 'rouge' | 'bleu';
 
@@ -679,6 +698,7 @@ export type Expect =
   | ExpectFacets
   | ExpectText
   | ExpectTexts
+  | ExpectCount
   | ExpectClass
   | ExpectAttr
   | ExpectCsv
