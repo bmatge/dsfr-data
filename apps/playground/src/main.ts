@@ -11,8 +11,6 @@ import {
   appHref,
   confirmDialog,
   initAuth,
-  CDN_URLS,
-  LIB_URL,
   injectTourStyles,
   startTourIfFirstVisit,
   startTour,
@@ -32,6 +30,7 @@ import { examples } from './examples/examples-data.js';
 import { EXEMPLE_PAR_DEFAUT } from './examples/catalogue.js';
 import { initSelecteurExemples, type SelecteurExemples } from './examples/selector.js';
 import { getPreviewHTML } from './preview.js';
+import { aDesDependances, ajouterDependances, retirerDependances } from './deps.js';
 import { creerAdaptateurPlayground } from './assistant/adaptateur.js';
 import { monterAssistantPlayground, montrerReperePlayground } from './assistant/index.js';
 import { REGLE_BALISAGE } from './assistant/constats-balisage.js';
@@ -42,45 +41,6 @@ let selecteur: SelecteurExemples | null = null;
 let codeCharge = '';
 /** Id de cet exemple, pour reculer le selecteur si le remplacement est refuse. */
 let codeChargeId = '';
-
-/** Standard dependency block for external use */
-const DEPS_BLOCK = `<!-- Dependances (DSFR + DSFR Chart + dsfr-data) -->
-<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
-<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
-<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
-
-`;
-
-/**
- * Regex to detect dependency lines (CDN links for dsfr, DSFRChart, dsfr-data).
- * `chart\.js` reste dans le motif pour nettoyer les snippets anterieurs a #656
- * (DSFR Chart embarque Chart.js, on ne l'injecte plus) — jamais pour l'ajouter.
- */
-const DEPS_LINE_RE =
-  /^[ \t]*(<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>)[ \t]*\n?/gm;
-const DEPS_COMMENT_RE = /^[ \t]*<!--\s*Dependances[^>]*-->\s*\n?/gm;
-
-function hasDeps(code: string): boolean {
-  return DEPS_LINE_RE.test(code) || /dsfr-data\.(core\.)?(umd|esm)\.js/.test(code);
-}
-
-function addDeps(code: string): string {
-  return DEPS_BLOCK + code;
-}
-
-function removeDeps(code: string): string {
-  let result = code;
-  // Reset regex lastIndex (they have /g flag)
-  DEPS_LINE_RE.lastIndex = 0;
-  DEPS_COMMENT_RE.lastIndex = 0;
-  result = result.replace(DEPS_LINE_RE, '');
-  result = result.replace(DEPS_COMMENT_RE, '');
-  // Clean up leading blank lines
-  result = result.replace(/^\n+/, '');
-  return result;
-}
 
 function updateDepsButton(hasDepsState: boolean): void {
   const btn = document.getElementById('deps-btn');
@@ -96,12 +56,11 @@ function updateDepsButton(hasDepsState: boolean): void {
 
 function toggleDeps(): void {
   const code = editor.getValue();
-  DEPS_LINE_RE.lastIndex = 0;
-  if (hasDeps(code)) {
-    editor.setValue(removeDeps(code));
+  if (aDesDependances(code)) {
+    editor.setValue(retirerDependances(code));
     updateDepsButton(false);
   } else {
-    editor.setValue(addDeps(code));
+    editor.setValue(ajouterDependances(code));
     updateDepsButton(true);
   }
   runCode();
@@ -169,8 +128,7 @@ async function loadExample(name: string, skipConfirm = false): Promise<void> {
   // Le volet couvre l'editeur : le garder ouvert masquerait le code qu'on
   // vient de demander. La bascule de la barre d'actions le rouvre aussitot.
   selecteur?.basculer(false);
-  DEPS_LINE_RE.lastIndex = 0;
-  updateDepsButton(hasDeps(code));
+  updateDepsButton(aDesDependances(code));
   runCode();
 }
 
@@ -387,8 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const savedCode = sessionStorage.getItem('playground-code');
     if (savedCode) {
       editor.setValue(savedCode);
-      DEPS_LINE_RE.lastIndex = 0;
-      updateDepsButton(hasDeps(savedCode));
+      updateDepsButton(aDesDependances(savedCode));
       runCode();
       sessionStorage.removeItem('playground-code');
     }
