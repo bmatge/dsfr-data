@@ -3,7 +3,7 @@
  * les donnees chargees, defaut de source, multi-sources tolere.
  */
 import { describe, it, expect } from 'vitest';
-import { createEmptyDashboard } from '@dsfr-data/shared';
+import { createEmptyDashboard, generateWidgetHTML } from '@dsfr-data/shared';
 import { addBlocks, updateBlock, type DocumentContext } from '../../../apps/studio/src/document';
 
 const ctx: DocumentContext = {
@@ -70,12 +70,29 @@ describe('studio/document — bloc map (#531)', () => {
     expect(notNumeric.summary).toContain('numerique');
   });
 
-  it('refuse les structures incompletes (pas de couche, geoshape sans geoField, sans lat/lon)', () => {
+  it('refuse les structures incompletes (pas de couche, sans lat/lon)', () => {
     const doc = createEmptyDashboard();
     expect(addBlocks(doc, [{ kind: 'map' }], ctx).ok).toBe(false);
-    expect(addBlocks(doc, [{ kind: 'map', layers: [{ type: 'geoshape' }] }], ctx).ok).toBe(false);
     expect(addBlocks(doc, [{ kind: 'map', layers: [{ type: 'heatmap' }] }], ctx).ok).toBe(false);
+    expect(
+      addBlocks(doc, [{ kind: 'map', layers: [{ type: 'marker', latField: 'lat' }] }], ctx).ok
+    ).toBe(false);
     expect(doc.widgets).toHaveLength(0);
+  });
+
+  it('accepte une couche geoshape sans geoField : la lib detecte la colonne (#1060)', () => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(doc, [{ kind: 'map', layers: [{ type: 'geoshape' }] }], ctx);
+    expect(outcome.ok).toBe(true);
+    const w = doc.widgets[0];
+    if (w.type !== 'map') throw new Error('map attendu');
+    expect(w.config.layers[0].type).toBe('geoshape');
+    expect(w.config.layers[0].geoField).toBeUndefined();
+    // Le code exporte ne pose pas de geo-field vide : la couche detecte
+    // geo_shape, geometry puis geom (#1053).
+    const html = generateWidgetHTML(w, doc);
+    expect(html).toContain('type="geoshape"');
+    expect(html).not.toContain('geo-field');
   });
 
   it('update_block remplace les couches apres validation', () => {

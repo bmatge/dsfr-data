@@ -241,9 +241,11 @@ function validateMapLayer(
     return { error: 'Couche sans source : charge une source ou fournis sourceId.' };
   }
 
-  if (type === 'geoshape') {
-    if (!raw.geoField) return { error: `Couche geoshape sans geoField (champ GeoJSON).` };
-  } else if (!raw.latField || !raw.lonField) {
+  // Geoshape sans geoField : accepte (#1060). Depuis #1053, la couche detecte
+  // seule sa colonne geometrique (geo_shape, geometry puis geom) et dit
+  // explicitement quand aucune ne convient ; le lint `carte/geoshape-sans-geo-field`
+  // n'est plus qu'un avertissement, qu'on laisse au volet Diagnostic.
+  if (type !== 'geoshape' && (!raw.latField || !raw.lonField)) {
     return { error: `Couche ${type} sans latField/lonField.` };
   }
 
@@ -526,7 +528,11 @@ const MAP_LAYER_SCHEMA = {
     label: { type: 'string' },
     latField: { type: 'string', description: 'Champ latitude (marker/circle/heatmap)' },
     lonField: { type: 'string', description: 'Champ longitude (marker/circle/heatmap)' },
-    geoField: { type: 'string', description: 'Champ GeoJSON (geoshape)' },
+    geoField: {
+      type: 'string',
+      description:
+        'Champ GeoJSON (geoshape). Facultatif : sans lui, la couche detecte geo_shape, geometry ou geom.',
+    },
     valueField: {
       type: 'string',
       description: 'Champ de valeur (rayon / intensité / remplissage)',
