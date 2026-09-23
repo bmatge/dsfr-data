@@ -45,6 +45,19 @@ export interface AgentLoopOptions {
   executer: (name: string, args: Record<string, unknown>) => Promise<string> | string;
   /** Outils qui terminent la boucle sans etre executes. */
   terminaux?: ReadonlySet<string>;
+  /**
+   * Controle d'un outil terminal AVANT qu'il ne termine la boucle (#1015).
+   * Rend `null` pour l'accepter, ou un texte de refus : ce texte revient au
+   * modele en role `tool` et la boucle continue, pour qu'il se corrige (ex. un
+   * `create_chart` dont le champ n'existe pas). `dernier` : c'est le dernier
+   * tour, un refus ne sera pas suivi d'une correction. Absent : tout terminal
+   * est accepte.
+   */
+  validerTerminal?: (
+    name: string,
+    args: Record<string, unknown>,
+    tour: { index: number; dernier: boolean }
+  ) => Promise<string | null> | string | null;
   /** Outils exemptes de l'anti-doublon (actions, observations d'un etat mutable). */
   repetables?: ReadonlySet<string>;
   /** Nombre maximal d'appels au modele, dernier tour sans outils compris. */
@@ -112,6 +125,7 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
     messageDoublon = DEFAULT_DUPLICATE_MESSAGE,
     dernierTourSansOutils = true,
     temperature = 0.1,
+    validerTerminal,
   } = opts;
 
   const messages: ChatMessage[] = [
@@ -125,7 +139,8 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
   let rounds = 0;
 
   for (let round = 0; round < maxRounds; round++) {
-    const dernierTour = dernierTourSansOutils && round === maxRounds - 1;
+    const tour = { index: round, dernier: round === maxRounds - 1 };
+    const dernierTour = dernierTourSansOutils && tour.dernier;
     const body: Record<string, unknown> = {
       model,
       messages,
@@ -154,6 +169,10 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
       const terminalCall = toolCalls.find((c) => terminaux.has(c.function.name));
       if (terminalCall) {
         const args = parseToolArgs(terminalCall.function.arguments);
+        // Refuse au dernier tour : plus de tour pour se corriger, on s'arrete.
+        if (validerTerminal && (await validerTerminal(terminalCall.function.name, args, tour))) {
+          break;
+        }
         steps.push(decrireEtape(terminalCall.function.name, args));
         onProgress?.(steps);
         return {
@@ -177,6 +196,11 @@ export async function runAgentLoop(opts: AgentLoopOptions): Promise<AgentLoopRes
       onProgress?.(steps);
 
       if (terminaux.has(name)) {
+        const refus = validerTerminal ? await validerTerminal(name, args, tour) : null;
+        if (refus) {
+          messages.push({ role: 'tool', tool_call_id: call.id, content: refus });
+          continue;
+        }
         return {
           fin: 'terminal',
           text: terminalText(args, msg.content),
