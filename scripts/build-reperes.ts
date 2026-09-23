@@ -21,6 +21,9 @@
  * Usage : npx vite-node scripts/build-reperes.ts [--check]
  *   --check : ne recrit rien, sort en erreur si un probleme est trouve ou si un
  *             registre commite n'est pas le rendu exact de l'extraction (CI).
+ *
+ * Regle 6 (#1013) : les visites guidees (`FICHIERS_VISITES`) ne citent que des
+ * reperes des registres extraits ici (`scripts/lib/reperes-tours.ts`).
  */
 
 import { readFileSync, readdirSync, writeFileSync } from 'fs';
@@ -34,6 +37,13 @@ import {
   type FichierSource,
   type Probleme,
 } from './lib/reperes-extract.js';
+import { verifierVisites } from './lib/reperes-tours.js';
+
+/** Fichiers des visites guidees, relatifs a la racine du depot (regle 6). */
+const FICHIERS_VISITES = [
+  'packages/shared/src/tour/tour-configs.ts',
+  'apps/builder/src/ui/tour.ts',
+];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -76,6 +86,8 @@ const problemes: Probleme[] = [];
 const avertissements: Probleme[] = [];
 const perimes: string[] = [];
 let ecrits = 0;
+/** Prefixe d'app -> identifiants extraits (regle 6). */
+const registres = new Map<string, Set<string>>();
 
 /** Noms des fichiers d'un dossier, ou [] s'il n'existe pas (ou si `apps/X` est un fichier). */
 function listerSiPresent(abs: string): string[] {
@@ -130,6 +142,7 @@ for (const app of apps) {
   });
   problemes.push(...res.problemes);
   avertissements.push(...res.avertissements);
+  registres.set(config.prefixe, new Set(res.reperes.map((r) => r.id)));
 
   const sortie = sousRacine('apps', app, 'src/assistant/reperes.generated.ts');
   const rendu = rendreRegistre(config, res.reperes);
@@ -142,6 +155,15 @@ for (const app of apps) {
     }
   }
 }
+
+// Regle 6 : les visites guidees ne citent que des reperes des registres.
+const visites: FichierSource[] = [];
+for (const chemin of FICHIERS_VISITES) {
+  const f = source(sousRacine(chemin));
+  if (f) visites.push(f);
+  else problemes.push({ fichier: chemin, message: 'fichier de visites introuvable' });
+}
+problemes.push(...verifierVisites(visites, registres));
 
 if (checkOnly) {
   if (perimes.length) {

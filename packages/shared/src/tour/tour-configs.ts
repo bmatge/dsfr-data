@@ -2,9 +2,16 @@
  * Product tour configurations for all apps.
  * Each app imports its own config and calls startTourIfFirstVisit().
  *
- * The BUILDER tour is defined inside apps/builder because its steps rely on
- * DOM hooks (openSection) specific to the builder app. It still registers its
- * metadata via TOURS_REGISTRY so the /guide page can list it.
+ * Étapes en REPÈRES (#1013, ADR-143) pour toute app qui a un registre
+ * (`apps/<app>/src/assistant/reperes.generated.ts`) : `repere: '<id>'`, jamais
+ * de sélecteur. `check:reperes` (règle 6) refuse un repère absent du registre
+ * de son app. L'app passe son adaptateur de révélation à l'appel :
+ * `startTour({ ...DASHBOARD_TOUR, adaptateur })`. `selector` ne reste que pour
+ * les apps sans registre (builder IA, studio).
+ *
+ * The BUILDER tour is defined inside apps/builder (it carries the builder's
+ * adapter). It still registers its metadata via TOURS_REGISTRY so the /guide
+ * page can list it.
  */
 
 import type { TourConfig } from '../ui/product-tour.js';
@@ -79,35 +86,35 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
   version: 2,
   steps: [
     {
-      selector: '#panel-couches',
+      repere: 'carto.couches',
       title: 'Vos couches de données',
       description:
         'Chaque couche a sa source de données et sa localisation. Ajoutez-en pour superposer plusieurs jeux de données sur la même carte.',
       position: 'right',
     },
     {
-      selector: '#panel-elements',
+      repere: 'carto.elements',
       title: 'La représentation',
       description:
         'Marqueurs, zones colorees, cercles proportionnels ou carte de chaleur — puis couleurs, contenu du clic et options avancees.',
       position: 'right',
     },
     {
-      selector: '#panel-carte',
+      repere: 'carto.carte',
       title: 'La carte elle-même',
       description:
         "Fond de carte, encarts DROM et Corse, tableau d'accessibilite et reglages avances.",
       position: 'right',
     },
     {
-      selector: '#btn-execute',
+      repere: 'carto.actions.generer',
       title: 'La carte est l’aperçu',
       description:
         'La carte occupe tout l’écran : déplacez et zoomez, le cadrage exporté suit. "Générer" recharge l’aperçu et recadre sur les données.',
       position: 'bottom',
     },
     {
-      selector: '#btn-export',
+      repere: 'carto.actions.exporter',
       title: 'Copier le code',
       description:
         'Le HTML pret a copier-coller dans votre site, en mode composants seuls ou page autonome.',
