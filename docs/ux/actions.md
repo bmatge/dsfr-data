@@ -89,6 +89,7 @@ sont les seules admises en plus du cœur.
 | Playground | **Ajouter des dépendances** | tertiaire | injecter les balises CSS/JS nécessaires |
 | Pipeline | **Ajouter une étape ▾** | secondaire (menu) | insérer un nœud (voir §7 pour les entrées) |
 | Pipeline | **Réorganiser** · **Recentrer** | tertiaire | actions de canevas |
+| Pipeline | **Revenir au Builder** | tertiaire sans contour (lien de navigation, zone `slot="context"`), `fr-icon-arrow-left-line` | revenir au Builder qui a ouvert le Pipeline (`?from=builder`) ; absent sinon. Le Builder rouvre son instantané de configuration et avertit avant de jeter un pipeline modifié (#1095) |
 | Carto | **Composer par échelle** | secondaire (encart du panneau Couches) | quand le jeu dépasse le plafond d'une couche : ajouter une choroplèthe du nombre d'enregistrements par territoire aux petits zooms, les points aux grands ; confirmation avant création (#1021) |
 | Dashboard | **Ouvrir** | secondaire | charger un tableau de bord enregistré |
 | Dashboard | **Ajouter une ligne** · **Ajouter une source** | secondaire | actions de composition |
@@ -235,6 +236,8 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 | Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · Effacer la conversation · **Diagnostic** |
 | Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · **Diagnostic** · **Assistant** · Réinitialiser |
 | Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer · **Diagnostic** · **Assistant** |
+
+Le Pipeline ouvert depuis le Builder porte en plus, après son titre (zone contexte, hors toolbar), le lien de navigation `Revenir au Builder` (#1095).
 | Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée · **Assistant** |
 | Favoris | — | Importer · Exporter ▾ | — |
 | Suivi | — | Exporter ▾ | Actualiser |

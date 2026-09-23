@@ -29,6 +29,7 @@ export const REPERES = [
   {"id":"pipeline.actions.playground","genre":"controle","libelle":"Ouvrir dans le Playground","element":"button","zone":"pipeline.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},
   {"id":"pipeline.actions.recentrer","genre":"controle","libelle":"Recentrer","element":"button","zone":"pipeline.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},
   {"id":"pipeline.actions.reorganiser","genre":"controle","libelle":"Réorganiser","element":"button","zone":"pipeline.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},
+  {"id":"pipeline.actions.retour-builder","genre":"controle","libelle":"Revenir au Builder","element":"button","zone":"pipeline.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},
   {"id":"pipeline.actions.supprimer","genre":"controle","libelle":"Supprimer","element":"button","zone":"pipeline.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},
   {"id":"pipeline.actions.visite","genre":"controle","libelle":"Visite guidée","element":"button","zone":"pipeline.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},
   {"id":"pipeline.editeur","genre":"zone","libelle":"Éditeur du pipeline","element":"div","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/pipeline-helper/index.html"]},

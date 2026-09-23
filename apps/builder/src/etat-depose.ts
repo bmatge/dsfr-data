@@ -1,11 +1,13 @@
 /**
  * Relire l'instantané de configuration déposé par une autre app (#978).
  *
- * Trois apps rouvrent un graphique dans le Builder en déposant sa configuration
+ * Quatre apps rouvrent un graphique dans le Builder en déposant sa configuration
  * dans `sessionStorage` (`builder-state`) puis en naviguant avec `?from=<app>` :
- * les favoris, le Playground (au retour) et le tableau de bord. Le Builder ne
- * relisait que les deux premières : l'état déposé par le tableau de bord était
- * écrit, jamais lu, et le Builder s'ouvrait vierge sans un mot.
+ * les favoris, le Playground (au retour), le tableau de bord et le Pipeline (au
+ * retour, #1095). Le Builder ne relisait que les deux premières : l'état déposé
+ * par le tableau de bord était écrit, jamais lu, et le Builder s'ouvrait vierge
+ * sans un mot. Celui déposé avant d'ouvrir le Pipeline ne l'était pas non plus,
+ * faute de chemin de retour.
  *
  * La liste des origines vit donc ici, à un seul endroit, et tout ce qui empêche
  * de rouvrir un état déposé — origine inconnue, contenu illisible, configuration
@@ -16,7 +18,12 @@
  */
 
 /** Apps qui déposent un instantané de configuration avant d'ouvrir le Builder. */
-export const ORIGINES_ETAT_DEPOSE = ['favorites', 'playground', 'dashboard'] as const;
+export const ORIGINES_ETAT_DEPOSE = [
+  'favorites',
+  'playground',
+  'dashboard',
+  'pipeline-helper',
+] as const;
 
 export type OrigineEtatDepose = (typeof ORIGINES_ETAT_DEPOSE)[number];
 
@@ -75,6 +82,7 @@ const PROVENANCE: Record<OrigineEtatDepose, string> = {
   favorites: 'depuis les favoris',
   playground: 'depuis le Playground',
   dashboard: 'depuis le tableau de bord',
+  'pipeline-helper': 'depuis le Pipeline',
 };
 
 const RAISON: Record<MotifRefus, string> = {
