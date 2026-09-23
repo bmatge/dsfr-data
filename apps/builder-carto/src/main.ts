@@ -1556,7 +1556,7 @@ function setLayerSource(layer: LayerConfig, src: AnySource) {
   updateCodePreview();
   void scanAndSuggest(layer, { fit: true });
   // Premier contact : le tour se lance une fois les données choisies
-  startTourIfFirstVisit(BUILDER_CARTO_TOUR);
+  startTourIfFirstVisit(visiteCarto());
 }
 
 /** Jeu d'exemple (chefs-lieux) sur une couche — modale d'onboarding et état vide du panneau. */
@@ -2131,9 +2131,7 @@ function bindStaticUi() {
     .getElementById('save-favorite-btn')
     ?.addEventListener('click', () => saveFavorite('save-favorite-btn'));
   document.getElementById('open-playground-btn')?.addEventListener('click', sendToPlayground);
-  document
-    .getElementById('tour-btn')
-    ?.addEventListener('click', () => startTour(BUILDER_CARTO_TOUR));
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(visiteCarto()));
 
   // Onglet « Code » : mode de génération + rafraîchissement à l'ouverture
   const genEl = document.getElementById('gen-mode') as HTMLSelectElement | null;
@@ -2161,6 +2159,11 @@ let assistant: MountedAssistant | null = null;
  * seulement le rendu des panneaux quand le DOM est en retard sur l'état.
  */
 const adaptateur = creerAdaptateurCarto({ rendre: () => renderAll() });
+
+/** Visite guidée décrite par repères (#1072) : le même adaptateur les révèle. */
+function visiteCarto() {
+  return { ...BUILDER_CARTO_TOUR, adaptateur };
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Volet Diagnostic (#606) — la Carto ne rend PAS dans une iframe : elle
@@ -2213,6 +2216,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // (sinon il démarre au premier choix de données — setLayerSource).
   injectTourStyles();
   if (state.layers.some((l) => l.source)) {
-    startTourIfFirstVisit(BUILDER_CARTO_TOUR);
+    startTourIfFirstVisit(visiteCarto());
   }
 });
