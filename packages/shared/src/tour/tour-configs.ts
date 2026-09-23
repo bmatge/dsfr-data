@@ -134,33 +134,31 @@ export const PLAYGROUND_TOUR: TourConfig = {
   steps: [
     {
       // La bascule, et non le select : depuis le volet lateral, les quatre
-      // champs vivent dans un panneau ferme et `inert` au chargement. Une
-      // etape qui vise un element hors ecran ne montre rien.
-      selector: '#volet-btn',
+      // champs vivent dans un panneau ferme et `inert` au chargement.
+      repere: 'playground.actions.exemples',
       title: 'Parcourir les exemples',
       description:
         "Le volet des exemples se croise sur trois axes : la SOURCE des donnees (Opendatasoft, data.gouv, Grist, INSEE...), le PIPELINE qui les transforme (requete, jointure, pivot, facettes...) et la SORTIE affichee (graphique, carte, tableau, indicateur...). Le compteur du bouton dit combien d'exemples repondent aux filtres poses.",
       position: 'bottom',
     },
     {
-      // `.CodeMirror`, et non `#code-editor` : CodeMirror masque le textarea
-      // d'origine pour rendre le sien a cote. L'etape visait donc un element
-      // de taille nulle, et n'encadrait rien.
-      selector: '.CodeMirror',
+      // La zone de l'editeur, et non le textarea que CodeMirror masque pour
+      // rendre le sien a cote.
+      repere: 'playground.editeur',
       title: 'Editeur de code',
       description:
         "Modifiez le HTML/JS directement. Tous les composants dsfr-data sont disponibles. L'editeur propose la coloration syntaxique.",
       position: 'right',
     },
     {
-      selector: '#run-btn',
+      repere: 'playground.actions.executer',
       title: 'Exécuter',
       description:
         'Cliquez pour voir le rendu en direct dans le panneau de droite. Le resultat se met a jour a chaque execution.',
       position: 'bottom',
     },
     {
-      selector: '#preview-frame',
+      repere: 'playground.apercu',
       title: 'Aperçu en direct',
       description:
         'Le rendu de votre code s\'affiche ici. Utilisez les boutons "Copier le code" ou "Ajouter des dépendances" pour obtenir un code autonome.',
@@ -208,28 +206,28 @@ export const PIPELINE_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: 'app-action-bar',
+      repere: 'pipeline.actions',
       title: 'Composer le flux',
       description:
         'Ajoutez des étapes avec le menu « Ajouter une étape » (source, normalisation, requête, jointure, recherche, facettes, sortie), puis Exécuter fait circuler les données.',
       position: 'bottom',
     },
     {
-      selector: '#rete-container',
+      repere: 'pipeline.editeur',
       title: 'Connecter les nœuds',
       description:
         'Glissez d’un cercle de sortie (à droite d’un nœud) vers un cercle d’entrée (à gauche du suivant). Chaque nœud se configure dans ses champs.',
       position: 'right',
     },
     {
-      selector: '#pipeline-tab-inspector-btn',
+      repere: 'pipeline.panneau.inspecteur',
       title: 'Inspecter',
       description:
         'Après Exécuter, cliquez sur un nœud pour voir les données qui le traversent dans l’inspecteur.',
       position: 'left',
     },
     {
-      selector: '#pipeline-tab-code-btn',
+      repere: 'pipeline.panneau.code',
       title: 'Récupérer le code',
       description:
         'L’onglet Code montre le HTML équivalent, prêt à intégrer ; « Copier le code » dans la barre le copie directement.',

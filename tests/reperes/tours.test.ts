@@ -9,6 +9,8 @@ import { join, resolve } from 'node:path';
 import { reperesDesVisites, verifierVisites } from '../../scripts/lib/reperes-tours';
 import { REPERES as REPERES_BUILDER } from '../../apps/builder/src/assistant/reperes.generated';
 import { REPERES as REPERES_CARTO } from '../../apps/builder-carto/src/assistant/reperes.generated';
+import { REPERES as REPERES_PIPELINE } from '../../apps/pipeline-helper/src/assistant/reperes.generated';
+import { REPERES as REPERES_PLAYGROUND } from '../../apps/playground/src/assistant/reperes.generated';
 
 const RACINE = resolve(import.meta.dirname, '../..');
 
@@ -72,6 +74,8 @@ describe('verifierVisites', () => {
     const reg = new Map<string, Set<string>>([
       ['builder', new Set(REPERES_BUILDER.map((r) => r.id))],
       ['carto', new Set(REPERES_CARTO.map((r) => r.id))],
+      ['pipeline', new Set(REPERES_PIPELINE.map((r) => r.id))],
+      ['playground', new Set(REPERES_PLAYGROUND.map((r) => r.id))],
     ]);
     const fichiers = [
       'packages/shared/src/tour/tour-configs.ts',

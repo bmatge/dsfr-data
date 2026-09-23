@@ -429,6 +429,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();
-  startTourIfFirstVisit(PLAYGROUND_TOUR);
-  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(PLAYGROUND_TOUR));
+  // Étapes en repères (#1013) : l'adaptateur ouvre le volet avant de montrer.
+  const visite = { ...PLAYGROUND_TOUR, adaptateur };
+  startTourIfFirstVisit(visite);
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(visite));
 });
