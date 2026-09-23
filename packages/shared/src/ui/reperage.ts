@@ -18,14 +18,16 @@
  *
  * La surbrillance reprend les couleurs de `product-tour.ts` sans dépendre de
  * son voile. Aucune animation sous `prefers-reduced-motion`. Une seule région
- * `aria-live="polite"` par document.
+ * `aria-live="polite"` par document. Si l'app réécrit le panneau pendant la
+ * mise en évidence (`innerHTML`), la surbrillance est rejouée sur le nouvel
+ * élément du même repère (`rejouerSiDetache`).
  *
  * Côté app : exporté par `@dsfr-data/shared`, jamais par `@dsfr-data/shared/lib`
  * (frontière #319).
  */
 
 import type { Prerequis, PrerequisParId, RegistreReperes, Repere } from './reperes-types.js';
-import { getToursState } from './product-tour.js';
+import { getToursState, trouverRepere } from './product-tour.js';
 import { saveToStorage, STORAGE_KEYS } from '../storage/local-storage.js';
 
 // ─── Contrat ───────────────────────────────────────────────────────────
@@ -268,28 +270,93 @@ export function injectReperageStyles(racine: Document = document): void {
   racine.head.appendChild(style);
 }
 
-let surbrillance: { element: HTMLElement; minuterie: ReturnType<typeof setTimeout> } | null = null;
+interface Surbrillance {
+  element: HTMLElement;
+  minuterie: ReturnType<typeof setTimeout>;
+  /** Repère montré : re-résolu si l'app réécrit son panneau (`innerHTML`). */
+  id: string;
+  racine: Document;
+  /** Mode « guider » : le focus suit le contrôle rejoué, s'il n'a pas été déplacé. */
+  guider: boolean;
+  observateur: MutationObserver | null;
+}
+
+let surbrillance: Surbrillance | null = null;
 
 /** Retire la surbrillance courante, s'il y en a une. */
 export function effacerSurbrillance(): void {
   if (!surbrillance) return;
   clearTimeout(surbrillance.minuterie);
+  surbrillance.observateur?.disconnect();
   surbrillance.element.classList.remove(CLASSE_REPERE_MONTRE, CLASSE_REPERE_ANIME);
   surbrillance = null;
 }
 
-function surligner(element: HTMLElement, racine: Document): void {
-  effacerSurbrillance();
-  injectReperageStyles(racine);
+function poserClasses(element: HTMLElement, racine: Document): void {
   element.classList.add(CLASSE_REPERE_MONTRE);
   if (!mouvementReduit(racine)) element.classList.add(CLASSE_REPERE_ANIME);
-  const courante = {
+}
+
+/**
+ * Rejoue la surbrillance après un re-rendu. Les apps réécrivent leurs panneaux
+ * par `innerHTML` (reprise de session, fin d'analyse des champs…) : l'élément
+ * surligné disparaît avec l'ancien DOM. Tant que la mise en évidence dure, si
+ * l'élément est détaché, on résout le même repère dans le nouveau DOM et on y
+ * repose les classes — sans relancer la minuterie ni la révélation (aucune
+ * boucle : poser une classe n'est pas une mutation `childList`). Le focus ne
+ * suit qu'en mode « guider », et seulement s'il est tombé avec l'ancien
+ * élément : un focus que l'usager a déplacé n'est jamais repris.
+ */
+function rejouerSiDetache(courante: Surbrillance): void {
+  if (surbrillance !== courante || courante.element.isConnected) return;
+  const nouveau = trouverRepere(courante.id, courante.racine);
+  if (!nouveau) return; // Pas encore rendu : la mutation suivante réessaiera.
+  courante.element = nouveau;
+  poserClasses(nouveau, courante.racine);
+  const actif = courante.racine.activeElement;
+  if (courante.guider && (!actif || actif === courante.racine.body)) {
+    rendreFocusable(nouveau);
+    nouveau.focus({ preventScroll: true });
+  }
+}
+
+/** Identifiant porté par l'élément : `data-repere` (contrôle) ou `data-zone` (zone). */
+function idDeRepere(element: HTMLElement): string | null {
+  return element.getAttribute('data-repere') ?? element.getAttribute('data-zone');
+}
+
+/**
+ * Pose la surbrillance et la garde tant qu'elle dure (voir `rejouerSiDetache`).
+ * Rend l'élément effectivement surligné : si l'app a re-rendu entre la
+ * révélation et cet appel, c'est déjà le nouvel élément du même repère.
+ */
+function surligner(
+  element: HTMLElement,
+  id: string,
+  racine: Document,
+  guider: boolean
+): HTMLElement {
+  effacerSurbrillance();
+  injectReperageStyles(racine);
+  poserClasses(element, racine);
+  const courante: Surbrillance = {
     element,
+    id,
+    racine,
+    guider,
+    observateur: null,
     minuterie: setTimeout(() => {
       if (surbrillance === courante) effacerSurbrillance();
     }, DUREE_SURBRILLANCE_MS),
   };
+  const Observateur = racine.defaultView?.MutationObserver;
+  if (Observateur && racine.body) {
+    courante.observateur = new Observateur(() => rejouerSiDetache(courante));
+    courante.observateur.observe(racine.body, { childList: true, subtree: true });
+  }
   surbrillance = courante;
+  rejouerSiDetache(courante);
+  return courante.element;
 }
 
 function rendreFocusable(element: HTMLElement): void {
@@ -323,11 +390,17 @@ export async function montrer<Etat>(
 
   // 2. Prérequis manquant → le repère qui le lève, avec le message du prérequis.
   const [manquant] = prerequisManquants(registre, adaptateur, id);
-  const cible = manquant ? manquant.regle.repereQuiLeve : id;
-  const cheminCible = chemin(registre, cible);
+  const demande = manquant ? manquant.regle.repereQuiLeve : id;
 
   const focusAvant = racine.activeElement;
-  const element = estIdRepere(cible) ? await adaptateur.reveler(cible) : null;
+  let element = estIdRepere(demande) ? await adaptateur.reveler(demande) : null;
+  // L'adaptateur peut rendre l'équivalent visible d'un contrôle masqué (repli
+  // du builder) : le chemin annoncé et la surbrillance rejouée suivent alors le
+  // repère effectivement montré, s'il est au registre.
+  const revele = element ? idDeRepere(element) : null;
+  const cible =
+    revele && revele !== demande && indexerReperes(registre).has(revele) ? revele : demande;
+  const cheminCible = chemin(registre, cible);
   if (jeton !== appel) {
     // Un autre montrer() a pris la main pendant la révélation : ne rien afficher.
     return manquant
@@ -351,7 +424,7 @@ export async function montrer<Etat>(
       // « Dire » : la révélation ne doit pas déplacer le focus de l'usager.
       (focusAvant as HTMLElement).focus?.({ preventScroll: true });
     }
-    surligner(element, racine);
+    element = surligner(element, cible, racine, mode === 'guider');
   }
 
   const texteChemin = cheminCible.join(SEPARATEUR_CHEMIN);

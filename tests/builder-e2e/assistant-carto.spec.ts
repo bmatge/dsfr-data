@@ -54,10 +54,9 @@ async function ouvrirLaCarto(page: Page): Promise<void> {
   await expect(page.locator('#assistant-btn')).toBeAttached({ timeout: 20_000 });
   await expect(page.locator('app-assistant')).toBeAttached({ timeout: 20_000 });
   await expect(page.locator('#layers-list [data-layer-id="layer-1"]')).toBeVisible();
-  // Reprise de session : l'analyse des champs re-rend les panneaux (innerHTML)
-  // quand elle aboutit. Une surbrillance posée avant serait effacée avec
-  // l'élément : on attend la fin de l'analyse.
-  await expect(page.locator('#source-scan-status')).toContainText('champs', { timeout: 20_000 });
+  // Pas d'attente de l'analyse des champs (`#source-scan-status`) : quand elle
+  // re-rend les panneaux par innerHTML, `montrer()` rejoue la surbrillance sur
+  // le nouvel élément.
 }
 
 const champAssistant = (page: Page) => page.locator('app-assistant textarea');

@@ -19,6 +19,7 @@ import {
   DIAGNOSTIC_HANDOFF_KEY,
   effacerSurbrillance,
   evaluerConstats,
+  ID_REGION_REPERAGE,
   SOUS_TITRE_AVEC_MODELE,
   SOUS_TITRE_SANS_MODELE,
   trouverRepere,
@@ -171,6 +172,27 @@ describe('assistant contextuel du builder (#1017)', () => {
     );
     expect(panel.messages.at(-1)?.continuer).toBe('builder.donnees.series.ajouter');
     expect(fetchEspion).not.toHaveBeenCalled();
+  });
+
+  it('sans source enregistrée : le prérequis source-chargee surligne l’état vide, visible', async () => {
+    // localStorage vide : le select des sources est masqué, l'état vide le remplace.
+    const choix = document.querySelector<HTMLElement>('[data-repere="builder.source.choix"]')!;
+    expect(choix.closest<HTMLElement>('.fr-select-group')?.style.display).toBe('none');
+    state.chartType = 'bar';
+    panel.dispatchEvent(
+      new CustomEvent('assistant-montrer', { detail: { repere: 'builder.donnees.champ-x' } })
+    );
+    await vi.waitFor(() => expect(repereDe(surligne())).toBe('builder.source.vide'));
+    const vide = surligne()!;
+    expect(vide.closest('#section-source')).not.toBeNull();
+    expect(vide.querySelector('a[href*="sources"]')).not.toBeNull();
+    expect(panel.messages.at(-1)?.texte).toContain("Chargez d'abord une source");
+    // Le chemin annoncé est celui de l'élément montré, pas du select masqué.
+    await vi.waitFor(() =>
+      expect(document.getElementById(ID_REGION_REPERAGE)?.textContent).toContain(
+        'Pas encore de données'
+      )
+    );
   });
 
   it('« source vide » : constat builder/source-vide, pastille, puis « Me montrer » ouvre la section Source', async () => {
