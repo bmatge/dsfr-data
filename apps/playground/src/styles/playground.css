@@ -45,6 +45,15 @@ body {
  * `.CodeMirror-scroll` garde son `height: 100%` d'origine et defile a
  * l'interieur ; `min-height: 0` l'empeche de refuser de retrecir.
  */
+/* Zone de l'editeur (#1009, repere playground.editeur) : relais flex entre la
+ * colonne et CodeMirror, sans quoi l'editeur perdrait son `flex: 1`. */
+.pg-editeur {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .playground-editor .CodeMirror {
   flex: 1 1 auto;
   height: auto;
@@ -250,4 +259,11 @@ body {
   app-layout-builder {
     --app-layout-left-stacked-height: 50vh;
   }
+}
+
+/* Repere de code (#1009) : la ligne ou l'attribut que designe un constat. */
+.pg-repere-code {
+  background: rgba(255, 184, 108, 0.35);
+  outline: 1px solid #ffb86c;
+  border-radius: 2px;
 }

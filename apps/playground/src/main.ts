@@ -24,6 +24,8 @@ import {
   mountDiagnosticPanel,
   transmettreDiagnostic,
   CLE_CODE_RAPPORTE,
+  montrer,
+  REGLES_GENERIQUES,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -31,6 +33,9 @@ import { examples } from './examples/examples-data.js';
 import { EXEMPLE_PAR_DEFAUT } from './examples/catalogue.js';
 import { initSelecteurExemples, type SelecteurExemples } from './examples/selector.js';
 import { getPreviewHTML } from './preview.js';
+import { REGISTRE } from './assistant/reperes.generated.js';
+import { creerAdaptateurPlayground, lireRepereCode, montrerCode } from './assistant/adaptateur.js';
+import { REGLE_BALISAGE } from './assistant/constats-balisage.js';
 
 let editor: CodeMirrorEditor;
 let selecteur: SelecteurExemples | null = null;
@@ -393,12 +398,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   // L'aperçu est une iframe srcdoc rechargée à chaque exécution — le
   // rattachement suit les rechargements, sinon le volet resterait sourd
   // après le premier « Exécuter ».
+  //
+  // Constats (#1009) : ceux de l'exécution (règles génériques, #996) ET ceux
+  // du code (analyse statique du balisage, #995), réévalués à chaque trace sur
+  // le code courant. « Me montrer » pose le curseur sur la ligne en cause
+  // (repère de code) ou révèle le contrôle de l'interface (registre).
+  const adaptateur = creerAdaptateurPlayground(editor, {
+    ouvrirVolet: () => selecteur?.basculer(true),
+  });
   mountDiagnosticPanel({
     frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
     toggleButtonId: 'diagnostic-btn',
     canSend: true,
     onSend: envoyerDiagnosticVersAssistant,
     emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
+    constats: {
+      contexte: () => ({
+        app: 'playground',
+        etat: { code: editor.getValue() },
+        origine: window.location.origin,
+      }),
+      regles: [...REGLES_GENERIQUES, REGLE_BALISAGE],
+    },
+    onMontrer: (repere) => {
+      const code = lireRepereCode(repere);
+      if (code) montrerCode(editor, code);
+      else void montrer(repere, { registre: REGISTRE, adaptateur });
+    },
   });
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
