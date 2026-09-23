@@ -230,6 +230,34 @@ const CAS: CasRegle[] = [
     },
   },
   {
+    // Le cas ordinaire d'un gros jeu dans le builder depuis #1020 : la source
+    // porte limit = max-items et coupe ; la couche dessine tout ce qu'elle reçoit.
+    regle: 'carte/jeu-tronque',
+    fautive: carte({
+      sourceAttrs: { limit: '1000' },
+      attrs: { 'max-items': '1000' },
+      couche: { renderedCount: 1000 },
+      source: charge(PARIS, 1000, {
+        meta: { page: 1, pageSize: 1000, total: 34955, truncated: true },
+      }),
+    }),
+    attendu: {
+      gravite: 'avertissement',
+      action: 'Composer par échelle, filtrer en amont ou relever le plafond',
+      reperes: [
+        'carto.couches.composition.composer',
+        'carto.elements.avancees.filtre',
+        'carto.elements.avancees.max-items',
+      ],
+      remedes: [
+        { libelle: 'Composer par échelle', repere: 'carto.couches.composition.composer' },
+        { libelle: 'Filtrer en amont', repere: 'carto.elements.avancees.filtre' },
+        { libelle: 'Relever le plafond', repere: 'carto.elements.avancees.max-items' },
+      ],
+      preuve: '1 000 / 34 955 lignes, pts : limit="1000"',
+    },
+  },
+  {
     regle: 'carte/volume-excessif',
     fautive: carte({
       attrs: { 'max-items': '50000' },
@@ -429,6 +457,84 @@ describe('règles carto — cas particuliers', () => {
     expect(recollerMilliers(texteDuConstat(c))).not.toContain(String(MAX_ITEMS_PAR_DEFAUT));
   });
 
+  describe('carte/jeu-tronque : les remèdes (#1021)', () => {
+    const tronquee = (m: Morceaux = {}): Trace =>
+      carte({
+        sourceAttrs: { limit: '1000' },
+        ...m,
+        source: charge(PARIS, 1000, {
+          meta: { page: 1, pageSize: 1000, total: 34955, truncated: true },
+        }),
+      });
+    const remedes = (t: Trace): string[] =>
+      deLaRegle(evaluerConstats(t, CTX, REGLES_BUILDER_CARTO), 'carte/jeu-tronque').flatMap((c) =>
+        (c.remedes ?? []).map((r) => r.repere)
+      );
+
+    it('les repères des remèdes sont ceux de `reperes`, dans le même ordre', () => {
+      for (const t of [tronquee(), tronquee({ attrs: { type: 'geoshape', 'geo-field': 'g' } })]) {
+        for (const c of deLaRegle(
+          evaluerConstats(t, CTX, REGLES_BUILDER_CARTO),
+          'carte/jeu-tronque'
+        )) {
+          expect((c.remedes ?? []).map((r) => r.repere)).toEqual([...c.reperes]);
+        }
+      }
+    });
+
+    it('« Me montrer » (premier repère) vise l’encart de composition', () => {
+      const [c] = deLaRegle(
+        evaluerConstats(tronquee(), CTX, REGLES_BUILDER_CARTO),
+        'carte/jeu-tronque'
+      );
+      expect(c.reperes[0]).toBe('carto.couches.composition.composer');
+    });
+
+    it('une couche de zones, ou déjà composée (min-zoom), ne se voit pas proposer la composition', () => {
+      expect(remedes(tronquee({ attrs: { type: 'geoshape', 'geo-field': 'g' } }))).toEqual([
+        'carto.elements.avancees.filtre',
+        'carto.elements.avancees.max-items',
+      ]);
+      expect(remedes(tronquee({ attrs: { 'min-zoom': '8' } }))).toEqual([
+        'carto.elements.avancees.filtre',
+        'carto.elements.avancees.max-items',
+      ]);
+    });
+
+    it('coupée par max-records, pas par limit : relever max-items n’y ferait rien', () => {
+      const t = carte({
+        sourceAttrs: { 'max-records': '500' },
+        source: charge(PARIS, 500, {
+          meta: { page: 1, pageSize: 500, total: 34955, truncated: true },
+        }),
+      });
+      const [c] = deLaRegle(evaluerConstats(t, CTX, REGLES_BUILDER_CARTO), 'carte/jeu-tronque');
+      expect(c.titre).toContain('max-records="500"');
+      expect(c.reperes).toEqual([
+        'carto.couches.composition.composer',
+        'carto.elements.avancees.filtre',
+      ]);
+      expect(c.action).toBe('Composer par échelle ou filtrer en amont');
+    });
+
+    it('sans total connu, la preuve le dit sans rien inventer', () => {
+      const t = carte({
+        sourceAttrs: { limit: '3' },
+        source: charge(PARIS, 3, { meta: { page: 1, pageSize: 3, truncated: true } }),
+      });
+      const [c] = deLaRegle(evaluerConstats(t, CTX, REGLES_BUILDER_CARTO), 'carte/jeu-tronque');
+      expect(c.preuve).toBe('3 (total inconnu) lignes, pts : limit="3"');
+    });
+
+    it('source complète : la règle se tait', () => {
+      const t = carte({
+        sourceAttrs: { limit: '1000' },
+        source: charge(PARIS, 3, { meta: { page: 1, pageSize: 1000, total: 3 } }),
+      });
+      expect(regles(t)).not.toContain('carte/jeu-tronque');
+    });
+  });
+
   it('max-items="0" désactive le plafond', () => {
     const t = carte({ attrs: { 'max-items': '0' }, source: charge(PARIS, 6000) });
     expect(regles(t)).not.toContain('carte/tronque-max-items');
@@ -529,6 +635,7 @@ describe('REGLES_BUILDER_CARTO — composition', () => {
       'pipeline/afficheur-inerte',
       'pipeline/lignes-ignorees',
       'pipeline/points-empiles',
+      'pipeline/tronque',
       'pipeline/zero-ligne',
     ]);
     for (const id of GENERIQUES_REMPLACEES) expect(generiques).toContain(id);
@@ -583,9 +690,23 @@ describe('REGLES_BUILDER_CARTO — composition', () => {
         }),
       ],
     },
+    {
+      generique: 'pipeline/tronque',
+      fixtures: [
+        carte({
+          sourceAttrs: { limit: '1000' },
+          source: charge(PARIS, 1000, {
+            meta: { page: 1, pageSize: 1000, total: 34955, truncated: true },
+          }),
+        }),
+        carte({
+          source: charge(PARIS, 3, { meta: { page: 1, pageSize: 3, truncated: true } }),
+        }),
+      ],
+    },
   ];
 
-  it('couvre les quatre remplacées, et elles seules', () => {
+  it('couvre les cinq remplacées, et elles seules', () => {
     expect(COUVERTURE.map((c) => c.generique).sort()).toEqual([...GENERIQUES_REMPLACEES].sort());
   });
 
@@ -634,7 +755,7 @@ describe('REGLES_BUILDER_CARTO — composition', () => {
     ]);
   });
 
-  it('pipeline/tronque et carte/tronque-max-items portent sur deux faits distincts', () => {
+  it('carte/jeu-tronque et carte/tronque-max-items portent sur deux faits distincts', () => {
     // Fait 1 : la SOURCE a coupé (limit / max-records, meta.truncated) — la
     // couche dessine tout ce qu'elle reçoit.
     const source = carte({
@@ -645,7 +766,7 @@ describe('REGLES_BUILDER_CARTO — composition', () => {
       }),
     });
     expect(evaluerConstats(source, CTX, REGLES_BUILDER_CARTO).map((c) => c.regle)).toEqual([
-      'pipeline/tronque',
+      'carte/jeu-tronque',
     ]);
     // Fait 2 : la source a tout livré, c'est la COUCHE qui coupe à max-items.
     const couche = CAS.find((c) => c.regle === 'carte/tronque-max-items')!.fautive;
@@ -665,7 +786,7 @@ describe('REGLES_BUILDER_CARTO — composition', () => {
       evaluerConstats(deux, CTX, REGLES_BUILDER_CARTO)
         .map((c) => c.regle)
         .sort()
-    ).toEqual(['carte/tronque-max-items', 'pipeline/tronque']);
+    ).toEqual(['carte/jeu-tronque', 'carte/tronque-max-items']);
   });
 
   it('MAX_ITEMS_PAR_DEFAUT suit le défaut de max-items dans le custom-elements manifest', () => {

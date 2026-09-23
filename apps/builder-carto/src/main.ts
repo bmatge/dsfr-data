@@ -688,7 +688,8 @@ function renderCompositionEchelle() {
         zoom ${MIN_ZOOM_POINTS}, les points.
       </p>
       <button type="button" id="btn-composer-echelle" class="fr-btn fr-btn--secondary fr-btn--sm"
-              data-repere="carto.couches.composition.composer">Composer par échelle</button>
+              data-repere="carto.couches.composition.composer"
+              data-prerequis="couche-active composition-proposee">Composer par échelle</button>
     </div>`;
   document
     .getElementById('btn-composer-echelle')

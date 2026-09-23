@@ -43,6 +43,29 @@ export const PREREQUIS = {
     repereQuiLeve: 'carto.couches.geo-field',
     verifier: (etat) => (coucheActive(etat)?.geoField ?? '').trim() !== '',
   },
+  /**
+   * L'encart « Composer par échelle » (#1021) n'existe que sur une couche de
+   * données, ni agrégée ni déjà composée, dont un champ de code département
+   * ou région a été détecté. Le constat « jeu tronqué » vise une couche
+   * précise : si ce n'est pas la couche active, c'est elle qu'il faut choisir.
+   * Le dépassement du plafond, lui, n'est pas dans l'état (total rapporté
+   * par l'aperçu) : le constat qui cite ce repère l'a déjà établi.
+   */
+  'composition-proposee': {
+    message:
+      'La composition par échelle se propose sur une couche de points dont les données portent un code département ou région : sélectionnez cette couche.',
+    repereQuiLeve: 'carto.couches.liste',
+    verifier: (etat) => {
+      const couche = coucheActive(etat);
+      return (
+        couche !== undefined &&
+        Boolean(couche.source) &&
+        !couche.agregat &&
+        couche.territoire !== null &&
+        !etat.layers.some((l) => l.agregat?.depuis === couche.id)
+      );
+    },
+  },
   'popup-champs': {
     message: 'Choisissez les champs à afficher dans la fiche.',
     repereQuiLeve: 'carto.elements.clic.popup-fields',

@@ -6,6 +6,7 @@ import type {
   GraviteConstat,
   MessageAssistant,
   ModeReperage,
+  RemedeConstat,
   SuggestionAssistant,
 } from '@dsfr-data/shared';
 import { PINNED } from './chrome-breakpoints.js';
@@ -213,6 +214,7 @@ app-assistant{display:contents}
 .assistant-recap li[data-gravite="erreur"] .assistant-recap-constat::before{color:var(--text-default-error)}
 .assistant-recap li[data-gravite="avertissement"] .assistant-recap-constat::before{color:var(--text-default-warning)}
 .assistant-recap .fr-link{margin-top:.75rem;font-size:.8125rem}
+.assistant-recap .assistant-remedes{flex:1 1 100%;flex-direction:row;flex-wrap:wrap}
 .assistant-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0 0}
 .assistant-bouton{display:inline-flex;align-items:center;gap:.375rem;min-height:2.75rem;margin:0;padding:.5rem 1rem;border:1px solid var(--background-action-high-blue-france);border-radius:.375rem;font:inherit;font-size:.875rem;font-weight:500;line-height:1.25rem;text-decoration:none;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);background-image:none;cursor:pointer}
 .assistant-bouton{--hover:var(--background-action-high-blue-france-hover);--active:var(--background-action-high-blue-france-active)}
@@ -622,20 +624,25 @@ export class AppAssistant extends LitElement {
             <ul>
               ${resumes.map((c, i) => {
                 const id = `${titreId}-${i}`;
+                const remedes = c.remedes ?? [];
                 return html`<li data-gravite=${c.gravite}>
                   <span class="assistant-recap-constat ${ICONES_GRAVITE[c.gravite]}" id=${id}
                     ><span class="fr-sr-only">${LIBELLES_GRAVITE[c.gravite]} : </span
                     >${c.titre}</span
                   >
-                  <button
-                    type="button"
-                    class="assistant-bouton assistant-bouton--secondaire fr-icon-eye-line"
-                    aria-describedby=${id}
-                    ?disabled=${c.reperes.length === 0}
-                    @click=${() => this._montrer(c.reperes[0])}
-                  >
-                    Me montrer
-                  </button>
+                  ${
+                    remedes.length > 0
+                      ? this._renderRemedes(remedes, id)
+                      : html`<button
+                          type="button"
+                          class="assistant-bouton assistant-bouton--secondaire fr-icon-eye-line"
+                          aria-describedby=${id}
+                          ?disabled=${c.reperes.length === 0}
+                          @click=${() => this._montrer(c.reperes[0])}
+                        >
+                          Me montrer
+                        </button>`
+                  }
                 </li>`;
               })}
             </ul>
@@ -657,6 +664,30 @@ export class AppAssistant extends LitElement {
         </div>
       </div>
     </section>`;
+  }
+
+  /**
+   * Remèdes au choix d'un constat (#1021) : un bouton par remède, qui montre
+   * son repère — le même `assistant-montrer` que « Me montrer ». Chaque
+   * bouton est décrit par le titre du constat.
+   */
+  private _renderRemedes(remedes: readonly RemedeConstat[], constatId: string): TemplateResult {
+    return html`<ul class="assistant-remedes" aria-label="Remèdes au choix">
+      ${remedes.map(
+        (r) =>
+          html`<li>
+            <button
+              type="button"
+              class="assistant-bouton assistant-bouton--secondaire fr-icon-eye-line"
+              aria-describedby=${constatId}
+              data-remede=${r.repere}
+              @click=${() => this._montrer(r.repere)}
+            >
+              ${r.libelle}
+            </button>
+          </li>`
+      )}
+    </ul>`;
   }
 
   private _renderCandidat(c: CandidatAssistant): TemplateResult {
