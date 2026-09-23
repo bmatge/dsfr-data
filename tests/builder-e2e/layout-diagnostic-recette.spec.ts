@@ -35,7 +35,8 @@ interface AppSousTest {
 
 const APPS: AppSousTest[] = [
   { nom: 'Builder', url: '/apps/builder/', mode: 'fullscreen' },
-  { nom: 'Assistant IA', url: '/apps/builder-ia/', mode: 'fullscreen' },
+  // `?ancien=1` : sans lui, l'ancien Assistant redirige vers le Studio IA (#1081).
+  { nom: 'Assistant IA (ancien)', url: '/apps/builder-ia/?ancien=1', mode: 'fullscreen' },
   { nom: 'Playground', url: '/apps/playground/', mode: 'sticky-left' },
   { nom: 'Studio', url: '/apps/studio/', mode: 'page-scroll' },
   // La Carto assume un layout maison (canevas plein ecran + panneaux

@@ -1004,17 +1004,19 @@ describe('mountDiagnosticPanel', () => {
     mounted.destroy();
   });
 
-  it('par défaut, le bouton reste « Envoyer à l’assistant » (apps conversationnelles)', async () => {
+  it('apps conversationnelles (défaut `envoyer`) : même libellé « Demander à l’assistant » (#1081)', async () => {
     const mounted = mountDiagnosticPanel({ canSend: true });
     const panneau = mounted.panel as unknown as AppDiagnosticPanel;
     expect(panneau.sendAction).toBe('envoyer');
     panneau.toggle(true);
     await panneau.updateComplete;
-    const envoyer = Array.from(panneau.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Envoyer à l’assistant')
-    )!;
-    // Sans trace, rien à envoyer.
-    expect(envoyer.getAttribute('aria-disabled')).toBe('true');
+    const boutons = Array.from(panneau.querySelectorAll('button'));
+    // « Envoyer à l'assistant » a disparu : un libellé unique pour les deux gestes.
+    expect(boutons.some((b) => b.textContent?.includes('Envoyer à l’assistant'))).toBe(false);
+    const demander = boutons.find((b) => b.textContent?.includes('Demander à l’assistant'))!;
+    expect(demander.classList.contains('fr-icon-question-answer-line')).toBe(true);
+    // Sans trace, rien à poser dans la conversation.
+    expect(demander.getAttribute('aria-disabled')).toBe('true');
     mounted.destroy();
   });
 

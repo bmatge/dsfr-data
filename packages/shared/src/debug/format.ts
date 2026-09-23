@@ -3,7 +3,7 @@
  *
  * UNE seule implémentation du rendu textuel, consommée à l'identique par :
  *   - le bouton « Copier le diagnostic » du volet ;
- *   - le bouton « Envoyer à l'assistant » des apps conversationnelles ;
+ *   - le bouton « Demander à l'assistant » des apps conversationnelles ;
  *   - l'outil `trace_pipeline` de la boucle agentique (#607).
  *
  * Conséquence voulue : **ce que l'utilisateur voit et ce que l'assistant

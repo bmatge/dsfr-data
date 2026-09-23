@@ -18,19 +18,40 @@ import {
   mountDiagnosticPanel,
   resolveTransport,
   recupererDiagnostic,
+  fetchServerConfig,
+  rerankSkills,
   type MountedDiagnostic,
+  type ReclasserSkills,
+  type ResolvedTransport,
+  type UserIAConfig,
 } from '@dsfr-data/shared';
 import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
 import { state } from './state.js';
-import { loadSavedSources, handleSourceChange } from './sources.js';
+import {
+  loadSavedSources,
+  handleSourceChange,
+  remplirApercuDonnees,
+  suggestionsPourChamps,
+} from './sources.js';
 import {
   addMessage,
   clearChat,
+  definirEnvoiSuggestion,
   removeThinking,
   showThinking,
   updateThinkingSteps,
 } from './ui/chat.js';
+import { ajouterAuxFavoris, exporterImage, ouvrirDansPlayground } from './ui/actions.js';
+import {
+  chargerConfigIA,
+  enregistrerConfigIA,
+  lireConfigFormulaire,
+  majBadgeIA,
+  reinitialiserConfigIA,
+  sonderCapacites,
+  surChangementModele,
+} from './ia/ia-config.js';
 import { currentExportHtml, renderPreview, schedulePreviewRender } from './ui/preview.js';
 import { runStudioLoop } from './ia/agent-loop.js';
 import { buildSystemPrompt } from './ia/system-prompt.js';
@@ -44,6 +65,36 @@ let diagnosticMonte: MountedDiagnostic | undefined;
 
 const SESSION_DOC_KEY = 'studio-document';
 
+/** Réponse quand aucune IA n'est joignable : le réglage est ICI, plus dans l'ancien Assistant. */
+export const MESSAGE_IA_NON_CONFIGUREE =
+  'Aucune configuration IA disponible : renseignez un jeton d’API dans « Configuration IA », au-dessus du chat, ou utilisez un déploiement avec jeton serveur.';
+
+/** Relances proposées après un tour qui a modifié le document. */
+export const SUGGESTIONS_APRES_COMPOSITION = [
+  'Ajouter des filtres partagés',
+  'Ajouter un indicateur clé',
+  'Ajouter un tableau des données',
+];
+
+/**
+ * Reclassement des skills par `/v1/rerank` (#514) : seulement avec un jeton
+ * UTILISATEUR (en mode serveur, le jeton n'atteint jamais le navigateur) et
+ * un rerank confirmé par la sonde. Sinon, l'ordre du scoring local.
+ */
+export function reclasseurPour(
+  transport: Pick<ResolvedTransport, 'mode' | 'capacites'>,
+  user: UserIAConfig
+): ReclasserSkills | undefined {
+  const { rerank, rerankModel } = transport.capacites;
+  if (transport.mode !== 'user' || !rerank || !rerankModel || !user.token) return undefined;
+  return (message, candidates) =>
+    rerankSkills(message, candidates, {
+      apiUrl: user.apiUrl,
+      token: user.token,
+      model: rerankModel,
+    });
+}
+
 async function sendMessage(): Promise<void> {
   const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   const text = input?.value.trim();
@@ -55,13 +106,13 @@ async function sendMessage(): Promise<void> {
   showThinking();
 
   try {
-    const transport = await resolveTransport();
+    const user = lireConfigFormulaire();
+    const transport = await resolveTransport({ user });
     if (transport.mode === 'none') {
       removeThinking();
-      addMessage(
-        'assistant',
-        "Aucune configuration IA disponible : configure une clé API dans l'Assistant IA (elle est partagée), ou utilise un déploiement avec jeton serveur."
-      );
+      addMessage('assistant', MESSAGE_IA_NON_CONFIGUREE);
+      const section = document.getElementById('section-ia-config') as HTMLDetailsElement | null;
+      if (section) section.open = true;
       return;
     }
 
@@ -108,11 +159,15 @@ async function sendMessage(): Promise<void> {
       // Le code COPIÉ par l'utilisateur, relu par l'assistant avant d'en
       // parler (#787) — jamais décrit de mémoire.
       generatedCode: currentExportHtml,
+      reclasserSkills: reclasseurPour(transport, user),
       extra: { max_completion_tokens: 4096 },
     });
 
     removeThinking();
-    addMessage('assistant', result.text || 'Document mis à jour.');
+    addMessage('assistant', result.text || 'Document mis à jour.', {
+      suggestions: result.applied > 0 ? SUGGESTIONS_APRES_COMPOSITION : [],
+      etapes: result.steps,
+    });
   } catch (err) {
     removeThinking();
     addMessage('assistant', `Erreur : ${err instanceof Error ? err.message : String(err)}`);
@@ -192,20 +247,72 @@ function copyCode(): void {
   void navigator.clipboard.writeText(code).then(() => toastSuccess('Code copié !'));
 }
 
-async function showIAModeBadge(): Promise<void> {
-  const badge = document.getElementById('ia-mode-badge');
-  if (!badge) return;
-  const transport = await resolveTransport();
-  if (transport.mode === 'server') {
-    badge.textContent = 'IA serveur';
-    badge.classList.add('fr-badge--success');
-  } else if (transport.mode === 'user') {
-    badge.textContent = 'Clé perso';
-    badge.classList.add('fr-badge--info');
-  } else {
-    badge.textContent = 'IA non configurée';
-    badge.classList.add('fr-badge--warning');
+/** Configuration IA : formulaire rempli une fois la config serveur connue. */
+function initConfigIA(): void {
+  chargerConfigIA();
+  majBadgeIA();
+  void fetchServerConfig().then(() => {
+    chargerConfigIA();
+    majBadgeIA();
+  });
+  document.getElementById('ia-model')?.addEventListener('change', surChangementModele);
+  document.getElementById('ia-token')?.addEventListener('input', majBadgeIA);
+  document.getElementById('ia-save-btn')?.addEventListener('click', enregistrerConfigIA);
+  document.getElementById('ia-reset-btn')?.addEventListener('click', reinitialiserConfigIA);
+  document
+    .getElementById('probe-capabilities-btn')
+    ?.addEventListener('click', () => void sonderCapacites());
+}
+
+/** « Voir les données » : champs et premières lignes de la source chargée. */
+function initApercuDonnees(): void {
+  const dialog = document.getElementById('studio-data-dialog') as HTMLDialogElement | null;
+  const body = document.getElementById('studio-data-body');
+  document.getElementById('show-data-btn')?.addEventListener('click', () => {
+    if (!dialog || !body) return;
+    remplirApercuDonnees(body);
+    dialog.showModal();
+  });
+  document.getElementById('studio-data-close')?.addEventListener('click', () => dialog?.close());
+}
+
+/** Source chargée : l'annoncer dans le chat, avec des premières demandes possibles. */
+function surSourceChargee(source: { name: string }): void {
+  addMessage(
+    'assistant',
+    `Source « ${source.name} » chargée (${state.localData?.length ?? 0} lignes, ${state.fields.length} champs). Décrivez le tableau de bord souhaité — vous pouvez coller votre texte éditorial.`,
+    { suggestions: suggestionsPourChamps(state.fields) }
+  );
+  persistSession();
+}
+
+/**
+ * Source à charger au démarrage :
+ *   - celle du document repris (refresh en cours de travail) : sans elle,
+ *     l'assistant retrouvait le document mais plus ses données ;
+ *   - sinon celle ouverte depuis l'app Sources, annoncée dans le chat comme
+ *     dans l'ancien Assistant IA.
+ */
+function restaurerSource(preselectionId: string | null): void {
+  const select = document.getElementById('saved-source') as HTMLSelectElement | null;
+  if (!select) return;
+  const disponible = (id: string) => Array.from(select.options).some((o) => o.value === id);
+  const sourceDuDocument = state.document.sources[0]?.id;
+  if (state.messages.length > 0 && sourceDuDocument && disponible(sourceDuDocument)) {
+    select.value = sourceDuDocument;
+    handleSourceChange();
+  } else if (preselectionId && disponible(preselectionId)) {
+    select.value = preselectionId;
+    handleSourceChange(state.messages.length === 0 ? surSourceChargee : undefined);
   }
+}
+
+/** Une suggestion cliquée part comme un message tapé. */
+function envoyerTexte(texte: string): void {
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  if (!input || state.isThinking) return;
+  input.value = texte;
+  void sendMessage();
 }
 
 function init(): void {
@@ -221,20 +328,17 @@ function init(): void {
     emptyHint: 'Décrivez un tableau de bord pour observer ce qui transite entre les composants.',
   });
 
-  loadSavedSources();
+  definirEnvoiSuggestion(envoyerTexte);
+  const preselection = loadSavedSources();
   restoreSession();
   renderPreview();
-  void showIAModeBadge();
+  initConfigIA();
+  initApercuDonnees();
 
   document.getElementById('saved-source')?.addEventListener('change', () => {
-    handleSourceChange((source) => {
-      addMessage(
-        'assistant',
-        `Source « ${source.name} » chargée (${state.localData?.length ?? 0} lignes, ${state.fields.length} champs). Décrivez le tableau de bord souhaité — vous pouvez coller votre texte éditorial.`
-      );
-      persistSession();
-    });
+    handleSourceChange(surSourceChargee);
   });
+  restaurerSource(preselection?.id ?? null);
 
   document.getElementById('chat-send-btn')?.addEventListener('click', () => void sendMessage());
   document.getElementById('chat-input')?.addEventListener('keydown', (e) => {
@@ -250,6 +354,18 @@ function init(): void {
   document.getElementById('tour-btn')?.addEventListener('click', () => startTour(STUDIO_TOUR));
   startTourIfFirstVisit(STUDIO_TOUR);
   document.getElementById('copy-code-btn')?.addEventListener('click', copyCode);
+  document
+    .getElementById('save-favorite-btn')
+    ?.addEventListener('click', () => void ajouterAuxFavoris());
+  document
+    .getElementById('open-playground-btn')
+    ?.addEventListener('click', () => ouvrirDansPlayground());
+  document
+    .getElementById('export-png-btn')
+    ?.addEventListener('click', () => void exporterImage('png'));
+  document
+    .getElementById('export-jpg-btn')
+    ?.addEventListener('click', () => void exporterImage('jpg'));
 
   if (state.messages.length === 0) {
     addMessage(

@@ -14,7 +14,7 @@
 | 1 | Périmètre du lexique | **Cœur de 15 actions + extensions par app** (§2). Pas de lexique fermé : les libellés de formulaires, d'onglets ou de navigation ne sont pas des « actions ». |
 | 2 | Lint | Le lint (extension de `npm run check:accents`) est **bloquant** sur les accents manquants et sur une **liste de formes proscrites** (§3). Pas de liste blanche. |
 | 3 | Navigation | **Pas de regroupement des entrées de niveau 1** ni de refonte des tools du header (§6.5 / A3 / A4 / A5 de l'audit hors périmètre). |
-| 4 | Apps conversationnelles | Dans Assistant IA et Studio IA, **le geste primaire reste l'envoi du chat**. L'AppActionBar porte les actions sur l'artefact ; pas de « Générer » primaire. |
+| 4 | Apps conversationnelles | Dans le Studio IA (et l'ancien Assistant IA), **le geste primaire reste l'envoi du chat**. L'AppActionBar porte les actions sur l'artefact ; pas de « Générer » primaire. |
 | 5 | Nœuds Pipeline (B6) | Libellés **français** + nom du composant en `<code>` (§7). |
 | 6 | Onboarding | Le `TourService` unique existe déjà (`packages/shared/src/ui/product-tour.ts`) ; « Visite guidée » est son seul point d'entrée. |
 
@@ -65,7 +65,7 @@ Notes :
   que « Visite guidée » ; le rail du volet reste l'affordance permanente.
 - **Nouveau** vs **Réinitialiser** : *Nouveau* crée un objet vierge (Carto, Dashboard) ;
   *Réinitialiser* ramène l'objet en cours à son état de départ (Playground : recharger l'exemple ;
-  Assistant IA : vider le formulaire de configuration).
+  Studio IA et ancien Assistant IA : oublier la configuration IA personnelle).
 - **Ouvrir dans ▾** et **Exporter ▾** sont des menus : leur libellé est fixe, ce sont les entrées
   du menu qui varient par app (§2.3).
 - **Supprimer** en liste (favoris, lignes, nœuds) est un bouton icône avec `aria-label="Supprimer"`
@@ -81,10 +81,11 @@ sont les seules admises en plus du cœur.
 | Sources | **Nouvelle connexion** | primaire | créer une connexion à une source distante |
 | Sources | **Créer une source manuelle** · **Joindre deux sources** | secondaire | créer une source locale / une jointure |
 | Sources | **Aperçu** (ligne de liste) | tertiaire | ouvrir l'aperçu d'une source dans le panneau |
-| Assistant IA · Studio IA | **Envoyer** | primaire (zone de chat) | envoyer le message — geste primaire de l'app |
-| Assistant IA · Studio IA | **Effacer la conversation** | tertiaire | vider l'historique du chat |
-| Assistant IA | **Ajouter un paramètre** | tertiaire | ajouter une ligne au formulaire de configuration |
-| Assistant IA | **Sonder les capacités** | tertiaire | interroger le gateway Albert |
+| Studio IA · ancien Assistant IA | **Envoyer** | primaire (zone de chat) | envoyer le message — geste primaire de l'app |
+| Studio IA · ancien Assistant IA | **Effacer la conversation** | tertiaire | vider l'historique du chat |
+| Ancien Assistant IA | **Ajouter un paramètre** | tertiaire | ajouter une ligne au formulaire de configuration |
+| Studio IA · ancien Assistant IA | **Sonder les capacités** | tertiaire | interroger le gateway Albert (section « Configuration IA ») |
+| Studio IA | **Voir les données** | tertiaire | ouvrir l'aperçu de la source chargée : champs typés et 20 premières lignes (#1081) |
 | Playground | **Ajouter des dépendances** | tertiaire | injecter les balises CSS/JS nécessaires |
 | Pipeline | **Ajouter une étape ▾** | secondaire (menu) | insérer un nœud (voir §7 pour les entrées) |
 | Pipeline | **Réorganiser** · **Recentrer** | tertiaire | actions de canevas |
@@ -100,8 +101,7 @@ sont les seules admises en plus du cœur.
 | Toutes (panneau Assistant) | **Nouvelle conversation** · **Réduire l'assistant** | icône seule (`fr-icon-refresh-line`, `fr-icon-subtract-line`) | en-tête du panneau, format des assistants `proto-ecosysteme-sircom` / `proto-catalogue-donnees` |
 | Toutes (panneau Assistant) | **Continuer** | bouton plein dans la bulle | montrer de nouveau un repère après avoir levé le prérequis signalé |
 | Toutes (volet Diagnostic) | **Me montrer** | tertiaire sans contour, `fr-icon-eye-line` | désigner le contrôle qui corrige un constat (#1001) ; désactivé quand le constat ne cite aucun repère. Le volet émet `constat-montrer`, l'app résout (`montrer()`) |
-| Apps avec assistant contextuel (volet Diagnostic) | **Demander à l'assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` de l'app, sans la quitter (#1016) : il lit les mêmes constats que le volet. Actif même sans trace. Option `envoi: 'demander'` de `mountDiagnosticPanel()`. Carto, Créer un graphique, Tableau de bord, Playground, Pipeline (#1016, #1017, #1018) |
-| Apps conversationnelles (volet Diagnostic) | **Envoyer à l'assistant** | tertiaire, `fr-icon-send-plane-fill` | déposer le texte du diagnostic dans le chat de l'app (Assistant IA, Studio IA), qui n'ont pas d'assistant contextuel : leur chat en tient lieu. Désactivé sans trace. Défaut de `mountDiagnosticPanel()` (`envoi: 'envoyer'`) ; une app passe à « Demander » quand elle monte son assistant contextuel |
+| Toutes (volet Diagnostic) | **Demander à l'assistant** | tertiaire, `fr-icon-question-answer-line` | libellé UNIQUE depuis #1081 (l'ancien libellé d'envoi a disparu), deux gestes selon l'app. **Apps avec assistant contextuel** (Carto, Créer un graphique, Tableau de bord, Playground, Pipeline — #1016, #1017, #1018) : ouvrir le panneau `app-assistant` de l'app, sans la quitter ; il lit les mêmes constats que le volet ; actif même sans trace ; option `envoi: 'demander'` de `mountDiagnosticPanel()`. **Apps conversationnelles** (Studio IA, ancien Assistant IA) : poser le texte du diagnostic dans le champ de LEUR chat, sans l'envoyer ni naviguer — l'usager relit ce qui part vers le modèle et complète sa question ; désactivé sans trace ; défaut de `mountDiagnosticPanel()` (`envoi: 'envoyer'`) |
 | Toutes (panneau Assistant) | **Construire pour moi dans le Studio** | bouton du panneau | passation vers le Studio IA : le diagnostic de l'app est déposé (`transmettreDiagnostic`) puis posé, sans être envoyé, dans le champ du Studio (`recupererDiagnostic()`) (#1016) |
 
 Toute nouvelle extension s'ajoute à ce tableau **dans la PR qui l'introduit**.
@@ -118,8 +118,8 @@ référence des destinations et formats par app.
 | Builder (Créer un graphique) | Playground · Pipeline · Tableau de bord | Image PNG · Image JPG |
 | Carto (Créer une carte) | Playground · Pipeline | Image PNG · Image JPG |
 | Dashboard (Créer un tableau de bord) | — | Page HTML · Image PNG · Image JPG |
-| Assistant IA | Playground · Pipeline · Tableau de bord | Image PNG · Image JPG |
-| Studio IA | Tableau de bord | Image PNG · Image JPG |
+| Ancien Assistant IA | Playground | Image PNG · Image JPG |
+| Studio IA | Tableau de bord · Playground | Image PNG · Image JPG |
 | Playground | Pipeline · Tableau de bord | Image PNG · Image JPG |
 | Pipeline | Playground | — |
 | Sources | Builder (« Utiliser dans le Builder » devient l'entrée *Builder*) | Grist · JSON |
@@ -231,8 +231,8 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 | Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · **Diagnostic** · **Assistant** |
 | Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau · **Diagnostic** · **Assistant** |
 | Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau · **Diagnostic** · **Assistant** |
-| Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · **Diagnostic** |
-| Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation · **Diagnostic** |
+| Ancien Assistant IA (`?ancien=1`) | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · **Diagnostic** |
+| Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · Effacer la conversation · **Diagnostic** |
 | Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · **Diagnostic** · **Assistant** · Réinitialiser |
 | Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer · **Diagnostic** · **Assistant** |
 | Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée · **Assistant** |
@@ -312,9 +312,10 @@ du tablist (Playground · Favoris · Image).
   porté par l'AppActionBar.
 - `aria-current="page"` sur l'entrée de nav active, header `position: sticky`.
 - Fil d'Ariane (`fr-breadcrumb`) sur les pages plein cadre : Sources, Favoris, Suivi, Admin, Guide.
-- Noms de page canoniques : Accueil · Sources · Assistant IA · Studio IA · Créer un graphique ·
+- Noms de page canoniques : Accueil · Sources · Studio IA · Créer un graphique ·
   Créer une carte · Créer un tableau de bord · Playground · Pipeline · Suivi · Admin · Favoris ·
-  Guide · Composants · Feuille de route.
+  Guide · Composants · Feuille de route. Le Studio IA remplace l'Assistant IA comme entrée
+  usager (#1081) : `apps/builder-ia/` redirige vers lui, sauf avec `?ancien=1`.
 - **Nav réservée** (#575) : « Suivi » et « Admin » ne sont proposées qu'aux administrateurs
   connectés (`navItemsFor(user)` dans `app-header`), sans rechargement à la connexion. C'est de
   l'ergonomie : les apps et les routes serveur gardent leurs contrôles d'accès.

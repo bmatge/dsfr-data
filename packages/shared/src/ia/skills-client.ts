@@ -14,7 +14,7 @@
  * App-side (fetch) : exporte par `index.ts`, jamais par `lib.ts` (#319).
  */
 
-import { searchSkills, type MatchableSkill } from './skill-matching.js';
+import { searchSkills, type MatchableSkill, type SkillMatch } from './skill-matching.js';
 
 export interface PublishedSkill extends MatchableSkill {
   sections?: Record<string, string>;
@@ -50,13 +50,51 @@ export function resetSkillsCache(): void {
   cache = undefined;
 }
 
-/** Skills pertinentes pour un message — contenu concatene, borne. */
-export function relevantSkillsText(skills: PublishedSkill[], message: string): string {
-  const matches = searchSkills(skills, message, { limit: 3 });
+/** Nombre de fiches rendues au modele par `get_relevant_skills`. */
+const RELEVANT_LIMIT = 3;
+/** Candidates soumises au reclassement, avant de garder les premieres. */
+const RERANK_POOL = 10;
+
+/**
+ * Reclassement optionnel des candidates (#514) : rend les MEMES candidates,
+ * dans un autre ordre. Injecte par l'appelant, qui seul connait le gateway et
+ * son jeton (`rerankSkills` de `skill-rerank.ts`).
+ */
+export type ReclasserSkills = (
+  message: string,
+  candidates: Array<SkillMatch<PublishedSkill>>
+) => Promise<Array<SkillMatch<PublishedSkill>>>;
+
+function joindre(matches: Array<SkillMatch<PublishedSkill>>): string {
   if (matches.length === 0) {
     return 'Aucune skill ne correspond. Essaie des mots-clés plus larges ou get_skill par id.';
   }
   return matches.map(({ skill }) => skill.sections?.guide ?? skill.content).join('\n\n---\n\n');
+}
+
+/** Skills pertinentes pour un message — contenu concatene, borne. */
+export function relevantSkillsText(skills: PublishedSkill[], message: string): string {
+  return joindre(searchSkills(skills, message, { limit: RELEVANT_LIMIT }));
+}
+
+/**
+ * Variante reclassee : le scoring local retient un vivier, le reclasseur
+ * l'ordonne, on garde les premieres. Le reclasseur ne peut qu'ORDONNER ce
+ * que le moteur local a retenu ; sur une anomalie il rend l'ordre local.
+ */
+export async function relevantSkillsTextReclasse(
+  skills: PublishedSkill[],
+  message: string,
+  reclasser: ReclasserSkills
+): Promise<string> {
+  const vivier = searchSkills(skills, message, { limit: RERANK_POOL });
+  let ordre = vivier;
+  try {
+    ordre = await reclasser(message, vivier);
+  } catch {
+    // l'ordre local fait foi
+  }
+  return joindre(ordre.slice(0, RELEVANT_LIMIT));
 }
 
 /** Une skill par id, section optionnelle (guide | reference | exemples | pieges | tout). */
@@ -129,12 +167,16 @@ export const SKILLS_INDISPONIBLES =
 export async function executerOutilSkill(
   name: string,
   args: Record<string, unknown>,
-  charger: () => Promise<PublishedSkill[] | null> = () => loadSkills()
+  charger: () => Promise<PublishedSkill[] | null> = () => loadSkills(),
+  reclasser?: ReclasserSkills
 ): Promise<string> {
   const skills = await charger();
   if (!skills) return SKILLS_INDISPONIBLES;
   if (name === 'get_relevant_skills') {
-    return relevantSkillsText(skills, typeof args.message === 'string' ? args.message : '');
+    const message = typeof args.message === 'string' ? args.message : '';
+    return reclasser
+      ? relevantSkillsTextReclasse(skills, message, reclasser)
+      : relevantSkillsText(skills, message);
   }
   if (name === 'get_skill') {
     return skillText(

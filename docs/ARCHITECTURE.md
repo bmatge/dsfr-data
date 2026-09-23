@@ -315,7 +315,7 @@ Le seuil de retenue est 6 : un trigger, exact ou disperse, le franchit seul. La 
 
 Le builder-IA garde **par-dessus** ses enrichissements contextuels (type de source ODS/Grist, intentions metier) : il connait la source chargee, le MCP non.
 
-**Option souveraine — rerank Albert** (`apps/builder-ia/src/ia/skill-rerank.ts`) : reclasse les candidates via `/v1/rerank`. Il ne fait que REORDONNER ce que le moteur local a deja retenu, jamais produire des candidates. Trois garde-fous : capacite **desactivee par defaut** tant que `scripts/probe-albert.ts` ne l'a pas confirmee (meme doctrine que `jsonSchema`/`toolCalling`, mais sans activation par defaut — un echec y couterait un aller-retour reseau a chaque recherche) ; repli sur l'ordre local a la moindre anomalie (HTTP, JSON, index hors bornes, score manquant, timeout) ; et charge utile bornee a 10 candidates, nom + description seulement. Le serveur MCP ne l'embarque pas : il doit rester fonctionnel hors-ligne avec `--skills-file`.
+**Option souveraine — rerank Albert** (`packages/shared/src/ia/skill-rerank.ts`, promu du builder-IA en #1081 ; le Studio IA le passe a `executerOutilSkill` comme `reclasser`) : reclasse les candidates via `/v1/rerank`. Il ne fait que REORDONNER ce que le moteur local a deja retenu, jamais produire des candidates. Trois garde-fous : capacite **desactivee par defaut** tant que `scripts/probe-albert.ts` ne l'a pas confirmee (meme doctrine que `jsonSchema`/`toolCalling`, mais sans activation par defaut — un echec y couterait un aller-retour reseau a chaque recherche) ; repli sur l'ordre local a la moindre anomalie (HTTP, JSON, index hors bornes, score manquant, timeout) ; et charge utile bornee a 10 candidates, nom + description seulement. Le serveur MCP ne l'embarque pas : il doit rester fonctionnel hors-ligne avec `--skills-file`.
 
 **Règle** : apres avoir ajoute/modifie un attribut, un evenement, un slot ou une variable CSS d'un composant `dsfr-data-*`, ecrire le JSDoc puis lancer **`npm run build:skills`**. Pour un type de graphique, un operateur de filtre ou une fonction d'agregation, c'est le guide redige a la main de `skills.ts` qu'il faut mettre a jour.
 
@@ -412,9 +412,11 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
     admin/                      @dsfr-data/app-admin -- Administration (mode serveur)
     builder/                    @dsfr-data/app-builder -- Generateur visuel de graphiques
     builder-carto/              @dsfr-data/app-builder-carto -- Generateur de cartes Leaflet
-    builder-ia/                 @dsfr-data/app-builder-ia -- Generateur IA (Albert)
-    studio/                     @dsfr-data/app-studio -- Studio IA : dashboard multi-blocs
-                                par actions incrementales (#515) ; apercu = export (iframe srcdoc)
+    builder-ia/                 @dsfr-data/app-builder-ia -- ANCIEN Assistant IA : redirige vers le
+                                Studio IA, sauf `?ancien=1` (#1081) ; garde les skills (skills.ts)
+    studio/                     @dsfr-data/app-studio -- Studio IA, ENTREE USAGER de l'IA (#1081) :
+                                graphique ou dashboard multi-blocs par actions incrementales (#515) ;
+                                apercu = export (iframe srcdoc) ; porte la configuration IA
     dashboard/                  @dsfr-data/app-dashboard -- Editeur de tableaux de bord
     favorites/                  @dsfr-data/app-favorites -- Gestion des favoris
     grist-widgets/              @dsfr-data/app-grist-widgets -- Widgets embarquables Grist
@@ -618,7 +620,7 @@ n'est epingle en haut sur telephone, en portrait comme en paysage).
 - **La quiescence exige silence ET aucune etape en chargement.** Il n'existe aucun evenement « le pipeline a fini », et une commande remontante peut relancer la chaine bien apres le dernier evenement. `waitForQuiescence()` rend `false` au plafond plutot qu'un faux calme.
 - **Une etape en echec invalide ses donnees.** Sans ca, l'aval rapporterait le compte du dernier succes et un afficheur se dirait « alimente » sous une source tombee — le faux calme, applique a l'erreur.
 - **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
-- **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Envoyer a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
+- **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Demander a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
 - **Le module est lib-safe mais hors des bundles publies.** Exporte depuis les DEUX barrels de `shared` (`index.ts` ET `lib.ts`), parce que l'entree autonome `packages/core/src/index-debug.ts` en depend et que la frontiere #319 interdit a `core` le barrel racine. Aucun COMPOSANT ne l'importe : il n'entre donc dans aucun des six bundles publies. Verrouille par `tests/debug/standalone-bundle.test.ts`, qui grepe les bundles **et** verifie qu'aucun fichier de `components/` ne reference le collecteur — la seconde moitie attrape la regression avant meme le build.
 
 #### Journal reseau et console (#994, ADR-143 §3)
@@ -843,7 +845,7 @@ app-dist/
                           pipeline-helper (grist-widgets n'est pas copie dans app-dist/)
   favoris.html            Redirection -> apps/favorites/index.html
   builder.html            Redirection -> apps/builder/index.html
-  builderIA.html          Redirection -> apps/builder-ia/index.html
+  builderIA.html          Redirection -> apps/studio/index.html (#1081)
   playground.html         Redirection -> apps/playground/index.html
   sources.html            Redirection -> apps/sources/index.html
   dashboard.html          Redirection -> apps/dashboard/index.html
@@ -1081,11 +1083,13 @@ e2e/                         Playwright (config e2e/playwright.config.ts, serveu
 - Les dependances `lit` et `@lit` sont inlinees par le serveur de test pour eviter les problemes de resolution ESM dans jsdom.
 - La couverture inclut `packages/core/src/**/*.ts` et `packages/shared/src/**/*.ts` (sauf les barrels et `components/layout/**`), seuils 85 / 77 / 82 / 85 (#829).
 
-### 7.1 `tests/builder-e2e/` — trois specs bloquantes, le reste en recette MANUELLE
+### 7.1 `tests/builder-e2e/` — cinq specs bloquantes, le reste en recette MANUELLE
 
-> **Trois specs seulement tournent en CI** (`builder-e2e.yml`, #869) : `export-html-api-recette`
-> (61 cas, vert depuis #866), `builder-ia-recette` et `layout-diagnostic-recette` (43 cas).
-> 104 cas, 27 s, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
+> **Cinq specs seulement tournent en CI** (`builder-e2e.yml`, #869, #1081) : `export-html-api-recette`
+> (61 cas, vert depuis #866), `builder-ia-recette` et `layout-diagnostic-recette` (43 cas ; l'ancien
+> Assistant y est ouvert par `?ancien=1`), `studio-recette` (les 16 types rendus comme blocs du
+> Studio IA) et `studio-navigation-recette` (nav → Studio IA, redirection, echappement).
+> 125 cas, une quarantaine de secondes, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
 > dans aucun workflow : 56 cas rouges par dérive de sélecteurs (#868). État mesuré par spec :
 > `tests/builder-e2e/README.md`. Ne pas se fier au dossier entier comme à un garde-fou.
 
@@ -1155,7 +1159,7 @@ Les composants DSFR Chart (`map-chart`, `map-chart-reg`) sont des Web Components
 
 ### 10.1 Communication inter-apps (sessionStorage)
 
-Les builders et favoris envoient du code au playground via `sessionStorage` : (1) l'app source stocke `sessionStorage.setItem('playground-code', code)`, (2) navigue vers le playground avec `?from=builder` (ou `builder-ia`, `favorites`), (3) le playground lit `from`, charge le code et le supprime. `from` ∈ { `builder`, `builder-ia`, `favorites` }.
+Les builders et favoris envoient du code au playground via `sessionStorage` : (1) l'app source stocke `sessionStorage.setItem('playground-code', code)`, (2) navigue vers le playground avec `?from=builder` (ou `studio`, `builder-ia`, `favorites`), (3) le playground lit `from`, charge le code et le supprime. `from` ∈ { `builder`, `studio`, `builder-ia`, `favorites`, `pipeline-helper` }. Le lien de retour vers l'ancien Assistant porte `ancien=1`, sans quoi `apps/builder-ia/` redirigerait vers le Studio (#1081).
 
 ### 10.2 MariaDB
 

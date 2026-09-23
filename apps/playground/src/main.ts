@@ -246,13 +246,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const BACK_LABELS: Record<string, string> = {
     builder: 'Builder',
     'builder-ia': 'Builder IA',
+    studio: 'Studio IA',
     favorites: 'Favoris',
   };
   if (fromApp && Object.prototype.hasOwnProperty.call(BACK_LABELS, fromApp)) {
-    const backHref =
-      fromApp === 'builder' || fromApp === 'builder-ia'
-        ? appHref(fromApp as 'builder' | 'builder-ia', { from: 'playground' })
-        : appHref(fromApp as 'favorites');
+    // L'ancien Assistant IA redirige vers le Studio IA (#1081) : on y revient
+    // par son parametre d'echappement, sinon le lien menerait au Studio.
+    const retourParams: Record<string, string> | undefined =
+      fromApp === 'favorites'
+        ? undefined
+        : { from: 'playground', ...(fromApp === 'builder-ia' ? { ancien: '1' } : {}) };
+    const backHref = appHref(
+      fromApp as 'builder' | 'builder-ia' | 'studio' | 'favorites',
+      retourParams
+    );
     const backBar = document.createElement('div');
     backBar.className = 'fr-mb-1w';
     const link = document.createElement('a');
@@ -374,6 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     from === 'favorites' ||
     from === 'builder' ||
     from === 'builder-ia' ||
+    from === 'studio' ||
     from === 'pipeline-helper'
   ) {
     const savedCode = sessionStorage.getItem('playground-code');

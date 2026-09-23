@@ -7,7 +7,8 @@ Applications web du projet dsfr-data. Chaque app est un workspace npm independan
 | Dossier | Package | Description |
 |---------|---------|-------------|
 | `builder/` | `@dsfr-data/app-builder` | Generateur visuel de graphiques (assistant etape par etape) |
-| `builder-ia/` | `@dsfr-data/app-builder-ia` | Generateur de graphiques par IA (conversation avec Albert) |
+| `builder-ia/` | `@dsfr-data/app-builder-ia` | Ancien Assistant IA : redirige vers le Studio IA, sauf `?ancien=1` (#1081) ; porte le guide des skills |
+| `studio/` | `@dsfr-data/app-studio` | Studio IA, entree IA des usagers : graphique ou tableau de bord compose par conversation avec Albert |
 | `dashboard/` | `@dsfr-data/app-dashboard` | Editeur visuel de tableaux de bord (grille, preview, save/delete) |
 | `sources/` | `@dsfr-data/app-sources` | Gestionnaire de sources de données (API, CSV, Grist) |
 | `playground/` | `@dsfr-data/app-playground` | Editeur de code interactif avec preview en direct |

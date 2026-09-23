@@ -26,6 +26,10 @@
     <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <button slot="secondary" id="copy-code-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
     <a slot="tertiary" id="open-dashboard-link" href="../dashboard/index.html" class="fr-icon-dashboard-3-line" title="Ouvrir ce tableau de bord dans l'éditeur">Ouvrir dans le tableau de bord</a>
+    <button slot="tertiary" id="save-favorite-btn" class="fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
     <button slot="tertiary" id="clear-chat" class="fr-icon-delete-line" title="Effacer la conversation et repartir de zéro">Effacer la conversation</button>
     <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
     <button slot="primary" id="save-dashboard-btn" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
@@ -49,6 +53,9 @@
                 </select>
               </div>
               <div class="source-status" id="source-status"></div>
+              <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="show-data-btn" hidden>
+                <i class="ri-database-2-line"></i> Voir les données
+              </button>
               <a href="../sources/index.html" class="fr-link fr-link--sm">
                 <i class="ri-add-line"></i> Nouvelle
               </a>
@@ -56,12 +63,56 @@
             <div id="saved-source-info" class="source-info"></div>
           </div>
         </div>
+
+        <!-- Configuration IA (#1081) : reprise de l'ancien Assistant IA. La clé
+             est celle du transport commun : saisie ici, elle vaut partout. -->
+        <details class="config-section studio-ia-config" id="section-ia-config">
+          <summary class="config-section-header">
+            <h3><i class="ri-robot-line"></i> Configuration IA <span id="ia-config-badge" class="fr-badge fr-badge--sm"></span></h3>
+          </summary>
+          <div class="config-section-content">
+            <div class="fr-input-group">
+              <label class="fr-label" for="ia-api-url">URL de l'API
+                <span class="fr-hint-text">Point d'accès compatible OpenAI Chat Completions (Albert, OpenAI, Mistral…), avec appel d'outils.</span>
+              </label>
+              <input class="fr-input" type="url" id="ia-api-url"
+                     value="https://albert.api.etalab.gouv.fr/v1/chat/completions"
+                     placeholder="https://api.openai.com/v1/chat/completions">
+            </div>
+            <div class="fr-select-group">
+              <label class="fr-label" for="ia-model">Modèle
+                <span class="fr-hint-text">Albert : openweight-large (gpt-oss-120b) est recommandé.</span>
+              </label>
+              <select class="fr-select" id="ia-model">
+                <option value="openweight-large">openweight-large (gpt-oss-120b) — recommandé</option>
+                <option value="openweight-medium">openweight-medium (Mistral-Small-24B)</option>
+                <option value="openweight-small">openweight-small</option>
+                <option value="albert-large">albert-large (alias historique)</option>
+                <option value="__custom__">Personnalisé…</option>
+              </select>
+              <input class="fr-input fr-mt-1w" type="text" id="ia-model-custom" aria-label="Modèle personnalisé"
+                     placeholder="ex. gpt-4o, mistral-large-latest" hidden>
+            </div>
+            <div class="fr-input-group">
+              <label class="fr-label" for="ia-token">Jeton d'API
+                <span class="fr-hint-text">Laissez vide pour utiliser la configuration serveur, si elle existe.</span>
+              </label>
+              <input class="fr-input" type="password" id="ia-token" placeholder="Votre clé API" autocomplete="off">
+            </div>
+            <div class="studio-ia-config__actions">
+              <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary" id="ia-save-btn">Enregistrer</button>
+              <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary" id="ia-reset-btn" title="Revenir à la configuration serveur">Réinitialiser</button>
+              <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary" id="probe-capabilities-btn" title="Vérifie json_schema, tools et /v1/rerank contre le gateway, puis mémorise le résultat">Sonder les capacités</button>
+            </div>
+            <div id="probe-capabilities-result" class="studio-ia-config__result" aria-live="polite"></div>
+          </div>
+        </details>
       </div>
 
       <!-- Chat -->
       <div class="chat-container">
         <div class="chat-header">
-          <span class="chat-header__title"><i class="ri-chat-3-line"></i> Assistant dashboard <span id="ia-mode-badge" class="fr-badge fr-badge--sm"></span></span>
+          <span class="chat-header__title"><i class="ri-chat-3-line"></i> Assistant du Studio <span id="ia-mode-badge" class="fr-badge fr-badge--sm"></span></span>
         </div>
 
         <div class="chat-messages" id="chat-messages"></div>
@@ -103,6 +154,15 @@
 
     </app-preview-panel>
   </app-layout-builder>
+
+  <!-- Aperçu des données de la source (#1081, repris de l'ancien Assistant IA) -->
+  <dialog id="studio-data-dialog" class="studio-data-dialog" aria-labelledby="studio-data-title">
+    <div class="studio-data-dialog__header">
+      <h2 id="studio-data-title" class="fr-h6 fr-mb-0">Aperçu des données</h2>
+      <button type="button" class="fr-btn--close fr-btn" id="studio-data-close" title="Fermer">Fermer</button>
+    </div>
+    <div id="studio-data-body"></div>
+  </dialog>
 
   <script type="module" src="src/main.ts"></script>
   <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>

@@ -192,7 +192,9 @@ describe('les apps sans iframe observent une racine locale', () => {
  * apps à aperçu en iframe : Builder, Tableau de bord et Playground montent
  * leur assistant, et le bouton du volet devient « Demander à l'assistant »
  * (`envoi: 'demander'`) ; le Studio, qui n'a pas d'assistant contextuel mais
- * son propre chat, garde « Envoyer à l'assistant » (défaut). Les apps sans
+ * son propre chat, garde le geste par défaut (`envoyer`) : même libellé
+ * « Demander à l'assistant » depuis #1081, mais le diagnostic est posé dans
+ * SON chat, sans navigation ni envoi. Les apps sans
  * iframe (Carto, Pipeline) suivent le même câblage ; Sources n'a pas de volet.
  */
 describe('l’assistant contextuel lit les constats du volet', () => {
@@ -241,17 +243,30 @@ describe('l’assistant contextuel lit les constats du volet', () => {
     }
   });
 
-  it('le Studio (iframe, sans assistant contextuel) garde « Envoyer à l’assistant »', () => {
+  it('le Studio (iframe, sans assistant contextuel) pose le diagnostic dans SA conversation', () => {
     const src = lire('apps/studio/src/main.ts');
     expect(src).toContain('frame:');
     expect(src).not.toContain("envoi: 'demander'");
     expect(src).not.toContain('mountAssistant(');
+    // « Demander à l'assistant » pré-remplit le chat du Studio, sans l'envoyer
+    // ni naviguer (#1081).
+    expect(src).toContain('onSend: injecterDiagnostic');
+    expect(src).not.toMatch(/function injecterDiagnostic[\s\S]*?sendMessage\(/);
+    expect(src).not.toContain('navigateTo(');
   });
 
-  it('l’Assistant IA garde « Envoyer à l’assistant » : il est lui-même un chat', () => {
+  it('l’ancien Assistant IA fait de même dans son propre chat', () => {
     const src = lire('apps/builder-ia/src/main.ts');
     expect(src).not.toContain("envoi: 'demander'");
     expect(src).not.toContain('mountAssistant(');
+    expect(src).toContain('onSend: injecterDiagnostic');
+  });
+
+  it('« Envoyer à l’assistant » a disparu : un seul libellé, « Demander à l’assistant » (#1081)', () => {
+    const panneau = lire('packages/app-ui/src/app-diagnostic-panel.ts');
+    expect(panneau).not.toContain('Envoyer à l’assistant');
+    expect(panneau.match(/Demander à l’assistant\n/g)?.length).toBe(2);
+    expect(lire('docs/ux/actions.md')).not.toContain('Envoyer à l');
   });
 
   it('Sources : assistant de guidage seul, sans volet Diagnostic', () => {
