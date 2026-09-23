@@ -22,10 +22,9 @@ import {
   IMAGE_EXPORT_MESSAGES,
   toastError,
   mountDiagnosticPanel,
-  transmettreDiagnostic,
   CLE_CODE_RAPPORTE,
-  montrer,
   REGLES_GENERIQUES,
+  type MountedAssistant,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -33,8 +32,8 @@ import { examples } from './examples/examples-data.js';
 import { EXEMPLE_PAR_DEFAUT } from './examples/catalogue.js';
 import { initSelecteurExemples, type SelecteurExemples } from './examples/selector.js';
 import { getPreviewHTML } from './preview.js';
-import { REGISTRE } from './assistant/reperes.generated.js';
-import { creerAdaptateurPlayground, lireRepereCode, montrerCode } from './assistant/adaptateur.js';
+import { creerAdaptateurPlayground } from './assistant/adaptateur.js';
+import { monterAssistantPlayground, montrerReperePlayground } from './assistant/index.js';
 import { REGLE_BALISAGE } from './assistant/constats-balisage.js';
 
 let editor: CodeMirrorEditor;
@@ -234,15 +233,8 @@ function saveFavorite(): void {
 
 // Initialization
 
-/**
- * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
- * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
- * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
- */
-function envoyerDiagnosticVersAssistant(texte: string): void {
-  transmettreDiagnostic(texte);
-  window.location.href = appHref('builder-ia', { from: 'playground' });
-}
+/** Assistant contextuel (#1018), monté au chargement après le volet Diagnostic. */
+let assistant: MountedAssistant | null = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
@@ -406,26 +398,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const adaptateur = creerAdaptateurPlayground(editor, {
     ouvrirVolet: () => selecteur?.basculer(true),
   });
-  mountDiagnosticPanel({
-    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
-    toggleButtonId: 'diagnostic-btn',
-    canSend: true,
-    onSend: envoyerDiagnosticVersAssistant,
-    emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
-    constats: {
-      contexte: () => ({
-        app: 'playground',
-        etat: { code: editor.getValue() },
-        origine: window.location.origin,
-      }),
-      regles: [...REGLES_GENERIQUES, REGLE_BALISAGE],
-    },
-    onMontrer: (repere) => {
-      const code = lireRepereCode(repere);
-      if (code) montrerCode(editor, code);
-      else void montrer(repere, { registre: REGISTRE, adaptateur });
-    },
-  });
+  const diagnostic =
+    mountDiagnosticPanel({
+      frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+      toggleButtonId: 'diagnostic-btn',
+      // « Demander à l'assistant » (#1018) : ouvre l'assistant du Playground,
+      // sans quitter l'app. Il lit les mêmes constats que le volet.
+      canSend: true,
+      envoi: 'demander',
+      onSend: () => assistant?.ouvrir(),
+      onConstats: () => assistant?.rafraichirConstats(),
+      emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
+      constats: {
+        contexte: () => ({
+          app: 'playground',
+          etat: { code: editor.getValue() },
+          origine: window.location.origin,
+        }),
+        regles: [...REGLES_GENERIQUES, REGLE_BALISAGE],
+      },
+      onMontrer: (repere) => montrerReperePlayground(repere, editor, adaptateur),
+    }) ?? null;
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré.
+  assistant = monterAssistantPlayground({ editor, adaptateur, diagnostic });
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();

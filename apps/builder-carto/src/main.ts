@@ -2188,8 +2188,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     onConstats: () => assistant?.rafraichirConstats(),
     emptyHint: 'Générez la carte pour observer ce qui transite entre les composants.',
   });
-  // Sans modèle pour l'instant : correspondance locale seule. Le repli Albert
-  // (#1014) se branchera par l'option `repondre` de monterAssistantCarto().
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré
+  // (clé ou jeton serveur, tool-calling), sinon guidage local seul (#1018).
   assistant = monterAssistantCarto({ adaptateur, diagnostic });
   // Hook saveToStorage to /api/* sync (when authenticated). Without this,
   // favorites saved here stay only in localStorage and get wiped by the

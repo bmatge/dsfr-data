@@ -43,6 +43,10 @@
           <i class="ri-upload-line" aria-hidden="true"></i> Importer
           <input type="file" id="import-data-file" data-repere="sources.actions.importer" accept=".json" style="display:none;">
         </label>
+        <!-- Assistant contextuel (#1018) : guidage seul, la page n'a pas de volet Diagnostic. -->
+        <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="assistant-btn" data-repere="sources.actions.assistant" title="Ouvrir l'assistant : où se trouve un réglage" aria-expanded="false">
+          <i class="ri-question-answer-line" aria-hidden="true"></i> Assistant
+        </button>
         <button class="fr-btn fr-btn--sm" id="add-connection-btn" data-repere="sources.actions.nouvelle-connexion">
           <i class="ri-add-line" aria-hidden="true"></i> Nouvelle connexion
         </button>

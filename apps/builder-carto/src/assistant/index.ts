@@ -11,28 +11,42 @@
  * 1. la correspondance locale (`trouverRepere`, #1012), TOUJOURS, sans modèle :
  *    « afficher les POI dans une fiche » montre « Comportement au clic » sans
  *    appel réseau ;
- * 2. un repli INJECTÉ (`repondre`), appelé seulement quand rien ne correspond.
- *    Aucun n'est branché aujourd'hui : le guidage fonctionne sans clé, et le
- *    panneau dit « Réponses tirées de l'interface, sans IA ». Le repli Albert
- *    (#1014, `assistant-loop.ts`) se branchera ici, en passant `repondre` à
- *    `monterAssistantCarto()` — rien d'autre à changer dans l'app.
+ * 2. Albert en secours (#1014, #1018), appelé seulement quand rien ne
+ *    correspond : `brancherAlbert()` résout le transport au montage et ne
+ *    branche le modèle que s'il est utilisable (clé ou jeton serveur, et
+ *    tool-calling). Sinon le guidage reste local, sans clé, et le panneau dit
+ *    « Guidage dans l'interface ». Un `repondre` passé explicitement (tests)
+ *    remplace ce branchement.
  */
 import {
   appHref,
+  brancherAlbert,
   montrer,
   mountAssistant,
   transmettreDiagnostic,
   type AdaptateurReperage,
   type ContexteAssistant,
   type MatchableSkill,
+  type ProfilAssistant,
   type MountedAssistant,
   type MountedDiagnostic,
   type Reponse,
   type ResultatMontrer,
   type SuggestionAssistant,
+  type TransportAssistant,
 } from '@dsfr-data/shared';
 import type { CartoState } from '../state.js';
+import { PREREQUIS } from './prerequis.js';
 import { REGISTRE } from './reperes.generated.js';
+
+/** Profil de la carto pour le prompt d'Albert (#1018). */
+export const PROFIL_CARTO: ProfilAssistant<CartoState> = {
+  nom: 'le builder carto (« Créer une carte »)',
+  description:
+    'L’usager compose une carte DSFR : des couches de points ou de zones, alimentées par une source, avec leur représentation, leur couleur et leur fiche au clic.',
+  panneaux: ['Couches', 'Éléments', 'Carte', 'Code'],
+  prerequis: PREREQUIS,
+};
 
 /** Phrase d'aide de l'état vide, propre à la carto. */
 export const AIDE_CARTO =
@@ -88,8 +102,13 @@ export interface OptionsAssistantCarto {
   adaptateur: AdaptateurReperage<CartoState>;
   /** Volet Diagnostic monté par l'app : constats, texte, ouverture. */
   diagnostic: MountedDiagnostic | null;
-  /** Repli quand la correspondance locale ne trouve rien (Albert, #1014). Absent : aucun. */
+  /**
+   * Repli quand la correspondance locale ne trouve rien. Absent : Albert, s'il
+   * est utilisable (`brancherAlbert`) ; sinon aucun.
+   */
   repondre?: (contexte: ContexteAssistant) => Promise<Reponse>;
+  /** Transport d'Albert (tests : `post` mocké). Défaut : `resolveTransport()`. */
+  transport?: () => Promise<TransportAssistant>;
   /** Fiches skills liées aux repères par `data-attribut`. */
   fiches?: readonly MatchableSkill[];
   /** Navigation (tests) ; par défaut `window.location.href = …`. */
@@ -100,7 +119,7 @@ export interface OptionsAssistantCarto {
 /** Monte l'assistant de la carto. */
 export function monterAssistantCarto(opts: OptionsAssistantCarto): MountedAssistant {
   const { adaptateur, diagnostic } = opts;
-  return mountAssistant<CartoState>({
+  const assistant = mountAssistant<CartoState>({
     app: 'builder-carto',
     registre: REGISTRE,
     adaptateur,
@@ -113,6 +132,16 @@ export function monterAssistantCarto(opts: OptionsAssistantCarto): MountedAssist
     construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
     host: opts.host,
   });
+  if (!opts.repondre) {
+    void brancherAlbert(assistant, {
+      registre: REGISTRE,
+      adaptateur,
+      profil: PROFIL_CARTO,
+      fiches: opts.fiches,
+      transport: opts.transport,
+    });
+  }
+  return assistant;
 }
 
 /** « Me montrer » du volet Diagnostic : le même `montrer()` que l'assistant. */

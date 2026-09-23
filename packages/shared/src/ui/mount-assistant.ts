@@ -146,8 +146,19 @@ export interface OptionsAssistant<Etat = unknown> {
   adaptateur: AdaptateurReperage<Etat>;
   /** Constats courants ; en pratique `MountedDiagnostic.constats`. Défaut : aucun. */
   constats?: () => readonly Constat[];
-  /** Secours par un modèle, appelé seulement si la correspondance ne trouve rien. */
+  /**
+   * Secours par un modèle, appelé seulement si la correspondance ne trouve rien.
+   * Peut être branché après le montage (`brancherModele`), une fois le
+   * transport résolu : c'est ce que fait `brancherAlbert()` (#1018).
+   */
   repondre?: (contexte: ContexteAssistant) => Promise<Reponse>;
+  /**
+   * Repères hors registre que l'app sait montrer elle-même (ex. les repères de
+   * code du Playground, `playground.ligne.<n>.<balise>`, qui changent à chaque
+   * frappe). Rend `true` si l'id a été pris en charge ; sinon l'id est refusé
+   * comme tout id absent du registre.
+   */
+  montrerHorsRegistre?: (id: string) => boolean | Promise<boolean>;
   /** Fiches skills passées à `trouverRepere`. */
   fiches?: readonly MatchableSkill[];
   /** Suggestions de l'état vide, lues à chaque nouvelle conversation (au plus 3 affichées). */
@@ -176,6 +187,14 @@ export interface MountedAssistant {
   rafraichirConstats(): void;
   /** Pose une question comme si l'usager l'avait tapée. */
   poser(question: string): Promise<void>;
+  /**
+   * Branche (ou débranche, `null`) le secours par un modèle après le montage.
+   * Le sous-titre et le pied du panneau suivent : sans modèle, le panneau ne
+   * se présente jamais comme Albert.
+   */
+  brancherModele(repondre: ((contexte: ContexteAssistant) => Promise<Reponse>) | null): void;
+  /** Un modèle est-il branché ? */
+  readonly avecModele: boolean;
   destroy(): void;
 }
 
@@ -190,6 +209,10 @@ export function messageAucunReglage(question: string): string {
 export const PIED_SANS_MODELE = 'Réponses tirées de l’interface, sans IA';
 /** Sous-titre quand aucun modèle n'est branché : ne pas annoncer Albert à tort. */
 export const SOUS_TITRE_SANS_MODELE = 'Guidage dans l’interface';
+/** Sous-titre avec un modèle branché (défaut de `<app-assistant>`). */
+export const SOUS_TITRE_AVEC_MODELE = 'Albert, IA de l’État';
+/** Pied avec un modèle branché (défaut de `<app-assistant>`). */
+export const PIED_AVEC_MODELE = 'IA de l’État : réponses à vérifier';
 
 /** Id par défaut du bouton qui ouvre le panneau. */
 export const ID_BOUTON_ASSISTANT = 'assistant-btn';
@@ -211,10 +234,12 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
   panel.app = opts.app;
   if (opts.aide) panel.aide = opts.aide;
   panel.suggestions = opts.suggestions?.() ?? [];
-  if (!opts.repondre) {
-    panel.pied = PIED_SANS_MODELE;
-    panel.sousTitre = SOUS_TITRE_SANS_MODELE;
-  }
+  let repondre = opts.repondre ?? null;
+  const presenter = (): void => {
+    panel.pied = repondre ? PIED_AVEC_MODELE : PIED_SANS_MODELE;
+    panel.sousTitre = repondre ? SOUS_TITRE_AVEC_MODELE : SOUS_TITRE_SANS_MODELE;
+  };
+  presenter();
   panel.diagnostic = !!opts.ouvrirDiagnostic;
   panel.construire = !!opts.construire;
   panel.mode = getReperageMode();
@@ -273,6 +298,9 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
 
   /** Montre un repère et dit dans la conversation ce qui a empêché de le montrer. */
   const montrerEtDire = async (id: string): Promise<ResultatMontrer | null> => {
+    if (typeof id === 'string' && !index.has(id) && opts.montrerHorsRegistre) {
+      if (await opts.montrerHorsRegistre(id)) return null;
+    }
     if (!estIdRepere(id) || !index.has(id)) {
       ajouter({
         role: 'systeme',
@@ -342,7 +370,7 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     }
 
     // Rien ne correspond : le modèle en secours, s'il est branché.
-    if (!opts.repondre) {
+    if (!repondre) {
       const texte = messageAucunReglage(question);
       ajouter({ role: 'assistant', source: 'correspondance', texte });
       return;
@@ -352,7 +380,7 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     panel.statut = 'L’assistant prépare une réponse…';
     let reponse: Reponse;
     try {
-      reponse = await opts.repondre({
+      reponse = await repondre({
         question,
         correspondance,
         constats: lireConstats(),
@@ -451,6 +479,13 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     basculer: (open?: boolean) => panel.toggle(open),
     rafraichirConstats,
     poser,
+    brancherModele: (r) => {
+      repondre = r;
+      presenter();
+    },
+    get avecModele() {
+      return repondre !== null;
+    },
     destroy: () => {
       controleur?.abort();
       controleur = null;

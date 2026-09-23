@@ -12,6 +12,7 @@ import type { Repere, RegistreReperes } from '@dsfr-data/shared';
 
 export const REPERES = [
   {"id":"sources.actions","genre":"zone","libelle":"Actions sur les sources","element":"div","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/sources/index.html"]},
+  {"id":"sources.actions.assistant","genre":"controle","libelle":"Assistant","element":"button","zone":"sources.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/sources/index.html"]},
   {"id":"sources.actions.exporter","genre":"controle","libelle":"Exporter","element":"button","zone":"sources.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/sources/index.html"]},
   {"id":"sources.actions.importer","genre":"controle","libelle":"Importer","element":"input","zone":"sources.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/sources/index.html"]},
   {"id":"sources.actions.nouvelle-connexion","genre":"controle","libelle":"Nouvelle connexion","element":"button","zone":"sources.actions","attributs":[],"prerequis":[],"synonymes":["ajouter une connexion","connecter une API","Grist"],"sources":["apps/sources/index.html"]},

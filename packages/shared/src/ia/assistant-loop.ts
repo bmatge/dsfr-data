@@ -37,7 +37,12 @@
 
 import type { Constat } from '../debug/constats.js';
 import { masquerUrl } from '../debug/journal.js';
-import type { ContexteAssistant, MessageAssistant, Reponse } from '../ui/mount-assistant.js';
+import type {
+  ContexteAssistant,
+  MessageAssistant,
+  MountedAssistant,
+  Reponse,
+} from '../ui/mount-assistant.js';
 import {
   chemin,
   indexerReperes,
@@ -695,4 +700,32 @@ function formulerPlan(registre: RegistreReperes, etapes: readonly string[]): str
   return `En ${etapes.length} étapes : ${etapes
     .map((id) => chemin(registre, id).join(SEPARATEUR_CHEMIN))
     .join(' ; ')}.`;
+}
+
+/**
+ * Branche Albert sur un assistant déjà monté (#1018) : le transport est résolu
+ * UNE fois, au montage, et le modèle n'est branché que s'il est utilisable ici.
+ *
+ * - sans clé ni jeton serveur (`mode: 'none'`), ou sans tool-calling (le seul
+ *   mode où l'id de repère est contraint par une enum fermée), rien n'est
+ *   branché : l'assistant reste en correspondance locale, sous-titre
+ *   « Guidage dans l'interface » ;
+ * - une erreur de résolution (réseau, config illisible) vaut « pas de modèle ».
+ *
+ * Rend `true` si le modèle est branché. Le `transport` passé dans `opts` sert
+ * aussi aux appels (tests : `post` mocké, aucun réseau).
+ */
+export async function brancherAlbert<Etat>(
+  assistant: Pick<MountedAssistant, 'brancherModele'>,
+  opts: OptionsRepondreIA<Etat>
+): Promise<boolean> {
+  let transport: TransportAssistant;
+  try {
+    transport = await (opts.transport ?? resolveTransport)();
+  } catch {
+    return false;
+  }
+  if (transport.mode === 'none' || transport.capacites.toolCalling !== true) return false;
+  assistant.brancherModele(creerRepondreIA(opts));
+  return true;
 }

@@ -38,9 +38,8 @@ function modules(dir = SRC, prefixe = ''): string[] {
 const SANS_APPELANT_DECLARES: Record<string, string> = {
   'assistant/reperes.config.ts':
     'lu par scripts/build-reperes.ts (check:reperes), jamais importé par l’app (#1006)',
-  'assistant/reperes.generated.ts':
-    'registre des repères, consommé par l’assistant contextuel à venir (#1017) ; testé par reperes-completude',
   // assistant/adaptateur.ts sort de la liste : la visite guidée l'appelle (#1013).
+  // assistant/reperes.generated.ts aussi : l'assistant contextuel le lit (#1017).
 };
 
 describe('le Builder n’embarque aucun module mort', () => {

@@ -12,6 +12,7 @@ import type { Repere, RegistreReperes } from '@dsfr-data/shared';
 
 export const REPERES = [
   {"id":"playground.actions","genre":"zone","libelle":"Barre d'actions","element":"app-action-bar","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
+  {"id":"playground.actions.assistant","genre":"controle","libelle":"Assistant","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
   {"id":"playground.actions.copier","genre":"controle","libelle":"Copier le code","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
   {"id":"playground.actions.dependances","genre":"controle","libelle":"Ajouter des dépendances","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":["cdn","dépendances","page autonome"],"sources":["apps/playground/index.html"]},
   {"id":"playground.actions.diagnostic","genre":"controle","libelle":"Diagnostic","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
