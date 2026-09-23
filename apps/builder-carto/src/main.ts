@@ -171,6 +171,14 @@ const ui = {
   /** Une carte a déjà été exécutée : re-exécution auto sur modification */
   executed: false,
   /**
+   * Dernier statut d'analyse des champs (HTML) et son issue. Conserve ici
+   * parce que `renderLayerDataConfig` reecrit tout le panneau : ecrit
+   * uniquement dans le DOM, un diagnostic d'echec disparaissait au premier
+   * re-render et la carte semblait bloquee sur « Analyse des champs en cours… ».
+   */
+  scanStatus: '',
+  scanFailed: false,
+  /**
    * Total du jeu de chaque couche, rapporté par la couche de l'aperçu après
    * son rendu (`dsfr-data-map-layer-render`, #1020) : c'est lui qui dit que
    * le jeu dépasse le plafond et déclenche la proposition de composition
@@ -438,7 +446,9 @@ function renderLayerDataConfig() {
     ? `Nombre d'enregistrements par ${libelleNiveau(layer.agregat.niveau)}, compté sur tout le jeu`
     : fields.length
       ? `${fields.length} champs détectés`
-      : 'Analyse des champs en cours…';
+      : ui.scanFailed
+        ? 'Champs non détectés'
+        : 'Analyse des champs en cours…';
 
   container.innerHTML = `
     <div class="carto-section">
@@ -470,7 +480,7 @@ function renderLayerDataConfig() {
         </span>
       </button>`
       }
-      <div id="source-scan-status" class="carto-scan-status" aria-live="polite"></div>
+      <div id="source-scan-status" class="carto-scan-status" aria-live="polite">${ui.scanStatus}</div>
       <div class="carto-field fr-mt-1w">
         <label for="layer-name">Nom de la couche</label>
         <input type="text" id="layer-name" data-repere="carto.couches.nom" value="${escapeAttr(layer.name)}">
@@ -1743,7 +1753,9 @@ function copyCodeToClipboard() {
 // Assistance : analyse des champs de la source
 // ---------------------------------------------------------------------------
 
-function setScanStatus(html: string) {
+function setScanStatus(html: string, opts: { failed?: boolean } = {}) {
+  ui.scanStatus = html;
+  ui.scanFailed = opts.failed ?? false;
   const el = document.getElementById('source-scan-status');
   if (el) el.innerHTML = html;
 }
@@ -1811,7 +1823,8 @@ async function scanAndSuggest(layer: LayerConfig, opts: { fit?: boolean } = {}) 
     renderLayersPanel();
     renderElementsPanel();
     setScanStatus(
-      `<i class="ri-error-warning-line" aria-hidden="true"></i> ${escapeAttr((err as Error).message)}`
+      `<i class="ri-error-warning-line" aria-hidden="true"></i> ${escapeAttr((err as Error).message)}`,
+      { failed: true }
     );
   }
 }

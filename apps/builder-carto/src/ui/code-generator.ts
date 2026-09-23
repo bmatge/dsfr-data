@@ -1,7 +1,7 @@
 /**
  * Generates dsfr-data-map HTML code from the current state.
  */
-import { state, DROM_IDS, INSET_TERRITORIES } from '../state.js';
+import { state, DROM_IDS, INSET_TERRITORIES, hydrateSource } from '../state.js';
 import type { LayerConfig } from '../state.js';
 import { LIB_URL } from '../state.js';
 import {
@@ -262,7 +262,9 @@ export function buildSourceTag(
   opts: { id?: string; limit?: number } = {}
 ): string {
   if (!layer.source) return '';
-  const s = layer.source;
+  // Les lignes d'une source manuelle ne vivent pas dans l'etat du builder
+  // (pointeur leger) : on les rebranche depuis l'app Sources.
+  const s = hydrateSource(layer.source)!;
   const attrs: string[] = [`id="${esc(opts.id ?? layer.id)}"`];
   const isAdapter: { current: boolean } = { current: false };
 
