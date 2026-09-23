@@ -172,7 +172,7 @@ describe('reveler()', () => {
 
 describe('prérequis', () => {
   it('chaque règle est fausse sans widget, vraie avec, et levée par un repère du registre', () => {
-    const ids = new Set(REPERES.map((r) => r.id));
+    const ids = new Set<string>(REPERES.map((r) => r.id));
     const types = {
       'widget-kpi': 'kpi',
       'widget-graphique': 'chart',
