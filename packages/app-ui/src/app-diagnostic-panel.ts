@@ -590,15 +590,6 @@ export class AppDiagnosticPanel extends LitElement {
     const upstreamRows = node.upstream
       .map((up) => trace.states[up]?.rows)
       .filter((n): n is number => n !== undefined);
-    const delegation = trace.delegation[node.id];
-    // MEME garde que `formatDelegation` : la note n'a de sens que si l'etape
-    // DEMANDE un regroupement. La coller a un query qui ne fait que filtrer —
-    // le cas majoritaire — apprendrait a l'ignorer. Aucune regle de constat
-    // ne lit encore la delegation : la note reste ici, comme dans
-    // `formatTrace`, sans compter dans les alertes.
-    const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
-    const clientSide =
-      !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
     // Un afficheur sous une etape en attente d'un filtre n'est pas une
     // alerte : la page fait exactement ce qu'on lui a demande (#690).
     const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
@@ -648,18 +639,6 @@ export class AppDiagnosticPanel extends LitElement {
                 ${state.message}${
                   state.attemptedUrl ? html`<br />URL appelée : ${state.attemptedUrl}` : nothing
                 }
-              </div>`
-            : nothing
-        }
-        ${
-          clientSide
-            ? html`<div class="app-diag__stage-note">agrégation exécutée côté client.</div>`
-            : nothing
-        }
-        ${
-          state.emissions > 3
-            ? html`<div class="app-diag__stage-note">
-                ${plural(state.emissions, 'émission')} — rechargements en boucle ?
               </div>`
             : nothing
         }

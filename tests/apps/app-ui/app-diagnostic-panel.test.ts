@@ -8,6 +8,10 @@ import {
   type Trace,
 } from '@dsfr-data/shared';
 import { dispatchDataLoaded, dispatchDataError, clearDataCache } from '@/utils/data-bridge.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const RACINE_DEPOT = join(__dirname, '../../..');
 
 /**
  * Le volet Diagnostic (#605).
@@ -518,6 +522,60 @@ describe('app-diagnostic-panel', () => {
 
       await ouvrirOnglet(panel, 'Flux');
       expect(panel.textContent).toContain('côté client');
+      // La note EST le constat info (#1066), pas un calcul du volet.
+      const note = panel.querySelector('[data-constat="pipeline/delegation-client@q1"]');
+      expect(note?.textContent).toContain('agrégation exécutée côté client');
+    });
+
+    it('sans constats, le volet ne calcule rien lui-même (#1066)', async () => {
+      const built = buildTrace(
+        `<dsfr-data-source id="src"></dsfr-data-source>
+         <dsfr-data-query id="q1" source="src" group-by="dept"></dsfr-data-query>`,
+        () => {
+          dispatchDataLoaded('src', [{ dept: 'A' }]);
+          dispatchDataLoaded('q1', [{ dept: 'A' }]);
+        }
+      );
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      const trace = { ...built.trace, delegation: { q1: DELEGATION_NONE } };
+      trace.states = { ...trace.states, q1: { ...trace.states.q1, emissions: 9 } };
+      panel.constats = [];
+      panel.trace = trace;
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      await ouvrirOnglet(panel, 'Flux');
+      expect(panel.textContent).not.toContain('côté client');
+      expect(panel.textContent).not.toContain('émissions');
+    });
+  });
+
+  describe('émissions répétées : un constat info (#1066)', () => {
+    it('rend la note du constat, sans compter dans les alertes du rail', async () => {
+      const built = buildTrace(`<dsfr-data-source id="src"></dsfr-data-source>`, () => {
+        for (let i = 0; i < 5; i++) dispatchDataLoaded('src', [{ a: i }]);
+      });
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      expect(built.trace.states.src.emissions).toBe(5);
+      poser(panel, built.trace);
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      await ouvrirOnglet(panel, 'Flux');
+      const note = panel.querySelector('[data-constat="pipeline/emissions-repetees@src"]');
+      expect(note?.textContent).toContain('émissions répétées');
+      expect(panel.constats.filter((c) => c.gravite !== 'info')).toEqual([]);
+    });
+
+    it('le volet ne lit plus trace.delegation ni state.emissions', () => {
+      const source = readFileSync(
+        join(RACINE_DEPOT, 'packages/app-ui/src/app-diagnostic-panel.ts'),
+        'utf-8'
+      );
+      expect(source).not.toContain('.delegation');
+      expect(source).not.toContain('.emissions');
     });
   });
 

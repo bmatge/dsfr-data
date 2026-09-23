@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   evaluerConstats,
+  formatTrace,
   compterAlertes,
   summarizeTrace,
   urlDejaProxifiee,
@@ -16,6 +17,7 @@ import {
   type StageState,
   type Trace,
 } from '@dsfr-data/shared';
+import { SEUIL_EMISSIONS_REPETEES } from '../../packages/shared/src/debug/constats';
 
 /**
  * Le moteur de constats (#996, ADR-143 §3).
@@ -52,6 +54,7 @@ interface Morceaux {
   dangling?: Trace['graph']['dangling'];
   reseau?: EntreeReseau[];
   console?: EntreeConsole[];
+  delegation?: Trace['delegation'];
 }
 
 function trace(m: Morceaux): Trace {
@@ -63,7 +66,7 @@ function trace(m: Morceaux): Trace {
     sinceLastEventMs: null,
     lastEventAt: null,
     quiescent: true,
-    delegation: {},
+    delegation: m.delegation ?? {},
     reseau: m.reseau ?? [],
     console: m.console ?? [],
   };
@@ -180,6 +183,41 @@ const CAS: CasRegle[] = [
       states: { src: charge(3, { meta: { page: 1, pageSize: 3, needsClientProcessing: true } }) },
     }),
     attendu: { gravite: 'info', etape: 'src' },
+  },
+  {
+    regle: 'pipeline/delegation-client',
+    fautive: trace({
+      nodes: [
+        SOURCE,
+        noeud('q', 'dsfr-data-query', 'transform', {
+          upstream: ['src'],
+          attrs: { 'group-by': 'region', aggregate: 'population:sum' },
+        }),
+      ],
+      states: { src: charge(3), q: charge(2) },
+      delegation: { q: { groupBy: false, aggregate: false, orderBy: false, where: true } },
+    }),
+    attendu: { id: 'pipeline/delegation-client@q', gravite: 'info', etape: 'q' },
+    // Négatif : un query qui ne fait que filtrer n'a rien à déléguer.
+    saine: trace({
+      nodes: [
+        SOURCE,
+        noeud('q', 'dsfr-data-query', 'transform', {
+          upstream: ['src'],
+          attrs: { filter: 'region:eq:Bretagne' },
+        }),
+      ],
+      states: { src: charge(3), q: charge(1) },
+      delegation: { q: { groupBy: false, aggregate: false, orderBy: false, where: false } },
+    }),
+  },
+  {
+    regle: 'pipeline/emissions-repetees',
+    fautive: trace({
+      nodes: [SOURCE, CARTE],
+      states: { src: charge(3, { emissions: 6 }) },
+    }),
+    attendu: { id: 'pipeline/emissions-repetees@src', gravite: 'info', preuve: '6 émissions' },
   },
   {
     regle: 'pipeline/tronque',
@@ -423,6 +461,52 @@ describe('ADR-122 — non applicable : aucune règle ne rend un nombre absent de
     // 50 n'est que dans l'URL : admis si l'URL est citée, refusé sinon.
     expect(nombresInventes(t, { ...base, preuve: 'https://api.exemple.fr/v50/data' })).toEqual([]);
     expect(nombresInventes(t, { ...base, preuve: '50 % perdus' })).toEqual([50]);
+  });
+});
+
+describe('pipeline/delegation-client et pipeline/emissions-repetees (#1066)', () => {
+  const avecQuery = (attrs: Record<string, string>, groupBy: boolean, aggregate: boolean) =>
+    trace({
+      nodes: [SOURCE, noeud('q', 'dsfr-data-query', 'transform', { upstream: ['src'], attrs })],
+      states: { src: charge(3), q: charge(2) },
+      delegation: { q: { groupBy, aggregate, orderBy: false, where: false } },
+    });
+
+  it('regroupement délégué au serveur : aucune note', () => {
+    const t = avecQuery({ 'group-by': 'region' }, true, false);
+    expect(deLaRegle(evaluerConstats(t, CTX), 'pipeline/delegation-client')).toEqual([]);
+  });
+
+  it('aggregate seul, non délégué : la note parle, et ne compte pas dans les alertes', () => {
+    const t = avecQuery({ aggregate: 'population:sum' }, false, false);
+    const constats = evaluerConstats(t, CTX);
+    const [c] = deLaRegle(constats, 'pipeline/delegation-client');
+    expect(c.preuve).toContain('aggregate="population:sum"');
+    expect(compterAlertes(constats)).toBe(0);
+  });
+
+  it('étape sans état de délégation (source) : aucune note', () => {
+    const t = trace({
+      nodes: [{ ...SOURCE, attrs: { 'group-by': 'region' } }],
+      states: { src: charge(3) },
+    });
+    expect(deLaRegle(evaluerConstats(t, CTX), 'pipeline/delegation-client')).toEqual([]);
+  });
+
+  it('émissions : le seuil est celui du diagnostic texte, et n’est jamais cité', () => {
+    for (const emissions of [SEUIL_EMISSIONS_REPETEES, SEUIL_EMISSIONS_REPETEES + 1]) {
+      const t = trace({ nodes: [SOURCE, CARTE], states: { src: charge(3, { emissions }) } });
+      const constats = deLaRegle(evaluerConstats(t, CTX), 'pipeline/emissions-repetees');
+      const texte = formatTrace(t);
+      const auDela = emissions > SEUIL_EMISSIONS_REPETEES;
+      expect(constats).toHaveLength(auDela ? 1 : 0);
+      // Même décision que la ligne « ⚠ N émissions » de formatTrace.
+      expect(texte.includes(`${emissions} émissions`)).toBe(auDela);
+      for (const c of constats) {
+        expect(nombresInventes(t, c)).toEqual([]);
+        expect(compterAlertes(constats)).toBe(0);
+      }
+    }
   });
 });
 

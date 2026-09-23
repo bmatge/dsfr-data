@@ -461,6 +461,76 @@ const traitementClient: RegleConstat = {
     }),
 };
 
+/**
+ * Une étape demande-t-elle un regroupement que le serveur n'a pas fait ?
+ * MÊME garde que `formatDelegation` (`format.ts`) : sans `group-by` ni
+ * `aggregate` sur l'étape, il n'y a rien à déléguer — un query qui ne fait que
+ * filtrer, le cas majoritaire, ne doit pas porter cette note.
+ */
+function regroupementCoteClient(node: StageNode, trace: Trace): boolean {
+  const delegation = trace.delegation[node.id];
+  if (!delegation) return false;
+  const demande = !!(node.attrs['group-by'] || node.attrs.aggregate);
+  return demande && !delegation.groupBy && !delegation.aggregate;
+}
+
+const delegationClient: RegleConstat = {
+  id: 'pipeline/delegation-client',
+  appliesTo: TOUTES,
+  evaluer: (trace) =>
+    parEtape(trace, (node, state) => {
+      if (!regroupementCoteClient(node, trace)) return [];
+      const demande = [
+        node.attrs['group-by'] ? `group-by="${node.attrs['group-by']}"` : '',
+        node.attrs.aggregate ? `aggregate="${node.attrs.aggregate}"` : '',
+      ]
+        .filter(Boolean)
+        .join(', ');
+      const n = state?.rows;
+      return [
+        constat('pipeline/delegation-client', 'info', {
+          titre: `${node.id} : agrégation exécutée côté client`,
+          explication:
+            "Le serveur n'a pris en charge ni le regroupement ni l'agrégation : ils portent sur les lignes reçues, pas sur tout le jeu si la source en détient davantage.",
+          preuve:
+            `${demande} ; délégation serveur : groupBy=non, aggregate=non` +
+            (n !== undefined ? ` ; ${plural(n, 'ligne')} en sortie` : ''),
+          etape: node.id,
+        }),
+      ];
+    }),
+};
+
+/**
+ * Au-delà de ce nombre d'émissions d'une même étape dans une trace, on
+ * suspecte des rechargements en boucle. Une étape émet une fois par
+ * chargement, puis une fois par interaction (filtre, page) : trois couvrent le
+ * chargement et deux interactions. C'est le seuil du diagnostic texte
+ * (`formatTrace`, ligne « ⚠ N émissions ») ; un test les garde égaux. Il
+ * n'apparaît dans aucun texte de constat : la preuve ne cite que le compte de
+ * la trace (ADR-122).
+ */
+export const SEUIL_EMISSIONS_REPETEES = 3;
+
+const emissionsRepetees: RegleConstat = {
+  id: 'pipeline/emissions-repetees',
+  appliesTo: TOUTES,
+  evaluer: (trace) =>
+    parEtape(trace, (node, state) => {
+      if (!state || state.emissions <= SEUIL_EMISSIONS_REPETEES) return [];
+      return [
+        constat('pipeline/emissions-repetees', 'info', {
+          titre: `${node.id} : émissions répétées`,
+          explication:
+            "L'étape a émis plus souvent qu'un chargement suivi de quelques interactions ne le demande : rechargements en boucle possibles (attribut réécrit à chaque rendu, source rechargée par son aval).",
+          action: "Vérifier qu'aucun script ne réécrit ses attributs en continu",
+          preuve: plural(state.emissions, 'émission'),
+          etape: node.id,
+        }),
+      ];
+    }),
+};
+
 const tronque: RegleConstat = {
   id: 'pipeline/tronque',
   appliesTo: TOUTES,
@@ -630,6 +700,8 @@ export const REGLES_GENERIQUES: readonly RegleConstat[] = [
   lignesIgnorees,
   pointsEmpiles,
   traitementClient,
+  delegationClient,
+  emissionsRepetees,
   tronque,
   jointureFaible,
   httpErreur,
