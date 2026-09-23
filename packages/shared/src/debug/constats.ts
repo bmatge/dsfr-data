@@ -60,10 +60,26 @@ export interface Constat {
   action?: string;
   /** Repères cités, ids `<app>.<zone>.<controle>` du registre (#997) ; vide pour une règle générique. */
   reperes: readonly string[];
+  /**
+   * Remèdes au choix, quand la panne en admet plusieurs (#1021) : chacun est
+   * un geste nommé et le repère qui le porte. L'assistant les rend en
+   * boutons, un « Me montrer » par remède. Invariant : les repères des
+   * remèdes sont ceux de `reperes`, dans le même ordre — le Diagnostic, qui
+   * ne montre que le premier, et `check:reperes` n'ont rien d'autre à lire.
+   */
+  remedes?: readonly RemedeConstat[];
   /** Ce qu'on a vu : comptes et noms DÉJÀ dans la trace, jamais un nombre calculé (ADR-122). */
   preuve: string;
   /** Id du nœud (`trace.graph.nodes[].id`) quand le constat vise une étape. */
   etape?: string;
+}
+
+/** Un remède proposé par un constat : ce que l'usager lit, et où le faire. */
+export interface RemedeConstat {
+  /** Geste, à l'infinitif, sans point final (« Filtrer en amont »). */
+  libelle: string;
+  /** Repère du registre qui porte le geste. */
+  repere: string;
 }
 
 /** Ce que l'appelant sait en plus de la trace. */
