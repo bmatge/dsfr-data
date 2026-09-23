@@ -9,6 +9,8 @@ import { join, resolve } from 'node:path';
 import { reperesDesVisites, verifierVisites } from '../../scripts/lib/reperes-tours';
 import { REPERES as REPERES_BUILDER } from '../../apps/builder/src/assistant/reperes.generated';
 import { REPERES as REPERES_CARTO } from '../../apps/builder-carto/src/assistant/reperes.generated';
+import { REPERES as REPERES_DASHBOARD } from '../../apps/dashboard/src/assistant/reperes.generated';
+import { REPERES as REPERES_SOURCES } from '../../apps/sources/src/assistant/reperes.generated';
 import { REPERES as REPERES_PIPELINE } from '../../apps/pipeline-helper/src/assistant/reperes.generated';
 import { REPERES as REPERES_PLAYGROUND } from '../../apps/playground/src/assistant/reperes.generated';
 
@@ -74,6 +76,8 @@ describe('verifierVisites', () => {
     const reg = new Map<string, Set<string>>([
       ['builder', new Set(REPERES_BUILDER.map((r) => r.id))],
       ['carto', new Set(REPERES_CARTO.map((r) => r.id))],
+      ['dashboard', new Set(REPERES_DASHBOARD.map((r) => r.id))],
+      ['sources', new Set(REPERES_SOURCES.map((r) => r.id))],
       ['pipeline', new Set(REPERES_PIPELINE.map((r) => r.id))],
       ['playground', new Set(REPERES_PLAYGROUND.map((r) => r.id))],
     ]);
@@ -81,10 +85,6 @@ describe('verifierVisites', () => {
       'packages/shared/src/tour/tour-configs.ts',
       'apps/builder/src/ui/tour.ts',
     ].map((chemin) => ({ chemin, contenu: readFileSync(join(RACINE, chemin), 'utf-8') }));
-    const problemes = verifierVisites(fichiers, reg).filter(
-      // Les préfixes des autres apps sont couverts par check:reperes lui-même.
-      (p) => !p.message.includes('aucune app')
-    );
-    expect(problemes).toEqual([]);
+    expect(verifierVisites(fichiers, reg)).toEqual([]);
   });
 });

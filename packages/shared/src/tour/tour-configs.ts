@@ -24,21 +24,21 @@ export const SOURCES_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: '#add-connection-btn',
+      repere: 'sources.actions.nouvelle-connexion',
       title: 'Connecter une base de données',
       description:
         'Ajoutez une connexion a une base Grist ou une API publique (data.gouv.fr, OpenDataSoft...) pour acceder a vos données.',
       position: 'right',
     },
     {
-      selector: '#add-source-btn',
+      repere: 'sources.locaux.creer',
       title: 'Créer une source manuelle',
       description:
         "Pas d'API ? Creez une source en collant du JSON, en important un CSV, ou en saisissant un tableau directement.",
       position: 'right',
     },
     {
-      selector: '#main-content',
+      repere: 'sources.connexions',
       title: 'Explorer et prévisualiser',
       description:
         'Une fois une connexion ajoutée, vous pourrez parcourir ses tables et prévisualiser les données avant de les utiliser dans le Builder.',
@@ -175,21 +175,21 @@ export const DASHBOARD_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: '#widget-library',
+      repere: 'dashboard.bibliotheque',
       title: 'Bibliothèque de widgets',
       description:
         'Glissez un widget (KPI, graphique, tableau ou texte) sur la grille pour commencer a construire votre tableau de bord.',
       position: 'right',
     },
     {
-      selector: '#dashboard-grid',
+      repere: 'dashboard.canevas.grille',
       title: 'Votre grille',
       description:
         'Deposez les widgets ici. Cliquez sur un widget pour le configurer (source de données, type de graphique, titre...).',
       position: 'left',
     },
     {
-      selector: 'app-action-bar',
+      repere: 'dashboard.actions',
       title: "Barre d'actions",
       description:
         'Enregistrez, ouvrez ou exportez votre tableau de bord. Le menu "Templates" du canevas permet de partir d\'un modèle pré-construit.',

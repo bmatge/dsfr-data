@@ -14,12 +14,16 @@ import {
 } from '../../packages/shared/src/ui/product-tour';
 import {
   BUILDER_CARTO_TOUR,
+  DASHBOARD_TOUR,
+  SOURCES_TOUR,
   PIPELINE_TOUR,
   PLAYGROUND_TOUR,
 } from '../../packages/shared/src/tour/tour-configs';
 import { BUILDER_TOUR } from '../../apps/builder/src/ui/tour';
 import { REPERES as REPERES_BUILDER } from '../../apps/builder/src/assistant/reperes.generated';
 import { REPERES as REPERES_CARTO } from '../../apps/builder-carto/src/assistant/reperes.generated';
+import { REPERES as REPERES_DASHBOARD } from '../../apps/dashboard/src/assistant/reperes.generated';
+import { REPERES as REPERES_SOURCES } from '../../apps/sources/src/assistant/reperes.generated';
 import { REPERES as REPERES_PIPELINE } from '../../apps/pipeline-helper/src/assistant/reperes.generated';
 import { REPERES as REPERES_PLAYGROUND } from '../../apps/playground/src/assistant/reperes.generated';
 
@@ -138,6 +142,8 @@ describe('visites des apps à registre (#1013)', () => {
   const cas: [string, TourConfig, readonly { id: string }[]][] = [
     ['builder', BUILDER_TOUR, REPERES_BUILDER],
     ['carto', BUILDER_CARTO_TOUR, REPERES_CARTO],
+    ['dashboard', DASHBOARD_TOUR, REPERES_DASHBOARD],
+    ['sources', SOURCES_TOUR, REPERES_SOURCES],
     ['pipeline', PIPELINE_TOUR, REPERES_PIPELINE],
     ['playground', PLAYGROUND_TOUR, REPERES_PLAYGROUND],
   ];

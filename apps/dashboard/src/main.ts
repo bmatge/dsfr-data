@@ -16,6 +16,8 @@ import {
   transmettreDiagnostic,
   appHref,
 } from '@dsfr-data/shared';
+import type { TourConfig } from '@dsfr-data/shared';
+import { creerAdaptateurDashboard } from './assistant/adaptateur.js';
 import { state, createEmptyDashboard, normalizeDashboard } from './state.js';
 import type { DashboardData, DashboardSource, DashboardFavorite } from './state.js';
 import { initDragAndDrop, handleFavoriteDragStart } from './drag-drop.js';
@@ -42,6 +44,11 @@ import {
   navigateToSources,
 } from './dashboards.js';
 import { openPreviewModal, closePreviewModal } from './preview.js';
+
+/** Visite en repères (#1013) : l'adaptateur rebascule sur l'onglet Aperçu avant de montrer. */
+function visiteDashboard(): TourConfig {
+  return { ...DASHBOARD_TOUR, adaptateur: creerAdaptateurDashboard() };
+}
 
 function loadFavorites(): void {
   state.favorites = loadFromStorage<DashboardFavorite[]>(STORAGE_KEYS.FAVORITES, []);
@@ -233,7 +240,9 @@ function initEventListeners(): void {
   document.getElementById('btn-save')?.addEventListener('click', openSaveModal);
   document.getElementById('btn-export')?.addEventListener('click', exportHTML);
   document.getElementById('btn-preview')?.addEventListener('click', openPreviewModal);
-  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(DASHBOARD_TOUR));
+  document
+    .getElementById('tour-btn')
+    ?.addEventListener('click', () => startTour(visiteDashboard()));
   document.getElementById('add-row-btn')?.addEventListener('click', addRow);
   document.getElementById('close-modal')?.addEventListener('click', closeConfigModal);
   document.getElementById('cancel-config')?.addEventListener('click', closeConfigModal);
@@ -327,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Product tour
   injectTourStyles();
-  startTourIfFirstVisit(DASHBOARD_TOUR);
+  startTourIfFirstVisit(visiteDashboard());
 });
 
 // Expose functions globally for onclick handlers
