@@ -38,7 +38,7 @@ import {
  * Light DOM pour hériter des styles DSFR.
  *
  * @fires diagnostic-copy - Le diagnostic textuel a été copié.
- * @fires diagnostic-send - { text } demande d'envoi vers l'assistant.
+ * @fires diagnostic-send - { text } « Envoyer » ou « Demander à l'assistant » (`sendAction`).
  * @fires diagnostic-toggle - { open } ouverture/fermeture du tiroir.
  * @fires constat-montrer - { repere, constat } l'usager demande à voir le
  *   contrôle qui corrige un constat (#1001). Le volet ne résout rien lui-même :
@@ -192,9 +192,20 @@ export class AppDiagnosticPanel extends LitElement {
   @property({ type: String })
   mode: 'live' | 'rapporte' = 'live';
 
-  /** Affiche « Envoyer à l'assistant » (apps conversationnelles). */
+  /** Affiche le bouton vers l'assistant (voir `sendAction`). */
   @property({ type: Boolean, attribute: 'can-send' })
   canSend = false;
+
+  /**
+   * Geste du bouton vers l'assistant (#1016) :
+   * - `envoyer` (défaut) : « Envoyer à l'assistant », le texte du diagnostic
+   *   part vers un chat (Assistant IA, Studio) ; désactivé sans trace ;
+   * - `demander` : « Demander à l'assistant », l'app ouvre son assistant
+   *   contextuel sans quitter l'écran (Carto) ; actif même sans trace.
+   * Dans les deux cas le volet émet `diagnostic-send` : l'app décide.
+   */
+  @property({ type: String, attribute: 'send-action' })
+  sendAction: 'envoyer' | 'demander' = 'envoyer';
 
   /** Explique l'absence de trace quand l'app sait pourquoi. */
   @property({ type: String, attribute: 'empty-hint' })
@@ -461,7 +472,8 @@ export class AppDiagnosticPanel extends LitElement {
   }
 
   private _send(): void {
-    if (this._isBlank) return;
+    // « Demander » ouvre l'assistant de l'app : il sert aussi avant toute trace.
+    if (this._isBlank && this.sendAction !== 'demander') return;
     this.dispatchEvent(
       new CustomEvent('diagnostic-send', {
         detail: { text: this.diagnosticText },
@@ -590,15 +602,6 @@ export class AppDiagnosticPanel extends LitElement {
     const upstreamRows = node.upstream
       .map((up) => trace.states[up]?.rows)
       .filter((n): n is number => n !== undefined);
-    const delegation = trace.delegation[node.id];
-    // MEME garde que `formatDelegation` : la note n'a de sens que si l'etape
-    // DEMANDE un regroupement. La coller a un query qui ne fait que filtrer —
-    // le cas majoritaire — apprendrait a l'ignorer. Aucune regle de constat
-    // ne lit encore la delegation : la note reste ici, comme dans
-    // `formatTrace`, sans compter dans les alertes.
-    const wantsAggregation = !!(node.attrs['group-by'] || node.attrs.aggregate);
-    const clientSide =
-      !!delegation && wantsAggregation && !delegation.groupBy && !delegation.aggregate;
     // Un afficheur sous une etape en attente d'un filtre n'est pas une
     // alerte : la page fait exactement ce qu'on lui a demande (#690).
     const upstreamWaiting = node.upstream.some((up) => trace.states[up]?.status === 'waiting');
@@ -648,18 +651,6 @@ export class AppDiagnosticPanel extends LitElement {
                 ${state.message}${
                   state.attemptedUrl ? html`<br />URL appelée : ${state.attemptedUrl}` : nothing
                 }
-              </div>`
-            : nothing
-        }
-        ${
-          clientSide
-            ? html`<div class="app-diag__stage-note">agrégation exécutée côté client.</div>`
-            : nothing
-        }
-        ${
-          state.emissions > 3
-            ? html`<div class="app-diag__stage-note">
-                ${plural(state.emissions, 'émission')} — rechargements en boucle ?
               </div>`
             : nothing
         }
@@ -871,19 +862,27 @@ export class AppDiagnosticPanel extends LitElement {
             </div>
             ${
               this.canSend
-                ? html`<button
-                    type="button"
-                    class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-send-plane-fill fr-btn--icon-left"
-                    aria-disabled=${this._isBlank ? 'true' : 'false'}
-                    title=${
-                      this._isBlank
-                        ? 'Aucun diagnostic à envoyer : exécutez d’abord le pipeline'
-                        : ''
-                    }
-                    @click=${this._send}
-                  >
-                    Envoyer à l’assistant
-                  </button>`
+                ? this.sendAction === 'demander'
+                  ? html`<button
+                      type="button"
+                      class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-question-answer-line fr-btn--icon-left"
+                      @click=${this._send}
+                    >
+                      Demander à l’assistant
+                    </button>`
+                  : html`<button
+                      type="button"
+                      class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-send-plane-fill fr-btn--icon-left"
+                      aria-disabled=${this._isBlank ? 'true' : 'false'}
+                      title=${
+                        this._isBlank
+                          ? 'Aucun diagnostic à envoyer : exécutez d’abord le pipeline'
+                          : ''
+                      }
+                      @click=${this._send}
+                    >
+                      Envoyer à l’assistant
+                    </button>`
                 : nothing
             }
             <button

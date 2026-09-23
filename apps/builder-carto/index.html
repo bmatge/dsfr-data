@@ -24,6 +24,8 @@
     <button slot="tertiary" id="open-playground-btn" data-repere="carto.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code de la carte dans le Playground">Ouvrir dans le Playground</button>
     <button slot="tertiary" id="btn-reset" data-repere="carto.actions.reinitialiser" class="fr-icon-add-line" title="Repartir d'une carte vierge">Nouveau</button>
     <button slot="tertiary" id="diagnostic-btn" data-repere="carto.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <!-- Assistant contextuel (#1016) : déclaré ici, pas ajouté par mountAssistant(), pour porter son repère. -->
+    <button slot="tertiary" id="assistant-btn" data-repere="carto.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
     <button slot="primary" id="btn-execute" data-repere="carto.actions.generer" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 

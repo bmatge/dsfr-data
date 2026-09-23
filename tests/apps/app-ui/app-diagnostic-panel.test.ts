@@ -8,6 +8,10 @@ import {
   type Trace,
 } from '@dsfr-data/shared';
 import { dispatchDataLoaded, dispatchDataError, clearDataCache } from '@/utils/data-bridge.js';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const RACINE_DEPOT = join(__dirname, '../../..');
 
 /**
  * Le volet Diagnostic (#605).
@@ -518,6 +522,60 @@ describe('app-diagnostic-panel', () => {
 
       await ouvrirOnglet(panel, 'Flux');
       expect(panel.textContent).toContain('côté client');
+      // La note EST le constat info (#1066), pas un calcul du volet.
+      const note = panel.querySelector('[data-constat="pipeline/delegation-client@q1"]');
+      expect(note?.textContent).toContain('agrégation exécutée côté client');
+    });
+
+    it('sans constats, le volet ne calcule rien lui-même (#1066)', async () => {
+      const built = buildTrace(
+        `<dsfr-data-source id="src"></dsfr-data-source>
+         <dsfr-data-query id="q1" source="src" group-by="dept"></dsfr-data-query>`,
+        () => {
+          dispatchDataLoaded('src', [{ dept: 'A' }]);
+          dispatchDataLoaded('q1', [{ dept: 'A' }]);
+        }
+      );
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      const trace = { ...built.trace, delegation: { q1: DELEGATION_NONE } };
+      trace.states = { ...trace.states, q1: { ...trace.states.q1, emissions: 9 } };
+      panel.constats = [];
+      panel.trace = trace;
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      await ouvrirOnglet(panel, 'Flux');
+      expect(panel.textContent).not.toContain('côté client');
+      expect(panel.textContent).not.toContain('émissions');
+    });
+  });
+
+  describe('émissions répétées : un constat info (#1066)', () => {
+    it('rend la note du constat, sans compter dans les alertes du rail', async () => {
+      const built = buildTrace(`<dsfr-data-source id="src"></dsfr-data-source>`, () => {
+        for (let i = 0; i < 5; i++) dispatchDataLoaded('src', [{ a: i }]);
+      });
+      cleanup = built.cleanup;
+      panel = await mountPanel();
+      expect(built.trace.states.src.emissions).toBe(5);
+      poser(panel, built.trace);
+      panel.toggle(true);
+      await panel.updateComplete;
+
+      await ouvrirOnglet(panel, 'Flux');
+      const note = panel.querySelector('[data-constat="pipeline/emissions-repetees@src"]');
+      expect(note?.textContent).toContain('émissions répétées');
+      expect(panel.constats.filter((c) => c.gravite !== 'info')).toEqual([]);
+    });
+
+    it('le volet ne lit plus trace.delegation ni state.emissions', () => {
+      const source = readFileSync(
+        join(RACINE_DEPOT, 'packages/app-ui/src/app-diagnostic-panel.ts'),
+        'utf-8'
+      );
+      expect(source).not.toContain('.delegation');
+      expect(source).not.toContain('.emissions');
     });
   });
 
@@ -921,6 +979,57 @@ describe('mountDiagnosticPanel', () => {
     mounted.destroy();
 
     expect(document.querySelector('app-diagnostic-panel')).toBeNull();
+  });
+
+  it('« Demander à l’assistant » (#1016) : actif sans trace, il émet vers l’app', async () => {
+    const recus: string[] = [];
+    const mounted = mountDiagnosticPanel({
+      canSend: true,
+      envoi: 'demander',
+      onSend: (texte) => recus.push(texte),
+    });
+    const panneau = mounted.panel as unknown as AppDiagnosticPanel;
+    expect(panneau.sendAction).toBe('demander');
+    panneau.toggle(true);
+    await panneau.updateComplete;
+
+    const boutons = Array.from(panneau.querySelectorAll('button'));
+    expect(boutons.some((b) => b.textContent?.includes('Envoyer à l’assistant'))).toBe(false);
+    const demander = boutons.find((b) => b.textContent?.includes('Demander à l’assistant'))!;
+    expect(demander.classList.contains('fr-icon-question-answer-line')).toBe(true);
+    expect(demander.hasAttribute('aria-disabled')).toBe(false);
+    demander.click();
+    expect(recus).toHaveLength(1);
+
+    mounted.destroy();
+  });
+
+  it('par défaut, le bouton reste « Envoyer à l’assistant » (apps conversationnelles)', async () => {
+    const mounted = mountDiagnosticPanel({ canSend: true });
+    const panneau = mounted.panel as unknown as AppDiagnosticPanel;
+    expect(panneau.sendAction).toBe('envoyer');
+    panneau.toggle(true);
+    await panneau.updateComplete;
+    const envoyer = Array.from(panneau.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Envoyer à l’assistant')
+    )!;
+    // Sans trace, rien à envoyer.
+    expect(envoyer.getAttribute('aria-disabled')).toBe('true');
+    mounted.destroy();
+  });
+
+  it('onConstats reçoit chaque évaluation (pastille de l’assistant, #1016)', () => {
+    const recues: (readonly Constat[])[] = [];
+    const mounted = mountDiagnosticPanel({ onConstats: (c) => recues.push(c) });
+    const built = buildTrace(`<dsfr-data-source id="src"></dsfr-data-source>`, () =>
+      dispatchDataLoaded('src', [])
+    );
+    mounted.setTrace(built.trace);
+    expect(recues.at(-1)?.map((c) => c.regle)).toContain('pipeline/zero-ligne');
+    mounted.setTrace(null);
+    expect(recues.at(-1)).toEqual([]);
+    built.cleanup();
+    mounted.destroy();
   });
 });
 
