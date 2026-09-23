@@ -30,9 +30,21 @@ import { CDN_URLS, LIB_URL } from '@dsfr-data/shared';
 const DEPS_LINE_RE =
   /^[ \t]*(<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>)[ \t]*\n?/gm;
 const DEPS_COMMENT_RE = /^[ \t]*<!--\s*Dependances[^>]*-->\s*\n?/gm;
-/** Detection (sans drapeau `g` : `test` ne garde aucun etat entre deux appels). */
-const DEPS_DETECT_RE =
-  /<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>/m;
+/** Marqueurs d'une ligne de dependance (CDN dsfr, DSFRChart, ancien Chart.js). */
+const MARQUEURS_DEPS = ['dsfr', 'DSFRChart', 'chart.js'];
+
+/**
+ * Une ligne est-elle une dependance ? Test par ligne, sans expression
+ * reguliere : un motif non ancre `<link[^>]*(dsfr)[^>]*>` est polynomial sur
+ * un texte saisi (CodeQL js/polynomial-redos).
+ */
+function estLigneDependance(ligne: string): boolean {
+  const t = ligne.trim();
+  const balise =
+    (t.startsWith('<link') && t.endsWith('>')) ||
+    (t.startsWith('<script') && t.endsWith('</script>'));
+  return balise && MARQUEURS_DEPS.some((m) => t.includes(m));
+}
 
 /** `dsfr-data-map`, `-map-layer`, `-map-popup`… : tout le bundle `map`. */
 const MAP_TAG_RE = /<dsfr-data-map\b/i;
@@ -73,7 +85,10 @@ export function blocDependances(code: string): string {
 
 /** Le code porte-t-il deja des dependances CDN ? */
 export function aDesDependances(code: string): boolean {
-  return DEPS_DETECT_RE.test(code) || /dsfr-data\.(core\.|map\.)?(umd|esm)\.js/.test(code);
+  return (
+    code.split('\n').some(estLigneDependance) ||
+    /dsfr-data\.(core\.|map\.)?(umd|esm)\.js/.test(code)
+  );
 }
 
 /** Retire les lignes de dependances et leur commentaire d'en-tete. */
