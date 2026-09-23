@@ -13,9 +13,8 @@ import {
   fetchWithTimeout,
   detectProvider,
   escapeHtml,
-  postProxy,
+  postNatif,
   resolveTransport,
-  IA_PROXY_ENDPOINT,
 } from '@dsfr-data/shared';
 import { buildSystemPrompt, buildFewShot } from '../ia/system-prompt.js';
 import { runAgentLoop } from '../ia/agent-loop.js';
@@ -438,8 +437,9 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
 
   // -- Transport IA commun (#998) : une seule implementation pour le builder-IA
   // et le Studio, retry sur 429 compris (Retry-After plafonne a 10 s, sinon
-  // 1 s, 2 s, 4 s). Gemini et Anthropic passent par `postProxy` brut ; la
-  // branche OpenAI-compatible par `resolveTransport` (post + capacites).
+  // 1 s, 2 s, 4 s). Gemini et Anthropic passent par `postNatif` ; la branche
+  // OpenAI-compatible par `resolveTransport` (post + capacites). chat.ts ne
+  // construit plus aucune requete de chat lui-meme (#1015).
   const TIMEOUT_MS = 45000;
 
   // -- Resolve OpenAI/Albert inference params from extraParams -----------------
@@ -496,13 +496,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
     }
     if (Object.keys(generationConfig).length > 0) requestBody.generationConfig = generationConfig;
 
-    const separator = config.apiUrl.includes('?') ? '&' : '?';
-    const data = await postProxy(
-      IA_PROXY_ENDPOINT,
-      { 'X-Target-URL': `${config.apiUrl}${separator}key=${config.token}` },
-      requestBody,
-      TIMEOUT_MS
-    );
+    const data = await postNatif('gemini', config, requestBody, TIMEOUT_MS);
     const candidates = data.candidates as { content: { parts: { text: string }[] } }[];
     return { kind: 'raw', raw: candidates[0].content.parts[0].text };
   }
@@ -519,16 +513,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
       const num = Number(val);
       requestBody[key] = !isNaN(num) && val !== '' ? num : val;
     }
-    const data = await postProxy(
-      IA_PROXY_ENDPOINT,
-      {
-        'X-Target-URL': config.apiUrl,
-        'x-api-key': config.token,
-        'anthropic-version': '2023-06-01',
-      },
-      requestBody,
-      TIMEOUT_MS
-    );
+    const data = await postNatif('anthropic', config, requestBody, TIMEOUT_MS);
     const content = data.content as { text: string }[];
     return { kind: 'raw', raw: content[0].text };
   }

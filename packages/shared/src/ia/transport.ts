@@ -128,6 +128,49 @@ export async function postProxy<T = Record<string, unknown>>(
   return (await response.json()) as T;
 }
 
+/**
+ * Fournisseurs a API native (non OpenAI-compatible), servis en mode
+ * utilisateur seulement : le builder-IA les propose, le jeton serveur est
+ * toujours Albert.
+ */
+export type FournisseurNatif = 'gemini' | 'anthropic';
+
+/**
+ * En-tetes du proxy pour un fournisseur natif. Gemini attend sa cle en
+ * parametre `key` de l'URL cible ; Anthropic, en `x-api-key` avec sa version
+ * d'API.
+ */
+export function nativeProxyHeaders(
+  fournisseur: FournisseurNatif,
+  apiUrl: string,
+  token: string
+): Record<string, string> {
+  if (fournisseur === 'gemini') {
+    const separator = apiUrl.includes('?') ? '&' : '?';
+    return { 'X-Target-URL': `${apiUrl}${separator}key=${token}` };
+  }
+  return { 'X-Target-URL': apiUrl, 'x-api-key': token, 'anthropic-version': '2023-06-01' };
+}
+
+/**
+ * POST vers un fournisseur natif (Gemini, Anthropic) par `/ia-proxy`, avec le
+ * meme retry sur 429 que le chemin OpenAI-compatible (#1015 : plus aucun appel
+ * de chat hors de ce module).
+ */
+export function postNatif<T = Record<string, unknown>>(
+  fournisseur: FournisseurNatif,
+  user: Pick<UserIAConfig, 'apiUrl' | 'token'>,
+  body: Record<string, unknown>,
+  timeout?: number
+): Promise<T> {
+  return postProxy<T>(
+    IA_PROXY_ENDPOINT,
+    nativeProxyHeaders(fournisseur, user.apiUrl, user.token),
+    body,
+    timeout
+  );
+}
+
 let serverConfig: ServerIAConfig | null = null;
 
 /** Config serveur (jeton cote serveur), sondee une fois par session. */

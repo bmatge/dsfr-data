@@ -344,6 +344,8 @@ export class SavedSourceControlElement extends LitElement {
                 <select
                   class="attr-input"
                   aria-label="Document Grist"
+                  data-repere="pipeline.source.document-grist"
+                  data-prerequis="noeud-source"
                   style="font-size:0.7rem;margin-bottom:4px"
                   .value=${this._selectedDoc}
                   @change=${this._onDocSelect}
@@ -368,6 +370,8 @@ export class SavedSourceControlElement extends LitElement {
                 <select
                   class="attr-input"
                   aria-label="Table Grist"
+                  data-repere="pipeline.source.table-grist"
+                  data-prerequis="noeud-source"
                   style="font-size:0.7rem"
                   .value=${this._selectedTable}
                   @change=${this._onTableSelect}
@@ -412,6 +416,8 @@ export class SavedSourceControlElement extends LitElement {
         <select
           class="attr-input"
           aria-label="Source ou connexion"
+          data-repere="pipeline.source.source-enregistree"
+          data-prerequis="noeud-source"
           style="border-color:#000091"
           .value=${this.ctrl.value}
           @change=${this._onSelect}

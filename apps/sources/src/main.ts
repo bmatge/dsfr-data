@@ -22,6 +22,7 @@ import {
   startTourIfFirstVisit,
   SOURCES_TOUR,
 } from '@dsfr-data/shared';
+import { creerAdaptateurSources } from './assistant/adaptateur.js';
 
 import {
   state,
@@ -358,5 +359,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Product tour
   injectTourStyles();
-  startTourIfFirstVisit(SOURCES_TOUR);
+  // Visite en repères (#1013) : l'adaptateur révèle chaque étape.
+  startTourIfFirstVisit({ ...SOURCES_TOUR, adaptateur: creerAdaptateurSources() });
 });

@@ -282,14 +282,14 @@ export function addColumnRow(): void {
   const row = document.createElement('div');
   row.className = 'column-item';
   row.innerHTML = `
-    <input class="fr-input fr-input--sm" type="text" placeholder="Nom de colonne">
-    <select class="fr-select fr-select--sm" style="width: 120px;">
+    <input class="fr-input fr-input--sm" type="text" data-repere="sources.table-grist.colonne-nom" data-repere-libelle="Nom de colonne" placeholder="Nom de colonne">
+    <select class="fr-select fr-select--sm" data-repere="sources.table-grist.colonne-type" data-repere-libelle="Type de colonne" style="width: 120px;">
       <option value="Text">Texte</option>
       <option value="Numeric">Nombre</option>
       <option value="Date">Date</option>
-      <option value="Bool">Booleen</option>
+      <option value="Bool">Booléen</option>
     </select>
-    <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()">
+    <button class="fr-btn fr-btn--sm fr-btn--tertiary" data-repere="sources.table-grist.colonne-retirer" data-repere-libelle="Supprimer cette colonne" onclick="this.parentElement.remove()" title="Supprimer cette colonne">
       <i class="ri-delete-bin-line"></i>
     </button>
   `;

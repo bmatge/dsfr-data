@@ -1128,6 +1128,21 @@ export function invalidateGristTables(connId: string, docId: string): void {
 // API headers — key/value editor
 // ============================================================
 
+/** Une ligne d'en-tête HTTP de la modale de connexion API, sans valeur. */
+const API_HEADER_ROW_SKELETON = `
+  <input type="text" class="fr-input fr-input--sm api-header-name" style="flex:1"
+    data-repere="sources.connexion.configuration.api.en-tete-nom" data-repere-libelle="Nom de l'en-tête"
+    aria-label="Nom de l'en-tête" placeholder="Nom (ex : Authorization)">
+  <input type="text" class="fr-input fr-input--sm api-header-value" style="flex:2"
+    data-repere="sources.connexion.configuration.api.en-tete-valeur" data-repere-libelle="Valeur de l'en-tête"
+    aria-label="Valeur de l'en-tête" placeholder="Valeur (ex : Bearer votre_token)">
+  <button type="button" class="api-header-remove-btn"
+    data-repere="sources.connexion.configuration.api.en-tete-retirer" data-repere-libelle="Supprimer cet en-tête"
+    title="Supprimer cet en-tête" aria-label="Supprimer cet en-tête"
+    style="background:none;border:none;color:var(--text-mention-grey);cursor:pointer;padding:0.25rem;font-size:1rem;">
+    <i class="ri-delete-bin-line" aria-hidden="true"></i>
+  </button>`;
+
 /**
  * Append an empty header row (name + value + remove button) to the editor.
  * If `name`/`value` are provided, pre-fill them — used by `editConnection()`
@@ -1137,32 +1152,19 @@ export function addApiHeaderRow(name = '', value = ''): void {
   const editor = document.getElementById('api-headers-editor');
   if (!editor) return;
 
+  // Squelette CONSTANT (aucune valeur dedans) : il porte les repères
+  // littéraux lus par check:reperes (#1007). Les valeurs, qui peuvent venir
+  // d'une connexion enregistrée, sont posées ensuite par `.value`.
   const row = document.createElement('div');
   row.className = 'api-headers-row';
   row.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
+  row.innerHTML = API_HEADER_ROW_SKELETON;
 
-  const nameInput = document.createElement('input');
-  nameInput.type = 'text';
-  nameInput.className = 'fr-input fr-input--sm api-header-name';
-  nameInput.placeholder = 'Nom (ex : Authorization)';
+  const nameInput = row.querySelector<HTMLInputElement>('.api-header-name')!;
   nameInput.value = name;
-  nameInput.style.flex = '1';
-
-  const valueInput = document.createElement('input');
-  valueInput.type = 'text';
-  valueInput.className = 'fr-input fr-input--sm api-header-value';
-  valueInput.placeholder = 'Valeur (ex : Bearer votre_token)';
+  const valueInput = row.querySelector<HTMLInputElement>('.api-header-value')!;
   valueInput.value = value;
-  valueInput.style.flex = '2';
-
-  const removeBtn = document.createElement('button');
-  removeBtn.type = 'button';
-  removeBtn.className = 'api-header-remove-btn';
-  removeBtn.title = 'Supprimer cet en-tête';
-  removeBtn.setAttribute('aria-label', 'Supprimer cet en-tête');
-  removeBtn.style.cssText =
-    'background:none;border:none;color:var(--text-mention-grey);cursor:pointer;padding:0.25rem;font-size:1rem;';
-  removeBtn.innerHTML = '<i class="ri-delete-bin-line" aria-hidden="true"></i>';
+  const removeBtn = row.querySelector<HTMLButtonElement>('.api-header-remove-btn')!;
   removeBtn.addEventListener('click', () => {
     row.remove();
     syncApiHeadersTextarea();
@@ -1171,9 +1173,6 @@ export function addApiHeaderRow(name = '', value = ''): void {
   nameInput.addEventListener('input', syncApiHeadersTextarea);
   valueInput.addEventListener('input', syncApiHeadersTextarea);
 
-  row.appendChild(nameInput);
-  row.appendChild(valueInput);
-  row.appendChild(removeBtn);
   editor.appendChild(row);
 
   syncApiHeadersTextarea();
@@ -1316,8 +1315,13 @@ export function setConnectionModalStep(step: 'detect' | 'manual'): void {
  */
 let currentManualType: 'grist' | 'api' = 'api';
 
+/** Type de configuration manuelle affiché (lu par l'adaptateur de révélation, #1007). */
+export function getConnType(): 'grist' | 'api' {
+  return currentManualType;
+}
+
 /** Définit le type de config et affiche les champs correspondants. */
-function setConnType(type: 'grist' | 'api'): void {
+export function setConnType(type: 'grist' | 'api'): void {
   currentManualType = type;
   const gristFields = document.getElementById('grist-fields');
   const apiFields = document.getElementById('api-fields');

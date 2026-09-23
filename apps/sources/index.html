@@ -35,15 +35,15 @@
     </nav>
     <div class="sources-page__head">
       <h1>Sources</h1>
-      <div class="sources-page__actions">
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="export-data-btn" title="Exporter toutes les données">
+      <div class="sources-page__actions" data-zone="sources.actions" data-repere-libelle="Actions sur les sources">
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="export-data-btn" data-repere="sources.actions.exporter" title="Exporter toutes les données">
           <i class="ri-download-line" aria-hidden="true"></i> Exporter
         </button>
         <label class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="import-data-btn" title="Importer des données" style="cursor:pointer;">
           <i class="ri-upload-line" aria-hidden="true"></i> Importer
-          <input type="file" id="import-data-file" accept=".json" style="display:none;">
+          <input type="file" id="import-data-file" data-repere="sources.actions.importer" accept=".json" style="display:none;">
         </label>
-        <button class="fr-btn fr-btn--sm" id="add-connection-btn">
+        <button class="fr-btn fr-btn--sm" id="add-connection-btn" data-repere="sources.actions.nouvelle-connexion">
           <i class="ri-add-line" aria-hidden="true"></i> Nouvelle connexion
         </button>
       </div>
@@ -60,7 +60,7 @@
       <h2>Connexions</h2>
       <span class="sources-section-head__meta" id="connections-count"></span>
     </div>
-    <div id="connections-list" class="sources-accordion">
+    <div id="connections-list" class="sources-accordion" data-zone="sources.connexions" data-repere-libelle="Connexions">
       <!-- Connexions chargées dynamiquement (accordéon) -->
     </div>
 
@@ -80,9 +80,9 @@
     </div>
     <div class="sources-locals">
       <div id="local-sources-list" class="sources-rows"></div>
-      <div class="sources-locals__footer">
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" id="add-source-btn" type="button">Créer une source manuelle</button>
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-links-line fr-btn--icon-left" id="add-join-btn" type="button">Joindre deux sources
+      <div class="sources-locals__footer" data-zone="sources.locaux" data-repere-libelle="Jeux de données locaux">
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" id="add-source-btn" data-repere="sources.locaux.creer" type="button">Créer une source manuelle</button>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-links-line fr-btn--icon-left" id="add-join-btn" data-repere="sources.locaux.joindre" type="button">Joindre deux sources
         </button>
       </div>
     </div>
@@ -93,11 +93,11 @@
        #preview-table, boutons d'action) sont conservés : toute la logique de
        chargement existante (pagination API, candidats de jeux, favoris,
        export Grist) écrit dedans sans modification. -->
-  <aside class="preview-panel" id="preview-panel" hidden aria-label="Aperçu des données" role="dialog" aria-modal="false">
+  <aside class="preview-panel" id="preview-panel" hidden data-zone="sources.apercu" aria-label="Aperçu des données" role="dialog" aria-modal="false">
     <div class="preview-panel__header">
       <span id="preview-panel-badge"></span>
       <h2 id="explorer-title" class="preview-panel__title">Aperçu</h2>
-      <button class="preview-panel__close" id="preview-close-btn" type="button" title="Fermer l'aperçu">
+      <button class="preview-panel__close" id="preview-close-btn" data-repere="sources.apercu.fermer" type="button" title="Fermer l'aperçu">
         Fermer <i class="ri-close-line" aria-hidden="true"></i>
       </button>
     </div>
@@ -112,55 +112,55 @@
       </div>
     </div>
     <div class="preview-panel__footer">
-      <button class="fr-btn fr-btn--sm" id="use-in-builder-btn">
+      <button class="fr-btn fr-btn--sm" id="use-in-builder-btn" data-repere="sources.apercu.builder" data-prerequis="apercu-ouvert">
         <i class="ri-bar-chart-box-line" aria-hidden="true"></i> Utiliser dans le Builder
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-online-btn" style="display: none;" title="Requêté en direct — pour un graphique dynamique">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-online-btn" data-repere="sources.apercu.en-ligne" data-prerequis="apercu-ouvert" style="display: none;" title="Requêté en direct — pour un graphique dynamique">
         <i class="ri-cloud-line" aria-hidden="true"></i> En faire un jeu en ligne
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-local-btn" style="display: none;" title="Copie figée dans le projet">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-local-btn" data-repere="sources.apercu.local" data-prerequis="apercu-ouvert" style="display: none;" title="Copie figée dans le projet">
         <i class="ri-download-line" aria-hidden="true"></i> En faire un jeu local
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" style="display: none;">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" data-repere="sources.apercu.favori" data-prerequis="apercu-ouvert" style="display: none;">
         <i class="ri-star-line" aria-hidden="true"></i> Ajouter aux favoris
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" style="display: none;">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" data-repere="sources.apercu.exporter-grist" data-prerequis="apercu-ouvert" style="display: none;">
         <i class="ri-upload-cloud-line" aria-hidden="true"></i> Exporter vers Grist
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary preview-panel__refresh" id="refresh-btn">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary preview-panel__refresh" id="refresh-btn" data-repere="sources.apercu.actualiser" data-prerequis="apercu-ouvert">
         <i class="ri-refresh-line" aria-hidden="true"></i> Actualiser
       </button>
     </div>
   </aside>
 
   <!-- MODAL : Ajouter une connexion -->
-  <div class="modal-overlay" id="connection-modal">
+  <div class="modal-overlay" id="connection-modal" data-zone="sources.connexion">
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-link"></i> Nouvelle connexion</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('connection-modal')">Fermer</button>
+        <button class="fr-btn fr-btn--close" data-repere="sources.connexion.fermer" title="Fermer" onclick="closeModal('connection-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <!-- Étape 1 : saisie d'une URL, détection automatique -->
-        <div id="detect-step">
+        <div id="detect-step" data-zone="sources.connexion.detection" data-repere-libelle="Détection par URL">
           <div class="fr-input-group">
             <label class="fr-label" for="detect-url">
               Adresse du jeu de données
               <span class="fr-hint-text">Collez l'URL d'une page de données (OpenDataSoft, data.gouv.fr…) ou d'une API JSON : la configuration est déduite automatiquement.</span>
             </label>
-            <input class="fr-input" type="url" id="detect-url" placeholder="https://data.economie.gouv.fr/explore/dataset/mon-jeu-de-donnees/">
+            <input class="fr-input" type="url" id="detect-url" data-repere="sources.connexion.detection.url" placeholder="https://data.economie.gouv.fr/explore/dataset/mon-jeu-de-donnees/">
           </div>
 
           <p class="fr-text--sm fr-mt-1w" style="color: var(--text-mention-grey);">
             Une base Grist ou une API à configurer à la main ?
-            <button type="button" id="manual-link" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" style="vertical-align: baseline;">Configurer manuellement</button>
+            <button type="button" id="manual-link" data-repere="sources.connexion.detection.manuel" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" style="vertical-align: baseline;">Configurer manuellement</button>
           </p>
         </div>
 
         <!-- Étape 2 : configuration (champs existants, pré-remplis si détectés) -->
-        <div id="manual-config" style="display: none;">
+        <div id="manual-config" data-zone="sources.connexion.configuration" data-repere-libelle="Configuration de la connexion" style="display: none;">
           <p class="fr-mb-2w">
-            <button type="button" id="back-to-detect-link" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left">
+            <button type="button" id="back-to-detect-link" data-repere="sources.connexion.configuration.retour" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-btn--icon-left">
               <i class="ri-arrow-left-line"></i> Revenir à la détection par URL
             </button>
           </p>
@@ -176,7 +176,7 @@
             Nom de la connexion
             <span class="fr-hint-text">Un nom pour identifier cette connexion</span>
           </label>
-          <input class="fr-input" type="text" id="conn-name" placeholder="Ex : Données DGFIP">
+          <input class="fr-input" type="text" id="conn-name" data-repere="sources.connexion.configuration.nom" placeholder="Ex : Données DGFIP">
         </div>
 
         <!-- Paramètres avancés : type de connexion + configuration détaillée -->
@@ -187,17 +187,17 @@
           <div class="fr-mt-2w">
 
         <!-- Champs Grist (affichés selon le contexte : doc Grist privé / édition) -->
-        <div id="grist-fields">
+        <div id="grist-fields" data-zone="sources.connexion.configuration.grist" data-repere-libelle="Base Grist">
           <div class="fr-input-group fr-mt-2w">
             <label class="fr-label" for="conn-url">
               URL du serveur Grist
               <span class="fr-hint-text">Ex: https://grist.numerique.gouv.fr ou https://docs.getgrist.com</span>
             </label>
-            <input class="fr-input" type="url" id="conn-url" placeholder="https://grist.numerique.gouv.fr" value="https://grist.numerique.gouv.fr">
+            <input class="fr-input" type="url" id="conn-url" data-repere="sources.connexion.configuration.grist.url" placeholder="https://grist.numerique.gouv.fr" value="https://grist.numerique.gouv.fr">
           </div>
 
           <div class="fr-checkbox-group fr-mt-2w">
-            <input type="checkbox" id="conn-public" name="conn-public">
+            <input type="checkbox" id="conn-public" data-repere="sources.connexion.configuration.grist.public" name="conn-public">
             <label class="fr-label" for="conn-public">
               Document public (sans clé API)
               <span class="fr-hint-text">Pour les documents Grist partagés publiquement</span>
@@ -209,7 +209,7 @@
               URL du document public
               <span class="fr-hint-text">Collez l'URL d'un doc Grist partagé publiquement (ex : https://grist.numerique.gouv.fr/o/mon-org/jGd2ge4dy2ZM/MaPage). Le document est chargé directement, sans énumérer vos équipes.</span>
             </label>
-            <input class="fr-input" type="url" id="conn-public-doc-url" placeholder="https://grist.numerique.gouv.fr/o/org/DOC_ID/Page">
+            <input class="fr-input" type="url" id="conn-public-doc-url" data-repere="sources.connexion.configuration.grist.document-public" placeholder="https://grist.numerique.gouv.fr/o/org/DOC_ID/Page">
           </div>
 
           <div class="fr-input-group fr-mt-2w" id="api-key-group">
@@ -217,7 +217,7 @@
               Clé API
               <span class="fr-hint-text">Trouvable dans Grist &gt; Paramètres du compte &gt; API</span>
             </label>
-            <input class="fr-input" type="password" id="conn-api-key" placeholder="Votre clé API Grist" autocomplete="off" data-1p-ignore data-lpignore="true">
+            <input class="fr-input" type="password" id="conn-api-key" data-repere="sources.connexion.configuration.grist.cle-api" placeholder="Votre clé API Grist" autocomplete="off" data-1p-ignore data-lpignore="true">
           </div>
 
           <div class="fr-alert fr-alert--info fr-alert--sm fr-mt-2w" id="api-key-info">
@@ -226,13 +226,13 @@
         </div>
 
         <!-- Champs API REST -->
-        <div id="api-fields" style="display: none;">
+        <div id="api-fields" data-zone="sources.connexion.configuration.api" data-repere-libelle="API REST" style="display: none;">
           <div class="fr-input-group fr-mt-2w">
             <label class="fr-label" for="api-url">
               URL des données
               <span class="fr-hint-text">Collez l'adresse d'une API JSON, ou directement l'URL de la page d'un jeu de données OpenDataSoft / data.gouv.fr : l'URL d'API est alors déduite automatiquement.</span>
             </label>
-            <input class="fr-input" type="url" id="api-url" placeholder="https://data.economie.gouv.fr/explore/dataset/mon-jeu-de-donnees/">
+            <input class="fr-input" type="url" id="api-url" data-repere="sources.connexion.configuration.api.url" placeholder="https://data.economie.gouv.fr/explore/dataset/mon-jeu-de-donnees/">
             <p id="api-url-detection" class="fr-text--sm" role="status" aria-live="polite" style="display: none; margin: 0.5rem 0 0; color: var(--text-default-success);"></p>
           </div>
 
@@ -241,7 +241,7 @@
               Méthode HTTP
               <span class="fr-hint-text">Choisir GET sauf cas spécifique (POST quand l'API attend un corps de requête).</span>
             </label>
-            <select class="fr-select" id="api-method">
+            <select class="fr-select" id="api-method" data-repere="sources.connexion.configuration.api.methode">
               <option value="GET" selected>GET</option>
               <option value="POST">POST</option>
             </select>
@@ -253,7 +253,7 @@
               <span class="fr-hint-text">Si l'API demande un jeton ou une clé pour autoriser l'accès, ajoutez-le ici (ex : nom <code>Authorization</code>, valeur <code>Bearer votre_token</code>).</span>
             </label>
             <div id="api-headers-editor" class="api-headers-editor"></div>
-            <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-api-header-btn">
+            <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-api-header-btn" data-repere="sources.connexion.configuration.api.ajouter-en-tete">
               <i class="ri-add-line"></i> Ajouter un en-tête
             </button>
             <!-- Hidden textarea: source de vérité JSON consommée par saveApiConnection.
@@ -266,7 +266,7 @@
               Emplacement des données (optionnel)
               <span class="fr-hint-text">Si les données ne sont pas à la racine de la réponse, indiquer où aller les chercher (ex : <code>data.items</code>, <code>results</code>).</span>
             </label>
-            <input class="fr-input" type="text" id="api-data-path" placeholder="data.items">
+            <input class="fr-input" type="text" id="api-data-path" data-repere="sources.connexion.configuration.api.chemin" placeholder="data.items">
           </div>
 
           <div class="fr-alert fr-alert--info fr-alert--sm fr-mt-2w">
@@ -280,72 +280,72 @@
         <!-- /#manual-config -->
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--secondary" onclick="closeModal('connection-modal')">Annuler</button>
-        <button class="fr-btn" id="detect-continue-btn">Continuer</button>
-        <button class="fr-btn" id="save-connection-btn" style="display: none;">Tester et sauvegarder</button>
+        <button class="fr-btn fr-btn--secondary" data-repere="sources.connexion.annuler" onclick="closeModal('connection-modal')">Annuler</button>
+        <button class="fr-btn" id="detect-continue-btn" data-repere="sources.connexion.continuer">Continuer</button>
+        <button class="fr-btn" id="save-connection-btn" data-repere="sources.connexion.enregistrer" style="display: none;">Tester et sauvegarder</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL : Créer une table Grist -->
-  <div class="modal-overlay" id="create-table-modal">
+  <div class="modal-overlay" id="create-table-modal" data-zone="sources.table-grist">
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-table-line"></i> Créer une table dans Grist</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('create-table-modal')">Fermer</button>
+        <button class="fr-btn fr-btn--close" data-repere="sources.table-grist.fermer" title="Fermer" onclick="closeModal('create-table-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-input-group">
           <label class="fr-label" for="table-name">Nom de la table</label>
-          <input class="fr-input" type="text" id="table-name" placeholder="Ex: MesDonnees">
+          <input class="fr-input" type="text" id="table-name" data-repere="sources.table-grist.nom" data-prerequis="document-grist-choisi" placeholder="Ex: MesDonnees">
         </div>
 
         <div class="columns-editor fr-mt-2w">
           <label class="fr-label">Colonnes</label>
           <div id="columns-list">
             <div class="column-item">
-              <input class="fr-input fr-input--sm" type="text" placeholder="Nom de colonne" value="Label">
-              <select class="fr-select fr-select--sm" style="width: 120px;">
+              <input class="fr-input fr-input--sm" type="text" data-repere="sources.table-grist.colonne-nom" data-repere-libelle="Nom de colonne" placeholder="Nom de colonne" value="Label">
+              <select class="fr-select fr-select--sm" data-repere="sources.table-grist.colonne-type" data-repere-libelle="Type de colonne" style="width: 120px;">
                 <option value="Text">Texte</option>
                 <option value="Numeric">Nombre</option>
                 <option value="Date">Date</option>
                 <option value="Bool">Booléen</option>
               </select>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()" title="Supprimer cette ligne">
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary" data-repere="sources.table-grist.colonne-retirer" data-repere-libelle="Supprimer cette colonne" onclick="this.parentElement.remove()" title="Supprimer cette colonne">
                 <i class="ri-delete-bin-line"></i>
               </button>
             </div>
             <div class="column-item">
-              <input class="fr-input fr-input--sm" type="text" placeholder="Nom de colonne" value="Valeur">
-              <select class="fr-select fr-select--sm" style="width: 120px;">
+              <input class="fr-input fr-input--sm" type="text" data-repere="sources.table-grist.colonne-nom" data-repere-libelle="Nom de colonne" placeholder="Nom de colonne" value="Valeur">
+              <select class="fr-select fr-select--sm" data-repere="sources.table-grist.colonne-type" data-repere-libelle="Type de colonne" style="width: 120px;">
                 <option value="Text">Texte</option>
                 <option value="Numeric" selected>Nombre</option>
                 <option value="Date">Date</option>
                 <option value="Bool">Booléen</option>
               </select>
-              <button class="fr-btn fr-btn--sm fr-btn--tertiary" onclick="this.parentElement.remove()" title="Supprimer cette ligne">
+              <button class="fr-btn fr-btn--sm fr-btn--tertiary" data-repere="sources.table-grist.colonne-retirer" data-repere-libelle="Supprimer cette colonne" onclick="this.parentElement.remove()" title="Supprimer cette colonne">
                 <i class="ri-delete-bin-line"></i>
               </button>
             </div>
           </div>
-          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-mt-1w" id="add-column-btn">
+          <button class="fr-btn fr-btn--sm fr-btn--tertiary fr-mt-1w" id="add-column-btn" data-repere="sources.table-grist.ajouter-colonne">
             <i class="ri-add-line"></i> Ajouter une colonne
           </button>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--secondary" onclick="closeModal('create-table-modal')">Annuler</button>
-        <button class="fr-btn" id="create-table-confirm-btn">Créer la table</button>
+        <button class="fr-btn fr-btn--secondary" data-repere="sources.table-grist.annuler" onclick="closeModal('create-table-modal')">Annuler</button>
+        <button class="fr-btn" id="create-table-confirm-btn" data-repere="sources.table-grist.creer" data-prerequis="document-grist-choisi">Créer la table</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL : Exporter vers Grist -->
-  <div class="modal-overlay" id="export-grist-modal">
+  <div class="modal-overlay" id="export-grist-modal" data-zone="sources.export-grist">
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-upload-cloud-line"></i> Exporter vers Grist</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('export-grist-modal')">Fermer</button>
+        <button class="fr-btn fr-btn--close" data-repere="sources.export-grist.fermer" title="Fermer" onclick="closeModal('export-grist-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-2w">
@@ -357,7 +357,7 @@
             Connexion Grist
             <span class="fr-hint-text">Sélectionnez une connexion avec clé API</span>
           </label>
-          <select class="fr-select" id="export-connection">
+          <select class="fr-select" id="export-connection" data-repere="sources.export-grist.connexion" data-prerequis="apercu-ouvert">
             <option value="">-- Sélectionner --</option>
           </select>
         </div>
@@ -366,7 +366,7 @@
           <label class="fr-label" for="export-document">
             Document Grist
           </label>
-          <select class="fr-select" id="export-document">
+          <select class="fr-select" id="export-document" data-repere="sources.export-grist.document" data-prerequis="apercu-ouvert">
             <option value="">-- Sélectionner --</option>
           </select>
         </div>
@@ -375,7 +375,7 @@
           <label class="fr-label" for="export-table-name">
             Nom de la nouvelle table
           </label>
-          <input class="fr-input" type="text" id="export-table-name" placeholder="MaNouvelleTable">
+          <input class="fr-input" type="text" id="export-table-name" data-repere="sources.export-grist.nom-table" data-prerequis="apercu-ouvert" placeholder="MaNouvelleTable">
         </div>
 
         <div id="export-preview" class="fr-mt-2w" style="display: none;">
@@ -386,8 +386,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--secondary" onclick="closeModal('export-grist-modal')">Annuler</button>
-        <button class="fr-btn" id="export-grist-confirm-btn" disabled>
+        <button class="fr-btn fr-btn--secondary" data-repere="sources.export-grist.annuler" onclick="closeModal('export-grist-modal')">Annuler</button>
+        <button class="fr-btn" id="export-grist-confirm-btn" data-repere="sources.export-grist.creer" data-prerequis="apercu-ouvert" disabled>
           <i class="ri-upload-cloud-line"></i> Créer la table
         </button>
       </div>
@@ -395,16 +395,16 @@
   </div>
 
   <!-- MODAL : Joindre deux sources -->
-  <div class="modal-overlay" id="join-source-modal">
+  <div class="modal-overlay" id="join-source-modal" data-zone="sources.jointure">
     <div class="modal">
       <div class="modal-header">
         <h3><i class="ri-link-unlink"></i> Joindre deux sources</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeModal('join-source-modal')">Fermer</button>
+        <button class="fr-btn fr-btn--close" data-repere="sources.jointure.fermer" title="Fermer" onclick="closeModal('join-source-modal')">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-input-group">
           <label class="fr-label" for="join-name">Nom de la source jointe</label>
-          <input class="fr-input" type="text" id="join-name" placeholder="Ex: Population + Budget">
+          <input class="fr-input" type="text" id="join-name" data-repere="sources.jointure.nom" data-prerequis="deux-sources-locales" placeholder="Ex: Population + Budget">
         </div>
 
         <div class="fr-input-group fr-mt-2w">
@@ -412,7 +412,7 @@
             Source A (principale)
             <span class="fr-hint-text">Les lignes de cette source servent de base. Les lignes de la source B viennent les compléter.</span>
           </label>
-          <select class="fr-select" id="join-left-source">
+          <select class="fr-select" id="join-left-source" data-repere="sources.jointure.source-a" data-prerequis="deux-sources-locales">
             <option value="">-- Sélectionner --</option>
           </select>
         </div>
@@ -421,7 +421,7 @@
           <label class="fr-label" for="join-right-source">
             Source B (complémentaire)
           </label>
-          <select class="fr-select" id="join-right-source">
+          <select class="fr-select" id="join-right-source" data-repere="sources.jointure.source-b" data-prerequis="deux-sources-locales">
             <option value="">-- Sélectionner --</option>
           </select>
         </div>
@@ -445,12 +445,12 @@
             Colonne commune aux deux sources
             <span class="fr-hint-text">Le champ qui permet de relier les deux sources (ex : code_dept). Si les noms diffèrent entre A et B : champ_A=champ_B.</span>
           </label>
-          <input class="fr-input" type="text" id="join-on" placeholder="code_dept">
+          <input class="fr-input" type="text" id="join-on" data-repere="sources.jointure.cle" data-attribut="dsfr-data-join:on" data-prerequis="deux-sources-locales" placeholder="code_dept">
         </div>
 
         <div class="fr-input-group fr-mt-2w">
           <label class="fr-label" for="join-type">Type de jointure</label>
-          <select class="fr-select" id="join-type">
+          <select class="fr-select" id="join-type" data-repere="sources.jointure.type" data-attribut="dsfr-data-join:type" data-prerequis="deux-sources-locales">
             <option value="left" selected>Garder toutes les lignes de A, compléter avec B si possible (recommandé)</option>
             <option value="inner">Garder uniquement les lignes présentes dans A et dans B</option>
             <option value="right">Garder toutes les lignes de B, compléter avec A si possible</option>
@@ -463,7 +463,7 @@
             Préfixe pour les champs de B en cas de doublon
             <span class="fr-hint-text">Évite que deux colonnes du même nom se mélangent (ex : préfixe « right_ » → la colonne « budget » de B devient « right_budget »).</span>
           </label>
-          <input class="fr-input" type="text" id="join-prefix-right" placeholder="right_" value="right_">
+          <input class="fr-input" type="text" id="join-prefix-right" data-repere="sources.jointure.prefixe" data-attribut="dsfr-data-join:prefix-right" data-prerequis="deux-sources-locales" placeholder="right_" value="right_">
         </div>
 
         <div id="join-preview" class="fr-mt-2w" style="display: none;">
@@ -479,40 +479,40 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--secondary" onclick="closeModal('join-source-modal')">Annuler</button>
-        <button class="fr-btn" id="save-join-btn">Joindre et sauvegarder</button>
+        <button class="fr-btn fr-btn--secondary" data-repere="sources.jointure.annuler" onclick="closeModal('join-source-modal')">Annuler</button>
+        <button class="fr-btn" id="save-join-btn" data-repere="sources.jointure.enregistrer" data-prerequis="deux-sources-locales">Joindre et sauvegarder</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL : Créer une source manuelle -->
-  <div class="modal-overlay" id="manual-source-modal">
+  <div class="modal-overlay" id="manual-source-modal" data-zone="sources.manuelle">
     <div class="modal modal--wide">
       <div class="modal-header">
         <h3><i class="ri-edit-line"></i> Nouvelle source manuelle</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" onclick="closeManualSourceModal()">Fermer</button>
+        <button class="fr-btn fr-btn--close" data-repere="sources.manuelle.fermer" title="Fermer" onclick="closeManualSourceModal()">Fermer</button>
       </div>
       <div class="modal-body">
         <div class="fr-input-group">
           <label class="fr-label" for="source-name">Nom de la source</label>
-          <input class="fr-input" type="text" id="source-name" placeholder="Ex: Statistiques mensuelles">
+          <input class="fr-input" type="text" id="source-name" data-repere="sources.manuelle.nom" placeholder="Ex: Statistiques mensuelles">
         </div>
 
         <!-- Tabs pour les 3 modes -->
         <div class="explorer-tabs fr-mt-2w" id="source-mode-tabs">
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab active" aria-pressed="true" data-source-mode="table">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab active" aria-pressed="true" data-source-mode="table" data-repere="sources.manuelle.mode-tableau">
             <i class="ri-table-line"></i> Tableau
           </button>
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab" aria-pressed="false" data-source-mode="json">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab" aria-pressed="false" data-source-mode="json" data-repere="sources.manuelle.mode-json">
             <i class="ri-code-s-slash-line"></i> Coller JSON
           </button>
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab" aria-pressed="false" data-source-mode="csv">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary explorer-tab" aria-pressed="false" data-source-mode="csv" data-repere="sources.manuelle.mode-csv">
             <i class="ri-file-text-line"></i> Importer CSV
           </button>
         </div>
 
         <!-- Mode Tableau -->
-        <div id="source-mode-table" class="source-mode-panel">
+        <div id="source-mode-table" class="source-mode-panel" data-zone="sources.manuelle.tableau" data-repere-libelle="Saisie en tableau">
           <label class="fr-label">
             Données
             <span class="fr-hint-text">Saisissez vos données ligne par ligne. Ideal pour de petits jeux de données.</span>
@@ -524,14 +524,14 @@
                   <th class="row-number">#</th>
                   <th>
                     <div class="col-header">
-                      <input type="text" value="label" placeholder="Colonne">
-                      <button type="button" class="col-remove-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line" aria-hidden="true"></i></button>
+                      <input type="text" value="label" placeholder="Colonne" data-repere="sources.manuelle.tableau.colonne" data-repere-libelle="Nom de colonne">
+                      <button type="button" class="col-remove-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-repere="sources.manuelle.tableau.retirer-colonne" data-repere-libelle="Supprimer la colonne" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line" aria-hidden="true"></i></button>
                     </div>
                   </th>
                   <th>
                     <div class="col-header">
-                      <input type="text" value="valeur" placeholder="Colonne">
-                      <button type="button" class="col-remove-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line" aria-hidden="true"></i></button>
+                      <input type="text" value="valeur" placeholder="Colonne" data-repere="sources.manuelle.tableau.colonne" data-repere-libelle="Nom de colonne">
+                      <button type="button" class="col-remove-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-repere="sources.manuelle.tableau.retirer-colonne" data-repere-libelle="Supprimer la colonne" title="Supprimer la colonne" onclick="removeTableColumn(this)"><i class="ri-close-line" aria-hidden="true"></i></button>
                     </div>
                   </th>
                   <th class="row-actions"></th>
@@ -540,43 +540,43 @@
               <tbody>
                 <tr>
                   <td class="row-number">1</td>
-                  <td><input type="text" placeholder="..."></td>
-                  <td><input type="text" placeholder="..."></td>
-                  <td class="row-actions"><button title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
+                  <td><input type="text" placeholder="..." data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+                  <td><input type="text" placeholder="..." data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+                  <td class="row-actions"><button type="button" data-repere="sources.manuelle.tableau.retirer-ligne" data-repere-libelle="Supprimer la ligne" title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
                 </tr>
                 <tr>
                   <td class="row-number">2</td>
-                  <td><input type="text" placeholder="..."></td>
-                  <td><input type="text" placeholder="..."></td>
-                  <td class="row-actions"><button title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
+                  <td><input type="text" placeholder="..." data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+                  <td><input type="text" placeholder="..." data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+                  <td class="row-actions"><button type="button" data-repere="sources.manuelle.tableau.retirer-ligne" data-repere-libelle="Supprimer la ligne" title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
                 </tr>
                 <tr>
                   <td class="row-number">3</td>
-                  <td><input type="text" placeholder="..."></td>
-                  <td><input type="text" placeholder="..."></td>
-                  <td class="row-actions"><button title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
+                  <td><input type="text" placeholder="..." data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+                  <td><input type="text" placeholder="..." data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+                  <td class="row-actions"><button type="button" data-repere="sources.manuelle.tableau.retirer-ligne" data-repere-libelle="Supprimer la ligne" title="Supprimer la ligne" onclick="removeTableRow(this)"><i class="ri-close-line"></i></button></td>
                 </tr>
               </tbody>
             </table>
           </div>
           <div class="table-editor-actions">
-            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" onclick="addTableRow()">
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" data-repere="sources.manuelle.tableau.ajouter-ligne" onclick="addTableRow()">
               <i class="ri-add-line"></i> Ajouter une ligne
             </button>
-            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" onclick="addTableColumn()">
+            <button class="fr-btn fr-btn--sm fr-btn--tertiary" type="button" data-repere="sources.manuelle.tableau.ajouter-colonne" onclick="addTableColumn()">
               <i class="ri-add-line"></i> Ajouter une colonne
             </button>
           </div>
         </div>
 
         <!-- Mode JSON -->
-        <div id="source-mode-json" class="source-mode-panel" style="display: none;">
+        <div id="source-mode-json" class="source-mode-panel" data-zone="sources.manuelle.json" data-repere-libelle="Coller du JSON" style="display: none;">
           <div class="fr-input-group">
             <label class="fr-label" for="json-input">
               Contenu JSON
               <span class="fr-hint-text">Collez un tableau JSON (ex : [{"nom":"Paris","pop":2161000}]) ou un objet contenant un tableau</span>
             </label>
-            <textarea class="fr-input" id="json-input" rows="10" placeholder='[
+            <textarea class="fr-input" id="json-input" data-repere="sources.manuelle.json.contenu" rows="10" placeholder='[
   {"label": "Janvier", "valeur": 100},
   {"label": "Février", "valeur": 150}
 ]'></textarea>
@@ -586,7 +586,7 @@
               Chemin vers les données (optionnel)
               <span class="fr-hint-text">Si le tableau est imbriqué, indiquez le chemin (ex: data.items)</span>
             </label>
-            <input class="fr-input" type="text" id="json-data-path" placeholder="data.items">
+            <input class="fr-input" type="text" id="json-data-path" data-repere="sources.manuelle.json.chemin" placeholder="data.items">
           </div>
           <div id="json-preview" class="fr-mt-2w" style="display: none;">
             <p class="fr-text--sm" style="color: var(--text-mention-grey);">Aperçu : <span id="json-preview-count">0</span> éléments détectés</p>
@@ -594,19 +594,19 @@
         </div>
 
         <!-- Mode CSV -->
-        <div id="source-mode-csv" class="source-mode-panel" style="display: none;">
+        <div id="source-mode-csv" class="source-mode-panel" data-zone="sources.manuelle.csv" data-repere-libelle="Importer un CSV" style="display: none;">
           <div class="fr-upload-group">
             <label class="fr-label" for="csv-file">
               Fichier CSV
               <span class="fr-hint-text">Sélectionnez un fichier CSV (séparateur : virgule ou point-virgule)</span>
             </label>
-            <input class="fr-upload" type="file" id="csv-file" accept=".csv,text/csv">
+            <input class="fr-upload" type="file" id="csv-file" data-repere="sources.manuelle.csv.fichier" accept=".csv,text/csv">
           </div>
           <div class="fr-input-group fr-mt-2w">
             <label class="fr-label" for="csv-separator">
               Séparateur
             </label>
-            <select class="fr-select" id="csv-separator">
+            <select class="fr-select" id="csv-separator" data-repere="sources.manuelle.csv.separateur">
               <option value="auto">Automatique</option>
               <option value=";">Point-virgule (;)</option>
               <option value=",">Virgule (,)</option>
@@ -625,8 +625,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--secondary" onclick="closeManualSourceModal()">Annuler</button>
-        <button class="fr-btn" id="save-source-btn">Enregistrer</button>
+        <button class="fr-btn fr-btn--secondary" data-repere="sources.manuelle.annuler" onclick="closeManualSourceModal()">Annuler</button>
+        <button class="fr-btn" id="save-source-btn" data-repere="sources.manuelle.enregistrer">Enregistrer</button>
       </div>
     </div>
   </div>

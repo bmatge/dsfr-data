@@ -47,11 +47,27 @@ export interface LintFinding {
   id?: string;
   message: string;
   /**
-   * Code stable de la regle, ex. `carte/couche-hors-carte` (#995). Pose par
-   * les regles cartographiques ; sert au moteur de constats (#996) a relier
-   * un constat a sa regle sans analyser le texte du message, qui peut changer.
+   * Code stable de la regle, ex. `carte/couche-hors-carte` (#995) ou
+   * `balisage/attribut-inconnu` (#1009). Pose par TOUTES les regles ; sert au
+   * moteur de constats (#996) a relier un constat a sa regle sans analyser le
+   * texte du message, qui peut changer. Absent seulement d'un constat produit
+   * hors de ce module.
    */
   regle?: string;
+  /**
+   * Ligne (1 = premiere) du `<` de la balise concernee (#1009) : l'editeur
+   * du Playground y pose son curseur et sa marque. Les fins de ligne `\n`,
+   * `\r\n` et `\r` seul comptent chacune pour UN saut, comme CodeMirror.
+   * Absente d'un constat qui ne vise aucune balise (« aucune balise »).
+   */
+  ligne?: number;
+  /** Colonne (1 = premiere) du `<` de la balise, sur `ligne`. */
+  colonne?: number;
+  /**
+   * Attribut vise quand le constat porte sur l'un d'eux (inconnu, retire,
+   * amont absent…) : l'editeur surligne l'attribut plutot que la ligne.
+   */
+  attribut?: string;
 }
 
 /** Balises qui doivent porter un `id` : elles reemettent sous ce nom. */
@@ -79,6 +95,42 @@ interface BaliseLue {
    * intermediaire n'y figure pas.
    */
   parents: string[];
+  /** Index du `<` ouvrant dans le code lu (#1009) : ligne et colonne en derivent. */
+  offset: number;
+}
+
+/**
+ * Debuts de ligne d'un texte, en un parcours : `debuts[n]` est l'index du
+ * premier caractere de la ligne n+1. `\r\n`, `\n` et `\r` seul terminent
+ * chacun une ligne, comme dans CodeMirror.
+ */
+export function debutsDeLigne(texte: string): number[] {
+  const debuts = [0];
+  for (let i = 0; i < texte.length; i++) {
+    const c = texte[i];
+    if (c === '\n') debuts.push(i + 1);
+    else if (c === '\r') {
+      if (texte[i + 1] === '\n') i++;
+      debuts.push(i + 1);
+    }
+  }
+  return debuts;
+}
+
+/**
+ * Ligne et colonne (1-based) d'un index, par recherche dichotomique dans la
+ * table des debuts de ligne : O(log n) par balise, la table n'est calculee
+ * qu'une fois par document (le parcours reste lineaire, #1047).
+ */
+export function positionDe(debuts: number[], offset: number): { ligne: number; colonne: number } {
+  let bas = 0;
+  let haut = debuts.length - 1;
+  while (bas < haut) {
+    const milieu = (bas + haut + 1) >> 1;
+    if (debuts[milieu] <= offset) bas = milieu;
+    else haut = milieu - 1;
+  }
+  return { ligne: bas + 1, colonne: offset - debuts[bas] + 1 };
 }
 
 /**
@@ -213,7 +265,7 @@ export function lireBalises(html: string): BaliseLue[] {
     }
 
     const corps = html.slice(j, k);
-    out.push({ tag, attrs: lireAttributs(corps), parents: [...pile] });
+    out.push({ tag, attrs: lireAttributs(corps), parents: [...pile], offset: debut });
     // Une balise auto-fermante (`<dsfr-data-x />`, ecrite dans certains
     // gabarits) n'ouvre rien.
     if (!corps.trimEnd().endsWith('/')) pile.push(tag);
@@ -240,7 +292,12 @@ const CHAMPS_GEO_DEVINES = ['geo_point_2d', 'geopoint', 'geo_point'];
  */
 const CHAMPS_FORME_DEVINES = ['geo_shape', 'geometry', 'geom'];
 
-type Situer = (message: string, severity: LintSeverity, regle: string) => LintFinding;
+type Situer = (
+  message: string,
+  severity: LintSeverity,
+  regle: string,
+  attribut?: string
+) => LintFinding;
 
 /** Un attribut present ET renseigne. */
 function renseigne(attrs: Record<string, string>, nom: string): boolean {
@@ -440,13 +497,15 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
  */
 export function lintMarkup(html: string, contract: ComponentContract): LintFinding[] {
   const balises = lireBalises(html);
+  const debuts = debutsDeLigne(html);
   const findings: LintFinding[] = [];
   const ids = new Set<string>();
-  const doublons = new Set<string>();
+  /** Id declare plusieurs fois -> sa DEUXIEME balise, celle qui ecrase la premiere. */
+  const doublons = new Map<string, BaliseLue>();
 
   for (const b of balises) {
     if (b.attrs.id) {
-      if (ids.has(b.attrs.id)) doublons.add(b.attrs.id);
+      if (ids.has(b.attrs.id) && !doublons.has(b.attrs.id)) doublons.set(b.attrs.id, b);
       ids.add(b.attrs.id);
     }
   }
@@ -454,22 +513,29 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
   for (const b of balises) {
     const contrat = contract[b.tag];
     const id = b.attrs.id;
+    const { ligne, colonne } = positionDe(debuts, b.offset);
     const situer = (
       message: string,
-      severity: LintSeverity = 'erreur',
-      regle?: string
+      severity: LintSeverity,
+      regle: string,
+      attribut?: string
     ): LintFinding => {
       const f: LintFinding = id
         ? { severity, tag: b.tag, id, message }
         : { severity, tag: b.tag, message };
-      if (regle) f.regle = regle;
+      f.regle = regle;
+      f.ligne = ligne;
+      f.colonne = colonne;
+      if (attribut) f.attribut = attribut;
       return f;
     };
 
     if (!contrat) {
       findings.push(
         situer(
-          `Balise inconnue. Composants disponibles : ${Object.keys(contract).sort().join(', ')}.`
+          `Balise inconnue. Composants disponibles : ${Object.keys(contract).sort().join(', ')}.`,
+          'erreur',
+          'balisage/balise-inconnue'
         )
       );
       continue;
@@ -482,7 +548,14 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
       if (nom.startsWith('@') || nom.startsWith(':') || nom.startsWith('.')) continue;
       const deprecie = contrat.deprecated?.[nom];
       if (deprecie) {
-        findings.push(situer(`L'attribut "${nom}" a ete retire — ${deprecie}`, 'avertissement'));
+        findings.push(
+          situer(
+            `L'attribut "${nom}" a ete retire — ${deprecie}`,
+            'avertissement',
+            'balisage/attribut-retire',
+            nom
+          )
+        );
         continue;
       }
       if (!contrat.attributes.includes(nom)) {
@@ -492,7 +565,10 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
         findings.push(
           situer(
             `Attribut inconnu "${nom}" — il sera ignore en silence.` +
-              (proches.length > 0 ? ` Vouliez-vous ${proches.slice(0, 3).join(', ')} ?` : '')
+              (proches.length > 0 ? ` Vouliez-vous ${proches.slice(0, 3).join(', ')} ?` : ''),
+            'erreur',
+            'balisage/attribut-inconnu',
+            nom
           )
         );
       }
@@ -503,45 +579,67 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
     if (REEMETTEURS.includes(b.tag) && !id) {
       findings.push(
         situer(
-          'Attribut "id" manquant : ce composant reemet sous son id, sans lui rien ne parvient a l\'aval.'
+          'Attribut "id" manquant : ce composant reemet sous son id, sans lui rien ne parvient a l\'aval.',
+          'erreur',
+          'balisage/id-manquant'
         )
       );
     }
 
     // Cablage : un amont declare mais absent est une panne parfaitement
     // muette — le composant attend un evenement qui ne viendra jamais.
-    const amonts = DEUX_AMONTS.includes(b.tag)
-      ? [b.attrs.left, b.attrs.right].filter(Boolean)
+    // Chaque amont est garde avec l'attribut qui le declare : l'editeur
+    // surligne `left`, `right`, `sources` ou `source`.
+    const amonts: { amont: string; attribut: string }[] = DEUX_AMONTS.includes(b.tag)
+      ? (['left', 'right'] as const)
+          .filter((a) => b.attrs[a])
+          .map((a) => ({ amont: b.attrs[a], attribut: a }))
       : b.tag === 'dsfr-data-concat'
         ? (b.attrs.sources ?? '')
             .split(',')
             .map((s) => s.trim())
             .filter(Boolean)
+            .map((amont) => ({ amont, attribut: 'sources' }))
         : b.attrs.source
-          ? [b.attrs.source]
+          ? [{ amont: b.attrs.source, attribut: 'source' }]
           : [];
-    for (const amont of amonts) {
+    for (const { amont, attribut } of amonts) {
       if (!ids.has(amont)) {
         findings.push(
           situer(
-            `L'amont "${amont}" n'existe pas dans ce code — ce composant attend un signal qui ne viendra jamais.`
+            `L'amont "${amont}" n'existe pas dans ce code — ce composant attend un signal qui ne viendra jamais.`,
+            'erreur',
+            'balisage/amont-absent',
+            attribut
           )
         );
       }
     }
     if (DEUX_AMONTS.includes(b.tag) && (!b.attrs.left || !b.attrs.right)) {
-      findings.push(situer('Un join exige "left" ET "right".'));
+      findings.push(
+        situer(
+          'Un join exige "left" ET "right".',
+          'erreur',
+          'balisage/join-incomplet',
+          b.attrs.left ? 'right' : 'left'
+        )
+      );
     }
 
     findings.push(...reglesCarte(b, balises, situer));
   }
 
-  for (const dup of doublons) {
+  for (const [dup, b] of doublons) {
+    const { ligne, colonne } = positionDe(debuts, b.offset);
     findings.push({
       severity: 'erreur',
       tag: 'id',
       id: dup,
       message: `L'id "${dup}" est declare plusieurs fois : ces composants ecrasent mutuellement leurs donnees.`,
+      regle: 'balisage/id-duplique',
+      ligne,
+      colonne,
+      attribut: 'id',
     });
   }
 
@@ -550,6 +648,7 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
       severity: 'avertissement',
       tag: '-',
       message: 'Aucune balise dsfr-data-* trouvee dans ce code.',
+      regle: 'balisage/aucune-balise',
     });
   }
 
@@ -569,7 +668,8 @@ export function formatLintFindings(findings: LintFinding[]): string {
   ];
   for (const f of [...erreurs, ...avertissements]) {
     const ou = f.id ? `${f.tag}#${f.id}` : f.tag;
-    lignes.push(`${f.severity === 'erreur' ? 'ERREUR' : 'ATTENTION'}  ${ou}`);
+    const position = f.ligne !== undefined ? ` (ligne ${f.ligne})` : '';
+    lignes.push(`${f.severity === 'erreur' ? 'ERREUR' : 'ATTENTION'}  ${ou}${position}`);
     lignes.push(`  ${f.message}`);
   }
   lignes.push('');

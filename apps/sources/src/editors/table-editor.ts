@@ -37,8 +37,8 @@ export function addTableColumn(): void {
   if (headerRow) {
     const th = document.createElement('th');
     th.innerHTML = `
-      <input type="text" value="${newColName}" class="fr-input fr-input--sm" style="min-width: 80px;">
-      <button class="remove-col-btn" onclick="(window as any).removeTableColumn(this)" title="Supprimer la colonne"
+      <input type="text" value="${newColName}" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.colonne" data-repere-libelle="Nom de colonne" style="min-width: 80px;">
+      <button type="button" class="remove-col-btn" data-repere="sources.manuelle.tableau.retirer-colonne" data-repere-libelle="Supprimer la colonne" onclick="removeTableColumn(this)" title="Supprimer la colonne"
         style="position: absolute; top: -2px; right: -2px; background: var(--background-action-high-error); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
         x
       </button>`;
@@ -52,7 +52,8 @@ export function addTableColumn(): void {
   const rows = table.querySelectorAll('tbody tr');
   rows.forEach((row) => {
     const td = document.createElement('td');
-    td.innerHTML = '<input type="text" class="fr-input fr-input--sm">';
+    td.innerHTML =
+      '<input type="text" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule">';
     // Insert before the last td (row actions)
     const lastTd = row.lastElementChild;
     row.insertBefore(td, lastTd);
@@ -109,13 +110,14 @@ export function addTableRow(): void {
   // Data cells
   for (let i = 0; i < colCount; i++) {
     const td = document.createElement('td');
-    td.innerHTML = '<input type="text" class="fr-input fr-input--sm">';
+    td.innerHTML =
+      '<input type="text" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule">';
     tr.appendChild(td);
   }
 
   // Actions cell
   const actionTd = document.createElement('td');
-  actionTd.innerHTML = `<button onclick="(window as any).removeTableRow(this)" class="remove-row-btn" title="Supprimer"
+  actionTd.innerHTML = `<button onclick="removeTableRow(this)" type="button" class="remove-row-btn" data-repere="sources.manuelle.tableau.retirer-ligne" data-repere-libelle="Supprimer la ligne" title="Supprimer la ligne"
     style="background: none; border: none; color: var(--text-mention-grey); cursor: pointer; font-size: 0.875rem;">
     <i class="ri-delete-bin-line"></i>
   </button>`;
@@ -240,8 +242,8 @@ export function loadTableData(data: Record<string, unknown>[]): void {
       // puis REENREGISTRE corrompu au prochain tour d'edition (#615).
       const escaped = escapeHtml(col);
       html += `<th style="position: relative;">
-        <input type="text" value="${escaped}" class="fr-input fr-input--sm" style="min-width: 80px;">
-        <button class="remove-col-btn" onclick="(window as any).removeTableColumn(this)" title="Supprimer la colonne"
+        <input type="text" value="${escaped}" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.colonne" data-repere-libelle="Nom de colonne" style="min-width: 80px;">
+        <button type="button" class="remove-col-btn" data-repere="sources.manuelle.tableau.retirer-colonne" data-repere-libelle="Supprimer la colonne" onclick="removeTableColumn(this)" title="Supprimer la colonne"
           style="position: absolute; top: -2px; right: -2px; background: var(--background-action-high-error); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
           x
         </button>
@@ -260,10 +262,10 @@ export function loadTableData(data: Record<string, unknown>[]): void {
       for (const col of columns) {
         const val = row[col];
         const escaped = escapeHtml(String(val ?? ''));
-        html += `<td><input type="text" class="fr-input fr-input--sm" value="${escaped}"></td>`;
+        html += `<td><input type="text" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule" value="${escaped}"></td>`;
       }
       html += `<td>
-        <button onclick="(window as any).removeTableRow(this)" class="remove-row-btn" title="Supprimer"
+        <button onclick="removeTableRow(this)" type="button" class="remove-row-btn" data-repere="sources.manuelle.tableau.retirer-ligne" data-repere-libelle="Supprimer la ligne" title="Supprimer la ligne"
           style="background: none; border: none; color: var(--text-mention-grey); cursor: pointer; font-size: 0.875rem;">
           <i class="ri-delete-bin-line"></i>
         </button>
@@ -284,15 +286,15 @@ export function resetTableEditor(): void {
     headerRow.innerHTML = `
       <th style="width: 30px;">#</th>
       <th style="position: relative;">
-        <input type="text" value="Colonne 1" class="fr-input fr-input--sm" style="min-width: 80px;">
-        <button class="remove-col-btn" onclick="(window as any).removeTableColumn(this)" title="Supprimer la colonne"
+        <input type="text" value="Colonne 1" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.colonne" data-repere-libelle="Nom de colonne" style="min-width: 80px;">
+        <button type="button" class="remove-col-btn" data-repere="sources.manuelle.tableau.retirer-colonne" data-repere-libelle="Supprimer la colonne" onclick="removeTableColumn(this)" title="Supprimer la colonne"
           style="position: absolute; top: -2px; right: -2px; background: var(--background-action-high-error); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
           x
         </button>
       </th>
       <th style="position: relative;">
-        <input type="text" value="Colonne 2" class="fr-input fr-input--sm" style="min-width: 80px;">
-        <button class="remove-col-btn" onclick="(window as any).removeTableColumn(this)" title="Supprimer la colonne"
+        <input type="text" value="Colonne 2" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.colonne" data-repere-libelle="Nom de colonne" style="min-width: 80px;">
+        <button type="button" class="remove-col-btn" data-repere="sources.manuelle.tableau.retirer-colonne" data-repere-libelle="Supprimer la colonne" onclick="removeTableColumn(this)" title="Supprimer la colonne"
           style="position: absolute; top: -2px; right: -2px; background: var(--background-action-high-error); color: white; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
           x
         </button>
@@ -308,10 +310,10 @@ export function resetTableEditor(): void {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="row-number" style="text-align: center; color: var(--text-mention-grey); font-size: 0.75rem;">${r}</td>
-        <td><input type="text" class="fr-input fr-input--sm"></td>
-        <td><input type="text" class="fr-input fr-input--sm"></td>
+        <td><input type="text" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
+        <td><input type="text" class="fr-input fr-input--sm" data-repere="sources.manuelle.tableau.cellule" data-repere-libelle="Cellule"></td>
         <td>
-          <button onclick="(window as any).removeTableRow(this)" class="remove-row-btn" title="Supprimer"
+          <button onclick="removeTableRow(this)" type="button" class="remove-row-btn" data-repere="sources.manuelle.tableau.retirer-ligne" data-repere-libelle="Supprimer la ligne" title="Supprimer la ligne"
             style="background: none; border: none; color: var(--text-mention-grey); cursor: pointer; font-size: 0.875rem;">
             <i class="ri-delete-bin-line"></i>
           </button>

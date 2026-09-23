@@ -1,6 +1,7 @@
-import { PipelineNodeConfig } from './base-node.js';
+import type { PipelineNodeConfig } from './base-node.js';
 
 export const SOURCE_CONFIG: PipelineNodeConfig = {
+  type: 'source',
   label: 'Source',
   component: 'dsfr-data-source',
   category: 'source',
@@ -54,6 +55,7 @@ export const SOURCE_CONFIG: PipelineNodeConfig = {
 };
 
 export const QUERY_CONFIG: PipelineNodeConfig = {
+  type: 'query',
   label: 'Requêter',
   component: 'dsfr-data-query',
   category: 'transform',
@@ -83,6 +85,7 @@ export const QUERY_CONFIG: PipelineNodeConfig = {
 };
 
 export const SEARCH_CONFIG: PipelineNodeConfig = {
+  type: 'search',
   label: 'Rechercher',
   component: 'dsfr-data-search',
   category: 'interact',
@@ -105,6 +108,7 @@ export const SEARCH_CONFIG: PipelineNodeConfig = {
 };
 
 export const FACETS_CONFIG: PipelineNodeConfig = {
+  type: 'facets',
   label: 'Facettes',
   component: 'dsfr-data-facets',
   category: 'interact',
@@ -132,6 +136,7 @@ export const FACETS_CONFIG: PipelineNodeConfig = {
 };
 
 export const OUTPUT_CONFIG: PipelineNodeConfig = {
+  type: 'output',
   label: 'Sortie',
   component: '__output__',
   category: 'display',
@@ -141,6 +146,7 @@ export const OUTPUT_CONFIG: PipelineNodeConfig = {
 };
 
 export const A11Y_CONFIG: PipelineNodeConfig = {
+  type: 'a11y',
   label: 'Accessibilité',
   component: 'dsfr-data-a11y',
   category: 'a11y',
@@ -163,6 +169,7 @@ export const A11Y_CONFIG: PipelineNodeConfig = {
 };
 
 export const NORMALIZE_CONFIG: PipelineNodeConfig = {
+  type: 'normalize',
   label: 'Normaliser',
   component: 'dsfr-data-normalize',
   category: 'transform',
@@ -217,6 +224,7 @@ export const NORMALIZE_CONFIG: PipelineNodeConfig = {
 };
 
 export const JOIN_CONFIG: PipelineNodeConfig = {
+  type: 'join',
   label: 'Joindre',
   component: 'dsfr-data-join',
   category: 'transform',

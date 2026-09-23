@@ -121,6 +121,29 @@ export interface ExceptionRepere {
   readonly raison: string;
 }
 
+/**
+ * Repère posé À L'EXÉCUTION depuis une définition de données (#1008) : les
+ * contrôles d'un nœud du pipeline sont rendus par un élément Lit générique,
+ * leur `data-repere` est calculé depuis `node-configs.ts`, jamais écrit en
+ * littéral dans un gabarit. Le module déclaré par `ReperesConfig.donnees`
+ * projette la définition en entrées de ce type ; l'extracteur les soumet aux
+ * mêmes règles que le balisage (forme, préfixe, zone parente, attribut au
+ * manifeste, prérequis, doublons).
+ */
+export interface RepereDonnee {
+  /** Identifiant : `pipeline.source.api-type` (contrôle) ou `pipeline.source` (zone). */
+  readonly id: string;
+  readonly genre: GenreRepere;
+  /** Libellé tel que l'usager le lit (`def.label`, `config.label`). */
+  readonly libelle: string;
+  /** Balise rendue : `select`, `input`, `div`… (lettres minuscules seulement). */
+  readonly element: string;
+  /** Attributs de la lib pilotés, `tag:attribut` (comme `data-attribut`). */
+  readonly attributs?: readonly string[];
+  /** Prérequis nommés (comme `data-prerequis`). */
+  readonly prerequis?: readonly string[];
+}
+
 /** Configuration d'une app : `apps/<app>/src/assistant/reperes.config.ts`. */
 export interface ReperesConfig {
   /** Dossier de l'app sous `apps/` : `builder-carto`. */
@@ -144,4 +167,10 @@ export interface ReperesConfig {
   readonly constats?: readonly string[];
   /** Synonymes par identifiant de repère. */
   readonly synonymes?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Module, relatif au dossier de l'app, qui exporte
+   * `REPERES_DONNEES: readonly RepereDonnee[]` : repères posés à l'exécution
+   * depuis une définition (#1008, contrôles des nœuds du pipeline).
+   */
+  readonly donnees?: string;
 }

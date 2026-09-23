@@ -4,10 +4,11 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { ReperesConfig } from '../../packages/shared/src/ui/reperes-types';
+import type { RepereDonnee, ReperesConfig } from '../../packages/shared/src/ui/reperes-types';
 import type { CemManifest } from '../../scripts/lib/cem-reference';
 import {
   extraireReperes,
+  fragmentDonnees,
   rendreRegistre,
   reperesCites,
   zoneDe,
@@ -438,5 +439,83 @@ describe('temps lineaire (CodeQL js/redos, alerte #95)', () => {
     expect(sansCommentairesEnTete('  // a\n /* b */ cle: 1')).toBe('cle: 1');
     expect(sansCommentairesEnTete('/* non ferme')).toBe('');
     expect(sansCommentairesEnTete('cle /* garde */')).toBe('cle /* garde */');
+  });
+});
+
+describe('source « donnees » : reperes poses a l’execution (#1008)', () => {
+  const chemin = 'apps/demo/src/assistant/reperes-donnees.ts';
+  const ZONE: RepereDonnee = { id: 'demo.noeud', genre: 'zone', libelle: 'Étape', element: 'div' };
+  const MODE: RepereDonnee = {
+    id: 'demo.noeud.mode',
+    genre: 'controle',
+    libelle: 'Mode « clic » & <popup>',
+    element: 'select',
+    attributs: ['dsfr-data-map-popup:mode'],
+    prerequis: ['couche-active'],
+  };
+
+  const avecDonnees = (entrees: RepereDonnee[]) =>
+    extraire(
+      { 'apps/demo/index.html': HTML_BASE },
+      { prerequis: 'src/assistant/prerequis.ts', donnees: 'src/assistant/reperes-donnees.ts' },
+      { prerequis: PREREQUIS, donnees: { chemin, entrees } }
+    );
+
+  it('projette zones et controles au registre, libelle echappe puis relu tel quel', () => {
+    const r = avecDonnees([ZONE, MODE]);
+    expect(messages(r)).toEqual([]);
+    const mode = r.reperes.find((x) => x.id === 'demo.noeud.mode')!;
+    expect(mode).toMatchObject({
+      genre: 'controle',
+      libelle: 'Mode « clic » & <popup>',
+      element: 'select',
+      zone: 'demo.noeud',
+      attributs: [{ tag: 'dsfr-data-map-popup', nom: 'mode', description: 'Mode d’affichage.' }],
+      prerequis: ['couche-active'],
+      sources: [chemin],
+    });
+    expect(r.reperes.find((x) => x.id === 'demo.noeud')?.genre).toBe('zone');
+  });
+
+  it('memes regles que le balisage : attribut hors manifeste, zone absente, prerequis inconnu', () => {
+    const r = avecDonnees([
+      { ...MODE, attributs: ['dsfr-data-map-popup:inconnu'] },
+      { ...MODE, id: 'demo.ailleurs.x', attributs: [], prerequis: ['pas-de-regle'] },
+    ]);
+    expect(messages(r)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('« dsfr-data-map-popup:inconnu » absent du manifeste'),
+        expect.stringContaining('prerequis « pas-de-regle » sans regle'),
+        expect.stringContaining("sa zone « demo.ailleurs » n'est posee nulle part"),
+      ])
+    );
+  });
+
+  it('balise invalide refusee, jamais injectee dans le fragment', () => {
+    const r = avecDonnees([ZONE, { ...MODE, element: 'select onfocus=x' }]);
+    expect(messages(r)).toEqual([
+      'demo.noeud.mode : balise « select onfocus=x » invalide (lettres minuscules attendues)',
+    ]);
+    expect(r.reperes.some((x) => x.id === 'demo.noeud.mode')).toBe(false);
+  });
+
+  it('identifiant avec guillemet : echappe, puis refuse comme mal forme', () => {
+    const r = avecDonnees([ZONE, { ...MODE, id: 'demo.noeud.x" data-zone="demo.pirate' }]);
+    expect(messages(r).some((m) => m.includes('mal forme'))).toBe(true);
+    expect(r.reperes.some((x) => x.id === 'demo.pirate')).toBe(false);
+  });
+
+  it('module declare mais non fourni : probleme', () => {
+    const r = extraire({ 'apps/demo/index.html': HTML_BASE }, { donnees: 'src/x.ts' });
+    expect(messages(r)).toContain(
+      'module des donnees declare dans reperes.config.ts mais non fourni (REPERES_DONNEES)'
+    );
+  });
+
+  it('fragmentDonnees : chaque controle est englobe par sa zone', () => {
+    const { html } = fragmentDonnees({ chemin, entrees: [MODE, ZONE] }, []);
+    const els = lireElements(html);
+    const select = els.find((e) => e.tag === 'select')!;
+    expect(els[select.parent!].attrs.get('data-zone')?.valeur).toBe('demo.noeud');
   });
 });

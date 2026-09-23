@@ -1,15 +1,20 @@
 /**
- * Client skills du studio (#515) : consomme le skills.json publie (celui du
- * MCP), matche via le moteur partage (#514), degrade proprement sans reseau.
+ * Client des skills publiees (#515, promu du studio vers shared par #1014) :
+ * consomme le skills.json publie (celui du MCP), matche via le moteur partage
+ * (#514), degrade proprement sans reseau.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
+  SKILLS_INDISPONIBLES,
+  executerOutilSkill,
   loadSkills,
   resetSkillsCache,
   relevantSkillsText,
   skillText,
   type PublishedSkill,
-} from '../../../apps/studio/src/ia/skills-client';
+} from '../../packages/shared/src/ia/skills-client';
 
 const SKILLS: PublishedSkill[] = [
   {
@@ -36,7 +41,7 @@ function okFetch(payload: unknown): typeof fetch {
 
 beforeEach(() => resetSkillsCache());
 
-describe('studio/skills-client', () => {
+describe('shared/ia/skills-client', () => {
   it('charge et met en cache le skills.json', async () => {
     const fetcher = okFetch(SKILLS);
     const first = await loadSkills(fetcher);
@@ -70,5 +75,39 @@ describe('studio/skills-client', () => {
     expect(skillText(SKILLS, 'dsfrDataChart', 'tout')).toBe('## Chart — contenu complet');
     expect(skillText(SKILLS, 'dsfrDataChart', 'pieges')).toContain('Sections disponibles');
     expect(skillText(SKILLS, 'inconnu')).toContain('dsfrDataChart, dsfrDataKpi');
+  });
+});
+
+describe('shared/ia/skills-client — outils de consultation', () => {
+  it('executerOutilSkill sert get_relevant_skills et get_skill depuis le chargeur', async () => {
+    const charger = async () => SKILLS;
+    expect(
+      await executerOutilSkill('get_relevant_skills', { message: 'graphique' }, charger)
+    ).toContain('Chart — guide');
+    expect(
+      await executerOutilSkill('get_skill', { skill_id: 'dsfrDataKpi', section: 'guide' }, charger)
+    ).toBe('## KPI — guide');
+  });
+
+  it('sans skills.json, la documentation est dite indisponible', async () => {
+    expect(await executerOutilSkill('get_skill', { skill_id: 'x' }, async () => null)).toBe(
+      SKILLS_INDISPONIBLES
+    );
+  });
+});
+
+describe('shared/ia/skills-client — frontiere lib/app (#319)', () => {
+  const src = (f: string) =>
+    readFileSync(resolve(__dirname, '../../packages/shared/src', f), 'utf-8');
+
+  it('exporte par index.ts, jamais par lib.ts', () => {
+    expect(src('index.ts')).toContain("from './ia/skills-client.js'");
+    expect(src('lib.ts')).not.toContain('skills-client');
+  });
+
+  it('le studio ne garde pas de copie locale', () => {
+    expect(() =>
+      readFileSync(resolve(__dirname, '../../apps/studio/src/ia/skills-client.ts'))
+    ).toThrow();
   });
 });

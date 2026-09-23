@@ -282,6 +282,7 @@ export type {
   HelperRepere,
   ExceptionRepere,
   ReperesConfig,
+  RepereDonnee,
 } from './ui/reperes-types.js';
 
 // Révélation d'un repère : montrer(), modes « dire » / « guider » (#1003, app-side)
@@ -453,6 +454,46 @@ export {
 export type { AgentLoopEnd, AgentLoopOptions, AgentLoopResult } from './ia/agent-loop.js';
 export { runAgentLoop, parseToolArgs, DEFAULT_DUPLICATE_MESSAGE } from './ia/agent-loop.js';
 
+// --- Client des skills publiees (#515, promu du studio par #1014) — app-side (fetch) ---
+export type { PublishedSkill } from './ia/skills-client.js';
+export {
+  loadSkills,
+  resetSkillsCache,
+  relevantSkillsText,
+  skillText,
+  OUTILS_SKILLS,
+  OUTILS_SKILLS_NOMS,
+  SKILLS_INDISPONIBLES,
+  executerOutilSkill,
+} from './ia/skills-client.js';
+
+// --- Tour Albert de l'assistant contextuel (#1014, ADR-143) — app-side ---
+// `creerRepondreIA()` rend le `repondre` de mountAssistant().
+export type {
+  TransportAssistant,
+  ProfilAssistant,
+  OptionsRepondreIA,
+  OptionsPrompt,
+  EtapeMontree,
+  OptionsPlan,
+  PlanPasAPas,
+} from './ia/assistant-loop.js';
+export {
+  creerRepondreIA,
+  suivrePlan,
+  construirePromptAssistant,
+  constatsPourModele,
+  reperesDeLaReponse,
+  idsCites,
+  idsDuRegistre,
+  outilMontrer,
+  outilPlanifier,
+  MAX_ROUNDS_ASSISTANT,
+  MAX_ETAPES_PLAN,
+  HISTORIQUE_ASSISTANT,
+  REPERE_REFUSE,
+} from './ia/assistant-loop.js';
+
 // --- Vocabulaire et schema JSON de la ChartConfig (promus du builder-IA, #515) ---
 export {
   CHART_CONFIG_TYPES,
@@ -525,14 +566,17 @@ export type {
   ProxyFetchInit,
   ResolvedTransport,
   ResolveTransportOptions,
+  FournisseurNatif,
 } from './ia/transport.js';
 export {
   IA_PROXY_DEFAULT_ENDPOINT,
   IA_PROXY_ENDPOINT,
   IA_CONFIG_KEY,
   userProxyHeaders,
+  nativeProxyHeaders,
   proxyFetch,
   postProxy,
+  postNatif,
   fetchServerConfig,
   getServerConfig,
   resetServerConfigCache,

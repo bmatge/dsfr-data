@@ -23,8 +23,10 @@ import {
   DIAGNOSTIC_TOOLS,
   DIAGNOSTIC_TOOL_NAMES,
   REPEATABLE_TOOLS,
+  OUTILS_SKILLS,
   countWhere,
   distinctValues,
+  executerOutilSkill,
   humanizeDiagnosticStep,
   inspectData,
   runAgentLoop,
@@ -44,7 +46,6 @@ import {
   type BlockSpec,
   type DocumentContext,
 } from '../document.js';
-import { loadSkills, relevantSkillsText, skillText } from './skills-client.js';
 import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
 import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
@@ -92,38 +93,6 @@ const DATA_INSPECTION_TOOLS = [
   },
 ] as const;
 
-const SKILL_LOOKUP_TOOLS = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_relevant_skills',
-      description: 'Documentation des composants dsfr-data pertinente pour une intention donnée.',
-      parameters: {
-        type: 'object',
-        properties: { message: { type: 'string', description: "L'intention, en français" } },
-        required: ['message'],
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'get_skill',
-      description: 'Une fiche de documentation par id, section optionnelle.',
-      parameters: {
-        type: 'object',
-        properties: {
-          skill_id: { type: 'string' },
-          section: { type: 'string', enum: ['guide', 'reference', 'exemples', 'pieges', 'tout'] },
-        },
-        required: ['skill_id'],
-        additionalProperties: false,
-      },
-    },
-  },
-] as const;
-
 // Chaque tour = 1 appel Albert (jeton partage, rate-limite). Un document se
 // construit en ~4 tours utiles (inspect -> add_blocks batch -> correction ->
 // finish) ; 8 laisse la place a une consultation de skill et une retouche.
@@ -140,7 +109,7 @@ const MAX_ROUNDS = 8;
  */
 const MAX_ROUNDS_DEBUG = 12;
 
-const ALL_TOOLS = [...DATA_INSPECTION_TOOLS, ...SKILL_LOOKUP_TOOLS, ...DOCUMENT_TOOLS, FINISH_TOOL];
+const ALL_TOOLS = [...DATA_INSPECTION_TOOLS, ...OUTILS_SKILLS, ...DOCUMENT_TOOLS, FINISH_TOOL];
 
 export interface StudioLoopOptions {
   conversation: { role: 'user' | 'assistant'; content: string }[];
@@ -304,20 +273,10 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
         return distinctValues(ctx.data, typeof args.field === 'string' ? args.field : '');
       case 'count_where':
         return countWhere(ctx.data, typeof args.where === 'string' ? args.where : '');
-      case 'get_relevant_skills': {
-        const skills = await loadSkills();
-        if (!skills) return 'Documentation indisponible ici — appuie-toi sur le schéma des outils.';
-        return relevantSkillsText(skills, typeof args.message === 'string' ? args.message : '');
-      }
-      case 'get_skill': {
-        const skills = await loadSkills();
-        if (!skills) return 'Documentation indisponible ici — appuie-toi sur le schéma des outils.';
-        return skillText(
-          skills,
-          typeof args.skill_id === 'string' ? args.skill_id : '',
-          typeof args.section === 'string' ? args.section : undefined
-        );
-      }
+      case 'get_relevant_skills':
+      case 'get_skill':
+        // Client des skills publiees, promu dans @dsfr-data/shared (#1014).
+        return executerOutilSkill(name, args);
       default:
         return `Outil inconnu : ${name}`;
     }
