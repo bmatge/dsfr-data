@@ -321,4 +321,31 @@ describe('<app-action-bar>', () => {
     expect(bar.moreMenu!.contains(byId('assistant-btn'))).toBe(false);
     expect(bar.moreMenu!.dataset.count).toBeUndefined();
   });
+
+  it('publie le bas de la barre dans --app-action-bar-bas, suivi au défilement (ADR-143)', async () => {
+    // Mutation : retirer l'écoute de `scroll` (ou `publierBas()` de
+    // firstUpdated) → rouge. Le volet de l'assistant recouvrirait la primaire.
+    const racine = document.documentElement.style;
+    racine.removeProperty('--app-action-bar-bas');
+    let bas = 120.4;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return { bottom: this.tagName === 'APP-ACTION-BAR' ? bas : 0 } as DOMRect;
+    });
+    const bar = await mount(SIX);
+    expect(racine.getPropertyValue('--app-action-bar-bas')).toBe('120px');
+
+    // La barre défile avec la page (hors PINNED) : jamais de valeur négative.
+    bas = -40;
+    window.dispatchEvent(new Event('scroll'));
+    await vi.waitFor(() => expect(racine.getPropertyValue('--app-action-bar-bas')).toBe('0px'));
+    bas = 64;
+    window.dispatchEvent(new Event('resize'));
+    await vi.waitFor(() => expect(racine.getPropertyValue('--app-action-bar-bas')).toBe('64px'));
+
+    // Plus de barre : la variable disparaît, le volet retombe sur l'en-tête.
+    bar.remove();
+    expect(racine.getPropertyValue('--app-action-bar-bas')).toBe('');
+  });
 });

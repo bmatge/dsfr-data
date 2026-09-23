@@ -136,7 +136,9 @@ export interface AssistantPanelElement extends HTMLElement {
   diagnostic: boolean;
   /** Affiche « Construire pour moi dans le Studio ». */
   construire: boolean;
-  toggle(open?: boolean, options?: { focus?: boolean }): void;
+  toggle(open?: boolean, options?: { focus?: boolean; lanceur?: boolean }): void;
+  /** Rend le focus à la languette flottante du panneau (après son rendu). */
+  focusLanceur(): void;
 }
 
 export interface OptionsAssistant<Etat = unknown> {
@@ -217,6 +219,45 @@ export const PIED_AVEC_MODELE = 'IA de l’État : réponses à vérifier';
 /** Id par défaut du bouton qui ouvre le panneau. */
 export const ID_BOUTON_ASSISTANT = 'assistant-btn';
 
+/** Variable CSS du bas de la barre d'actions : le volet s'ouvre en dessous. */
+const VAR_BAS_BARRE = '--app-action-bar-bas';
+
+/**
+ * Page sans `app-action-bar` (Sources) : le bouton « Assistant » vit dans une
+ * rangée d'actions maison. On en publie le bas dans `--app-action-bar-bas`,
+ * comme le fait `app-action-bar`, pour que le volet ne recouvre pas sa
+ * primaire (« Nouvelle connexion »). Rend la fonction d'arrêt.
+ */
+function suivreBasDe(zone: HTMLElement): () => void {
+  const racine = document.documentElement.style;
+  let precedent: number | null = null;
+  let image = 0;
+  const publier = (): void => {
+    image = 0;
+    const bas = Math.max(0, Math.round(zone.getBoundingClientRect().bottom));
+    if (bas === precedent) return;
+    precedent = bas;
+    racine.setProperty(VAR_BAS_BARRE, `${bas}px`);
+  };
+  const planifier = (): void => {
+    if (image) return;
+    if (typeof requestAnimationFrame !== 'function') return publier();
+    image = requestAnimationFrame(publier);
+  };
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(planifier) : null;
+  ro?.observe(zone);
+  window.addEventListener('scroll', planifier, { capture: true, passive: true });
+  window.addEventListener('resize', planifier, { passive: true });
+  publier();
+  return () => {
+    ro?.disconnect();
+    window.removeEventListener('scroll', planifier, true);
+    window.removeEventListener('resize', planifier);
+    if (image && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(image);
+    racine.removeProperty(VAR_BAS_BARRE);
+  };
+}
+
 /** Surface de `app-action-bar` utilisée ici, sans dépendre de sa classe. */
 interface BarreAvecAssistant extends HTMLElement {
   ajouterBoutonAssistant?(): HTMLButtonElement;
@@ -259,6 +300,11 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     }
   }
   const onBoutonClick = (): void => panel.toggle();
+  // Hors `app-action-bar` (qui publie elle-même son bas), la rangée d'actions
+  // du bouton, repérée par sa zone de repères (`data-zone`).
+  const zoneActions =
+    bouton && !bouton.closest('app-action-bar') ? bouton.closest<HTMLElement>('[data-zone]') : null;
+  const arreterSuivi = zoneActions ? suivreBasDe(zoneActions) : null;
   if (bouton) {
     bouton.setAttribute('aria-expanded', panel.open ? 'true' : 'false');
     if (panel.panneauId) bouton.setAttribute('aria-controls', panel.panneauId);
@@ -457,12 +503,33 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
   };
   const onDiagnostic = (): void => opts.ouvrirDiagnostic?.('constats');
   const onConstruire = (): void => opts.construire?.();
+  /**
+   * Focus rendu au déclencheur effectif quand le bouton a ouvert : le bouton
+   * s'il est affiché ; replié dans « Plus d'actions » (menu refermé), le
+   * déclencheur du menu ; sinon la languette du panneau.
+   */
+  const rendreFocus = (): void => {
+    if (!bouton || !bouton.isConnected) {
+      panel.focusLanceur();
+      return;
+    }
+    if (!bouton.closest('[hidden]')) {
+      bouton.focus();
+      return;
+    }
+    const menu = bouton.closest('app-menu');
+    const declencheur = menu?.querySelector<HTMLElement>('.app-menu__trigger');
+    if (declencheur) declencheur.focus();
+    else panel.focusLanceur();
+  };
   const onToggle = (e: Event): void => {
-    const { open, focusDedans } = (e as CustomEvent<{ open: boolean; focusDedans?: boolean }>)
-      .detail;
+    const { open, focusDedans, parLanceur } = (
+      e as CustomEvent<{ open: boolean; focusDedans?: boolean; parLanceur?: boolean }>
+    ).detail;
     bouton?.setAttribute('aria-expanded', open ? 'true' : 'false');
-    // Fermé alors que le focus était dans le panneau : il revient au bouton.
-    if (!open && focusDedans) bouton?.focus();
+    // Fermé alors que le focus était dans le panneau : il revient au
+    // déclencheur. La languette, le panneau s'en charge lui-même.
+    if (!open && focusDedans && !parLanceur) rendreFocus();
   };
   panel.addEventListener('assistant-envoyer', onEnvoyer);
   panel.addEventListener('assistant-montrer', onMontrer);
@@ -490,6 +557,7 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
       controleur?.abort();
       controleur = null;
       bouton?.removeEventListener('click', onBoutonClick);
+      arreterSuivi?.();
       panel.removeEventListener('assistant-envoyer', onEnvoyer);
       panel.removeEventListener('assistant-montrer', onMontrer);
       panel.removeEventListener('assistant-mode', onMode);

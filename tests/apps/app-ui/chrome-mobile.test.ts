@@ -227,7 +227,9 @@ describe('le panneau Assistant cohabite avec le mobilier bas (#1011)', () => {
     // telephone le volet commencerait a 189 px d'un en-tete deja parti.
     const racine = corps(reglesRacine(css()), '.assistant-panneau');
     expect(racine).not.toContain('--app-header-h');
-    expect(conditionEnglobante(css(), '.assistant-panneau{top:var(--app-header-h')).toBe(PINNED);
+    expect(conditionEnglobante(css(), '.assistant-panneau{top:max(var(--app-header-h,0px)')).toBe(
+      PINNED
+    );
     // Et sous ce seuil, l'en-tete est epingle (T2) : le volet, qui commence a
     // sa hauteur, ne le recouvre jamais — son menu utilisateur reste atteignable.
     const enTete = feuille(injectAppHeaderStyles, 'app-header-active-style');
