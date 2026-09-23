@@ -331,7 +331,14 @@ export const state: CartoState = {
   map: createDefaultMap(),
   layers: [createLayer()],
   activeLayerId: 'layer-1',
-  generationMode: 'embedded',
+  /**
+   * Page autonome par defaut : le code copie porte ses dependances (DSFR +
+   * les bundles `core` et `map`) et s'affiche donc dans une page vierge.
+   * L'autre mode suppose une page qui charge deja dsfr-data — vrai pour un
+   * integrateur averti, faux pour qui colle le code dans un fichier neuf et
+   * n'obtenait qu'une page blanche, sans rien pour le lui dire.
+   */
+  generationMode: 'dynamic',
 };
 
 // ---------------------------------------------------------------------------
@@ -367,7 +374,9 @@ export function restoreState(): boolean {
     saved.activeLayerId && state.layers.some((l) => l.id === saved.activeLayerId)
       ? saved.activeLayerId
       : state.layers[0].id;
-  state.generationMode = saved.generationMode === 'dynamic' ? 'dynamic' : 'embedded';
+  // Le choix explicite de l'utilisateur prime ; un etat d'avant ce champ
+  // reprend le defaut (page autonome), pas l'ancien.
+  state.generationMode = saved.generationMode === 'embedded' ? 'embedded' : 'dynamic';
   return true;
 }
 
@@ -377,6 +386,6 @@ export function resetState(): void {
   state.map = createDefaultMap();
   state.layers = [createLayer()];
   state.activeLayerId = state.layers[0].id;
-  state.generationMode = 'embedded';
+  state.generationMode = 'dynamic';
   persistState();
 }

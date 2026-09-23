@@ -10,6 +10,7 @@ import {
   detectProvider,
   extractResourceIds,
   getProvider,
+  CDN_URLS,
   PROXY_BASE_URL_EMBED,
 } from '@dsfr-data/shared';
 import { urlContours } from '../composition-echelle.js';
@@ -376,18 +377,38 @@ export function insetsAttrValue(): string {
   return parts.join(',');
 }
 
+/**
+ * Dependances d'une page autonome qui affiche une carte.
+ *
+ * Le DSFR AVEC sa feuille utilitaire : le gabarit automatique des popups pose
+ * `fr-mb-1v` sur chaque ligne, et le compagnon d'accessibilite des classes du
+ * meme jeu. Ces utilitaires d'espacement vivent dans `utility.min.css`, absente
+ * de `dsfr.min.css` — sans elle, les lignes de popup se touchent.
+ *
+ * Les DEUX bundles dsfr-data : `core` porte le pipeline (`dsfr-data-source`,
+ * `-query`, `-join`, `-normalize` — la composition par echelle les emet tous),
+ * `map` les composants cartographiques. En UMD : ils s'executent dans l'ordre
+ * du document, sans exiger que la page hote serve du module, et le bundle
+ * `map` y embarque Leaflet au lieu de le chercher dans des chunks voisins.
+ *
+ * Pas de `@gouvfr/dsfr-chart` : aucune carte n'en depend. La feuille de
+ * Leaflet non plus — `dsfr-data-map` l'injecte lui-meme (`leaflet.css?inline`).
+ */
+function dependances(): string[] {
+  return [
+    `<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">`,
+    `<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">`,
+    `<script src="${esc(LIB_URL)}/dsfr-data.core.umd.js"></script>`,
+    `<script src="${esc(LIB_URL)}/dsfr-data.map.umd.js"></script>`,
+    '',
+  ];
+}
+
 export function generateCode(): string {
   const m = state.map;
   const lines: string[] = [];
 
-  if (state.generationMode === 'dynamic') {
-    lines.push(
-      `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">`
-    );
-    lines.push(`<script type="module" src="${esc(LIB_URL)}/dsfr-data.core.esm.js"></script>`);
-    lines.push(`<script type="module" src="${esc(LIB_URL)}/dsfr-data.map.esm.js"></script>`);
-    lines.push('');
-  }
+  if (state.generationMode === 'dynamic') lines.push(...dependances());
 
   // Sources (only visible layers)
   const visibleLayers = state.layers.filter((l) => l.visible);
