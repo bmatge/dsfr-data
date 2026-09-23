@@ -24,6 +24,9 @@ import { PINNED } from './chrome-breakpoints.js';
  * les mêmes contrôles : `Plus d'actions` en icône seule, la secondaire en bouton
  * icône (libellé sr-only), la primaire pleine largeur. Hauteurs publiées dans
  * `--app-action-bar-h` (en flux) et `--app-action-bar-fixed-h` (barre fixe).
+ * Le bas de la barre, en coordonnées d'écran, est publié dans
+ * `--app-action-bar-bas` (ResizeObserver + défilement + redimensionnement) :
+ * le volet de l'assistant s'ouvre en dessous et ne recouvre jamais la primaire.
  *
  * @example
  * <app-action-bar heading="Playground" disabled-reason="">
@@ -146,6 +149,21 @@ export class AppActionBar extends LitElement {
     this._layout();
   };
   private _resizeObserver?: ResizeObserver;
+  /** Dernière valeur publiée dans `--app-action-bar-bas` (px). */
+  private _bas: number | null = null;
+  private _basFrame = 0;
+  /** Défilement ou redimensionnement : un seul calcul par image. */
+  private _onDeplacement = (): void => {
+    if (this._basFrame) return;
+    if (typeof requestAnimationFrame !== 'function') {
+      this.publierBas();
+      return;
+    }
+    this._basFrame = requestAnimationFrame(() => {
+      this._basFrame = 0;
+      this.publierBas();
+    });
+  };
   /** Suit les pastilles `data-count` des actions (repliées ou non). */
   private _countObserver?: MutationObserver;
   private _primaryManaged = false;
@@ -174,6 +192,28 @@ export class AppActionBar extends LitElement {
     this._mql?.removeEventListener?.('change', this._mqlHandler);
     this._resizeObserver?.disconnect();
     this._countObserver?.disconnect();
+    window.removeEventListener('scroll', this._onDeplacement, true);
+    window.removeEventListener('resize', this._onDeplacement);
+    if (this._basFrame && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this._basFrame);
+    }
+    this._basFrame = 0;
+    // Plus de barre : le volet de l'assistant retombe sur l'en-tête.
+    document.documentElement.style.removeProperty('--app-action-bar-bas');
+    this._bas = null;
+  }
+
+  /**
+   * Publie le bas de la barre dans `--app-action-bar-bas` (px, jamais négatif).
+   * La barre n'est épinglée qu'au-dessus de `PINNED` : ailleurs elle défile
+   * avec la page, d'où l'écoute du défilement (capture : aussi les zones
+   * défilantes internes) et du redimensionnement, en plus du ResizeObserver.
+   */
+  publierBas(): void {
+    const bas = Math.max(0, Math.round(this.getBoundingClientRect().bottom));
+    if (bas === this._bas) return;
+    this._bas = bas;
+    document.documentElement.style.setProperty('--app-action-bar-bas', `${bas}px`);
   }
 
   firstUpdated() {
@@ -204,10 +244,14 @@ export class AppActionBar extends LitElement {
           '--app-action-bar-fixed-h',
           `${this._mobile ? Math.round(actions.getBoundingClientRect().height) : 0}px`
         );
+        this.publierBas();
       });
       this._resizeObserver.observe(this);
       this._resizeObserver.observe(actions);
     }
+    this.publierBas();
+    window.addEventListener('scroll', this._onDeplacement, { capture: true, passive: true });
+    window.addEventListener('resize', this._onDeplacement, { passive: true });
   }
 
   updated(changed: Map<string, unknown>) {

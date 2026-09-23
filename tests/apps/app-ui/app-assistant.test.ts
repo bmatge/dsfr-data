@@ -268,6 +268,7 @@ describe('ouverture, focus et Échap', () => {
     const regle = css.split('\n').find((l) => l.includes('display:none !important')) ?? '';
     for (const sel of [
       '.assistant-panneau[hidden]',
+      '.assistant-lanceur[hidden]',
       '.assistant-accueil[hidden]',
       '.assistant-saisie-en-cours[hidden]',
     ]) {
@@ -293,7 +294,7 @@ describe('ouverture, focus et Échap', () => {
 
     expect(el.open).toBe(false);
     expect(auDocument).not.toHaveBeenCalled();
-    expect(toggles).toEqual([{ open: false, focusDedans: true }]);
+    expect(toggles).toEqual([{ open: false, focusDedans: true, parLanceur: false }]);
   });
 
   it('mémorise ouvert / réduit, et la réouverture après navigation ne prend pas le focus', async () => {
@@ -362,6 +363,112 @@ describe('ouverture, focus et Échap', () => {
   });
 });
 
+// ─── Languette flottante et placement sous la barre ───────────────────
+
+describe('languette flottante (lanceur)', () => {
+  function lanceur(el: AppAssistant): HTMLButtonElement {
+    return el.querySelector<HTMLButtonElement>('.assistant-lanceur')!;
+  }
+
+  it('icône, texte « Assistant », aria-expanded et aria-controls vers le volet', async () => {
+    const el = await monterPanneau();
+    const l = lanceur(el);
+    expect(l.tagName).toBe('BUTTON');
+    expect(l.getAttribute('type')).toBe('button');
+    expect(l.classList.contains('fr-icon-sparkling-2-line')).toBe(true);
+    expect(l.querySelector('.assistant-lanceur-texte')?.textContent?.trim()).toBe('Assistant');
+    expect(l.getAttribute('aria-expanded')).toBe('false');
+    expect(l.getAttribute('aria-controls')).toBe(panneau(el).id);
+    expect(l.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('masquée volet ouvert, de retour à la réduction', async () => {
+    // Mutation : retirer `?hidden=${this.open}` du lanceur → rouge.
+    const el = await monterPanneau();
+    lanceur(el).click();
+    await el.updateComplete;
+    expect(el.open).toBe(true);
+    expect(lanceur(el).hasAttribute('hidden')).toBe(true);
+    expect(lanceur(el).getAttribute('aria-expanded')).toBe('true');
+    el.toggle(false);
+    await el.updateComplete;
+    expect(lanceur(el).hasAttribute('hidden')).toBe(false);
+    expect(lanceur(el).getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('ouverte par la languette, Échap rend le focus à la languette', async () => {
+    // Mutation : retirer `this.focusLanceur()` de toggle() → rouge.
+    const el = await monterPanneau();
+    const toggles = evenements(el, 'assistant-toggle');
+    lanceur(el).click();
+    await el.updateComplete;
+    await el.updateComplete;
+    expect(document.activeElement).toBe(el.querySelector('textarea'));
+    touche(el.querySelector('textarea')!, { key: 'Escape' });
+    await el.updateComplete;
+    await el.updateComplete;
+    expect(document.activeElement).toBe(lanceur(el));
+    expect(toggles).toEqual([
+      { open: true, focusDedans: false, parLanceur: true },
+      { open: false, focusDedans: true, parLanceur: true },
+    ]);
+  });
+
+  it('porte la pastille des constats non-info, avec un texte pour les lecteurs d’écran', async () => {
+    const el = await monterPanneau();
+    expect(el.querySelector('.assistant-lanceur-pastille')).toBeNull();
+    el.constats = [
+      constat({ id: 'a', gravite: 'erreur' }),
+      constat({ id: 'b', gravite: 'avertissement' }),
+      constat({ id: 'c', gravite: 'info' }),
+    ];
+    await el.updateComplete;
+    expect(el.querySelector('.assistant-lanceur-pastille')?.textContent).toBe('2');
+    expect(el.querySelector('.assistant-lanceur-pastille')?.getAttribute('aria-hidden')).toBe(
+      'true'
+    );
+    expect(lanceur(el).textContent?.replace(/\s+/g, ' ')).toContain('2 constats à corriger');
+  });
+
+  it('CSS : languette au bord droit à mi-hauteur, pastille ronde en bas à droite en mobile', () => {
+    document.getElementById('app-assistant-style')?.remove();
+    injectAppAssistantStyles();
+    const css = document.getElementById('app-assistant-style')!.textContent ?? '';
+    const racine = css.slice(css.indexOf('.assistant-lanceur{'));
+    const regle = racine.slice(0, racine.indexOf('}'));
+    expect(regle).toContain('position:fixed');
+    expect(regle).toContain('right:0');
+    expect(regle).toContain('translateY(-50%)');
+    expect(regle).toContain('--app-action-bar-bas');
+    // Sous les menus (900) et les modales (1000), comme le volet.
+    expect(Number(/z-index:(\d+)/.exec(regle)![1])).toBeLessThan(900);
+    // Mobile : au-dessus de la barre d'actions fixe et du rail du Diagnostic.
+    const mobile = css.slice(css.indexOf('@media (max-width:35.98em)'));
+    const rond = mobile.slice(mobile.indexOf('.assistant-lanceur{'));
+    const regleMobile = rond.slice(0, rond.indexOf('}'));
+    expect(regleMobile).toContain('border-radius:50%');
+    expect(regleMobile).toContain('--app-action-bar-fixed-h');
+    expect(regleMobile).toContain('--app-diagnostic-h');
+    // Mouvement réduit : pas de transition.
+    const reduit = css.slice(css.indexOf('@media (prefers-reduced-motion:reduce)'));
+    expect(reduit).toContain('.assistant-lanceur{transition:none}');
+  });
+
+  it('le volet commence sous la barre d’actions (--app-action-bar-bas)', () => {
+    // Mutation : remettre `top:0` à la racine → rouge. Le volet recouvrirait
+    // la partie droite de la barre, dont la primaire « Exécuter ».
+    document.getElementById('app-assistant-style')?.remove();
+    injectAppAssistantStyles();
+    const css = document.getElementById('app-assistant-style')!.textContent ?? '';
+    const debut = css.indexOf('.assistant-panneau{');
+    const regle = css.slice(debut, css.indexOf('}', debut));
+    expect(regle).toContain('top:var(--app-action-bar-bas,0px)');
+    expect(css).toContain(
+      '.assistant-panneau{top:max(var(--app-header-h,0px),var(--app-action-bar-bas,0px))}'
+    );
+  });
+});
+
 // ─── Branché par mountAssistant ────────────────────────────────────────
 
 describe('branché par mountAssistant', () => {
@@ -424,6 +531,72 @@ describe('branché par mountAssistant', () => {
     touche(panel.querySelector('textarea')!, { key: 'Escape' });
     expect(document.activeElement).toBe(bouton);
     expect(bouton.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('la languette porte la même pastille que #assistant-btn, et bascule le bouton', async () => {
+    const bouton = document.createElement('button');
+    bouton.id = 'assistant-btn';
+    document.body.appendChild(bouton);
+    let constats: Constat[] = [];
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur(),
+      constats: () => constats,
+    });
+    const panel = monte.panel as unknown as AppAssistant;
+    constats = [constat({ id: 'e', gravite: 'erreur' }), constat({ id: 'i', gravite: 'info' })];
+    monte.rafraichirConstats();
+    await panel.updateComplete;
+    expect(bouton.dataset.count).toBe('1');
+    expect(panel.querySelector('.assistant-lanceur-pastille')?.textContent).toBe(
+      bouton.dataset.count
+    );
+    panel.querySelector<HTMLButtonElement>('.assistant-lanceur')!.click();
+    expect(bouton.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('ouvert par le bouton replié dans « Plus d’actions » : le focus revient au menu', async () => {
+    // Mutation : `bouton.focus()` sans condition dans rendreFocus → rouge (le
+    // bouton d'un menu refermé ne prend pas le focus : il se perdait).
+    document.body.innerHTML = `<app-menu><button class="app-menu__trigger">Plus</button>
+      <ul class="app-menu__list" hidden><li><button id="assistant-btn">Assistant</button></li></ul></app-menu>`;
+    const bouton = document.getElementById('assistant-btn')!;
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur(),
+    });
+    const panel = monte.panel as unknown as AppAssistant;
+    bouton.click();
+    await panel.updateComplete;
+    await panel.updateComplete;
+    expect(document.activeElement).toBe(panel.querySelector('textarea'));
+    touche(panel.querySelector('textarea')!, { key: 'Escape' });
+    expect(document.activeElement).toBe(document.querySelector('.app-menu__trigger'));
+  });
+
+  it('page sans app-action-bar (Sources) : le bas de la rangée d’actions est publié', async () => {
+    // Mutation : retirer `suivreBasDe` de mountAssistant → rouge. Sur Sources,
+    // le volet recouvrait « Nouvelle connexion ».
+    const racine = document.documentElement.style;
+    racine.removeProperty('--app-action-bar-bas');
+    document.body.innerHTML = `<div data-zone="sources.actions">
+      <button id="assistant-btn">Assistant</button><button id="add">Nouvelle connexion</button></div>`;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      return { bottom: this.dataset.zone ? 327.2 : 0 } as DOMRect;
+    });
+    monte = mountAssistant({
+      app: 'sources',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur(),
+    });
+    expect(racine.getPropertyValue('--app-action-bar-bas')).toBe('327px');
+    monte.destroy();
+    monte = null;
+    expect(racine.getPropertyValue('--app-action-bar-bas')).toBe('');
   });
 
   it('jamais d’ouverture spontanée : des constats arrivent, le panneau reste réduit', async () => {

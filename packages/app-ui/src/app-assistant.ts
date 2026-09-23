@@ -28,10 +28,20 @@ import { PINNED } from './chrome-breakpoints.js';
  * `fr-link` viennent du DSFR : aucun composant de formulaire, par choix.
  *
  * **Placement** (arbitré le 2026-09-23, écart assumé aux protos) : volet
- * latéral droit pleine hauteur en surimpression au-dessus de l'aperçu, du bas
- * de l'en-tête au mobilier bas (rail du Diagnostic, barre d'actions fixe),
- * SOUS le volet Diagnostic (770 < 780) ; il se réduit quand le Diagnostic
- * s'ouvre, jamais l'inverse. Sous 35.98em : feuille plein écran.
+ * latéral droit en surimpression au-dessus de l'aperçu, du bas de la barre
+ * d'actions (`--app-action-bar-bas`, publiée par `app-action-bar` ; à défaut
+ * le bas de l'en-tête) au mobilier bas (rail du Diagnostic, barre d'actions
+ * fixe) : la barre et sa primaire (« Exécuter »…) restent cliquables volet
+ * ouvert. SOUS le volet Diagnostic (770 < 780) ; il se réduit quand le
+ * Diagnostic s'ouvre, jamais l'inverse. Sous 35.98em : feuille plein écran.
+ *
+ * **Lanceur** : une languette collée au bord droit, à mi-hauteur de la zone
+ * libre (pas en bas à droite : tiroir Diagnostic, barre fixe en mobile),
+ * masquée volet ouvert, porteuse de la pastille des constats. Sous 35.98em,
+ * pastille ronde en bas à droite, au-dessus du mobilier bas. Le bouton
+ * `#assistant-btn` de la barre reste (repère `<app>.actions.assistant`). À la
+ * réduction, le focus revient au déclencheur effectif : la languette si elle a
+ * ouvert le volet, sinon le bouton (voir `mountAssistant`).
  *
  * **Accessibilité** : `role=dialog` non modal, sans piège à focus ; jamais
  * d'ouverture spontanée (seule la réouverture après navigation, mémorisée,
@@ -101,16 +111,30 @@ export function injectAppAssistantStyles(): void {
 app-assistant{display:contents}
 /* \`hidden\` doit l'emporter sur les \`display\` declares ci-dessous : sans cette
    regle, « Reduire » et Echap semblent sans effet (protos). */
-.assistant-panneau[hidden],.assistant-accueil[hidden],.assistant-saisie-en-cours[hidden]{display:none !important}
-/* Volet lateral pleine hauteur, en surimpression a droite. z-index 770 : sous
-   le volet Diagnostic (780), au-dessus de la barre d'actions collante (700).
-   Le bas s'arrete au mobilier bas : rail du Diagnostic, barre d'actions fixe
-   (0 hors mobile) — jamais recouverts. */
-.assistant-panneau{--assistant-rayon:.75rem;position:fixed;right:0;top:0;bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px));z-index:770;display:flex;flex-direction:column;width:max(24rem,min(30rem,40vw));max-width:100vw;overflow:hidden;color:var(--text-default-grey);background-color:var(--background-default-grey);border-left:1px solid var(--border-default-grey);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16))}
-/* Decalage derive de l'en-tete : seulement la ou il est epingle (chrome-breakpoints). */
+.assistant-panneau[hidden],.assistant-lanceur[hidden],.assistant-accueil[hidden],.assistant-saisie-en-cours[hidden]{display:none !important}
+/* Volet lateral en surimpression a droite. z-index 770 : sous le volet
+   Diagnostic (780). Le haut commence SOUS la barre d'actions
+   (--app-action-bar-bas, position mesuree, donc valable a toute largeur) :
+   la barre et sa primaire restent cliquables volet ouvert. Le bas s'arrete au
+   mobilier bas : rail du Diagnostic, barre d'actions fixe (0 hors mobile) —
+   jamais recouverts. */
+.assistant-panneau{--assistant-rayon:.75rem;position:fixed;right:0;top:var(--app-action-bar-bas,0px);bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px));z-index:770;display:flex;flex-direction:column;width:max(24rem,min(30rem,40vw));max-width:100vw;overflow:hidden;color:var(--text-default-grey);background-color:var(--background-default-grey);border-left:1px solid var(--border-default-grey);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16))}
+/* Decalage derive de l'en-tete : seulement la ou il est epingle (chrome-breakpoints).
+   Sans barre d'actions (Sources), le volet commence sous l'en-tete. */
 @media ${PINNED}{
-  .assistant-panneau{top:var(--app-header-h,0px)}
+  .assistant-panneau{top:max(var(--app-header-h,0px),var(--app-action-bar-bas,0px))}
 }
+/* Lanceur : languette collee au bord droit, centree dans la zone libre entre
+   la barre d'actions et le mobilier bas. Meme couche que le volet (770) : sous
+   le volet Diagnostic (780), la barre fixe (800), les menus (900) et les
+   modales (1000+). Cible >= 44 px dans les deux sens. */
+.assistant-lanceur{position:fixed;right:0;top:calc((var(--app-action-bar-bas,0px) + 100vh - var(--app-action-bar-fixed-h,0px) - var(--app-diagnostic-h,0px)) / 2);z-index:770;display:inline-flex;flex-direction:column;align-items:center;gap:.5rem;min-width:2.75rem;min-height:2.75rem;margin:0;padding:.75rem .5rem;border:0;border-radius:.5rem 0 0 .5rem;font:inherit;font-size:.875rem;font-weight:500;line-height:1.25rem;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16));cursor:pointer;transform:translateY(-50%);transition:background-color .2s}
+/* Survol et appui par les teintes DSFR (\`--hover\` / \`--active\`) : la regle
+   DSFR \`button:not(:disabled):hover\` l'emporterait sur un simple :hover. */
+.assistant-lanceur{--hover:var(--background-action-high-blue-france-hover);--active:var(--background-action-high-blue-france-active)}
+.assistant-lanceur::before{--icon-size:1.25rem}
+.assistant-lanceur-texte{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
+.assistant-lanceur-pastille{display:inline-flex;align-items:center;justify-content:center;min-width:1.25rem;height:1.25rem;padding:0 .35rem;border-radius:.625rem;font-size:.75rem;font-weight:700;line-height:1;background:var(--background-flat-warning);color:var(--text-inverted-warning)}
 .assistant-entete{flex:0 0 auto;display:flex;align-items:center;gap:.5rem;padding:.25rem .25rem .25rem .75rem;border-bottom:1px solid var(--border-default-grey)}
 .assistant-identite{display:flex;align-items:center;gap:.625rem;flex:1 1 auto;min-width:0}
 .assistant-avatar{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;border-radius:50%;color:var(--text-action-high-blue-france);background-color:var(--background-action-low-blue-france)}
@@ -195,8 +219,14 @@ app-assistant{display:contents}
      Diagnostic et la barre d'actions fixe restent visibles et atteignables. */
   .assistant-panneau{top:0;left:0;right:0;width:100%;border:0;border-radius:0;box-shadow:none}
   .assistant-entete{padding-top:calc(.25rem + env(safe-area-inset-top,0px))}
+  /* Lanceur : pastille ronde en bas a droite, AU-DESSUS de la barre d'actions
+     fixe et du rail du Diagnostic. Le texte reste pour les lecteurs d'ecran. */
+  .assistant-lanceur{top:auto;right:1rem;bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px) + 1rem);justify-content:center;width:3.5rem;height:3.5rem;padding:0;border-radius:50%;transform:none}
+  .assistant-lanceur-texte{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);border:0;writing-mode:horizontal-tb;transform:none}
+  .assistant-lanceur-pastille{position:absolute;top:-.25rem;right:-.25rem}
 }
 @media (prefers-reduced-motion:reduce){
+  .assistant-lanceur{transition:none}
   .assistant-saisie-en-cours span{animation:none;opacity:.6}
   .assistant-fil{scroll-behavior:auto}
 }
@@ -287,16 +317,21 @@ export class AppAssistant extends LitElement {
 
   /**
    * Ouvre, réduit, ou bascule. Ouvrir place le focus dans le champ (sauf
-   * `{ focus: false }`) ; réduire émet `focusDedans`, que `mountAssistant`
-   * lit pour rendre le focus au bouton.
+   * `{ focus: false }`) ; `{ lanceur: true }` note que la languette a ouvert.
+   * Réduire émet `focusDedans` et `parLanceur` : si la languette a ouvert, le
+   * panneau lui rend le focus lui-même ; sinon `mountAssistant` le rend au
+   * bouton de la barre.
    */
-  toggle(open?: boolean, options: { focus?: boolean } = {}): void {
+  toggle(open?: boolean, options: { focus?: boolean; lanceur?: boolean } = {}): void {
     const suivant = open ?? !this.open;
     if (suivant === this.open) {
       if (suivant && options.focus !== false) this.champ?.focus();
       return;
     }
-    const focusDedans = this.contains(document.activeElement);
+    const focusDedans =
+      this.contains(document.activeElement) && document.activeElement !== this.lanceur;
+    if (suivant) this._parLanceur = options.lanceur === true;
+    const parLanceur = this._parLanceur;
     this.open = suivant;
     try {
       localStorage.setItem(CLE_ASSISTANT_OUVERT, suivant ? '1' : '0');
@@ -305,7 +340,7 @@ export class AppAssistant extends LitElement {
     }
     this.dispatchEvent(
       new CustomEvent('assistant-toggle', {
-        detail: { open: suivant, focusDedans },
+        detail: { open: suivant, focusDedans, parLanceur },
         bubbles: true,
         composed: true,
       })
@@ -316,6 +351,20 @@ export class AppAssistant extends LitElement {
         this._defilerEnBas();
       });
     }
+    if (!suivant && focusDedans && parLanceur) this.focusLanceur();
+  }
+
+  /** La languette a-t-elle ouvert le volet (déclencheur effectif) ? */
+  private _parLanceur = false;
+
+  /** La languette flottante. */
+  get lanceur(): HTMLButtonElement | null {
+    return this.querySelector<HTMLButtonElement>('.assistant-lanceur');
+  }
+
+  /** Focus sur la languette, une fois démasquée (après le rendu). */
+  focusLanceur(): void {
+    void this.updateComplete.then(() => this.lanceur?.focus());
   }
 
   /** Le champ de saisie. */
@@ -548,7 +597,25 @@ export class AppAssistant extends LitElement {
   render() {
     const titreId = `${this._uid}-titre`;
     const champId = `${this._uid}-saisie`;
+    const n = this.constatsResumes.length;
     return html`
+      <button
+        type="button"
+        class="assistant-lanceur fr-icon-sparkling-2-line"
+        title="Ouvrir l’assistant"
+        aria-expanded=${this.open ? 'true' : 'false'}
+        aria-controls=${this.panneauId}
+        ?hidden=${this.open}
+        @click=${() => this.toggle(true, { lanceur: true })}
+      >
+        <span class="assistant-lanceur-texte">Assistant</span>
+        ${
+          n > 0
+            ? html`<span class="assistant-lanceur-pastille" aria-hidden="true">${n}</span
+                ><span class="fr-sr-only">, ${n} constat${n > 1 ? 's' : ''} à corriger</span>`
+            : nothing
+        }
+      </button>
       <section
         class="assistant-panneau"
         id=${this.panneauId}

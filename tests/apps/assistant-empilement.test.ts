@@ -16,6 +16,9 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { injectAppAssistantStyles } from '../../packages/app-ui/src/app-assistant.js';
+import { injectAppActionBarStyles } from '../../packages/app-ui/src/app-action-bar.js';
+
 const RACINE = resolve(import.meta.dirname, '../..');
 
 const APPS = [
@@ -76,8 +79,65 @@ describe('le panneau Assistant garde sa place dans chaque app (§3.8)', () => {
           expect(z < 700 || z >= 1000, `z-index ${z} dans la bande du mobilier bas`).toBe(true);
         }
         expect(css).not.toContain('assistant-panneau');
+        expect(css).not.toContain('assistant-lanceur');
         expect(css).not.toContain('app-assistant');
+        // La position du bas de la barre est MESURÉE par app-action-bar, jamais posée par une app.
+        expect(css).not.toContain('--app-action-bar-bas');
       }
     });
   }
+});
+
+/** CSS injectée par une fonction `inject*Styles` d'app-ui. */
+function feuilleInjectee(injecter: () => void, id: string): string {
+  document.getElementById(id)?.remove();
+  injecter();
+  return document.getElementById(id)?.textContent ?? '';
+}
+
+/** Corps de la première règle `selecteur{…}` après `depuis`. */
+function regle(css: string, selecteur: string, depuis = 0): string {
+  const debut = css.indexOf(`${selecteur}{`, depuis);
+  expect(debut, `règle ${selecteur}`).toBeGreaterThanOrEqual(0);
+  return css.slice(debut + selecteur.length + 1, css.indexOf('}', debut));
+}
+
+describe('ordinateur : le volet ne recouvre pas la barre d’actions (ADR-143)', () => {
+  it('le volet commence au bas mesuré de la barre, qui porte la primaire de chaque app', () => {
+    // Mutation : `top:0` à la racine du volet → rouge. « Exécuter »
+    // (playground, pipeline-helper) passait sous le volet ouvert.
+    const css = feuilleInjectee(injectAppAssistantStyles, 'app-assistant-style');
+    expect(regle(css, '.assistant-panneau')).toContain('top:var(--app-action-bar-bas,0px)');
+    // Plus bas que la barre : le volet (770) ne peut plus la couvrir, quelle
+    // que soit la couche de la barre collante (700).
+    const barre = feuilleInjectee(injectAppActionBarStyles, 'app-action-bar-style');
+    expect(barre).toContain('app-action-bar{position:sticky');
+    for (const { app, barre: avecBarre } of APPS) {
+      if (!avecBarre) continue;
+      const html = readFileSync(join(RACINE, 'apps', app, 'index.html'), 'utf-8');
+      const debut = html.indexOf('<app-action-bar');
+      const fin = html.indexOf('</app-action-bar>');
+      const primaire = html.indexOf('slot="primary"', debut);
+      expect(primaire > debut && primaire < fin, `${app} : primaire dans la barre`).toBe(true);
+    }
+  });
+});
+
+describe('mobile : la languette s’empile au-dessus du mobilier bas', () => {
+  it('pastille ronde en bas à droite, au-dessus de la barre fixe et du rail du Diagnostic', () => {
+    // Mutation : `bottom:1rem` sans les deux hauteurs → rouge ; la pastille
+    // passerait sous la barre fixe (800) ou sous le rail (780).
+    const css = feuilleInjectee(injectAppAssistantStyles, 'app-assistant-style');
+    const mobile = css.indexOf('@media (max-width:35.98em)');
+    expect(mobile).toBeGreaterThan(-1);
+    const r = regle(css, '.assistant-lanceur', mobile);
+    expect(r).toContain('top:auto');
+    expect(r).toContain(
+      'bottom:calc(var(--app-action-bar-fixed-h,0px) + var(--app-diagnostic-h,0px) + 1rem)'
+    );
+    expect(r).toContain('width:3.5rem');
+    expect(r).toContain('height:3.5rem');
+    // Plein écran : le volet garde son comportement, du haut de l'écran.
+    expect(regle(css, '.assistant-panneau', mobile)).toContain('top:0');
+  });
 });
