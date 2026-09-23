@@ -2768,7 +2768,11 @@ describe('DsfrDataMapLayer banner management', () => {
 
     const banner = parent.querySelector('.dsfr-data-map__max-items-banner');
     expect(banner?.textContent).toContain('max-items');
-    expect(banner?.textContent).toContain('2 affichés sur 3');
+    // #1020 : deux chiffres et le biais d'ordre
+    expect(banner?.textContent).toContain('2 premiers enregistrements affichés sur 3');
+    expect(banner?.textContent).toContain("dans l'ordre du fichier");
+    expect(banner?.querySelector('.dsfr-data-map__max-items-shown')?.textContent).toBe('2');
+    expect(banner?.querySelector('.dsfr-data-map__max-items-total')?.textContent).toBe('3');
     expect(banner?.textContent?.toLowerCase()).not.toContain('zoomez');
     teardown(parent);
   });

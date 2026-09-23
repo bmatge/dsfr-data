@@ -9,12 +9,17 @@ import type { IAConfig } from '../ia/ia-config.js';
 import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
 import { applyChartConfig, resetChartPreview } from '../ui/preview.js';
 import { analyzeFields, updateFieldsList, updateRawData } from '../sources.js';
-import { fetchWithTimeout, httpErrorMessage, detectProvider, escapeHtml } from '@dsfr-data/shared';
-import { effectiveCapabilities } from '../ia/albert-capabilities.js';
+import {
+  fetchWithTimeout,
+  detectProvider,
+  escapeHtml,
+  postNatif,
+  resolveTransport,
+} from '@dsfr-data/shared';
 import { buildSystemPrompt, buildFewShot } from '../ia/system-prompt.js';
 import { runAgentLoop } from '../ia/agent-loop.js';
 import { rerankSkills } from '../ia/skill-rerank.js';
-import type { PostChat, OpenAIResponse } from '../ia/agent-loop.js';
+import type { PostChat } from '../ia/agent-loop.js';
 import { renderMarkdown } from './markdown.js';
 import { ACTION_JSON_SCHEMA, validateAction } from '../ia/action-schema.js';
 import type { ActionResult } from '../ia/action-schema.js';
@@ -430,66 +435,12 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
     { role: 'user' as const, content: userMessage },
   ];
 
-  // -- Low-level transport: POST a body through the proxy, return parsed JSON ---
-  // Retry automatique sur 429 (rate-limit Albert) : la boucle agentique tire
-  // plusieurs requetes par message et le token serveur est partage -> on absorbe
-  // les pics au lieu de faire echouer l'utilisateur. Respecte Retry-After, sinon
-  // backoff exponentiel plafonne (1s, 2s, 4s).
-  async function postProxy(
-    endpoint: string,
-    headers: Record<string, string>,
-    body: Record<string, unknown>,
-    timeout = 30000
-  ): Promise<Record<string, unknown>> {
-    const MAX_429_RETRIES = 3;
-    let response!: Response;
-    for (let attempt = 0; ; attempt++) {
-      response = await fetchWithTimeout(
-        endpoint,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-          body: JSON.stringify(body),
-        },
-        timeout
-      );
-      if (response.status !== 429 || attempt >= MAX_429_RETRIES) break;
-      const retryAfter = Number(response.headers.get('retry-after'));
-      const waitMs =
-        Number.isFinite(retryAfter) && retryAfter > 0
-          ? Math.min(retryAfter * 1000, 10000)
-          : Math.min(1000 * 2 ** attempt, 4000);
-      await new Promise((r) => setTimeout(r, waitMs));
-    }
-    if (!response.ok) {
-      let detail = '';
-      try {
-        const errBody = await response.json();
-        detail =
-          errBody?.error?.message || errBody?.error?.type || JSON.stringify(errBody?.error) || '';
-      } catch {
-        /* ignore parse errors */
-      }
-      throw new Error(
-        detail
-          ? `${httpErrorMessage(response.status)} (${detail})`
-          : httpErrorMessage(response.status)
-      );
-    }
-    return response.json();
-  }
-
-  // -- OpenAI-compatible transport (server-default OR user token) --------------
-  function postOpenAI(timeout = 30000): PostChat {
-    return async (body: Record<string, unknown>) => {
-      const endpoint = useServerDefault ? '/ia-proxy-default' : '/ia-proxy';
-      const headers: Record<string, string> = useServerDefault
-        ? {}
-        : { 'X-Target-URL': config.apiUrl, Authorization: `Bearer ${config.token}` };
-      const data = await postProxy(endpoint, headers, body, timeout);
-      return data as unknown as OpenAIResponse;
-    };
-  }
+  // -- Transport IA commun (#998) : une seule implementation pour le builder-IA
+  // et le Studio, retry sur 429 compris (Retry-After plafonne a 10 s, sinon
+  // 1 s, 2 s, 4 s). Gemini et Anthropic passent par `postNatif` ; la branche
+  // OpenAI-compatible par `resolveTransport` (post + capacites). chat.ts ne
+  // construit plus aucune requete de chat lui-meme (#1015).
+  const TIMEOUT_MS = 45000;
 
   // -- Resolve OpenAI/Albert inference params from extraParams -----------------
   // temperature/seed are pulled out so we can set sensible defaults that the
@@ -545,14 +496,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
     }
     if (Object.keys(generationConfig).length > 0) requestBody.generationConfig = generationConfig;
 
-    const separator = config.apiUrl.includes('?') ? '&' : '?';
-    const data = await postProxy(
-      '/ia-proxy',
-      {
-        'X-Target-URL': `${config.apiUrl}${separator}key=${config.token}`,
-      },
-      requestBody
-    );
+    const data = await postNatif('gemini', config, requestBody, TIMEOUT_MS);
     const candidates = data.candidates as { content: { parts: { text: string }[] } }[];
     return { kind: 'raw', raw: candidates[0].content.parts[0].text };
   }
@@ -569,15 +513,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
       const num = Number(val);
       requestBody[key] = !isNaN(num) && val !== '' ? num : val;
     }
-    const data = await postProxy(
-      '/ia-proxy',
-      {
-        'X-Target-URL': config.apiUrl,
-        'x-api-key': config.token,
-        'anthropic-version': '2023-06-01',
-      },
-      requestBody
-    );
+    const data = await postNatif('anthropic', config, requestBody, TIMEOUT_MS);
     const content = data.content as { text: string }[];
     return { kind: 'raw', raw: content[0].text };
   }
@@ -587,7 +523,9 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
   // puis legacy. Chaque chemin avance est protege : si le gateway le refuse, on
   // se rabat sur le suivant et on memorise l'echec pour la session (pas de
   // double-latence a chaque message).
-  const caps = effectiveCapabilities({ isAlbert });
+  const transport = await resolveTransport({ user: config, timeout: TIMEOUT_MS });
+  const postOpenAI: PostChat = transport.post;
+  const caps = transport.capacites;
   const { extra, temperature, seed } = resolveOpenAIParams();
 
   // --- Tools / agentic loop -------------------------------------------------
@@ -604,7 +542,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
         source: state.source,
         data: state.localData,
         fields: state.fields,
-        post: postOpenAI(45000),
+        post: postOpenAI,
         onProgress: (steps) => renderThinkingSteps(steps),
         model: config.model,
         temperature: temperature ?? STRUCTURED_DEFAULT_TEMPERATURE,
@@ -674,7 +612,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
         ...(seed !== undefined ? { seed } : {}),
         ...extra,
       };
-      const data = await postOpenAI()(requestBody);
+      const data = await postOpenAI(requestBody);
       const content = data.choices?.[0]?.message?.content ?? '';
       let parsed: unknown = null;
       try {
@@ -703,7 +641,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
     ...(seed !== undefined ? { seed } : {}),
     ...extra,
   };
-  const data = await postOpenAI()(requestBody);
+  const data = await postOpenAI(requestBody);
   return { kind: 'raw', raw: data.choices[0].message.content ?? '' };
 }
 

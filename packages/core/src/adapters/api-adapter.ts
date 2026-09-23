@@ -234,11 +234,12 @@ export interface ApiAdapter {
    * group-by / aggregate / order-by.
    *
    * Certains providers encodent ces operations via une syntaxe a suffixe dans
-   * la query string (Tabular : `colonne__groupby`, `colonne__sum`) qui ne
-   * supporte pas les noms de colonnes contenant des espaces ou de la
-   * ponctuation (ex. "Date - Journee gaziere"). Dans ce cas l'adapter retourne
-   * false et dsfr-data-query retombe sur un traitement client-side (qui fetch
-   * toutes les lignes brutes puis agrege localement — resultat identique).
+   * la query string (Tabular : `colonne__groupby`, `colonne__sum`). Un nom qui
+   * porte un separateur de la grammaire colon (`,` `:` `|`) ne survit pas au
+   * decoupage : l'adapter retourne false et dsfr-data-query retombe sur un
+   * traitement client-side (qui fetch toutes les lignes brutes puis agrege
+   * localement — resultat identique). Espaces, accents et ponctuation sont,
+   * eux, delegues percent-encodes (Tabular, #985).
    *
    * Non implemente = tous les champs sont delegables (comportement par defaut).
    */
@@ -254,8 +255,24 @@ export interface ApiAdapter {
   supportsServerAggregate?(fn: string): boolean;
 
   /**
+   * Indique si une clause `where` du dialecte de l'adapter (`whereFormat`)
+   * est traduisible TELLE QUELLE dans la requete serveur (#1026).
+   *
+   * La grammaire colon connait les champs multiples (`a|b:op:valeur`, un OU
+   * entre champs) : Tabular les traduit en `or=(…)` sauf quand la valeur porte
+   * un caractere que ce parametre ne sait pas transporter, INSEE et generic ne
+   * savent pas dire « ou » et les refusent. Un refus (false) fait retomber
+   * dsfr-data-query sur le filtre client, et dsfr-data-search (`server-search`)
+   * sur une recherche locale — jamais une clause perdue en silence.
+   *
+   * Non implemente = toute clause est delegable (comportement par defaut).
+   */
+  supportsServerWhere?(where: string): boolean;
+
+  /**
    * Retourne le search template par défaut pour cette API.
-   * Ex: ODS retourne 'search("{q}")'.
+   * Ex: ODS retourne 'search("{q}")' ; Tabular `{fields}:contains:{q}`,
+   * `{fields}` devenant les champs de la recherche separes par `|` (#1026).
    */
   getDefaultSearchTemplate?(): string | null;
 

@@ -8,6 +8,10 @@
  * L'état complet est persisté (reprise de session) et la saisie des champs
  * est assistée par un échantillonnage réel de la source (field-service).
  */
+// Journal réseau et console (#994) : EN PREMIER, avant la bibliothèque et le
+// code de l'app, pour voir leurs premières requêtes. Les modules ES
+// s'évaluent dans l'ordre des imports.
+import '@dsfr-data/shared/debug/installer-journal';
 import './styles/carto.css';
 import {
   state,
@@ -17,10 +21,22 @@ import {
   resetState,
   INSET_TERRITORIES,
   DROM_IDS,
+  DEFAULT_LAYER_MAX_ITEMS,
 } from './state.js';
 import type { AnySource, FieldInfo, LayerConfig, LayerType, PopupMode } from './state.js';
-import { generateCode } from './ui/code-generator.js';
+import { generateCode, layerOutputId } from './ui/code-generator.js';
+import { statutDepuisConstats } from './ui/preview-status.js';
 import { scanLayerFields } from './field-service.js';
+import {
+  champsAgregat,
+  colonneComptage,
+  composerParEchelle,
+  defaireComposition,
+  libelleNiveau,
+  MAX_ZOOM_AGREGAT,
+  MIN_ZOOM_POINTS,
+  proposerComposition,
+} from './composition-echelle.js';
 import {
   loadFromStorage,
   saveToStorage,
@@ -35,10 +51,14 @@ import {
   type Source,
   confirmDialog,
   mountDiagnosticPanel,
-  transmettreDiagnostic,
-  appHref,
+  REGLES_GENERIQUES,
+  REGLES_CARTO,
+  type MountedDiagnostic,
+  type MountedAssistant,
   escapeHtml,
 } from '@dsfr-data/shared';
+import { creerAdaptateurCarto } from './assistant/adaptateur.js';
+import { monterAssistantCarto, montrerRepereCarto } from './assistant/index.js';
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
 
@@ -158,6 +178,13 @@ const ui = {
    */
   scanStatus: '',
   scanFailed: false,
+  /**
+   * Total du jeu de chaque couche, rapporté par la couche de l'aperçu après
+   * son rendu (`dsfr-data-map-layer-render`, #1020) : c'est lui qui dit que
+   * le jeu dépasse le plafond et déclenche la proposition de composition
+   * par échelle (#1021). Jamais persisté : il vaut pour la source chargée.
+   */
+  totaux: new Map<string, number>(),
 };
 
 // ---------------------------------------------------------------------------
@@ -209,6 +236,10 @@ const SWATCHES: { c: string; n: string }[] = [
 /**
  * Input texte assisté par datalist : suggestions = champs détectés de la
  * couche (avec type et taux de remplissage), saisie libre toujours possible.
+ *
+ * `repere`, `attribut`, `prerequis` : marques de l'assistant (#997). Helper
+ * declare dans `assistant/reperes.config.ts` : l'extracteur lit ces proprietes
+ * sur chaque SITE D'APPEL, elles doivent donc y etre des litteraux.
  */
 function fieldInput(opts: {
   id: string;
@@ -218,6 +249,9 @@ function fieldInput(opts: {
   hint?: string;
   placeholder?: string;
   numericOnly?: boolean;
+  repere?: string;
+  attribut?: string;
+  prerequis?: string;
 }): string {
   const candidates = opts.numericOnly
     ? opts.fields.filter((f) => f.type === 'number')
@@ -237,6 +271,9 @@ function fieldInput(opts: {
       </label>
       <input type="text" id="${opts.id}" value="${escapeAttr(opts.value)}"
              list="${opts.id}-list" ${opts.placeholder ? `placeholder="${escapeAttr(opts.placeholder)}"` : ''}
+             ${opts.repere ? `data-repere="${opts.repere}"` : ''}
+             ${opts.attribut ? `data-attribut="${opts.attribut}"` : ''}
+             ${opts.prerequis ? `data-prerequis="${opts.prerequis}"` : ''}
              autocomplete="off">
       <datalist id="${opts.id}-list">${options}</datalist>
     </div>`;
@@ -251,7 +288,8 @@ function hasLocation(layer: LayerConfig): boolean {
 // Rendu global
 // ---------------------------------------------------------------------------
 
-function renderAll() {
+/** Rendu complet des panneaux ; exporté pour l'adaptateur de révélation (tests, #1005). */
+export function renderAll() {
   renderLayersPanel();
   renderElementsPanel();
   renderMapPanel();
@@ -316,7 +354,8 @@ function renderLayersPanel() {
     .map(
       (layer) => `
     <li class="carto-layers__item ${layer.id === state.activeLayerId ? 'carto-layers__item--active' : ''}"
-        data-layer-id="${layer.id}">
+        data-layer-id="${layer.id}" data-repere="carto.couches.liste.selectionner"
+        data-repere-libelle="Sélectionner la couche">
       <div class="carto-layers__item-info">
         <div class="carto-layers__item-header">
           <span class="carto-layers__item-name">${escapeAttr(layer.name)}</span>
@@ -329,6 +368,7 @@ function renderLayersPanel() {
         }</span>
       </div>
       <button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-eye-id="${layer.id}" type="button"
+              data-repere="carto.couches.liste.visibilite" data-repere-libelle="Afficher ou masquer la couche"
               title="${layer.visible ? 'Masquer la couche' : 'Afficher la couche'}"
               aria-label="${layer.visible ? 'Masquer la couche' : 'Afficher la couche'} ${escapeAttr(layer.name)}">
         <i class="${layer.visible ? 'ri-eye-line' : 'ri-eye-off-line'}" aria-hidden="true"></i>
@@ -336,6 +376,7 @@ function renderLayersPanel() {
       ${
         removable
           ? `<button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-del-id="${layer.id}" type="button"
+              data-repere="carto.couches.liste.supprimer" data-repere-libelle="Supprimer la couche"
               title="Supprimer la couche" aria-label="Supprimer la couche ${escapeAttr(layer.name)}">
               <i class="ri-delete-bin-line" aria-hidden="true"></i>
             </button>`
@@ -375,6 +416,8 @@ function renderLayersPanel() {
       e.stopPropagation();
       const id = btn.getAttribute('data-del-id')!;
       if (state.layers.length <= 1) return;
+      const supprimee = state.layers.find((l) => l.id === id);
+      if (supprimee) defaireComposition(state, supprimee);
       state.layers = state.layers.filter((l) => l.id !== id);
       if (state.activeLayerId === id) state.activeLayerId = state.layers[0].id;
       renderAll();
@@ -399,17 +442,19 @@ function renderLayerDataConfig() {
   const sourceName = layer.source
     ? String(layer.source.name || layer.source.datasetId || layer.source.apiUrl || 'Source')
     : '';
-  const sourceDetail = fields.length
-    ? `${fields.length} champs détectés`
-    : ui.scanFailed
-      ? 'Champs non détectés'
-      : 'Analyse des champs en cours…';
+  const sourceDetail = layer.agregat
+    ? `Nombre d'enregistrements par ${libelleNiveau(layer.agregat.niveau)}, compté sur tout le jeu`
+    : fields.length
+      ? `${fields.length} champs détectés`
+      : ui.scanFailed
+        ? 'Champs non détectés'
+        : 'Analyse des champs en cours…';
 
   container.innerHTML = `
     <div class="carto-section">
       <div class="carto-section__label">
         <span>Données</span>
-        ${layer.source ? '<button id="btn-change-source" class="carto-text-link" type="button">Changer</button>' : ''}
+        ${layer.source ? '<button id="btn-change-source" class="carto-text-link" type="button" data-repere="carto.couches.source" data-repere-libelle="Données de la couche">Changer</button>' : ''}
       </div>
       ${
         layer.source
@@ -422,10 +467,12 @@ function renderLayerDataConfig() {
         </div>
       </div>`
           : `
-      <button id="btn-choose-source" class="carto-source-choose app-card-choice app-card-choice--dashed" type="button">
+      <button id="btn-choose-source" class="carto-source-choose app-card-choice app-card-choice--dashed" type="button"
+              data-repere="carto.couches.source" data-repere-libelle="Données de la couche">
         <i class="ri-database-2-line" aria-hidden="true"></i> Choisir les données de cette couche
       </button>
-      <button id="btn-sample-source" class="app-card-choice fr-mt-1w" type="button">
+      <button id="btn-sample-source" class="app-card-choice fr-mt-1w" type="button"
+              data-repere="carto.couches.source" data-repere-libelle="Données de la couche">
         <i class="ri-lightbulb-line" aria-hidden="true"></i>
         <span class="carto-choice__body">
           <span class="carto-choice__title">Essayer avec un jeu d'exemple</span>
@@ -436,12 +483,20 @@ function renderLayerDataConfig() {
       <div id="source-scan-status" class="carto-scan-status" aria-live="polite">${ui.scanStatus}</div>
       <div class="carto-field fr-mt-1w">
         <label for="layer-name">Nom de la couche</label>
-        <input type="text" id="layer-name" value="${escapeAttr(layer.name)}">
+        <input type="text" id="layer-name" data-repere="carto.couches.nom" value="${escapeAttr(layer.name)}">
       </div>
     </div>
     ${
-      layer.source
+      layer.source && layer.agregat
         ? `
+    <div class="carto-section">
+      <div class="carto-section__label"><span>Localisation</span></div>
+      <p class="carto-msg carto-msg--ok"><i class="ri-map-2-line" aria-hidden="true"></i>
+        Contours des ${libelleNiveau(layer.agregat.niveau)}s livrés avec dsfr-data, joints sur le champ
+        <code>${escapeAttr(layer.agregat.champ)}</code>. Couleur : <code>${escapeAttr(colonneComptage(layer.agregat))}</code>.</p>
+    </div>`
+        : layer.source
+          ? `
     <div class="carto-section">
       <div class="carto-section__label"><span>Localisation</span></div>
       ${
@@ -450,8 +505,28 @@ function renderLayerDataConfig() {
           : `<p class="carto-msg carto-msg--warn"><i class="ri-alert-line" aria-hidden="true"></i> Requis : sans localisation, rien ne s'affiche sur la carte</p>`
       }
       <div class="carto-inline">
-        ${fieldInput({ id: 'layer-lat', label: 'Latitude', value: layer.latField, fields, numericOnly: true, placeholder: 'ex : latitude' })}
-        ${fieldInput({ id: 'layer-lon', label: 'Longitude', value: layer.lonField, fields, numericOnly: true, placeholder: 'ex : longitude' })}
+        ${fieldInput({
+          id: 'layer-lat',
+          label: 'Latitude',
+          value: layer.latField,
+          fields,
+          numericOnly: true,
+          placeholder: 'ex : latitude',
+          repere: 'carto.couches.lat',
+          attribut: 'dsfr-data-map-layer:lat-field',
+          prerequis: 'couche-source',
+        })}
+        ${fieldInput({
+          id: 'layer-lon',
+          label: 'Longitude',
+          value: layer.lonField,
+          fields,
+          numericOnly: true,
+          placeholder: 'ex : longitude',
+          repere: 'carto.couches.lon',
+          attribut: 'dsfr-data-map-layer:lon-field',
+          prerequis: 'couche-source',
+        })}
       </div>
       <details class="carto-advanced" ${layer.geoField ? 'open' : ''}>
         <summary>…ou un champ géographique unique</summary>
@@ -462,10 +537,13 @@ function renderLayerDataConfig() {
           fields,
           hint: 'Colonne contenant la géométrie (GeoJSON, point, texte JSON)',
           placeholder: 'ex : geo_point_2d, geo_shape…',
+          repere: 'carto.couches.geo-field',
+          attribut: 'dsfr-data-map-layer:geo-field',
+          prerequis: 'couche-source',
         })}
       </details>
     </div>`
-        : ''
+          : ''
     }
   `;
 
@@ -499,7 +577,132 @@ function renderLayerDataConfig() {
   bindGeo('layer-lat', 'latField');
   bindGeo('layer-lon', 'lonField');
   bindGeo('layer-geo-field', 'geoField');
+
+  renderCompositionEchelle();
 }
+
+// ---------------------------------------------------------------------------
+// Composition par échelle (#1021)
+// ---------------------------------------------------------------------------
+
+const nombreFr = (n: number) => n.toLocaleString('fr-FR');
+
+/** Dernière proposition annoncée (couche + total) : on ne la répète pas. */
+let propositionAnnoncee = '';
+
+function annoncer(texte: string) {
+  const el = document.getElementById('composition-echelle-annonce');
+  if (el) el.textContent = texte;
+}
+
+/**
+ * Encart « Composer par échelle » de la couche active. Il n'apparaît que si
+ * le jeu dépasse le plafond (total rapporté par l'aperçu) ET qu'un champ
+ * territoire a été détecté. Rien ne s'ouvre de soi-même : l'encart se pose
+ * dans le panneau Couches, la confirmation ne vient qu'au clic.
+ */
+function renderCompositionEchelle() {
+  const slot = document.getElementById('composition-echelle');
+  if (!slot) return;
+  const layer = getActiveLayer();
+  if (!layer?.source) {
+    slot.innerHTML = '';
+    return;
+  }
+
+  if (layer.agregat) {
+    slot.innerHTML = `
+      <p class="carto-msg carto-msg--muted carto-section"><i class="ri-stack-line" aria-hidden="true"></i>
+        Couche d'une composition par échelle : visible jusqu'au zoom ${layer.maxZoom}.</p>`;
+    return;
+  }
+
+  const zones = state.layers.find((l) => l.agregat?.depuis === layer.id);
+  if (zones) {
+    slot.innerHTML = `
+      <p class="carto-msg carto-msg--ok carto-section"><i class="ri-stack-line" aria-hidden="true"></i>
+        Composée par échelle : « ${escapeAttr(zones.name)} » jusqu'au zoom ${zones.maxZoom},
+        cette couche à partir du zoom ${layer.minZoom}.</p>`;
+    return;
+  }
+
+  const total = ui.totaux.get(layer.id);
+  if (!proposerComposition(state, layer, total) || total === undefined || !layer.territoire) {
+    slot.innerHTML = '';
+    return;
+  }
+
+  const niveau = libelleNiveau(layer.territoire.niveau);
+  slot.innerHTML = `
+    <div class="carto-composition" data-zone="carto.couches.composition"
+         data-repere-libelle="Composition par échelle"
+         role="group" aria-labelledby="carto-composition-titre">
+      <p class="carto-composition__titre" id="carto-composition-titre">
+        <i class="ri-stack-line" aria-hidden="true"></i> Trop de points pour la vue nationale
+      </p>
+      <p class="carto-composition__texte">
+        Le jeu compte ${nombreFr(total)} enregistrements : la couche n'en dessine que
+        ${nombreFr(layer.maxItems)}, les premiers du fichier. Composez par échelle : jusqu'au
+        zoom ${MAX_ZOOM_AGREGAT}, chaque ${niveau} coloré selon son nombre d'enregistrements, compté
+        sur tout le jeu (champ <code>${escapeAttr(layer.territoire.champ)}</code>) ; à partir du
+        zoom ${MIN_ZOOM_POINTS}, les points.
+      </p>
+      <button type="button" id="btn-composer-echelle" class="fr-btn fr-btn--secondary fr-btn--sm"
+              data-repere="carto.couches.composition.composer">Composer par échelle</button>
+    </div>`;
+  document
+    .getElementById('btn-composer-echelle')
+    ?.addEventListener('click', () => void confirmerComposition(layer));
+
+  const cle = `${layer.id}:${total}`;
+  if (propositionAnnoncee !== cle) {
+    propositionAnnoncee = cle;
+    annoncer(
+      `Le jeu dépasse le plafond de la couche : le panneau Couches propose de composer par échelle.`
+    );
+  }
+}
+
+async function confirmerComposition(layer: LayerConfig) {
+  const t = layer.territoire;
+  const total = ui.totaux.get(layer.id);
+  if (!t || total === undefined) return;
+  const niveau = libelleNiveau(t.niveau);
+  const ok = await confirmDialog(
+    `Une couche « ${layer.name} par ${niveau} » est ajoutée sous « ${layer.name} » : ` +
+      `le nombre d'enregistrements de chaque ${niveau}, compté par l'API sur les ` +
+      `${nombreFr(total)} enregistrements, visible jusqu'au zoom ${MAX_ZOOM_AGREGAT}. ` +
+      `« ${layer.name} » n'apparaît plus qu'à partir du zoom ${MIN_ZOOM_POINTS}, ` +
+      `toujours limitée à ${nombreFr(layer.maxItems)} points.`,
+    { title: 'Composer par échelle ?', confirmLabel: 'Composer par échelle' }
+  );
+  if (!ok) return;
+  const zones = composerParEchelle(state, layer, createLayer);
+  renderAll();
+  updateCodePreview();
+  annoncer(
+    `Couche « ${zones.name} » ajoutée, visible jusqu'au zoom ${MAX_ZOOM_AGREGAT} ; ` +
+      `« ${layer.name} » à partir du zoom ${MIN_ZOOM_POINTS}.`
+  );
+}
+
+/**
+ * Total du jeu rapporté par chaque couche de l'aperçu après son rendu (#1020).
+ * Les encarts territoriaux clonent les couches : seule la carte principale
+ * compte.
+ */
+document.addEventListener('dsfr-data-map-layer-render', (e) => {
+  const el = e.target as Element | null;
+  if (!el || !el.closest('#map-canvas') || el.closest('dsfr-data-map-inset')) return;
+  const source = el.getAttribute('source');
+  const layer = state.layers.find((l) => layerOutputId(l) === source);
+  if (!layer || layer.agregat) return;
+  const total = (e as CustomEvent<{ total?: number }>).detail?.total;
+  if (typeof total !== 'number' || !Number.isFinite(total)) return;
+  if (ui.totaux.get(layer.id) === total) return;
+  ui.totaux.set(layer.id, total);
+  if (layer.id === state.activeLayerId) renderCompositionEchelle();
+});
 
 // ---------------------------------------------------------------------------
 // Panneau Éléments : représentation, couleur, interactions, animation, avancé
@@ -518,7 +721,9 @@ function popupFieldsHtml(layer: LayerConfig): string {
         <label for="layer-popup-fields">Champs à afficher
           <span class="fr-hint-text">Noms de colonnes séparés par des virgules. Vide = toutes les colonnes.</span>
         </label>
-        <input type="text" id="layer-popup-fields" value="${escapeAttr(layer.popupFields)}" placeholder="nom,adresse,prix">
+        <input type="text" id="layer-popup-fields" data-repere="carto.elements.clic.popup-fields"
+               data-attribut="dsfr-data-map-layer:popup-fields" data-prerequis="couche-active"
+               value="${escapeAttr(layer.popupFields)}" placeholder="nom,adresse,prix">
       </div>`;
   }
   const all = [...new Set([...known, ...chosen])];
@@ -531,7 +736,9 @@ function popupFieldsHtml(layer: LayerConfig): string {
         ${all
           .map(
             (f) => `
-        <label><input type="checkbox" data-pf="${escapeAttr(f)}" ${chosen.includes(f) ? 'checked' : ''}>${escapeAttr(f)}</label>`
+        <label><input type="checkbox" data-pf="${escapeAttr(f)}" data-repere="carto.elements.clic.popup-fields"
+               data-repere-libelle="Champs à afficher" data-attribut="dsfr-data-map-layer:popup-fields"
+               data-prerequis="couche-active" ${chosen.includes(f) ? 'checked' : ''}>${escapeAttr(f)}</label>`
           )
           .join('')}
       </div>
@@ -561,7 +768,7 @@ function renderElementsPanel() {
   const customColor = !SWATCHES.some((sw) => sw.c === layer.color);
   const advancedOpen =
     layer.filter ||
-    layer.maxItems !== 5000 ||
+    layer.maxItems !== DEFAULT_LAYER_MAX_ITEMS ||
     layer.minZoom !== 0 ||
     layer.maxZoom !== 18 ||
     layer.bbox ||
@@ -571,12 +778,13 @@ function renderElementsPanel() {
 
   container.innerHTML = `
     <div class="carto-section fr-pt-1w">
-      <div class="carto-section__label"><span>Représentation</span></div>
-      <div class="carto-tiles">
+      <div class="carto-section__label"><span id="carto-section-representation">Représentation</span></div>
+      <div class="carto-tiles" data-zone="carto.elements.representation" role="group" aria-labelledby="carto-section-representation">
         ${TYPE_TILES.map(
           (t) => `
         <button type="button" class="carto-tile ${layer.type === t.k ? 'carto-tile--active' : ''}"
-                data-type="${t.k}" title="${t.desc}">
+                data-type="${t.k}" title="${t.desc}" data-repere="carto.elements.representation.type"
+                data-repere-libelle="Type de représentation" data-attribut="dsfr-data-map-layer:type">
           <i class="${t.icon}" aria-hidden="true"></i>
           <span class="carto-tile__label">${t.label}</span>
           <span class="carto-tile__desc">${t.desc}</span>
@@ -589,7 +797,8 @@ function renderElementsPanel() {
           ? `
       <div class="fr-mt-1w">
         <div class="carto-checkbox">
-          <input type="checkbox" id="layer-cluster" ${layer.cluster ? 'checked' : ''}>
+          <input type="checkbox" id="layer-cluster" data-repere="carto.elements.cluster"
+                 data-attribut="dsfr-data-map-layer:cluster" ${layer.cluster ? 'checked' : ''}>
           <label for="layer-cluster">Regrouper les points proches (clustering)</label>
         </div>
         ${
@@ -597,7 +806,8 @@ function renderElementsPanel() {
             ? `
         <div class="carto-field">
           <label for="layer-cluster-radius">Rayon de regroupement (px)</label>
-          <input type="number" id="layer-cluster-radius" value="${layer.clusterRadius}" min="10" max="200">
+          <input type="number" id="layer-cluster-radius" data-repere="carto.elements.cluster-rayon"
+                 data-attribut="dsfr-data-map-layer:cluster-radius" value="${layer.clusterRadius}" min="10" max="200">
         </div>`
             : ''
         }
@@ -617,18 +827,20 @@ function renderElementsPanel() {
           numericOnly: true,
           hint: 'La taille du cercle varie selon la valeur',
           placeholder: 'population',
+          repere: 'carto.elements.rayon-champ',
+          attribut: 'dsfr-data-map-layer:radius-field',
         })}
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-radius-unit">Unité</label>
-            <select id="layer-radius-unit">
+            <select id="layer-radius-unit" data-repere="carto.elements.rayon-unite" data-attribut="dsfr-data-map-layer:radius-unit">
               <option value="px" ${layer.radiusUnit === 'px' ? 'selected' : ''}>Pixels (px)</option>
               <option value="m" ${layer.radiusUnit === 'm' ? 'selected' : ''}>Mètres réels (m)</option>
             </select>
           </div>
           <div class="carto-field">
             <label for="layer-radius">Rayon fixe</label>
-            <input type="number" id="layer-radius" value="${layer.radius}" min="1">
+            <input type="number" id="layer-radius" data-repere="carto.elements.rayon" data-attribut="dsfr-data-map-layer:radius" value="${layer.radius}" min="1">
           </div>
         </div>
         ${
@@ -637,11 +849,11 @@ function renderElementsPanel() {
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-radius-min">Rayon min (px)</label>
-            <input type="number" id="layer-radius-min" value="${layer.radiusMin}" min="1" max="100">
+            <input type="number" id="layer-radius-min" data-repere="carto.elements.rayon-min" data-attribut="dsfr-data-map-layer:radius-min" value="${layer.radiusMin}" min="1" max="100">
           </div>
           <div class="carto-field">
             <label for="layer-radius-max">Rayon max (px)</label>
-            <input type="number" id="layer-radius-max" value="${layer.radiusMax}" min="1" max="200">
+            <input type="number" id="layer-radius-max" data-repere="carto.elements.rayon-max" data-attribut="dsfr-data-map-layer:radius-max" value="${layer.radiusMax}" min="1" max="200">
           </div>
         </div>`
             : ''
@@ -662,15 +874,17 @@ function renderElementsPanel() {
           numericOnly: true,
           hint: 'Vide = chaque point compte 1',
           placeholder: 'population',
+          repere: 'carto.elements.chaleur-champ',
+          attribut: 'dsfr-data-map-layer:heat-field',
         })}
         <div class="carto-inline">
           <div class="carto-field">
             <label for="layer-heat-radius">Rayon</label>
-            <input type="number" id="layer-heat-radius" value="${layer.heatRadius}" min="1" max="100">
+            <input type="number" id="layer-heat-radius" data-repere="carto.elements.chaleur-rayon" data-attribut="dsfr-data-map-layer:heat-radius" value="${layer.heatRadius}" min="1" max="100">
           </div>
           <div class="carto-field">
             <label for="layer-heat-blur">Flou</label>
-            <input type="number" id="layer-heat-blur" value="${layer.heatBlur}" min="1" max="100">
+            <input type="number" id="layer-heat-blur" data-repere="carto.elements.chaleur-flou" data-attribut="dsfr-data-map-layer:heat-blur" value="${layer.heatBlur}" min="1" max="100">
           </div>
         </div>
       </div>`
@@ -689,10 +903,12 @@ function renderElementsPanel() {
           numericOnly: true,
           hint: 'Chaque zone prend une teinte selon sa valeur',
           placeholder: 'population',
+          repere: 'carto.elements.remplissage-champ',
+          attribut: 'dsfr-data-map-layer:fill-field',
         })}
         <div class="carto-field">
           <label for="layer-palette">Palette</label>
-          <select id="layer-palette">
+          <select id="layer-palette" data-repere="carto.elements.palette" data-attribut="dsfr-data-map-layer:selected-palette">
             <option value="" ${!layer.selectedPalette ? 'selected' : ''}>Séquentielle (clair → foncé) — défaut</option>
             <option value="sequentialDescending" ${layer.selectedPalette === 'sequentialDescending' ? 'selected' : ''}>Séquentielle (foncé → clair)</option>
             <option value="divergentAscending" ${layer.selectedPalette === 'divergentAscending' ? 'selected' : ''}>Divergente (négatif ↔ positif)</option>
@@ -703,7 +919,8 @@ function renderElementsPanel() {
         </div>
         <div class="carto-field" style="max-width:120px">
           <label for="layer-fill-opacity">Opacité</label>
-          <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
+          <input type="number" id="layer-fill-opacity" data-repere="carto.elements.opacite"
+                 data-attribut="dsfr-data-map-layer:fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
         </div>
         ${
           layer.fillField
@@ -715,7 +932,7 @@ function renderElementsPanel() {
           <div class="carto-inline">
             <div class="carto-field">
               <label for="layer-class-method">Méthode</label>
-              <select id="layer-class-method">
+              <select id="layer-class-method" data-repere="carto.elements.methode" data-attribut="dsfr-data-map-layer:method">
                 <option value="quantile" ${layer.classMethod === 'quantile' ? 'selected' : ''}>Effectifs égaux (quantiles) — défaut</option>
                 <option value="equal" ${layer.classMethod === 'equal' ? 'selected' : ''}>Intervalles de même largeur</option>
                 <option value="manual" ${layer.classMethod === 'manual' ? 'selected' : ''}>Bornes choisies</option>
@@ -728,7 +945,7 @@ function renderElementsPanel() {
               <label for="layer-classes">Nombre de classes
                 <span class="fr-hint-text">0 = autant que de couleurs</span>
               </label>
-              <input type="number" id="layer-classes" value="${layer.classes}" min="0" max="9">
+              <input type="number" id="layer-classes" data-repere="carto.elements.classes" data-attribut="dsfr-data-map-layer:classes" value="${layer.classes}" min="0" max="9">
             </div>`
                 : ''
             }
@@ -740,7 +957,7 @@ function renderElementsPanel() {
             <label for="layer-breaks">Bornes hautes
               <span class="fr-hint-text">Valeur maximale de chaque classe, séparées par des virgules</span>
             </label>
-            <input type="text" id="layer-breaks" value="${escapeAttr(layer.breaks)}" placeholder="10,50,100">
+            <input type="text" id="layer-breaks" data-repere="carto.elements.bornes" data-attribut="dsfr-data-map-layer:breaks" value="${escapeAttr(layer.breaks)}" placeholder="10,50,100">
           </div>`
               : ''
           }
@@ -756,14 +973,17 @@ function renderElementsPanel() {
       layer.type !== 'heatmap'
         ? `
     <div class="carto-section">
-      <div class="carto-section__label"><span>Couleur</span></div>
-      <div class="carto-swatches">
+      <div class="carto-section__label"><span id="carto-section-couleur">Couleur</span></div>
+      <div class="carto-swatches" data-zone="carto.elements.couleur" role="group" aria-labelledby="carto-section-couleur">
         ${SWATCHES.map(
           (sw) => `
         <button type="button" class="carto-swatch ${layer.color === sw.c ? 'carto-swatch--active' : ''}"
-                data-swatch="${sw.c}" style="background:${sw.c}" title="${sw.n}" aria-label="${sw.n}"></button>`
+                data-swatch="${sw.c}" style="background:${sw.c}" title="${sw.n}" aria-label="${sw.n}"
+                data-repere="carto.elements.couleur.pastille" data-repere-libelle="Couleur"
+                data-attribut="dsfr-data-map-layer:color"></button>`
         ).join('')}
-        <input type="color" id="layer-color" class="carto-swatch-custom ${customColor ? 'carto-swatch--active' : ''}"
+        <input type="color" id="layer-color" data-repere="carto.elements.couleur.perso" data-attribut="dsfr-data-map-layer:color"
+               class="carto-swatch-custom ${customColor ? 'carto-swatch--active' : ''}"
                value="${layer.color}" title="Couleur personnalisée" aria-label="Couleur personnalisée">
       </div>
       <details class="carto-advanced fr-mt-1w" ${layer.colorField ? 'open' : ''}>
@@ -775,6 +995,8 @@ function renderElementsPanel() {
           fields,
           hint: 'Chaque valeur du champ reçoit sa couleur',
           placeholder: 'region',
+          repere: 'carto.elements.couleur-champ',
+          attribut: 'dsfr-data-map-layer:color-field',
         })}
         ${
           layer.colorField
@@ -783,7 +1005,7 @@ function renderElementsPanel() {
           <label for="layer-color-map">Couleur par valeur
             <span class="fr-hint-text">valeur:#couleur séparées par des virgules</span>
           </label>
-          <textarea id="layer-color-map" rows="2" placeholder="Corse:#e1000f,Bretagne:#000091">${escapeAttr(layer.colorMap)}</textarea>
+          <textarea id="layer-color-map" data-repere="carto.elements.couleur-valeurs" data-attribut="dsfr-data-map-layer:color-map" rows="2" placeholder="Corse:#e1000f,Bretagne:#000091">${escapeAttr(layer.colorMap)}</textarea>
         </div>`
             : ''
         }
@@ -792,8 +1014,8 @@ function renderElementsPanel() {
         : ''
     }
 
-    <div class="carto-section">
-      <div class="carto-section__label"><span>Au clic sur un élément</span></div>
+    <div class="carto-section" data-zone="carto.elements.clic" role="group" aria-labelledby="carto-section-clic">
+      <div class="carto-section__label"><span id="carto-section-clic">Au clic sur un élément</span></div>
       ${
         layer.noInteractive
           ? `<p class="carto-msg carto-msg--muted"><i class="ri-eye-off-line" aria-hidden="true"></i>
@@ -801,7 +1023,8 @@ function renderElementsPanel() {
           : `
       <div class="carto-field">
         <label for="layer-popup-mode" class="fr-sr-only">Comportement au clic</label>
-        <select id="layer-popup-mode">
+        <select id="layer-popup-mode" data-repere="carto.elements.clic.popup-mode"
+                data-attribut="dsfr-data-map-popup:mode" data-prerequis="couche-active couche-source couche-interactive">
           <option value="none" ${layer.popupMode === 'none' ? 'selected' : ''}>Ne rien afficher</option>
           <option value="tooltip" ${layer.popupMode === 'tooltip' ? 'selected' : ''}>Le nom, au survol</option>
           <option value="popup" ${layer.popupMode === 'popup' ? 'selected' : ''}>Une fiche (popup) au clic</option>
@@ -817,6 +1040,8 @@ function renderElementsPanel() {
               value: layer.tooltipField,
               fields,
               placeholder: 'nom, denomination…',
+              repere: 'carto.elements.clic.tooltip-field',
+              attribut: 'dsfr-data-map-layer:tooltip-field',
             })
           : ''
       }
@@ -831,6 +1056,9 @@ function renderElementsPanel() {
           value: layer.titleField,
           fields,
           placeholder: 'nom',
+          repere: 'carto.elements.clic.title-field',
+          attribut: 'dsfr-data-map-popup:title-field',
+          prerequis: 'couche-active',
         })}
         ${popupFieldsHtml(layer)}
         <details class="carto-advanced" ${layer.popupTemplate ? 'open' : ''}>
@@ -839,14 +1067,16 @@ function renderElementsPanel() {
             <label for="layer-popup-template">Template
               <span class="fr-hint-text">Écrivez le nom du champ entre doubles accolades pour insérer sa valeur ; ajoutez :number pour formater un nombre</span>
             </label>
-            <textarea id="layer-popup-template" rows="3" placeholder="&lt;h3&gt;{{nom}}&lt;/h3&gt;&#10;&lt;p&gt;{{adresse}}&lt;/p&gt;">${escapeAttr(layer.popupTemplate)}</textarea>
+            <textarea id="layer-popup-template" data-repere="carto.elements.clic.popup-template"
+                      data-attribut="dsfr-data-map-layer:popup-template" data-prerequis="couche-active" rows="3" placeholder="&lt;h3&gt;{{nom}}&lt;/h3&gt;&#10;&lt;p&gt;{{adresse}}&lt;/p&gt;">${escapeAttr(layer.popupTemplate)}</textarea>
           </div>
           ${
             isPanel
               ? `
           <div class="carto-field">
             <label for="layer-popup-width">Largeur du panneau</label>
-            <input type="text" id="layer-popup-width" value="${escapeAttr(layer.popupWidth)}" placeholder="350px">
+            <input type="text" id="layer-popup-width" data-repere="carto.elements.clic.popup-width"
+                   data-attribut="dsfr-data-map-popup:width" value="${escapeAttr(layer.popupWidth)}" placeholder="350px">
           </div>`
               : ''
           }
@@ -857,7 +1087,7 @@ function renderElementsPanel() {
       }
     </div>
 
-    <details class="carto-advanced carto-section" ${layer.timeField ? 'open' : ''}>
+    <details class="carto-advanced carto-section" data-zone="carto.elements.temps" ${layer.timeField ? 'open' : ''}>
       <summary>Animation temporelle</summary>
       ${fieldInput({
         id: 'layer-time-field',
@@ -866,6 +1096,8 @@ function renderElementsPanel() {
         fields,
         hint: 'Renseigner ce champ active les contrôles de lecture sur la carte',
         placeholder: 'date_mesure',
+        repere: 'carto.elements.temps.champ',
+        attribut: 'dsfr-data-map-layer:time-field',
       })}
       ${
         layer.timeField
@@ -873,7 +1105,7 @@ function renderElementsPanel() {
       <div class="carto-inline">
         <div class="carto-field">
           <label for="layer-time-bucket">Granularité</label>
-          <select id="layer-time-bucket">
+          <select id="layer-time-bucket" data-repere="carto.elements.temps.granularite" data-attribut="dsfr-data-map-layer:time-bucket">
             <option value="none" ${layer.timeBucket === 'none' ? 'selected' : ''}>Valeurs brutes</option>
             <option value="hour" ${layer.timeBucket === 'hour' ? 'selected' : ''}>Heure</option>
             <option value="day" ${layer.timeBucket === 'day' ? 'selected' : ''}>Jour</option>
@@ -883,7 +1115,7 @@ function renderElementsPanel() {
         </div>
         <div class="carto-field">
           <label for="layer-time-mode">Mode</label>
-          <select id="layer-time-mode">
+          <select id="layer-time-mode" data-repere="carto.elements.temps.mode" data-attribut="dsfr-data-map-layer:time-mode">
             <option value="snapshot" ${layer.timeMode === 'snapshot' ? 'selected' : ''}>Instantané (pas à pas)</option>
             <option value="cumulative" ${layer.timeMode === 'cumulative' ? 'selected' : ''}>Cumulatif</option>
           </select>
@@ -892,41 +1124,41 @@ function renderElementsPanel() {
       <div class="carto-inline">
         <div class="carto-field">
           <label for="map-timeline-speed">Vitesse</label>
-          <select id="map-timeline-speed">
+          <select id="map-timeline-speed" data-repere="carto.elements.temps.vitesse" data-attribut="dsfr-data-map-timeline:speed">
             ${[0.5, 1, 2, 4].map((v) => `<option value="${v}" ${state.map.timelineSpeed === v ? 'selected' : ''}>× ${v}</option>`).join('')}
           </select>
         </div>
         <div class="carto-field">
           <label for="map-timeline-interval">Intervalle (ms)</label>
-          <input type="number" id="map-timeline-interval" value="${state.map.timelineInterval}" min="50" max="10000" step="50">
+          <input type="number" id="map-timeline-interval" data-repere="carto.elements.temps.intervalle" data-attribut="dsfr-data-map-timeline:interval" value="${state.map.timelineInterval}" min="50" max="10000" step="50">
         </div>
       </div>`
           : ''
       }
     </details>
 
-    <details class="carto-advanced carto-section" ${advancedOpen ? 'open' : ''}>
+    <details class="carto-advanced carto-section" data-zone="carto.elements.avancees" ${advancedOpen ? 'open' : ''}>
       <summary>Options avancées</summary>
       <div class="carto-field">
         <label for="layer-filter">Filtrer les données
           <span class="fr-hint-text">champ:opérateur:valeur — ex : population:gt:200000</span>
         </label>
-        <input type="text" id="layer-filter" value="${escapeAttr(layer.filter)}" placeholder="champ:eq:valeur">
+        <input type="text" id="layer-filter" data-repere="carto.elements.avancees.filtre" data-prerequis="couche-source" value="${escapeAttr(layer.filter)}" placeholder="champ:eq:valeur">
       </div>
       <div class="carto-field">
         <label for="layer-max-items">Nombre max d'éléments affichés
-          <span class="fr-hint-text">Au-delà, un bandeau « N affichés sur M » apparaît</span>
+          <span class="fr-hint-text">Une source d'API n'en charge pas davantage. Quand le jeu en compte plus, un bandeau « N affichés sur M » apparaît sur la carte</span>
         </label>
-        <input type="number" id="layer-max-items" value="${layer.maxItems}" min="1" max="100000">
+        <input type="number" id="layer-max-items" data-repere="carto.elements.avancees.max-items" data-attribut="dsfr-data-map-layer:max-items" value="${layer.maxItems}" min="1" max="100000">
       </div>
       <div class="carto-inline">
         <div class="carto-field">
           <label for="layer-min-zoom">Visible dès le zoom</label>
-          <input type="number" id="layer-min-zoom" value="${layer.minZoom}" min="0" max="18">
+          <input type="number" id="layer-min-zoom" data-repere="carto.elements.avancees.min-zoom" data-attribut="dsfr-data-map-layer:min-zoom" value="${layer.minZoom}" min="0" max="18">
         </div>
         <div class="carto-field">
           <label for="layer-max-zoom">Jusqu'au zoom</label>
-          <input type="number" id="layer-max-zoom" value="${layer.maxZoom}" min="0" max="18">
+          <input type="number" id="layer-max-zoom" data-repere="carto.elements.avancees.max-zoom" data-attribut="dsfr-data-map-layer:max-zoom" value="${layer.maxZoom}" min="0" max="18">
         </div>
       </div>
       ${
@@ -936,10 +1168,11 @@ function renderElementsPanel() {
         layer.type === 'circle'
           ? `
       <div class="carto-field">
-        <label for="layer-fill-opacity">Opacité de remplissage
+        <label for="layer-circle-fill-opacity">Opacité de remplissage
           <span class="fr-hint-text">0 = contours seuls, 1 = opaque</span>
         </label>
-        <input type="number" id="layer-fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
+        <input type="number" id="layer-circle-fill-opacity" data-repere="carto.elements.avancees.opacite"
+               data-attribut="dsfr-data-map-layer:fill-opacity" value="${layer.fillOpacity}" min="0" max="1" step="0.1">
       </div>`
           : ''
       }
@@ -947,12 +1180,12 @@ function renderElementsPanel() {
         <label for="layer-shape-class">Classe CSS des tracés (shape-class)
           <span class="fr-hint-text">Pour appliquer un style de la page (hachures, pointillés…)</span>
         </label>
-        <input type="text" id="layer-shape-class" value="${escapeAttr(layer.shapeClass)}" placeholder="territoire-hachure">
+        <input type="text" id="layer-shape-class" data-repere="carto.elements.avancees.shape-class" data-attribut="dsfr-data-map-layer:shape-class" value="${escapeAttr(layer.shapeClass)}" placeholder="territoire-hachure">
       </div>`
           : ''
       }
       <div class="carto-checkbox">
-        <input type="checkbox" id="layer-bbox" ${layer.bbox ? 'checked' : ''}>
+        <input type="checkbox" id="layer-bbox" data-repere="carto.elements.avancees.bbox" data-attribut="dsfr-data-map-layer:bbox" ${layer.bbox ? 'checked' : ''}>
         <label for="layer-bbox">Charger selon la zone visible (bbox) — gros jeux de données</label>
       </div>
       ${
@@ -961,14 +1194,22 @@ function renderElementsPanel() {
       <div class="carto-inline">
         <div class="carto-field">
           <label for="layer-bbox-debounce">Délai après déplacement (ms)</label>
-          <input type="number" id="layer-bbox-debounce" value="${layer.bboxDebounce}" min="0" max="2000">
+          <input type="number" id="layer-bbox-debounce" data-repere="carto.elements.avancees.bbox-debounce" data-attribut="dsfr-data-map-layer:bbox-debounce" value="${layer.bboxDebounce}" min="0" max="2000">
         </div>
-        ${fieldInput({ id: 'layer-bbox-field', label: 'Champ géo du filtre', value: layer.bboxField, fields, hint: 'Vide = champ géo de la couche' })}
+        ${fieldInput({
+          id: 'layer-bbox-field',
+          label: 'Champ géo du filtre',
+          value: layer.bboxField,
+          fields,
+          hint: 'Vide = champ géo de la couche',
+          repere: 'carto.elements.avancees.bbox-champ',
+          attribut: 'dsfr-data-map-layer:bbox-field',
+        })}
       </div>`
           : ''
       }
       <div class="carto-checkbox">
-        <input type="checkbox" id="layer-no-interactive" ${layer.noInteractive ? 'checked' : ''}>
+        <input type="checkbox" id="layer-no-interactive" data-repere="carto.elements.avancees.no-interactive" data-attribut="dsfr-data-map-layer:no-interactive" ${layer.noInteractive ? 'checked' : ''}>
         <label for="layer-no-interactive">Couche décorative — ni clic, ni infobulle</label>
       </div>
     </details>
@@ -1035,6 +1276,7 @@ function bindElementsInputs(layer: LayerConfig) {
   });
   bind('layer-palette', 'selectedPalette');
   bind('layer-fill-opacity', 'fillOpacity', Number);
+  bind('layer-circle-fill-opacity', 'fillOpacity', Number);
   // Decoupage en classes de la choroplethe : la methode pilote les champs
   // affiches (nombre de classes ou bornes manuelles).
   bindRerender('layer-class-method', (v) => {
@@ -1132,7 +1374,7 @@ function renderMapPanel() {
     <div class="carto-section">
       <div class="carto-field">
         <label for="map-tiles">Fond de carte</label>
-        <select id="map-tiles">
+        <select id="map-tiles" data-repere="carto.carte.fond" data-attribut="dsfr-data-map:tiles">
           <optgroup label="IGN (souverain)">
             <option value="ign-plan" ${DEPRECATED_TILES.includes(m.tiles) || m.tiles === 'ign-plan' ? 'selected' : ''}>IGN Plan</option>
             <option value="ign-ortho" ${m.tiles === 'ign-ortho' ? 'selected' : ''}>IGN Ortho (satellite)</option>
@@ -1149,17 +1391,17 @@ function renderMapPanel() {
         <label for="map-name">Nom de la carte
           <span class="fr-hint-text">Décrit la carte aux lecteurs d'écran</span>
         </label>
-        <input type="text" id="map-name" value="${escapeAttr(m.name)}" placeholder="Ma carte">
+        <input type="text" id="map-name" data-repere="carto.carte.nom" data-attribut="dsfr-data-map:name" value="${escapeAttr(m.name)}" placeholder="Ma carte">
       </div>
       <div class="carto-checkbox">
-        <input type="checkbox" id="inset-drom" ${allDromChecked ? 'checked' : ''}>
+        <input type="checkbox" id="inset-drom" data-repere="carto.carte.drom" data-attribut="dsfr-data-map:insets" ${allDromChecked ? 'checked' : ''}>
         <label for="inset-drom">Les 5 DROM en vignettes (encarts)</label>
       </div>
       <div class="carto-checkbox">
-        <input type="checkbox" id="inset-corse" ${m.insets.includes('corse') ? 'checked' : ''}>
+        <input type="checkbox" id="inset-corse" data-repere="carto.carte.corse" data-attribut="dsfr-data-map:insets" ${m.insets.includes('corse') ? 'checked' : ''}>
         <label for="inset-corse">La Corse en vignette</label>
       </div>
-      <details class="carto-advanced" ${otherInsets.length ? 'open' : ''}>
+      <details class="carto-advanced" data-zone="carto.carte.encarts" ${otherInsets.length ? 'open' : ''}>
         <summary>Territoire par territoire</summary>
         ${INSET_TERRITORIES.map(
           // Prefixe inset-terr- : « corse » a deja sa case dediee plus haut
@@ -1167,55 +1409,56 @@ function renderMapPanel() {
           // case et invalidait le DOM (#482 bug 12)
           (t) => `
         <div class="carto-checkbox">
-          <input type="checkbox" id="inset-terr-${t.id}" data-inset="${t.id}" ${m.insets.includes(t.id) ? 'checked' : ''}>
+          <input type="checkbox" id="inset-terr-${t.id}" data-inset="${t.id}" data-repere="carto.carte.encarts.territoire"
+                 data-repere-libelle="Encart de ce territoire" data-attribut="dsfr-data-map:insets" ${m.insets.includes(t.id) ? 'checked' : ''}>
           <label for="inset-terr-${t.id}">${t.label}</label>
         </div>`
         ).join('')}
       </details>
       <div class="carto-checkbox">
-        <input type="checkbox" id="map-a11y" ${m.a11y ? 'checked' : ''}>
+        <input type="checkbox" id="map-a11y" data-repere="carto.carte.accessibilite" ${m.a11y ? 'checked' : ''}>
         <label for="map-a11y">Tableau des données sous la carte (accessibilité)
           <span class="fr-hint-text">Dans le code exporté : tableau + export CSV liés à la carte</span>
         </label>
       </div>
-      <details class="carto-advanced">
+      <details class="carto-advanced" data-zone="carto.carte.avancees">
         <summary>Réglages avancés de la carte</summary>
         <div class="carto-inline">
           <div class="carto-field">
             <label for="map-min-zoom">Zoom min</label>
-            <input type="number" id="map-min-zoom" value="${m.minZoom}" min="1" max="18">
+            <input type="number" id="map-min-zoom" data-repere="carto.carte.avancees.zoom-min" data-attribut="dsfr-data-map:min-zoom" value="${m.minZoom}" min="1" max="18">
           </div>
           <div class="carto-field">
             <label for="map-max-zoom">Zoom max</label>
-            <input type="number" id="map-max-zoom" value="${m.maxZoom}" min="1" max="18">
+            <input type="number" id="map-max-zoom" data-repere="carto.carte.avancees.zoom-max" data-attribut="dsfr-data-map:max-zoom" value="${m.maxZoom}" min="1" max="18">
           </div>
         </div>
         <div class="carto-field">
           <label for="map-max-bounds">Limites (max-bounds)
             <span class="fr-hint-text">lat-sud,lon-ouest,lat-nord,lon-est</span>
           </label>
-          <input type="text" id="map-max-bounds" value="${escapeAttr(m.maxBounds)}" placeholder="41.0,-5.5,51.5,10.0">
+          <input type="text" id="map-max-bounds" data-repere="carto.carte.avancees.limites" data-attribut="dsfr-data-map:max-bounds" value="${escapeAttr(m.maxBounds)}" placeholder="41.0,-5.5,51.5,10.0">
         </div>
         <div class="carto-field">
           <label for="map-height">Hauteur de la carte exportée
             <span class="fr-hint-text">px, vh, ou % de la largeur (ex : 500px, 60%)</span>
           </label>
-          <input type="text" id="map-height" value="${escapeAttr(m.height)}" placeholder="500px">
+          <input type="text" id="map-height" data-repere="carto.carte.avancees.hauteur" data-attribut="dsfr-data-map:height" value="${escapeAttr(m.height)}" placeholder="500px">
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-fit-bounds" ${m.fitBounds ? 'checked' : ''}>
+          <input type="checkbox" id="map-fit-bounds" data-repere="carto.carte.avancees.cadrage" data-attribut="dsfr-data-map:fit-bounds" ${m.fitBounds ? 'checked' : ''}>
           <label for="map-fit-bounds">Cadrer automatiquement sur les données (fit-bounds)</label>
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-no-controls" ${m.noControls ? 'checked' : ''}>
+          <input type="checkbox" id="map-no-controls" data-repere="carto.carte.avancees.sans-controles" data-attribut="dsfr-data-map:no-controls" ${m.noControls ? 'checked' : ''}>
           <label for="map-no-controls">Masquer les contrôles de zoom (no-controls)</label>
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-locked" ${m.locked ? 'checked' : ''}>
+          <input type="checkbox" id="map-locked" data-repere="carto.carte.avancees.verrouillee" data-attribut="dsfr-data-map:locked" ${m.locked ? 'checked' : ''}>
           <label for="map-locked">Carte figée, aucune interaction (locked)</label>
         </div>
         <div class="carto-checkbox">
-          <input type="checkbox" id="map-sovereign" ${m.sovereignOnly ? 'checked' : ''}>
+          <input type="checkbox" id="map-sovereign" data-repere="carto.carte.avancees.souverain" data-attribut="dsfr-data-map:sovereign-only" ${m.sovereignOnly ? 'checked' : ''}>
           <label for="map-sovereign">Fonds souverains uniquement (sovereign-only)</label>
         </div>
       </details>
@@ -1307,6 +1550,15 @@ function setLayerSource(layer: LayerConfig, src: AnySource) {
   layer.latField = '';
   layer.lonField = '';
   layer.geoField = '';
+  // Autres donnees : le champ territoire et le total ne valent plus, et une
+  // couche agregee redevient une couche ordinaire (#1021).
+  layer.territoire = null;
+  ui.totaux.delete(layer.id);
+  if (layer.agregat) {
+    defaireComposition(state, layer);
+    layer.agregat = null;
+    layer.fillField = '';
+  }
   ui.forceChooser = false;
   ui.urlMode = false;
   ui.savedOpen = false;
@@ -1314,7 +1566,7 @@ function setLayerSource(layer: LayerConfig, src: AnySource) {
   updateCodePreview();
   void scanAndSuggest(layer, { fit: true });
   // Premier contact : le tour se lance une fois les données choisies
-  startTourIfFirstVisit(BUILDER_CARTO_TOUR);
+  startTourIfFirstVisit(visiteCarto());
 }
 
 /** Jeu d'exemple (chefs-lieux) sur une couche — modale d'onboarding et état vide du panneau. */
@@ -1509,12 +1761,24 @@ function setScanStatus(html: string, opts: { failed?: boolean } = {}) {
 }
 
 async function scanAndSuggest(layer: LayerConfig, opts: { fit?: boolean } = {}) {
+  // Couche agregee (#1021) : ses champs sont ceux des lignes jointes, pas
+  // ceux de la source brute — l'analyse effacerait `geometry`, inconnu de
+  // l'echantillon.
+  if (layer.agregat) {
+    layer.fields = champsAgregat(layer.agregat);
+    renderLayersPanel();
+    renderElementsPanel();
+    updateCodePreview();
+    executePreview(opts.fit ?? false);
+    return;
+  }
   setScanStatus(
     '<i class="ri-loader-4-line carto-spin" aria-hidden="true"></i> Analyse des champs de la source…'
   );
   try {
     const result = await scanLayerFields(layer);
     layer.fields = result.fields;
+    layer.territoire = result.suggestions.territoire;
 
     // Purge des champs geographiques fantomes (#482 bugs 2/11) : un etat
     // persiste par une ancienne version pouvait contenir des litteraux type
@@ -1606,6 +1870,7 @@ async function resetBuilder() {
   )
     return;
   resetState();
+  ui.totaux.clear();
   ui.executed = false;
   ui.forceChooser = false;
   const canvas = document.getElementById('map-canvas');
@@ -1666,97 +1931,50 @@ function saveFavorite(feedbackBtnId = 'save-favorite-btn') {
 // Aperçu plein écran + diagnostic
 // ---------------------------------------------------------------------------
 
-function setPreviewStatus(html: string, tone: 'ok' | 'warn' | 'err' | '' = '') {
+/**
+ * Pose la ligne de statut de l'aperçu. Nœuds construits, jamais `innerHTML` :
+ * le texte vient des constats, qui citent des noms de champs et des URL.
+ */
+function setPreviewStatus(
+  texte: string,
+  tone: 'ok' | 'warn' | 'err' | '' = '',
+  icone = '',
+  spin = false
+) {
   const el = document.getElementById('preview-status');
   if (!el) return;
-  el.innerHTML = html;
-  el.hidden = !html;
+  el.replaceChildren();
+  if (icone) {
+    const i = document.createElement('i');
+    i.className = spin ? `${icone} carto-spin` : icone;
+    i.setAttribute('aria-hidden', 'true');
+    el.append(i, ' ');
+  }
+  el.append(texte);
+  el.hidden = !texte;
   el.className = `carto-status${tone ? ` carto-status--${tone}` : ''}`;
 }
 
 let statusTimers: ReturnType<typeof setTimeout>[] = [];
 
+/** Volet Diagnostic monté au chargement : il porte la trace ET les constats évalués. */
+let diagnostic: MountedDiagnostic | null = null;
+
 /**
- * Diagnostic post-exécution : compare les éléments dessinés par Leaflet aux
- * enregistrements chargés — c'est LE signal qui manquait quand un champ géo
- * était mal choisi (carte vide silencieuse).
+ * Diagnostic post-exécution (#482, #1000) : la ligne de statut ne compte plus
+ * rien elle-même, elle rend les constats du volet — une seule évaluation, la
+ * même que celle du Diagnostic et de l'assistant (`statutDepuisConstats`).
+ * Les sondes temporelles restent : Leaflet se charge paresseusement, et un
+ * « rien dessiné » pris trop tôt serait faux une seconde plus tard.
  */
 function updatePreviewStatus() {
   statusTimers.forEach(clearTimeout);
   statusTimers = [];
 
-  const check = (attempt: number) => {
-    const preview = document.getElementById('map-canvas');
-    if (!preview) return;
-
-    const sources = [...preview.querySelectorAll('dsfr-data-source')] as (HTMLElement & {
-      getData?: () => unknown[];
-      getError?: () => Error | null;
-      isLoading?: () => boolean;
-    })[];
-    const errors = sources.map((s) => s.getError?.()).filter(Boolean) as Error[];
-    const loading = sources.some((s) => s.isLoading?.());
-    const records = sources.reduce((acc, s) => {
-      const d = s.getData?.();
-      return acc + (Array.isArray(d) ? d.length : 0);
-    }, 0);
-
-    // Les vignettes territoriales clonent les couches : on ne compte que la
-    // carte principale, sinon N est multiplié par le nombre d'encarts.
-    const notInInset = (el: Element) => !el.closest('dsfr-data-map-inset');
-
-    // Compte réel via les couches (#482 bug 7) : le comptage DOM voyait les
-    // bulles de cluster comme des éléments et « 1 » pour une heatmap de N
-    // points. Repli DOM si la lib chargée n'expose pas getRenderedCount.
-    const layerEls = [...preview.querySelectorAll('dsfr-data-map-layer')].filter(
-      notInInset
-    ) as (Element & { getRenderedCount?: () => number })[];
-    const drawn =
-      layerEls.length && layerEls.every((el) => typeof el.getRenderedCount === 'function')
-        ? layerEls.reduce((acc, el) => acc + el.getRenderedCount!(), 0)
-        : [...preview.querySelectorAll('.leaflet-marker-icon')].filter(notInInset).length +
-          [...preview.querySelectorAll('.leaflet-overlay-pane path')].filter(notInInset).length +
-          [
-            ...preview.querySelectorAll('.leaflet-heatmap-layer, .leaflet-overlay-pane canvas'),
-          ].filter(notInInset).length;
-
-    if (errors.length) {
-      setPreviewStatus(
-        `<i class="ri-error-warning-line" aria-hidden="true"></i> Erreur de chargement : ${escapeAttr(errors[0].message ?? String(errors[0]))}`,
-        'err'
-      );
-      return;
-    }
-    if (loading && attempt < 4) return; // on laisse les timers suivants re-vérifier
-
-    const n = (count: number, mot: string) =>
-      `${count.toLocaleString('fr-FR')} ${mot}${count > 1 ? 's' : ''}`;
-
-    if (records > 0 && drawn === 0 && attempt >= 2) {
-      // Diagnostic cible (#482 bug 8) : en mode Zones sans champ géométrie,
-      // c'est la représentation qui bloque, pas la localisation — envoyer
-      // l'utilisateur au bon endroit.
-      const zonesSansGeo = state.layers.some(
-        (l) => l.visible && l.source && l.type === 'geoshape' && !l.geoField
-      );
-      const conseil = zonesSansGeo
-        ? 'la représentation « Zones » nécessite un champ géographique (géométrie) — choisissez « Marqueurs » ou « Cercles » (panneau Éléments), ou renseignez le champ géographique (panneau Couches).'
-        : 'vérifiez la localisation (panneau Couches) et la représentation (panneau Éléments).';
-      setPreviewStatus(
-        `<i class="ri-alert-line" aria-hidden="true"></i> ${n(records, 'enregistrement')} chargé${records > 1 ? 's' : ''} mais aucun élément dessiné — ${conseil}`,
-        'warn'
-      );
-    } else if (records === 0 && sources.length && attempt >= 4) {
-      setPreviewStatus(
-        `<i class="ri-alert-line" aria-hidden="true"></i> Aucune donnée reçue de la source.`,
-        'warn'
-      );
-    } else if (drawn > 0) {
-      setPreviewStatus(
-        `<i class="ri-check-line" aria-hidden="true"></i> ${n(drawn, 'élément')} affiché${drawn > 1 ? 's' : ''} (${n(records, 'enregistrement')})`,
-        'ok'
-      );
-    }
+  const check = (sonde: number) => {
+    if (!diagnostic) return;
+    const statut = statutDepuisConstats(diagnostic.constats(), diagnostic.panel.trace, sonde);
+    if (statut) setPreviewStatus(statut.texte, statut.ton, statut.icone);
   };
 
   [800, 2000, 4000, 8000, 15000].forEach((ms, i) => {
@@ -1861,7 +2079,7 @@ function executePreview(fit = false) {
 
   canvas.innerHTML = code;
   ui.executed = true;
-  setPreviewStatus('<i class="ri-loader-4-line carto-spin" aria-hidden="true"></i> Chargement…');
+  setPreviewStatus('Chargement…', '', 'ri-loader-4-line', true);
   updatePreviewStatus();
   watchViewport();
   refreshCodeOutput();
@@ -1926,9 +2144,7 @@ function bindStaticUi() {
     .getElementById('save-favorite-btn')
     ?.addEventListener('click', () => saveFavorite('save-favorite-btn'));
   document.getElementById('open-playground-btn')?.addEventListener('click', sendToPlayground);
-  document
-    .getElementById('tour-btn')
-    ?.addEventListener('click', () => startTour(BUILDER_CARTO_TOUR));
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(visiteCarto()));
 
   // Onglet « Code » : mode de génération + rafraîchissement à l'ouverture
   const genEl = document.getElementById('gen-mode') as HTMLSelectElement | null;
@@ -1947,14 +2163,19 @@ function bindStaticUi() {
   });
 }
 
+/** Assistant contextuel (#1016), monté au chargement après le volet Diagnostic. */
+let assistant: MountedAssistant | null = null;
+
 /**
- * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
- * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
- * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ * Adaptateur de révélation (#1005) : partagé par l'assistant et par « Me
+ * montrer » du volet Diagnostic. Il ne change jamais l'état ; il relance
+ * seulement le rendu des panneaux quand le DOM est en retard sur l'état.
  */
-function envoyerDiagnosticVersAssistant(texte: string): void {
-  transmettreDiagnostic(texte);
-  window.location.href = appHref('builder-ia', { from: 'builder-carto' });
+const adaptateur = creerAdaptateurCarto({ rendre: () => renderAll() });
+
+/** Visite guidée décrite par repères (#1072) : le même adaptateur les révèle. */
+function visiteCarto() {
+  return { ...BUILDER_CARTO_TOUR, adaptateur };
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1962,13 +2183,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // instancie de vrais composants dans #map-canvas. On observe donc une
   // racine du document courant. Choix légitime et conservé (cf. #609) :
   // l'éditeur inspecte son propre rendu pour compter marqueurs et couches.
-  mountDiagnosticPanel({
+  diagnostic = mountDiagnosticPanel({
     liveRoot: document.getElementById('map-canvas'),
+    // Constats évalués par le volet à chaque trace (#1001) : la ligne de
+    // statut de l'aperçu les lit telle quelle (#1000).
+    constats: {
+      contexte: () => ({ app: 'builder-carto', etat: state, origine: location.origin }),
+      regles: [...REGLES_GENERIQUES, ...REGLES_CARTO],
+    },
     toggleButtonId: 'diagnostic-btn',
+    // « Demander à l'assistant » (#1016) : ouvre l'assistant de la carto, sans
+    // quitter l'app. Il lit les mêmes constats que le volet.
     canSend: true,
-    onSend: envoyerDiagnosticVersAssistant,
+    envoi: 'demander',
+    onSend: () => assistant?.ouvrir(),
+    onMontrer: (repere) => void montrerRepereCarto(repere, adaptateur),
+    onConstats: () => assistant?.rafraichirConstats(),
     emptyHint: 'Générez la carte pour observer ce qui transite entre les composants.',
   });
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré
+  // (clé ou jeton serveur, tool-calling), sinon guidage local seul (#1018).
+  assistant = monterAssistantCarto({ adaptateur, diagnostic });
   // Hook saveToStorage to /api/* sync (when authenticated). Without this,
   // favorites saved here stay only in localStorage and get wiped by the
   // ApiStorageAdapter prefetch the next time another app loads.
@@ -1994,6 +2229,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // (sinon il démarre au premier choix de données — setLayerSource).
   injectTourStyles();
   if (state.layers.some((l) => l.source)) {
-    startTourIfFirstVisit(BUILDER_CARTO_TOUR);
+    startTourIfFirstVisit(visiteCarto());
   }
 });

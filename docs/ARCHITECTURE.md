@@ -148,13 +148,36 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 |----------|:---:|:---:|:---:|:---:|:---:|
 | serverFetch | oui | oui | oui | oui | non |
 | serverFacets | oui | non | oui | non | non |
-| serverSearch | oui | non | non | non | non |
+| serverSearch | oui | oui, multi-colonnes `or=(…)` (#1026) | non | non | non |
 | serverGroupBy | oui | oui | oui | non | non |
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
-| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (500×50) | illimite (1 requete) | 100 000 (100×1000) | n/a |
+| plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (125×200, 200 = maximum de l'API, #1019), relevable via `max-records` (#1027) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
+| projection `select` | clause ODSQL (expressions, alias) | `columns=` : noms seuls, ignore avec group-by/aggregate (#985) | non | non | non |
+| noms delegables (group-by, agregat, filtre, tri) | tous, backquotes (#767) | tous sauf `,` `:` `|` (grammaire colon), percent-encodes (#985) | tous | n/a | n/a |
+
+**Tabular : projection et profil (#985).** `select` devient `columns=` (`_columnsFlag`, emis par
+`buildUrl` ET `buildServerSideUrl`) — aucune inference : une colonne lue en aval doit y figurer, et
+un nom inconnu fait repondre 400. L'API refuse `columns` a cote d'un agregateur : un `group-by` ou un
+`aggregate` (pose ou delegue par une query via l'overlay) desactive la projection. Le garde-fou
+`isTabularServerFieldSafe` (#244, #289) est supprime : `supportsServerFields` ne refuse plus que les
+separateurs `,` `:` `|`. `fetchProfile()` lit `/profile/` (format et type par colonne), memorise par
+ressource, annulable ; jamais appele par `fetchAll`/`fetchPage`. Les builders (Carto, Builder,
+Assistant IA) emettent `select` depuis les champs configures, seulement quand chaque nom est une
+colonne detectee — sinon rien, toutes les colonnes. Faux serveur (`repondreTabular`) : honore
+`columns`, et le refuse a cote d'un agregateur ou sur une colonne inconnue, comme le vrai.
+
+**Tabular : tri sur un agregat (#1045).** L'API ne trie que des colonnes de la table :
+`champ__fonction__sort` rend 400 (42703), une colonne brute hors regroupement 42803 ; seule la colonne
+de regroupement se trie. `_sortPlan` (unique source des `__sort`, pour `buildUrl` et
+`buildServerSideUrl`) n'emet que ce tri-la ; un tri qui vise autre chose alors que le regroupement est
+delegue est fait PAR L'ADAPTATEUR, sur les groupes COMPLETS : `fetchAll` relit sans `limit`, trie, puis
+coupe ; `fetchPage` lit tous les groupes (memorises 60 s, une entree), trie et decoupe la page — le
+total devient connu. Le comparateur est celui de la query (`utils/sort.ts`). Cote query,
+`_delegateOrderBy` ne delegue plus un tri quand le regroupement ou l'agregat reste client (le champ
+trie n'existe pas dans les lignes brutes). Faux serveur : refuse ces tris comme l'API.
 
 **`fetch-mode="export"` (#689, ADR-106)** — opt-in sur la source, defaut `records` (comportement
 inchange). En `export`, `fetchAll` appelle **une fois** `{base}/api/explore/v2.1/catalog/datasets/{id}/exports/json`
@@ -203,13 +226,14 @@ la recette ont decrit ce comportement correct comme une regression avant d'etre 
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
 - **Colon** (Tabular, Grist, INSEE, Generic) : `field:operator:value, field2:operator:value2`. Les caracteres structurels (`,` `:` `|`) dans une VALEUR sont percent-encodes (`escapeColonValue`/`unescapeColonValue` dans `packages/core/src/utils/where.ts`, #271) ; tous les parseurs colon decodent apres decoupage.
+- **Champs multiples** (#1026) : `a|b:op:valeur` — meme operateur, meme valeur, un OU entre les champs (`splitColonFields`), les clauses restant en ET. Seul OU de la grammaire ; il ne reserve aucun caractere de plus. Traductions : Tabular `or=(a__op.v,b__op.v)` (une clause multi-champs par requete ; refus d'une valeur a `,` `.` `(` `)` `"` `&` et de `in`/`notin`, mesures dans `tabular-adapter.ts`), ODSQL et Grist SQL `(… OR …)` (Grist passe en mode SQL), client (`applyLocalFilter`, query) en OU. INSEE et generic refusent. **Couplage** : un refus passe par `supportsServerWhere` de l'adaptateur — la query ne delegue alors rien (filtre client sur les lignes brutes), `dsfr-data-search server-search` retombe en recherche locale avec avertissement. Un nouvel adaptateur qui ne sait pas dire « ou » DOIT l'implementer, sinon la clause part telle quelle a son API. Le gabarit de recherche Tabular `{fields}:contains:{q}` : `{fields}` = champs de `fields` joints par `|`.
 
 #### Attributs dsfr-data-source
 
 dsfr-data-source fonctionne en deux modes :
 
 - **Mode URL (fetch direct)** : `url`, `method`, `headers`, `params`, `refresh`, `transform`, `paginate`, `page-size`, `cache-ttl`, `data` (inline JSON).
-- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233 — plafond du fetchAll, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire), `fetch-mode` (#689 — `records` par defaut, `export` pour un chargement ODS en une requete ; voir la table des capacites ci-dessus).
+- **Mode adapter** (api-type != generic ou base-url fourni) : `api-type`, `base-url`, `dataset-id`, `resource`, `where`, `select`, `group-by`, `aggregate`, `order-by`, `server-side`, `page-size`, `limit`, `max-records` (#233, #1027 — plafond du fetchAll ODS et Tabular, 0 = defaut adapter ; a relever en connaissance de cause : requetes en boucle, memoire), `fetch-mode` (#689 — `records` par defaut, `export` pour un chargement ODS en une requete ; voir la table des capacites ci-dessus).
 
 **`cache-ttl` et le hook de cache (#307)** : la lib publiee n'appelle aucune API applicative. `cache-ttl` n'a d'effet que si la page hote enregistre un provider via `window.DSFR_DATA_CACHE_PROVIDER = { get(key), put(key, data, ttl) }` AVANT le chargement des composants (sans provider : no-op, embed anonyme). La cle inclut un hash du fingerprint de la requete (URL/params/where/page) — deux requetes differentes ne partagent jamais une entree. Les apps du repo enregistrent le provider `/api/cache` (mode DB) via `registerServerCacheProvider()` de `@dsfr-data/shared`, appele par `@dsfr-data/app-ui`.
 
@@ -299,6 +323,31 @@ Deux garde-fous complementaires (voir §12) :
 
 - `tests/apps/builder-ia/skills-reference.test.ts` controle la chaine **maillon par maillon** : le manifeste decrit exactement les attributs qui existent au runtime (introspection Lit `elementProperties`), le module genere commite est le rendu exact du manifeste, et chaque skill embarque sa section generee tout en gardant un guide. **Un attribut ajoute sans `npm run build:skills` fait echouer le test.**
 - `tests/apps/builder-ia/skills.test.ts` ne garde plus que les alignements portant sur le texte redige a la main (types de graphiques, operateurs, agregations, palettes).
+
+### Repères d'interface : registre généré par app (#997, ADR-143)
+
+Même doctrine que la référence des skills et les tableaux de specs (#757), appliquée à l'**interface** : chaque contrôle et chaque zone de réglage porte un repère **littéral** dans son balisage, et l'assistant contextuel (epic #992) ne désigne jamais un contrôle autrement que par ce repère.
+
+```
+apps/<app>/index.html + gabarits TS    data-zone="carto.elements.clic"
+        |                              data-repere="carto.elements.clic.popup-mode"
+        |                              data-attribut="dsfr-data-map-popup:mode"   (vérifié dans le manifeste)
+        |                              data-prerequis="couche-active"            (règle de prerequis.ts)
+        |  npm run build:reperes   (scripts/build-reperes.ts, extraction pure : scripts/lib/reperes-extract.ts ;
+        |                          aussi en FIN de `npm run build:skills`, car le registre recopie les descriptions du manifeste)
+        v
+apps/<app>/src/assistant/reperes.generated.ts   (commité, NE PAS EDITER)
+        REPERES (trié par id) · RepereId (enum fermée, pour montrer() #1003) · REGISTRE
+```
+
+- **Contrat** : `packages/shared/src/ui/reperes-types.ts` (`Repere`, `RegistreReperes`, `ReperesConfig`, `Prerequis`), types seuls, exportés par `@dsfr-data/shared` et jamais par `/lib` (#319).
+- **Grammaire** : une zone a au moins deux segments (`carto.elements`), un contrôle au moins trois (`carto.elements.clic.popup-mode`). La zone d'un repère est **son identifiant privé du dernier segment**, et elle doit exister comme `data-zone` : un gabarit rendu par `innerHTML` n'a pas d'ancêtre lexical, le préfixe porte donc le chemin.
+- **Config par app** : `apps/<app>/src/assistant/reperes.config.ts` — sources balisées, zones de réglage (id `data-zone` ou `#id`), exceptions avec leur raison, helpers de gabarit, module des prérequis, fichiers de constats, synonymes (recopiés dans le registre pour la correspondance sans modèle, #1012). Une app est active dès que ce fichier existe (la carto à #997/#1002, le builder graphique à #1006, le pipeline à #1008, le playground à #1009, le dashboard et les sources à #1007).
+- **Source « données »** (#1008) : `ReperesConfig.donnees` désigne un module qui exporte `REPERES_DONNEES: RepereDonnee[]`, pour les repères posés À L'EXÉCUTION depuis une définition (pipeline : `pipeline.<type>.<attribut>` projetés depuis `nodes/node-configs.ts`, rendus par `attribute-control-element.ts` depuis `ctrl.repere`). L'extracteur les convertit en fragment HTML synthétique échappé (`fragmentDonnees`) : toutes les règles du balisage s'y appliquent.
+- **Repères de code du playground** (#1009) : un constat du balisage (`lintMarkup`, qui porte désormais `ligne`/`colonne`/`attribut`) désigne un emplacement du code, `playground.ligne.<n>.<tag>[.<attribut>]` — grammaire des repères, mais HORS registre : « Me montrer » le route vers `montrerCode()` (curseur + marque CodeMirror), les autres vers `montrer()`.
+- **Lecture sans dépendance** : un lecteur de gabarits TS (les gabarits imbriqués dans `${…}` sont inlinés dans leur parent, toute autre expression devient un marqueur « dynamique ») et un lecteur de balises tolérant. `data-repere="${…}"` est refusé, sauf dans le corps d'un **helper déclaré** (`fieldInput`) : on lit alors ses sites d'appel, dont `repere`, `label`, `attribut` et `prerequis` doivent être littéraux. Un contrôle répété par `.map()` dont le nom accessible est dynamique (pastille, ligne de couche) porte `data-repere-libelle="…"` littéral : le libellé de la famille, prioritaire dans la cascade, l'`aria-label` dynamique restant le nom accessible (#1002).
+- **`npm run check:reperes`** (bloquant, job `quality`) échoue si : (1) un `input`/`select`/`textarea`/`button` d'une zone de réglage n'a pas de repère, (2) un `data-attribut` n'existe pas dans le manifeste, (3) un prérequis cité n'a pas de règle dans `prerequis.ts` (ou sa règle cite un `repereQuiLeve` absent), (4) le registre commité n'est pas à jour, (5) un repère cité par un constat n'existe pas, (6) une visite guidée (`packages/shared/src/tour/tour-configs.ts`, `apps/builder/src/ui/tour.ts`) cite un repère absent du registre de son app, ou un repère non littéral (`scripts/lib/reperes-tours.ts`, #1013). `tests/reperes/registry.test.ts` vérifie en plus que le module commité est le rendu exact de l'extraction.
+- **Visites guidées en repères** (#1013) : une étape porte `repere: '<id>'` (contrôle ou zone), plus de sélecteur ; `product-tour.ts` demande à l'adaptateur de l'app (`TourConfig.adaptateur`, `startTour({ ...DASHBOARD_TOUR, adaptateur })`) de révéler le repère avant d'afficher l'étape — `onBeforeShow` n'existe plus. Sans adaptateur, le repère est cherché dans le DOM tel quel. `selector` ne reste que pour les apps sans registre (builder IA, studio).
 
 ---
 
@@ -559,6 +608,8 @@ n'est epingle en haut sur telephone, en portrait comme en paysage).
 | `format.ts` | `formatTrace()` — le rendu texte francais |
 | `frame.ts` | Rattachement a une iframe d'apercu |
 | `mount.ts` | Montage du volet en un appel |
+| `journal.ts` | Journal reseau et console (#994) : enveloppes, tampons, drainage, `masquerUrl` |
+| `installer-journal.ts` | Module a effet de bord : pose le journal dans le document courant |
 
 #### Couplages non-evidents
 
@@ -569,6 +620,17 @@ n'est epingle en haut sur telephone, en portrait comme en paysage).
 - **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
 - **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Envoyer a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
 - **Le module est lib-safe mais hors des bundles publies.** Exporte depuis les DEUX barrels de `shared` (`index.ts` ET `lib.ts`), parce que l'entree autonome `packages/core/src/index-debug.ts` en depend et que la frontiere #319 interdit a `core` le barrel racine. Aucun COMPOSANT ne l'importe : il n'entre donc dans aucun des six bundles publies. Verrouille par `tests/debug/standalone-bundle.test.ts`, qui grepe les bundles **et** verifie qu'aucun fichier de `components/` ne reference le collecteur — la seconde moitie attrape la regression avant meme le build.
+
+#### Journal reseau et console (#994, ADR-143 §3)
+
+Le bus ne dit pas ce que seuls les outils de developpement montraient : la requete reellement partie (URL apres proxy, methode, statut, duree, type, taille, erreur) et ce que la page a crie en console. `journal.ts` le capture dans deux tampons plafonnes a 500 entrees (la plus ANCIENNE evincee), `window.__dsfrDataNet` et `window.__dsfrDataConsole`, et `Trace` gagne `reseau: EntreeReseau[]` et `console: EntreeConsole[]` (champs requis, vides par defaut).
+
+- **Deux poses, un seul tampon.** Iframe d'apercu : `journalScript()` (ES5), dans la MEME balise que `earlyBufferScript()` — donc uniquement sous `debug: true`, jamais dans le code exporte. Meme document (Carto, Pipeline) : `import '@dsfr-data/shared/debug/installer-journal'` en **premiere** ligne du `main.ts` — les modules ES s'evaluent dans l'ordre des imports, plus bas il manquerait les requetes du demarrage. Les deux implementations ne partagent pas de code : `tests/debug/journal.test.ts` execute chaque cas sur les DEUX.
+- **Drainage en PULL.** `DataflowRecorder.snapshot()` vide les tampons de `doc.defaultView` et garde sa copie : un `console.warn` seul n'emet rien sur le bus, seul le pull le rattrape. `frame.ts` et le mode `liveRoot` n'ont rien de specifique a faire.
+- **Enveloppe transparente.** `fetch` rend LA MEME promesse (meme resolution, meme rejet) ; aucun corps lu (ni `json`, ni `text`, ni `clone`), seuls `content-type` et `content-length` de la reponse. `PerformanceResourceTiming` complete duree et taille au drainage, jamais le statut. Un CORS n'est vu qu'en `TypeError: Failed to fetch`, indiscernable d'un hote injoignable.
+- **Masquage.** Aucun en-tete de requete n'est conserve (un `Authorization` ne peut pas fuir). Les URL sont BRUTES dans le tampon ; `formatTrace` appelle `masquerUrl` : `token|apikey|api_key|key|access_token` → `***` (nom exact), et sous `redactValues` l'URL est reduite a hote + chemin.
+- **Exclusions** (`JOURNAL_EXCLUSIONS`) : le chemin `…/beacon` (pas `BEACON_BASE_URL`, qui est aussi la base du proxy) et les appels same-origin `/api/*` de l'app (auth, stockage, favoris : pas du trafic de pipeline, et porteurs du jeton de session).
+- **`sideEffects`.** `packages/shared/package.json` declare `installer-journal` a effet de bord (le paquet etait `sideEffects: false`, qui ferait elaguer l'import nu au build) et expose `./debug/*` : `tsc` suit `exports`, Vite l'alias `src` (§12).
 
 #### Ce que le bus publie pour le diagnostic (#603)
 
@@ -584,7 +646,7 @@ Trois champs **optionnels**, purement diagnostiques, ajoutes sans toucher au mes
 
 Les chiffres faux plausibles du banc d'essai venaient tous d'un plafond muet : `max-records`, `limit` de query, page serveur, jointure partielle. Trois champs de `PaginationMeta` (`data-bridge.ts`, dupliques dans `BusPaginationMeta`) les rendent lisibles par le volet, sans attribut d'affichage ad hoc :
 
-- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS signale une page pleine au plafond sur un `group_by` (total inconnu, #641 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
+- **`truncated`** (#658) — pose par la source en fetchAll quand `total > data.length`, ou quand l'adapter ODS ou Tabular signale une page pleine au plafond sur un regroupement (total inconnu, #641, #1027 : `FetchResult.truncated`). Pose aussi par query quand `limit` a tranche. `formatTrace` nomme la cause en lisant les attributs du noeud (`limit` ou `max-records`, ajoutes a `SHAPE_ATTRS`).
 - **`total` pre-limite** (#659) — `dsfr-data-query.transformMeta` republie `total` = lignes avant `limit`, **sauf en pagination serveur** ou le total serveur est conserve : list/display paginent dessus, le remplacer par la taille de page casserait leur pagination. Sans meta amont (source inline), la query publie quand meme ses comptes via le hook `transformerOwnMeta()` du mixin (defaut null, comportement historique des autres transformateurs). Consommateurs : le warn `count` de `dsfr-data-kpi` et `value="meta:total"`.
 - **`join`** (#660) — `performJoinWithStats` (shared) compte `leftMatched/leftTotal/rightMatched/rightTotal` independamment du type ; `dsfr-data-join` le pose dans sa meta et l'expose par `getJoinStats()`. Alerte sous `JOIN_MATCH_ALERT_RATIO` (50 %) — meme seuil dans `formatTrace`, `summarizeTrace` et le volet. Les cles sont comparees en chaine, sans trim (`201` = `"201"`, `"0201"` ≠ `"201"`).
 
@@ -639,10 +701,19 @@ tests-gardes (`tests/mcp/lint-markup.test.ts`).
 `app-diagnostic-panel` est un **tiroir bas**, present a l'identique dans toutes les apps. Le choix du tiroir plutot que d'un onglet n'est pas cosmetique : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».
 
 - **Le rail replie porte le resume** (`3 etapes · 100 → 8 lignes · 1 alerte`). Un etat ferme qui n'informe pas ne serait jamais ouvert.
-- **Trois onglets** : Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
+- **Quatre onglets** : Constats (#1001 ; onglet ouvert quand un constat non-info existe, sinon Flux — jamais une page blanche), Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
+- **Une seule source de pannes (#1001)** : la propriete `constats`, posee par `mountDiagnosticPanel` a chaque trace (`evaluerConstats(trace, contexte, regles)`, option `constats` ; defaut : regles generiques). Pastille du rail (constats non-info), compte d'alertes, marqueurs des cartes d'etape et onglet Constats la lisent toutes ; le volet ne recalcule plus rien. « Me montrer » emet `constat-montrer { repere, constat }` (premier repere) ; l'app le resout (`onMontrer`, #1005). Arrivee d'une erreur : annonce `aria-live="polite"`, jamais d'ouverture spontanee ni de deplacement du focus (ADR-143 §7). `MountedDiagnostic.constats()` rend la derniere evaluation sans la refaire.
 - **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existe parce que **builder-IA ne produit aucun trafic sur le bus** — `chart-renderer.ts` dessine avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data.
 - **Piege de superposition** : sous 768 px, c'est `.app-action-bar__actions` — et non l'hote `app-action-bar`, qui reste dans le flux — qui passe en `position:fixed; bottom:0; z-index:800`. La description inverse figurait ici depuis #539 et explique vraisemblablement pourquoi l'epinglage sans garde de l'hote a survecu si longtemps : on croyait la barre deja fixee en bas. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
 - **Empilement du mobilier bas** (du plus haut au plus bas) : raison de desactivation > rail du volet > barre d'actions fixe. Depuis que l'hote n'est plus un contexte d'empilement en mobile, `.app-action-bar__reason` (fixe, z-800, meme bande que le rail) le RECOUVRAIT et rendait son bouton inatteignable ; elle est reempilee au-dessus dans le bloc mobile de `app-diagnostic-panel`.
+#### Le panneau Assistant qui cohabite avec le volet (#1011, ADR-143)
+
+`app-assistant` est un **volet latéral droit en surimpression** au-dessus de l'aperçu (arbitrage du 2026-09-23 : un panneau d'aide qu'on ouvre et réduit, pas une zone de travail), dans le format des assistants de `proto-ecosysteme-sircom` et `proto-catalogue-donnees` : avatar, bulles, état vide à trois suggestions au plus (une suggestion remplit le champ sans l'envoyer), trois points, saisie en pilule, pied de panneau. Le panneau est un `role=dialog` non modal avec un fil `role=log`.
+
+- **Empilement.** Le panneau a un `z-index` de 770, donc il passe SOUS le volet Diagnostic (780). Quand le Diagnostic s'ouvre, l'assistant se réduit (`diagnostic-toggle`) ; ouvrir l'assistant ne ferme jamais le Diagnostic. Le bas du panneau s'arrête à `calc(--app-action-bar-fixed-h + --app-diagnostic-h)` : il ne recouvre jamais le rail ni la barre d'actions fixe. Le haut suit `--app-header-h` uniquement sous `PINNED`. Sous 35.98em, le panneau devient une feuille plein écran, mais toujours au-dessus du mobilier bas. Sous 48em, la raison de désactivation de la primaire est masquée à l'écran tant qu'il est ouvert. Tout cela est testé dans `tests/apps/app-ui/chrome-mobile.test.ts`.
+- **`mountAssistant()` vit dans `shared/ui`, pas dans `app-ui`** (même raison que `mountDiagnosticPanel`). Il porte toute la logique. `trouverRepere()` passe toujours en premier : si le repère est `trouve`, l'assistant appelle `montrer()` ; s'il est `ambigu`, il propose des boutons. `repondre()`, qui est injecté par l'app (#1014), n'intervient que si le résultat est `aucun`. Le guidage fonctionne donc sans clé. `packages/app-ui/src` n'importe ni `ia/transport`, ni `agent-loop`, ni `reperes-matching` (test-garde).
+- **Annonces.** Les messages passent par le `role=log` du fil. Le chemin d'un repère montré passe par la région unique de `reperage.ts`. Le résumé des constats est rendu HORS du log, parce que le volet Diagnostic annonce déjà les nouvelles erreurs. Le panneau ne s'ouvre jamais spontanément : un constat ne fait bouger que la pastille `data-count` du bouton. L'état ouvert ou réduit est mémorisé (`dsfr-data-assistant-ouvert`), et une réouverture après navigation ne prend pas le focus.
+
 #### Ou le volet est monte, et sous quel mode (#606)
 
 | App | Mode | Racine observee |
@@ -1192,6 +1263,8 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 - **`dsfr-data-repeat` : Lit ne rend pas dans `this`** (#890) — `dsfr-data-repeat.ts`, `createRenderRoot()`. Le composant est en light DOM comme les autres, mais sa racine de rendu Lit est un `<div class="dsfr-data-repeat__status">` enfant, pas `this` : une `ChildPart` Lit s'etend de son marqueur a la **fin du parent**, et tout noeud rattache apres (les lignes, gerees a la main par `_renderRows`) serait emporte au re-rendu suivant — vu en test : `empty` rendu puis `nothing`, lignes disparues. Les lignes vivent dans un frere (`__rows`), hors de portee de Lit. **Second couplage** : le clone d'un `<template>` est **rehausse des `importNode`** (constructeur execute, `id` encore egal a `q-{{code}}`) — c'est l'init a `connectedCallback` des deux mixins (#281) qui garantit qu'aucun abonnement ne part sous un placeholder ; un composant qui lirait `source` ou `id` dans son constructeur verrait le placeholder. Verifie en Chromium par `e2e/repeat.spec.ts` ; happy-dom connecte avant de rattacher les enfants, d'ou le `MutationObserver` sur `childList` qui attend le `<template>` (aussi le cas reel du bundle dans `<head>`, #894).
 - **Validation empirique post-build (anti-fuite d'URL)** — après **tout** changement touchant proxy/URL/dimensions/beacon : `grep` les bundles produits dans `packages/core/dist/` pour vérifier qu'**aucune URL ne fuit dans la mauvaise dimension** (ex. une URL embed dans le bundle runtime, ou l'inverse). C'est le seul moyen fiable d'attraper une régression de substitution Vite (cf. premier point). Décommission d'un ancien domaine (#353) : vérifier qu'aucun bundle/`.env` ne le référence avant de couper.
+- **Un repère est un littéral, et sa complétude n'est que lexicale** (#997) — `scripts/lib/reperes-lexer.ts`, `scripts/lib/reperes-extract.ts`. `check:reperes` lit le source, il ne rend rien : (a) un contrôle produit par une **fonction non déclarée comme helper** (`popupFieldsHtml(layer)` dans la carto) est invisible pour la règle 1 — soit la fonction est déclarée dans `helpers` de `reperes.config.ts`, soit ses contrôles portent leur repère en dur ; la preuve de complétude par rendu est `tests/apps/builder-carto/reperes-completude.test.ts` (#1002), qui rend chaque panneau (`LayerType` × `PopupMode` × options) et compare les `data-repere` du DOM au registre. (b) Renommer un helper déclaré (`fieldInput`) sans mettre à jour la config fait échouer le check (« aucun data-repere="${…}" dans son corps »), c'est voulu. (c) `prerequis.ts` est lu **statiquement** : les clés de `PREREQUIS` et leur `repereQuiLeve` doivent rester des littéraux, sans calcul ni spread. (d) Un `data-attribut` casse la CI quand l'attribut de la lib est renommé : relancer `npm run build:skills` puis `npm run build:reperes`, dans cet ordre (le registre lit le manifeste commité). (e) Un contrôle créé par `document.createElement` n'a **aucun littéral** à lire : il manque au registre sans que rien ne rougisse côté extracteur. Le builder graphique rend donc ses lignes de filtre depuis un squelette `innerHTML` **constant** (`FILTER_ROW_SKELETON`, `filter-builder.ts`, aucune donnée interpolée) qui porte les repères, les valeurs étant posées ensuite par `createElement`/`value` ; sa preuve de rendu est `tests/apps/builder/reperes-completude.test.ts` (chaque `ChartType`, séries, filtres, modales).
+- **Composition par échelle de la Carto : la couche agrégée a SA source, sans `limit` ni `select`** (#1021) — `apps/builder-carto/src/composition-echelle.ts`, `ui/code-generator.ts` (`agregatTags`, `layerOutputId`). La choroplèthe compte par code de département/région avec une `dsfr-data-query` qui doit rester **seule lectrice** de sa source, sinon le regroupement n'est plus délégué et la couche de points recevrait des lignes agrégées (#765) ; d'où une copie de la source, jamais partagée, et un compagnon a11y qui lit les points ou le comptage, jamais la source agrégée. Pas de `limit` (le comptage porte sur tout le jeu) ni de `select` (Tabular refuse `columns` à côté d'un agrégateur). Le fond joint est celui du paquet (`geo/*.json`, par le CDN npm : une instance auto-hébergée ne sert pas `geo/`), et la jointure compare la clé **brute** : la détection du champ refuse les codes numériques (`1` pour `01`). Le déclencheur est le `total` de `dsfr-data-map-layer-render` rapporté par l'aperçu (#1020), jamais persisté. Contrôle : `affichages/carte-composition-echelle`.
 
 ---
 

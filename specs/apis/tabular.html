@@ -32,10 +32,14 @@
         <div class="fr-callout fr-callout--green-emeraude">
           <h4 class="fr-callout__title">Agrégation et group-by serveur</h4>
           <p class="fr-callout__text">
-            Tabular supporte la <strong>pagination par page</strong> (500 pages de 50, soit 25 000 enregistrements),
+            Tabular supporte la <strong>pagination par page</strong> (125 pages de 200, soit 25 000 enregistrements par défaut, relevable par <code>max-records</code>),
             le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agrégation cote serveur</strong>
             (<code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code>).
-            La recherche full-text et les facettes restent cote client.
+            Un <code>group-by</code> sans agrégat n'est pas délégué : l'API ne regroupe pas
+            (<code>column__groupby</code> seul rend une ligne par ligne brute, modalités répétées),
+            le regroupement se fait côté client (#1025).
+            La recherche passe au serveur sur plusieurs colonnes (<code>or=(…)</code>, #1026, ci-dessous) ;
+            les facettes restent cote client.
           </p>
         </div>
 
@@ -64,8 +68,8 @@
                 </tr>
                 <tr>
                   <td>Recherche serveur</td>
-                  <td class="capability-no">Non</td>
-                  <td>Recherche effectuee cote client</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Sur plusieurs colonnes, en <code>or=(…)</code> : gabarit <code>{fields}:contains:{q}</code> (#1026)</td>
                 </tr>
                 <tr>
                   <td>Group-by serveur</td>
@@ -75,12 +79,18 @@
                 <tr>
                   <td>Tri serveur</td>
                   <td class="capability-yes">Oui</td>
-                  <td>Paramètre <code>column__sort=asc|desc</code></td>
+                  <td>Paramètre <code>column__sort=asc|desc</code>. Dans une requête regroupée, seule la
+                    colonne de regroupement se trie : un tri sur un agrégat est fait par l'adaptateur (#1045)</td>
                 </tr>
                 <tr>
                   <td>Agrégation serveur</td>
                   <td class="capability-yes">Oui</td>
                   <td>Paramètres <code>column__sum</code>, <code>__avg</code>, <code>__count</code>, <code>__min</code>, <code>__max</code></td>
+                </tr>
+                <tr>
+                  <td>Sélection de colonnes</td>
+                  <td class="capability-yes">Oui</td>
+                  <td>Attribut <code>select</code> de la source → paramètre <code>columns</code> (sans group-by ni agrégat)</td>
                 </tr>
               </tbody>
             </table>
@@ -97,9 +107,9 @@
               </thead>
               <tbody>
                 <tr><td>Type</td><td><code>page</code> (par numero de page)</td></tr>
-                <tr><td>Taille de page</td><td>50 enregistrements (maximum API)</td></tr>
-                <tr><td>Pages max</td><td>500</td></tr>
-                <tr><td>Enregistrements max</td><td>25 000</td></tr>
+                <tr><td>Taille de page</td><td>200 enregistrements (maximum de l'API : au-delà, elle répond 400 sans en-tête CORS ; un <code>page-size</code> supérieur est ramené à 200)</td></tr>
+                <tr><td>Pages max</td><td>125</td></tr>
+                <tr><td>Enregistrements max</td><td>25 000 par défaut, relevable par <code>max-records</code></td></tr>
                 <tr><td>Paramètres URL</td><td><code>page</code>, <code>page_size</code></td></tr>
                 <tr><td>Page suivante</td><td>Champ <code>next</code> dans la reponse</td></tr>
               </tbody>
@@ -110,7 +120,9 @@
               La pagination est geree automatiquement par l'adapter (suivi de <code>links.next</code>) ;
               le mode page-a-page se pilote avec l'attribut <code>server-side</code> de <code>dsfr-data-source</code>.
               Les metadonnees serveur sont accessibles via <code>meta.page</code>, <code>meta.page_size</code>
-              et <code>meta.total</code>.
+              et <code>meta.total</code>. Une réponse agrégée (group-by) ne porte pas de <code>meta.total</code> :
+              le total est alors inconnu, la liste propose la page suivante tant que la page est pleine
+              et affiche « Page N » sans total (#1025).
             </p>
           </div>
         </section>
@@ -149,6 +161,31 @@
           <h3 class="fr-mt-2w">Separateur WHERE</h3>
           <p>Les clauses WHERE multiples sont jointes par <code>, </code> (virgule + espace).</p>
 
+          <h3 class="fr-mt-2w">Un OU entre champs : <code>or=(…)</code> (#1026)</h3>
+          <p>
+            La clause à champs multiples <code>nom|commune:contains:martin</code> — même opérateur, même
+            valeur, sur plusieurs champs reliés par un OU — devient
+            <code>or=(nom__contains.martin,commune__contains.martin)</code>. Elle se combine en ET avec les
+            autres clauses. Mesuré le 2026-09-23 sur la ressource des élus :
+            <code>or=(Nom de l'élu__contains.MARTIN,Prénom de l'élu__contains.MARTIN)</code> rend
+            <code>total 351</code> = 189 + 164 − 2, l'union vraie ; ajouter <code>Code sexe__exact=F</code>
+            rend 194.
+          </p>
+          <p>
+            Le parseur de l'API découpe le groupe sur la virgule et chaque membre sur le point, après
+            décodage de l'URL. L'adaptateur refuse donc — et laisse le filtre au navigateur, avec un
+            avertissement — une valeur portant <code>,</code> <code>.</code> <code>(</code> <code>)</code>
+            <code>"</code> ou <code>&amp;</code> (mesuré : virgule et point rendent 400, une valeur citée
+            <code>"J."</code> rend 0 sans erreur), les listes <code>in</code> / <code>notin</code>, et une
+            seconde clause multi-champs dans la même requête. <code>contains</code> y est insensible à la casse
+            mais <strong>sensible aux accents</strong> : « ecole » ne trouve pas « École » côté serveur.
+          </p>
+          <p>
+            <code>dsfr-data-search fields="nom,commune" server-search</code> s'en sert sans gabarit : le
+            gabarit par défaut de Tabular est <code>{fields}:contains:{q}</code>, et le compteur lit le
+            <code>meta.total</code> de la réponse, juste sur tout le jeu.
+          </p>
+
           <h3 class="fr-mt-2w">Agrégation serveur</h3>
           <p>
             L'API supporte l'agrégation cote serveur via des paramètres URL :
@@ -178,13 +215,82 @@
 
         <!-- Selection de colonnes -->
         <section class="fr-mt-4w">
-          <h2>Selection de colonnes</h2>
+          <h2>Sélection de colonnes</h2>
           <p>
-            L'API supporte la selection de colonnes spécifiques via le paramètre <code>columns</code> :
+            L'attribut <code>select</code> de <code>dsfr-data-source</code> devient le paramètre
+            <code>columns</code> de l'API : elle ne rend que les colonnes nommées, en chargement
+            complet comme en pagination serveur (#985).
           </p>
-          <pre><code>?columns=nom,prenom,commune</code></pre>
+          <pre><code>&lt;dsfr-data-source id="bornes" api-type="tabular"
+  resource="eb76d20a-8501-400e-b336-d85724de5435"
+  select="nom_station, consolidated_latitude, consolidated_longitude"&gt;
+&lt;/dsfr-data-source&gt;
+&lt;!-- ?columns=nom_station,consolidated_latitude,consolidated_longitude --&gt;</code></pre>
           <p class="fr-mt-1w">
-            Cela reduit la taille de la reponse en ne retournant que les colonnes demandees.
+            Mesuré le 22 septembre 2026 : 200 bornes IRVE passent de 366 892 à 22 383 octets avec trois
+            colonnes, 50 élus de 34 721 à 3 098 octets avec deux. La projection retire des colonnes,
+            jamais des lignes : aucun chiffre ne change.
+          </p>
+          <ul>
+            <li>
+              La liste est celle de l'auteur, <strong>rien n'est ajouté d'office</strong> : une colonne
+              lue en aval (graphique, liste, facette, filtre calculé dans le navigateur) doit y figurer.
+              Un nom inconnu du jeu fait répondre l'API en erreur.
+            </li>
+            <li>
+              Sans effet avec un <code>group-by</code> ou un <code>aggregate</code>, posé sur la source
+              ou délégué par une <code>dsfr-data-query</code> : l'API refuse <code>columns</code> à côté
+              d'un agrégateur, et le résultat agrégé ne porte de toute façon que ses groupes.
+            </li>
+            <li>
+              Tabular n'a pas d'expression : un <code>select</code> à fonction, alias ou
+              <code>*</code> (grammaire Opendatasoft) est ignoré avec un avertissement en console.
+            </li>
+          </ul>
+        </section>
+
+        <!-- Noms de colonnes -->
+        <section class="fr-mt-4w">
+          <h2>Noms de colonnes à espaces et accents</h2>
+          <p>
+            Filtres, regroupement, agrégats et tri se délèguent à l'API quel que soit le nom de colonne :
+            espaces, accents, apostrophes et ponctuation sont percent-encodés
+            (<code>Libellé du département__groupby&amp;Code sexe__count</code>, #985). Seuls les
+            séparateurs de la grammaire colon — <code>,</code>, <code>:</code> et <code>|</code> — rendent
+            un nom non délégable : le calcul se fait alors dans le navigateur, sur toutes les lignes.
+          </p>
+        </section>
+
+        <!-- Tri sur un agrégat -->
+        <section class="fr-mt-4w">
+          <h2>Tri sur un agrégat</h2>
+          <p>
+            L'API ne trie que des colonnes de la table. Dans une requête regroupée, elle accepte un tri
+            sur la colonne de regroupement (<code>EPCI__groupby&amp;NB_VP__sum&amp;EPCI__sort=desc</code>
+            → 200) et refuse un tri sur l'agrégat (<code>NB_VP__sum__sort=desc</code> → 400, 42703
+            « column … does not exist », sans en-tête CORS) ou sur une autre colonne brute (42803),
+            mesuré le 2026-09-23 (#1045).
+          </p>
+          <p>
+            L'adaptateur n'envoie donc au serveur que le tri sur la colonne de regroupement. Pour un tri
+            sur un agrégat (<code>order-by="population__sum:desc"</code>, le cas d'un « top 10 »), il lit
+            <strong>tous</strong> les groupes, les trie, puis applique le <code>limit</code>. En pagination
+            serveur, la page est découpée dans les groupes complets triés, gardés une minute pour les
+            pages suivantes, et le nombre de groupes devient le total de la pagination. Trier la seule
+            page reçue donnerait un faux classement. Si le plafond <code>max-records</code> coupe la
+            lecture, le tri ne porte que sur les groupes lus, et un avertissement le signale en console.
+          </p>
+        </section>
+
+        <!-- Profil -->
+        <section class="fr-mt-4w">
+          <h2>Profil d'une ressource</h2>
+          <p>
+            <code>GET /api/resources/{id}/profile/</code> décrit chaque colonne : format détecté
+            (<code>latitude_wgs</code>, <code>date</code>, <code>int</code>…), type, modalités les plus
+            fréquentes, nombre de valeurs distinctes et manquantes. L'adaptateur le lit par
+            <code>fetchProfile()</code>, une fois par ressource, et jamais pendant un chargement de
+            données : c'est une requête de plus, réservée à qui en a besoin.
           </p>
         </section>
 

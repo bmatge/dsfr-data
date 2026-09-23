@@ -14,7 +14,10 @@ import {
   startTour,
   startTourIfFirstVisit,
   STUDIO_TOUR,
+  evaluerConstats,
   mountDiagnosticPanel,
+  resolveTransport,
+  recupererDiagnostic,
   type MountedDiagnostic,
 } from '@dsfr-data/shared';
 import type { DashboardData } from '@dsfr-data/shared';
@@ -31,7 +34,6 @@ import {
 import { currentExportHtml, renderPreview, schedulePreviewRender } from './ui/preview.js';
 import { runStudioLoop } from './ia/agent-loop.js';
 import { buildSystemPrompt } from './ia/system-prompt.js';
-import { resolveTransport } from './ia/transport.js';
 
 const SESSION_KEY = 'studio-messages';
 /**
@@ -93,6 +95,14 @@ async function sendMessage(): Promise<void> {
             // fois ce qui sort du navigateur, et ce que l'assistant recoit
             // est exactement ce qu'il voit.
             redactValues: () => diagnosticMonte?.panel.redactValues ?? false,
+            // Les constats de la MEME trace, par les regles generiques : le
+            // studio n'a pas de regles propres (#1010).
+            constats: () => {
+              const trace = diagnosticMonte?.attachment?.snapshot();
+              return trace
+                ? evaluerConstats(trace, { app: 'studio', origine: window.location.origin })
+                : null;
+            },
           }
         : undefined,
       // Le code COPIÉ par l'utilisateur, relu par l'assistant avant d'en
@@ -247,6 +257,9 @@ function init(): void {
       'Bienvenue dans le **Studio IA**. Choisissez une source de données, puis décrivez le tableau de bord complet que vous voulez : titre, texte éditorial (collez-le), indicateurs, graphiques, filtres. Je le compose bloc par bloc sous vos yeux.'
     );
   }
+
+  // Passation « Construire pour moi dans le Studio » (#1016).
+  recupererDiagnosticTransmis();
 }
 
 /**
@@ -255,13 +268,36 @@ function init(): void {
  * la trace contient des échantillons de données réelles — et peut
  * l'accompagner de sa question.
  */
-function injecterDiagnostic(texte: string): void {
+function injecterDiagnostic(texte: string, question = QUESTION_DIAGNOSTIC): void {
   const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   if (!input) return;
-  const question = 'Voici le diagnostic du pipeline. Qu’est-ce qui ne va pas ?';
   input.value = `${question}\n\n${texte}`;
   input.focus();
   input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/** Question posée avec un diagnostic du Studio lui-même. */
+export const QUESTION_DIAGNOSTIC = 'Voici le diagnostic du pipeline. Qu’est-ce qui ne va pas ?';
+
+/**
+ * Question posée avec un diagnostic transmis par « Construire pour moi dans
+ * le Studio » de l'assistant contextuel (#1016) : l'app d'origine y décrit ce
+ * qu'elle a commencé, le Studio le construit.
+ */
+export const QUESTION_CONSTRUIRE =
+  'Construisez pour moi, dans ce tableau de bord, ce que décrit ce diagnostic.';
+
+/**
+ * Diagnostic transmis par une autre app (`transmettreDiagnostic`) : posé dans
+ * le champ, JAMAIS envoyé — l'usager relit ce qui part vers le modèle (la
+ * trace contient des échantillons de données) et peut compléter sa demande.
+ * Rend `true` si un diagnostic attendait.
+ */
+export function recupererDiagnosticTransmis(): boolean {
+  const texte = recupererDiagnostic();
+  if (!texte) return false;
+  injecterDiagnostic(texte, QUESTION_CONSTRUIRE);
+  return true;
 }
 
 document.addEventListener('DOMContentLoaded', init);

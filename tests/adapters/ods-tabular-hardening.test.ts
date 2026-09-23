@@ -9,10 +9,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  *   `group_by` → un champ avec espace ("Date - Journée gazière") casse
  *   l'ODSQL (Grist échappe systématiquement) ;
  * - Tabular : `buildUrl` apposait `field__groupby`/`field__sum` sans
- *   consulter `isTabularServerFieldSafe` — le garde-fou n'était appliqué
- *   que par la délégation query (#275). Un group-by posé directement sur la
- *   source (mode documenté) avec un champ à espaces produisait le
- *   « Malformed query » que la fonction prétend éviter ;
+ *   consulter `supportsServerFields` — le garde-fou n'était appliqué
+ *   que par la délégation query (#275). Depuis #985, les noms à espaces
+ *   et accents sont délégués (le parseur de l'API les accepte) : seuls
+ *   `,` `:` `|` restent non délégables ;
  * - Tabular `_applyColonFilters` : `set()` écrasait deux filtres même
  *   champ+op là où Grist/ODS les AND-ent ;
  * - mineurs : over-fetch (toujours 50 même si remaining < 50), warnings
@@ -85,11 +85,23 @@ describe('#289 — ODS : échappement des identifiants (backquotes ODSQL)', () =
 describe('#289 — Tabular : garde-fou supportsServerFields dans buildUrl', () => {
   const adapter = new TabularAdapter();
 
-  it('AC : group-by sur champ à espaces posé sur la SOURCE ne produit plus de Malformed query', () => {
-    const url = new URL(
-      adapter.buildUrl(makeParams({ groupBy: 'Date - Journée gazière', aggregate: 'pop:sum' }))
+  it('#985 : group-by sur champ à espaces posé sur la SOURCE est délégué, percent-encodé', () => {
+    // Le parseur de l'API accepte espaces et accents percent-encodés
+    // (`Libellé du département__groupby&Code sexe__count` → 200, mesure du
+    // 2026-09-22) : le garde-fou de #289 forçait un téléchargement complet.
+    const raw = adapter.buildUrl(
+      makeParams({ groupBy: 'Date - Journée gazière', aggregate: 'pop:sum' })
     );
-    // Aucun paramètre groupby/agrégat malformé : lignes brutes (fallback)
+    expect(raw).toContain('Date%20-%20Journ%C3%A9e%20gazi%C3%A8re__groupby');
+    const keys = [...new URL(raw).searchParams.keys()];
+    expect(keys).toContain('Date - Journée gazière__groupby');
+    expect(keys).toContain('pop__sum');
+  });
+
+  it('séparateur de la grammaire colon dans un nom : lignes brutes (repli client)', () => {
+    const url = new URL(
+      adapter.buildUrl(makeParams({ groupBy: 'Code|Libellé', aggregate: 'pop:sum' }))
+    );
     const keys = [...url.searchParams.keys()];
     expect(keys.some((k) => k.includes('groupby'))).toBe(false);
     expect(keys.some((k) => k.includes('__sum'))).toBe(false);
@@ -111,12 +123,12 @@ describe('#289 — Tabular : garde-fou supportsServerFields dans buildUrl', () =
     });
 
     const result = await adapter.fetchAll(
-      makeParams({ groupBy: 'Date - Journée gazière', aggregate: 'pop:sum', limit: 10 }),
+      makeParams({ groupBy: 'Code|Libellé', aggregate: 'pop:sum', limit: 10 }),
       new AbortController().signal
     );
 
     expect(result.needsClientProcessing).toBe(true);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Date - Journée gazière'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Code|Libellé'));
     warnSpy.mockRestore();
   });
 

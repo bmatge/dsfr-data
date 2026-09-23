@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { lintMarkup, formatLintFindings, lireBalises } from '@dsfr-data/shared';
+import { debutsDeLigne, positionDe } from '../../packages/shared/src/debug/lint-markup';
 import type { ComponentContract } from '@dsfr-data/shared';
+import { COMPONENT_CONTRACT } from '../../mcp-server/src/component-contract.generated.js';
 
 /**
  * Analyse STATIQUE d'un balisage (#608).
@@ -23,6 +25,66 @@ const CONTRAT: ComponentContract = {
   'dsfr-data-join': { attributes: ['left', 'right', 'on', 'type'] },
   'dsfr-data-chart': { attributes: ['source', 'type', 'label-field', 'value-field'] },
 };
+
+/**
+ * Compte le travail que `lireBalises` fait sur le document (#1047).
+ *
+ * Le document est passe dans un Proxy de `String` qui facture chaque acces :
+ * 1 par caractere lu (`html[k]`) ou par `length`, et pour une methode le
+ * nombre de caracteres qu'elle parcourt — `indexOf` jusqu'au resultat,
+ * `slice` la longueur rendue, et le document ENTIER pour toute autre methode
+ * ou conversion (hypothese prudente : une methode inconnue est facturee comme
+ * un balayage complet). Aucune instrumentation du module : il est copie tel
+ * quel dans le serveur MCP.
+ *
+ * `copiesIntegrales` compte les appels qui rendent une chaine de plus de la
+ * moitie du document : sur une telle copie, les acces suivants echappent au
+ * compteur.
+ */
+function mesurerLecture(html: string): {
+  operations: number;
+  copiesIntegrales: number;
+  balises: number;
+} {
+  let operations = 0;
+  let copiesIntegrales = 0;
+  const n = html.length;
+  const noterCopie = (r: unknown) => {
+    if (typeof r === 'string' && r.length > n / 2) copiesIntegrales++;
+    return r;
+  };
+
+  const document = new Proxy(new String(html), {
+    get(_cible, cle) {
+      if (typeof cle === 'string' && /^\d+$/.test(cle)) {
+        operations += 1;
+        return html[Number(cle)];
+      }
+      if (cle === 'length') {
+        operations += 1;
+        return n;
+      }
+      const valeur: unknown = Reflect.get(String.prototype, cle);
+      if (typeof valeur !== 'function') return valeur;
+      const methode = valeur as (...args: unknown[]) => unknown;
+      return (...args: unknown[]) => {
+        const r = methode.apply(html, args);
+        if (cle === 'indexOf') {
+          const depart = typeof args[1] === 'number' ? Math.max(0, args[1]) : 0;
+          operations += (r === -1 ? n : (r as number)) - depart + 1;
+        } else if (cle === 'slice' || cle === 'substring' || cle === 'charAt') {
+          operations += (r as string).length + 1;
+        } else {
+          operations += n;
+        }
+        return noterCopie(r);
+      };
+    },
+  });
+
+  const balises = lireBalises(document as unknown as string).length;
+  return { operations, copiesIntegrales, balises };
+}
 
 describe('lireBalises', () => {
   it('relève les balises dsfr-data et leurs attributs', () => {
@@ -165,6 +227,13 @@ describe('formatLintFindings', () => {
     expect(texte.indexOf('ERREUR')).toBeLessThan(texte.indexOf('ATTENTION'));
     expect(texte).toContain('volet Diagnostic');
   });
+
+  it('situe chaque constat par sa ligne (#1009)', () => {
+    const texte = formatLintFindings(
+      lintMarkup('<div>\n  <dsfr-data-source id="s" inconnu="x"></dsfr-data-source>', CONTRAT)
+    );
+    expect(texte).toContain('ERREUR  dsfr-data-source#s (ligne 2)');
+  });
 });
 
 describe('les valeurs d’attribut contenant « > » — syntaxe ODSQL officielle', () => {
@@ -241,21 +310,28 @@ describe('robustesse du scan de balises (N1, N2)', () => {
     // Le parcours etait quadratique : `toLowerCase()` du document entier a
     // chaque tour. Ce module tourne cote serveur MCP sur du HTML recu de
     // l'exterieur, le cout doit rester borne.
+    //
+    // On COMPTE le travail au lieu de le chronometrer (#1047) : un rapport de
+    // durees depend de la charge de la machine (13,5 mesure sous la suite
+    // complete, pour un seuil a 10), un compte d'operations non.
     const balise = '<dsfr-data-source id="s" url="/x"></dsfr-data-source>\n';
-    const mesurer = (n: number) => {
-      const html = balise.repeat(n);
-      const t0 = performance.now();
-      lireBalises(html);
-      return performance.now() - t0;
-    };
+    const petit = mesurerLecture(balise.repeat(200));
+    const grand = mesurerLecture(balise.repeat(2000));
 
-    mesurer(500); // chauffe
-    const petit = Math.max(mesurer(1000), 0.5);
-    const grand = mesurer(4000);
+    expect(grand.balises).toBe(2000);
 
-    // Quadratique : x4 d'entree -> x16 de temps. Lineaire : ~x4. On laisse
-    // une marge large pour ne pas rendre le test instable en CI.
-    expect(grand / petit).toBeLessThan(10);
+    // x10 d'entree : lineaire -> x10 d'operations (9,99 mesure), quadratique
+    // -> ~x100. Un compte est deterministe : l'ecart ne depend plus de la
+    // machine, et le seuil a 20 laisse un ordre de grandeur de chaque cote.
+    expect(grand.operations / petit.operations).toBeLessThan(20);
+
+    // Garde de la mesure elle-meme : si la fonction copie le document entier
+    // (conversion, `toLowerCase()` global...), la suite du parcours porte sur
+    // une chaine que le compteur ne voit plus, et le rapport ci-dessus
+    // pourrait rester bas sur un parcours quadratique. Une copie UNIQUE et
+    // legitime ferait donc aussi rougir ce test : il faudrait alors facturer
+    // le parcours autrement, pas retirer la garde.
+    expect(grand.copiesIntegrales, 'lireBalises copie le document entier').toBe(0);
   });
 
   it('n’est pas troublé par un « < » dans une valeur', () => {
@@ -263,5 +339,488 @@ describe('robustesse du scan de balises (N1, N2)', () => {
 
     expect(balises).toHaveLength(1);
     expect(balises[0].attrs.filter).toBe('a < 5');
+  });
+});
+
+/**
+ * Regles cartographiques (#995, ADR-143) : ce qui se voit dans le balisage
+ * d'une carte sans l'executer. Le contrat est le VRAI, genere depuis le
+ * manifeste : si un attribut de dsfr-data-map-layer change de nom, ces tests
+ * le disent (un exemple « correct » se mettrait a signaler un attribut inconnu).
+ *
+ * Une table par regle : chaque ligne donne un balisage et dit si le constat
+ * est attendu. Les constats portent un code `regle` stable, lu par le moteur
+ * de constats (#996).
+ */
+describe('lintMarkup — règles cartographiques', () => {
+  const CONTRAT_REEL = COMPONENT_CONTRACT as unknown as ComponentContract;
+  const SOURCE = '<dsfr-data-source id="s" url="/x"></dsfr-data-source>';
+  const carte = (interieur: string) => `${SOURCE}<dsfr-data-map>${interieur}</dsfr-data-map>`;
+  const regles = (html: string) =>
+    lintMarkup(html, CONTRAT_REEL)
+      .map((f) => f.regle)
+      .filter((r): r is string => !!r);
+
+  interface Cas {
+    nom: string;
+    html: string;
+    attendu: boolean;
+  }
+  const verifier = (regle: string, cas: Cas[]) => {
+    it.each(cas)('$nom', ({ html, attendu }) => {
+      expect(regles(html).includes(regle)).toBe(attendu);
+    });
+  };
+
+  it('un balisage de carte correct ne produit aucun constat', () => {
+    const html = carte(
+      `<dsfr-data-map-layer id="l" source="s" lat-field="lat" lon-field="lon" max-items="1000" popup-fields="nom"></dsfr-data-map-layer>
+       <dsfr-data-map-popup for="l" mode="panel-right"><template>{{nom}}</template></dsfr-data-map-popup>`
+    );
+    expect(lintMarkup(html, CONTRAT_REEL)).toEqual([]);
+  });
+
+  it('le constat porte la balise, l’id, la sévérité et le code de règle', () => {
+    const [f] = lintMarkup(
+      `${SOURCE}<dsfr-data-map></dsfr-data-map><dsfr-data-map-layer id="l" source="s" geo-field="g"></dsfr-data-map-layer>`,
+      CONTRAT_REEL
+    );
+    expect(f).toEqual({
+      severity: 'erreur',
+      tag: 'dsfr-data-map-layer',
+      id: 'l',
+      message: expect.stringContaining('<dsfr-data-map>'),
+      regle: 'carte/couche-hors-carte',
+      ligne: 1,
+      colonne: expect.any(Number),
+    });
+  });
+
+  it('les règles génériques portent aussi un code stable (#1009)', () => {
+    const [f] = lintMarkup('<dsfr-data-query></dsfr-data-query>', CONTRAT_REEL);
+    expect(f.regle).toBe('balisage/id-manquant');
+  });
+
+  describe('carte/couche-hors-carte', () => {
+    verifier('carte/couche-hors-carte', [
+      {
+        nom: 'couche sans carte',
+        html: `${SOURCE}<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer>`,
+        attendu: true,
+      },
+      {
+        nom: 'couche après la fermeture de la carte',
+        html: `${SOURCE}<dsfr-data-map></dsfr-data-map><dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer>`,
+        attendu: true,
+      },
+      {
+        nom: 'couche dans la carte, même à travers un div',
+        html: carte(
+          '<div><dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer></div>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'couche dans la carte d’un encart',
+        html: carte(
+          '<dsfr-data-map-inset><dsfr-data-map><dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer></dsfr-data-map></dsfr-data-map-inset>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'carte jamais fermée (fragment) : la couche est dedans',
+        html: `${SOURCE}<dsfr-data-map><dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer>`,
+        attendu: false,
+      },
+    ]);
+
+    it('erreur si une carte existe ailleurs, avertissement si le code n’en a aucune (extrait)', () => {
+      const gravite = (html: string) =>
+        lintMarkup(html, CONTRAT_REEL).find((f) => f.regle === 'carte/couche-hors-carte')?.severity;
+      const couche = '<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer>';
+      expect(gravite(`${SOURCE}<dsfr-data-map></dsfr-data-map>${couche}`)).toBe('erreur');
+      expect(gravite(`${SOURCE}${couche}`)).toBe('avertissement');
+    });
+  });
+
+  describe('carte/lat-sans-lon', () => {
+    verifier('carte/lat-sans-lon', [
+      {
+        nom: 'lat-field seul',
+        html: carte('<dsfr-data-map-layer source="s" lat-field="lat"></dsfr-data-map-layer>'),
+        attendu: true,
+      },
+      {
+        nom: 'lon-field seul, même avec geo-field',
+        html: carte(
+          '<dsfr-data-map-layer source="s" lon-field="lon" geo-field="g"></dsfr-data-map-layer>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'lat-field renseigné, lon-field vide',
+        html: carte(
+          '<dsfr-data-map-layer source="s" lat-field="lat" lon-field=""></dsfr-data-map-layer>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'les deux',
+        html: carte(
+          '<dsfr-data-map-layer source="s" lat-field="lat" lon-field="lon"></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+    ]);
+  });
+
+  describe('carte/geoshape-sans-geo-field', () => {
+    verifier('carte/geoshape-sans-geo-field', [
+      {
+        nom: 'geoshape sans geo-field',
+        html: carte('<dsfr-data-map-layer source="s" type="geoshape"></dsfr-data-map-layer>'),
+        attendu: true,
+      },
+      {
+        nom: 'geoshape avec seulement lat/lon (ignorés par geoshape)',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="geoshape" lat-field="a" lon-field="b"></dsfr-data-map-layer>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'geoshape avec geo-field',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="geoshape" geo-field="geo_shape"></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+    ]);
+
+    it('#1053 — avertissement, pas erreur : la couche devine geo_shape, geometry, geom', () => {
+      const f = lintMarkup(
+        carte('<dsfr-data-map-layer id="z" source="s" type="geoshape"></dsfr-data-map-layer>'),
+        CONTRAT_REEL
+      ).find((x) => x.regle === 'carte/geoshape-sans-geo-field');
+      expect(f?.severity).toBe('avertissement');
+      expect(f?.message).toContain('geo_shape, geometry, geom');
+    });
+  });
+
+  describe('carte/sans-coordonnees (avertissement : la couche devine geo_point_2d…)', () => {
+    verifier('carte/sans-coordonnees', [
+      {
+        nom: 'marqueurs sans aucun champ géographique',
+        html: carte('<dsfr-data-map-layer source="s"></dsfr-data-map-layer>'),
+        attendu: true,
+      },
+      {
+        nom: 'heatmap sans aucun champ géographique',
+        html: carte('<dsfr-data-map-layer source="s" type="heatmap"></dsfr-data-map-layer>'),
+        attendu: true,
+      },
+      {
+        nom: 'geo-field posé',
+        html: carte('<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer>'),
+        attendu: false,
+      },
+      {
+        nom: 'lat-field seul : déjà signalé par lat-sans-lon, pas en double',
+        html: carte('<dsfr-data-map-layer source="s" lat-field="lat"></dsfr-data-map-layer>'),
+        attendu: false,
+      },
+    ]);
+
+    it('est un avertissement, pas une erreur', () => {
+      const f = lintMarkup(
+        carte('<dsfr-data-map-layer source="s"></dsfr-data-map-layer>'),
+        CONTRAT_REEL
+      ).find((x) => x.regle === 'carte/sans-coordonnees');
+      expect(f?.severity).toBe('avertissement');
+    });
+  });
+
+  describe('carte/max-items-invalide', () => {
+    const couche = (v: string) =>
+      carte(
+        `<dsfr-data-map-layer source="s" geo-field="g" max-items="${v}"></dsfr-data-map-layer>`
+      );
+    verifier('carte/max-items-invalide', [
+      { nom: 'texte', html: couche('beaucoup'), attendu: true },
+      { nom: 'vide', html: couche(''), attendu: true },
+      { nom: 'unité collée', html: couche('500px'), attendu: true },
+      { nom: 'nombre', html: couche('20000'), attendu: false },
+      { nom: 'nombre entouré d’espaces', html: couche(' 1000 '), attendu: false },
+      { nom: 'zéro : relève de max-items-nul', html: couche('0'), attendu: false },
+    ]);
+  });
+
+  describe('carte/max-items-nul (avertissement)', () => {
+    const couche = (v: string) =>
+      carte(
+        `<dsfr-data-map-layer source="s" geo-field="g" max-items="${v}"></dsfr-data-map-layer>`
+      );
+    verifier('carte/max-items-nul', [
+      { nom: 'zéro', html: couche('0'), attendu: true },
+      { nom: 'négatif', html: couche('-1'), attendu: true },
+      { nom: 'positif', html: couche('1'), attendu: false },
+      {
+        nom: 'absent (défaut 5000)',
+        html: carte('<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer>'),
+        attendu: false,
+      },
+    ]);
+  });
+
+  describe('carte/popup-sans-effet (avertissement)', () => {
+    verifier('carte/popup-sans-effet', [
+      {
+        nom: 'popup-fields sur un geoshape no-interactive',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="geoshape" geo-field="g" no-interactive popup-fields="nom"></dsfr-data-map-layer>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'tooltip-field sur des cercles no-interactive',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="circle" geo-field="g" no-interactive tooltip-field="nom"></dsfr-data-map-layer>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'popup ciblée par for sur un geoshape no-interactive',
+        html: carte(
+          `<dsfr-data-map-layer id="l" source="s" type="geoshape" geo-field="g" no-interactive></dsfr-data-map-layer>
+           <dsfr-data-map-popup for="l"></dsfr-data-map-popup>`
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'popup-template sur une heatmap',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="heatmap" geo-field="g" popup-template="{nom}"></dsfr-data-map-layer>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'marqueurs no-interactive : la popup reste branchée',
+        html: carte(
+          '<dsfr-data-map-layer source="s" geo-field="g" no-interactive popup-fields="nom"></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'geoshape interactif',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="geoshape" geo-field="g" popup-fields="nom"></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'geoshape no-interactive sans popup (habillage)',
+        html: carte(
+          '<dsfr-data-map-layer source="s" type="geoshape" geo-field="g" no-interactive></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+    ]);
+  });
+
+  describe('carte/popup-mal-placee', () => {
+    verifier('carte/popup-mal-placee', [
+      {
+        nom: 'popup hors de la carte',
+        html: `${carte('<dsfr-data-map-layer id="l" source="s" geo-field="g"></dsfr-data-map-layer>')}<dsfr-data-map-popup for="l"></dsfr-data-map-popup>`,
+        attendu: true,
+      },
+      {
+        nom: 'popup enfant de la carte',
+        html: carte(
+          '<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer><dsfr-data-map-popup></dsfr-data-map-popup>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'popup dans la couche',
+        html: carte(
+          '<dsfr-data-map-layer source="s" geo-field="g"><dsfr-data-map-popup mode="modal"></dsfr-data-map-popup></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+    ]);
+  });
+
+  describe('carte/popup-mode-invalide', () => {
+    const popup = (mode: string) =>
+      carte(
+        `<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer><dsfr-data-map-popup mode="${mode}"></dsfr-data-map-popup>`
+      );
+    verifier('carte/popup-mode-invalide', [
+      { nom: 'tooltip (mode du builder, pas du composant)', html: popup('tooltip'), attendu: true },
+      { nom: 'panel (incomplet)', html: popup('panel'), attendu: true },
+      { nom: 'popup', html: popup('popup'), attendu: false },
+      { nom: 'modal', html: popup('modal'), attendu: false },
+      { nom: 'panel-right', html: popup('panel-right'), attendu: false },
+      { nom: 'panel-left', html: popup('panel-left'), attendu: false },
+    ]);
+  });
+
+  describe('carte/popup-cible-absente', () => {
+    verifier('carte/popup-cible-absente', [
+      {
+        nom: 'for vers une couche inexistante',
+        html: carte(
+          '<dsfr-data-map-layer id="l" source="s" geo-field="g"></dsfr-data-map-layer><dsfr-data-map-popup for="autre"></dsfr-data-map-popup>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'for vers la source d’une couche qui a un id (seul l’id compte)',
+        html: carte(
+          '<dsfr-data-map-layer id="l" source="s" geo-field="g"></dsfr-data-map-layer><dsfr-data-map-popup for="s"></dsfr-data-map-popup>'
+        ),
+        attendu: true,
+      },
+      {
+        nom: 'for vers l’id de la couche',
+        html: carte(
+          '<dsfr-data-map-layer id="l" source="s" geo-field="g"></dsfr-data-map-layer><dsfr-data-map-popup for="l"></dsfr-data-map-popup>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'for vers la source d’une couche sans id',
+        html: carte(
+          '<dsfr-data-map-layer source="s" geo-field="g"></dsfr-data-map-layer><dsfr-data-map-popup for="s"></dsfr-data-map-popup>'
+        ),
+        attendu: false,
+      },
+      {
+        nom: 'popup dans la couche : for ignoré',
+        html: carte(
+          '<dsfr-data-map-layer id="l" source="s" geo-field="g"><dsfr-data-map-popup for="x"></dsfr-data-map-popup></dsfr-data-map-layer>'
+        ),
+        attendu: false,
+      },
+    ]);
+  });
+});
+
+describe('lireBalises — imbrication', () => {
+  it('donne les balises dsfr-data ouvertes autour de chaque balise', () => {
+    const b = lireBalises(
+      `<dsfr-data-map><div><dsfr-data-map-layer><dsfr-data-map-popup></dsfr-data-map-popup></dsfr-data-map-layer></div></dsfr-data-map><dsfr-data-chart></dsfr-data-chart>`
+    );
+    expect(b.map((x) => [x.tag, x.parents])).toEqual([
+      ['dsfr-data-map', []],
+      ['dsfr-data-map-layer', ['dsfr-data-map']],
+      ['dsfr-data-map-popup', ['dsfr-data-map', 'dsfr-data-map-layer']],
+      ['dsfr-data-chart', []],
+    ]);
+  });
+
+  it('une balise auto-fermante n’ouvre rien, une fermante orpheline ne dépile rien', () => {
+    const b = lireBalises(
+      `</dsfr-data-map><dsfr-data-map><dsfr-data-map-layer /><dsfr-data-map-popup></dsfr-data-map-popup>`
+    );
+    expect(b.map((x) => x.parents)).toEqual([[], ['dsfr-data-map'], ['dsfr-data-map']]);
+  });
+
+  it('un fragment tronqué ou mal fermé ne fait pas dériver la pile', () => {
+    // Une fermante qui ne correspond a rien d'ouvert (la couche n'a jamais
+    // ete ouverte) ne doit pas depiler la carte ; une balise coupee en plein
+    // attribut ne doit ni planter ni polluer les parents des suivantes.
+    const b = lireBalises(
+      `<dsfr-data-map></dsfr-data-map-layer><dsfr-data-map-popup></dsfr-data-map-popup>
+       <dsfr-data-map-layer source="s" geo-fi`
+    );
+    expect(b.map((x) => [x.tag, x.parents])).toEqual([
+      ['dsfr-data-map', []],
+      ['dsfr-data-map-popup', ['dsfr-data-map']],
+      ['dsfr-data-map-layer', ['dsfr-data-map']],
+    ]);
+
+    // Fermante d'un ancetre plus lointain : tout ce qui est au-dessus est
+    // depile d'un coup, sans laisser la couche « ouverte » pour la suite.
+    const c = lireBalises(
+      `<dsfr-data-map><dsfr-data-map-layer></dsfr-data-map><dsfr-data-chart></dsfr-data-chart>`
+    );
+    expect(c.map((x) => x.parents)).toEqual([[], ['dsfr-data-map'], []]);
+  });
+});
+
+/**
+ * Ligne et colonne de chaque constat (#1009) : le Playground y pose son
+ * curseur et sa marque. Une position fausse d'une ligne enverrait l'usager
+ * corriger du code sain.
+ */
+describe('lintMarkup — ligne, colonne et attribut des constats (#1009)', () => {
+  const trouver = (html: string, regle: string) =>
+    lintMarkup(html, CONTRAT).filter((f) => f.regle === regle);
+
+  it('situe la balise sur plusieurs lignes, colonne du « < »', () => {
+    const html = [
+      '<div>',
+      '  <dsfr-data-source id="s" api-type="tabular"></dsfr-data-source>',
+      '',
+      '    <dsfr-data-query id="q" source="absente"></dsfr-data-query>',
+    ].join('\n');
+    const [f] = trouver(html, 'balisage/amont-absent');
+    expect(f).toMatchObject({ ligne: 4, colonne: 5, attribut: 'source', tag: 'dsfr-data-query' });
+  });
+
+  it('un « > » entre guillemets ne décale pas la position de la balise suivante', () => {
+    const html =
+      '<dsfr-data-source id="s" where="population > 5000"></dsfr-data-source>\n' +
+      '<dsfr-data-query id="q" source="s" typo="1"></dsfr-data-query>';
+    const [f] = trouver(html, 'balisage/attribut-inconnu');
+    expect(f).toMatchObject({ ligne: 2, colonne: 1, attribut: 'typo' });
+  });
+
+  it('les fins de ligne CRLF et CR seul comptent une ligne chacune, comme CodeMirror', () => {
+    const crlf = '<div>\r\n\r\n  <dsfr-data-query source="s"></dsfr-data-query>';
+    expect(trouver(crlf, 'balisage/id-manquant')[0]).toMatchObject({ ligne: 3, colonne: 3 });
+    const cr = '<div>\r<dsfr-data-query source="s"></dsfr-data-query>';
+    expect(trouver(cr, 'balisage/id-manquant')[0]).toMatchObject({ ligne: 2, colonne: 1 });
+  });
+
+  it('attribut retiré, balise inconnue, join incomplet, id dupliqué : chacun situé', () => {
+    const html = [
+      '<dsfr-data-source id="s" server-side></dsfr-data-source>',
+      '<dsfr-data-inconnu></dsfr-data-inconnu>',
+      '<dsfr-data-join id="j" left="s"></dsfr-data-join>',
+      '<dsfr-data-source id="s"></dsfr-data-source>',
+    ].join('\n');
+    const f = lintMarkup(html, CONTRAT);
+    const par = (r: string) => f.find((x) => x.regle === r);
+    expect(par('balisage/attribut-retire')).toMatchObject({ ligne: 1, attribut: 'server-side' });
+    expect(par('balisage/balise-inconnue')).toMatchObject({ ligne: 2, colonne: 1 });
+    expect(par('balisage/join-incomplet')).toMatchObject({ ligne: 3, attribut: 'right' });
+    // La DEUXIEME declaration : c'est elle qui ecrase la premiere.
+    expect(par('balisage/id-duplique')).toMatchObject({ ligne: 4, attribut: 'id', id: 's' });
+  });
+
+  it('« aucune balise » ne vise aucune ligne', () => {
+    const [f] = lintMarkup('<p>rien</p>', CONTRAT);
+    expect(f.regle).toBe('balisage/aucune-balise');
+    expect(f.ligne).toBeUndefined();
+  });
+
+  it('tout constat porte un code de règle', () => {
+    const html =
+      '<dsfr-data-source server-side typo></dsfr-data-source><dsfr-data-x></dsfr-data-x>' +
+      '<dsfr-data-join></dsfr-data-join><dsfr-data-query source="z"></dsfr-data-query>';
+    for (const f of lintMarkup(html, CONTRAT)) expect(f.regle).toMatch(/^balisage\//);
+  });
+
+  it('debutsDeLigne / positionDe : dichotomie exacte aux bornes', () => {
+    const debuts = debutsDeLigne('ab\ncd\r\nef\rg');
+    expect(debuts).toEqual([0, 3, 7, 10]);
+    expect(positionDe(debuts, 0)).toEqual({ ligne: 1, colonne: 1 });
+    expect(positionDe(debuts, 2)).toEqual({ ligne: 1, colonne: 3 });
+    expect(positionDe(debuts, 3)).toEqual({ ligne: 2, colonne: 1 });
+    expect(positionDe(debuts, 8)).toEqual({ ligne: 3, colonne: 2 });
+    expect(positionDe(debuts, 10)).toEqual({ ligne: 4, colonne: 1 });
   });
 });

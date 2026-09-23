@@ -62,7 +62,12 @@ export {
 export { isUnsafeKey } from './utils/security.js';
 export type { CsvColumn, BuildCsvOptions } from './utils/csv.js';
 export { buildCsv, CSV_BOM } from './utils/csv.js';
-export { escapeColonValue, unescapeColonValue } from './utils/colon-escape.js';
+export {
+  escapeColonValue,
+  unescapeColonValue,
+  splitColonFields,
+  isMultiFieldClause,
+} from './utils/colon-escape.js';
 export { toBoolean } from './utils/to-boolean.js';
 export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
@@ -266,6 +271,71 @@ export {
 } from './ui/passation.js';
 export type { VerdictRetour } from './ui/passation.js';
 
+// Repères d'interface : contrat du registre généré (#997, ADR-143) — app-side, types seuls
+export type {
+  GenreRepere,
+  AttributRepere,
+  Repere,
+  RegistreReperes,
+  Prerequis,
+  PrerequisParId,
+  HelperRepere,
+  ExceptionRepere,
+  ReperesConfig,
+  RepereDonnee,
+} from './ui/reperes-types.js';
+
+// Révélation d'un repère : montrer(), modes « dire » / « guider » (#1003, app-side)
+export type {
+  ModeReperage,
+  AdaptateurReperage,
+  OptionsMontrer,
+  ResultatMontrer,
+} from './ui/reperage.js';
+export {
+  montrer,
+  chemin,
+  prerequisManquants,
+  indexerReperes,
+  estIdRepere,
+  selecteurRepere,
+  getReperageMode,
+  setReperageMode,
+  regionReperage,
+  annoncerReperage,
+  injectReperageStyles,
+  effacerSurbrillance,
+  mouvementReduit,
+  SEPARATEUR_CHEMIN,
+  ID_REGION_REPERAGE,
+  CLASSE_REPERE_MONTRE,
+  CLASSE_REPERE_ANIME,
+  DUREE_SURBRILLANCE_MS,
+} from './ui/reperage.js';
+
+// Assistant contextuel : montage du panneau app-assistant (#1011, app-side).
+// La correspondance sans modèle d'abord, le modèle injecté par l'app en secours.
+export type {
+  SourceReponse,
+  SuggestionAssistant,
+  CandidatAssistant,
+  MessageAssistant,
+  Reponse,
+  ContexteAssistant,
+  AssistantPanelElement,
+  OptionsAssistant,
+  MountedAssistant,
+} from './ui/mount-assistant.js';
+export {
+  mountAssistant,
+  messageAucunReglage,
+  ID_BOUTON_ASSISTANT,
+  PIED_SANS_MODELE,
+  SOUS_TITRE_SANS_MODELE,
+  PIED_AVEC_MODELE,
+  SOUS_TITRE_AVEC_MODELE,
+} from './ui/mount-assistant.js';
+
 // Sample data
 export type { SampleDataset } from './data/sample-datasets.js';
 export { SAMPLE_DATASETS } from './data/sample-datasets.js';
@@ -366,6 +436,67 @@ export {
   diagnoseConfig,
 } from './ia/data-tools.js';
 
+// --- Outils de diagnostic du socle IA (#607, partagés par #1010, ADR-143) ---
+// App-side (ils pilotent un aperçu et partent vers un modèle) : JAMAIS dans
+// lib.ts (frontière lib/app #319).
+export type { DiagnosticContext, FormaterConstatsOptions } from './ia/diagnostic-tools.js';
+export {
+  DIAGNOSTIC_TOOLS,
+  DIAGNOSTIC_TOOL_NAMES,
+  REPEATABLE_TOOLS,
+  PREUVE_MASQUEE,
+  formaterConstats,
+  runDiagnosticTool,
+  humanizeDiagnosticStep,
+} from './ia/diagnostic-tools.js';
+
+// --- Boucle agentique generique (#1004, ADR-143) — app-side, jamais dans lib.ts ---
+// Les types du dialogue (PostChat, OpenAIResponse...) sont exportes par le bloc
+// du transport (#998), depuis chat-types.js.
+export type { AgentLoopEnd, AgentLoopOptions, AgentLoopResult } from './ia/agent-loop.js';
+export { runAgentLoop, parseToolArgs, DEFAULT_DUPLICATE_MESSAGE } from './ia/agent-loop.js';
+
+// --- Client des skills publiees (#515, promu du studio par #1014) — app-side (fetch) ---
+export type { PublishedSkill } from './ia/skills-client.js';
+export {
+  loadSkills,
+  resetSkillsCache,
+  relevantSkillsText,
+  skillText,
+  OUTILS_SKILLS,
+  OUTILS_SKILLS_NOMS,
+  SKILLS_INDISPONIBLES,
+  executerOutilSkill,
+} from './ia/skills-client.js';
+
+// --- Tour Albert de l'assistant contextuel (#1014, ADR-143) — app-side ---
+// `creerRepondreIA()` rend le `repondre` de mountAssistant().
+export type {
+  TransportAssistant,
+  ProfilAssistant,
+  OptionsRepondreIA,
+  OptionsPrompt,
+  EtapeMontree,
+  OptionsPlan,
+  PlanPasAPas,
+} from './ia/assistant-loop.js';
+export {
+  creerRepondreIA,
+  brancherAlbert,
+  suivrePlan,
+  construirePromptAssistant,
+  constatsPourModele,
+  reperesDeLaReponse,
+  idsCites,
+  idsDuRegistre,
+  outilMontrer,
+  outilPlanifier,
+  MAX_ROUNDS_ASSISTANT,
+  MAX_ETAPES_PLAN,
+  HISTORIQUE_ASSISTANT,
+  REPERE_REFUSE,
+} from './ia/assistant-loop.js';
+
 // --- Vocabulaire et schema JSON de la ChartConfig (promus du builder-IA, #515) ---
 export {
   CHART_CONFIG_TYPES,
@@ -386,6 +517,22 @@ export {
   searchSkills,
   matchSkills,
 } from './ia/skill-matching.js';
+
+// --- Correspondance sans modele : phrase -> repere d'interface (#1012, app-side) ---
+export type {
+  OptionsCorrespondance,
+  RepereMatchable,
+  CorrespondanceRepere,
+  ResultatCorrespondance,
+} from './ia/reperes-matching.js';
+export {
+  SEUIL_REPERE,
+  ECART_AMBIGUITE,
+  MAX_CANDIDATS,
+  projeterReperes,
+  trouverRepere,
+  formulerCorrespondance,
+} from './ia/reperes-matching.js';
 
 // --- Export d'image PNG/JPG depuis un apercu (app-side) ---
 export type {
@@ -410,3 +557,43 @@ export {
 // source de verite, `debug/index.ts`, qui sert aussi de point d'entree au
 // bundle autonome de #608.
 export * from './debug/index.js';
+
+// --- Transport IA commun et capacites Albert (#998, ADR-143) ---
+// App-side (fetch, localStorage) : JAMAIS dans lib.ts (frontiere lib/app #319).
+// Les types du dialogue viennent de chat-types.ts SEULEMENT (partages avec la
+// boucle agentique, #1004) : transport.ts les importe sans les re-exporter.
+export type { ToolCall, ChatMessage, OpenAIResponse, PostChat } from './ia/chat-types.js';
+export type {
+  UserIAConfig,
+  ServerIAConfig,
+  ProxyFetchInit,
+  ResolvedTransport,
+  ResolveTransportOptions,
+  FournisseurNatif,
+} from './ia/transport.js';
+export {
+  IA_PROXY_DEFAULT_ENDPOINT,
+  IA_PROXY_ENDPOINT,
+  IA_CONFIG_KEY,
+  userProxyHeaders,
+  nativeProxyHeaders,
+  proxyFetch,
+  postProxy,
+  postNatif,
+  fetchServerConfig,
+  getServerConfig,
+  resetServerConfigCache,
+  loadUserConfig,
+  isServerMode,
+  isAlbertUrl,
+  resolveTransport,
+} from './ia/transport.js';
+export type { AlbertCapabilities } from './ia/albert-capabilities.js';
+export {
+  DEFAULT_CAPABILITIES,
+  ALBERT_DEFAULT_CAPABILITIES,
+  getCapabilities,
+  setCapabilities,
+  resetCapabilities,
+  effectiveCapabilities,
+} from './ia/albert-capabilities.js';

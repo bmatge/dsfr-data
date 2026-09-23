@@ -21,10 +21,13 @@
  * parcourt son graphe d'imports et refuserait toute entrée par `packages/`.
  */
 import type { Row } from '../../tools/oracle/manifest.js';
+import { repondreTabular } from '../builder-e2e/api-fixtures.js';
 import communes from './jeux/affichages-communes.json' with { type: 'json' };
 import serie from './jeux/affichages-serie.json' with { type: 'json' };
 import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
 import long from './jeux/affichages-long.json' with { type: 'json' };
+import contoursDepartements from './jeux/affichages-contours-departements.json' with { type: 'json' };
+import zones from './jeux/affichages-zones.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
@@ -59,13 +62,33 @@ export const LIBELLES: Row[] = libelles;
  */
 export const LONG: Row[] = long;
 
-/** Les quatre jeux, sous le nom que les manifestes leur donnent. */
+/**
+ * Dix zones à la manière d'un jeu Opendatasoft (#1053) : chaque ligne porte
+ * À LA FOIS `geo_point_2d` (un point {lat, lon}) et `geo_shape` (un polygone
+ * GeoJSON). Une couche `geoshape` sans `geo-field` doit tracer la FORME : le
+ * calcul d'emprise, lui, devine `geo_point_2d` en premier — reprendre sa
+ * détection telle quelle ne tracerait rien.
+ */
+export const ZONES: Row[] = zones;
+
+/** Les cinq jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
   libelles: LIBELLES,
   long: LONG,
+  zones: ZONES,
 } as const;
+
+/**
+ * Fond des départements de la composition par échelle de la Carto (#1021) :
+ * les 101 codes du fond livré avec le paquet, sous des carrés. Servi à l'URL
+ * EXACTE que la Carto génère, en `FeatureCollection` — la page l'aplatit
+ * (`flatten="properties"`) et le joint au comptage sur `code`.
+ */
+export const CONTOURS_DEPARTEMENTS: Row[] = contoursDepartements;
+export const URL_CONTOURS_DEPARTEMENTS =
+  'https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/departements.json';
 
 /** URL d'un jeu servi en tableau nu. */
 export function urlAffichage(nom: keyof typeof JEUX_AFFICHAGES): string {
@@ -74,7 +97,36 @@ export function urlAffichage(nom: keyof typeof JEUX_AFFICHAGES): string {
 
 /** Le faux serveur du lot : une URL, une réponse — ou `null` si imprévue. */
 export function repondreAffichages(url: URL): unknown | null {
+  if (url.href === URL_CONTOURS_DEPARTEMENTS) {
+    return {
+      type: 'FeatureCollection',
+      features: CONTOURS_DEPARTEMENTS.map(({ geometry, ...properties }) => ({
+        type: 'Feature',
+        properties,
+        geometry,
+      })),
+    };
+  }
   if (url.origin !== HOTE_AFFICHAGES) return null;
   const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX_AFFICHAGES;
   return JEUX_AFFICHAGES[nom] ?? null;
+}
+
+/**
+ * Ressource Tabular du lot (#1020) : les 48 communes servies dans l'enveloppe
+ * Tabular (`{ data, links, meta }`, `meta.total` = 48), pour qu'une source
+ * `limit="10"` soit TRONQUÉE EN AMONT et que la couche de carte le dise.
+ *
+ * Tabular garde le VRAI hôte (l'adaptateur n'accepte pas de `base-url` pour
+ * cette variante, voir `fixtures.ts`) : une ressource propre à ce domaine,
+ * pour ne partager ses lignes avec aucun autre.
+ */
+export const RESSOURCE_TABULAR_AFFICHAGES = 'ea1b5c3d-0000-4000-8000-affichages001';
+const HOTE_TABULAR_AFFICHAGES = 'https://tabular-api.data.gouv.fr';
+
+/** Réponse Tabular du lot, ou `null` si l'URL ne désigne pas sa ressource. */
+export function repondreAffichagesTabular(url: URL): unknown | null {
+  if (url.origin !== HOTE_TABULAR_AFFICHAGES) return null;
+  if (url.pathname !== `/api/resources/${RESSOURCE_TABULAR_AFFICHAGES}/data/`) return null;
+  return repondreTabular(url, COMMUNES);
 }

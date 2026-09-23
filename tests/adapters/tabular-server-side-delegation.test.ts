@@ -66,13 +66,13 @@ describe('#852 — Tabular : la pagination serveur delegue comme le fetch comple
       aggregate: 'population:sum',
     });
 
-    const url = adapter.buildServerSideUrl(params, overlay({ orderBy: 'population__sum:desc' }));
+    const url = adapter.buildServerSideUrl(params, overlay({ orderBy: 'academie:desc' }));
 
     // Flags NUS : l'API rejette la forme valuee `academie__groupby=` (#596)
     expect(query(url)).toContain('academie__groupby');
     expect(query(url)).not.toContain('academie__groupby=');
     expect(query(url)).toContain('population__sum');
-    expect(new URLSearchParams(query(url)).get('population__sum__sort')).toBe('desc');
+    expect(new URLSearchParams(query(url)).get('academie__sort')).toBe('desc');
     expect(new URLSearchParams(query(url)).get('page_size')).toBe('40');
     expect(new URLSearchParams(query(url)).get('page')).toBe('1');
   });
@@ -82,7 +82,7 @@ describe('#852 — Tabular : la pagination serveur delegue comme le fetch comple
       where: 'pays_iso2:eq:FR',
       groupBy: 'code_reg',
       aggregate: 'population:sum',
-      orderBy: 'population__sum:desc',
+      orderBy: 'code_reg:desc',
     });
 
     const complet = query(adapter.buildUrl(params, 40, 1));
@@ -92,7 +92,7 @@ describe('#852 — Tabular : la pagination serveur delegue comme le fetch comple
       'pays_iso2__exact=FR',
       'code_reg__groupby',
       'population__sum',
-      'population__sum__sort=desc',
+      'code_reg__sort=desc',
     ]) {
       expect(complet).toContain(attendu);
       expect(pagine).toContain(attendu);
@@ -119,9 +119,22 @@ describe('#852 — Tabular : la pagination serveur delegue comme le fetch comple
     expect(result.totalCount).toBe(8);
   });
 
-  it('champ non delegable : rien n’est emis, et fetchPage rend la main au client', async () => {
+  it('champ a espaces : delegue percent-encode, comme en fetch complet (#985)', () => {
     const params = tabularParams({
       groupBy: 'Date - Journee gaziere',
+      aggregate: 'population:sum',
+    });
+
+    const q = query(adapter.buildServerSideUrl(params, overlay()));
+    expect(q).toContain('Date%20-%20Journee%20gaziere__groupby');
+    expect(q).toContain('population__sum');
+  });
+
+  it('champ non delegable : rien n’est emis, et fetchPage rend la main au client', async () => {
+    // Seul un separateur de la grammaire colon (`,` `:` `|`) rend un nom
+    // non delegable depuis #985
+    const params = tabularParams({
+      groupBy: 'Code|Libelle',
       aggregate: 'population:sum',
     });
 

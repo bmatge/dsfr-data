@@ -22,8 +22,9 @@ import {
   IMAGE_EXPORT_MESSAGES,
   toastError,
   mountDiagnosticPanel,
-  transmettreDiagnostic,
   CLE_CODE_RAPPORTE,
+  REGLES_GENERIQUES,
+  type MountedAssistant,
 } from '@dsfr-data/shared';
 import { initEditor } from './editor.js';
 import type { CodeMirrorEditor } from './editor.js';
@@ -31,6 +32,9 @@ import { examples } from './examples/examples-data.js';
 import { EXEMPLE_PAR_DEFAUT } from './examples/catalogue.js';
 import { initSelecteurExemples, type SelecteurExemples } from './examples/selector.js';
 import { getPreviewHTML } from './preview.js';
+import { creerAdaptateurPlayground } from './assistant/adaptateur.js';
+import { monterAssistantPlayground, montrerReperePlayground } from './assistant/index.js';
+import { REGLE_BALISAGE } from './assistant/constats-balisage.js';
 
 let editor: CodeMirrorEditor;
 let selecteur: SelecteurExemples | null = null;
@@ -229,15 +233,8 @@ function saveFavorite(): void {
 
 // Initialization
 
-/**
- * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
- * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
- * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
- */
-function envoyerDiagnosticVersAssistant(texte: string): void {
-  transmettreDiagnostic(texte);
-  window.location.href = appHref('builder-ia', { from: 'playground' });
-}
+/** Assistant contextuel (#1018), monté au chargement après le volet Diagnostic. */
+let assistant: MountedAssistant | null = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await initAuth();
@@ -393,16 +390,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   // L'aperçu est une iframe srcdoc rechargée à chaque exécution — le
   // rattachement suit les rechargements, sinon le volet resterait sourd
   // après le premier « Exécuter ».
-  mountDiagnosticPanel({
-    frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
-    toggleButtonId: 'diagnostic-btn',
-    canSend: true,
-    onSend: envoyerDiagnosticVersAssistant,
-    emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
+  //
+  // Constats (#1009) : ceux de l'exécution (règles génériques, #996) ET ceux
+  // du code (analyse statique du balisage, #995), réévalués à chaque trace sur
+  // le code courant. « Me montrer » pose le curseur sur la ligne en cause
+  // (repère de code) ou révèle le contrôle de l'interface (registre).
+  const adaptateur = creerAdaptateurPlayground(editor, {
+    ouvrirVolet: () => selecteur?.basculer(true),
   });
+  const diagnostic =
+    mountDiagnosticPanel({
+      frame: document.getElementById('preview-frame') as HTMLIFrameElement | null,
+      toggleButtonId: 'diagnostic-btn',
+      // « Demander à l'assistant » (#1018) : ouvre l'assistant du Playground,
+      // sans quitter l'app. Il lit les mêmes constats que le volet.
+      canSend: true,
+      envoi: 'demander',
+      onSend: () => assistant?.ouvrir(),
+      onConstats: () => assistant?.rafraichirConstats(),
+      emptyHint: 'Exécutez le code pour observer ce qui transite entre les composants.',
+      constats: {
+        contexte: () => ({
+          app: 'playground',
+          etat: { code: editor.getValue() },
+          origine: window.location.origin,
+        }),
+        regles: [...REGLES_GENERIQUES, REGLE_BALISAGE],
+      },
+      onMontrer: (repere) => montrerReperePlayground(repere, editor, adaptateur),
+    }) ?? null;
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré.
+  assistant = monterAssistantPlayground({ editor, adaptateur, diagnostic });
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();
-  startTourIfFirstVisit(PLAYGROUND_TOUR);
-  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(PLAYGROUND_TOUR));
+  // Étapes en repères (#1013) : l'adaptateur ouvre le volet avant de montrer.
+  const visite = { ...PLAYGROUND_TOUR, adaptateur };
+  startTourIfFirstVisit(visite);
+  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(visite));
 });

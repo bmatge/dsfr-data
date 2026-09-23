@@ -81,7 +81,7 @@ export function loadSavedSources(): void {
         <p class="empty-sources-desc">Essayez avec des donn\u00e9es d'exemple :</p>
         <div class="sample-datasets-grid">${SAMPLE_DATASETS.map(
           (ds) => `
-        <button type="button" class="sample-dataset-card app-card-choice" data-sample-id="${ds.id}">
+        <button type="button" class="sample-dataset-card app-card-choice" data-sample-id="${ds.id}" data-repere="builder.source.exemple" data-repere-libelle="Jeu de données d'exemple">
           <i class="${ds.icon}"></i>
           <span class="sample-dataset-name">${ds.name}</span>
           <span class="sample-dataset-desc">${ds.description}</span>
@@ -89,7 +89,10 @@ export function loadSavedSources(): void {
       `
         ).join('')}</div>`;
 
+      // Repère `builder.source.vide` : ce que montre le prérequis
+      // `source-chargee` tant que le select des sources est masqué.
       emptyMsg.innerHTML = `
+        <div data-repere="builder.source.vide" data-repere-libelle="Pas encore de données">
         <p><i class="ri-database-2-line" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; opacity: 0.5;"></i></p>
         <p>Pas encore de donn\u00e9es\u00a0?</p>
         ${sampleSection}
@@ -97,6 +100,7 @@ export function loadSavedSources(): void {
           <a href="${appHref('sources')}" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-mt-1w">
             <i class="ri-add-line"></i> ${demoHidden ? 'Ajoutez vos propres donn\u00e9es' : 'Ou ajoutez vos propres donn\u00e9es'}
           </a>
+        </div>
         </div>
       `;
 
@@ -758,7 +762,7 @@ function showDataPreviewButton(): void {
   const statusEl = document.getElementById('fields-status');
   if (statusEl) {
     statusEl.innerHTML =
-      '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn"><i class="ri-database-2-line"></i> Voir</button>';
+      '<button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline source-btn" id="show-data-preview-btn" data-repere="builder.source.apercu" data-repere-libelle="Voir les données"><i class="ri-database-2-line"></i> Voir</button>';
     document.getElementById('show-data-preview-btn')?.addEventListener('click', showDataPreview);
   }
 }

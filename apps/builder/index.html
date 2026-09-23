@@ -30,16 +30,18 @@
   <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Ids
        historiques conservés (#generate-btn, #footer-copy-btn, #restart-tour-btn) ;
        les actions du tablist d'aperçu (Playground / Favoris / Image) la rejoignent. -->
-  <app-action-bar heading="Créer un graphique" reason-host="#preview-aside">
-    <button slot="help" id="restart-tour-btn" class="fr-icon-question-line" title="Revoir la visite guidée">Visite guidée</button>
-    <button slot="secondary" id="footer-copy-btn" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
-    <button slot="tertiary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
-    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
-    <button slot="tertiary" id="open-pipeline-btn" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants">Ouvrir dans le Pipeline</button>
-    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
-    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
-    <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="primary" id="generate-btn" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
+  <app-action-bar heading="Créer un graphique" data-zone="builder.actions" data-repere-libelle="Barre d'actions" reason-host="#preview-aside">
+    <button slot="help" id="restart-tour-btn" data-repere="builder.actions.visite" class="fr-icon-question-line" title="Revoir la visite guidée">Visite guidée</button>
+    <button slot="secondary" id="footer-copy-btn" data-repere="builder.actions.copier" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
+    <button slot="tertiary" id="save-favorite-btn" data-repere="builder.actions.favori" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" data-repere="builder.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="open-pipeline-btn" data-repere="builder.actions.pipeline" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants">Ouvrir dans le Pipeline</button>
+    <button slot="tertiary" id="export-png-btn" data-repere="builder.actions.png" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" data-repere="builder.actions.jpg" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
+    <button slot="tertiary" id="diagnostic-btn" data-repere="builder.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <!-- Assistant contextuel (#1017, #1018) : déclaré ici pour porter son repère. -->
+    <button slot="tertiary" id="assistant-btn" data-repere="builder.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
+    <button slot="primary" id="generate-btn" data-repere="builder.actions.generer" data-prerequis="source-chargee champs-choisis" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 
   <app-layout-builder mode="fullscreen" left-ratio="38" min-right-width="480">
@@ -52,7 +54,7 @@
 
 
       <!-- ETAPE 1 : Source de données -->
-      <div class="config-section" id="section-source">
+      <div class="config-section" id="section-source" data-zone="builder.source" data-repere-libelle="Source de données">
         <div class="config-section-header" onclick="toggleSection('section-source')">
           <h3><span class="step-badge" aria-hidden="true">1</span><i class="ri-database-2-line"></i> Source de données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -72,12 +74,12 @@
           <div class="source-grid">
             <div class="fr-select-group fr-select-group--sm">
               <label class="fr-label" for="saved-source">Source</label>
-              <select class="fr-select" id="saved-source">
+              <select class="fr-select" id="saved-source" data-repere="builder.source.choix">
                 <option value="">— Choisir —</option>
               </select>
             </div>
             <div class="source-status" id="fields-status" aria-live="polite"></div>
-            <a href="../sources/index.html" class="fr-link fr-link--sm source-new-link">
+            <a href="../sources/index.html" class="fr-link fr-link--sm source-new-link" data-repere="builder.source.nouvelle" data-repere-libelle="Nouvelle source">
               <i class="ri-add-line"></i> Nouvelle
             </a>
           </div>
@@ -86,7 +88,7 @@
       </div>
 
       <!-- ETAPE 2 : Type de graphique -->
-      <div class="config-section collapsed" id="section-type">
+      <div class="config-section collapsed" id="section-type" data-zone="builder.type" data-repere-libelle="Type de graphique">
         <div class="config-section-header" onclick="toggleSection('section-type')">
           <h3><span class="step-badge" aria-hidden="true">2</span><i class="ri-bar-chart-box-line"></i> Type de graphique</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -94,47 +96,47 @@
         <div class="config-section-content">
 
         <div class="chart-type-grid">
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="true" data-type="bar" title="Graphique en barres verticales">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="true" data-type="bar" data-repere="builder.type.bar" data-attribut="dsfr-data-chart:type" title="Graphique en barres verticales">
             <i class="ri-bar-chart-fill" aria-hidden="true"></i>
             <span>Barres</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="horizontalBar" title="Graphique en barres horizontales">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="horizontalBar" data-repere="builder.type.horizontal-bar" data-attribut="dsfr-data-chart:type" title="Graphique en barres horizontales">
             <i class="ri-bar-chart-horizontal-fill" aria-hidden="true"></i>
             <span>Barres H</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="line" title="Graphique en lignes">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="line" data-repere="builder.type.line" data-attribut="dsfr-data-chart:type" title="Graphique en lignes">
             <i class="ri-line-chart-fill" aria-hidden="true"></i>
             <span>Lignes</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="pie" title="Graphique camembert">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="pie" data-repere="builder.type.pie" data-attribut="dsfr-data-chart:type" title="Graphique camembert">
             <i class="ri-pie-chart-fill" aria-hidden="true"></i>
             <span>Camembert</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="doughnut" title="Graphique en anneau">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="doughnut" data-repere="builder.type.doughnut" data-attribut="dsfr-data-chart:type" title="Graphique en anneau">
             <i class="ri-donut-chart-fill" aria-hidden="true"></i>
             <span>Anneau</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="radar" title="Graphique radar">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="radar" data-repere="builder.type.radar" data-attribut="dsfr-data-chart:type" title="Graphique radar">
             <i class="ri-radar-fill" aria-hidden="true"></i>
             <span>Radar</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="scatter" title="Nuage de points">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="scatter" data-repere="builder.type.scatter" data-attribut="dsfr-data-chart:type" title="Nuage de points">
             <i class="ri-bubble-chart-fill" aria-hidden="true"></i>
             <span>Nuage</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="gauge" title="Indicateur jauge">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="gauge" data-repere="builder.type.gauge" data-attribut="dsfr-data-chart:type" title="Indicateur jauge">
             <i class="ri-speed-fill" aria-hidden="true"></i>
             <span>Jauge</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="kpi" title="Indicateur KPI">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="kpi" data-repere="builder.type.kpi" title="Indicateur KPI">
             <i class="ri-numbers-fill" aria-hidden="true"></i>
             <span>KPI</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map" title="Carte departementale">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map" data-repere="builder.type.map" data-attribut="dsfr-data-chart:type" title="Carte departementale">
             <i class="ri-map-fill" aria-hidden="true"></i>
             <span>Carte</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="datalist" title="Tableau de données">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="datalist" data-repere="builder.type.datalist" title="Tableau de données">
             <i class="ri-table-line" aria-hidden="true"></i>
             <span>Tableau</span>
           </button>
@@ -143,7 +145,7 @@
       </div>
 
       <!-- ETAPE 3 : Mapping des données -->
-      <div class="config-section collapsed" id="section-data">
+      <div class="config-section collapsed" id="section-data" data-zone="builder.donnees" data-repere-libelle="Configuration des données">
         <div class="config-section-header" onclick="toggleSection('section-data')">
           <h3><span class="step-badge" aria-hidden="true">3</span><i class="ri-equalizer-line"></i> Configuration des données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -157,7 +159,7 @@
               Étiquettes (axe horizontal)
               <span class="fr-hint-text">Le champ pour les etiquettes (ex&nbsp;: region, annee)</span>
             </label>
-            <select class="fr-select" id="label-field">
+            <select class="fr-select" id="label-field" data-repere="builder.donnees.champ-x" data-attribut="dsfr-data-chart:label-field" data-prerequis="source-chargee">
               <option value="">— Charger les champs —</option>
             </select>
           </div>
@@ -166,7 +168,7 @@
               Libelle
               <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
             </label>
-            <input type="text" class="fr-input fr-input--sm" id="label-field-label" placeholder="Nom des étiquettes">
+            <input type="text" class="fr-input fr-input--sm" id="label-field-label" data-repere="builder.donnees.champ-x-libelle" data-repere-libelle="Nom affiché des étiquettes" placeholder="Nom des étiquettes">
           </div>
         </div>
 
@@ -177,7 +179,7 @@
               Valeur à mesurer (Série 1)
               <span class="fr-hint-text">Le champ numérique a mesurer (ex&nbsp;: population, budget)</span>
             </label>
-            <select class="fr-select" id="value-field">
+            <select class="fr-select" id="value-field" data-repere="builder.donnees.champ-y" data-attribut="dsfr-data-chart:value-field" data-prerequis="source-chargee">
               <option value="">— Charger les champs —</option>
             </select>
           </div>
@@ -186,24 +188,24 @@
               Libelle
               <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
             </label>
-            <input type="text" class="fr-input fr-input--sm" id="value-field-label" placeholder="Nom de la série">
+            <input type="text" class="fr-input fr-input--sm" id="value-field-label" data-repere="builder.donnees.champ-y-libelle" data-repere-libelle="Nom affiché de la série 1" placeholder="Nom de la série">
           </div>
         </div>
 
         <!-- Séries supplementaires (affiches conditionnellement) -->
-        <div id="extra-series-group" style="display: none;">
+        <div id="extra-series-group" data-zone="builder.donnees.series" data-repere-libelle="Séries supplémentaires" style="display: none;">
           <div id="extra-series-container"></div>
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn" data-repere="builder.donnees.series.ajouter" data-attribut="dsfr-data-chart:value-fields" data-prerequis="type-multi-series source-chargee champs-choisis">
             <i class="ri-add-line"></i> Ajouter une série
           </button>
         </div>
 
         <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="code-field-group" style="display: none;">
           <label class="fr-label" for="code-field">
-            Code departement
+            Code département
             <span class="fr-hint-text">Code INSEE (01-95, 2A, 2B, 971-976)</span>
           </label>
-          <select class="fr-select" id="code-field">
+          <select class="fr-select" id="code-field" data-repere="builder.donnees.code-departement" data-attribut="dsfr-data-chart:code-field" data-prerequis="source-chargee">
             <option value="">— Charger les champs —</option>
           </select>
           <!-- Avertissement affiché par updateMapCodeFieldWarning() quand aucun champ
@@ -222,7 +224,7 @@
           <div class="config-grid-2col fr-mt-1w">
             <div class="fr-select-group fr-select-group--sm">
               <label class="fr-label" for="kpi-variant">Style KPI</label>
-              <select class="fr-select" id="kpi-variant">
+              <select class="fr-select" id="kpi-variant" data-repere="builder.donnees.kpi-style">
                 <option value="">Par défaut</option>
                 <option value="info">Info (bleu)</option>
                 <option value="success">Succes (vert)</option>
@@ -231,8 +233,8 @@
               </select>
             </div>
             <div class="fr-input-group fr-input-group--sm">
-              <label class="fr-label" for="kpi-unit">Unite</label>
-              <input class="fr-input" type="text" id="kpi-unit" placeholder="EUR, %, ...">
+              <label class="fr-label" for="kpi-unit">Unité</label>
+              <input class="fr-input" type="text" id="kpi-unit" data-repere="builder.donnees.kpi-unite" data-attribut="dsfr-data-kpi:unit" placeholder="EUR, %, ...">
             </div>
           </div>
         </div>
@@ -244,7 +246,7 @@
               Trier par
               <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-sort-field" data-help="sort-field"><i class="ri-question-line" aria-hidden="true"></i></button>
             </label>
-            <select class="fr-select" id="sort-field">
+            <select class="fr-select" id="sort-field" data-repere="builder.donnees.tri-champ" data-attribut="dsfr-data-query:order-by" data-prerequis="source-chargee">
               <option value="">Auto (valeur)</option>
             </select>
           </div>
@@ -253,7 +255,7 @@
               Ordre
               <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-sort-order" data-help="sort-order"><i class="ri-question-line" aria-hidden="true"></i></button>
             </label>
-            <select class="fr-select" id="sort-order">
+            <select class="fr-select" id="sort-order" data-repere="builder.donnees.tri-ordre" data-attribut="dsfr-data-query:order-by">
               <option value="none">Ordre source</option>
               <option value="desc">Decroissant</option>
               <option value="asc">Croissant</option>
@@ -271,7 +273,7 @@
             <span class="fr-hint-text">Comment combiner les valeurs partageant la même catégorie</span>
             <span class="agg-badge" id="aggregation-badge" hidden></span>
           </div>
-          <select class="fr-select agg-row__select" id="aggregation">
+          <select class="fr-select agg-row__select" id="aggregation" data-repere="builder.donnees.agregation" data-attribut="dsfr-data-query:aggregate">
             <option value="sum">Somme</option>
             <option value="avg">Moyenne</option>
             <option value="count">Comptage</option>
@@ -281,21 +283,21 @@
         </div>
 
         <!-- Filtres (builder visuel v2, toujours visibles — synchro #query-filter) -->
-        <div class="filters-zone fr-mt-2w">
+        <div class="filters-zone fr-mt-2w" data-zone="builder.donnees.filtres" data-repere-libelle="Filtres">
           <div class="filters-zone__head">
             <label class="fr-label">Filtres
               <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-query-filter" data-help="query-filter"><i class="ri-question-line" aria-hidden="true"></i></button>
             </label>
             <span class="filters-zone__count" id="filters-count">aucun</span>
-            <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline filters-zone__mode" id="filters-mode-toggle">Mode texte (expert)</button>
+            <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline filters-zone__mode" id="filters-mode-toggle" data-repere="builder.donnees.filtres.mode">Mode texte (expert)</button>
           </div>
           <div id="filters-visual"></div>
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left" id="add-filter-btn">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left" id="add-filter-btn" data-repere="builder.donnees.filtres.ajouter" data-attribut="dsfr-data-query:filter" data-prerequis="source-chargee">
             <i class="ri-add-line"></i> Ajouter un filtre
           </button>
           <div id="filters-text" hidden>
             <div class="fr-input-group fr-input-group--sm fr-mb-0">
-              <input class="fr-input" type="text" id="query-filter" placeholder="Ex: region:eq:Bretagne, population:gte:10000">
+              <input class="fr-input" type="text" id="query-filter" data-repere="builder.donnees.filtres.texte" data-attribut="dsfr-data-query:filter" data-repere-libelle="Filtres en mode texte" placeholder="Ex: region:eq:Bretagne, population:gte:10000">
               <p class="fr-hint-text">Format : champ:opérateur:valeur (séparés par virgule) — synchronisé avec le mode visuel</p>
             </div>
             <details class="fr-accordion fr-accordion--sm fr-mt-1w">
@@ -315,7 +317,7 @@
         </div>
 
         <!-- Requête avancée : regroupement personnalisé + agrégats multiples -->
-        <details class="query-advanced fr-mt-2w" id="query-advanced-details">
+        <details class="query-advanced fr-mt-2w" id="query-advanced-details" data-zone="builder.donnees.requete">
           <summary>Requête avancée (group-by, agrégats multiples)</summary>
           <div class="fr-mt-1w">
             <div class="fr-input-group fr-input-group--sm">
@@ -323,48 +325,48 @@
                 Regroupement personnalisé
                 <span class="fr-hint-text">Champs de regroupement, si différent de l'axe X (séparés par virgule)</span>
               </label>
-              <input class="fr-input" type="text" id="query-group-by" placeholder="Ex: region, annee">
+              <input class="fr-input" type="text" id="query-group-by" data-repere="builder.donnees.requete.regroupement" data-attribut="dsfr-data-query:group-by" placeholder="Ex: region, annee">
             </div>
             <div class="fr-input-group fr-input-group--sm fr-mt-1w">
               <label class="fr-label" for="query-aggregate">
                 Agrégations multiples
                 <span class="fr-hint-text">Format : champ:fonction (séparées par virgule)</span>
               </label>
-              <input class="fr-input" type="text" id="query-aggregate" placeholder="Ex: population:sum, surface:avg">
+              <input class="fr-input" type="text" id="query-aggregate" data-repere="builder.donnees.requete.agregats" data-attribut="dsfr-data-query:aggregate" placeholder="Ex: population:sum, surface:avg">
             </div>
           </div>
         </details>
 
         <!-- Options spécifiques Tableau -->
-        <div class="datalist-config" id="datalist-config">
+        <div class="datalist-config" id="datalist-config" data-zone="builder.donnees.tableau">
           <fieldset class="fr-fieldset fr-mt-2w">
             <legend class="fr-fieldset__legend fr-text--sm">Options du tableau</legend>
             <div class="fr-fieldset__element">
               <div class="fr-checkbox-group fr-checkbox-group--sm">
-                <input type="checkbox" id="datalist-recherche" checked>
+                <input type="checkbox" id="datalist-recherche" data-repere="builder.donnees.tableau.recherche" data-attribut="dsfr-data-list:search" checked>
                 <label class="fr-label" for="datalist-recherche">Recherche</label>
               </div>
             </div>
             <div class="fr-fieldset__element">
               <div class="fr-checkbox-group fr-checkbox-group--sm">
-                <input type="checkbox" id="datalist-filtres">
+                <input type="checkbox" id="datalist-filtres" data-repere="builder.donnees.tableau.filtres" data-attribut="dsfr-data-list:filters">
                 <label class="fr-label" for="datalist-filtres">Filtres par colonne</label>
               </div>
             </div>
             <div class="fr-fieldset__element">
               <div class="fr-checkbox-group fr-checkbox-group--sm">
-                <input type="checkbox" id="datalist-export" checked>
+                <input type="checkbox" id="datalist-export" data-repere="builder.donnees.tableau.export-csv" data-attribut="dsfr-data-list:export" checked>
                 <label class="fr-label" for="datalist-export">Export CSV</label>
               </div>
             </div>
             <div class="fr-fieldset__element">
               <div class="fr-checkbox-group fr-checkbox-group--sm">
-                <input type="checkbox" id="datalist-export-html">
+                <input type="checkbox" id="datalist-export-html" data-repere="builder.donnees.tableau.export-html" data-attribut="dsfr-data-list:export">
                 <label class="fr-label" for="datalist-export-html">Export HTML</label>
               </div>
             </div>
           </fieldset>
-          <button class="fr-btn fr-btn--secondary fr-btn--sm fr-mt-1w fr-icon-settings-5-line fr-btn--icon-left" id="datalist-columns-btn" type="button">
+          <button class="fr-btn fr-btn--secondary fr-btn--sm fr-mt-1w fr-icon-settings-5-line fr-btn--icon-left" id="datalist-columns-btn" data-repere="builder.donnees.tableau.configurer" data-attribut="dsfr-data-list:columns" data-prerequis="source-chargee" type="button">
             Configurer les colonnes
           </button>
         </div>
@@ -373,7 +375,7 @@
       </div>
 
       <!-- ETAPE 4 : Apparence -->
-      <div class="config-section collapsed" id="section-appearance">
+      <div class="config-section collapsed" id="section-appearance" data-zone="builder.apparence" data-repere-libelle="Apparence">
         <div class="config-section-header" onclick="toggleSection('section-appearance')">
           <h3><span class="step-badge" aria-hidden="true">4</span><i class="ri-palette-line"></i> Apparence</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -384,12 +386,12 @@
         <div class="config-grid-2col">
           <div class="fr-input-group fr-input-group--sm">
             <label class="fr-label" for="chart-title">Titre</label>
-            <input class="fr-input" type="text" id="chart-title" value="Mon graphique" placeholder="Titre...">
+            <input class="fr-input" type="text" id="chart-title" data-repere="builder.apparence.titre" value="Mon graphique" placeholder="Titre...">
           </div>
 
           <div class="fr-input-group fr-input-group--sm">
             <label class="fr-label" for="chart-subtitle">Sous-titre / Source</label>
-            <input class="fr-input" type="text" id="chart-subtitle" value="" placeholder="Source : ...">
+            <input class="fr-input" type="text" id="chart-subtitle" data-repere="builder.apparence.sous-titre" value="" placeholder="Source : ...">
           </div>
         </div>
 
@@ -398,7 +400,7 @@
             Palette de couleurs
             <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-chart-palette" data-help="chart-palette"><i class="ri-question-line" aria-hidden="true"></i></button>
           </label>
-          <select class="fr-select" id="chart-palette">
+          <select class="fr-select" id="chart-palette" data-repere="builder.apparence.palette" data-attribut="dsfr-data-chart:selected-palette">
             <option value="default">Bleu France</option>
             <option value="categorical">Couleurs distinctes par catégorie</option>
             <option value="sequentialAscending">Dégradé clair → foncé</option>
@@ -419,7 +421,7 @@
            facettes, accessibilité — sections existantes, ids inchangés. -->
       <div class="advanced-group-label">Réglages avancés</div>
 
-      <div class="config-section collapsed" id="section-generation-mode" style="display: none;">
+      <div class="config-section collapsed" id="section-generation-mode" data-zone="builder.generation" data-repere-libelle="Mode de génération" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-generation-mode')">
           <h3><i class="ri-code-s-slash-line"></i> Mode de generation</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -427,14 +429,14 @@
         <p class="fr-hint-text config-section-hint">Embarqué : les données sont copiées dans le code (simple, mais figé). Dynamique : elles sont rechargées depuis l’API à chaque affichage.</p>
         <div class="config-section-content">
           <div class="fr-radio-group">
-            <input type="radio" id="mode-embedded" name="generation-mode" value="embedded" checked>
+            <input type="radio" id="mode-embedded" data-repere="builder.generation.embarque" name="generation-mode" value="embedded" checked>
             <label class="fr-label" for="mode-embedded">
-              Données integrees
+              Données intégrées
               <span class="fr-hint-text">Les données sont copiees dans le code HTML (simple, mais ne se met pas a jour)</span>
             </label>
           </div>
           <div class="fr-radio-group fr-mt-1w">
-            <input type="radio" id="mode-dynamic" name="generation-mode" value="dynamic">
+            <input type="radio" id="mode-dynamic" data-repere="builder.generation.dynamique" name="generation-mode" value="dynamic">
             <label class="fr-label" for="mode-dynamic">
               Chargement dynamique
               <span class="fr-hint-text">Les données sont chargees depuis l'API a chaque affichage (toujours a jour)</span>
@@ -444,10 +446,10 @@
           <div id="dynamic-options" class="fr-mt-2w" style="display: none;">
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="refresh-interval">
-                Rafraichissement automatique
+                Rafraîchissement automatique
                 <span class="fr-hint-text">En secondes (0 = pas de rafraichissement)</span>
               </label>
-              <input class="fr-input" type="number" id="refresh-interval" value="0" min="0" max="3600">
+              <input class="fr-input" type="number" id="refresh-interval" data-repere="builder.generation.rafraichissement" data-attribut="dsfr-data-source:refresh" value="0" min="0" max="3600">
             </div>
           </div>
 
@@ -457,7 +459,7 @@
         </div>
       </div>
 
-      <div class="config-section collapsed" id="section-normalize" style="display: none;">
+      <div class="config-section collapsed" id="section-normalize" data-zone="builder.nettoyage" data-repere-libelle="Nettoyage des données" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-normalize')">
           <h3><i class="ri-eraser-line"></i> Nettoyage des données</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -465,7 +467,7 @@
         <p class="fr-hint-text config-section-hint">Prépare les données brutes avant traitement : espaces, textes « 123 » en nombres, renommage de colonnes.</p>
         <div class="config-section-content">
           <div class="fr-toggle">
-            <input type="checkbox" class="fr-toggle__input" id="normalize-enabled" aria-describedby="normalize-hint">
+            <input type="checkbox" class="fr-toggle__input" id="normalize-enabled" data-repere="builder.nettoyage.activer" aria-describedby="normalize-hint">
             <label class="fr-toggle__label" for="normalize-enabled"
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
               Normalisation des données
@@ -479,18 +481,18 @@
                 Aplatir un sous-objet
                 <span class="fr-hint-text">Clé du sous-objet a promouvoir (ex: fields)</span>
               </label>
-              <input class="fr-input" type="text" id="normalize-flatten" placeholder="Ex: fields">
+              <input class="fr-input" type="text" id="normalize-flatten" data-repere="builder.nettoyage.aplatir" data-attribut="dsfr-data-normalize:flatten" placeholder="Ex: fields">
             </div>
 
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-trim">
+              <input type="checkbox" id="normalize-trim" data-repere="builder.nettoyage.espaces" data-attribut="dsfr-data-normalize:trim">
               <label class="fr-label" for="normalize-trim">Supprimer les espaces (trim)</label>
             </div>
 
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-numeric-auto">
+              <input type="checkbox" id="normalize-numeric-auto" data-repere="builder.nettoyage.nombres-auto" data-attribut="dsfr-data-normalize:numeric-auto">
               <label class="fr-label" for="normalize-numeric-auto">
-                Detection automatique des nombres
+                Détection automatique des nombres
                 <span class="fr-hint-text">Convertit les chaines "123" en nombres</span>
               </label>
             </div>
@@ -500,7 +502,7 @@
                 Champs numériques explicites
                 <span class="fr-hint-text">Noms de champs separes par virgule</span>
               </label>
-              <input class="fr-input" type="text" id="normalize-numeric" placeholder="Ex: population, budget, surface">
+              <input class="fr-input" type="text" id="normalize-numeric" data-repere="builder.nettoyage.nombres" data-attribut="dsfr-data-normalize:numeric" placeholder="Ex: population, budget, surface">
             </div>
 
             <div class="fr-input-group fr-input-group--sm fr-mt-1w">
@@ -508,11 +510,11 @@
                 Renommer des champs
                 <span class="fr-hint-text">Format : ancien:nouveau | ancien2:nouveau2</span>
               </label>
-              <input class="fr-input" type="text" id="normalize-rename" placeholder="Ex: pop_tot:Population | lib_dep:Departement">
+              <input class="fr-input" type="text" id="normalize-rename" data-repere="builder.nettoyage.renommer" data-attribut="dsfr-data-normalize:rename" placeholder="Ex: pop_tot:Population | lib_dep:Departement">
             </div>
 
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-strip-html">
+              <input type="checkbox" id="normalize-strip-html" data-repere="builder.nettoyage.sans-html" data-attribut="dsfr-data-normalize:strip-html">
               <label class="fr-label" for="normalize-strip-html">Supprimer les balises HTML</label>
             </div>
 
@@ -521,18 +523,18 @@
                 Remplacer des valeurs
                 <span class="fr-hint-text">Format : ancien:nouveau | ancien2:nouveau2 (vide pour supprimer)</span>
               </label>
-              <input class="fr-input" type="text" id="normalize-replace" placeholder="Ex: N/A: | n.d.: | -:0">
+              <input class="fr-input" type="text" id="normalize-replace" data-repere="builder.nettoyage.remplacer" data-attribut="dsfr-data-normalize:replace" placeholder="Ex: N/A: | n.d.: | -:0">
             </div>
 
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="normalize-lowercase-keys">
+              <input type="checkbox" id="normalize-lowercase-keys" data-repere="builder.nettoyage.cles-minuscules" data-attribut="dsfr-data-normalize:lowercase-keys">
               <label class="fr-label" for="normalize-lowercase-keys">Clés en minuscules</label>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="config-section collapsed" id="section-databox">
+      <div class="config-section collapsed" id="section-databox" data-zone="builder.cadre" data-repere-libelle="Cadre officiel DSFR">
         <div class="config-section-header" onclick="toggleSection('section-databox')">
           <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -540,7 +542,7 @@
         <p class="fr-hint-text config-section-hint">Encadre le graphique dans le bloc officiel DSFR : titre, source, date, téléchargement, plein écran.</p>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
-            <input type="checkbox" id="databox-toggle">
+            <input type="checkbox" id="databox-toggle" data-repere="builder.cadre.activer" data-attribut="dsfr-data-chart:databox">
             <label class="fr-label" for="databox-toggle">
               Encadrer le graphique (titre, source, téléchargement)
             </label>
@@ -548,41 +550,41 @@
           <div id="databox-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-title">Titre</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-title"
+              <input class="fr-input fr-input--sm" type="text" id="databox-title" data-repere="builder.cadre.titre" data-attribut="dsfr-data-chart:databox-title" data-repere-libelle="Titre du cadre"
                 placeholder="Ex : Population par region">
             </div>
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-source">Source</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-source"
+              <input class="fr-input fr-input--sm" type="text" id="databox-source" data-repere="builder.cadre.source" data-attribut="dsfr-data-chart:databox-source" data-repere-libelle="Source affichée dans le cadre"
                 placeholder="Ex : INSEE, RP 2021">
             </div>
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-date">Date</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-date"
+              <input class="fr-input fr-input--sm" type="text" id="databox-date" data-repere="builder.cadre.date" data-attribut="dsfr-data-chart:databox-date"
                 placeholder="Ex : Mars 2024">
             </div>
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-trend">Tendance</label>
-              <input class="fr-input fr-input--sm" type="text" id="databox-trend"
+              <input class="fr-input fr-input--sm" type="text" id="databox-trend" data-repere="builder.cadre.tendance" data-attribut="dsfr-data-chart:databox-trend"
                 placeholder="Ex : +5.2 ou -3.1">
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-              <input type="checkbox" id="databox-download" checked>
+              <input type="checkbox" id="databox-download" data-repere="builder.cadre.telechargement" data-attribut="dsfr-data-chart:databox-download" data-repere-libelle="Téléchargement CSV du cadre" checked>
               <label class="fr-label" for="databox-download">Téléchargement CSV</label>
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-              <input type="checkbox" id="databox-screenshot">
+              <input type="checkbox" id="databox-screenshot" data-repere="builder.cadre.capture" data-attribut="dsfr-data-chart:databox-screenshot">
               <label class="fr-label" for="databox-screenshot">Screenshot PNG</label>
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm">
-              <input type="checkbox" id="databox-fullscreen">
+              <input type="checkbox" id="databox-fullscreen" data-repere="builder.cadre.plein-ecran" data-attribut="dsfr-data-chart:databox-fullscreen">
               <label class="fr-label" for="databox-fullscreen">Plein écran</label>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="config-section collapsed" id="section-facets" style="display: none;">
+      <div class="config-section collapsed" id="section-facets" data-zone="builder.facettes" data-repere-libelle="Filtres à facettes" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-facets')">
           <h3><i class="ri-filter-3-line"></i> Filtres a facettes</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -590,7 +592,7 @@
         <p class="fr-hint-text config-section-hint">Ajoute des filtres interactifs sous le graphique (mode dynamique uniquement).</p>
         <div class="config-section-content">
           <div class="fr-toggle">
-            <input type="checkbox" class="fr-toggle__input" id="facets-enabled" aria-describedby="facets-hint">
+            <input type="checkbox" class="fr-toggle__input" id="facets-enabled" data-repere="builder.facettes.activer" aria-describedby="facets-hint">
             <label class="fr-toggle__label" for="facets-enabled"
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
               Filtres interactifs
@@ -600,7 +602,7 @@
 
           <div id="facets-options" style="display: none;" class="fr-mt-2w">
             <button class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-settings-5-line fr-btn--icon-left"
-              id="facets-fields-btn" type="button">
+              id="facets-fields-btn" data-repere="builder.facettes.configurer" data-attribut="dsfr-data-facets:fields" data-prerequis="source-chargee" type="button">
               Configurer les facettes
             </button>
             <p class="fr-text--xs fr-mt-1v" id="facets-fields-summary">Aucun champ configure</p>
@@ -610,12 +612,12 @@
                 Valeurs visibles par facette
                 <span class="fr-hint-text">Nombre de valeurs avant "Voir plus" (défaut: 6)</span>
               </label>
-              <input class="fr-input" type="number" id="facets-max-values" value="6" min="2" max="50">
+              <input class="fr-input" type="number" id="facets-max-values" data-repere="builder.facettes.valeurs-max" data-attribut="dsfr-data-facets:max-values" value="6" min="2" max="50">
             </div>
 
             <div class="fr-select-group fr-select-group--sm fr-mt-1w">
               <label class="fr-label" for="facets-sort">Tri des valeurs</label>
-              <select class="fr-select" id="facets-sort">
+              <select class="fr-select" id="facets-sort" data-repere="builder.facettes.tri" data-attribut="dsfr-data-facets:sort">
                 <option value="count">Par nombre (decroissant)</option>
                 <option value="count:asc">Par nombre (croissant)</option>
                 <option value="alpha">Alphabetique (A-Z)</option>
@@ -624,7 +626,7 @@
             </div>
 
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
-              <input type="checkbox" id="facets-hide-empty">
+              <input type="checkbox" id="facets-hide-empty" data-repere="builder.facettes.masquer-uniques" data-attribut="dsfr-data-facets:hide-empty">
               <label class="fr-label" for="facets-hide-empty">
                 Masquer les facettes avec une seule valeur
               </label>
@@ -637,7 +639,7 @@
            (#714). Il pilote `url-sync` + `url-params` de dsfr-data-facets et
            `url-sync` de dsfr-data-list ; `url-param-map` est deduit du prefixe
            de champs par le generateur. -->
-      <div class="config-section collapsed" id="section-url-sync" style="display: none;">
+      <div class="config-section collapsed" id="section-url-sync" data-zone="builder.partage" data-repere-libelle="Partage par l'adresse" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-url-sync')">
           <h3><i class="ri-links-line"></i> Partage par l'adresse</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -645,7 +647,7 @@
         <p class="fr-hint-text config-section-hint">Inscrit les filtres et la page courante dans l'adresse de la page : le lien copié rouvre la même vue.</p>
         <div class="config-section-content">
           <div class="fr-toggle">
-            <input type="checkbox" class="fr-toggle__input" id="url-sync-enabled" aria-describedby="url-sync-hint">
+            <input type="checkbox" class="fr-toggle__input" id="url-sync-enabled" data-repere="builder.partage.activer" data-attribut="dsfr-data-facets:url-sync dsfr-data-list:url-sync" aria-describedby="url-sync-hint">
             <label class="fr-toggle__label" for="url-sync-enabled"
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
               Adresse partageable
@@ -659,13 +661,13 @@
                 Nom du paramètre de page
                 <span class="fr-hint-text">Par défaut : page. À changer si l'une de vos facettes porte ce nom.</span>
               </label>
-              <input class="fr-input" type="text" id="url-page-param" value="page">
+              <input class="fr-input" type="text" id="url-page-param" data-repere="builder.partage.parametre-page" data-attribut="dsfr-data-list:url-page-param" value="page">
             </div>
           </div>
         </div>
       </div>
 
-      <div class="config-section collapsed" id="section-a11y">
+      <div class="config-section collapsed" id="section-a11y" data-zone="builder.accessibilite" data-repere-libelle="Accessibilité">
         <div class="config-section-header" onclick="toggleSection('section-a11y')">
           <h3><i class="ri-accessibility-line"></i> Accessibilité</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
@@ -673,23 +675,23 @@
         <p class="fr-hint-text config-section-hint">Ajoute un tableau de données et un export CSV sous le graphique, pour les lecteurs d’écran et l’open data (RGAA).</p>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
-            <input type="checkbox" id="a11y-toggle" checked>
+            <input type="checkbox" id="a11y-toggle" data-repere="builder.accessibilite.activer" checked>
             <label class="fr-label" for="a11y-toggle">
               Ajouter le composant accessibilité
             </label>
           </div>
           <div id="a11y-options" style="display: block; margin-left: 1.5rem; margin-top: 0.5rem;">
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-              <input type="checkbox" id="a11y-table" checked>
+              <input type="checkbox" id="a11y-table" data-repere="builder.accessibilite.tableau" data-attribut="dsfr-data-a11y:table" data-repere-libelle="Tableau de données accessible" checked>
               <label class="fr-label" for="a11y-table">Tableau de données</label>
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
-              <input type="checkbox" id="a11y-download" checked>
+              <input type="checkbox" id="a11y-download" data-repere="builder.accessibilite.telechargement" data-attribut="dsfr-data-a11y:download" data-repere-libelle="Téléchargement CSV accessible" checked>
               <label class="fr-label" for="a11y-download">Téléchargement CSV</label>
             </div>
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="a11y-description">Description (optionnelle)</label>
-              <textarea class="fr-input fr-input--sm" id="a11y-description" rows="2"
+              <textarea class="fr-input fr-input--sm" id="a11y-description" data-repere="builder.accessibilite.description" data-attribut="dsfr-data-a11y:description" rows="2"
                 placeholder="Ex : Ce graphique montre la repartition par region..."></textarea>
             </div>
           </div>
@@ -759,9 +761,9 @@
       </div>
 
       <!-- Onglet Code -->
-      <div slot="code">
+      <div slot="code" data-zone="builder.code" data-repere-libelle="Code">
         <p class="fr-text--sm">Copiez ce code pour l'integrer dans votre page :</p>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="copy-code-btn">
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="copy-code-btn" data-repere="builder.code.copier">
           <i class="ri-file-copy-line"></i> Copier le code
         </button>
         <pre class="code-output" id="generated-code">// Le code sera généré ici...</pre>
@@ -789,31 +791,31 @@
   </div>
 
   <!-- Modale configuration colonnes datalist -->
-  <div class="modal-overlay" id="datalist-columns-modal">
+  <div class="modal-overlay" id="datalist-columns-modal" data-zone="builder.donnees.tableau.colonnes">
     <div class="modal" style="max-width: 700px;">
       <div class="modal-header">
         <h3>Configuration des colonnes</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" id="datalist-columns-close">Fermer</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" id="datalist-columns-close" data-repere="builder.donnees.tableau.colonnes.fermer" data-repere-libelle="Fermer la configuration des colonnes">Fermer</button>
       </div>
       <div class="modal-body" id="datalist-columns-list">
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--sm" id="datalist-columns-save">Appliquer</button>
+        <button class="fr-btn fr-btn--sm" id="datalist-columns-save" data-repere="builder.donnees.tableau.colonnes.appliquer" data-attribut="dsfr-data-list:columns" data-repere-libelle="Appliquer les colonnes">Appliquer</button>
       </div>
     </div>
   </div>
 
   <!-- Modale configuration facettes -->
-  <div class="modal-overlay" id="facets-fields-modal">
+  <div class="modal-overlay" id="facets-fields-modal" data-zone="builder.facettes.champs">
     <div class="modal" style="max-width: 800px;">
       <div class="modal-header">
         <h3>Configuration des facettes</h3>
-        <button class="fr-btn fr-btn--close" title="Fermer" id="facets-fields-close">Fermer</button>
+        <button class="fr-btn fr-btn--close" title="Fermer" id="facets-fields-close" data-repere="builder.facettes.champs.fermer" data-repere-libelle="Fermer la configuration des facettes">Fermer</button>
       </div>
       <div class="modal-body" id="facets-fields-list">
       </div>
       <div class="modal-footer">
-        <button class="fr-btn fr-btn--sm" id="facets-fields-save">Appliquer</button>
+        <button class="fr-btn fr-btn--sm" id="facets-fields-save" data-repere="builder.facettes.champs.appliquer" data-attribut="dsfr-data-facets:fields" data-repere-libelle="Appliquer les facettes">Appliquer</button>
       </div>
     </div>
   </div>

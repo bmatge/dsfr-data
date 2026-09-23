@@ -88,6 +88,24 @@ export interface FieldInfo {
   fillRate: number;
 }
 
+/** Niveau d'un champ territoire (#1021) : celui d'un fond livré avec le paquet. */
+export type NiveauTerritoire = 'departement' | 'region';
+
+/** Champ portant un code de département ou de région, détecté sur l'échantillon. */
+export interface ChampTerritoire {
+  champ: string;
+  niveau: NiveauTerritoire;
+}
+
+/**
+ * Couche AGRÉGÉE d'une composition par échelle (#1021) : nombre
+ * d'enregistrements par territoire, joint au fond administratif. `depuis` :
+ * id de la couche de points dont elle est issue.
+ */
+export interface AgregatConfig extends ChampTerritoire {
+  depuis: string;
+}
+
 export interface LayerConfig {
   id: string;
   name: string;
@@ -163,6 +181,14 @@ export interface LayerConfig {
   bboxField: string;
   maxItems: number;
 
+  /**
+   * Champ territoire détecté par l'analyse de la source (#1021) : il rend
+   * possible la composition par échelle. `null` si aucun n'est sûr.
+   */
+  territoire: ChampTerritoire | null;
+  /** Couche agrégée d'une composition par échelle (#1021), `null` sinon. */
+  agregat: AgregatConfig | null;
+
   /** Resolved fields from source data (assistance de saisie) */
   fields: FieldInfo[];
   /** Preview data */
@@ -202,6 +228,16 @@ export interface CartoState {
 }
 
 let layerCounter = 0;
+
+/**
+ * Plafond de points d'une nouvelle couche dans la Carto (#1020) : 1 000, pour
+ * que la carte s'affiche vite sur un gros jeu (5 requetes Tabular de 200,
+ * #1019). Le generateur l'emet en `max-items` ET en `limit` de la source :
+ * la source ne charge pas plus que la couche ne dessine, et le bandeau de la
+ * couche donne les deux chiffres. La bibliotheque garde son propre defaut
+ * (`max-items` = 5000) : aucune page publiee ne change.
+ */
+export const DEFAULT_LAYER_MAX_ITEMS = 1000;
 
 export function createLayer(): LayerConfig {
   layerCounter++;
@@ -260,7 +296,10 @@ export function createLayer(): LayerConfig {
     bbox: false,
     bboxDebounce: 300,
     bboxField: '',
-    maxItems: 5000,
+    maxItems: DEFAULT_LAYER_MAX_ITEMS,
+
+    territoire: null,
+    agregat: null,
 
     fields: [],
     data: [],

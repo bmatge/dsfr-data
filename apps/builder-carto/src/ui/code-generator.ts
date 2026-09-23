@@ -12,6 +12,7 @@ import {
   getProvider,
   PROXY_BASE_URL_EMBED,
 } from '@dsfr-data/shared';
+import { urlContours } from '../composition-echelle.js';
 
 const MAP_A11Y_ID = 'carte';
 
@@ -33,10 +34,19 @@ function esc(val: string | number | boolean | null | undefined): string {
   return escapeHtml(val);
 }
 
+/**
+ * Id de ce que la couche consomme : la jointure fond × comptage pour une
+ * couche agrégée (#1021), le `dsfr-data-query` intermédiaire d'un filtre
+ * (#297), la source sinon.
+ */
+export function layerOutputId(layer: LayerConfig): string {
+  if (layer.agregat) return `${layer.id}-zones`;
+  return layer.filter ? `${layer.id}-filtre` : layer.id;
+}
+
 function layerAttrs(layer: LayerConfig): string {
   const attrs: string[] = [];
-  // Avec un filtre, le layer consomme le dsfr-data-query intermediaire (#297)
-  attrs.push(`source="${esc(layer.filter ? `${layer.id}-filtre` : layer.id)}"`);
+  attrs.push(`source="${esc(layerOutputId(layer))}"`);
   attrs.push(`type="${esc(layer.type)}"`);
 
   if (layer.latField) attrs.push(`lat-field="${esc(layer.latField)}"`);
@@ -108,7 +118,10 @@ function layerAttrs(layer: LayerConfig): string {
     if (layer.bboxDebounce !== 300) attrs.push(`bbox-debounce="${esc(layer.bboxDebounce)}"`);
     if (layer.bboxField) attrs.push(`bbox-field="${esc(layer.bboxField)}"`);
   }
-  if (layer.maxItems !== 5000) attrs.push(`max-items="${esc(layer.maxItems)}"`);
+  // Plafond toujours explicite (#1020) : le defaut de la Carto (1 000) n'est
+  // pas celui de la bibliotheque (5 000), et le `limit` de la source en est
+  // la copie — le lecteur du code doit voir les deux.
+  attrs.push(`max-items="${esc(layer.maxItems)}"`);
 
   // Timeline
   if (layer.timeField) {
@@ -157,6 +170,87 @@ function popupTag(layer: LayerConfig): string {
   }
 
   return `    <dsfr-data-map-popup ${attrs.join(' ')}>${inner}</dsfr-data-map-popup>`;
+}
+
+/**
+ * Noms de colonnes lus par un gabarit de popup (`{{chemin[:format][|defaut]}}`,
+ * `{{#if champ}}`, `{{/if}}`) : le premier segment de chaque chemin.
+ */
+function templateFields(template: string): string[] {
+  const out: string[] = [];
+  for (const m of template.matchAll(/\{\{\{?\s*([^}]*?)\s*\}?\}\}/g)) {
+    let expr = m[1];
+    if (expr.startsWith('/')) continue;
+    expr = expr.replace(/^#(?:if|unless)\s+/, '');
+    const path = expr.split(/[:|]/)[0].trim();
+    if (path) out.push(path);
+  }
+  return out;
+}
+
+/**
+ * Colonnes que la couche lit reellement (#985) — ce que la source doit
+ * demander, et rien d'autre : `select` devient `columns=` sur Tabular, et
+ * l'API ne rend que ces colonnes (366 892 → 22 383 octets pour 200 bornes
+ * IRVE a trois colonnes, mesure du 2026-09-22).
+ *
+ * Rend `null` — toutes les colonnes — des qu'un doute existe, car une colonne
+ * OUBLIEE est une colonne vide sur la carte, et une colonne INCONNUE fait
+ * repondre 400 a l'API :
+ * - aucun champ detecte (`layer.fields` vide) ;
+ * - un popup sans liste de champs ni gabarit, qui affiche TOUTES les colonnes ;
+ * - un champ reference qui n'est pas une colonne detectee (chemin imbrique
+ *   `{{a.b}}`, faute de frappe) ;
+ * - un nom portant `,` (separateur de `columns=`).
+ */
+export function layerSelectFields(layer: LayerConfig): string[] | null {
+  const known = new Set(layer.fields.map((f) => f.name));
+  if (known.size === 0) return null;
+
+  const wanted: string[] = [
+    layer.latField,
+    layer.lonField,
+    layer.geoField,
+    layer.colorField,
+    layer.timeField,
+    layer.bbox ? layer.bboxField : '',
+  ];
+  if (layer.type === 'geoshape') wanted.push(layer.fillField);
+  if (layer.type === 'circle') wanted.push(layer.radiusField);
+  if (layer.type === 'heatmap') wanted.push(layer.heatField);
+
+  if (!layer.noInteractive) {
+    const mode = layer.popupMode;
+    if (mode === 'tooltip') {
+      wanted.push(layer.tooltipField);
+    } else if (mode !== 'none') {
+      wanted.push(layer.titleField);
+      if (layer.popupTemplate) {
+        wanted.push(...templateFields(layer.popupTemplate));
+      } else {
+        const popupFields = layer.popupFields
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean);
+        if (popupFields.length === 0) return null;
+        wanted.push(...popupFields);
+      }
+    }
+  }
+
+  // Filtre de la couche (`champ:op:valeur, …`) : la query intermediaire le
+  // calcule sur les lignes recues, la colonne doit donc y etre.
+  if (layer.filter) {
+    for (const clause of layer.filter.split(',')) {
+      const field = clause.split(':')[0].trim();
+      if (field) wanted.push(field);
+    }
+  }
+
+  const fields = [...new Set(wanted.map((f) => (f ?? '').trim()).filter(Boolean))];
+  if (fields.length === 0) return null;
+  if (fields.some((f) => !known.has(f) || f.includes(','))) return null;
+  return fields;
 }
 
 /**
@@ -218,11 +312,53 @@ export function buildSourceTag(
     return '';
   }
 
-  // limit : echantillonnage (field-service) ou plafond utilisateur (max-items)
-  const limit = opts.limit ?? (isAdapter.current && layer.maxItems !== 5000 ? layer.maxItems : 0);
+  // limit : echantillonnage (field-service), sinon TOUJOURS le plafond de la
+  // couche en mode adaptateur (#1020) — y compris au defaut. Sans lui, la
+  // source chargeait jusqu'a 25 000 lignes pour qu'une couche en dessine
+  // 5 000 ; la couche lit la meta de la source et son bandeau dit ce qui
+  // n'est pas montre.
+  //
+  // Couche agregee (#1021) : ni `limit` ni `select`. Le comptage par
+  // territoire porte sur TOUT le jeu (le regroupement est delegue a l'API,
+  // qui ne rend qu'une ligne par territoire), et Tabular refuse `columns`
+  // a cote d'un agregateur.
+  const limit = opts.limit ?? (isAdapter.current && !layer.agregat ? layer.maxItems : 0);
   if (limit && isAdapter.current) attrs.push(`limit="${esc(limit)}"`);
 
+  // select : les seules colonnes lues par la couche (#985), sur Tabular (ou
+  // il devient `columns=`). Jamais pour l'echantillonnage de field-service
+  // (`opts.limit`), qui doit voir TOUTES les colonnes pour les proposer.
+  if (
+    provider.id === 'tabular' &&
+    isAdapter.current &&
+    opts.limit === undefined &&
+    !layer.agregat
+  ) {
+    const select = layerSelectFields(layer);
+    if (select) attrs.push(`select="${esc(select.join(', '))}"`);
+  }
+
   return `<dsfr-data-source ${attrs.join('\n  ')}>\n</dsfr-data-source>`;
+}
+
+/**
+ * Chaine d'une couche agregee (#1021) : sa source (sans plafond), le comptage
+ * par territoire (seule lectrice de la source : le regroupement est delegue,
+ * #765), le fond administratif du paquet, aplati, puis la jointure sur le
+ * code. `inner` : un territoire sans enregistrement n'est pas dessine, et un
+ * code absent du fond ne l'est pas non plus.
+ */
+function agregatTags(layer: LayerConfig, src: string): string[] {
+  const a = layer.agregat!;
+  const id = layer.id;
+  const where = layer.filter ? ` where="${esc(layer.filter)}"` : '';
+  return [
+    src,
+    `<dsfr-data-query id="${esc(id)}-agrege" source="${esc(id)}" group-by="${esc(a.champ)}" aggregate="${esc(a.champ)}:count"${where}>\n</dsfr-data-query>`,
+    `<dsfr-data-source id="${esc(id)}-contours" url="${esc(urlContours(a.niveau, LIB_URL))}" transform="features">\n</dsfr-data-source>`,
+    `<dsfr-data-normalize id="${esc(id)}-contours-plats" source="${esc(id)}-contours" flatten="properties">\n</dsfr-data-normalize>`,
+    `<dsfr-data-join id="${esc(id)}-zones" left="${esc(id)}-contours-plats" right="${esc(id)}-agrege" on="code=${esc(a.champ)}" type="inner">\n</dsfr-data-join>`,
+  ];
 }
 
 /** Attribut insets : compresse les 5 DROM en groupe `drom` si tous coches. */
@@ -257,7 +393,10 @@ export function generateCode(): string {
   const visibleLayers = state.layers.filter((l) => l.visible);
   for (const layer of visibleLayers) {
     const src = buildSourceTag(layer);
-    if (src) {
+    if (src && layer.agregat) {
+      lines.push(...agregatTags(layer, src));
+      lines.push('');
+    } else if (src) {
       lines.push(src);
       // Filtre du layer : un dsfr-data-query intermediaire (#297) —
       // l'ancien attribut filter du layer etait un no-op (jamais lu)
@@ -317,11 +456,15 @@ export function generateCode(): string {
 
   lines.push('</dsfr-data-map>');
 
-  // Compagnon d'accessibilite : tableau des donnees + export CSV lies a la carte
+  // Compagnon d'accessibilite : tableau des donnees + export CSV lies a la carte.
+  // Une couche agregee est la derniere choisie : le tableau lirait ses
+  // geometries. A defaut d'autre couche, il lit le comptage par territoire —
+  // et non la source brute, dont la query doit rester SEULE lectrice (#765).
   if (m.a11y) {
-    const first = visibleLayers.find((l) => l.source);
+    const withSource = visibleLayers.filter((l) => l.source);
+    const first = withSource.find((l) => !l.agregat) ?? withSource[0];
     if (first) {
-      const srcId = first.filter ? `${first.id}-filtre` : first.id;
+      const srcId = first.agregat ? `${first.id}-agrege` : layerOutputId(first);
       lines.push('');
       lines.push(
         `<dsfr-data-a11y for="${esc(MAP_A11Y_ID)}" source="${esc(srcId)}" table download></dsfr-data-a11y>`

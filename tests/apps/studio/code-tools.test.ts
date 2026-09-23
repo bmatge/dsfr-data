@@ -12,7 +12,7 @@ import { createEmptyDashboard, jsonAttr } from '@dsfr-data/shared';
 import { describeGeneratedCode } from '../../../apps/studio/src/ia/code-tools';
 import { runStudioLoop } from '../../../apps/studio/src/ia/agent-loop';
 import { buildSystemPrompt } from '../../../apps/studio/src/ia/system-prompt';
-import type { PostChat, OpenAIResponse } from '../../../apps/studio/src/ia/transport';
+import type { PostChat, OpenAIResponse } from '@dsfr-data/shared';
 
 const ROWS = Array.from({ length: 4812 }, (_, i) => ({
   region: `R${i}`,

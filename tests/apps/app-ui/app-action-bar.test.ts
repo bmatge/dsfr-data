@@ -288,4 +288,37 @@ describe('<app-action-bar>', () => {
     const bar = await mount('<button slot="primary" id="p">P</button>', '');
     expect(bar.querySelector('h1')).toBeNull();
   });
+
+  it('pastille : « Plus d’actions » reprend le data-count d’une action repliée (#1018)', async () => {
+    // Écran large : Diagnostic et Assistant sont des tertiaires, donc dans le
+    // menu fermé ; la pastille des constats y serait invisible.
+    const bar = await mount(`
+      <button slot="tertiary" id="diagnostic-btn">Diagnostic</button>
+      <button slot="tertiary" id="assistant-btn" class="fr-icon-question-answer-line">Assistant</button>
+      <button slot="secondary" id="copy">Copier le code</button>
+      <button slot="primary" id="run">Exécuter</button>
+    `);
+    const more = bar.moreMenu!;
+    await more.updateComplete;
+    expect(more.contains(byId('assistant-btn'))).toBe(true);
+    expect(more.dataset.count).toBeUndefined();
+
+    byId('assistant-btn').dataset.count = '2';
+    await vi.waitFor(() => expect(more.dataset.count).toBe('2'));
+    expect(more.trigger?.getAttribute('aria-label')).toBe("Plus d'actions, 2 constats à corriger");
+
+    delete byId('assistant-btn').dataset.count;
+    await vi.waitFor(() => expect(more.dataset.count).toBeUndefined());
+    expect(more.trigger?.hasAttribute('aria-label')).toBe(false);
+  });
+
+  it('pastille : une action visible hors du menu ne la reporte pas sur « Plus d’actions »', async () => {
+    const bar = await mount(`
+      <button slot="secondary" id="assistant-btn" data-count="1">Assistant</button>
+      <button slot="tertiary" id="reset">Réinitialiser</button>
+      <button slot="primary" id="run">Exécuter</button>
+    `);
+    expect(bar.moreMenu!.contains(byId('assistant-btn'))).toBe(false);
+    expect(bar.moreMenu!.dataset.count).toBeUndefined();
+  });
 });

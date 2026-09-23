@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { injectAppHeaderStyles } from '../../../packages/app-ui/src/app-header.js';
 import { injectAppActionBarStyles } from '../../../packages/app-ui/src/app-action-bar.js';
 import { injectAppDiagnosticStyles } from '../../../packages/app-ui/src/app-diagnostic-panel.js';
+import { injectAppAssistantStyles } from '../../../packages/app-ui/src/app-assistant.js';
 import { STACK_MAX_PX, PINNED } from '../../../packages/app-ui/src/chrome-breakpoints.js';
 
 /**
@@ -187,5 +188,73 @@ describe('le mobilier bas ne se recouvre pas', () => {
     expect(regle, 'la raison n’est pas reempilee').not.toBeNull();
     expect(regle![1]).toContain('--app-action-bar-fixed-h');
     expect(regle![1]).toContain('--app-diagnostic-h');
+  });
+});
+
+describe('le panneau Assistant cohabite avec le mobilier bas (#1011)', () => {
+  const css = () => feuille(injectAppAssistantStyles, 'app-assistant-style');
+
+  /** Corps de la premiere regle `selecteur{…}` du texte donne. */
+  function corps(texte: string, selecteur: string): string {
+    const debut = texte.indexOf(`${selecteur}{`);
+    expect(debut, `regle ${selecteur} introuvable`).toBeGreaterThanOrEqual(0);
+    return texte.slice(debut + selecteur.length + 1, texte.indexOf('}', debut));
+  }
+
+  it('le volet s’arrete AU-DESSUS du rail du Diagnostic et de la barre d’actions fixe', () => {
+    // T7 — mutation : `bottom:0` (ou retirer l'un des deux termes). Le volet
+    // recouvrirait le rail (780) ou la barre fixe (800) — ou serait recouvert
+    // par eux, avec sa zone de saisie dessous.
+    const regle = corps(reglesRacine(css()), '.assistant-panneau');
+    expect(regle).toContain('position:fixed');
+    expect(regle).toContain('--app-action-bar-fixed-h');
+    expect(regle).toContain('--app-diagnostic-h');
+  });
+
+  it('le volet passe SOUS le volet Diagnostic (770 < 780)', () => {
+    // T8 — mutation : z-index 900 (valeur des protos). Le Diagnostic qui
+    // s'ouvre ne passerait plus devant.
+    const assistant = /z-index:(\d+)/.exec(corps(reglesRacine(css()), '.assistant-panneau'));
+    const diag = /app-diagnostic-panel\{[^}]*z-index:(\d+)/.exec(
+      feuille(injectAppDiagnosticStyles, 'app-diagnostic-panel-style')
+    );
+    expect(assistant && diag).toBeTruthy();
+    expect(Number(assistant![1])).toBeLessThan(Number(diag![1]));
+  });
+
+  it('le decalage sous l’en-tete porte la garde PINNED', () => {
+    // T9 — mutation : poser `top:var(--app-header-h)` a la racine. Sur
+    // telephone le volet commencerait a 189 px d'un en-tete deja parti.
+    const racine = corps(reglesRacine(css()), '.assistant-panneau');
+    expect(racine).not.toContain('--app-header-h');
+    expect(conditionEnglobante(css(), '.assistant-panneau{top:var(--app-header-h')).toBe(PINNED);
+    // Et sous ce seuil, l'en-tete est epingle (T2) : le volet, qui commence a
+    // sa hauteur, ne le recouvre jamais — son menu utilisateur reste atteignable.
+    const enTete = feuille(injectAppHeaderStyles, 'app-header-active-style');
+    expect(conditionEnglobante(enTete, 'app-header{position:sticky')).toBe(PINNED);
+  });
+
+  it('en plein ecran (< 35.98em) la feuille couvre la largeur, safe-area en haut', () => {
+    // T10 — mutation : retirer le bloc 35.98em.
+    const brut = css();
+    expect(conditionEnglobante(brut, '.assistant-panneau{top:0;left:0;right:0')).toBe(
+      '(max-width:35.98em)'
+    );
+    expect(brut).toContain('safe-area-inset-top');
+  });
+
+  it('la raison de desactivation ne recouvre pas la saisie du volet ouvert (mobile)', () => {
+    // T11 — mutation : supprimer la regle. La raison, fixe a 800 juste au-dessus
+    // du rail, recouvrirait la zone de saisie.
+    const brut = css();
+    const aiguille = 'body:has(.assistant-panneau:not([hidden])) .app-action-bar__reason{';
+    expect(brut).toContain(aiguille);
+    expect(conditionEnglobante(brut, aiguille)).toBe('(max-width:47.99em)');
+  });
+
+  it('ferme, le volet ne change rien a l’empilement §3.8', () => {
+    // `[hidden]` l'emporte sur tout `display` : la feuille reduite n'occupe rien.
+    expect(css()).toContain('.assistant-panneau[hidden]');
+    expect(css()).toContain('display:none !important');
   });
 });

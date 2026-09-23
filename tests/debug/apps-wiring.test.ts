@@ -69,6 +69,30 @@ describe('le tampon ne fuit JAMAIS dans le code exporté', () => {
     expect(generateDashboardHTML(createEmptyDashboard())).not.toContain('__dsfrDataTrace');
   });
 
+  it('ni le journal réseau ni le journal console ne fuient sans option (#994)', () => {
+    // La sonde enveloppe `fetch` et `console` : dans la page exportée de
+    // l'utilisateur, ce serait une modification de SON runtime.
+    const exports = [
+      getPreviewHTML('<dsfr-data-source id="s"></dsfr-data-source>'),
+      generateDashboardHTML(createEmptyDashboard()),
+    ];
+    for (const html of exports) {
+      expect(html).not.toContain('__dsfrDataNet');
+      expect(html).not.toContain('__dsfrDataConsole');
+    }
+  });
+
+  it('avec debug, le journal part dans la même balise que le tampon, avant la lib (#994)', () => {
+    for (const html of [
+      getPreviewHTML('<dsfr-data-source id="s"></dsfr-data-source>', { debug: true }),
+      generateDashboardHTML(createEmptyDashboard(), { debug: true }),
+    ]) {
+      expect(html).toContain('__dsfrDataNet');
+      expect(html).toContain('__dsfrDataConsole');
+      expect(html.indexOf('__dsfrDataNet')).toBeLessThan(html.indexOf('dsfr-data.'));
+    }
+  });
+
   it('generateDashboardHTML avec debug l’injecte avant tout le reste', () => {
     const html = generateDashboardHTML(createEmptyDashboard(), { debug: true });
 
@@ -110,6 +134,34 @@ describe('les apps sans iframe observent une racine locale', () => {
     });
   }
 
+  for (const { app, fichier } of LOCALES) {
+    it(`${app} importe l’installateur du journal EN PREMIER (#994)`, () => {
+      // Plus bas, les imports précédents (bibliothèque, code de l'app)
+      // seraient évalués avant lui : leurs premières requêtes échapperaient
+      // au journal.
+      const imports = lire(fichier)
+        .split('\n')
+        .filter((l) => /^import\s/.test(l));
+      expect(imports[0]).toBe("import '@dsfr-data/shared/debug/installer-journal';");
+    });
+  }
+
+  it('l’installateur du journal est déclaré à effet de bord (#994)', () => {
+    // `sideEffects: false` sur le paquet ferait élaguer un import nu au build :
+    // l'app tournerait sans journal, sans la moindre erreur.
+    const pkg = JSON.parse(lire('packages/shared/package.json')) as {
+      sideEffects: unknown;
+      exports: Record<string, unknown>;
+    };
+    expect(pkg.sideEffects).toEqual(
+      expect.arrayContaining([
+        './src/debug/installer-journal.ts',
+        './dist/debug/installer-journal.js',
+      ])
+    );
+    expect(pkg.exports['./debug/*']).toBeDefined();
+  });
+
   it('l’Assistant IA est passé en mode live (#609)', () => {
     // Ce test affirmait l'inverse jusqu'a #609 : l'app dessinait son apercu
     // avec @gouvfr/dsfr-chart en direct, sans aucun composant dsfr-data, donc
@@ -132,5 +184,95 @@ describe('les apps sans iframe observent une racine locale', () => {
     // Le laisser en place aurait garanti sa reapparition : deux chemins de
     // rendu qui divergent, c'est le defaut que #609 supprime.
     expect(existsSync(join(ROOT, 'apps/builder-ia/src/ui/chart-renderer.ts'))).toBe(false);
+  });
+});
+
+/**
+ * L'assistant contextuel câblé au volet (#1017, #1018, ADR-143). Les quatre
+ * apps à aperçu en iframe : Builder, Tableau de bord et Playground montent
+ * leur assistant, et le bouton du volet devient « Demander à l'assistant »
+ * (`envoi: 'demander'`) ; le Studio, qui n'a pas d'assistant contextuel mais
+ * son propre chat, garde « Envoyer à l'assistant » (défaut). Les apps sans
+ * iframe (Carto, Pipeline) suivent le même câblage ; Sources n'a pas de volet.
+ */
+describe('l’assistant contextuel lit les constats du volet', () => {
+  const AVEC_ASSISTANT = [
+    { app: 'Builder', fichier: 'apps/builder/src/main.ts', monter: 'monterAssistantBuilder(' },
+    {
+      app: 'Tableau de bord',
+      fichier: 'apps/dashboard/src/main.ts',
+      monter: 'monterAssistantDashboard(',
+    },
+    {
+      app: 'Playground',
+      fichier: 'apps/playground/src/main.ts',
+      monter: 'monterAssistantPlayground(',
+    },
+    { app: 'Carto', fichier: 'apps/builder-carto/src/main.ts', monter: 'monterAssistantCarto(' },
+    {
+      app: 'Pipeline',
+      fichier: 'apps/pipeline-helper/src/main.ts',
+      monter: 'monterAssistantPipeline(',
+    },
+  ];
+
+  for (const { app, fichier, monter } of AVEC_ASSISTANT) {
+    it(`${app} : « Demander à l’assistant », pastille et « Me montrer » branchés`, () => {
+      const src = lire(fichier);
+      expect(src).toContain(monter);
+      expect(src).toContain("envoi: 'demander'");
+      expect(src).toContain('onSend: () => assistant?.ouvrir()');
+      expect(src).toContain('onConstats: () => assistant?.rafraichirConstats()');
+      expect(src).toContain('onMontrer:');
+      // Plus de navigation vers l'Assistant IA pour y déposer le diagnostic.
+      expect(src).not.toContain("appHref('builder-ia'");
+    });
+  }
+
+  it('les trois apps à iframe dotées d’un assistant gardent leur aperçu en iframe', () => {
+    for (const fichier of [
+      'apps/builder/src/main.ts',
+      'apps/dashboard/src/main.ts',
+      'apps/playground/src/main.ts',
+    ]) {
+      const src = lire(fichier);
+      expect(src, fichier).toContain('frame:');
+      expect(src, fichier).not.toContain('liveRoot:');
+    }
+  });
+
+  it('le Studio (iframe, sans assistant contextuel) garde « Envoyer à l’assistant »', () => {
+    const src = lire('apps/studio/src/main.ts');
+    expect(src).toContain('frame:');
+    expect(src).not.toContain("envoi: 'demander'");
+    expect(src).not.toContain('mountAssistant(');
+  });
+
+  it('l’Assistant IA garde « Envoyer à l’assistant » : il est lui-même un chat', () => {
+    const src = lire('apps/builder-ia/src/main.ts');
+    expect(src).not.toContain("envoi: 'demander'");
+    expect(src).not.toContain('mountAssistant(');
+  });
+
+  it('Sources : assistant de guidage seul, sans volet Diagnostic', () => {
+    const src = lire('apps/sources/src/main.ts');
+    expect(src).toContain('monterAssistantSources(');
+    expect(src).not.toContain('mountDiagnosticPanel');
+  });
+
+  it('chaque assistant d’app branche Albert en secours, jamais en premier', () => {
+    const apps = [
+      'builder',
+      'builder-carto',
+      'dashboard',
+      'pipeline-helper',
+      'playground',
+      'sources',
+    ];
+    for (const app of apps) {
+      const src = lire(`apps/${app}/src/assistant/index.ts`);
+      expect(src, app).toContain('brancherAlbert(assistant');
+      expect(src, app).toContain('mountAssistant<');
+    }
   });
 });

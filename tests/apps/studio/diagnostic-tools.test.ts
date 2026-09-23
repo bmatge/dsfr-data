@@ -1,19 +1,16 @@
 import { describe, it, expect, vi } from 'vitest';
-import {
-  DIAGNOSTIC_TOOLS,
-  DIAGNOSTIC_TOOL_NAMES,
-  REPEATABLE_TOOLS,
-  humanizeDiagnosticStep,
-  runDiagnosticTool,
-  type DiagnosticContext,
-} from '../../../apps/studio/src/ia/diagnostic-tools.js';
 import { runStudioLoop } from '../../../apps/studio/src/ia/agent-loop.js';
 import { buildSystemPrompt } from '../../../apps/studio/src/ia/system-prompt.js';
-import { createEmptyDashboard } from '@dsfr-data/shared';
-import type { FrameAttachment, Trace } from '@dsfr-data/shared';
+import { REPEATABLE_TOOLS, createEmptyDashboard } from '@dsfr-data/shared';
+import type { FrameAttachment, Trace, PostChat } from '@dsfr-data/shared';
 
 /**
- * Outils de diagnostic de l'assistant (#607).
+ * Outils de diagnostic dans la boucle du studio (#607).
+ *
+ * Les outils eux-memes vivent dans packages/shared depuis #1010 et sont
+ * testes dans `tests/shared/ia-diagnostic-tools.test.ts`. Restent ici ce qui
+ * est propre au studio : leur branchement dans la boucle, le budget de tours
+ * et le prompt systeme.
  *
  * Le test le plus important est celui de l'ANTI-BOUCLE : la boucle refuse de
  * re-payer un lookup identique. Applique a `run_and_trace`, ce garde-fou se
@@ -74,180 +71,15 @@ function makeTrace(over: Partial<Trace> = {}): Trace {
     lastEventAt: 1_000_000,
     quiescent: true,
     delegation: { q1: { groupBy: false, aggregate: false, orderBy: false, where: false } },
+    reseau: [],
+    console: [],
     ...over,
   };
 }
 
-function makeContext(trace: Trace | null, settled = true) {
-  const rerender = vi.fn();
-  const attachment = trace
-    ? ({
-        snapshot: () => trace,
-        waitForQuiescence: async () => settled,
-        current: () => null,
-        sawEarlyBuffer: () => true,
-        detach: () => {},
-      } as unknown as FrameAttachment)
-    : null;
-  const ctx: DiagnosticContext = {
-    attachment: () => attachment,
-    rerender,
-    redactValues: () => false,
-  };
-  return { ctx, rerender };
-}
-
-describe('schémas des outils', () => {
-  it('sont plats — contrainte du décodage guidé vLLM', () => {
-    // Meme contrainte que document.ts : un `oneOf` casse le decodage guide.
-    const json = JSON.stringify(DIAGNOSTIC_TOOLS);
-    expect(json).not.toContain('oneOf');
-    expect(json).not.toContain('anyOf');
-    expect(json).not.toContain('allOf');
-  });
-
-  it('déclarent additionalProperties: false partout', () => {
-    for (const tool of DIAGNOSTIC_TOOLS) {
-      expect(tool.function.parameters.additionalProperties).toBe(false);
-    }
-  });
-
-  it('les noms déclarés correspondent au jeu d’exécution', () => {
-    expect(new Set(DIAGNOSTIC_TOOLS.map((t) => t.function.name))).toEqual(
-      new Set(DIAGNOSTIC_TOOL_NAMES)
-    );
-  });
-});
-
-describe('run_and_trace', () => {
-  it('relance le rendu AVANT d’observer', async () => {
-    // Observer sans relancer rendrait la trace du document precedent : le
-    // modele conclurait que son correctif n'a rien change.
-    const { ctx, rerender } = makeContext(makeTrace());
-
-    await runDiagnosticTool('run_and_trace', {}, ctx);
-
-    expect(rerender).toHaveBeenCalled();
-  });
-
-  it('rend le flux en texte français', async () => {
-    const { ctx } = makeContext(makeTrace());
-
-    const out = await runDiagnosticTool('run_and_trace', {}, ctx);
-
-    expect(out).toContain('Flux —');
-    expect(out).toContain('src');
-    expect(out).toContain('reçoit 100 lignes ← src');
-  });
-
-  it('avertit quand le relevé est pris en plein vol', async () => {
-    // Un etat intermediaire presente comme final ferait conclure le modele
-    // sur des chiffres provisoires.
-    const { ctx } = makeContext(makeTrace({ quiescent: false }), false);
-
-    expect(await runDiagnosticTool('run_and_trace', {}, ctx)).toContain('ATTENTION');
-  });
-
-  it('explique l’absence d’aperçu au lieu de jeter', async () => {
-    const { ctx } = makeContext(null);
-
-    const out = await runDiagnosticTool('run_and_trace', {}, ctx);
-
-    expect(out).toContain('Aucun aperçu observable');
-  });
-
-  it('nomme les champs présents en entrée et absents en sortie', async () => {
-    // Le mode de panne le plus frequent : un champ renomme en amont vide
-    // tout l'aval sans lever la moindre erreur.
-    const { ctx } = makeContext(makeTrace());
-
-    const out = await runDiagnosticTool('run_and_trace', {}, ctx);
-
-    expect(out).toContain('Champs présents en entrée mais absents en sortie');
-    expect(out).toContain('montant');
-  });
-});
-
-describe('inspect_stage', () => {
-  it('détaille une étape', async () => {
-    const { ctx } = makeContext(makeTrace());
-
-    const out = await runDiagnosticTool('inspect_stage', { node_id: 'src' }, ctx);
-
-    expect(out).toContain('Étape src — dsfr-data-source');
-    expect(out).toContain('api-type="tabular"');
-    expect(out).toContain('dept (texte)');
-  });
-
-  it('liste les étapes connues quand l’id est faux', async () => {
-    // Rendre « introuvable » sans dire ce qui existe ferait deviner le
-    // modele — et gaspiller un tour.
-    const { ctx } = makeContext(makeTrace());
-
-    const out = await runDiagnosticTool('inspect_stage', { node_id: 'inexistant' }, ctx);
-
-    expect(out).toContain("n'existe pas");
-    expect(out).toContain('src, q1');
-  });
-
-  it('rend l’URL réellement appelée sur un échec (#603)', async () => {
-    const trace = makeTrace();
-    trace.states.src = {
-      status: 'error',
-      message: 'HTTP 400: Bad Request',
-      attemptedUrl: 'https://api.fr/x?dept__groupby=yes',
-      emissions: 0,
-    };
-    const { ctx } = makeContext(trace);
-
-    const out = await runDiagnosticTool('inspect_stage', { node_id: 'src' }, ctx);
-
-    expect(out).toContain('ÉCHEC : HTTP 400: Bad Request');
-    expect(out).toContain('https://api.fr/x?dept__groupby=yes');
-  });
-
-  it('dit où chaque opération s’est exécutée', async () => {
-    const { ctx } = makeContext(makeTrace());
-
-    expect(await runDiagnosticTool('inspect_stage', { node_id: 'q1' }, ctx)).toContain(
-      'Délégation : groupBy=client'
-    );
-  });
-});
-
-describe('confidentialité', () => {
-  it('masque les valeurs mais garde comptes et champs', async () => {
-    // La trace part vers un service externe : pour une source ministerielle,
-    // on veut le diagnostic sans les donnees.
-    const trace = makeTrace();
-    trace.states.src.sample = [{ dept: 'A', montant: 42 }];
-    const ctx: DiagnosticContext = {
-      attachment: () =>
-        ({
-          snapshot: () => trace,
-          waitForQuiescence: async () => true,
-        }) as unknown as FrameAttachment,
-      rerender: () => {},
-      redactValues: () => true,
-    };
-
-    const out = await runDiagnosticTool('inspect_stage', { node_id: 'src' }, ctx);
-
-    expect(out).not.toContain('42');
-    expect(out).toContain('dept (texte)');
-    expect(out).toContain('100 ligne');
-  });
-});
-
 describe('l’anti-boucle ne doit PAS avaler run_and_trace', () => {
   it('run_and_trace est déclaré répétable', () => {
     expect(REPEATABLE_TOOLS.has('run_and_trace')).toBe(true);
-  });
-
-  it('tous les outils de diagnostic sont répétables — ils observent du mutable', () => {
-    for (const name of DIAGNOSTIC_TOOL_NAMES) {
-      expect(REPEATABLE_TOOLS.has(name), `${name} doit être répétable`).toBe(true);
-    }
   });
 
   it('la boucle le rejoue vraiment deux fois de suite', async () => {
@@ -255,7 +87,7 @@ describe('l’anti-boucle ne doit PAS avaler run_and_trace', () => {
     // « Déjà fourni ci-dessus » et le modele conclurait sans avoir verifie.
     const calls: string[] = [];
     let round = 0;
-    const post = vi.fn(async () => {
+    const post = vi.fn<PostChat>(async () => {
       round += 1;
       if (round <= 2) {
         return {
@@ -330,7 +162,7 @@ describe('budget de tours', () => {
     // verification, le pire moment possible.
     const rounds = async (withDiagnostic: boolean) => {
       let n = 0;
-      const post = vi.fn(async () => {
+      const post = vi.fn<PostChat>(async () => {
         n += 1;
         return {
           choices: [
@@ -397,6 +229,7 @@ describe('prompt système', () => {
     // Autorisation explicite : sans elle, un modele prudent s'interdirait de
     // rappeler l'outil et conclurait sans verifier.
     expect(prompt).toContain('deux fois de suite');
+    expect(prompt).toContain('lister_constats');
   });
 
   it('ne pousse PAS la trace dans le prompt', () => {
@@ -409,10 +242,69 @@ describe('prompt système', () => {
   });
 });
 
-describe('libellés de progression', () => {
-  it('nomme chaque outil en français', () => {
-    expect(humanizeDiagnosticStep('run_and_trace', {})).toContain('relance');
-    expect(humanizeDiagnosticStep('inspect_stage', { node_id: 'q1' })).toContain('q1');
-    expect(humanizeDiagnosticStep('inconnu', {})).toBeNull();
+describe('lister_constats dans la boucle du studio (#1010)', () => {
+  it('est proposé au modèle et lit les constats fournis par le studio', async () => {
+    let round = 0;
+    const bodies: Record<string, unknown>[] = [];
+    const post = vi.fn<PostChat>(async (body) => {
+      bodies.push(body);
+      round += 1;
+      if (round === 1) {
+        return {
+          choices: [
+            {
+              message: {
+                role: 'assistant',
+                content: '',
+                tool_calls: [
+                  {
+                    id: 'c1',
+                    type: 'function' as const,
+                    function: { name: 'lister_constats', arguments: '{}' },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
+      return { choices: [{ message: { role: 'assistant', content: 'Voilà.' } }] };
+    });
+
+    await runStudioLoop({
+      conversation: [{ role: 'user', content: 'pourquoi c’est vide ?' }],
+      systemPrompt: 'test',
+      document: createEmptyDashboard(),
+      data: [],
+      fields: [],
+      sourceId: 'src',
+      post,
+      model: 'test',
+      diagnostic: {
+        attachment: () => null,
+        rerender: () => {},
+        redactValues: () => false,
+        constats: () => [
+          {
+            id: 'pipeline/zero-ligne@q1',
+            regle: 'pipeline/zero-ligne',
+            gravite: 'avertissement',
+            titre: 'q1 : aucune ligne',
+            explication: 'x',
+            reperes: [],
+            preuve: 'q1 → 0 ligne',
+            etape: 'q1',
+          },
+        ],
+      },
+    });
+
+    const noms = (bodies[0].tools as { function: { name: string } }[]).map((t) => t.function.name);
+    expect(noms).toContain('lister_constats');
+    const retours = (bodies[1].messages as { role: string; content: string }[])
+      .filter((m) => m.role === 'tool')
+      .map((m) => m.content)
+      .join('\n');
+    expect(retours).toContain('1. pipeline/zero-ligne@q1 — [avertissement]');
   });
 });

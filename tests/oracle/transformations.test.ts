@@ -38,6 +38,26 @@ describe('oracle / filtres ajoutés', () => {
     expect(passeFiltre(ligne, { field: 'absent', op: 'isnull-strict' })).toBe(true);
     expect(passeFiltre(ligne, { field: 'vide', op: 'isnotnull-strict' })).toBe(true);
   });
+
+  it('or : la ligne passe dès qu’UN filtre passe (champs multiples, #1026)', () => {
+    const ou = (value: string) => ({
+      op: 'or' as const,
+      any: [
+        { field: 'zone', op: 'contains' as const, value },
+        { field: 'code', op: 'contains' as const, value },
+      ],
+    });
+    expect(passeFiltre(ligne, ou('nor'))).toBe(true);
+    expect(passeFiltre(ligne, ou('01'))).toBe(true);
+    expect(passeFiltre(ligne, ou('zz'))).toBe(false);
+    expect(passeFiltre(ligne, { op: 'or', any: [] })).toBe(false);
+    // ET entre les filtres de la liste, OU dans le groupe
+    const rows: Row[] = [ligne, { zone: 'sud', code: '02' }, { zone: 'est', code: 'nord' }];
+    expect(applyFilter(rows, [ou('nord')])).toHaveLength(2);
+    expect(applyFilter(rows, [ou('nord'), { field: 'zone', op: 'eq', value: 'est' }])).toEqual([
+      { zone: 'est', code: 'nord' },
+    ]);
+  });
 });
 
 describe('oracle / regroupement et tri', () => {

@@ -20,11 +20,12 @@
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
 import type { Check, Expect, Manifest, Step } from '../../tools/oracle/manifest.js';
-import { MESURES, TERRITOIRES, urlJeu } from './fixtures.js';
+import { MESURES, RESSOURCE_TABULAR, TERRITOIRES, urlJeu } from './fixtures.js';
 import {
   pairePaginee,
   sourceOds,
   sourceTabular,
+  TAILLE_PAGE,
   urlsDe,
   type Forme,
 } from './fixtures-delegation.js';
@@ -716,7 +717,435 @@ const SANS_ADAPTATEUR: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 6. Tabular : ce que l'API ne fait pas, et ce qu'elle ne dit pas (#1025)
+// ---------------------------------------------------------------------------
+
+/** Population par département : 101 groupes, trois pages de 40. */
+const PAR_DEPT: Step = {
+  op: 'group-by',
+  by: 'code_dept',
+  columns: { population__sum: { agg: 'sum', field: 'population' } },
+};
+
+/**
+ * Les départements, du MOINS peuplé au plus peuplé. Le jeu range ses lignes à
+ * peu près par population décroissante : les dix premiers groupes rendus par
+ * le serveur SONT les dix plus peuplés, et un faux « top 10 » décroissant
+ * (dix groupes lus, puis triés) passerait inaperçu. Le « top 10 » croissant,
+ * lui, ne tient que si les 101 groupes ont été lus.
+ */
+const GROUPE_DEPT_ASC: Step[] = [
+  PAR_DEPT,
+  { op: 'order-by', column: 'population__sum', dir: 'asc' },
+];
+
+/** Les départements, par code : un tri sur la colonne de regroupement. */
+const GROUPE_DEPT_CLE: Step[] = [PAR_DEPT, { op: 'order-by', column: 'code_dept', dir: 'asc' }];
+
+const TABULAR_API: Check[] = [
+  {
+    id: 'tabular-groupby-sans-agregat',
+    mode: 'deterministic',
+    origin:
+      '#1025 — `champ__groupby` SEUL ne regroupe pas : l’API rend une ligne par ligne brute, réduite au champ (`Code sexe__groupby&page_size=5` → F, M, M, F, M, mesuré le 2026-09-22, api-tabular#119). Déléguer un `group-by` sans agrégat affichait donc 137 lignes répétées pour 8 académies. Il n’est plus délégué : la query regroupe les lignes brutes.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-modalites')}
+  <dsfr-data-query id="q-modalites" source="s-modalites" group-by="academie"></dsfr-data-query>
+  <dsfr-data-kpi id="k-modalites" source="q-modalites" value="count" format="nombre"
+    label="Académies"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-modalites',
+        key: 'academie',
+        columns: [],
+        pipeline: [{ op: 'group-by', by: 'academie', columns: {} }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-modalites',
+        agg: 'count',
+        pipeline: [{ op: 'group-by', by: 'academie', columns: {} }],
+      },
+      urlsDe('groupby-seul-non-delegue', 'tabular', 'academie__groupby', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-groupes-page-deux',
+    mode: 'deterministic',
+    origin:
+      '#1025 — une réponse Tabular agrégée ne porte pas de `meta.total` (`{page, page_size}` seulement, `links.next` pagine les groupes, mesuré le 2026-09-22). Lu comme un total de 0, il masquait la pagination d’une liste `server-side` : seuls les 40 premiers des 101 départements étaient atteignables. Total inconnu = `undefined` : la page suivante est proposée tant que la page est pleine, et la page 2 montre les groupes 41 à 80. Trié sur la colonne de REGROUPEMENT, que l’API sait trier (`EPCI__sort` → 200, mesuré le 2026-09-23) : c’est elle qui pagine les groupes. Un tri sur l’agrégat suit un autre chemin (#1045, `tabular-top-agregat-page-deux`).',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-dept', { serverSide: true })}
+  <dsfr-data-query id="q-dept" source="s-dept" group-by="code_dept" aggregate="population:sum"
+    order-by="code_dept:asc"></dsfr-data-query>
+  <dsfr-data-list id="l-dept" source="q-dept" columns="code_dept:Département, population__sum:Population"
+    server-sort></dsfr-data-list>`,
+    actions: [{ kind: 'click', selector: '#l-dept .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-dept',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_CLE, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      urlsDe('groupes-page-deux', 'tabular', 'page=2', 'last'),
+      urlsDe('groupes-tri-sur-la-cle', 'tabular', 'code_dept__sort=asc', 'last'),
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 6 bis. Tabular : un tri sur l'agrégat ne part pas au serveur (#1045)
+// ---------------------------------------------------------------------------
+
+/**
+ * L'API Tabular ne trie pas une colonne d'agrégat : `NB_VP__sum__sort=desc`
+ * avec `EPCI__groupby&NB_VP__sum` rend 400, 42703 « column …NB_VP__sum does
+ * not exist » (mesuré le 2026-09-23), sans en-tête CORS. Le faux serveur
+ * acceptait tout, et les contrôles qui délèguent ce tri passaient au vert.
+ * L'adaptateur lit désormais les groupes COMPLETS et trie lui-même — jamais
+ * une page de groupes, dont le tri ne serait pas un « top » du jeu.
+ */
+const TABULAR_TRI_AGREGAT: Check[] = [
+  {
+    id: 'tabular-top-n-source',
+    mode: 'deterministic',
+    origin:
+      '#1045 — le « top 10 » posé sur la source elle-même : regroupement, agrégat, tri sur l’agrégat et `limit="10"` — ici les dix départements les MOINS peuplés. Le tri ne part plus au serveur (400 sur l’API réelle) ; les 101 groupes sont lus, triés, PUIS coupés à dix. Lire dix groupes et les trier rendrait un faux top 10 : les dix premiers groupes rendus, rangés par population.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-top" api-type="tabular" resource="${RESSOURCE_TABULAR}"
+    group-by="code_dept" aggregate="population:sum" order-by="population__sum:asc"
+    limit="10"></dsfr-data-source>
+  <dsfr-data-list id="l-top" source="s-top"
+    columns="code_dept:Département, population__sum:Population"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-top',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_ASC, { op: 'limit', n: 10 }],
+      },
+      urlsDe('top-n-regroupement-delegue', 'tabular', 'code_dept__groupby', 'all'),
+      urlsDe('top-n-tri-non-delegue', 'tabular', '__sort', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-top-agregat-serveur',
+    mode: 'deterministic',
+    origin:
+      '#1045 — le même « top » en pagination serveur : la première page d’une liste `server-side` triée sur l’agrégat doit montrer les 40 départements les MOINS peuplés des 101, pas les 40 premiers groupes rendus par l’API rangés entre eux. Trier la page reçue donnerait un faux top 40.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-top-page', { serverSide: true })}
+  <dsfr-data-query id="q-top-page" source="s-top-page" group-by="code_dept"
+    aggregate="population:sum" order-by="population__sum:asc"></dsfr-data-query>
+  <dsfr-data-list id="l-top-page" source="q-top-page"
+    columns="code_dept:Département, population__sum:Population" server-sort></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-top-page',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_ASC, { op: 'page', size: TAILLE_PAGE, number: 1 }],
+      },
+      urlsDe('top-page-regroupement-delegue', 'tabular', 'code_dept__groupby', 'last'),
+      urlsDe('top-page-tri-non-delegue', 'tabular', 'population__sum__sort', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-top-agregat-page-deux',
+    mode: 'deterministic',
+    origin:
+      '#1045 — la page 2 de la même liste : les départements classés 41 à 80 par population croissante, découpés dans les groupes complets triés. Le nombre de groupes est alors connu (101) : la pagination n’a plus à le deviner.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-top-p2', { serverSide: true })}
+  <dsfr-data-query id="q-top-p2" source="s-top-p2" group-by="code_dept"
+    aggregate="population:sum" order-by="population__sum:asc"></dsfr-data-query>
+  <dsfr-data-list id="l-top-p2" source="q-top-p2"
+    columns="code_dept:Département, population__sum:Population" server-sort></dsfr-data-list>`,
+    actions: [{ kind: 'click', selector: '#l-top-p2 .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-top-p2',
+        columns: [{ column: 'code_dept' }, { column: 'population__sum', numeric: true }],
+        pipeline: [...GROUPE_DEPT_ASC, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      urlsDe('top-page-deux-tri-non-delegue', 'tabular', 'population__sum__sort', 'none'),
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 7. Tabular : moins d'octets, pas un chiffre de change (#985)
+// ---------------------------------------------------------------------------
+
+/** Le nom de colonne piégeux du jeu : apostrophe et espaces (#615). */
+const HABITANTS = "Nombre d'habitants";
+
+const TABULAR_VOLUME: Check[] = [
+  {
+    id: 'tabular-select-projection',
+    mode: 'deterministic',
+    origin:
+      '#985 — le `select` d’une source Tabular devient `columns=` : l’API ne rend que les colonnes nommées (34 721 → 3 098 octets pour 50 élus à deux colonnes, 366 892 → 22 383 octets pour 200 bornes IRVE à trois colonnes, mesuré le 2026-09-22). La projection retire des colonnes, jamais des lignes : le compte, la somme et les modalités ne bougent pas — et une colonne oubliée dans la projection vide la somme.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-proj', { select: 'academie, population' })}
+  <dsfr-data-kpi id="k-proj-n" source="s-proj" value="count" format="nombre"
+    label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-proj-pop" source="s-proj" value="population:sum" format="nombre"
+    label="Population"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-proj-aca" source="s-proj" value="academie:distinct" format="nombre"
+    label="Académies"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-proj-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-proj-pop', agg: 'sum', field: 'population' },
+      { kind: 'kpi', id: 'k-proj-aca', agg: 'distinct', field: 'academie' },
+      urlsDe('select-projection', 'tabular', 'columns=academie,population', 'all'),
+    ],
+  },
+
+  {
+    id: 'tabular-select-projection-serveur',
+    mode: 'deterministic',
+    origin:
+      '#985 — la même projection en pagination serveur (`fetchPage`) : la liste montre les mêmes valeurs, colonne pour colonne, avec deux colonnes au lieu de sept.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-proj-page', { serverSide: true, select: `region, ${HABITANTS}` })}
+  <dsfr-data-list id="l-proj-page" source="s-proj-page"
+    columns="region:Territoire, ${HABITANTS}:Habitants"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-proj-page',
+        columns: [{ column: 'region' }, { column: HABITANTS, numeric: true }],
+        pipeline: [{ op: 'page', size: TAILLE_PAGE, number: 1 }],
+      },
+      // Le journal de la page consigne les URL DÉCODÉES
+      urlsDe('select-projection-page', 'tabular', `columns=region,${HABITANTS}`, 'all'),
+    ],
+  },
+
+  {
+    id: 'tabular-select-et-regroupement',
+    mode: 'deterministic',
+    origin:
+      '#985 — un regroupement délégué désactive la projection : l’API refuse `columns` à côté d’un agrégateur (400 « the argument `columns` cannot be set alongside aggregators », mesuré le 2026-09-22). Le `select` de la source reste posé, la query délègue quand même, et les sommes par académie sont justes.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-proj-g', { select: 'academie, population' })}
+  <dsfr-data-query id="q-proj-g" source="s-proj-g" group-by="academie"
+    aggregate="population:sum"></dsfr-data-query>
+  <dsfr-data-kpi id="k-proj-g" source="q-proj-g" value="population__sum:sum" format="nombre"
+    label="Population"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-proj-g',
+        key: 'academie',
+        columns: ['population__sum'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'academie',
+            columns: { population__sum: { agg: 'sum', field: 'population' } },
+          },
+        ],
+      },
+      { kind: 'kpi', id: 'k-proj-g', agg: 'sum', field: 'population' },
+      urlsDe('regroupement-delegue-avec-select', 'tabular', 'academie__groupby', 'last'),
+      urlsDe('regroupement-sans-projection', 'tabular', 'columns=', 'none'),
+    ],
+  },
+
+  {
+    id: 'tabular-colonne-a-espaces-deleguee',
+    mode: 'deterministic',
+    origin:
+      '#985 — un nom de colonne à espaces et apostrophe se délègue, percent-encodé : le parseur de l’API l’accepte (`Libellé du département__groupby&Code sexe__count` → 200, mesuré le 2026-09-22). L’ancien garde-fou (#244, #289) le refusait et faisait télécharger tout le jeu pour agréger dans le navigateur : même chiffre, jusqu’à 25 000 lignes. Le filtre du `where` part aussi au serveur.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-esp')}
+  <dsfr-data-query id="q-esp" source="s-esp" where="${HABITANTS}:gt:900000"
+    group-by="academie" aggregate="${HABITANTS}:sum"></dsfr-data-query>
+  <dsfr-data-list id="l-esp" source="q-esp"
+    columns="academie:Académie, ${HABITANTS}__sum:Habitants"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-esp',
+        key: 'academie',
+        columns: [`${HABITANTS}__sum`],
+        pipeline: [
+          { op: 'filter', filters: [{ field: HABITANTS, op: 'gt', value: 900000 }] },
+          {
+            op: 'group-by',
+            by: 'academie',
+            columns: { [`${HABITANTS}__sum`]: { agg: 'sum', field: HABITANTS } },
+          },
+        ],
+      },
+      urlsDe('colonne-a-espaces-groupby', 'tabular', 'academie__groupby', 'last'),
+      // Le journal de la page consigne les URL DÉCODÉES
+      urlsDe('colonne-a-espaces-agregat', 'tabular', `${HABITANTS}__sum`, 'last'),
+      urlsDe(
+        'colonne-a-espaces-filtre',
+        'tabular',
+        `${HABITANTS}__strictly_greater=900000`,
+        'last'
+      ),
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 7. Le OU entre champs : `a|b:op:valeur` (#1026)
+// ---------------------------------------------------------------------------
+
+/**
+ * La clause multi-champs de la bibliothèque, écrite pour l'oracle comme une
+ * disjonction de filtres ordinaires. `contains` sans repliement : Tabular est
+ * insensible à la casse et SENSIBLE aux accents (`ilike`, mesuré le
+ * 2026-09-22 : `ELIE` → 48, `ÉLIE` → 3).
+ */
+function ou(fields: string[], op: 'contains' | 'eq', value: string) {
+  return { op: 'or' as const, any: fields.map((field) => ({ field, op, value })) };
+}
+
+/** « a » dans la région OU l'académie : 3 + 52 lignes, 1 en commun → 54. */
+const REGION_OU_ACADEMIE = ou(['region', 'academie'], 'contains', 'a');
+
+const TABULAR_OU: Check[] = [
+  // La recherche serveur multi-colonnes : l'objectif de #1026
+  {
+    id: 'tabular-recherche-serveur-multi-colonnes',
+    mode: 'deterministic',
+    origin:
+      '#1026 — `dsfr-data-search fields="region,academie" server-search` sur Tabular : le terme part au serveur en `or=(region__contains.a,academie__contains.a)` (gabarit par défaut `{fields}:contains:{q}`), et le compteur lit `meta.total`, l’union VRAIE sur tout le jeu (mesuré sur l’API : 351 = 189 + 164 − 2 pour MARTIN chez les élus). La source pagine par 40 : un filtre resté client ne verrait que la première page et compterait au plus 40.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-rm', { serverSide: true })}
+  <dsfr-data-search id="r-mc" source="s-rm" fields="region,academie" server-search count
+    debounce="0" min-length="0" label="Rechercher un territoire"></dsfr-data-search>
+  <dsfr-data-kpi id="k-rm-total" source="r-mc" value="meta:total" format="nombre"
+    label="Territoires trouvés"></dsfr-data-kpi>`,
+    actions: [{ kind: 'fill', selector: '#r-mc input', value: 'a' }],
+    expects: [
+      {
+        kind: 'text',
+        id: 'r-mc',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [REGION_OU_ACADEMIE] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rm-total',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [REGION_OU_ACADEMIE] }],
+      },
+      urlsDe(
+        'recherche-multi-colonnes-or',
+        'tabular',
+        'or=(region__contains.a,academie__contains.a)',
+        'last'
+      ),
+    ],
+  },
+
+  // Le `where` d'une query, délégué en `or=` puis regroupé par le serveur
+  ...pairePaginee(
+    {
+      id: 'tabular-where-multi-champs',
+      api: 'tabular',
+      origin:
+        '#1026 — `where="region|academie:contains:a"` : même opérateur, même valeur sur deux champs, reliés par un OU. Délégué en `or=(…)` avec le regroupement, il doit donner les groupes que l’oracle recalcule sur l’union — ni l’intersection (1 ligne), ni le seul premier champ (3 lignes).',
+      query:
+        'where="region|academie:contains:a" group-by="academie" aggregate="population:sum" order-by="academie:asc"',
+      colonnes: 'academie:Académie, population__sum:Population',
+      expects: [
+        {
+          kind: 'rows',
+          id: 'q',
+          key: 'academie',
+          columns: ['population__sum'],
+          pipeline: [
+            { op: 'filter', filters: [REGION_OU_ACADEMIE] },
+            {
+              op: 'group-by',
+              by: 'academie',
+              columns: { population__sum: { agg: 'sum', field: 'population' } },
+            },
+            { op: 'order-by', column: 'academie', dir: 'asc' },
+          ],
+        },
+      ],
+    },
+    [
+      urlsDe(
+        'where-multi-champs-or',
+        'tabular',
+        'or=(region__contains.a,academie__contains.a)',
+        'last'
+      ),
+    ]
+  ),
+
+  // La même grammaire sur Opendatasoft : `(… OR …)` en ODSQL
+  ...pairePaginee(
+    {
+      id: 'ods-where-multi-champs',
+      api: 'ods',
+      origin:
+        '#1026 — `where="code_dept|code_reg:eq:11"` sur Opendatasoft : la clause devient `(code_dept = "11" OR code_reg = "11")`, parenthésée parce que les clauses se joignent par AND. 2 départements + 11 lignes de la région 11 → 13.',
+      query:
+        'where="code_dept|code_reg:eq:11" group-by="pays_iso2" aggregate="population:sum:pop" order-by="pop:desc"',
+      colonnes: 'pays_iso2:Pays, pop:Population',
+      expects: [
+        {
+          kind: 'rows',
+          id: 'q',
+          key: 'pays_iso2',
+          columns: ['pop'],
+          pipeline: [
+            { op: 'filter', filters: [ou(['code_dept', 'code_reg'], 'eq', '11')] },
+            {
+              op: 'group-by',
+              by: 'pays_iso2',
+              columns: { pop: { agg: 'sum', field: 'population' } },
+            },
+            { op: 'order-by', column: 'pop', dir: 'desc' },
+          ],
+        },
+      ],
+    },
+    [urlsDe('where-multi-champs-odsql', 'ods', '(code_dept = "11" OR code_reg = "11")', 'last')]
+  ),
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
-  checks: [...PAIRES, ...PARTAGE, ...PLAFOND, ...ATTENTE, ...SANS_ADAPTATEUR],
+  checks: [
+    ...PAIRES,
+    ...PARTAGE,
+    ...PLAFOND,
+    ...ATTENTE,
+    ...SANS_ADAPTATEUR,
+    ...TABULAR_API,
+    ...TABULAR_TRI_AGREGAT,
+    ...TABULAR_VOLUME,
+    ...TABULAR_OU,
+  ],
 };

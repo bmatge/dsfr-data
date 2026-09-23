@@ -30,24 +30,26 @@
 
        « code » reste jusqu'au PreviewPanel du lot 4 (#541). -->
 
-  <app-action-bar heading="Pipeline">
-    <button slot="help" id="btn-toggle-help" class="fr-icon-question-line">Visite guidée</button>
+  <app-action-bar heading="Pipeline" data-zone="pipeline.actions" data-repere-libelle="Barre d'actions">
+    <button slot="help" id="btn-toggle-help" data-repere="pipeline.actions.visite" class="fr-icon-question-line">Visite guidée</button>
     <app-menu slot="secondary" label="Ajouter une étape" icon="fr-icon-add-line">
-      <button id="btn-add-source" class="fr-icon-database-line" title="Ajouter une source de données (fetch HTTP)">Source</button>
-      <button id="btn-add-normalize" class="fr-icon-edit-line" title="Normaliser les données (types, renommage, trim, aplatir)">Normaliser</button>
-      <button id="btn-add-query" class="fr-icon-filter-line" title="Transformer les données (filtre, groupe, tri, agrégation)">Requêter</button>
-      <button id="btn-add-join" class="fr-icon-git-merge-line" title="Joindre deux sources sur une clé pivot">Joindre</button>
-      <button id="btn-add-search" class="fr-icon-search-line" title="Ajouter une barre de recherche textuelle">Rechercher</button>
-      <button id="btn-add-facets" class="fr-icon-list-unordered" title="Ajouter des filtres à facettes interactifs">Facettes</button>
-      <button id="btn-add-output" class="fr-icon-check-line" title="Données reçues en bout de chaîne">Sortie</button>
+      <button id="btn-add-source" data-repere="pipeline.actions.ajouter-source" data-repere-libelle="Ajouter une étape Source" class="fr-icon-database-line" title="Ajouter une source de données (fetch HTTP)">Source</button>
+      <button id="btn-add-normalize" data-repere="pipeline.actions.ajouter-normalisation" data-repere-libelle="Ajouter une étape Normaliser" class="fr-icon-edit-line" title="Normaliser les données (types, renommage, trim, aplatir)">Normaliser</button>
+      <button id="btn-add-query" data-repere="pipeline.actions.ajouter-requete" data-repere-libelle="Ajouter une étape Requêter" class="fr-icon-filter-line" title="Transformer les données (filtre, groupe, tri, agrégation)">Requêter</button>
+      <button id="btn-add-join" data-repere="pipeline.actions.ajouter-jointure" data-repere-libelle="Ajouter une étape Joindre" class="fr-icon-git-merge-line" title="Joindre deux sources sur une clé pivot">Joindre</button>
+      <button id="btn-add-search" data-repere="pipeline.actions.ajouter-recherche" data-repere-libelle="Ajouter une étape Rechercher" class="fr-icon-search-line" title="Ajouter une barre de recherche textuelle">Rechercher</button>
+      <button id="btn-add-facets" data-repere="pipeline.actions.ajouter-facettes" data-repere-libelle="Ajouter une étape Facettes" class="fr-icon-list-unordered" title="Ajouter des filtres à facettes interactifs">Facettes</button>
+      <button id="btn-add-output" data-repere="pipeline.actions.ajouter-sortie" data-repere-libelle="Ajouter une étape Sortie" class="fr-icon-check-line" title="Données reçues en bout de chaîne">Sortie</button>
     </app-menu>
-    <button slot="tertiary" id="btn-generate" class="fr-icon-clipboard-line" title="Voir et copier le code HTML correspondant au pipeline">Copier le code</button>
-    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code du pipeline dans le Playground">Ouvrir dans le Playground</button>
-    <button slot="tertiary" id="btn-delete" class="fr-icon-delete-line" title="Supprimer le(s) nœud(s) sélectionné(s) (ou touche Suppr)">Supprimer</button>
-    <button slot="tertiary" id="btn-arrange" class="fr-icon-layout-grid-line" title="Réorganiser automatiquement les nœuds">Réorganiser</button>
-    <button slot="tertiary" id="btn-fit" class="fr-icon-zoom-in-line" title="Recentrer la vue sur tous les nœuds">Recentrer</button>
-    <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="primary" id="btn-execute" class="fr-icon-play-line fr-btn--icon-left" title="Exécuter le pipeline : fetch, transformations et rendu">Exécuter</button>
+    <button slot="tertiary" id="btn-generate" data-repere="pipeline.actions.copier-code" class="fr-icon-clipboard-line" title="Voir et copier le code HTML correspondant au pipeline">Copier le code</button>
+    <button slot="tertiary" id="open-playground-btn" data-repere="pipeline.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code du pipeline dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="btn-delete" data-repere="pipeline.actions.supprimer" class="fr-icon-delete-line" title="Supprimer le(s) nœud(s) sélectionné(s) (ou touche Suppr)">Supprimer</button>
+    <button slot="tertiary" id="btn-arrange" data-repere="pipeline.actions.reorganiser" class="fr-icon-layout-grid-line" title="Réorganiser automatiquement les nœuds">Réorganiser</button>
+    <button slot="tertiary" id="btn-fit" data-repere="pipeline.actions.recentrer" class="fr-icon-zoom-in-line" title="Recentrer la vue sur tous les nœuds">Recentrer</button>
+    <button slot="tertiary" id="diagnostic-btn" data-repere="pipeline.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <!-- Assistant contextuel (#1017, #1018) : déclaré ici pour porter son repère. -->
+    <button slot="tertiary" id="assistant-btn" data-repere="pipeline.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
+    <button slot="primary" id="btn-execute" data-repere="pipeline.actions.executer" class="fr-icon-play-line fr-btn--icon-left" title="Exécuter le pipeline : fetch, transformations et rendu">Exécuter</button>
   </app-action-bar>
 
 
@@ -58,18 +60,18 @@
     <!-- Main content: 2/3 editor + 1/3 inspector -->
     <div class="pipeline-layout">
       <div class="pipeline-layout__editor">
-        <div id="rete-container"></div>
+        <div id="rete-container" data-zone="pipeline.editeur" data-repere-libelle="Éditeur du pipeline"></div>
       </div>
       <div class="pipeline-layout__inspector" id="inspector-panel">
         <!-- Onglets DSFR natifs Inspecteur · Code (lot UX 4 #541) : le code
              remplace la modale « Code HTML généré ». -->
-        <div class="fr-tabs pipeline-tabs">
+        <div class="fr-tabs pipeline-tabs" data-zone="pipeline.panneau" data-repere-libelle="Panneau latéral">
           <ul class="fr-tabs__list" role="tablist" aria-label="Panneau latéral">
             <li role="presentation">
-              <button type="button" id="pipeline-tab-inspector-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="pipeline-tab-inspector">Inspecteur</button>
+              <button type="button" id="pipeline-tab-inspector-btn" data-repere="pipeline.panneau.inspecteur" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="pipeline-tab-inspector">Inspecteur</button>
             </li>
             <li role="presentation">
-              <button type="button" id="pipeline-tab-code-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="pipeline-tab-code">Code</button>
+              <button type="button" id="pipeline-tab-code-btn" data-repere="pipeline.panneau.code" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="pipeline-tab-code">Code</button>
             </li>
           </ul>
           <div id="pipeline-tab-inspector" class="fr-tabs__panel fr-tabs__panel--selected pipeline-tabs__panel" role="tabpanel" aria-labelledby="pipeline-tab-inspector-btn" tabindex="0">

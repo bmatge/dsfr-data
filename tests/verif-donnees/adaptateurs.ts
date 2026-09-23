@@ -32,7 +32,9 @@ import {
   JSON_LIGNES,
   MELODI_LIGNES,
   RESSOURCE_TABULAR,
+  RESSOURCE_TABULAR_LONGUE,
   TERRITOIRES_ADAPT,
+  TERRITOIRES_TABULAR_LONG,
   URL_GRIST,
 } from './fixtures-adaptateurs.js';
 
@@ -97,7 +99,7 @@ const CHECKS: Check[] = [
     id: 'ods-plafond-sans-compteur',
     mode: 'deterministic',
     origin:
-      '#881, AM-002 — le même plafond, mais SANS KPI `count` en aval : c’est le KPI qui avertissait (« compte 120 lignes reçues, mais l’amont en détient 137 »), pas la source. Une page qui ne compte pas — une somme, un graphique — charge un tronçon sans qu’un mot ne soit dit. L’invariant `not-truncated` lit les lignes émises par la source et les silences de la page.',
+      '#881, AM-002 — le même plafond, mais SANS KPI `count` en aval : c’est le KPI qui avertissait (« compte 120 lignes reçues, mais l’amont en détient 137 »), pas la source. Une page qui ne compte pas — une somme, un graphique — chargeait un tronçon sans qu’un mot lisible ne soit dit : l’adaptateur avertissait bien en console, mais sans nommer le composant (« [dsfr-data] opendatasoft: pagination incomplete »). Depuis #1032, l’avertissement cite « l’attribut max-records de dsfr-data-source », comme Tabular (#1027). L’invariant `not-truncated` lit les lignes émises par la source et les silences de la page.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
     markup: `
   <dsfr-data-source id="s-cap2" ${SOURCE_ODS} max-records="120"></dsfr-data-source>
@@ -109,12 +111,9 @@ const CHECKS: Check[] = [
         key: 'code_dept',
         columns: ['population'],
         pipeline: [{ op: 'limit', n: 120 }],
-        invariants: [
-          {
-            kind: 'not-truncated',
-            skip: 'DÉFAUT (AM-002, #881) — `max-records="120"` sur 137 lignes, sans KPI `count` : 120 lignes émises par la source, et aucun diagnostic (ni marqueur, ni console). Seul un KPI `count` avertit ; une somme ou un graphique charge un tronçon en silence. Attendu : un mot de la SOURCE quand `max-records` borne un jeu qui le dépasse. Issue à ouvrir par la supervision.',
-          },
-        ],
+        // 120 lignes émises sur 137 : l'invariant tient parce que la SOURCE
+        // le dit (#1032), sans KPI `count` pour avertir.
+        invariants: [{ kind: 'not-truncated' }],
       },
       {
         kind: 'kpi',
@@ -122,6 +121,13 @@ const CHECKS: Check[] = [
         agg: 'sum',
         field: 'population',
         pipeline: [{ op: 'limit', n: 120 }],
+      },
+      // Le mot de la SOURCE, qui nomme le composant portant le réglage.
+      {
+        kind: 'diagnostic',
+        id: 's-cap2',
+        expect: 'warning',
+        contains: "l'attribut max-records de dsfr-data-source",
       },
     ],
   },
@@ -284,10 +290,10 @@ const CHECKS: Check[] = [
     id: 'tabular-pagination-links-next',
     mode: 'deterministic',
     origin:
-      'Tabular pagine par `page` et annonce la suite dans `links.next` : 137 lignes en trois pages de 50. `meta.total` est un repère, pas une autorisation d’arrêter.',
-    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
+      'Tabular pagine par `page` et annonce la suite dans `links.next` : 411 lignes en trois pages de 200, le maximum de l’API (#1019). `meta.total` est un repère, pas une autorisation d’arrêter.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
     markup: `
-  <dsfr-data-source id="s-tab" api-type="tabular" resource="${RESSOURCE_TABULAR}"></dsfr-data-source>
+  <dsfr-data-source id="s-tab" api-type="tabular" resource="${RESSOURCE_TABULAR_LONGUE}"></dsfr-data-source>
   <dsfr-data-kpi id="k-tab-n" source="s-tab" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-tab-pop" source="s-tab" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
   <dsfr-data-kpi id="k-tab-dept" source="s-tab" value="code_dept:distinct" format="nombre" label="Départements"></dsfr-data-kpi>`,
@@ -295,6 +301,48 @@ const CHECKS: Check[] = [
       { kind: 'kpi', id: 'k-tab-n', agg: 'count' },
       { kind: 'kpi', id: 'k-tab-pop', agg: 'sum', field: 'population' },
       { kind: 'kpi', id: 'k-tab-dept', agg: 'distinct', field: 'code_dept' },
+    ],
+  },
+
+  {
+    id: 'tabular-plafond-max-records',
+    mode: 'deterministic',
+    origin:
+      '#1027 — Tabular honore `max-records` comme Opendatasoft (#233) : 300 sur 411 lignes, soit une page pleine de 200 puis le reste. L’API lit une page à `(page − 1) × page_size` : une seconde page réduite à 100 relirait les lignes 100 à 199 — un compte juste, une somme fausse. Et la troncature se DIT (console, `truncated`), sans KPI `count` pour avertir.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_TABULAR_LONG } },
+    markup: `
+  <dsfr-data-source id="s-tab-cap" api-type="tabular" resource="${RESSOURCE_TABULAR_LONGUE}"
+    max-records="300"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tab-cap-n" source="s-tab-cap" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-tab-cap-pop" source="s-tab-cap" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-tab-cap-n', agg: 'count', pipeline: [{ op: 'limit', n: 300 }] },
+      {
+        kind: 'kpi',
+        id: 'k-tab-cap-pop',
+        agg: 'sum',
+        field: 'population',
+        pipeline: [{ op: 'limit', n: 300 }],
+      },
+      {
+        kind: 'rows',
+        id: 's-tab-cap',
+        // Clé composite : le jeu long répète les 137 territoires (`copie` 1 à 3)
+        key: ['region', 'copie'],
+        columns: ['population'],
+        pipeline: [{ op: 'limit', n: 300 }],
+        // 300 lignes émises sur 411 brutes : l'invariant tient parce que la
+        // SOURCE le dit (comme `ods-plafond-sans-compteur` depuis #1032).
+        invariants: [{ kind: 'not-truncated' }],
+      },
+      // Le mot de la SOURCE, pas celui du KPI `count` (qui avertit aussi) :
+      // c'est lui qui reste quand aucun compteur n'est posé.
+      {
+        kind: 'diagnostic',
+        id: 's-tab-cap',
+        expect: 'warning',
+        contains: "l'attribut max-records de dsfr-data-source",
+      },
     ],
   },
 
@@ -332,10 +380,13 @@ const CHECKS: Check[] = [
   },
 
   {
-    id: 'tabular-group-by-non-delegable',
+    // Renommé par #985 (ex-`tabular-group-by-non-delegable`) : depuis que les
+    // noms à espaces se délèguent, `distinct` est la seule cause d'agrégat
+    // non délégable qu'il éprouve.
+    id: 'tabular-distinct-non-delegable',
     mode: 'deterministic',
     origin:
-      '#289 — Tabular ne sait pas compter des valeurs distinctes : l’adaptateur REFUSE de déléguer, rapatrie les lignes brutes et laisse le client regrouper. Déléguer quand même rendrait des colonnes muettes.',
+      '#289, #672 — Tabular ne sait pas compter des valeurs distinctes : l’adaptateur REFUSE de déléguer, rapatrie les lignes brutes et laisse le client regrouper. Déléguer quand même rendrait des colonnes muettes.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
     markup: `
   <dsfr-data-source id="s-tab-g" api-type="tabular" resource="${RESSOURCE_TABULAR}"></dsfr-data-source>

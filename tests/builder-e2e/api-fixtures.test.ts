@@ -220,22 +220,28 @@ describe('OpenDataSoft — /facets', () => {
 });
 
 describe('Tabular', () => {
-  it('rend l’enveloppe { data, links, meta }', () => {
+  it('rend l’enveloppe { data, links, meta } — le jeu tient en une page de 200 (#1019)', () => {
+    expect(NOMBRE_DE_LIGNES).toBeLessThan(TABULAR_PAGE_SIZE);
     const reponse = repondreTabular(url(TABULAR, `page=1&page_size=${TABULAR_PAGE_SIZE}`));
-    expect(reponse.data).toHaveLength(TABULAR_PAGE_SIZE);
+    expect(reponse.data).toHaveLength(NOMBRE_DE_LIGNES);
     expect(reponse.meta).toEqual({
       page: 1,
       page_size: TABULAR_PAGE_SIZE,
       total: NOMBRE_DE_LIGNES,
     });
+    expect(reponse.links.next).toBeNull();
+  });
+
+  it('annonce la suite dans links.next quand la page est plus petite que le jeu', () => {
+    const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50'));
+    expect(reponse.data).toHaveLength(50);
     expect(reponse.links.next).toContain('page=2');
   });
 
   it('ferme la pagination sur la derniere page', () => {
-    const derniere = Math.ceil(NOMBRE_DE_LIGNES / TABULAR_PAGE_SIZE);
-    const reponse = repondreTabular(
-      url(TABULAR, `page=${derniere}&page_size=${TABULAR_PAGE_SIZE}`)
-    );
+    const derniere = Math.ceil(NOMBRE_DE_LIGNES / 50);
+    const reponse = repondreTabular(url(TABULAR, `page=${derniere}&page_size=50`));
+    expect(reponse.data).toHaveLength(NOMBRE_DE_LIGNES - (derniere - 1) * 50);
     expect(reponse.links.next).toBeNull();
   });
 
@@ -250,14 +256,98 @@ describe('Tabular', () => {
     expect(total).toBe(SOMME_TOTALE);
   });
 
+  it('une reponse agregee ne porte pas de meta.total, comme l’API (#1025)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=5&code_dept__groupby&population__sum')
+    );
+    expect(reponse.meta).toEqual({ page: 1, page_size: 5 });
+    expect(reponse.links.next).toContain('page=2');
+  });
+
+  it('colonne__groupby SEUL repete les modalites, comme l’API (#1025)', () => {
+    const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&academie__groupby'));
+    expect(reponse.data).toHaveLength(50);
+    expect(Object.keys(reponse.data[0])).toEqual(['academie']);
+    expect(new Set(reponse.data.map((l) => l.academie)).size).toBeLessThan(50);
+    expect(reponse.meta.total).toBe(NOMBRE_DE_LIGNES);
+  });
+
   it('trie via colonne__sort', () => {
     const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=3&population__sort=desc'));
     expect(reponse.data[0].region).toBe("Val-d'Oise");
   });
 
+  it('refuse un tri sur une colonne d’agrégat, comme l’API (#1045, 42703)', () => {
+    const avecFlag = repondreTabular(
+      url(
+        TABULAR,
+        'page=1&page_size=3&code_reg__groupby&population__sum&population__sum__sort=desc'
+      )
+    );
+    expect(avecFlag.data).toEqual([]);
+    expect(avecFlag.errors?.[0].detail).toContain('population__sum does not exist');
+    // Sans le flag d'agregat : meme refus
+    const sansFlag = repondreTabular(
+      url(TABULAR, 'page=1&page_size=3&code_reg__groupby&population__sum__sort=desc')
+    );
+    expect(sansFlag.errors?.[0].detail).toContain('does not exist');
+  });
+
+  it('refuse un tri sur une colonne brute hors regroupement (#1045, 42803)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=3&code_reg__groupby&population__sum&population__sort=desc')
+    );
+    expect(reponse.errors?.[0].detail).toContain('GROUP BY');
+  });
+
+  it('accepte un tri sur la colonne de regroupement (#1045)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=50&code_reg__groupby&population__sum&code_reg__sort=desc')
+    );
+    expect(reponse.errors).toBeUndefined();
+    const codes = reponse.data.map((l) => String(l.code_reg));
+    expect(codes).toEqual([...codes].sort().reverse());
+  });
+
   it('filtre via colonne__operateur', () => {
     const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&code_reg__exact=11'));
     expect(reponse.meta.total).toBe(JEU.filter((l) => l.code_reg === '11').length);
+  });
+
+  it('columns= projette les lignes, apres filtre et tri (#985)', () => {
+    const colonnes = encodeURIComponent(CHAMP_PIEGE);
+    const reponse = repondreTabular(
+      url(
+        TABULAR,
+        `page=1&page_size=3&code_reg__exact=11&population__sort=desc&columns=region,${colonnes}`
+      )
+    );
+    expect(Object.keys(reponse.data[0])).toEqual(['region', CHAMP_PIEGE]);
+    expect(reponse.data[0].region).toBe("Val-d'Oise");
+    expect(reponse.meta.total).toBe(JEU.filter((l) => l.code_reg === '11').length);
+  });
+
+  it('columns= avec un agregateur : refuse, comme l’API (#985)', () => {
+    const reponse = repondreTabular(
+      url(TABULAR, 'page=1&page_size=50&code_reg__groupby&population__sum&columns=code_reg')
+    );
+    expect(reponse.data).toEqual([]);
+    expect(reponse.errors?.[0].detail).toContain('alongside aggregators');
+  });
+
+  it('columns= sur une colonne inconnue : refuse, comme l’API (#985)', () => {
+    const reponse = repondreTabular(url(TABULAR, 'page=1&page_size=50&columns=region,inconnue'));
+    expect(reponse.data).toEqual([]);
+    expect(reponse.errors?.[0].detail).toContain('inconnue');
+  });
+
+  it('un nom a espaces et apostrophe se delegue percent-encode (#985)', () => {
+    const champ = encodeURIComponent(CHAMP_PIEGE);
+    const reponse = repondreTabular(
+      url(TABULAR, `page=1&page_size=50&academie__groupby&${champ}__sum`)
+    );
+    const total = reponse.data.reduce((t, l) => t + Number(l[`${CHAMP_PIEGE}__sum`]), 0);
+    expect(total).toBe(JEU.reduce((t, l) => t + l[CHAMP_PIEGE], 0));
   });
 });
 

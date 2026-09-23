@@ -4,15 +4,18 @@
  * champs disponibles, leur taux de remplissage et proposer les champs
  * geographiques / temporels probables.
  */
-import type { FieldInfo, LayerConfig } from './state.js';
+import type { ChampTerritoire, FieldInfo, LayerConfig } from './state.js';
 import { hydrateSource } from './state.js';
 import { buildSourceTag } from './ui/code-generator.js';
+import { detecterChampTerritoire } from './composition-echelle.js';
 
 export interface FieldSuggestions {
   geo: string;
   lat: string;
   lon: string;
   time: string;
+  /** Code de département ou de région, pour la composition par échelle (#1021). */
+  territoire: ChampTerritoire | null;
 }
 
 export interface FieldScanResult {
@@ -138,6 +141,7 @@ export function computeFields(records: Record<string, unknown>[]): FieldScanResu
       lat: best(latScores),
       lon: best(lonScores),
       time: best(timeScores),
+      territoire: detecterChampTerritoire(records),
     },
     sampleSize: n,
   };

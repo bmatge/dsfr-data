@@ -4,7 +4,13 @@
  * timeline configurée, compagnon a11y et template auto des popups.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { state, createLayer, resetState, DROM_IDS } from '../../../apps/builder-carto/src/state';
+import {
+  state,
+  createLayer,
+  resetState,
+  DROM_IDS,
+  DEFAULT_LAYER_MAX_ITEMS,
+} from '../../../apps/builder-carto/src/state';
 import {
   generateCode,
   buildSourceTag,
@@ -254,6 +260,160 @@ describe('buildSourceTag', () => {
     layer.maxItems = 200;
     const tag = buildSourceTag(layer);
     expect(tag).toContain('limit="200"');
+  });
+
+  // #1020 — la source ne charge pas plus que la couche ne dessine, y compris
+  // au defaut de la Carto (1 000) : avant, `limit` n'etait emis que hors
+  // defaut, et la source chargeait jusqu'a 25 000 lignes pour 5 000 points.
+  it('#1020 limit egal a max-items au defaut (1 000) pour un adaptateur Tabular', () => {
+    const layer = createLayer();
+    expect(layer.maxItems).toBe(DEFAULT_LAYER_MAX_ITEMS);
+    expect(DEFAULT_LAYER_MAX_ITEMS).toBe(1000);
+    layer.source = {
+      id: 's1',
+      name: 'Tabular',
+      type: 'api',
+      apiUrl:
+        'https://tabular-api.data.gouv.fr/api/resources/2876a346-d50c-4911-934e-19ee07b0e503/data/',
+    };
+    const tag = buildSourceTag(layer);
+    expect(tag).toContain('api-type="tabular"');
+    expect(tag).toContain('limit="1000"');
+  });
+
+  it('#1020 max-items toujours emis, et egal au limit de la source', () => {
+    const layer = state.layers[0];
+    layer.source = {
+      id: 's1',
+      name: 'ODS',
+      type: 'api',
+      apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/mon-jeu/records',
+    };
+    for (const n of [DEFAULT_LAYER_MAX_ITEMS, 5000, 250]) {
+      layer.maxItems = n;
+      const code = generateCode();
+      expect(code).toContain(`max-items="${n}"`);
+      expect(code).toContain(`limit="${n}"`);
+    }
+  });
+
+  it('#1020 pas de limit hors adaptateur (donnees inline), max-items quand meme', () => {
+    const layer = withManualSource();
+    expect(buildSourceTag(layer)).not.toContain('limit=');
+    expect(generateCode()).toContain(`max-items="${DEFAULT_LAYER_MAX_ITEMS}"`);
+  });
+
+  describe('#985 — select depuis les champs de la couche (Tabular → columns=)', () => {
+    const IRVE =
+      'https://tabular-api.data.gouv.fr/api/resources/eb76d20a-8501-400e-b336-d85724de5435/data/';
+    const CHAMPS = [
+      'nom_station',
+      'consolidated_latitude',
+      'consolidated_longitude',
+      'puissance_nominale',
+      'nom_operateur',
+      'date_mise_en_service',
+      "Nom de l'aménageur",
+    ];
+
+    function tabularLayer() {
+      const layer = createLayer();
+      layer.source = { id: 's1', name: 'IRVE', type: 'api', apiUrl: IRVE };
+      layer.fields = CHAMPS.map((name) => ({ name, type: 'string', fillRate: 1 }));
+      layer.latField = 'consolidated_latitude';
+      layer.lonField = 'consolidated_longitude';
+      return layer;
+    }
+
+    it('émet select="lat,lon,…" pour une couche Tabular', () => {
+      const layer = tabularLayer();
+      layer.popupMode = 'tooltip';
+      layer.tooltipField = 'nom_station';
+      const tag = buildSourceTag(layer);
+      expect(tag).toContain('select="consolidated_latitude, consolidated_longitude, nom_station"');
+    });
+
+    it('réunit couleur, taille, temps, titre, champs du popup et filtre', () => {
+      const layer = tabularLayer();
+      layer.type = 'circle';
+      layer.radiusField = 'puissance_nominale';
+      layer.colorField = 'nom_operateur';
+      layer.timeField = 'date_mise_en_service';
+      layer.popupMode = 'popup';
+      layer.titleField = 'nom_station';
+      layer.popupFields = "Nom de l'aménageur, puissance_nominale";
+      layer.filter = 'puissance_nominale:gte:50';
+      const tag = buildSourceTag(layer);
+      const select = /select="([^"]*)"/.exec(tag)?.[1] ?? '';
+      expect(select.split(', ').sort()).toEqual(
+        [
+          'consolidated_latitude',
+          'consolidated_longitude',
+          'nom_operateur',
+          'date_mise_en_service',
+          'puissance_nominale',
+          'nom_station',
+          // apostrophe échappée par escapeHtml, rendue telle quelle par le navigateur
+          'Nom de l&#039;aménageur',
+        ].sort()
+      );
+    });
+
+    it('lit les champs d’un gabarit de popup ({{champ:format|défaut}}, {{#if}})', () => {
+      const layer = tabularLayer();
+      layer.popupMode = 'popup';
+      layer.popupTemplate =
+        '<h4>{{nom_station}}</h4>{{#if puissance_nominale}}<p>{{puissance_nominale:number}} kW</p>{{/if}}<p>{{nom_operateur|inconnu}}</p>';
+      const select = /select="([^"]*)"/.exec(buildSourceTag(layer))?.[1] ?? '';
+      expect(select.split(', ')).toEqual([
+        'consolidated_latitude',
+        'consolidated_longitude',
+        'nom_station',
+        'puissance_nominale',
+        'nom_operateur',
+      ]);
+    });
+
+    it('popup sans champs ni gabarit (toutes les colonnes affichées) : pas de select', () => {
+      const layer = tabularLayer();
+      layer.popupMode = 'popup';
+      expect(buildSourceTag(layer)).not.toContain('select=');
+    });
+
+    it('champ inconnu (chemin imbriqué, faute de frappe) : pas de select — une colonne inconnue fait répondre 400', () => {
+      const layer = tabularLayer();
+      layer.popupMode = 'popup';
+      layer.popupTemplate = '{{adresse.ville}}';
+      expect(buildSourceTag(layer)).not.toContain('select=');
+    });
+
+    it('aucun champ détecté : pas de select', () => {
+      const layer = tabularLayer();
+      layer.fields = [];
+      expect(buildSourceTag(layer)).not.toContain('select=');
+    });
+
+    it('jamais pour l’échantillonnage de field-service (il doit voir toutes les colonnes)', () => {
+      const layer = tabularLayer();
+      expect(buildSourceTag(layer, { id: 'scan-1', limit: 50 })).not.toContain('select=');
+    });
+
+    it('pas de select hors Tabular (ODS : grammaire ODSQL, hors périmètre)', () => {
+      const layer = tabularLayer();
+      layer.source = {
+        id: 's1',
+        name: 'ODS',
+        type: 'api',
+        apiUrl: 'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/mon-jeu/records',
+      };
+      expect(buildSourceTag(layer)).not.toContain('select=');
+    });
+
+    it('generateCode porte le select de la couche', () => {
+      const layer = tabularLayer();
+      state.layers[0] = layer;
+      expect(generateCode()).toContain('select="consolidated_latitude, consolidated_longitude"');
+    });
   });
 
   it('source manuelle : données inline', () => {

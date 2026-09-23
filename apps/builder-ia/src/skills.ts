@@ -220,13 +220,13 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
 | where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). |
-| select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\` |
+| select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
 | order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
-| max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter (#233). 0 = plafond par defaut de l'adapter (ODS : 1000). A relever explicitement pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
+| max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter, honore par ODS (#233) et Tabular (#1027). 0 = plafond par defaut de l'adapter (ODS : 1000, Tabular : 25000). A relever pour charger un jeu plus long (ex. les ~35 000 communes sur Tabular : \`max-records="40000"\`) ou pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
 | fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft seulement ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. |
 | require-where | Boolean | \`false\` | non | Ne rien charger tant qu'aucun filtre n'a été reçu (#690) : la source reste en attente et émet \`dsfr-data-idle\`, les afficheurs rendent « Choisissez un filtre pour afficher les données ». Le \`where\` STATIQUE ne compte pas — seules les clauses reçues par commande (facettes, recherche, dsfr-data-context, délégation d'un dsfr-data-query). Retirer le dernier filtre repasse en attente : jamais de requête « tout ». Réservé au mode adapter (les commandes where sont refusées en mode URL). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
@@ -288,7 +288,12 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > aux facettes, datalist ou graphiques. Voir la doc de dsfr-data-normalize.
 
 > **Mode adapter** : avec \`api-type\`, dsfr-data-source gere la pagination automatiquement.
-> ODS: max 1000 records, Tabular: max 25000 records (500 pages de 50), Grist: toutes les données.
+> ODS: max 1000 records, Tabular: max 25000 records (125 pages de 200), Grist: toutes les données.
+> ODS et Tabular : plafond relevable par \`max-records\` (ex. \`max-records="40000"\` sur Tabular = 200 pages de 200).
+> Tabular : \`select="col1, col2"\` ne charge que ces colonnes (\`columns=\`, dix fois moins d'octets sur un jeu large) —
+> y mettre TOUTES les colonnes lues en aval (graphique, liste, facettes, filtres), aucune n'est ajoutee d'office ;
+> un nom inconnu fait repondre l'API en erreur. Sans effet avec \`group-by\`/\`aggregate\`. Les noms a espaces et
+> accents se deleguent tels quels (group-by, agregat, filtre, tri) ; seuls \`,\` \`:\` \`|\` restent reserves.
 > Le mode adapter ecoute aussi les commandes \`dsfr-data-source-command\` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 
@@ -441,6 +446,15 @@ Multiples filtres separes par virgule (logique ET) :
 | notin | Pas dans la liste | \`"status:notin:archive\\|supprime"\` |
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
+
+**Champs multiples — un OU entre champs (#1026)** : \`"nom|commune:contains:martin"\` applique le
+MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
+clause. Les clauses entre elles restent en ET : \`where="nom|commune:contains:martin, dept:eq:75"\`.
+\`|\` sépare les champs AVANT le premier \`:\`, les valeurs d'un \`in\` APRÈS le second. C'est le seul
+OU de la grammaire (pas de clause \`or(...)\` générale). Traduction serveur : Tabular
+\`or=(nom__contains.martin,commune__contains.martin)\` (une seule clause multi-champs par requête,
+valeur sans \`,\` \`.\` \`(\` \`)\` \`"\` \`&\`, pas de \`in\`/\`notin\`), Opendatasoft et Grist
+\`(… OR …)\` ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
 
 **Champs tableau (#953, ex-#842)** : \`eq\` / \`neq\` / \`in\` / \`notin\` regardent DANS le tableau.
 \`tags:eq:urgent\` retient une ligne dont \`tags\` vaut \`["urgent","social"]\`, exactement comme
@@ -1179,6 +1193,19 @@ Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie u
 \`{ where }\` au source upstream (relais automatique du dsfr-data-query). Le template par défaut utilise
 la fonction ODSQL \`search()\` pour une recherche full-text. Personnalisable via \`search-template\`.
 
+Sur **Tabular** (#1026), le template par défaut est \`{fields}:contains:{q}\` : \`{fields}\` devient les
+champs de \`fields\` séparés par \`|\` (un OU entre champs), traduit en
+\`or=(nom__contains.q,commune__contains.q)\`. Le compteur lit alors le total serveur, juste sur tout le
+jeu. \`fields\` est donc obligatoire. \`contains\` y est insensible à la casse mais SENSIBLE aux accents :
+« ecole » ne trouve pas « École » côté serveur. Un terme que l'API ne sait pas transmettre (\`,\` \`.\`
+\`(\` \`)\` \`"\` \`&\`) retombe sur une recherche locale, signalée en console.
+
+\`\`\`html
+<dsfr-data-source id="src" api-type="tabular" resource="…" server-side page-size="20"></dsfr-data-source>
+<dsfr-data-search id="r" source="src" fields="nom,commune" server-search count></dsfr-data-search>
+<dsfr-data-list id="l" source="r" columns="nom:Nom, commune:Commune" pagination="20"></dsfr-data-list>
+\`\`\`
+
 ### Accessibilité : une seule région live par chaîne
 Le compte de résultats n'est annoncé au lecteur d'écran (\`aria-live\`) qu'une fois par chaîne,
 par le composant terminal. Quand un afficheur aval (\`dsfr-data-list\`, \`dsfr-data-display\`)
@@ -1381,7 +1408,9 @@ isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne 
 \`server-side\` (une page) ou un plafond \`max-records\`, c'est un chiffre partiel — un warn console
 le signale quand la meta annonce davantage. Pour le total, \`value="meta:total"\` lit la meta de
 l'amont : \`total_count\` serveur en \`server-side\` (suit recherche et facettes), nombre de lignes
-avant \`limit\` derrière un query, nombre de lignes sur une source non paginée.
+avant \`limit\` derrière un query, nombre de lignes sur une source non paginée. Total INCONNU de
+l'amont (page serveur sans total, comme une page agrégée Tabular, ou lot tronqué sans total) :
+« — », jamais le nombre de lignes reçues (#1046).
 \`\`\`html
 <dsfr-data-query id="top12" source="src" order-by="date:desc" limit="12"></dsfr-data-query>
 <dsfr-data-kpi source="top12" value="meta:total" label="Activités"></dsfr-data-kpi>
@@ -2861,7 +2890,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 | Capacite | OpenDataSoft | Tabular (data.gouv.fr) | Grist | INSEE (Melodi) | Generique |
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
-| Pagination auto | oui (offset, 10 pages) | oui (page, 500 pages, max 50/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
+| Pagination auto | oui (offset, 10 pages) | oui (page, 125 pages, max 200/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
 | Chargement en une requete | oui (\`fetch-mode="export"\`) | non | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
@@ -2909,7 +2938,7 @@ OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. \`fetch-
 « un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
 groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
 \`server-side\`. En mode export le total serveur est inconnu : le KPI \`meta:total\` retombe sur le
-nombre de lignes recues, et la troncature est detectee via \`max-records\`.
+nombre de lignes recues, et la troncature est detectee via \`max-records\` (lot tronque : « — »).
 \`\`\`html
 <dsfr-data-source id="src" api-type="opendatasoft"
   base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"
@@ -3283,7 +3312,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 1. \`lat-field\` + \`lon-field\` : coordonnees separees
 2. \`geo-field\` vers GeoJSON Point : \`{ type: "Point", coordinates: [lon, lat] }\`
 3. \`geo-field\` vers ODS : \`{ lat: N, lon: N }\`
-4. Auto-detection : cherche \`geo_point_2d\`, \`geo_shape\`, \`geometry\`
+4. Auto-detection sans \`geo-field\` : les points (marker, circle, heatmap) cherchent
+   \`geo_point_2d\`, \`geopoint\`, \`geo_point\` ; une couche \`geoshape\` prend la premiere
+   colonne \`geo_shape\`, \`geometry\` ou \`geom\` qui porte du GeoJSON (objet ou chaine).
+   Si aucune ne convient, la couche le dit en console et ne trace rien : poser alors
+   \`geo-field\`.
 
 ### Fonds de carte predefinis (sans clé API)
 

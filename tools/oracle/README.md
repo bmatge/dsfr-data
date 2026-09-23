@@ -454,7 +454,7 @@ rien de plus que la valeur.
 | `null-group` (`field`, `expect`, `count?`) | `visible` : une ligne à clé vide existe et son compte vaut les lignes brutes sans valeur ; `excluded` : aucune, et la somme des comptes vaut les lignes brutes AVEC valeur — clé `''` d'un client, `null` d'un serveur (PG-015) | `groupby-groupe-null-visible`, `qualite-tourisme-group-by-null-exclu` (vivant) |
 | `bounded` (`field?`, `min?`, `max?`) | toute valeur numérique — ou la valeur d'un KPI — dans les bornes ; rien à borner est un échec | `format-pourcentage-et-unite`, `personnels-colleges-part-ponderee` (vivant) |
 | `null-stays-null` (`field`, `rawField?`, `key?`) | aucune absence en amont devenue valeur en aval, ligne à ligne par clé, ou par compte | `compute-arithmetique-absence-et-division-par-zero` |
-| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur` (**en attente**), `plan-de-relance-plafond-max-records` (vivant, **en attente**) |
+| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur`, `plan-de-relance-plafond-max-records` (vivant, **en attente**) |
 
 Le rapport compte les invariants **à part** des valeurs (« invariants : 12
 tenus, 0 violé, 1 en attente ») ; une ligne d'invariant s'écrit
@@ -472,12 +472,12 @@ prémisse « `max-records` tronque en silence » se découpe en trois cas :
 | Cas | La bibliothèque dit-elle quelque chose ? | Contrôle |
 |---|---|---|
 | mode `/records`, un KPI `count` en aval | **oui** — « `value="count"` sur "s-cap" compte 120 lignes reçues, mais l'amont en détient 137 » (#659, `meta.total`) | `ods-plafond-max-records` : tenu par le diagnostic |
-| mode `/records`, sans KPI `count` (somme, graphique) | **non** — la source charge un tronçon sans un mot | `ods-plafond-sans-compteur` : **en attente**, 120 lignes sur 137 |
-| `fetch-mode="export"`, même avec un KPI `count` | **non** — l'export ne porte pas de total, `meta.total` est absent, le KPI ne peut rien dire | `plan-de-relance-plafond-max-records` (vivant) : **en attente**, 1 000 lignes sur 3 080 |
+| mode `/records`, sans KPI `count` (somme, graphique) | **oui depuis #1032** — la source avertit en nommant « l'attribut max-records de dsfr-data-source » ; avant, son message ne nommait aucun composant et le lecteur de silences l'écartait | `ods-plafond-sans-compteur` : tenu par le diagnostic, 120 lignes sur 137 |
+| `fetch-mode="export"`, même avec un KPI `count` | **la source, depuis #1032** — l'export ne porte pas de total, le KPI ne peut rien dire ; la source demande `plafond + 1` lignes et avertit en nommant dsfr-data-source | `canari-plafond-export` : tenu par le diagnostic ; `plan-de-relance-plafond-max-records` (vivant) : **en attente** d'une nuit qui le constate, 1 000 lignes sur 3 080 |
 
-Deux invariants en attente, une seule demande : un mot de la **source** quand
-`max-records` borne un jeu qui le dépasse, export compris. Issue à ouvrir par
-la supervision.
+La demande était une seule : un mot de la **source** quand `max-records` borne
+un jeu qui le dépasse, export compris. Les avertissements existaient, mais sans
+nommer le composant : #1032 les aligne sur Tabular (#1027).
 
 ## Le canari
 
@@ -502,7 +502,7 @@ que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
 | accents et formes Unicode | `canari-accents-nfc-nfd` | NFC et NFD font DEUX groupes (aucune normalisation n'est promise) ; la recherche replie tout et trouve les trois |
 | doublon de clé | `canari-jointure-doublon` | 42 lignes pour 40, somme gonflée de 20 : `count-preserved` et `sum-preserved` **violés par les données**, rendus en attente |
 | champ multivalué | `canari-multivalue` | la facette éclate (eau 16, air 13, sol 10 — étape `explode` de l'oracle), le regroupement client compte les combinaisons |
-| plafond | `canari-plafond-export` | mille lignes sur 1 001, et aucun mot : `not-truncated` en attente (AM-002) |
+| plafond | `canari-plafond-export` | mille lignes sur 1 001 : `not-truncated` tenu parce que la source le dit en nommant dsfr-data-source (AM-002, #1032) |
 | dates partielles | `canari-date-partielle` | un filtre d'ordre compare en texte : « 2024 » ≤ « 2024-03 » < « 2025 » |
 | `distinct` | `canari-distinct` | ni les vides ni les doublons ; `'1'` et `1` sont une modalité, `'01'` une autre |
 | `neq` et les nuls | `canari-neq-nuls-exclus`, `-delegue` | une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : `eq` 7 + `neq` 27 = 34 renseignées sur 40, `notin` 33 (il garde les nuls, comme le `NOT … in (…)` qu'il délègue), `isnull` 6 — et le même 27 que la clause parte au serveur ou non |
@@ -757,6 +757,21 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | delegation | `_onInstanceRegistered` sort sans renégocier (`dsfr-data-query.ts`) | au moins 5 : `query-tardive-renegociation`, `lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer`, `query/source-partagee-765`, `delegation/source-partagee-ne-delegue-pas` | la seconde query rend 1 ligne au lieu de 7 et le KPI 8 au lieu de 137 ; le lecteur tardif compte 8 groupes ; la délégation ne franchit plus le relais ; et sur une page pourtant STATIQUE, `kpi:k-partage` lib 8 / oracle 137 — les lecteurs écrits dans le document s'inscrivent après la première négociation de la query, c'est leur inscription qui la corrige (#836, #853, #855) |
 | delegation | le bloc « `where` seul » de `_negotiateServerSide` neutralisé (`dsfr-data-query.ts`) | `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation` | 0 URL sur 2 portent `where=` ; la source `require-where` n'affiche jamais rien, 30 s de scrutation (#856, #854) |
 | delegation | `maxRecords` ignoré dans `fetchAll` (`opendatasoft-adapter.ts`) | `plafond-max-records-et-meta-total` | 137 lignes chargées au lieu de 50, somme 127 684 000 au lieu de 48 775 000 |
+| delegation | la garde « group-by sans agrégat » retirée de `_canServerProcessGroupBy` (`tabular-adapter.ts`) | `tabular-groupby-sans-agregat` | 137 lignes rendues pour 8 académies, KPI 137 au lieu de 8, et `academie__groupby` part au serveur — l'API répète les modalités au lieu de les regrouper (#1025) |
+| query | le OU entre champs réduit à un ET : `fields.some` → `fields.every` dans `_matchesFilter` (`dsfr-data-query.ts`) | `where-multi-champs-client` | KPI 1 au lieu de 54, somme 1 000 000 au lieu de 50 459 000 : seule la ligne où les DEUX champs contiennent « a » reste (#1026) |
+| delegation | le groupe `or=(…)` réduit à son premier membre (`members.slice(0, 1)` dans `_orGroup`, `tabular-adapter.ts`) | `tabular-recherche-serveur-multi-colonnes`, `tabular-where-multi-champs`, `tabular-where-multi-champs-serveur` | compteur « 3 résultats » et `meta:total` 3 au lieu de 54, 3 académies au lieu de 5, et aucune URL ne porte `or=(region__contains.a,academie__contains.a)` (#1026) |
+| delegation | `{fields}` remplacé par le seul premier champ (`fields[0]`, `dsfr-data-search.ts`) | `tabular-recherche-serveur-multi-colonnes` | « 3 résultats » au lieu de 54 : la recherche ne regarde plus que la région (#1026) |
+| delegation | le OU ODSQL joint par ` AND ` (`filterToOdsql`, `shared/query/filter-translator.ts`, puis `build:shared`) | `ods-where-multi-champs`, `ods-where-multi-champs-serveur` | `#q` n'affiche rien : aucune ligne n'a à la fois `code_dept` et `code_reg` à 11, au lieu de 7 pays (#1026) |
+| troisième voix | le OU de l'oracle Python réduit à un ET (`any` → `all` dans `passe_filtre`, `tools/oracle-py/oracle.py`) | `attendus.test.ts` | « query/where-multi-champs-client/kpi:k-ou-n : écart 53 » et les autres attentes du lot : l'oracle Python tombe, pas la bibliothèque (#1026) |
+| delegation | `_columnsFlag` rend `null` (`tabular-adapter.ts`) : le `select` n'est plus projeté | `tabular-select-projection`, `tabular-select-projection-serveur` | « 0/1 URL portent `columns=academie,population` » : les chiffres restent justes, c'est le volume qui n'est plus gardé (#985) |
+| delegation | `_columnsFlag` oublie la dernière colonne du `select` (`columns.slice(0, -1)`) | `tabular-select-projection`, `tabular-select-projection-serveur` | KPI population affiché 0, recalculé 127 684 000 ; « ligne 0 / Nombre d'habitants : affiché « — », recalculé 1000000 » — une colonne hors projection est une colonne vide (#985) |
+| delegation | la garde group-by/aggregate retirée de `_columnsFlag` : `columns=` part à côté de l'agrégateur | `tabular-select-et-regroupement` | « #q-proj-g (rows) n'a rien affiché » : le faux serveur refuse `columns` avec un agrégateur, comme l'API (400, mesuré le 2026-09-22) |
+| delegation | ancien garde-fou `^[\p{L}\p{N}_]+$` rétabli dans `supportsServerFields` (`tabular-adapter.ts`) | `tabular-colonne-a-espaces-deleguee` | « 0/1 URL portent `academie__groupby` », `Nombre d'habitants__sum` et `__strictly_greater` non plus : même chiffre, tout le jeu téléchargé pour l'agréger dans le navigateur (#985) |
+| delegation | `fetchPage` rend `json.meta?.total ?? 0` (`tabular-adapter.ts`) | `tabular-groupes-page-deux` | la réponse agrégée n'a pas de `meta.total` : total lu 0, une seule page, le bouton « Page suivante » n'existe pas — 61 des 101 départements inatteignables (#1025) |
+| delegation | `_sortPlan` rend toujours le tri au serveur (état d'avant #1045), avec le faux serveur qui refuse un tri sur agrégat comme l'API | `tabular-groupe-somme`, `tabular-groupe-somme-serveur`, `tabular-filtre-limite`, `tabular-filtre-limite-serveur`, `tabular-groupes-page-deux` (dans sa forme triée sur l'agrégat) | « #q (rows) n'a rien affiché » : `population__sum__sort=desc` est refusé (42703), la query ne reçoit aucune ligne (#1045) |
+| delegation | `_fetchAllSortedLocally` relit les groupes AVEC le `limit` (`tabular-adapter.ts`) | `tabular-top-n-source` | « ligne 0 / code_dept : affiché « 10 », recalculé « 05 » » : dix groupes lus puis triés, un faux top 10 (#1045) |
+| delegation | `_fetchPageSortedLocally` trie la seule page reçue du serveur (`tabular-adapter.ts`) | `tabular-top-agregat-serveur`, `tabular-top-agregat-page-deux` | « affiché « 44 », recalculé « 05 » » (page 1), « affiché « 85 », recalculé « 65 » » (page 2) : un tri de page n'est pas un tri global (#1045) |
+| adaptateurs | garde « regroupement non délégué » retirée de `_delegateOrderBy` (`dsfr-data-query.ts`) | `tabular-distinct-non-delegable` | « #q-tab-g (rows) n'a rien affiché » : `pop__sort=desc` part sur des lignes brutes, l'API répond 42703 (#1045) |
 | export-studio | `dedicatedSourcePlan()` rend une Map vide (`shared/dashboard/export-html.ts`) | les 5 contrôles de source dédiée | plus aucun `group_by` ni `select` au serveur ; le KPI n'affiche plus rien |
 | affichages | `map-summary-field` ignoré, retour à `_valueFieldKey()` (`dsfr-data-chart.ts`) | `carte-resume-champ-de-calcul-929` | lib 43,57, oracle 43,07 : le résumé repasse sur la colonne d'affichage arrondie, et le chiffre reste plausible (#929) |
 | affichages | `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du domaine | mutation large : tout ce qui affiche un nombre recalculé tombe |
@@ -778,11 +793,14 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/choropleth-scales.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
 | affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |
 | affichages | `parseManualBreaks` perd la première borne | `carte-bornes-manuelles` | 3 entrées de légende, 4 classes recalculées |
+| affichages | `_addGeoshape` ne lit plus que `geo-field` (`dsfr-data-map-layer.ts`, l'état d'avant #1053) | `carte-geoshape-sans-geo-field-1053` | « #carte-zones (texts) n'a rien affiché » : aucune forme tracée pour 10 lignes recalculées |
+| affichages | la couche geoshape reprend la détection du calcul d'emprise (`_autoDetectGeoField()`, `geo_point_2d` en tête) | `carte-geoshape-sans-geo-field-1053` | idem : la colonne devinée est le POINT, un `{lat, lon}` sans forme à tracer |
 | affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |
 | affichages | le tri de `dsfr-data-list` rend toujours 0 | `liste-tri-numerique`, `liste-tri-croissant` | ligne 0 : affiché « Arles », recalculé « Vichy » |
 | affichages | `localeCompare` remplacé par une comparaison de codes | `liste-tri-texte-accentue` | ligne 2 : affiché « Ussel », recalculé « Écully » |
 | affichages | `parseColumns` ignore `columns-auto` | `liste-colonnes-auto` | ligne 0 / pop : affiché « », recalculé 4 187 254 |
 | affichages | `buildCsv` met la clé en en-tête au lieu du libellé | `liste-export-csv` | ligne 0, cellule 0 : « zone » exportée, « Zone » recalculée |
+| affichages | garde `metaTotal === null` retirée de `evaluateOnItems` (`aggregations.ts`) | `kpi-meta-total-inconnu` | affiché « 40 » (la taille de page), attendu « — » : une page agrégée Tabular n'a pas de total (#1046) |
 | banc-pages | troncature retirée de `_fetchViaExport` (`opendatasoft-adapter.ts`) | `plan-de-relance-plafond-max-records` | 1 001 projets chargés au lieu de 1 000 : `max-records` ne borne plus rien |
 | banc-pages | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) | `bofip-total-publie-par-la-source-serveur` | 10 au lieu de 9 148 : le compteur annonce la page, pas le jeu |
 | banc-pages | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `ips-ecoles-facettes-ponderees` | l'ordre des départements change (Dordogne en tête au lieu de la Gironde) : une facette sur source pré-agrégée recompte des lignes, pas des écoles |
@@ -810,7 +828,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | `_compareForRange` sans repli lexicographique (`dsfr-data-query.ts`) | `canari-date-partielle` | 4 lignes au lieu de 32 : seules les dates réduites à l'année, numériques, survivent au filtre |
 | canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
 | canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |
-| canari | (par construction) `fetch-mode="export" max-records="1000"` sur 1 001 lignes | `canari-plafond-export#not-truncated` | « 1000 lignes, aucun diagnostic » — en attente, AM-002 |
+| canari | l'avertissement d'export tronqué sans « dsfr-data- » (l'ancien texte d'avant #1032), ou supprimé (`opendatasoft-adapter.ts`, `_fetchViaExport`) | `canari-plafond-export#not-truncated`, `ods-plafond-sans-compteur` (avertissement de pagination incomplète, idem) | « 1000 lignes, aucun diagnostic » ; « 120 lignes sur 137 » et le diagnostic `s-cap2` introuvable |
 | recoupement | `sum` de l'ORACLE rend un de trop (`tools/oracle/compute.ts`, `aggregate`) — un défaut du recalcul, pas de la lib | `personnels-colleges-part-ponderee` / `kpi:k-etp`, `tne-personnels-formes-unpivot` / `kpi:k-tne-participants` (vivants) | « lib 289 592, oracle 289 593, serveur 289 592 — verdict : oracle ≠ serveur, lib = serveur : le recalcul se trompe seul » : c'est le **serveur** qui désigne l'oracle, la page n'y est pour rien |
 | recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
 | nuit rouge | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) sur le contrôle VIVANT `bofip-total-publie-par-la-source-serveur` | verdict **bibliothèque** | « Verdicts de la nuit — 1 × « bibliothèque » » ; « lib 10, oracle 9 148, serveur 9 148 » ; le gel `out/gel/bofip-total-publie-par-la-source-serveur-gel.json` est écrit — copié sous `tests/verif-donnees/gel/`, il est **rouge en `npm run verif` sans réseau** (« affiché 10, recalculé 9148 », aucune requête sortie du faux réseau) et **vert** une fois la mutation retirée |
@@ -836,14 +854,12 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**En attente à ce jour** — un contrôle et deux invariants :
+**En attente à ce jour** — un contrôle et trois invariants :
 
 | Contrôle ou invariant en attente | Domaine | Défaut ou amélioration |
 |---|---|---|
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
-| `ods-plafond-sans-compteur#not-truncated` | adaptateurs | **défaut** (AM-002, #881) : `max-records="120"` sur 137 lignes, sans KPI `count` en aval — 120 lignes émises, aucun diagnostic. Seul un KPI `count` avertit (mode `/records`). |
-| `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic ; en export, `meta.total` est absent et même le KPI `count` se tait. Une seule demande pour les deux : un mot de la **source**. |
-| `canari-plafond-export#not-truncated` | canari | **défaut** (AM-002, #882) : le même, sur 1 001 lignes engendrées — 1 000 reçues, aucun diagnostic. À noter : `_fetchViaExport` porte un avertissement `truncated = rows.length > cap`, qui ne peut jamais partir puisque l'export est demandé avec `limit = cap` exactement. |
+| `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic lu ; en export, `meta.total` est absent et même le KPI `count` se tait. Depuis #1032, la source avertit en nommant dsfr-data-source (ses jumeaux déterministes `ods-plafond-sans-compteur` et `canari-plafond-export` ont reverdi) : à lever après une nuit vivante qui le constate. |
 | `canari-jointure-doublon#count-preserved`, `#sum-preserved:montant` | canari | **violés par les données**, pas par la bibliothèque (PG-001) : 42 lignes pour 40, somme +20 — rendus en attente pour être LUS, c'est le point du canari. Aucune issue à ouvrir. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une

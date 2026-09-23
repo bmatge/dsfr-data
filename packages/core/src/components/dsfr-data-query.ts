@@ -18,8 +18,14 @@ import {
   type ParsedAggregate,
 } from '../utils/aggregates.js';
 import { countDistinct } from '../utils/aggregations.js';
-import { unescapeColonValue, filterToOdsql, parseOrderBy } from '../utils/where.js';
+import {
+  unescapeColonValue,
+  filterToOdsql,
+  parseOrderBy,
+  splitColonFields,
+} from '../utils/where.js';
 import { reportConfigError } from '../utils/config-error.js';
+import { isNumericValue, sortRows } from '../utils/sort.js';
 import { dsfrDataInstances, onDsfrDataInstance } from '../utils/instance-registry.js';
 
 /**
@@ -61,7 +67,10 @@ export type AggregateFunction = (typeof AGGREGATE_FUNCTIONS)[number];
  * Structure d'un filtre
  */
 export interface QueryFilter {
+  /** Champ tel qu'ecrit dans la clause (`a|b` pour des champs multiples). */
   field: string;
+  /** Champs de la clause, `|` decoupe (#1026) : un OU entre eux. */
+  fields?: string[];
   operator: FilterOperator;
   value?: string | number | boolean | (string | number)[];
 }
@@ -228,6 +237,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * navigateur quand la chaîne est partagée (#765), quand un transformateur
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
+   *
+   * CHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME
+   * opérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la
+   * ligne passe dès qu'un des champs satisfait la clause ; les clauses entre
+   * elles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause
+   * multi-champs par requête, valeur sans `,` `.` `(` `)` `"` `&`, ni
+   * `in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE
+   * et les sources sans adaptateur le calculent dans le navigateur.
    *
    * CHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent
    * DANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,
@@ -807,7 +824,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /**
    * Certains adapters (Tabular) ne peuvent pas deleguer des champs dont le nom
-   * contient des espaces/ponctuation (syntaxe a suffixe `colonne__op`). On les
+   * porte un separateur de la grammaire colon (`,` `:` `|`, #985). On les
    * interroge avant de deleguer ; sinon on retombe sur le client-side.
    */
   private _canDelegateFields(adapter: ApiAdapter, fields: string[]): boolean {
@@ -863,7 +880,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // donc avant un group-by qui reste alors client-side lui aussi.
     // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
     // les champs bruts n'existent plus → toutes les lignes éliminées.
-    const whereDelegation = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
+    const whereDelegation = this._buildWhereDelegation(
+      this.filter || this.where,
+      caps.whereFormat,
+      adapter
+    );
     const aggregates = this._parseAggregates(this.aggregate);
     const fields = [
       ...this.groupBy.split(','),
@@ -919,7 +940,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (this._serverDelegated.where || !exclusive || this.explode) return;
     if (!this.filter && !this.where) return;
 
-    const whereOnly = this._buildWhereDelegation(this.filter || this.where, caps.whereFormat);
+    const whereOnly = this._buildWhereDelegation(
+      this.filter || this.where,
+      caps.whereFormat,
+      adapter
+    );
     if (!whereOnly.ok || !whereOnly.where || !this._canDelegateFields(adapter, whereOnly.fields)) {
       return;
     }
@@ -928,13 +953,26 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     this._serverDelegated.where = true;
   }
 
-  /** Delegate order-by */
+  /**
+   * Delegate order-by.
+   *
+   * Jamais quand un regroupement ou un agregat est demande SANS avoir ete
+   * delegue (#1045) : le tri porte alors sur les lignes de SORTIE, calculees
+   * ici, et son champ (`pop`, `population__sum`) n'existe pas dans les lignes
+   * brutes que le serveur trierait — Tabular repond 400 (42703 « column …
+   * does not exist », mesure du 2026-09-23), sans en-tete CORS. Le tri reste
+   * cote client, apres le regroupement, qui seul le rend juste.
+   */
   private _delegateOrderBy(
     cmd: Record<string, string>,
     { sourceEl, adapter, caps }: DelegationTarget,
     exclusive: boolean
   ): void {
     if (!this.orderBy || !exclusive || !caps.serverOrderBy || sourceEl.orderBy) return;
+    // Un agregat de fenetre seul (cumul, part) garde une ligne par ligne : le
+    // tri serveur des lignes brutes reste valable.
+    const regroupe = !!this.groupBy || this._groupAggregates().length > 0;
+    if (regroupe && !this._serverDelegated.groupBy) return;
     const orderField = this.orderBy.split(':')[0] || '';
     if (!this._canDelegateFields(adapter, [orderField])) return;
     cmd.orderBy = this.orderBy;
@@ -1190,6 +1228,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           `(la syntaxe ODSQL n'est pas supportee par dsfr-data-query ; utilisez-la sur le where de dsfr-data-source)`
         );
       }
+      // Champs multiples (#1026) : `a|b:op:v`, aucun champ vide dans la liste
+      if (segments[0].split('|').some((f) => !f.trim())) {
+        return (
+          `champ vide dans la clause where "${part}" — syntaxe attendue ` +
+          `"champ1|champ2:operateur:valeur" (un OU entre les champs)`
+        );
+      }
       const operator = segments[1] as FilterOperator;
       if (!FILTER_OPERATORS.includes(operator)) {
         return (
@@ -1214,7 +1259,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _buildWhereDelegation(
     filterExpr: string,
-    format: AdapterCapabilities['whereFormat']
+    format: AdapterCapabilities['whereFormat'],
+    adapter?: ApiAdapter
   ): { ok: boolean; where: string; fields: string[] } {
     if (!filterExpr) return { ok: true, where: '', fields: [] };
 
@@ -1224,11 +1270,19 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       return { ok: false, where: '', fields: [] };
     }
 
+    // Champs multiples (#1026) : chaque champ d'un `a|b` est un champ delegue
     const fields = filterExpr
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean)
-      .map((part) => part.split(':')[0]);
+      .flatMap((part) => splitColonFields(part.split(':')[0]));
+
+    // L'adaptateur sait-il ecrire la clause (#1026) ? Un OU entre champs que
+    // son API ne sait pas dire (INSEE, generic, valeur non transmissible a
+    // Tabular) reste au filtre client, sur les lignes brutes.
+    if (adapter?.supportsServerWhere?.(filterExpr) === false) {
+      return { ok: false, where: '', fields: [] };
+    }
 
     const where = format === 'odsql' ? filterToOdsql(filterExpr) : filterExpr;
     return { ok: true, where, fields };
@@ -1405,7 +1459,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           }
         }
 
-        filters.push({ field, operator, value });
+        filters.push({ field, fields: splitColonFields(field), operator, value });
       }
     }
 
@@ -1419,13 +1473,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return val;
   }
 
-  /** True si la valeur est interpretable comme nombre (hors null/''). */
-  private _isNumericValue(v: unknown): boolean {
-    if (typeof v === 'number') return !isNaN(v);
-    if (typeof v === 'string') return v.trim() !== '' && !isNaN(Number(v));
-    return false;
-  }
-
   /**
    * Comparaison pour gt/gte/lt/lte (#278). Retourne null si la valeur est
    * absente — null/undefined ne matchent JAMAIS une comparaison
@@ -1434,22 +1481,35 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _compareForRange(value: unknown, ref: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
-    if (this._isNumericValue(value) && this._isNumericValue(ref)) {
+    if (isNumericValue(value) && isNumericValue(ref)) {
       return Number(value) - Number(ref);
     }
     return String(value).localeCompare(String(ref));
   }
 
+  /**
+   * Une clause, sur une ligne. Champs multiples (#1026) : `a|b:op:v` passe
+   * des qu'UN de ses champs la satisfait (OU) — meme operateur, meme valeur.
+   */
   private _matchesFilter(item: Record<string, unknown>, filter: QueryFilter): boolean {
-    const value = getByPath(item, filter.field);
+    const fields = filter.fields ?? [filter.field];
+    return fields.some((field) => this._matchesField(item, field, filter));
+  }
+
+  private _matchesField(
+    item: Record<string, unknown>,
+    field: string,
+    filter: QueryFilter
+  ): boolean {
+    const value = getByPath(item, field);
 
     switch (filter.operator) {
       case 'eq':
-        return looseEquals(value, filter.value, filter.field);
+        return looseEquals(value, filter.value, field);
       case 'neq':
         // Une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : c'est la
         // logique a trois valeurs du portail, et `eq` l'appliquait deja.
-        return looseNotEquals(value, filter.value, filter.field);
+        return looseNotEquals(value, filter.value, field);
       case 'gt': {
         const cmp = this._compareForRange(value, filter.value);
         return cmp !== null && cmp > 0;
@@ -1486,14 +1546,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           value !== null &&
           value !== undefined &&
           Array.isArray(filter.value) &&
-          filter.value.some((v) => looseEquals(value, v, filter.field))
+          filter.value.some((v) => looseEquals(value, v, field))
         );
       case 'notin':
         return (
           value === null ||
           value === undefined ||
           !Array.isArray(filter.value) ||
-          !filter.value.some((v) => looseEquals(value, v, filter.field))
+          !filter.value.some((v) => looseEquals(value, v, field))
         );
       case 'isnull':
         return value === null || value === undefined;
@@ -1808,41 +1868,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   }
 
   /**
-   * Comparateur total a 3 niveaux : null/vide < numerique < chaîne (#278).
-   * Transitif — l'ancien comparateur mixte (numerique si LES DEUX valeurs
-   * sont numeriques, sinon string) produisait un ordre arbitraire sur les
-   * colonnes mixtes, et `Number(null) === 0` classait les nulls parmi les
-   * nombres.
-   */
-  private _compareValues(valA: unknown, valB: unknown): number {
-    const rank = (v: unknown): number => {
-      if (v === null || v === undefined || v === '') return 0;
-      return this._isNumericValue(v) ? 1 : 2;
-    };
-    const rankA = rank(valA);
-    const rankB = rank(valB);
-    if (rankA !== rankB) return rankA - rankB;
-    if (rankA === 0) return 0;
-    if (rankA === 1) return Number(valA) - Number(valB);
-    return String(valA).localeCompare(String(valB));
-  }
-
-  /**
    * Applique le tri — grammaire commune du pipeline `"field:dir, field2:dir"`
-   * (#273), tri stable, comparateur total (#278). En desc, l'ordre est
-   * exactement inverse (nulls en dernier).
+   * (#273), tri stable, comparateur total (#278), partage avec les
+   * adaptateurs qui trient eux-memes (`utils/sort.ts`, #1045).
    */
   private _applySort(data: Record<string, unknown>[]): Record<string, unknown>[] {
-    const parts = parseOrderBy(this.orderBy);
-    if (parts.length === 0) return data;
-
-    return [...data].sort((a, b) => {
-      for (const { field, direction } of parts) {
-        const cmp = this._compareValues(getByPath(a, field), getByPath(b, field));
-        if (cmp !== 0) return direction === 'desc' ? -cmp : cmp;
-      }
-      return 0;
-    });
+    return sortRows(data, parseOrderBy(this.orderBy));
   }
 
   // --- Public API ---

@@ -48,10 +48,10 @@ export function openColumnsModal(): void {
     .map(
       (col, i) => `
     <div class="datalist-column-row" data-index="${i}">
-      <input type="checkbox" class="datalist-col-visible" ${col.visible ? 'checked' : ''}>
+      <input type="checkbox" class="datalist-col-visible" data-repere="builder.donnees.tableau.colonnes.visible" data-repere-libelle="Afficher la colonne" aria-label="Afficher la colonne" ${col.visible ? 'checked' : ''}>
       <span class="datalist-col-field">${col.field}</span>
-      <input type="text" class="fr-input fr-input--sm datalist-col-label" value="${col.label}" placeholder="Label">
-      <input type="checkbox" class="datalist-col-filtrable" ${col.filtrable ? 'checked' : ''}> <small>Filtrable</small>
+      <input type="text" class="fr-input fr-input--sm datalist-col-label" data-repere="builder.donnees.tableau.colonnes.libelle" data-repere-libelle="Libellé de la colonne" value="${col.label}" placeholder="Label">
+      <input type="checkbox" class="datalist-col-filtrable" data-repere="builder.donnees.tableau.colonnes.filtrable" data-attribut="dsfr-data-list:filters" data-repere-libelle="Colonne filtrable" ${col.filtrable ? 'checked' : ''}> <small>Filtrable</small>
     </div>
   `
     )

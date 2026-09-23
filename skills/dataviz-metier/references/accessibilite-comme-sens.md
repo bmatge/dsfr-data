@@ -3,6 +3,8 @@
 > Le tableau équivalent est une lecture : ses colonnes ont des noms, ses lignes un ordre, ses nombres un format ; la description dit le message ; les titres structurent ; une seule région live parle. RGAA par `dsfr-data-a11y`, mais lu comme un lecteur.
 >
 > Déclencheurs : tableau équivalent, lecture accessible, lecteur d'écran, RGAA, a11y, description du graphique, alternative textuelle, format long, une colonne par série, région live, niveau de titre, décimales du tableau, csv complet
+>
+> Niveaux : avancé
 
 ## Ce que l'original n'a pas
 
@@ -20,8 +22,8 @@ Il ne vaut que si le tableau **se lit**.
 | **Les lignes ont un ordre** | `order-by="valeur:desc"` sur la query lue par le graphique **et** le tableau (même `source`) | un tableau dans l'ordre d'arrivée sous un graphique trié |
 | **Les nombres sont lisibles** | fr-FR au plus deux décimales, `decimals="1"` (0.22.0, AM-033) | « 2.2665920000000006 » |
 | **Une année n'est pas un nombre** | garder les millésimes en **texte** : un `an` numérique est rendu « 2 022 » avec séparateur de milliers (vérifié 2026-09-19) | « 2 024 » |
-| **Une série = une colonne** | format long (`series-field`) → `dsfr-data-pivot row="an" column="serie" value="v"` pour le tableau : trois colonnes « Fédération / Groupe / Toutes » (vérifié 2026-09-19, dsfr-data 0.30.0) | une ligne par (année × série) sans colonne de série (AM-082) |
-| **Le groupe vide est nommé** | `empty-label` nomme sur l'axe, **pas** dans le tableau (cellule vide, vérifié) → `compute="cat_txt = when cat is null then 'Non renseigné' else cat"` si le tableau compte | une première ligne « \| \| 2.36 » |
+| **Une série = une colonne** | `series-field="serie"` posé aussi sur `dsfr-data-a11y` (0.33.0, AM-082) : le tableau pivote, une colonne par série « Fédération / Groupe / Toutes ». Avant : `dsfr-data-pivot row="an" column="serie" value="v"` (vérifié 2026-09-19, 0.30.0) | une ligne par (année × série) sans colonne de série |
+| **Le groupe vide est nommé** | `empty-label="Non renseigné"` sur `dsfr-data-a11y` (0.33.0, AM-085) : le tableau dit ce que l'axe montre. Avant 0.33 : cellule vide (vérifié 0.30.0) → `compute="cat_txt = when is_null(cat) then 'Non renseigné' else cat"` | une première ligne « \| \| 2.36 » |
 | **Le tableau est complet ou dit qu'il ne l'est pas** | plafond de **100 lignes**, signalé à l'écran ; le CSV reste complet (LIM-012) | 100 `tr` pour 119 lignes annoncées |
 
 ## Avec DataBox : un seul tableau

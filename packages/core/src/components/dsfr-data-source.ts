@@ -187,7 +187,7 @@ export class DsfrDataSource extends LitElement {
   where = '';
 
   /**
-   * Clause SELECT (pour ODS), liste séparée par des virgules :
+   * Clause SELECT (ODS, et projection de colonnes sur Tabular), liste séparée par des virgules :
    * `select="count(*) as total, region"`. Une expression (fonction, alias
    * `as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom
    * de champ qui n'est pas un identifiant nu (espace, accent, chiffre
@@ -205,6 +205,16 @@ export class DsfrDataSource extends LitElement {
    * serait faux (#859). S'il définit une colonne par une expression aliasée
    * (`year(date) as annee`) que le regroupement vise, la délégation est
    * refusée — avertissement en console, regroupement calculé côté client.
+   *
+   * Tabular (#985) : une liste de NOMS de colonnes (`select="nom, Code sexe"`,
+   * espaces et accents admis), traduite en `columns=` — l'API ne rend que ces
+   * colonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne
+   * n'est ajoutée d'office : une colonne lue en aval (graphique, liste,
+   * facette, filtre client) doit y figurer, et un nom inconnu du jeu fait
+   * répondre l'API en erreur. Sans effet quand un `group-by` ou un
+   * `aggregate` est posé (sur la source ou délégué par une query) : l'API
+   * refuse `columns` à côté d'un agrégateur. Une expression (fonction, alias,
+   * `*`) est ignorée avec un avertissement : toutes les colonnes sont chargées.
    */
   @property({ type: String })
   select = '';
@@ -245,10 +255,16 @@ export class DsfrDataSource extends LitElement {
   limit = 0;
 
   /**
-   * Plafond de records du fetchAll en mode adapter (#233). 0 = plafond par
-   * défaut de l'adapter (ODS : 1000). A relever explicitement pour les
-   * dashboards « un fetch, N agrégations client » — attention au nombre de
-   * requêtes en boucle et au poids mémoire.
+   * Plafond de lignes du chargement complet en mode adaptateur, honoré par
+   * Opendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de
+   * l'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever
+   * explicitement pour charger un jeu plus long par la pagination — par
+   * exemple une carte des ≈ 35 000 communes sur Tabular (`max-records="40000"`)
+   * — ou pour les tableaux de bord « un fetch, N agrégations client » :
+   * attention au nombre de requêtes en boucle (Tabular : une par tranche de
+   * 200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.
+   * Quand le plafond coupe le jeu, la source signale la troncature
+   * (`truncated`) et un avertissement console cite `max-records`.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;

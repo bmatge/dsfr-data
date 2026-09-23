@@ -3,6 +3,8 @@
 > Au-dessus de la moyenne n'est pas toujours une bonne nouvelle : lire le sens dans le jeu quand il le porte, le déclarer sinon, et ne jamais laisser une couleur automatique juger à la place du lecteur.
 >
 > Déclencheurs : sens de la variation, bonne nouvelle, favorable, défavorable, sens_de_l_augmentation, seuil, threshold, tendance, flèche, vert rouge, couleur du signe, palette divergente, écart à la moyenne, cumul qui décroît, légende qui ment
+>
+> Niveaux : intermédiaire, avancé
 
 ## Le jeu peut porter le sens : le lire
 

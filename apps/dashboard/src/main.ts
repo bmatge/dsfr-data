@@ -13,9 +13,10 @@ import {
   startTour,
   DASHBOARD_TOUR,
   mountDiagnosticPanel,
-  transmettreDiagnostic,
-  appHref,
 } from '@dsfr-data/shared';
+import type { MountedAssistant, TourConfig } from '@dsfr-data/shared';
+import { creerAdaptateurDashboard } from './assistant/adaptateur.js';
+import { monterAssistantDashboard, montrerRepereDashboard } from './assistant/index.js';
 import { state, createEmptyDashboard, normalizeDashboard } from './state.js';
 import type { DashboardData, DashboardSource, DashboardFavorite } from './state.js';
 import { initDragAndDrop, handleFavoriteDragStart } from './drag-drop.js';
@@ -42,6 +43,11 @@ import {
   navigateToSources,
 } from './dashboards.js';
 import { openPreviewModal, closePreviewModal } from './preview.js';
+
+/** Visite en repères (#1013) : l'adaptateur rebascule sur l'onglet Aperçu avant de montrer. */
+function visiteDashboard(): TourConfig {
+  return { ...DASHBOARD_TOUR, adaptateur: creerAdaptateurDashboard() };
+}
 
 function loadFavorites(): void {
   state.favorites = loadFromStorage<DashboardFavorite[]>(STORAGE_KEYS.FAVORITES, []);
@@ -233,7 +239,9 @@ function initEventListeners(): void {
   document.getElementById('btn-save')?.addEventListener('click', openSaveModal);
   document.getElementById('btn-export')?.addEventListener('click', exportHTML);
   document.getElementById('btn-preview')?.addEventListener('click', openPreviewModal);
-  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(DASHBOARD_TOUR));
+  document
+    .getElementById('tour-btn')
+    ?.addEventListener('click', () => startTour(visiteDashboard()));
   document.getElementById('add-row-btn')?.addEventListener('click', addRow);
   document.getElementById('close-modal')?.addEventListener('click', closeConfigModal);
   document.getElementById('cancel-config')?.addEventListener('click', closeConfigModal);
@@ -295,26 +303,29 @@ function initEventListeners(): void {
 
 // Initialization
 
-/**
- * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
- * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
- * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
- */
-function envoyerDiagnosticVersAssistant(texte: string): void {
-  transmettreDiagnostic(texte);
-  window.location.href = appHref('builder-ia', { from: 'dashboard' });
-}
+/** Assistant contextuel (#1018), monté au chargement après le volet Diagnostic. */
+let assistant: MountedAssistant | null = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Adaptateur de révélation (#1007) : partagé par l'assistant et « Me montrer ».
+  const adaptateur = creerAdaptateurDashboard();
   // Volet Diagnostic (#606) — un tableau de bord porte plusieurs chaînes,
   // une par widget ; le collecteur les voit toutes sur le même bus.
-  mountDiagnosticPanel({
-    frame: document.getElementById('preview-iframe') as HTMLIFrameElement | null,
-    toggleButtonId: 'diagnostic-btn',
-    canSend: true,
-    onSend: envoyerDiagnosticVersAssistant,
-    emptyHint: 'Ajoutez un widget pour observer ce qui transite entre les composants.',
-  });
+  const diagnostic =
+    mountDiagnosticPanel({
+      frame: document.getElementById('preview-iframe') as HTMLIFrameElement | null,
+      toggleButtonId: 'diagnostic-btn',
+      // « Demander à l'assistant » (#1018) : ouvre l'assistant du tableau de
+      // bord, sans quitter l'app. Il lit les mêmes constats que le volet.
+      canSend: true,
+      envoi: 'demander',
+      onSend: () => assistant?.ouvrir(),
+      onMontrer: (repere) => void montrerRepereDashboard(repere, adaptateur),
+      onConstats: () => assistant?.rafraichirConstats(),
+      emptyHint: 'Ajoutez un widget pour observer ce qui transite entre les composants.',
+    }) ?? null;
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré.
+  assistant = monterAssistantDashboard({ adaptateur, diagnostic });
   await initAuth();
 
   loadFavorites();
@@ -327,7 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Product tour
   injectTourStyles();
-  startTourIfFirstVisit(DASHBOARD_TOUR);
+  startTourIfFirstVisit(visiteDashboard());
 });
 
 // Expose functions globally for onclick handlers

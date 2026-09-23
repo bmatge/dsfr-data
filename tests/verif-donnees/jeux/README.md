@@ -38,6 +38,7 @@ est lu par au moins un contrôle et que chaque `feed.datasets` déterministe vie
 |---|---|---|
 | `adaptateurs-melodi.json` | 7 | Les lignes PLATES attendues après aplatissement INSEE Melodi (#586) : la mesure `OBS_VALUE_NIVEAU` perd son suffixe, une dimension traduite garde son nom et prend le libellé (le code part dans `<DIM>_CODE`), la dernière ligne porte un code géographique ABSENT de `/range` et n'ouvre pas de `GEO_CODE`. Les observations portent l'`id` géographique (`2025-DEP-01`), pas le code court. |
 | `adaptateurs-grist.json` | 5 | Champs imbriqués sous `fields` ; noms de colonnes piégeux (espaces, apostrophe, accents) — ce qui casse quand l'aplatissement passe par une clé construite plutôt que recopiée. |
+| `adaptateurs-tabular-long.json` | 411 | Les 137 territoires posés TROIS fois, chaque copie marquée par `copie` (1, 2, 3), en même ordre de colonnes. Tabular sert 200 lignes par page (#1019) : `territoires` y tient en une seule et `links.next` ne serait plus suivi. Trois pages (200, 200, 11) : une page oubliée, ou la première relue au lieu de la suivante, change le compte et la somme. |
 | `adaptateurs-json.json` | 5 | Colonnes numériques servies EN CHAÎNES à la française (espace de milliers, virgule décimale) ; `effectif` mêle nombres et chaînes dans la même colonne. |
 
 Les modalités de `/range` (Melodi) restent dans `fixtures-adaptateurs.ts` : ce sont des
@@ -51,6 +52,8 @@ tables de correspondance du faux serveur, pas des lignes que l'oracle recalcule.
 | `affichages-serie.json` | 12 | Douze mois croissants ; la dernière valeur vaut exactement 1,4 fois la première — l'évolution attendue est un taux rond (40 %). |
 | `affichages-libelles.json` | 8 | Huit libellés dont l'ordre alphabétique français diffère de l'ordre des codes de caractères (« É », U+00C9, passerait après « Z »). |
 | `affichages-long.json` | 6 | Format long mois × groupe pour `series-field` ; le groupe B n'a pas l'allure du groupe A. |
+| `affichages-contours-departements.json` | 101 | Fond des départements de la composition par échelle (#1021), servi à l'URL que la Carto génère (`dsfr-data@0/geo/departements.json`) en `FeatureCollection` — une ligne par entité, `code` et `nom` de `packages/core/geo/departements.json` (les 101 mêmes codes, zéros de tête et `2A`/`2B` compris : la jointure compare la clé brute), géométrie remplacée par un carré sur une grille. Ce sont les codes qui comptent, pas les tracés. |
+| `affichages-zones.json` | 10 | Dix polygones à la manière d'un jeu Opendatasoft (#1053) : chaque ligne porte `geo_point_2d` ET `geo_shape`. Une couche `geoshape` sans `geo-field` doit tracer la forme ; le calcul d'emprise devine le point en premier, et reprendre sa détection telle quelle ne tracerait rien. |
 
 ## Domaine `transformations`
 

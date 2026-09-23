@@ -34,8 +34,8 @@ export const TABULAR_CONFIG: ProviderConfig = {
 
   pagination: {
     type: 'page',
-    pageSize: 50,
-    maxPages: 500,
+    pageSize: 200, // maximum reel de l'API (201 → 400), #1019
+    maxPages: 125,
     maxRecords: 25000,
     params: { page: 'page', pageSize: 'page_size' },
     nextPagePath: 'next',
@@ -49,7 +49,7 @@ export const TABULAR_CONFIG: ProviderConfig = {
   capabilities: {
     serverFetch: true,
     serverFacets: false,
-    serverSearch: false,
+    serverSearch: true,
     serverGroupBy: true,
     serverOrderBy: true,
     serverGeo: false,
@@ -58,7 +58,9 @@ export const TABULAR_CONFIG: ProviderConfig = {
 
   query: {
     aggregationSyntax: 'colon-attr',
-    searchTemplate: null,
+    // Recherche serveur multi-colonnes (#1026) : `{fields}` devient les champs de
+    // dsfr-data-search separes par `|`, traduits en `or=(a__contains.q,b__contains.q)`
+    searchTemplate: '{fields}:contains:{q}',
     operatorMapping: {
       eq: 'exact',
       neq: 'differs',

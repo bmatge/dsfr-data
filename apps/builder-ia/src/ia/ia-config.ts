@@ -8,7 +8,13 @@
  * - Server default: server-side token injected by /ia-proxy-default (token never exposed)
  */
 
-import { toastSuccess } from '@dsfr-data/shared';
+import {
+  toastSuccess,
+  fetchServerConfig as fetchSharedServerConfig,
+  getServerConfig as getSharedServerConfig,
+  isServerMode as isSharedServerMode,
+  type ServerIAConfig,
+} from '@dsfr-data/shared';
 
 /** IA config shape */
 export interface IAConfig {
@@ -20,11 +26,7 @@ export interface IAConfig {
 }
 
 /** Server-side default config (token is never exposed to client) */
-export interface ServerIAConfig {
-  available: boolean;
-  apiUrl?: string;
-  model?: string;
-}
+export type { ServerIAConfig };
 
 const IA_CONFIG_KEY = 'dsfr-data-ia-config';
 
@@ -38,9 +40,6 @@ const MODEL_PRESETS = new Set([
   'openweight-small',
   'albert-large',
 ]);
-
-/** Cached server config (fetched once per session) */
-let serverConfig: ServerIAConfig | null = null;
 
 /**
  * Lit le modele choisi : valeur du select, ou input "Personnalise…" si actif.
@@ -99,26 +98,22 @@ export function hasUserConfig(): boolean {
   }
 }
 
-/** Fetch the server-side default config (cached after first call) */
-export async function fetchServerConfig(): Promise<ServerIAConfig> {
-  if (serverConfig !== null) return serverConfig;
-  try {
-    const res = await fetch('/ia-server-config');
-    serverConfig = await res.json();
-  } catch {
-    serverConfig = { available: false };
-  }
-  return serverConfig!;
+/**
+ * Config serveur : deleguee au transport IA commun (#998), pour qu'un seul
+ * cache de `/ia-server-config` serve le builder-IA et le Studio.
+ */
+export function fetchServerConfig(): Promise<ServerIAConfig> {
+  return fetchSharedServerConfig();
 }
 
 /** Whether we are currently in server-default mode */
 export function isServerMode(): boolean {
-  return !hasUserConfig() && serverConfig?.available === true;
+  return isSharedServerMode();
 }
 
 /** Get cached server config (null if not fetched yet) */
 export function getServerConfig(): ServerIAConfig | null {
-  return serverConfig;
+  return getSharedServerConfig();
 }
 
 /** Update the IA config UI badge to show active mode */
@@ -131,7 +126,7 @@ export function updateIAModeBadge(): void {
   if (hasUserConfig() || tokenInput?.value) {
     badge.textContent = 'Config perso';
     badge.className = 'fr-badge fr-badge--sm fr-badge--success';
-  } else if (serverConfig?.available) {
+  } else if (getServerConfig()?.available) {
     badge.textContent = `Albert (serveur)`;
     badge.className = 'fr-badge fr-badge--sm fr-badge--info';
   } else {
@@ -150,8 +145,8 @@ export function resetIAConfig(): void {
 
   if (apiUrlEl)
     apiUrlEl.value =
-      serverConfig?.apiUrl || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
-  applyModelValue(serverConfig?.model || DEFAULT_MODEL);
+      getServerConfig()?.apiUrl || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
+  applyModelValue(getServerConfig()?.model || DEFAULT_MODEL);
   if (tokenEl) tokenEl.value = '';
 
   updateIAModeBadge();

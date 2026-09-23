@@ -84,6 +84,7 @@ app-action-bar{display:block}
 .app-action-bar__actions .fr-btn{white-space:nowrap}
 .app-action-bar>.app-action-bar__reason{flex:0 0 100%;margin:0;text-align:right}
 .app-action-bar__reason[hidden]{display:none}
+.app-action-bar__more[data-count]::after{content:attr(data-count);position:absolute;top:-.4rem;right:-.4rem;display:inline-flex;align-items:center;justify-content:center;min-width:1.25rem;height:1.25rem;padding:0 .35rem;border-radius:.625rem;font-size:.75rem;font-weight:700;line-height:1;pointer-events:none;background:var(--background-flat-warning);color:var(--text-inverted-warning)}
 .app-action-bar__actions .fr-btn[aria-busy="true"]::before{animation:app-action-bar-spin 1s linear infinite}
 @keyframes app-action-bar-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 /* EPINGLAGE, et seulement la ou il a un REFERENT.
@@ -145,6 +146,8 @@ export class AppActionBar extends LitElement {
     this._layout();
   };
   private _resizeObserver?: ResizeObserver;
+  /** Suit les pastilles `data-count` des actions (repliées ou non). */
+  private _countObserver?: MutationObserver;
   private _primaryManaged = false;
   /** Menus repliés dans Plus ▾ : leurs entrées, pour les leur rendre au prochain layout. */
   private _flattened = new Map<AppMenu, Element[]>();
@@ -170,6 +173,7 @@ export class AppActionBar extends LitElement {
     super.disconnectedCallback();
     this._mql?.removeEventListener?.('change', this._mqlHandler);
     this._resizeObserver?.disconnect();
+    this._countObserver?.disconnect();
   }
 
   firstUpdated() {
@@ -177,6 +181,14 @@ export class AppActionBar extends LitElement {
     // HTML, happy-dom) : seconde collecte avant la première mise en page.
     this._collect();
     this._layout();
+    if (typeof MutationObserver !== 'undefined') {
+      this._countObserver = new MutationObserver(() => this._syncMoreCount());
+      this._countObserver.observe(this, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-count'],
+      });
+    }
     const actions = this._actionsEl();
     if (actions && typeof ResizeObserver !== 'undefined') {
       const root = document.documentElement.style;
@@ -251,6 +263,27 @@ export class AppActionBar extends LitElement {
     el.setAttribute('slot', rank);
     this._items.push({ el, rank });
     this._layout();
+  }
+
+  /**
+   * Bouton « Assistant » (#1011, docs/ux/actions.md §2.2) : tertiaire,
+   * `fr-icon-question-answer-line`, id `assistant-btn`. Réutilisé s'il est déjà
+   * dans la barre (balisage de l'app), créé sinon. `mountAssistant()` le relie
+   * au panneau (`aria-expanded`, `aria-controls`) et y pose la pastille
+   * `data-count` des constats à corriger.
+   */
+  ajouterBoutonAssistant(): HTMLButtonElement {
+    const existant = this.querySelector<HTMLButtonElement>('#assistant-btn');
+    if (existant) return existant;
+    const bouton = document.createElement('button');
+    bouton.type = 'button';
+    bouton.id = 'assistant-btn';
+    bouton.className = 'fr-icon-question-answer-line';
+    bouton.title = "Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger";
+    bouton.setAttribute('aria-expanded', 'false');
+    bouton.textContent = 'Assistant';
+    this.addAction(bouton, 'tertiary');
+    return bouton;
   }
 
   /** Retire une action de la barre et la rend (écouteurs conservés). */
@@ -410,9 +443,43 @@ export class AppActionBar extends LitElement {
     fold(tertiaries);
     more.iconOnly = this._mobile;
     more.hidden = more.isEmpty;
+    this._syncMoreCount();
 
     this._applyPrimaryState();
     this._updateTabStops();
+  }
+
+  /**
+   * Pastille de « Plus d'actions » : la somme des `data-count` des actions
+   * repliées dans le menu (aujourd'hui, les constats à corriger du bouton
+   * « Assistant »). Sans elle, la pastille disparaît avec son bouton dès qu'il
+   * est replié — c'est-à-dire toujours sur un écran large, où les tertiaires
+   * vivent dans le menu. Posée sur l'hôte `app-menu` (le déclencheur utilise
+   * déjà `::after` pour sa flèche), doublée dans l'`aria-label` du déclencheur.
+   */
+  private _syncMoreCount(): void {
+    const more = this.moreMenu;
+    if (!more) return;
+    let total = 0;
+    for (const it of this._items) {
+      if (!more.contains(it.el)) continue;
+      const n = Number(it.el.dataset.count);
+      if (Number.isInteger(n) && n > 0) total += n;
+    }
+    const trigger = more.trigger;
+    const valeur = total > 0 ? String(total) : undefined;
+    if (more.dataset.count !== valeur) {
+      if (valeur) more.dataset.count = valeur;
+      else delete more.dataset.count;
+    }
+    if (!trigger) return;
+    if (valeur) {
+      const libelle = `Plus d'actions, ${total} constat${total > 1 ? 's' : ''} à corriger`;
+      if (trigger.getAttribute('aria-label') !== libelle)
+        trigger.setAttribute('aria-label', libelle);
+    } else if (trigger.hasAttribute('aria-label')) {
+      trigger.removeAttribute('aria-label');
+    }
   }
 
   private _applyPrimaryState(): void {

@@ -3,6 +3,8 @@
 > Axe tronqué, double axe, moyenne de pourcentages, moyenne non pondérée des territoires, arrondi avant pondération, base 100, compte distinct approximatif : les façons dont un chiffre exact devient un chiffre faux.
 >
 > Déclencheurs : échelle honnête, axe tronqué, y-min, double axe, moyenne de pourcentages, moyenne de taux, moyenne non pondérée, pondération, en France, résumé de carte, arrondi, décimales, base 100, indice, échelle logarithmique, count distinct, total_count
+>
+> Niveaux : base (les pièges résumés dans niveau-base), avancé (tout)
 
 ## La moyenne d'un taux est un taux pondéré, jamais une moyenne
 
@@ -28,7 +30,7 @@ pèsent pareil, `none` pour ne rien résumer (ce qui disparaît est le chiffre ;
 France » appartient à DSFR Chart et reste). Une somme n'a de sens que si les lignes forment une
 **partition** : deux lignes du même code sont additionnées toutes les deux alors que la carte
 n'en dessine qu'une — un avertissement console le dit, agréger en amont. Une choroplèthe de
-volumes reste une forme douteuse (voir [forme](forme.md)) ; si elle s'impose, le dire en page à
+volumes reste une forme douteuse (voir [choisir-la-forme](choisir-la-forme.md)) ; si elle s'impose, le dire en page à
 côté du résumé.
 
 ## Arrondir pour l'affichage, jamais avant un calcul

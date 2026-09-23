@@ -1,9 +1,16 @@
+// Journal réseau et console (#994) : EN PREMIER, avant la bibliothèque et le
+// code de l'app, pour voir leurs premières requêtes. Les modules ES
+// s'évaluent dans l'ordre des imports.
+import '@dsfr-data/shared/debug/installer-journal';
 import './styles/pipeline-helper.css';
 import { PipelineEditor } from './editor.js';
 import { generateCode } from './code-generator.js';
 import { PipelineExecutor } from './pipeline-executor.js';
 import { importFromHtml } from './html-parser.js';
 import { showInspector } from './ui/inspector.js';
+import { creerAdaptateurPipeline } from './assistant/adaptateur.js';
+import { monterAssistantPipeline, montrerReperePipeline } from './assistant/index.js';
+import type { EtatPipeline } from './assistant/prerequis.js';
 import {
   confirmDialog,
   injectTourStyles,
@@ -11,26 +18,46 @@ import {
   startTourIfFirstVisit,
   PIPELINE_TOUR,
   mountDiagnosticPanel,
+  type AdaptateurReperage,
+  type MountedAssistant,
 } from '@dsfr-data/shared';
 
 let editor: PipelineEditor | null = null;
 let executor: PipelineExecutor | null = null;
+/** Assistant contextuel (#1018), monté une fois l'éditeur Rete créé. */
+let assistant: MountedAssistant | null = null;
+/** Adaptateur de révélation (#1008) : il a besoin de l'éditeur. */
+let adaptateur: AdaptateurReperage<EtatPipeline> | null = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Volet Diagnostic (#606) — l'exécuteur instancie de vrais composants dans
   // un conteneur caché du document courant : même mode que la Carto. Le
   // Pipeline garde sa vue par nœud, plus riche ; le volet lui apporte le
   // diagnostic textuel partagé (« Copier le diagnostic »).
-  mountDiagnosticPanel({
-    liveRoot: document.body,
-    toggleButtonId: 'diagnostic-btn',
-    emptyHint: 'Exécutez le pipeline pour observer ce qui transite entre les étapes.',
-  });
+  const diagnostic =
+    mountDiagnosticPanel({
+      liveRoot: document.body,
+      toggleButtonId: 'diagnostic-btn',
+      // « Demander à l'assistant » (#1018) : ouvre l'assistant du Pipeline, sans
+      // quitter l'app. Il lit les mêmes constats que le volet.
+      canSend: true,
+      envoi: 'demander',
+      onSend: () => assistant?.ouvrir(),
+      onMontrer: (repere) => {
+        if (adaptateur) void montrerReperePipeline(repere, adaptateur);
+      },
+      onConstats: () => assistant?.rafraichirConstats(),
+      emptyHint: 'Exécutez le pipeline pour observer ce qui transite entre les étapes.',
+    }) ?? null;
   const container = document.getElementById('rete-container');
   if (!container) return;
 
   // Initialize editor
   editor = new PipelineEditor(container);
+  const revelation = creerAdaptateurPipeline(editor);
+  adaptateur = revelation;
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré.
+  assistant = monterAssistantPipeline({ adaptateur: revelation, diagnostic });
 
   // Check if we received code from the playground
   const urlParams = new URLSearchParams(window.location.search);
@@ -175,12 +202,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btn-playground')?.addEventListener('click', openInPlayground);
   document.getElementById('open-playground-btn')?.addEventListener('click', openInPlayground);
 
-  // « Visite guidée » (lot UX 7, #544) : tour partagé, auto au premier passage
+  // « Visite guidée » (lot UX 7, #544) : tour partagé, auto au premier passage.
+  // Étapes en repères (#1013) : l'adaptateur sélectionne l'onglet avant de montrer.
   injectTourStyles();
-  document
-    .getElementById('btn-toggle-help')
-    ?.addEventListener('click', () => startTour(PIPELINE_TOUR));
-  startTourIfFirstVisit(PIPELINE_TOUR);
+  const visite = { ...PIPELINE_TOUR, adaptateur: revelation };
+  document.getElementById('btn-toggle-help')?.addEventListener('click', () => startTour(visite));
+  startTourIfFirstVisit(visite);
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {

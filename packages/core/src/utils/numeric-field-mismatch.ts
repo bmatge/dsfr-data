@@ -33,7 +33,7 @@
  * qui crie à tort est pire que pas d'avertissement.
  */
 
-import { unescapeColonValue } from '@dsfr-data/shared/lib';
+import { splitColonFields, unescapeColonValue } from '@dsfr-data/shared/lib';
 import { getDataCache } from './data-bridge.js';
 
 /** Situations déjà signalées : un message par champ et par source. */
@@ -94,9 +94,12 @@ function equalityValues(colonWhere: string): Map<string, string[]> {
     if (!field || !op || raw === undefined) continue;
     if (op !== 'eq' && op !== 'neq' && op !== 'in') continue;
     const values = (op === 'in' ? raw.split('|') : [raw]).map(unescapeColonValue).filter(Boolean);
-    const list = byField.get(field);
-    if (list) list.push(...values);
-    else byField.set(field, values);
+    // Champs multiples (#1026) : `a|b:eq:v` compare v a chacun des champs
+    for (const one of splitColonFields(field)) {
+      const list = byField.get(one);
+      if (list) list.push(...values);
+      else byField.set(one, [...values]);
+    }
   }
   return byField;
 }

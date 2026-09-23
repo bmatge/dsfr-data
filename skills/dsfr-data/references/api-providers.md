@@ -13,7 +13,7 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 | Capacite | OpenDataSoft | Tabular (data.gouv.fr) | Grist | INSEE (Melodi) | Generique |
 |----------|:---:|:---:|:---:|:---:|:---:|
 | Fetch serveur | oui | oui | oui | oui | non (dsfr-data-source) |
-| Pagination auto | oui (offset, 10 pages) | oui (page, 500 pages, max 50/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
+| Pagination auto | oui (offset, 10 pages) | oui (page, 125 pages, max 200/page) | oui (offset, 100/page) | oui (page, 1000/page, 100k max) | non |
 | Chargement en une requete | oui (`fetch-mode="export"`) | non | oui (natif) | non | non |
 | Facettes serveur | oui | non | oui (SQL) | non | non |
 | Recherche serveur | oui (full-text) | non | non | non | non |
@@ -61,7 +61,7 @@ OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. `fetch-m
 « un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de
 groupes (l'export les rend tous, la pagination s'arrete au plafond). A ne PAS activer avec
 `server-side`. En mode export le total serveur est inconnu : le KPI `meta:total` retombe sur le
-nombre de lignes recues, et la troncature est detectee via `max-records`.
+nombre de lignes recues, et la troncature est detectee via `max-records` (lot tronque : « — »).
 ```html
 <dsfr-data-source id="src" api-type="opendatasoft"
   base-url="https://data.economie.gouv.fr" dataset-id="decp_augmente"

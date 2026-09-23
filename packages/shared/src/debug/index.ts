@@ -25,6 +25,17 @@ export {
   readCacheSnapshot,
 } from './early-buffer.js';
 export type { BufferedBusEvent } from './early-buffer.js';
+export {
+  JOURNAL_RESEAU_KEY,
+  JOURNAL_CONSOLE_KEY,
+  JOURNAL_MAX,
+  JOURNAL_EXCLUSIONS,
+  installerJournal,
+  drainerJournal,
+  masquerUrl,
+  journalScript,
+} from './journal.js';
+export type { EntreeReseau, EntreeConsole, JournalDraine } from './journal.js';
 export { STAGE_ROLES, SHAPE_ATTRS, snapshotGraph, downstreamOf, topoOrder } from './graph.js';
 export type { StageRole, StageNode, DataflowGraph, ComputedColumn } from './graph.js';
 
@@ -61,11 +72,14 @@ export { attachRecorderToFrame } from './frame.js';
 export type { FrameAttachment, FrameAttachOptions } from './frame.js';
 export { lintMarkup, formatLintFindings, lireBalises } from './lint-markup.js';
 export type { ComponentContract, TagContract, LintFinding, LintSeverity } from './lint-markup.js';
-export {
-  formatTrace,
-  summarizeTrace,
-  plural,
-  formatInt,
-  JOIN_MATCH_ALERT_RATIO,
-} from './format.js';
+export { formatTrace, plural, formatInt, JOIN_MATCH_ALERT_RATIO } from './format.js';
 export type { FormatOptions } from './format.js';
+export {
+  evaluerConstats,
+  compterAlertes,
+  summarizeTrace,
+  urlDejaProxifiee,
+  REGLES_GENERIQUES,
+} from './constats.js';
+export type { Constat, ContexteConstats, GraviteConstat, RegleConstat } from './constats.js';
+export { REGLES_CARTO, REGLES_BUILDER_CARTO, MAX_ITEMS_PAR_DEFAUT } from './constats-carto.js';

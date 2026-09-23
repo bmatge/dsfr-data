@@ -266,6 +266,39 @@ describe('#659 — value="meta:total"', () => {
     expect(kpiInternals(kpi)._computeValue()).toBe(28);
   });
 
+  it('#1046 : page serveur sans total (page agrégée Tabular) → null, pas la taille de page', () => {
+    kpi.source = 'groupes';
+    // Meta telle que la source la publie sur une page agrégée : total inconnu.
+    setDataMeta('groupes', { page: 1, pageSize: 40, total: undefined, serverSide: true });
+    kpiInternals(kpi)._sourceData = Array.from({ length: 40 }, (_, i) => ({ id: i }));
+
+    expect(kpiInternals(kpi)._computeValue()).toBeNull();
+  });
+
+  it('#1046 : lot tronqué sans total → null', () => {
+    kpi.source = 'plafond';
+    setDataMeta('plafond', { page: 1, pageSize: 0, serverSide: false, truncated: true });
+    kpiInternals(kpi)._sourceData = ACTIVITES.slice(0, 12);
+
+    expect(kpiInternals(kpi)._computeValue()).toBeNull();
+  });
+
+  it('#1046 : lot complet sans total (fetchAll) → les lignes reçues, qui sont le total', () => {
+    kpi.source = 'complet';
+    setDataMeta('complet', { page: 1, pageSize: 0, serverSide: false });
+    kpiInternals(kpi)._sourceData = ACTIVITES;
+
+    expect(kpiInternals(kpi)._computeValue()).toBe(28);
+  });
+
+  it('#1046 : un total 0 explicite reste 0', () => {
+    kpi.source = 'vide';
+    setDataMeta('vide', { page: 1, pageSize: 40, total: 0, serverSide: true });
+    kpiInternals(kpi)._sourceData = [];
+
+    expect(kpiInternals(kpi)._computeValue()).toBe(0);
+  });
+
   it('sans données : null (comme les autres expressions)', () => {
     kpi.source = 'src';
     expect(kpiInternals(kpi)._computeValue()).toBeNull();

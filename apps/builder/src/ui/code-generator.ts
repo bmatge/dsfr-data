@@ -467,6 +467,37 @@ function buildColonnesAttr(): string {
 }
 
 /**
+ * Attribut `select` d'une source Tabular de tableau (#985) : les colonnes que
+ * la page lit — colonnes visibles de la liste, champs des facettes, champ de
+ * tri —, que l'adaptateur traduit en `columns=` (l'API ne rend alors que ces
+ * colonnes : 366 892 → 22 383 octets pour 200 bornes IRVE a trois colonnes,
+ * mesure du 2026-09-22).
+ *
+ * Vide — toutes les colonnes — quand la liste n'a pas de colonnes choisies
+ * (elle les affiche toutes) ou quand un nom n'est pas une colonne detectee :
+ * une colonne inconnue fait repondre 400 a l'API.
+ */
+export function buildTabularDatalistSelectAttr(): string {
+  const visibleCols = state.datalistColumns.filter((c) => c.visible);
+  if (visibleCols.length === 0) return '';
+  const known = new Set(state.fields.map((f) => f.name));
+  const facetFields = state.facetsConfig.enabled
+    ? state.facetsConfig.fields.map((f) => f.field)
+    : [];
+  const sortField = state.sortOrder === 'none' ? '' : state.sortField || state.labelField;
+  const fields = [
+    ...new Set(
+      [...visibleCols.map((c) => c.field), ...facetFields, sortField]
+        .map((f) => (f ?? '').trim())
+        .filter(Boolean)
+    ),
+  ];
+  if (fields.length === 0) return '';
+  if (known.size === 0 || fields.some((f) => !known.has(f) || f.includes(','))) return '';
+  return `\n    select="${escapeHtml(fields.join(', '))}"`;
+}
+
+/**
  * Attributs optionnels de la datalist (`search`, `filters`, `export`).
  *
  * `paginationServeur` n'est pas un detail : la recherche et les filtres de
@@ -1731,7 +1762,7 @@ ${facets.element}${noteRechercheServeur()}
     id="table-data"
     api-type="tabular"
     base-url="${apiBaseUrl}"
-    resource="${resourceIds!.resourceId}"${filterAttr}
+    resource="${resourceIds!.resourceId}"${filterAttr}${buildTabularDatalistSelectAttr()}
     server-side
     page-size="20">
   </dsfr-data-source>

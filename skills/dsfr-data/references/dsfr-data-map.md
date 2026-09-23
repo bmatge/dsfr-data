@@ -94,7 +94,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 1. `lat-field` + `lon-field` : coordonnees separees
 2. `geo-field` vers GeoJSON Point : `{ type: "Point", coordinates: [lon, lat] }`
 3. `geo-field` vers ODS : `{ lat: N, lon: N }`
-4. Auto-detection : cherche `geo_point_2d`, `geo_shape`, `geometry`
+4. Auto-detection sans `geo-field` : les points (marker, circle, heatmap) cherchent
+   `geo_point_2d`, `geopoint`, `geo_point` ; une couche `geoshape` prend la premiere
+   colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON (objet ou chaine).
+   Si aucune ne convient, la couche le dit en console et ne trace rien : poser alors
+   `geo-field`.
 
 ### Fonds de carte predefinis (sans clé API)
 
@@ -488,14 +492,14 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ; `color-field` / `color` donnent alors le contour, et la légende décrit les classes. Sans effet sur `marker` et `heatmap`. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
-| `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426) |
+| `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053). |
 | `heat-blur` | `number` | `15` | Flou applique a la heatmap, en pixels. |
 | `heat-field` | `string` | `""` (vide) | Champ de ponderation des points de la heatmap. |
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |
 | `label` | `string` | `""` (vide) | Libellé de la couche — sert de libellé au tag du contexte en `refine-on-click` (#681). Vide = le nom du champ. |
 | `lat-field` | `string` | `""` (vide) | Chemin vers le champ latitude (mode coordonnées séparées). |
 | `lon-field` | `string` | `""` (vide) | Chemin vers le champ longitude (mode coordonnées séparées). |
-| `max-items` | `number` | `5000` | Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège les marqueurs DOM (`divIcon`), le fit et les popups ; au-delà, un bandeau indique combien d'éléments sont affichés sur le total. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupés ne pèsent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un `max-items` plus haut (ou un filtre amont) affiche le reste. |
+| `max-items` | `number` | `5000` | Plafond du nombre d'éléments rendus sur la carte (défaut 5000). Il protège les marqueurs DOM (`divIcon`), le fit et les popups. Un bandeau (`role="status"`) donne les deux chiffres — éléments affichés et total connu — dès que la carte n'en montre qu'une partie : plafond `max-items` dépassé, OU source qui n'a chargé qu'une partie du jeu (`limit`, `max-records`, plafond de pages : le total vient alors de la source, #1020). Il précise que les premiers enregistrements suivent l'ordre du fichier (ou le tri `order-by` de la source) : leur répartition n'est pas représentative. Aligner le `limit` de la source sur `max-items` évite de charger des lignes que la couche ne dessinera pas. Avec `cluster`, `max-items="20000"` est sans risque : les marqueurs regroupés ne pèsent pas sur le DOM. En mode `bbox`, zoomer recharge la zone visible ; hors `bbox`, seul un plafond plus haut (ou un filtre amont) affiche le reste. |
 | `max-zoom` | `number` | `18` | Niveau de zoom au-delà duquel la couche est masquee. |
 | `method` | `'quantile' \| 'equal' \| 'manual'` | `'quantile'` | Méthode de discrétisation de la choroplèthe : `quantile` (défaut, effectifs égaux par classe), `equal` (intervalles de même largeur), `manual` (bornes de `breaks`). |
 | `min-zoom` | `number` | `0` | Niveau de zoom en deca duquel la couche est masquee. |
@@ -539,7 +543,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
 | `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
-| `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond, entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
+| `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
 | `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 

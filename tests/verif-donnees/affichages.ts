@@ -22,8 +22,18 @@
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
-import { DATASET, HOTE_ODS, TERRITOIRES } from './fixtures.js';
-import { COMMUNES, LIBELLES, LONG, SERIE, urlAffichage } from './fixtures-affichages.js';
+import { DATASET, HOTE_ODS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
+import { urlsDe } from './fixtures-delegation.js';
+import {
+  COMMUNES,
+  CONTOURS_DEPARTEMENTS,
+  LIBELLES,
+  LONG,
+  RESSOURCE_TABULAR_AFFICHAGES,
+  SERIE,
+  ZONES,
+  urlAffichage,
+} from './fixtures-affichages.js';
 
 /** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
 const TETE_CHART = `
@@ -58,7 +68,7 @@ const CLASSES_KPI = {
 };
 
 /** Une source qui sert un jeu du lot, en tableau nu. */
-const source = (id: string, jeu: 'communes' | 'serie' | 'libelles' | 'long'): string =>
+const source = (id: string, jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'zones'): string =>
   `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 const CHECKS: Check[] = [
@@ -285,6 +295,54 @@ const CHECKS: Check[] = [
     expects: [
       { kind: 'kpi', id: 'k-total', agg: 'count' },
       { kind: 'kpi', id: 'k-recues', agg: 'count', pipeline: [{ op: 'limit', n: 20 }] },
+    ],
+  },
+
+  {
+    id: 'kpi-meta-total-inconnu',
+    mode: 'deterministic',
+    origin:
+      '#1046 — une page Tabular AGRÉGÉE ne porte pas de `meta.total` (`{page, page_size}` seulement, mesuré le 2026-09-22, #1033) : le total des groupes est inconnu. `meta:total` retombait alors sur les lignes reçues et annonçait « 40 » (la taille de la page) pour 101 départements. Total inconnu → « — » ; les 40 groupes de la page restent comptés par `count`, qui dit bien ce qu’il compte.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-groupes" api-type="tabular" resource="${RESSOURCE_TABULAR}"
+    server-side page-size="40"></dsfr-data-source>
+  <dsfr-data-query id="q-groupes" source="s-groupes" group-by="code_dept"
+    aggregate="population:sum" order-by="code_dept:asc"></dsfr-data-query>
+  <dsfr-data-kpi id="k-groupes-total" source="q-groupes" value="meta:total" format="nombre"
+    label="Départements"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-groupes-recus" source="q-groupes" value="count" format="nombre"
+    label="Groupes de la page"></dsfr-data-kpi>`,
+    expects: [
+      // La page est bien arrivée : ses 40 groupes, recalculés.
+      {
+        kind: 'kpi',
+        id: 'k-groupes-recus',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { population__sum: { agg: 'sum', field: 'population' } },
+          },
+          { op: 'order-by', column: 'code_dept', dir: 'asc' },
+          { op: 'limit', n: 40 },
+        ],
+      },
+      // Total inconnu : le tiret du composant, jamais un chiffre. Le texte
+      // attendu n'est pas un résultat de calcul — l'oracle ne sait pas plus
+      // que la page combien de groupes l'API détient, et c'est le constat.
+      // Lu APRÈS le comptage : la page est chargée, le tiret n'est pas celui
+      // d'un composant qui attend encore ses lignes.
+      { kind: 'text', id: 'k-groupes-total', selector: '.dsfr-data-kpi__value', prefix: '—' },
+      // Le regroupement est bien parti au serveur : c'est la page agrégée.
+      {
+        kind: 'urls',
+        id: 'meta-total-page-agregee',
+        among: `/api/resources/${RESSOURCE_TABULAR}/data/`,
+        contains: 'code_dept__groupby',
+        verdict: 'all',
+      },
     ],
   },
 
@@ -1056,6 +1114,41 @@ const CHECKS: Check[] = [
     ],
   },
 
+  // --------------------------------------- Carte : bandeau de troncature ----
+  {
+    id: 'carte-bandeau-troncature-amont',
+    mode: 'deterministic',
+    origin:
+      '#1020 — `limit` de la source aligné sur `max-items` (le défaut de la Carto) : la couche reçoit exactement son plafond, rien ne dépasse, et le bandeau disparaissait alors que la carte ne montre que les 10 premiers enregistrements sur 48. Il relit désormais la meta de la source et donne les DEUX chiffres — affichés et total du jeu —, chacun relu seul.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-plafond" api-type="tabular"
+    resource="${RESSOURCE_TABULAR_AFFICHAGES}" limit="10"></dsfr-data-source>
+  <dsfr-data-map id="carte-plafond" center="46.6,2.3" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-plafond" source="s-plafond" type="circle"
+      lat-field="lat" lon-field="lon" max-items="10"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Affichés : les 10 PREMIERS enregistrements, dans l'ordre du fichier.
+        kind: 'text',
+        id: 'carte-plafond',
+        selector: '.dsfr-data-map__max-items-shown',
+        numeric: true,
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: 10 }],
+      },
+      {
+        // Total : le jeu entier, que seule la meta de la source connaît.
+        kind: 'text',
+        id: 'carte-plafond',
+        selector: '.dsfr-data-map__max-items-total',
+        numeric: true,
+        agg: 'count',
+      },
+    ],
+  },
+
   {
     id: 'carte-agregat-par-territoire',
     mode: 'deterministic',
@@ -1111,6 +1204,132 @@ const CHECKS: Check[] = [
           },
           { op: 'order-by', column: 'moyenne', dir: 'desc' },
         ],
+      },
+    ],
+  },
+
+  {
+    id: 'carte-composition-echelle',
+    mode: 'deterministic',
+    origin:
+      '#1021 — la composition par échelle que la Carto génère, telle quelle : une source Tabular propre, un comptage par code de département DÉLÉGUÉ à l’API (seule lectrice de sa source, #765), le fond des départements du paquet aplati et joint sur `code`, la choroplèthe jusqu’au zoom 7 ; la couche de points, sur sa propre source plafonnée, à partir du zoom 8. La légende porte sur le nombre d’enregistrements de CHAQUE département, compté sur tout le jeu.',
+    feed: {
+      kind: 'fixture',
+      datasets: { main: TERRITOIRES, contours: CONTOURS_DEPARTEMENTS },
+    },
+    markup: `
+  <dsfr-data-source id="layer-2" api-type="tabular"
+    base-url="https://tabular-api.data.gouv.fr" resource="${RESSOURCE_TABULAR}">
+  </dsfr-data-source>
+  <dsfr-data-query id="layer-2-agrege" source="layer-2" group-by="code_dept" aggregate="code_dept:count">
+  </dsfr-data-query>
+  <dsfr-data-source id="layer-2-contours" url="https://cdn.jsdelivr.net/npm/dsfr-data@0/geo/departements.json" transform="features">
+  </dsfr-data-source>
+  <dsfr-data-normalize id="layer-2-contours-plats" source="layer-2-contours" flatten="properties">
+  </dsfr-data-normalize>
+  <dsfr-data-join id="layer-2-zones" left="layer-2-contours-plats" right="layer-2-agrege" on="code=code_dept" type="inner">
+  </dsfr-data-join>
+
+  <dsfr-data-source id="layer-1" api-type="tabular"
+    base-url="https://tabular-api.data.gouv.fr" resource="${RESSOURCE_TABULAR}" limit="1000">
+  </dsfr-data-source>
+
+  <dsfr-data-map id="carte-echelle" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-echelle" source="layer-2-zones" type="geoshape"
+      geo-field="geometry" tooltip-field="nom" fill-field="code_dept__count"
+      max-zoom="7" max-items="1000"></dsfr-data-map-layer>
+    <dsfr-data-map-layer source="layer-1" type="marker" lat-field="lat" lon-field="lon"
+      min-zoom="8" max-items="1000"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Le comptage par département — la voix Python le recalcule aussi,
+        // la légende étant hors de sa v1.
+        kind: 'rows',
+        id: 'layer-2-agrege',
+        key: 'code_dept',
+        columns: ['code_dept__count'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { code_dept__count: { agg: 'count', field: 'code_dept' } },
+          },
+        ],
+      },
+      {
+        // Ce que la couche dessine : chaque département du fond, avec SON
+        // comptage — une jointure sur une graphie de code différente perdrait
+        // des départements sans erreur.
+        kind: 'rows',
+        // La page joint le fond (à gauche) au comptage : ses lignes suivent
+        // l'ordre du fond, celui des codes. Le recalcul part du comptage, puis
+        // trie sur le code ; la clé comparée est le nom, porté des deux côtés.
+        id: 'layer-2-zones',
+        key: 'nom',
+        columns: ['code_dept__count'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { code_dept__count: { agg: 'count', field: 'code_dept' } },
+          },
+          { op: 'join', right: 'contours', on: 'code_dept=code', type: 'inner' },
+          { op: 'order-by', column: 'code_dept', dir: 'asc' },
+        ],
+      },
+      {
+        // Sans `classes` ni `method` : le défaut de la couche, neuf classes par
+        // quantiles — ce que la Carto émet.
+        kind: 'legend',
+        id: 'couche-echelle',
+        field: 'code_dept__count',
+        classes: 9,
+        method: 'quantile',
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'code_dept',
+            columns: { code_dept__count: { agg: 'count', field: 'code_dept' } },
+          },
+          { op: 'join', right: 'contours', on: 'code_dept=code', type: 'inner' },
+        ],
+      },
+      // Le comptage est bien calculé par l'API, pas sur les lignes reçues.
+      urlsDe('composition-comptage-delegue', 'tabular', 'code_dept__count', 'some'),
+    ],
+  },
+
+  // ------------------------------------- Carte : formes sans geo-field ----
+  {
+    id: 'carte-geoshape-sans-geo-field-1053',
+    mode: 'deterministic',
+    origin:
+      '#1053 — une couche `geoshape` SANS `geo-field`, comme les exemples de la documentation : la colonne géométrique est détectée seule. `_addGeoshape` ne lisait que `geo-field` : aucune forme tracée, pour dix lignes reçues — et la carte restait muette. Le jeu porte `geo_point_2d` ET `geo_shape`, comme un jeu Opendatasoft : c’est la FORME qui doit être tracée, pas le point que devine le calcul d’emprise.',
+    feed: { kind: 'fixture', datasets: { main: ZONES } },
+    markup: `
+  ${source('s-zones', 'zones')}
+  <dsfr-data-map id="carte-zones" center="46,2.5" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-zones" source="s-zones" type="geoshape"
+      shape-class="verif-zone"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Le NOMBRE de formes tracées : un tracé SVG n'a pas de texte, la
+        // colonne `sans_texte` n'existe pas et rend donc « » pour chaque ligne
+        // recalculée. Ce qui est comparé, c'est le compte — un tracé par zone.
+        kind: 'texts',
+        id: 'carte-zones',
+        selector: 'path.verif-zone',
+        column: 'sans_texte',
+        pipeline: [],
+      },
+      // Et la couche n'a écarté aucune ligne.
+      {
+        kind: 'diagnostic',
+        id: 'couche-zones',
+        expect: 'silence',
+        contains: 'géométrie',
       },
     ],
   },

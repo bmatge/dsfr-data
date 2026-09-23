@@ -1393,7 +1393,15 @@ export class DsfrDataMap extends LitElement {
         border-radius: 4px;
         font-size: 0.875rem;
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        white-space: nowrap;
+        /* Lisible a 320 px (#1020) : deux chiffres et une phrase — le texte
+           passe a la ligne dans la largeur de la carte au lieu de deborder. */
+        box-sizing: border-box;
+        width: max-content;
+        max-width: calc(100% - 20px);
+        white-space: normal;
+        overflow-wrap: break-word;
+        text-align: center;
+        line-height: 1.4;
       }
     `;
     document.head.appendChild(style);
