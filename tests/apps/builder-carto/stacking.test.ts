@@ -97,10 +97,15 @@ describe('empilement Carto / volet Diagnostic (#612)', () => {
     // le workspace s'arrete pile au sommet du rail. Ajouter la meme reserve
     // ici la comptait DEUX fois — la pastille de statut flottait 37 px trop
     // haut et la colonne de panneaux etait amputee d'autant.
-    for (const selecteur of ['.carto-panels', '.carto-status']) {
+    // Le volet unique (#1088) descend jusqu'au bas du workspace (0), la
+    // pastille flotte a 16 px : ni l'un ni l'autre ne recompte le rail.
+    for (const [selecteur, bas] of [
+      ['.carto-panels', /bottom:\s*0;/],
+      ['.carto-status', /bottom:\s*16px/],
+    ] as const) {
       const bloc = new RegExp(`\\n${selecteur.replace('.', '\\.')}\\s*\\{([^}]*)\\}`).exec(css);
       expect(bloc![1], `${selecteur} compte le rail deux fois`).not.toContain('--app-diagnostic-h');
-      expect(bloc![1]).toMatch(/bottom:\s*16px/);
+      expect(bloc![1]).toMatch(bas);
     }
   });
 

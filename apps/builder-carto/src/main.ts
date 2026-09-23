@@ -3,7 +3,8 @@
  *
  * La carte générée EST l'aperçu : elle occupe tout l'écran et le cadrage
  * exporté suit la navigation (sync moveend/zoomend → state). L'édition se
- * fait dans trois panneaux flottants (Carte / Couches / Éléments), le choix
+ * fait dans trois volets (Carte / Couches / Éléments) ouverts un à la fois
+ * par un rail, à côté de la carte (#1088, `volets.ts`), le choix
  * des données dans une modale d'onboarding, l'export dans une modale dédiée.
  * L'état complet est persisté (reprise de session) et la saisie des champs
  * est assistée par un échantillonnage réel de la source (field-service).
@@ -59,6 +60,7 @@ import {
 } from '@dsfr-data/shared';
 import { creerAdaptateurCarto } from './assistant/adaptateur.js';
 import { monterAssistantCarto, montrerRepereCarto } from './assistant/index.js';
+import { initVolets } from './volets.js';
 
 const FAVORITES_KEY = 'dsfr-data-favorites';
 
@@ -291,6 +293,7 @@ function hasLocation(layer: LayerConfig): boolean {
 /** Rendu complet des panneaux ; exporté pour l'adaptateur de révélation (tests, #1005). */
 export function renderAll() {
   renderLayersPanel();
+  renderElementsCouche();
   renderElementsPanel();
   renderMapPanel();
   renderOnboard();
@@ -427,6 +430,43 @@ function renderLayersPanel() {
 
   initDragListeners();
   renderLayerDataConfig();
+
+  // Compteur du bouton « Couches » du rail.
+  const compte = document.getElementById('carto-rail-couches-compte');
+  if (compte) compte.textContent = state.layers.length > 1 ? String(state.layers.length) : '';
+}
+
+/**
+ * Couche réglée par le volet Éléments (#1088) : un sélecteur quand il y en a
+ * plusieurs, pour ne pas repasser par le volet Couches ; son nom sinon.
+ */
+function renderElementsCouche() {
+  const host = document.getElementById('elements-couche');
+  if (!host) return;
+  const active = getActiveLayer();
+  if (!active) {
+    host.innerHTML = '';
+    return;
+  }
+  if (state.layers.length < 2) {
+    host.innerHTML = `<p class="carto-panel__couche-nom">Couche : <strong>${escapeAttr(active.name)}</strong></p>`;
+    return;
+  }
+  host.innerHTML = `<label class="carto-panel__couche-label" for="elements-couche-select">Couche</label>
+    <select id="elements-couche-select" class="fr-select" data-repere="carto.elements.couche"
+            data-repere-libelle="Couche réglée">
+      ${state.layers
+        .map(
+          (l) =>
+            `<option value="${escapeAttr(l.id)}"${l.id === active.id ? ' selected' : ''}>${escapeAttr(l.name)}</option>`
+        )
+        .join('')}
+    </select>`;
+  host.querySelector('select')?.addEventListener('change', (e) => {
+    state.activeLayerId = (e.target as HTMLSelectElement).value;
+    renderAll();
+    persistState();
+  });
 }
 
 /** Sections Données + Localisation de la couche active (panneau Couches). */
@@ -2066,7 +2106,10 @@ function executePreview(fit = false) {
   // attribut `height` ne saurait de toute façon pas conditionner. Les replis
   // valent 0px, la réserve n'existant pas tant que le chrome n'a pas publié
   // sa hauteur.
-  const reserveBasse = 'var(--app-diagnostic-h, 0px) - var(--app-action-bar-fixed-h, 0px)';
+  // Sur téléphone, le volet ouvert est en pile au-dessus de la carte (#1088) :
+  // `--carto-carte-haut` (carto.css) est ce décalage, nul sur ordinateur.
+  const reserveBasse =
+    'var(--app-diagnostic-h, 0px) - var(--app-action-bar-fixed-h, 0px) - var(--carto-carte-haut, 0px)';
   state.map.height = state.map.insets.length
     ? `calc(100dvh - ${chromeHaut} - ${reserveBasse} - 208px)`
     : `calc(100dvh - ${chromeHaut} - ${reserveBasse})`;
@@ -2123,17 +2166,8 @@ function observeHeaderHeight() {
 }
 
 function bindStaticUi() {
-  // Pliage / dépliage des panneaux
-  document.querySelectorAll('[data-panel-toggle]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const panel = document.getElementById(btn.getAttribute('data-panel-toggle')!);
-      if (!panel) return;
-      const collapsed = panel.classList.toggle('carto-panel--collapsed');
-      panel
-        .querySelectorAll('[data-panel-toggle]')
-        .forEach((b) => b.setAttribute('aria-expanded', String(!collapsed)));
-    });
-  });
+  // Rail + volet unique (#1088) : un seul des trois volets ouvert à la fois.
+  initVolets(document);
 
   document.getElementById('btn-add-layer')?.addEventListener('click', addLayer);
   document.getElementById('btn-reset')?.addEventListener('click', () => void resetBuilder());

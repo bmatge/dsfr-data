@@ -45,9 +45,8 @@ const ALLOWED = [
   'app-card-choice',
   'app-menu__item',
   'app-menu__trigger',
-  // Déclencheurs d'accordéon des panneaux Carto — conservés (inventaire lot 5).
-  'carto-panel__header-toggle',
-  'carto-panel__header',
+  // Rail de la Carto (#1088) : icône + libellé en colonne, ouvre un volet.
+  'carto-rail__btn',
 ];
 
 // Widgets tiers et carrousel éditorial de l'accueil (hors périmètre de #542).
