@@ -519,6 +519,28 @@ export {
   matchSkills,
 } from './ia/skill-matching.js';
 
+// --- Adressage par niveau / reference des skills ecrites a la main (#1035) ---
+// Source unique : ZERO import dans skill-levels.ts (copie verbatim vers le MCP).
+export type {
+  SkillLevelId,
+  SkillReferencePart,
+  LeveledSkill,
+  SkillAddress,
+  SkillSelection,
+} from './ia/skill-levels.js';
+export {
+  SKILL_LEVEL_IDS,
+  DEFAULT_SKILL_LEVEL,
+  SKILL_LEVEL_LABELS,
+  isLeveledSkill,
+  levelsOf,
+  referenceIdsOf,
+  normalizeReferenceId,
+  selectLevelOrReference,
+  describeLevels,
+  levelIndexText,
+} from './ia/skill-levels.js';
+
 // --- Correspondance sans modele : phrase -> repere d'interface (#1012, app-side) ---
 export type {
   OptionsCorrespondance,

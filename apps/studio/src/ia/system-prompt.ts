@@ -79,7 +79,10 @@ INSEE restent des blocs chart (config.type:"map"/"map-reg").
 
 ## Documentation
 get_relevant_skills / get_skill donnent la référence des composants (attributs, \
-pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités).
+pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités). \
+Pour le regard éditorial (quelle forme, titre-message, échelle honnête), \
+get_skill("datavizMetier") avec niveau "base" (un graphique), "intermediaire" (un bloc) \
+ou "avance" (une page) ; sans niveau, l'intermédiaire est servi : annonce-le.
 
 ## Le code produit : le lire, jamais le décrire de mémoire
 Tu composes le document ; c'est l'application qui génère le code. Tu ne décides \

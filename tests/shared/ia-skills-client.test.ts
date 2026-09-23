@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
+  OUTILS_SKILLS,
   SKILLS_INDISPONIBLES,
   executerOutilSkill,
   loadSkills,
@@ -16,6 +17,8 @@ import {
   type PublishedSkill,
   type ReclasserSkills,
 } from '../../packages/shared/src/ia/skills-client';
+import { parseMarkdownSkill } from '../../scripts/lib/markdown-skills';
+import { readMarkdownSkillFiles } from '../../scripts/lib/markdown-skills-fs';
 
 const SKILLS: PublishedSkill[] = [
   {
@@ -149,5 +152,89 @@ describe('shared/ia/skills-client — frontiere lib/app (#319)', () => {
     expect(() =>
       readFileSync(resolve(__dirname, '../../apps/studio/src/ia/skills-client.ts'))
     ).toThrow();
+  });
+});
+
+/**
+ * dataviz-metier dans le Studio IA et l'assistant (#1035) : le client lit le
+ * skills.json publie, donc la skill a niveaux telle que le build la produit.
+ * Arbitrage du 2026-09-24 : niveau ou reference en SECOND parametre, repli
+ * intermediaire annonce.
+ */
+describe('shared/ia/skills-client — skill à niveaux (datavizMetier, #1035)', () => {
+  const parsed = parseMarkdownSkill(
+    readMarkdownSkillFiles(resolve(__dirname, '../../skills'), 'dataviz-metier')
+  );
+  const metier: PublishedSkill = {
+    id: parsed.id,
+    name: parsed.name,
+    description: parsed.description,
+    trigger: parsed.trigger,
+    content: parsed.content,
+    sections: { guide: 'GUIDE-COMPLET' },
+    index: parsed.index,
+    levels: parsed.levels,
+    references: parsed.references,
+  };
+  const TOUTES = [...SKILLS, metier];
+  const premiereLigne = (id: string) =>
+    (parsed.references.find((r) => r.id === id)?.content ?? '').split('\n')[0];
+
+  it('get_skill sans niveau : intermédiaire, annoncé', () => {
+    const t = skillText(TOUTES, 'datavizMetier');
+    expect(t).toContain('Niveau intermédiaire servi PAR DÉFAUT');
+    expect(t).toContain(premiereLigne('trouver-l-histoire'));
+    expect(t).not.toContain(premiereLigne('cas-d-ecole-portrait-federation'));
+  });
+
+  it('get_skill par niveau et par référence, via l’outil', async () => {
+    const charger = async () => TOUTES;
+    const base = await executerOutilSkill(
+      'get_skill',
+      { skill_id: 'datavizMetier', niveau: 'base' },
+      charger
+    );
+    expect(base).toContain(premiereLigne('niveau-base'));
+    expect(base).not.toContain(premiereLigne('choisir-la-forme'));
+    const ref = await executerOutilSkill(
+      'get_skill',
+      { skill_id: 'datavizMetier', reference: 'annotation' },
+      charger
+    );
+    expect(ref).toContain(premiereLigne('annotation'));
+    expect(ref).not.toContain('Choisir le niveau');
+  });
+
+  it('niveau ou référence inconnus : le dit, avec la liste valide', () => {
+    expect(skillText(TOUTES, 'datavizMetier', undefined, { niveau: 'expert' })).toContain(
+      'Niveaux valides : base, intermediaire, avance'
+    );
+    expect(skillText(TOUTES, 'datavizMetier', undefined, { reference: '../README' })).toContain(
+      'Références valides'
+    );
+  });
+
+  it('section explicite : inchangée ; « tout » : la fiche entière', () => {
+    expect(skillText(TOUTES, 'datavizMetier', 'guide')).toBe('GUIDE-COMPLET');
+    expect(skillText(TOUTES, 'datavizMetier', 'tout')).toBe(parsed.content);
+  });
+
+  it('get_relevant_skills : l’index et les niveaux, pas le guide ni la fiche entière', () => {
+    const t = relevantSkillsText(
+      TOUTES,
+      'quel graphique choisir, trouver l’histoire, storytelling'
+    );
+    expect(t).toContain('niveau: "base"');
+    expect(t).toContain('`choisir-la-forme`');
+    expect(t).not.toContain('GUIDE-COMPLET');
+    expect(t).not.toContain(premiereLigne('echelles-honnetes'));
+  });
+
+  it('le schéma de get_skill porte niveau (énuméré) et reference', () => {
+    const outil = OUTILS_SKILLS.find((o) => o.function.name === 'get_skill');
+    const props = outil?.function.parameters.properties as Record<string, { enum?: unknown }>;
+    expect(props.niveau?.enum).toEqual(['base', 'intermediaire', 'avance']);
+    expect(props.reference).toBeDefined();
+    expect(props.section?.enum).toEqual(['guide', 'reference', 'exemples', 'pieges', 'tout']);
   });
 });

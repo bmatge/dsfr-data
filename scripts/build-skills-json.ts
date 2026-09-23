@@ -46,15 +46,35 @@ const markdownSkills = readMarkdownSkills(resolve(root, 'skills'));
 // (https://chartsbuilder.miweb.run/dist/skills.json) ne voient aucun changement.
 // `sections` est additif — le serveur MCP s'en sert pour `get_skill(id, section)`
 // sans rejouer le decoupage de son cote (#513).
-const skills = [...Object.values(SKILLS), ...markdownSkills].map((s) => ({
-  id: s.id,
-  name: s.name,
-  description: s.description,
-  trigger: s.trigger,
-  content: s.content,
-  sections: splitSkillContent(s.content),
-  availableSections: availableSections(s.content),
-}));
+//
+// `index` / `levels` / `references` (#1035) : une skill ecrite a la main et
+// multiniveau (`dataviz-metier`) est adressable par niveau et par reference —
+// `get_skill(id, niveau: "base")`, `get_skill(id, reference: "choisir-la-forme")`.
+// Additif lui aussi : `content` garde l'agregat, les quatre `sections` restent
+// une partition de ce `content`. Le decoupage vient du dossier de la skill
+// (`scripts/lib/markdown-skills.ts`), la selection de
+// `packages/shared/src/ia/skill-levels.ts` (copiee dans le serveur MCP).
+const skills = [
+  ...Object.values(SKILLS).map((s) => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    trigger: s.trigger,
+    content: s.content,
+    sections: splitSkillContent(s.content),
+    availableSections: availableSections(s.content),
+  })),
+  ...markdownSkills.map((s) => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    trigger: s.trigger,
+    content: s.content,
+    sections: splitSkillContent(s.content),
+    availableSections: availableSections(s.content),
+    ...(s.levels ? { index: s.index, levels: s.levels, references: s.references } : {}),
+  })),
+];
 
 const outPath = resolve(outDir, 'skills.json');
 writeFileSync(outPath, JSON.stringify(skills, null, 2));
