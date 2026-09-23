@@ -26,8 +26,10 @@ import type {
   AttributRepere,
   GenreRepere,
   Repere,
+  RepereDonnee,
   ReperesConfig,
 } from '../../packages/shared/src/ui/reperes-types';
+import { escapeHtml } from '../../packages/shared/src/utils/escape-html';
 import type { CemManifest } from './cem-reference';
 import {
   BALISE_APPEL,
@@ -61,6 +63,17 @@ export interface EntreesExtraction {
   prerequis?: FichierSource;
   /** Contenu des fichiers `config.constats` presents. */
   constats?: readonly FichierSource[];
+  /**
+   * Source « donnees » (#1008) : reperes poses a l'execution depuis une
+   * definition, exportes par le module `config.donnees` (`REPERES_DONNEES`).
+   */
+  donnees?: SourceDonnees;
+}
+
+export interface SourceDonnees {
+  /** Chemin du module, relatif a la racine du depot. */
+  chemin: string;
+  entrees: readonly RepereDonnee[];
 }
 
 export interface ResultatExtraction {
@@ -131,6 +144,67 @@ function fragmentsDe(f: FichierSource, config: ReperesConfig): Fragment[] {
 }
 
 const liste = (v: string) => v.split(/\s+/).filter(Boolean);
+
+/** Balise d'une entree « donnees » : lettres minuscules seulement (jamais d'injection de balisage). */
+function estBalise(tag: string): boolean {
+  if (tag.length === 0 || tag.length > 32) return false;
+  for (const c of tag) if (c < 'a' || c > 'z') return false;
+  return true;
+}
+
+/**
+ * Source « donnees » -> fragment HTML synthetique (#1008). Chaque zone devient
+ * un `<div data-zone>` qui ENGLOBE les controles dont elle est la zone (d'apres
+ * leur identifiant), chaque controle sa balise avec `data-repere`,
+ * `data-repere-libelle`, `data-attribut`, `data-prerequis` ; toutes les
+ * valeurs sont echappees. Le fragment est ensuite lu par `lireElements` comme
+ * n'importe quel balisage : les regles s'appliquent sans code duplique.
+ * Une balise invalide est un probleme, et l'entree est ecartee.
+ */
+export function fragmentDonnees(
+  source: SourceDonnees,
+  problemes: Probleme[]
+): { chemin: string; html: string } {
+  const valides = source.entrees.filter((e) => {
+    if (estBalise(e.element)) return true;
+    problemes.push({
+      fichier: source.chemin,
+      message: `${e.id} : balise « ${e.element} » invalide (lettres minuscules attendues)`,
+    });
+    return false;
+  });
+  const attrs = (e: RepereDonnee) => {
+    const out = [
+      `${e.genre === 'zone' ? 'data-zone' : 'data-repere'}="${escapeHtml(e.id)}"`,
+      `data-repere-libelle="${escapeHtml(e.libelle)}"`,
+    ];
+    if (e.attributs?.length) out.push(`data-attribut="${escapeHtml(e.attributs.join(' '))}"`);
+    if (e.prerequis?.length) out.push(`data-prerequis="${escapeHtml(e.prerequis.join(' '))}"`);
+    return out.join(' ');
+  };
+  const balise = (e: RepereDonnee, contenu = '') =>
+    VIDES_DONNEES.has(e.element)
+      ? `<${e.element} ${attrs(e)}>`
+      : `<${e.element} ${attrs(e)}>${contenu}</${e.element}>`;
+  const zones = new Set(valides.filter((e) => e.genre === 'zone').map((e) => e.id));
+  const parZone = new Map<string, RepereDonnee[]>();
+  const libres: RepereDonnee[] = [];
+  for (const e of valides) {
+    if (e.genre === 'zone') continue;
+    const z = zoneDe(e.id, 'controle');
+    if (z && zones.has(z)) parZone.set(z, [...(parZone.get(z) ?? []), e]);
+    else libres.push(e);
+  }
+  const html = [
+    ...valides
+      .filter((e) => e.genre === 'zone')
+      .map((z) => balise(z, (parZone.get(z.id) ?? []).map((c) => balise(c)).join(''))),
+    ...libres.map((c) => balise(c)),
+  ].join('\n');
+  return { chemin: source.chemin, html };
+}
+
+const VIDES_DONNEES = new Set(['input', 'img', 'br', 'hr']);
 
 // ---------------------------------------------------------------------------
 // Libelles
@@ -229,6 +303,16 @@ export function extraireReperes(entrees: EntreesExtraction): ResultatExtraction 
   const fichierConfig = `apps/${config.app}/src/assistant/reperes.config.ts`;
   const attributs = indexerAttributs(manifest);
   const fragments = entrees.sources.flatMap((f) => fragmentsDe(f, config));
+  if (entrees.donnees) {
+    const { chemin, html } = fragmentDonnees(entrees.donnees, problemes);
+    fragments.push({ chemin, elements: lireElements(html) });
+  } else if (config.donnees) {
+    problemes.push({
+      fichier: `apps/${config.app}/${config.donnees}`,
+      message:
+        'module des donnees declare dans reperes.config.ts mais non fourni (REPERES_DONNEES)',
+    });
+  }
   const libelles = indexerLibelles(fragments);
   const prefixe = `${config.prefixe}.`;
 
@@ -596,7 +680,7 @@ export function rendreRegistre(config: ReperesConfig, reperes: readonly Repere[]
  *
  * Registre des reperes de l'app ${config.app} (#997, ADR-143).
  * Source : les attributs data-repere / data-zone / data-attribut / data-prerequis
- * du balisage (${config.sources.join(', ')}), enrichis par
+ * du balisage (${[...config.sources, ...(config.donnees ? [`${config.donnees} (donnees)`] : [])].join(', ')}), enrichis par
  * packages/core/custom-elements.json et apps/${config.app}/src/assistant/reperes.config.ts.
  * Regenerer : npm run build:reperes. Controle bloquant : npm run check:reperes.
  */

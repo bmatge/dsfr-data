@@ -86,6 +86,9 @@ export class AggregateControlElement extends LitElement {
                       <select
                         class="agg-field"
                         aria-label="Champ agrégé"
+                        data-repere="pipeline.query.agregat-champ"
+                        data-attribut="dsfr-data-query:aggregate"
+                        data-prerequis="noeud-query"
                         .value=${row.field}
                         @change=${(e: Event) => this._onFieldChange(i, e)}
                         @pointerdown=${this._stop}
@@ -101,6 +104,9 @@ export class AggregateControlElement extends LitElement {
                         class="agg-field"
                         type="text"
                         aria-label="Champ agrégé"
+                        data-repere="pipeline.query.agregat-champ-saisi"
+                        data-attribut="dsfr-data-query:aggregate"
+                        data-prerequis="noeud-query"
                         .value=${row.field}
                         placeholder="champ"
                         @input=${(e: Event) => {
@@ -116,6 +122,9 @@ export class AggregateControlElement extends LitElement {
               <select
                 class="agg-fn"
                 aria-label="Fonction d'agrégation"
+                data-repere="pipeline.query.agregat-fonction"
+                data-attribut="dsfr-data-query:aggregate"
+                data-prerequis="noeud-query"
                 .value=${row.fn}
                 @change=${(e: Event) => this._onFnChange(i, e)}
                 @pointerdown=${this._stop}
@@ -131,6 +140,9 @@ export class AggregateControlElement extends LitElement {
                 class="agg-alias"
                 type="text"
                 aria-label="Alias de l'agrégat"
+                data-repere="pipeline.query.agregat-alias"
+                data-attribut="dsfr-data-query:aggregate"
+                data-prerequis="noeud-query"
                 .value=${row.alias}
                 placeholder="alias"
                 @input=${(e: Event) => this._onAliasChange(i, e)}
@@ -142,6 +154,9 @@ export class AggregateControlElement extends LitElement {
                   ? html`
                       <button
                         class="agg-remove"
+                        data-repere="pipeline.query.agregat-retirer"
+                        data-repere-libelle="Retirer l'agrégat"
+                        data-prerequis="noeud-query"
                         @click=${(e: Event) => this._removeRow(i, e)}
                         @pointerdown=${this._stop}
                         title="Supprimer"
@@ -154,7 +169,14 @@ export class AggregateControlElement extends LitElement {
             </div>
           `
         )}
-        <button class="agg-add" @click=${this._addRow} @pointerdown=${this._stop}>
+        <button
+          class="agg-add"
+          data-repere="pipeline.query.agregat-ajouter"
+          data-repere-libelle="Ajouter un agrégat"
+          data-prerequis="noeud-query"
+          @click=${this._addRow}
+          @pointerdown=${this._stop}
+        >
           + Ajouter un champ
         </button>
       </div>

@@ -29,13 +29,14 @@
 import { readFileSync, readdirSync, writeFileSync } from 'fs';
 import { dirname, isAbsolute, relative, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import type { ReperesConfig } from '../packages/shared/src/ui/reperes-types';
+import type { RepereDonnee, ReperesConfig } from '../packages/shared/src/ui/reperes-types';
 import type { CemManifest } from './lib/cem-reference.js';
 import {
   extraireReperes,
   rendreRegistre,
   type FichierSource,
   type Probleme,
+  type SourceDonnees,
 } from './lib/reperes-extract.js';
 import { verifierVisites } from './lib/reperes-tours.js';
 
@@ -129,7 +130,27 @@ for (const app of apps) {
     }
     sources.push(f);
   }
+  // Source « donnees » (#1008) : reperes poses a l'execution depuis une
+  // definition. Le module est IMPORTE (il projette une definition, sans etat) ;
+  // un import qui echoue fait echouer le script.
+  let donnees: SourceDonnees | undefined;
+  if (config.donnees) {
+    const abs = sousRacine('apps', app, config.donnees);
+    const modDonnees = (await import(abs)) as { REPERES_DONNEES?: readonly RepereDonnee[] };
+    if (!Array.isArray(modDonnees.REPERES_DONNEES)) {
+      problemes.push({
+        fichier: `apps/${app}/${config.donnees}`,
+        message: 'aucun « export const REPERES_DONNEES » (tableau) dans le module des donnees',
+      });
+    } else {
+      donnees = {
+        chemin: relative(root, abs).split('\\').join('/'),
+        entrees: modDonnees.REPERES_DONNEES,
+      };
+    }
+  }
   const res = extraireReperes({
+    donnees,
     config,
     sources,
     manifest,
