@@ -13,8 +13,12 @@
  *   sont pas au registre (le code change à chaque frappe) : `mountAssistant`
  *   les confie à `montrerHorsRegistre`.
  *
- * Répondre : la correspondance locale d'abord, Albert en secours s'il est
- * configuré (`brancherAlbert`), sinon « Guidage dans l'interface ».
+ * Répondre (#1105) : la correspondance locale sur le registre d'abord, puis
+ * sur le CODE courant (`correspondance-code.ts` : « changer la limite de 15 »
+ * → la ligne `limit="15"`), Albert en secours s'il est configuré
+ * (`brancherAlbert`), sinon « Guidage dans l'interface ». Albert reçoit le
+ * plan du code et peut citer un repère de code, que `libelleRepereCode`
+ * valide sur le code courant avant qu'il soit montré.
  */
 import {
   appHref,
@@ -32,12 +36,13 @@ import {
   type TransportAssistant,
 } from '@dsfr-data/shared';
 import type { CodeMirrorEditor } from '../editor.js';
-import { lireRepereCode, montrerCode, type EtatPlayground } from './adaptateur.js';
+import { lireRepereCode, montrerCode, REPERE_EDITEUR, type EtatPlayground } from './adaptateur.js';
+import { correspondanceCode, libelleRepereCode, planDuCode } from './correspondance-code.js';
 import { REGISTRE } from './reperes.generated.js';
 
 /** Phrase d'aide de l'état vide, propre au Playground. */
 export const AIDE_PLAYGROUND =
-  'Demandez où se trouve un réglage du Playground, ou ouvrez un constat : je pose le curseur sur la ligne en cause. Une suggestion remplit le champ, sans l’envoyer.';
+  'Demandez où se trouve un réglage du Playground ou une ligne du code (« changer la limite de 15 »), ou ouvrez un constat : je pose le curseur sur la ligne en cause. Une suggestion remplit le champ, sans l’envoyer.';
 
 /** Profil du Playground pour le prompt d'Albert. */
 export const PROFIL_PLAYGROUND: ProfilAssistant<EtatPlayground> = {
@@ -46,8 +51,12 @@ export const PROFIL_PLAYGROUND: ProfilAssistant<EtatPlayground> = {
     'L’usager édite librement le code HTML d’une page dsfr-data, l’exécute dans l’aperçu et en lit les constats (analyse du balisage et trace d’exécution).',
   panneaux: ['Barre d’actions', 'Parcourir les exemples', 'Éditeur de code', 'Aperçu'],
   consignes:
-    'Un constat de balisage désigne une ligne du code : tu ne peux pas la montrer toi-même, renvoie l’usager au bouton « Me montrer » du constat.',
+    'Quand la question porte sur le code (une balise, un attribut, une valeur), montre la ligne en cause : passe à montrer l’identifiant de repère de code du plan (playground.ligne.<n>.<balise>, ou .<attribut> en plus), jamais un numéro inventé. Explique en une phrase quoi changer, sans réécrire le code.',
+  contexte: (etat) => planDuCode(etat.code),
 };
+
+/** Zones du registre qui englobent les lignes du code : trop vagues quand une ligne répond. */
+export const REPERES_ENGLOBANT_LE_CODE: readonly string[] = [REPERE_EDITEUR, 'playground.editeur'];
 
 /**
  * Suggestions de l'état vide (au plus 3). Chacune mène à un repère par la
@@ -120,6 +129,11 @@ export function monterAssistantPlayground(opts: OptionsAssistantPlayground): Mou
       montrerCode(editor, code);
       return true;
     },
+    // Un repère de code cité par Albert : montré seulement s'il désigne le code courant.
+    libelleHorsRegistre: (id) => libelleRepereCode(id, adaptateur.etat().code),
+    // Avant Albert : les lignes du code courant qui répondent à la question.
+    correspondanceHorsRegistre: (question) => correspondanceCode(question, adaptateur.etat().code),
+    reperesEnglobants: REPERES_ENGLOBANT_LE_CODE,
     suggestions: () => suggestionsPlayground(adaptateur.etat()),
     aide: AIDE_PLAYGROUND,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,

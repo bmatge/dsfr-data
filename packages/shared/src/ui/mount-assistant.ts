@@ -8,6 +8,9 @@
  *   1. `trouverRepere()` d'abord, TOUJOURS (ADR-143 §6, sobriété Albert) ;
  *      - `trouve` : `formulerCorrespondance()` puis `montrer()` immédiat ;
  *      - `ambigu` : des boutons candidats, aucun appel au modèle ;
+ *      - `aucun` (ou seulement un repère « englobant », l'éditeur de code) :
+ *        la correspondance HORS REGISTRE de l'app, s'il y en a une (#1105 :
+ *        les lignes du code du Playground), toujours sans modèle ;
  *   2. `repondre()` (injecté par l'app, #1014) SEULEMENT si rien ne correspond ;
  *      sans `repondre`, un message local : le guidage fonctionne sans clé.
  *
@@ -29,7 +32,8 @@
  * Sécurité : la question et les réponses sont du texte externe. Aucune regex
  * ne leur est appliquée ; elles sont rendues en `textContent` ; un id de
  * repère venu du modèle n'atteint `montrer()` qu'après `estIdRepere()` et sa
- * présence dans le registre.
+ * présence dans le registre — ou, hors registre, après que l'app a déclaré
+ * savoir le montrer (`libelleHorsRegistre`, #1105).
  *
  * Côté app : exporté par `@dsfr-data/shared`, jamais par
  * `@dsfr-data/shared/lib` (frontière #319).
@@ -89,6 +93,17 @@ export interface MessageAssistant {
   readonly candidats?: readonly CandidatAssistant[];
   /** Prérequis levé : repère à montrer de nouveau (bouton « Continuer »). */
   readonly continuer?: string;
+}
+
+/**
+ * Ce que rend la correspondance locale d'une app sur ses repères hors registre
+ * (#1105) : les candidats, du plus plausible au moins plausible, et la phrase
+ * de réponse (« Ligne 12 : limit="15" (dsfr-data-source) »).
+ */
+export interface CorrespondanceHorsRegistre {
+  readonly candidats: readonly CandidatAssistant[];
+  /** Texte brut. Absent : formulé à partir des libellés des candidats. */
+  readonly texte?: string;
 }
 
 /** Réponse d'un modèle (#1014). */
@@ -163,6 +178,32 @@ export interface OptionsAssistant<Etat = unknown> {
    * comme tout id absent du registre.
    */
   montrerHorsRegistre?: (id: string) => boolean | Promise<boolean>;
+  /**
+   * Libellé d'un repère hors registre que l'app sait montrer MAINTENANT
+   * (Playground : « Ligne 12 — dsfr-data-source » si la ligne existe dans le
+   * code courant et y porte cette balise), sinon `null`. C'est le filtre qui
+   * laisse passer un id hors registre venu du modèle (#1105) : sans cette
+   * option, ou si elle rend `null`, l'id est refusé comme tout id absent du
+   * registre. La grammaire (`estIdRepere`) est vérifiée avant.
+   */
+  libelleHorsRegistre?: (id: string) => string | null;
+  /**
+   * Correspondance locale sur ce que l'app montre hors registre (#1105) :
+   * Playground, les lignes du code courant dont une balise, un attribut ou une
+   * valeur correspond à la question. Consultée AVANT le modèle (ADR-143 §6)
+   * quand `trouverRepere` ne trouve rien, ou ne trouve que des repères de
+   * `reperesEnglobants` (l'éditeur de code, trop vague quand une ligne répond).
+   * Les ids rendus passent le même filtre que ceux du modèle
+   * (`estIdRepere` + `libelleHorsRegistre`).
+   */
+  correspondanceHorsRegistre?: (question: string) => CorrespondanceHorsRegistre | null;
+  /**
+   * Repères du registre qui ENGLOBENT les repères hors registre (Playground :
+   * `playground.editeur.code`). Quand la correspondance du registre ne trouve
+   * qu'eux, `correspondanceHorsRegistre` est consultée et, si elle trouve, sa
+   * réponse, plus précise, l'emporte.
+   */
+  reperesEnglobants?: readonly string[];
   /** Fiches skills passées à `trouverRepere`. */
   fiches?: readonly MatchableSkill[];
   /** Suggestions de l'état vide, lues à chaque nouvelle conversation (au plus 3 affichées). */
@@ -344,19 +385,49 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     panel.messages = [...panel.messages, ...messages];
   };
 
+  /** Libellé d'un id hors registre que l'app sait montrer, sinon `null`. */
+  const libelleHors = (id: string): string | null => {
+    if (!opts.libelleHorsRegistre || index.has(id)) return null;
+    const libelle = opts.libelleHorsRegistre(id);
+    return typeof libelle === 'string' && libelle ? libelle : null;
+  };
+
   const candidat = (id: string): CandidatAssistant => ({
     id,
-    libelle: index.get(id)?.libelle ?? id,
+    libelle: index.get(id)?.libelle ?? libelleHors(id) ?? id,
     chemin: chemin(registre, id),
   });
 
-  /** Ids cités par le modèle : grammaire valide et présents dans le registre. */
+  /**
+   * Ids cités par le modèle : grammaire valide, et présents dans le registre
+   * OU déclarés montrables par l'app (`libelleHorsRegistre`, #1105).
+   */
   const valides = (ids: readonly string[] | undefined): string[] =>
-    (ids ?? []).filter((id) => typeof id === 'string' && estIdRepere(id) && index.has(id));
+    (ids ?? []).filter(
+      (id) =>
+        typeof id === 'string' && estIdRepere(id) && (index.has(id) || libelleHors(id) !== null)
+    );
+
+  /**
+   * Correspondance locale hors registre (#1105), filtrée comme les ids du
+   * modèle. `null` si elle ne trouve rien de montrable.
+   */
+  const correspondanceHors = (question: string): CorrespondanceHorsRegistre | null => {
+    if (!opts.correspondanceHorsRegistre) return null;
+    const r = opts.correspondanceHorsRegistre(question);
+    if (!r) return null;
+    const vus = new Set<string>();
+    const candidats = r.candidats.filter((c) => {
+      if (vus.has(c.id) || valides([c.id]).length === 0) return false;
+      vus.add(c.id);
+      return true;
+    });
+    return candidats.length > 0 ? { candidats, texte: r.texte } : null;
+  };
 
   /** Montre un repère et dit dans la conversation ce qui a empêché de le montrer. */
   const montrerEtDire = async (id: string): Promise<ResultatMontrer | null> => {
-    if (typeof id === 'string' && !index.has(id) && opts.montrerHorsRegistre) {
+    if (typeof id === 'string' && estIdRepere(id) && !index.has(id) && opts.montrerHorsRegistre) {
       if (await opts.montrerHorsRegistre(id)) return null;
     }
     if (!estIdRepere(id) || !index.has(id)) {
@@ -400,6 +471,36 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     ajouter({ role: 'usager', texte: question });
 
     const correspondance = trouverRepere(registre, question, { fiches: opts.fiches });
+
+    // Hors registre (#1105) : rien au registre, ou seulement un repère qui
+    // englobe les repères hors registre (l'éditeur de code) — une ligne
+    // précise vaut mieux que « Code HTML ». Toujours avant le modèle.
+    const englobants = opts.reperesEnglobants ?? [];
+    const seulementEnglobants =
+      correspondance.statut !== 'aucun' &&
+      correspondance.candidats.every((c) => englobants.includes(c.repere.id));
+    if (correspondance.statut === 'aucun' || seulementEnglobants) {
+      const hors = correspondanceHors(question);
+      if (hors) {
+        const ids = hors.candidats.map((c) => c.id);
+        const texte =
+          hors.texte ??
+          (hors.candidats.length === 1
+            ? `C'est ici : ${hors.candidats[0].libelle}.`
+            : `Plusieurs endroits peuvent correspondre : ${hors.candidats
+                .map((c) => c.libelle)
+                .join(' ; ')}.`);
+        ajouter({
+          role: 'assistant',
+          source: 'correspondance',
+          texte,
+          reperes: ids,
+          candidats: hors.candidats,
+        });
+        if (ids.length === 1) await montrerEtDire(ids[0]);
+        return;
+      }
+    }
 
     if (correspondance.statut === 'trouve') {
       const id = correspondance.repere.repere.id;
