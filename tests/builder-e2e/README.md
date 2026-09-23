@@ -149,9 +149,11 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   déplace pas le focus, zéro requête POST dans le parcours sans modèle, pastille des constats et
   « Me montrer », « Demander à l'assistant » qui ouvre le panneau sans quitter la carto. La
   logique est couverte en CI par `tests/apps/builder-carto/{adaptateur,assistant}.test.ts`
-  (happy-dom). Piège relevé : la reprise de session ré-analyse les champs et re-rend les panneaux
-  par `innerHTML`, ce qui efface une surbrillance posée avant la fin de l'analyse ; le spec
-  attend donc `#source-scan-status`.
+  (happy-dom). La reprise de session ré-analyse les champs et re-rend les panneaux par
+  `innerHTML` : `montrer()` rejoue la surbrillance sur le nouvel élément pendant la mise en
+  évidence, le spec n'attend donc plus `#source-scan-status` (sans ce rejeu, le cas « lat/lon
+  inversées » échouait 3 fois sur 3 à froid). La page charge `packages/shared/dist` :
+  `npm run build:shared` avant de lancer le spec après une modification du socle.
 
 ### Specs archivés (extension `.archive.ts`, hors `testMatch`)
 

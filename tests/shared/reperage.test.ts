@@ -383,6 +383,112 @@ describe('montrer — inconnu et introuvable', () => {
   });
 });
 
+describe('montrer — surbrillance rejouée après un re-rendu (innerHTML)', () => {
+  /** Réécrit la zone Couches comme une app qui re-rend son panneau. */
+  function rerendreCouches(): void {
+    const zone = document.querySelector<HTMLElement>('[data-zone="t.couches"]')!;
+    zone.innerHTML = `<h2>Couches de données</h2>
+      <select data-repere="t.couches.liste" aria-label="Liste des couches"><option>B</option></select>`;
+  }
+  const liste = () => document.querySelector<HTMLElement>('[data-repere="t.couches.liste"]')!;
+  const microtaches = async () => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  };
+
+  it('le nouvel élément du même repère reprend la surbrillance, sans voler le focus', async () => {
+    const saisie = document.getElementById('saisie-usager') as HTMLInputElement;
+    saisie.focus();
+    const res = await montrer('t.couches.liste', {
+      registre: REGISTRE,
+      adaptateur: adaptateur({ coucheActive: true }),
+      mode: 'dire',
+    });
+    const ancien = res.element!;
+    rerendreCouches();
+    const nouveau = liste();
+    expect(nouveau).not.toBe(ancien);
+    await vi.waitFor(() => expect(nouveau.classList.contains(CLASSE_REPERE_MONTRE)).toBe(true));
+    expect(document.querySelectorAll(`.${CLASSE_REPERE_MONTRE}`).length).toBe(1);
+    expect(document.activeElement).toBe(saisie);
+
+    // Un second re-rendu est rejoué lui aussi, une fois.
+    rerendreCouches();
+    await vi.waitFor(() => expect(liste().classList.contains(CLASSE_REPERE_MONTRE)).toBe(true));
+    expect(document.querySelectorAll(`.${CLASSE_REPERE_MONTRE}`).length).toBe(1);
+  });
+
+  it('re-rendu entre la révélation et la surbrillance : le nouvel élément est surligné et rendu', async () => {
+    const a = adaptateur({ coucheActive: true });
+    a.reveler = async () => {
+      const ancien = liste();
+      rerendreCouches();
+      return ancien;
+    };
+    const res = await montrer('t.couches.liste', {
+      registre: REGISTRE,
+      adaptateur: a,
+      mode: 'dire',
+    });
+    expect(res.element).toBe(liste());
+    expect(res.element?.isConnected).toBe(true);
+    expect(res.element?.classList.contains(CLASSE_REPERE_MONTRE)).toBe(true);
+  });
+
+  it('« guider » : le focus suit le contrôle rejoué, sauf si l’usager l’a déplacé', async () => {
+    await montrer('t.couches.liste', {
+      registre: REGISTRE,
+      adaptateur: adaptateur({ coucheActive: true }),
+      mode: 'guider',
+    });
+    rerendreCouches();
+    await vi.waitFor(() => expect(document.activeElement).toBe(liste()));
+
+    const saisie = document.getElementById('saisie-usager') as HTMLInputElement;
+    saisie.focus();
+    rerendreCouches();
+    await vi.waitFor(() => expect(liste().classList.contains(CLASSE_REPERE_MONTRE)).toBe(true));
+    expect(document.activeElement).toBe(saisie);
+  });
+
+  it('aucun rejeu après la fin de la mise en évidence, ni après effacement', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await montrer('t.couches.liste', {
+      registre: REGISTRE,
+      adaptateur: adaptateur({ coucheActive: true }),
+      mode: 'dire',
+    });
+    vi.advanceTimersByTime(DUREE_SURBRILLANCE_MS);
+    rerendreCouches();
+    await microtaches();
+    expect(document.querySelectorAll(`.${CLASSE_REPERE_MONTRE}`).length).toBe(0);
+
+    vi.useRealTimers();
+    await montrer('t.couches.liste', {
+      registre: REGISTRE,
+      adaptateur: adaptateur({ coucheActive: true }),
+      mode: 'dire',
+    });
+    effacerSurbrillance();
+    rerendreCouches();
+    await microtaches();
+    expect(document.querySelectorAll(`.${CLASSE_REPERE_MONTRE}`).length).toBe(0);
+  });
+
+  it('un repère absent du nouveau rendu n’est pas surligné ailleurs ; il l’est s’il revient', async () => {
+    await montrer('t.couches.liste', {
+      registre: REGISTRE,
+      adaptateur: adaptateur({ coucheActive: true }),
+      mode: 'dire',
+    });
+    const zone = document.querySelector<HTMLElement>('[data-zone="t.couches"]')!;
+    zone.innerHTML = '<p>Chargement…</p>';
+    await microtaches();
+    expect(document.querySelectorAll(`.${CLASSE_REPERE_MONTRE}`).length).toBe(0);
+    rerendreCouches();
+    await vi.waitFor(() => expect(liste().classList.contains(CLASSE_REPERE_MONTRE)).toBe(true));
+  });
+});
+
 describe('montrer — prefers-reduced-motion', () => {
   it('sans préférence : classe d’animation posée', async () => {
     const res = await montrer('t.couches.liste', {

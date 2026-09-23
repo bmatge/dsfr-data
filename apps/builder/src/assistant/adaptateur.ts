@@ -45,6 +45,16 @@ export const MODALE_DE_ZONE: Readonly<Record<string, string>> = {
   'builder.facettes.champs': 'facets-fields-modal',
 };
 
+/**
+ * Repère masqué → repère visible qui joue le même rôle. Sans source
+ * enregistrée, le select `builder.source.choix` est en `display: none` : le
+ * prérequis `source-chargee` désigne alors l'état vide de la section (jeux
+ * d'exemple, lien vers l'app Sources), seul moyen visible de charger une source.
+ */
+export const REPLI_SI_MASQUE: Readonly<Record<string, string>> = {
+  'builder.source.choix': 'builder.source.vide',
+};
+
 /** Section `#section-*` qui contient le repère `id`, ou `undefined`. */
 export function sectionDuRepere(id: string): string | undefined {
   const [app, zone] = id.split('.');
@@ -120,30 +130,33 @@ const EVENEMENTS_ETAT = ['change', 'input', 'click'] as const;
 export function creerAdaptateurBuilder(
   racine: Document = document
 ): AdaptateurReperage<BuilderState> {
-  return {
-    async reveler(id: string): Promise<HTMLElement | null> {
-      if (!estIdRepere(id)) return null;
-      const section = sectionDuRepere(id);
-      if (section) openSection(section);
-      const modale = modaleDuRepere(id);
-      const modaleEtaitFermee =
-        modale !== undefined && !racine.getElementById(modale)?.classList.contains('active');
-      if (modale) openModal(modale);
-      await imageSuivante();
+  async function reveler(id: string): Promise<HTMLElement | null> {
+    if (!estIdRepere(id)) return null;
+    const section = sectionDuRepere(id);
+    if (section) openSection(section);
+    const modale = modaleDuRepere(id);
+    const modaleEtaitFermee =
+      modale !== undefined && !racine.getElementById(modale)?.classList.contains('active');
+    if (modale) openModal(modale);
+    await imageSuivante();
 
-      const element = trouver(racine, id);
-      if (element) {
-        // `<details>` englobant (Requête avancée) : le déplier ne règle rien.
-        const details =
-          element instanceof HTMLDetailsElement ? element : element.closest('details');
-        if (details && !details.open) details.open = true;
-        if (estAffiche(element)) return element;
-      }
-      // Modale ouverte pour rien (ses lignes ne sont rendues que par son
-      // bouton, qui lit l'état) : on la referme, l'interface reste telle quelle.
-      if (modale && modaleEtaitFermee) closeModal(modale);
-      return null;
-    },
+    const element = trouver(racine, id);
+    if (element) {
+      // `<details>` englobant (Requête avancée) : le déplier ne règle rien.
+      const details = element instanceof HTMLDetailsElement ? element : element.closest('details');
+      if (details && !details.open) details.open = true;
+      if (estAffiche(element)) return element;
+    }
+    // Modale ouverte pour rien (ses lignes ne sont rendues que par son
+    // bouton, qui lit l'état) : on la referme, l'interface reste telle quelle.
+    if (modale && modaleEtaitFermee) closeModal(modale);
+    // Contrôle masqué : son équivalent visible, s'il en a un.
+    const repli = REPLI_SI_MASQUE[id];
+    return repli ? reveler(repli) : null;
+  }
+
+  return {
+    reveler,
 
     etat: () => state,
 

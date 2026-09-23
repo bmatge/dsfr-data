@@ -119,6 +119,7 @@ export const REPERES = [
   {"id":"builder.source.choix","genre":"controle","libelle":"Source","element":"select","zone":"builder.source","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/builder/index.html"]},
   {"id":"builder.source.exemple","genre":"controle","libelle":"Jeu de données d'exemple","element":"button","zone":"builder.source","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/builder/src/sources.ts"]},
   {"id":"builder.source.nouvelle","genre":"controle","libelle":"Nouvelle source","element":"a","zone":"builder.source","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/builder/index.html"]},
+  {"id":"builder.source.vide","genre":"controle","libelle":"Pas encore de données","element":"div","zone":"builder.source","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/builder/src/sources.ts"]},
   {"id":"builder.type","genre":"zone","libelle":"Type de graphique","element":"div","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/builder/index.html"]},
   {"id":"builder.type.bar","genre":"controle","libelle":"Barres","element":"button","zone":"builder.type","attributs":[{"tag":"dsfr-data-chart","nom":"type","description":"Type de graphique DSFR"}],"prerequis":[],"synonymes":[],"sources":["apps/builder/index.html"]},
   {"id":"builder.type.datalist","genre":"controle","libelle":"Tableau","element":"button","zone":"builder.type","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/builder/index.html"]},
