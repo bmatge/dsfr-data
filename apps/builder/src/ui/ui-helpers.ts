@@ -17,6 +17,7 @@ import {
   normalizeDeptCode,
   CLE_ETAT_BUILDER,
   CLE_CODE_CONFIE,
+  CLE_CODE_RAPPORTE,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
 import { getLastGeneratedCode } from './code-generator.js';
@@ -84,6 +85,8 @@ export function openInPlayground(): void {
   try {
     sessionStorage.setItem(CLE_ETAT_BUILDER, JSON.stringify(getBuilderStateToSave()));
     sessionStorage.setItem(CLE_CODE_CONFIE, code);
+    // Un rapport laissé par un aller-retour précédent ne vaut pas pour celui-ci.
+    sessionStorage.removeItem(CLE_CODE_RAPPORTE);
   } catch {
     // QuotaExceededError — proceed without state backup
   }
@@ -97,6 +100,8 @@ export function openInPlayground(): void {
 /**
  * Ouvre le code généré dans le Pipeline (même canal que le Playground :
  * sessionStorage `pipeline-helper-code`, lu à l'arrivée avec `?from=`).
+ * « Revenir au Builder » y ramène avec `?from=pipeline-helper`, qui relit
+ * l'instantané déposé ici (#1095).
  */
 export function openInPipeline(): void {
   // Source hors DOM : le Pipeline réinterprète ce code en HTML (DOMParser).
@@ -110,6 +115,8 @@ export function openInPipeline(): void {
   try {
     sessionStorage.setItem(CLE_ETAT_BUILDER, JSON.stringify(getBuilderStateToSave()));
     sessionStorage.setItem(CLE_CODE_CONFIE, code);
+    // Un rapport laissé par un aller-retour précédent ne vaut pas pour celui-ci.
+    sessionStorage.removeItem(CLE_CODE_RAPPORTE);
   } catch {
     // QuotaExceededError — proceed without state backup
   }

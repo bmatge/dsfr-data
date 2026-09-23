@@ -24,8 +24,9 @@ import {
   CLE_ETAT_BUILDER,
   CLE_CODE_CONFIE,
   CLE_CODE_RAPPORTE,
-  verdictRetourPlayground,
-  AVERTISSEMENT_RETOUR_PLAYGROUND,
+  verdictRetourAuBuilder,
+  estAppAccueil,
+  RETOUR_VERS_ACCUEIL,
   toastWarning,
   toastError,
 } from '@dsfr-data/shared';
@@ -532,14 +533,15 @@ export async function loadFields(): Promise<void> {
 
 /**
  * Restore builder state from sessionStorage.
- * Works when coming from favorites, the Playground (return) or the dashboard :
+ * Works when coming from favorites, the Playground or the Pipeline (return) or the dashboard :
  * the accepted origins live in `ORIGINES_ETAT_DEPOSE` (#978). A deposited state
  * that cannot be reopened is announced, never dropped silently.
  *
  * Le Builder ne relit pas le code : il rouvre l'instantané de configuration
- * déposé avant le départ. Quand on revient du Playground avec un code modifié,
- * cette reprise **jette** la modification — on le dit donc avant, et on laisse
- * repartir au Playground plutôt que d'écraser en silence (#965).
+ * déposé avant le départ. Quand on revient du Playground (#965) ou du Pipeline
+ * (#1095) avec une modification, cette reprise la **jette** — on le dit donc
+ * avant, et on laisse repartir dans l'app d'accueil plutôt que d'écraser en
+ * silence (`RETOUR_VERS_ACCUEIL`).
  */
 /** Un message qui explique une perte doit laisser le temps d'être lu. */
 const DUREE_MESSAGE_ETAT_REFUSE = 12000;
@@ -560,23 +562,24 @@ export async function loadFavoriteState(): Promise<void> {
     return;
   }
 
-  const retour = verdictRetourPlayground({
+  const retour = verdictRetourAuBuilder({
     from,
     codeConfie: sessionStorage.getItem(CLE_CODE_CONFIE),
     codeRapporte: sessionStorage.getItem(CLE_CODE_RAPPORTE),
   });
-  if (retour.verdict === 'divergent') {
-    const reprendre = await confirmDialog(AVERTISSEMENT_RETOUR_PLAYGROUND.message, {
-      title: AVERTISSEMENT_RETOUR_PLAYGROUND.titre,
-      confirmLabel: AVERTISSEMENT_RETOUR_PLAYGROUND.confirmLabel,
-      cancelLabel: AVERTISSEMENT_RETOUR_PLAYGROUND.cancelLabel,
+  if (retour.verdict === 'divergent' && estAppAccueil(from)) {
+    const { avertissement, cleCode } = RETOUR_VERS_ACCUEIL[from];
+    const reprendre = await confirmDialog(avertissement.message, {
+      title: avertissement.titre,
+      confirmLabel: avertissement.confirmLabel,
+      cancelLabel: avertissement.cancelLabel,
       danger: true,
     });
     if (!reprendre) {
       // Repartir avec le code tel qu'il était : rien n'est perdu, et
       // l'instantané reste en place pour un retour ultérieur.
-      sessionStorage.setItem('playground-code', retour.codeRapporte);
-      navigateTo('playground', { from: 'builder' });
+      sessionStorage.setItem(cleCode, retour.codeRapporte);
+      navigateTo(from, { from: 'builder' });
       return;
     }
   }

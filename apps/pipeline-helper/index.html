@@ -32,6 +32,9 @@
 
   <app-action-bar heading="Pipeline" data-zone="pipeline.actions" data-repere-libelle="Barre d'actions">
     <button slot="help" id="btn-toggle-help" data-repere="pipeline.actions.visite" class="fr-icon-question-line">Visite guidée</button>
+    <!-- Retour au Builder (#1095) : lien de navigation, affiché seulement quand
+         le Pipeline a été ouvert depuis le Builder (`?from=builder`). -->
+    <button slot="context" type="button" id="retour-builder-btn" data-repere="pipeline.actions.retour-builder" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-arrow-left-line fr-btn--icon-left" title="Revenir au Builder : il rouvre le graphique que vous y aviez laissé" hidden>Revenir au Builder</button>
     <app-menu slot="secondary" label="Ajouter une étape" icon="fr-icon-add-line">
       <button id="btn-add-source" data-repere="pipeline.actions.ajouter-source" data-repere-libelle="Ajouter une étape Source" class="fr-icon-database-line" title="Ajouter une source de données (fetch HTTP)">Source</button>
       <button id="btn-add-normalize" data-repere="pipeline.actions.ajouter-normalisation" data-repere-libelle="Ajouter une étape Normaliser" class="fr-icon-edit-line" title="Normaliser les données (types, renommage, trim, aplatir)">Normaliser</button>

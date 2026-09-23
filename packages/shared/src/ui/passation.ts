@@ -21,8 +21,26 @@ export const CLE_ETAT_BUILDER = 'builder-state';
 /** Code exact que le Builder a confié à l'app d'accueil, à l'instant du départ. */
 export const CLE_CODE_CONFIE = 'builder-code-confie';
 
-/** Code réellement affiché au moment où l'utilisateur revient au Builder. */
+/**
+ * Code réellement affiché au moment où l'utilisateur revient au Builder.
+ * La valeur de la clé date du seul Playground ; le Pipeline y rapporte aussi
+ * (#1095), et seulement quand il a été modifié.
+ */
 export const CLE_CODE_RAPPORTE = 'playground-code-rapporte';
+
+/**
+ * Apps d'accueil dont on revient au Builder avec un code à comparer : le
+ * Playground (#965) et le Pipeline (#1095). Chacune reçoit son code par sa
+ * propre clé, et c'est par elle qu'on y repart si l'usager refuse de perdre
+ * sa modification.
+ */
+export const APPS_ACCUEIL = ['playground', 'pipeline-helper'] as const;
+
+export type AppAccueil = (typeof APPS_ACCUEIL)[number];
+
+export function estAppAccueil(from: string | null): from is AppAccueil {
+  return from !== null && (APPS_ACCUEIL as readonly string[]).includes(from);
+}
 
 /**
  * Forme comparable d'un extrait de code : fins de ligne unifiées, indentation
@@ -40,7 +58,7 @@ export function normaliserCode(code: string | null | undefined): string {
 }
 
 export type VerdictRetour =
-  /** Rien à comparer : on n'arrive pas du Playground, ou il n'a rien rapporté. */
+  /** Rien à comparer : on n'arrive pas d'une app d'accueil, ou elle n'a rien rapporté. */
   | { verdict: 'rien-a-comparer' }
   /** Le code rapporté est celui qui était parti : la reprise ne perd rien. */
   | { verdict: 'inchange' }
@@ -54,12 +72,12 @@ export type VerdictRetour =
  * on s'apprête à écraser un code dont on ne peut pas prouver qu'il est celui
  * qu'on avait envoyé.
  */
-export function verdictRetourPlayground(opts: {
+export function verdictRetourAuBuilder(opts: {
   from: string | null;
   codeConfie: string | null;
   codeRapporte: string | null;
 }): VerdictRetour {
-  if (opts.from !== 'playground') return { verdict: 'rien-a-comparer' };
+  if (!estAppAccueil(opts.from)) return { verdict: 'rien-a-comparer' };
   const rapporte = normaliserCode(opts.codeRapporte);
   if (!rapporte) return { verdict: 'rien-a-comparer' };
   if (rapporte === normaliserCode(opts.codeConfie)) return { verdict: 'inchange' };
@@ -81,3 +99,41 @@ export const AVERTISSEMENT_RETOUR_PLAYGROUND = {
   confirmLabel: 'Reprendre la configuration',
   cancelLabel: 'Retourner au Playground',
 } as const;
+
+/**
+ * Même avertissement au retour du Pipeline (#1095). Le Pipeline régénère son
+ * code depuis le graphe de nœuds : il ne rapporte donc un code que si le
+ * pipeline a changé depuis son arrivée, jamais sa simple réécriture.
+ */
+export const AVERTISSEMENT_RETOUR_PIPELINE = {
+  titre: 'Vos modifications du Pipeline vont être perdues',
+  message:
+    "Le Builder ne sait pas relire un pipeline : en revenant, il rouvre la configuration qu'il " +
+    'avait au moment où vous êtes parti, et les étapes que vous avez modifiées dans le Pipeline ' +
+    'sont abandonnées. Pour les conserver : retournez au Pipeline, copiez le code ou ' +
+    'enregistrez-le en favori depuis le Playground, puis revenez ici.',
+  confirmLabel: 'Reprendre la configuration',
+  cancelLabel: 'Retourner au Pipeline',
+} as const;
+
+export interface AvertissementRetour {
+  readonly titre: string;
+  readonly message: string;
+  readonly confirmLabel: string;
+  readonly cancelLabel: string;
+}
+
+/**
+ * Ce qu'il faut pour avertir, puis repartir sans rien perdre : l'avertissement
+ * propre à l'app d'accueil et la clé par laquelle elle relit son code.
+ */
+export const RETOUR_VERS_ACCUEIL: Record<
+  AppAccueil,
+  { readonly cleCode: string; readonly avertissement: AvertissementRetour }
+> = {
+  playground: { cleCode: 'playground-code', avertissement: AVERTISSEMENT_RETOUR_PLAYGROUND },
+  'pipeline-helper': {
+    cleCode: 'pipeline-helper-code',
+    avertissement: AVERTISSEMENT_RETOUR_PIPELINE,
+  },
+};

@@ -266,10 +266,14 @@ export {
   CLE_CODE_CONFIE,
   CLE_CODE_RAPPORTE,
   normaliserCode,
-  verdictRetourPlayground,
+  APPS_ACCUEIL,
+  estAppAccueil,
+  verdictRetourAuBuilder,
   AVERTISSEMENT_RETOUR_PLAYGROUND,
+  AVERTISSEMENT_RETOUR_PIPELINE,
+  RETOUR_VERS_ACCUEIL,
 } from './ui/passation.js';
-export type { VerdictRetour } from './ui/passation.js';
+export type { VerdictRetour, AppAccueil, AvertissementRetour } from './ui/passation.js';
 
 // Repères d'interface : contrat du registre généré (#997, ADR-143) — app-side, types seuls
 export type {
