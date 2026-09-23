@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { controlesDuMode } from '../tests/verif-donnees/index.js';
 import { repondre } from '../tests/verif-donnees/fixtures.js';
+import { estReponseBinaire, trancheDemandee } from '../tests/verif-donnees/fixtures-adaptateurs.js';
 import type { Action, Check, Expect } from '../tools/oracle/manifest.js';
 import { computeExpectedFor, cleAttendu, type ExpectedCheck } from '../tools/oracle/expected.js';
 import { comparer, type Constat, type Observation } from '../tools/oracle/compare.js';
@@ -171,6 +172,23 @@ async function installerReseau(page: Page, fuites: string[]): Promise<void> {
       return;
     }
     const charge = repondre(url);
+    // Un fichier (export Parquet, #1055) : servi PAR PLAGES, comme le S3 de
+    // data.gouv — `Range: bytes=a-b` → 206 et la seule tranche demandée.
+    if (estReponseBinaire(charge)) {
+      const tranche = trancheDemandee(charge.binaire, route.request().headers()['range']);
+      await route.fulfill({
+        status: tranche.partielle ? 206 : 200,
+        contentType: charge.contentType,
+        headers: {
+          'access-control-allow-origin': '*',
+          'cache-control': 'no-store',
+          'accept-ranges': 'bytes',
+          ...(tranche.partielle ? { 'content-range': tranche.contentRange } : {}),
+        },
+        body: Buffer.from(tranche.octets),
+      });
+      return;
+    }
     if (charge !== null) {
       await route.fulfill({
         status: 200,

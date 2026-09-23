@@ -24,6 +24,7 @@ import {
   repondreOdsRecords,
   repondreTabular,
 } from '../builder-e2e/api-fixtures.js';
+import { readFileSync } from 'node:fs';
 import type { Row } from '../../tools/oracle/manifest.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
 import tabularLong from './jeux/adaptateurs-tabular-long.json' with { type: 'json' };
@@ -66,6 +67,81 @@ export const TERRITOIRES_ADAPT: Row[] = territoires;
  */
 export const RESSOURCE_TABULAR_LONGUE = 'ea1b5c3d-0000-4000-8000-tabularlongue01';
 export const TERRITOIRES_TABULAR_LONG: Row[] = tabularLong;
+
+/**
+ * Export PARQUET du même jeu long (#1055) : `fetch-mode="export"` le lit au
+ * lieu de paginer. Les 411 lignes de `adaptateurs-tabular-long.json`, écrites
+ * par `tests/adapters/parquet/generer.py` (pyarrow, ZSTD, entiers INT64, cinq
+ * groupes de 100 lignes). L'oracle relit le JSON, jamais le Parquet : un
+ * groupe de lignes sauté ou un entier resté `BigInt` se voit comme un écart.
+ *
+ * Deux hôtes : l'API data.gouv qui RÉSOUT la ressource vers son export (vrai
+ * hôte, constante de la bibliothèque — intercepté, rien ne sort) et le S3
+ * fictif qui sert le fichier par plages.
+ */
+export const RESSOURCE_TABULAR_PARQUET = 'ea1b5c3d-0000-4000-8000-tabularparquet';
+export const HOTE_DATAGOUV = 'https://www.data.gouv.fr';
+export const HOTE_PARQUET = 'https://hydra.adaptateurs.invalid';
+export const URL_PARQUET = `${HOTE_PARQUET}/parquet/${RESSOURCE_TABULAR_PARQUET}.parquet`;
+/**
+ * Le fichier, lu à la PREMIÈRE requête et pas à l'import : ce module est aussi
+ * importé par les tests vitest des manifestes, où `import.meta.url` n'est pas
+ * une URL `file:` (environnement happy-dom).
+ */
+let parquetLong: Uint8Array | null = null;
+function lireParquetLong(): Uint8Array {
+  parquetLong ??= new Uint8Array(
+    readFileSync(new URL('./jeux/adaptateurs-tabular-long.parquet', import.meta.url))
+  );
+  return parquetLong;
+}
+
+/** Une réponse binaire du faux réseau : un fichier, servi par plages (#1055). */
+export interface ReponseBinaire {
+  binaire: Uint8Array;
+  contentType: string;
+}
+
+export function estReponseBinaire(charge: unknown): charge is ReponseBinaire {
+  return (
+    charge !== null &&
+    typeof charge === 'object' &&
+    (charge as Partial<ReponseBinaire>).binaire instanceof Uint8Array
+  );
+}
+
+/**
+ * La tranche d'un fichier que demande un en-tête `Range: bytes=a-b` (ou
+ * `bytes=a-`), comme la sert un S3 ; le fichier entier sans en-tête.
+ */
+export function trancheDemandee(
+  octets: Uint8Array,
+  range: string | undefined
+): { octets: Uint8Array; partielle: boolean; contentRange: string } {
+  const m = /^bytes=(\d+)-(\d*)$/.exec(range ?? '');
+  if (!m) return { octets, partielle: false, contentRange: '' };
+  const debut = Math.min(Number(m[1]), octets.length);
+  const fin = Math.min(m[2] ? Number(m[2]) + 1 : octets.length, octets.length);
+  return {
+    octets: octets.subarray(debut, fin),
+    partielle: true,
+    contentRange: `bytes ${debut}-${fin - 1}/${octets.length}`,
+  };
+}
+
+/** `GET /api/2/datasets/resources/{rid}/` : la ressource ET son export. */
+function repondreResolutionParquet(): Record<string, unknown> {
+  return {
+    resource: {
+      id: RESSOURCE_TABULAR_PARQUET,
+      extras: {
+        'analysis:parsing:parquet_url': URL_PARQUET,
+        'analysis:parsing:parquet_size': lireParquetLong().length,
+      },
+    },
+    dataset_id: 'jeu-adaptateurs',
+  };
+}
 
 // ---------------------------------------------------------------------------
 // INSEE Melodi — deux ressources, un seul aplatissement (#586)
@@ -216,6 +292,8 @@ const ORIGINES_DU_LOT: ReadonlySet<string> = new Set([
   HOTE_TABULAR,
   HOTE_GRIST,
   HOTE_JSON,
+  HOTE_DATAGOUV,
+  HOTE_PARQUET,
   new URL(HOTE_INSEE).origin,
 ]);
 
@@ -279,7 +357,22 @@ export function repondreAdaptateurs(url: URL): unknown | null {
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_LONGUE}/data/`) {
       return repondreTabular(url, TERRITOIRES_TABULAR_LONG);
     }
+    // La ressource à export Parquet sert AUSSI la pagination : c'est le repli
+    // quand l'export est refusé (clause déléguée), et le contrôle le compte.
+    if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_PARQUET}/data/`) {
+      return repondreTabular(url, TERRITOIRES_TABULAR_LONG);
+    }
     return null;
+  }
+
+  if (
+    url.origin === HOTE_DATAGOUV &&
+    url.pathname === `/api/2/datasets/resources/${RESSOURCE_TABULAR_PARQUET}/`
+  ) {
+    return repondreResolutionParquet();
+  }
+  if (url.href === URL_PARQUET) {
+    return { binaire: lireParquetLong(), contentType: 'application/vnd.apache.parquet' };
   }
 
   if (url.href.startsWith(`${HOTE_INSEE}/data/${DATASET_INSEE}`)) return repondreMelodiData(url);

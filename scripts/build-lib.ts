@@ -10,7 +10,7 @@
 import { build } from 'vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { mkdirSync, readFileSync } from 'fs';
+import { mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
 import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -91,23 +91,67 @@ const commonConfig = {
     __DSFR_DATA_VERSION__: JSON.stringify(version),
     __DSFR_DATA_COMMIT__: JSON.stringify(commit),
   },
-  resolve: { alias: { '@': resolve(coreDir, 'src') } },
   configFile: false,
   logLevel: 'warn' as const,
 };
 
-async function buildBundle(
+/**
+ * Le lecteur Parquet (#1055) est charge a la demande par `import()`
+ * (`packages/core/src/adapters/parquet-modules.ts`). En ESM, Vite en fait des
+ * chunks separes (`dist/hyparquet-*.js`, `dist/fzstd-*.js`), comme Leaflet.
+ * Un bundle UMD, lui, ne se decoupe pas : Vite y INLINE tout `import()`, et
+ * le lecteur (~26 Ko gzip) alourdirait toutes les pages. Pour l'UMD, le module
+ * est donc remplace par `parquet-modules-umd.ts`, qui importe CES MEMES chunks
+ * ESM, publies a cote de lui, par rapport a l'URL du script — jamais depuis un
+ * CDN tiers (#292). D'ou un build PAR FORMAT (l'alias ne vaut que pour l'UMD),
+ * les ESM d'abord : leurs noms de chunks, haches, sont releves dans `dist/`
+ * puis injectes dans les UMD. Garde : `tests/lib-parquet-lazy-guard.test.ts`.
+ */
+function aliasesFor(format: 'es' | 'umd') {
+  const aliases: Array<{ find: string | RegExp; replacement: string }> = [
+    { find: '@', replacement: resolve(coreDir, 'src') },
+  ];
+  if (format === 'umd') {
+    aliases.unshift({
+      find: /^\.\/parquet-modules\.js$/,
+      replacement: resolve(coreDir, 'src/adapters/parquet-modules-umd.ts'),
+    });
+  }
+  return aliases;
+}
+
+/** Chunks du lecteur Parquet produits par les builds ESM, par paquet. */
+function parquetChunks(): { hyparquet: string; fzstd: string } {
+  const files = readdirSync(resolve(coreDir, 'dist'));
+  const find = (pkg: string) => {
+    const matches = files.filter((f) => f.startsWith(`${pkg}-`) && f.endsWith('.js'));
+    if (matches.length !== 1) {
+      throw new Error(`build-lib: un seul chunk ${pkg}-*.js attendu dans dist/, trouve ${matches}`);
+    }
+    return `./${matches[0]}`;
+  };
+  return { hyparquet: find('hyparquet'), fzstd: find('fzstd') };
+}
+
+async function buildFormat(
   entry: string,
   name: string,
   fileName: (format: string) => string,
-  formats: ('es' | 'umd')[]
+  format: 'es' | 'umd'
 ) {
-  console.log(`Building ${name}...`);
+  console.log(`Building ${name} (${format})...`);
   await build({
     ...commonConfig,
+    define: {
+      ...commonConfig.define,
+      ...(format === 'umd'
+        ? { __DSFR_DATA_PARQUET_CHUNKS__: JSON.stringify(parquetChunks()) }
+        : {}),
+    },
+    resolve: { alias: aliasesFor(format) },
     root: coreDir,
     build: {
-      lib: { entry, name, fileName, formats },
+      lib: { entry, name, fileName, formats: [format] },
       outDir: 'dist',
       emptyOutDir: false,
       assetsInlineLimit: 0,
@@ -115,6 +159,15 @@ async function buildBundle(
         output: {
           globals: {},
           assetFileNames: 'assets/[name][extname]',
+          // Chunks paresseux nommes d'apres leur paquet : `src-*.js` et
+          // `esm-*.js` (noms des fichiers d'entree de hyparquet et fzstd)
+          // ne diraient rien a qui lit `dist/` ou un journal reseau.
+          chunkFileNames: (chunk: { name: string; moduleIds: string[] }) => {
+            const pkg = ['hyparquet', 'fzstd'].find((p) =>
+              chunk.moduleIds.some((id) => id.includes(`/node_modules/${p}/`))
+            );
+            return `${pkg ?? '[name]'}-[hash].js`;
+          },
         },
       },
     },
@@ -130,43 +183,38 @@ try {
 }
 mkdirSync(resolve(coreDir, 'dist'), { recursive: true });
 
-// 1. Full bundle
-await buildBundle(
-  resolve(coreDir, 'src/index.ts'),
-  'DsfrData',
-  (fmt) => `dsfr-data.${fmt === 'es' ? 'esm' : fmt}.js`,
-  ['es', 'umd']
-);
+const esmUmd = (suffix: string) => (fmt: string) =>
+  `dsfr-data${suffix}.${fmt === 'es' ? 'esm' : fmt}.js`;
 
-// 2. Core bundle (no Leaflet)
-await buildBundle(
-  resolve(coreDir, 'src/index-core.ts'),
-  'DsfrData',
-  (fmt) => `dsfr-data.core.${fmt === 'es' ? 'esm' : fmt}.js`,
-  ['es', 'umd']
-);
-
-// 3. Map add-on (Leaflet carte interactive — loaded as module complement)
-await buildBundle(
-  resolve(coreDir, 'src/index-map.ts'),
-  'DsfrDataMap',
-  (fmt) => `dsfr-data.map.${fmt === 'es' ? 'esm' : fmt}.js`,
-  ['es', 'umd']
-);
+// Les trois bundles publies, ESM D'ABORD : les UMD relisent dans `dist/` le
+// nom des chunks du lecteur Parquet que les ESM y ont poses (voir aliasesFor).
+const PUBLISHED = [
+  // 1. Full bundle
+  { entry: 'src/index.ts', name: 'DsfrData', fileName: esmUmd('') },
+  // 2. Core bundle (no Leaflet)
+  { entry: 'src/index-core.ts', name: 'DsfrData', fileName: esmUmd('.core') },
+  // 3. Map add-on (Leaflet carte interactive — loaded as module complement)
+  { entry: 'src/index-map.ts', name: 'DsfrDataMap', fileName: esmUmd('.map') },
+];
+for (const format of ['es', 'umd'] as const) {
+  for (const b of PUBLISHED) {
+    await buildFormat(resolve(coreDir, b.entry), b.name, b.fileName, format);
+  }
+}
 
 // 4. Bundle autonome de diagnostic (#608) — ENTREE SEPAREE, jamais fusionnee
 //    aux trois bundles publies : un outil d'atelier n'a rien a faire dans le
 //    poids d'une page gouvernementale. Format IIFE : une balise <script> ou un
 //    marque-page doit suffire, sans module ni import map.
-await buildBundle(
+await buildFormat(
   resolve(coreDir, 'src/index-debug.ts'),
   'DsfrDataDebug',
   () => `dsfr-data.debug.js`,
-  ['umd']
+  'umd'
 );
 
 console.log('\nBuild complete. Bundles in packages/core/dist/:');
-const { readdirSync, statSync } = await import('fs');
+
 for (const f of readdirSync(resolve(coreDir, 'dist')).sort()) {
   const s = statSync(resolve(coreDir, 'dist', f));
   if (s.isFile()) {

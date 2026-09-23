@@ -274,8 +274,20 @@ export class DsfrDataSource extends LitElement {
    * comportement historique — pagination par pages de 100) ou `export`, qui
    * charge tout le jeu en **une seule requête** sur l'endpoint d'export du
    * portail, avec les mêmes clauses (`select`, `where`, `group-by`,
-   * `order-by`). Implémenté par OpenDataSoft seulement ; les autres
+   * `order-by`). Implémenté par OpenDataSoft et Tabular ; les autres
    * adaptateurs ignorent l'attribut.
+   *
+   * **Tabular** (#1055) : lit l'export **Parquet** que data.gouv publie pour
+   * chaque ressource, par plages, colonnes projetées depuis `select` — le
+   * jeu entier en quelques requêtes au lieu de pages de 200. Le lecteur
+   * (≈ 22 Ko gzip) n'est chargé qu'à ce moment-là. Lignes brutes seulement :
+   * avec un `where`, `group-by`, `aggregate` ou `order-by` délégué (posé sur
+   * la source ou transmis par une `dsfr-data-query`), la source reste sur la
+   * pagination, qui les exécute côté serveur, et le dit en console.
+   * `max-records` (25 000 par défaut) borne les lignes lues. Les entiers et
+   * les dates arrivent dans la forme de l'API (nombre, `AAAA-MM-JJ`).
+   * Pour une première page rapide sur un petit jeu, la pagination reste plus
+   * vive ; l'export l'emporte au-delà de 1 000 à 2 000 lignes.
    *
    * À activer pour une page « un fetch, N agrégations client », un jeu de
    * plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail
