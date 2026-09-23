@@ -5,6 +5,7 @@
  * geographiques / temporels probables.
  */
 import type { FieldInfo, LayerConfig } from './state.js';
+import { hydrateSource } from './state.js';
 import { buildSourceTag } from './ui/code-generator.js';
 
 export interface FieldSuggestions {
@@ -147,12 +148,23 @@ export function computeFields(records: Record<string, unknown>[]): FieldScanResu
  * cache et calcule les champs. Rejette apres `timeoutMs` (defaut 20 s).
  */
 export function scanLayerFields(layer: LayerConfig, timeoutMs = 20000): Promise<FieldScanResult> {
-  const s = layer.source;
+  const s = hydrateSource(layer.source);
   if (!s) return Promise.reject(new Error('Aucune source configurée'));
 
   // Source manuelle : les donnees sont deja la, pas de fetch.
   if (s.type === 'manual' && Array.isArray(s.data) && s.data.length) {
     return Promise.resolve(computeFields(s.data.slice(0, 50)));
+  }
+
+  // Source manuelle dont les lignes sont introuvables : le diagnostic doit
+  // nommer la cause (source supprimee de l'app Sources, ou import trop gros
+  // pour le quota de stockage), pas se contenter d'« inexploitable ».
+  if (s.type === 'manual' && !s.apiUrl) {
+    return Promise.reject(
+      new Error(
+        'Les lignes de cette source importée sont introuvables dans « Sources ». Ré-importez le fichier, ou publiez-le via une URL.'
+      )
+    );
   }
 
   const sampleId = `carto-scan-${layer.id}-${Date.now()}`;

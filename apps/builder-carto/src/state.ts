@@ -5,7 +5,7 @@
  * so a reload does not lose the work in progress.
  */
 
-import { loadFromStorage, saveToStorageQuiet } from '@dsfr-data/shared';
+import { loadFromStorage, saveToStorageQuiet, STORAGE_KEYS } from '@dsfr-data/shared';
 
 export { PROXY_BASE_URL, LIB_URL } from '@dsfr-data/shared';
 
@@ -18,6 +18,28 @@ export { PROXY_BASE_URL, LIB_URL } from '@dsfr-data/shared';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cf. commentaire bloc
 export type AnySource = Record<string, any>;
+
+/**
+ * Rebranche les lignes d'une source manuelle (import CSV/JSON/tableau de
+ * l'app Sources) depuis `STORAGE_KEYS.SOURCES`.
+ *
+ * L'etat du builder ne persiste qu'un pointeur (`lightweightSource` retire
+ * `data`/`rawRecords`, qui pesent des Mo et saturaient le quota localStorage).
+ * Pour une source d'API le pointeur suffit — l'URL refait le fetch — mais une
+ * source manuelle n'a QUE ses lignes : sans ce rebranchement, elle arrive vide
+ * au scan des champs et au code genere, et la carte reste bloquee sur
+ * « Analyse des champs en cours… ».
+ */
+export function hydrateSource(src: AnySource | null | undefined): AnySource | null {
+  if (!src) return null;
+  if (Array.isArray(src.data) && src.data.length) return src;
+  if (src.apiUrl) return src;
+  const stored = loadFromStorage<AnySource[]>(STORAGE_KEYS.SOURCES, []).find(
+    (s) => String(s.id) === String(src.id)
+  );
+  if (!stored || !Array.isArray(stored.data) || !stored.data.length) return src;
+  return { ...src, data: stored.data, rawRecords: stored.rawRecords };
+}
 
 export type LayerType = 'marker' | 'geoshape' | 'circle' | 'heatmap';
 
