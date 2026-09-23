@@ -21,13 +21,35 @@ const TAG_TO_TYPE: Record<string, string> = {
   'dsfr-data-a11y': 'output',
 };
 
-interface ParsedComponent {
+export interface ParsedComponent {
   tag: string;
   type: string;
   id: string;
   sourceId: string;
   forId: string;
   attributes: Record<string, string>;
+}
+
+/**
+ * Relecture d'un code produit avant #1073 : le nœud Facettes émettait
+ * `type="checkbox|radio|select"`, attribut que `dsfr-data-facets` ne déclare
+ * pas (il lit `display`, grammaire « champ:mode | champ2:mode »). Le mode
+ * voulu est reporté sur chaque champ de `fields` ; `checkbox` étant le défaut
+ * du composant, il ne produit rien. Sans `fields`, aucun champ ne peut porter
+ * le mode : il est abandonné. Un `display` déjà présent l'emporte toujours.
+ * `type` est retiré dans tous les cas : il ne pilotait rien.
+ */
+export function migrerAttributsFacettes(attrs: Record<string, string>): Record<string, string> {
+  if (!('type' in attrs)) return attrs;
+  const { type: mode, ...reste } = attrs;
+  const modeVoulu = mode.trim();
+  if (reste.display || !modeVoulu || modeVoulu === 'checkbox') return reste;
+  const champs = (reste.fields ?? '')
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean);
+  if (champs.length === 0) return reste;
+  return { ...reste, display: champs.map((c) => `${c}:${modeVoulu}`).join(' | ') };
 }
 
 /**
@@ -153,7 +175,7 @@ export async function importFromHtml(editor: PipelineEditor, htmlCode: string): 
   setTimeout(() => editor.zoomToFit(), 100);
 }
 
-function parseHtml(html: string): ParsedComponent[] {
+export function parseHtml(html: string): ParsedComponent[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(wrapHtml(html), 'text/html');
   const components: ParsedComponent[] = [];
@@ -182,7 +204,7 @@ function parseHtml(html: string): ParsedComponent[] {
         id: el.getAttribute('id') || '',
         sourceId: el.getAttribute('source') || '',
         forId: el.getAttribute('for') || '',
-        attributes: attrs,
+        attributes: type === 'facets' ? migrerAttributsFacettes(attrs) : attrs,
       });
     }
   }

@@ -42,10 +42,7 @@ export function baliseDuControle(def: AttributeDef): 'select' | 'input' {
  * annonce donc pas comme attributs de la bibliothèque. Chaque entrée dit
  * pourquoi ; `check:reperes` refuse tout autre écart (règle 2).
  */
-export const ATTRIBUTS_HORS_MANIFESTE: Readonly<Record<string, string>> = {
-  'facets.type':
-    "dsfr-data-facets lit `display` (champ:mode), pas `type` : l'attribut émis par le nœud Facettes est ignoré par le composant.",
-};
+export const ATTRIBUTS_HORS_MANIFESTE: Readonly<Record<string, string>> = {};
 
 function prerequisDe(type: string): string[] {
   return TYPES_AJOUTABLES.includes(type) ? [`noeud-${type}`] : [];
