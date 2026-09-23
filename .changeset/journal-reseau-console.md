@@ -1,5 +1,0 @@
----
-'dsfr-data': patch
----
-
-Diagnostic : journal réseau et console (#994). Le texte de `formatTrace()`, donc le volet Diagnostic, « Copier le diagnostic » et l'assistant, gagne deux sections. « Réseau » donne l'URL réellement appelée après proxy, la méthode, le statut, la durée, le type, la taille et l'erreur ; un blocage CORS y apparaît en `TypeError: Failed to fetch`. « Console » reprend `console.warn/error`, les erreurs non rattrapées et les promesses rejetées. La capture est posée par le tampon précoce des iframes d'aperçu, seulement avec `debug: true` et jamais dans le code exporté, et pour la Carto et le Pipeline par `@dsfr-data/shared/debug/installer-journal`, importé en première ligne. L'enveloppe de `fetch` rend la même promesse et ne lit jamais le corps des réponses. Aucun en-tête de requête n'est conservé, et les jetons passés en paramètre d'URL sont masqués (`***`) au rendu ; sous `redactValues`, l'URL est réduite à l'hôte et au chemin. Les bundles publiés de la bibliothèque ne changent pas.

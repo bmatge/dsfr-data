@@ -1,5 +1,0 @@
----
-'dsfr-data': minor
----
-
-Le bandeau de `dsfr-data-map-layer` dit ce que la carte ne montre pas, avec les deux chiffres et le biais (#1020). La couche lit désormais la meta de sa source : quand la source n'a chargé qu'une partie du jeu (`limit`, `max-records`, plafond de pages), le bandeau apparaît même si `max-items` n'est pas dépassé, avec le total annoncé par l'API — « 1 000 premiers enregistrements affichés sur 34 826, dans l'ordre du fichier : la répartition affichée n'est pas représentative. » Aligner le `limit` de la source sur `max-items` devient donc sûr : il faisait disparaître le bandeau. Le bandeau porte `role="status"`, il est mis à jour sur place, passe à la ligne sur un écran étroit (320 px) et ne comporte aucun contrôle interactif ; l'événement `dsfr-data-map-layer-render` rapporte le total de la source. Le Builder Carto plafonne une nouvelle couche à 1 000 points et émet toujours `max-items` et le `limit` de la source avec la même valeur. La bibliothèque garde `max-items` = 5 000 par défaut.

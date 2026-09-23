@@ -1,5 +1,0 @@
----
-'dsfr-data': patch
----
-
-`dsfr-data-kpi value="meta:total"` affiche « — » quand l'amont ne connaît pas son total, au lieu du nombre de lignes reçues (#1046). Depuis l'arrivée de `meta:total` (0.22.0, #659), un total absent retombait sur le comptage des lignes reçues. Ce comptage est juste quand la source a tout livré, mais faux derrière une page serveur ou un lot tronqué. Sur une page agrégée Tabular, qui ne porte pas de `meta.total` (#1033, pas encore publié), le KPI annonçait ainsi **40**, la taille de la page, pour 101 départements. La décision se lit désormais dans la meta publiée par la source : un total numérique est affiché tel quel ; un total absent sur une page serveur (`serverSide`) ou un lot tronqué (`truncated`) est inconnu (« — », et un ratio `… / meta:total` vaut « — ») ; sans meta, ou sur un lot complet, les lignes reçues restent le total. Même règle pour un export Opendatasoft (`fetch-mode="export"`) ou un `group_by` Opendatasoft arrêtés au plafond `max-records` : ils annonçaient le plafond comme total, ils affichent « — ». Aucun chiffre ne change pour Grist, Opendatasoft, INSEE ou generic là où le total était connu.
