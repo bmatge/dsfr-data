@@ -52,31 +52,46 @@
       </p>
     </div>
 
-    <!-- Colonne de panneaux flottants -->
+    <!-- Rail + volet unique (#1088) : le rail ouvre UN volet pleine hauteur,
+         posé à côté de la carte ; son corps défile. Recliquer le bouton du
+         volet ouvert le replie (la carte prend toute la largeur). -->
+    <nav class="carto-rail" aria-label="Réglages de la carte">
+      <button class="carto-rail__btn" type="button" data-volet="panel-carte" data-repere="carto.carte.plier"
+              aria-expanded="false" aria-controls="panel-carte">
+        <i class="ri-map-2-line" aria-hidden="true"></i><span>Carte</span>
+      </button>
+      <button class="carto-rail__btn" type="button" data-volet="panel-couches" data-repere="carto.couches.plier"
+              aria-expanded="true" aria-controls="panel-couches">
+        <i class="ri-stack-line" aria-hidden="true"></i><span>Couches</span>
+        <span class="carto-rail__compte" id="carto-rail-couches-compte" aria-hidden="true"></span>
+      </button>
+      <button class="carto-rail__btn" type="button" data-volet="panel-elements" data-repere="carto.elements.plier"
+              aria-expanded="false" aria-controls="panel-elements">
+        <i class="ri-paint-brush-line" aria-hidden="true"></i><span>Éléments</span>
+      </button>
+    </nav>
+
     <div class="carto-panels">
 
       <section class="carto-panel carto-panel--collapsed" id="panel-carte" aria-label="Réglages de la carte" data-zone="carto.carte">
-        <button class="carto-panel__header" type="button" data-panel-toggle="panel-carte" data-repere="carto.carte.plier"
-                aria-expanded="false" aria-controls="map-config">
-          <span class="carto-panel__title"><i class="ri-map-2-line" aria-hidden="true"></i>Carte</span>
-          <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
-        </button>
+        <div class="carto-panel__header">
+          <h2 class="carto-panel__title" id="panel-carte-titre">Carte</h2>
+          <button class="carto-panel__replier app-btn--icon app-btn--icon--sm app-btn--icon--muted" type="button" data-volet-replier
+                  title="Replier le volet" aria-label="Replier le volet Carte">
+            <i class="ri-arrow-left-s-line" aria-hidden="true"></i>
+          </button>
+        </div>
         <div class="carto-panel__body" id="map-config" tabindex="0"></div>
       </section>
 
       <section class="carto-panel" id="panel-couches" aria-label="Couches de données" data-zone="carto.couches">
-        <div class="carto-panel__header carto-panel__header--split">
-          <button class="carto-panel__header-toggle" type="button" data-panel-toggle="panel-couches" data-repere="carto.couches.plier"
-                  aria-expanded="true" aria-controls="couches-body">
-            <span class="carto-panel__title"><i class="ri-stack-line" aria-hidden="true"></i>Couches</span>
+        <div class="carto-panel__header">
+          <h2 class="carto-panel__title" id="panel-couches-titre">Couches</h2>
+          <button id="btn-add-layer" data-repere="carto.couches.ajouter" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
+          <button class="carto-panel__replier app-btn--icon app-btn--icon--sm app-btn--icon--muted" type="button" data-volet-replier
+                  title="Replier le volet" aria-label="Replier le volet Couches">
+            <i class="ri-arrow-left-s-line" aria-hidden="true"></i>
           </button>
-          <div class="carto-panel__header-actions">
-            <button id="btn-add-layer" data-repere="carto.couches.ajouter" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
-            <button class="carto-icon-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted carto-panel__header-arrow" type="button" data-panel-toggle="panel-couches"
-                    aria-expanded="true" aria-controls="couches-body" aria-label="Replier le panneau Couches">
-              <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
-            </button>
-          </div>
         </div>
         <div class="carto-panel__body" id="couches-body" tabindex="0">
           <ul id="layers-list" class="carto-layers__list" aria-label="Couches de la carte" data-zone="carto.couches.liste"></ul>
@@ -87,12 +102,16 @@
         </div>
       </section>
 
-      <section class="carto-panel" id="panel-elements" aria-label="Éléments de la couche" data-zone="carto.elements">
-        <button class="carto-panel__header" type="button" data-panel-toggle="panel-elements" data-repere="carto.elements.plier"
-                aria-expanded="true" aria-controls="layer-config">
-          <span class="carto-panel__title"><i class="ri-paint-brush-line" aria-hidden="true"></i>Éléments</span>
-          <i class="ri-arrow-down-s-line carto-panel__arrow" aria-hidden="true"></i>
-        </button>
+      <section class="carto-panel carto-panel--collapsed" id="panel-elements" aria-label="Éléments de la couche" data-zone="carto.elements">
+        <div class="carto-panel__header">
+          <h2 class="carto-panel__title" id="panel-elements-titre">Éléments</h2>
+          <button class="carto-panel__replier app-btn--icon app-btn--icon--sm app-btn--icon--muted" type="button" data-volet-replier
+                  title="Replier le volet" aria-label="Replier le volet Éléments">
+            <i class="ri-arrow-left-s-line" aria-hidden="true"></i>
+          </button>
+        </div>
+        <!-- Couche réglée : rendue par main.ts (sélecteur quand il y en a plusieurs). -->
+        <div class="carto-panel__couche" id="elements-couche"></div>
         <div class="carto-panel__body" id="layer-config" tabindex="0"></div>
       </section>
 

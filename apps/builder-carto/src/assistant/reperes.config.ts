@@ -41,9 +41,9 @@ const config: ReperesConfig = {
   ],
   exceptions: [
     {
-      cible: 'button.carto-panel__header-arrow',
+      cible: 'button.carto-panel__replier',
       raison:
-        'Flèche de repli du panneau Couches : doublon du bouton de titre (carto.couches.plier), même action.',
+        'Repli du volet ouvert (#1088) : doublon du bouton du rail (carto.<volet>.plier), même action.',
     },
   ],
   helpers: [{ fonction: 'fieldInput', parametre: 'repere' }],

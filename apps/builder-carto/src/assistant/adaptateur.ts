@@ -8,7 +8,8 @@
  *    si le DOM montre une autre couche que la couche active (état changé sans
  *    rendu), on relance le rendu (`rendre`, le `renderAll()` de `main.ts`) et on
  *    attend une image ;
- * 2. déplier le panneau flottant qui porte le repère (`data-panel-toggle`) ;
+ * 2. ouvrir le volet qui porte le repère (rail + volet unique, #1088) — les
+ *    deux autres se masquent ;
  * 3. déplier les `<details>` englobants (« Options avancées », « Contenu de la
  *    fiche »…) ; un repère qui EST un `<details>` (zone) est déplié lui-même ;
  * 4. sélectionner l'onglet Code pour un repère de `carto.code` ;
@@ -26,9 +27,10 @@ import { estIdRepere, selecteurRepere } from '@dsfr-data/shared';
 import type { AdaptateurReperage } from '@dsfr-data/shared';
 import { state, type CartoState } from '../state.js';
 import { PREREQUIS } from './prerequis.js';
+import { CLASSE_VOLET_MASQUE, estVolet, ouvrirVolet } from '../volets.js';
 
 /**
- * Zone de premier niveau → panneau flottant de `index.html`. Table littérale :
+ * Zone de premier niveau → volet de `index.html`. Table littérale :
  * le panneau se déduit du préfixe de l'identifiant, jamais du DOM.
  * `carto.actions` (barre d'actions) et `carto.code` (onglet) ne sont pas des
  * panneaux.
@@ -39,8 +41,8 @@ export const PANNEAU_DE_ZONE: Readonly<Record<string, string>> = {
   'carto.elements': 'panel-elements',
 };
 
-/** Classe d'un panneau replié (`bindStaticUi()` de `main.ts`). */
-export const CLASSE_PANNEAU_REPLIE = 'carto-panel--collapsed';
+/** Classe d'un volet masqué (`volets.ts`). */
+export const CLASSE_PANNEAU_REPLIE = CLASSE_VOLET_MASQUE;
 
 /** Panneau `#panel-*` qui contient le repère `id`, ou `undefined`. */
 export function panneauDuRepere(id: string): string | undefined {
@@ -55,7 +57,7 @@ export function estDansOngletCode(id: string): boolean {
 
 /**
  * L'élément est-il affiché ? Masqué si lui ou un ancêtre porte `hidden`, un
- * `display: none` en ligne, un panneau replié (hors son en-tête), ou un
+ * `display: none` en ligne, un volet masqué (en-tête compris), ou un
  * `<details>` fermé (hors `summary`). Lecture des attributs, classes et style
  * EN LIGNE : c'est ainsi que la carto masque ses contrôles, et ce qu'un DOM de
  * test sait reproduire.
@@ -65,12 +67,7 @@ export function estAffiche(el: HTMLElement): boolean {
   for (let n: Element | null = el; n; enfant = n, n = n.parentElement) {
     if (!(n instanceof HTMLElement)) continue;
     if (n.hidden || n.style.display === 'none') return false;
-    if (
-      n.classList.contains(CLASSE_PANNEAU_REPLIE) &&
-      !(enfant instanceof HTMLElement && enfant.classList.contains('carto-panel__header'))
-    ) {
-      return false;
-    }
+    if (n.classList.contains(CLASSE_PANNEAU_REPLIE)) return false;
     if (
       n instanceof HTMLDetailsElement &&
       !n.open &&
@@ -103,14 +100,14 @@ function trouver(racine: Document, id: string): HTMLElement | null {
   return null;
 }
 
-/** Déplie un panneau flottant, comme son bouton de titre, sans jamais le replier. */
+/**
+ * Ouvre le volet qui porte le repère, comme son bouton du rail — sans
+ * mémoriser ce choix : c'est une révélation, pas un geste de l'usager.
+ */
 function deplierPanneau(racine: Document, id: string): void {
   const panneau = racine.getElementById(id);
-  if (!panneau || !panneau.classList.contains(CLASSE_PANNEAU_REPLIE)) return;
-  panneau.classList.remove(CLASSE_PANNEAU_REPLIE);
-  panneau
-    .querySelectorAll('[data-panel-toggle]')
-    .forEach((b) => b.setAttribute('aria-expanded', 'true'));
+  if (!panneau || !panneau.classList.contains(CLASSE_PANNEAU_REPLIE) || !estVolet(id)) return;
+  ouvrirVolet(racine, id);
 }
 
 /** Sélectionne l'onglet Code s'il ne l'est pas (le bouton porte le comportement DSFR). */

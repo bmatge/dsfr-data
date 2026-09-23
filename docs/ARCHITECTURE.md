@@ -565,7 +565,10 @@ silence.
   (hauteur intrinseque) par une iframe (hauteur extrinseque), migrer avant
   reviendrait a calibrer sur un contenu voue a disparaitre.
 - **Carto** et **Dashboard** n'utilisent pas ce layout : canevas plein ecran a
-  panneaux flottants pour l'une, editeur en grille pour l'autre. Exceptions
+  rail + volet unique pour l'une (#1088 : un rail ouvre UN des trois volets
+  Carte / Couches / Elements, pose a cote de la carte et non plus par-dessus ;
+  `apps/builder-carto/src/volets.ts`, classe `carto-panel--collapsed` partagee
+  avec l'adaptateur de l'assistant), editeur en grille pour l'autre. Exceptions
   legitimes, non harmonisees.
 
 **Invariant d'epinglage** — `--app-header-h` a DEUX usages de nature

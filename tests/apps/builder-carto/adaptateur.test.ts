@@ -133,8 +133,15 @@ describe('adaptateur de révélation de la carto (#1005)', () => {
       const el = await adaptateur.reveler('carto.carte.fond');
       expect(el?.id).toBe('map-tiles');
       expect(panneau.classList.contains(mod.CLASSE_PANNEAU_REPLIE)).toBe(false);
-      const bouton = panneau.querySelector('[data-panel-toggle]')!;
+      // Rail + volet unique (#1088) : le bouton du rail suit, les autres
+      // volets se masquent.
+      const bouton = document.querySelector('[data-volet="panel-carte"]')!;
       expect(bouton.getAttribute('aria-expanded')).toBe('true');
+      for (const autre of ['panel-couches', 'panel-elements']) {
+        expect(document.getElementById(autre)!.classList.contains(mod.CLASSE_PANNEAU_REPLIE)).toBe(
+          true
+        );
+      }
     });
 
     it('ouvre le <details> « Options avancées » du panneau Éléments', async () => {
