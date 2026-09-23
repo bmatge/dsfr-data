@@ -1,32 +1,79 @@
 /**
- * Studio IA - Rendu du chat (messages, etapes de raisonnement).
- * Meme facture visuelle que le builder-IA, en version compacte.
+ * Studio IA - Rendu du chat (messages, suggestions, etapes de raisonnement).
+ *
+ * Meme facture que l'ancien Assistant IA, qu'il remplace comme entree usager
+ * (#1081) : Markdown sur (tableaux, listes, code — `renderMarkdown` partage,
+ * qui echappe TOUT avant de formater), suggestions cliquables, et raisonnement
+ * de l'assistant conserve sous la reponse, replie.
  */
 
-import { escapeHtml } from '@dsfr-data/shared';
+import { escapeHtml, renderMarkdown } from '@dsfr-data/shared';
 import { state } from '../state.js';
 
 function messagesEl(): HTMLElement | null {
   return document.getElementById('chat-messages');
 }
 
-/** Rendu minimal : paragraphes + gras/italique/code inline, tout echappe. */
-function renderText(text: string): string {
-  return escapeHtml(text)
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .split(/\n{2,}/)
-    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
-    .join('');
+/** Options d'un message de l'assistant. */
+export interface MessageOptions {
+  /** Relances proposees sous la reponse : un clic les envoie. */
+  suggestions?: string[];
+  /** Etapes franchies par la boucle agentique, gardees sous la reponse. */
+  etapes?: string[];
 }
 
-export function addMessage(role: 'user' | 'assistant', content: string): void {
+/** Envoi declenche par une suggestion (pose par main.ts). */
+let envoyerSuggestion: ((texte: string) => void) | null = null;
+
+export function definirEnvoiSuggestion(envoi: (texte: string) => void): void {
+  envoyerSuggestion = envoi;
+}
+
+function blocSuggestions(suggestions: string[]): HTMLElement {
+  const bloc = document.createElement('div');
+  bloc.className = 'chat-suggestions';
+  for (const s of suggestions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fr-tag fr-tag--sm chat-suggestion';
+    btn.textContent = s;
+    btn.addEventListener('click', () => envoyerSuggestion?.(s));
+    bloc.appendChild(btn);
+  }
+  return bloc;
+}
+
+function blocRaisonnement(etapes: string[]): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'chat-reasoning';
+  const summary = document.createElement('summary');
+  const n = etapes.length;
+  summary.textContent = `Raisonnement de l’assistant (${n} étape${n > 1 ? 's' : ''})`;
+  const ul = document.createElement('ul');
+  for (const e of etapes) {
+    const li = document.createElement('li');
+    li.textContent = e;
+    ul.appendChild(li);
+  }
+  details.append(summary, ul);
+  return details;
+}
+
+export function addMessage(
+  role: 'user' | 'assistant',
+  content: string,
+  options: MessageOptions = {}
+): void {
   state.messages.push({ role, content });
   const container = messagesEl();
   if (!container) return;
   const div = document.createElement('div');
   div.className = `chat-message chat-message--${role}`;
-  div.innerHTML = renderText(content);
+  div.innerHTML = renderMarkdown(content);
+  if (role === 'assistant') {
+    if (options.suggestions?.length) div.appendChild(blocSuggestions(options.suggestions));
+    if (options.etapes?.length) div.appendChild(blocRaisonnement(options.etapes));
+  }
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
 }

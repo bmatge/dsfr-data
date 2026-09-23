@@ -38,7 +38,7 @@ import {
  * Light DOM pour hériter des styles DSFR.
  *
  * @fires diagnostic-copy - Le diagnostic textuel a été copié.
- * @fires diagnostic-send - { text } « Envoyer » ou « Demander à l'assistant » (`sendAction`).
+ * @fires diagnostic-send - { text } « Demander à l'assistant » (geste selon `sendAction`).
  * @fires diagnostic-toggle - { open } ouverture/fermeture du tiroir.
  * @fires constat-montrer - { repere, constat } l'usager demande à voir le
  *   contrôle qui corrige un constat (#1001). Le volet ne résout rien lui-même :
@@ -197,11 +197,13 @@ export class AppDiagnosticPanel extends LitElement {
   canSend = false;
 
   /**
-   * Geste du bouton vers l'assistant (#1016) :
-   * - `envoyer` (défaut) : « Envoyer à l'assistant », le texte du diagnostic
-   *   part vers un chat (Assistant IA, Studio) ; désactivé sans trace ;
-   * - `demander` : « Demander à l'assistant », l'app ouvre son assistant
-   *   contextuel sans quitter l'écran (Carto) ; actif même sans trace.
+   * Geste du bouton « Demander à l'assistant » (#1016). Un seul libellé
+   * depuis #1081, deux gestes :
+   * - `envoyer` (défaut) : le texte du diagnostic est posé, NON envoyé, dans
+   *   le chat de l'app (Studio IA, ancien Assistant IA) ; désactivé sans
+   *   trace, puisqu'il n'y a alors rien à poser ;
+   * - `demander` : l'app ouvre son assistant contextuel sans quitter l'écran
+   *   (Carto, Builder…) ; actif même sans trace.
    * Dans les deux cas le volet émet `diagnostic-send` : l'app décide.
    */
   @property({ type: String, attribute: 'send-action' })
@@ -872,16 +874,16 @@ export class AppDiagnosticPanel extends LitElement {
                     </button>`
                   : html`<button
                       type="button"
-                      class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-send-plane-fill fr-btn--icon-left"
+                      class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-question-answer-line fr-btn--icon-left"
                       aria-disabled=${this._isBlank ? 'true' : 'false'}
                       title=${
                         this._isBlank
-                          ? 'Aucun diagnostic à envoyer : exécutez d’abord le pipeline'
-                          : ''
+                          ? 'Aucun diagnostic à transmettre : exécutez d’abord le pipeline'
+                          : 'Pose le diagnostic dans la conversation, sans l’envoyer : relisez-le et complétez votre question'
                       }
                       @click=${this._send}
                     >
-                      Envoyer à l’assistant
+                      Demander à l’assistant
                     </button>`
                 : nothing
             }

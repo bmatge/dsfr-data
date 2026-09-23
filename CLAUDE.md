@@ -21,13 +21,15 @@ La bibliotheque npm publiee `dsfr-data` se trouve dans `packages/core/`.
 - **Serveur** : Express + MariaDB 11 (`mysql2/promise`).
 - **Versioning** : Changesets.
 - **Mono** : 12 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
+- **Entrée IA des usagers : le Studio IA** (`apps/studio/`, #1081). `apps/builder-ia/` (ancien Assistant IA)
+  redirige vers lui, sauf avec `?ancien=1` ; il garde le guide des skills (`skills.ts`).
 
 ## Commandes essentielles
 
 ```bash
 # Dev
 npm run dev                         # Serveur de dev Vite (port 5173, hub + proxy)
-npm run dev --workspace=@dsfr-data/app-builder   # Dev d'une app (idem: builder-ia, dashboard,
+npm run dev --workspace=@dsfr-data/app-builder   # Dev d'une app (idem: studio, dashboard,
                                     #   sources, playground, favorites, monitoring)
 
 # Build
@@ -48,8 +50,10 @@ npm run test:coverage # Couverture
 npm run test:e2e      # Playwright E2E
 npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
 npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
-                      # TROIS specs bloquantes sur PR (builder-e2e.yml, #869) :
-                      #   export-html-api-recette, builder-ia-recette, layout-diagnostic-recette.
+                      # CINQ specs bloquantes sur PR (builder-e2e.yml, #869, #1081) :
+                      #   export-html-api-recette, builder-ia-recette, layout-diagnostic-recette,
+                      #   studio-recette, studio-navigation-recette. L'ancien Assistant IA ne
+                      #   s'ouvre plus que par `apps/builder-ia/?ancien=1` (sinon : Studio IA).
                       #   Le RESTE du dossier est une recette manuelle, hors CI et pas verte
                       #   (#868) : etat mesure par spec dans tests/builder-e2e/README.md.
                       #   Playwright demarre `npm run dev` lui-meme (et reutilise le tien).

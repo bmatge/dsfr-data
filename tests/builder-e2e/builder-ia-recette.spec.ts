@@ -23,7 +23,9 @@
 
 import { test, expect, type ConsoleMessage } from '@playwright/test';
 
-const APP_URL = 'http://localhost:5173/apps/builder-ia/';
+// `?ancien=1` : sans lui, l'ancien Assistant redirige vers le Studio IA (#1081).
+// Le pendant Studio de cette recette est `studio-recette.spec.ts`.
+const APP_URL = 'http://localhost:5173/apps/builder-ia/?ancien=1';
 
 const TYPES = [
   'bar',

@@ -20,7 +20,7 @@
   // Keep this registry in sync with packages/shared/src/tour/tour-configs.ts → TOURS_REGISTRY
   var TOURS = [
     { id: 'builder', label: 'Builder', version: 1, appPath: '../apps/builder/' },
-    { id: 'builder-ia', label: 'Builder IA', version: 1, appPath: '../apps/builder-ia/' },
+    { id: 'studio', label: 'Studio IA', version: 1, appPath: '../apps/studio/' },
     { id: 'builder-carto', label: 'Builder Carto', version: 1, appPath: '../apps/builder-carto/' },
     { id: 'sources', label: 'Sources', version: 1, appPath: '../apps/sources/' },
     { id: 'playground', label: 'Playground', version: 1, appPath: '../apps/playground/' },

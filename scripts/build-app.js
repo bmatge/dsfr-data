@@ -9,7 +9,7 @@
  *     demo/               (demo pages)
  *     favoris.html         (redirect -> apps/favorites/)
  *     builder.html         (redirect -> apps/builder/)
- *     builderIA.html       (redirect -> apps/builder-ia/)
+ *     builderIA.html       (redirect -> apps/studio/, #1081)
  *     playground.html      (redirect -> apps/playground/)
  *     sources.html         (redirect -> apps/sources/)
  *     apps/
@@ -125,7 +125,8 @@ console.log('\nCreating redirect files...');
 const redirects = {
   'favoris.html': 'apps/favorites/index.html',
   'builder.html': 'apps/builder/index.html',
-  'builderIA.html': 'apps/builder-ia/index.html',
+  // Le Studio IA remplace l'Assistant IA (#1081) : l'ancienne URL mene au Studio.
+  'builderIA.html': 'apps/studio/index.html',
   'playground.html': 'apps/playground/index.html',
   'sources.html': 'apps/sources/index.html',
   'dashboard.html': 'apps/dashboard/index.html',

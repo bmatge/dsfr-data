@@ -1,8 +1,10 @@
-# tests/builder-e2e — trois specs bloquantes, quatre specs archivées, deux outils
+# tests/builder-e2e — cinq specs bloquantes, quatre specs archivées, deux outils
 
-> **Trois specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869) :
+> **Cinq specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869, #1081) :
 > `export-html-api-recette` (61 cas, vert depuis #866), `builder-ia-recette` et
-> `layout-diagnostic-recette` (43 cas). **104 cas**, 27 s, aucune API tierce. Playwright
+> `layout-diagnostic-recette` (43 cas ; l'ancien Assistant IA y est ouvert par `?ancien=1`),
+> `studio-recette` et `studio-navigation-recette` (21 cas, #1081 : le Studio IA remplace
+> l'Assistant comme entrée usager). **125 cas**, aucune API tierce. Playwright
 > ramasse en plus par défaut `assistant-carto.spec.ts` (3 cas, recette manuelle de #1016, que la
 > CI ne nomme pas) : **107 cas** au total.
 >
@@ -34,9 +36,11 @@ lance rien : le chiffre ne dépend ni du serveur de dev ni de l'état de l'UI). 
 |---|---|---|---|---|
 | `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | 61 | **61 vert** (2026-09-19, #866) | Le plus solide du dossier : déterministe, sans réseau, 11 s. Demande `npm run build` avant. |
 | `builder-ia-recette.spec.ts` | oui | 16 | **vert** (2026-09-14, #844) | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
-| `layout-diagnostic-recette.spec.ts` | oui | 27 | **vert** (2026-09-14, #844) | Idem. |
-| `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses trois specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
-| | | **107** | | Le total que Playwright ramasse. La CI en exécute **104** (les trois premiers specs). |
+| `layout-diagnostic-recette.spec.ts` | oui | 27 | **vert** (2026-09-23, #1081) | Idem. L'ancien Assistant y est ouvert par `?ancien=1`. |
+| `studio-recette.spec.ts` | oui | 16 | **16 vert** (2026-09-23, #1081) | Pendant Studio de `builder-ia-recette` : les 16 types rendus comme bloc `chart` d'un document, mesure sur le composant d'affichage lui-même. |
+| `studio-navigation-recette.spec.ts` | oui | 5 | **5 vert** (2026-09-23, #1081) | Nav → « Studio IA », accueil à une entrée IA, `apps/builder-ia/` redirigé (requête et ancre gardées), `?ancien=1` qui le garde joignable. |
+| `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses cinq specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
+| | | **128** | | Le total que Playwright ramasse. La CI en exécute **125** (les cinq premiers specs). |
 
 ### Archivés — hors `testMatch` depuis #868 (2026-09-19)
 

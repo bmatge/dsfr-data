@@ -34,11 +34,9 @@ export function navItemsFor(user: User | null): Array<{ id: string; label: strin
   return [
     { id: 'accueil', label: 'Accueil', href: 'index.html' },
     { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
-    { id: 'builder-ia', label: 'Assistant IA', href: 'apps/builder-ia/index.html' },
-    // Studio IA (#515) volontairement HORS nav le temps de la periode d'essai
-    // en parallele du builder-IA : l'app reste accessible par URL directe et
-    // par la carte du hub. Re-exposition prevue avec la refonte nav (#538).
-    // { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
+    // Le Studio IA remplace l'Assistant IA comme entree usager (#1081) ;
+    // l'ancien Assistant reste joignable par `apps/builder-ia/?ancien=1`.
+    { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
     { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
     { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },
     { id: 'dashboard', label: 'Créer un tableau de bord', href: 'apps/dashboard/index.html' },
@@ -90,7 +88,7 @@ export function injectAppHeaderStyles(): void {
 export class AppHeader extends LitElement {
   /**
    * Page courante pour mettre en surbrillance dans la nav
-   * Valeurs: 'accueil' | 'composants' | 'builder' | 'builder-ia' | 'dashboard' | 'playground' | 'favoris' | 'sources'
+   * Valeurs: 'accueil' | 'composants' | 'builder' | 'studio' | 'dashboard' | 'playground' | 'favoris' | 'sources'
    */
   @property({ type: String, attribute: 'current-page' })
   currentPage = '';

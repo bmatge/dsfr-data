@@ -14,6 +14,7 @@ import {
   relevantSkillsText,
   skillText,
   type PublishedSkill,
+  type ReclasserSkills,
 } from '../../packages/shared/src/ia/skills-client';
 
 const SKILLS: PublishedSkill[] = [
@@ -93,6 +94,45 @@ describe('shared/ia/skills-client — outils de consultation', () => {
     expect(await executerOutilSkill('get_skill', { skill_id: 'x' }, async () => null)).toBe(
       SKILLS_INDISPONIBLES
     );
+  });
+
+  it('un reclasseur (#514, repris par le Studio en #1081) ordonne les candidates', async () => {
+    const charger = async () => SKILLS;
+    const vues: string[][] = [];
+    const inverse = vi.fn<ReclasserSkills>(async (_m, candidates) => {
+      vues.push(candidates.map((x) => x.skill.id));
+      return [...candidates].reverse();
+    });
+    const texte = await executerOutilSkill(
+      'get_relevant_skills',
+      { message: 'graphique kpi indicateur chart' },
+      charger,
+      inverse
+    );
+    expect(inverse).toHaveBeenCalledTimes(1);
+    // Le reclasseur ne voit que ce que le scoring local a retenu…
+    expect([...vues[0]].sort()).toEqual(['dsfrDataChart', 'dsfrDataKpi']);
+    // …et c'est SON ordre qui sort : le dernier du classement local passe en tête.
+    const guides: Record<string, string> = {
+      dsfrDataChart: '## Chart — guide',
+      dsfrDataKpi: '## KPI — guide',
+    };
+    const [premier] = texte.split('\n\n---\n\n');
+    expect(premier).toBe(guides[vues[0][vues[0].length - 1]]);
+  });
+
+  it('un reclasseur qui échoue rend l’ordre local', async () => {
+    const charger = async () => SKILLS;
+    const sans = await executerOutilSkill('get_relevant_skills', { message: 'graphique' }, charger);
+    const avecPanne = await executerOutilSkill(
+      'get_relevant_skills',
+      { message: 'graphique' },
+      charger,
+      async () => {
+        throw new Error('gateway en panne');
+      }
+    );
+    expect(avecPanne).toBe(sans);
   });
 });
 

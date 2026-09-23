@@ -457,11 +457,12 @@ export type { AgentLoopEnd, AgentLoopOptions, AgentLoopResult } from './ia/agent
 export { runAgentLoop, parseToolArgs, DEFAULT_DUPLICATE_MESSAGE } from './ia/agent-loop.js';
 
 // --- Client des skills publiees (#515, promu du studio par #1014) — app-side (fetch) ---
-export type { PublishedSkill } from './ia/skills-client.js';
+export type { PublishedSkill, ReclasserSkills } from './ia/skills-client.js';
 export {
   loadSkills,
   resetSkillsCache,
   relevantSkillsText,
+  relevantSkillsTextReclasse,
   skillText,
   OUTILS_SKILLS,
   OUTILS_SKILLS_NOMS,
@@ -597,3 +598,14 @@ export {
   resetCapabilities,
   effectiveCapabilities,
 } from './ia/albert-capabilities.js';
+
+// --- Sonde des capacites et rerank des skills (#526, #514) — app-side (fetch) ---
+// Promus du builder-IA quand le Studio IA l'a remplace comme entree usager
+// (#1081) : les deux apps sondent et reclassent avec le MEME code.
+export type { ProbeHttpResult, ProbeIO, ProbeStep, ProbeReport } from './ia/capability-probe.js';
+export { runCapabilityProbe } from './ia/capability-probe.js';
+export type { RerankOptions } from './ia/skill-rerank.js';
+export { rerankSkills, rerankUrlFrom } from './ia/skill-rerank.js';
+
+// --- Rendu Markdown sur des messages de chat (promu du builder-IA, #1081) ---
+export { renderMarkdown } from './ui/markdown.js';

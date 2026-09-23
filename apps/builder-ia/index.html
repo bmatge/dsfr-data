@@ -2,6 +2,18 @@
 <html lang="fr" data-fr-scheme="system">
 <head>
   <meta charset="UTF-8">
+  <!-- Le Studio IA remplace l'Assistant IA comme entree usager (#1081) : on y
+       redirige en conservant la requete et l'ancre (?from=…, #…). Parametre
+       d'echappement explicite `?ancien=1` : l'ancien Assistant reste joignable
+       pour comparer et revenir en arriere (recette `builder-ia-recette` comprise).
+       Script en tete de <head>, avant toute feuille : rien ne se charge pour rien. -->
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('ancien') === '1') return;
+      window.location.replace('../studio/index.html' + window.location.search + window.location.hash);
+    })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Charts builder — Assistant IA</title>
   <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:141px}@media (min-width:62em){app-header:not(:defined){min-height:175px}}app-footer:not(:defined){display:block;min-height:48px}.modal-overlay{display:none}</style>
@@ -27,7 +39,7 @@
   <!-- Barre d'actions unique (docs/ux/actions.md §5, lot UX 2 #539). Réserve
        actée : le geste primaire reste l'ENVOI du chat — la barre ne porte que
        les actions sur l'artefact, sans primaire. Ids conservés (#clear-chat). -->
-  <app-action-bar heading="Assistant IA">
+  <app-action-bar heading="Assistant IA (ancien)">
     <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <button slot="secondary" id="copy-code-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
     <button slot="tertiary" id="save-favorite-btn" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
@@ -46,6 +58,13 @@
 
       <!-- Zone config (scrolle en interne, le chat garde sa place) -->
       <div class="config-zone">
+
+      <!-- Ancien Assistant, joignable seulement par ?ancien=1 (#1081). Dans le
+           panneau, pas au-dessus : le mode plein ecran ne doit rien perdre. -->
+      <p class="fr-text--sm fr-mb-1w builder-ia-ancien">
+        Ancien Assistant IA, conservé pour comparer. Le Studio IA le remplace :
+        <a href="../studio/index.html" class="fr-link fr-link--sm">ouvrir le Studio IA</a>.
+      </p>
 
       <div class="config-section" id="section-source">
         <div class="config-section-header" onclick="toggleSection('section-source')">

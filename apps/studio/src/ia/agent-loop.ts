@@ -32,6 +32,7 @@ import {
   runAgentLoop,
   runDiagnosticTool,
   type DiagnosticContext,
+  type ReclasserSkills,
 } from '@dsfr-data/shared';
 import type { Row } from '@dsfr-data/shared';
 import {
@@ -136,6 +137,12 @@ export interface StudioLoopOptions {
    * le code existe toujours, qu'on sache observer le rendu ou non.
    */
   generatedCode?: () => string;
+  /**
+   * Reclassement souverain des skills candidates (#514), repris de l'ancien
+   * Assistant IA (#1081). Absent = ordre du scoring local, le defaut : il
+   * n'est pose qu'avec un jeton utilisateur ET un rerank confirme par la sonde.
+   */
+  reclasserSkills?: ReclasserSkills;
   extra?: Record<string, unknown>;
 }
 
@@ -276,7 +283,7 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
       case 'get_relevant_skills':
       case 'get_skill':
         // Client des skills publiees, promu dans @dsfr-data/shared (#1014).
-        return executerOutilSkill(name, args);
+        return executerOutilSkill(name, args, undefined, opts.reclasserSkills);
       default:
         return `Outil inconnu : ${name}`;
     }

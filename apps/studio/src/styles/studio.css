@@ -256,3 +256,149 @@
   padding: 0.75rem;
   border-radius: 6px;
 }
+
+/* --- Reprises de l'ancien Assistant IA (#1081) --- */
+
+/* Markdown des réponses (renderMarkdown partagé) */
+.chat-message pre {
+  background: var(--background-default-grey);
+  padding: 0.5rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.chat-message .chat-table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.chat-message .chat-table th,
+.chat-message .chat-table td {
+  border: 1px solid var(--border-default-grey);
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.chat-message .chat-table th {
+  background: var(--background-alt-grey);
+  font-weight: 600;
+}
+
+.chat-message ul {
+  margin: 0.3rem 0;
+  padding-left: 1.2rem;
+}
+
+/* Suggestions cliquables */
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Raisonnement de l'assistant, replié sous la réponse */
+.chat-reasoning {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.chat-reasoning summary {
+  cursor: pointer;
+  color: var(--text-mention-grey);
+}
+
+.chat-reasoning ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--text-mention-grey);
+}
+
+/* `hidden` doit l'emporter sur le display des classes DSFR (.fr-btn,
+   .fr-input) : « Voir les données » sans source, modèle personnalisé replié. */
+.builder-config-panel [hidden] {
+  display: none !important;
+}
+
+/* Configuration IA */
+.studio-ia-config > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.studio-ia-config > summary::-webkit-details-marker {
+  display: none;
+}
+
+.studio-ia-config:not([open]) > summary h3 {
+  margin-bottom: 0;
+}
+
+.studio-ia-config .fr-input-group,
+.studio-ia-config .fr-select-group {
+  margin-bottom: 0.75rem;
+}
+
+.studio-ia-config__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.studio-ia-config__result {
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.studio-probe__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Aperçu des données */
+.studio-data-dialog {
+  width: min(900px, 92vw);
+  max-height: 85vh;
+  border: 1px solid var(--border-default-grey);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: var(--background-default-grey);
+  color: inherit;
+}
+
+.studio-data-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.studio-data-dialog__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.studio-data__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.studio-data__table {
+  overflow-x: auto;
+}
+
+.studio-data__table td {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

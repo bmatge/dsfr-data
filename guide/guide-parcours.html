@@ -142,40 +142,38 @@
 
         <!-- Parcours C -->
         <section id="parcours-c">
-          <h2>Generer un graphique avec l'IA (Builder IA)</h2>
+          <h2>Generer un graphique ou un tableau de bord avec l'IA (Studio IA)</h2>
           <div class="user-story">
-            <strong>Pour</strong> generer rapidement un graphique en decrivant ce que je veux en langage naturel,
+            <strong>Pour</strong> generer rapidement un graphique ou un tableau de bord en decrivant ce que je veux en langage naturel,
             <strong>je dois</strong> selectionner une source de donnees puis discuter avec l'assistant Albert IA,
             <strong>afin d'</strong>obtenir un graphique et son code sans ecrire de configuration manuelle.
           </div>
 
           <h3>Etape 1 — Charger une source et ouvrir le chat</h3>
-          <p>Dans le <strong>Builder IA</strong>, selectionnez une source de donnees et cliquez sur <strong>Charger</strong>. L'interface se compose de deux zones :</p>
+          <p>Dans le <strong>Studio IA</strong> (menu « Studio IA »), selectionnez une source de donnees : elle se charge aussitot, et <strong>Voir les donnees</strong> en montre les champs et les premieres lignes. L'interface se compose de deux zones :</p>
           <ol>
-            <li>Le panneau de configuration et le <strong>chat IA</strong> a gauche</li>
-            <li>Le panneau d'<strong>apercu</strong>, <strong>code</strong> et <strong>donnees</strong> a droite</li>
+            <li>La source, la <strong>configuration IA</strong> et le <strong>chat</strong> a gauche</li>
+            <li>Le panneau d'<strong>apercu</strong>, de <strong>code</strong> et du document (<strong>JSON</strong>) a droite</li>
           </ol>
-          <img src="images/guide-C1-builder-ia-overview.png" alt="Builder IA — vue d'ensemble">
+          <img src="images/guide-C1-studio-overview.png" alt="Studio IA — vue d'ensemble">
 
           <h3>Etape 2 — Decrire le graphique souhaite</h3>
           <p>Ecrivez dans le chat ce que vous souhaitez, en langage naturel. Par exemple :</p>
           <div class="guide-note">
             "Fais-moi un graphique en barres des beneficiaires par region"
           </div>
-          <p>L'IA analyse les champs disponibles dans vos donnees et genere la configuration correspondante. Elle propose ensuite des <strong>suggestions</strong> pour affiner le resultat.</p>
-          <img src="images/guide-C2-builder-ia-chat.png" alt="Chat IA">
+          <p>L'IA analyse les champs disponibles dans vos donnees et compose le document bloc par bloc : graphiques, indicateurs, tableau, filtres partages, texte editorial. Elle propose ensuite des <strong>suggestions</strong> pour affiner le resultat.</p>
 
           <h3>Etape 3 — Iterer et exporter</h3>
           <p>L'IA repond avec :</p>
           <ul>
-            <li>Le graphique genere dans l'<strong>apercu</strong></li>
-            <li>L'action executee (en JSON)</li>
-            <li>Des <strong>suggestions</strong> pour modifier le graphique ("Passe en camembert", "Filtre sur IDF", etc.)</li>
+            <li>Le document mis a jour dans l'<strong>apercu</strong></li>
+            <li>Le <strong>raisonnement</strong> suivi, replie sous la reponse</li>
+            <li>Des <strong>suggestions</strong> pour poursuivre ("Ajouter des filtres partages", "Ajouter un indicateur cle", etc.)</li>
           </ul>
-          <p>Vous pouvez continuer la conversation pour ajuster le graphique, puis copier le code depuis l'onglet <strong>Code genere</strong>.</p>
-          <img src="images/guide-C3-builder-ia-result.png" alt="Builder IA — resultat">
+          <p>Vous pouvez continuer la conversation pour ajuster un bloc ("passe ce graphique en barres"), puis <strong>copier le code</strong>, l'<strong>enregistrer</strong> comme tableau de bord, l'<strong>ajouter aux favoris</strong>, l'<strong>ouvrir dans le Playground</strong> ou l'<strong>exporter</strong> en image.</p>
           <div class="guide-note">
-            <strong>Note</strong> : le Builder IA utilise l'API Albert (IA souveraine de l'Etat). Un token API Albert est necessaire, configurable dans la section "Configuration Albert IA".
+            <strong>Note</strong> : le Studio IA utilise l'API Albert (IA souveraine de l'Etat). Sans jeton serveur, renseignez votre jeton dans la section "Configuration IA". L'ancien Assistant IA reste joignable a l'adresse <code>apps/builder-ia/?ancien=1</code>.
           </div>
         </section>
 

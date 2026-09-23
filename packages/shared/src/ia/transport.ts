@@ -284,7 +284,7 @@ export async function resolveTransport(
     model: '',
     post: async () => {
       throw new Error(
-        "Aucune configuration IA : renseigne une clé API dans l'Assistant IA, ou déploie avec un jeton serveur."
+        'Aucune configuration IA : renseigne une clé API dans « Configuration IA » du Studio IA, ou déploie avec un jeton serveur.'
       );
     },
     capacites: effectiveCapabilities(),
