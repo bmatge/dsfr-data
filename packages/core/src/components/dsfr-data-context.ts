@@ -237,8 +237,13 @@ export class DsfrDataContext extends LitElement {
     for (const sourceId of reached) {
       const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
       // Comparaison texte sur un champ que CETTE source publie en nombre
-      // (#924) : la clause part inchangee, le piege est seulement dit.
-      if (colonWhere) checkNumericFieldMismatch(sourceId, colonWhere);
+      // (#924) : la clause part inchangee, le piege est seulement dit. Sur
+      // un filtre delegue a une source dont les lignes ne portent pas le
+      // champ (agregat serveur), le type declare du jeu est lu apres coup
+      // (#980) : on n'attend pas, la commande part tout de suite. L'appel
+      // reste AVANT la commande : les lignes observees sont celles d'avant
+      // ce filtre.
+      if (colonWhere) void checkNumericFieldMismatch(sourceId, colonWhere);
       dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
     }
     // Une cible exclue garde le where precedent de ce filtre s'il y en avait

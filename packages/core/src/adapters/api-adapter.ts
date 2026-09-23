@@ -230,6 +230,21 @@ export interface ApiAdapter {
   ): Promise<FacetDescriptor[]>;
 
   /**
+   * Types DECLARES des champs du jeu, par nom (#980) : `{ reg: 'int' }`.
+   *
+   * Lu par l'avertissement « comparee en TEXTE » (#924) quand les lignes
+   * emises par la source ne portent pas le champ — source agregee cote
+   * serveur (`select=sum(...)`), ou qui n'a encore rien rendu : le type ne
+   * s'observe alors pas, et le filtre delegue au portail partait sans un mot.
+   * Appel memorise par jeu, jamais sur le chemin d'emission de la requete
+   * (la clause part inchangee, avant et sans attendre la reponse). En cas
+   * d'echec : objet vide, et l'on se tait. Absent = types inconnus.
+   */
+  describeFieldTypes?(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+  ): Promise<Record<string, string>>;
+
+  /**
    * Indique si les champs donnes peuvent etre delegues cote serveur pour
    * group-by / aggregate / order-by.
    *
