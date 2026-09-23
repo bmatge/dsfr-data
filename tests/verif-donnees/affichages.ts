@@ -71,6 +71,50 @@ const CLASSES_KPI = {
 const source = (id: string, jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'zones'): string =>
   `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
+/**
+ * L'état du builder carto (#1068) tel que l'app le relit au chargement
+ * (`dsfr-data-builder-carto-state`) : deux couches, chacune avec SA source
+ * manuelle portant les 48 communes du lot — une couche de marqueurs, une
+ * couche de cercles. Une source manuelle porte ses lignes dans l'état : ce
+ * sont exactement celles dont l'oracle repart, et aucune requête ne sort.
+ * `dsfr-data-tours` coupe la visite guidée, qui masquerait l'aperçu.
+ */
+const etatCarto = (insets: string[]): Record<string, unknown> => {
+  const couche = (id: string, nom: string, type: 'marker' | 'circle') => ({
+    id,
+    name: nom,
+    type,
+    visible: true,
+    source: { id: `src-${id}`, name: nom, type: 'manual', data: COMMUNES },
+    latField: 'lat',
+    lonField: 'lon',
+  });
+  return {
+    'dsfr-data-tours': { disabled: true, tours: {} },
+    'dsfr-data-builder-carto-state': {
+      layers: [couche('layer-1', 'Marqueurs', 'marker'), couche('layer-2', 'Cercles', 'circle')],
+      activeLayerId: 'layer-1',
+      map: { insets },
+    },
+  };
+};
+
+/**
+ * La ligne de statut de l'aperçu carto se REJUGE aux sondes de 0,8, 2, 4, 8 et
+ * 15 s (`apps/builder-carto/src/main.ts`) ; entre deux sondes, elle peut
+ * montrer une somme partielle (une couche dessinée, pas encore l'autre). Deux
+ * lectures égales à 7,5 s d'écart — plus que le plus long intervalle entre
+ * deux sondes — encadrent au moins un nouveau jugement.
+ */
+const PAUSE_SONDES_CARTO = 7_500;
+
+/**
+ * Les deux couches du builder, empilées : chaque couche dessine un élément par
+ * ligne reçue, et reçoit les 48 lignes de SA source. La somme attendue est
+ * celle des deux couches, recalculée en tableaux nus.
+ */
+const DEUX_COUCHES = [{ op: 'concat' as const, sources: ['main', 'main'] }];
+
 const CHECKS: Check[] = [
   // ---------------------------------------------------------------- KPI ----
   {
@@ -1368,6 +1412,74 @@ const CHECKS: Check[] = [
         id: 'couche-marqueurs',
         expect: 'silence',
         contains: 'lignes ignorées',
+      },
+    ],
+  },
+
+  // ------------------------- Builder carto : somme de la ligne de statut ----
+  {
+    id: 'statut-carto-somme-deux-couches-1068',
+    mode: 'deterministic',
+    origin:
+      '#1068 — la ligne de statut du builder carto, « N éléments affichés (M enregistrements) », ADDITIONNE ses couches, lues dans la trace : `renderedCount` de chaque couche pour N, les lignes reçues par chaque source amont pour M. Chaque terme est contrôlé ailleurs (lecteur `count` de #1059, bandeau « N sur M » de #1020) ; l’addition ne l’était pas. Deux couches (marqueurs, cercles), chacune sur sa source de 48 communes : 96 et 96. Contrôlé sur la VRAIE page de l’app, pas sur une copie de son câblage.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: '',
+    app: {
+      path: '/apps/builder-carto/',
+      storage: etatCarto([]),
+      stablePause: PAUSE_SONDES_CARTO,
+    },
+    expects: [
+      {
+        // N : éléments dessinés, une forme par ligne, sommés sur les couches.
+        kind: 'text',
+        id: 'preview-status',
+        numeric: true,
+        number: 0,
+        agg: 'count',
+        pipeline: DEUX_COUCHES,
+      },
+      {
+        // M : enregistrements reçus, sommés sur les sources des couches.
+        kind: 'text',
+        id: 'preview-status',
+        numeric: true,
+        number: 1,
+        agg: 'count',
+        pipeline: DEUX_COUCHES,
+      },
+    ],
+  },
+
+  {
+    id: 'statut-carto-encarts-clones-exclus-1068',
+    mode: 'deterministic',
+    origin:
+      '#1068, #482 bug 7 — la même carte avec deux ENCARTS (Guadeloupe, Martinique) : chaque encart clone les deux couches de la carte principale et les redessine en entier (quatre clones de 48). Les clones ne sont pas des éléments de plus : la somme reste 96 éléments pour 96 enregistrements — 288 si on les recomptait. La fenêtre est haute : un encart n’initialise sa carte qu’une fois visible, et un clone qui ne dessine rien ne garderait rien.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: '',
+    app: {
+      path: '/apps/builder-carto/',
+      storage: etatCarto(['guadeloupe', 'martinique']),
+      stablePause: PAUSE_SONDES_CARTO,
+      viewport: { width: 1280, height: 2000 },
+    },
+    expects: [
+      {
+        kind: 'text',
+        id: 'preview-status',
+        numeric: true,
+        number: 0,
+        agg: 'count',
+        pipeline: DEUX_COUCHES,
+      },
+      {
+        kind: 'text',
+        id: 'preview-status',
+        numeric: true,
+        number: 1,
+        agg: 'count',
+        pipeline: DEUX_COUCHES,
       },
     ],
   },

@@ -612,6 +612,13 @@ export interface ExpectText extends ExpectBase {
   column?: string;
   /** Rang de la ligne recalculée lue (défaut : la première). */
   row?: number;
+  /**
+   * Rang du nombre lu dans le texte (`numeric` seulement, 0 : le premier),
+   * quand le texte en porte plusieurs — « 96 éléments affichés (96
+   * enregistrements) » (#1068). Absent : tous les chiffres du texte forment
+   * un seul nombre, comme avant.
+   */
+  number?: number;
   /** Texte fixe avant la valeur (gabarit du composant). */
   prefix?: string;
   /** Texte fixe après la valeur. */
@@ -745,6 +752,37 @@ export interface Clock {
   timezone?: string;
 }
 
+/**
+ * Une page d'application du dépôt, servie par le serveur de dev (#1068).
+ *
+ * L'app se configure comme un usager la retrouverait : son état est posé dans
+ * le `localStorage` AVANT le chargement, et c'est elle qui produit le balisage
+ * de ses composants. Les lignes qu'on lui donne viennent des jeux du feed
+ * (une source « manuelle » porte ses lignes dans l'état) : l'oracle recalcule
+ * depuis les MÊMES lignes, en tableaux nus, sans rien lire de l'app.
+ */
+export interface PageApp {
+  /** Chemin servi par le serveur de dev (`/apps/builder-carto/`). */
+  path: string;
+  /** Entrées posées dans le `localStorage` avant le chargement, sérialisées en JSON. */
+  storage: Record<string, unknown>;
+  /**
+   * Écart, en ms, entre les deux lectures identiques qui disent l'observation
+   * stable (défaut : `PAUSE_STABILITE`). Une app qui REJUGE son affichage à des
+   * échéances fixes (les sondes de la ligne de statut carto) peut montrer un
+   * état intermédiaire entre deux échéances : l'écart doit alors dépasser le
+   * plus long intervalle entre deux sondes, pour que deux lectures égales
+   * encadrent au moins un nouveau jugement.
+   */
+  stablePause?: number;
+  /**
+   * Taille de la fenêtre, quand ce qui est contrôlé tombe sous la ligne de
+   * flottaison du défaut Playwright (1280 × 720) : les encarts d'une carte
+   * n'initialisent leur carte Leaflet qu'une fois visibles.
+   */
+  viewport?: { width: number; height: number };
+}
+
 export interface Check {
   id: string;
   mode: CheckMode;
@@ -766,8 +804,18 @@ export interface Check {
   feed: Feed;
   /** Balises supplémentaires du `<head>` (DSFR Chart depuis node_modules…). */
   head?: string;
-  /** Balisage complet rendu par Playwright (sources, queries, KPI, …). */
+  /**
+   * Balisage complet rendu par Playwright (sources, queries, KPI, …). Vide
+   * quand le contrôle ouvre une page d'application (`app`).
+   */
   markup: string;
+  /**
+   * Page d'APPLICATION ouverte à la place d'une page de fixture (#1068) : le
+   * chiffre contrôlé n'est pas rendu par un composant `dsfr-data-*` mais par
+   * le chrome d'une app, qui l'assemble à partir de ce que les composants
+   * affichent (la ligne de statut du builder carto additionne les couches).
+   */
+  app?: PageApp;
   /**
    * Chaîne de requête ajoutée à l'URL de la page (`page=2`) : un lien profond
    * est un chemin d'affichage à part entière (`url-sync`), et il évite de

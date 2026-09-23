@@ -196,6 +196,22 @@ describe('vérification des données — lecteurs d’observation', () => {
     expect(lireTexte({ id: 'absent' })).toBeNull();
   });
 
+  it('texte : le N-ième nombre d’un texte qui en porte plusieurs (#1068)', () => {
+    // La ligne de statut du builder carto : deux nombres fr-FR, milliers
+    // groupés par une espace fine insécable.
+    document.body.innerHTML = `
+      <div id="s"><i aria-hidden="true"></i> 1\u202f296 éléments affichés (96 enregistrements)</div>
+      <div id="c">Chargement…</div>`;
+    const texte = '1 296 éléments affichés (96 enregistrements)';
+    expect(lireTexte({ id: 's', nombre: 0 })).toEqual({ text: texte, value: 1296 });
+    expect(lireTexte({ id: 's', nombre: 1 })).toEqual({ text: texte, value: 96 });
+    // Pas de troisième nombre, et un texte sans nombre : rien à lire.
+    expect(lireTexte({ id: 's', nombre: 2 })).toEqual({ text: texte, value: null });
+    expect(lireTexte({ id: 'c', nombre: 0 })).toEqual({ text: 'Chargement…', value: null });
+    // Sans rang, tous les chiffres forment un seul nombre, comme avant.
+    expect(lireTexte({ id: 's' })!.value).toBe(129696);
+  });
+
   // --- Lot AFFICHAGES (L5) ------------------------------------------------
 
   it('textes : un par élément désigné, espaces normalisés', () => {

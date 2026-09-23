@@ -350,7 +350,7 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireLegende` | les entrées de `getLegendEntries()` d'une `dsfr-data-map-layer` |
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
 | `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
-| `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`), avec le nombre qu'on y lit |
+| `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`, ligne de statut d'une app), avec le nombre qu'on y lit — ou le N-ième (`number`) quand il en porte plusieurs |
 | `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
 | `lireCompte` | le NOMBRE d'éléments tracés sous un sélecteur — formes d'une couche de carte (voir « Les éléments tracés ») |
 | `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
@@ -397,6 +397,45 @@ formes posées, contre le nombre de lignes que le recalcul laisse — une forme 
 - **Zéro ne s'observe pas** : c'est l'état d'avant le rendu. Une couche qui ne trace rien tombe sur
   « n'a rien affiché » (le défaut de #1053) ; une absence voulue se constate par un `diagnostic`.
 - **Troisième voix** : `oracle.py` le couvre (`valeur` = nombre de lignes recalculées).
+
+## Une page d'application
+
+Un chiffre peut être assemblé par le **chrome d'une app** à partir de ce que les composants
+affichent : la ligne de statut du builder carto, « N éléments affichés (M enregistrements) »,
+additionne les couches de la carte, lues dans la trace (#1068). Chaque terme est contrôlé
+ailleurs ; l'addition, elle, n'existe que dans l'app. Le contrôle ouvre donc la VRAIE page de
+l'app, pas une copie de son câblage :
+
+```ts
+{
+  markup: '',
+  app: {
+    path: '/apps/builder-carto/',
+    storage: { 'dsfr-data-builder-carto-state': { layers: [/* … */] } },
+    stablePause: 7_500,
+    viewport: { width: 1280, height: 2000 },
+  },
+  expects: [
+    { kind: 'text', id: 'preview-status', numeric: true, number: 0, agg: 'count', pipeline },
+    { kind: 'text', id: 'preview-status', numeric: true, number: 1, agg: 'count', pipeline },
+  ],
+}
+```
+
+- **L'état** est posé dans le `localStorage` avant le chargement, comme un usager le retrouverait
+  en rouvrant l'app. Les lignes viennent des jeux du feed (une source « manuelle » porte ses
+  lignes dans l'état) : l'oracle recalcule depuis les MÊMES lignes, sans rien lire de l'app.
+- **`number`** lit le N-ième nombre fr-FR du texte (0 : le premier) ; la clé du rapport porte le
+  rang (`text:preview-status#1`). Tant que ce nombre manque (« Chargement… »), l'observation n'a
+  pas eu lieu.
+- **`stablePause`** : la ligne de statut se rejuge aux sondes de 0,8, 2, 4, 8 et 15 s et peut
+  montrer une somme partielle entre deux. Deux lectures égales espacées de plus que le plus long
+  intervalle (7 s) encadrent au moins un nouveau jugement.
+- **`viewport`** : un encart de carte n'initialise sa carte Leaflet qu'une fois visible ; sous la
+  ligne de flottaison, ses clones ne dessinent rien et le cas ne garderait rien.
+- **Réseau** : le chrome d'une app (feuilles DSFR, icônes) vient du CDN npm ; ces requêtes sont
+  refusées sans compter comme fuites, et seulement pour un contrôle `app`. Aucune donnée ne sort.
+- **Pas de page de fixture** : `markup` reste vide, rien n'est écrit sous `e2e/verif-donnees/`.
 
 ## Les silences
 
@@ -821,6 +860,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_addGeoshape` n'ajoute pas la première forme au groupe, sans rien compter d'ignoré (`if (this._renderedCount > 0) group.addLayer(layer)`) | `carte-geoshape-sans-geo-field-1053` (le silence reste vert) | « 9 élément(s) tracé(s) sous « path.verif-zone », 10 ligne(s) recalculée(s) » : une ligne tue, et la bibliothèque n'en dit rien (#1059) |
 | affichages | `_addMarker` n'ajoute que les marqueurs de longitude positive (`if (coords.lon >= 0) group.addLayer(marker)`) | `carte-marqueurs-et-cercles-comptes-1059` (les cercles restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `.dsfr-data-map__marker` (#1059) |
 | affichages | même défaut dans `_addCircle` | `carte-marqueurs-et-cercles-comptes-1059` (les marqueurs restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `path.verif-cercle` : le compte suit la couche que la `shape-class` désigne (#1059) |
+| affichages | `comptesDessines` recompte les clones d'encart (`&& !n.inset` retiré, `apps/builder-carto/src/ui/preview-status.ts`) | `statut-carto-encarts-clones-exclus-1068` (le cas sans encart reste vert) | « lib 288 éléments affichés (96 enregistrements), oracle 96 » : quatre clones de 48 comptés en plus — #482 bug 7 (#1068) |
+| affichages | `comptesDessines` ne somme que la première couche (`couches.slice(0, 1).reduce(…)`) | `statut-carto-somme-deux-couches-1068`, `statut-carto-encarts-clones-exclus-1068` (M reste vert) | « lib 48 éléments affichés (96 enregistrements), oracle 96 » (#1068) |
+| affichages | `comptesDessines` ne lit que la première source amont (`[...amonts].slice(0, 1)`) | les deux mêmes (N reste vert) | « lib 96 éléments affichés (48 enregistrements), oracle 96 » (#1068) |
 | affichages | la couche geoshape reprend la détection du calcul d'emprise (`_autoDetectGeoField()`, `geo_point_2d` en tête) | `carte-geoshape-sans-geo-field-1053` | idem : la colonne devinée est le POINT, un `{lat, lon}` sans forme à tracer |
 | affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |
 | affichages | le tri de `dsfr-data-list` rend toujours 0 | `liste-tri-numerique`, `liste-tri-croissant` | ligne 0 : affiché « Arles », recalculé « Vichy » |

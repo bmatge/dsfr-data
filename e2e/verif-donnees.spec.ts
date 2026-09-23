@@ -28,7 +28,7 @@ import {
 } from '../tools/oracle/observe.js';
 import { toRgb } from '../tools/oracle/compute.js';
 import { DOSSIER_SORTIE, ecrireRapport } from '../tools/oracle/report.js';
-import { lireJusquAStabilite } from '../tools/oracle/stabilite.js';
+import { LIMITE_STABILITE, lireJusquAStabilite } from '../tools/oracle/stabilite.js';
 import { attenduPython, lireAttendusPython } from '../tools/oracle/troisieme-voix.js';
 import { evaluerInvariants } from '../tools/oracle/invariants.js';
 import { accordAvecServeur, verdictRecoupement } from '../tools/oracle/crosscheck.js';
@@ -69,6 +69,14 @@ const MODE = process.env.VERIF_MODE === 'live' ? 'live' : 'deterministic';
 
 /** Hôtes de tuiles : une carte en demande, personne ne les sert, ce n'est pas une fuite. */
 const TUILES = /tile\.|openstreetmap|geopf\.fr|basemaps|cartocdn|ign\.fr/i;
+
+/**
+ * Le CHROME d'une page d'application (#1068) : feuilles DSFR et icônes que
+ * les apps chargent depuis le CDN npm. Ce ne sont pas des données : refusées
+ * sans être comptées comme fuites, et seulement pour un contrôle `app` — une
+ * page de fixture n'a aucune raison d'en demander.
+ */
+const CHROME_APP = /^https:\/\/cdn\.jsdelivr\.net\/npm\//;
 
 // Pas de `mode: 'serial'` : il ferait sauter tous les contrôles suivant le
 // premier échec, et le rapport serait tronqué là où il est le plus utile. Les
@@ -155,7 +163,7 @@ ${check.markup}
 }
 
 /** Le faux réseau du mode déterministe : les fixtures, et rien d'autre. */
-async function installerReseau(page: Page, fuites: string[]): Promise<void> {
+async function installerReseau(page: Page, fuites: string[], app = false): Promise<void> {
   await page.route('**/*', async (route: Route) => {
     const brut = route.request().url();
     let url: URL;
@@ -198,7 +206,8 @@ async function installerReseau(page: Page, fuites: string[]): Promise<void> {
       });
       return;
     }
-    if (url.pathname !== '/favicon.ico' && !TUILES.test(brut)) fuites.push(brut);
+    const chrome = app && CHROME_APP.test(brut);
+    if (url.pathname !== '/favicon.ico' && !TUILES.test(brut) && !chrome) fuites.push(brut);
     await route.abort('blockedbyclient');
   });
 }
@@ -228,7 +237,11 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
       case 'facets':
         return await page.evaluate(lireFacettes, e.id);
       case 'text':
-        return await page.evaluate(lireTexte, { id: e.id, selector: e.selector });
+        return await page.evaluate(lireTexte, {
+          id: e.id,
+          selector: e.selector,
+          nombre: e.number,
+        });
       case 'texts':
         return await page.evaluate(lireTextes, { id: e.id, selecteur: e.selector });
       case 'count':
@@ -273,8 +286,13 @@ function prete(e: Expect, obs: Observation): boolean {
     case 'legend':
     case 'facets':
       return Array.isArray(obs) && obs.length > 0;
-    case 'text':
-      return (obs as { text: string }).text.trim() !== '';
+    // Le N-ième nombre d'un texte (#1068) : tant qu'il n'y est pas, la page
+    // dit encore autre chose (« Chargement… »), elle n'a pas fini d'afficher.
+    case 'text': {
+      const texte = obs as { text: string; value: number | null };
+      if (e.number !== undefined && texte.value === null) return false;
+      return texte.text.trim() !== '';
+    }
     case 'texts':
       return Array.isArray(obs) && obs.length > 0;
     // Zéro tracé est l'état d'AVANT le rendu : il ne s'observe pas. Une couche
@@ -327,7 +345,12 @@ function prete(e: Expect, obs: Observation): boolean {
  * suit le geste est asynchrone. Sans elle, on lirait la valeur d'AVANT le
  * geste — et le contrôle serait vert ou rouge au hasard de la machine.
  */
-async function attendreObservation(page: Page, e: Expect, delai: number): Promise<Observation> {
+async function attendreObservation(
+  page: Page,
+  e: Expect,
+  delai: number,
+  pause?: number
+): Promise<Observation> {
   let derniere: Observation = null;
   await expect
     .poll(
@@ -347,6 +370,9 @@ async function attendreObservation(page: Page, e: Expect, delai: number): Promis
     {
       dormir: (ms) => page.waitForTimeout(ms),
       quoi: `#${e.id} (${e.kind})`,
+      // Une app qui rejuge son affichage à échéances (#1068) : deux lectures
+      // égales doivent encadrer au moins un nouveau jugement.
+      ...(pause !== undefined ? { pause, limite: Math.max(LIMITE_STABILITE, pause * 4) } : {}),
     }
   );
 }
@@ -397,7 +423,8 @@ const pages = new Map<string, string>();
 test.beforeAll(() => {
   rmSync(FIXTURES, { recursive: true, force: true });
   for (const { domaine, check } of controles) {
-    pages.set(check.id, ecrireFixture(domaine, check));
+    // Une page d'application est servie telle quelle : aucune fixture à écrire.
+    if (!check.app) pages.set(check.id, ecrireFixture(domaine, check));
   }
 });
 
@@ -463,14 +490,26 @@ async function passer(
   // (`today`, `current-month`, `last-n-days`) se calculent au montage.
   if (check.clock) await page.clock.setFixedTime(new Date(check.clock.now));
 
-  await page.goto(pages.get(check.id)!, { waitUntil: 'domcontentloaded' });
+  if (check.app) {
+    // Page d'application (#1068) : son état posé AVANT le chargement, comme
+    // un usager le retrouverait en rouvrant l'app.
+    if (check.app.viewport) await page.setViewportSize(check.app.viewport);
+    await page.addInitScript((stockage) => {
+      for (const [cle, valeur] of Object.entries(stockage)) {
+        localStorage.setItem(cle, JSON.stringify(valeur));
+      }
+    }, check.app.storage);
+  }
+  await page.goto(check.app ? check.app.path : pages.get(check.id)!, {
+    waitUntil: 'domcontentloaded',
+  });
   if (check.actions?.length) await jouerActions(page, check.actions);
 
   const delai = MODE === 'live' ? 120_000 : 30_000;
   const constatsCheck: Constat[] = [];
   const echecs: string[] = [];
   for (const e of check.expects) {
-    const observation = await attendreObservation(page, e, delai);
+    const observation = await attendreObservation(page, e, delai, check.app?.stablePause);
     const valeurAttendue = attendu.values[cleAttendu(e)];
     expect(valeurAttendue, `attendu manquant pour ${cleAttendu(e)}`).toBeDefined();
     const constat = comparer(
@@ -593,7 +632,7 @@ async function executer(domaine: string, check: Check, page: Page, retry = 0): P
   test.skip(Boolean(check.skip), check.skip ?? '');
 
   const fuites: string[] = [];
-  if (MODE === 'deterministic') await installerReseau(page, fuites);
+  if (MODE === 'deterministic') await installerReseau(page, fuites, Boolean(check.app));
 
   let attendu =
     MODE === 'live'
