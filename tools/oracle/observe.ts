@@ -500,8 +500,17 @@ export interface ObservationTexte {
  *
  * Les blancs sont normalisés — l'espace insécable d'un tag DSFR et le retour
  * à la ligne d'un gabarit Lit ne sont pas des différences visibles.
+ *
+ * `nombre` (#1068) lit le N-ième nombre fr-FR du texte (0 : le premier) quand
+ * il en porte plusieurs : chiffres groupés par des espaces (milliers fr-FR),
+ * virgule décimale. Sans lui, tous les chiffres du texte forment un seul
+ * nombre, comme avant.
  */
-export function lireTexte(cible: { id: string; selector?: string }): ObservationTexte | null {
+export function lireTexte(cible: {
+  id: string;
+  selector?: string;
+  nombre?: number;
+}): ObservationTexte | null {
   const hote = document.getElementById(cible.id);
   if (!hote) return null;
   const racine: ParentNode = hote.shadowRoot ?? hote;
@@ -513,6 +522,15 @@ export function lireTexte(cible: { id: string; selector?: string }): Observation
     .replace(/[\u202f\u00a0]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  if (cible.nombre !== undefined) {
+    // Un nombre : un chiffre, puis chiffres et espaces (séparateur de milliers,
+    // déjà normalisé), puis la partie décimale. Aucun quantificateur imbriqué ;
+    // l'espace qui suit le dernier chiffre est retirée avec les autres.
+    const trouves = text.match(/-?\d[\d ]*,?\d*/g) ?? [];
+    const lu = trouves[cible.nombre];
+    const n = lu === undefined ? NaN : Number(lu.replace(/ /g, '').replace(',', '.'));
+    return { text, value: Number.isFinite(n) ? n : null };
+  }
   const nettoye = text
     .replace(/[\u202f\u00a0\s]/g, '')
     .replace(/[^0-9,.\-−]/g, '')

@@ -195,7 +195,11 @@ export function cleAttendu(e: Expect): string {
   const base = `${e.kind}:${e.id}`;
   if (e.kind === 'facets') return `${base}:${e.group}`;
   if (e.kind === 'attr') return `${base}:${e.attr}`;
-  if (e.kind === 'text' && e.selector) return `${base}:${e.selector}`;
+  if (e.kind === 'text') {
+    // Deux nombres d'un même texte (#1068) : le rang fait partie de la clé.
+    const rang = e.number === undefined ? '' : `#${e.number}`;
+    return `${base}${e.selector ? `:${e.selector}` : ''}${rang}`;
+  }
   if (e.kind === 'texts' || e.kind === 'class' || e.kind === 'count') {
     return `${base}:${e.selector}`;
   }
