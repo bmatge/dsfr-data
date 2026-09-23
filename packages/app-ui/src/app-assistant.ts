@@ -128,6 +128,12 @@ app-assistant{display:contents}
 .assistant-onglets{display:flex;gap:.25rem}
 .assistant-onglet{padding:.5rem .625rem;margin-bottom:-1px;border:0;border-bottom:2px solid transparent;background:none;color:var(--text-mention-grey);font:inherit;font-size:.875rem;line-height:1.25rem;cursor:pointer}
 .assistant-onglet[aria-selected="true"]{color:var(--text-active-blue-france);border-bottom-color:var(--border-active-blue-france);font-weight:500}
+/* Survol et appui : TOUJOURS par les teintes DSFR \`--hover\` / \`--active\`
+   posees sur la classe, jamais par un \`:hover{background-color}\` (#1080). La
+   regle DSFR \`button:not(:disabled):hover{background-color:var(--hover-tint)}\`
+   (0,2,1) l'emporte sur \`.classe:hover\` (0,2,0) ; elle lit \`--hover-tint\`,
+   qui vaut \`var(--hover)\` sur tout bouton. Garde : app-assistant.test.ts. */
+.assistant-onglet{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
 .assistant-onglet:focus-visible{outline:2px solid var(--border-active-blue-france);outline-offset:-2px}
 .assistant-conversation{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .assistant-detail{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:.75rem;font-size:.875rem}
@@ -148,8 +154,6 @@ app-assistant{display:contents}
    le volet Diagnostic (780), la barre fixe (800), les menus (900) et les
    modales (1000+). Cible >= 44 px dans les deux sens. */
 .assistant-lanceur{position:fixed;right:0;top:calc((var(--app-action-bar-bas,0px) + 100vh - var(--app-action-bar-fixed-h,0px) - var(--app-diagnostic-h,0px)) / 2);z-index:770;display:inline-flex;flex-direction:column;align-items:center;gap:.5rem;min-width:2.75rem;min-height:2.75rem;margin:0;padding:.75rem .5rem;border:0;border-radius:.5rem 0 0 .5rem;font:inherit;font-size:.875rem;font-weight:500;line-height:1.25rem;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);box-shadow:var(--lifted-shadow,0 3px 9px rgba(0,0,18,.16));cursor:pointer;transform:translateY(-50%);transition:background-color .2s}
-/* Survol et appui par les teintes DSFR (\`--hover\` / \`--active\`) : la regle
-   DSFR \`button:not(:disabled):hover\` l'emporterait sur un simple :hover. */
 .assistant-lanceur{--hover:var(--background-action-high-blue-france-hover);--active:var(--background-action-high-blue-france-active)}
 .assistant-lanceur::before{--icon-size:1.25rem}
 .assistant-lanceur-texte{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
@@ -165,12 +169,11 @@ app-assistant{display:contents}
 .assistant-entete .assistant-onglets{flex:1 1 auto;align-self:stretch;align-items:stretch;justify-content:center;padding:0;border-bottom:0}
 .assistant-entete-actions{flex:0 0 auto;display:flex}
 .assistant-icone{display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;margin:0;padding:0;border:0;border-radius:.375rem;color:var(--text-action-high-blue-france);background-color:transparent;cursor:pointer}
-.assistant-icone:hover{background-color:var(--background-default-grey-hover)}
-.assistant-icone:active{background-color:var(--background-default-grey-active)}
+.assistant-icone{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
 .assistant-mode{display:flex;align-items:center;gap:.5rem;margin:0;font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
 .assistant-mode-choix{display:inline-flex;align-items:center;gap:.125rem}
 .assistant-mode-choix button{min-height:1.5rem;margin:0;padding:0 .25rem;border:0;border-radius:.25rem;font:inherit;font-size:.75rem;color:var(--text-action-high-blue-france);background:none;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.assistant-mode-choix button:hover{background-color:var(--background-default-grey-hover)}
+.assistant-mode-choix button{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
 .assistant-mode-choix button[aria-pressed="true"]{color:var(--text-title-grey);font-weight:700;text-decoration:none;cursor:default}
 .assistant-mode-choix button+button::before{content:"·";display:inline-block;text-decoration:none;margin-right:.375rem;color:var(--text-mention-grey);font-weight:400}
 .assistant-fil{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1rem .75rem .5rem;background-color:var(--background-default-grey)}
@@ -199,7 +202,7 @@ app-assistant{display:contents}
 .assistant-suggestions{display:flex;flex-direction:column;align-items:flex-start;gap:.5rem;list-style:none;margin:0;padding:0}
 .assistant-suggestions>li{padding:0;max-width:100%}
 .assistant-suggestion{display:inline-flex;align-items:center;min-height:2.75rem;margin:0;padding:.5rem 1rem;border:1px solid var(--border-default-blue-france);border-radius:1.375rem;font:inherit;font-size:.875rem;line-height:1.25rem;text-align:left;color:var(--text-action-high-blue-france);background-color:var(--background-default-grey);cursor:pointer}
-.assistant-suggestion:hover{background-color:var(--background-default-grey-hover)}
+.assistant-suggestion{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
 .assistant-constats{margin:0 0 .75rem}
 .assistant-recap{margin:.75rem 0 0;padding:.75rem;border:1px solid var(--border-default-grey);border-radius:.5rem;background-color:var(--background-default-grey)}
 .assistant-recap-titre{display:flex;align-items:center;gap:.375rem;margin:0 0 .5rem;font-size:.875rem;font-weight:700;line-height:1.5rem}
@@ -212,10 +215,10 @@ app-assistant{display:contents}
 .assistant-recap .fr-link{margin-top:.75rem;font-size:.8125rem}
 .assistant-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.75rem 0 0}
 .assistant-bouton{display:inline-flex;align-items:center;gap:.375rem;min-height:2.75rem;margin:0;padding:.5rem 1rem;border:1px solid var(--background-action-high-blue-france);border-radius:.375rem;font:inherit;font-size:.875rem;font-weight:500;line-height:1.25rem;text-decoration:none;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);background-image:none;cursor:pointer}
-.assistant-bouton:hover{background-color:var(--background-action-high-blue-france-hover)}
+.assistant-bouton{--hover:var(--background-action-high-blue-france-hover);--active:var(--background-action-high-blue-france-active)}
 .assistant-bouton::before{--icon-size:1rem}
 .assistant-bouton--secondaire{color:var(--text-action-high-blue-france);background-color:var(--background-default-grey);border-color:var(--border-action-high-blue-france)}
-.assistant-bouton--secondaire:hover{background-color:var(--background-default-grey-hover)}
+.assistant-bouton--secondaire{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
 .assistant-bouton[aria-disabled="true"]{opacity:.6;cursor:progress}
 .assistant-bouton:disabled{opacity:.6;cursor:not-allowed}
 .assistant-form{flex:0 0 auto;margin:0;padding:.5rem .75rem 0;background-color:var(--background-default-grey)}
@@ -225,9 +228,9 @@ app-assistant{display:contents}
 .assistant-saisie:focus,.assistant-saisie:focus-visible{outline:none}
 .assistant-saisie::placeholder{color:var(--text-mention-grey);opacity:1}
 .assistant-envoi{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:2.75rem;height:2.75rem;margin:0;padding:0;border:0;border-radius:50%;color:var(--text-inverted-blue-france);background-color:var(--background-action-high-blue-france);cursor:pointer}
-.assistant-envoi:hover{background-color:var(--background-action-high-blue-france-hover)}
+.assistant-envoi{--hover:var(--background-action-high-blue-france-hover);--active:var(--background-action-high-blue-france-active)}
 .assistant-envoi::before{--icon-size:1.25rem}
-.assistant-envoi[aria-disabled="true"]{color:var(--text-disabled-grey);background-color:var(--background-disabled-grey);cursor:not-allowed}
+.assistant-envoi[aria-disabled="true"]{color:var(--text-disabled-grey);background-color:var(--background-disabled-grey);cursor:not-allowed;--hover:var(--background-disabled-grey);--active:var(--background-disabled-grey)}
 .assistant-pied{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.25rem .75rem;margin:0;padding:.375rem .75rem .5rem;font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
 .assistant-pied .fr-link{font-size:inherit}
 /* Pastille du bouton « Assistant » (posee par mountAssistant) : visible en

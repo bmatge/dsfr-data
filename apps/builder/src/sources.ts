@@ -26,7 +26,15 @@ import {
   CLE_CODE_RAPPORTE,
   verdictRetourPlayground,
   AVERTISSEMENT_RETOUR_PLAYGROUND,
+  toastWarning,
+  toastError,
 } from '@dsfr-data/shared';
+import {
+  estOrigineEtatDepose,
+  lireEtatDepose,
+  messageEtatRefuse,
+  MESSAGE_ORIGINE_INCONNUE,
+} from './etat-depose.js';
 import { state, type ChartType, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
@@ -524,20 +532,33 @@ export async function loadFields(): Promise<void> {
 
 /**
  * Restore builder state from sessionStorage.
- * Works when coming back from favorites (from=favorites) or playground (from=playground).
+ * Works when coming from favorites, the Playground (return) or the dashboard :
+ * the accepted origins live in `ORIGINES_ETAT_DEPOSE` (#978). A deposited state
+ * that cannot be reopened is announced, never dropped silently.
  *
  * Le Builder ne relit pas le code : il rouvre l'instantané de configuration
  * déposé avant le départ. Quand on revient du Playground avec un code modifié,
  * cette reprise **jette** la modification — on le dit donc avant, et on laisse
  * repartir au Playground plutôt que d'écraser en silence (#965).
  */
+/** Un message qui explique une perte doit laisser le temps d'être lu. */
+const DUREE_MESSAGE_ETAT_REFUSE = 12000;
+
 export async function loadFavoriteState(): Promise<void> {
   const urlParams = new URLSearchParams(window.location.search);
   const from = urlParams.get('from');
-  if (from !== 'favorites' && from !== 'playground') return;
+  if (from === null) return;
 
   const savedState = sessionStorage.getItem(CLE_ETAT_BUILDER);
   if (!savedState) return;
+
+  if (!estOrigineEtatDepose(from)) {
+    // Une app a déposé un état puis navigué avec une origine que la liste
+    // ignore : c'est exactement la panne de #978. On le dit au lieu d'ouvrir
+    // un Builder vierge sans un mot.
+    toastWarning(MESSAGE_ORIGINE_INCONNUE, DUREE_MESSAGE_ETAT_REFUSE);
+    return;
+  }
 
   const retour = verdictRetourPlayground({
     from,
@@ -562,9 +583,15 @@ export async function loadFavoriteState(): Promise<void> {
   sessionStorage.removeItem(CLE_CODE_CONFIE);
   sessionStorage.removeItem(CLE_CODE_RAPPORTE);
 
+  const lecture = lireEtatDepose(savedState);
+  sessionStorage.removeItem(CLE_ETAT_BUILDER);
+  if (!lecture.lisible) {
+    toastWarning(messageEtatRefuse(from, lecture.motif), DUREE_MESSAGE_ETAT_REFUSE);
+    return;
+  }
+
   try {
-    const favoriteState = JSON.parse(savedState);
-    sessionStorage.removeItem(CLE_ETAT_BUILDER);
+    const favoriteState = lecture.etat;
 
     // Restore state — filter out prototype-pollution keys before assigning
     const stateRec = state as unknown as Record<string, unknown>;
@@ -752,6 +779,11 @@ export async function loadFavoriteState(): Promise<void> {
     }
   } catch (e) {
     console.error('Erreur restauration etat builder:', e);
+    toastError(
+      "La configuration transmise n'a pu être rouverte qu'en partie : vérifiez les réglages " +
+        'avant de générer.',
+      DUREE_MESSAGE_ETAT_REFUSE
+    );
   }
 }
 
