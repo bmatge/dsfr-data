@@ -11,10 +11,13 @@ import {
   IMAGE_EXPORT_MESSAGES,
   toastError,
   mountDiagnosticPanel,
-  transmettreDiagnostic,
-  appHref,
+  REGLES_GENERIQUES,
+  type MountedAssistant,
 } from '@dsfr-data/shared';
 import { state } from './state.js';
+import { creerAdaptateurBuilder } from './assistant/adaptateur.js';
+import { REGLES_BUILDER } from './assistant/constats.js';
+import { monterAssistantBuilder, montrerRepereBuilder } from './assistant/index.js';
 import {
   loadSavedSources,
   checkSelectedSource,
@@ -58,26 +61,38 @@ import {
 // Expose state for E2E tests
 (window as Window & { __BUILDER_STATE__?: typeof state }).__BUILDER_STATE__ = state;
 
+/** Assistant contextuel (#1017), monté au chargement après le volet Diagnostic. */
+let assistant: MountedAssistant | null = null;
+
 /**
- * « Envoyer à l'assistant » depuis une app sans chat : on dépose le
- * diagnostic et on ouvre l'Assistant IA, qui le posera dans son champ.
- * Même mécanisme de passation que le code entre apps (ARCHITECTURE §10.1).
+ * Adaptateur de révélation (#1006) : partagé par l'assistant, « Me montrer »
+ * du volet Diagnostic et la visite guidée. Il ne change jamais l'état.
  */
-function envoyerDiagnosticVersAssistant(texte: string): void {
-  transmettreDiagnostic(texte);
-  window.location.href = appHref('builder-ia', { from: 'builder' });
-}
+const adaptateur = creerAdaptateurBuilder();
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Volet Diagnostic (#606) — l'aperçu est une iframe srcdoc rechargée à
-  // chaque génération : le rattachement suit les rechargements.
-  mountDiagnosticPanel({
-    frame: document.getElementById('preview-iframe') as HTMLIFrameElement | null,
-    toggleButtonId: 'diagnostic-btn',
-    canSend: true,
-    onSend: envoyerDiagnosticVersAssistant,
-    emptyHint: 'Générez le graphique pour observer ce qui transite entre les composants.',
-  });
+  // chaque génération : le rattachement suit les rechargements. Constats
+  // (#1017) : les génériques, plus ceux du builder qui désignent le réglage.
+  const diagnostic =
+    mountDiagnosticPanel({
+      frame: document.getElementById('preview-iframe') as HTMLIFrameElement | null,
+      toggleButtonId: 'diagnostic-btn',
+      constats: {
+        contexte: () => ({ app: 'builder', etat: state, origine: window.location.origin }),
+        regles: [...REGLES_GENERIQUES, ...REGLES_BUILDER],
+      },
+      // « Demander à l'assistant » (#1017) : ouvre l'assistant du builder, sans
+      // quitter l'app. Il lit les mêmes constats que le volet.
+      canSend: true,
+      envoi: 'demander',
+      onSend: () => assistant?.ouvrir(),
+      onMontrer: (repere) => void montrerRepereBuilder(repere, adaptateur),
+      onConstats: () => assistant?.rafraichirConstats(),
+      emptyHint: 'Générez le graphique pour observer ce qui transite entre les composants.',
+    }) ?? null;
+  // Correspondance locale d'abord ; Albert en secours s'il est configuré.
+  assistant = monterAssistantBuilder({ adaptateur, diagnostic });
   await initAuth();
 
   // Tabs

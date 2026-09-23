@@ -12,6 +12,7 @@ import type { Repere, RegistreReperes } from '@dsfr-data/shared';
 
 export const REPERES = [
   {"id":"dashboard.actions","genre":"zone","libelle":"Barre d'actions","element":"app-action-bar","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/dashboard/index.html"]},
+  {"id":"dashboard.actions.assistant","genre":"controle","libelle":"Assistant","element":"button","zone":"dashboard.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/dashboard/index.html"]},
   {"id":"dashboard.actions.diagnostic","genre":"controle","libelle":"Diagnostic","element":"button","zone":"dashboard.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/dashboard/index.html"]},
   {"id":"dashboard.actions.enregistrer","genre":"controle","libelle":"Enregistrer","element":"button","zone":"dashboard.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/dashboard/index.html"]},
   {"id":"dashboard.actions.exporter","genre":"controle","libelle":"Exporter la page HTML","element":"button","zone":"dashboard.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/dashboard/index.html"]},

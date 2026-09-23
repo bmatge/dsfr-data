@@ -21,6 +21,7 @@ import {
   CLASSE_REPERE_MONTRE,
   DIAGNOSTIC_HANDOFF_KEY,
   effacerSurbrillance,
+  SOUS_TITRE_AVEC_MODELE,
   trouverRepere,
   type AssistantPanelElement,
   type Constat,
@@ -28,6 +29,7 @@ import {
   type MountedDiagnostic,
 } from '@dsfr-data/shared';
 import type { CartoState, LayerConfig } from '../../../apps/builder-carto/src/state';
+import { appelMontrer, transportAlbert } from '../assistant-commun';
 
 /** Le volet Diagnostic factice : ce que main.ts lui passe, et des constats pilotés. */
 const volet = vi.hoisted(() => ({
@@ -254,6 +256,39 @@ describe('assistant contextuel de la carto (#1016)', () => {
         expect(trouverRepere(REGISTRE, s.texte).statut, s.texte).toBe('trouve');
       }
     }
+  });
+});
+
+describe('Albert branché sur la carto (#1018)', () => {
+  it('post mocké : une question hors registre montre le repère choisi, sans réseau', async () => {
+    const { monterAssistantCarto } =
+      await import('../../../apps/builder-carto/src/assistant/index');
+    const post = vi.fn(async () => appelMontrer('carto.carte.fond'));
+    const reveles: string[] = [];
+    const hote = document.createElement('div');
+    document.body.appendChild(hote);
+    const albert = monterAssistantCarto({
+      adaptateur: {
+        prerequis: {},
+        etat: () => ({ layers: [], activeLayerId: null }) as unknown as CartoState,
+        async reveler(id: string) {
+          reveles.push(id);
+          const el = document.createElement('select');
+          el.setAttribute('data-repere', id);
+          hote.appendChild(el);
+          return el;
+        },
+      },
+      diagnostic: null,
+      transport: transportAlbert(post),
+      host: hote,
+    });
+    await vi.waitFor(() => expect(albert.panel.sousTitre).toBe(SOUS_TITRE_AVEC_MODELE));
+    await albert.poser('bonjour, par où commencer ?');
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(reveles).toEqual(['carto.carte.fond']);
+    albert.destroy();
+    hote.remove();
   });
 });
 

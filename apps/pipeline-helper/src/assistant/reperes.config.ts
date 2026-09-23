@@ -40,6 +40,9 @@ const config: ReperesConfig = {
     'pipeline.query.group-by': ['regrouper', 'grouper par'],
     'pipeline.query.agregat-fonction': ['somme', 'moyenne', 'agrégation', 'compter'],
     'pipeline.panneau.code': ['code html', 'récupérer le code'],
+    // #1018 : la première étape d'un pipeline vide, dite comme l'usager la dit.
+    'pipeline.actions.ajouter-source': ['ajouter une source', 'brancher une source'],
+    'pipeline.query.filter': ['filtrer les lignes', 'ajouter un filtre'],
   },
 };
 

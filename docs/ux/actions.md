@@ -95,13 +95,13 @@ sont les seules admises en plus du cœur.
 | Favoris | **Révoquer le lien** | secondaire | supprimer un lien de partage |
 | Admin | **Révoquer les sessions** | secondaire | déconnecter un utilisateur |
 | Suivi | *(aucune)* | — | Exporter ▾ + Actualiser suffisent |
-| Toutes (assistant contextuel) | **Assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` (#1011) : où se trouve un réglage, ce qu'il faut corriger. Bouton `assistant-btn` ajouté à `app-action-bar` par `mountAssistant()` (`ajouterBoutonAssistant()`), avec `aria-expanded`, `aria-controls` et la pastille `data-count` des constats non-info. Bascule d'interface, comme « Diagnostic » |
+| Toutes (assistant contextuel) | **Assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` (#1011) : où se trouve un réglage, ce qu'il faut corriger. Bouton `assistant-btn` déclaré dans l'`index.html` de l'app pour porter son repère `<app>.actions.assistant` (à défaut, ajouté à `app-action-bar` par `mountAssistant()`), avec `aria-expanded`, `aria-controls` et la pastille `data-count` des constats non-info. Replié dans « Plus d'actions », il y reporte sa pastille : le déclencheur du menu l'affiche et la dit dans son `aria-label` (#1018). Bascule d'interface, comme « Diagnostic ». Apps : Carto, Créer un graphique, Tableau de bord, Playground, Pipeline, Sources (guidage seul, dans la barre de liste) |
 | Toutes (panneau Assistant) | **Dire** · **Guider** | bascule du panneau | mode de révélation d'un repère (ADR-143 §7) : « Dire » surligne et annonce le chemin sans déplacer le focus (défaut), « Guider » y amène l'écran et le focus. Mémorisé dans `TourState` |
 | Toutes (panneau Assistant) | **Nouvelle conversation** · **Réduire l'assistant** | icône seule (`fr-icon-refresh-line`, `fr-icon-subtract-line`) | en-tête du panneau, format des assistants `proto-ecosysteme-sircom` / `proto-catalogue-donnees` |
 | Toutes (panneau Assistant) | **Continuer** | bouton plein dans la bulle | montrer de nouveau un repère après avoir levé le prérequis signalé |
 | Toutes (volet Diagnostic) | **Me montrer** | tertiaire sans contour, `fr-icon-eye-line` | désigner le contrôle qui corrige un constat (#1001) ; désactivé quand le constat ne cite aucun repère. Le volet émet `constat-montrer`, l'app résout (`montrer()`) |
-| Apps avec assistant contextuel (volet Diagnostic) | **Demander à l'assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` de l'app, sans la quitter (#1016) : il lit les mêmes constats que le volet. Actif même sans trace. Option `envoi: 'demander'` de `mountDiagnosticPanel()`. Aujourd'hui : Carto |
-| Autres apps (volet Diagnostic) | **Envoyer à l'assistant** | tertiaire, `fr-icon-send-plane-fill` | déposer le texte du diagnostic dans un chat : celui de l'app (Assistant IA, Studio IA), ou celui de l'Assistant IA après navigation (Builder, Tableau de bord, Playground). Désactivé sans trace. Défaut de `mountDiagnosticPanel()` (`envoi: 'envoyer'`) ; une app passe à « Demander » quand elle monte son assistant contextuel |
+| Apps avec assistant contextuel (volet Diagnostic) | **Demander à l'assistant** | tertiaire, `fr-icon-question-answer-line` | ouvrir le panneau `app-assistant` de l'app, sans la quitter (#1016) : il lit les mêmes constats que le volet. Actif même sans trace. Option `envoi: 'demander'` de `mountDiagnosticPanel()`. Carto, Créer un graphique, Tableau de bord, Playground, Pipeline (#1016, #1017, #1018) |
+| Apps conversationnelles (volet Diagnostic) | **Envoyer à l'assistant** | tertiaire, `fr-icon-send-plane-fill` | déposer le texte du diagnostic dans le chat de l'app (Assistant IA, Studio IA), qui n'ont pas d'assistant contextuel : leur chat en tient lieu. Désactivé sans trace. Défaut de `mountDiagnosticPanel()` (`envoi: 'envoyer'`) ; une app passe à « Demander » quand elle monte son assistant contextuel |
 | Toutes (panneau Assistant) | **Construire pour moi dans le Studio** | bouton du panneau | passation vers le Studio IA : le diagnostic de l'app est déposé (`transmettreDiagnostic`) puis posé, sans être envoyé, dans le champ du Studio (`recupererDiagnostic()`) (#1016) |
 
 Toute nouvelle extension s'ajoute à ce tableau **dans la PR qui l'introduit**.
@@ -228,14 +228,14 @@ primaire. La zone `[contexte]` (facultative) reçoit un contrôle de contexte, h
 
 | App | Primaire | Secondaire visible | Plus d'actions ▾ (secondaires repliées · **|** · tertiaires) |
 |---|---|---|---|
-| Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · **Diagnostic** |
+| Créer un graphique | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · **Diagnostic** · **Assistant** |
 | Créer une carte | Générer | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Nouveau · **Diagnostic** · **Assistant** |
-| Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau · **Diagnostic** |
+| Créer un tableau de bord | Enregistrer | Ouvrir | Exporter la page HTML · Plein écran · Nouveau · **Diagnostic** · **Assistant** |
 | Assistant IA | Effacer la conversation | Copier le code | Ajouter aux favoris · Ouvrir dans le Playground · Exporter en PNG · Exporter en JPG · **Diagnostic** |
 | Studio IA | Enregistrer | Copier le code | Ouvrir dans le tableau de bord · Effacer la conversation · **Diagnostic** |
-| Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · **Diagnostic** · Réinitialiser |
-| Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer · **Diagnostic** |
-| Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée |
+| Playground | Exécuter | Copier le code | Ajouter aux favoris · Ouvrir dans le Pipeline · Exporter en PNG · Exporter en JPG · Ajouter des dépendances · **Diagnostic** · **Assistant** · Réinitialiser |
+| Pipeline | Exécuter | Ajouter une étape ▾ | Copier le code · Ouvrir dans le Playground · Supprimer · Réorganiser · Recentrer · **Diagnostic** · **Assistant** |
+| Sources | Nouvelle connexion | Importer · Exporter ▾ | Visite guidée · **Assistant** |
 | Favoris | — | Importer · Exporter ▾ | — |
 | Suivi | — | Exporter ▾ | Actualiser |
 

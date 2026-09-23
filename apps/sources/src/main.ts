@@ -23,6 +23,7 @@ import {
   SOURCES_TOUR,
 } from '@dsfr-data/shared';
 import { creerAdaptateurSources } from './assistant/adaptateur.js';
+import { monterAssistantSources } from './assistant/index.js';
 
 import {
   state,
@@ -357,8 +358,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     input.value = ''; // reset file input
   });
 
+  // Assistant contextuel (#1018) : guidage seul, la page n'a pas de volet
+  // Diagnostic. Albert en secours s'il est configuré.
+  const adaptateur = creerAdaptateurSources();
+  monterAssistantSources({ adaptateur });
+
   // Product tour
   injectTourStyles();
   // Visite en repères (#1013) : l'adaptateur révèle chaque étape.
-  startTourIfFirstVisit({ ...SOURCES_TOUR, adaptateur: creerAdaptateurSources() });
+  startTourIfFirstVisit({ ...SOURCES_TOUR, adaptateur });
 });

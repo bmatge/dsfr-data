@@ -332,6 +332,8 @@ export {
   ID_BOUTON_ASSISTANT,
   PIED_SANS_MODELE,
   SOUS_TITRE_SANS_MODELE,
+  PIED_AVEC_MODELE,
+  SOUS_TITRE_AVEC_MODELE,
 } from './ui/mount-assistant.js';
 
 // Sample data
@@ -480,6 +482,7 @@ export type {
 } from './ia/assistant-loop.js';
 export {
   creerRepondreIA,
+  brancherAlbert,
   suivrePlan,
   construirePromptAssistant,
   constatsPourModele,

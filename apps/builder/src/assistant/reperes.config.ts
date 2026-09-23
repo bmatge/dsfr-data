@@ -57,7 +57,7 @@ const config: ReperesConfig = {
     },
   ],
   prerequis: 'src/assistant/prerequis.ts',
-  constats: [],
+  constats: ['apps/builder/src/assistant/constats.ts'],
   synonymes: {
     'builder.donnees.series.ajouter': ['série', 'courbe supplémentaire', 'plusieurs séries'],
     'builder.donnees.champ-x': ['axe x', 'abscisse', 'catégories', 'étiquettes'],
