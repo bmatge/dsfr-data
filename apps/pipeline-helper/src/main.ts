@@ -11,6 +11,7 @@ import { showInspector } from './ui/inspector.js';
 import { creerAdaptateurPipeline } from './assistant/adaptateur.js';
 import { monterAssistantPipeline, montrerReperePipeline } from './assistant/index.js';
 import type { EtatPipeline } from './assistant/prerequis.js';
+import { arriveDuBuilder, monterRetourBuilder } from './retour-builder.js';
 import {
   confirmDialog,
   injectTourStyles,
@@ -59,21 +60,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Correspondance locale d'abord ; Albert en secours s'il est configuré.
   assistant = monterAssistantPipeline({ adaptateur: revelation, diagnostic });
 
-  // Check if we received code from the playground
+  // Code confié par le Playground ou par le Builder (`openInPipeline`). Le
+  // Builder passait `from=builder`, que rien ne lisait : le Pipeline s'ouvrait
+  // sur l'exemple au lieu de son graphique (#1095).
   const urlParams = new URLSearchParams(window.location.search);
   const from = urlParams.get('from');
   let imported = false;
 
-  if (from === 'playground') {
+  if (from === 'playground' || arriveDuBuilder(from)) {
     const code = sessionStorage.getItem('pipeline-helper-code');
     // eslint-disable-next-line no-console -- debug trace for cross-app handoff
-    console.log('[pipeline-helper] from=playground, code length:', code?.length ?? 0);
+    console.log(`[pipeline-helper] from=${from}, code length:`, code?.length ?? 0);
     if (code) {
       sessionStorage.removeItem('pipeline-helper-code');
-      // Clean URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete('from');
-      window.history.replaceState({}, '', url.toString());
+      // Clean URL — sauf au départ du Builder : `from=builder` garde le
+      // « Revenir au Builder » après un rechargement de la page.
+      if (from === 'playground') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('from');
+        window.history.replaceState({}, '', url.toString());
+      }
       // Import the HTML pipeline
       try {
         await importFromHtml(editor, code);
@@ -89,6 +95,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!imported) {
     await editor.createExamplePipeline();
   }
+
+  // « Revenir au Builder » (#1095) : après l'import, pour que le code
+  // d'arrivée soit celui du pipeline tel que l'usager le découvre.
+  const editeur = editor;
+  monterRetourBuilder({
+    from,
+    codeCourant: () => generateCode(editeur.getNodes(), editeur.getConnections()),
+  });
 
   // Inspector: show data when a node is clicked
   editor.onNodeSelected = (node) => {

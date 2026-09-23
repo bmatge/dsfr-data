@@ -15,8 +15,20 @@
  */
 
 import { searchSkills, type MatchableSkill, type SkillMatch } from './skill-matching.js';
+import {
+  SKILL_LEVEL_IDS,
+  isLeveledSkill,
+  levelIndexText,
+  selectLevelOrReference,
+  type LeveledSkill,
+} from './skill-levels.js';
 
-export interface PublishedSkill extends MatchableSkill {
+/**
+ * Une fiche de skills.json. `index` / `levels` / `references` : skill ecrite a
+ * la main et multiniveau (`datavizMetier`, #1035), adressable par niveau et par
+ * reference ; absents pour les autres.
+ */
+export interface PublishedSkill extends MatchableSkill, Omit<LeveledSkill, 'id' | 'content'> {
   sections?: Record<string, string>;
 }
 
@@ -69,7 +81,13 @@ function joindre(matches: Array<SkillMatch<PublishedSkill>>): string {
   if (matches.length === 0) {
     return 'Aucune skill ne correspond. Essaie des mots-clés plus larges ou get_skill par id.';
   }
-  return matches.map(({ skill }) => skill.sections?.guide ?? skill.content).join('\n\n---\n\n');
+  // Une skill a niveaux ne rend que son index et ce qui est adressable
+  // (#1035) : ses references concatenees depassent 1 500 lignes.
+  return matches
+    .map(({ skill }) =>
+      isLeveledSkill(skill) ? levelIndexText(skill) : (skill.sections?.guide ?? skill.content)
+    )
+    .join('\n\n---\n\n');
 }
 
 /** Skills pertinentes pour un message — contenu concatene, borne. */
@@ -97,12 +115,25 @@ export async function relevantSkillsTextReclasse(
   return joindre(ordre.slice(0, RELEVANT_LIMIT));
 }
 
-/** Une skill par id, section optionnelle (guide | reference | exemples | pieges | tout). */
-export function skillText(skills: PublishedSkill[], id: string, section?: string): string {
+/**
+ * Une skill par id, section optionnelle (guide | reference | exemples | pieges
+ * | tout). Une skill a niveaux s'adresse aussi par `niveau` (base |
+ * intermediaire | avance) ou par `reference` — un SECOND parametre, le
+ * vocabulaire des sections reste ferme (#513, arbitrage #1035) ; sans rien,
+ * elle sert l'intermediaire en l'annoncant.
+ */
+export function skillText(
+  skills: PublishedSkill[],
+  id: string,
+  section?: string,
+  adresse: { niveau?: string; reference?: string } = {}
+): string {
   const skill = skills.find((s) => s.id === id);
   if (!skill) {
     return `Skill "${id}" introuvable. Ids disponibles : ${skills.map((s) => s.id).join(', ')}`;
   }
+  const parNiveau = selectLevelOrReference(skill, { section, ...adresse });
+  if (parNiveau) return parNiveau.text;
   if (!section || section === 'tout' || !skill.sections) return skill.content;
   const text = skill.sections[section];
   if (text) return text;
@@ -137,12 +168,18 @@ export const OUTILS_SKILLS = [
     type: 'function',
     function: {
       name: 'get_skill',
-      description: 'Une fiche de documentation par id, section optionnelle.',
+      description:
+        'Une fiche de documentation par id, section optionnelle. datavizMetier (regard ' +
+        'éditorial : quelle forme, titre-message, honnêteté) se lit par niveau — base : un ' +
+        'graphique, intermediaire : un bloc (servi par défaut, à annoncer), avance : une page — ' +
+        'ou par reference.',
       parameters: {
         type: 'object',
         properties: {
           skill_id: { type: 'string' },
           section: { type: 'string', enum: ['guide', 'reference', 'exemples', 'pieges', 'tout'] },
+          niveau: { type: 'string', enum: [...SKILL_LEVEL_IDS] },
+          reference: { type: 'string' },
         },
         required: ['skill_id'],
         additionalProperties: false,
@@ -182,7 +219,11 @@ export async function executerOutilSkill(
     return skillText(
       skills,
       typeof args.skill_id === 'string' ? args.skill_id : '',
-      typeof args.section === 'string' ? args.section : undefined
+      typeof args.section === 'string' ? args.section : undefined,
+      {
+        niveau: typeof args.niveau === 'string' ? args.niveau : undefined,
+        reference: typeof args.reference === 'string' ? args.reference : undefined,
+      }
     );
   }
   return `Outil inconnu : ${name}`;

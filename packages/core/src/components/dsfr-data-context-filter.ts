@@ -195,9 +195,11 @@ type YearOperator = (typeof YEAR_OPERATORS)[number];
  * cache le défaut ; seuls la Guadeloupe (01), la Martinique, la Guyane, La
  * Réunion, Mayotte et les neuf premiers départements sont muets. La console
  * le dit désormais, une fois par champ et par source, dès que les lignes
- * déjà rendues montrent que le champ est numérique — alimenter alors le
- * filtre avec la valeur sans zéro de tête, ou réserver ce filtre aux
- * sources qui publient le code en texte avec `apply-to`.
+ * déjà rendues montrent que le champ est numérique — ou, quand elles ne
+ * le portent pas (source agrégée côté serveur, filtre délégué au portail,
+ * #980), dès que le jeu le DÉCLARE numérique (Opendatasoft) — alimenter
+ * alors le filtre avec la valeur sans zéro de tête, ou réserver ce filtre
+ * aux sources qui publient le code en texte avec `apply-to`.
  */
 @customElement('dsfr-data-context-filter')
 export class DsfrDataContextFilter extends LitElement {
@@ -221,7 +223,9 @@ export class DsfrDataContextFilter extends LitElement {
    * codes à zéro de tête (Guadeloupe 01, départements 01 à 09) sont muets.
    * Quand les lignes déjà rendues par une source montrent que la colonne y
    * est numérique, la console le dit, une fois par colonne et par source.
-   * Le geste : alimenter le filtre avec la valeur sans zéro de tête, ou
+   * Quand elles ne la portent pas — source agrégée côté serveur
+   * (`select="sum(...)"`), filtre délégué au portail (#980) — c'est le type
+   * DÉCLARÉ par le jeu Opendatasoft qui décide, lu une fois par jeu. Le geste : alimenter le filtre avec la valeur sans zéro de tête, ou
    * réserver ce filtre aux sources qui publient le code en texte avec
    * `apply-to`.
    */

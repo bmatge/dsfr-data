@@ -18,30 +18,37 @@
  * CE QUI NE CHANGE PAS. La clause émise est exactement celle d'avant :
  * émettre un littéral numérique, ou basculer l'égalité sur `refine`,
  * changerait la requête de pages qui fonctionnent aujourd'hui (les deux
- * autres critères de #924, laissés ouverts). Ici on se contente de rompre
- * le silence.
+ * autres critères de #924, écartés). Ici on se contente de rompre le silence.
  *
- * D'OÙ VIENT LE TYPE. D'aucun schéma : rien dans `packages/core` ne lit
- * `/datasets/<id>` pour les types de champs — l'adaptateur Opendatasoft ne
- * le fait que dans `discoverFacets`, pour les seules facettes déclarées, et
- * seulement pour savoir si un champ est une date. Le type utilisé ici est
- * donc celui des lignes DÉJÀ ÉMISES par la source (`getDataCache`), même
- * source de vérité que le garde-fou « champ absent » (#805/#938). C'est un
- * fait observé, pas une heuristique : une valeur JSON numérique vient d'un
- * champ numérique. Quand la source n'a rien émis, ou que le champ est absent
- * de ses lignes, ou qu'il y porte une chaîne, ON SE TAIT — un avertissement
- * qui crie à tort est pire que pas d'avertissement.
+ * D'OÙ VIENT LE TYPE. D'abord des lignes DÉJÀ ÉMISES par la source
+ * (`getDataCache`), même source de vérité que le garde-fou « champ absent »
+ * (#805/#938) : une valeur JSON numérique vient d'un champ numérique. Quand
+ * une ligne porte une chaîne, ou que le champ est hétérogène, ON SE TAIT —
+ * un avertissement qui crie à tort est pire que pas d'avertissement.
+ *
+ * Mais les lignes ne portent pas toujours le champ (#980, PG-030) : une
+ * source agrégée côté serveur (`select=sum(nb_missions) as m`) ne ramène que
+ * `m`, et le filtre est DÉLÉGUÉ au portail sans aucune comparaison locale. Le
+ * montage le plus courant — un KPI agrégé filtré par région — restait donc
+ * muet. Dans ce cas, et dans ce cas seulement, on lit le type DÉCLARÉ par le
+ * jeu (`describeFieldTypes` de l'adaptateur : `/datasets/<id>` sur
+ * Opendatasoft), une fois par jeu, après l'émission de la clause.
  */
 
 import { splitColonFields, unescapeColonValue } from '@dsfr-data/shared/lib';
 import { getDataCache } from './data-bridge.js';
+import type { AdapterParams, ApiAdapter } from '../adapters/api-adapter.js';
 
 /** Situations déjà signalées : un message par champ et par source. */
 const warned = new Set<string>();
 
+/** Lectures de type déclaré en cours : pas deux pour la même situation. */
+const pending = new Set<string>();
+
 /** Remet à zéro la mémoire des avertissements (tests). */
 export function resetNumericFieldMismatchWarnings(): void {
   warned.clear();
+  pending.clear();
 }
 
 /**
@@ -58,30 +65,71 @@ function looksLikeLostLeadingZero(value: string): boolean {
   return Number.isFinite(n) && String(n) !== value;
 }
 
+/** Ce que les lignes déjà émises disent du champ. */
+type Observed =
+  /** Au moins un nombre, aucune chaîne : publié en NOMBRE, à coup sûr. */
+  | { kind: 'number'; sample: number }
+  /** Une chaîne, ou un mélange : on sait qu'il ne faut rien dire. */
+  | { kind: 'other' }
+  /** Aucune ligne ne porte le champ : les lignes ne disent rien (#980). */
+  | { kind: 'unknown' };
+
 /**
  * Le champ est-il publié en NOMBRE par cette source, à coup sûr ?
  *
- * `true` seulement si au moins une ligne y porte un nombre et qu'aucune n'y
- * porte une chaîne : un champ hétérogène (JSON générique, données inline)
- * ne dit rien de sûr, et le doute se résout par le silence.
+ * `number` seulement si au moins une ligne y porte un nombre et qu'aucune
+ * n'y porte une chaîne : un champ hétérogène (JSON générique, données
+ * inline) ne dit rien de sûr, et le doute se résout par le silence.
+ * `unknown` quand aucune ligne ne porte le champ — source agrégée côté
+ * serveur, ou qui n'a encore rien rendu : c'est là seulement qu'on consulte
+ * le type déclaré du jeu (#980).
  */
-function fieldIsNumericOn(sourceId: string, field: string): number | null {
+function observeField(sourceId: string, field: string): Observed {
   const data = getDataCache(sourceId);
-  if (!Array.isArray(data)) return null;
+  if (!Array.isArray(data)) return { kind: 'unknown' };
   const rows = data as Record<string, unknown>[];
   let sample: number | null = null;
   for (const row of rows) {
     if (!row || typeof row !== 'object' || !(field in row)) continue;
     const v = row[field];
     if (v === null || v === undefined) continue;
-    if (typeof v === 'string') return null;
+    if (typeof v === 'string') return { kind: 'other' };
     if (typeof v === 'number' && Number.isFinite(v)) {
       if (sample === null) sample = v;
       continue;
     }
-    return null;
+    return { kind: 'other' };
   }
-  return sample;
+  return sample === null ? { kind: 'unknown' } : { kind: 'number', sample };
+}
+
+/**
+ * Types déclarés qui disent NOMBRE (Opendatasoft : `int`, `double`,
+ * `decimal`). Une date, un booléen, un texte : on se tait.
+ */
+const DECLARED_NUMERIC = new Set(['int', 'integer', 'long', 'double', 'float', 'decimal']);
+
+/** Ce dont la lecture du type déclaré a besoin sur l'élément source. */
+interface SourceWithDeclaredTypes extends HTMLElement {
+  getAdapter?: () => Pick<ApiAdapter, 'describeFieldTypes'> | null;
+  getAdapterParams?: () => AdapterParams | null;
+}
+
+/**
+ * Type déclaré du champ par le jeu de la source (#980), ou null si
+ * l'adaptateur ne sait pas le dire. Les paramètres viennent de
+ * `getAdapterParams()` (headers et api-key-ref résolus, #274), jamais des
+ * attributs DOM.
+ */
+async function declaredType(sourceId: string, field: string): Promise<string | null> {
+  const el = document.getElementById(sourceId) as SourceWithDeclaredTypes | null;
+  const adapter = el?.getAdapter?.();
+  if (!adapter?.describeFieldTypes) return null;
+  const params = el?.getAdapterParams?.();
+  if (!params?.datasetId) return null;
+  const types = await adapter.describeFieldTypes(params);
+  const type = types[field];
+  return typeof type === 'string' ? type : null;
 }
 
 /** Les valeurs comparées par une clause colon, par champ, pour `eq`/`neq`/`in`. */
@@ -104,28 +152,64 @@ function equalityValues(colonWhere: string): Map<string, string[]> {
   return byField;
 }
 
+/** Le message, identique sur les deux chemins ; seule la preuve du type change. */
+function warnMismatch(field: string, culprit: string, sourceId: string, evidence: string): void {
+  console.warn(
+    `dsfr-data-context-filter (${field}) : la valeur "${culprit}" est comparée en TEXTE, ` +
+      `alors que la source "${sourceId}" publie "${field}" en NOMBRE (${evidence}) — ` +
+      `aucune ligne ne correspondra, sans erreur, là où le refine du portail trouvait. ` +
+      `Seuls les codes à zéro de tête sont touchés ("75" passe, "01" non), ce qui cache ` +
+      `le défaut. Alimenter ce filtre avec la valeur sans zéro de tête ("${Number(culprit)}"), ` +
+      `ou réserver ce filtre aux sources qui publient le code en texte avec apply-to.`
+  );
+}
+
 /**
  * Signale, une fois par champ et par source, une comparaison texte sur un
  * champ que la source publie en nombre. Nomme le champ, la valeur émise, le
- * type observé (avec un exemple de la donnée) et le geste qui sort du piège.
+ * type (un exemple de la donnée, ou le type déclaré par le jeu) et le geste
+ * qui sort du piège.
+ *
+ * DEUX PREUVES DU TYPE, UN SEUL MESSAGE (#980, PG-030).
+ * 1. Les lignes déjà émises par la source, quand elles portent le champ
+ *    (chemin synchrone de #948) : elles décident seules, y compris pour se
+ *    taire (champ en texte, hétérogène) — aucune requête dans ce cas.
+ * 2. Sinon, le type DÉCLARÉ par le jeu (`describeFieldTypes`) : filtre
+ *    délégué à une source agrégée côté serveur, dont la réponse ne ramène
+ *    jamais la colonne, ou tout premier chargement, avant toute ligne.
+ * La clause est émise par l'appelant sans attendre : la lecture du type n'en
+ * change rien. La promesse rendue se résout quand les lectures de type sont
+ * terminées (tests) ; l'appelant n'a pas à l'attendre.
  */
-export function checkNumericFieldMismatch(sourceId: string, colonWhere: string): void {
-  if (!colonWhere) return;
+export function checkNumericFieldMismatch(sourceId: string, colonWhere: string): Promise<void> {
+  if (!colonWhere) return Promise.resolve();
+  const lookups: Promise<void>[] = [];
   for (const [field, values] of equalityValues(colonWhere)) {
     const culprit = values.find(looksLikeLostLeadingZero);
     if (culprit === undefined) continue;
     const key = `${field}@${sourceId}`;
-    if (warned.has(key)) continue;
-    const sample = fieldIsNumericOn(sourceId, field);
-    if (sample === null) continue;
-    warned.add(key);
-    console.warn(
-      `dsfr-data-context-filter (${field}) : la valeur "${culprit}" est comparée en TEXTE, ` +
-        `alors que la source "${sourceId}" publie "${field}" en NOMBRE (ex. ${sample}) — ` +
-        `aucune ligne ne correspondra, sans erreur, là où le refine du portail trouvait. ` +
-        `Seuls les codes à zéro de tête sont touchés ("75" passe, "01" non), ce qui cache ` +
-        `le défaut. Alimenter ce filtre avec la valeur sans zéro de tête ("${Number(culprit)}"), ` +
-        `ou réserver ce filtre aux sources qui publient le code en texte avec apply-to.`
+    if (warned.has(key) || pending.has(key)) continue;
+    const observed = observeField(sourceId, field);
+    if (observed.kind === 'number') {
+      warned.add(key);
+      warnMismatch(field, culprit, sourceId, `ex. ${observed.sample}`);
+      continue;
+    }
+    if (observed.kind === 'other') continue;
+    pending.add(key);
+    // Différé d'une microtâche : la commande de l'appelant part AVANT la
+    // lecture du type, l'observation des lignes, elle, a eu lieu avant.
+    lookups.push(
+      Promise.resolve()
+        .then(() => declaredType(sourceId, field))
+        .then((type) => {
+          if (type === null || !DECLARED_NUMERIC.has(type) || warned.has(key)) return;
+          warned.add(key);
+          warnMismatch(field, culprit, sourceId, `type « ${type} » déclaré par le jeu`);
+        })
+        .catch(() => undefined)
+        .finally(() => pending.delete(key))
     );
   }
+  return Promise.all(lookups).then(() => undefined);
 }

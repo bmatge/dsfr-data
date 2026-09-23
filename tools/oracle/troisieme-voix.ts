@@ -94,6 +94,8 @@ export function attenduPython(entree: EntreePython, expect: Expect): Attendu | n
         decimals: entree.decimals ?? expect.decimals ?? 0,
         pattern: expect.pattern,
       };
+    case 'count':
+      return { kind: 'count', value: Number(entree.valeur) };
     default:
       return null;
   }

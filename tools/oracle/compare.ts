@@ -102,6 +102,7 @@ export type Observation =
   | ObservationDiagnostic
   | string[]
   | string
+  | number
   | null;
 
 interface Contexte {
@@ -225,6 +226,25 @@ export function comparer(
 
     case 'texts':
       return comparerTextes(base, attendu, observation as string[]);
+
+    case 'count': {
+      // Un compte d'éléments tracés (#1059) : l'égalité exacte, une forme par
+      // ligne recalculée — une de moins est une ligne que la carte tait.
+      const e = expect as Extract<Expect, { kind: 'count' }>;
+      const traces = observation as number;
+      const ok = traces === attendu.value;
+      return {
+        ...base,
+        lib: `${traces} élément(s)`,
+        oracle: `${attendu.value} élément(s)`,
+        ecart: traces - attendu.value,
+        comparaisons: 1,
+        ok,
+        message: ok
+          ? ''
+          : `${traces} élément(s) tracé(s) sous « ${e.selector} », ${attendu.value} ligne(s) recalculée(s)`,
+      };
+    }
 
     case 'class': {
       const obs = observation as ObservationClasses;

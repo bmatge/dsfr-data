@@ -86,7 +86,7 @@ SEPARATEUR_CLE = "\x1f"
 
 DECIMALES_LIGNES = 6
 
-GENRES_COUVERTS = ("kpi", "rows", "chart", "list", "facets", "text", "texts")
+GENRES_COUVERTS = ("kpi", "rows", "chart", "list", "facets", "text", "texts", "count")
 RAISONS = {
     "derive": "derive : grammaire ADR-105, seconde réécriture hors v1",
     "class": "genre class : habillage par seuils, hors v1",
@@ -785,6 +785,10 @@ def attendu_de(e: dict[str, Any], datasets: dict[str, list[Row]]) -> dict[str, A
         brut = rows[rang].get(e["column"]) if e.get("column") is not None and rang < len(rows) else None
         milieu = "" if brut is None else str_js(brut)
         return {"valeur": f"{e.get('prefix') or ''}{milieu}{e.get('suffix') or ''}"}
+
+    if genre == "count":
+        # Éléments tracés (#1059) : une forme par ligne que le recalcul laisse.
+        return {"valeur": len(rows)}
 
     # texts
     facteur = Fraction(Decimal(str(e["scale"]))) if e.get("scale") is not None else Fraction(1)

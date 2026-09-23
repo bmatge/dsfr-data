@@ -8,15 +8,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   normaliserCode,
-  verdictRetourPlayground,
+  verdictRetourAuBuilder,
   AVERTISSEMENT_RETOUR_PLAYGROUND,
+  AVERTISSEMENT_RETOUR_PIPELINE,
+  RETOUR_VERS_ACCUEIL,
 } from '../../packages/shared/src/ui/passation.js';
 
 const CODE = '<dsfr-data-source id="s" url="https://x/records"></dsfr-data-source>';
 
-describe('verdictRetourPlayground', () => {
+describe('verdictRetourAuBuilder', () => {
   it('avertit quand le code rapporté diffère du code confié', () => {
-    const v = verdictRetourPlayground({
+    const v = verdictRetourAuBuilder({
       from: 'playground',
       codeConfie: CODE,
       codeRapporte: CODE + '\n<dsfr-data-chart type="bar"></dsfr-data-chart>',
@@ -31,13 +33,13 @@ describe('verdictRetourPlayground', () => {
 
   it("n'avertit pas quand le code revient identique", () => {
     expect(
-      verdictRetourPlayground({ from: 'playground', codeConfie: CODE, codeRapporte: CODE }).verdict
+      verdictRetourAuBuilder({ from: 'playground', codeConfie: CODE, codeRapporte: CODE }).verdict
     ).toBe('inchange');
   });
 
   it('ignore une simple différence de mise en forme', () => {
     expect(
-      verdictRetourPlayground({
+      verdictRetourAuBuilder({
         from: 'playground',
         codeConfie: `  ${CODE}\r\n\r\n`,
         codeRapporte: `${CODE}\n`,
@@ -45,19 +47,34 @@ describe('verdictRetourPlayground', () => {
     ).toBe('inchange');
   });
 
+  it('avertit aussi au retour du Pipeline (#1095)', () => {
+    expect(
+      verdictRetourAuBuilder({
+        from: 'pipeline-helper',
+        codeConfie: CODE,
+        codeRapporte: CODE + '\n<dsfr-data-query id="q"></dsfr-data-query>',
+      }).verdict
+    ).toBe('divergent');
+    // Le Pipeline ne rapporte rien quand son pipeline n'a pas bougé.
+    expect(
+      verdictRetourAuBuilder({ from: 'pipeline-helper', codeConfie: CODE, codeRapporte: null })
+        .verdict
+    ).toBe('rien-a-comparer');
+  });
+
   it("n'a rien à comparer quand on arrive des favoris", () => {
     expect(
-      verdictRetourPlayground({ from: 'favorites', codeConfie: CODE, codeRapporte: 'autre chose' })
+      verdictRetourAuBuilder({ from: 'favorites', codeConfie: CODE, codeRapporte: 'autre chose' })
         .verdict
     ).toBe('rien-a-comparer');
   });
 
   it("n'a rien à comparer quand le Playground n'a rien rapporté (retour navigateur)", () => {
     expect(
-      verdictRetourPlayground({ from: 'playground', codeConfie: CODE, codeRapporte: null }).verdict
+      verdictRetourAuBuilder({ from: 'playground', codeConfie: CODE, codeRapporte: null }).verdict
     ).toBe('rien-a-comparer');
     expect(
-      verdictRetourPlayground({ from: 'playground', codeConfie: CODE, codeRapporte: '   \n ' })
+      verdictRetourAuBuilder({ from: 'playground', codeConfie: CODE, codeRapporte: '   \n ' })
         .verdict
     ).toBe('rien-a-comparer');
   });
@@ -65,7 +82,7 @@ describe('verdictRetourPlayground', () => {
   it('avertit quand un code est rapporté sans preuve de ce qui était parti', () => {
     // On ne peut pas prouver que c'est le même : on ne l'écrase pas en silence.
     expect(
-      verdictRetourPlayground({ from: 'playground', codeConfie: null, codeRapporte: CODE }).verdict
+      verdictRetourAuBuilder({ from: 'playground', codeConfie: null, codeRapporte: CODE }).verdict
     ).toBe('divergent');
   });
 });
@@ -93,5 +110,17 @@ describe("le texte de l'avertissement", () => {
     expect(`${message} ${confirmLabel} ${cancelLabel}`).not.toMatch(
       /sessionStorage|builderStateJson|builder-state|JSON/
     );
+  });
+});
+
+describe('le retour vers chaque app d’accueil', () => {
+  it('repart par la clé que l’app relit, avec son propre avertissement', () => {
+    expect(RETOUR_VERS_ACCUEIL.playground.cleCode).toBe('playground-code');
+    expect(RETOUR_VERS_ACCUEIL['pipeline-helper'].cleCode).toBe('pipeline-helper-code');
+    expect(RETOUR_VERS_ACCUEIL['pipeline-helper'].avertissement).toBe(
+      AVERTISSEMENT_RETOUR_PIPELINE
+    );
+    expect(AVERTISSEMENT_RETOUR_PIPELINE.cancelLabel).toMatch(/Pipeline/);
+    expect(AVERTISSEMENT_RETOUR_PIPELINE.message).not.toMatch(/sessionStorage|builder-state|JSON/);
   });
 });

@@ -13,6 +13,7 @@ import {
   lireAttribut,
   lireCache,
   lireClasses,
+  lireCompte,
   lireDiagnostics,
   lireExportCsv,
   lireFacettes,
@@ -230,6 +231,8 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(lireTexte, { id: e.id, selector: e.selector });
       case 'texts':
         return await page.evaluate(lireTextes, { id: e.id, selecteur: e.selector });
+      case 'count':
+        return await page.evaluate(lireCompte, { id: e.id, selecteur: e.selector });
       case 'class':
         return await page.evaluate(lireClasses, {
           id: e.id,
@@ -274,6 +277,11 @@ function prete(e: Expect, obs: Observation): boolean {
       return (obs as { text: string }).text.trim() !== '';
     case 'texts':
       return Array.isArray(obs) && obs.length > 0;
+    // Zéro tracé est l'état d'AVANT le rendu : il ne s'observe pas. Une couche
+    // qui ne trace rien tombe donc sur « n'a rien affiché » — c'est le défaut
+    // de #1053 ; une absence VOULUE se constate par un diagnostic.
+    case 'count':
+      return typeof obs === 'number' && obs > 0;
     case 'class':
       return (obs as { classes: string[] }).classes.length > 0;
     case 'attr':

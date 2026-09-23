@@ -294,6 +294,14 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    */
   private readonly _exportUnavailable = new Set<string>();
 
+  /** Types declares des champs, par jeu (#980) — une requete par jeu, au plus. */
+  private readonly _fieldTypes = new Map<string, Promise<Record<string, string>>>();
+
+  /** Oublie les types memorises (tests). */
+  resetFieldTypesCache(): void {
+    this._fieldTypes.clear();
+  }
+
   readonly capabilities: AdapterCapabilities = {
     serverFetch: true,
     serverFacets: true,
@@ -662,6 +670,46 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     }
     const json = (await response.json()) as { facets?: Array<{ name: string }> };
     return (json.facets ?? []).map((f) => ({ field: f.name }));
+  }
+
+  /**
+   * Types declares des champs, lus dans les metadonnees du jeu
+   * (`/datasets/ID`, `fields[].type`) — memorises par portail + jeu (#980).
+   *
+   * Seul consommateur : l'avertissement « comparee en TEXTE » (#924), et
+   * seulement quand une valeur a zero de tete vise un champ que les lignes
+   * de la source ne montrent pas. Un echec (reseau, 403, JSON inattendu)
+   * rend un objet vide : ne rien savoir, c'est se taire. Le resultat vide
+   * est memorise lui aussi, pour ne pas retenter a chaque geste.
+   */
+  describeFieldTypes(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+  ): Promise<Record<string, string>> {
+    const key = this._datasetKey(params);
+    const known = this._fieldTypes.get(key);
+    if (known) return known;
+    const datasetUrl = this._datasetUrl(params);
+    const pending = (async (): Promise<Record<string, string>> => {
+      try {
+        const response = await fetch(
+          getProxiedUrl(datasetUrl, params.proxyUrl),
+          buildFetchOptions(params, datasetUrl)
+        );
+        if (!response.ok) return {};
+        const meta = (await response.json()) as {
+          fields?: Array<{ name?: unknown; type?: unknown }>;
+        };
+        const types: Record<string, string> = {};
+        for (const f of Array.isArray(meta?.fields) ? meta.fields : []) {
+          if (typeof f?.name === 'string' && typeof f.type === 'string') types[f.name] = f.type;
+        }
+        return types;
+      } catch {
+        return {};
+      }
+    })();
+    this._fieldTypes.set(key, pending);
+    return pending;
   }
 
   /** Source de verite : OPENDATASOFT_CONFIG.query.searchTemplate (#285) */

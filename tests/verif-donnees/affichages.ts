@@ -1315,14 +1315,10 @@ const CHECKS: Check[] = [
   </dsfr-data-map>`,
     expects: [
       {
-        // Le NOMBRE de formes tracées : un tracé SVG n'a pas de texte, la
-        // colonne `sans_texte` n'existe pas et rend donc « » pour chaque ligne
-        // recalculée. Ce qui est comparé, c'est le compte — un tracé par zone.
-        kind: 'texts',
+        // Le NOMBRE de formes tracées (#1059) : un tracé par zone reçue.
+        kind: 'count',
         id: 'carte-zones',
         selector: 'path.verif-zone',
-        column: 'sans_texte',
-        pipeline: [],
       },
       // Et la couche n'a écarté aucune ligne.
       {
@@ -1330,6 +1326,48 @@ const CHECKS: Check[] = [
         id: 'couche-zones',
         expect: 'silence',
         contains: 'géométrie',
+      },
+    ],
+  },
+
+  // --------------------------------- Carte : marqueurs et formes comptés ----
+  {
+    id: 'carte-marqueurs-et-cercles-comptes-1059',
+    mode: 'deterministic',
+    origin:
+      '#1059 — le lecteur `count` sur deux types de couches d’une même carte : une couche `marker` alimentée par une query (zone Nord) et une couche `circle` marquée par sa `shape-class` (zone Sud). Chaque ligne filtrée doit donner UN marqueur ou UN cercle : une ligne que la carte ne trace pas est une ligne qu’elle tait, sans que rien d’autre à l’écran ne le dise.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-points', 'communes')}
+  <dsfr-data-query id="q-points-nord" source="s-points" where="zone:eq:Nord"></dsfr-data-query>
+  <dsfr-data-query id="q-points-sud" source="s-points" where="zone:eq:Sud"></dsfr-data-query>
+  <dsfr-data-map id="carte-points" center="46.6,2.3" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-marqueurs" source="q-points-nord" type="marker"
+      lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+    <dsfr-data-map-layer id="couche-cercles" source="q-points-sud" type="circle"
+      lat-field="lat" lon-field="lon" shape-class="verif-cercle"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        // Les marqueurs n'ont que la classe commune : une seule couche
+        // `marker` sur la carte, le compte est le sien.
+        kind: 'count',
+        id: 'carte-points',
+        selector: '.dsfr-data-map__marker',
+        pipeline: [{ op: 'filter', filters: [{ field: 'zone', op: 'eq', value: 'Nord' }] }],
+      },
+      {
+        kind: 'count',
+        id: 'carte-points',
+        selector: 'path.verif-cercle',
+        pipeline: [{ op: 'filter', filters: [{ field: 'zone', op: 'eq', value: 'Sud' }] }],
+      },
+      {
+        kind: 'diagnostic',
+        // Et la couche n'a écarté aucune ligne faute de position.
+        id: 'couche-marqueurs',
+        expect: 'silence',
+        contains: 'lignes ignorées',
       },
     ],
   },

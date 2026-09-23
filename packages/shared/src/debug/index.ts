@@ -81,5 +81,11 @@ export {
   urlDejaProxifiee,
   REGLES_GENERIQUES,
 } from './constats.js';
-export type { Constat, ContexteConstats, GraviteConstat, RegleConstat } from './constats.js';
+export type {
+  Constat,
+  ContexteConstats,
+  GraviteConstat,
+  RegleConstat,
+  RemedeConstat,
+} from './constats.js';
 export { REGLES_CARTO, REGLES_BUILDER_CARTO, MAX_ITEMS_PAR_DEFAUT } from './constats-carto.js';

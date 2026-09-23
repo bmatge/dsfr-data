@@ -352,6 +352,7 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
 | `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`), avec le nombre qu'on y lit |
 | `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
+| `lireCompte` | le NOMBRE d'éléments tracés sous un sélecteur — formes d'une couche de carte (voir « Les éléments tracés ») |
 | `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
 | `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, bornes d'axes) ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
 | `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
@@ -373,6 +374,29 @@ Chaque lecteur est une fonction **autonome** : Playwright la sérialise pour l'e
 page. Une référence à un symbole de module marcherait sous Vitest et tomberait en `undefined is
 not a function` dans le navigateur — d'où la lecture d'un nombre fr-FR réécrite dans chaque
 lecteur. Leur contrat est fixé sur un DOM minimal par `tests/oracle/observe.test.ts`.
+
+## Les éléments tracés
+
+Un tracé de carte n'a ni texte ni chiffre à relire : ce qui se compare, c'est le **nombre** de
+formes posées, contre le nombre de lignes que le recalcul laisse — une forme par ligne (#1059).
+
+```ts
+{ kind: 'count', id: 'carte', selector: 'path.verif-zone' }                     // tout le jeu
+{ kind: 'count', id: 'carte', selector: '.dsfr-data-map__marker', pipeline: [/* filtre */] }
+```
+
+- **Observation** : `lireCompte({ id, selecteur })` rend le nombre d'éléments que `selector`
+  désigne sous `#id` (light DOM ou shadow root), `null` si l'élément n'existe pas. **Attendu** :
+  `{ kind: 'count', value }`, où `value` est le nombre de lignes après `pipeline` (défaut : le jeu
+  `from`, ou `main`). Égalité exacte ; la clé du rapport porte le sélecteur
+  (`count:carte:path.verif-zone`), deux couches d'une même carte ne s'écrasent donc pas.
+- **Quoi compter** : `path.<shape-class>` pour une couche `geoshape` ou `circle` — la `shape-class`
+  fait la couche ; `.dsfr-data-map__marker` pour une couche `marker`, classe commune à **toutes** les
+  couches `marker` de la carte (une seule par carte contrôlée). Un `cluster` trace des grappes, pas
+  des marqueurs : il ne se compte pas ainsi. Une `heatmap` ne trace aucun élément.
+- **Zéro ne s'observe pas** : c'est l'état d'avant le rendu. Une couche qui ne trace rien tombe sur
+  « n'a rien affiché » (le défaut de #1053) ; une absence voulue se constate par un `diagnostic`.
+- **Troisième voix** : `oracle.py` le couvre (`valeur` = nombre de lignes recalculées).
 
 ## Les silences
 
@@ -454,7 +478,7 @@ rien de plus que la valeur.
 | `null-group` (`field`, `expect`, `count?`) | `visible` : une ligne à clé vide existe et son compte vaut les lignes brutes sans valeur ; `excluded` : aucune, et la somme des comptes vaut les lignes brutes AVEC valeur — clé `''` d'un client, `null` d'un serveur (PG-015) | `groupby-groupe-null-visible`, `qualite-tourisme-group-by-null-exclu` (vivant) |
 | `bounded` (`field?`, `min?`, `max?`) | toute valeur numérique — ou la valeur d'un KPI — dans les bornes ; rien à borner est un échec | `format-pourcentage-et-unite`, `personnels-colleges-part-ponderee` (vivant) |
 | `null-stays-null` (`field`, `rawField?`, `key?`) | aucune absence en amont devenue valeur en aval, ligne à ligne par clé, ou par compte | `compute-arithmetique-absence-et-division-par-zero` |
-| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur`, `plan-de-relance-plafond-max-records` (vivant, **en attente**) |
+| `not-truncated` | autant de lignes reçues que de lignes brutes — OU un diagnostic (lecteur de silences) ; sur un KPI, c'est sa valeur qui compte | `ods-plafond-max-records`, `ods-plafond-sans-compteur`, `plan-de-relance-plafond-max-records` (vivant) |
 
 Le rapport compte les invariants **à part** des valeurs (« invariants : 12
 tenus, 0 violé, 1 en attente ») ; une ligne d'invariant s'écrit
@@ -473,7 +497,7 @@ prémisse « `max-records` tronque en silence » se découpe en trois cas :
 |---|---|---|
 | mode `/records`, un KPI `count` en aval | **oui** — « `value="count"` sur "s-cap" compte 120 lignes reçues, mais l'amont en détient 137 » (#659, `meta.total`) | `ods-plafond-max-records` : tenu par le diagnostic |
 | mode `/records`, sans KPI `count` (somme, graphique) | **oui depuis #1032** — la source avertit en nommant « l'attribut max-records de dsfr-data-source » ; avant, son message ne nommait aucun composant et le lecteur de silences l'écartait | `ods-plafond-sans-compteur` : tenu par le diagnostic, 120 lignes sur 137 |
-| `fetch-mode="export"`, même avec un KPI `count` | **la source, depuis #1032** — l'export ne porte pas de total, le KPI ne peut rien dire ; la source demande `plafond + 1` lignes et avertit en nommant dsfr-data-source | `canari-plafond-export` : tenu par le diagnostic ; `plan-de-relance-plafond-max-records` (vivant) : **en attente** d'une nuit qui le constate, 1 000 lignes sur 3 080 |
+| `fetch-mode="export"`, même avec un KPI `count` | **la source, depuis #1032** — l'export ne porte pas de total, le KPI ne peut rien dire ; la source demande `plafond + 1` lignes et avertit en nommant dsfr-data-source | `canari-plafond-export` : tenu par le diagnostic ; `plan-de-relance-plafond-max-records` (vivant) : tenu par le diagnostic, 1 000 lignes sur 3 080 — levé (#1048) sur la nuit du 2026-09-23 ([run 35857170149](https://github.com/bmatge/dsfr-data/actions/runs/35857170149)) |
 
 La demande était une seule : un mot de la **source** quand `max-records` borne
 un jeu qui le dépasse, export compris. Les avertissements existaient, mais sans
@@ -793,7 +817,10 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/choropleth-scales.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |
 | affichages | `equalIntervalBreaks` divise par `steps - 1` | `carte-classes-intervalles-egaux` | 4 entrées de légende, 5 classes recalculées |
 | affichages | `parseManualBreaks` perd la première borne | `carte-bornes-manuelles` | 3 entrées de légende, 4 classes recalculées |
-| affichages | `_addGeoshape` ne lit plus que `geo-field` (`dsfr-data-map-layer.ts`, l'état d'avant #1053) | `carte-geoshape-sans-geo-field-1053` | « #carte-zones (texts) n'a rien affiché » : aucune forme tracée pour 10 lignes recalculées |
+| affichages | `_addGeoshape` ne lit plus que `geo-field` (`dsfr-data-map-layer.ts`, l'état d'avant #1053) | `carte-geoshape-sans-geo-field-1053` | « #carte-zones (count) n'a rien affiché » : aucune forme tracée pour 10 lignes recalculées |
+| affichages | `_addGeoshape` n'ajoute pas la première forme au groupe, sans rien compter d'ignoré (`if (this._renderedCount > 0) group.addLayer(layer)`) | `carte-geoshape-sans-geo-field-1053` (le silence reste vert) | « 9 élément(s) tracé(s) sous « path.verif-zone », 10 ligne(s) recalculée(s) » : une ligne tue, et la bibliothèque n'en dit rien (#1059) |
+| affichages | `_addMarker` n'ajoute que les marqueurs de longitude positive (`if (coords.lon >= 0) group.addLayer(marker)`) | `carte-marqueurs-et-cercles-comptes-1059` (les cercles restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `.dsfr-data-map__marker` (#1059) |
+| affichages | même défaut dans `_addCircle` | `carte-marqueurs-et-cercles-comptes-1059` (les marqueurs restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `path.verif-cercle` : le compte suit la couche que la `shape-class` désigne (#1059) |
 | affichages | la couche geoshape reprend la détection du calcul d'emprise (`_autoDetectGeoField()`, `geo_point_2d` en tête) | `carte-geoshape-sans-geo-field-1053` | idem : la colonne devinée est le POINT, un `{lat, lon}` sans forme à tracer |
 | affichages | `_getPaginatedData` repart de la ligne 0 (`dsfr-data-list.ts`) | `liste-page-deux` | la page 2 rend les lignes de la page 1 : « Vichy » au lieu de « Nancy » |
 | affichages | le tri de `dsfr-data-list` rend toujours 0 | `liste-tri-numerique`, `liste-tri-croissant` | ligne 0 : affiché « Arles », recalculé « Vichy » |
@@ -854,12 +881,11 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**En attente à ce jour** — un contrôle et trois invariants :
+**En attente à ce jour** — un contrôle et deux invariants :
 
 | Contrôle ou invariant en attente | Domaine | Défaut ou amélioration |
 |---|---|---|
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
-| `plan-de-relance-plafond-max-records#not-truncated` | banc-pages (vivant) | **défaut** (AM-002, #881) : `fetch-mode="export" max-records="1000"` sur 3 080 projets — 1 000 lignes, aucun diagnostic lu ; en export, `meta.total` est absent et même le KPI `count` se tait. Depuis #1032, la source avertit en nommant dsfr-data-source (ses jumeaux déterministes `ods-plafond-sans-compteur` et `canari-plafond-export` ont reverdi) : à lever après une nuit vivante qui le constate. |
 | `canari-jointure-doublon#count-preserved`, `#sum-preserved:montant` | canari | **violés par les données**, pas par la bibliothèque (PG-001) : 42 lignes pour 40, somme +20 — rendus en attente pour être LUS, c'est le point du canari. Aucune issue à ouvrir. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une

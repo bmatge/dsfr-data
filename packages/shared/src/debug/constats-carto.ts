@@ -23,7 +23,7 @@
  *    valeurs) : `includes`, `indexOf`, `===`.
  *
  * Composition (app `builder-carto`) : `[...REGLES_GENERIQUES, ...REGLES_CARTO]`
- * (alias `REGLES_BUILDER_CARTO`). Quatre génériques sont dites mieux ici, par
+ * (alias `REGLES_BUILDER_CARTO`). Cinq génériques sont dites mieux ici, par
  * couche et avec leurs repères : les règles carto les déclarent dans
  * `remplace`, et le moteur retire leurs constats sur les couches (et sur les
  * étapes qu'une couche lit), nulle part ailleurs. Les garder sur une même
@@ -42,6 +42,7 @@ import {
   type Constat,
   type GraviteConstat,
   type RegleConstat,
+  type RemedeConstat,
 } from './constats.js';
 
 /** L'app dont ces règles désignent les repères. */
@@ -306,6 +307,7 @@ interface Champs {
   explication: string;
   action?: string;
   reperes: readonly string[];
+  remedes?: readonly RemedeConstat[];
   preuve: string;
 }
 
@@ -318,6 +320,7 @@ function constatCouche(regle: string, gravite: GraviteConstat, c: Couche, champs
     explication: champs.explication,
     ...(champs.action !== undefined ? { action: champs.action } : {}),
     reperes: champs.reperes,
+    ...(champs.remedes !== undefined ? { remedes: champs.remedes } : {}),
     preuve: champs.preuve,
     etape: c.node.id,
   };
@@ -527,6 +530,85 @@ const tronqueMaxItems = regleParCouche('carte/tronque-max-items', (c) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Jeu tronqué par la source : des remèdes au choix (#1021)
+// ---------------------------------------------------------------------------
+
+/** Composer par échelle : l'encart du panneau Couches (#1021, lot 1). */
+const REMEDE_COMPOSER: RemedeConstat = {
+  libelle: 'Composer par échelle',
+  repere: 'carto.couches.composition.composer',
+};
+/** Filtre de la couche, qui devient le `where` de sa source. */
+const REMEDE_FILTRER: RemedeConstat = {
+  libelle: 'Filtrer en amont',
+  repere: 'carto.elements.avancees.filtre',
+};
+/** Plafond de la couche : le builder y aligne le `limit` de la source (#1020). */
+const REMEDE_PLAFOND: RemedeConstat = {
+  libelle: 'Relever le plafond',
+  repere: 'carto.elements.avancees.max-items',
+};
+
+/** « A, b ou c » : les remèdes dits dans l'action, en minuscule après le premier. */
+function direRemedes(remedes: readonly RemedeConstat[]): string {
+  const gestes = remedes.map((r, i) => (i === 0 ? r.libelle : r.libelle.toLowerCase()));
+  if (gestes.length < 2) return gestes.join('');
+  return `${gestes.slice(0, -1).join(', ')} ou ${gestes[gestes.length - 1]}`;
+}
+
+/**
+ * La source que lit la couche a coupé le jeu (`meta.truncated`). Depuis
+ * #1020, c'est le cas ordinaire d'un gros jeu dans le builder, dont la source
+ * porte `limit` = `max-items` : la couche dessine tout ce qu'elle reçoit, la
+ * coupe est en amont, et `carte/tronque-max-items` ne parle pas.
+ *
+ * Remèdes au choix, dans l'ordre de l'issue #1021 : composer par échelle
+ * (le seul qui montre tout le jeu, compté par le serveur), filtrer en amont,
+ * relever le plafond. « Charger selon la zone visible » n'y est pas : sur
+ * Tabular, `bbox` ne filtre que côté client tant que #1023 n'est pas
+ * implémenté. La composition n'est proposée qu'à une couche de points pas
+ * encore composée (`min-zoom` absent) ; le plafond, que si la coupe est le
+ * `limit` d'une source, celui que règle « Nombre max d'éléments affichés ».
+ *
+ * Remplace `pipeline/tronque` sur la source que la couche lit : le même
+ * fait, dit avec ses repères.
+ */
+const jeuTronque = regleParCouche(
+  'carte/jeu-tronque',
+  (c, _d, trace) => {
+    const meta = c.amont?.meta;
+    if (!c.amontId || !meta?.truncated || lignesRecues(c) === 0) return null;
+    const amontId = c.amontId;
+    const amont = trace.graph.nodes.find((n) => n.id === amontId);
+    const limit = amont?.attrs.limit ?? '';
+    const parLimit = amont?.tag === 'dsfr-data-source' && limit.trim() !== '';
+    const maxRecords = amont?.attrs['max-records'] ?? '';
+    const cite = parLimit
+      ? `limit="${limit}"`
+      : maxRecords.trim() !== ''
+        ? `max-records="${maxRecords}"`
+        : 'plafond max-records par défaut';
+    const composable = c.type !== 'geoshape' && c.node.attrs['min-zoom'] === undefined;
+    const remedes: RemedeConstat[] = [
+      ...(composable ? [REMEDE_COMPOSER] : []),
+      REMEDE_FILTRER,
+      ...(parLimit ? [REMEDE_PLAFOND] : []),
+    ];
+    const total = meta.total !== undefined ? ` / ${formatInt(meta.total)}` : ' (total inconnu)';
+    return constatCouche('carte/jeu-tronque', 'avertissement', c, {
+      titre: `${c.node.id} : la carte ne montre qu’une partie du jeu (${cite})`,
+      explication:
+        'La source ne livre que les premières lignes du jeu : les points dessinés ne sont pas un échantillon représentatif, et le reste du territoire paraît vide.',
+      action: direRemedes(remedes),
+      reperes: remedes.map((r) => r.repere),
+      remedes,
+      preuve: `${formatInt(lignesRecues(c))}${total} lignes, ${amontId} : ${cite}`,
+    });
+  },
+  ['pipeline/tronque']
+);
+
 /** La couche a-t-elle déjà un remède au volume (regroupement, zone visible, chaleur) ? */
 function allegee(c: Couche): boolean {
   return (
@@ -699,6 +781,7 @@ export const REGLES_CARTO: readonly RegleConstat[] = [
   pointsEmpiles,
   lignesIgnorees,
   tronqueMaxItems,
+  jeuTronque,
   volumeExcessif,
   latenceExcessive,
   rienDessine,

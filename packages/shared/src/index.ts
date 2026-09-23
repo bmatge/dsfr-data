@@ -266,10 +266,14 @@ export {
   CLE_CODE_CONFIE,
   CLE_CODE_RAPPORTE,
   normaliserCode,
-  verdictRetourPlayground,
+  APPS_ACCUEIL,
+  estAppAccueil,
+  verdictRetourAuBuilder,
   AVERTISSEMENT_RETOUR_PLAYGROUND,
+  AVERTISSEMENT_RETOUR_PIPELINE,
+  RETOUR_VERS_ACCUEIL,
 } from './ui/passation.js';
-export type { VerdictRetour } from './ui/passation.js';
+export type { VerdictRetour, AppAccueil, AvertissementRetour } from './ui/passation.js';
 
 // Repères d'interface : contrat du registre généré (#997, ADR-143) — app-side, types seuls
 export type {
@@ -518,6 +522,28 @@ export {
   searchSkills,
   matchSkills,
 } from './ia/skill-matching.js';
+
+// --- Adressage par niveau / reference des skills ecrites a la main (#1035) ---
+// Source unique : ZERO import dans skill-levels.ts (copie verbatim vers le MCP).
+export type {
+  SkillLevelId,
+  SkillReferencePart,
+  LeveledSkill,
+  SkillAddress,
+  SkillSelection,
+} from './ia/skill-levels.js';
+export {
+  SKILL_LEVEL_IDS,
+  DEFAULT_SKILL_LEVEL,
+  SKILL_LEVEL_LABELS,
+  isLeveledSkill,
+  levelsOf,
+  referenceIdsOf,
+  normalizeReferenceId,
+  selectLevelOrReference,
+  describeLevels,
+  levelIndexText,
+} from './ia/skill-levels.js';
 
 // --- Correspondance sans modele : phrase -> repere d'interface (#1012, app-side) ---
 export type {

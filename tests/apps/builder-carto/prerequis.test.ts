@@ -26,8 +26,9 @@ function etat(reglages: Partial<LayerConfig> = {}, active = 'layer-a'): CartoSta
 const SOURCE = { id: 's', name: 'Source', type: 'manual', data: [] };
 
 describe('prérequis de la carto', () => {
-  it('les cinq règles attendues, et elles seules', () => {
+  it('les six règles attendues, et elles seules', () => {
     expect(Object.keys(PREREQUIS).sort()).toEqual([
+      'composition-proposee',
       'couche-active',
       'couche-interactive',
       'couche-source',
@@ -71,5 +72,26 @@ describe('prérequis de la carto', () => {
     expect(PREREQUIS['popup-champs'].verifier(etat({ popupFields: 'nom,adresse' }))).toBe(true);
     expect(PREREQUIS['popup-champs'].verifier(etat({ popupFields: '' }))).toBe(false);
     expect(PREREQUIS['popup-champs'].verifier(etat({ popupFields: 'nom' }, 'aucune'))).toBe(false);
+  });
+
+  it('composition-proposee : couche de données à champ territoire, ni agrégée ni composée', () => {
+    const regle = PREREQUIS['composition-proposee'];
+    const territoire = { champ: 'Code du département', niveau: 'departement' as const };
+    expect(regle.verifier(etat({ source: SOURCE, territoire }))).toBe(true);
+    expect(regle.verifier(etat({ source: SOURCE, territoire: null }))).toBe(false);
+    expect(regle.verifier(etat({ source: null, territoire }))).toBe(false);
+    expect(regle.verifier(etat({ source: SOURCE, territoire }, 'aucune'))).toBe(false);
+    expect(
+      regle.verifier(etat({ source: SOURCE, territoire, agregat: { ...territoire, depuis: 'x' } }))
+    ).toBe(false);
+    // Déjà composée : une couche agrégée en est issue.
+    const compose = etat({ source: SOURCE, territoire });
+    const zones: LayerConfig = {
+      ...createLayer(),
+      id: 'layer-b',
+      agregat: { ...territoire, depuis: 'layer-a' },
+    };
+    expect(regle.verifier({ ...compose, layers: [...compose.layers, zones] })).toBe(false);
+    expect(regle.repereQuiLeve).toBe('carto.couches.liste');
   });
 });

@@ -36,9 +36,12 @@ import {
   searchSkills,
   getWidgetSkillIds,
   routeMcpRequest,
-  selectSection,
-  sectionsOf,
+  selectSkillText,
+  relevantSkillText,
+  describeSkillLine,
   SKILL_SECTION_IDS,
+  SKILL_LEVEL_IDS,
+  DEFAULT_SKILL_LEVEL,
 } from './skills.js';
 import type { Skill } from './skills.js';
 import {
@@ -177,24 +180,24 @@ function createMcpServer(): McpServer {
 
   server.tool(
     'list_skills',
-    'List all available dsfr-data skills (id, name, description, addressable sections)',
+    'List all available dsfr-data skills (id, name, description, addressable sections, and for a multi-level hand-written skill such as datavizMetier: its levels and references)',
     async () => {
       const skills = await loadSkills();
       const meta = await loadSkillsMeta();
-      const list = skills.map(s => {
-        // Annoncer les sections evite un get_skill "tout" par defaut : l'agent
-        // voit d'emblee qu'il peut demander `reference` seule (#513).
-        const sections = sectionsOf(s);
-        const suffix = sections.length > 0 ? ` — sections: ${sections.join(', ')}` : '';
-        return `- **${s.name}** (${s.id}): ${s.description}${suffix}`;
-      }).join('\n');
+      // Annoncer les sections evite un get_skill "tout" par defaut : l'agent
+      // voit d'emblee qu'il peut demander `reference` seule (#513). Les niveaux
+      // et references d'une skill multiniveau s'annoncent de meme (#1035).
+      const list = skills.map(describeSkillLine).join('\n');
       return {
         content: [{
           type: 'text' as const,
           text:
             `## dsfr-data skills (${skills.length}) — ${describeMeta(meta)}\n\n${list}\n\n` +
             `Utiliser \`get_skill(skill_id, section)\` pour ne recevoir qu'une section ` +
-            `plutot que la fiche entiere.\n\n` +
+            `plutot que la fiche entiere. Une skill a niveaux s'adresse par ` +
+            `\`get_skill(skill_id, niveau)\` (${SKILL_LEVEL_IDS.join(' | ')}) ou ` +
+            `\`get_skill(skill_id, reference)\` ; sans niveau, l'${DEFAULT_SKILL_LEVEL} ` +
+            `est servi et annonce.\n\n` +
             `Ces fiches datent de l'instance servie (${baseUrl}), pas du depot : ` +
             `un manque apparent peut n'etre qu'un retard de deploiement.`,
         }],
@@ -206,17 +209,30 @@ function createMcpServer(): McpServer {
 
   server.tool(
     'get_skill',
-    'Get a skill by ID. Pass `section` to retrieve only the relevant part: a full skill can be 16 KB, a section is 2 to 4 times smaller.',
+    'Get a skill by ID. Pass `section` to retrieve only the relevant part: a full skill can be 16 KB, a section is 2 to 4 times smaller. A multi-level hand-written skill (datavizMetier) is addressed by `niveau` (base | intermediaire | avance) or by `reference` (one reference file, see list_skills); called with none of them it serves the intermediaire level and says so — ask the user for the level when you can.',
     {
-      skill_id: z.string().describe('Skill ID (e.g. dsfrDataSource, dsfrDataChart, createChartAction)'),
+      skill_id: z.string().describe('Skill ID (e.g. dsfrDataSource, dsfrDataChart, datavizMetier)'),
       section: z
         .enum([...SKILL_SECTION_IDS, 'tout'])
         .optional()
         .describe(
           'guide = role, pipeline position, data format · reference = attributes, types, defaults, events, slots, CSS variables (generated from the source code) · exemples = code snippets and composition patterns · pieges = mandatory rules and common mistakes · tout = whole skill (default)',
         ),
+      niveau: z
+        .enum(SKILL_LEVEL_IDS)
+        .optional()
+        .describe(
+          'Multi-level skills only (datavizMetier): base = one chart, card or KPI · intermediaire = a block of three to six views (served by default, announced) · avance = a whole page or story. Exclusive with section and reference.',
+        ),
+      reference: z
+        .string()
+        .max(80)
+        .optional()
+        .describe(
+          'Multi-level skills only: one reference by id, as listed by list_skills (e.g. choisir-la-forme, echelles-honnetes). Exclusive with section and niveau.',
+        ),
     },
-    async ({ skill_id, section }) => {
+    async ({ skill_id, section, niveau, reference }) => {
       const skills = await loadSkills();
       const skill = skills.find(s => s.id === skill_id);
       if (!skill) {
@@ -229,11 +245,13 @@ function createMcpServer(): McpServer {
           isError: true,
         };
       }
+      const selection = selectSkillText(skill, { section, niveau, reference });
       return {
         content: [{
           type: 'text' as const,
-          text: selectSection(skill, section),
+          text: selection.text,
         }],
+        ...(selection.error ? { isError: true } : {}),
       };
     },
   );
@@ -244,7 +262,7 @@ function createMcpServer(): McpServer {
 
   server.tool(
     'get_relevant_skills',
-    'Get skills relevant to a user message (weighted scoring on triggers, description and section titles — same engine as the dsfr-data builder). Returns the full content of the best matches, ranked.',
+    'Get skills relevant to a user message (weighted scoring on triggers, description and section titles — same engine as the dsfr-data builder). Returns the full content of the best matches, ranked — except for a multi-level skill (datavizMetier), which returns its index and the list of its levels and references: follow up with get_skill(skill_id, niveau | reference).',
     {
       message: z.string().describe('User message to match (e.g. "graphique barres par region")'),
       section: z
@@ -267,7 +285,7 @@ function createMcpServer(): McpServer {
         };
       }
       const text = matched
-        .map(m => `<!-- ${m.skill.id} (score ${m.score}: ${m.reasons.join(' | ')}) -->\n${selectSection(m.skill, section)}`)
+        .map(m => `<!-- ${m.skill.id} (score ${m.score}: ${m.reasons.join(' | ')}) -->\n${relevantSkillText(m.skill, section)}`)
         .join('\n\n---\n\n');
       return {
         content: [{

@@ -10,17 +10,23 @@ import {
 } from '../../../apps/builder/src/etat-depose';
 
 describe('estOrigineEtatDepose', () => {
-  it('accepte les trois apps qui déposent un état : favoris, Playground, tableau de bord', () => {
-    expect([...ORIGINES_ETAT_DEPOSE].sort()).toEqual(['dashboard', 'favorites', 'playground']);
+  it('accepte les quatre apps qui déposent un état : favoris, Playground, tableau de bord, Pipeline', () => {
+    expect([...ORIGINES_ETAT_DEPOSE].sort()).toEqual([
+      'dashboard',
+      'favorites',
+      'pipeline-helper',
+      'playground',
+    ]);
     expect(estOrigineEtatDepose('dashboard')).toBe(true);
     expect(estOrigineEtatDepose('favorites')).toBe(true);
     expect(estOrigineEtatDepose('playground')).toBe(true);
+    expect(estOrigineEtatDepose('pipeline-helper')).toBe(true);
   });
 
   it('refuse une origine absente ou inconnue', () => {
     expect(estOrigineEtatDepose(null)).toBe(false);
     expect(estOrigineEtatDepose('')).toBe(false);
-    expect(estOrigineEtatDepose('pipeline-helper')).toBe(false);
+    expect(estOrigineEtatDepose('pipeline')).toBe(false);
     expect(estOrigineEtatDepose('__proto__')).toBe(false);
   });
 });

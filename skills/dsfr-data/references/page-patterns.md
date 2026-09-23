@@ -378,4 +378,5 @@ contenu à l'impression et à la recherche dans la page.
    tableau.
 7. Une carte est toujours doublée de sa liste.
 8. Lire `datavizMetier` avant (quelle forme, quelle honnêteté), `dsfrLayout` après (quelle
-   grille) : `get_skill("datavizMetier")` et `get_skill("dsfrLayout")` côté MCP.
+   grille) : `get_skill("datavizMetier", niveau: "avance")` pour une page entière (sans niveau,
+   l'intermédiaire est servi et annoncé) et `get_skill("dsfrLayout")`, côté MCP et Studio IA.

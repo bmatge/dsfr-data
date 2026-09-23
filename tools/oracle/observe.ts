@@ -244,6 +244,22 @@ export function lireTextes({ id, selecteur }: { id: string; selecteur: string })
 }
 
 /**
+ * NOMBRE d'éléments TRACÉS que `selecteur` désigne dans le composant (#1059) :
+ * les formes SVG d'une couche `geoshape` ou `circle` (`path.<shape-class>`),
+ * les marqueurs d'une couche `marker` (`.dsfr-data-map__marker`). Un tracé n'a
+ * pas de texte : on compte les éléments, sans rien relire d'autre.
+ *
+ * `null` quand le composant n'existe pas — ce n'est pas « zéro tracé ».
+ */
+export function lireCompte({ id, selecteur }: { id: string; selecteur: string }): number | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  const racine: ParentNode = hote.shadowRoot ?? hote;
+  const dansRacine = racine.querySelectorAll(selecteur).length;
+  return dansRacine > 0 ? dansRacine : hote.querySelectorAll(selecteur).length;
+}
+
+/**
  * CLASSES de l'élément désigné : c'est par là qu'un KPI dit « bon »,
  * « attention » ou « critique ». Un habillage qui ne suit pas le chiffre ment
  * autant qu'un chiffre faux, et aucune lecture de valeur ne l'attrape.
