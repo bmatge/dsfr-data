@@ -35,8 +35,8 @@ export function closeConfigModal(): void {
 function getConfigForm(widget: Widget): string {
   const commonFields = `
     <div class="config-group">
-      <label>Titre du widget</label>
-      <input type="text" id="config-title" value="${escapeHtml(widget.title)}">
+      <label for="config-title">Titre du widget</label>
+      <input type="text" id="config-title" data-repere="dashboard.widget.titre" value="${escapeHtml(widget.title)}">
     </div>
   `;
 
@@ -45,21 +45,22 @@ function getConfigForm(widget: Widget): string {
       return (
         commonFields +
         `
+        <div data-zone="dashboard.widget.kpi" data-prerequis="widget-kpi" role="group" aria-label="Réglages du KPI">
         <div class="config-group">
-          <label>Valeur
+          <label for="config-value">Valeur
             <span class="fr-hint-text">Un nombre ou un calcul : sum:population, avg:budget, count:*</span>
           </label>
-          <input type="text" id="config-value" value="${escapeHtml(widget.config.value || '')}">
+          <input type="text" id="config-value" data-repere="dashboard.widget.kpi.valeur" data-prerequis="widget-kpi" data-attribut="dsfr-data-kpi:valeur" value="${escapeHtml(widget.config.value || '')}">
         </div>
         <div class="config-group">
-          <label>Label
-            <span class="fr-hint-text">Texte affiche sous la valeur (ex : Population totale)</span>
+          <label for="config-label">Label
+            <span class="fr-hint-text">Texte affiché sous la valeur (ex : Population totale)</span>
           </label>
-          <input type="text" id="config-label" value="${escapeHtml(widget.config.label || '')}">
+          <input type="text" id="config-label" data-repere="dashboard.widget.kpi.libelle" data-prerequis="widget-kpi" data-attribut="dsfr-data-kpi:label" value="${escapeHtml(widget.config.label || '')}">
         </div>
         <div class="config-group">
-          <label>Format</label>
-          <select id="config-format">
+          <label for="config-format">Format</label>
+          <select id="config-format" data-repere="dashboard.widget.kpi.format" data-prerequis="widget-kpi" data-attribut="dsfr-data-kpi:format">
             <option value="nombre" ${widget.config.format === 'nombre' ? 'selected' : ''}>Nombre</option>
             <option value="pourcentage" ${widget.config.format === 'pourcentage' ? 'selected' : ''}>Pourcentage</option>
             <option value="euro" ${widget.config.format === 'euro' ? 'selected' : ''}>Euro</option>
@@ -67,10 +68,11 @@ function getConfigForm(widget: Widget): string {
           </select>
         </div>
         <div class="config-group">
-          <label>Icone
+          <label for="config-icon">Icône
             <span class="fr-hint-text">Nom Remix Icon (ex : ri-money-euro-circle-line). <a href="https://remixicon.com/" target="_blank" rel="noopener">Catalogue</a></span>
           </label>
-          <input type="text" id="config-icon" value="${escapeHtml(widget.config.icon || '')}">
+          <input type="text" id="config-icon" data-repere="dashboard.widget.kpi.icone" data-prerequis="widget-kpi" data-attribut="dsfr-data-kpi:icone" value="${escapeHtml(widget.config.icon || '')}">
+        </div>
         </div>
       `
       );
@@ -104,9 +106,10 @@ function getConfigForm(widget: Widget): string {
       return (
         commonFields +
         `
+        <div data-zone="dashboard.widget.graphique" data-prerequis="widget-graphique" role="group" aria-label="Réglages du graphique">
         <div class="config-group">
-          <label>Type de graphique</label>
-          <select id="config-type">
+          <label for="config-type">Type de graphique</label>
+          <select id="config-type" data-repere="dashboard.widget.graphique.type" data-prerequis="widget-graphique" data-attribut="dsfr-data-chart:type">
             <option value="bar" ${widget.config.type === 'bar' ? 'selected' : ''}>Barres</option>
             <option value="line" ${widget.config.type === 'line' ? 'selected' : ''}>Ligne</option>
             <option value="pie" ${widget.config.type === 'pie' ? 'selected' : ''}>Camembert</option>
@@ -114,24 +117,25 @@ function getConfigForm(widget: Widget): string {
           </select>
         </div>
         <div class="config-group">
-          <label>Champ pour les etiquettes (axe X)
+          <label for="config-labelField">Champ pour les étiquettes (axe X)
             <span class="fr-hint-text">Ex : region, annee, catégorie</span>
           </label>
-          <input type="text" id="config-labelField" value="${escapeHtml(widget.config.labelField || '')}">
+          <input type="text" id="config-labelField" data-repere="dashboard.widget.graphique.champ-x" data-prerequis="widget-graphique" data-attribut="dsfr-data-chart:label-field" value="${escapeHtml(widget.config.labelField || '')}">
         </div>
         <div class="config-group">
-          <label>Champ pour les valeurs (axe Y)
+          <label for="config-valueField">Champ pour les valeurs (axe Y)
             <span class="fr-hint-text">Ex : population, budget, score</span>
           </label>
-          <input type="text" id="config-valueField" value="${escapeHtml(widget.config.valueField || '')}">
+          <input type="text" id="config-valueField" data-repere="dashboard.widget.graphique.champ-y" data-prerequis="widget-graphique" data-attribut="dsfr-data-chart:value-field" value="${escapeHtml(widget.config.valueField || '')}">
         </div>
         <div class="config-group">
-          <label>Palette de couleurs</label>
-          <select id="config-palette">
-            <option value="categorical" ${widget.config.palette === 'categorical' ? 'selected' : ''}>Categorielle</option>
-            <option value="sequentialAscending" ${widget.config.palette === 'sequentialAscending' ? 'selected' : ''}>Sequentielle</option>
+          <label for="config-palette">Palette de couleurs</label>
+          <select id="config-palette" data-repere="dashboard.widget.graphique.palette" data-prerequis="widget-graphique" data-attribut="dsfr-data-chart:selected-palette">
+            <option value="categorical" ${widget.config.palette === 'categorical' ? 'selected' : ''}>Catégorielle</option>
+            <option value="sequentialAscending" ${widget.config.palette === 'sequentialAscending' ? 'selected' : ''}>Séquentielle</option>
             <option value="divergent" ${widget.config.palette === 'divergent' ? 'selected' : ''}>Divergente</option>
           </select>
+        </div>
         </div>
       `
       );
@@ -141,23 +145,25 @@ function getConfigForm(widget: Widget): string {
       return (
         commonFields +
         `
+        <div data-zone="dashboard.widget.tableau" data-prerequis="widget-tableau" role="group" aria-label="Réglages du tableau">
         <div class="config-group">
-          <label>Colonnes
-            <span class="fr-hint-text">Noms des champs a afficher, separes par des virgules (ex : nom, ville, budget)</span>
+          <label for="config-columns">Colonnes
+            <span class="fr-hint-text">Noms des champs à afficher, séparés par des virgules (ex : nom, ville, budget)</span>
           </label>
-          <input type="text" id="config-columns" value="${(widget.config.columns || []).join(', ')}">
+          <input type="text" id="config-columns" data-repere="dashboard.widget.tableau.colonnes" data-prerequis="widget-tableau" data-attribut="dsfr-data-list:colonnes" value="${escapeHtml((widget.config.columns || []).join(', '))}">
         </div>
         <div class="config-group">
           <label>
-            <input type="checkbox" id="config-searchable" ${widget.config.searchable ? 'checked' : ''}>
-            Recherche activee
+            <input type="checkbox" id="config-searchable" data-repere="dashboard.widget.tableau.recherche" data-prerequis="widget-tableau" data-attribut="dsfr-data-list:recherche" ${widget.config.searchable ? 'checked' : ''}>
+            Recherche activée
           </label>
         </div>
         <div class="config-group">
           <label>
-            <input type="checkbox" id="config-sortable" ${widget.config.sortable ? 'checked' : ''}>
-            Tri active
+            <input type="checkbox" id="config-sortable" data-repere="dashboard.widget.tableau.tri" data-prerequis="widget-tableau" data-attribut="dsfr-data-list:tri" ${widget.config.sortable ? 'checked' : ''}>
+            Tri activé
           </label>
+        </div>
         </div>
       `
       );
@@ -166,17 +172,19 @@ function getConfigForm(widget: Widget): string {
       return (
         commonFields +
         `
+        <div data-zone="dashboard.widget.texte" data-prerequis="widget-texte" role="group" aria-label="Réglages du texte">
         <div class="config-group">
-          <label>Contenu HTML</label>
-          <textarea id="config-content">${escapeHtml(widget.config.content || '')}</textarea>
+          <label for="config-content">Contenu HTML</label>
+          <textarea id="config-content" data-repere="dashboard.widget.texte.contenu" data-prerequis="widget-texte">${escapeHtml(widget.config.content || '')}</textarea>
         </div>
         <div class="config-group">
-          <label>Style</label>
-          <select id="config-style">
+          <label for="config-style">Style</label>
+          <select id="config-style" data-repere="dashboard.widget.texte.style" data-prerequis="widget-texte">
             <option value="paragraph" ${widget.config.style === 'paragraph' ? 'selected' : ''}>Paragraphe</option>
             <option value="title" ${widget.config.style === 'title' ? 'selected' : ''}>Titre</option>
             <option value="callout" ${widget.config.style === 'callout' ? 'selected' : ''}>Callout</option>
           </select>
+        </div>
         </div>
       `
       );

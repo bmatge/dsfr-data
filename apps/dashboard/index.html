@@ -30,14 +30,14 @@
        historiques conservés (#btn-new, #btn-load, #btn-save, #btn-export,
        #btn-preview) ; le titre éditable et les templates restent dans la
        barre d'outils du canevas (.vde-toolbar). -->
-  <app-action-bar heading="Créer un tableau de bord">
-    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
-    <button slot="secondary" id="btn-load" class="fr-icon-folder-2-line fr-btn--icon-left" title="Ouvrir un tableau de bord enregistré">Ouvrir</button>
-    <button slot="tertiary" id="btn-export" class="fr-icon-download-line" title="Télécharger le tableau de bord en page HTML autonome">Exporter la page HTML</button>
-    <button slot="tertiary" id="btn-preview" class="fr-icon-fullscreen-line" title="Afficher l'aperçu en plein écran">Plein écran</button>
-    <button slot="tertiary" id="btn-new" class="fr-icon-add-line" title="Repartir d'un tableau de bord vierge">Nouveau</button>
-    <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="primary" id="btn-save" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
+  <app-action-bar heading="Créer un tableau de bord" data-zone="dashboard.actions" data-repere-libelle="Barre d'actions">
+    <button slot="help" id="tour-btn" data-repere="dashboard.actions.visite" class="fr-icon-question-line">Visite guidée</button>
+    <button slot="secondary" id="btn-load" data-repere="dashboard.actions.ouvrir" class="fr-icon-folder-2-line fr-btn--icon-left" title="Ouvrir un tableau de bord enregistré">Ouvrir</button>
+    <button slot="tertiary" id="btn-export" data-repere="dashboard.actions.exporter" class="fr-icon-download-line" title="Télécharger le tableau de bord en page HTML autonome">Exporter la page HTML</button>
+    <button slot="tertiary" id="btn-preview" data-repere="dashboard.actions.plein-ecran" class="fr-icon-fullscreen-line" title="Afficher l'aperçu en plein écran">Plein écran</button>
+    <button slot="tertiary" id="btn-new" data-repere="dashboard.actions.nouveau" class="fr-icon-add-line" title="Repartir d'un tableau de bord vierge">Nouveau</button>
+    <button slot="tertiary" id="diagnostic-btn" data-repere="dashboard.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <button slot="primary" id="btn-save" data-repere="dashboard.actions.enregistrer" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
   </app-action-bar>
 
   <div class="vde-container">
@@ -46,20 +46,20 @@
       <!-- Bibliothèque de widgets -->
       <div class="vde-sidebar-section">
         <h3><i class="ri-dashboard-line"></i> Widgets</h3>
-        <div class="widget-library" id="widget-library">
-          <div class="widget-item" draggable="true" data-widget-type="kpi">
+        <div class="widget-library" id="widget-library" data-zone="dashboard.bibliotheque" data-repere-libelle="Bibliothèque de widgets">
+          <div class="widget-item" draggable="true" data-widget-type="kpi" data-repere="dashboard.bibliotheque.kpi" data-repere-libelle="Widget KPI">
             <i class="ri-number-1"></i>
             <span>KPI</span>
           </div>
-          <div class="widget-item" draggable="true" data-widget-type="chart">
+          <div class="widget-item" draggable="true" data-widget-type="chart" data-repere="dashboard.bibliotheque.graphique" data-repere-libelle="Widget graphique">
             <i class="ri-bar-chart-box-line"></i>
             <span>Graphique</span>
           </div>
-          <div class="widget-item" draggable="true" data-widget-type="table">
+          <div class="widget-item" draggable="true" data-widget-type="table" data-repere="dashboard.bibliotheque.tableau" data-repere-libelle="Widget tableau">
             <i class="ri-table-line"></i>
             <span>Tableau</span>
           </div>
-          <div class="widget-item" draggable="true" data-widget-type="text">
+          <div class="widget-item" draggable="true" data-widget-type="text" data-repere="dashboard.bibliotheque.texte" data-repere-libelle="Widget texte">
             <i class="ri-text"></i>
             <span>Texte</span>
           </div>
@@ -77,11 +77,11 @@
       <!-- Paramètres de grille -->
       <div class="vde-sidebar-section">
         <h3><i class="ri-settings-3-line"></i> Grille</h3>
-        <div class="grid-settings">
+        <div class="grid-settings" data-zone="dashboard.grille" data-repere-libelle="Grille">
           <label>
             Colonnes par défaut
             <span class="fr-hint-text" style="font-weight:400;">Nombre de widgets cote a cote par ligne</span>
-            <select id="grid-columns">
+            <select id="grid-columns" data-repere="dashboard.grille.colonnes">
               <option value="1">1 colonne</option>
               <option value="2" selected>2 colonnes</option>
               <option value="3">3 colonnes</option>
@@ -90,7 +90,7 @@
           </label>
           <label>
             Espacement
-            <select id="grid-gap">
+            <select id="grid-gap" data-repere="dashboard.grille.espacement">
               <option value="fr-grid-row--gutters">Normal</option>
               <option value="">Sans espacement</option>
             </select>
@@ -101,21 +101,23 @@
       <!-- Sources -->
       <div class="vde-sidebar-section">
         <h3><i class="ri-database-2-line"></i> Sources</h3>
+        <div data-zone="dashboard.sources" data-repere-libelle="Sources">
         <div id="sources-list">
           <p class="favorites-empty">Aucune source</p>
         </div>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w" id="add-source-btn">
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w" id="add-source-btn" data-repere="dashboard.sources.ajouter">
           <i class="ri-add-line"></i> Ajouter une source
         </button>
+        </div>
       </div>
     </aside>
 
     <!-- Zone principale -->
-    <main class="vde-main" id="main-content" tabindex="-1">
+    <main class="vde-main" id="main-content" tabindex="-1" data-zone="dashboard.canevas" data-repere-libelle="Tableau de bord">
       <!-- Toolbar -->
       <div class="vde-toolbar">
         <div class="vde-toolbar-left">
-          <input type="text" class="dashboard-title-input" id="dashboard-title" value="Mon tableau de bord" placeholder="Titre du dashboard">
+          <input type="text" class="dashboard-title-input" id="dashboard-title" data-repere="dashboard.canevas.titre" aria-label="Titre du tableau de bord" value="Mon tableau de bord" placeholder="Titre du dashboard">
         </div>
       </div>
 
@@ -124,18 +126,18 @@
       <div class="fr-tabs vde-tabs">
         <ul class="fr-tabs__list" role="tablist" aria-label="Tableau de bord">
           <li role="presentation">
-            <button type="button" id="tab-design-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="tab-design">Aperçu</button>
+            <button type="button" id="tab-design-btn" data-repere="dashboard.canevas.onglet-apercu" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="tab-design">Aperçu</button>
           </li>
           <li role="presentation">
-            <button type="button" id="tab-code-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-code">Code</button>
+            <button type="button" id="tab-code-btn" data-repere="dashboard.canevas.onglet-code" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-code">Code</button>
           </li>
           <li role="presentation">
-            <button type="button" id="tab-json-btn" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-json">JSON</button>
+            <button type="button" id="tab-json-btn" data-repere="dashboard.canevas.onglet-json" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-json">JSON</button>
           </li>
         </ul>
         <!-- À droite sur la ligne des onglets : modèles de tableau de bord -->
         <div class="vde-tabs-aside">
-          <select id="template-select" class="fr-select fr-select--sm" aria-label="Modèles de tableau de bord">
+          <select id="template-select" data-repere="dashboard.canevas.modeles" class="fr-select fr-select--sm" aria-label="Modèles de tableau de bord">
             <option value="">Modèles…</option>
             <option value="kpi-chart">3 KPIs + Graphique</option>
             <option value="two-charts">2 Graphiques</option>
@@ -147,7 +149,7 @@
       <div class="fr-tabs__panel fr-tabs__panel--selected vde-tab-panel" id="tab-design" role="tabpanel" aria-labelledby="tab-design-btn" tabindex="0">
         <div class="vde-preview">
           <div class="vde-canvas">
-            <div class="dashboard-grid" id="dashboard-grid">
+            <div class="dashboard-grid" id="dashboard-grid" data-zone="dashboard.canevas.grille" data-repere-libelle="Grille du tableau de bord">
               <!-- Ligne 1 -->
               <div class="fr-grid-row fr-grid-row--gutters dashboard-row" data-row="0">
                 <div class="fr-col-12 fr-col-md-6">
@@ -169,7 +171,7 @@
               </div>
             </div>
 
-            <button type="button" class="add-row-btn app-card-choice app-card-choice--dashed" id="add-row-btn">
+            <button type="button" class="add-row-btn app-card-choice app-card-choice--dashed" id="add-row-btn" data-repere="dashboard.canevas.ajouter-ligne">
               <i class="ri-add-line" aria-hidden="true"></i> Ajouter une ligne
             </button>
           </div>
@@ -190,18 +192,18 @@
   </div>
 
   <!-- Modal de configuration -->
-  <div class="config-modal" id="config-modal">
+  <div class="config-modal" id="config-modal" data-zone="dashboard.widget">
     <div class="config-modal-content">
       <div class="config-modal-header">
         <h3 id="config-modal-title">Configurer le widget</h3>
-        <button class="fr-btn fr-btn--close" id="close-modal" title="Fermer">Fermer</button>
+        <button class="fr-btn fr-btn--close" id="close-modal" data-repere="dashboard.widget.fermer" title="Fermer">Fermer</button>
       </div>
       <div class="config-modal-body" id="config-modal-body">
         <!-- Contenu dynamique -->
       </div>
       <div class="config-modal-footer">
-        <button class="fr-btn fr-btn--secondary" id="cancel-config">Annuler</button>
-        <button class="fr-btn" id="apply-config">Appliquer</button>
+        <button class="fr-btn fr-btn--secondary" id="cancel-config" data-repere="dashboard.widget.annuler">Annuler</button>
+        <button class="fr-btn" id="apply-config" data-repere="dashboard.widget.appliquer">Appliquer</button>
       </div>
     </div>
   </div>
@@ -220,25 +222,25 @@
   </div>
 
   <!-- Modal de sauvegarde -->
-  <div class="config-modal" id="save-modal">
+  <div class="config-modal" id="save-modal" data-zone="dashboard.enregistrement">
     <div class="config-modal-content" style="max-width: 480px;">
       <div class="config-modal-header">
         <h3>Enregistrer le tableau de bord</h3>
-        <button class="fr-btn fr-btn--close" id="close-save-modal" title="Fermer">Fermer</button>
+        <button class="fr-btn fr-btn--close" id="close-save-modal" data-repere="dashboard.enregistrement.fermer" title="Fermer">Fermer</button>
       </div>
       <div class="config-modal-body">
         <div class="config-group">
           <label for="save-dashboard-name">Nom</label>
-          <input type="text" class="fr-input" id="save-dashboard-name" placeholder="Mon tableau de bord">
+          <input type="text" class="fr-input" id="save-dashboard-name" data-repere="dashboard.enregistrement.nom" placeholder="Mon tableau de bord">
         </div>
         <div class="config-group">
           <label for="save-dashboard-description">Description (optionnelle)</label>
-          <textarea class="fr-input" id="save-dashboard-description" rows="3" placeholder="Decrivez votre tableau de bord..."></textarea>
+          <textarea class="fr-input" id="save-dashboard-description" data-repere="dashboard.enregistrement.description" rows="3" placeholder="Decrivez votre tableau de bord..."></textarea>
         </div>
       </div>
       <div class="config-modal-footer">
-        <button class="fr-btn fr-btn--secondary" id="cancel-save">Annuler</button>
-        <button class="fr-btn fr-icon-save-line fr-btn--icon-left" id="confirm-save">Enregistrer</button>
+        <button class="fr-btn fr-btn--secondary" id="cancel-save" data-repere="dashboard.enregistrement.annuler">Annuler</button>
+        <button class="fr-btn fr-icon-save-line fr-btn--icon-left" id="confirm-save" data-repere="dashboard.enregistrement.confirmer">Enregistrer</button>
       </div>
     </div>
   </div>

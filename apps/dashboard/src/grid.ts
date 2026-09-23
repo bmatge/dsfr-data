@@ -18,16 +18,16 @@ function buildRowControls(rowIdx: number, columns: number, totalRows: number): s
     <div class="row-controls" data-row="${rowIdx}">
       <span class="row-label">Ligne ${rowIdx + 1}</span>
       <div class="row-controls-actions">
-        <button type="button" class="row-control-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" onclick="removeColumnFromRow(${rowIdx})"
+        <button type="button" class="row-control-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-repere="dashboard.canevas.grille.retirer-cellule" onclick="removeColumnFromRow(${rowIdx})"
                 title="Retirer une cellule" ${columns <= 1 ? 'disabled' : ''}>
           <i class="ri-subtract-line" aria-hidden="true"></i>
         </button>
         <span class="row-columns-count">${columns}</span>
-        <button type="button" class="row-control-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" onclick="addColumnToRow(${rowIdx})"
+        <button type="button" class="row-control-btn app-btn--icon app-btn--icon--sm app-btn--icon--muted" data-repere="dashboard.canevas.grille.ajouter-cellule" onclick="addColumnToRow(${rowIdx})"
                 title="Ajouter une cellule" ${columns >= 4 ? 'disabled' : ''}>
           <i class="ri-add-line" aria-hidden="true"></i>
         </button>
-        <button type="button" class="row-control-btn app-btn--icon app-btn--icon--sm app-btn--icon--danger" onclick="deleteRow(${rowIdx})"
+        <button type="button" class="row-control-btn app-btn--icon app-btn--icon--sm app-btn--icon--danger" data-repere="dashboard.canevas.grille.supprimer-ligne" onclick="deleteRow(${rowIdx})"
                 title="Supprimer la ligne" ${totalRows <= 1 ? 'disabled' : ''}>
           <i class="ri-delete-bin-line" aria-hidden="true"></i>
         </button>
