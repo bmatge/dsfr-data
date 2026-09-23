@@ -157,7 +157,7 @@ describe('l’en-tete rend le haut de l’ecran sur telephone', () => {
     // non masquable sans perdre le signal « outil en evolution », et les 48 px
     // reviendraient. Regression aujourd'hui SILENCIEUSE : aucun controle
     // visuel de bureau ne broncherait.
-    const titre = /fr-header__service-title[^]*?<\/p>/.exec(source);
+    const titre = /class="fr-header__service-title"[^]*?<\/p>/.exec(source);
     expect(titre, 'titre de service introuvable').not.toBeNull();
     expect(titre![0], 'le badge a quitte le titre').toContain('fr-badge');
 
@@ -168,7 +168,7 @@ describe('l’en-tete rend le haut de l’ecran sur telephone', () => {
   it('le numero de version ne pollue pas le nom accessible du lien d’accueil', () => {
     // Le titre est DANS le <a> : son contenu devient le nom accessible du lien,
     // sur chaque page de chaque app.
-    const titre = /fr-header__service-title[^]*?<\/p>/.exec(source)![0];
+    const titre = /class="fr-header__service-title"[^]*?<\/p>/.exec(source)![0];
 
     expect(titre).toContain('aria-hidden="true"');
   });

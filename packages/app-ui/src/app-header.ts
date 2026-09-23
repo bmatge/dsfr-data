@@ -48,6 +48,48 @@ export function navItemsFor(user: User | null): Array<{ id: string; label: strin
 }
 
 /**
+ * COMPACTION AU DEFILEMENT. Au-dessus de 62em, l'en-tete epingle passe de
+ * 175 px a une ligne d'environ 56 px des qu'une zone de travail defile : la
+ * page elle-meme (Playground, Sources...) ou une colonne des apps plein ecran
+ * (Builder, Carte, Studio), ou la page ne defile jamais. Il se redeplie quand
+ * cette zone revient en haut.
+ *
+ * `--app-header-h` suit deja la hauteur reelle (`_observeHeaderHeight`) : la
+ * barre d'actions et les colonnes suivent la compaction sans autre code.
+ */
+export const COMPACT_ENTER_PX = 48;
+export const COMPACT_EXIT_PX = 4;
+/**
+ * Hauteur gagnee par la compaction : 175 px -> 48 px mesures a 1440 px, soit
+ * 127, arrondi au-dessus. La compaction agrandit la zone qui defile, donc
+ * raccourcit sa course d'autant : une zone dont la course restante tomberait
+ * sous `COMPACT_EXIT_PX` ne compacte pas, sinon le navigateur la ramenerait en
+ * haut et l'en-tete se redeplierait aussitot — il clignoterait.
+ */
+export const COMPACT_GAIN_PX = 130;
+/** Course minimale qui doit rester a la zone une fois l'en-tete compacte. */
+export const COMPACT_RESIDUAL_PX = 12;
+
+/** Etat compact suivant, pour une zone qui vient de defiler. */
+export function nextCompact(compact: boolean, scrollTop: number, scrollMax: number): boolean {
+  if (scrollTop <= COMPACT_EXIT_PX) return false;
+  if (compact) return true;
+  return scrollTop > COMPACT_ENTER_PX && scrollMax > COMPACT_GAIN_PX + COMPACT_RESIDUAL_PX;
+}
+
+/** Seuil DSFR a partir duquel l'en-tete montre sa navigation en ligne. */
+const HEADER_LG = '(min-width:62em)';
+
+/**
+ * Regles de la variante compacte. Toutes sous `HEADER_LG` : en deca, l'en-tete
+ * DSFR est deja la variante empilee a burger, et la classe n'a aucun effet.
+ * Le bloc-marque reste (Marianne + « Republique Francaise » sur une ligne) ;
+ * seule la devise est retiree, comme la tagline et la ligne de navigation,
+ * remplacee par le selecteur d'app.
+ */
+const COMPACT_CSS = `@media ${HEADER_LG}{app-header.app-header--compact .fr-header__body-row{padding:.25rem 0}app-header.app-header--compact .fr-header__brand{margin-top:0;margin-bottom:0}app-header.app-header--compact .fr-header__logo,app-header.app-header--compact .fr-header__service{padding-top:.5rem;padding-bottom:.5rem}app-header.app-header--compact .fr-header__logo .fr-logo{display:flex;align-items:center;gap:.5rem;font-size:.7875rem;line-height:1rem}app-header.app-header--compact .fr-header__logo .fr-logo br{display:none}app-header.app-header--compact .fr-header__logo .fr-logo::before{width:2.0625rem;height:.75rem;margin:0;background-size:2.0625rem .84375rem,2.0625rem .75rem,0;background-position:0 -.046875rem,0 0,0 0}app-header.app-header--compact .fr-header__logo .fr-logo::after{display:none}app-header.app-header--compact .fr-header__service-title{font-size:1rem;line-height:1.5rem}app-header.app-header--compact .fr-header__service-tagline{display:none!important}app-header.app-header--compact .fr-header__menu{display:none}app-header.app-header--compact .app-header-switch{display:block}}.app-header-switch{display:none;position:relative;padding:0 1rem;flex:0 0 auto}.app-header-switch__list{position:absolute;left:1rem;top:calc(100% + .25rem);z-index:1000;min-width:16rem;margin:0;padding:.25rem 0;list-style:none;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16)}.app-header-switch__list[hidden]{display:none}.app-header-switch__list a{display:block;padding:.5rem 1rem;font-size:.875rem;color:var(--text-title-grey);background-image:none}.app-header-switch__list a:hover{background-color:var(--background-default-grey-hover)}.app-header-switch__list a[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france);box-shadow:inset 3px 0 0 var(--border-action-high-blue-france)}`;
+
+/**
  * Feuille de style de l'en-tete, injectee une fois par document.
  *
  * Extraite de `connectedCallback` pour etre EPROUVABLE sans rendre l'element
@@ -80,7 +122,7 @@ export function injectAppHeaderStyles(): void {
   if (document.getElementById('app-header-active-style')) return;
   const style = document.createElement('style');
   style.id = 'app-header-active-style';
-  style.textContent = `app-header{display:block}@media ${PINNED}{app-header{position:sticky;top:0;z-index:750}}.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}.fr-header__tools-links .fr-btn[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}`;
+  style.textContent = `app-header{display:block}@media ${PINNED}{app-header{position:sticky;top:0;z-index:750}}.fr-nav__link[aria-current="page"]{font-weight:700;border-bottom:2px solid var(--border-action-high-blue-france);color:var(--text-action-high-blue-france)}.fr-header__tools-links .fr-btn[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france)}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}.app-header-user-menu{position:relative}.app-header-user-menu__dropdown{display:none;position:absolute;right:0;top:100%;z-index:1000;min-width:240px;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16);padding:0}.app-header-user-menu__dropdown[data-open]{display:block}.app-header-user-menu__info{padding:1rem 1.5rem;border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__info-name{font-weight:700;color:var(--text-title-grey);margin:0;font-size:.875rem}.app-header-user-menu__info-email{color:var(--text-mention-grey);margin:0;font-size:.75rem}.app-header-user-menu__list{list-style:none;padding:0;margin:0}.app-header-user-menu__list li{border-bottom:1px solid var(--border-default-grey)}.app-header-user-menu__list li:last-child{border-bottom:none}.app-header-user-menu__list button{display:flex;align-items:center;gap:.5rem;width:100%;padding:.75rem 1.5rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-action-high-blue-france);font-family:inherit}.app-header-user-menu__list button:hover{background:var(--background-alt-blue-france-hover)}.app-header-user-menu__list button::before{font-family:'remixicon';font-size:1rem}${COMPACT_CSS}`;
   document.head.appendChild(style);
 }
 
@@ -117,6 +159,41 @@ export class AppHeader extends LitElement {
   @state()
   private _userMenuOpen = false;
 
+  /** Selecteur d'app de la variante compacte ouvert. */
+  @state()
+  private _switchOpen = false;
+
+  private _compact = false;
+  private _scrollRaf = 0;
+  /** Derniere position verticale vue par zone : ignore les defilements horizontaux. */
+  private _lastScrollTop = new WeakMap<Element, number>();
+
+  private _onAnyScroll = (e: Event) => {
+    const el =
+      e.target === document
+        ? document.scrollingElement
+        : e.target instanceof Element
+          ? e.target
+          : null;
+    if (!el || this.contains(el)) return;
+    // Une modale ou une liste deroulante qui defile n'est pas la zone de travail.
+    if (el.closest('dialog, .fr-modal')) return;
+    if (el.clientHeight < window.innerHeight * 0.4) return;
+    const top = el.scrollTop;
+    if (this._lastScrollTop.get(el) === top) return;
+    this._lastScrollTop.set(el, top);
+    if (this._scrollRaf) return;
+    this._scrollRaf = requestAnimationFrame(() => {
+      this._scrollRaf = 0;
+      this._setCompact(nextCompact(this._compact, el.scrollTop, el.scrollHeight - el.clientHeight));
+    });
+  };
+
+  private _switchOutsideHandler = (e: MouseEvent) => {
+    const sw = this.querySelector('.app-header-switch');
+    if (sw && !sw.contains(e.target as Node)) this._closeSwitch();
+  };
+
   private _unsubAuth?: () => void;
   private _unsubSync?: () => void;
   private _headerResizeObserver?: ResizeObserver;
@@ -152,6 +229,7 @@ export class AppHeader extends LitElement {
     }
     injectAppPrimitives();
     injectAppHeaderStyles();
+    document.addEventListener('scroll', this._onAnyScroll, { capture: true, passive: true });
     // Check auth state
     this._initAuth();
     // Subscribe to sync status
@@ -170,6 +248,9 @@ export class AppHeader extends LitElement {
     this._unsubAuth?.();
     this._unsubSync?.();
     this._headerResizeObserver?.disconnect();
+    document.removeEventListener('scroll', this._onAnyScroll, { capture: true });
+    cancelAnimationFrame(this._scrollRaf);
+    document.removeEventListener('click', this._switchOutsideHandler);
     document.removeEventListener('click', this._outsideClickHandler);
   }
 
@@ -255,6 +336,73 @@ export class AppHeader extends LitElement {
     } else {
       document.removeEventListener('click', this._outsideClickHandler);
     }
+  }
+
+  private _setCompact(compact: boolean): void {
+    if (compact === this._compact) return;
+    this._compact = compact;
+    this.classList.toggle('app-header--compact', compact);
+    if (!compact) this._closeSwitch();
+  }
+
+  private _toggleSwitch(e: Event): void {
+    e.stopPropagation();
+    if (this._switchOpen) {
+      this._closeSwitch();
+      return;
+    }
+    this._switchOpen = true;
+    requestAnimationFrame(() => document.addEventListener('click', this._switchOutsideHandler));
+  }
+
+  private _closeSwitch(): void {
+    this._switchOpen = false;
+    document.removeEventListener('click', this._switchOutsideHandler);
+  }
+
+  private _onSwitchKeydown(e: KeyboardEvent): void {
+    if (e.key !== 'Escape' || !this._switchOpen) return;
+    this._closeSwitch();
+    this.querySelector<HTMLButtonElement>('.app-header-switch > button')?.focus();
+  }
+
+  /** Selecteur d'app : remplace la ligne de navigation dans la variante compacte. */
+  private _renderSwitch(navItems: Array<{ id: string; label: string; href: string }>) {
+    const current = navItems.find((item) => item.id === this.currentPage);
+    return html`
+      <nav
+        class="app-header-switch"
+        aria-label="Changer d'application"
+        @keydown=${this._onSwitchKeydown}
+      >
+        <button
+          type="button"
+          class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line"
+          aria-expanded="${this._switchOpen}"
+          aria-controls="app-header-switch-list"
+          @click=${this._toggleSwitch}
+        >
+          ${current?.label ?? 'Menu'}
+        </button>
+        <ul
+          id="app-header-switch-list"
+          class="app-header-switch__list"
+          ?hidden=${!this._switchOpen}
+        >
+          ${navItems.map(
+            (item) => html`
+              <li>
+                <a
+                  href="${this._base}${item.href}"
+                  aria-current=${this.currentPage === item.id ? 'page' : nothing}
+                  >${item.label}</a
+                >
+              </li>
+            `
+          )}
+        </ul>
+      </nav>
+    `;
   }
 
   private _getNavItems() {
@@ -409,7 +557,7 @@ export class AppHeader extends LitElement {
               <div class="fr-header__brand fr-enlarge-link">
                 <div class="fr-header__brand-top">
                   <div class="fr-header__logo">
-                    <p class="fr-logo">République<br />Française</p>
+                    <p class="fr-logo">République <br />Française</p>
                   </div>
                   <div class="fr-header__navbar">
                     <button
@@ -458,6 +606,7 @@ export class AppHeader extends LitElement {
                   </p>
                 </div>
               </div>
+              ${this._renderSwitch(navItems)}
               <div class="fr-header__tools">
                 <div class="fr-header__tools-links">${this._renderToolsList()}</div>
               </div>
