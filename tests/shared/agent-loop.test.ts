@@ -260,6 +260,43 @@ describe('shared/ia/agent-loop — terminaux et progression', () => {
   });
 });
 
+describe('shared/ia/agent-loop — validerTerminal (#1015)', () => {
+  it('un terminal refuse renvoie le refus au modele et la boucle continue', async () => {
+    const post = scriptedPost([
+      toolCallMsg([{ name: 'finish', args: { ok: false } }]),
+      toolCallMsg([{ name: 'finish', args: { ok: true, message: 'Bon.' } }]),
+    ]);
+    const validerTerminal = vi.fn((_n: string, args: Record<string, unknown>, _tour: object) =>
+      args.ok ? null : 'Refusé : corrige.'
+    );
+    const result = await runAgentLoop(
+      baseOpts(post, { terminaux: new Set(['finish']), validerTerminal })
+    );
+    expect(result.fin).toBe('terminal');
+    expect(result.text).toBe('Bon.');
+    expect(post).toHaveBeenCalledTimes(2);
+    const tool = bodyOf(post, 1).messages.find((m) => m.role === 'tool');
+    expect(tool?.content).toBe('Refusé : corrige.');
+    expect(validerTerminal.mock.calls[0][2]).toEqual({ index: 0, dernier: false });
+  });
+
+  it('un terminal refuse au dernier tour (sans outils) arrete la boucle au plafond', async () => {
+    const post = scriptedPost([
+      toolCallMsg([{ name: 'lookup', args: { n: 1 } }]),
+      toolCallMsg([{ name: 'finish', args: {} }]),
+    ]);
+    const result = await runAgentLoop(
+      baseOpts(post, {
+        maxRounds: 2,
+        terminaux: new Set(['finish']),
+        validerTerminal: () => 'non',
+      })
+    );
+    expect(result.fin).toBe('plafond');
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('shared/ia/agent-loop — parseToolArgs', () => {
   it('tolere un JSON casse, vide ou non objet', () => {
     expect(parseToolArgs('{"a":1}')).toEqual({ a: 1 });
