@@ -183,6 +183,12 @@ export interface MapLayerSpec {
   popupTitleField?: string;
   /** Regroupe les marqueurs PROCHES A L'ECRAN (couche marker seulement, #1109). */
   cluster?: boolean;
+  /**
+   * Un element par valeur distincte de ce champ (#1108) : donnees au format
+   * long, le clic (popup, volet, modale) liste toutes les lignes du groupe.
+   * marker / circle / geoshape (sans effet sur heatmap).
+   */
+  groupField?: string;
   /** Rayon de regroupement, en pixels (defaut du composant : 80). */
   clusterRadius?: number;
 }
@@ -510,6 +516,7 @@ function normalizeMapLayer(raw: unknown): MapLayerSpec | null {
       : undefined,
     popupTitleField: opt('popupTitleField'),
     cluster: l.cluster === true ? true : undefined,
+    groupField: opt('groupField'),
     clusterRadius:
       typeof l.clusterRadius === 'number' && l.clusterRadius > 0 ? l.clusterRadius : undefined,
   };

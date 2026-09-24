@@ -217,20 +217,21 @@ export function balisesEcrites(html: string, into = new Map<string, Set<string>>
 // Mesure : ce que le Studio ecrit
 // ---------------------------------------------------------------------------
 
-/** Objet prive d'une ou deux de ses options (hors discriminant). */
+/** Objet prive d'une a trois de ses options (hors discriminant). */
 function sansOptions(objet: Objet, garder: string): Objet[] {
+  // Jusqu'a TROIS options retirees : une couche heatmap complete porte
+  // cluster, clusterRadius et groupField, tous trois refuses sur ce type.
   const noms = Object.keys(objet).filter((n) => n !== garder);
   const out: Objet[] = [];
-  for (let i = 0; i < noms.length; i++) {
-    const un = { ...objet };
-    delete un[noms[i]];
-    out.push(un);
-    for (let j = i + 1; j < noms.length; j++) {
-      const deux = { ...un };
-      delete deux[noms[j]];
-      out.push(deux);
+  const retirer = (base: Objet, depuis: number, reste: number): void => {
+    for (let i = depuis; i < noms.length; i++) {
+      const sans = { ...base };
+      delete sans[noms[i]];
+      out.push(sans);
+      if (reste > 1) retirer(sans, i + 1, reste - 1);
     }
-  }
+  };
+  retirer(objet, 0, 3);
   return out;
 }
 

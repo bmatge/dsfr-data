@@ -268,6 +268,13 @@ function validateMapLayer(
       error: `cluster ne s'applique qu'aux couches marker (couche ${type}).`,
     };
   }
+  // Un element par entite (#1108) : la lib l'ignore sur heatmap (chaque ligne
+  // reste un point de chaleur) — on refuse plutot que d'ecrire un attribut sans effet.
+  if (raw.groupField && type === 'heatmap') {
+    return {
+      error: "groupField ne s'applique pas aux couches heatmap (marker, circle ou geoshape).",
+    };
+  }
   if (
     raw.clusterRadius !== undefined &&
     (typeof raw.clusterRadius !== 'number' || !(raw.clusterRadius > 0))
@@ -286,6 +293,7 @@ function validateMapLayer(
       raw.colorField,
       raw.tooltipField,
       raw.popupTitleField,
+      raw.groupField,
       ...splitFieldList(raw.popupFields),
       ...templateFields(raw.popupTemplate),
     ]
@@ -322,6 +330,7 @@ function validateMapLayer(
       popupMode: raw.popupMode as MapPopupMode | undefined,
       popupTitleField: raw.popupTitleField || undefined,
       cluster: raw.cluster === true ? true : undefined,
+      groupField: raw.groupField || undefined,
       clusterRadius: raw.clusterRadius,
     },
   };
@@ -603,7 +612,7 @@ const MAP_LAYER_SCHEMA = {
       type: 'string',
       enum: [...MAP_POPUP_MODES],
       description:
-        "Affichage du clic : popup (bulle, défaut), panel-right / panel-left (volet latéral), modal. Le volet montre UN enregistrement : l'objet cliqué.",
+        "Affichage du clic : popup (bulle, défaut), panel-right / panel-left (volet latéral), modal. Le volet montre l'objet cliqué (toutes les lignes de son groupe avec groupField).",
     },
     popupTitleField: {
       type: 'string',
@@ -614,6 +623,11 @@ const MAP_LAYER_SCHEMA = {
       type: 'boolean',
       description:
         "marker seulement : regroupe les marqueurs PROCHES À L'ÉCRAN selon le zoom. Ne regroupe PAS par entité (ville, commune…).",
+    },
+    groupField: {
+      type: 'string',
+      description:
+        'Un seul élément par valeur de ce champ (ex. un marqueur par ville) quand les données ont PLUSIEURS lignes par entité (format long). Au clic, la popup ou le volet liste TOUTES les lignes du groupe. marker, circle ou geoshape (pas heatmap).',
     },
     clusterRadius: {
       type: 'integer',

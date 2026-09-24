@@ -377,13 +377,6 @@ export const EXCLUSIONS: readonly ExclusionDeclaree[] = [
     raison: `Dimension temporelle, pilotée par dsfr-data-map-timeline : ${LIBRE}.`,
   },
   {
-    composant: 'dsfr-data-map-layer',
-    attributs: ['group-field'],
-    raison:
-      "Un marqueur par groupe (#1108) : à exposer dans MapLayerSpec dès que l'attribut est livré par la lib.",
-    enAttente: '#1108',
-  },
-  {
     composant: 'dsfr-data-map-popup',
     attributs: ['width'],
     raison: 'Largeur du volet : défaut du composant (350px, borné à la largeur de la carte).',

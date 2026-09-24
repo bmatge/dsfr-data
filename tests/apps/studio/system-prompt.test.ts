@@ -100,10 +100,10 @@ describe('#1109 — le prompt tire ses options du schema des outils', () => {
     expect(horsSchema).toEqual([]);
   });
 
-  it('le detecteur voit une option inventee (ex. groupField, popupWidth:"400px")', () => {
-    const invente = `${partieRedigee(PROMPT)}\n- Carte : groupField regroupe, popupWidth:"400px".`;
+  it('le detecteur voit une option inventee (ex. radiusMin, popupWidth:"400px")', () => {
+    const invente = `${partieRedigee(PROMPT)}\n- Carte : radiusMin borne, popupWidth:"400px".`;
     const horsSchema = optionsCitees(invente).filter((n) => !NOMS_AUTORISES.has(n));
-    expect(horsSchema.sort()).toEqual(['groupField', 'popupWidth']);
+    expect(horsSchema.sort()).toEqual(['popupWidth', 'radiusMin']);
   });
 
   it('la section Documentation ne promet plus les skills comme vocabulaire', () => {

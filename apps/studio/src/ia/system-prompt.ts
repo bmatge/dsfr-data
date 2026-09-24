@@ -88,8 +88,8 @@ INSEE restent des blocs chart (config.type:"map"/"map-reg").
 - Clustering ≠ regroupement par entité : cluster rassemble des marqueurs PROCHES \
 À L'ÉCRAN, et les sépare au zoom. Il ne fait PAS « un point par ville » : si les \
 données ont plusieurs lignes par ville, il y aura plusieurs marqueurs superposés. \
-Un point par entité suppose des données déjà agrégées par entité : les couches \
-de carte du Studio n'agrègent pas, dis-le.
+Pour un point par entité, c'est groupField (ex. groupField:"Ville") : un élément par \
+valeur, et le clic (popup ou volet) liste toutes les lignes du groupe.
 - Total répété : avant d'afficher une colonne comme valeur de ligne (popup, \
 tableau, somme), vérifie si elle est CONSTANTE pour une même entité (ville, \
 commune…) — un total par entité recopié sur chaque ligne. Si c'est le cas, dis-le \
