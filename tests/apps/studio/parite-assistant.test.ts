@@ -18,6 +18,7 @@ import {
   STORAGE_KEYS,
   createEmptyDashboard,
   effectiveCapabilities,
+  fetchServerConfig,
   resetServerConfigCache,
   type ProbeReport,
   type Source,
@@ -74,7 +75,7 @@ const FORMULAIRE_IA = `
   </select>
   <input id="ia-model-custom" hidden>
   <input id="ia-token" value="">
-  <span id="ia-mode-badge"></span><span id="ia-config-badge"></span>
+  <span id="ia-config-badge"></span>
 `;
 
 const SOURCES_UI = `
@@ -142,10 +143,16 @@ describe('Configuration IA dans le Studio', () => {
     expect(lireConfigFormulaire().token).toBe('');
   });
 
-  it('pastille : clé perso dès qu’un jeton est saisi, sinon non configurée', () => {
+  it('pastille : clé perso dès qu’un jeton est saisi, sinon non configurée', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ available: false }), { status: 200 }))
+    );
+    await fetchServerConfig();
+    vi.unstubAllGlobals();
     majBadgeIA();
     expect(modeIA()).toBe('none');
-    expect(document.getElementById('ia-mode-badge')?.textContent).toBe('IA non configurée');
+    expect(document.getElementById('ia-config-badge')?.textContent).toBe('IA non configurée');
     (document.getElementById('ia-token') as HTMLInputElement).value = 'sk-test';
     majBadgeIA();
     expect(modeIA()).toBe('user');
@@ -164,6 +171,8 @@ describe('Configuration IA dans le Studio', () => {
     const report: ProbeReport = {
       capabilities: { ...effectiveCapabilities(), probedAt: 1 },
       steps: [{ name: 'tools', ok: false, detail: '<img src=x onerror=alert(1)>' }],
+      connexion: 'ok',
+      memorise: true,
     };
     rendreRapport(out, report);
     expect(out.querySelector('img')).toBeNull();

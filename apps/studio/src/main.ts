@@ -51,9 +51,11 @@ import {
   enregistrerConfigIA,
   lireConfigFormulaire,
   majBadgeIA,
+  modeIA,
   reinitialiserConfigIA,
   sonderCapacites,
   surChangementModele,
+  utiliserCleServeur,
 } from './ia/ia-config.js';
 import { currentExportHtml, renderPreview, schedulePreviewRender } from './ui/preview.js';
 import { runStudioLoop } from './ia/agent-loop.js';
@@ -261,21 +263,47 @@ function copyCode(): void {
   void navigator.clipboard.writeText(code).then(() => toastSuccess('Code copié !'));
 }
 
-/** Configuration IA : formulaire rempli une fois la config serveur connue. */
-function initConfigIA(): void {
+/**
+ * Blocs de la colonne gauche (#1142) : repliés sur leur ligne de résumé une
+ * fois configurés, dépliés d'office quand une action est requise. Ne replie
+ * jamais un bloc que l'usager a ouvert : seulement l'état de départ.
+ */
+export function deplierSourceSiRequise(): void {
+  const source = document.getElementById('section-source') as HTMLDetailsElement | null;
+  if (source) source.open = !state.source;
+}
+
+/** La section IA s'ouvre d'office quand aucune IA n'est joignable. */
+export function deplierIASiRequise(): void {
+  const ia = document.getElementById('section-ia-config') as HTMLDetailsElement | null;
+  if (ia && modeIA() === 'none') ia.open = true;
+}
+
+/**
+ * Configuration IA : formulaire rempli une fois la config serveur connue. Le
+ * badge dit « Vérification… » jusque-là, puis le mode effectif : pas de « IA
+ * non configurée » provisoire, et la section ne s'ouvre qu'une fois sûr.
+ */
+export function initConfigIA(): Promise<void> {
   chargerConfigIA();
   majBadgeIA();
-  void fetchServerConfig().then(() => {
-    chargerConfigIA();
+  document.getElementById('ia-model')?.addEventListener('change', () => {
+    surChangementModele();
     majBadgeIA();
   });
-  document.getElementById('ia-model')?.addEventListener('change', surChangementModele);
+  document.getElementById('ia-model-custom')?.addEventListener('input', majBadgeIA);
   document.getElementById('ia-token')?.addEventListener('input', majBadgeIA);
   document.getElementById('ia-save-btn')?.addEventListener('click', enregistrerConfigIA);
   document.getElementById('ia-reset-btn')?.addEventListener('click', reinitialiserConfigIA);
+  document.getElementById('ia-use-server-btn')?.addEventListener('click', utiliserCleServeur);
   document
     .getElementById('probe-capabilities-btn')
     ?.addEventListener('click', () => void sonderCapacites());
+  return fetchServerConfig().then(() => {
+    chargerConfigIA();
+    majBadgeIA();
+    deplierIASiRequise();
+  });
 }
 
 /** « Voir les données » : champs et premières lignes de la source chargée. */
@@ -346,13 +374,14 @@ function init(): void {
   const preselection = loadSavedSources();
   restoreSession();
   renderPreview();
-  initConfigIA();
+  void initConfigIA();
   initApercuDonnees();
 
   document.getElementById('saved-source')?.addEventListener('change', () => {
     handleSourceChange(surSourceChargee);
   });
   restaurerSource(preselection?.id ?? null);
+  deplierSourceSiRequise();
 
   document.getElementById('chat-send-btn')?.addEventListener('click', () => void sendMessage());
   document.getElementById('chat-input')?.addEventListener('keydown', (e) => {

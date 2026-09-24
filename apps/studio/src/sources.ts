@@ -125,6 +125,16 @@ export function suggestionsPourChamps(fields: Field[]): string[] {
   return suggestions.slice(0, 3);
 }
 
+/** Résumé de la ligne « Source » quand rien n'est choisi (#1142). */
+export const RESUME_SANS_SOURCE = 'aucune source choisie';
+
+/** Résumé en une ligne de la source chargée : nom, lignes, champs (#1142). */
+export function resumeSource(nom: string, lignes: number, champs: number): string {
+  const n = (x: number, unite: string) =>
+    `${x.toLocaleString('fr-FR')} ${unite}${x > 1 ? 's' : ''}`;
+  return `${nom} · ${n(lignes, 'ligne')}, ${n(champs, 'champ')}`;
+}
+
 /** Etat du Studio pour une source : lignes, champs, et source du document. */
 export function appliquerSource(source: Source): { id: string; name: string }[] {
   state.source = source;
@@ -134,9 +144,35 @@ export function appliquerSource(source: Source): { id: string; name: string }[] 
 }
 
 /**
+ * Bloc « Source » d'une source chargée, quel que soit le chemin (sélecteur ou
+ * `charger_source_url`) : détail, ligne de résumé, « Voir les données ».
+ */
+function afficherSourceChargee(source: Source): void {
+  const infoEl = document.getElementById('saved-source-info');
+  const summaryEl = document.getElementById('source-summary');
+  const voirBtn = document.getElementById('show-data-btn') as HTMLButtonElement | null;
+  if (infoEl) {
+    infoEl.textContent = `${state.localData?.length ?? 0} enregistrements · ${state.fields
+      .map((f) => f.name)
+      .join(', ')}`;
+  }
+  if (summaryEl) {
+    summaryEl.textContent = resumeSource(
+      source.name,
+      state.localData?.length ?? 0,
+      state.fields.length
+    );
+    summaryEl.title = summaryEl.textContent;
+  }
+  if (voirBtn) voirBtn.hidden = false;
+}
+
+/**
  * Source creee par l'outil `charger_source_url` (#1140) : enregistree avec les
  * autres (elle reapparait dans l'app Sources et survit a un rafraichissement),
  * puis choisie dans le selecteur — l'usager voit ce que le modele a charge.
+ * Le bloc « Source » se replie sur sa ligne de résumé (#1142) : la source est
+ * configurée sans que l'usager ait touché à ce bloc.
  */
 export function enregistrerSourceChargee(source: Source): void {
   const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []);
@@ -147,16 +183,9 @@ export function enregistrerSourceChargee(source: Source): void {
   if (select && Array.from(select.options).some((o) => o.value === source.id)) {
     select.value = source.id;
   }
-  const infoEl = document.getElementById('saved-source-info');
-  const summaryEl = document.getElementById('source-summary');
-  const voirBtn = document.getElementById('show-data-btn') as HTMLButtonElement | null;
-  if (infoEl) {
-    infoEl.textContent = `${state.localData?.length ?? 0} enregistrements · ${state.fields
-      .map((f) => f.name)
-      .join(', ')}`;
-  }
-  if (summaryEl) summaryEl.textContent = `· ${source.name}`;
-  if (voirBtn) voirBtn.hidden = false;
+  afficherSourceChargee(source);
+  const bloc = document.getElementById('section-source') as HTMLDetailsElement | null;
+  if (bloc) bloc.open = false;
 }
 
 /** Charge la source selectionnee dans l'etat + met a jour l'UI. */
@@ -172,21 +201,14 @@ export function handleSourceChange(onLoaded?: (source: Source) => void): void {
     state.localData = null;
     state.fields = [];
     if (infoEl) infoEl.textContent = '';
-    if (summaryEl) summaryEl.textContent = '';
+    if (summaryEl) summaryEl.textContent = RESUME_SANS_SOURCE;
     if (voirBtn) voirBtn.hidden = true;
     return;
   }
 
   const source: Source = JSON.parse(selectedOption.dataset.source);
   appliquerSource(source);
-
-  if (infoEl) {
-    infoEl.textContent = `${state.localData?.length ?? 0} enregistrements · ${state.fields
-      .map((f) => f.name)
-      .join(', ')}`;
-  }
-  if (summaryEl) summaryEl.textContent = `· ${source.name}`;
-  if (voirBtn) voirBtn.hidden = false;
+  afficherSourceChargee(source);
   onLoaded?.(source);
 }
 

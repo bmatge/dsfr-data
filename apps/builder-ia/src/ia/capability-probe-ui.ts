@@ -12,7 +12,12 @@ import {
   IA_PROXY_ENDPOINT,
 } from '@dsfr-data/shared';
 import { getIAConfig, isServerMode } from './ia-config.js';
-import { runCapabilityProbe, type ProbeIO, type ProbeHttpResult } from './capability-probe.js';
+import {
+  probeConclusion,
+  runCapabilityProbe,
+  type ProbeIO,
+  type ProbeHttpResult,
+} from './capability-probe.js';
 
 async function toResult(res: Response): Promise<ProbeHttpResult> {
   let json: unknown = {};
@@ -75,13 +80,8 @@ export async function probeCapabilitiesUI(): Promise<void> {
           `<li>${s.ok ? '✅' : '❌'} ${escapeHtml(s.name)} — <span class="fr-text--xs">${escapeHtml(s.detail)}</span></li>`
       )
       .join('');
-    const persisted = report.capabilities.probedAt > 0 && (report.steps[0]?.ok ?? false);
     out.innerHTML = `<ul class="fr-text--sm" style="margin:0.5rem 0 0;padding-left:1rem;list-style:none;">${items}</ul>
-      <p class="fr-text--xs" style="margin:0.5rem 0 0;">${
-        persisted
-          ? 'Capacités mémorisées — elles font foi pour les prochains messages.'
-          : 'Échec de connexion : capacités NON mémorisées (les réglages actuels restent en vigueur).'
-      }</p>`;
+      <p class="fr-text--xs" style="margin:0.5rem 0 0;">${escapeHtml(probeConclusion(report))}</p>`;
   } catch (err) {
     out.innerHTML = `<p class="fr-text--sm">Erreur de sonde : ${escapeHtml(err instanceof Error ? err.message : String(err))}</p>`;
   } finally {

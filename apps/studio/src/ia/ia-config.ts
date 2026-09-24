@@ -19,6 +19,7 @@ import {
   IA_PROXY_ENDPOINT,
   getServerConfig,
   loadUserConfig,
+  probeConclusion,
   proxyFetch,
   runCapabilityProbe,
   toastSuccess,
@@ -125,13 +126,8 @@ export function enregistrerConfigIA(): void {
   toastSuccess('Configuration IA enregistrée.');
 }
 
-/** Oublie la configuration personnelle : retour au jeton serveur s'il existe. */
-export function reinitialiserConfigIA(): void {
-  try {
-    localStorage.removeItem(IA_CONFIG_KEY);
-  } catch {
-    // rien à oublier
-  }
+/** Remet le formulaire sur la configuration serveur (ou les valeurs par défaut). */
+function formulaireSurServeur(): void {
   const server = getServerConfig();
   const apiUrl = champ<HTMLInputElement>('ia-api-url');
   if (apiUrl) apiUrl.value = server?.apiUrl || DEFAULT_API_URL;
@@ -139,7 +135,41 @@ export function reinitialiserConfigIA(): void {
   const token = champ<HTMLInputElement>('ia-token');
   if (token) token.value = '';
   majBadgeIA();
+}
+
+/** Oublie la configuration personnelle : retour au jeton serveur s'il existe. */
+export function reinitialiserConfigIA(): void {
+  try {
+    localStorage.removeItem(IA_CONFIG_KEY);
+  } catch {
+    // rien à oublier
+  }
+  formulaireSurServeur();
   toastSuccess('Configuration IA réinitialisée.');
+}
+
+/**
+ * « Utiliser la clé serveur » (#1142) : oublie le jeton personnel mémorisé
+ * dans ce navigateur, avec l'URL et le modèle qui l'accompagnent, mais garde
+ * les réglages de l'ancien Assistant (instructions, paramètres avancés) que
+ * « Réinitialiser » efface aussi.
+ */
+export function utiliserCleServeur(): void {
+  const reste = lireEnregistre();
+  delete reste.token;
+  delete reste.apiUrl;
+  delete reste.model;
+  try {
+    if (Object.keys(reste).length > 0) {
+      localStorage.setItem(IA_CONFIG_KEY, JSON.stringify(reste));
+    } else {
+      localStorage.removeItem(IA_CONFIG_KEY);
+    }
+  } catch {
+    // stockage indisponible : le formulaire vidé suffit pour cette page
+  }
+  formulaireSurServeur();
+  toastSuccess('Clé serveur utilisée : le jeton personnel de ce navigateur est oublié.');
 }
 
 /** Mode effectif, tel que le prochain message l'emploiera. */
@@ -149,20 +179,76 @@ export function modeIA(): 'user' | 'server' | 'none' {
   return getServerConfig()?.available ? 'server' : 'none';
 }
 
-/** Pastille du chat et de la section : d'où vient l'IA. */
-export function majBadgeIA(): void {
-  const libelles = {
-    user: { texte: 'Clé perso', classe: 'fr-badge--info' },
-    server: { texte: 'IA serveur', classe: 'fr-badge--success' },
-    none: { texte: 'IA non configurée', classe: 'fr-badge--warning' },
-  } as const;
-  const { texte, classe } = libelles[modeIA()];
-  for (const id of ['ia-mode-badge', 'ia-config-badge']) {
-    const badge = champ<HTMLElement>(id);
-    if (!badge) continue;
-    badge.textContent = texte;
-    badge.className = `fr-badge fr-badge--sm ${classe}`;
+/**
+ * État affiché de l'IA (#1142) : le mode effectif, et ce qui aide à le
+ * comprendre — une clé serveur disponible derrière une clé perso, une config
+ * serveur pas encore connue (jamais de « non configurée » provisoire).
+ */
+export interface EtatIA {
+  mode: 'user' | 'server' | 'none';
+  /** `/ia-server-config` n'a pas encore répondu. */
+  enAttente: boolean;
+  /** Une clé serveur existe, qu'elle serve ou non. */
+  serveurDisponible: boolean;
+  /** Texte du badge. */
+  badge: string;
+  /** Classe DSFR du badge. */
+  classe: string;
+  /** Résumé en une ligne, à côté du badge : modèle et précision utile. */
+  resume: string;
+}
+
+export function etatIA(): EtatIA {
+  const server = getServerConfig();
+  const config = lireConfigFormulaire();
+  const mode = modeIA();
+  const serveurDisponible = server?.available === true;
+  const enAttente = server === null && mode !== 'user';
+  const etat = { mode, enAttente, serveurDisponible };
+  if (enAttente) {
+    return { ...etat, badge: 'Vérification…', classe: '', resume: 'recherche d’une clé serveur' };
   }
+  if (mode === 'user') {
+    return {
+      ...etat,
+      badge: 'Clé perso',
+      classe: 'fr-badge--info',
+      resume: serveurDisponible
+        ? `${config.model} · clé serveur disponible`
+        : `${config.model} · jeton mémorisé dans ce navigateur`,
+    };
+  }
+  if (mode === 'server') {
+    return {
+      ...etat,
+      badge: 'Clé serveur',
+      classe: 'fr-badge--success',
+      resume: server?.model || config.model,
+    };
+  }
+  return {
+    ...etat,
+    badge: 'IA non configurée',
+    classe: 'fr-badge--warning',
+    resume: 'renseignez un jeton d’API',
+  };
+}
+
+/** Badge, résumé et action « Utiliser la clé serveur » de la section IA. */
+export function majBadgeIA(): void {
+  const etat = etatIA();
+  const badge = champ<HTMLElement>('ia-config-badge');
+  if (badge) {
+    badge.textContent = etat.badge;
+    badge.className = `fr-badge fr-badge--sm ${etat.classe}`.trim();
+  }
+  const resume = champ<HTMLElement>('ia-config-resume');
+  if (resume) {
+    resume.textContent = etat.resume;
+    resume.title = etat.resume;
+  }
+  const bascule = champ<HTMLElement>('ia-use-server');
+  if (bascule) bascule.hidden = !(etat.mode === 'user' && etat.serveurDisponible);
 }
 
 async function versResultat(res: Response): Promise<ProbeHttpResult> {
@@ -218,10 +304,7 @@ export function rendreRapport(out: HTMLElement, report: ProbeReport): void {
   }
   const note = document.createElement('p');
   note.className = 'fr-text--xs fr-mb-0';
-  const memorise = report.capabilities.probedAt > 0 && (report.steps[0]?.ok ?? false);
-  note.textContent = memorise
-    ? 'Capacités mémorisées : elles font foi pour les prochains messages.'
-    : 'Échec de connexion : capacités non mémorisées.';
+  note.textContent = probeConclusion(report);
   out.append(liste, note);
 }
 

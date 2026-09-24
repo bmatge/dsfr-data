@@ -648,8 +648,19 @@ export {
 // --- Sonde des capacites et rerank des skills (#526, #514) — app-side (fetch) ---
 // Promus du builder-IA quand le Studio IA l'a remplace comme entree usager
 // (#1081) : les deux apps sondent et reclassent avec le MEME code.
-export type { ProbeHttpResult, ProbeIO, ProbeStep, ProbeReport } from './ia/capability-probe.js';
-export { runCapabilityProbe } from './ia/capability-probe.js';
+export type {
+  ProbeConnexion,
+  ProbeHttpResult,
+  ProbeIO,
+  ProbeStep,
+  ProbeReport,
+} from './ia/capability-probe.js';
+export {
+  PROBE_MAX_COMPLETION_TOKENS,
+  explainEmptyContent,
+  probeConclusion,
+  runCapabilityProbe,
+} from './ia/capability-probe.js';
 export type { RerankOptions } from './ia/skill-rerank.js';
 export { rerankSkills, rerankUrlFrom } from './ia/skill-rerank.js';
 

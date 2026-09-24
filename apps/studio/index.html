@@ -39,11 +39,17 @@
     <!-- PANNEAU GAUCHE : source + chat -->
     <aside slot="left" class="builder-config-panel">
 
+      <!-- Colonne gauche compacte (#1142) : une ligne de résumé par bloc une
+           fois configuré, dépliée d'office quand une action est requise (pas
+           de source, IA non configurée). <details>/<summary> : contrôle de
+           dépliage natif, état « développé/réduit » exposé, focus clavier. -->
       <div class="config-zone">
-        <div class="config-section" id="section-source">
-          <div class="config-section-header">
-            <h3><i class="ri-database-2-line"></i> Source de données <span id="source-summary" class="config-section-summary"></span></h3>
-          </div>
+        <details class="config-section studio-bloc" id="section-source" open>
+          <summary class="studio-bloc__ligne">
+            <h2 class="studio-bloc__titre"><i class="ri-database-2-line" aria-hidden="true"></i> Source</h2>
+            <span id="source-summary" class="studio-bloc__resume">aucune source choisie</span>
+            <span class="studio-bloc__modifier" aria-hidden="true">Modifier <i class="ri-arrow-down-s-line"></i></span>
+          </summary>
           <div class="config-section-content">
             <div class="source-grid">
               <div class="fr-select-group fr-select-group--sm">
@@ -62,15 +68,22 @@
             </div>
             <div id="saved-source-info" class="source-info"></div>
           </div>
-        </div>
+        </details>
 
         <!-- Configuration IA (#1081) : reprise de l'ancien Assistant IA. La clé
              est celle du transport commun : saisie ici, elle vaut partout. -->
-        <details class="config-section studio-ia-config" id="section-ia-config">
-          <summary class="config-section-header">
-            <h3><i class="ri-robot-line"></i> Configuration IA <span id="ia-config-badge" class="fr-badge fr-badge--sm"></span></h3>
+        <details class="config-section studio-bloc studio-ia-config" id="section-ia-config">
+          <summary class="studio-bloc__ligne">
+            <h2 class="studio-bloc__titre"><i class="ri-robot-line" aria-hidden="true"></i> IA</h2>
+            <span id="ia-config-badge" class="fr-badge fr-badge--sm">Vérification…</span>
+            <span id="ia-config-resume" class="studio-bloc__resume"></span>
+            <span class="studio-bloc__modifier" aria-hidden="true">Modifier <i class="ri-arrow-down-s-line"></i></span>
           </summary>
           <div class="config-section-content">
+            <div id="ia-use-server" class="studio-ia-config__serveur" hidden>
+              <p class="fr-text--xs fr-mb-1w">Un jeton personnel est mémorisé dans ce navigateur : il passe avant la clé serveur de ce déploiement.</p>
+              <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary" id="ia-use-server-btn">Utiliser la clé serveur</button>
+            </div>
             <div class="fr-input-group">
               <label class="fr-label" for="ia-api-url">URL de l'API
                 <span class="fr-hint-text">Point d'accès compatible OpenAI Chat Completions (Albert, OpenAI, Mistral…), avec appel d'outils.</span>
@@ -111,9 +124,10 @@
 
       <!-- Chat -->
       <div class="chat-container">
-        <div class="chat-header">
-          <span class="chat-header__title"><i class="ri-chat-3-line"></i> Assistant du Studio <span id="ia-mode-badge" class="fr-badge fr-badge--sm"></span></span>
-        </div>
+        <!-- L'en-tête visible « Assistant du Studio » répétait le badge IA de
+             la ligne au-dessus (#1142) : le titre reste pour les lecteurs
+             d'écran, la ligne IA porte le mode. -->
+        <h2 class="fr-sr-only">Assistant du Studio</h2>
 
         <div class="chat-messages" id="chat-messages"></div>
 
