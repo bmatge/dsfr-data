@@ -49,6 +49,7 @@ import {
 } from '../document.js';
 import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
 import { texteAffichable } from './reponse-finale.js';
+import { colonnesASignaler, noteTotalRepete } from './total-repete.js';
 import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import type { DashboardData, Field } from '../state.js';
@@ -326,7 +327,19 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   const { steps } = result;
   // L'argument de finish écrit EN TEXTE (`{"message": "…"}`) au lieu d'un appel
   // d'outil (#1123) : c'est un finish, l'usager n'en voit que le message.
-  const text = texteAffichable(result.text);
+  const brut = texteAffichable(result.text);
+  // Total répété (#1123) : si le tour a posé des blocs et que la réponse tait
+  // une colonne répétée par entité, l'application le dit elle-même.
+  const note =
+    applied > 0
+      ? noteTotalRepete(
+          colonnesASignaler(doc, opts.data, opts.fields, [
+            brut,
+            ...opts.conversation.filter((m) => m.role === 'assistant').map((m) => m.content),
+          ])
+        )
+      : '';
+  const text = note ? `${brut || 'Document mis à jour.'}\n\n${note}` : brut;
   switch (result.fin) {
     case 'terminal':
       // `finish` : son message, sinon le contenu du message (boucle commune).

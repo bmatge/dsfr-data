@@ -234,14 +234,28 @@ describe('banc Studio — preuves de mutation, un critere a la fois', () => {
   });
 
   it('avertissements ROUGE si le total repete n’est pas signale', async () => {
-    const r = evaluer(
-      scenario('aides-nationales'),
-      await jouer(
-        'aides-nationales',
-        aidesConformes(COUCHE_CONFORME, 'Carte ajoutée : un marqueur par ville.')
-      )
-    );
+    // Le critere lit les reponses : on lui donne celle qui TAIT le total, telle
+    // quelle (la boucle, elle, y ajoute desormais la note — test suivant).
+    const e = await jouer('aides-nationales', aidesConformes());
+    const r = evaluer(scenario('aides-nationales'), {
+      ...e,
+      reponses: ['Carte ajoutée : un marqueur par ville.'],
+    });
     expect(verdicts(r).avertissements).toBe('echec');
+  });
+
+  it('avertissements VERT de bout en bout : la boucle ajoute la note quand le modele la tait (#1123)', async () => {
+    const e = await jouer(
+      'aides-nationales',
+      aidesConformes(COUCHE_CONFORME, 'Carte ajoutée : un marqueur par ville.')
+    );
+    expect(e.reponses[0]).toContain('Carte ajoutée : un marqueur par ville.');
+    expect(e.reponses[0]).toContain(
+      "« Nombre total d'actions » est constant pour chaque « Ville »"
+    );
+    // Coordonnees de la couche : repetees par ville, c'est normal, on les tait.
+    expect(e.reponses[0]).not.toContain('Latitude');
+    expect(verdicts(evaluer(scenario('aides-nationales'), e)).avertissements).toBe('ok');
   });
 
   it('code-valide ROUGE quand le balisage exporte porte un attribut inconnu', async () => {
@@ -532,10 +546,10 @@ describe('banc Studio — agregation des repetitions', () => {
   it('taux par critere et par scenario ; na et essais en erreur exclus', async () => {
     const s = scenario('aides-nationales');
     const bon = await jouer('aides-nationales', aidesConformes());
-    const sansAvertissement = await jouer(
-      'aides-nationales',
-      aidesConformes(COUCHE_CONFORME, 'Carte ajoutée.')
-    );
+    const sansAvertissement = {
+      ...(await jouer('aides-nationales', aidesConformes())),
+      reponses: ['Carte ajoutée.'],
+    };
     const panne = await executerScenario(s, {
       model: 'simule',
       post: async () => {
