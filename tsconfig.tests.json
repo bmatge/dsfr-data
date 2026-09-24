@@ -36,6 +36,8 @@
       "@dsfr-data/shared/*": ["packages/shared/src/*"]
     }
   },
-  "include": ["tests/**/*.ts"],
+  // `tools/banc-studio` : son point d'entree (run.ts) n'est importe par aucun
+  // test ; sans lui, il ne serait type par personne (#1112).
+  "include": ["tests/**/*.ts", "tools/banc-studio/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
