@@ -13,12 +13,12 @@
  * d'un test qui se contente de confirmer ce qu'on vient d'ecrire.
  */
 import { describe, it, expect } from 'vitest';
-import { SKILLS, getRelevantSkills } from '../../../apps/builder-ia/src/skills';
+import { SKILLS, getRelevantSkills } from '../../packages/shared/src/skills/skills';
 import {
   splitSkillContent,
   selectSkillSection,
-} from '../../../apps/builder-ia/src/skills-sections';
-import type { SkillSectionId } from '../../../apps/builder-ia/src/skills-sections';
+} from '../../packages/shared/src/skills/skills-sections';
+import type { SkillSectionId } from '../../packages/shared/src/skills/skills-sections';
 
 interface Scenario {
   question: string;

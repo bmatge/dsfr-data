@@ -11,7 +11,7 @@
  */
 import { describe, it, expect } from 'vitest';
 
-import { SKILLS } from '../../apps/builder-ia/src/skills';
+import { SKILLS } from '../../packages/shared/src/skills/skills';
 import { REGISTRE as REGISTRE_CARTO } from '../../apps/builder-carto/src/assistant/reperes.generated';
 import {
   ECART_AMBIGUITE,

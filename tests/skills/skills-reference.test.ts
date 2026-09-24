@@ -25,21 +25,21 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { LitElement } from 'lit';
 
-import { SKILLS } from '../../../apps/builder-ia/src/skills';
+import { SKILLS } from '../../packages/shared/src/skills/skills';
 import {
   COMPONENT_REFERENCES,
   reference,
-} from '../../../apps/builder-ia/src/skills-reference.generated';
+} from '../../packages/shared/src/skills/skills-reference.generated';
 import {
   buildReferences,
   renderReference,
   type CemManifest,
-} from '../../../scripts/lib/cem-reference';
+} from '../../scripts/lib/cem-reference';
 
 /** `id` est un attribut HTML standard : Lit ne le declare pas, le manifeste non plus. */
 const IGNORED_ATTRS = new Set(['id']);
 
-const COMPONENTS_DIR = resolve(__dirname, '../../../packages/core/src/components');
+const COMPONENTS_DIR = resolve(__dirname, '../../packages/core/src/components');
 
 /**
  * Charge TOUS les modules de composants, sans liste a tenir a la main.
@@ -163,7 +163,7 @@ describe('reference generee des skills (#512)', () => {
 
   describe('(2) module genere aligne sur le manifeste commite', () => {
     const manifest = JSON.parse(
-      readFileSync(resolve(__dirname, '../../../packages/core/custom-elements.json'), 'utf-8')
+      readFileSync(resolve(__dirname, '../../packages/core/custom-elements.json'), 'utf-8')
     ) as CemManifest;
     const expected = buildReferences(manifest);
 

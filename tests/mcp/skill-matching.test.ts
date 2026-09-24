@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { SKILLS } from '../../apps/builder-ia/src/skills';
+import { SKILLS } from '../../packages/shared/src/skills/skills';
 import {
   searchSkills,
   scoreSkill,

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { SKILLS, getRelevantSkills, buildSkillsContext } from '../../../apps/builder-ia/src/skills';
-import type { Source } from '../../../apps/builder-ia/src/state';
+import {
+  SKILLS,
+  getRelevantSkills,
+  buildSkillsContext,
+} from '../../packages/shared/src/skills/skills';
+import type { Source } from '../../packages/shared/src/types/source';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
@@ -238,7 +242,7 @@ describe('builder-ia skills', () => {
   describe('skills-component alignment', () => {
     // La couverture des attributs, evenements, slots et variables CSS n'est plus
     // verifiee ici : elle est GENEREE depuis le code (#512) et gardee par
-    // tests/apps/builder-ia/skills-reference.test.ts, qui controle toute la
+    // tests/skills/skills-reference.test.ts, qui controle toute la
     // chaine composants -> manifeste -> module genere -> SKILLS.
     // Ne restent ici que les alignements portant sur le texte REDIGE a la main.
 

@@ -2,7 +2,7 @@
  * Rendu de la section « reference » d'un composant a partir du custom-elements
  * manifest (issue #512). Partie PURE, sans I/O : `scripts/build-skills-reference.ts`
  * l'utilise pour ecrire le module genere, et
- * `tests/apps/builder-ia/skills-reference.test.ts` pour verifier que le module
+ * `tests/skills/skills-reference.test.ts` pour verifier que le module
  * commite est bien aligne sur le manifeste.
  *
  * Point cle : les evenements du pipeline ne sont pas ecrits a la main. Ils sont

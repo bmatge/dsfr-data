@@ -12,8 +12,8 @@
 import { describe, it, expect } from 'vitest';
 import { resolve } from 'node:path';
 
-import { SKILLS } from '../../apps/builder-ia/src/skills';
-import { splitSkillContent } from '../../apps/builder-ia/src/skills-sections';
+import { SKILLS } from '../../packages/shared/src/skills/skills';
+import { splitSkillContent } from '../../packages/shared/src/skills/skills-sections';
 import { parseMarkdownSkill } from '../../scripts/lib/markdown-skills';
 import { readMarkdownSkillFiles } from '../../scripts/lib/markdown-skills-fs';
 import { selectSkillText, type Skill } from '../../mcp-server/src/skills';

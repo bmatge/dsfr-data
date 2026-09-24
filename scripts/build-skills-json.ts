@@ -25,8 +25,11 @@ import { writeFileSync, mkdirSync, readFileSync } from 'fs';
 import { execFileSync } from 'child_process';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SKILLS } from '../apps/builder-ia/src/skills.js';
-import { splitSkillContent, availableSections } from '../apps/builder-ia/src/skills-sections.js';
+import { SKILLS } from '../packages/shared/src/skills/skills.js';
+import {
+  splitSkillContent,
+  availableSections,
+} from '../packages/shared/src/skills/skills-sections.js';
 import { readMarkdownSkills } from './lib/markdown-skills-fs.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

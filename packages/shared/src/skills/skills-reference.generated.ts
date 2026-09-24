@@ -9,7 +9,7 @@
  * Toute edition manuelle sera ecrasee. Pour changer le contenu, modifier le
  * JSDoc du composant dans packages/core/src/components/ puis regenerer.
  *
- * Le garde-fou tests/apps/builder-ia/skills-reference.test.ts verifie que ce
+ * Le garde-fou tests/skills/skills-reference.test.ts verifie que ce
  * fichier est aligne sur les composants reels (introspection Lit runtime).
  */
 

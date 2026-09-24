@@ -257,7 +257,7 @@ describe('#660 — la trace rend le taux d’appariement, alerte sous 50 %', () 
 
 describe('#660 — le guide skills documente la comparaison en chaîne (clôture AM-025)', () => {
   it('la skill dsfr-data-join nomme 201 = "201", "0201" ≠ "201" et le taux d’appariement', () => {
-    const src = readFileSync(join(__dirname, '../apps/builder-ia/src/skills.ts'), 'utf-8');
+    const src = readFileSync(join(__dirname, '../packages/shared/src/skills/skills.ts'), 'utf-8');
     const start = src.indexOf("name: 'dsfr-data-join'");
     const end = src.indexOf("reference('dsfr-data-join')", start);
     expect(start).toBeGreaterThan(-1);

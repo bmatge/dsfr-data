@@ -2,18 +2,27 @@
  * AI Skills - knowledge modules injected into the prompt based on context
  *
  * Each skill is a self-contained knowledge block that can be consumed by:
- * - The builder-IA chat (injected into the Albert API system prompt)
- * - External AI tools via MCP server
+ * - `npm run build:skills` -> dist/skills.json (Studio IA, serveur MCP) et la
+ *   skill Claude Code `skills/dsfr-data/`
+ * - The legacy builder-IA chat (injected into the Albert API system prompt),
+ *   jusqu'a son retrait (#1081)
+ *
+ * Guide ECRIT A LA MAIN. Sorti de `apps/builder-ia/src/` (#1081) pour survivre
+ * au retrait de l'ancien Assistant IA. Vit cote app de `@dsfr-data/shared`
+ * (sous-chemin `@dsfr-data/shared/skills/*`) : jamais dans les barrels, et
+ * surtout pas dans l'entree lib-safe `@dsfr-data/shared/lib` (#319).
+ * La partie « reference » est GENEREE : `skills-reference.generated.ts`.
  *
  * IMPORTANT: when adding/modifying an attribute, chart type, filter operator
  * or aggregation function in a dsfr-data-* component, update the corresponding skill.
- * Tests in tests/apps/builder-ia/skills.test.ts verify alignment automatically.
+ * Tests in tests/skills/skills.test.ts verify alignment automatically.
  */
 
-import { CDN_URLS, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
-import type { Source } from './state.js';
+import { CDN_URLS } from '../templates/cdn-versions.js';
+import { PROXY_BASE_URL_EMBED, LIB_URL } from '../api/proxy-config.js';
+import type { Source } from '../types/source.js';
 import { reference } from './skills-reference.generated.js';
-import { matchSkills } from './skill-matching.js';
+import { matchSkills } from '../ia/skill-matching.js';
 
 /** A single skill definition */
 export interface Skill {
