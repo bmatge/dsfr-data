@@ -85,7 +85,7 @@ rend `ok`, `échec` ou `sans objet` :
 | Avertissements attendus | Groupes de mots-clés dans les réponses (casse, accents, apostrophes ignorés). |
 | Impossible dit d'emblée | Aucune action sur le document, et la première réponse dit l'impossibilité. |
 | Code généré valide | Lint de balisage (`lintMarkup`, contrat des composants) sans erreur sur l'export. |
-| Fin propre | `finish` ou réponse en texte, sans épuiser le plafond de tours ; aucune réponse vide. |
+| Fin propre | `finish` ou réponse en texte, sans épuiser le plafond de tours ; aucune réponse vide, aucune réponse en JSON brut (ce que l'usager verrait tel quel, #1123). |
 | Tours dans le budget | Appels au modèle ≤ `maxTours` (défaut : 6 par message). |
 
 Les réponses du modèle sont des entrées externes : elles sont comparées (`includes` sur un texte

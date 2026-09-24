@@ -161,6 +161,10 @@ describe('banc Studio — aides nationales, essai conforme', () => {
     const systeme = (premier.messages as Array<{ role: string; content: string }>)[0];
     expect(systeme.content).toContain('Vocabulaire des blocs');
     expect(systeme.content).toContain('Aides nationales par ville');
+    // Comme main.ts : les lignes chargees nourrissent le signal du total repete (#1123).
+    expect(systeme.content).toContain(
+      "« Nombre total d'actions » est constant pour chaque « Ville »"
+    );
   });
 });
 
@@ -230,14 +234,28 @@ describe('banc Studio — preuves de mutation, un critere a la fois', () => {
   });
 
   it('avertissements ROUGE si le total repete n’est pas signale', async () => {
-    const r = evaluer(
-      scenario('aides-nationales'),
-      await jouer(
-        'aides-nationales',
-        aidesConformes(COUCHE_CONFORME, 'Carte ajoutée : un marqueur par ville.')
-      )
-    );
+    // Le critere lit les reponses : on lui donne celle qui TAIT le total, telle
+    // quelle (la boucle, elle, y ajoute desormais la note — test suivant).
+    const e = await jouer('aides-nationales', aidesConformes());
+    const r = evaluer(scenario('aides-nationales'), {
+      ...e,
+      reponses: ['Carte ajoutée : un marqueur par ville.'],
+    });
     expect(verdicts(r).avertissements).toBe('echec');
+  });
+
+  it('avertissements VERT de bout en bout : la boucle ajoute la note quand le modele la tait (#1123)', async () => {
+    const e = await jouer(
+      'aides-nationales',
+      aidesConformes(COUCHE_CONFORME, 'Carte ajoutée : un marqueur par ville.')
+    );
+    expect(e.reponses[0]).toContain('Carte ajoutée : un marqueur par ville.');
+    expect(e.reponses[0]).toContain(
+      "« Nombre total d'actions » est constant pour chaque « Ville »"
+    );
+    // Coordonnees de la couche : repetees par ville, c'est normal, on les tait.
+    expect(e.reponses[0]).not.toContain('Latitude');
+    expect(verdicts(evaluer(scenario('aides-nationales'), e)).avertissements).toBe('ok');
   });
 
   it('code-valide ROUGE quand le balisage exporte porte un attribut inconnu', async () => {
@@ -269,6 +287,70 @@ describe('banc Studio — preuves de mutation, un critere a la fois', () => {
   it('fin-propre ROUGE sur une reponse vide', async () => {
     const e = await jouer('aides-nationales', [reponse([], '')]);
     expect(verdicts(evaluer(scenario('aides-nationales'), e))['fin-propre']).toBe('echec');
+  });
+
+  it('fin-propre ROUGE quand l’usager verrait du JSON brut (#1123)', async () => {
+    const e = await jouer('aides-nationales', aidesConformes());
+    for (const brut of [
+      `{"message": "${FIN_AVEC_AVERTISSEMENT}"}`,
+      '```json\n{"message": "Fait."}\n```',
+      '{"name": "finish", "arguments": {"message": "Fait."}}',
+    ]) {
+      const r = evaluer(scenario('aides-nationales'), { ...e, reponses: [brut] });
+      expect(verdicts(r)['fin-propre']).toBe('echec');
+      expect(detail(r, 'fin-propre')).toContain('JSON brut');
+    }
+    // Une prose qui CITE du JSON n'est pas du JSON brut.
+    const prose = evaluer(scenario('aides-nationales'), {
+      ...e,
+      reponses: ['Le document porte {"groupField": "Ville"} sur la couche.'],
+    });
+    expect(verdicts(prose)['fin-propre']).toBe('ok');
+  });
+
+  it('fin-propre VERT de bout en bout : le finish ecrit en texte est lu par la boucle (#1123)', async () => {
+    // Conversation du constat : l'argument de finish ecrit en TEXTE au lieu
+    // d'un appel d'outil. La boucle du Studio n'en garde que le message.
+    const [inspecter, ajouter] = aidesConformes();
+    const e = await jouer('aides-nationales', [
+      inspecter,
+      ajouter,
+      reponse([], JSON.stringify({ message: FIN_AVEC_AVERTISSEMENT })),
+    ]);
+    expect(e.reponses).toEqual([FIN_AVEC_AVERTISSEMENT]);
+    const r = verdicts(evaluer(scenario('aides-nationales'), e));
+    expect(r['fin-propre']).toBe('ok');
+    expect(r.avertissements).toBe('ok');
+  });
+});
+
+describe('banc Studio — ecarts de la mesure de base (#1123)', () => {
+  it('aides nationales : inspect_data remet au modele le FAIT du total repete', async () => {
+    const { post, corps } = modele(aidesConformes());
+    await executerScenario(scenario('aides-nationales'), { post, model: 'simule' });
+    // Deuxieme requete : elle porte le resultat d'inspect_data.
+    const messages = corps[1].messages as Array<{ role: string; content: string }>;
+    const resultat = messages.filter((m) => m.role === 'tool').map((m) => m.content);
+    expect(resultat.join('\n')).toContain(
+      "« Nombre total d'actions » est constant pour chaque « Ville »"
+    );
+  });
+
+  it('tableau pagine : un datalist sans valueField est conforme et accepte du premier coup', async () => {
+    const e = await jouer('tableau-pagine', [
+      reponse([
+        {
+          name: 'add_blocks',
+          args: { blocks: [{ kind: 'chart', config: { type: 'datalist', pagination: 10 } }] },
+        },
+      ]),
+      reponse([{ name: 'finish', args: { message: 'Tableau ajouté.' } }]),
+    ]);
+    const r = verdicts(evaluer(scenario('tableau-pagine'), e));
+    expect(r['hors-schema']).toBe('ok');
+    expect(r['blocs-attendus']).toBe('ok');
+    expect(r['code-valide']).toBe('ok');
+    expect(e.tours).toBe(2);
   });
 });
 
@@ -464,10 +546,10 @@ describe('banc Studio — agregation des repetitions', () => {
   it('taux par critere et par scenario ; na et essais en erreur exclus', async () => {
     const s = scenario('aides-nationales');
     const bon = await jouer('aides-nationales', aidesConformes());
-    const sansAvertissement = await jouer(
-      'aides-nationales',
-      aidesConformes(COUCHE_CONFORME, 'Carte ajoutée.')
-    );
+    const sansAvertissement = {
+      ...(await jouer('aides-nationales', aidesConformes())),
+      reponses: ['Carte ajoutée.'],
+    };
     const panne = await executerScenario(s, {
       model: 'simule',
       post: async () => {

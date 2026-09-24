@@ -254,7 +254,143 @@ export function inspectData(data: Row[], fields: Field[], sampleSize = 8): strin
       lines.push(`- ${key} (texte) — ${distinct.size} valeurs distinctes : ${sample}${more}`);
     }
   }
-  return `Aperçu de ${data.length} enregistrements :\n${lines.join('\n')}`;
+  const constantes = describeConstantColumns(constantColumnsByEntity(data, fields));
+  return `Aperçu de ${data.length} enregistrements :\n${lines.join('\n')}${constantes ? `\n${constantes}` : ''}`;
+}
+
+// ---------------------------------------------------------------------------
+// Total repete (#1123) : colonne numerique constante pour chaque entite
+// ---------------------------------------------------------------------------
+
+/**
+ * Colonne numerique constante pour chaque valeur d'une colonne « entite ».
+ *
+ * Constat du banc de pertinence (#1123) : sur un jeu au format long (une ligne
+ * par couple ville x aide), « Nombre total d'actions » est un total PAR VILLE
+ * recopie sur chacune de ses lignes. La consigne du prompt seule n'a pas suffi
+ * (0/2) : le modele ne voit pas la repetition. On lui donne le FAIT.
+ */
+export interface ConstantColumn {
+  /** Colonne numerique repetee (ex. « Nombre total d'actions »). */
+  field: string;
+  /** Colonne entite pour laquelle elle est constante (ex. « Ville »). */
+  entity: string;
+}
+
+/** Bornes du calcul : il tourne a chaque inspect_data, sur un apercu non borne. */
+const CONSTANT_MAX_ROWS = 5000;
+const CONSTANT_MAX_ENTITIES = 12;
+const CONSTANT_MAX_TARGETS = 40;
+const CONSTANT_MAX_RESULTS = 8;
+/** Au-dela, une colonne texte est un libelle propre a la ligne, pas une entite. */
+const CONSTANT_MAX_ENTITY_VALUES = 500;
+
+/** Cle de comparaison d'une valeur ; une valeur absente est une valeur a part. */
+function cellKey(v: unknown): string {
+  return v === null || v === undefined || v === '' ? '\u0000absent' : `v:${String(v)}`;
+}
+
+/**
+ * Colonnes numeriques constantes pour chaque valeur d'une colonne entite.
+ *
+ * Entite candidate : colonne NON numerique, dont au moins deux valeurs se
+ * repetent et dont les lignes repetees font au moins la moitie du jeu (sinon
+ * « constant par entite » ne dit rien : une valeur par ligne est trivialement
+ * constante). Colonne signalee : numerique, variable d'une entite a l'autre,
+ * identique sur toutes les lignes de chaque entite repetee.
+ *
+ * Deux entites equivalentes (Ville et Departement en bijection) ne sont
+ * rapportees qu'une fois, sous la premiere dans l'ordre des colonnes.
+ *
+ * Calcul BORNE (lignes, entites, colonnes, resultats) et deterministe
+ * (ordre des colonnes) ; les valeurs ne sont que comparees, jamais
+ * interpretees (aucune expression reguliere sur les donnees).
+ */
+export function constantColumnsByEntity(data: Row[], fields: Field[] = []): ConstantColumn[] {
+  if (data.length < 4) return [];
+  const rows = data.length > CONSTANT_MAX_ROWS ? data.slice(0, CONSTANT_MAX_ROWS) : data;
+  const typeByName = new Map(fields.map((f) => [f.name, f.type]));
+  const keys = fields.length > 0 ? fields.map((f) => f.name) : dataKeys(rows);
+  const numericKeys = new Set(
+    keys.filter((key) => {
+      const analyzed = typeByName.get(key);
+      return analyzed ? analyzed === 'numérique' : isNumericField(rows, key);
+    })
+  );
+  // Cibles : numeriques ET variables sur le jeu (une constante globale ne dit rien).
+  const targets = [...numericKeys]
+    .slice(0, CONSTANT_MAX_TARGETS)
+    .filter((field) => new Set(rows.map((r) => cellKey(r[field]))).size >= 2);
+  if (targets.length === 0) return [];
+
+  // Entites candidates : groupes de lignes par valeur, dans l'ordre des colonnes.
+  const entities: Array<{ key: string; groups: Row[][] }> = [];
+  for (const key of keys) {
+    if (entities.length >= CONSTANT_MAX_ENTITIES) break;
+    if (numericKeys.has(key)) continue;
+    const byValue = new Map<string, Row[]>();
+    let overflow = false;
+    for (const row of rows) {
+      const v = row[key];
+      if (v === null || v === undefined || v === '') continue;
+      const k = String(v);
+      let group = byValue.get(k);
+      if (!group) {
+        if (byValue.size >= CONSTANT_MAX_ENTITY_VALUES) {
+          overflow = true;
+          break;
+        }
+        group = [];
+        byValue.set(k, group);
+      }
+      group.push(row);
+    }
+    if (overflow || byValue.size < 2) continue;
+    const repeated = [...byValue.values()].filter((g) => g.length >= 2);
+    const repeatedRows = repeated.reduce((n, g) => n + g.length, 0);
+    if (repeated.length < 2 || repeatedRows * 2 < rows.length) continue;
+    entities.push({ key, groups: [...byValue.values()] });
+  }
+
+  /** `field` prend-il une seule valeur dans chaque groupe de `groups` ? */
+  const constantIn = (groups: Row[][], field: string): boolean =>
+    groups.every((g) => {
+      const first = cellKey(g[0][field]);
+      return g.every((r) => cellKey(r[field]) === first);
+    });
+
+  const results: ConstantColumn[] = [];
+  const reported: Array<{ key: string; groups: Row[][] }> = [];
+  for (const entity of entities) {
+    // Equivalente a une entite deja rapportee (bijection) : meme signal, on tait.
+    const equivalent = reported.some(
+      (other) => constantIn(entity.groups, other.key) && constantIn(other.groups, entity.key)
+    );
+    if (equivalent) continue;
+    let found = false;
+    for (const field of targets) {
+      if (!constantIn(entity.groups, field)) continue;
+      results.push({ field, entity: entity.key });
+      found = true;
+      if (results.length >= CONSTANT_MAX_RESULTS) return results;
+    }
+    if (found) reported.push(entity);
+  }
+  return results;
+}
+
+/** Signal lisible pour le modele (vide s'il n'y a rien a signaler). */
+export function describeConstantColumns(columns: ConstantColumn[]): string {
+  if (columns.length === 0) return '';
+  const lines = columns.map(
+    (c) =>
+      `- « ${c.field} » est constant pour chaque « ${c.entity} » : attribut de l'entité ${c.entity}, pas de la ligne.`
+  );
+  return (
+    `Valeurs répétées par entité (total ou attribut recopié sur chaque ligne de l'entité) — ` +
+    `à signaler à l'utilisateur ; ne pas les afficher comme valeur propre à chaque ligne ni les sommer :\n` +
+    lines.join('\n')
+  );
 }
 
 /**

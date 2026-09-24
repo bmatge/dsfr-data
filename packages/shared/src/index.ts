@@ -432,13 +432,15 @@ export {
 
 // --- Outils d'introspection de donnees IA (promus du builder-IA, #515) ---
 // App-side uniquement (frontiere lib/app #319).
-export type { Row, Aggregation, Field, Diagnosis } from './ia/data-tools.js';
+export type { Row, Aggregation, Field, Diagnosis, ConstantColumn } from './ia/data-tools.js';
 export {
   analyzeDataFields,
   aggregateBy,
   buildMultiSeries,
   applyWhereFilter,
   inspectData,
+  constantColumnsByEntity,
+  describeConstantColumns,
   distinctValues,
   countWhere,
   diagnoseConfig,

@@ -127,7 +127,7 @@ export const LIBELLES_CRITERES: Record<CritereId, string> = {
   avertissements: 'Avertissements attendus',
   'refus-d-emblee': 'Impossible dit d’emblée',
   'code-valide': 'Code généré valide (lint de balisage)',
-  'fin-propre': 'Fin propre (finish ou réponse, sans plafond)',
+  'fin-propre': 'Fin propre (finish ou réponse, sans plafond ni JSON brut)',
   tours: 'Tours dans le budget',
 };
 
@@ -368,11 +368,36 @@ function critereCodeValide(e: Execution): ResultatCritere {
   };
 }
 
+/**
+ * La reponse est-elle du JSON brut (#1123) — ce que l'usager verrait tel quel ?
+ * Un objet ou un tableau JSON valide, seul ou dans une cloture de code. Lecture
+ * independante de la boucle du Studio : le critere doit voir le defaut que la
+ * boucle est censee corriger, pas reutiliser sa correction.
+ */
+export function estJsonBrut(reponse: string): boolean {
+  let t = reponse.trim();
+  if (t.startsWith('```') && t.endsWith('```') && t.length >= 6) {
+    const fin = t.indexOf('\n');
+    if (fin !== -1) t = t.slice(fin + 1, t.length - 3).trim();
+  }
+  const objet = t.startsWith('{') && t.endsWith('}');
+  const tableau = t.startsWith('[') && t.endsWith(']');
+  if (!objet && !tableau) return false;
+  try {
+    JSON.parse(t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function critereFinPropre(e: Execution): ResultatCritere {
   const vide = e.reponses.some((r) => r.trim() === '');
+  const json = e.reponses.filter(estJsonBrut).length;
   const raisons = [
     ...(e.plafond ? ['plafond de tours atteint'] : []),
     ...(vide ? ['réponse vide'] : []),
+    ...(json > 0 ? [`réponse en JSON brut (${json}) : l’usager verrait du JSON`] : []),
   ];
   return {
     critere: 'fin-propre',
