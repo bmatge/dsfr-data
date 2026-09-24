@@ -7,5 +7,11 @@
  * re-exporte l'API — point d'entree historique des imports et des tests.
  */
 
-export type { ProbeHttpResult, ProbeIO, ProbeStep, ProbeReport } from '@dsfr-data/shared';
-export { runCapabilityProbe } from '@dsfr-data/shared';
+export type {
+  ProbeConnexion,
+  ProbeHttpResult,
+  ProbeIO,
+  ProbeStep,
+  ProbeReport,
+} from '@dsfr-data/shared';
+export { explainEmptyContent, probeConclusion, runCapabilityProbe } from '@dsfr-data/shared';
