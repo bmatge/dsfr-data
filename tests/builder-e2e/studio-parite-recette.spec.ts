@@ -331,18 +331,21 @@ test.describe('source donnee par URL dans la conversation (#1140)', () => {
       );
     });
 
+    // Le portail, joint en direct (apercu) ou par le proxy CORS generique
+    // (`/api-proxy` + X-Target-URL : l'outil route comme une connexion API).
+    const CHEMIN_API = '/api/explore/v2.1/catalog/datasets/les-jeunes-entreprises-innovantes';
     const appelsPortail: string[] = [];
+    const servirPortail = (route: Route) => {
+      const cible = route.request().headers()['x-target-url'] ?? route.request().url();
+      if (!cible.includes(`data.economie.gouv.fr${CHEMIN_API}`)) return route.fallback();
+      appelsPortail.push(cible);
+      return route.fulfill({ json: { total_count: JEI.length, results: JEI } });
+    };
     await page.route(
-      (url) =>
-        url.hostname === 'data.economie.gouv.fr' &&
-        url.pathname.startsWith(
-          '/api/explore/v2.1/catalog/datasets/les-jeunes-entreprises-innovantes'
-        ),
-      (route: Route) => {
-        appelsPortail.push(route.request().url());
-        return route.fulfill({ json: { total_count: JEI.length, results: JEI } });
-      }
+      (url) => url.hostname === 'data.economie.gouv.fr' && url.pathname.startsWith(CHEMIN_API),
+      servirPortail
     );
+    await page.route((url) => url.pathname === '/api-proxy', servirPortail);
     await page.route(
       (url) => url.pathname === '/ia-server-config',
       (route: Route) => route.fulfill({ json: { available: false } })

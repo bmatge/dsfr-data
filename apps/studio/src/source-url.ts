@@ -4,7 +4,7 @@
  * L'usager ecrit « fais un graphique de … avec https://… » : l'outil
  * `charger_source_url` reconnait l'URL par LA voie de la creation d'une
  * connexion (`reconnaitreUrlSource`, @dsfr-data/shared), charge les lignes par
- * le proxy (`getProxiedUrl` / `getProxyUrl`, comme l'app Sources), et rend une
+ * le proxy (`buildProxiedRequest` / `getProxyUrl`, comme l'app Sources), et rend une
  * `Source` de la meme forme que celles de l'app Sources : le generateur du
  * document en tire la meme balise `<dsfr-data-source>` (requete declarative
  * pour Opendatasoft et Tabular, donnees embarquees pour Grist).
@@ -21,6 +21,7 @@ import {
   analyzeDataFields,
   applyInseeLabels,
   buildGristHeaders,
+  buildProxiedRequest,
   dataGouvDatasetApiUrl,
   extractDataGouvResources,
   fetchInseeLabelIndex,
@@ -175,7 +176,11 @@ async function chargerApi(
       pageUrl.searchParams.set(pagination.params.page ?? 'page', String(page + 1));
     }
 
-    const reponse = await doFetch(getProxiedUrl(pageUrl.href));
+    // Meme routage que le chargement d'une connexion API dans Sources
+    // (`fetchOnePage`) : proxy dedie pour un hote connu, proxy CORS generique
+    // pour un portail sur domaine propre (sinon bloque par la CSP de l'app).
+    const requete = buildProxiedRequest(pageUrl.href);
+    const reponse = await doFetch(requete.url, { headers: requete.headers });
     if (reponse.status === 401 || reponse.status === 403) return refusAcces(provider.displayName);
     if (reponse.status === 404) {
       return refus(

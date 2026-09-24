@@ -23,8 +23,10 @@ type Route = (url: string) => { status: number; body?: unknown } | null;
 /** Reseau simule : la premiere route qui repond gagne ; sinon 599 (sortie inattendue). */
 function reseau(...routes: Route[]) {
   const appels: string[] = [];
-  const fetchImpl = vi.fn(async (entree: RequestInfo | URL) => {
-    const url = String(entree);
+  const fetchImpl = vi.fn(async (entree: RequestInfo | URL, init?: RequestInit) => {
+    // Proxy CORS generique : la cible voyage dans X-Target-URL.
+    const cible = (init?.headers as Record<string, string> | undefined)?.['X-Target-URL'];
+    const url = cible ?? String(entree);
     appels.push(url);
     for (const route of routes) {
       const r = route(url);
