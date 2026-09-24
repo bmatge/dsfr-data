@@ -735,6 +735,13 @@ export interface Action {
   value?: string;
   /** Options d'un `<select multiple>` (select). */
   values?: string[];
+  /**
+   * Clic FORCÉ (click) : sans attendre que l'élément soit seul sous le
+   * pointeur. Un marqueur de carte recouvert par un autre (points empilés)
+   * ferait sinon expirer le geste, et le contrôle tomberait sur un délai au
+   * lieu de dire le chiffre qu'il garde (#1108).
+   */
+  force?: boolean;
 }
 
 /**

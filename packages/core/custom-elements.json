@@ -10833,6 +10833,16 @@
             },
             {
               "kind": "field",
+              "name": "groupField",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Regroupement (#1108) : un seul élément tracé par valeur distincte de ce\nchamp — données au format LONG, une ligne par couple ville × aide avec\nles coordonnées répétées. Au clic, la popup, le volet ou la modale\nreçoivent TOUTES les lignes du groupe : titre = valeur du groupe (ou\n`title-field` du dsfr-data-map-popup), puis un tableau des `popup-fields`\navec une ligne par enregistrement ; `popup-template` (ou le `<template>`\ndu compagnon) s'applique alors à chaque ligne, en liste. Au plus 200\nlignes rendues, « … et N autres » au-delà.\n\nPosition, `tooltip-field`, `color-field`, `radius-field`, `fill-field` :\nceux du PREMIER enregistrement du groupe qui porte des coordonnées\nexploitables (le premier tout court pour `geoshape`). Des coordonnées qui\ndiffèrent au sein d'un groupe sont signalées une fois en console.\n`max-items`, `getRenderedCount()` et le bandeau comptent des GROUPES ;\n`refine-on-click` (à poser sur le même champ) filtre sur la valeur du\ngroupe ; en `cluster`, chaque groupe est un point de la grappe. Une ligne\nsans valeur de regroupement reste un élément à part. Sans effet sur\n`heatmap` (chaque ligne reste un point de chaleur, avertissement en\nconsole).",
+              "attribute": "group-field"
+            },
+            {
+              "kind": "field",
               "name": "refineOnClick",
               "type": {
                 "text": "string"
@@ -11413,6 +11423,36 @@
             },
             {
               "kind": "field",
+              "name": "_groups",
+              "type": {
+                "text": "Map<Record<string, unknown>, MapGroup> | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Groupes du dernier rendu (#1108), indexes par l'enregistrement qui\nrepresente le groupe sur la carte. `null` hors `group-field`."
+            },
+            {
+              "kind": "field",
+              "name": "_divergentWarned",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0",
+              "description": "Dernier nombre de groupes a coordonnees divergentes journalise (warn unique)"
+            },
+            {
+              "kind": "field",
+              "name": "_groupHeatWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "`group-field` sur une heatmap deja signale (warn unique)"
+            },
+            {
+              "kind": "field",
               "name": "_timeFrames",
               "type": {
                 "text": "Map<string, Record<string, unknown>[]>"
@@ -11672,7 +11712,7 @@
               "privacy": "private",
               "static": true,
               "readonly": true,
-              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'timeField', 'timeBucket', 'timeMode', ])",
+              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
               "description": "Proprietes dont le changement doit redessiner la couche (#482 bug 6) :\nsans ce hook, modifier un attribut en place (type, cluster, couleur…)\nne produisait aucun effet avant la prochaine emission de la source."
             },
             {
@@ -11880,6 +11920,36 @@
                 }
               },
               "description": "Champs de position tels que configures, pour les messages de diagnostic."
+            },
+            {
+              "kind": "method",
+              "name": "_groupingActive",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "`group-field` s'applique-t-il ? Pas a une heatmap (warn unique)."
+            },
+            {
+              "kind": "method",
+              "name": "_buildGroups",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Record<string, unknown>[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "rows",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Regroupe les lignes par valeur de `group-field` et rend un representant\npar groupe, dans l'ordre de premiere apparition : le premier\nenregistrement qui porte des coordonnees exploitables (types ponctuels),\nle premier tout court sinon. Une ligne sans valeur de regroupement reste\nun element a part. Les groupes dont les coordonnees divergent sont\nsignales une fois en console."
             },
             {
               "kind": "method",
@@ -12109,6 +12179,42 @@
             },
             {
               "kind": "method",
+              "name": "_bindGroupPopup",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "layer",
+                  "type": {
+                    "text": "LeafletLayer"
+                  }
+                },
+                {
+                  "name": "group",
+                  "type": {
+                    "text": "MapGroup"
+                  }
+                }
+              ],
+              "description": "Popup d'un groupe (#1108) : toutes ses lignes. Compagnon : il rend titre\net corps (volet, modale ou bulle). Sans compagnon : bulle Leaflet avec la\nvaleur du groupe en titre, puis `popup-template` par ligne (liste) ou le\ntableau des `popup-fields` ; rien sans l'un ni l'autre, comme hors groupe."
+            },
+            {
+              "kind": "method",
+              "name": "_popupFieldList",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Champs de `popup-fields`, nettoyes."
+            },
+            {
+              "kind": "method",
               "name": "_bindPopupA11y",
               "privacy": "private",
               "return": {
@@ -12299,10 +12405,10 @@
               "type": {
                 "text": "CustomEvent"
               },
-              "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
+              "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020 ; le nombre de groupes avec `group-field`, #1108), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
             },
             {
-              "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).",
+              "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). Avec `group-field` (#1108), `record` est le premier enregistrement du groupe et le détail porte en plus `group` (valeur du groupe) et `records` (toutes ses lignes).",
               "name": "dsfr-data-map-select"
             },
             {
@@ -12382,6 +12488,15 @@
               "default": "''",
               "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681). Vide = le nom du champ.",
               "fieldName": "label"
+            },
+            {
+              "name": "group-field",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Regroupement (#1108) : un seul élément tracé par valeur distincte de ce\nchamp — données au format LONG, une ligne par couple ville × aide avec\nles coordonnées répétées. Au clic, la popup, le volet ou la modale\nreçoivent TOUTES les lignes du groupe : titre = valeur du groupe (ou\n`title-field` du dsfr-data-map-popup), puis un tableau des `popup-fields`\navec une ligne par enregistrement ; `popup-template` (ou le `<template>`\ndu compagnon) s'applique alors à chaque ligne, en liste. Au plus 200\nlignes rendues, « … et N autres » au-delà.\n\nPosition, `tooltip-field`, `color-field`, `radius-field`, `fill-field` :\nceux du PREMIER enregistrement du groupe qui porte des coordonnées\nexploitables (le premier tout court pour `geoshape`). Des coordonnées qui\ndiffèrent au sein d'un groupe sont signalées une fois en console.\n`max-items`, `getRenderedCount()` et le bandeau comptent des GROUPES ;\n`refine-on-click` (à poser sur le même champ) filtre sur la valeur du\ngroupe ; en `cluster`, chaque groupe est un point de la grappe. Une ligne\nsans valeur de regroupement reste un élément à part. Sans effet sur\n`heatmap` (chaque ligne reste un point de chaleur, avertissement en\nconsole).",
+              "fieldName": "groupField"
             },
             {
               "name": "refine-on-click",
@@ -13073,6 +13188,30 @@
             },
             {
               "kind": "method",
+              "name": "showForGroup",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "group",
+                  "type": {
+                    "text": "MapGroup"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ],
+              "description": "Affiche TOUTES les lignes d'un groupe (`group-field` de la couche, #1108).\nTitre : `title-field` lu sur le premier enregistrement s'il est posé,\nsinon la valeur du groupe. Corps : le `<template>` appliqué à chaque ligne\n(une liste), sinon un tableau des `fields` avec une ligne par\nenregistrement — borné à GROUP_ROWS_MAX lignes, « … et N autres » au-delà."
+            },
+            {
+              "kind": "method",
               "name": "getPopupHtml",
               "return": {
                 "type": {
@@ -13088,6 +13227,117 @@
                 }
               ],
               "description": "Returns the popup HTML for Leaflet bindPopup (popup mode only)"
+            },
+            {
+              "kind": "method",
+              "name": "getGroupPopupHtml",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "group",
+                  "type": {
+                    "text": "MapGroup"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ],
+              "description": "HTML d'une bulle Leaflet pour un groupe (mode `popup`, #1108) : titre puis corps."
+            },
+            {
+              "kind": "method",
+              "name": "_show",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "html",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "title",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ],
+              "description": "Aiguille un corps déjà échappé vers le volet ou la modale."
+            },
+            {
+              "kind": "method",
+              "name": "_titleOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "record",
+                  "type": {
+                    "text": "Record<string, unknown>"
+                  }
+                }
+              ],
+              "description": "Titre d'un enregistrement : la valeur de `title-field`, `null` sans lui."
+            },
+            {
+              "kind": "method",
+              "name": "_groupTitle",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "group",
+                  "type": {
+                    "text": "MapGroup"
+                  }
+                }
+              ],
+              "description": "Titre d'un groupe : `title-field` s'il est posé et renseigné, sinon la valeur du groupe."
+            },
+            {
+              "kind": "method",
+              "name": "_renderGroup",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "group",
+                  "type": {
+                    "text": "MapGroup"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -13157,9 +13407,9 @@
                   }
                 },
                 {
-                  "name": "record",
+                  "name": "title",
                   "type": {
-                    "text": "Record<string, unknown>"
+                    "text": "string"
                   }
                 }
               ]
@@ -13187,9 +13437,9 @@
                   }
                 },
                 {
-                  "name": "record",
+                  "name": "title",
                   "type": {
-                    "text": "Record<string, unknown>"
+                    "text": "string"
                   }
                 }
               ]

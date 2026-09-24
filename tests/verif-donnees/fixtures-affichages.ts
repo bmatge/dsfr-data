@@ -28,6 +28,7 @@ import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
 import long from './jeux/affichages-long.json' with { type: 'json' };
 import contoursDepartements from './jeux/affichages-contours-departements.json' with { type: 'json' };
 import zones from './jeux/affichages-zones.json' with { type: 'json' };
+import aides from './jeux/affichages-aides.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
@@ -71,13 +72,22 @@ export const LONG: Row[] = long;
  */
 export const ZONES: Row[] = zones;
 
-/** Les cinq jeux, sous le nom que les manifestes leur donnent. */
+/**
+ * « Aides nationales » au format LONG (#1108) : une ligne par couple ville ×
+ * aide, coordonnées RÉPÉTÉES. Six villes aux effectifs inégaux (1 à 5
+ * lignes), dans un ordre entrelacé : une couche `group-field="Ville"` doit
+ * tracer six marqueurs, et le volet d'une ville lister chacune de ses aides.
+ */
+export const AIDES: Row[] = aides;
+
+/** Les six jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
   libelles: LIBELLES,
   long: LONG,
   zones: ZONES,
+  aides: AIDES,
 } as const;
 
 /**

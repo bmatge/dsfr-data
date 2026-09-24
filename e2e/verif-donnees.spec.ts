@@ -451,7 +451,7 @@ async function jouerActions(page: Page, actions: Action[]): Promise<void> {
         });
         break;
       case 'click':
-        await page.click(action.selector!);
+        await page.click(action.selector!, action.force ? { force: true } : undefined);
         break;
       case 'fill':
         await page.fill(action.selector!, action.value ?? '');

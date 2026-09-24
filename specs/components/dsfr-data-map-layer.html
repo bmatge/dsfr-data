@@ -120,6 +120,57 @@
           </table>
         </div>
 
+        <h3>Regroupement : un élément par groupe (format long)</h3>
+        <p>
+          Quand les données sont au format <strong>long</strong> — une ligne par couple ville × aide,
+          coordonnées répétées sur chaque ligne —, <code>group-field="Ville"</code> trace
+          <strong>un seul</strong> marqueur (ou cercle, ou forme) par valeur distincte du champ, au lieu
+          de N marqueurs empilés. Au clic, la popup, le volet (<code>panel-left</code> /
+          <code>panel-right</code>) ou la modale de <code>dsfr-data-map-popup</code> reçoivent
+          <strong>toutes</strong> les lignes du groupe : en titre la valeur du groupe (ou le
+          <code>title-field</code> du compagnon, lu sur le premier enregistrement), puis un tableau des
+          <code>popup-fields</code> avec une ligne par enregistrement. Si <code>popup-template</code> (ou
+          le <code>&lt;template&gt;</code> du compagnon) est posé, il s'applique à chaque ligne, en liste.
+          Sans <code>popup-fields</code> ni gabarit, le compagnon montre les colonnes scalaires du jeu,
+          hors géométrie et hors champ de regroupement. Au plus 200 lignes, puis « … et N autres ».
+          Toutes les valeurs sont échappées.
+        </p>
+        <ul>
+          <li><strong>Position</strong> : celle du premier enregistrement du groupe qui porte des
+            coordonnées exploitables (la première forme pour <code>geoshape</code>). Des coordonnées
+            différentes au sein d'un groupe sont signalées une fois en console.</li>
+          <li><strong><code>tooltip-field</code>, <code>color-field</code>, <code>radius-field</code>,
+            <code>fill-field</code></strong> : la valeur de ce même premier enregistrement. Pour un
+            rayon ou une couleur proportionnels à un total par groupe, agréger en amont
+            (<code>dsfr-data-query group-by</code>) sur une seconde couche.</li>
+          <li><strong><code>max-items</code></strong>, <code>getRenderedCount()</code>, le bandeau de
+            troncature et le <code>total</code> de <code>dsfr-data-map-layer-render</code> comptent des
+            <strong>groupes</strong>.</li>
+          <li><strong><code>refine-on-click</code></strong> : à poser sur le même champ, il filtre sur la
+            valeur du groupe. L'événement <code>dsfr-data-map-select</code> porte en plus
+            <code>group</code> et <code>records</code> (toutes les lignes).</li>
+          <li><strong><code>cluster</code></strong> : compatible, chaque groupe est un point de la
+            grappe. Une ligne sans valeur de regroupement reste un élément à part.</li>
+          <li><strong><code>heatmap</code></strong> : <code>group-field</code> est sans effet (chaque
+            ligne reste un point de chaleur) et un avertissement le dit en console.</li>
+        </ul>
+        <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map</span> <span class="tok-attr">center</span><span class="tok-punct">=</span><span class="tok-string">"46.6,2.3"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"6"</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"aides"</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"src-aides"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"marker"</span>
+    <span class="tok-attr">lat-field</span><span class="tok-punct">=</span><span class="tok-string">"Latitude"</span> <span class="tok-attr">lon-field</span><span class="tok-punct">=</span><span class="tok-string">"Longitude"</span>
+    <span class="tok-attr">group-field</span><span class="tok-punct">=</span><span class="tok-string">"Ville"</span> <span class="tok-attr">popup-fields</span><span class="tok-punct">=</span><span class="tok-string">"Action,Domaine"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-popup</span> <span class="tok-attr">for</span><span class="tok-punct">=</span><span class="tok-string">"aides"</span> <span class="tok-attr">mode</span><span class="tok-punct">=</span><span class="tok-string">"panel-right"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
+<span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-map-layer fields="group-field" -->
+                <tr><td><code>group-field</code></td><td>String</td><td><code>""</code></td><td>Regroupement (#1108) : un seul élément tracé par valeur distincte de ce champ — données au format LONG, une ligne par couple ville × aide avec les coordonnées répétées. Au clic, la popup, le volet ou la modale reçoivent TOUTES les lignes du groupe : titre = valeur du groupe (ou <code>title-field</code> du dsfr-data-map-popup), puis un tableau des <code>popup-fields</code> avec une ligne par enregistrement ; <code>popup-template</code> (ou le <code>&lt;template&gt;</code> du compagnon) s'applique alors à chaque ligne, en liste. Au plus 200 lignes rendues, « … et N autres » au-delà. Position, <code>tooltip-field</code>, <code>color-field</code>, <code>radius-field</code>, <code>fill-field</code> : ceux du PREMIER enregistrement du groupe qui porte des coordonnées exploitables (le premier tout court pour <code>geoshape</code>). Des coordonnées qui diffèrent au sein d'un groupe sont signalées une fois en console. <code>max-items</code>, <code>getRenderedCount()</code> et le bandeau comptent des GROUPES ; <code>refine-on-click</code> (à poser sur le même champ) filtre sur la valeur du groupe ; en <code>cluster</code>, chaque groupe est un point de la grappe. Une ligne sans valeur de regroupement reste un élément à part. Sans effet sur <code>heatmap</code> (chaque ligne reste un point de chaleur, avertissement en console).</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
         <h3>Heatmap</h3>
         <div class="fr-table">
           <table class="attr-table">
