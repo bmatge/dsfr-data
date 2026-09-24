@@ -1,5 +1,20 @@
 # dsfr-data
 
+## 0.39.1
+
+### Patch Changes
+
+- [#1125](https://github.com/bmatge/dsfr-data/pull/1125) [`b65f7ef`](https://github.com/bmatge/dsfr-data/commit/b65f7ef327640f3672f415f65ef39338712b32dd) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA : corrige les trois écarts de la mesure de base du banc de pertinence ([#1123](https://github.com/bmatge/dsfr-data/issues/1123)).
+  `inspect_data` signale désormais les colonnes numériques constantes pour chaque valeur d'une
+  colonne entité (« Nombre total d'actions est constant pour chaque Ville »), calcul borné et
+  déterministe ; le signal figure aussi dans le contexte de données du prompt, et quand le modèle
+  le tait après avoir posé des blocs, le Studio ajoute lui-même la note à sa réponse ; un bloc `datalist` n'exige plus
+  `valueField` (schéma des outils, validation et vocabulaire alignés, `valueField` requis seulement
+  pour trier ou agréger un tableau) ; une réponse finale écrite en JSON (`{"message": …}`, l'argument
+  de `finish`) est lue comme un `finish` et l'usager n'en voit que le message.
+
+- [#1127](https://github.com/bmatge/dsfr-data/pull/1127) [`1633a64`](https://github.com/bmatge/dsfr-data/commit/1633a64f8e19052212a8ae65b58db8ce3fbd59dd) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA : le signal « total répété par entité » ([#1123](https://github.com/bmatge/dsfr-data/issues/1123)) n'annonce plus les coordonnées (latitude, longitude), constantes par lieu par nature — ni dans l'inspection des données, ni dans la note « À noter » hors carte.
+
 ## 0.39.0
 
 ### Minor Changes
