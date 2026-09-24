@@ -194,18 +194,6 @@ const EXCEPTIONS: readonly Exception[] = [
       'd’adaptateur (capacité serverGeo) par #1090.',
   },
   {
-    file: 'components/dsfr-data-source.ts',
-    line: /opendatasoft, tabular, grist, insee/,
-    issue: '#1139',
-    reason: 'Listes d’api-types en dur dans les messages, à dériver du registre.',
-  },
-  {
-    file: 'components/dsfr-data-search.ts',
-    line: /whereFormat \?\? 'odsql'/,
-    issue: '#1139',
-    reason: 'Sans adaptateur, la recherche serveur suppose le dialecte ODSQL.',
-  },
-  {
     file: 'index.ts',
     line: /\bTabular(Adapter|Profile|ProfileParams)\b|adapters\/tabular-adapter\.js/,
     issue: '#985',

@@ -20,6 +20,20 @@ import type { ProviderConfig } from '@dsfr-data/shared/lib';
  */
 const URL_PAGINATION = GENERIC_CONFIG.pagination;
 
+/** L'api-type du mode URL (valeur par défaut de l'attribut). */
+const GENERIC_API_TYPE = GENERIC_CONFIG.id;
+
+/**
+ * Api-types capables de filtrer côté serveur (#1139) : dérivés du registre
+ * et de la capacité `serverFetch`, pour nommer aussi un adaptateur ajouté
+ * par `registerAdapter` — jamais une liste en dur.
+ */
+function serverApiTypes(): string {
+  return listAdapterTypes()
+    .filter((type) => getAdapter(type)?.capabilities.serverFetch)
+    .join(', ');
+}
+
 /** `meta.page` → `meta` : l'objet dont la présence signale une réponse paginée. */
 function parentPath(path: string): string {
   const i = path.lastIndexOf('.');
@@ -36,7 +50,7 @@ import type {
   ServerSideOverlay,
   FetchResult,
 } from '../adapters/api-adapter.js';
-import { getAdapter } from '../adapters/adapter-registry.js';
+import { getAdapter, listAdapterTypes } from '../adapters/adapter-registry.js';
 import { getCacheProvider, cacheKeyFor } from '../utils/cache-provider.js';
 import { logFetchError } from '../utils/fetch-diagnostics.js';
 import {
@@ -117,8 +131,9 @@ export class DsfrDataSource extends LitElement {
 
   /**
    * En-têtes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`.
-   * OpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête
-   * autorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).
+   * Quand le fournisseur attend sa clé sous un en-tête précis (déclaré par sa
+   * configuration), un `apikey` nu est réécrit automatiquement au bon format
+   * (#655) ; détail par fournisseur : table des capacités d'ARCHITECTURE.
    */
   @property({ type: String })
   headers = '';
@@ -126,15 +141,16 @@ export class DsfrDataSource extends LitElement {
   /**
    * Paramètres de requête en JSON. Mode URL : query string en GET, corps de la
    * requête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à
-   * l'URL construite par l'adaptateur, ce qui sert les paramètres propres au
-   * portail que la bibliothèque ne modélise pas — le cas d'usage est
-   * `params='{"timezone":"Europe/Paris"}'` sur un jeu Opendatasoft à
-   * dates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que
+   * l'URL construite par l'adaptateur, ce qui sert les paramètres propres à
+   * l'API que la bibliothèque ne modélise pas — par exemple
+   * `params='{"timezone":"Europe/Paris"}'` pour lire des dates dans un
+   * fuseau donné, sans quitter le mode adaptateur. Les clés que
    * l'adaptateur construit lui-même (il les déclare : clauses, pagination,
    * projection, suffixes d'opérateur) sont réservées : elles sont refusées
    * avec une erreur de configuration plutôt que d'écraser une clause (#1137).
-   * Transmis par l'adaptateur Opendatasoft seulement, en chargement paginé
-   * comme en `fetch-mode="export"`.
+   * Seuls les adaptateurs qui acceptent des paramètres libres les
+   * transmettent (en chargement paginé comme en `fetch-mode="export"`) ; les
+   * autres les ignorent — voir la table des capacités d'ARCHITECTURE.
    */
   @property({ type: String })
   params = '';
@@ -166,8 +182,8 @@ export class DsfrDataSource extends LitElement {
   /**
    * Domaine du proxy CORS pour CETTE source (#340), prioritaire sur
    * `window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la
-   * reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le
-   * `use-proxy` generique. Vide = resolution proxy globale habituelle.
+   * reecriture des hotes connus (ceux que la configuration d'un fournisseur
+   * declare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.
    * Ex: `proxy-url="https://mon-proxy.fr"`.
    */
   @property({ type: String, attribute: 'proxy-url' })
@@ -185,19 +201,24 @@ export class DsfrDataSource extends LitElement {
 
   // --- Mode adapter (nouveau) ---
 
-  /** Type d'API — active le mode adapter si != 'generic' et url est vide */
+  /**
+   * Type d'API : l'identifiant d'un adaptateur du registre (ceux de la
+   * bibliothèque, ou un adaptateur ajouté par `registerAdapter`). Toute autre
+   * valeur que `generic` active le mode adaptateur ; `generic` avec une `url`
+   * reste en mode URL.
+   */
   @property({ type: String, attribute: 'api-type' })
   apiType = 'generic';
 
-  /** URL de base de l'API (pour ODS, Tabular) */
+  /** URL de base de l'API, pour les adaptateurs qui adressent un portail par son URL. */
   @property({ type: String, attribute: 'base-url' })
   baseUrl = '';
 
-  /** ID du dataset (pour ODS) */
+  /** Identifiant du jeu de données, pour les adaptateurs qui désignent un jeu par son identifiant. */
   @property({ type: String, attribute: 'dataset-id' })
   datasetId = '';
 
-  /** ID de la ressource (pour Tabular) */
+  /** Identifiant de la ressource (fichier d'un jeu), pour les adaptateurs qui désignent une ressource. */
   @property({ type: String })
   resource = '';
 
@@ -206,16 +227,21 @@ export class DsfrDataSource extends LitElement {
   where = '';
 
   /**
-   * Clause SELECT (ODS, et projection de colonnes sur Tabular), liste séparée par des virgules :
-   * `select="count(*) as total, region"`. Une expression (fonction, alias
-   * `as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom
-   * de champ qui n'est pas un identifiant nu (espace, accent, chiffre
-   * initial comme `1_uai`) est backquoté automatiquement (#767). Une virgule
-   * à l'intérieur d'une fonction ou d'une chaîne ne sépare pas.
-   * Un `select` fait UNIQUEMENT d'agrégats, sans `group-by`
-   * (`select="sum(montant) as total"`) se charge en une requête d'une ligne,
-   * la valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre
-   * ne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.
+   * Clause SELECT, liste séparée par des virgules. Sa grammaire dépend de
+   * l'adaptateur (table des capacités d'ARCHITECTURE, ligne « projection
+   * select ») : clause complète ou simple liste de noms de colonnes ; un
+   * adaptateur sans projection l'ignore.
+   *
+   * **Clause complète** : `select="count(*) as total, region"`. Une
+   * expression (fonction, alias `as`, `*`, chemin pointé, opérateur) est
+   * transmise telle quelle ; un nom de champ qui n'est pas un identifiant nu
+   * (espace, accent, chiffre initial comme `1_uai`) est échappé
+   * automatiquement (#767). Une virgule à l'intérieur d'une fonction ou d'une
+   * chaîne ne sépare pas. Un `select` fait UNIQUEMENT d'agrégats, sans
+   * `group-by` (`select="sum(montant) as total"`) se charge en une requête
+   * d'une ligne, la valeur calculée par le serveur sur tout le jeu (#810) ;
+   * si le filtre ne garde aucune ligne, un `count` vaut 0 et les autres
+   * fonctions `null`.
    *
    * Quand une `dsfr-data-query` délègue son regroupement à cette source, le
    * `select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes
@@ -225,31 +251,32 @@ export class DsfrDataSource extends LitElement {
    * (`year(date) as annee`) que le regroupement vise, la délégation est
    * refusée — avertissement en console, regroupement calculé côté client.
    *
-   * Tabular (#985) : une liste de NOMS de colonnes (`select="nom, Code sexe"`,
-   * espaces et accents admis), traduite en `columns=` — l'API ne rend que ces
-   * colonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne
-   * n'est ajoutée d'office : une colonne lue en aval (graphique, liste,
-   * facette, filtre client) doit y figurer, et un nom inconnu du jeu fait
-   * répondre l'API en erreur. Sans effet quand un `group-by` ou un
-   * `aggregate` est posé (sur la source ou délégué par une query) : l'API
-   * refuse `columns` à côté d'un agrégateur. Une expression (fonction, alias,
-   * `*`) est ignorée avec un avertissement : toutes les colonnes sont chargées.
+   * **Liste de noms de colonnes** (projection seule, #985) :
+   * `select="nom, Code sexe"`, espaces et accents admis — l'API ne rend que
+   * ces colonnes, soit dix fois moins d'octets sur un jeu large. Aucune
+   * colonne n'est ajoutée d'office : une colonne lue en aval (graphique,
+   * liste, facette, filtre client) doit y figurer, et un nom inconnu du jeu
+   * fait répondre l'API en erreur. Sans effet quand un `group-by` ou un
+   * `aggregate` est posé (sur la source ou délégué par une query), si l'API
+   * refuse la projection à côté d'un agrégateur. Une expression (fonction,
+   * alias, `*`) est ignorée avec un avertissement : toutes les colonnes sont
+   * chargées.
    */
   @property({ type: String })
   select = '';
 
   /**
-   * Group-by (pour les APIs qui le supportent server-side). ODS : un élément
-   * peut être une expression aliasée, avec ou sans fonction
-   * (`year(date) as annee`, `periode as an`), transmise telle quelle —
-   * l'alias `as` est obligatoire cote ODS (#641). Même découpe et même
-   * échappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m`
-   * reste d'un seul tenant.
+   * Group-by, délégué aux adaptateurs déclarant `serverGroupBy`. Avec un
+   * `select` en clause complète, un élément peut être une expression
+   * aliasée, avec ou sans fonction (`year(date) as annee`, `periode as an`),
+   * transmise telle quelle — l'alias `as` y est obligatoire (#641). Même
+   * découpe et même échappement que `select` (#767) :
+   * `date_format(d, 'yyyy-MM') as m` reste d'un seul tenant.
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';
 
-  /** Agrégation (pour les APIs qui le supportent server-side) */
+  /** Agrégation, déléguée aux adaptateurs déclarant `serverGroupBy`. */
   @property({ type: String })
   aggregate = '';
 
@@ -274,50 +301,50 @@ export class DsfrDataSource extends LitElement {
   limit = 0;
 
   /**
-   * Plafond de lignes du chargement complet en mode adaptateur, honoré par
-   * Opendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de
-   * l'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever
-   * explicitement pour charger un jeu plus long par la pagination — par
-   * exemple une carte des ≈ 35 000 communes sur Tabular (`max-records="40000"`)
-   * — ou pour les tableaux de bord « un fetch, N agrégations client » :
-   * attention au nombre de requêtes en boucle (Tabular : une par tranche de
-   * 200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.
-   * Quand le plafond coupe le jeu, la source signale la troncature
-   * (`truncated`) et un avertissement console cite `max-records`.
+   * Plafond de lignes du chargement complet en mode adaptateur (#233,
+   * #1027), honoré par les adaptateurs qui paginent eux-mêmes leur
+   * chargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par
+   * adaptateur : table des capacités d'ARCHITECTURE, ligne « plafond
+   * fetchAll »). À relever explicitement pour charger un jeu plus long par la
+   * pagination — par exemple une carte des ≈ 35 000 communes
+   * (`max-records="40000"`) — ou pour les tableaux de bord « un fetch, N
+   * agrégations client » : attention au nombre de requêtes en boucle (une
+   * par page de l'API) et au poids mémoire. Un `limit` plus petit reste
+   * prioritaire. Quand le plafond coupe le jeu, la source signale la
+   * troncature (`truncated`) et un avertissement console cite `max-records`.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
 
   /**
    * Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,
-   * comportement historique — pagination par pages de 100) ou `export`, qui
-   * charge tout le jeu en **une seule requête** sur l'endpoint d'export du
-   * portail, avec les mêmes clauses (`select`, `where`, `group-by`,
-   * `order-by`). Implémenté par OpenDataSoft et Tabular ; les autres
-   * adaptateurs ignorent l'attribut.
+   * comportement historique — pagination par pages) ou `export`, qui charge
+   * tout le jeu en **une seule requête**, ou en quelques plages, sur
+   * l'endpoint d'export de l'API. Implémenté par les adaptateurs qui ont un
+   * endpoint d'export (table des capacités d'ARCHITECTURE, ligne
+   * « chargement en une requête ») ; les autres ignorent l'attribut.
    *
-   * **Tabular** (#1055) : lit l'export **Parquet** que data.gouv publie pour
-   * chaque ressource, par plages, colonnes projetées depuis `select` — le
-   * jeu entier en quelques requêtes au lieu de pages de 200. Le lecteur
-   * (≈ 22 Ko gzip) n'est chargé qu'à ce moment-là. Lignes brutes seulement :
-   * avec un `where`, `group-by`, `aggregate` ou `order-by` délégué (posé sur
-   * la source ou transmis par une `dsfr-data-query`), la source reste sur la
-   * pagination, qui les exécute côté serveur, et le dit en console.
-   * `max-records` (25 000 par défaut) borne les lignes lues. Les entiers et
-   * les dates arrivent dans la forme de l'API (nombre, `AAAA-MM-JJ`).
-   * Pour une première page rapide sur un petit jeu, la pagination reste plus
-   * vive ; l'export l'emporte au-delà de 1 000 à 2 000 lignes.
+   * Selon l'adaptateur, l'export porte les mêmes clauses (`select`, `where`,
+   * `group-by`, `order-by`) ou ne rend que des **lignes brutes** (#1055) :
+   * dans ce dernier cas, avec un `where`, `group-by`, `aggregate` ou
+   * `order-by` délégué (posé sur la source ou transmis par une
+   * `dsfr-data-query`), la source reste sur la pagination, qui les exécute
+   * côté serveur, et le dit en console. Un export binaire (colonnes projetées
+   * depuis `select`) charge son lecteur à la demande seulement. Pour une
+   * première page rapide sur un petit jeu, la pagination reste plus vive ;
+   * l'export l'emporte au-delà de 1 000 à 2 000 lignes.
    *
    * À activer pour une page « un fetch, N agrégations client », un jeu de
-   * plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail
+   * plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : l'API
    * les rend tous d'un coup au lieu d'une page. À ne pas activer avec
    * `server-side` (pagination page par page), qui reste sur l'endpoint
    * paginé et signale la contradiction dans la console.
    *
    * En mode `export` le total serveur est inconnu : la troncature est
-   * détectée en demandant une ligne de plus que le plafond `max-records`.
-   * Si le portail n'expose pas d'endpoint d'export, la source retombe une
-   * fois sur le chargement paginé, avec un avertissement en console.
+   * détectée en demandant une ligne de plus que le plafond `max-records`,
+   * qui borne aussi les lignes lues. Si l'API n'expose pas d'endpoint
+   * d'export, la source retombe une fois sur le chargement paginé, avec un
+   * avertissement en console.
    */
   @property({ type: String, attribute: 'fetch-mode' })
   fetchMode: 'records' | 'export' = 'records';
@@ -616,9 +643,8 @@ export class DsfrDataSource extends LitElement {
   }
 
   private _isAdapterMode(): boolean {
-    return (
-      this.apiType !== 'generic' || (this.apiType === 'generic' && !this.url && this.baseUrl !== '')
-    );
+    // `generic` sans `url` mais avec `base-url` : adaptateur generique
+    return this.apiType !== GENERIC_API_TYPE || (!this.url && this.baseUrl !== '');
   }
 
   private _cleanup() {
@@ -685,7 +711,7 @@ export class DsfrDataSource extends LitElement {
           this._urlModeCommandWarned = true;
           console.warn(
             `dsfr-data-source[${this.id}]: commandes where/orderBy/groupBy/aggregate ignorees en mode URL — ` +
-              `utilisez un api-type (opendatasoft, tabular, grist, insee) pour les filtres serveur (#288)`
+              `utilisez un api-type (${serverApiTypes()}) pour les filtres serveur (#288)`
           );
         }
         if (needsFetch) {
@@ -784,7 +810,7 @@ export class DsfrDataSource extends LitElement {
       console.warn(
         `dsfr-data-source[${this.id}]: require-where est sans issue en mode URL — ` +
           `les commandes where y sont refusées (#288). Utilisez un api-type ` +
-          `(opendatasoft, tabular, grist, insee) pour que les filtres atteignent la source.`
+          `(${serverApiTypes()}) pour que les filtres atteignent la source.`
       );
     }
 
@@ -1123,7 +1149,7 @@ export class DsfrDataSource extends LitElement {
       // api-type inconnu (#283) : signal DOM + erreur aval — l'ancien throw
       // du registre remontait hors try via setTimeout (unhandled rejection,
       // consommateurs geles en loading)
-      const message = `api-type "${this.apiType}" inconnu — types supportes : generic, opendatasoft, tabular, grist, insee (ou registerAdapter)`;
+      const message = `api-type "${this.apiType}" inconnu — types supportés : ${listAdapterTypes().join(', ')} (ou registerAdapter)`;
       reportConfigError(this, `dsfr-data-source[${this.id}]`, message);
       this._error = new Error(message);
       dispatchDataError(this.id, this._error);

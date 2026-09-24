@@ -190,6 +190,8 @@ describe('#652 — mode bbox : commande émise dès la carte prête', () => {
       removeLayer: () => {},
     });
     parent.getLeafletLib = () => L;
+    // Lu au rendu, quand une couche a des lignes (#1139 : tests avec données)
+    (parent as unknown as { updateDescription: () => void }).updateDescription = () => {};
 
     const src = document.createElement('div');
     src.id = sourceId;
@@ -215,6 +217,8 @@ describe('#652 — mode bbox : commande émise dès la carte prête', () => {
       commands.push(cmd as Record<string, unknown>)
     );
     const { layer, parent, src } = await mountBboxLayer('f5-src', { serverGeo: true });
+    // Champ déclaré : sans lui ni ligne, aucun nom de colonne n'est supposé (#1139)
+    layer.bboxField = 'geo_point_2d';
 
     (layer as unknown as LayerInternals)._onMapReady();
     // Anti-rebond : rien avant le délai
@@ -248,6 +252,55 @@ describe('#652 — mode bbox : commande émise dès la carte prête', () => {
     vi.advanceTimersByTime(100);
     expect(commands).toHaveLength(0);
 
+    unsub();
+    parent.remove();
+    src.remove();
+    vi.useRealTimers();
+  });
+
+  it('#1139 — sans champ ni ligne, la clause attend les données : aucun geo_point_2d supposé', async () => {
+    vi.useFakeTimers();
+    clearDataCache('f5-src3');
+    const commands: Array<Record<string, unknown>> = [];
+    const unsub = subscribeToSourceCommands('f5-src3', (cmd) =>
+      commands.push(cmd as Record<string, unknown>)
+    );
+    const { layer, parent, src } = await mountBboxLayer('f5-src3', { serverGeo: true });
+
+    (layer as unknown as LayerInternals)._onMapReady();
+    vi.advanceTimersByTime(60);
+    expect(commands.filter((c) => c.whereKey === 'map-bbox')).toHaveLength(0);
+
+    // Les premières lignes disent la colonne : la clause part avec elle
+    layer.onSourceData([{ coords: 1, geometry: { type: 'Point', coordinates: [2, 48] } }]);
+    vi.advanceTimersByTime(60);
+    const bbox = commands.find((c) => c.whereKey === 'map-bbox');
+    expect(String(bbox?.where)).toMatch(/^in_bbox\(geometry,/);
+
+    unsub();
+    parent.remove();
+    src.remove();
+    vi.useRealTimers();
+  });
+
+  it('#1139 — des lignes sans colonne géographique reconnue : pas de clause, un avertissement', async () => {
+    vi.useFakeTimers();
+    clearDataCache('f5-src4');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const commands: Array<Record<string, unknown>> = [];
+    const unsub = subscribeToSourceCommands('f5-src4', (cmd) =>
+      commands.push(cmd as Record<string, unknown>)
+    );
+    const { layer, parent, src } = await mountBboxLayer('f5-src4', { serverGeo: true });
+    layer.onSourceData([{ lat: 48, lon: 2 }]);
+
+    (layer as unknown as LayerInternals)._onMapReady();
+    vi.advanceTimersByTime(60);
+
+    expect(commands.filter((c) => c.whereKey === 'map-bbox')).toHaveLength(0);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes('bbox-field'))).toBe(true);
+
+    warn.mockRestore();
     unsub();
     parent.remove();
     src.remove();

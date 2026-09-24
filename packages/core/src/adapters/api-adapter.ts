@@ -337,4 +337,4 @@ export interface ApiAdapter {
 
 // --- Registre et factory (re-exported from adapter-registry) ---
 
-export { getAdapter, registerAdapter } from './adapter-registry.js';
+export { getAdapter, registerAdapter, listAdapterTypes } from './adapter-registry.js';

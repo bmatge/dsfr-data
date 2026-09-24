@@ -67,4 +67,4 @@ export type {
   FacetResult,
   ServerSideOverlay,
 } from './adapters/api-adapter.js';
-export { getAdapter, registerAdapter } from './adapters/api-adapter.js';
+export { getAdapter, registerAdapter, listAdapterTypes } from './adapters/api-adapter.js';

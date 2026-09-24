@@ -208,7 +208,7 @@
                 <tr><td><code>max-zoom</code></td><td>Number</td><td><code>18</code></td><td>Niveau de zoom au-delà duquel la couche est masquee.</td></tr>
                 <tr><td><code>bbox</code></td><td>Boolean</td><td><code>false</code></td><td>Chargement par viewport : re-interroge la source a chaque déplacement de la carte, et une première fois des que la carte est prête (#652). Le tout premier fetch de la source reste NON filtre (elle charge des sa connexion, avant que la carte — différée a la visibilité — ait un viewport) : sur un gros jeu, poser un <code>limit</code> ou un <code>where</code> initial sur la source.</td></tr>
                 <tr><td><code>bbox-debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai d'anti-rebond avant le re-fetch bbox, en millisecondes.</td></tr>
-                <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ géographique utilisé pour la requête bbox (auto-détecté si vide).</td></tr>
+                <tr><td><code>bbox-field</code></td><td>String</td><td><code>""</code></td><td>Champ géographique utilisé pour la requête bbox. Vide : <code>geo-field</code>, sinon détecté sur les premières lignes reçues — la clause serveur attend ces lignes, aucun nom de colonne n'est supposé (#1139).</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>

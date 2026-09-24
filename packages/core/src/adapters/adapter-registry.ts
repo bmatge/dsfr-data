@@ -34,6 +34,15 @@ export function getAdapter(apiType: string): ApiAdapter | null {
 }
 
 /**
+ * Identifiants des adaptateurs enregistres, dans l'ordre d'enregistrement
+ * (#1139) : les messages qui listent les api-types les derivent d'ici, pour
+ * nommer aussi un adaptateur ajoute par `registerAdapter`.
+ */
+export function listAdapterTypes(): string[] {
+  return [...ADAPTER_REGISTRY.keys()];
+}
+
+/**
  * Enregistre un adapter custom (pour extensibilite).
  */
 export function registerAdapter(adapter: ApiAdapter): void {

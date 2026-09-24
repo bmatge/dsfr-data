@@ -172,7 +172,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   /**
    * Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les
    * données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le
-   * jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)
+   * jeu de données, pour les adaptateurs qui savent les découvrir (#680 — métadonnées du jeu,
+   * colonnes à choix ; détail par fournisseur dans la table des capacités d'ARCHITECTURE)
    * @champ liste
    */
   @property({ type: String })
@@ -309,12 +310,13 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   urlSync = false;
 
   /**
-   * Active le mode facettes serveur ODS.
-   * Fetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.
-   * Requiert source pointant vers un dsfr-data-source avec api-type="opendatasoft" et server-side.
-   * Sans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le
-   * jeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type
-   * date (valeurs par année) sont filtrées par intervalle et non par égalité (#676).
+   * Active le mode facettes serveur : les valeurs et leurs compteurs sont demandés à l'API au
+   * lieu d'être calculés sur les lignes chargées. Requiert une source amont dont l'adaptateur
+   * déclare la capacité `serverFacets` (table des capacités d'ARCHITECTURE) ; sinon, repli sur
+   * les facettes calculées localement. Sans `fields`, un appel de découverte au premier cycle
+   * liste les facettes déclarées par le jeu, pour les adaptateurs qui savent les découvrir
+   * (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type date
+   * (valeurs par année) sont filtrées par intervalle et non par égalité (#676).
    */
   @property({ type: Boolean, attribute: 'server-facets' })
   serverFacets = false;
@@ -324,7 +326,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * Format: {"field": ["val1", "val2"], "field2": ["a", "b"]}
    * Quand cet attribut est défini, les facettes utilisent ces valeurs sans les
    * calculer depuis les données. Les selections envoient des commandes WHERE
-   * en colon syntax (compatible Tabular / generique) au dsfr-data-query en amont.
+   * dans le dialecte de l'adaptateur amont (colon à défaut) au dsfr-data-query en amont.
    * Attribut fields requis (pas d'auto-detection).
    */
   @property({ type: String, attribute: 'static-values' })

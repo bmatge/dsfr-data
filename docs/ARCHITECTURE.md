@@ -169,6 +169,21 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
 | projection `select` | clause ODSQL (expressions, alias) | `columns=` : noms seuls, ignore avec group-by/aggregate (#985) | non | non | non |
 | noms delegables (group-by, agregat, filtre, tri) | tous, backquotes (#767) | tous sauf `,` `:` `|` (grammaire colon), percent-encodes (#985) | tous | n/a | n/a |
+| identifiant du jeu | `base-url` + `dataset-id` | `resource` | `base-url` (URL `/records` de la table) | `dataset-id` | `base-url` |
+| `params` libres transmis (#726) | oui | non | non | non | non |
+| cles reservees de `params` (#1137) | `select where group_by order_by limit offset facet` | `page page_size columns or` + suffixes `champ__sort`, `champ__exact`… | — | — | — |
+| en-tete de cle reecrit (#655) | `apikey` → `Authorization: Apikey K` | non | non | non | non |
+| decouverte des facettes (#680) | metadonnees du jeu | — | colonnes Choice/ChoiceList | — | — |
+| gabarit de recherche par defaut | `search("{q}")` | `{fields}:contains:{q}` → `or=(…)`, sensible aux accents | — | — | — |
+| types declares (`describeFieldTypes`, #1138) | `int`/`double`/`decimal` → `number`… | — | — | — | — |
+| export (`fetch-mode="export"`) | `/exports/json`, memes clauses | Parquet data.gouv (#1055), lignes brutes seulement | — | — | — |
+
+**Les JSDoc des attributs parlent en capacites** (#1139) : « adaptateurs declarant `serverFacets` »,
+« plafond par defaut de l'adaptateur », jamais « pour ODS ». Les exemples par fournisseur vivent dans
+cette table (et dans le guide redige `packages/shared/src/skills/skills.ts`) ; une JSDoc periment
+des qu'un adaptateur gagne une capacite (cas de `server-facets`, reste « ODS » apres que Grist a
+declare `serverFacets`, #680). Les messages qui listent des api-types les derivent du registre
+(`listAdapterTypes()`, filtre `serverFetch`), pour nommer un adaptateur ajoute par `registerAdapter`.
 
 **Tabular : projection et profil (#985).** `select` devient `columns=` (`_columnsFlag`, emis par
 `buildUrl` ET `buildServerSideUrl`) — aucune inference : une colonne lue en aval doit y figurer, et
