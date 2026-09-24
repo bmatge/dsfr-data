@@ -1,0 +1,19 @@
+[
+  {"Ville":"Lille","Action":"Action cœur de ville","Domaine":"Urbanisme","Latitude":50.63,"Longitude":3.06},
+  {"Ville":"Amiens","Action":"Petites villes de demain","Domaine":"Territoires","Latitude":49.89,"Longitude":2.3},
+  {"Ville":"Lille","Action":"France services","Domaine":"Services publics","Latitude":50.63,"Longitude":3.06},
+  {"Ville":"Rouen","Action":"Territoires d'industrie","Domaine":"Industrie","Latitude":49.44,"Longitude":1.1},
+  {"Ville":"Amiens","Action":"France services","Domaine":"Services publics","Latitude":49.89,"Longitude":2.3},
+  {"Ville":"Lille","Action":"Quartiers prioritaires & emploi","Domaine":"Politique de la ville","Latitude":50.63,"Longitude":3.06},
+  {"Ville":"Brest","Action":"Fonds vert","Domaine":"Transition écologique","Latitude":48.39,"Longitude":-4.49},
+  {"Ville":"Metz","Action":"Action cœur de ville","Domaine":"Urbanisme","Latitude":49.12,"Longitude":6.18},
+  {"Ville":"Amiens","Action":"Fonds vert","Domaine":"Transition écologique","Latitude":49.89,"Longitude":2.3},
+  {"Ville":"Caen","Action":"France services","Domaine":"Services publics","Latitude":49.18,"Longitude":-0.36},
+  {"Ville":"Rouen","Action":"Fonds vert","Domaine":"Transition écologique","Latitude":49.44,"Longitude":1.1},
+  {"Ville":"Metz","Action":"Territoires d'industrie","Domaine":"Industrie","Latitude":49.12,"Longitude":6.18},
+  {"Ville":"Lille","Action":"Fonds vert","Domaine":"Transition écologique","Latitude":50.63,"Longitude":3.06},
+  {"Ville":"Amiens","Action":"Quartiers prioritaires & emploi","Domaine":"Politique de la ville","Latitude":49.89,"Longitude":2.3},
+  {"Ville":"Caen","Action":"Fonds vert","Domaine":"Transition écologique","Latitude":49.18,"Longitude":-0.36},
+  {"Ville":"Rouen","Action":"France services","Domaine":"Services publics","Latitude":49.44,"Longitude":1.1},
+  {"Ville":"Metz","Action":"France services","Domaine":"Services publics","Latitude":49.12,"Longitude":6.18}
+]

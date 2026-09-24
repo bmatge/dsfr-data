@@ -25,6 +25,7 @@ import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 import { DATASET, HOTE_ODS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
 import { urlsDe } from './fixtures-delegation.js';
 import {
+  AIDES,
   COMMUNES,
   CONTOURS_DEPARTEMENTS,
   LIBELLES,
@@ -68,8 +69,10 @@ const CLASSES_KPI = {
 };
 
 /** Une source qui sert un jeu du lot, en tableau nu. */
-const source = (id: string, jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'zones'): string =>
-  `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
+const source = (
+  id: string,
+  jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'zones' | 'aides'
+): string => `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 /**
  * L'état du builder carto (#1068) tel que l'app le relit au chargement
@@ -1412,6 +1415,53 @@ const CHECKS: Check[] = [
         id: 'couche-marqueurs',
         expect: 'silence',
         contains: 'lignes ignorées',
+      },
+    ],
+  },
+
+  // ----------------------------- Carte : un marqueur par groupe (#1108) ----
+  {
+    id: 'carte-group-field-volet-1108',
+    mode: 'deterministic',
+    origin:
+      '#1108 — données au format LONG (« Aides nationales » : une ligne par couple ville × aide, coordonnées répétées). `group-field="Ville"` doit tracer UN marqueur par ville — pas un par ligne, empilés — et le volet d’une ville doit lister CHACUNE de ses aides, pas la première. Deux comptes : les marqueurs contre les valeurs distinctes de `Ville`, les lignes du volet de Lille (premier marqueur, cliqué) contre ses enregistrements ; et les libellés de ces lignes, dans l’ordre du fichier.',
+    feed: { kind: 'fixture', datasets: { main: AIDES } },
+    markup: `
+  ${source('s-aides', 'aides')}
+  <dsfr-data-map id="carte-aides" center="49.5,1" zoom="6" height="400px" tiles="osm">
+    <dsfr-data-map-layer id="couche-aides" source="s-aides" type="marker"
+      lat-field="Latitude" lon-field="Longitude" group-field="Ville"
+      popup-fields="Action,Domaine"></dsfr-data-map-layer>
+    <dsfr-data-map-popup for="couche-aides" mode="panel-right"></dsfr-data-map-popup>
+  </dsfr-data-map>`,
+    // Premier marqueur ajouté = premier groupe rencontré dans le fichier : Lille.
+    // Forcé : si la couche traçait une ligne par enregistrement, les quatre
+    // marqueurs de Lille s'empileraient et le clic attendrait sans fin.
+    actions: [
+      { kind: 'click', selector: '#carte-aides .dsfr-data-map__marker >> nth=0', force: true },
+    ],
+    expects: [
+      {
+        // Un marqueur par valeur distincte de `Ville`.
+        kind: 'count',
+        id: 'carte-aides',
+        selector: '.dsfr-data-map__marker',
+        pipeline: [{ op: 'group-by', by: 'Ville', columns: { n: { agg: 'count' } } }],
+      },
+      {
+        // Le volet de Lille : une ligne de tableau par enregistrement du groupe.
+        kind: 'count',
+        id: 'carte-aides',
+        selector: '.dsfr-data-map-popup__panel-body tbody tr',
+        pipeline: [{ op: 'filter', filters: [{ field: 'Ville', op: 'eq', value: 'Lille' }] }],
+      },
+      {
+        // Et ce sont bien SES aides, dans l'ordre du fichier.
+        kind: 'texts',
+        id: 'carte-aides',
+        selector: '.dsfr-data-map-popup__panel-body tbody td:first-child',
+        pipeline: [{ op: 'filter', filters: [{ field: 'Ville', op: 'eq', value: 'Lille' }] }],
+        column: 'Action',
       },
     ],
   },

@@ -28,6 +28,8 @@ import {
 } from '@dsfr-data/shared/lib';
 import type { LegendEntry } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
+import { defaultGroupFields, groupListHtml, groupTableHtml } from '../utils/map-group.js';
+import type { MapGroup } from '../utils/map-group.js';
 import type { SourceElement } from '../utils/source-element.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import markerClusterCss from 'leaflet.markercluster/dist/MarkerCluster.css?inline';
@@ -102,10 +104,10 @@ interface BannerCount {
 }
 
 /**
- * @fires dsfr-data-map-select - `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte).
+ * @fires dsfr-data-map-select - `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). Avec `group-field` (#1108), `record` est le premier enregistrement du groupe et le détail porte en plus `group` (valeur du groupe) et `records` (toutes ses lignes).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse.
  * @fires dsfr-data-map-layer-time-ready - `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur.
- * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
+ * @fires dsfr-data-map-layer-render - `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020 ; le nombre de groupes avec `group-field`, #1108), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685).
  */
 @customElement('dsfr-data-map-layer')
 export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin(LitElement)) {
@@ -159,6 +161,30 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
    */
   @property({ type: String })
   label = '';
+
+  /**
+   * Regroupement (#1108) : un seul élément tracé par valeur distincte de ce
+   * champ — données au format LONG, une ligne par couple ville × aide avec
+   * les coordonnées répétées. Au clic, la popup, le volet ou la modale
+   * reçoivent TOUTES les lignes du groupe : titre = valeur du groupe (ou
+   * `title-field` du dsfr-data-map-popup), puis un tableau des `popup-fields`
+   * avec une ligne par enregistrement ; `popup-template` (ou le `<template>`
+   * du compagnon) s'applique alors à chaque ligne, en liste. Au plus 200
+   * lignes rendues, « … et N autres » au-delà.
+   *
+   * Position, `tooltip-field`, `color-field`, `radius-field`, `fill-field` :
+   * ceux du PREMIER enregistrement du groupe qui porte des coordonnées
+   * exploitables (le premier tout court pour `geoshape`). Des coordonnées qui
+   * diffèrent au sein d'un groupe sont signalées une fois en console.
+   * `max-items`, `getRenderedCount()` et le bandeau comptent des GROUPES ;
+   * `refine-on-click` (à poser sur le même champ) filtre sur la valeur du
+   * groupe ; en `cluster`, chaque groupe est un point de la grappe. Une ligne
+   * sans valeur de regroupement reste un élément à part. Sans effet sur
+   * `heatmap` (chaque ligne reste un point de chaleur, avertissement en
+   * console).
+   */
+  @property({ type: String, attribute: 'group-field' })
+  groupField = '';
 
   // --- Sélection au clic (#681, ADR-104) ---
 
@@ -410,6 +436,18 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   /** Au moins un record est retombe sur `color` faute de correspondance dans color-map */
   private _colorFallbackUsed = false;
 
+  /**
+   * Groupes du dernier rendu (#1108), indexes par l'enregistrement qui
+   * represente le groupe sur la carte. `null` hors `group-field`.
+   */
+  private _groups: Map<Record<string, unknown>, MapGroup> | null = null;
+
+  /** Dernier nombre de groupes a coordonnees divergentes journalise (warn unique) */
+  private _divergentWarned = 0;
+
+  /** `group-field` sur une heatmap deja signale (warn unique) */
+  private _groupHeatWarned = false;
+
   // Timeline state
   private _timeFrames: Map<string, Record<string, unknown>[]> = new Map();
   private _timeSteps: string[] = [];
@@ -432,7 +470,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     record: Record<string, unknown>,
     selected: boolean
   ): Record<string, unknown> {
-    return { record, layerId: this.id, selected };
+    const group = this._groups?.get(record);
+    return group
+      ? { record, layerId: this.id, selected, group: group.value, records: group.records }
+      : { record, layerId: this.id, selected };
   }
 
   /** whereKey du chemin dégradé : `map-select-ID` (#681) */
@@ -593,6 +634,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     'cluster',
     'clusterRadius',
     'maxItems',
+    'groupField',
     'timeField',
     'timeBucket',
     'timeMode',
@@ -942,15 +984,28 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       items = items.filter((record) => this._recordIntersectsBounds(record, clientBounds));
     }
 
+    // Regroupement (#1108) : un representant par valeur de group-field.
+    // Tout ce qui suit (plafond, couleurs, rayons, trace) voit des GROUPES ;
+    // la troncature amont se juge sur les lignes recues.
+    const receivedRows = items.length;
+    const grouping = this._groupingActive();
+    if (grouping) {
+      items = this._buildGroups(items);
+    } else {
+      this._groups = null;
+    }
+
     // Troncature AMONT (#1020) : la source n'a livre qu'une partie du jeu
     // (limit, max-records, plafond de pages). Lue dans la meta publiee AVANT
     // le dispatch des donnees — aucun rendu supplementaire. Seulement quand
     // la couche dessine tout ce qu'elle a recu : un pas de timeline ou un
     // filtre client de la zone visible ne se compare pas au total du jeu.
     const upstream =
-      itemsOverride === undefined && !clientBounds ? this._upstreamTruncation(items.length) : null;
+      itemsOverride === undefined && !clientBounds ? this._upstreamTruncation(receivedRows) : null;
     this._upstreamTruncated = upstream !== null;
-    this._totalCount = upstream?.total ?? items.length;
+    // Avec group-field, le total est celui des groupes recus : le total amont
+    // compte des lignes, il ne se compare pas a des groupes.
+    this._totalCount = grouping ? items.length : (upstream?.total ?? items.length);
 
     // Max items safety
     const capped = this.maxItems > 0 && items.length > this.maxItems;
@@ -1136,7 +1191,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
       for (const l of allLayers) {
         const layerEl = l as DsfrDataMapLayer;
-        const count = (layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0;
+        const count = layerEl._groupingActive()
+          ? layerEl.getRenderedCount()
+          : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
         if (count > 0) {
           const typeLabel =
             layerEl.type === 'marker'
@@ -1176,6 +1233,93 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       return `lat-field="${this.latField}", lon-field="${this.lonField}"`;
     if (this.geoField) return `geo-field="${this.geoField}"`;
     return 'auto-détection geo_point_2d / geopoint / geo_point';
+  }
+
+  // --- Regroupement (#1108) ---
+
+  /** `group-field` s'applique-t-il ? Pas a une heatmap (warn unique). */
+  private _groupingActive(): boolean {
+    if (!this.groupField) return false;
+    if (this.type !== 'heatmap') return true;
+    if (!this._groupHeatWarned) {
+      this._groupHeatWarned = true;
+      console.warn(
+        'dsfr-data-map-layer[%s]: group-field est sans effet sur type="heatmap" — chaque ligne reste un point de chaleur',
+        this.id || this.source
+      );
+    }
+    return false;
+  }
+
+  /**
+   * Regroupe les lignes par valeur de `group-field` et rend un representant
+   * par groupe, dans l'ordre de premiere apparition : le premier
+   * enregistrement qui porte des coordonnees exploitables (types ponctuels),
+   * le premier tout court sinon. Une ligne sans valeur de regroupement reste
+   * un element a part. Les groupes dont les coordonnees divergent sont
+   * signales une fois en console.
+   */
+  private _buildGroups(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+    const byValue = new Map<string, Record<string, unknown>[]>();
+    const order: Array<string | Record<string, unknown>> = [];
+    for (const row of rows) {
+      const raw = getByPath(row, this.groupField);
+      if (raw === undefined || raw === null || raw === '') {
+        order.push(row);
+        continue;
+      }
+      const key = String(raw);
+      let bucket = byValue.get(key);
+      if (!bucket) {
+        bucket = [];
+        byValue.set(key, bucket);
+        order.push(key);
+      }
+      bucket.push(row);
+    }
+
+    const pointType = this.type === 'marker' || this.type === 'circle';
+    const groups = new Map<Record<string, unknown>, MapGroup>();
+    const representatives: Record<string, unknown>[] = [];
+    const divergent: string[] = [];
+    for (const entry of order) {
+      if (typeof entry !== 'string') {
+        representatives.push(entry);
+        continue;
+      }
+      const records = byValue.get(entry)!;
+      let representative = records[0];
+      if (pointType) {
+        const positions = new Set<string>();
+        let first: Record<string, unknown> | null = null;
+        for (const r of records) {
+          const c = this._extractCoords(r);
+          if (!c) continue;
+          if (!first) first = r;
+          positions.add(`${c.lat.toFixed(5)},${c.lon.toFixed(5)}`);
+        }
+        if (first) representative = first;
+        if (positions.size > 1) divergent.push(entry);
+      }
+      groups.set(representative, { value: entry, records });
+      representatives.push(representative);
+    }
+    this._groups = groups;
+
+    if (divergent.length !== this._divergentWarned) {
+      this._divergentWarned = divergent.length;
+      if (divergent.length > 0) {
+        console.warn(
+          'dsfr-data-map-layer[%s]: group-field="%s" — %d groupe(s) aux coordonnées divergentes (ex. %s) : ' +
+            'chaque groupe est placé au premier enregistrement positionné',
+          this.id || this.source,
+          this.groupField,
+          divergent.length,
+          divergent.slice(0, 3).join(', ')
+        );
+      }
+    }
+    return representatives;
   }
 
   // --- Marker ---
@@ -1568,6 +1712,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   }
 
   private _bindPopup(layer: LeafletLayer, record: Record<string, unknown>): void {
+    const group = this._groups?.get(record);
+    if (group) {
+      this._bindGroupPopup(layer, group);
+      return;
+    }
     const companion = this._popupCompanion;
 
     if (companion) {
@@ -1598,6 +1747,43 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
     layer.bindPopup(`<div class="dsfr-data-map__popup">${content}</div>`);
     this._bindPopupA11y(layer, record);
+  }
+
+  /**
+   * Popup d'un groupe (#1108) : toutes ses lignes. Compagnon : il rend titre
+   * et corps (volet, modale ou bulle). Sans compagnon : bulle Leaflet avec la
+   * valeur du groupe en titre, puis `popup-template` par ligne (liste) ou le
+   * tableau des `popup-fields` ; rien sans l'un ni l'autre, comme hors groupe.
+   */
+  private _bindGroupPopup(layer: LeafletLayer, group: MapGroup): void {
+    const companion = this._popupCompanion;
+    const fields = this._popupFieldList();
+    if (companion) {
+      const columns = fields.length ? fields : defaultGroupFields(group.records, this.groupField);
+      if (companion.mode === 'popup') {
+        layer.bindPopup(companion.getGroupPopupHtml(group, columns));
+        this._bindPopupA11y(layer, group.records[0] ?? {});
+      } else {
+        layer.on('click', () => companion.showForGroup(group, columns));
+      }
+      return;
+    }
+
+    if (!this.popupTemplate && !fields.length) return;
+    const body = this.popupTemplate
+      ? groupListHtml(group.records, (r) => this._interpolateTemplate(this.popupTemplate, r))
+      : groupTableHtml(group.records, fields);
+    const title = `<p class="dsfr-data-map__group-title fr-text--bold fr-mb-1w">${escapeHtml(group.value)}</p>`;
+    layer.bindPopup(`<div class="dsfr-data-map__popup">${title}${body}</div>`);
+    this._bindPopupA11y(layer, group.records[0] ?? {});
+  }
+
+  /** Champs de `popup-fields`, nettoyes. */
+  private _popupFieldList(): string[] {
+    return this.popupFields
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
   }
 
   /** A11y bindings for Leaflet popups (both companion popup mode and legacy) */
@@ -1657,6 +1843,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   /** Extract plain text from a popup record for screen reader announcement */
   private _getPopupPlainText(record: Record<string, unknown>): string {
+    const group = this._groups?.get(record);
+    if (group) {
+      const n = group.records.length;
+      return `${group.value} : ${n} enregistrement${n > 1 ? 's' : ''}`;
+    }
     if (this.popupFields) {
       const fields = this.popupFields
         .split(',')
@@ -1856,9 +2047,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     }
 
     const bias = sorted ? '.' : " : la répartition affichée n'est pas représentative.";
+    // Avec group-field (#1108), la couche plafonne et compte des groupes
+    const noun = this._groups ? 'groupes' : 'enregistrements';
     const head: Array<string | BannerCount> = totalKnown
-      ? [shown, ' premiers enregistrements affichés sur ', total, `, ${order}${bias}`]
-      : [shown, ` premiers enregistrements affichés, ${order}${bias}`];
+      ? [shown, ` premiers ${noun} affichés sur `, total, `, ${order}${bias}`]
+      : [shown, ` premiers ${noun} affichés, ${order}${bias}`];
     if (this._upstreamTruncated) {
       return [...head, " La source n'a chargé qu'une partie du jeu."];
     }

@@ -397,6 +397,10 @@ formes posées, contre le nombre de lignes que le recalcul laisse — une forme 
 - **Zéro ne s'observe pas** : c'est l'état d'avant le rendu. Une couche qui ne trace rien tombe sur
   « n'a rien affiché » (le défaut de #1053) ; une absence voulue se constate par un `diagnostic`.
 - **Troisième voix** : `oracle.py` le couvre (`valeur` = nombre de lignes recalculées).
+- **Un élément par groupe** (`group-field`, #1108) : le recalcul regroupe (`group-by` sur le champ),
+  une ligne par valeur distincte — c'est le nombre de marqueurs attendu. Le même lecteur compte les
+  lignes du volet ouvert par un clic (`.dsfr-data-map-popup__panel-body tbody tr`), contre les
+  enregistrements du groupe (`filter`) ; `texts` relit leurs libellés dans l'ordre du fichier.
 
 ## Une page d'application
 
@@ -726,7 +730,11 @@ actions: [
 ```
 
 `actions` est joué par Playwright juste après la navigation, avant toute
-observation ; `selector` est un sélecteur Playwright. `goto` sans valeur
+observation ; `selector` est un sélecteur Playwright. `force: true` sur un
+`click` le joue sans attendre que l'élément soit seul sous le pointeur : un
+marqueur recouvert par d'autres (points empilés, le défaut que garde #1108)
+ferait sinon expirer le geste, et le contrôle dirait « délai dépassé » au lieu
+du chiffre. `goto` sans valeur
 RECHARGE l'URL courante : c'est le contrôle en deux navigations — filtrer,
 puis revenir par l'URL produite et retrouver exactement les mêmes chiffres.
 
@@ -860,6 +868,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_addGeoshape` n'ajoute pas la première forme au groupe, sans rien compter d'ignoré (`if (this._renderedCount > 0) group.addLayer(layer)`) | `carte-geoshape-sans-geo-field-1053` (le silence reste vert) | « 9 élément(s) tracé(s) sous « path.verif-zone », 10 ligne(s) recalculée(s) » : une ligne tue, et la bibliothèque n'en dit rien (#1059) |
 | affichages | `_addMarker` n'ajoute que les marqueurs de longitude positive (`if (coords.lon >= 0) group.addLayer(marker)`) | `carte-marqueurs-et-cercles-comptes-1059` (les cercles restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `.dsfr-data-map__marker` (#1059) |
 | affichages | même défaut dans `_addCircle` | `carte-marqueurs-et-cercles-comptes-1059` (les marqueurs restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `path.verif-cercle` : le compte suit la couche que la `shape-class` désigne (#1059) |
+| affichages | `_buildGroups` suffixe la clé de groupe par le nombre de groupes déjà vus (`String(raw) + byValue.size`, `dsfr-data-map-layer.ts`) — chaque ligne devient son groupe | `carte-group-field-volet-1108` | « 17 élément(s) tracé(s) sous « .dsfr-data-map__marker », 6 ligne(s) recalculée(s) » ; le volet de Lille n'a plus qu'1 ligne sur 4 (#1108) |
+| affichages | `_renderGroup` ne passe que le premier enregistrement au tableau (`group.records.slice(0, 1)`, `dsfr-data-map-popup.ts`) | `carte-group-field-volet-1108` (les marqueurs restent verts) | « lib 1 élément(s), oracle 4 élément(s) » sous `.dsfr-data-map-popup__panel-body tbody tr` (#1108) |
+| affichages | `groupTableHtml` inverse l'ordre des lignes (`.reverse()`, `utils/map-group.ts`) | `carte-group-field-volet-1108` (les deux comptes restent verts) | « élément 0 : affiché « Fonds vert », recalculé « Action cœur de ville » » : seul `texts` voit l'ordre (#1108) |
 | affichages | `comptesDessines` recompte les clones d'encart (`&& !n.inset` retiré, `apps/builder-carto/src/ui/preview-status.ts`) | `statut-carto-encarts-clones-exclus-1068` (le cas sans encart reste vert) | « lib 288 éléments affichés (96 enregistrements), oracle 96 » : quatre clones de 48 comptés en plus — #482 bug 7 (#1068) |
 | affichages | `comptesDessines` ne somme que la première couche (`couches.slice(0, 1).reduce(…)`) | `statut-carto-somme-deux-couches-1068`, `statut-carto-encarts-clones-exclus-1068` (M reste vert) | « lib 48 éléments affichés (96 enregistrements), oracle 96 » (#1068) |
 | affichages | `comptesDessines` ne lit que la première source amont (`[...amonts].slice(0, 1)`) | les deux mêmes (N reste vert) | « lib 96 éléments affichés (48 enregistrements), oracle 96 » (#1068) |

@@ -37,6 +37,8 @@ import { readChildTemplate } from '../utils/child-template.js';
 import { renderTemplate } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeHtml } from '@dsfr-data/shared/lib';
+import { groupListHtml, groupTableHtml } from '../utils/map-group.js';
+import type { MapGroup } from '../utils/map-group.js';
 
 export type PopupMode = 'popup' | 'modal' | 'panel-right' | 'panel-left';
 
@@ -117,26 +119,73 @@ export class DsfrDataMapPopup extends LitElement {
   /** Show content for a record. Called by the layer on feature click. */
   showForRecord(record: Record<string, unknown>): void {
     this._currentRecord = record;
-    const html = this._renderTemplate(record);
+    this._show(this._renderTemplate(record), this._titleOf(record));
+  }
 
+  /**
+   * Affiche TOUTES les lignes d'un groupe (`group-field` de la couche, #1108).
+   * Titre : `title-field` lu sur le premier enregistrement s'il est posé,
+   * sinon la valeur du groupe. Corps : le `<template>` appliqué à chaque ligne
+   * (une liste), sinon un tableau des `fields` avec une ligne par
+   * enregistrement — borné à GROUP_ROWS_MAX lignes, « … et N autres » au-delà.
+   */
+  showForGroup(group: MapGroup, fields: string[]): void {
+    this._currentRecord = group.records[0] ?? null;
+    this._show(this._renderGroup(group, fields), this._groupTitle(group));
+  }
+
+  /** Returns the popup HTML for Leaflet bindPopup (popup mode only) */
+  getPopupHtml(record: Record<string, unknown>): string {
+    return `<div class="dsfr-data-map__popup">${this._renderTemplate(record)}</div>`;
+  }
+
+  /** HTML d'une bulle Leaflet pour un groupe (mode `popup`, #1108) : titre puis corps. */
+  getGroupPopupHtml(group: MapGroup, fields: string[]): string {
+    const title = this._groupTitle(group);
+    const head = title
+      ? `<p class="dsfr-data-map__group-title fr-text--bold fr-mb-1w">${escapeHtml(title)}</p>`
+      : '';
+    return `<div class="dsfr-data-map__popup">${head}${this._renderGroup(group, fields)}</div>`;
+  }
+
+  /** Aiguille un corps déjà échappé vers le volet ou la modale. */
+  private _show(html: string, title: string | null): void {
     switch (this.mode) {
       case 'popup':
         // Popup mode is handled by the layer via Leaflet bindPopup
         // This method is only called for panel/modal modes
         break;
       case 'modal':
-        this._showModal(html, record);
+        this._showModal(html, title ?? 'Detail');
         break;
       case 'panel-right':
       case 'panel-left':
-        this._showPanel(html, record);
+        this._showPanel(html, title ?? '');
         break;
     }
   }
 
-  /** Returns the popup HTML for Leaflet bindPopup (popup mode only) */
-  getPopupHtml(record: Record<string, unknown>): string {
-    return `<div class="dsfr-data-map__popup">${this._renderTemplate(record)}</div>`;
+  /** Titre d'un enregistrement : la valeur de `title-field`, `null` sans lui. */
+  private _titleOf(record: Record<string, unknown>): string | null {
+    return this.titleField ? String(getByPath(record, this.titleField) ?? '') : null;
+  }
+
+  /** Titre d'un groupe : `title-field` s'il est posé et renseigné, sinon la valeur du groupe. */
+  private _groupTitle(group: MapGroup): string {
+    const first = group.records[0];
+    return (first && this._titleOf(first)) || group.value;
+  }
+
+  /*
+   * Corps d'un groupe (#1108). Même politique d'échappement que
+   * `_renderTemplate` : chaque ligne passe par lui (gabarit échappé) ou par
+   * `groupTableHtml` (clé ET valeur échappées).
+   */
+  private _renderGroup(group: MapGroup, fields: string[]): string {
+    if (this._getTemplate()) {
+      return groupListHtml(group.records, (r) => this._renderTemplate(r));
+    }
+    return groupTableHtml(group.records, fields);
   }
 
   /** Returns true if a custom template is defined */
@@ -155,7 +204,9 @@ export class DsfrDataMapPopup extends LitElement {
 
   /*
    * Le HTML d'un enregistrement — SEULE origine de ce qui est écrit dans les
-   * `innerHTML` de `_showPanel` et `_showModal`.
+   * `innerHTML` de `_showPanel` et `_showModal`, directement ou, pour un groupe
+   * (#1108), ligne par ligne via `_renderGroup` (liste de ces rendus, ou
+   * tableau `groupTableHtml` qui échappe clé et valeur).
    *
    * SÉCURITÉ (alertes CodeQL `js/html-constructed-from-input` #89/#90, écartées
    * en commentaire au point d'écriture). Les deux chemins échappent la donnée :
@@ -213,12 +264,11 @@ export class DsfrDataMapPopup extends LitElement {
 
   // --- Panel mode ---
 
-  private _showPanel(html: string, record: Record<string, unknown>) {
+  private _showPanel(html: string, title: string) {
     const mapParent = this.closest('dsfr-data-map');
     if (!mapParent) return;
 
     const side = this.mode === 'panel-left' ? 'left' : 'right';
-    const title = this.titleField ? String(getByPath(record, this.titleField) ?? '') : '';
 
     // Reouverture < 200 ms : annule la suppression animee en cours, sinon
     // le panneau frais serait supprime avec son contenu (#296)
@@ -307,10 +357,9 @@ export class DsfrDataMapPopup extends LitElement {
 
   // --- Modal mode ---
 
-  private _showModal(html: string, record: Record<string, unknown>) {
+  private _showModal(html: string, title: string) {
     this._removeModal();
 
-    const title = this.titleField ? String(getByPath(record, this.titleField) ?? '') : 'Detail';
     const modalId = `dsfr-map-modal-${Date.now()}`;
 
     this._modalEl = document.createElement('div');

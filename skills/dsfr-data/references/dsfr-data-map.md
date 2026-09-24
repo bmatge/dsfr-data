@@ -493,6 +493,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ; `color-field` / `color` donnent alors le contour, et la légende décrit les classes. Sans effet sur `marker` et `heatmap`. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
 | `geo-field` | `string` | `""` (vide) | Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053). |
+| `group-field` | `string` | `""` (vide) | Regroupement (#1108) : un seul élément tracé par valeur distincte de ce champ — données au format LONG, une ligne par couple ville × aide avec les coordonnées répétées. Au clic, la popup, le volet ou la modale reçoivent TOUTES les lignes du groupe : titre = valeur du groupe (ou `title-field` du dsfr-data-map-popup), puis un tableau des `popup-fields` avec une ligne par enregistrement ; `popup-template` (ou le `<template>` du compagnon) s'applique alors à chaque ligne, en liste. Au plus 200 lignes rendues, « … et N autres » au-delà. Position, `tooltip-field`, `color-field`, `radius-field`, `fill-field` : ceux du PREMIER enregistrement du groupe qui porte des coordonnées exploitables (le premier tout court pour `geoshape`). Des coordonnées qui diffèrent au sein d'un groupe sont signalées une fois en console. `max-items`, `getRenderedCount()` et le bandeau comptent des GROUPES ; `refine-on-click` (à poser sur le même champ) filtre sur la valeur du groupe ; en `cluster`, chaque groupe est un point de la grappe. Une ligne sans valeur de regroupement reste un élément à part. Sans effet sur `heatmap` (chaque ligne reste un point de chaleur, avertissement en console). |
 | `heat-blur` | `number` | `15` | Flou applique a la heatmap, en pixels. |
 | `heat-field` | `string` | `""` (vide) | Champ de ponderation des points de la heatmap. |
 | `heat-radius` | `number` | `25` | Rayon d'influence de chaque point de la heatmap, en pixels. |
@@ -543,8 +544,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
 | `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
-| `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
-| `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). |
+| `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020 ; le nombre de groupes avec `group-field`, #1108), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
+| `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). Avec `group-field` (#1108), `record` est le premier enregistrement du groupe et le détail porte en plus `group` (valeur du groupe) et `records` (toutes ses lignes). |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 
 
@@ -572,9 +573,11 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | Méthode | Retour | Description |
 |---|---|---|
 | `close()` | `void` | Close any open panel/modal |
+| `getGroupPopupHtml(group: MapGroup, fields: string[])` | `string` | HTML d'une bulle Leaflet pour un groupe (mode `popup`, #1108) : titre puis corps. |
 | `getPopupHtml(record: Record<string, unknown>)` | `string` | Returns the popup HTML for Leaflet bindPopup (popup mode only) |
 | `hasTemplate()` | `boolean` | Returns true if a custom template is defined |
 | `matchesLayer(layerId: string)` | `boolean` | Returns whether this popup targets the given layer |
+| `showForGroup(group: MapGroup, fields: string[])` | `void` | Affiche TOUTES les lignes d'un groupe (`group-field` de la couche, #1108). Titre : `title-field` lu sur le premier enregistrement s'il est posé, sinon la valeur du groupe. Corps : le `<template>` appliqué à chaque ligne (une liste), sinon un tableau des `fields` avec une ligne par enregistrement — borné à GROUP_ROWS_MAX lignes, « … et N autres » au-delà. |
 | `showForRecord(record: Record<string, unknown>)` | `void` | Show content for a record. Called by the layer on feature click. |
 
 
