@@ -1,10 +1,10 @@
 /**
- * Genere `apps/builder-ia/src/skills-reference.generated.ts` depuis le
+ * Genere `packages/shared/src/skills/skills-reference.generated.ts` depuis le
  * custom-elements manifest (issue #512).
  *
  * Chaine complete :
  *   1. `npm run build:cem`       -> packages/core/custom-elements.json
- *   2. `npm run build:skills-ref` -> apps/builder-ia/src/skills-reference.generated.ts
+ *   2. `npm run build:skills-ref` -> packages/shared/src/skills/skills-reference.generated.ts
  *   3. `skills.ts` importe la reference et la concatene au guide redige a la main
  *
  * Ce que la generation apporte : les attributs, types, defauts, methodes
@@ -28,7 +28,7 @@ import { buildReferences, type CemManifest } from './lib/cem-reference.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const manifestPath = resolve(root, 'packages/core/custom-elements.json');
-const outPath = resolve(root, 'apps/builder-ia/src/skills-reference.generated.ts');
+const outPath = resolve(root, 'packages/shared/src/skills/skills-reference.generated.ts');
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as CemManifest;
 const references = buildReferences(manifest);
@@ -52,7 +52,7 @@ const file = `/* eslint-disable */
  * Toute edition manuelle sera ecrasee. Pour changer le contenu, modifier le
  * JSDoc du composant dans packages/core/src/components/ puis regenerer.
  *
- * Le garde-fou tests/apps/builder-ia/skills-reference.test.ts verifie que ce
+ * Le garde-fou tests/skills/skills-reference.test.ts verifie que ce
  * fichier est aligne sur les composants reels (introspection Lit runtime).
  */
 

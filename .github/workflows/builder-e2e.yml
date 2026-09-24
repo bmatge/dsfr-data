@@ -1,6 +1,6 @@
 name: Builder E2E
 
-# Les CINQ specs déterministes de `tests/builder-e2e`, sur chaque PR (#869, #1081).
+# Les SIX specs déterministes de `tests/builder-e2e`, sur chaque PR (#869, #1081).
 #
 # Le reste du dossier n'est PAS câblé ici, et ce n'est pas un oubli : les specs
 # historiques du Builder pilotent l'UI par ses `id` HTML et par des
@@ -13,7 +13,7 @@ name: Builder E2E
 #
 # Conséquence sur ce workflow : AUCUNE. Il nomme ses specs une par une.
 #
-# Ce qui rend ces cinq-là bloquants :
+# Ce qui rend ces six-là bloquants :
 #   - `builder-ia-recette` + `layout-diagnostic-recette` : 43 cas, 16 s, aucune
 #     API tierce (réseau figé par `api-harness.ts`, DSFR Chart depuis
 #     node_modules, lib servie depuis la source par le serveur de dev) ;
@@ -24,7 +24,13 @@ name: Builder E2E
 #     remplace l'Assistant IA comme entrée usager. Les 16 types rendus comme
 #     blocs du Studio, la nav qui y mène, la redirection de `apps/builder-ia/`
 #     et son échappement `?ancien=1` (par lequel passent les deux specs de
-#     l'ancien Assistant). 21 cas, sans réseau tiers.
+#     l'ancien Assistant). 21 cas, sans réseau tiers ;
+#   - `studio-parite-recette` (#1081, étape 1) : le remplaçant de
+#     `builder-ia-recette`. Le parcours complet d'une réponse du modèle
+#     jusqu'à l'aperçu, par l'interface : source choisie, demande envoyée,
+#     `add_blocks` validé par le Studio, code et aperçu des 16 types, `finish`.
+#     Modèle simulé par `page.route()` sur `/ia-proxy`. 17 cas, ~11 s.
+#     `builder-ia-recette` tourne À CÔTÉ jusqu'au retrait de l'app (étape 2).
 
 on:
   pull_request:
@@ -76,6 +82,7 @@ jobs:
           tests/builder-e2e/layout-diagnostic-recette.spec.ts
           tests/builder-e2e/studio-recette.spec.ts
           tests/builder-e2e/studio-navigation-recette.spec.ts
+          tests/builder-e2e/studio-parite-recette.spec.ts
 
       - name: Upload traces on failure
         if: failure()

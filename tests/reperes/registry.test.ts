@@ -1,6 +1,6 @@
 /**
  * Garde-fou du registre de reperes GENERE de la carto (#997), sur le modele de
- * `tests/apps/builder-ia/skills-reference.test.ts` : le module commite est le
+ * `tests/skills/skills-reference.test.ts` : le module commite est le
  * rendu exact de l'extraction du balisage reel. Un repere ajoute, renomme ou
  * retire sans `npm run build:reperes` fait echouer ce test (et check:reperes).
  */

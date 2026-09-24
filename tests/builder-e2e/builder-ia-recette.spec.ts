@@ -24,7 +24,9 @@
 import { test, expect, type ConsoleMessage } from '@playwright/test';
 
 // `?ancien=1` : sans lui, l'ancien Assistant redirige vers le Studio IA (#1081).
-// Le pendant Studio de cette recette est `studio-recette.spec.ts`.
+// Ses pendants Studio : `studio-recette.spec.ts` (rendu des 16 types) et
+// `studio-parite-recette.spec.ts` (le chemin d'une reponse du modele jusqu'a
+// l'apercu). Ce spec part avec `apps/builder-ia` a l'etape 2 de #1081.
 const APP_URL = 'http://localhost:5173/apps/builder-ia/?ancien=1';
 
 const TYPES = [

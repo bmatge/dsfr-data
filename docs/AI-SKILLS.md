@@ -185,7 +185,7 @@ dont il télécharge les fiches ; le client skills du studio, qui teste `Array.i
 ## Mettre à jour
 
 Tout vient du code : après une modification d'un composant (attribut, événement, slot, variable
-CSS → JSDoc) ou du guide rédigé (`apps/builder-ia/src/skills.ts`) :
+CSS → JSDoc) ou du guide rédigé (`packages/shared/src/skills/skills.ts`) :
 
 ```bash
 npm run build:skills

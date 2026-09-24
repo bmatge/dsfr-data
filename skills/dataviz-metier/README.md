@@ -45,7 +45,7 @@ npm run skills:install -- --only dataviz-metier
 ```
 
 Côté `skills.json`, le contenu est concaténé (corps puis références) et découpé en quatre
-sections génériques (guide, référence, exemples, pièges) par `apps/builder-ia/src/skills-sections.ts`
+sections génériques (guide, référence, exemples, pièges) par `packages/shared/src/skills/skills-sections.ts`
 selon les titres `##` / `###` : le niveau et la référence ne sont pas encore adressables par
 `get_skill`. Les titres des sections sont choisis pour se classer correctement (« Exemple »,
 « Cas d'usage » → exemples ; « Piège », « Règle » → pièges).

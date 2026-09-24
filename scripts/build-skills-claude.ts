@@ -10,7 +10,7 @@
 import { mkdirSync, readdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SKILLS } from '../apps/builder-ia/src/skills.js';
+import { SKILLS } from '../packages/shared/src/skills/skills.js';
 import { CLAUDE_SKILL_DIR, renderClaudeSkill } from './lib/claude-skill.js';
 import { PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 

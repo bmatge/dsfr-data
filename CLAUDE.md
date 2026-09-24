@@ -50,9 +50,11 @@ npm run test:coverage # Couverture
 npm run test:e2e      # Playwright E2E
 npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
 npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
-                      # CINQ specs bloquantes sur PR (builder-e2e.yml, #869, #1081) :
+                      # SIX specs bloquantes sur PR (builder-e2e.yml, #869, #1081) :
                       #   export-html-api-recette, builder-ia-recette, layout-diagnostic-recette,
-                      #   studio-recette, studio-navigation-recette. L'ancien Assistant IA ne
+                      #   studio-recette, studio-navigation-recette, studio-parite-recette
+                      #   (remplacant de builder-ia-recette, qui part a l'etape 2 de #1081,
+                      #   avec apps/builder-ia). L'ancien Assistant IA ne
                       #   s'ouvre plus que par `apps/builder-ia/?ancien=1` (sinon : Studio IA).
                       #   Le RESTE du dossier est une recette manuelle, hors CI et pas verte
                       #   (#868) : etat mesure par spec dans tests/builder-e2e/README.md.
@@ -103,7 +105,7 @@ npm run check:studio-couverture  # BLOQUANT en CI (etape quality, #1109) : chaqu
 # Skills (connaissance IA : builder-IA + serveur MCP)
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json
 npm run build:cem     # Etape 1 seule : packages/core/custom-elements.json
-npm run build:skills-ref  # Etape 2 seule : apps/builder-ia/src/skills-reference.generated.ts
+npm run build:skills-ref  # Etape 2 seule : packages/shared/src/skills/skills-reference.generated.ts
 npm run build:skill-matching  # Copie du moteur de matching et de skill-levels vers mcp-server/
 npm run build:skills-claude   # Etape 4 seule : export skill Claude Code skills/dsfr-data/
 npm run skills:install        # Lie skills/dsfr-data dans .claude/skills (--global : ~/.claude) — docs/AI-SKILLS.md
@@ -243,15 +245,15 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 - Apres modif d'un **attribut / evenement / slot / variable CSS** d'un composant `dsfr-data-*` :
   ecrire le JSDoc sur le composant (`@fires`, `@slot`, `@cssprop`) puis lancer **`npm run build:skills`** —
   la partie « reference » des skills est GENEREE depuis le custom-elements manifest (#512), ne jamais
-  editer `apps/builder-ia/src/skills-reference.generated.ts` a la main
-  (sinon `tests/apps/builder-ia/skills-reference.test.ts` casse).
+  editer `packages/shared/src/skills/skills-reference.generated.ts` a la main
+  (sinon `tests/skills/skills-reference.test.ts` casse).
 - Apres AJOUT d'un attribut (ou d'un composant public) : le **ranger dans une section** d'une page
   `specs/components/*.html` — ajouter son nom au `fields="..."` d'un bloc `<!-- ATTRS -->` (ou d'un
   `<!-- ATTRS-PROSE -->` quand il est documente en prose), ecrire la prose autour, puis lancer
   `npm run build:specs-tables`. Les lignes des tableaux sont GENEREES : ne jamais les saisir a la main.
   `npm run check:specs-tables` est bloquant en CI (#757).
 - Apres modif d'un **type de graphique / operateur / agregation** : mettre a jour le guide redige a la main
-  dans `apps/builder-ia/src/skills.ts` (sinon `tests/apps/builder-ia/skills.test.ts` casse).
+  dans `packages/shared/src/skills/skills.ts` (sinon `tests/skills/skills.test.ts` casse).
 - **Tout chiffre affiche a un controle** (ADR-122). Tout nouvel attribut, operateur, agregation,
   format ou composant qui **produit ou transforme un nombre** entre dans un manifeste de
   `tests/verif-donnees/` (l'un des dix domaines : `query`, `adaptateurs`, `transformations`,
@@ -283,7 +285,7 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 - **Jamais** de commit/push direct sur `main`/`master` sans autorisation explicite ; jamais de `git push --force` sans accord.
 - **Jamais** d'indirection sur `import.meta.env` (`const m = import.meta as any`) — casse la substitution Vite, fait fuiter l'ancienne URL en dur.
 - **Jamais** modifier les `.js` dans `packages/core/src/` (artefacts de build).
-- **Jamais** editer a la main `apps/builder-ia/src/skills-reference.generated.ts`,
+- **Jamais** editer a la main `packages/shared/src/skills/skills-reference.generated.ts`,
   `packages/core/custom-elements.json`, `mcp-server/src/skill-matching.generated.ts`,
   `mcp-server/src/skill-levels.generated.ts` ni `skills/dsfr-data/` —
   ce sont des artefacts generes (`npm run build:skills`).

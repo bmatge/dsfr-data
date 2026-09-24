@@ -34,8 +34,13 @@ import {
   type PostChat,
 } from '@dsfr-data/shared';
 import type { Source, Field } from '../state.js';
-import { SKILLS, getRelevantSkills, buildSkillsContext, type Skill } from '../skills.js';
-import { selectSkillSection } from '../skills-sections.js';
+import {
+  SKILLS,
+  getRelevantSkills,
+  buildSkillsContext,
+  type Skill,
+} from '@dsfr-data/shared/skills/skills';
+import { selectSkillSection } from '@dsfr-data/shared/skills/skills-sections';
 import {
   DATA_INSPECTION_TOOLS,
   PREVIEW_TOOL,

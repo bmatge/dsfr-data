@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
-import { SKILLS } from '../apps/builder-ia/src/skills.js';
+import { SKILLS } from '../packages/shared/src/skills/skills.js';
 import { CLAUDE_SKILL_DIR } from '../scripts/lib/claude-skill.js';
 import {
   parseFrontmatter,

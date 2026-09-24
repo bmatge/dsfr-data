@@ -21,7 +21,7 @@ import { resolve } from 'node:path';
 import { parseLevels, parseMarkdownSkill } from '../../scripts/lib/markdown-skills';
 import { readMarkdownSkillFiles } from '../../scripts/lib/markdown-skills-fs';
 import { buildCopy, MCP_COPIES } from '../../scripts/lib/skill-matching-copy';
-import { splitSkillContent } from '../../apps/builder-ia/src/skills-sections';
+import { splitSkillContent } from '../../packages/shared/src/skills/skills-sections';
 import {
   selectSkillText,
   relevantSkillText,

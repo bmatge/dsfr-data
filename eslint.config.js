@@ -18,7 +18,7 @@ export default tseslint.config(
       // Artefact genere (npm run build:skills) : eslint --fix y retirait le
       // /* eslint-disable */ de tete, faisant diverger le fichier commite du
       // rendu du generateur.
-      'apps/builder-ia/src/skills-reference.generated.ts',
+      'packages/shared/src/skills/skills-reference.generated.ts',
       // Registres de reperes (npm run build:reperes) : meme raison.
       'apps/*/src/assistant/reperes.generated.ts',
     ],

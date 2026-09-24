@@ -6,7 +6,7 @@ import { state } from '../state.js';
 import type { Message, ChartConfig } from '../state.js';
 import { getIAConfig, isServerMode } from '../ia/ia-config.js';
 import type { IAConfig } from '../ia/ia-config.js';
-import { SKILLS, getRelevantSkills, buildSkillsContext } from '../skills.js';
+import { SKILLS, getRelevantSkills, buildSkillsContext } from '@dsfr-data/shared/skills/skills';
 import { applyChartConfig, resetChartPreview } from '../ui/preview.js';
 import { analyzeFields, updateFieldsList, updateRawData } from '../sources.js';
 import {

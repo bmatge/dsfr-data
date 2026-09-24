@@ -43,6 +43,10 @@
     "./debug/*": {
       "types": "./dist/debug/*.d.ts",
       "import": "./dist/debug/*.js"
+    },
+    "./skills/*": {
+      "types": "./dist/skills/*.d.ts",
+      "import": "./dist/skills/*.js"
     }
   },
   "files": [

@@ -7,13 +7,13 @@
  * section — pas seulement que le decoupage « marche » sur un exemple jouet.
  */
 import { describe, it, expect } from 'vitest';
-import { SKILLS } from '../../../apps/builder-ia/src/skills';
+import { SKILLS } from '../../packages/shared/src/skills/skills';
 import {
   SKILL_SECTION_IDS,
   splitSkillContent,
   availableSections,
   selectSkillSection,
-} from '../../../apps/builder-ia/src/skills-sections';
+} from '../../packages/shared/src/skills/skills-sections';
 
 /** Lignes signifiantes (hors vide) d'un texte markdown. */
 function meaningfulLines(text: string): string[] {
@@ -204,7 +204,7 @@ describe('sections de skills (#513)', () => {
             `(${m.reference} caracteres de reference pour ${m.contenu} au total, marge ${m.marge}). ` +
             `Cause habituelle : un JSDoc d'attribut a grossi dans le composant. ` +
             `Remede : deplacer l'explication longue vers la partie guide de la skill ` +
-            `(apps/builder-ia/src/skills.ts), en laissant dans le JSDoc la regle et sa forme courte. ` +
+            `(packages/shared/src/skills/skills.ts), en laissant dans le JSDoc la regle et sa forme courte. ` +
             `C'est ce qu'a fait #929 pour map-summary-field. Voir #950.`
         )
         .join('\n');

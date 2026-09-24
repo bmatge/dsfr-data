@@ -16,7 +16,7 @@
  * evoluer sans toucher a la logique d'appel.
  */
 
-import { SKILLS } from '../skills.js';
+import { SKILLS } from '@dsfr-data/shared/skills/skills';
 
 export type PromptMode = 'legacy' | 'structured' | 'tools';
 

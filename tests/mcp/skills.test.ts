@@ -19,7 +19,7 @@ import {
 } from '../../mcp-server/src/skills';
 import type { Skill } from '../../mcp-server/src/skills';
 import { getArg, hasFlag } from '../../mcp-server/src/cli';
-import { SKILL_SECTION_IDS as BUILDER_SECTION_IDS } from '../../apps/builder-ia/src/skills-sections';
+import { SKILL_SECTION_IDS as BUILDER_SECTION_IDS } from '../../packages/shared/src/skills/skills-sections';
 
 // ---------------------------------------------------------------------------
 // Test data

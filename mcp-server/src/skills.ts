@@ -34,8 +34,8 @@ export {
 export type { SkillLevelId, SkillReferencePart, SkillAddress, SkillSelection };
 
 /**
- * Sections adressables d'une skill (#513). Definies cote builder-IA dans
- * `apps/builder-ia/src/skills-sections.ts` et transportees telles quelles par
+ * Sections adressables d'une skill (#513). Definies dans le guide des skills,
+ * `packages/shared/src/skills/skills-sections.ts`, et transportees telles quelles par
  * `dist/skills.json` : le serveur MCP ne rejoue PAS le decoupage, il lit une
  * donnee deja calculee — un seul endroit ou la partition peut changer.
  */
