@@ -35,6 +35,7 @@ import type {
 import type { ChartConfig } from './chart-config.js';
 import { getRowColumns, isFavoriteChart, isBuilderChart } from './model.js';
 import { earlyBufferScript } from '../debug/early-buffer.js';
+import { nettoyerGabarit } from './sanitize-template.js';
 
 /** Alias d'une colonne agregee par dsfr-data-query (convention pipeline #269). */
 function aggregatedAlias(field: string, fn: string): string {
@@ -458,10 +459,17 @@ function mapLayerAttrs(layer: MapLayerSpec, id?: string): string[] {
   // Avec un compagnon, c'est LUI qui rend le contenu (la couche ignore alors
   // popup-template et popup-fields) : on ne les emet pas deux fois.
   if (!hasPopupCompanion(layer)) {
-    if (layer.popupTemplate) attrs.push(`popup-template="${escapeHtml(layer.popupTemplate)}"`);
+    // Gabarit ecrit par le modele : filtre a l'export (#1109, sanitize-template.ts).
+    if (layer.popupTemplate) {
+      attrs.push(`popup-template="${escapeHtml(nettoyerGabarit(layer.popupTemplate))}"`);
+    }
     if (layer.popupFields) attrs.push(`popup-fields="${escapeHtml(layer.popupFields)}"`);
   }
   if (layer.tooltipField) attrs.push(`tooltip-field="${escapeHtml(layer.tooltipField)}"`);
+  // Regroupement par entite (#1108) : la lib l'ignore sur heatmap.
+  if (layer.groupField && layer.type !== 'heatmap') {
+    attrs.push(`group-field="${escapeHtml(layer.groupField)}"`);
+  }
   // Le regroupement n'existe que pour les marqueurs (dsfr-data-map-layer).
   if (layer.type === 'marker' && layer.cluster) {
     attrs.push('cluster');
@@ -491,7 +499,7 @@ function splitFields(list: string): string[] {
 function popupCompanionTemplate(layer: MapLayerSpec): string {
   if (layer.popupTemplate) {
     // `[^{}]` : pas d'imbrication, pas de retour arriere couteux.
-    return layer.popupTemplate.replace(
+    return nettoyerGabarit(layer.popupTemplate).replace(
       /\{([^{}]+)\}/g,
       (_m, field: string) => `{{${field.trim()}}}`
     );

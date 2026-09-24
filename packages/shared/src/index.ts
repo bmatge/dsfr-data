@@ -422,6 +422,7 @@ export {
   MAP_LAYER_TYPES,
   MAP_POPUP_MODES,
 } from './dashboard/model.js';
+export { nettoyerGabarit, urlInterdite } from './dashboard/sanitize-template.js';
 export {
   generateDashboardHTML,
   generateDashboardBodyHTML,

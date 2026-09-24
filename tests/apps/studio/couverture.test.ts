@@ -46,7 +46,13 @@ describe('couverture du Studio — etat versionne', () => {
       'title-field',
     ]);
     const couche = ECRITS.get('dsfr-data-map-layer') ?? new Set();
-    for (const a of ['popup-template', 'popup-fields', 'cluster', 'cluster-radius']) {
+    for (const a of [
+      'popup-template',
+      'popup-fields',
+      'cluster',
+      'cluster-radius',
+      'group-field',
+    ]) {
       expect(couche.has(a), a).toBe(true);
     }
     // refine-on-click n'est PAS expose (cablage contexte impossible ici).
@@ -118,16 +124,9 @@ describe('couverture du Studio — le garde-fou mord', () => {
     expect(attendue.erreurs).toEqual([]);
   });
 
-  it('group-field : exclusion en attente de #1108, valable avant comme apres la livraison', () => {
-    const exclusion = EXCLUSIONS.find((e) => e.attributs?.includes('group-field'));
-    expect(exclusion?.enAttente).toBe('#1108');
-    // Livre par la lib ET exclu : vert (l'exclusion vise desormais un attribut declare).
-    const livre = verifierCouverture(
-      avecAttribut('dsfr-data-map-layer', 'group-field'),
-      ECRITS,
-      EXCLUSIONS
-    );
-    expect(livre.erreurs).toEqual([]);
+  it('group-field (#1108) est ecrit par le Studio, et plus exclu', () => {
+    expect(ECRITS.get('dsfr-data-map-layer')?.has('group-field')).toBe(true);
+    expect(EXCLUSIONS.some((e) => e.attributs?.includes('group-field'))).toBe(false);
   });
 });
 

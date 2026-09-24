@@ -137,6 +137,87 @@ describe('#1109 — volet de carte (dsfr-data-map-popup)', () => {
   });
 });
 
+describe('#1109 — un element par entite (groupField, #1108)', () => {
+  it('groupField + volet panel-right : group-field emis et compagnon relie par for', () => {
+    const { doc, ok } = docAvec([
+      {
+        kind: 'map',
+        layers: [
+          {
+            ...MARQUEURS,
+            groupField: 'Ville',
+            popupMode: 'panel-right',
+            popupTitleField: 'Ville',
+            popupFields: 'Action',
+          },
+        ],
+      },
+    ]);
+    expect(ok).toBe(true);
+    const html = generateDashboardHTML(doc);
+    expect(html).toContain('group-field="Ville"');
+    expect(html).toContain('<dsfr-data-map-popup mode="panel-right" for="layer-b1-1"');
+    const map = carteExportee(doc);
+    const couche = map.querySelector(':scope > dsfr-data-map-layer');
+    expect(couche?.getAttribute('group-field')).toBe('Ville');
+    expect(map.querySelector(':scope > dsfr-data-map-popup')?.getAttribute('for')).toBe(couche?.id);
+  });
+
+  it('accepte circle et geoshape, refuse heatmap (la lib l’y ignore)', () => {
+    expect(
+      docAvec([
+        {
+          kind: 'map',
+          layers: [{ type: 'circle', latField: 'lat', lonField: 'lon', groupField: 'Ville' }],
+        },
+      ]).ok
+    ).toBe(true);
+    expect(docAvec([{ kind: 'map', layers: [{ type: 'geoshape', groupField: 'Ville' }] }]).ok).toBe(
+      true
+    );
+    const heat = docAvec([
+      {
+        kind: 'map',
+        layers: [{ type: 'heatmap', latField: 'lat', lonField: 'lon', groupField: 'Ville' }],
+      },
+    ]);
+    expect(heat.ok).toBe(false);
+    expect(heat.summary).toContain('heatmap');
+  });
+
+  it('refuse un champ de regroupement absent des donnees', () => {
+    const { ok, summary } = docAvec([
+      { kind: 'map', layers: [{ ...MARQUEURS, groupField: 'Commune' }] },
+    ]);
+    expect(ok).toBe(false);
+    expect(summary).toContain('Commune');
+  });
+
+  it('le Tableau de bord conserve groupField a la relecture', () => {
+    const { doc } = docAvec([{ kind: 'map', layers: [{ ...MARQUEURS, groupField: 'Ville' }] }]);
+    const relu = normalizeDashboard(JSON.parse(JSON.stringify(doc)) as DashboardData);
+    expect(relu.widgets[0]).toEqual(doc.widgets[0]);
+    expect(generateDashboardHTML(relu)).toContain('group-field="Ville"');
+  });
+});
+
+describe('#1109 — gabarit filtre a l’export', () => {
+  it('le gabarit ecrit par le modele est nettoye dans les deux voies (couche et compagnon)', () => {
+    const piege = '<b>{Action}</b><img src=x onerror="alert(1)"><script>alert(2)</script>';
+    const bulle = docAvec([{ kind: 'map', layers: [{ ...MARQUEURS, popupTemplate: piege }] }]);
+    const couche = carteExportee(bulle.doc).querySelector('dsfr-data-map-layer');
+    expect(couche?.getAttribute('popup-template')).toBe('<b>{Action}</b><img src=x>');
+
+    const volet = docAvec([
+      { kind: 'map', layers: [{ ...MARQUEURS, popupMode: 'modal', popupTemplate: piege }] },
+    ]);
+    const html = generateDashboardHTML(volet.doc);
+    expect(html).toContain('<template><b>{{Action}}</b><img src=x></template>');
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('alert(2)');
+  });
+});
+
 describe('#1109 — regroupement (cluster)', () => {
   it('marker + cluster + clusterRadius : attributs emis', () => {
     const { doc } = docAvec([
