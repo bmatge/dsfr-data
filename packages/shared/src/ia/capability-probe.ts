@@ -48,17 +48,114 @@ export interface ProbeStep {
   detail: string;
 }
 
+/**
+ * Etat de la connexion, lu sur la completion simple (#1142). Un HTTP 200 bien
+ * forme PROUVE la connexion, meme si le texte revient vide : un modele a
+ * raisonnement (gpt-oss) peut epuiser son budget avant d'ecrire sa reponse.
+ *   - `ok`                 : 200 et `choices[0].message` present ;
+ *   - `erreur-http`        : le gateway a repondu, avec un statut d'erreur ;
+ *   - `reponse-inattendue` : 200 sans `choices[0].message` ;
+ *   - `injoignable`        : exception du transport (reseau, proxy).
+ */
+export type ProbeConnexion = 'ok' | 'erreur-http' | 'reponse-inattendue' | 'injoignable';
+
 export interface ProbeReport {
   capabilities: AlbertCapabilities;
   steps: ProbeStep[];
+  /** Etat de la connexion (completion simple). */
+  connexion: ProbeConnexion;
+  /** Statut HTTP de la completion simple, s'il y en a eu un. */
+  httpStatus?: number;
+  /** Vrai si les capacites ont ete persistees via setCapabilities(). */
+  memorise: boolean;
 }
+
+/**
+ * Budget de jetons de chaque etape. 30 ne suffisait pas : gpt-oss-120b
+ * (openweight-large) raisonne avant de repondre, et le raisonnement consommait
+ * tout — `content` vide, `finish_reason: "length"` (#1142).
+ */
+export const PROBE_MAX_COMPLETION_TOKENS = 512;
 
 /** Modeles de rerank a essayer si /v1/models est muet (verifie le 2026-09-01). */
 const RERANK_FALLBACK_MODELS = ['bge-reranker-v2-m3', 'BAAI/bge-reranker-v2-m3'];
 
+interface ProbeChoice {
+  finish_reason?: string | null;
+  message?: {
+    content?: string | null;
+    reasoning_content?: string | null;
+    reasoning?: string | null;
+  } | null;
+}
+
+function choiceOf(json: unknown): ProbeChoice | undefined {
+  const choices = (json as { choices?: unknown })?.choices;
+  return Array.isArray(choices) ? (choices[0] as ProbeChoice | undefined) : undefined;
+}
+
 function contentOf(json: unknown): string {
-  const msg = (json as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message;
-  return msg?.content ?? '';
+  const content = choiceOf(json)?.message?.content;
+  return typeof content === 'string' ? content : '';
+}
+
+/** Reponse bien formee : `choices[0].message` present, quel que soit son texte. */
+function wellFormed(json: unknown): boolean {
+  const message = choiceOf(json)?.message;
+  return !!message && typeof message === 'object';
+}
+
+/**
+ * Pourquoi le texte est vide : budget epuise (`finish_reason=length`), texte
+ * reste dans le raisonnement, ou rien d'explicable.
+ */
+export function explainEmptyContent(json: unknown): string {
+  const choice = choiceOf(json);
+  const message = choice?.message;
+  const raisonnement = message?.reasoning_content ?? message?.reasoning;
+  const aRaisonne = typeof raisonnement === 'string' && raisonnement.length > 0;
+  if (choice?.finish_reason === 'length') {
+    return aRaisonne
+      ? 'réponse vide : le modèle a épuisé son budget de jetons en raisonnant (finish_reason=length)'
+      : 'réponse vide : le modèle a épuisé son budget de jetons (finish_reason=length)';
+  }
+  if (aRaisonne) return 'réponse vide : le texte est resté dans le raisonnement du modèle';
+  return `réponse vide (finish_reason=${choice?.finish_reason ?? 'absent'})`;
+}
+
+/** Message d'erreur du gateway, s'il en donne un (forme OpenAI). */
+function errorOf(json: unknown): string {
+  const error = (json as { error?: unknown; detail?: unknown })?.error;
+  if (typeof error === 'string') return error;
+  const message = (error as { message?: unknown } | undefined)?.message;
+  if (typeof message === 'string') return message;
+  const detail = (json as { detail?: unknown })?.detail;
+  return typeof detail === 'string' ? detail : '';
+}
+
+function httpDetail(status: number, json: unknown): string {
+  const message = errorOf(json);
+  return message ? `HTTP ${status} : ${message.slice(0, 160)}` : `HTTP ${status}`;
+}
+
+/**
+ * Phrase de conclusion du rapport, selon ce que la sonde a pu etablir. Partagee
+ * par le Studio et l'ancien Assistant : jamais « echec de connexion » quand le
+ * gateway a repondu 200 (#1142).
+ */
+export function probeConclusion(report: ProbeReport): string {
+  if (report.memorise) return 'Capacités mémorisées : elles font foi pour les prochains messages.';
+  const garde = 'capacités non mémorisées (les réglages actuels restent en vigueur).';
+  switch (report.connexion) {
+    case 'erreur-http':
+      return `Le gateway a refusé la requête (HTTP ${report.httpStatus ?? '?'}) : ${garde}`;
+    case 'reponse-inattendue':
+      return `Connexion établie mais réponse inattendue du gateway : ${garde}`;
+    case 'injoignable':
+      return `Gateway injoignable : ${garde}`;
+    default:
+      return `Sonde interrompue : ${garde}`;
+  }
 }
 
 function hasToolCall(json: unknown): boolean {
@@ -88,25 +185,52 @@ function rerankScores(json: unknown): number[] {
  */
 export async function runCapabilityProbe(io: ProbeIO): Promise<ProbeReport> {
   const steps: ProbeStep[] = [];
-  const base = { model: io.model, max_completion_tokens: 30, temperature: 0 };
+  const base = {
+    model: io.model,
+    max_completion_tokens: PROBE_MAX_COMPLETION_TOKENS,
+    temperature: 0,
+  };
 
   // 1) Completion simple — si elle echoue, rien d'autre n'est interpretable.
-  let alive = false;
+  //    Un 200 bien forme suffit a prouver la connexion : un texte vide (modele
+  //    a raisonnement a court de jetons) est signale, pas pris pour une panne.
+  let connexion: ProbeConnexion = 'injoignable';
+  let httpStatus: number | undefined;
   try {
     const res = await io.chat({
       ...base,
       messages: [{ role: 'user', content: 'Réponds uniquement: OK' }],
     });
-    alive = res.status === 200 && contentOf(res.json).length > 0;
-    steps.push({
-      name: 'Completion simple',
-      ok: alive,
-      detail: alive ? `OK (HTTP ${res.status})` : `HTTP ${res.status}`,
-    });
+    httpStatus = res.status;
+    if (res.status !== 200) {
+      connexion = 'erreur-http';
+      steps.push({
+        name: 'Completion simple',
+        ok: false,
+        detail: httpDetail(res.status, res.json),
+      });
+    } else if (!wellFormed(res.json)) {
+      connexion = 'reponse-inattendue';
+      steps.push({
+        name: 'Completion simple',
+        ok: false,
+        detail: 'HTTP 200 mais réponse inattendue (pas de choices[0].message)',
+      });
+    } else {
+      connexion = 'ok';
+      steps.push({
+        name: 'Completion simple',
+        ok: true,
+        detail:
+          contentOf(res.json).length > 0
+            ? `OK (HTTP ${res.status})`
+            : `Connexion OK (HTTP ${res.status}), ${explainEmptyContent(res.json)}`,
+      });
+    }
   } catch (err) {
     steps.push({ name: 'Completion simple', ok: false, detail: String(err) });
   }
-  if (!alive) {
+  if (connexion !== 'ok') {
     const capabilities: AlbertCapabilities = {
       model: io.model,
       jsonSchema: false,
@@ -117,7 +241,7 @@ export async function runCapabilityProbe(io: ProbeIO): Promise<ProbeReport> {
     };
     // On ne persiste PAS un echec de connectivite : ce serait retrograder des
     // capacites peut-etre valides a cause d'un incident reseau passager.
-    return { capabilities, steps };
+    return { capabilities, steps, connexion, httpStatus, memorise: false };
   }
 
   // 2) response_format json_schema
@@ -140,18 +264,20 @@ export async function runCapabilityProbe(io: ProbeIO): Promise<ProbeReport> {
         },
       },
     });
+    const texte = contentOf(res.json);
     let parses = false;
     try {
-      parses = typeof JSON.parse(contentOf(res.json)) === 'object';
+      const parsed: unknown = JSON.parse(texte);
+      parses = typeof parsed === 'object' && parsed !== null;
     } catch {
       parses = false;
     }
     jsonSchema = res.status === 200 && parses;
-    steps.push({
-      name: 'Structured outputs (json_schema)',
-      ok: jsonSchema,
-      detail: jsonSchema ? 'OK' : `HTTP ${res.status}${parses ? '' : ', JSON non conforme'}`,
-    });
+    let detail = 'OK';
+    if (res.status !== 200) detail = httpDetail(res.status, res.json);
+    else if (!texte) detail = `non concluant, ${explainEmptyContent(res.json)}`;
+    else if (!parses) detail = 'HTTP 200, JSON non conforme';
+    steps.push({ name: 'Structured outputs (json_schema)', ok: jsonSchema, detail });
   } catch (err) {
     steps.push({ name: 'Structured outputs (json_schema)', ok: false, detail: String(err) });
   }
@@ -184,7 +310,7 @@ export async function runCapabilityProbe(io: ProbeIO): Promise<ProbeReport> {
         ? hasToolCall(res.json)
           ? 'OK (tool_call émis)'
           : 'OK (paramètre accepté)'
-        : `HTTP ${res.status}`,
+        : httpDetail(res.status, res.json),
     });
   } catch (err) {
     steps.push({ name: 'Tool calling', ok: false, detail: String(err) });
@@ -252,5 +378,5 @@ export async function runCapabilityProbe(io: ProbeIO): Promise<ProbeReport> {
     probedAt: Date.now(),
   };
   setCapabilities(capabilities);
-  return { capabilities, steps };
+  return { capabilities, steps, connexion, httpStatus, memorise: true };
 }

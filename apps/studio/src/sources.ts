@@ -123,6 +123,16 @@ export function suggestionsPourChamps(fields: Field[]): string[] {
   return suggestions.slice(0, 3);
 }
 
+/** Résumé de la ligne « Source » quand rien n'est choisi (#1142). */
+export const RESUME_SANS_SOURCE = 'aucune source choisie';
+
+/** Résumé en une ligne de la source chargée : nom, lignes, champs (#1142). */
+export function resumeSource(nom: string, lignes: number, champs: number): string {
+  const n = (x: number, unite: string) =>
+    `${x.toLocaleString('fr-FR')} ${unite}${x > 1 ? 's' : ''}`;
+  return `${nom} · ${n(lignes, 'ligne')}, ${n(champs, 'champ')}`;
+}
+
 /** Charge la source selectionnee dans l'etat + met a jour l'UI. */
 export function handleSourceChange(onLoaded?: (source: Source) => void): void {
   const select = document.getElementById('saved-source') as HTMLSelectElement | null;
@@ -136,7 +146,7 @@ export function handleSourceChange(onLoaded?: (source: Source) => void): void {
     state.localData = null;
     state.fields = [];
     if (infoEl) infoEl.textContent = '';
-    if (summaryEl) summaryEl.textContent = '';
+    if (summaryEl) summaryEl.textContent = RESUME_SANS_SOURCE;
     if (voirBtn) voirBtn.hidden = true;
     return;
   }
@@ -154,7 +164,10 @@ export function handleSourceChange(onLoaded?: (source: Source) => void): void {
       .map((f) => f.name)
       .join(', ')}`;
   }
-  if (summaryEl) summaryEl.textContent = `· ${source.name}`;
+  if (summaryEl) {
+    summaryEl.textContent = resumeSource(source.name, state.localData.length, state.fields.length);
+    summaryEl.title = summaryEl.textContent;
+  }
   if (voirBtn) voirBtn.hidden = false;
   onLoaded?.(source);
 }

@@ -13,21 +13,77 @@
 
 .config-section {
   border-bottom: 1px solid var(--border-default-grey);
-  padding: 0.5rem 0.75rem;
 }
 
-.config-section-header h3 {
-  font-size: 0.9rem;
-  margin: 0 0 0.5rem;
+/* Blocs repliables (#1142) : une ligne de résumé par bloc, dépliée pour
+   modifier. Le <summary> est le contrôle (natif, clavier, état exposé). */
+.studio-bloc__ligne {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  list-style: none;
 }
 
-.config-section-summary {
-  font-weight: 400;
-  color: var(--text-mention-grey);
+.studio-bloc__ligne::-webkit-details-marker {
+  display: none;
+}
+
+.studio-bloc__ligne:hover {
+  background: var(--background-default-grey-hover);
+}
+
+.studio-bloc__ligne:focus-visible {
+  outline: 2px solid #0a76f6;
+  outline-offset: -2px;
+}
+
+.studio-bloc__titre {
+  flex: 0 0 auto;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.studio-bloc__ligne .fr-badge {
+  flex: 0 0 auto;
+}
+
+.studio-bloc__resume {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.8rem;
+  color: var(--text-mention-grey);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-bloc__modifier {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-action-high-blue-france);
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.studio-bloc__modifier i {
+  transition: transform 0.15s;
+}
+
+.studio-bloc[open] > .studio-bloc__ligne .studio-bloc__modifier i {
+  transform: rotate(180deg);
+}
+
+.studio-bloc > .config-section-content {
+  padding: 0.25rem 0.75rem 0.6rem;
 }
 
 .source-grid {
@@ -59,22 +115,6 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--border-default-grey);
-}
-
-.chat-header__title {
-  font-weight: 700;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
 }
 
 .chat-messages {
@@ -326,17 +366,11 @@
 }
 
 /* Configuration IA */
-.studio-ia-config > summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.studio-ia-config > summary::-webkit-details-marker {
-  display: none;
-}
-
-.studio-ia-config:not([open]) > summary h3 {
-  margin-bottom: 0;
+.studio-ia-config__serveur {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--border-plain-info);
+  background: var(--background-contrast-info);
 }
 
 .studio-ia-config .fr-input-group,
