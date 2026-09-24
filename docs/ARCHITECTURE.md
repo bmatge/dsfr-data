@@ -1104,13 +1104,15 @@ e2e/                         Playwright (config e2e/playwright.config.ts, serveu
 - Les dependances `lit` et `@lit` sont inlinees par le serveur de test pour eviter les problemes de resolution ESM dans jsdom.
 - La couverture inclut `packages/core/src/**/*.ts` et `packages/shared/src/**/*.ts` (sauf les barrels et `components/layout/**`), seuils 85 / 77 / 82 / 85 (#829).
 
-### 7.1 `tests/builder-e2e/` — cinq specs bloquantes, le reste en recette MANUELLE
+### 7.1 `tests/builder-e2e/` — six specs bloquantes, le reste en recette MANUELLE
 
-> **Cinq specs seulement tournent en CI** (`builder-e2e.yml`, #869, #1081) : `export-html-api-recette`
+> **Six specs seulement tournent en CI** (`builder-e2e.yml`, #869, #1081) : `export-html-api-recette`
 > (61 cas, vert depuis #866), `builder-ia-recette` et `layout-diagnostic-recette` (43 cas ; l'ancien
 > Assistant y est ouvert par `?ancien=1`), `studio-recette` (les 16 types rendus comme blocs du
-> Studio IA) et `studio-navigation-recette` (nav → Studio IA, redirection, echappement).
-> 125 cas, une quarantaine de secondes, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
+> Studio IA), `studio-navigation-recette` (nav → Studio IA, redirection, echappement) et
+> `studio-parite-recette` (remplacant de `builder-ia-recette`, #1081 etape 1 : le parcours d'une
+> reponse du modele simule jusqu'a l'apercu, par l'interface, pour les 16 types).
+> 142 cas, moins d'une minute, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
 > dans aucun workflow : 56 cas rouges par dérive de sélecteurs (#868). État mesuré par spec :
 > `tests/builder-e2e/README.md`. Ne pas se fier au dossier entier comme à un garde-fou.
 
