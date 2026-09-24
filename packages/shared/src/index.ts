@@ -323,6 +323,7 @@ export type {
   SourceReponse,
   SuggestionAssistant,
   CandidatAssistant,
+  CorrespondanceHorsRegistre,
   MessageAssistant,
   Reponse,
   ContexteAssistant,
@@ -479,6 +480,7 @@ export {
 export type {
   TransportAssistant,
   ProfilAssistant,
+  ContexteProfil,
   OptionsRepondreIA,
   OptionsPrompt,
   EtapeMontree,
@@ -498,6 +500,7 @@ export {
   outilPlanifier,
   MAX_ROUNDS_ASSISTANT,
   MAX_ETAPES_PLAN,
+  MAX_REPERES_CONTEXTE,
   HISTORIQUE_ASSISTANT,
   REPERE_REFUSE,
 } from './ia/assistant-loop.js';

@@ -45,6 +45,7 @@ import type {
 } from '../ui/mount-assistant.js';
 import {
   chemin,
+  estIdRepere,
   indexerReperes,
   montrer as montrerRepere,
   prerequisManquants,
@@ -114,7 +115,28 @@ export interface ProfilAssistant<Etat = unknown> {
   prerequis?: PrerequisParId<Etat>;
   /** Consignes propres à l'app, ajoutées telles quelles. */
   consignes?: string;
+  /**
+   * Contexte relu à CHAQUE question sur l'état de l'app (#1105) : un bloc de
+   * texte ajouté au prompt et les repères hors registre qu'il cite (Playground :
+   * le plan du code courant et ses repères de code). Ces ids rejoignent l'enum
+   * de l'outil `montrer` (pas celui de `planifier`, dont le plan suit le
+   * registre) après `estIdRepere` ; `mountAssistant` les valide encore
+   * (`libelleHorsRegistre`) avant de les montrer. Lu seulement si l'adaptateur
+   * est fourni (c'est lui qui rend l'état).
+   */
+  contexte?: (etat: Etat) => ContexteProfil | null;
 }
+
+/** Contexte d'app ajouté au prompt (#1105). */
+export interface ContexteProfil {
+  /** Bloc de texte brut, titre compris. Les jetons d'URL y sont masqués ici. */
+  readonly texte: string;
+  /** Identifiants hors registre que le modèle peut passer à `montrer`. */
+  readonly reperes: readonly string[];
+}
+
+/** Repères hors registre ajoutés à l'enum de `montrer`, au plus. */
+export const MAX_REPERES_CONTEXTE = 200;
 
 export interface OptionsRepondreIA<Etat = unknown> {
   registre: RegistreReperes;
@@ -244,6 +266,8 @@ export interface OptionsPrompt {
   skills: boolean;
   /** Constats déjà masqués (`constatsPourModele`), ou vide. */
   constats: string;
+  /** Bloc de contexte de l'app (`ProfilAssistant.contexte`), ou vide. */
+  contexte?: string;
 }
 
 /** Prompt système de l'assistant, paramétré par le profil de l'app. */
@@ -281,9 +305,15 @@ export function construirePromptAssistant<Etat>(
     lignes.push('', 'Constats relevés sur l’aperçu :', options.constats);
   }
 
+  if (options.contexte) lignes.push('', options.contexte);
+
   lignes.push('', 'Règles :');
   lignes.push('- Réponds en français, en texte brut, en deux ou trois phrases, sans Markdown.');
-  lignes.push("- N'invente aucun identifiant : utilise seulement ceux de la liste.");
+  lignes.push(
+    options.contexte
+      ? "- N'invente aucun identifiant : utilise seulement ceux des listes ci-dessus."
+      : "- N'invente aucun identifiant : utilise seulement ceux de la liste."
+  );
   if (options.outils) {
     lignes.push("- Pour désigner un réglage, appelle l'outil montrer.");
     lignes.push(
@@ -559,7 +589,6 @@ export function creerRepondreIA<Etat>(
 ): (contexte: ContexteAssistant) => Promise<Reponse> {
   const { registre, profil } = opts;
   const ids = idsDuRegistre(registre);
-  const connus = new Set(ids);
   const maxRounds = opts.maxRounds ?? MAX_ROUNDS_ASSISTANT;
   const chargerSkills = opts.skills === false ? null : (opts.skills ?? (() => loadSkills()));
   const masquer = (): boolean => opts.masquer?.() ?? opts.diagnostic?.redactValues() ?? true;
@@ -577,6 +606,10 @@ export function creerRepondreIA<Etat>(
     };
 
     const outils = transport.capacites.toolCalling === true;
+    // Contexte de l'app, relu à chaque question (le code change à chaque frappe).
+    const contexteApp = lireContexte(profil, opts.adaptateur);
+    const idsMontrer = [...ids, ...contexteApp.reperes.filter((id) => !ids.includes(id))];
+    const connus = new Set(idsMontrer);
     const constats =
       contexte.constats.length > 0 ? constatsPourModele(contexte.constats, masquer()) : '';
     const systemPrompt = construirePromptAssistant(registre, profil, {
@@ -584,6 +617,7 @@ export function creerRepondreIA<Etat>(
       diagnostic: outils && !!opts.diagnostic,
       skills: outils && !!chargerSkills,
       constats,
+      contexte: contexteApp.texte,
     });
     const conversation = conversationDe(contexte.historique, contexte.question);
 
@@ -602,7 +636,7 @@ export function creerRepondreIA<Etat>(
     // ── Tool-calling : la boucle commune ──
     const diagnostic = opts.diagnostic;
     const tools = [
-      outilMontrer(ids),
+      outilMontrer(idsMontrer),
       outilPlanifier(ids),
       ...(diagnostic ? DIAGNOSTIC_TOOLS : []),
       ...(chargerSkills ? OUTILS_SKILLS : []),
@@ -652,8 +686,10 @@ export function creerRepondreIA<Etat>(
         : Array.isArray(args.etapes)
           ? args.etapes.slice(0, MAX_ETAPES_PLAN)
           : [];
+    // Un plan ne suit que le registre ; `montrer` accepte aussi le contexte.
+    const permis = name === 'montrer' ? connus : new Set(ids);
     const valides = [
-      ...new Set(candidats.filter((id): id is string => typeof id === 'string' && connus.has(id))),
+      ...new Set(candidats.filter((id): id is string => typeof id === 'string' && permis.has(id))),
     ];
 
     // Hors enum : refusé ici, sans nouvel appel au modèle.
@@ -665,7 +701,11 @@ export function creerRepondreIA<Etat>(
     }
 
     if (name === 'montrer' || valides.length === 1) {
-      return { texte: texteModele || formulerCheminDe(registre, valides[0]), montrer: valides[0] };
+      const defaut =
+        chemin(registre, valides[0]).length > 0
+          ? formulerCheminDe(registre, valides[0])
+          : "C'est ici.";
+      return { texte: texteModele || defaut, montrer: valides[0] };
     }
 
     // Plan : l'adaptateur le fait avancer ; sans lui, des boutons.
@@ -690,6 +730,30 @@ export function creerRepondreIA<Etat>(
       reperes: valides,
     };
   };
+}
+
+/**
+ * Contexte de l'app pour cette question : bloc de texte (jetons d'URL masqués)
+ * et ids hors registre à la grammaire valide, au plus `MAX_REPERES_CONTEXTE`.
+ * Une erreur de l'app vaut « pas de contexte » : la question part quand même.
+ */
+function lireContexte<Etat>(
+  profil: ProfilAssistant<Etat>,
+  adaptateur: AdaptateurReperage<Etat> | undefined
+): { texte: string; reperes: string[] } {
+  if (!profil.contexte || !adaptateur) return { texte: '', reperes: [] };
+  let c: ContexteProfil | null;
+  try {
+    c = profil.contexte(adaptateur.etat());
+  } catch {
+    return { texte: '', reperes: [] };
+  }
+  if (!c) return { texte: '', reperes: [] };
+  const texte = typeof c.texte === 'string' ? masquerUrl(c.texte) : '';
+  const reperes = [
+    ...new Set((c.reperes ?? []).filter((id) => typeof id === 'string' && estIdRepere(id))),
+  ].slice(0, MAX_REPERES_CONTEXTE);
+  return { texte, reperes };
 }
 
 function formulerCheminDe(registre: RegistreReperes, id: string): string {
