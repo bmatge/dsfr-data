@@ -13,7 +13,7 @@
 
 import type { ChartConfig } from './chart-config.js';
 
-export type WidgetType = 'kpi' | 'chart' | 'table' | 'text' | 'filters' | 'map';
+export type WidgetType = 'kpi' | 'chart' | 'table' | 'text' | 'filters' | 'map' | 'component';
 
 /**
  * Configuration d'un widget — UNION DISCRIMINEE sur `Widget.type` (#521).
@@ -210,13 +210,56 @@ export interface MapWidgetConfig {
   zoom?: number;
 }
 
+/**
+ * Un attribut d'un composant libre (#1111) : nom HTML exact de l'attribut
+ * (kebab-case, celui du manifeste), valeur texte. Une valeur vide pose
+ * l'attribut seul (attribut booleen : `cluster`, `fit-bounds`…).
+ */
+export interface ComponentAttribute {
+  name: string;
+  value: string;
+}
+
+/** Un composant `dsfr-data-*` d'un bloc « composant libre » (#1111). */
+export interface FreeComponentSpec {
+  /** Balise, ex. `dsfr-data-pivot`. */
+  tag: string;
+  attributes: ComponentAttribute[];
+  /**
+   * Id (attribut `id`) d'un composant PRECEDENT du meme bloc qui contient
+   * celui-ci : une couche ou un volet dans sa carte, un KPI dans son groupe.
+   * Absent : le composant est pose au premier niveau du bloc.
+   */
+  inside?: string;
+  /**
+   * Contenu du `<template>` enfant, pour les composants qui en lisent un
+   * (`dsfr-data-display`, `dsfr-data-repeat`, `dsfr-data-map-popup`). Filtre a
+   * l'export (`nettoyerGabarit`).
+   */
+  template?: string;
+}
+
+/**
+ * Bloc « composant libre » (#1111) : une petite chaine de composants
+ * `dsfr-data-*` (transformations puis affichage), pour ce que les blocs guides
+ * n'expriment pas (pivot, recherche, volet de carte avance…). Le Studio IA
+ * valide chaque balise, attribut et valeur contre le manifeste AVANT de
+ * l'ecrire ; l'export, lui, n'emet qu'une forme sure (balise `dsfr-data-*`,
+ * nom d'attribut simple, valeurs echappees), meme pour un document lu depuis
+ * un stockage partage.
+ */
+export interface ComponentWidgetConfig {
+  components: FreeComponentSpec[];
+}
+
 export type WidgetConfig =
   | KpiWidgetConfig
   | ChartWidgetConfig
   | TableWidgetConfig
   | TextWidgetConfig
   | FiltersWidgetConfig
-  | MapWidgetConfig;
+  | MapWidgetConfig
+  | ComponentWidgetConfig;
 
 interface WidgetBase {
   id: string;
@@ -234,7 +277,8 @@ export type Widget =
   | (WidgetBase & { type: 'table'; config: TableWidgetConfig })
   | (WidgetBase & { type: 'text'; config: TextWidgetConfig })
   | (WidgetBase & { type: 'filters'; config: FiltersWidgetConfig })
-  | (WidgetBase & { type: 'map'; config: MapWidgetConfig });
+  | (WidgetBase & { type: 'map'; config: MapWidgetConfig })
+  | (WidgetBase & { type: 'component'; config: ComponentWidgetConfig });
 
 /** Un graphique issu d'un favori porte son HTML et n'est pas reconfigurable. */
 export function isFavoriteChart(config: ChartWidgetConfig): config is FavoriteChartWidgetConfig {
@@ -344,7 +388,8 @@ export function normalizeWidget(raw: unknown): Widget | null {
     type !== 'table' &&
     type !== 'text' &&
     type !== 'filters' &&
-    type !== 'map'
+    type !== 'map' &&
+    type !== 'component'
   ) {
     return null;
   }
@@ -479,7 +524,45 @@ export function normalizeWidget(raw: unknown): Widget | null {
           zoom: typeof cfg.zoom === 'number' ? cfg.zoom : undefined,
         },
       };
+
+    case 'component':
+      // #1111 : sans ce cas, le Tableau de bord perdrait a la relecture le
+      // bloc libre pose par le Studio. On garde la FORME (balise dsfr-data-*,
+      // attributs nom/valeur texte) ; la surete de ce qui est emis est assuree
+      // par l'export, pas par cette lecture.
+      return {
+        ...base,
+        type,
+        config: {
+          components: Array.isArray(cfg.components)
+            ? cfg.components
+                .map((c) => normalizeFreeComponent(c))
+                .filter((c): c is FreeComponentSpec => c !== null)
+            : [],
+        },
+      };
   }
+}
+
+function normalizeFreeComponent(raw: unknown): FreeComponentSpec | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const c = raw as Record<string, unknown>;
+  if (typeof c.tag !== 'string' || !c.tag.startsWith('dsfr-data-')) return null;
+  const attributes = Array.isArray(c.attributes)
+    ? c.attributes
+        .filter(
+          (a): a is ComponentAttribute =>
+            !!a &&
+            typeof a === 'object' &&
+            typeof (a as Record<string, unknown>).name === 'string' &&
+            typeof (a as Record<string, unknown>).value === 'string'
+        )
+        .map((a) => ({ name: a.name, value: a.value }))
+    : [];
+  const out: FreeComponentSpec = { tag: c.tag, attributes };
+  if (typeof c.inside === 'string' && c.inside !== '') out.inside = c.inside;
+  if (typeof c.template === 'string' && c.template !== '') out.template = c.template;
+  return out;
 }
 
 export const MAP_LAYER_TYPES: readonly MapLayerType[] = ['marker', 'circle', 'heatmap', 'geoshape'];
@@ -575,6 +658,7 @@ export function getDefaultTitle(type: WidgetType): string {
     text: 'Texte',
     filters: 'Filtres',
     map: 'Carte',
+    component: 'Composant libre',
   };
   return titles[type];
 }
@@ -590,6 +674,7 @@ export function getDefaultConfig(type: 'table'): TableWidgetConfig;
 export function getDefaultConfig(type: 'text'): TextWidgetConfig;
 export function getDefaultConfig(type: 'filters'): FiltersWidgetConfig;
 export function getDefaultConfig(type: 'map'): MapWidgetConfig;
+export function getDefaultConfig(type: 'component'): ComponentWidgetConfig;
 export function getDefaultConfig(type: WidgetType): WidgetConfig;
 export function getDefaultConfig(type: WidgetType): WidgetConfig {
   switch (type) {
@@ -605,6 +690,8 @@ export function getDefaultConfig(type: WidgetType): WidgetConfig {
       return { filters: [] };
     case 'map':
       return { layers: [] };
+    case 'component':
+      return { components: [] };
   }
 }
 
@@ -634,6 +721,8 @@ export function createWidget(type: WidgetType, row: number, col: number): Widget
       return { ...base, type, config: getDefaultConfig('filters') };
     case 'map':
       return { ...base, type, config: getDefaultConfig('map') };
+    case 'component':
+      return { ...base, type, config: getDefaultConfig('component') };
   }
 }
 

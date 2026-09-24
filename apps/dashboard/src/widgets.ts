@@ -159,6 +159,21 @@ function appendWidgetContent(parent: HTMLElement, widget: Widget): void {
       parent.append(wrap);
       return;
     }
+    case 'component': {
+      // Bloc « composant libre » du Studio IA (#1111) : ses composants, en
+      // lecture seule — il s'edite dans le Studio.
+      const wrap = document.createElement('div');
+      wrap.className = 'widget-preview-center widget-preview-muted';
+      const icon = document.createElement('i');
+      icon.className = 'ri-code-box-line widget-preview-icon';
+      const text = document.createElement('p');
+      text.className = 'widget-preview-text';
+      const tags = widget.config.components.map((c) => c.tag);
+      text.textContent = tags.length ? `Composants : ${tags.join(', ')}` : 'Composant libre';
+      wrap.append(icon, text);
+      parent.append(wrap);
+      return;
+    }
     case 'table': {
       const wrap = document.createElement('div');
       wrap.className = 'widget-preview-center widget-preview-muted';
@@ -197,6 +212,7 @@ export function getWidgetIcon(type: WidgetType): string {
     text: 'ri-text',
     filters: 'ri-filter-3-line',
     map: 'ri-map-2-line',
+    component: 'ri-code-box-line',
   };
   return icons[type] || 'ri-question-line';
 }

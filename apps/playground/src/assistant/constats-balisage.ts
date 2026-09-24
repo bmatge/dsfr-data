@@ -42,6 +42,7 @@ const TITRES: Readonly<Record<string, string>> = {
   'balisage/balise-inconnue': 'Balise inconnue',
   'balisage/attribut-inconnu': 'Attribut inconnu, ignoré en silence',
   'balisage/attribut-retire': 'Attribut retiré',
+  'balisage/valeur-invalide': 'Valeur hors de la liste permise',
   'balisage/id-manquant': 'Identifiant manquant : rien ne part vers l’aval',
   'balisage/amont-absent': 'Amont introuvable dans le code',
   'balisage/join-incomplet': 'Jointure incomplète',
@@ -53,6 +54,7 @@ const TITRES: Readonly<Record<string, string>> = {
 const ACTIONS: Readonly<Record<string, string>> = {
   'balisage/attribut-inconnu': 'Corrigez le nom de l’attribut, ou retirez-le.',
   'balisage/attribut-retire': 'Remplacez l’attribut comme l’indique le message.',
+  'balisage/valeur-invalide': 'Choisissez l’une des valeurs acceptées citées dans le message.',
   'balisage/id-manquant': 'Donnez un id à la balise et citez-le dans le source de l’aval.',
   'balisage/amont-absent': 'Citez l’id d’une balise présente dans le code, ou ajoutez-la.',
   'balisage/join-incomplet': 'Renseignez left ET right avec les id des deux sources.',

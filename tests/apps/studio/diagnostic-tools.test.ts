@@ -241,8 +241,9 @@ describe('prompt système', () => {
     expect(prompt).not.toContain('Flux —');
     // Borne sur la partie redigee : le vocabulaire des blocs, engendre depuis
     // le schema des outils (#1109), grandit avec le modele de blocs et se
-    // mesure a part.
-    expect(prompt.length - describeBlockVocabulary().length).toBeLessThan(6000);
+    // mesure a part. 7000 depuis #1111 : la section du bloc « component »
+    // (quand s'en servir, fiche avant d'ecrire, flux et ids) y prend ~800.
+    expect(prompt.length - describeBlockVocabulary().length).toBeLessThan(7000);
   });
 });
 

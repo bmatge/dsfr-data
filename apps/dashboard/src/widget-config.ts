@@ -189,6 +189,33 @@ function getConfigForm(widget: Widget): string {
       `
       );
 
+    case 'component': {
+      // Lecture seule (#1111) : la validation des balises, attributs et valeurs
+      // contre le manifeste vit dans le Studio IA. Un formulaire ici devrait la
+      // dupliquer, ou laisser passer ce que le Studio refuse.
+      const lignes = widget.config.components
+        .map((c) => {
+          const attrs = c.attributes
+            .map((a) => (a.value === '' ? a.name : `${a.name}="${a.value}"`))
+            .join(' ');
+          return `<li><code>${escapeHtml(`<${c.tag}${attrs ? ` ${attrs}` : ''}>`)}</code></li>`;
+        })
+        .join('');
+      return (
+        commonFields +
+        `
+        <div class="fr-callout">
+          <p class="fr-callout__text">
+            Ce bloc « composant libre » a été produit par le Studio IA, qui en valide
+            chaque composant et chaque attribut : il s'affiche ici en lecture seule et
+            se modifie dans le Studio IA.
+          </p>
+        </div>
+        <ul class="config-component-list">${lignes}</ul>
+      `
+      );
+    }
+
     default:
       return commonFields;
   }

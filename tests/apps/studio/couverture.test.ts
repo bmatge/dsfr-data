@@ -40,11 +40,9 @@ describe('couverture du Studio — etat versionne', () => {
   });
 
   it('mesure ce que #1109 a ajoute : volet, gabarit, regroupement', () => {
-    expect([...(ECRITS.get('dsfr-data-map-popup') ?? [])].sort()).toEqual([
-      'for',
-      'mode',
-      'title-field',
-    ]);
+    expect([...(ECRITS.get('dsfr-data-map-popup') ?? [])]).toEqual(
+      expect.arrayContaining(['for', 'mode', 'title-field'])
+    );
     const couche = ECRITS.get('dsfr-data-map-layer') ?? new Set();
     for (const a of [
       'popup-template',
@@ -55,8 +53,24 @@ describe('couverture du Studio — etat versionne', () => {
     ]) {
       expect(couche.has(a), a).toBe(true);
     }
-    // refine-on-click n'est PAS expose (cablage contexte impossible ici).
-    expect(couche.has('refine-on-click')).toBe(false);
+  });
+
+  it('mesure ce que #1111 a ajoute : le bloc libre ecrit le reste de la lib', () => {
+    // Composants hors des blocs guides : transformateurs, interactions, compagnons.
+    for (const tag of ['dsfr-data-pivot', 'dsfr-data-search', 'dsfr-data-map-legend']) {
+      expect(ECRITS.has(tag), tag).toBe(true);
+    }
+    // La selection au clic, impossible a cabler par les blocs guides, s'ecrit
+    // dans un bloc libre avec son contexte.
+    expect(ECRITS.get('dsfr-data-map-layer')?.has('refine-on-click')).toBe(true);
+    expect(ECRITS.get('dsfr-data-map-popup')?.has('width')).toBe(true);
+    // Ce que le bloc libre refuse reste non ecrit : la balise de suivi, les
+    // attributs retires, les reglages de connexion de la source.
+    expect(ECRITS.has('dsfr-data-beacon')).toBe(false);
+    expect(ECRITS.get('dsfr-data-kpi')?.has('valeur')).toBe(false);
+    expect(ECRITS.get('dsfr-data-source')?.has('headers')).toBe(false);
+    const bilan = verifierCouverture(MANIFESTE, ECRITS, EXCLUSIONS);
+    expect(bilan.composants).toEqual({ total: 28, ecrits: 27 });
   });
 
   it('chaque exclusion porte une raison', () => {
