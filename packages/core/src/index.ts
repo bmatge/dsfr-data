@@ -68,6 +68,7 @@ export type {
   AdapterCapabilities,
   AdapterParams,
   FetchResult,
+  FieldKind,
   FacetResult,
   ServerSideOverlay,
 } from './adapters/api-adapter.js';

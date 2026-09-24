@@ -149,6 +149,13 @@ export interface FacetDescriptor {
   isDate?: boolean;
 }
 
+/**
+ * Type normalise d'un champ declare par le jeu (#1138) : ce que rend
+ * `describeFieldTypes`, quel que soit le fournisseur. `other` couvre ce qui
+ * n'entre dans aucune famille (fichier, JSON…).
+ */
+export type FieldKind = 'number' | 'text' | 'date' | 'bool' | 'geo' | 'other';
+
 /** Options de construction du where de facettes (#676) */
 export interface FacetWhereOptions {
   /** Champs de type date : une valeur annuelle devient un intervalle [1er janvier, 1er janvier suivant) */
@@ -241,7 +248,10 @@ export interface ApiAdapter {
   ): Promise<FacetDescriptor[]>;
 
   /**
-   * Types DECLARES des champs du jeu, par nom (#980) : `{ reg: 'int' }`.
+   * Types DECLARES des champs du jeu, par nom (#980), NORMALISES par
+   * l'adaptateur (#1138) : `{ reg: 'number' }`. Chaque adaptateur traduit les
+   * types bruts de son fournisseur (Opendatasoft : `int`, `double`,
+   * `decimal` → `number`) — le composant qui les lit n'en connait aucun.
    *
    * Lu par l'avertissement « comparee en TEXTE » (#924) quand les lignes
    * emises par la source ne portent pas le champ — source agregee cote
@@ -253,7 +263,7 @@ export interface ApiAdapter {
    */
   describeFieldTypes?(
     params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
-  ): Promise<Record<string, string>>;
+  ): Promise<Record<string, FieldKind>>;
 
   /**
    * Indique si les champs donnes peuvent etre delegues cote serveur pour

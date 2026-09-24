@@ -206,12 +206,6 @@ const EXCEPTIONS: readonly Exception[] = [
     reason: 'Sans adaptateur, la recherche serveur suppose le dialecte ODSQL.',
   },
   {
-    file: 'utils/numeric-field-mismatch.ts',
-    line: /DECLARED_NUMERIC = new Set/,
-    issue: '#1138',
-    reason: 'Types bruts Opendatasoft interprétés côté composant, à normaliser dans l’adaptateur.',
-  },
-  {
     file: 'index.ts',
     line: /\bTabular(Adapter|Profile|ProfileParams)\b|adapters\/tabular-adapter\.js/,
     issue: '#985',
