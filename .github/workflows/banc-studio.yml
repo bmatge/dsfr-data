@@ -1,0 +1,96 @@
+name: Banc de pertinence du Studio IA
+
+# Pendant « pertinence » de verif-donnees (#1112) : rejoue la VRAIE boucle du
+# Studio sur des scenarios (jeu de donnees + demandes de l'usager) et mesure,
+# par criteres deterministes, ce que le modele en fait. Doc :
+# tools/banc-studio/README.md.
+#
+# Acces au modele : le mode serveur de l'instance (`/ia-proxy-default`), comme
+# le Studio en ligne — AUCUN secret. Le plafond du proxy est partage avec les
+# usagers : peu de scenarios en PR, le jeu complet la nuit, 10 s entre deux
+# appels, et un seul banc a la fois (groupe de concurrence global).
+#
+# NON BLOQUANT : un modele n'est pas deterministe. Le rapport (taux par critere
+# et par scenario) va dans le resume du job et en artefact ; l'etape du banc
+# est en `continue-on-error`. On rendra bloquante une regression nette une fois
+# la variance connue.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/studio/**'
+      - 'packages/shared/src/ia/**'
+      - 'packages/shared/src/dashboard/**'
+      - 'tools/banc-studio/**'
+      - '.github/workflows/banc-studio.yml'
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      repetitions:
+        description: 'Répétitions par scénario'
+        default: '3'
+      scenarios:
+        description: 'Ids de scénarios, séparés par des virgules (vide : tous)'
+        default: ''
+      instance:
+        description: 'Instance visée'
+        default: 'https://chartsbuilder.miweb.run'
+
+permissions:
+  contents: read
+
+concurrency:
+  # Global : deux bancs simultanes doubleraient la charge sur le plafond partage.
+  group: banc-studio
+  cancel-in-progress: false
+
+jobs:
+  banc:
+    name: Pertinence du Studio (modèle réel)
+    # Le miroir mef-snum-miweb rejoue chaque push : un seul depot interroge l'instance.
+    if: github.repository == 'bmatge/dsfr-data'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Banc (sous-ensemble de PR, 1 répétition)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: npm run banc:studio -- --pr --repetitions 1
+
+      - name: Banc (jeu complet)
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          BANC_STUDIO_REPETITIONS: ${{ inputs.repetitions || '3' }}
+          BANC_STUDIO_SCENARIOS: ${{ inputs.scenarios || '' }}
+          BANC_STUDIO_INSTANCE: ${{ inputs.instance || 'https://chartsbuilder.miweb.run' }}
+        run: npm run banc:studio
+
+      - name: Résumé du job
+        if: always()
+        run: |
+          if [ -f tools/banc-studio/out/rapport.md ]; then
+            cat tools/banc-studio/out/rapport.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Banc du Studio : aucun rapport produit (voir le journal de l'étape)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Rapport en artefact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: banc-studio-rapport
+          path: tools/banc-studio/out/
+          if-no-files-found: ignore
+          retention-days: 30

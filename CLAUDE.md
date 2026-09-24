@@ -79,6 +79,11 @@ npm run verif:attendus  # La TROISIEME VOIX : projette les controles determinist
                       #   Le fichier garde ne porte QUE des chiffres : la version de l'interpreteur va
                       #   dans tools/oracle/out/attendus-provenance.json (ignore par git), sinon le
                       #   garde-fou rougit des que le runner n'a pas le Python de l'auteur.
+npm run banc:studio   # PERTINENCE du Studio IA (#1112) : rejoue la vraie boucle sur des scenarios
+                      #   (tools/banc-studio/), criteres deterministes, taux sur N repetitions.
+                      #   Modele reel via le mode serveur de l'instance (aucun secret), plafond partage :
+                      #   `-- --pr --repetitions 1` pour le sous-ensemble. Jamais bloquant
+                      #   (banc-studio.yml : PR touchant au Studio, nuit, dispatch). Doc : son README.
 
 # Lint / garde-fous
 npm run check:accents # Lint BLOQUANT des libelles UI : accents + formes hors lexique
