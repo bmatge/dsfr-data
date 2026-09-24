@@ -338,10 +338,13 @@ describe('Actions reprises de l’Assistant : favoris, Playground', () => {
     expect(naviguer).toHaveBeenCalledWith('playground', { from: 'studio' });
   });
 
-  it('le Playground accepte le code du Studio et y renvoie ; l’ancien Assistant par ?ancien=1', () => {
+  it('le Playground accepte le code du Studio et y renvoie ; l’ancien Assistant par ?ancien=1', async () => {
+    // Liste unique des origines (apps/playground/src/origines.ts) : le Studio
+    // y est, avec son lien de retour.
+    const { estOrigineCode, ORIGINES_CODE } = await import('../../../apps/playground/src/origines');
+    expect(estOrigineCode('studio')).toBe(true);
+    expect(ORIGINES_CODE.studio).toBe('au Studio IA');
     const src = lire('apps/playground/src/main.ts');
-    expect(src).toContain("studio: 'Studio IA'");
-    expect(src).toContain("from === 'studio'");
     expect(src).toContain("fromApp === 'builder-ia' ? { ancien: '1' } : {}");
   });
 });
