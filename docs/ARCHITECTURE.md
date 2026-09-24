@@ -141,6 +141,18 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 - **ProviderConfig** (`packages/shared/src/providers/`) : configuration declarative par provider (pagination, response parsing, query syntax, code generation).
 - **Registre** (`packages/core/src/adapters/adapter-registry.ts`) : `getAdapter(apiType)` retourne l'adapter pour un type donne.
 - Ajouter un nouveau provider (CKAN...) = 1 ProviderConfig + 1 Adapter, zero modification dans les composants.
+- **Neutralité fournisseur, garde-fou (#1134)** : `tests/lib-provider-neutrality.test.ts` analyse
+  `components/**`, `utils/**` et `index*.ts` (commentaires retirés) et refuse grammaires et endpoints
+  (`in_bbox(`, `group_by`, `page_size`, `champ__sum`, `/records`…), noms de fournisseur, littéral
+  `'odsql'`, types déclarés bruts (`int`, `double`…), tests d'`api-type` et noms d'hôtes. Les dérives
+  légitimes sont déclarées dans `EXCEPTIONS` avec leur issue, et une exception qui ne couvre plus rien
+  fait échouer le test. Le dialecte `whereFormat` ne se teste que dans `utils/where.ts`
+  (`joinWhere`, `toWhereDialect`, `escapeWhereValue`). Le même test impose que
+  `AdapterCapabilities` ne porte que des booléens et `whereFormat`, et que toute méthode optionnelle
+  d'`ApiAdapter` soit appelée en `?.` (un adaptateur tiers enregistré par `registerAdapter` peut ne
+  pas l'avoir). ESLint (`@typescript-eslint/no-restricted-imports`) interdit aux composants
+  d'importer un `*-adapter.js` (seuls `api-adapter.js` en `import type` et `adapter-registry.js`) et
+  les exports fournisseur de `@dsfr-data/shared/lib` (`ODS_CONFIG`, `buildGristHeaders`…).
 
 #### Capacités des adapters
 

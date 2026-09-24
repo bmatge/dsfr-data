@@ -108,6 +108,62 @@ export default tseslint.config(
       ],
     },
   },
+  // Neutralité fournisseur (#1134) : les composants et leurs utilitaires ne
+  // parlent aux fournisseurs qu'à travers le contrat ApiAdapter (import type)
+  // et le registre. Règle distincte de celle de #319 (variante
+  // typescript-eslint, pour `allowTypeImports`) : les deux s'appliquent.
+  // Pendant du garde-fou statique tests/lib-provider-neutrality.test.ts.
+  {
+    files: ['packages/core/src/components/**/*.ts', 'packages/core/src/utils/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@dsfr-data/shared/lib',
+              importNames: [
+                'ODS_CONFIG',
+                'TABULAR_CONFIG',
+                'GRIST_CONFIG',
+                'INSEE_CONFIG',
+                'buildGristHeaders',
+                'flattenInseeObservation',
+                'buildInseeLabelIndex',
+                'applyInseeLabels',
+                'fetchInseeLabelIndex',
+                'clearInseeLabelCache',
+                'INSEE_CODE_SUFFIX',
+                'parseDataGouvDataset',
+                'dataGouvDatasetApiUrl',
+                'extractDataGouvResources',
+              ],
+              message:
+                'Spécificité de fournisseur : elle appartient à un adaptateur (packages/core/src/adapters), pas à un composant (#1134).',
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                '**/adapters/*',
+                '!**/adapters/api-adapter.js',
+                '!**/adapters/adapter-registry.js',
+              ],
+              message:
+                'Un composant ne connaît aucun adaptateur : passer par le contrat ApiAdapter (import type) ou le registre getAdapter (#1134).',
+            },
+            {
+              group: ['**/adapters/api-adapter.js'],
+              allowTypeImports: true,
+              message:
+                "api-adapter.js s'importe en `import type` seulement ; le registre vit dans adapter-registry.js (#1134).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Relax rules for test files
   {
     files: ['tests/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],

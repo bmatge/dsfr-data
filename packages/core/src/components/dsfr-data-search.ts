@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml, formatNumber, stripAccents } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeColonValue } from '../utils/where.js';
+import { escapeColonValue, escapeWhereValue } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
@@ -429,8 +429,9 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     if (this.serverSearch && !this.searchTemplate) {
       const sourceEl = document.getElementById(this.source);
       const adapter = (sourceEl as unknown as SourceElement)?.getAdapter?.();
-      if (adapter?.getDefaultSearchTemplate) {
-        this.searchTemplate = adapter.getDefaultSearchTemplate() || '';
+      const template = adapter?.getDefaultSearchTemplate?.();
+      if (template !== undefined) {
+        this.searchTemplate = template || '';
       }
     }
 
@@ -571,10 +572,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       // (caracteres structurels de la clause)
       const adapter = this.getAdapter();
       const format = adapter?.capabilities?.whereFormat ?? 'odsql';
-      const escaped =
-        format === 'colon'
-          ? escapeColonValue(term)
-          : term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      const escaped = escapeWhereValue(format, term);
       // `{fields}` (#1026) : les champs de la recherche, separes par `|` —
       // la grammaire colon des champs multiples, un OU entre eux
       const fields = this._getFields();
@@ -589,7 +587,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
         if (adapter?.supportsServerWhere?.(where) === false) {
           refusal =
             `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
-            `par exemple un terme portant , . ( ) " ou & sur Tabular`;
+            `l'adaptateur ne sait pas transmettre ce terme ou ces champs tels quels`;
         }
       }
     }

@@ -20,7 +20,7 @@ import {
 import { countDistinct } from '../utils/aggregations.js';
 import {
   unescapeColonValue,
-  filterToOdsql,
+  toWhereDialect,
   parseOrderBy,
   splitColonFields,
 } from '../utils/where.js';
@@ -1287,7 +1287,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       return { ok: false, where: '', fields: [] };
     }
 
-    const where = format === 'odsql' ? filterToOdsql(filterExpr) : filterExpr;
+    const where = toWhereDialect(format, filterExpr);
     return { ok: true, where, fields };
   }
 

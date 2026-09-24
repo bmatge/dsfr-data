@@ -127,7 +127,7 @@ async function declaredType(sourceId: string, field: string): Promise<string | n
   if (!adapter?.describeFieldTypes) return null;
   const params = el?.getAdapterParams?.();
   if (!params?.datasetId) return null;
-  const types = await adapter.describeFieldTypes(params);
+  const types = (await adapter.describeFieldTypes?.(params)) ?? {};
   const type = types[field];
   return typeof type === 'string' ? type : null;
 }

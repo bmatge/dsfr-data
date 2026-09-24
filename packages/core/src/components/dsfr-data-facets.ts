@@ -884,12 +884,11 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     const rawEl = document.getElementById(this.source);
     const adapter: ApiAdapter | undefined =
       (rawEl as unknown as SourceElement)?.getAdapter?.() ?? undefined;
-    if (adapter?.buildFacetWhere) {
-      // Champs date connus par la decouverte (#676) : une annee devient un intervalle
-      return adapter.buildFacetWhere(this._activeSelections, excludeField, {
-        dateFields: this._dateFacetFields(),
-      });
-    }
+    // Champs date connus par la decouverte (#676) : une annee devient un intervalle
+    const adapterWhere = adapter?.buildFacetWhere?.(this._activeSelections, excludeField, {
+      dateFields: this._dateFacetFields(),
+    });
+    if (adapterWhere !== undefined) return adapterWhere;
     // Fallback: colon syntax (for client-side mode without adapter)
     const parts: string[] = [];
     for (const [field, values] of Object.entries(this._activeSelections)) {

@@ -30,6 +30,7 @@ import {
 } from '../utils/data-bridge.js';
 import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
+import { joinWhere } from '../utils/where.js';
 
 /**
  * Cles de requete que la bibliotheque construit elle-meme a partir des
@@ -559,9 +560,7 @@ export class DsfrDataSource extends LitElement {
     for (const [key, value] of this._whereOverlays) {
       if (!excluded.has(key) && value) parts.push(value);
     }
-    const adapter = this.getAdapter();
-    const separator = adapter?.capabilities.whereFormat === 'odsql' ? ' AND ' : ', ';
-    return parts.join(separator);
+    return joinWhere(this.getAdapter()?.capabilities.whereFormat ?? 'colon', parts);
   }
 
   public reload() {
@@ -1225,9 +1224,9 @@ export class DsfrDataSource extends LitElement {
       if (overlay) return adapter.buildServerSideUrl(params, overlay);
       // Mode export (#689) : l'URL reellement appelee n'est pas celle de
       // l'endpoint pagine — un repli sur /records a deja son propre warn
-      if (params.fetchMode === 'export' && adapter.buildExportUrl) {
-        return adapter.buildExportUrl(params);
-      }
+      const exportUrl =
+        params.fetchMode === 'export' ? adapter.buildExportUrl?.(params) : undefined;
+      if (exportUrl) return exportUrl;
       return adapter.buildUrl(params);
     } catch {
       return undefined;

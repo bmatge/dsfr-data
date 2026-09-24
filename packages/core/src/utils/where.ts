@@ -36,7 +36,7 @@ export {
   splitColonFields,
   isMultiFieldClause,
 } from '@dsfr-data/shared/lib';
-import { escapeColonValue } from '@dsfr-data/shared/lib';
+import { escapeColonValue, filterToOdsql as filterToOdsqlImpl } from '@dsfr-data/shared/lib';
 
 /**
  * Construit la clause WHERE colon des sélections de facettes.
@@ -66,6 +66,29 @@ export function buildColonFacetWhere(
 export function joinWhere(format: WhereFormat, clauses: Array<string | undefined | null>): string {
   const list = clauses.filter((c): c is string => !!c);
   return list.join(format === 'odsql' ? ' AND ' : ', ');
+}
+
+/**
+ * Traduit une clause colon (la grammaire des composants) vers le dialecte
+ * `format` d'un adaptateur (#275, #1134). Seul `odsql` se traduit ; `colon`
+ * part telle quelle. Les composants passent par ici plutôt que de tester le
+ * dialecte eux-mêmes : c'est ce qui les garde neutres (garde-fou
+ * `tests/lib-provider-neutrality.test.ts`).
+ */
+export function toWhereDialect(format: WhereFormat | undefined, colonWhere: string): string {
+  if (!colonWhere) return colonWhere;
+  return format === 'odsql' ? filterToOdsqlImpl(colonWhere) : colonWhere;
+}
+
+/**
+ * Échappe une VALEUR libre (terme de recherche) pour l'insérer dans une
+ * clause du dialecte `format` (#271) : ODSQL échappe `\` et `"` (valeur entre
+ * guillemets), colon percent-encode `,` `:` `|` (caractères structurels).
+ */
+export function escapeWhereValue(format: WhereFormat, value: string): string {
+  return format === 'odsql'
+    ? value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    : escapeColonValue(value);
 }
 
 /** Partie d'un tri multi-champs. */
