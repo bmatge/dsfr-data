@@ -244,10 +244,12 @@ export const STUDIO_TOUR: TourConfig = {
   version: 1,
   steps: [
     {
-      selector: '#saved-source',
+      // Le bloc entier, pas le <select> : replié sur sa ligne de résumé une
+      // fois la source chargée (#1142), le select n'est plus visible.
+      selector: '#section-source',
       title: 'Choisir une source',
       description:
-        'Sélectionnez la source de données que l’assistant utilisera pour composer le tableau de bord.',
+        'Choisissez la source de données que l’assistant utilisera pour composer le tableau de bord ; une fois chargée, elle se résume sur une ligne, « Modifier » la redéplie.',
       position: 'right',
     },
     {
