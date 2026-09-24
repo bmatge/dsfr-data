@@ -469,7 +469,26 @@ function adaptateurFactice(etat: Etat) {
 }
 
 const ok = (): ResultatMontrer => ({ ok: true, element: null, chemin: [] });
-const attendre = (): Promise<void> => new Promise((r) => setTimeout(r, 5));
+/** Un tour de boucle : les microtâches en attente, puis une macrotâche. */
+const tour = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * Laisse le plan finir l'étape qu'il montre. `afficher` (assistant-loop.ts)
+ * se termine par UNE `pause()` d'une macrotâche, programmée depuis une
+ * microtâche (après `await montrer`) ; tant qu'elle n'a pas rendu la main, le
+ * plan est occupé et ignore `etat-change`. Le premier tour laisse passer les
+ * microtâches — la pause est alors programmée —, le second, programmé après
+ * elle avec le même délai, passe après elle (ordre d'insertion). Idem pour le
+ * `setTimeout(demarrer, 0)` de `creerRepondreIA`, programmé avant nos tours.
+ *
+ * L'ancien `setTimeout(r, 5)` pariait que la pause serait programmée moins de
+ * 4 ms après lui : sous charge, un fil désordonnancé perdait la course, et
+ * l'`emettre()` suivant tombait sur un plan encore occupé (#1119).
+ */
+const attendre = async (): Promise<void> => {
+  await tour();
+  await tour();
+};
 
 describe('suivrePlan — avance sur le changement d’état', () => {
   it('montre chaque étape tour à tour, puis se termine', async () => {
