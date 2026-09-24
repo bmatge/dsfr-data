@@ -1,5 +1,17 @@
 # dsfr-data
 
+## 0.39.0
+
+### Minor Changes
+
+- [#1114](https://github.com/bmatge/dsfr-data/pull/1114) [`95cf7da`](https://github.com/bmatge/dsfr-data/commit/95cf7da7ebcbb5f79c827b85008e7792a6ee0a7b) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map-layer` : nouvel attribut `group-field` ([#1108](https://github.com/bmatge/dsfr-data/issues/1108)). Sur des données au format long (une ligne par couple ville × aide, coordonnées répétées), la couche trace un seul marqueur, cercle ou forme par valeur distincte du champ, et la popup, le volet ou la modale de `dsfr-data-map-popup` listent toutes les lignes du groupe : la valeur du groupe (ou `title-field`) en titre, puis un tableau des `popup-fields` avec une ligne par enregistrement, ou `popup-template` (ou le `<template>` du compagnon) appliqué à chaque ligne. Au plus 200 lignes, puis « … et N autres » ; tout est échappé. La position, `tooltip-field`, `color-field` et `radius-field` sont ceux du premier enregistrement positionné du groupe, et des coordonnées divergentes au sein d'un groupe sont signalées une fois en console. `max-items`, `getRenderedCount()` et le bandeau de troncature comptent des groupes ; `refine-on-click` filtre sur la valeur du groupe, et `dsfr-data-map-select` porte en plus `group` et `records`. L'attribut est compatible avec `cluster`, et sans effet sur `heatmap` (un avertissement le dit en console).
+
+- [#1113](https://github.com/bmatge/dsfr-data/pull/1113) [`72a9da0`](https://github.com/bmatge/dsfr-data/commit/72a9da0405e44c49240f3250b259ce1ef3081d25) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA et Tableau de bord : la carte d'un document sait afficher le clic dans un volet latéral ou une modale (`popupMode` : `popup`, `panel-right`, `panel-left`, `modal`, avec `popupTitleField`), poser un gabarit de popup (`popupTemplate`, « {nom} — {montant} € ») et regrouper les marqueurs proches (`cluster`, `clusterRadius`, couches marker seulement). L'export écrit un `<dsfr-data-map-popup for="…">` relié à la couche, avec un gabarit tiré des champs choisis ; le Tableau de bord conserve ces options. Le prompt du Studio tire désormais la liste des options de bloc du schéma de ses outils (les skills servent au sens des attributs, jamais à promettre une option), et un garde-fou bloquant (`npm run check:studio-couverture`) exige que chaque composant et attribut du manifeste soit écrit par le Studio ou exclu avec sa raison ([#1109](https://github.com/bmatge/dsfr-data/issues/1109)).
+
+### Patch Changes
+
+- [#1116](https://github.com/bmatge/dsfr-data/pull/1116) [`145de1b`](https://github.com/bmatge/dsfr-data/commit/145de1be2263b671434e22e4743fb336937854df) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA et Tableau de bord : une couche de carte peut regrouper ses lignes par entité (`groupField`, écrit en `group-field` : un marqueur par ville, le clic liste toutes les lignes du groupe ; couches marker, circle et geoshape, refusé sur heatmap). Le gabarit de popup rédigé par l'assistant (`popupTemplate`) est désormais filtré à l'export : éléments script, iframe, object, embed, style et template, attributs `on*` et URL `javascript:`, `vbscript:` ou `data:` retirés, le reste inchangé ([#1109](https://github.com/bmatge/dsfr-data/issues/1109)).
+
 ## 0.38.1
 
 ### Patch Changes
