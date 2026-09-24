@@ -36,4 +36,4 @@ npm run test:coverage   # Avec couverture de code
 
 - Fichiers nommes `*.test.ts`
 - Un fichier de test par composant / module
-- Les tests du builder-ia (`apps/builder-ia/skills.test.ts`) verifient l'alignement entre les composants et les skills IA
+- Les tests du guide des skills (`tests/skills/skills.test.ts`) verifient l'alignement entre les composants et les skills IA

@@ -143,14 +143,14 @@ tests/
 e2e/                           Tests E2E Playwright
 ```
 
-### Alignement des skills (Builder IA)
+### Alignement des skills IA
 
-Le builder IA utilise un systeme de skills (blocs de connaissances injectes dans le prompt). Les tests dans `tests/apps/builder-ia/skills.test.ts` verifient automatiquement que :
+Les skills (blocs de connaissances servis au Studio IA et au serveur MCP par `dist/skills.json`) vivent dans `packages/shared/src/skills/`. Les tests dans `tests/skills/` (`skills-reference.test.ts`, `skills.test.ts`) verifient automatiquement que :
 
 - Chaque attribut HTML d'un composant est documente dans son skill (via introspection Lit)
 - Tous les types de graphiques, operateurs de filtre et fonctions d'agregation sont couverts
 
-Quand on ajoute ou modifie un attribut dans un composant `dsfr-data-*`, il faut mettre a jour le skill correspondant dans `apps/builder-ia/src/skills.ts`.
+Quand on ajoute ou modifie un attribut dans un composant `dsfr-data-*`, il faut ecrire le JSDoc puis lancer `npm run build:skills` (la reference est generee) ; un type de graphique, un operateur ou une agregation se documente dans le guide redige a la main, `packages/shared/src/skills/skills.ts`.
 
 ## Conventions
 

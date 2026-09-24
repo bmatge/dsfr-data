@@ -136,8 +136,8 @@ description: Génère et corrige du HTML/JS qui utilise les Web Components datav
 # dsfr-data — skill Claude Code
 
 Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l'État), version
-${version}. Cette skill est **générée** par \`npm run build:skills\` depuis les skills du builder-IA
-(\`apps/builder-ia/src/skills.ts\` + référence extraite du code) : ne pas l'éditer à la main.
+${version}. Cette skill est **générée** par \`npm run build:skills\` depuis le guide des skills
+(\`packages/shared/src/skills/skills.ts\` + référence extraite du code) : ne pas l'éditer à la main.
 
 ## Principe : un pipeline d'éléments HTML reliés par \`id\` / \`source\`
 
