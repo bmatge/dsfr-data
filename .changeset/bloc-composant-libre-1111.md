@@ -8,7 +8,9 @@ les blocs guidés (texte, graphique, filtres, carte) n'expriment pas : tableau c
 (`dsfr-data-pivot`), recherche, facettes, légende ou volet de carte à gabarit, sélection au clic.
 Chaque appel est validé contre le manifeste par le moteur du lint de balisage : balise connue,
 attributs déclarés, valeurs d'énumération permises, `source=` / `for=` qui visent un id existant ;
-un refus nomme l'attribut en cause et les valeurs permises. Pas de HTML libre : ni script, ni
+un refus nomme l'attribut en cause et les valeurs permises ; un transformateur que rien ne lit
+(un pivot sans liste) est refusé, la page n'afficherait rien. `get_skill` trouve la fiche d'une
+balise demandée par son nom (`dsfr-data-pivot` → `dsfrDataPivot`). Pas de HTML libre : ni script, ni
 balise hors `dsfr-data-*`, gabarit `<template>` filtré, valeurs échappées à l'export — y compris
 pour un tableau de bord relu depuis le stockage partagé. Le Tableau de bord conserve et affiche le
 bloc (configuration en lecture seule). Le lint de balisage (Playground, serveur MCP) signale

@@ -80,6 +80,15 @@ describe('shared/ia/skills-client', () => {
     expect(skillText(SKILLS, 'dsfrDataChart', 'pieges')).toContain('Sections disponibles');
     expect(skillText(SKILLS, 'inconnu')).toContain('dsfrDataChart, dsfrDataKpi');
   });
+
+  it('skillText trouve la fiche d’une balise demandee par son nom (#1111)', () => {
+    expect(skillText(SKILLS, 'dsfr-data-chart', 'reference')).toBe('## Chart — reference');
+    // Compagnon sans fiche propre : celle de son parent.
+    expect(skillText(SKILLS, 'dsfr-data-kpi-group', 'guide')).toBe('## KPI — guide');
+    // Seulement pour un nom de balise : un id approchant reste inconnu.
+    expect(skillText(SKILLS, 'dsfr-data-inconnu')).toContain('introuvable');
+    expect(skillText(SKILLS, 'chart')).toContain('introuvable');
+  });
 });
 
 describe('shared/ia/skills-client — outils de consultation', () => {

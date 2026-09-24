@@ -24,6 +24,7 @@ import {
   BALISES_A_GABARIT,
   BALISES_LIBRES,
   CONTRAT_COMPOSANTS,
+  TRANSFORMATEURS_PURS,
 } from '../../../apps/studio/src/composant-libre';
 import { describeBlockVocabulary } from '../../../apps/studio/src/ia/vocabulaire';
 
@@ -173,6 +174,20 @@ describe('#1111 — validation contre le manifeste', () => {
       components: [{ tag: 'dsfr-data-pivot', attributes: [a('source', 'src'), a('row', 'x')] }],
     });
     expect(s).toContain('"id" manquant');
+  });
+
+  it('refuse un transformateur que rien ne lit (rien ne s’afficherait)', () => {
+    const s = refus({
+      kind: 'component',
+      components: [
+        {
+          tag: 'dsfr-data-pivot',
+          attributes: [a('id', 'croise'), a('source', 'src'), a('row', 'Commune')],
+        },
+      ],
+    });
+    expect(s).toContain('rien ne les lit');
+    expect(s).toContain('source="croise"');
   });
 
   it('inside doit viser un composant PRECEDENT du bloc', () => {
@@ -406,6 +421,18 @@ describe('#1111 — vocabulaire engendre depuis le manifeste', () => {
     expect([...items.properties.tag.enum]).toEqual(attendu);
     expect(describeBlockVocabulary()).toContain(`- tag = ${attendu.join(' | ')}`);
     expect(describeBlockVocabulary()).not.toContain('dsfr-data-source |');
+  });
+
+  it('test-garde : les transformateurs purs sont les TransformerMixin qui ne rendent rien', () => {
+    const dir = join(__dirname, '../../../packages/core/src/components');
+    const transformateurs = readdirSync(dir)
+      .filter((f) => f.startsWith('dsfr-data-') && f.endsWith('.ts'))
+      .filter((f) => readFileSync(join(dir, f), 'utf-8').includes('TransformerMixin('))
+      .map((f) => f.replace(/\.ts$/, ''))
+      // Recherche et facettes reemettent ET affichent un champ de saisie.
+      .filter((t) => t !== 'dsfr-data-search' && t !== 'dsfr-data-facets')
+      .sort();
+    expect([...TRANSFORMATEURS_PURS].sort()).toEqual(transformateurs);
   });
 
   it('test-garde : les composants a gabarit sont ceux qui lisent un <template> enfant', () => {

@@ -65,6 +65,32 @@ export const BALISES_A_GABARIT: readonly string[] = [
   'dsfr-data-repeat',
 ];
 
+/**
+ * Transformateurs PURS : ils reemettent des donnees sans rien afficher
+ * (`TransformerMixin`, hors recherche et facettes qui rendent un champ). Un
+ * bloc dont un transformateur n'est lu par personne n'affiche rien — le banc
+ * l'a vu (`tableau-croise` : un pivot seul, accepte, page vide). Liste verifiee
+ * par un test-garde contre le code des composants.
+ */
+export const TRANSFORMATEURS_PURS: readonly string[] = [
+  'dsfr-data-concat',
+  'dsfr-data-join',
+  'dsfr-data-normalize',
+  'dsfr-data-pivot',
+  'dsfr-data-query',
+  'dsfr-data-unpivot',
+];
+
+/** Ids amont cites par un composant (`source`, `left`, `right`, `sources`). */
+function amontsDe(c: FreeComponentSpec): string[] {
+  const out: string[] = [];
+  for (const { name, value } of c.attributes) {
+    if (name === 'source' || name === 'left' || name === 'right') out.push(value.trim());
+    else if (name === 'sources') out.push(...value.split(',').map((v) => v.trim()));
+  }
+  return out;
+}
+
 /** Attributs globaux HTML permis en plus de ceux du composant. */
 const ATTRIBUTS_GLOBAUX: readonly string[] = ['id', 'class'];
 
@@ -343,6 +369,16 @@ export function validerComposantsLibres(raw: unknown, ctx: ContexteLibre): Resul
           ? ` Ids disponibles : ${connus.length > 0 ? connus.join(', ') : 'aucun (charge une source)'}.`
           : ''),
     };
+  }
+  // Un transformateur que rien ne lit : la page n'afficherait rien.
+  const lus = new Set(components.flatMap(amontsDe));
+  for (const c of components) {
+    const id = c.attributes.find((x) => x.name === 'id')?.value;
+    if (TRANSFORMATEURS_PURS.includes(c.tag) && id && !lus.has(id)) {
+      return {
+        error: `Bloc component refusé : <${c.tag} id="${id}"> transforme les données mais rien ne les lit — rien ne s'affichera. Ajoute après lui un composant d'affichage (ex. dsfr-data-list) avec source="${id}".`,
+      };
+    }
   }
   const avertissements = constats.filter((f) => f.severity === 'avertissement');
   return {

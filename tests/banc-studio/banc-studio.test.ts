@@ -683,9 +683,20 @@ describe('banc Studio — tableau croisé (bloc composant libre, #1111)', () => 
     expect(detail(r, 'blocs-attendus')).toContain('<dsfr-data-pivot> row');
   });
 
-  it('pivot sans liste pour l’afficher : echec', async () => {
+  it('pivot sans liste pour l’afficher : refuse par le Studio, echec', async () => {
     const r = evaluer(scenario('tableau-croise'), await essai([pivot(CONFORME)]));
-    expect(detail(r, 'blocs-attendus')).toContain('<dsfr-data-list> absent');
+    expect(verdicts(r)['blocs-attendus']).toBe('echec');
+    expect(detail(r, 'blocs-attendus')).toContain('aucun bloc component');
+  });
+
+  it('liste presente mais lisant la source brute : echec sur le composant manquant', async () => {
+    const r = evaluer(
+      scenario('tableau-croise'),
+      await essai([
+        { tag: 'dsfr-data-list', attributes: [{ name: 'source', value: 'banc-tableau-croise' }] },
+      ])
+    );
+    expect(detail(r, 'blocs-attendus')).toContain('<dsfr-data-pivot> absent');
   });
 
   it('un tableau guide a la place du pivot : echec', async () => {

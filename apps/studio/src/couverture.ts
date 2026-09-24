@@ -34,7 +34,12 @@
 import { createEmptyDashboard, generateDashboardHTML } from '@dsfr-data/shared';
 import type { DashboardData, DashboardSource } from '@dsfr-data/shared';
 import { BLOCK_SPEC_SCHEMA, addBlocks, type BlockSpec, type DocumentContext } from './document.js';
-import { BALISES_A_GABARIT, BALISES_LIBRES, CONTRAT_COMPOSANTS } from './composant-libre.js';
+import {
+  BALISES_A_GABARIT,
+  BALISES_LIBRES,
+  CONTRAT_COMPOSANTS,
+  TRANSFORMATEURS_PURS,
+} from './composant-libre.js';
 import type { ExclusionDeclaree } from './couverture-exclusions.js';
 
 // ---------------------------------------------------------------------------
@@ -328,6 +333,10 @@ function specLibre(tag: string, noms: readonly string[]): BlockSpec {
   if (dansCarte) composant.inside = 'carte';
   if (BALISES_A_GABARIT.includes(tag)) composant.template = '<p>{{champ_a}}</p>';
   components.push(composant);
+  // Un transformateur doit etre lu (sinon le bloc est refuse) : une liste le lit.
+  if (TRANSFORMATEURS_PURS.includes(tag)) {
+    components.push({ tag: 'dsfr-data-list', attributes: [{ name: 'source', value: 'c' }] });
+  }
   return { kind: 'component', components };
 }
 
