@@ -27,7 +27,7 @@
  * Usage : npx vite-node scripts/build-component-contract.ts
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, readdirSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import ts from 'typescript';
@@ -64,9 +64,12 @@ const contract: Record<string, TagContractOut> = {};
 
 // --- Types des attributs, relus dans le code (#1111) ------------------------
 
-const modulePaths = (cem.modules ?? [])
-  .filter((m) => m.path && (m.declarations ?? []).some((d) => d.tagName))
-  .map((m) => resolve(root, m.path as string));
+// Les fichiers des composants, lus dans le depot (et non construits depuis
+// les chemins du manifeste : aucun chemin ne vient d'une donnee lue).
+const dossierComposants = resolve(root, 'packages/core/src/components');
+const modulePaths = readdirSync(dossierComposants)
+  .filter((f) => f.endsWith('.ts'))
+  .map((f) => `${dossierComposants}/${f}`);
 const program = ts.createProgram(modulePaths, {
   target: ts.ScriptTarget.ES2022,
   module: ts.ModuleKind.ESNext,
@@ -79,9 +82,9 @@ const program = ts.createProgram(modulePaths, {
 });
 const checker = program.getTypeChecker();
 
-/** Classe declaree `name` dans le fichier `path`. */
+/** Classe declaree `name` dans le module du manifeste `path` (chemin relatif au depot). */
 function classeDe(path: string, name: string): ts.ClassDeclaration | undefined {
-  const sf = program.getSourceFile(path);
+  const sf = program.getSourceFiles().find((f) => f.fileName.endsWith(`/${path}`));
   if (!sf) return undefined;
   let trouvee: ts.ClassDeclaration | undefined;
   sf.forEachChild((n) => {
@@ -111,7 +114,7 @@ function valeursEnumerees(type: ts.Type): string[] | null {
 function enumerationsDe(mod: CemModule, decl: CemDeclaration): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   if (!mod.path || !decl.name) return out;
-  const classe = classeDe(resolve(root, mod.path), decl.name);
+  const classe = classeDe(mod.path, decl.name);
   if (!classe) return out;
   const type = checker.getTypeAtLocation(classe);
   for (const attr of decl.attributes ?? []) {
