@@ -1,14 +1,35 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath } from '../utils/json-path.js';
-import { flattenGristEnvelope } from '../utils/grist-envelope.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   getProxiedUrl,
   buildCorsProxyRequest,
   normalizeProviderAuthHeaders,
+  detectProvider,
+  flattenProviderRecords,
+  GENERIC_CONFIG,
 } from '@dsfr-data/shared/lib';
+import type { ProviderConfig } from '@dsfr-data/shared/lib';
+
+/**
+ * Convention de l'attribut `paginate` du mode URL (#1136) : paramètres de
+ * requête et chemins de la réponse, déclarés dans `GENERIC_CONFIG.pagination`
+ * et lus ici — la source ne les porte plus en dur.
+ */
+const URL_PAGINATION = GENERIC_CONFIG.pagination;
+
+/** `meta.page` → `meta` : l'objet dont la présence signale une réponse paginée. */
+function parentPath(path: string): string {
+  const i = path.lastIndexOf('.');
+  return i < 0 ? '' : path.slice(0, i);
+}
+
+/** Valeur lue dans la réponse, ou le repli quand elle est absente (`??`). */
+function numberOr(value: unknown, fallback: number): number {
+  return value === undefined || value === null ? fallback : (value as number);
+}
 import type {
   ApiAdapter,
   AdapterParams,
@@ -924,10 +945,15 @@ export class DsfrDataSource extends LitElement {
     // Hoistee : le catch en a besoin pour nommer l'URL reellement appelee (#598)
     let attemptedUrl = '';
 
+    // Le fournisseur est detecte UNE fois depuis l'URL (#1136) : il decide des
+    // en-tetes d'authentification et de l'aplatissement des lignes, par sa
+    // ProviderConfig — jamais par un test de forme dans le composant.
+    const provider = detectProvider(this.url);
+
     try {
       const rawUrl = this._buildUrl();
       let url = getProxiedUrl(rawUrl, this.proxyUrl);
-      const options = this._buildFetchOptions();
+      const options = this._buildFetchOptions(provider);
 
       // If use-proxy is set and URL was not already proxied by getProxiedUrl(),
       // route through the generic CORS proxy
@@ -963,26 +989,32 @@ export class DsfrDataSource extends LitElement {
         );
       }
 
-      if (this.paginate && json.meta) {
+      const serverMeta = URL_PAGINATION.serverMeta;
+      if (this.paginate && serverMeta && getByPath(json, parentPath(serverMeta.pagePath))) {
         setDataMeta(this.id, {
-          page: json.meta.page ?? this._currentPage,
-          pageSize: json.meta.page_size ?? this.pageSize,
-          total: json.meta.total ?? 0,
+          page: numberOr(getByPath(json, serverMeta.pagePath), this._currentPage),
+          pageSize: numberOr(getByPath(json, serverMeta.pageSizePath), this.pageSize),
+          total: numberOr(getByPath(json, serverMeta.totalPath), 0),
           serverSide: true,
         });
       }
 
+      const pagedRows =
+        this.paginate && serverMeta?.dataPath ? getByPath(json, serverMeta.dataPath) : undefined;
       if (this.transform) {
         this._data = getByPath(json, this.transform);
-      } else if (this.paginate && json.data && !this.transform) {
-        this._data = json.data;
+      } else if (pagedRows) {
+        this._data = pagedRows;
       } else {
         this._data = json;
       }
 
-      // Enveloppe Grist en mode URL (#482) : [{id, fields:{…}}] → [{…fields}],
-      // pour livrer les mêmes lignes plates que le mode adapter api-type="grist"
-      this._data = flattenGristEnvelope(this._data);
+      // Enregistrements imbriques (#482, #1136) : la strategie est celle que
+      // declare la ProviderConfig du fournisseur detecte (Grist : `fields`),
+      // la meme que le chemin connexion — ARCHITECTURE §12, un seul aplatissement.
+      if (Array.isArray(this._data)) {
+        this._data = flattenProviderRecords(this._data, provider.response);
+      }
 
       dispatchDataLoaded(this.id, this._data);
 
@@ -1356,15 +1388,16 @@ export class DsfrDataSource extends LitElement {
       }
     }
 
-    if (this.paginate) {
-      url.searchParams.set('page', String(this._currentPage));
-      url.searchParams.set('page_size', String(this.pageSize));
+    const { page, pageSize } = URL_PAGINATION.params;
+    if (this.paginate && page && pageSize) {
+      url.searchParams.set(page, String(this._currentPage));
+      url.searchParams.set(pageSize, String(this.pageSize));
     }
 
     return url.toString();
   }
 
-  private _buildFetchOptions(): RequestInit {
+  private _buildFetchOptions(provider: ProviderConfig = detectProvider(this.url)): RequestInit {
     const options: RequestInit = {
       method: this.method,
     };
@@ -1385,10 +1418,10 @@ export class DsfrDataSource extends LitElement {
       headers = { ...headers, ...keyHeaders };
     }
 
-    // Mode URL sur un hote ODS : `apikey` nu → `Authorization: Apikey K`
-    // (#655, provider detecte depuis l'URL ; no-op pour les autres)
+    // `apikey` nu → en-tete d'authentification attendu par le fournisseur
+    // detecte depuis l'URL (#655) ; no-op quand sa config n'en demande pas
     if (this.url && Object.keys(headers).length > 0) {
-      headers = normalizeProviderAuthHeaders(this.url, headers).headers;
+      headers = normalizeProviderAuthHeaders(this.url, headers, provider).headers;
     }
 
     if (this.method === 'POST' && this.params) {

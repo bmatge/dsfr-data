@@ -192,9 +192,11 @@ const APIKEY_HEADER_NAMES = new Set(['apikey', 'api-key', 'api_key', 'x-api-key'
  */
 export function normalizeProviderAuthHeaders(
   apiUrl: string,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  /** Fournisseur deja detecte par l'appelant (#1136) — evite une seconde detection. */
+  detected?: ProviderConfig
 ): { headers: Record<string, string>; changed: boolean } {
-  const provider = detectProvider(apiUrl);
+  const provider = detected ?? detectProvider(apiUrl);
   if (provider.defaultAuthType !== 'apikey-header' || provider.id !== 'opendatasoft') {
     return { headers, changed: false };
   }

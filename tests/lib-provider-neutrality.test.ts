@@ -195,24 +195,6 @@ const EXCEPTIONS: readonly Exception[] = [
   },
   {
     file: 'components/dsfr-data-source.ts',
-    line: /flattenGristEnvelope|grist-envelope/,
-    issue: '#1136',
-    reason: 'Aplatissement de l’enveloppe Grist par sniffing de forme en mode URL (#482).',
-  },
-  {
-    file: 'utils/grist-envelope.ts',
-    line: /Grist/,
-    issue: '#1136',
-    reason: 'Utilitaire de sniffing Grist du mode URL, à remplacer par flattenProviderRecords.',
-  },
-  {
-    file: 'components/dsfr-data-source.ts',
-    line: /page_size/,
-    issue: '#1136',
-    reason: 'Convention de pagination du mode URL, à déclarer dans GENERIC_CONFIG.pagination.',
-  },
-  {
-    file: 'components/dsfr-data-source.ts',
     line: /opendatasoft, tabular, grist, insee/,
     issue: '#1139',
     reason: 'Listes d’api-types en dur dans les messages, à dériver du registre.',

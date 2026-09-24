@@ -15,13 +15,24 @@ export const GENERIC_CONFIG: ProviderConfig = {
     requiresFlatten: false,
   },
 
+  // L'adaptateur generique ne pagine pas lui-meme (`type: 'none'`). `params`
+  // et `serverMeta` declarent la convention OPT-IN de l'attribut `paginate`
+  // du mode URL de dsfr-data-source (#1136) : `?page=N&page_size=M` en
+  // requete, `{ data: [...], meta: { page, page_size, total } }` en reponse.
+  // La source la lit ici, au lieu de la porter en dur.
   pagination: {
     type: 'none',
     pageSize: 0,
     maxPages: 0,
     maxRecords: 0,
-    params: {},
+    params: { page: 'page', pageSize: 'page_size' },
     nextPagePath: null,
+    serverMeta: {
+      pagePath: 'meta.page',
+      pageSizePath: 'meta.page_size',
+      totalPath: 'meta.total',
+      dataPath: 'data',
+    },
   },
 
   capabilities: {

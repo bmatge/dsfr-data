@@ -72,6 +72,11 @@ export interface ProviderConfig {
       pagePath: string;
       pageSizePath: string;
       totalPath: string;
+      /**
+       * Chemin des lignes dans une réponse paginée, quand il diffère de
+       * `response.dataPath` (convention `paginate` du mode URL, #1136).
+       */
+      dataPath?: string;
     };
   };
 
