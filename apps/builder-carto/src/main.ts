@@ -40,6 +40,7 @@ import {
 } from './composition-echelle.js';
 import {
   loadFromStorage,
+  navigateTo,
   saveToStorage,
   STORAGE_KEYS,
   migrateSource,
@@ -1928,7 +1929,7 @@ async function resetBuilder() {
 function sendToPlayground() {
   const code = generateCode();
   sessionStorage.setItem('playground-code', code);
-  window.location.href = '../../apps/playground/index.html?from=builder-carto';
+  navigateTo('playground', { from: 'builder-carto' });
 }
 
 function saveFavorite(feedbackBtnId = 'save-favorite-btn') {
