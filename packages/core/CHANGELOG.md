@@ -1,5 +1,51 @@
 # dsfr-data
 
+## 0.40.0
+
+### Minor Changes
+
+- [#1133](https://github.com/bmatge/dsfr-data/pull/1133) [`da872a5`](https://github.com/bmatge/dsfr-data/commit/da872a57ca72e4ebee0ae1323add12a6560594fd) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA : bloc « composant libre » ([#1111](https://github.com/bmatge/dsfr-data/issues/1111)). Un bloc `kind: "component"` porte une petite chaîne de
+  composants `dsfr-data-*` (transformations puis affichage) avec leurs attributs HTML, pour ce que
+  les blocs guidés (texte, graphique, filtres, carte) n'expriment pas : tableau croisé
+  (`dsfr-data-pivot`), recherche, facettes, légende ou volet de carte à gabarit, sélection au clic.
+  Chaque appel est validé contre le manifeste par le moteur du lint de balisage : balise connue,
+  attributs déclarés, valeurs d'énumération permises, `source=` / `for=` qui visent un id existant ;
+  un refus nomme l'attribut en cause et les valeurs permises ; un transformateur que rien ne lit
+  (un pivot sans liste) est refusé, la page n'afficherait rien. `get_skill` trouve la fiche d'une
+  balise demandée par son nom (`dsfr-data-pivot` → `dsfrDataPivot`). Pas de HTML libre : ni script, ni
+  balise hors `dsfr-data-*`, gabarit `<template>` filtré, valeurs échappées à l'export — y compris
+  pour un tableau de bord relu depuis le stockage partagé. Le Tableau de bord conserve et affiche le
+  bloc (configuration en lecture seule). Le lint de balisage (Playground, serveur MCP) signale
+  désormais une valeur hors énumération (`balisage/valeur-invalide`) : le contrat des composants
+  relit dans le code les unions de valeurs que le manifeste laisse en texte (`PopupMode`,
+  `SearchOperator`…). Couverture du Studio : 12 → 27 composants sur 28, 71 → 357 attributs sur 387.
+
+- [#1145](https://github.com/bmatge/dsfr-data/pull/1145) [`fd2ec9a`](https://github.com/bmatge/dsfr-data/commit/fd2ec9aeca94036d3b0dacbb6ef7fc38b3e41897) Thanks [@bmatge](https://github.com/bmatge)! - Attributs-champs marqués dans le manifeste, et bloc « composant libre » du Studio IA contrôlé sur ses noms de champs ([#1141](https://github.com/bmatge/dsfr-data/issues/1141)).
+  
+  - **Marquage `@champ`** : chaque attribut d'un composant qui désigne un champ des données (`label-field`, `value-field`, `group-by`, `sort`, `row`, `fields`…) porte le tag JSDoc `@champ <grammaire>` (`nom`, `liste`, `liste-alias`…). Le manifeste `custom-elements.json` le reporte sur l'attribut (`"champ": "liste"`), le contrat des composants du serveur MCP aussi (`fields`). La table du volet Diagnostic (`FIELD_ATTRS`) en est désormais générée : elle gagne `series-field` et `value-field` (liste) de `dsfr-data-a11y`, `map-summary-field` du graphique, `picto-field`, `image-field`, `icon-field` du podium, `picto-field` du KPI, `group-field` de la couche, `title-field` de la popup, `key-field` du répéteur, `weight-field` des facettes ; et un `value-field` à alias (`champ:Libellé`) n'est plus pris pour un champ inconnu. Test-garde : tout attribut qui ressemble à un champ est marqué ou exclu avec sa raison.
+  - **Studio IA, bloc libre** : un attribut-champ doit nommer un champ de ce que le composant reçoit — la source chargée, la sortie d'un filtre, ou la sortie d'un pivot / d'une agrégation observée par l'aperçu. Refus explicite au modèle (« `sort="Montant"` : champ absent de la sortie de #croise (champs disponibles : …) ») ; une sortie pas encore calculée n'est jamais une cause de refus, la lecture est signalée « non vérifiée ».
+  - **Pagination serveur** : une `dsfr-data-list` de bloc libre qui lit directement sa source, paginée et sans recherche, filtres ni export locaux, pagine côté serveur comme la liste guidée (ADR-109) ; derrière un pivot ou une agrégation, c'est impossible par nature, et le Studio le dit au modèle.
+
+- [#1143](https://github.com/bmatge/dsfr-data/pull/1143) [`3b45da4`](https://github.com/bmatge/dsfr-data/commit/3b45da4ce296e91fe74c8755c2e2ae17b6313c87) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA : la source se crée à partir de l'URL d'un jeu donnée dans la conversation ([#1140](https://github.com/bmatge/dsfr-data/issues/1140)).
+  « Fais un graphique de … avec https://data.economie.gouv.fr/explore/dataset/… » : le nouvel outil
+  `charger_source_url` reconnaît l'adresse (Opendatasoft/Huwise, y compris sur domaine propre,
+  data.gouv.fr — page d'un jeu, ressource ou API tabulaire —, Grist public, INSEE Melodi), charge le
+  jeu par le proxy et en fait la source du document, comme le sélecteur de source. Refus explicites
+  pour une URL non reconnue, un jeu introuvable, une ressource non tabulaire ou un jeu privé : ils
+  renvoient vers l'app Sources, sans jamais demander de jeton dans la conversation.
+  
+  La reconnaissance d'URL de la création d'une connexion (app Sources) passe dans `@dsfr-data/shared`
+  (`reconnaitreUrlSource`, `parseGristDocRef`, `FORMATS_URL_RECONNUS`, entrée app) : une seule voie,
+  partagée par Sources et le Studio.
+
+### Patch Changes
+
+- [#1129](https://github.com/bmatge/dsfr-data/pull/1129) [`fc81609`](https://github.com/bmatge/dsfr-data/commit/fc816093575921ce0aca47398b9039bebbea36c7) Thanks [@bmatge](https://github.com/bmatge)! - Le guide des skills IA (écrit à la main), sa référence générée depuis le manifeste des composants et leur découpage en sections quittent `apps/builder-ia` pour `packages/shared/src/skills/`, afin de survivre au retrait de l'ancien Assistant IA ([#1081](https://github.com/bmatge/dsfr-data/issues/1081), étape 1). Aucun changement de contenu servi : `dist/skills.json` et les fichiers générés du serveur MCP sont identiques octet pour octet ; la skill Claude Code `skills/dsfr-data/` ne change que par la ligne qui indique où vit le guide.
+
+- [#1130](https://github.com/bmatge/dsfr-data/pull/1130) [`d3d65b8`](https://github.com/bmatge/dsfr-data/commit/d3d65b8931240b580ff6b1d1ef8ef95c45257e0c) Thanks [@bmatge](https://github.com/bmatge)! - « Ouvrir dans le Playground » depuis la Carte ouvre bien le code de la carte : le Playground n'acceptait pas cette origine et s'ouvrait sur son contenu par défaut, sans un mot. Les origines acceptées forment une seule liste gardée par un test ; une origine inconnue est désormais signalée ; `builder-carto` rejoint les identifiants d'app partagés (`appHref`, `navigateTo`).
+
+- [#1144](https://github.com/bmatge/dsfr-data/pull/1144) [`28b0839`](https://github.com/bmatge/dsfr-data/commit/28b08395077b127451764caf216ee3e70c457de9) Thanks [@bmatge](https://github.com/bmatge)! - Studio IA ([#1142](https://github.com/bmatge/dsfr-data/issues/1142)) : la sonde des capacités ne prend plus un HTTP 200 pour un échec de connexion. Un modèle à raisonnement (openweight-large = gpt-oss-120b) épuisait les 30 jetons de la sonde en raisonnant et renvoyait un texte vide : la connexion est désormais établie par une réponse bien formée, le budget passe à 512 jetons par étape, et le rapport dit précisément ce qui s'est passé (« réponse vide : le modèle a épuisé son budget de jetons (finish_reason=length) », refus HTTP avec le message du gateway, gateway injoignable). La colonne gauche du Studio se replie sur une ligne de résumé par bloc, et le badge IA signale la clé serveur disponible derrière une clé personnelle, avec l'action « Utiliser la clé serveur ».
+
 ## 0.39.1
 
 ### Patch Changes
