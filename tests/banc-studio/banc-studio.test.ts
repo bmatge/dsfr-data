@@ -637,3 +637,80 @@ describe('banc Studio — outillage', () => {
     expect(() => normaliserInstance('pas une url')).toThrow(/invalide/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// « Tableau croisé » : seulement avec le bloc « composant libre » (#1111)
+// ---------------------------------------------------------------------------
+
+describe('banc Studio — tableau croisé (bloc composant libre, #1111)', () => {
+  const pivot = (attrs: Record<string, string>) => ({
+    tag: 'dsfr-data-pivot',
+    attributes: Object.entries({ id: 'croise', source: 'banc-tableau-croise', ...attrs }).map(
+      ([name, value]) => ({ name, value })
+    ),
+  });
+  const LISTE = { tag: 'dsfr-data-list', attributes: [{ name: 'source', value: 'croise' }] };
+  const CONFORME = { row: 'Commune', column: 'Type', value: 'Nombre d’élèves' };
+  const essai = (components: unknown[]) =>
+    jouer('tableau-croise', [
+      reponse([{ name: 'inspect_data', args: {} }]),
+      reponse([
+        {
+          name: 'add_blocks',
+          args: { blocks: [{ kind: 'component', title: 'Élèves', components }] },
+        },
+      ]),
+      reponse([{ name: 'finish', args: { message: 'Tableau croisé ajouté.' } }]),
+    ]);
+
+  it('essai conforme : tous les criteres applicables sont verts', async () => {
+    const r = evaluer(scenario('tableau-croise'), await essai([pivot(CONFORME), LISTE]));
+    expect(verdicts(r)).toMatchObject({
+      'blocs-attendus': 'ok',
+      'hors-schema': 'ok',
+      'bloc-non-demande': 'ok',
+      'code-valide': 'ok',
+      'fin-propre': 'ok',
+    });
+  });
+
+  it('colonnes et lignes inversees : blocs attendus en echec, avec l’ecart', async () => {
+    const r = evaluer(
+      scenario('tableau-croise'),
+      await essai([pivot({ ...CONFORME, row: 'Type', column: 'Commune' }), LISTE])
+    );
+    expect(verdicts(r)['blocs-attendus']).toBe('echec');
+    expect(detail(r, 'blocs-attendus')).toContain('<dsfr-data-pivot> row');
+  });
+
+  it('pivot sans liste pour l’afficher : refuse par le Studio, echec', async () => {
+    const r = evaluer(scenario('tableau-croise'), await essai([pivot(CONFORME)]));
+    expect(verdicts(r)['blocs-attendus']).toBe('echec');
+    expect(detail(r, 'blocs-attendus')).toContain('aucun bloc component');
+  });
+
+  it('liste presente mais lisant la source brute : echec sur le composant manquant', async () => {
+    const r = evaluer(
+      scenario('tableau-croise'),
+      await essai([
+        { tag: 'dsfr-data-list', attributes: [{ name: 'source', value: 'banc-tableau-croise' }] },
+      ])
+    );
+    expect(detail(r, 'blocs-attendus')).toContain('<dsfr-data-pivot> absent');
+  });
+
+  it('un tableau guide a la place du pivot : echec', async () => {
+    const e = await jouer('tableau-croise', [
+      reponse([
+        {
+          name: 'add_blocks',
+          args: { blocks: [{ kind: 'chart', config: { type: 'datalist' } }] },
+        },
+      ]),
+      reponse([{ name: 'finish', args: { message: 'Tableau ajouté.' } }]),
+    ]);
+    const r = verdicts(evaluer(scenario('tableau-croise'), e));
+    expect(r['blocs-attendus']).toBe('echec');
+    expect(r['bloc-non-demande']).toBe('echec');
+  });
+});

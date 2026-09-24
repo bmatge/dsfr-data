@@ -705,6 +705,18 @@ PARAMETRE — et il est copie par le build
 Meme mecanisme et meme contrainte que `ia/skill-matching.ts`, avec les memes
 tests-gardes (`tests/mcp/lint-markup.test.ts`).
 
+**Enumerations et bloc « composant libre » (#1111).** Le manifeste ne porte que
+le texte du type d'un attribut, souvent un alias (`PopupMode`) :
+`build:component-contract` relit ces types dans le code avec le verificateur de
+TypeScript et donne au contrat les valeurs des unions FERMEES (`enums`). Le lint
+en tire `balisage/valeur-invalide`. Le Studio IA valide son bloc
+`kind: "component"` (`apps/studio/src/composant-libre.ts`) avec ce meme moteur,
+sur le HTML que l'export emettra ; le schema de l'outil (liste des balises) est
+engendre depuis le meme contrat. L'export (`generateComponentHTML`) ne fait
+confiance a rien : balise `dsfr-data-*`, pas de gestionnaire `on*`, valeurs et
+`<template>` filtres (`nettoyerGabarit`) puis echappes — un tableau de bord est
+relu depuis un stockage partage.
+
 ### 3.8 Le volet Diagnostic (app-ui)
 
 `app-diagnostic-panel` a **deux formes**. C'est un **tiroir bas** dans les apps sans assistant contextuel (Studio, ancien Assistant IA). Dans les cinq apps qui ont les deux (Builder, Carto, Tableau de bord, Pipeline, Playground), c'est un **onglet « Diagnostic » du panneau de l'assistant** (2026-09-23) : `mountAssistant({ diagnostic: monte.panel })` appelle `integrerDiagnostic()`, qui pose l'attribut `integre` et deplace le volet dans l'onglet. Le rail disparait, `--app-diagnostic-h` est publie a `0px` (des feuilles d'app le lisent avec un repli de 2.25rem), les regles `body:has(app-diagnostic-panel:not([integre]))` ne reservent plus rien, et la languette de l'assistant porte le seul compteur de constats. `toggle()` garde son sens : l'assistant ecoute `diagnostic-toggle` et ouvre, ou referme, son onglet ; le bouton `#diagnostic-btn` et « Voir le detail » passent donc par le meme chemin. Le panneau masque peut taire une region `aria-live` : integre, le volet emet `diagnostic-annonce` et l'assistant rend l'annonce hors du panneau. Le choix initial du tiroir plutot que d'un onglet d'apercu tient toujours : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».

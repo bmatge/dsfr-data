@@ -46,8 +46,8 @@ Le plafond du proxy (`IA_MAX_RPM`, **10 appels par minute, tous usagers confondu
 avec les usagers du Studio. D'où :
 
 - **10 s entre deux débuts d'appel** par défaut (6 par minute au plus) ;
-- en PR, **trois scénarios** (`pr: true`), **une** répétition : une dizaine d'appels ;
-- la nuit, le jeu complet (7 scénarios × 3) : une centaine d'appels, une vingtaine de minutes ;
+- en PR, **quatre scénarios** (`pr: true`), **une** répétition : une douzaine d'appels ;
+- la nuit, le jeu complet (8 scénarios × 3) : une centaine d'appels, une vingtaine de minutes ;
 - un seul banc à la fois (groupe de concurrence global du workflow), et le miroir
   `mef-snum-miweb` ne le lance pas ;
 - le transport commun rejoue un 429 (trois fois au plus, `Retry-After` plafonné à 10 s) ; au-delà,
@@ -71,6 +71,7 @@ l'usager, et les attentes, écrites dans le vocabulaire des **outils** du Studio
 | `kpi-total` | | `kpi`, `valueField:"Population"`, `aggregation:"sum"`. |
 | `tableau-pagine` | | `datalist`, `pagination:10`. |
 | `carte-points` | | Couche `marker`/`circle`, coordonnées, `tooltipField:"Nom"`, **sans** `groupField` (une ligne par musée). |
+| `tableau-croise` | oui | Réalisable **seulement** avec le bloc « composant libre » (#1111) : `dsfr-data-pivot` (`row="Commune"`, `column="Type"`, `value="Nombre d’élèves"`) puis une `dsfr-data-list`. |
 | `demande-impossible` | oui | Un formulaire de saisie : le dire d'emblée, sans toucher au document, en 4 appels au plus. |
 | `modification` | | Deux messages : barres, puis « passe-le en camembert » — un seul graphique à la fin (`pie`/`doughnut`). |
 
@@ -79,7 +80,7 @@ rend `ok`, `échec` ou `sans objet` :
 
 | Critère | Ce qu'il lit |
 |---|---|
-| Blocs attendus | Chaque bloc attendu a un bloc du document qui porte ses options (pour une carte : au moins une couche). |
+| Blocs attendus | Chaque bloc attendu a un bloc du document qui porte ses options (pour une carte : au moins une couche ; pour un bloc libre : chaque composant attendu, avec ses attributs HTML). |
 | Aucune option hors schéma | Chaque appel d'outil relu contre le schéma **envoyé au modèle** : option inconnue, valeur hors `enum`, type, requis. `document.ts` ignore une option inconnue sans bruit : seul le banc la voit. |
 | Pas de bloc non demandé | Chaque bloc du document a la forme (nature, type de graphique) d'un bloc attendu ou toléré. |
 | Avertissements attendus | Groupes de mots-clés dans les réponses (casse, accents, apostrophes ignorés). |

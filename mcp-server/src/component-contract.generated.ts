@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 376 attributs.
+ * 28 balises, 376 attributs, 16 enumerations.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -82,7 +82,22 @@ export const COMPONENT_CONTRACT = {
       "x-min",
       "y-max",
       "y-min"
-    ]
+    ],
+    "enums": {
+      "type": [
+        "line",
+        "bar",
+        "pie",
+        "radar",
+        "gauge",
+        "scatter",
+        "bar-line",
+        "map",
+        "map-reg",
+        "map-aca",
+        "map-monde"
+      ]
+    }
   },
   "dsfr-data-concat": {
     "attributes": [
@@ -108,7 +123,23 @@ export const COMPONENT_CONTRACT = {
       "operator",
       "ui",
       "year-start-month"
-    ]
+    ],
+    "enums": {
+      "operator": [
+        "eq",
+        "in",
+        "lt",
+        "gte",
+        "between",
+        "contains",
+        "month-of",
+        "year-of",
+        "lt-day-after",
+        "last-n-days",
+        "current-year",
+        "current-month"
+      ]
+    }
   },
   "dsfr-data-context-tags": {
     "attributes": [
@@ -178,7 +209,15 @@ export const COMPONENT_CONTRACT = {
       "prefix-right",
       "right",
       "type"
-    ]
+    ],
+    "enums": {
+      "type": [
+        "inner",
+        "left",
+        "right",
+        "full"
+      ]
+    }
   },
   "dsfr-data-kpi": {
     "attributes": [
@@ -220,6 +259,40 @@ export const COMPONENT_CONTRACT = {
       "seuil-orange": "alias français de `threshold-orange` (#300)",
       "color": "alias de `color-token` (#367) — le nom `color` évoque l'attribut\nde présentation HTML déprécié (faux positif d'audit RGAA 10.1.2)",
       "couleur": "alias français de `color-token` (#300)"
+    },
+    "enums": {
+      "color-token": [
+        "",
+        "vert",
+        "orange",
+        "rouge",
+        "bleu",
+        "green-tilleul-verveine",
+        "green-bourgeon",
+        "green-emeraude",
+        "green-menthe",
+        "green-archipel",
+        "blue-ecume",
+        "blue-cumulus",
+        "purple-glycine",
+        "pink-macaron",
+        "pink-tuile",
+        "yellow-tournesol",
+        "yellow-moutarde",
+        "orange-terre-battue",
+        "brown-cafe-creme",
+        "brown-caramel",
+        "brown-opera",
+        "beige-gris-galet"
+      ],
+      "format": [
+        "nombre",
+        "pourcentage",
+        "euro",
+        "decimal",
+        "compact",
+        "date"
+      ]
     }
   },
   "dsfr-data-kpi-group": {
@@ -228,7 +301,14 @@ export const COMPONENT_CONTRACT = {
       "gap",
       "orientation",
       "per-row"
-    ]
+    ],
+    "enums": {
+      "gap": [
+        "sm",
+        "md",
+        "lg"
+      ]
+    }
   },
   "dsfr-data-list": {
     "attributes": [
@@ -281,7 +361,14 @@ export const COMPONENT_CONTRACT = {
       "tiles-style",
       "tiles-switcher",
       "zoom"
-    ]
+    ],
+    "enums": {
+      "tiles-style": [
+        "",
+        "muted",
+        "grey"
+      ]
+    }
   },
   "dsfr-data-map-inset": {
     "attributes": [
@@ -337,7 +424,35 @@ export const COMPONENT_CONTRACT = {
       "time-mode",
       "tooltip-field",
       "type"
-    ]
+    ],
+    "enums": {
+      "method": [
+        "quantile",
+        "equal",
+        "manual"
+      ],
+      "radius-unit": [
+        "px",
+        "m"
+      ],
+      "time-bucket": [
+        "none",
+        "hour",
+        "day",
+        "month",
+        "year"
+      ],
+      "time-mode": [
+        "snapshot",
+        "cumulative"
+      ],
+      "type": [
+        "marker",
+        "geoshape",
+        "circle",
+        "heatmap"
+      ]
+    }
   },
   "dsfr-data-map-legend": {
     "attributes": [
@@ -351,7 +466,15 @@ export const COMPONENT_CONTRACT = {
       "mode",
       "title-field",
       "width"
-    ]
+    ],
+    "enums": {
+      "mode": [
+        "popup",
+        "modal",
+        "panel-right",
+        "panel-left"
+      ]
+    }
   },
   "dsfr-data-map-timeline": {
     "attributes": [
@@ -465,7 +588,14 @@ export const COMPONENT_CONTRACT = {
       "sr-label",
       "url-search-param",
       "url-sync"
-    ]
+    ],
+    "enums": {
+      "operator": [
+        "contains",
+        "starts",
+        "words"
+      ]
+    }
   },
   "dsfr-data-source": {
     "attributes": [
@@ -498,7 +628,17 @@ export const COMPONENT_CONTRACT = {
       "url",
       "use-proxy",
       "where"
-    ]
+    ],
+    "enums": {
+      "fetch-mode": [
+        "records",
+        "export"
+      ],
+      "method": [
+        "GET",
+        "POST"
+      ]
+    }
   },
   "dsfr-data-unpivot": {
     "attributes": [

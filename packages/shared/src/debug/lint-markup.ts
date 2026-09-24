@@ -21,6 +21,12 @@ export interface TagContract {
   attributes: string[];
   /** Attributs retires, avec la conduite a tenir. */
   deprecated?: Record<string, string>;
+  /**
+   * Valeurs permises des attributs a union FERMEE de litteraux (#1111), relues
+   * dans le code par `build:component-contract` : `mode` de la popup, `type`
+   * de la couche… Un attribut absent d'ici accepte toute valeur.
+   */
+  enums?: Readonly<Record<string, readonly string[]>>;
 }
 
 export type ComponentContract = Record<string, TagContract>;
@@ -556,6 +562,28 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
               (proches.length > 0 ? ` Vouliez-vous ${proches.slice(0, 3).join(', ')} ?` : ''),
             'erreur',
             'balisage/attribut-inconnu',
+            nom
+          )
+        );
+        continue;
+      }
+      // Valeur hors enumeration (#1111) : le composant l'ignore ou retombe sur
+      // un defaut, sans rien dire. Une valeur vide n'est pas certaine (certains
+      // composants la lisent comme « defaut ») : on la laisse. Le mode d'une
+      // popup a sa regle propre, plus parlante (`carte/popup-mode-invalide`).
+      const permises = contrat.enums?.[nom];
+      const valeur = b.attrs[nom];
+      if (
+        permises &&
+        valeur !== '' &&
+        !permises.includes(valeur) &&
+        !(b.tag === 'dsfr-data-map-popup' && nom === 'mode')
+      ) {
+        findings.push(
+          situer(
+            `Valeur "${valeur}" invalide pour "${nom}" — le composant ne la reconnait pas. Valeurs acceptees : ${permises.filter((v) => v !== '').join(', ')}.`,
+            'erreur',
+            'balisage/valeur-invalide',
             nom
           )
         );

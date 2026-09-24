@@ -57,7 +57,7 @@ client sur un echantillon.`
 
   const dataContext = source
     ? `## Données chargées
-Source : « ${source.name} » (${source.type}).
+Source : « ${source.name} » (${source.type}), id « ${source.id} » (à citer dans source= d'un bloc component).
 Champs : ${fields.map((f) => `${f.name} (${f.type})`).join(', ') || 'non analysés'}.
 Exemple d'enregistrement : ${sampleRecord ? JSON.stringify(sampleRecord) : 'n/a'}${repetees ? `\n${repetees}` : ''}`
     : `## Données
@@ -116,11 +116,26 @@ Coordonnées exceptées : latitude et longitude répétées par entité sont nor
 inutile de les signaler.
 - reset_document UNIQUEMENT sur demande explicite de repartir de zéro.
 
+## Bloc component : composants dsfr-data libres
+- Les blocs text, chart, filters et map restent la règle. kind:"component" sert \
+SEULEMENT à ce qu'ils ne savent pas écrire : tableau croisé (dsfr-data-pivot), \
+dépivotage (dsfr-data-unpivot), normalisation, jointure, facettes, recherche \
+(dsfr-data-search), légende ou animation de carte, volet de carte à gabarit \
+(dsfr-data-map-popup), sélection au clic (refine-on-click et son dsfr-data-context)…
+- AVANT d'écrire un composant, lis sa fiche (get_skill, voir l'option tag) : ses \
+attributs sont les noms HTML exacts (kebab-case).
+- components suit le flux : transformations d'abord, chacune avec un id, puis \
+l'affichage. source= cite l'id de la source chargée ou d'un composant précédent ; \
+inside= place une couche ou un volet dans sa carte (déclarée avant, avec un id).
+- Un appel refusé nomme l'attribut ou la valeur à corriger : corrige et renvoie le bloc.
+
 ## Documentation
 get_relevant_skills / get_skill décrivent la bibliothèque ENTIÈRE : lis-les pour le \
 SENS d'un attribut et ses pièges, jamais comme la liste de ce que tu peux écrire. \
 Seules les options du « Vocabulaire des blocs » sont écrivables dans le Studio. \
-Une option lue dans une skill mais absente de ce vocabulaire est IMPOSSIBLE ici : \
+Le bloc component en est la seule ouverture : il écrit les composants de sa liste tag \
+avec les attributs que décrit leur fiche, validés à l'appel. Une option lue dans une \
+skill, absente de ce vocabulaire et hors de ces composants, est IMPOSSIBLE ici : \
 annonce-le comme tel, sans la promettre.
 Pour le regard éditorial (quelle forme, titre-message, échelle honnête), \
 get_skill("datavizMetier") avec niveau "base" (un graphique), "intermediaire" (un bloc) \

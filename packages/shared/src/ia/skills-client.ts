@@ -116,6 +116,27 @@ export async function relevantSkillsTextReclasse(
 }
 
 /**
+ * Fiche d'une balise demandee par son NOM (#1111) : un modele qui ecrit
+ * `<dsfr-data-pivot>` demande souvent `get_skill("dsfr-data-pivot")`, et
+ * payait un tour par essai (banc, `tableau-croise`). Le nom est converti en
+ * camelCase (`dsfrDataPivot`) ; un compagnon sans fiche propre retombe sur
+ * celle de son parent (`dsfr-data-map-popup` -> `dsfrDataMap`).
+ */
+function ficheDeBalise(skills: PublishedSkill[], nom: string): PublishedSkill | undefined {
+  if (!nom.startsWith('dsfr-data-')) return undefined;
+  const segments = nom.split('-');
+  for (let n = segments.length; n >= 3; n--) {
+    const camel = segments
+      .slice(0, n)
+      .map((s, i) => (i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)))
+      .join('');
+    const trouvee = skills.find((s) => s.id === camel);
+    if (trouvee) return trouvee;
+  }
+  return undefined;
+}
+
+/**
  * Une skill par id, section optionnelle (guide | reference | exemples | pieges
  * | tout). Une skill a niveaux s'adresse aussi par `niveau` (base |
  * intermediaire | avance) ou par `reference` — un SECOND parametre, le
@@ -128,7 +149,7 @@ export function skillText(
   section?: string,
   adresse: { niveau?: string; reference?: string } = {}
 ): string {
-  const skill = skills.find((s) => s.id === id);
+  const skill = skills.find((s) => s.id === id) ?? ficheDeBalise(skills, id);
   if (!skill) {
     return `Skill "${id}" introuvable. Ids disponibles : ${skills.map((s) => s.id).join(', ')}`;
   }

@@ -1,8 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src"
+    // `tsc` ne fait que VERIFIER (Vite construit) : sans `rootDir`, le bloc
+    // « composant libre » peut lire le contrat des composants genere pour le
+    // serveur MCP (mcp-server/src/component-contract.generated.ts, #1111),
+    // comme le Playground (#1009).
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

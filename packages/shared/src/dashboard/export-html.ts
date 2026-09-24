@@ -31,11 +31,13 @@ import type {
   FiltersWidgetConfig,
   MapLayerSpec,
   MapWidgetConfig,
+  ComponentWidgetConfig,
+  FreeComponentSpec,
 } from './model.js';
 import type { ChartConfig } from './chart-config.js';
 import { getRowColumns, isFavoriteChart, isBuilderChart } from './model.js';
 import { earlyBufferScript } from '../debug/early-buffer.js';
-import { nettoyerGabarit } from './sanitize-template.js';
+import { nettoyerGabarit, urlInterdite } from './sanitize-template.js';
 
 /** Alias d'une colonne agregee par dsfr-data-query (convention pipeline #269). */
 function aggregatedAlias(field: string, fn: string): string {
@@ -560,6 +562,102 @@ function generateMapHTML(
   return `${title}${indent}<dsfr-data-map ${attrs.join(' ')}>\n${layers}\n${indent}</dsfr-data-map>\n`;
 }
 
+// ---------------------------------------------------------------------------
+// Bloc « composant libre » (#1111)
+// ---------------------------------------------------------------------------
+
+/**
+ * Forme EMISE d'un bloc libre, quelle que soit l'origine du document.
+ *
+ * Le Studio valide balises, attributs et valeurs contre le manifeste avant de
+ * les ecrire (`apps/studio/src/composant-libre.ts`) ; mais un tableau de bord
+ * est relu depuis un stockage PARTAGE entre comptes, qui peut porter n'importe
+ * quoi. L'export ne fait donc confiance a rien : balise `dsfr-data-*`, nom
+ * d'attribut simple et jamais un gestionnaire `on*`, valeur sans schema actif, filtree
+ * (`nettoyerGabarit`) puis echappee. Ce qui ne passe pas n'est pas emis.
+ * Expressions lineaires, sans quantificateur imbrique.
+ */
+const BALISE_LIBRE = /^dsfr-data-[a-z0-9-]+$/;
+const NOM_ATTRIBUT_LIBRE = /^[a-z][a-z0-9-]*$/;
+
+/**
+ * Gestionnaire d'evenement HTML (`onclick`, `onerror`…) : `on` suivi d'un nom,
+ * sans tiret. `on` seul est un attribut de `dsfr-data-join` (la cle).
+ */
+function estGestionnaire(name: string): boolean {
+  return name.length > 2 && name.startsWith('on') && !name.includes('-');
+}
+
+/** Attributs d'un composant libre, dans l'ordre, en forme sure. */
+function freeComponentAttrs(c: FreeComponentSpec): string {
+  const vus = new Set<string>();
+  let out = '';
+  for (const { name, value } of c.attributes) {
+    if (!NOM_ATTRIBUT_LIBRE.test(name) || estGestionnaire(name) || vus.has(name)) continue;
+    if (urlInterdite(value)) continue;
+    vus.add(name);
+    out += value === '' ? ` ${name}` : ` ${name}="${escapeHtml(nettoyerGabarit(value))}"`;
+  }
+  return out;
+}
+
+/** Id declare d'un composant libre (attribut `id`), ou chaine vide. */
+function freeComponentId(c: FreeComponentSpec): string {
+  return c.attributes.find((a) => a.name === 'id')?.value ?? '';
+}
+
+/**
+ * Bloc libre : ses composants, imbriques selon `inside` (un composant PRECEDENT
+ * du bloc qui porte cet id), avec leur `<template>` filtre.
+ */
+function generateComponentHTML(
+  widget: Widget & { type: 'component' },
+  config: ComponentWidgetConfig,
+  indent: string
+): string {
+  const comps = config.components.filter((c) => BALISE_LIBRE.test(c.tag));
+  if (comps.length === 0) {
+    return `${indent}<!-- Bloc « ${escapeHtml(widget.title)} » : aucun composant -->
+`;
+  }
+  // Parent = le composant precedent le plus proche qui porte l'id vise :
+  // jamais un suivant, donc jamais de cycle.
+  const parents = comps.map((c, i) => {
+    if (!c.inside) return -1;
+    for (let j = i - 1; j >= 0; j--) if (freeComponentId(comps[j]) === c.inside) return j;
+    return -1;
+  });
+  const rendre = (i: number, ind: string): string => {
+    const c = comps[i];
+    const enfants = comps
+      .map((_, k) => k)
+      .filter((k) => parents[k] === i)
+      .map((k) => rendre(k, `${ind}  `));
+    const gabarit =
+      c.template !== undefined && c.template !== ''
+        ? [`${ind}  <template>${nettoyerGabarit(c.template)}</template>`]
+        : [];
+    const corps = [...gabarit, ...enfants];
+    const ouvrante = `${ind}<${c.tag}${freeComponentAttrs(c)}>`;
+    return corps.length === 0
+      ? `${ouvrante}</${c.tag}>`
+      : `${ouvrante}\n${corps.join('\n')}\n${ind}</${c.tag}>`;
+  };
+  const racines = comps.map((_, k) => k).filter((k) => parents[k] === -1);
+  const title = widget.title ? `${indent}<h3 class="fr-h6">${escapeHtml(widget.title)}</h3>\n` : '';
+  return `${title}${racines.map((k) => rendre(k, indent)).join('\n')}\n`;
+}
+
+/** Ids amont cites par un composant libre (`source`, `left`, `right`, `sources`). */
+function freeComponentUpstreams(c: FreeComponentSpec): string[] {
+  const out: string[] = [];
+  for (const { name, value } of c.attributes) {
+    if (name === 'source' || name === 'left' || name === 'right') out.push(value);
+    else if (name === 'sources') out.push(...value.split(',').map((v) => v.trim()));
+  }
+  return out.filter(Boolean);
+}
+
 export function generateWidgetHTML(
   widget: Widget,
   dashboard: DashboardData,
@@ -637,6 +735,9 @@ ${indent}</div>\n`;
 
     case 'map':
       return generateMapHTML(widget, widget.config, indent);
+
+    case 'component':
+      return generateComponentHTML(widget, widget.config, indent);
   }
 }
 
@@ -753,6 +854,13 @@ function collectSourceConsumers(
     }
     if (w.type === 'map') {
       for (const layer of w.config.layers) add(layer.sourceId, jeuEntier);
+      continue;
+    }
+    if (w.type === 'component') {
+      // Un pivot, une recherche ou une liste lisent le jeu entier (#1111).
+      for (const c of w.config.components) {
+        for (const id of freeComponentUpstreams(c)) add(id, jeuEntier);
+      }
       continue;
     }
     if (w.type === 'chart') {
@@ -952,6 +1060,8 @@ function requiresMapBundle(dashboard: DashboardData): boolean {
   return dashboard.widgets.some(
     (w) =>
       w.type === 'map' ||
+      (w.type === 'component' &&
+        w.config.components.some((c) => c.tag.startsWith('dsfr-data-map'))) ||
       (w.type === 'chart' &&
         isBuilderChart(w.config) &&
         ['map', 'map-reg', 'map-aca', 'map-monde'].includes(w.config.chart.type))

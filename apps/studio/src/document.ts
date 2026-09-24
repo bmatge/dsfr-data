@@ -19,6 +19,12 @@ import {
   MAP_POPUP_MODES,
   diagnoseConfig,
 } from '@dsfr-data/shared';
+import {
+  FREE_COMPONENT_SCHEMA,
+  MAX_COMPOSANTS,
+  idsDuDocument,
+  validerComposantsLibres,
+} from './composant-libre.js';
 import type {
   ChartConfig,
   DashboardData,
@@ -35,7 +41,7 @@ import type {
 // Vocabulaire
 // ---------------------------------------------------------------------------
 
-export const BLOCK_KINDS = ['text', 'chart', 'filters', 'map'] as const;
+export const BLOCK_KINDS = ['text', 'chart', 'filters', 'map', 'component'] as const;
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 
 export const BLOCK_WIDTHS = ['full', 'half', 'third'] as const;
@@ -57,6 +63,11 @@ export interface BlockSpec {
   fields?: string[];
   /** kind=map : couches de la carte Leaflet (#531). */
   layers?: Array<Partial<MapLayerSpec>>;
+  /**
+   * kind=component : composants `dsfr-data-*` et leurs attributs (#1111),
+   * valides contre le manifeste (`composant-libre.ts`). Forme brute du modele.
+   */
+  components?: unknown[];
 }
 
 /** Contexte d'application des actions (donnees chargees, pour validation/options). */
@@ -79,7 +90,14 @@ export interface ActionOutcome {
 
 /** Largeur par defaut d'un bloc selon sa nature. */
 export function defaultWidth(spec: BlockSpec): BlockWidth {
-  if (spec.kind === 'text' || spec.kind === 'filters' || spec.kind === 'map') return 'full';
+  if (
+    spec.kind === 'text' ||
+    spec.kind === 'filters' ||
+    spec.kind === 'map' ||
+    spec.kind === 'component'
+  ) {
+    return 'full';
+  }
   if (spec.config?.type === 'kpi') return 'third';
   if (spec.config?.type === 'datalist') return 'full';
   return 'half';
@@ -418,6 +436,32 @@ function buildMapWidget(
   };
 }
 
+/**
+ * Bloc « composant libre » (#1111) : composants valides contre le manifeste
+ * par le moteur du lint de balisage. Les avertissements du lint accompagnent
+ * le compte-rendu sans refuser le bloc.
+ */
+function buildComponentWidget(
+  id: string,
+  spec: BlockSpec,
+  doc: DashboardData
+): { widget?: Widget; error?: string; notes?: string[] } {
+  const { components, error, avertissements } = validerComposantsLibres(spec.components, {
+    idsExternes: idsDuDocument(doc, id),
+  });
+  if (error || !components) return { error };
+  return {
+    widget: {
+      id,
+      type: 'component',
+      title: spec.title ?? 'Composant libre',
+      position: { row: 0, col: 0 },
+      config: { components },
+    },
+    notes: avertissements,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
@@ -435,7 +479,7 @@ export function addBlocks(
   let ok = false;
   for (const spec of specs) {
     const id = nextBlockId(doc);
-    let built: { widget?: Widget; error?: string };
+    let built: { widget?: Widget; error?: string; notes?: string[] };
     switch (spec.kind) {
       case 'text':
         built = { widget: buildTextWidget(id, spec) };
@@ -449,12 +493,16 @@ export function addBlocks(
       case 'map':
         built = buildMapWidget(id, spec, ctx);
         break;
+      case 'component':
+        built = buildComponentWidget(id, spec, doc);
+        break;
       default:
-        built = { error: `kind "${String(spec.kind)}" inconnu (text | chart | filters | map).` };
+        built = { error: `kind "${String(spec.kind)}" inconnu (${BLOCK_KINDS.join(' | ')}).` };
     }
     if (built.widget) {
       placeWidget(doc, built.widget, spec.width ?? defaultWidth(spec));
       lines.push(`+ ${id} (${spec.kind}) « ${built.widget.title} » ajouté.`);
+      for (const note of built.notes ?? []) lines.push(`  attention : ${note}`);
       ok = true;
     } else {
       lines.push(`✗ bloc ${spec.kind} refusé : ${built.error}`);
@@ -512,6 +560,19 @@ export function updateBlock(
         const built = buildMapWidget(widget.id, { kind: 'map', layers: patch.layers }, ctx);
         if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
         widget.config = built.widget.type === 'map' ? built.widget.config : widget.config;
+      }
+      break;
+    }
+    case 'component': {
+      // `components` remplace TOUS les composants du bloc, comme `layers`.
+      if (patch.components) {
+        const built = buildComponentWidget(
+          widget.id,
+          { kind: 'component', components: patch.components },
+          doc
+        );
+        if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
+        widget.config = built.widget.type === 'component' ? built.widget.config : widget.config;
       }
       break;
     }
@@ -593,6 +654,19 @@ function compactRows(doc: DashboardData): void {
   doc.layout.rowColumns = Object.keys(rc).length ? rc : undefined;
 }
 
+/**
+ * Composants d'un bloc libre, avec leurs ids (#1111) : le modele peut les viser
+ * depuis un autre bloc libre (`source=`), et les retrouver pour un update.
+ */
+function composantsDe(w: Widget): string {
+  if (w.type !== 'component') return '';
+  const noms = w.config.components.map((c) => {
+    const id = c.attributes.find((a) => a.name === 'id')?.value;
+    return id ? `${c.tag}#${id}` : c.tag;
+  });
+  return ` [${noms.join(', ')}]`;
+}
+
 /** Etat courant du document, resume pour le modele (ids + natures + titres). */
 export function describeDocument(doc: DashboardData): string {
   if (doc.widgets.length === 0) return 'Document vide.';
@@ -601,7 +675,7 @@ export function describeDocument(doc: DashboardData): string {
     const inRow = doc.widgets
       .filter((w) => w.position.row === r)
       .sort((a, b) => a.position.col - b.position.col)
-      .map((w) => `${w.id}:${w.type}« ${w.title} »`);
+      .map((w) => `${w.id}:${w.type}« ${w.title} »${composantsDe(w)}`);
     return `  ligne ${r} : ${inRow.join(' | ')}`;
   });
   return `Document « ${doc.name} » (${doc.widgets.length} blocs) :\n${lines.join('\n')}`;
@@ -712,7 +786,7 @@ export const BLOCK_SPEC_SCHEMA = {
       type: 'string',
       enum: [...BLOCK_KINDS],
       description:
-        'Nature du bloc : text (éditorial), chart (dataviz, y compris kpi/datalist/podium via config.type), filters (filtres partagés), map (carte Leaflet multi-couches via layers)',
+        'Nature du bloc : text (éditorial), chart (dataviz, y compris kpi/datalist/podium via config.type), filters (filtres partagés), map (carte Leaflet multi-couches via layers), component (composants dsfr-data libres via components, pour ce que les autres ne couvrent pas)',
     },
     title: { type: 'string', description: 'Titre du bloc' },
     width: {
@@ -737,6 +811,11 @@ export const BLOCK_SPEC_SCHEMA = {
       type: 'array',
       items: MAP_LAYER_SCHEMA,
       description: 'kind=map : couches de la carte Leaflet (multi-sources possible)',
+    },
+    components: {
+      type: 'array',
+      items: FREE_COMPONENT_SCHEMA,
+      description: `kind=component : composants dsfr-data (${MAX_COMPOSANTS} au plus), dans l'ordre du flux — transformations puis affichage. SEULEMENT pour ce que text, chart, filters et map ne savent pas écrire. Validés contre le manifeste : balise, attributs, valeurs, ids visés.`,
     },
   },
   required: ['kind'],
@@ -775,7 +854,7 @@ export const DOCUMENT_TOOLS = [
     function: {
       name: 'update_block',
       description:
-        'Modifie un bloc existant (patch partiel : title, content/style, config, fields, layers — layers remplace toutes les couches).',
+        'Modifie un bloc existant (patch partiel : title, content/style, config, fields, layers, components — layers et components remplacent toutes les couches ou tous les composants).',
       parameters: {
         type: 'object',
         properties: {

@@ -22,11 +22,24 @@
  * Une option ajoutee au schema, a la validation ET a l'export est donc
  * comptee sans autre geste ; il suffit que l'une des trois manque pour
  * qu'elle ne le soit pas.
+ *
+ * Bloc « composant libre » (#1111) : ses options ne se deduisent pas du schema
+ * (une balise et des paires nom/valeur). On part donc du CONTRAT des composants
+ * (le manifeste) : pour chaque balise permise, un bloc portant tous ses
+ * attributs — ou, s'il est refuse, un attribut a la fois — passe par la meme
+ * validation (`addBlocks`) et le meme export. Un attribut que la validation
+ * refuse n'est pas compte.
  */
 
 import { createEmptyDashboard, generateDashboardHTML } from '@dsfr-data/shared';
 import type { DashboardData, DashboardSource } from '@dsfr-data/shared';
 import { BLOCK_SPEC_SCHEMA, addBlocks, type BlockSpec, type DocumentContext } from './document.js';
+import {
+  BALISES_A_GABARIT,
+  BALISES_LIBRES,
+  CONTRAT_COMPOSANTS,
+  TRANSFORMATEURS_PURS,
+} from './composant-libre.js';
 import type { ExclusionDeclaree } from './couverture-exclusions.js';
 
 // ---------------------------------------------------------------------------
@@ -263,6 +276,97 @@ function documentAvec(source: DashboardSource, specs: BlockSpec[]): DashboardDat
   return doc;
 }
 
+// ---------------------------------------------------------------------------
+// Mesure du bloc « composant libre » (#1111)
+// ---------------------------------------------------------------------------
+
+/** Attributs qui visent un amont : poses d'office, vers la source `src`. */
+const ATTRIBUTS_AMONT = ['source', 'left', 'right', 'sources'];
+
+/** Valeur plausible d'un attribut, d'apres le seul contrat. */
+function valeurLibre(tag: string, nom: string): string {
+  const permises = CONTRAT_COMPOSANTS[tag]?.enums?.[nom];
+  if (permises) return permises.find((v) => v !== '') ?? '';
+  if (ATTRIBUTS_AMONT.includes(nom)) return 'src';
+  // La popup vise la couche posee a cote d'elle (voir `specLibre`).
+  if (tag === 'dsfr-data-map-popup' && nom === 'for') return 'couche';
+  if (nom === 'max-items') return '5';
+  return 'x';
+}
+
+type Attr = { name: string; value: string };
+
+/**
+ * Bloc libre qui pose `tag` avec les attributs `noms`, dans son contexte :
+ * un compagnon de carte dans une carte (et une couche a viser pour la popup),
+ * un id, ses amonts vers la source du document, un gabarit s'il en lit un.
+ */
+function specLibre(tag: string, noms: readonly string[]): BlockSpec {
+  const declares = CONTRAT_COMPOSANTS[tag]?.attributes ?? [];
+  const attrs: Attr[] = [{ name: 'id', value: 'c' }];
+  for (const n of ATTRIBUTS_AMONT) {
+    if (declares.includes(n)) attrs.push({ name: n, value: 'src' });
+  }
+  if (tag === 'dsfr-data-map-layer') {
+    attrs.push({ name: 'lat-field', value: 'lat' }, { name: 'lon-field', value: 'lon' });
+  }
+  for (const n of noms) {
+    if (!attrs.some((a) => a.name === n)) attrs.push({ name: n, value: valeurLibre(tag, n) });
+  }
+  const components: Array<Record<string, unknown>> = [];
+  const dansCarte = tag.startsWith('dsfr-data-map-');
+  if (dansCarte)
+    components.push({ tag: 'dsfr-data-map', attributes: [{ name: 'id', value: 'carte' }] });
+  if (tag === 'dsfr-data-map-popup') {
+    components.push({
+      tag: 'dsfr-data-map-layer',
+      attributes: [
+        { name: 'id', value: 'couche' },
+        { name: 'source', value: 'src' },
+        { name: 'lat-field', value: 'lat' },
+        { name: 'lon-field', value: 'lon' },
+      ],
+      inside: 'carte',
+    });
+  }
+  const composant: Record<string, unknown> = { tag, attributes: attrs };
+  if (dansCarte) composant.inside = 'carte';
+  if (BALISES_A_GABARIT.includes(tag)) composant.template = '<p>{{champ_a}}</p>';
+  components.push(composant);
+  // Un transformateur doit etre lu (sinon le bloc est refuse) : une liste le lit.
+  if (TRANSFORMATEURS_PURS.includes(tag)) {
+    components.push({ tag: 'dsfr-data-list', attributes: [{ name: 'source', value: 'c' }] });
+  }
+  return { kind: 'component', components };
+}
+
+/**
+ * Blocs libres acceptes par la validation : pour chaque balise permise, un
+ * bloc qui porte tous ses attributs, sinon un bloc par attribut accepte.
+ */
+export function specsDuBlocLibre(): BlockSpec[] {
+  const ctx: DocumentContext = { data: [], fields: [], sourceId: 'src' };
+  const accepte = (spec: BlockSpec): boolean => {
+    const doc = createEmptyDashboard();
+    doc.sources = [SOURCES_REPRESENTATIVES[0]];
+    return addBlocks(doc, [spec], ctx).ok;
+  };
+  const specs: BlockSpec[] = [];
+  for (const tag of BALISES_LIBRES) {
+    const noms = CONTRAT_COMPOSANTS[tag].attributes;
+    const complet = specLibre(tag, noms);
+    if (accepte(complet)) {
+      specs.push(complet);
+      continue;
+    }
+    for (const n of noms) {
+      const seul = specLibre(tag, [n]);
+      if (accepte(seul)) specs.push(seul);
+    }
+  }
+  return specs;
+}
+
 /**
  * Balises et attributs que le Studio sait ecrire : chaque spec engendree,
  * seule puis avec un voisin qui lit la meme source (source dediee d'un
@@ -281,6 +385,11 @@ export function attributsEcritsParLeStudio(): Map<string, Set<string>> {
       vues.add(cle);
       specs.push(spec);
     }
+  }
+  // Le bloc libre (#1111), mesure sur la source embarquee : la forme de la
+  // source ne change rien a ses balises.
+  for (const spec of specsDuBlocLibre()) {
+    balisesEcrites(generateDashboardHTML(documentAvec(SOURCES_REPRESENTATIVES[0], [spec])), ecrits);
   }
   const voisin = specs.find((s) => s.kind === 'chart');
   for (const source of SOURCES_REPRESENTATIVES) {

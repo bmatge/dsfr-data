@@ -162,6 +162,33 @@ export const SCENARIOS: readonly Scenario[] = [
     },
   },
   {
+    // #1111 : realisable SEULEMENT avec le bloc « composant libre » — aucun bloc
+    // guide ne sait replier un tableau long en tableau croise (dsfr-data-pivot).
+    id: 'tableau-croise',
+    titre: 'Tableau croisé : élèves par commune (lignes) et type d’établissement (colonnes)',
+    pr: true,
+    source: { nom: 'Établissements scolaires', lignes: ETABLISSEMENTS },
+    messages: [
+      'Fais un tableau croisé des établissements : une ligne par commune, une colonne par type ' +
+        'd’établissement, et dans chaque case le nombre total d’élèves.',
+    ],
+    attendu: {
+      blocs: [
+        {
+          libelle: 'pivot commune × type, puis liste',
+          kind: 'component',
+          composants: [
+            {
+              tag: 'dsfr-data-pivot',
+              attributs: { row: 'Commune', column: 'Type', value: 'Nombre d’élèves' },
+            },
+            { tag: 'dsfr-data-list' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     id: 'demande-impossible',
     titre: 'Demande impossible : formulaire de saisie, à dire d’emblée',
     pr: true,

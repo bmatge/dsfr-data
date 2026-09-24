@@ -26,7 +26,14 @@ type Scalaire = string | number | boolean;
 export type Attendu =
   Scalaire | { unDe: readonly Scalaire[] } | { present: true } | { absent: true };
 
-export type NatureBloc = 'text' | 'chart' | 'filters' | 'map';
+export type NatureBloc = 'text' | 'chart' | 'filters' | 'map' | 'component';
+
+/** Un composant attendu dans un bloc libre (#1111) : sa balise, ses attributs HTML. */
+export interface ComposantAttendu {
+  tag: string;
+  /** Attributs HTML (kebab-case) ; un attribut booleen present vaut "". */
+  attributs?: Readonly<Record<string, Attendu>>;
+}
 
 export interface BlocAttendu {
   /** Libelle lisible dans le rapport. */
@@ -38,6 +45,8 @@ export interface BlocAttendu {
   couche?: Readonly<Record<string, Attendu>>;
   /** kind=filters : champs qui doivent figurer parmi les filtres. */
   champsFiltres?: readonly string[];
+  /** kind=component : composants que le bloc doit porter, chacun avec ses attributs. */
+  composants?: readonly ComposantAttendu[];
 }
 
 /**
@@ -220,6 +229,15 @@ function couchesDe(widget: Widget): Record<string, unknown>[] {
   return (widget.config.layers ?? []).map((couche): Record<string, unknown> => ({ ...couche }));
 }
 
+/** Composants d'un bloc libre, attributs a plat (nom -> valeur). */
+function composantsDe(widget: Widget): { tag: string; attributs: Record<string, unknown> }[] {
+  if (widget.type !== 'component') return [];
+  return widget.config.components.map((c) => ({
+    tag: c.tag,
+    attributs: Object.fromEntries(c.attributes.map((a) => [a.name, a.value])),
+  }));
+}
+
 function champsFiltresDe(widget: Widget): string[] {
   if (widget.type !== 'filters') return [];
   const config = widget.config as { filters?: Array<{ field?: string }> };
@@ -241,6 +259,21 @@ export function ecartsAuBloc(widget: Widget, bloc: BlocAttendu): string[] {
     if (!meilleure) ecarts.push('aucune couche');
     else ecarts.push(...meilleure);
   }
+  if (bloc.composants) {
+    const presents = composantsDe(widget);
+    for (const attendu of bloc.composants) {
+      const memeBalise = presents.filter((c) => c.tag === attendu.tag);
+      if (memeBalise.length === 0) {
+        ecarts.push(`<${attendu.tag}> absent`);
+        continue;
+      }
+      const parComposant = memeBalise.map((c) =>
+        ecartsOptions(c.attributs, attendu.attributs ?? {})
+      );
+      const meilleur = parComposant.sort((x, y) => x.length - y.length)[0];
+      ecarts.push(...meilleur.map((e) => `<${attendu.tag}> ${e}`));
+    }
+  }
   if (bloc.champsFiltres) {
     const presents = champsFiltresDe(widget);
     for (const champ of bloc.champsFiltres) {
@@ -258,7 +291,14 @@ function memeForme(widget: Widget, bloc: BlocAttendu): boolean {
 }
 
 function decrireWidget(widget: Widget): string {
-  const type = widget.type === 'chart' ? `/${String(chartDe(widget).type ?? '?')}` : '';
+  const type =
+    widget.type === 'chart'
+      ? `/${String(chartDe(widget).type ?? '?')}`
+      : widget.type === 'component'
+        ? `/${composantsDe(widget)
+            .map((c) => c.tag)
+            .join('+')}`
+        : '';
   return `${widget.id} ${widget.type}${type} « ${widget.title} »`;
 }
 
