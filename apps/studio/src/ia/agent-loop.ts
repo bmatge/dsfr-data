@@ -48,6 +48,7 @@ import {
   type DocumentContext,
 } from '../document.js';
 import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
+import { texteAffichable } from './reponse-finale.js';
 import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
 import type { DashboardData, Field } from '../state.js';
@@ -323,23 +324,23 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   });
 
   const { steps } = result;
+  // L'argument de finish écrit EN TEXTE (`{"message": "…"}`) au lieu d'un appel
+  // d'outil (#1123) : c'est un finish, l'usager n'en voit que le message.
+  const text = texteAffichable(result.text);
   switch (result.fin) {
     case 'terminal':
       // `finish` : son message, sinon le contenu du message (boucle commune).
-      return { text: result.text || 'Document mis à jour.', steps, applied };
+      return { text: text || 'Document mis à jour.', steps, applied };
     case 'plafond':
       // Budget épuisé : le document reflète les actions déjà appliquées.
       return {
-        text:
-          applied > 0
-            ? `${result.text || 'Document mis à jour.'}\n\n${describeDocument(doc)}`
-            : result.text,
+        text: applied > 0 ? `${text || 'Document mis à jour.'}\n\n${describeDocument(doc)}` : text,
         steps,
         applied,
       };
     default:
       // Réponse sans outil (clarification, ou conclusion du dernier tour),
       // ou transport muet.
-      return { text: result.text, steps, applied };
+      return { text, steps, applied };
   }
 }

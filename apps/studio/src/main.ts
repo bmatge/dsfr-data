@@ -124,6 +124,7 @@ async function sendMessage(): Promise<void> {
         sampleRecord: state.localData?.[0] ?? null,
         document: state.document,
         diagnostic: !!diagnosticMonte?.attachment,
+        data: state.localData ?? [],
       }),
       document: state.document,
       data: state.localData ?? [],

@@ -5,7 +5,14 @@
  * nationales » sont presentes.
  */
 import { describe, it, expect } from 'vitest';
-import { createEmptyDashboard, DIAGNOSTIC_TOOLS, OUTILS_SKILLS } from '@dsfr-data/shared';
+import {
+  analyzeDataFields,
+  createEmptyDashboard,
+  DIAGNOSTIC_TOOLS,
+  OUTILS_SKILLS,
+} from '@dsfr-data/shared';
+import type { Source } from '../../../apps/studio/src/state';
+import { AIDES_NATIONALES, ETABLISSEMENTS } from '../../../tools/banc-studio/fixtures';
 import { buildSystemPrompt } from '../../../apps/studio/src/ia/system-prompt';
 import { blockOptionNames, describeBlockVocabulary } from '../../../apps/studio/src/ia/vocabulaire';
 import { DATA_INSPECTION_TOOLS } from '../../../apps/studio/src/ia/agent-loop';
@@ -137,5 +144,28 @@ describe('#1109 — consignes du constat « Aides nationales »', () => {
     expect(PROMPT).toContain('Total répété');
     expect(PROMPT).toContain('CONSTANTE pour une même entité');
     expect(PROMPT).toContain('dis-le');
+  });
+
+  it('total repete : la consigne s’appuie sur le signal d’inspect_data (#1123)', () => {
+    expect(PROMPT).toContain('inspect_data le calcule');
+    expect(PROMPT).toContain('« X est constant pour chaque Y »');
+    expect(PROMPT).toContain('dans ton message de finish');
+  });
+
+  it('total repete : le signal figure dans « Données chargées », sans attendre inspect_data', () => {
+    // Banc (#1123) : le modele saute souvent inspect_data (2 tours sur « Aides
+    // nationales ») ; le FAIT doit donc etre dans le prompt lui-meme.
+    const prompt = (lignes: Record<string, unknown>[], avecDonnees = true) =>
+      buildSystemPrompt({
+        source: { id: 's', name: 'Jeu', type: 'manual' } as unknown as Source,
+        fields: analyzeDataFields(lignes),
+        sampleRecord: lignes[0] ?? null,
+        document: createEmptyDashboard(),
+        data: avecDonnees ? lignes : undefined,
+      });
+    const donnees = prompt(AIDES_NATIONALES).split('## Données chargées')[1] ?? '';
+    expect(donnees).toContain("« Nombre total d'actions » est constant pour chaque « Ville »");
+    expect(prompt(ETABLISSEMENTS)).not.toContain('Valeurs répétées par entité (');
+    expect(prompt(AIDES_NATIONALES, false)).not.toContain('Valeurs répétées par entité (');
   });
 });

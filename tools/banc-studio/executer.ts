@@ -124,6 +124,7 @@ export async function executerScenario(
           sampleRecord: donnees[0] ?? null,
           document,
           diagnostic: true,
+          data: donnees,
         }),
         document,
         data: donnees,

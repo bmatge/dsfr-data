@@ -3,6 +3,8 @@
  * (dashboard DSFR) par actions incrementales. Le LLM n'ecrit jamais de HTML.
  */
 
+import { constantColumnsByEntity, describeConstantColumns } from '@dsfr-data/shared';
+import type { Row } from '@dsfr-data/shared';
 import { describeDocument } from '../document.js';
 import { describeBlockVocabulary } from './vocabulaire.js';
 import type { DashboardData, Field, Source } from '../state.js';
@@ -14,6 +16,13 @@ export function buildSystemPrompt(opts: {
   document: DashboardData;
   /** Les outils de diagnostic sont disponibles (#607). */
   diagnostic?: boolean;
+  /**
+   * Lignes chargees (#1123) : seulement pour le signal « valeurs repetees par
+   * entite », calcule ici aussi parce que le modele saute souvent inspect_data
+   * (banc : 2 tours sur « Aides nationales », sans inspection). Borne, et vide
+   * quand il n'y a rien a signaler : le prompt ne grossit que pour un FAIT.
+   */
+  data?: Row[];
 }): string {
   const { source, fields, sampleRecord, document } = opts;
 
@@ -41,11 +50,16 @@ source), un filtre qui ne matche aucune valeur, une agregation retombee cote \
 client sur un echantillon.`
     : '';
 
+  const repetees =
+    source && opts.data?.length
+      ? describeConstantColumns(constantColumnsByEntity(opts.data, fields))
+      : '';
+
   const dataContext = source
     ? `## Données chargées
 Source : « ${source.name} » (${source.type}).
 Champs : ${fields.map((f) => `${f.name} (${f.type})`).join(', ') || 'non analysés'}.
-Exemple d'enregistrement : ${sampleRecord ? JSON.stringify(sampleRecord) : 'n/a'}`
+Exemple d'enregistrement : ${sampleRecord ? JSON.stringify(sampleRecord) : 'n/a'}${repetees ? `\n${repetees}` : ''}`
     : `## Données
 AUCUNE source chargée : demande à l'utilisateur d'en choisir une avant de créer des blocs data (les blocs text restent possibles).`;
 
@@ -90,11 +104,16 @@ INSEE restent des blocs chart (config.type:"map"/"map-reg").
 données ont plusieurs lignes par ville, il y aura plusieurs marqueurs superposés. \
 Pour un point par entité, c'est groupField (ex. groupField:"Ville") : un élément par \
 valeur, et le clic (popup ou volet) liste toutes les lignes du groupe.
-- Total répété : avant d'afficher une colonne comme valeur de ligne (popup, \
-tableau, somme), vérifie si elle est CONSTANTE pour une même entité (ville, \
-commune…) — un total par entité recopié sur chaque ligne. Si c'est le cas, dis-le \
-à l'utilisateur, ne la présente pas comme une valeur propre à chaque ligne et ne la \
-somme pas.
+- Total répété : une colonne peut être CONSTANTE pour une même entité (ville, \
+commune…) — un total par entité recopié sur chaque ligne. inspect_data le calcule \
+et le signale (« Valeurs répétées par entité », « X est constant pour chaque Y »), \
+repris dans « Données chargées » ci-dessous. \
+Quand ce signal nomme une colonne et que tu crées un bloc sur ces données : dis-le \
+dans ton message de finish (nomme la colonne et l'entité, ex. « Population est \
+une valeur par commune, répétée sur chacune de ses lignes »), ne la présente pas \
+comme une valeur propre à chaque ligne (popup, tableau) et ne la somme pas. \
+Coordonnées exceptées : latitude et longitude répétées par entité sont normales, \
+inutile de les signaler.
 - reset_document UNIQUEMENT sur demande explicite de repartir de zéro.
 
 ## Documentation

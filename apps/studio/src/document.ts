@@ -158,21 +158,61 @@ function buildTextWidget(id: string, spec: BlockSpec): Widget {
   };
 }
 
+/**
+ * Champs qu'un type de graphique EXIGE vraiment (#1123) — source unique de la
+ * validation, de la description de `valueField` dans le schema des outils et
+ * donc du vocabulaire engendre pour le prompt.
+ *
+ * Constat du banc (#1123, `tableau-pagine` 0/2) : `valueField` etait requis
+ * pour TOUS les types, datalist compris. Un tableau liste des colonnes
+ * (`colonnes`) : il n'a rien a mesurer. Le modele omettait a juste titre
+ * valueField, l'appel etait refuse, et il payait un tour pour en inventer un.
+ */
+export const TYPES_SANS_VALUE_FIELD: readonly string[] = ['datalist'];
+
+/** Messages d'erreur des champs requis manquants (liste vide = conforme). */
+export function champsRequisManquants(config: Partial<ChartConfig>): string[] {
+  const type = String(config.type ?? '');
+  const aValeur = typeof config.valueField === 'string' && config.valueField !== '';
+  if (!TYPES_SANS_VALUE_FIELD.includes(type)) {
+    return aValeur ? [] : [`"valueField" est obligatoire pour le type ${type}.`];
+  }
+  // Datalist : valueField n'est requis que pour trier ou agreger (il porte
+  // l'order-by et l'aggregate de la requete exportee).
+  if (aValeur) return [];
+  const exigeants = (['sortOrder', 'aggregation'] as const).filter((k) => {
+    // Valeur venue du modele : on ne suppose pas qu'elle respecte le type.
+    const v: unknown = config[k];
+    return v !== undefined && v !== null && v !== '';
+  });
+  return exigeants.length > 0
+    ? [
+        `${exigeants.join(' et ')} d'un datalist porte sur "valueField" : fournis-le, ou retire ${exigeants.join(' et ')}.`,
+      ]
+    : [];
+}
+
 function buildChartWidget(
   id: string,
   spec: BlockSpec,
   ctx: DocumentContext
 ): { widget?: Widget; error?: string } {
-  const config = spec.config;
-  if (!config || typeof config.type !== 'string' || typeof config.valueField !== 'string') {
-    return {
-      error:
-        'Bloc chart invalide : "config" doit contenir au minimum un "type" connu et un "valueField".',
-    };
+  const raw = spec.config;
+  if (!raw || typeof raw.type !== 'string') {
+    return { error: 'Bloc chart invalide : "config" doit contenir au minimum un "type" connu.' };
   }
-  if (!(CHART_CONFIG_TYPES as readonly string[]).includes(config.type)) {
-    return { error: `Type "${config.type}" inconnu. Types : ${CHART_CONFIG_TYPES.join(', ')}.` };
+  if (!(CHART_CONFIG_TYPES as readonly string[]).includes(raw.type)) {
+    return { error: `Type "${raw.type}" inconnu. Types : ${CHART_CONFIG_TYPES.join(', ')}.` };
   }
+  const manquants = champsRequisManquants(raw);
+  if (manquants.length > 0) {
+    return { error: `Bloc chart ${raw.type} invalide : ${manquants.join(' ')}` };
+  }
+  // Un datalist sans valueField est stocke avec une chaine vide : le modele du
+  // dashboard (normalisation au chargement) exige une chaine, et l'export
+  // d'une liste ne lit valueField que pour trier ou agreger — refuses plus haut.
+  const config: Partial<ChartConfig> =
+    typeof raw.valueField === 'string' ? raw : { ...raw, valueField: '' };
   if (ctx.data.length > 0) {
     const diag = diagnoseConfig(config, ctx.data);
     if (!diag.ok) return { error: diag.text };
@@ -639,6 +679,27 @@ const MAP_LAYER_SCHEMA = {
 } as const;
 
 /**
+ * Configuration d'un bloc chart telle que le Studio la valide (#1123) : le
+ * fragment commun de `@dsfr-data/shared`, sauf les champs requis. Seul `type`
+ * l'est pour tous ; `valueField` l'est pour tous les types SAUF ceux de
+ * `TYPES_SANS_VALUE_FIELD` — un schema plat (sans oneOf, decodage guide vLLM)
+ * ne sait pas l'exprimer : la description le dit, `champsRequisManquants` le
+ * verifie.
+ */
+const STUDIO_CHART_CONFIG_SCHEMA = {
+  ...CHART_CONFIG_SCHEMA,
+  properties: {
+    ...CHART_CONFIG_SCHEMA.properties,
+    valueField: {
+      type: 'string',
+      description: `Champ numérique à mesurer. Obligatoire pour tous les types SAUF ${TYPES_SANS_VALUE_FIELD.join(', ')} (un tableau liste des colonnes : colonnes ; valueField n'y sert qu'à trier ou agréger).`,
+    },
+  },
+  required: ['type'],
+  description: 'kind=chart : configuration complète',
+} as const;
+
+/**
  * Schema d'un bloc — la SOURCE UNIQUE du vocabulaire (#1109) : il valide les
  * appels d'outils ET engendre la liste des options donnee au modele dans le
  * prompt (`describeBlockVocabulary`). Une option absente d'ici n'existe pas
@@ -665,7 +726,7 @@ export const BLOCK_SPEC_SCHEMA = {
         "kind=text : le texte de l'utilisateur, repris FIDELEMENT (paragraphes séparés par des lignes vides, ou HTML simple <p>/<ul>)",
     },
     style: { type: 'string', enum: [...TEXT_STYLES], description: 'kind=text : style du bloc' },
-    config: { ...CHART_CONFIG_SCHEMA, description: 'kind=chart : configuration complète' },
+    config: STUDIO_CHART_CONFIG_SCHEMA,
     fields: {
       type: 'array',
       items: { type: 'string' },
