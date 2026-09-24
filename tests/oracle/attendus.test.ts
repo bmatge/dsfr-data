@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { controlesDuMode } from '../verif-donnees/index.js';
 import { cleAttendu, computeExpectedFor, type Attendu } from '../../tools/oracle/expected.js';
 import { roundTo, toNum } from '../../tools/oracle/compute.js';
-import type { Expect } from '../../tools/oracle/manifest.js';
+import type { Check, Expect } from '../../tools/oracle/manifest.js';
 
 /**
  * LA RENCONTRE DES DEUX ORACLES (#880) — sans navigateur.
@@ -62,18 +62,45 @@ function lireAttendus(): { entete: Entete; entrees: EntreePython[] } {
   return { entete, entrees };
 }
 
-/** Les attendus TypeScript, par `domaine/controle/cle`, avec l'attente qui les a produits. */
-function attendusTypeScript(): Map<string, { attendu: Attendu; expect: Expect }> {
-  const out = new Map<string, { attendu: Attendu; expect: Expect }>();
+type Calcul = ReturnType<typeof computeExpectedFor>;
+
+let calculsMemo: Array<{ domaine: string; check: Check; calcule: Calcul }> | null = null;
+
+/**
+ * Le recalcul TypeScript de chaque contrôle déterministe, fait UNE fois pour
+ * le fichier : les contrôles et leurs jeux sont figés, le résultat aussi.
+ *
+ * Il était refait à chaque appel, et le test de couverture l'appelait dans un
+ * `filter`, une fois par entrée Python : ~500 recalculs complets, 1,6 s seul
+ * sur une machine au repos, au-delà des 10 s de `testTimeout` sous la charge
+ * de la suite complète (#1119). Un seul recalcul prend quelques ms.
+ */
+function calculs(): Array<{ domaine: string; check: Check; calcule: Calcul }> {
+  if (calculsMemo) return calculsMemo;
+  calculsMemo = [];
   for (const { domaine, check } of controlesDuMode('deterministic')) {
     if (check.feed.kind !== 'fixture') continue;
-    const calcule = computeExpectedFor(check, check.feed.datasets);
+    calculsMemo.push({ domaine, check, calcule: computeExpectedFor(check, check.feed.datasets) });
+  }
+  return calculsMemo;
+}
+
+let attendusMemo: Map<string, { attendu: Attendu; expect: Expect }> | null = null;
+
+/** Les attendus TypeScript, par `domaine/controle/cle`, avec l'attente qui les a produits. */
+function attendusTypeScript(): Map<string, { attendu: Attendu; expect: Expect }> {
+  if (attendusMemo) return attendusMemo;
+  attendusMemo = new Map<string, { attendu: Attendu; expect: Expect }>();
+  for (const { domaine, check, calcule } of calculs()) {
     for (const e of check.expects) {
       const cle = cleAttendu(e);
-      out.set(`${domaine}/${check.id}/${cle}`, { attendu: calcule.values[cle], expect: e });
+      attendusMemo.set(`${domaine}/${check.id}/${cle}`, {
+        attendu: calcule.values[cle],
+        expect: e,
+      });
     }
   }
-  return out;
+  return attendusMemo;
 }
 
 const chaine = (v: unknown): string => (v === null || v === undefined ? '' : String(v));
@@ -322,14 +349,13 @@ describe('vérification des données — la rencontre TS ↔ Python', () => {
     let references = 0;
     let tenus = 0;
     let attente = 0;
-    for (const { domaine, check } of controlesDuMode('deterministic')) {
-      if (check.feed.kind !== 'fixture') continue;
-      const calcule = computeExpectedFor(check, check.feed.datasets);
+    const parCle = new Map(entrees.map((x) => [`${x.domaine}/${x.controle}/${x.cle}`, x]));
+    for (const { domaine, check, calcule } of calculs()) {
       for (const e of check.expects) {
         const ts = calcule.invariants[cleAttendu(e)];
         if (!ts) continue;
         const ou = `${domaine}/${check.id}/${cleAttendu(e)}`;
-        const py = entrees.find((x) => `${x.domaine}/${x.controle}/${x.cle}` === ou) as
+        const py = parCle.get(ou) as
           | (EntreePython & {
               invariants?: Array<{
                 kind: string;
