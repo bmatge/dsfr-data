@@ -1,5 +1,0 @@
----
-'dsfr-data': minor
----
-
-`dsfr-data-map-layer` : nouvel attribut `group-field` (#1108). Sur des données au format long (une ligne par couple ville × aide, coordonnées répétées), la couche trace un seul marqueur, cercle ou forme par valeur distincte du champ, et la popup, le volet ou la modale de `dsfr-data-map-popup` listent toutes les lignes du groupe : la valeur du groupe (ou `title-field`) en titre, puis un tableau des `popup-fields` avec une ligne par enregistrement, ou `popup-template` (ou le `<template>` du compagnon) appliqué à chaque ligne. Au plus 200 lignes, puis « … et N autres » ; tout est échappé. La position, `tooltip-field`, `color-field` et `radius-field` sont ceux du premier enregistrement positionné du groupe, et des coordonnées divergentes au sein d'un groupe sont signalées une fois en console. `max-items`, `getRenderedCount()` et le bandeau de troncature comptent des groupes ; `refine-on-click` filtre sur la valeur du groupe, et `dsfr-data-map-select` porte en plus `group` et `records`. L'attribut est compatible avec `cluster`, et sans effet sur `heatmap` (un avertissement le dit en console).
