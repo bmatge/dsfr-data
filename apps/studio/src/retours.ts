@@ -13,9 +13,12 @@ import { getUser, onAuthChange, type User } from '@dsfr-data/shared';
 
 export const COLLECTEUR = 'https://feedback-collector.lab.miweb.run';
 
-/** Hôte → application déclarée au collecteur (config/apps.json de feedback-collector). */
+/**
+ * Hôte → application déclarée au collecteur (config/apps.json de feedback-collector).
+ * Les clés sont PUBLIQUES par conception (servies dans la page) : `gitleaks:allow` assumé.
+ */
 export const DEPLOIEMENTS: Readonly<Record<string, { app: string; key: string }>> = {
-  'chartsbeta.lab.miweb.run': { app: 'chartsbeta', key: 'Ix_H0YV03otvXW5osPqYCHe4' },
+  'chartsbeta.lab.miweb.run': { app: 'chartsbeta', key: 'Ix_H0YV03otvXW5osPqYCHe4' }, // gitleaks:allow
 };
 
 type Props = Record<string, string | number | boolean | null>;
