@@ -4,6 +4,7 @@ import { request as httpsRequest } from 'https';
 import { request as httpRequest } from 'http';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { creerDebit, lireMaxRpm, reponseRefus } from './scripts/lib/debit.cjs';
+import { DEPS_PRE_OPTIMISEES } from './scripts/lib/deps-pre-optimisees';
 
 // Load .env so IA_DEFAULT_* vars are available in server plugins
 const rootEnv = loadEnv('development', __dirname, '');
@@ -39,6 +40,12 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, 'packages/core/src'),
     },
+  },
+  // Les dépendances de la lib, pré-optimisées au démarrage et non découvertes
+  // en cours de route : un démarrage à froid ne recharge plus les pages
+  // ouvertes (`npm run verif`, #1119). Liste gardée par un test.
+  optimizeDeps: {
+    include: [...DEPS_PRE_OPTIMISEES],
   },
   server: {
     proxy: {

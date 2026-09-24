@@ -85,8 +85,27 @@ function makeSource(id: string): DsfrDataSource {
   return source;
 }
 
-/** Laisse passer le `setTimeout(…, 0)` de coalescing de `_scheduleFetch`. */
-const settle = () => new Promise((r) => setTimeout(r, 5));
+/** Un tour de boucle : les microtâches en attente, puis une macrotâche. */
+const tour = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * Laisse passer le `setTimeout(…, 0)` de coalescing de `_scheduleFetch`.
+ *
+ * Ce timer est programmé depuis une MICROTÂCHE (le cycle de mise à jour de
+ * Lit, après `mount`) : il naît donc après tout timer que le test pose
+ * synchroniquement. Le premier tour laisse passer les microtâches — le timer
+ * de la lib existe alors —, le second, programmé après lui avec le même
+ * délai, passe après lui (ordre d'insertion). Aucune durée réelle en jeu.
+ *
+ * L'ancien `setTimeout(r, 5)` pariait que la lib aurait programmé son timer
+ * moins de 4 ms après celui du test : sous charge (suite complète, CI), un
+ * fil désordonnancé perdait la course, le test lisait l'état d'AVANT la
+ * requête, et le timer orphelin tombait dans le test suivant (#1119).
+ */
+const settle = async (): Promise<void> => {
+  await tour();
+  await tour();
+};
 
 beforeEach(() => {
   mockFetch.mockReset();
