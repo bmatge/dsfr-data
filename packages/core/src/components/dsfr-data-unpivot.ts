@@ -39,7 +39,10 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Colonnes conservées telles quelles sur chaque ligne. Ex: "Indicateurs, Sous_theme" */
+  /**
+   * Colonnes conservées telles quelles sur chaque ligne. Ex: "Indicateurs, Sous_theme"
+   * @champ liste
+   */
   @property({ type: String, attribute: 'id-cols' })
   idCols = '';
 
@@ -48,6 +51,7 @@ export class DsfrDataUnpivot extends TransformerMixin(LitElement) {
    * Alias inline `col:Libellé` (#668) : `value-cols="gazole_prix:Gazole, sp95_prix:SP95"` émet
    * « Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral
    * dans un nom ou un libellé s'échappe en `%3A` (escapeColonValue).
+   * @champ liste-alias
    */
   @property({ type: String, attribute: 'value-cols' })
   valueCols = '';

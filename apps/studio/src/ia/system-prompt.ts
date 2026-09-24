@@ -148,7 +148,11 @@ attributs sont les noms HTML exacts (kebab-case).
 - components suit le flux : transformations d'abord, chacune avec un id, puis \
 l'affichage. source= cite l'id de la source chargée ou d'un composant précédent ; \
 inside= place une couche ou un volet dans sa carte (déclarée avant, avec un id).
+- Un attribut-champ (label-field, sort, row…) lit ce que le composant REÇOIT : après \
+un pivot ou une agrégation, les colonnes PRODUITES.
 - Un appel refusé nomme l'attribut ou la valeur à corriger : corrige et renvoie le bloc.
+- Pagination serveur : seule une dsfr-data-list qui lit DIRECTEMENT la source \
+(pagination="N", sans search, filters, export) ; impossible après un pivot ou une agrégation.
 
 ## Documentation
 get_relevant_skills / get_skill décrivent la bibliothèque ENTIÈRE : lis-les pour le \

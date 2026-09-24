@@ -173,6 +173,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les
    * données chargées ; en `server-facets`, vide = découverte des facettes déclarées par le
    * jeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)
+   * @champ liste
    */
   @property({ type: String })
   fields = '';
@@ -232,7 +233,10 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: Number, attribute: 'max-values' })
   maxValues = 6;
 
-  /** Champs en mode multi-sélection OU (virgule-séparés) */
+  /**
+   * Champs en mode multi-sélection OU (virgule-séparés)
+   * @champ liste
+   */
   @property({ type: String })
   disjunctive = '';
 
@@ -259,7 +263,10 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: String })
   sort = 'count';
 
-  /** Champs avec barre de recherche (virgule-séparés) */
+  /**
+   * Champs avec barre de recherche (virgule-séparés)
+   * @champ liste
+   */
   @property({ type: String })
   searchable = '';
 
@@ -343,6 +350,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    *
    * Une valeur non numérique compte pour zero ; si le champ est absent de
    * toutes les lignes, un avertissement console le signale.
+   * @champ nom
    */
   @property({ type: String, attribute: 'weight-field' })
   weightField = '';

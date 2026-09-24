@@ -46,8 +46,8 @@ Le plafond du proxy (`IA_MAX_RPM`, **10 appels par minute, tous usagers confondu
 avec les usagers du Studio. D'où :
 
 - **10 s entre deux débuts d'appel** par défaut (6 par minute au plus) ;
-- en PR, **quatre scénarios** (`pr: true`), **une** répétition : une douzaine d'appels ;
-- la nuit, le jeu complet (8 scénarios × 3) : une centaine d'appels, une vingtaine de minutes ;
+- en PR, **cinq scénarios** (`pr: true`), **une** répétition : une quinzaine d’appels ;
+- la nuit, le jeu complet (10 scénarios × 3) : une centaine d’appels, une vingtaine de minutes ;
 - un seul banc à la fois (groupe de concurrence global du workflow), et le miroir
   `mef-snum-miweb` ne le lance pas ;
 - le transport commun rejoue un 429 (trois fois au plus, `Retry-After` plafonné à 10 s) ; au-delà,
@@ -72,6 +72,7 @@ l'usager, et les attentes, écrites dans le vocabulaire des **outils** du Studio
 | `tableau-pagine` | | `datalist`, `pagination:10`. |
 | `carte-points` | | Couche `marker`/`circle`, coordonnées, `tooltipField:"Nom"`, **sans** `groupField` (une ligne par musée). |
 | `tableau-croise` | oui | Réalisable **seulement** avec le bloc « composant libre » (#1111) : `dsfr-data-pivot` (`row="Commune"`, `column="Type"`, `value="Nombre d’élèves"`) puis une `dsfr-data-list`. |
+| `champ-errone` | oui | L’usager nomme une colonne qui n’existe pas (« Catégorie » pour `Type`, #1141) : le bloc libre refuse `column="Catégorie"` avec la liste des champs de la source, le modèle doit se corriger — même attendu que `tableau-croise`. |
 | `demande-impossible` | oui | Un formulaire de saisie : le dire d'emblée, sans toucher au document, en 4 appels au plus. |
 | `modification` | | Deux messages : barres, puis « passe-le en camembert » — un seul graphique à la fin (`pie`/`doughnut`). |
 | `source-par-url` | | **Aucune source** au départ (#1140) : l’usager donne l’URL d’un jeu Opendatasoft réel (data.economie.gouv.fr, 14 lignes, figé depuis 2018) ; le modèle le charge par `charger_source_url`, puis une courbe ou des barres `labelField:"annee"`, `valueField:"nombre_de_jei"`. Réseau réel vers le portail. |

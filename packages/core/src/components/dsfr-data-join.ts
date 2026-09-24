@@ -54,6 +54,7 @@ export class DsfrDataJoin extends TransformerMixin(LitElement) {
    * - Clé commune : on="code_dept"
    * - Clé différente : on="dept_code=code" (gauche=droite)
    * - Multi-clé : on="annee,code_region"
+   * @champ paires
    */
   @property({ type: String })
   on = '';

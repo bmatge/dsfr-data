@@ -204,7 +204,8 @@ where, group_by echappe #641/#289, order_by traduit). Trois consequences a conna
 `server-side` / `server-sort` **que** pour une source dont l'UNIQUE consommateur est une liste
 paginee non agregee et non limitee, et seulement en mode adaptateur (ODS, Tabular). Le critere est
 calcule par `serverPaginatedSources()` a partir du graphe de consommateurs deja collecte, puis servi
-**une seule fois** aux sources ET aux widgets : les deux faces doivent decrire le meme document.
+**une seule fois** aux sources ET aux widgets : les deux faces doivent decrire le meme document. Une `dsfr-data-list` de bloc
+libre qui lit directement la source compte comme la liste guidee (#1141, §3.7).
 
 Le couplage non evident est celui-ci : **une source n'est emise qu'une fois et partagee par tous les
 widgets** du document. Poser `server-side` parce qu'un tableau la consomme casserait SILENCIEUSEMENT
@@ -716,6 +717,39 @@ engendre depuis le meme contrat. L'export (`generateComponentHTML`) ne fait
 confiance a rien : balise `dsfr-data-*`, pas de gestionnaire `on*`, valeurs et
 `<template>` filtres (`nettoyerGabarit`) puis echappes — un tableau de bord est
 relu depuis un stockage partage.
+
+**Attributs-champs (#1141).** Un attribut qui designe un champ des donnees porte
+le tag JSDoc `@champ <grammaire>` sur sa propriete (`nom`, `liste`, `liste-alias`,
+`pipe-alias`, `clauses`, `paires`, `chemin`, `expression` — voir `FieldAttrKind`).
+Le plugin `champsDesDonnees` de `custom-elements-manifest.config.mjs` le reporte
+sur l'attribut du manifeste (`"champ": "liste"`) ; `build:component-contract` en
+tire `fields` dans le contrat ET le fichier genere
+`packages/shared/src/debug/field-attrs.generated.ts`, qui EST `FIELD_ATTRS`
+(controle des champs de la trace, attributs de forme du graphe). Une seule
+source : le JSDoc. Test-garde `tests/debug/champs-marques.test.ts` : tout attribut
+du manifeste qui ressemble a un champ (`…-field(s)`, `group-by`, `sort`…) est
+marque ou exclu avec sa raison (`ATTRIBUTS_CHAMP_NON_MARQUES`, `field-check.ts`).
+Le bloc libre du Studio verifie ces champs ETAPE PAR ETAPE
+(`verifierChampsLibres`) : contre les cles de la source chargee, a travers les
+filtres qui conservent le schema (search sans `highlight`, facets, query sans
+`group-by` ni `aggregate`), et contre la sortie qu'a OBSERVEE la derniere trace
+de l'apercu pour un pivot, une agregation, une jointure — reprise seulement si
+l'etape y est ecrite a l'identique (attributs de forme et amonts). ⚠️ Couplage :
+la fraicheur se lit sur `SHAPE_ATTRS ∪ FIELD_ATTRS` ; un attribut qui renomme ou
+cree des colonnes doit y figurer (`labels` du pivot, `fold`/`lowercase-keys` du
+normalize), sinon une trace perimee peut faire refuser un bloc correct. Une sortie
+inconnue (etape pas encore calculee, banc sans apercu) n'est JAMAIS une cause de
+refus : la lecture est rendue au modele comme « non verifiee », `run_and_trace`
+la tranche apres rendu (`fieldIssuesByNode`).
+
+**Pagination serveur d'une liste libre (#1141, ADR-109).** Une `dsfr-data-list`
+de bloc libre qui lit DIRECTEMENT une source, avec `pagination` > 0 et sans
+`search`, `filters`, `export`, `context` ni `refine-on-click`
+(`LISTE_LIBRE_JEU_ENTIER`), compte comme la liste guidee dans
+`collectSourceConsumers` : seule lectrice d'une source a adaptateur, la source
+recoit `server-side` et la liste `server-sort`. Derriere un pivot ou une
+agregation client, c'est impossible par nature (le pivot lit le jeu entier) ;
+le compte-rendu de l'outil le dit au modele (`notesPagination`).
 
 ### 3.8 Le volet Diagnostic (app-ui)
 

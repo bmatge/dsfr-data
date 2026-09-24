@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 376 attributs, 16 enumerations.
+ * 28 balises, 376 attributs, 16 enumerations, 64 attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -24,7 +24,12 @@ export const COMPONENT_CONTRACT = {
       "source",
       "table",
       "value-field"
-    ]
+    ],
+    "fields": {
+      "label-field": "nom",
+      "series-field": "nom",
+      "value-field": "liste"
+    }
   },
   "dsfr-data-beacon": {
     "attributes": [
@@ -97,6 +102,16 @@ export const COMPONENT_CONTRACT = {
         "map-aca",
         "map-monde"
       ]
+    },
+    "fields": {
+      "code-field": "nom",
+      "databox-date-field": "nom",
+      "label-field": "nom",
+      "map-summary-field": "nom",
+      "series-field": "nom",
+      "value-field": "liste-alias",
+      "value-field-2": "liste-alias",
+      "value-fields": "liste-alias"
     }
   },
   "dsfr-data-concat": {
@@ -172,7 +187,10 @@ export const COMPONENT_CONTRACT = {
       "uid-field",
       "url-page-param",
       "url-sync"
-    ]
+    ],
+    "fields": {
+      "uid-field": "nom"
+    }
   },
   "dsfr-data-facets": {
     "attributes": [
@@ -199,7 +217,13 @@ export const COMPONENT_CONTRACT = {
       "url-sync",
       "value-labels",
       "weight-field"
-    ]
+    ],
+    "fields": {
+      "disjunctive": "liste",
+      "fields": "liste",
+      "searchable": "liste",
+      "weight-field": "nom"
+    }
   },
   "dsfr-data-join": {
     "attributes": [
@@ -217,6 +241,9 @@ export const COMPONENT_CONTRACT = {
         "right",
         "full"
       ]
+    },
+    "fields": {
+      "on": "paires"
     }
   },
   "dsfr-data-kpi": {
@@ -293,6 +320,14 @@ export const COMPONENT_CONTRACT = {
         "compact",
         "date"
       ]
+    },
+    "fields": {
+      "picto-field": "nom",
+      "tendance": "expression",
+      "trend": "expression",
+      "valeur": "expression",
+      "value": "expression",
+      "where": "clauses"
     }
   },
   "dsfr-data-kpi-group": {
@@ -338,6 +373,14 @@ export const COMPONENT_CONTRACT = {
       "filtres": "alias français de `filters` (#300)",
       "tri": "alias français de `sort` (#300)",
       "server-tri": "alias français de `server-sort` (#300)"
+    },
+    "fields": {
+      "colonnes": "liste-alias",
+      "columns": "liste-alias",
+      "filters": "liste",
+      "filtres": "liste",
+      "sort": "liste-alias",
+      "tri": "liste-alias"
     }
   },
   "dsfr-data-map": {
@@ -452,6 +495,20 @@ export const COMPONENT_CONTRACT = {
         "circle",
         "heatmap"
       ]
+    },
+    "fields": {
+      "bbox-field": "nom",
+      "color-field": "nom",
+      "fill-field": "nom",
+      "geo-field": "nom",
+      "group-field": "nom",
+      "heat-field": "nom",
+      "lat-field": "nom",
+      "lon-field": "nom",
+      "popup-fields": "liste",
+      "radius-field": "nom",
+      "time-field": "nom",
+      "tooltip-field": "nom"
     }
   },
   "dsfr-data-map-legend": {
@@ -474,6 +531,9 @@ export const COMPONENT_CONTRACT = {
         "panel-right",
         "panel-left"
       ]
+    },
+    "fields": {
+      "title-field": "nom"
     }
   },
   "dsfr-data-map-timeline": {
@@ -501,7 +561,15 @@ export const COMPONENT_CONTRACT = {
       "split",
       "strip-html",
       "trim"
-    ]
+    ],
+    "fields": {
+      "flatten": "chemin",
+      "numeric": "liste",
+      "rename": "pipe-alias",
+      "replace-fields": "pipe-alias",
+      "round": "liste-alias",
+      "split": "liste-alias"
+    }
   },
   "dsfr-data-pivot": {
     "attributes": [
@@ -514,7 +582,12 @@ export const COMPONENT_CONTRACT = {
       "row",
       "source",
       "value"
-    ]
+    ],
+    "fields": {
+      "column": "nom",
+      "row": "liste",
+      "value": "nom"
+    }
   },
   "dsfr-data-podium": {
     "attributes": [
@@ -544,7 +617,15 @@ export const COMPONENT_CONTRACT = {
       "subtitle-field",
       "value-field",
       "value-unit"
-    ]
+    ],
+    "fields": {
+      "icon-field": "nom",
+      "image-field": "nom",
+      "label-field": "nom",
+      "picto-field": "nom",
+      "subtitle-field": "nom",
+      "value-field": "nom"
+    }
   },
   "dsfr-data-query": {
     "attributes": [
@@ -557,7 +638,12 @@ export const COMPONENT_CONTRACT = {
       "require-where",
       "source",
       "where"
-    ]
+    ],
+    "fields": {
+      "filter": "clauses",
+      "group-by": "liste",
+      "where": "clauses"
+    }
   },
   "dsfr-data-repeat": {
     "attributes": [
@@ -567,7 +653,10 @@ export const COMPONENT_CONTRACT = {
       "per-row",
       "scopes",
       "source"
-    ]
+    ],
+    "fields": {
+      "key-field": "nom"
+    }
   },
   "dsfr-data-search": {
     "attributes": [
@@ -595,6 +684,9 @@ export const COMPONENT_CONTRACT = {
         "starts",
         "words"
       ]
+    },
+    "fields": {
+      "fields": "liste"
     }
   },
   "dsfr-data-source": {
@@ -650,6 +742,10 @@ export const COMPONENT_CONTRACT = {
       "value-name",
       "var-format",
       "var-name"
-    ]
+    ],
+    "fields": {
+      "id-cols": "liste",
+      "value-cols": "liste-alias"
+    }
   }
 } as const;

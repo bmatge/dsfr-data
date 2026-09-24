@@ -613,7 +613,8 @@ function freeComponentId(c: FreeComponentSpec): string {
 function generateComponentHTML(
   widget: Widget & { type: 'component' },
   config: ComponentWidgetConfig,
-  indent: string
+  indent: string,
+  serverPaginated: ReadonlyMap<string, number> = new Map()
 ): string {
   const comps = config.components.filter((c) => BALISE_LIBRE.test(c.tag));
   if (comps.length === 0) {
@@ -638,7 +639,16 @@ function generateComponentHTML(
         ? [`${ind}  <template>${nettoyerGabarit(c.template)}</template>`]
         : [];
     const corps = [...gabarit, ...enfants];
-    const ouvrante = `${ind}<${c.tag}${freeComponentAttrs(c)}>`;
+    // Liste libre sur une source paginee cote serveur (#1141) : le tri part au
+    // serveur, comme la liste guidee — sinon il ne trierait que la page.
+    const source = c.attributes.find((a) => a.name === 'source')?.value ?? '';
+    const serverSort =
+      c.tag === 'dsfr-data-list' &&
+      serverPaginated.has(source) &&
+      !c.attributes.some((a) => a.name === 'server-sort' || a.name === 'server-tri')
+        ? ' server-sort'
+        : '';
+    const ouvrante = `${ind}<${c.tag}${freeComponentAttrs(c)}${serverSort}>`;
     return corps.length === 0
       ? `${ouvrante}</${c.tag}>`
       : `${ouvrante}\n${corps.join('\n')}\n${ind}</${c.tag}>`;
@@ -737,7 +747,7 @@ ${indent}</div>\n`;
       return generateMapHTML(widget, widget.config, indent);
 
     case 'component':
-      return generateComponentHTML(widget, widget.config, indent);
+      return generateComponentHTML(widget, widget.config, indent, serverPaginated);
   }
 }
 
@@ -857,9 +867,11 @@ function collectSourceConsumers(
       continue;
     }
     if (w.type === 'component') {
-      // Un pivot, une recherche ou une liste lisent le jeu entier (#1111).
+      // Un pivot, une recherche, un graphique lisent le jeu entier (#1111) ;
+      // une liste paginee qui lit DIRECTEMENT une source se contente d'une
+      // page, comme la liste guidee (#1141, `freeListConsumer`).
       for (const c of w.config.components) {
-        for (const id of freeComponentUpstreams(c)) add(id, jeuEntier);
+        for (const id of freeComponentUpstreams(c)) add(id, freeListConsumer(c, id) ?? jeuEntier);
       }
       continue;
     }
@@ -887,6 +899,46 @@ function collectSourceConsumers(
   }
   graph.delete('');
   return graph;
+}
+
+/**
+ * Attributs d'une liste libre qui supposent le jeu ENTIER dans le navigateur :
+ * recherche et filtres de colonnes locaux (ils ne verraient que la page
+ * chargee, compteurs faux — le composant desactive la recherche, #304),
+ * export CSV/HTML (une page au lieu du jeu), contexte et refine-on-click
+ * (filtrage client, meme regle que les blocs de filtres).
+ */
+export const LISTE_LIBRE_JEU_ENTIER: readonly string[] = [
+  'search',
+  'recherche',
+  'filters',
+  'filtres',
+  'export',
+  'context',
+  'refine-on-click',
+];
+
+/**
+ * Une `dsfr-data-list` de bloc libre (#1141) compte comme la liste guidee
+ * (ADR-109) quand elle lit l'id `upstream` par son `source=`, qu'elle pagine
+ * (`pagination` > 0) et qu'elle n'a aucun attribut qui suppose le jeu entier.
+ * Rend null sinon (le lecteur lit le jeu entier).
+ *
+ * Seul `serverPaginatedSources` tranche ensuite : l'id doit etre une SOURCE du
+ * document, a adaptateur, dont cette liste est l'unique lectrice. Une liste qui
+ * lit un pivot ou une agregation client ne pagine donc jamais cote serveur :
+ * le pivot, lui, lit le jeu entier — par nature, son resultat n'existe
+ * qu'apres chargement complet.
+ */
+function freeListConsumer(c: FreeComponentSpec, upstream: string): SourceConsumer | null {
+  if (c.tag !== 'dsfr-data-list') return null;
+  const valeur = (nom: string): string | undefined =>
+    c.attributes.find((a) => a.name === nom)?.value;
+  if (valeur('source') !== upstream) return null;
+  const pagination = Number(valeur('pagination') ?? '0');
+  if (!Number.isInteger(pagination) || pagination <= 0) return null;
+  if (c.attributes.some((a) => LISTE_LIBRE_JEU_ENTIER.includes(a.name))) return null;
+  return { need: 'liste-paginee', pageSize: pagination };
 }
 
 /**
@@ -1028,7 +1080,7 @@ function effectiveSourceConsumers(dashboard: DashboardData): Map<string, SourceC
  * `truncated` (#658). Suivi a part. Les graphiques agreges, eux, ont leur
  * source dediee (#765) et font calculer l'agregat par le serveur.
  */
-function serverPaginatedSources(dashboard: DashboardData): Map<string, number> {
+export function serverPaginatedSources(dashboard: DashboardData): Map<string, number> {
   const paginated = new Map<string, number>();
   const graph = effectiveSourceConsumers(dashboard);
   const byId = new Map(dashboard.sources.map((s) => [s.id, s]));

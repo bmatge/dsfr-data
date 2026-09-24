@@ -100,7 +100,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Champs a convertir en nombre (virgule-séparés). Ex: "population, surface" */
+  /**
+   * Champs a convertir en nombre (virgule-séparés). Ex: "population, surface"
+   * @champ liste
+   */
   @property({ type: String })
   numeric = '';
 
@@ -111,6 +114,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   /**
    * Renommage de clés. Format : "ancien:nouveau | ancien2:nouveau2".
    * Un `:` ou `|` littéral dans un nom s'échappe en percent (`%3A`, `%7C`), comme dans `where`.
+   * @champ pipe-alias
    */
   @property({ type: String })
   rename = '';
@@ -149,11 +153,15 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * de la source, élément par élément ; pas sur un tableau fabriqué par `split`, découpé après
    * (#774, même limite que `replace`).
    * Pas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).
+   * @champ pipe-alias
    */
   @property({ type: String, attribute: 'replace-fields' })
   replaceFields = '';
 
-  /** Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (ex: "data.attributes"). */
+  /**
+   * Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (ex: "data.attributes").
+   * @champ chemin
+   */
   @property({ type: String })
   flatten = '';
 
@@ -165,6 +173,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * donne un tableau vide. Les valeurs non-string (tableau déjà forme, null,
    * nombre) sont laissées telles quelles. Les composants aval traitent ces
    * tableaux comme des champs multi-valeurs (facettes : une valeur par élément).
+   * @champ liste-alias
    */
   @property({ type: String })
   split = '';
@@ -191,7 +200,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
   @property({ type: Boolean, attribute: 'fold-drop' })
   foldDrop = false;
 
-  /** Arrondit les champs numériques à l'entier (ou à N décimales). Format: "champ1, champ2" ou "champ1:2, champ2:0" */
+  /**
+   * Arrondit les champs numériques à l'entier (ou à N décimales). Format: "champ1, champ2" ou "champ1:2, champ2:0"
+   * @champ liste-alias
+   */
   @property({ type: String })
   round = '';
 

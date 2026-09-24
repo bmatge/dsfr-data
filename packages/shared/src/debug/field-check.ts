@@ -30,6 +30,7 @@ import type { Field } from '../ia/data-tools.js';
 import type { DataflowGraph, StageNode } from './graph.js';
 import { COLON_FILTER_OPERATORS } from '../query/filter-translator.js';
 import { unescapeColonValue } from '../utils/colon-escape.js';
+import { CHAMPS_DES_COMPOSANTS } from './field-attrs.generated.js';
 
 /**
  * Pourquoi un champ nommé ne rendra rien.
@@ -75,90 +76,73 @@ export interface FieldIssue {
  * - `expression` : grammaire d'agrégat du KPI (`value="population:sum"`,
  *   `value="count:statut:ouvert / count"`, `value="meta:total"`).
  */
-export type FieldAttrKind =
-  'nom' | 'liste' | 'liste-alias' | 'pipe-alias' | 'clauses' | 'paires' | 'chemin' | 'expression';
+export const FIELD_ATTR_KINDS = [
+  'nom',
+  'liste',
+  'liste-alias',
+  'pipe-alias',
+  'clauses',
+  'paires',
+  'chemin',
+  'expression',
+] as const;
+export type FieldAttrKind = (typeof FIELD_ATTR_KINDS)[number];
 
 /**
  * Inventaire des attributs qui désignent un champ des données, par balise.
  *
+ * GÉNÉRÉ depuis le JSDoc des composants (#1141) : tag `@champ <grammaire>`
+ * sur la propriété, relu dans le manifeste par `build:component-contract`
+ * (`field-attrs.generated.ts`). Un attribut ajouté à un composant avec son
+ * `@champ` est contrôlé ici, par le bloc libre du Studio, et figure au
+ * contrat des composants, sans autre geste.
+ *
  * `SHAPE_ATTRS` (graph.ts) est complété depuis cette table : un attribut
- * ajouté ici est automatiquement collecté par `snapshotGraph`, il n'y a pas
+ * marqué est automatiquement collecté par `snapshotGraph`, il n'y a pas
  * deux listes à tenir d'accord.
  *
- * Ce qui est volontairement ABSENT, et pourquoi :
- * - `dsfr-data-source` en entier : ses attributs (`where`, `group-by`,
- *   `select`…) nomment des champs du jeu DISTANT, avant tout aller-retour.
- *   Rien dans la trace ne peut les contredire.
- * - `order-by` et `aggregate` d'un `dsfr-data-query` : leurs noms peuvent
- *   désigner un alias d'agrégat (`total_pop`, `population__sum`) que l'entrée
- *   ne contient pas.
- * - `value-cols-pattern` (unpivot), `fold` (normalize) : des motifs à joker,
- *   pas des noms.
- * - `labels`, `display`, `cols`, `url-param-map` des facettes : des tables
- *   dont la forme change selon l'écriture (`cols="6"` est un nombre global).
+ * Ce qui n'est volontairement PAS marqué est listé, avec sa raison, dans
+ * `ATTRIBUTS_CHAMP_NON_MARQUES` — un test-garde exige que tout attribut du
+ * manifeste qui ressemble à un champ soit marqué ou y figure.
  */
-export const FIELD_ATTRS: Record<string, Record<string, FieldAttrKind>> = {
-  // --- Afficheurs (feuilles) ---
-  'dsfr-data-chart': {
-    'label-field': 'nom',
-    'value-field': 'nom',
-    'value-field-2': 'nom',
-    'value-fields': 'liste',
-    'series-field': 'nom',
-    'code-field': 'nom',
-    'databox-date-field': 'nom',
-  },
-  'dsfr-data-kpi': {
-    value: 'expression',
-    valeur: 'expression',
-    trend: 'expression',
-    tendance: 'expression',
-    where: 'clauses',
-  },
-  'dsfr-data-list': {
-    columns: 'liste-alias',
-    colonnes: 'liste-alias',
-    filters: 'liste',
-    filtres: 'liste',
-    sort: 'liste-alias',
-    tri: 'liste-alias',
-  },
-  'dsfr-data-display': { 'uid-field': 'nom' },
-  'dsfr-data-podium': {
-    'label-field': 'nom',
-    'value-field': 'nom',
-    'subtitle-field': 'nom',
-  },
-  'dsfr-data-a11y': { 'label-field': 'nom', 'value-field': 'nom' },
-  'dsfr-data-map-layer': {
-    'lat-field': 'nom',
-    'lon-field': 'nom',
-    'geo-field': 'nom',
-    'popup-fields': 'liste',
-    'tooltip-field': 'nom',
-    'color-field': 'nom',
-    'fill-field': 'nom',
-    'radius-field': 'nom',
-    'heat-field': 'nom',
-    'bbox-field': 'nom',
-    'time-field': 'nom',
-  },
+export const FIELD_ATTRS: Record<string, Record<string, FieldAttrKind>> = CHAMPS_DES_COMPOSANTS;
 
-  // --- Transformateurs (tuyaux) ---
-  'dsfr-data-query': { where: 'clauses', filter: 'clauses', 'group-by': 'liste' },
-  'dsfr-data-join': { on: 'paires' },
-  'dsfr-data-pivot': { row: 'liste', column: 'nom', value: 'nom' },
-  'dsfr-data-unpivot': { 'id-cols': 'liste', 'value-cols': 'liste-alias' },
-  'dsfr-data-normalize': {
-    numeric: 'liste',
-    round: 'liste-alias',
-    split: 'liste-alias',
-    rename: 'pipe-alias',
-    'replace-fields': 'pipe-alias',
-    flatten: 'chemin',
-  },
-  'dsfr-data-facets': { fields: 'liste', disjunctive: 'liste', searchable: 'liste' },
-  'dsfr-data-search': { fields: 'liste' },
+/**
+ * Attributs qui ont l'air de désigner un champ et ne sont PAS marqués
+ * `@champ`, avec la raison. Clé : `balise attribut`.
+ *
+ * Règle commune : on ne marque que ce qui nomme un champ de l'ENTRÉE du
+ * composant, sans ambiguïté — un marquage faux ferait refuser au Studio un
+ * bloc correct.
+ */
+export const ATTRIBUTS_CHAMP_NON_MARQUES: Readonly<Record<string, string>> = {
+  'dsfr-data-source where':
+    'nomme un champ du jeu DISTANT, avant tout aller-retour : rien dans la trace ne peut le contredire',
+  'dsfr-data-source select': 'jeu distant (et expressions ODS)',
+  'dsfr-data-source group-by': 'jeu distant (et expressions ODS)',
+  'dsfr-data-source aggregate': 'jeu distant, grammaire propre au fournisseur',
+  'dsfr-data-source order-by': 'jeu distant, peut viser un alias d’agrégat',
+  'dsfr-data-query aggregate':
+    'peut nommer l’alias produit par l’agrégation elle-même (`total_pop`), absent de l’entrée',
+  'dsfr-data-query order-by':
+    'peut viser un alias d’agrégat (`population__sum`), absent de l’entrée',
+  'dsfr-data-concat origin-field': 'CRÉE une colonne, n’en lit aucune',
+  'dsfr-data-concat origin-labels': 'ids de sources et libellés, pas des champs',
+  'dsfr-data-unpivot value-cols-pattern': 'motif à jokers `{TOKEN}`, pas un nom',
+  'dsfr-data-unpivot var-name': 'nom de la colonne CRÉÉE',
+  'dsfr-data-unpivot value-name': 'nom de la colonne CRÉÉE',
+  'dsfr-data-normalize fold': 'motif de colonnes booléennes, pas un nom',
+  'dsfr-data-pivot labels': 'libellés des VALEURS du pivot, pas des champs',
+  'dsfr-data-pivot aggregate': 'fonction de réduction (`sum`, `count`…), pas un champ',
+  'dsfr-data-facets labels':
+    'table `champ:libellé` dont la forme change selon l’écriture ; le champ est déjà dans `fields`',
+  'dsfr-data-facets value-labels': 'libellés des VALEURS d’une facette',
+  'dsfr-data-facets display': 'table `champ:mode` ; le champ est déjà dans `fields`',
+  'dsfr-data-facets cols': '`cols="6"` est un nombre global, ou une table par facette',
+  'dsfr-data-facets sort': 'critère de tri des valeurs (`count:desc`), pas un champ',
+  'dsfr-data-context-filter field':
+    'colonne des SOURCES ciblées telle que l’API la connaît (filtre poussé au serveur)',
+  'dsfr-data-context-value field': 'champ du CONTEXTE (filtre courant), pas d’une ligne de données',
 };
 
 /**

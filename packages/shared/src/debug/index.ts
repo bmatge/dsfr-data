@@ -41,6 +41,8 @@ export type { StageRole, StageNode, DataflowGraph, ComputedColumn } from './grap
 
 export {
   FIELD_ATTRS,
+  FIELD_ATTR_KINDS,
+  ATTRIBUTS_CHAMP_NON_MARQUES,
   fieldsInAttr,
   referencedFields,
   checkNodeFields,

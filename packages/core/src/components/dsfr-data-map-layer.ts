@@ -133,15 +133,24 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: String })
   type: 'marker' | 'geoshape' | 'circle' | 'heatmap' = 'marker';
 
-  /** Chemin vers le champ latitude (mode coordonnées séparées). */
+  /**
+   * Chemin vers le champ latitude (mode coordonnées séparées).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'lat-field' })
   latField = '';
 
-  /** Chemin vers le champ longitude (mode coordonnées séparées). */
+  /**
+   * Chemin vers le champ longitude (mode coordonnées séparées).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'lon-field' })
   lonField = '';
 
-  /** Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053). */
+  /**
+   * Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'geo-field' })
   geoField = '';
 
@@ -182,6 +191,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
    * sans valeur de regroupement reste un élément à part. Sans effet sur
    * `heatmap` (chaque ligne reste un point de chaleur, avertissement en
    * console).
+   * @champ nom
    */
   @property({ type: String, attribute: 'group-field' })
   groupField = '';
@@ -219,11 +229,17 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: String, attribute: 'popup-template' })
   popupTemplate = '';
 
-  /** Champs a presenter en tableau automatique dans la popup. Ex: `"nom,adresse"`. */
+  /**
+   * Champs a presenter en tableau automatique dans la popup. Ex: `"nom,adresse"`.
+   * @champ liste
+   */
   @property({ type: String, attribute: 'popup-fields' })
   popupFields = '';
 
-  /** Champ affiché au survol de l'élément. */
+  /**
+   * Champ affiché au survol de l'élément.
+   * @champ nom
+   */
   @property({ type: String, attribute: 'tooltip-field' })
   tooltipField = '';
 
@@ -231,7 +247,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: String })
   color = '#000091';
 
-  /** Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). */
+  /**
+   * Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'color-field' })
   colorField = '';
 
@@ -245,6 +264,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
    * `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ;
    * `color-field` / `color` donnent alors le contour, et la légende décrit les
    * classes. Sans effet sur `marker` et `heatmap`.
+   * @champ nom
    */
   @property({ type: String, attribute: 'fill-field' })
   fillField = '';
@@ -273,7 +293,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: Number })
   radius = 8;
 
-  /** Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`). */
+  /**
+   * Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'radius-field' })
   radiusField = '';
 
@@ -299,7 +322,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: Number, attribute: 'heat-blur' })
   heatBlur = 15;
 
-  /** Champ de ponderation des points de la heatmap. */
+  /**
+   * Champ de ponderation des points de la heatmap.
+   * @champ nom
+   */
   @property({ type: String, attribute: 'heat-field' })
   heatField = '';
 
@@ -337,13 +363,19 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   @property({ type: Number, attribute: 'bbox-debounce' })
   bboxDebounce = 300;
 
-  /** Champ géographique utilisé pour la requête bbox (auto-détecté si vide). */
+  /**
+   * Champ géographique utilisé pour la requête bbox (auto-détecté si vide).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'bbox-field' })
   bboxField = '';
 
   // --- Timeline ---
 
-  /** Champ date/heure activant l'animation temporelle (pilotee par `<dsfr-data-map-timeline>`). */
+  /**
+   * Champ date/heure activant l'animation temporelle (pilotee par `<dsfr-data-map-timeline>`).
+   * @champ nom
+   */
   @property({ type: String, attribute: 'time-field' })
   timeField = '';
 

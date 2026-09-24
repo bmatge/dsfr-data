@@ -9,6 +9,7 @@ mcp-server/
 packages/shared/src/skills/skills-reference.generated.ts
 packages/core/custom-elements.json
 mcp-server/src/skill-matching.generated.ts
+packages/shared/src/debug/field-attrs.generated.ts
 # Registres de reperes (npm run build:reperes, compares par check:reperes)
 apps/*/src/assistant/reperes.generated.ts
 **/*.html

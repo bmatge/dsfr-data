@@ -237,9 +237,16 @@ const DUPLICATE_MESSAGE = 'Déjà fourni ci-dessus. Passe aux actions de documen
 
 export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoopResult> {
   const { document: doc, post, model, onProgress, onDocumentChange } = opts;
-  const ctx: DocumentContext = { data: opts.data, fields: opts.fields, sourceId: opts.sourceId };
-
   const diagnostic = opts.diagnostic;
+  const ctx: DocumentContext = {
+    data: opts.data,
+    fields: opts.fields,
+    sourceId: opts.sourceId,
+    // Les champs de sortie des etapes deja calculees par l'apercu (#1141) :
+    // un bloc libre qui lit un pivot est controle contre ce qu'il a produit.
+    trace: diagnostic ? () => diagnostic.attachment()?.snapshot() ?? null : undefined,
+  };
+
   const generatedCode = opts.generatedCode;
   const sourceParUrl = opts.sourceParUrl;
   const tools = [

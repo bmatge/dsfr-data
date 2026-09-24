@@ -135,6 +135,7 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
    * Une clé qui subsiste garde ses nœuds et ses instances ; vide, la clé est le rang.
    * Clé nulle ou vide sur une ligne : le rang, sans erreur. Clé en double : erreur de
    * configuration nommant la clé, et le rang pour les doublons.
+   * @champ nom
    */
   @property({ type: String, attribute: 'key-field' })
   keyField = '';

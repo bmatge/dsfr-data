@@ -15,14 +15,18 @@
 import {
   CHART_CONFIG_SCHEMA,
   CHART_CONFIG_TYPES,
+  LISTE_LIBRE_JEU_ENTIER,
   MAP_LAYER_TYPES,
   MAP_POPUP_MODES,
   diagnoseConfig,
+  serverPaginatedSources,
 } from '@dsfr-data/shared';
 import {
   FREE_COMPONENT_SCHEMA,
   MAX_COMPOSANTS,
+  composantsDuDocument,
   idsDuDocument,
+  observationsDeTrace,
   validerComposantsLibres,
 } from './composant-libre.js';
 import type {
@@ -35,6 +39,7 @@ import type {
   Row,
   Source,
   TextStyle,
+  Trace,
   Widget,
 } from '@dsfr-data/shared';
 
@@ -77,6 +82,12 @@ export interface DocumentContext {
   fields: Field[];
   /** Id de la source du dashboard a associer aux blocs data. */
   sourceId: string;
+  /**
+   * Derniere trace de l'apercu (volet Diagnostic, #1141) : les champs de
+   * sortie des etapes deja calculees, pour controler un bloc libre qui lit un
+   * pivot ou une agregation. Absente : seule la source chargee est connue.
+   */
+  trace?: () => Trace | null;
 }
 
 /** Chaines contenues dans une valeur, a toute profondeur. */
@@ -486,11 +497,20 @@ function buildMapWidget(
 function buildComponentWidget(
   id: string,
   spec: BlockSpec,
-  doc: DashboardData
+  doc: DashboardData,
+  ctx: DocumentContext
 ): { widget?: Widget; error?: string; notes?: string[] } {
-  const { components, error, avertissements } = validerComposantsLibres(spec.components, {
-    idsExternes: idsDuDocument(doc, id),
-  });
+  const champs = champsDeLaSource(ctx);
+  const { components, error, avertissements, nonVerifies } = validerComposantsLibres(
+    spec.components,
+    {
+      idsExternes: idsDuDocument(doc, id),
+      champsDesSources: ctx.sourceId && champs.length > 0 ? { [ctx.sourceId]: champs } : {},
+      composantsExternes: composantsDuDocument(doc, id),
+      observations: ctx.trace ? observationsDeTrace(ctx.trace()) : undefined,
+      peutTracer: ctx.trace !== undefined,
+    }
+  );
   if (error || !components) return { error };
   return {
     widget: {
@@ -500,8 +520,64 @@ function buildComponentWidget(
       position: { row: 0, col: 0 },
       config: { components },
     },
-    notes: avertissements,
+    notes: [...(avertissements ?? []), ...(nonVerifies ? [nonVerifies] : [])],
   };
+}
+
+/**
+ * Champs de la source chargee : les cles de TOUTES ses lignes (un jeu creux
+ * n'a pas toutes ses cles sur la premiere), plus les champs analyses.
+ */
+function champsDeLaSource(ctx: DocumentContext): string[] {
+  const vus = new Set(ctx.fields.map((f) => f.name));
+  for (const ligne of ctx.data) {
+    if (ligne && typeof ligne === 'object') for (const cle of Object.keys(ligne)) vus.add(cle);
+  }
+  return [...vus];
+}
+
+/**
+ * Strategie de chargement des listes d'un bloc libre, dite au modele (#1141,
+ * ADR-109) : la regle est celle de l'export (`serverPaginatedSources`), calculee
+ * sur le document tel qu'il est apres l'action.
+ */
+export function notesPagination(doc: DashboardData, widget: Widget): string[] {
+  if (widget.type !== 'component') return [];
+  const sources = new Set(doc.sources.map((s) => s.id));
+  const paginees = serverPaginatedSources(doc);
+  const notes: string[] = [];
+  for (const c of widget.config.components) {
+    if (c.tag !== 'dsfr-data-list') continue;
+    const valeur = (nom: string): string | undefined =>
+      c.attributes.find((a) => a.name === nom)?.value;
+    const source = valeur('source') ?? '';
+    if (!source) continue;
+    if (!sources.has(source)) {
+      notes.push(
+        `<dsfr-data-list> lit #${source}, calculé dans le navigateur : pagination serveur impossible par nature, la source amont est chargée entièrement.`
+      );
+      continue;
+    }
+    const pagination = Number(valeur('pagination') ?? '0');
+    if (!Number.isInteger(pagination) || pagination <= 0) continue;
+    const bloquants = c.attributes
+      .map((a) => a.name)
+      .filter((n) => LISTE_LIBRE_JEU_ENTIER.includes(n));
+    if (paginees.has(source)) {
+      notes.push(
+        `<dsfr-data-list> lit directement #${source} : pagination serveur (${paginees.get(source)} lignes par page), la source ne charge qu'une page à la fois.`
+      );
+    } else if (bloquants.length > 0) {
+      notes.push(
+        `<dsfr-data-list> sur #${source} : jeu entier chargé, ${bloquants.join(', ')} suppose toutes les lignes (sans eux, la pagination serait serveur).`
+      );
+    } else {
+      notes.push(
+        `<dsfr-data-list> sur #${source} : jeu entier chargé — la source est lue par d'autres blocs, ou n'a pas de pagination serveur (données embarquées).`
+      );
+    }
+  }
+  return notes;
 }
 
 // ---------------------------------------------------------------------------
@@ -536,7 +612,7 @@ export function addBlocks(
         built = buildMapWidget(id, spec, ctx);
         break;
       case 'component':
-        built = buildComponentWidget(id, spec, doc);
+        built = buildComponentWidget(id, spec, doc, ctx);
         break;
       default:
         built = { error: `kind "${String(spec.kind)}" inconnu (${BLOCK_KINDS.join(' | ')}).` };
@@ -545,6 +621,7 @@ export function addBlocks(
       placeWidget(doc, built.widget, spec.width ?? defaultWidth(spec));
       lines.push(`+ ${id} (${spec.kind}) « ${built.widget.title} » ajouté.`);
       for (const note of built.notes ?? []) lines.push(`  attention : ${note}`);
+      for (const note of notesPagination(doc, built.widget)) lines.push(`  chargement : ${note}`);
       ok = true;
     } else {
       lines.push(`✗ bloc ${spec.kind} refusé : ${built.error}`);
@@ -567,6 +644,7 @@ export function updateBlock(
   }
   const widget = doc.widgets[idx];
   if (patch.title) widget.title = patch.title;
+  const notes: string[] = [];
 
   switch (widget.type) {
     case 'text': {
@@ -611,17 +689,21 @@ export function updateBlock(
         const built = buildComponentWidget(
           widget.id,
           { kind: 'component', components: patch.components },
-          doc
+          doc,
+          ctx
         );
         if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
         widget.config = built.widget.type === 'component' ? built.widget.config : widget.config;
+        for (const note of built.notes ?? []) notes.push(`  attention : ${note}`);
+        for (const note of notesPagination(doc, widget)) notes.push(`  chargement : ${note}`);
       }
       break;
     }
     default:
       break;
   }
-  return { ok: true, summary: `~ ${blockId} mis à jour.\n${describeDocument(doc)}` };
+  const suite = notes.length > 0 ? `\n${notes.join('\n')}` : '';
+  return { ok: true, summary: `~ ${blockId} mis à jour.${suite}\n${describeDocument(doc)}` };
 }
 
 /** Supprime un bloc et compacte les lignes vides. */

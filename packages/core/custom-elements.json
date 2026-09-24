@@ -560,7 +560,8 @@
               },
               "default": "''",
               "description": "Colonne utilisée pour les labels du tableau.",
-              "fieldName": "labelField"
+              "fieldName": "labelField",
+              "champ": "nom"
             },
             {
               "name": "value-field",
@@ -569,7 +570,8 @@
               },
               "default": "''",
               "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).",
-              "fieldName": "valueField"
+              "fieldName": "valueField",
+              "champ": "liste"
             },
             {
               "name": "empty-label",
@@ -587,7 +589,8 @@
               },
               "default": "''",
               "description": "Champ « clé de série » d'un jeu au format long/tidy — typiquement\nl'`origin-field` d'un `dsfr-data-concat` (#807), ou le champ que\n`dsfr-data-chart series-field` consomme déjà côté graphique (#930).\n\nPosé, le tableau équivalent PIVOTE : une ligne par valeur de\n`label-field`, une colonne par valeur distincte de ce champ (dans leur\nordre d'apparition), au lieu d'une ligne par couple (libellé, série)\nsans colonne disant de quelle série la valeur provient. Le CSV\ntéléchargé suit la même structure.\n\nExige `label-field` ET `value-field` : sans eux on ne sait pas quelle\ncolonne porte la mesure. Le manque est signalé\n(`data-dsfr-config-error`) et le tableau retombe sur le rendu à plat,\njamais un pivot silencieusement faux. Seul le PREMIER champ de\n`value-field` est pivoté.\n\nUn couple (libellé, série) absent des données rend une cellule vide :\n`dsfr-data-chart` y trace 0, le tableau ne l'affirme pas.\n\nAbsent (défaut), le rendu est inchangé. La valeur n'est PAS reprise du\ngraphique visé par `for`.",
-              "fieldName": "seriesField"
+              "fieldName": "seriesField",
+              "champ": "nom"
             },
             {
               "name": "label",
@@ -2348,7 +2351,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ label",
-              "fieldName": "labelField"
+              "fieldName": "labelField",
+              "champ": "nom"
             },
             {
               "name": "empty-label",
@@ -2372,7 +2376,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ code (prioritaire sur label-field) : departement/region\n(map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)",
-              "fieldName": "codeField"
+              "fieldName": "codeField",
+              "champ": "nom"
             },
             {
               "name": "value-field",
@@ -2381,7 +2386,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) :\n`value-field=\"Panier_moyen:Panier moyen\"` affiche « Panier moyen » dans la\nlégende à la place du nom technique. Un `name` explicite prime sur l'alias.\nUn `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue).",
-              "fieldName": "valueField"
+              "fieldName": "valueField",
+              "champ": "liste-alias"
             },
             {
               "name": "value-field-2",
@@ -2390,7 +2396,8 @@
               },
               "default": "''",
               "description": "Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668).",
-              "fieldName": "valueField2"
+              "fieldName": "valueField2",
+              "champ": "liste-alias"
             },
             {
               "name": "value-fields",
@@ -2399,7 +2406,8 @@
               },
               "default": "''",
               "description": "Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score').\nAlias inline `champ:Libellé` par série (#668) : `value-fields=\"budget:Budget, score:Score\"`.\nUn `name` explicite (tableau JSON) prime sur les alias.",
-              "fieldName": "valueFields"
+              "fieldName": "valueFields",
+              "champ": "liste-alias"
             },
             {
               "name": "series-field",
@@ -2408,7 +2416,8 @@
               },
               "default": "''",
               "description": "Champ \"clé de série\" pour des données au format long/tidy : ses valeurs\ndistinctes deviennent autant de series (mode multi-series sans colonnes multiples).\nEx: données {mois, groupe, valeur} avec series-field=\"groupe\" → une série par groupe.\nS'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields.",
-              "fieldName": "seriesField"
+              "fieldName": "seriesField",
+              "champ": "nom"
             },
             {
               "name": "name",
@@ -2570,7 +2579,8 @@
               },
               "default": "''",
               "description": "Colonne sur laquelle le résumé d'une carte est CALCULÉ, quand elle n'est\npas celle qu'on affiche (#929). Sans l'attribut le résumé porte sur\n`value-field` ; avec, `value-field` ne sert plus qu'au tracé et à\nl'infobulle. C'est la réponse au piège de composition d'un arrondi amont :\n`compute=\"taux_aff = round(taux, 1)\"`, puis `value-field=\"taux_aff\"\nmap-summary-field=\"taux\"`. Vaut pour les trois calculs (`sum`, `avg`,\n`weighted`), sans effet sous `map-summary-value` ou `map-summary=\"none\"`.\nUn champ qu'aucune ligne dessinée ne porte en numérique est une erreur de\nconfiguration nommée : aucun résumé, jamais un repli silencieux sur la\ncolonne affichée — qui serait le chiffre faux que l'attribut évite.\n\n**Attribut absent : rien ne change.**",
-              "fieldName": "mapSummaryField"
+              "fieldName": "mapSummaryField",
+              "champ": "nom"
             },
             {
               "name": "map-summary",
@@ -2633,7 +2643,8 @@
               },
               "default": "''",
               "description": "Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO\n(`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date\nde la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date`\nest posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.",
-              "fieldName": "databoxDateField"
+              "fieldName": "databoxDateField",
+              "champ": "nom"
             },
             {
               "name": "databox-download",
@@ -5218,7 +5229,8 @@
               },
               "default": "''",
               "description": "Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index",
-              "fieldName": "uidField"
+              "fieldName": "uidField",
+              "champ": "nom"
             },
             {
               "name": "url-sync",
@@ -7327,7 +7339,8 @@
               },
               "default": "''",
               "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)",
-              "fieldName": "fields"
+              "fieldName": "fields",
+              "champ": "liste"
             },
             {
               "name": "labels",
@@ -7372,7 +7385,8 @@
               },
               "default": "''",
               "description": "Champs en mode multi-sélection OU (virgule-séparés)",
-              "fieldName": "disjunctive"
+              "fieldName": "disjunctive",
+              "champ": "liste"
             },
             {
               "name": "sort",
@@ -7390,7 +7404,8 @@
               },
               "default": "''",
               "description": "Champs avec barre de recherche (virgule-séparés)",
-              "fieldName": "searchable"
+              "fieldName": "searchable",
+              "champ": "liste"
             },
             {
               "name": "hide-empty",
@@ -7471,7 +7486,8 @@
               },
               "default": "''",
               "description": "Champ numérique dont la SOMME remplace le nombre de lignes dans les\ncompteurs (#739). Sur une table de mesures, « 1 240 » relevés ne dit rien\nau lecteur : `weight-field=\"effectif\"` annonce la somme des effectifs.\nLe tri `count` porte alors sur cette somme.\n\nCLIENT UNIQUEMENT, et c'est assume : en mode `server-facets`, la reponse\nde l'API facettes ne porte qu'un nombre de lignes, jamais la somme d'une\nmesure. Plutot qu'afficher un nombre de lignes sous un libellé de somme,\nles compteurs y sont MASQUÉS, une erreur de configuration est posee\n(console + `data-dsfr-config-error`) et un avertissement DSFR est rendu\nau-dessus des facettes. Meme chose en `static-values`, ou les compteurs\nsont déjà masques faute de données.\n\nUne valeur non numérique compte pour zero ; si le champ est absent de\ntoutes les lignes, un avertissement console le signale.",
-              "fieldName": "weightField"
+              "fieldName": "weightField",
+              "champ": "nom"
             },
             {
               "name": "cols",
@@ -7961,7 +7977,8 @@
               },
               "default": "''",
               "description": "Clé(s) de jointure.\n- Clé commune : on=\"code_dept\"\n- Clé différente : on=\"dept_code=code\" (gauche=droite)\n- Multi-clé : on=\"annee,code_region\"",
-              "fieldName": "on"
+              "fieldName": "on",
+              "champ": "paires"
             },
             {
               "name": "type",
@@ -8967,7 +8984,8 @@
               },
               "default": "''",
               "description": "Expression de valeur — convention cible anglaise (#300).\nGrammaire commune \"champ:fn\" (#303), ex. value=\"population:sum\".\n`champ:distinct` (alias `count-distinct`, #672) : nombre de valeurs\ndistinctes, null et chaîne vide exclus, calculé sur les lignes reçues.\n`meta:total` (#659) : total publié par l'amont (total serveur en\nserver-side, lignes avant `limit` derrière un query) — `count` ne\ncompte que les lignes reçues. Total inconnu de l'amont (page serveur\nou lot tronqué sans total, #1046) : « — ».\nRatio (#673) : `value=\"count:statut:ouvert / count\"`, chaque côté dans\nla grammaire ci-dessus (`meta:total` compris). Résultat = fraction\n(0,35) ; `format=\"pourcentage\"` la rend en pourcentage (35 %) — les\nseuils s'expriment alors en pourcentage aussi. Division par zéro : « — ».\n`count:champ:valeur` accepte un champ tableau (un élément égal suffit).\nDepuis #953, le `where` ci-dessous et le filtre entre accolades\n`count{tags:eq:urgent}` font PAREIL : `value=\"count:tags:urgent\"` et\n`value=\"count{tags:eq:urgent}\"` rendent le MÊME chiffre. L'asymétrie de\n#842 — deux chiffres sur le même jeu, et c'était « voulu » — a disparu :\nl'égalité client est alignée sur celle du portail, qui lit déjà `=` sur\nun champ multivalué comme un « contient » (mesuré le 2026-09-19).\nSeul `count` accepte une valeur de filtre : `sum:champ:valeur` est une\nerreur de configuration (#764).\nFiltre propre à une expression (#776), dialecte du `where` entre\naccolades : `value=\"effectif:sum{sexe:eq:F} / effectif:sum\"` rend une\npart de SOMMES — le filtre ne vaut que pour son côté du ratio, là où\n`where` filtre les deux. Marche aussi pour `count{…}` et les autres\nfonctions ; un filtre non reconnu est une erreur de configuration. Le\ncontenu des accolades est lu d'un bloc : une valeur qui contient ` / `\nne coupe pas le ratio (#839).\n`champ:first` / `champ:last` : valeur du champ sur la première / la\ndernière ligne, DANS L'ORDRE COURANT — poser un `order-by` en amont\n(ex. dernière valeur d'une série datée). Propres au KPI : absentes de\nl'`aggregate` de `dsfr-data-query`.\n`champ:evolution` (#675) : (dernière − première) / première sur les\nlignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en\namont. Fraction, rendue en pourcentage par `format=\"pourcentage\"`,\n`trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.",
-              "fieldName": "value"
+              "fieldName": "value",
+              "champ": "expression"
             },
             {
               "name": "valeur",
@@ -8976,7 +8994,8 @@
               },
               "default": "''",
               "deprecated": "alias français de `value` (#300)",
-              "fieldName": "valeur"
+              "fieldName": "valeur",
+              "champ": "expression"
             },
             {
               "name": "where",
@@ -8985,7 +9004,8 @@
               },
               "default": "''",
               "description": "Filtre des lignes AVANT le calcul (#674), dialecte colon de\ndsfr-data-query : `where=\"categorie:eq:Actif, montant:gte:1000\"` —\nmêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,\nin, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués\nacceptés. Appliqué à `value`, `trend` et `lines`.\nCÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre\nporte sur les lignes reçues (derrière un `limit` ou une page, poser le\n`where` sur la source ou une query amont). `meta:total` n'en tient pas\ncompte. Une clause non reconnue est une erreur de configuration.\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `in` regardent DANS le tableau.\n`where=\"tags:eq:urgent\"` retient une ligne dont `tags` vaut\n`['urgent','social']`, exactement comme `value=\"count:tags:urgent\"` la\ncompte, et comme le portail la retiendrait sur une clause déléguée. Le\nrepli textuel est gardé en OU : `['a','b']` matche encore `'a,b'` côté\nclient, là où le portail rend 0 — le client ne peut donc que gagner des\nlignes, jamais en perdre. `neq` / `notin`, étant la négation, en perdent\n(le portail aussi : son `!=` est la négation stricte de son `=`).\n⚠️ Le KPI ne délègue jamais : son `where` évalue toujours la voie client.\nDepuis l'alignement, c'est sans conséquence sur un champ tableau — un KPI\net un graphique portant le même `where` rendent le même chiffre, au repli\ntextuel près. Le booléen dérivé en amont (`dsfr-data-normalize`\n`compute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"`, puis\n`where=\"a_urgent:eq:1\"`) reste valide et garde un intérêt — le filtre\nfinal porte sur un scalaire, donc regroupable et délégable — mais il\nn'est plus NÉCESSAIRE.",
-              "fieldName": "where"
+              "fieldName": "where",
+              "champ": "clauses"
             },
             {
               "name": "heading",
@@ -9057,7 +9077,8 @@
               },
               "default": "''",
               "description": "Même chose que `picto`, mais le nom est lu dans un CHAMP de la première\nligne reçue (`picto-field=\"theme_picto\"`) — utile dans un répéteur. Même\nmotif, même refus. `picto` prime s'il est posé.",
-              "fieldName": "pictoField"
+              "fieldName": "pictoField",
+              "champ": "nom"
             },
             {
               "name": "picto-base",
@@ -9164,7 +9185,8 @@
               },
               "default": "''",
               "description": "RACCOURCI HERITE — pour une ligne d'evolution riche (signe, suffixe,\ncouleur, repli n.d.), preferez `lines`. Conserve pour compatibilite.\n\nExpression d'agrégation pour la tendance, évaluée sur les données de la\nsource (grammaire commune \"champ:fn\", ex. \"evolution:avg\") — PAS un\nlitteral : l'ancienne doc (\"+3.2\") laissait croire qu'on passait une\nvaleur, la chaîne etait interpretee comme nom de champ (#303).\nRendue avec une fleche (↑/↓) en pourcentage fr-FR (\"↑ 5,2 %\").\n`trend=\"recettes:evolution\"` (#675) : taux d'évolution entre la première\net la dernière ligne, rendu en pourcentage.",
-              "fieldName": "trend"
+              "fieldName": "trend",
+              "champ": "expression"
             },
             {
               "name": "tendance",
@@ -9173,7 +9195,8 @@
               },
               "default": "''",
               "deprecated": "alias français de `trend` (#300)",
-              "fieldName": "tendance"
+              "fieldName": "tendance",
+              "champ": "expression"
             },
             {
               "name": "lines",
@@ -10255,7 +10278,8 @@
               },
               "default": "''",
               "description": "Définition des colonnes : `\"clé:Label, cle2:Label2\"`. Omis : toutes les clés\nprésentes dans les données deviennent colonnes, dans leur ordre d'apparition,\nlibellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255).",
-              "fieldName": "columns"
+              "fieldName": "columns",
+              "champ": "liste-alias"
             },
             {
               "name": "columns-auto",
@@ -10273,7 +10297,8 @@
               },
               "default": "''",
               "deprecated": "alias français de `columns` (#300)",
-              "fieldName": "colonnes"
+              "fieldName": "colonnes",
+              "champ": "liste-alias"
             },
             {
               "name": "search",
@@ -10300,7 +10325,8 @@
               },
               "default": "''",
               "description": "Colonnes filtrables: \"ministere,statut\"",
-              "fieldName": "filters"
+              "fieldName": "filters",
+              "champ": "liste"
             },
             {
               "name": "filtres",
@@ -10309,7 +10335,8 @@
               },
               "default": "''",
               "deprecated": "alias français de `filters` (#300)",
-              "fieldName": "filtres"
+              "fieldName": "filtres",
+              "champ": "liste"
             },
             {
               "name": "sort",
@@ -10318,7 +10345,8 @@
               },
               "default": "''",
               "description": "Tri par défaut: \"score:desc\"",
-              "fieldName": "sort"
+              "fieldName": "sort",
+              "champ": "liste-alias"
             },
             {
               "name": "tri",
@@ -10327,7 +10355,8 @@
               },
               "default": "''",
               "deprecated": "alias français de `sort` (#300)",
-              "fieldName": "tri"
+              "fieldName": "tri",
+              "champ": "liste-alias"
             },
             {
               "name": "pagination",
@@ -12442,7 +12471,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ latitude (mode coordonnées séparées).",
-              "fieldName": "latField"
+              "fieldName": "latField",
+              "champ": "nom"
             },
             {
               "name": "lon-field",
@@ -12451,7 +12481,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ longitude (mode coordonnées séparées).",
-              "fieldName": "lonField"
+              "fieldName": "lonField",
+              "champ": "nom"
             },
             {
               "name": "geo-field",
@@ -12460,7 +12491,8 @@
               },
               "default": "''",
               "description": "Champ geometrie : objet GeoJSON, {lat, lon}, [lat, lon] ou chaîne JSON serialisee (#426). Vide sur une couche `geoshape` : la première colonne `geo_shape`, `geometry` ou `geom` qui porte du GeoJSON est détectée, et nommée dans l'avertissement des lignes ignorées (#1053).",
-              "fieldName": "geoField"
+              "fieldName": "geoField",
+              "champ": "nom"
             },
             {
               "name": "shape-class",
@@ -12496,7 +12528,8 @@
               },
               "default": "''",
               "description": "Regroupement (#1108) : un seul élément tracé par valeur distincte de ce\nchamp — données au format LONG, une ligne par couple ville × aide avec\nles coordonnées répétées. Au clic, la popup, le volet ou la modale\nreçoivent TOUTES les lignes du groupe : titre = valeur du groupe (ou\n`title-field` du dsfr-data-map-popup), puis un tableau des `popup-fields`\navec une ligne par enregistrement ; `popup-template` (ou le `<template>`\ndu compagnon) s'applique alors à chaque ligne, en liste. Au plus 200\nlignes rendues, « … et N autres » au-delà.\n\nPosition, `tooltip-field`, `color-field`, `radius-field`, `fill-field` :\nceux du PREMIER enregistrement du groupe qui porte des coordonnées\nexploitables (le premier tout court pour `geoshape`). Des coordonnées qui\ndiffèrent au sein d'un groupe sont signalées une fois en console.\n`max-items`, `getRenderedCount()` et le bandeau comptent des GROUPES ;\n`refine-on-click` (à poser sur le même champ) filtre sur la valeur du\ngroupe ; en `cluster`, chaque groupe est un point de la grappe. Une ligne\nsans valeur de regroupement reste un élément à part. Sans effet sur\n`heatmap` (chaque ligne reste un point de chaleur, avertissement en\nconsole).",
-              "fieldName": "groupField"
+              "fieldName": "groupField",
+              "champ": "nom"
             },
             {
               "name": "refine-on-click",
@@ -12532,7 +12565,8 @@
               },
               "default": "''",
               "description": "Champs a presenter en tableau automatique dans la popup. Ex: `\"nom,adresse\"`.",
-              "fieldName": "popupFields"
+              "fieldName": "popupFields",
+              "champ": "liste"
             },
             {
               "name": "tooltip-field",
@@ -12541,7 +12575,8 @@
               },
               "default": "''",
               "description": "Champ affiché au survol de l'élément.",
-              "fieldName": "tooltipField"
+              "fieldName": "tooltipField",
+              "champ": "nom"
             },
             {
               "name": "color",
@@ -12559,7 +12594,8 @@
               },
               "default": "''",
               "description": "Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`).",
-              "fieldName": "colorField"
+              "fieldName": "colorField",
+              "champ": "nom"
             },
             {
               "name": "color-map",
@@ -12577,7 +12613,8 @@
               },
               "default": "''",
               "description": "Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche\n`geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et\n`selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ;\n`color-field` / `color` donnent alors le contour, et la légende décrit les\nclasses. Sans effet sur `marker` et `heatmap`.",
-              "fieldName": "fillField"
+              "fieldName": "fillField",
+              "champ": "nom"
             },
             {
               "name": "fill-opacity",
@@ -12640,7 +12677,8 @@
               },
               "default": "''",
               "description": "Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).",
-              "fieldName": "radiusField"
+              "fieldName": "radiusField",
+              "champ": "nom"
             },
             {
               "name": "radius-unit",
@@ -12694,7 +12732,8 @@
               },
               "default": "''",
               "description": "Champ de ponderation des points de la heatmap.",
-              "fieldName": "heatField"
+              "fieldName": "heatField",
+              "champ": "nom"
             },
             {
               "name": "cluster",
@@ -12757,7 +12796,8 @@
               },
               "default": "''",
               "description": "Champ géographique utilisé pour la requête bbox (auto-détecté si vide).",
-              "fieldName": "bboxField"
+              "fieldName": "bboxField",
+              "champ": "nom"
             },
             {
               "name": "time-field",
@@ -12766,7 +12806,8 @@
               },
               "default": "''",
               "description": "Champ date/heure activant l'animation temporelle (pilotee par `<dsfr-data-map-timeline>`).",
-              "fieldName": "timeField"
+              "fieldName": "timeField",
+              "champ": "nom"
             },
             {
               "name": "time-bucket",
@@ -13472,7 +13513,8 @@
               },
               "default": "''",
               "description": "Champ utilise comme titre du panneau ou de la modale.",
-              "fieldName": "titleField"
+              "fieldName": "titleField",
+              "champ": "nom"
             },
             {
               "name": "width",
@@ -15538,7 +15580,8 @@
               },
               "default": "''",
               "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"",
-              "fieldName": "numeric"
+              "fieldName": "numeric",
+              "champ": "liste"
             },
             {
               "name": "numeric-auto",
@@ -15556,7 +15599,8 @@
               },
               "default": "''",
               "description": "Renommage de clés. Format : \"ancien:nouveau | ancien2:nouveau2\".\nUn `:` ou `|` littéral dans un nom s'échappe en percent (`%3A`, `%7C`), comme dans `where`.",
-              "fieldName": "rename"
+              "fieldName": "rename",
+              "champ": "pipe-alias"
             },
             {
               "name": "trim",
@@ -15592,7 +15636,8 @@
               },
               "default": "''",
               "description": "Remplacement ciblé par champ. Format : \"CHAMP:pattern:remplacement | CHAMP2:p:r\".\nLes deux premiers `:` sont des délimiteurs, le remplacement peut contenir des `:` bruts.\nUn `:` littéral dans le nom du champ ou dans le pattern s'échappe en `%3A` (`%7C`, `%2C`\net `%25` sont aussi décodés), comme dans `where` (#676) : `replace-fields=\"h:10%3A00:10h\"`.\nLa comparaison porte sur la forme chaîne de la valeur : une colonne numérique est concernée\naussi, `replace-fields=\"annee:2024:2024-2025\"` fonctionne (#730). Sur un champ tableau venu\nde la source, élément par élément ; pas sur un tableau fabriqué par `split`, découpé après\n(#774, même limite que `replace`).\nPas de regex : pour un recodage plus riche, voir `compute` (`replace()`, `year()`).",
-              "fieldName": "replaceFields"
+              "fieldName": "replaceFields",
+              "champ": "pipe-alias"
             },
             {
               "name": "flatten",
@@ -15601,7 +15646,8 @@
               },
               "default": "''",
               "description": "Clé du sous-objet a aplatir au premier niveau. Supporte la dot notation (ex: \"data.attributes\").",
-              "fieldName": "flatten"
+              "fieldName": "flatten",
+              "champ": "chemin"
             },
             {
               "name": "split",
@@ -15610,7 +15656,8 @@
               },
               "default": "''",
               "description": "Découpe des champs multivalués (chaîne avec séparateur) en vrais tableaux,\ncomme une ChoiceList Grist. Format : \"champ:sep, champ2:sep2\" ; séparateur\npar défaut : la virgule (\"champ\" seul). Ex : \"Axes:|, Cibles:;\".\nChaque élément est trimé, les éléments vides sont écartés, une chaîne vide\ndonne un tableau vide. Les valeurs non-string (tableau déjà forme, null,\nnombre) sont laissées telles quelles. Les composants aval traitent ces\ntableaux comme des champs multi-valeurs (facettes : une valeur par élément).",
-              "fieldName": "split"
+              "fieldName": "split",
+              "champ": "liste-alias"
             },
             {
               "name": "fold",
@@ -15637,7 +15684,8 @@
               },
               "default": "''",
               "description": "Arrondit les champs numériques à l'entier (ou à N décimales). Format: \"champ1, champ2\" ou \"champ1:2, champ2:0\"",
-              "fieldName": "round"
+              "fieldName": "round",
+              "champ": "liste-alias"
             },
             {
               "name": "lowercase-keys",
@@ -16030,7 +16078,8 @@
               },
               "default": "''",
               "description": "Champs formant l'identité de ligne, virgule-séparés : une ligne émise par\ncombinaison distincte. Ex : `\"commune\"` ou `\"etab, dep\"`.",
-              "fieldName": "row"
+              "fieldName": "row",
+              "champ": "liste"
             },
             {
               "name": "column",
@@ -16039,7 +16088,8 @@
               },
               "default": "''",
               "description": "Champ dont chaque valeur distincte devient une colonne. Ex : `\"annee\"`.",
-              "fieldName": "column"
+              "fieldName": "column",
+              "champ": "nom"
             },
             {
               "name": "value",
@@ -16048,7 +16098,8 @@
               },
               "default": "''",
               "description": "Champ dont les valeurs remplissent les cellules. Ex : `\"montant\"`.",
-              "fieldName": "value"
+              "fieldName": "value",
+              "champ": "nom"
             },
             {
               "name": "aggregate",
@@ -16717,7 +16768,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ label",
-              "fieldName": "labelField"
+              "fieldName": "labelField",
+              "champ": "nom"
             },
             {
               "name": "value-field",
@@ -16726,7 +16778,8 @@
               },
               "default": "''",
               "description": "Chemin vers le champ valeur (numérique)",
-              "fieldName": "valueField"
+              "fieldName": "valueField",
+              "champ": "nom"
             },
             {
               "name": "subtitle",
@@ -16744,7 +16797,8 @@
               },
               "default": "''",
               "description": "Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)",
-              "fieldName": "subtitleField"
+              "fieldName": "subtitleField",
+              "champ": "nom"
             },
             {
               "name": "value-unit",
@@ -16797,7 +16851,8 @@
               },
               "default": "''",
               "description": "Chemin vers un champ contenant l'URL d'une image (logo, blason), rendue\nen vignette 40 px entre le rang et le libellé.\n\nL'URL vient de la donnée : elle passe par la même liste blanche de schémas\nque le format `{{champ:url}}` (`http:`, `https:`, `mailto:`, `tel:` ou URL\nrelative). Une URL refusée n'affiche rien et avertit en console, une fois\npar valeur. Exclusif avec `icon-field` / `icon` et `picto` / `picto-field`\n(l'image l'emporte, et le cumul est signalé).",
-              "fieldName": "imageField"
+              "fieldName": "imageField",
+              "champ": "nom"
             },
             {
               "name": "image-shape",
@@ -16815,7 +16870,8 @@
               },
               "default": "''",
               "description": "Chemin vers un champ contenant une classe d'icône DSFR ou Remix\n(`fr-icon-building-line`, `ri-map-pin-line`), rendue 40 px en Bleu France.\n\nListe blanche stricte `^(fr-icon|ri)-[a-z0-9-]+$` : ce qui vient de la\ndonnée ne pose qu'une classe CSS, jamais du balisage. Une valeur hors\nmotif est ignorée avec un avertissement nommant le champ et la valeur\n(dédupliqué : une fois par valeur refusée).\n\n⚠️ 40 px sort de l'échelle documentée du DSFR, qui s'arrête à\n`fr-icon--lg` = 32 px ; au-delà le DSFR parle de pictogramme. Le rendu\nmarche (le masque d'une `fr-icon-*` est en `1em`, donc pilotable par\n`font-size`), mais c'est un usage hors échelle : `picto` est la voie\nconforme pour une illustration de cette taille.",
-              "fieldName": "iconField"
+              "fieldName": "iconField",
+              "champ": "nom"
             },
             {
               "name": "icon",
@@ -16842,7 +16898,8 @@
               },
               "default": "''",
               "description": "Chemin vers un champ contenant le nom du pictogramme. Même contrainte que `picto`.",
-              "fieldName": "pictoField"
+              "fieldName": "pictoField",
+              "champ": "nom"
             },
             {
               "name": "picto-base",
@@ -18311,7 +18368,8 @@
               },
               "default": "''",
               "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE\net les sources sans adaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
-              "fieldName": "where"
+              "fieldName": "where",
+              "champ": "clauses"
             },
             {
               "name": "filter",
@@ -18320,7 +18378,8 @@
               },
               "default": "''",
               "description": "Alias pour where (compatibilite)",
-              "fieldName": "filter"
+              "fieldName": "filter",
+              "champ": "clauses"
             },
             {
               "name": "group-by",
@@ -18329,7 +18388,8 @@
               },
               "default": "''",
               "description": "Champs de regroupement (séparés par virgule).\nOrdre d'application : le filtre (`where` de la query, de la source ou\nd'un `dsfr-data-context`) passe AVANT le regroupement — c'est aussi\nl'ordre ODSQL quand le regroupement est délégué au serveur. Un filtre ne\npeut donc pas viser un alias d'agrégat (`montant__sum`) : la colonne\nn'existe pas encore, l'API répond 400. Pour filtrer un résultat agrégé,\nposer une seconde `dsfr-data-query` en aval avec son propre `where`.\nDélégation au serveur seulement si la query est la SEULE lectrice de sa\nsource (#765) : la source n'a qu'un regroupement, servi à tous ses\nabonnés. Source partagée (un KPI, un autre graphique…) : calcul côté\nclient sur les lignes chargées, avec un avertissement. Pour garder\nl'agrégation serveur, donner à la query sa propre `dsfr-data-source`.",
-              "fieldName": "groupBy"
+              "fieldName": "groupBy",
+              "champ": "liste"
             },
             {
               "name": "aggregate",
@@ -18909,7 +18969,8 @@
               },
               "default": "''",
               "description": "Champ dont la valeur identifie une ligne entre deux émissions (chemin `a.b` accepté).\nUne clé qui subsiste garde ses nœuds et ses instances ; vide, la clé est le rang.\nClé nulle ou vide sur une ligne : le rang, sans erreur. Clé en double : erreur de\nconfiguration nommant la clé, et le rang pour les doublons.",
-              "fieldName": "keyField"
+              "fieldName": "keyField",
+              "champ": "nom"
             },
             {
               "name": "per-row",
@@ -19777,7 +19838,8 @@
               },
               "default": "''",
               "description": "Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs",
-              "fieldName": "fields"
+              "fieldName": "fields",
+              "champ": "liste"
             },
             {
               "name": "placeholder",
@@ -21403,7 +21465,8 @@
               },
               "default": "''",
               "description": "Colonnes conservées telles quelles sur chaque ligne. Ex: \"Indicateurs, Sous_theme\"",
-              "fieldName": "idCols"
+              "fieldName": "idCols",
+              "champ": "liste"
             },
             {
               "name": "value-cols",
@@ -21412,7 +21475,8 @@
               },
               "default": "''",
               "description": "Liste explicite des colonnes à déplier (virgule-séparée). Exclusif avec value-cols-pattern.\nAlias inline `col:Libellé` (#668) : `value-cols=\"gazole_prix:Gazole, sp95_prix:SP95\"` émet\n« Gazole » et « SP95 » dans la colonne var-name à la place des noms techniques. Un `:` littéral\ndans un nom ou un libellé s'échappe en `%3A` (escapeColonValue).",
-              "fieldName": "valueCols"
+              "fieldName": "valueCols",
+              "champ": "liste-alias"
             },
             {
               "name": "value-cols-pattern",

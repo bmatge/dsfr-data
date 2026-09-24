@@ -79,6 +79,7 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
    * Définition des colonnes : `"clé:Label, cle2:Label2"`. Omis : toutes les clés
    * présentes dans les données deviennent colonnes, dans leur ordre d'apparition,
    * libellé = clé — le tableau suit un schéma dynamique (aval d'un `dsfr-data-pivot`, #255).
+   * @champ liste-alias
    */
   @property({ type: String })
   columns = '';
@@ -91,7 +92,10 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   @property({ type: Boolean, attribute: 'columns-auto' })
   columnsAuto = false;
 
-  /** @deprecated alias français de `columns` (#300) */
+  /**
+   * @deprecated alias français de `columns` (#300)
+   * @champ liste-alias
+   */
   @property({ type: String })
   colonnes = '';
 
@@ -103,19 +107,31 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   @property({ type: Boolean })
   recherche = false;
 
-  /** Colonnes filtrables: "ministere,statut" */
+  /**
+   * Colonnes filtrables: "ministere,statut"
+   * @champ liste
+   */
   @property({ type: String })
   filters = '';
 
-  /** @deprecated alias français de `filters` (#300) */
+  /**
+   * @deprecated alias français de `filters` (#300)
+   * @champ liste
+   */
   @property({ type: String })
   filtres = '';
 
-  /** Tri par défaut: "score:desc" */
+  /**
+   * Tri par défaut: "score:desc"
+   * @champ liste-alias
+   */
   @property({ type: String })
   sort = '';
 
-  /** @deprecated alias français de `sort` (#300) */
+  /**
+   * @deprecated alias français de `sort` (#300)
+   * @champ liste-alias
+   */
   @property({ type: String })
   tri = '';
 
