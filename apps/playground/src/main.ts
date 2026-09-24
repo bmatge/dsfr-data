@@ -31,6 +31,7 @@ import { EXEMPLE_PAR_DEFAUT } from './examples/catalogue.js';
 import { initSelecteurExemples, type SelecteurExemples } from './examples/selector.js';
 import { getPreviewHTML } from './preview.js';
 import { aDesDependances, ajouterDependances, retirerDependances } from './deps.js';
+import { estOrigineCode, MESSAGE_ORIGINE_INCONNUE, ORIGINES_CODE } from './origines.js';
 import { creerAdaptateurPlayground } from './assistant/adaptateur.js';
 import { monterAssistantPlayground, montrerReperePlayground } from './assistant/index.js';
 import { REGLE_BALISAGE } from './assistant/constats-balisage.js';
@@ -201,29 +202,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // user-controlled, so only accept a whitelisted set of values and build the
   // anchor via DOM APIs (textContent) to avoid XSS.
   const fromApp = new URLSearchParams(window.location.search).get('from');
-  const BACK_LABELS: Record<string, string> = {
-    builder: 'Builder',
-    'builder-ia': 'Builder IA',
-    studio: 'Studio IA',
-    favorites: 'Favoris',
-  };
-  if (fromApp && Object.prototype.hasOwnProperty.call(BACK_LABELS, fromApp)) {
+  if (estOrigineCode(fromApp)) {
     // L'ancien Assistant IA redirige vers le Studio IA (#1081) : on y revient
     // par son parametre d'echappement, sinon le lien menerait au Studio.
     const retourParams: Record<string, string> | undefined =
       fromApp === 'favorites'
         ? undefined
         : { from: 'playground', ...(fromApp === 'builder-ia' ? { ancien: '1' } : {}) };
-    const backHref = appHref(
-      fromApp as 'builder' | 'builder-ia' | 'studio' | 'favorites',
-      retourParams
-    );
+    const backHref = appHref(fromApp, retourParams);
     const backBar = document.createElement('div');
     backBar.className = 'fr-mb-1w';
     const link = document.createElement('a');
     link.href = backHref;
     link.className = 'fr-link fr-icon-arrow-left-line fr-link--icon-left';
-    link.textContent = `Retour au ${BACK_LABELS[fromApp]}`;
+    link.textContent = `Retour ${ORIGINES_CODE[fromApp]}`;
     // Le Builder rouvre sa configuration d'avant le départ, pas ce code. On lui
     // rapporte l'état réel de l'éditeur pour qu'il sache s'il va écraser une
     // modification, et puisse le dire avant de le faire (#965).
@@ -335,13 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load code from sessionStorage if coming from another app
   const urlParams = new URLSearchParams(window.location.search);
   const from = urlParams.get('from');
-  if (
-    from === 'favorites' ||
-    from === 'builder' ||
-    from === 'builder-ia' ||
-    from === 'studio' ||
-    from === 'pipeline-helper'
-  ) {
+  if (estOrigineCode(from)) {
     const savedCode = sessionStorage.getItem('playground-code');
     if (savedCode) {
       editor.setValue(savedCode);
@@ -349,6 +335,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       runCode();
       sessionStorage.removeItem('playground-code');
     }
+  } else if (from !== null && sessionStorage.getItem('playground-code')) {
+    // Code confié par une app absente de la liste : le dire, plutôt qu'ouvrir
+    // le Playground sur son contenu par défaut sans un mot.
+    toastWarning(MESSAGE_ORIGINE_INCONNUE, 12000);
   }
 
   // Volet Diagnostic (#605) : observe le pipeline qui tourne dans l'aperçu.
