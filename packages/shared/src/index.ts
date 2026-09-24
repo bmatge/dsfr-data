@@ -240,6 +240,15 @@ export {
   clearInseeLabelCache,
   INSEE_CODE_SUFFIX,
 } from './providers/index.js';
+// Reconnaissance d'une URL de jeu (#1140) : cote app, partagee par la creation
+// d'une connexion (app Sources) et l'outil charger_source_url du Studio IA.
+export type { GristDocRef, UrlSourceReconnue } from './providers/reconnaissance-url.js';
+export {
+  parseGristDocRef,
+  estHoteGrist,
+  reconnaitreUrlSource,
+  FORMATS_URL_RECONNUS,
+} from './providers/reconnaissance-url.js';
 
 // Types
 export type { Source } from './types/source.js';

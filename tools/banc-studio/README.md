@@ -74,6 +74,7 @@ l'usager, et les attentes, écrites dans le vocabulaire des **outils** du Studio
 | `tableau-croise` | oui | Réalisable **seulement** avec le bloc « composant libre » (#1111) : `dsfr-data-pivot` (`row="Commune"`, `column="Type"`, `value="Nombre d’élèves"`) puis une `dsfr-data-list`. |
 | `demande-impossible` | oui | Un formulaire de saisie : le dire d'emblée, sans toucher au document, en 4 appels au plus. |
 | `modification` | | Deux messages : barres, puis « passe-le en camembert » — un seul graphique à la fin (`pie`/`doughnut`). |
+| `source-par-url` | | **Aucune source** au départ (#1140) : l’usager donne l’URL d’un jeu Opendatasoft réel (data.economie.gouv.fr, 14 lignes, figé depuis 2018) ; le modèle le charge par `charger_source_url`, puis une courbe ou des barres `labelField:"annee"`, `valueField:"nombre_de_jei"`. Réseau réel vers le portail. |
 
 Les critères (`criteres.ts`) sont **déterministes** — pas de juge LLM dans ce premier lot. Chacun
 rend `ok`, `échec` ou `sans objet` :

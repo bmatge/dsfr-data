@@ -44,15 +44,21 @@ import {
   moveBlock,
   setPage,
   describeDocument,
+  definirSourceDuDocument,
   type BlockSpec,
   type DocumentContext,
 } from '../document.js';
+import {
+  CHARGER_SOURCE_URL_TOOL,
+  resumerChargement,
+  type ResultatChargement,
+} from '../source-url.js';
 import { CODE_TOOLS, CODE_TOOL_NAMES, describeGeneratedCode } from './code-tools.js';
 import { texteAffichable } from './reponse-finale.js';
 import { colonnesASignaler, noteTotalRepete } from './total-repete.js';
 import type { PostChat } from '@dsfr-data/shared';
 import { createEmptyDashboard } from '@dsfr-data/shared';
-import type { DashboardData, Field } from '../state.js';
+import type { DashboardData, Field, Source } from '../state.js';
 
 // ---------------------------------------------------------------------------
 // Outils d'introspection (memes noms que le builder-IA)
@@ -145,6 +151,16 @@ export interface StudioLoopOptions {
    * n'est pose qu'avec un jeton utilisateur ET un rerank confirme par la sonde.
    */
   reclasserSkills?: ReclasserSkills;
+  /**
+   * Source par URL (#1140). Present = outil `charger_source_url` : `charger`
+   * reconnait l'URL et charge le jeu (`chargerSourceDepuisUrl`), la boucle en
+   * fait la source du document et de la suite du tour, puis `surChargement`
+   * previent l'interface (selecteur, stockage).
+   */
+  sourceParUrl?: {
+    charger: (url: string, ressource?: string) => Promise<ResultatChargement>;
+    surChargement?: (source: Source) => void;
+  };
   extra?: Record<string, unknown>;
 }
 
@@ -159,6 +175,8 @@ function humanizeStep(name: string, args: Record<string, unknown>): string {
   switch (name) {
     case 'inspect_data':
       return 'J’examine le jeu de données…';
+    case 'charger_source_url':
+      return 'Je charge le jeu depuis son adresse…';
     case 'distinct_values':
       return `Je regarde les valeurs de « ${String(args.field ?? '')} »…`;
     case 'count_where':
@@ -223,7 +241,9 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
 
   const diagnostic = opts.diagnostic;
   const generatedCode = opts.generatedCode;
+  const sourceParUrl = opts.sourceParUrl;
   const tools = [
+    ...(sourceParUrl ? [CHARGER_SOURCE_URL_TOOL] : []),
     ...ALL_TOOLS,
     ...(diagnostic ? DIAGNOSTIC_TOOLS : []),
     ...(generatedCode ? CODE_TOOLS : []),
@@ -291,8 +311,28 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
     }
   };
 
+  /**
+   * Source par URL (#1140) : la source chargee devient celle du document et
+   * du contexte des outils suivants (inspect_data, add_blocks) dans CE tour.
+   */
+  const chargerSource = async (args: Record<string, unknown>): Promise<string> => {
+    if (!sourceParUrl) return "Le chargement par URL n'est pas disponible ici.";
+    const url = typeof args.url === 'string' ? args.url : '';
+    const ressource = typeof args.ressource === 'string' ? args.ressource : undefined;
+    const resultat = await sourceParUrl.charger(url, ressource);
+    if (!resultat.ok) return resultat.message;
+    const conservees = definirSourceDuDocument(doc, resultat.source);
+    ctx.data = resultat.source.data ?? [];
+    ctx.fields = resultat.fields;
+    ctx.sourceId = resultat.source.id;
+    sourceParUrl.surChargement?.(resultat.source);
+    onDocumentChange?.();
+    return resumerChargement(resultat, conservees);
+  };
+
   /** Aiguillage des outils non terminaux : document, code, diagnostic, lookups. */
   const executer = async (name: string, args: Record<string, unknown>): Promise<string> => {
+    if (name === 'charger_source_url') return chargerSource(args);
     if (DOCUMENT_TOOL_NAMES.has(name)) return applyDocumentTool(name, args);
     if (CODE_TOOL_NAMES.has(name)) {
       return generatedCode
@@ -333,7 +373,7 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   const note =
     applied > 0
       ? noteTotalRepete(
-          colonnesASignaler(doc, opts.data, opts.fields, [
+          colonnesASignaler(doc, ctx.data, ctx.fields, [
             brut,
             ...opts.conversation.filter((m) => m.role === 'assistant').map((m) => m.content),
           ])

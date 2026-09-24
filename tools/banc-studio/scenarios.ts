@@ -223,6 +223,33 @@ export const SCENARIOS: readonly Scenario[] = [
       ],
     },
   },
+  {
+    // #1140 : AUCUNE source choisie — l'usager donne l'URL d'un jeu, le modele
+    // doit la charger par `charger_source_url`, puis composer sur ses champs.
+    // Jeu reel, petit (14 lignes) et fige depuis 2018 sur un portail
+    // Opendatasoft/Huwise a domaine propre (data.economie.gouv.fr).
+    id: 'source-par-url',
+    titre: 'Source par URL : le modèle charge le jeu Opendatasoft donné dans le message',
+    pr: false,
+    source: null,
+    messages: [
+      'Fais un graphique de l’évolution du nombre de jeunes entreprises innovantes par année, ' +
+        'avec le jeu https://data.economie.gouv.fr/explore/dataset/les-jeunes-entreprises-innovantes/',
+    ],
+    attendu: {
+      blocs: [
+        {
+          libelle: 'évolution du nombre de JEI par année',
+          kind: 'chart',
+          chart: {
+            type: { unDe: ['line', 'bar'] },
+            labelField: 'annee',
+            valueField: 'nombre_de_jei',
+          },
+        },
+      ],
+    },
+  },
 ];
 
 /** Scenarios retenus : tous, le sous-ensemble de PR, ou une liste d'ids. */
