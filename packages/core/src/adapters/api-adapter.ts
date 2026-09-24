@@ -169,6 +169,16 @@ export interface ApiAdapter {
   readonly capabilities: AdapterCapabilities;
 
   /**
+   * Clés de query-string que l'adaptateur construit lui-même depuis les
+   * attributs des composants (#1137, suite de #726) : l'attribut `params` de
+   * la source ne peut pas les écraser — elle les refuse avec une erreur de
+   * configuration. Une entrée `*suffixe` réserve toute clé qui se termine
+   * par ce suffixe (Tabular : `*__sort`, `*__exact`…). Absent = aucune clé
+   * réservée (l'adaptateur ne transmet pas `extraParams`, ou n'en craint rien).
+   */
+  readonly reservedParamKeys?: ReadonlySet<string>;
+
+  /**
    * Valide que les attributs requis sont presents.
    * Retourne un message d'erreur ou null si valide.
    */

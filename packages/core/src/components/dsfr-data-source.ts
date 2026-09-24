@@ -33,22 +33,19 @@ import { visibleConsumers } from '../utils/visible-consumers.js';
 import { joinWhere } from '../utils/where.js';
 
 /**
- * Cles de requete que la bibliotheque construit elle-meme a partir des
- * attributs des composants (#726) : `select`, `where`, `group_by`, `order_by`
- * (poses par `_applyOdsqlClauses`), la pagination `limit`/`offset` posee par
- * les constructeurs d'URL, et `facet` pose par le chargement des facettes.
- * Une page ne doit pas pouvoir les ecraser depuis l'attribut `params` : le
- * passe-plat les refuse et la source signale une erreur de configuration.
+ * La clé `key` est-elle réservée par l'adaptateur (#726, #1137) ? Chaque
+ * adaptateur déclare les clés de query-string qu'il construit lui-même
+ * (`ApiAdapter.reservedParamKeys`) ; une entrée `*suffixe` réserve toute clé
+ * qui se termine par ce suffixe. La source ne porte que le message.
  */
-const RESERVED_PARAM_KEYS = new Set([
-  'select',
-  'where',
-  'group_by',
-  'order_by',
-  'limit',
-  'offset',
-  'facet',
-]);
+function isReservedParamKey(reserved: ReadonlySet<string> | undefined, key: string): boolean {
+  if (!reserved) return false;
+  if (reserved.has(key)) return true;
+  for (const entry of reserved) {
+    if (entry.startsWith('*') && entry.length > 1 && key.endsWith(entry.slice(1))) return true;
+  }
+  return false;
+}
 
 /**
  * <dsfr-data-source> - Connecteur de données
@@ -111,10 +108,10 @@ export class DsfrDataSource extends LitElement {
    * l'URL construite par l'adaptateur, ce qui sert les paramètres propres au
    * portail que la bibliothèque ne modélise pas — le cas d'usage est
    * `params='{"timezone":"Europe/Paris"}'` sur un jeu Opendatasoft à
-   * dates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la
-   * bibliothèque construit elle-même (`select`, `where`, `group_by`,
-   * `order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont
-   * refusées avec une erreur de configuration plutôt que d'écraser une clause.
+   * dates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que
+   * l'adaptateur construit lui-même (il les déclare : clauses, pagination,
+   * projection, suffixes d'opérateur) sont réservées : elles sont refusées
+   * avec une erreur de configuration plutôt que d'écraser une clause (#1137).
    * Transmis par l'adaptateur Opendatasoft seulement, en chargement paginé
    * comme en `fetch-mode="export"`.
    */
@@ -1299,8 +1296,9 @@ export class DsfrDataSource extends LitElement {
 
     const extra: Record<string, string> = {};
     const reserved: string[] = [];
+    const reservedKeys = this.getAdapter()?.reservedParamKeys;
     for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (RESERVED_PARAM_KEYS.has(key)) {
+      if (isReservedParamKey(reservedKeys, key)) {
         reserved.push(key);
         continue;
       }

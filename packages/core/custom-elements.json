@@ -20057,7 +20057,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la\nbibliothèque construit elle-même (`select`, `where`, `group_by`,\n`order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont\nrefusées avec une erreur de configuration plutôt que d'écraser une clause.\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
+              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que\nl'adaptateur construit lui-même (il les déclare : clauses, pagination,\nprojection, suffixes d'opérateur) sont réservées : elles sont refusées\navec une erreur de configuration plutôt que d'écraser une clause (#1137).\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
               "attribute": "params"
             },
             {
@@ -20940,7 +20940,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la\nbibliothèque construit elle-même (`select`, `where`, `group_by`,\n`order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont\nrefusées avec une erreur de configuration plutôt que d'écraser une clause.\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
+              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que\nl'adaptateur construit lui-même (il les déclare : clauses, pagination,\nprojection, suffixes d'opérateur) sont réservées : elles sont refusées\navec une erreur de configuration plutôt que d'écraser une clause (#1137).\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
               "fieldName": "params"
             },
             {

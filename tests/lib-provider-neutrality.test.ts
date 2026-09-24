@@ -207,12 +207,6 @@ const EXCEPTIONS: readonly Exception[] = [
   },
   {
     file: 'components/dsfr-data-source.ts',
-    line: /^\s*'(group_by|order_by)',$/,
-    issue: '#1137',
-    reason: 'Clés de query-string Opendatasoft réservées, à déclarer par l’adaptateur.',
-  },
-  {
-    file: 'components/dsfr-data-source.ts',
     line: /page_size/,
     issue: '#1136',
     reason: 'Convention de pagination du mode URL, à déclarer dans GENERIC_CONFIG.pagination.',

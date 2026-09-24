@@ -312,6 +312,21 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     whereFormat: 'odsql',
   };
 
+  /**
+   * Clés que l'adaptateur construit lui-même (#726, #1137) : les clauses
+   * ODSQL posées par `_applyOdsqlClauses` (`select`, `where`, `group_by`,
+   * `order_by`), la pagination (`limit`, `offset`) et `facet` (facettes).
+   */
+  readonly reservedParamKeys: ReadonlySet<string> = new Set([
+    'select',
+    'where',
+    'group_by',
+    'order_by',
+    'limit',
+    'offset',
+    'facet',
+  ]);
+
   validate(params: AdapterParams): string | null {
     if (!params.datasetId) {
       return 'attribut "dataset-id" requis pour les requêtes OpenDataSoft';
