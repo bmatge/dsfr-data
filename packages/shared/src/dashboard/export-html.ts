@@ -423,9 +423,23 @@ function generateBuilderChartHTML(
   }
 }
 
+/**
+ * Le clic s'affiche-t-il hors de la bulle Leaflet (#1109) ? Volet ou modale :
+ * c'est alors un `<dsfr-data-map-popup>` compagnon qui porte le contenu.
+ */
+function hasPopupCompanion(layer: MapLayerSpec): boolean {
+  return layer.popupMode !== undefined && layer.popupMode !== 'popup';
+}
+
+/** Id de balise d'une couche, pour qu'un compagnon la vise par `for` (#1109). */
+function mapLayerId(widget: Widget, index: number): string {
+  return `layer-${widget.id}-${index + 1}`;
+}
+
 /** Attributs d'une couche selon son type (vocabulaire dsfr-data-map-layer). */
-function mapLayerAttrs(layer: MapLayerSpec): string[] {
+function mapLayerAttrs(layer: MapLayerSpec, id?: string): string[] {
   const attrs = [`source="${escapeHtml(layer.sourceId)}"`, `type="${layer.type}"`];
+  if (id) attrs.unshift(`id="${escapeHtml(id)}"`);
   if (layer.type === 'geoshape') {
     if (layer.geoField) attrs.push(`geo-field="${escapeHtml(layer.geoField)}"`);
     if (layer.valueField) attrs.push(`fill-field="${escapeHtml(layer.valueField)}"`);
@@ -441,9 +455,63 @@ function mapLayerAttrs(layer: MapLayerSpec): string[] {
   }
   if (layer.colorField) attrs.push(`color-field="${escapeHtml(layer.colorField)}"`);
   if (layer.selectedPalette) attrs.push(`selected-palette="${escapeHtml(layer.selectedPalette)}"`);
-  if (layer.popupFields) attrs.push(`popup-fields="${escapeHtml(layer.popupFields)}"`);
+  // Avec un compagnon, c'est LUI qui rend le contenu (la couche ignore alors
+  // popup-template et popup-fields) : on ne les emet pas deux fois.
+  if (!hasPopupCompanion(layer)) {
+    if (layer.popupTemplate) attrs.push(`popup-template="${escapeHtml(layer.popupTemplate)}"`);
+    if (layer.popupFields) attrs.push(`popup-fields="${escapeHtml(layer.popupFields)}"`);
+  }
   if (layer.tooltipField) attrs.push(`tooltip-field="${escapeHtml(layer.tooltipField)}"`);
+  // Le regroupement n'existe que pour les marqueurs (dsfr-data-map-layer).
+  if (layer.type === 'marker' && layer.cluster) {
+    attrs.push('cluster');
+    if (layer.clusterRadius) attrs.push(`cluster-radius="${layer.clusterRadius}"`);
+  }
   return attrs;
+}
+
+/** Liste de champs « a, b ,c » -> ['a', 'b', 'c']. */
+function splitFields(list: string): string[] {
+  return list
+    .split(',')
+    .map((f) => f.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Contenu du `<template>` d'un compagnon (#1109).
+ *
+ * Le compagnon ne lit ni `popup-template` ni `popup-fields` de la couche : sans
+ * gabarit, il afficherait TOUTES les colonnes de l'enregistrement. On traduit
+ * donc le choix du document dans sa grammaire a lui (`{{champ}}`) :
+ *   - `popupTemplate` (grammaire de la couche, `{champ}`) : accolades doublees ;
+ *   - `popupFields` : le meme tableau que celui de la couche.
+ * Les valeurs substituees sont echappees par le composant (`raw: false`).
+ */
+function popupCompanionTemplate(layer: MapLayerSpec): string {
+  if (layer.popupTemplate) {
+    // `[^{}]` : pas d'imbrication, pas de retour arriere couteux.
+    return layer.popupTemplate.replace(
+      /\{([^{}]+)\}/g,
+      (_m, field: string) => `{{${field.trim()}}}`
+    );
+  }
+  if (layer.popupFields) {
+    const rows = splitFields(layer.popupFields)
+      .map((f) => `<tr><th scope="row">${escapeHtml(f)}</th><td>{{${escapeHtml(f)}}}</td></tr>`)
+      .join('');
+    return `<table class="fr-table fr-table--sm">${rows}</table>`;
+  }
+  return '';
+}
+
+/** Compagnon `<dsfr-data-map-popup>` d'une couche en volet ou en modale (#1109). */
+function popupCompanionHTML(layer: MapLayerSpec, layerId: string, indent: string): string {
+  const attrs = [`mode="${layer.popupMode}"`, `for="${escapeHtml(layerId)}"`];
+  if (layer.popupTitleField) attrs.push(`title-field="${escapeHtml(layer.popupTitleField)}"`);
+  const template = popupCompanionTemplate(layer);
+  const body = template ? `\n${indent}  <template>${template}</template>\n${indent}` : '';
+  return `${indent}<dsfr-data-map-popup ${attrs.join(' ')}>${body}</dsfr-data-map-popup>`;
 }
 
 /** Bloc carte Leaflet multi-couches (#531) : dsfr-data-map + une balise par couche. */
@@ -465,12 +533,20 @@ function generateMapHTML(
   if (config.center) attrs.push(`center="${escapeHtml(config.center)}"`);
   if (config.zoom !== undefined) attrs.push(`zoom="${config.zoom}"`);
 
-  const layers = config.layers
-    .map((l) => {
-      const label = l.label ? `${indent}  <!-- ${escapeHtml(l.label)} -->\n` : '';
-      return `${label}${indent}  <dsfr-data-map-layer ${mapLayerAttrs(l).join(' ')}></dsfr-data-map-layer>`;
-    })
-    .join('\n');
+  const parts: string[] = [];
+  config.layers.forEach((l, i) => {
+    // Une couche ne recoit un id que si un compagnon doit la viser : le code
+    // des cartes sans volet reste celui d'avant #1109.
+    const id = hasPopupCompanion(l) ? mapLayerId(widget, i) : undefined;
+    const label = l.label ? `${indent}  <!-- ${escapeHtml(l.label)} -->\n` : '';
+    parts.push(
+      `${label}${indent}  <dsfr-data-map-layer ${mapLayerAttrs(l, id).join(' ')}></dsfr-data-map-layer>`
+    );
+    // Compagnon enfant DIRECT de la carte, relie par `for` : c'est la forme
+    // que la couche cherche (`:scope > dsfr-data-map-popup` + matchesLayer).
+    if (id) parts.push(popupCompanionHTML(l, id, `${indent}  `));
+  });
+  const layers = parts.join('\n');
 
   const title = widget.title ? `${indent}<h3 class="fr-h6">${escapeHtml(widget.title)}</h3>\n` : '';
   return `${title}${indent}<dsfr-data-map ${attrs.join(' ')}>\n${layers}\n${indent}</dsfr-data-map>\n`;

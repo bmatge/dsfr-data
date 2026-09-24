@@ -394,6 +394,7 @@ export type {
   DashboardFilterSpec,
   FiltersWidgetConfig,
   MapLayerType,
+  MapPopupMode,
   MapLayerSpec,
   MapWidgetConfig,
   DashboardSource,
@@ -419,6 +420,7 @@ export {
   TEXT_STYLES,
   FILTER_OPERATORS,
   MAP_LAYER_TYPES,
+  MAP_POPUP_MODES,
 } from './dashboard/model.js';
 export {
   generateDashboardHTML,

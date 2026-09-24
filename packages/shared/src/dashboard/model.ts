@@ -135,6 +135,13 @@ export interface FiltersWidgetConfig {
 export type MapLayerType = 'marker' | 'circle' | 'heatmap' | 'geoshape';
 
 /**
+ * Affichage du clic sur un objet de la couche (#1109), aligne sur
+ * `dsfr-data-map-popup` : `popup` (bulle sur la carte, le defaut du composant),
+ * `panel-right` / `panel-left` (volet lateral), `modal`.
+ */
+export type MapPopupMode = 'popup' | 'panel-right' | 'panel-left' | 'modal';
+
+/**
  * Une couche de carte (#531). Multi-sources par nature : chaque couche
  * reference sa propre source du dashboard.
  */
@@ -160,6 +167,24 @@ export interface MapLayerSpec {
   /** Champ affiche au survol. */
   tooltipField?: string;
   selectedPalette?: string;
+  /**
+   * Contenu de la popup, champs entre accolades : « {nom} — {montant} € »
+   * (grammaire de l'attribut `popup-template` de la couche). Prime sur
+   * `popupFields` (#1109).
+   */
+  popupTemplate?: string;
+  /**
+   * Affichage du clic (#1109). Absent ou `popup` : bulle Leaflet portee par
+   * la couche. `panel-*` / `modal` : l'export ajoute un
+   * `<dsfr-data-map-popup for="…">` relie a la couche.
+   */
+  popupMode?: MapPopupMode;
+  /** Champ de titre du volet ou de la modale (`title-field`, modes panel-* / modal). */
+  popupTitleField?: string;
+  /** Regroupe les marqueurs PROCHES A L'ECRAN (couche marker seulement, #1109). */
+  cluster?: boolean;
+  /** Rayon de regroupement, en pixels (defaut du composant : 80). */
+  clusterRadius?: number;
 }
 
 /**
@@ -452,6 +477,12 @@ export function normalizeWidget(raw: unknown): Widget | null {
 }
 
 export const MAP_LAYER_TYPES: readonly MapLayerType[] = ['marker', 'circle', 'heatmap', 'geoshape'];
+export const MAP_POPUP_MODES: readonly MapPopupMode[] = [
+  'popup',
+  'panel-right',
+  'panel-left',
+  'modal',
+];
 
 function normalizeMapLayer(raw: unknown): MapLayerSpec | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -471,6 +502,16 @@ function normalizeMapLayer(raw: unknown): MapLayerSpec | null {
     popupFields: opt('popupFields'),
     tooltipField: opt('tooltipField'),
     selectedPalette: opt('selectedPalette'),
+    // #1109 : sans ces lignes, le Tableau de bord perdrait a l'enregistrement
+    // le volet, le gabarit et le regroupement poses par le Studio.
+    popupTemplate: opt('popupTemplate'),
+    popupMode: (MAP_POPUP_MODES as readonly string[]).includes(String(l.popupMode))
+      ? (l.popupMode as MapPopupMode)
+      : undefined,
+    popupTitleField: opt('popupTitleField'),
+    cluster: l.cluster === true ? true : undefined,
+    clusterRadius:
+      typeof l.clusterRadius === 'number' && l.clusterRadius > 0 ? l.clusterRadius : undefined,
   };
 }
 

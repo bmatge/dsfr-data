@@ -56,7 +56,7 @@ import type { DashboardData, Field } from '../state.js';
 // Outils d'introspection (memes noms que le builder-IA)
 // ---------------------------------------------------------------------------
 
-const DATA_INSPECTION_TOOLS = [
+export const DATA_INSPECTION_TOOLS = [
   {
     type: 'function',
     function: {

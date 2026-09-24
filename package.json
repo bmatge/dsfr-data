@@ -56,6 +56,7 @@
     "build:skills-claude": "vite-node scripts/build-skills-claude.ts",
     "build:specs-tables": "vite-node scripts/build-specs-tables.ts",
     "check:specs-tables": "vite-node scripts/build-specs-tables.ts --check",
+    "check:studio-couverture": "vite-node scripts/check-studio-couverture.ts",
     "build:reperes": "vite-node scripts/build-reperes.ts",
     "check:reperes": "vite-node scripts/build-reperes.ts --check",
     "skills:install": "node scripts/install-claude-skill.mjs",

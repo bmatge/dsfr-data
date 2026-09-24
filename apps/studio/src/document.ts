@@ -16,6 +16,7 @@ import {
   CHART_CONFIG_SCHEMA,
   CHART_CONFIG_TYPES,
   MAP_LAYER_TYPES,
+  MAP_POPUP_MODES,
   diagnoseConfig,
 } from '@dsfr-data/shared';
 import type {
@@ -24,6 +25,7 @@ import type {
   DashboardFilterSpec,
   Field,
   MapLayerSpec,
+  MapPopupMode,
   Row,
   TextStyle,
   Widget,
@@ -249,6 +251,30 @@ function validateMapLayer(
     return { error: `Couche ${type} sans latField/lonField.` };
   }
 
+  // Affichage du clic (#1109) : une valeur hors vocabulaire est REFUSEE, pas
+  // ramenee au defaut — le modele doit savoir que son volet n'existe pas.
+  if (
+    raw.popupMode !== undefined &&
+    !(MAP_POPUP_MODES as readonly string[]).includes(raw.popupMode)
+  ) {
+    return {
+      error: `popupMode "${String(raw.popupMode)}" inconnu (${MAP_POPUP_MODES.join(' | ')}).`,
+    };
+  }
+  // Le regroupement (clustering) rassemble des marqueurs PROCHES A L'ECRAN : il
+  // n'existe que pour les couches marker, et ne regroupe jamais par entite.
+  if ((raw.cluster === true || raw.clusterRadius !== undefined) && type !== 'marker') {
+    return {
+      error: `cluster ne s'applique qu'aux couches marker (couche ${type}).`,
+    };
+  }
+  if (
+    raw.clusterRadius !== undefined &&
+    (typeof raw.clusterRadius !== 'number' || !(raw.clusterRadius > 0))
+  ) {
+    return { error: 'clusterRadius doit etre un nombre de pixels positif.' };
+  }
+
   // Verification des champs uniquement contre la source chargee ici.
   if (sourceId === ctx.sourceId && ctx.fields.length > 0) {
     const known = new Map(ctx.fields.map((f) => [f.name, f.type]));
@@ -259,6 +285,9 @@ function validateMapLayer(
       raw.valueField,
       raw.colorField,
       raw.tooltipField,
+      raw.popupTitleField,
+      ...splitFieldList(raw.popupFields),
+      ...templateFields(raw.popupTemplate),
     ]
       .filter((f): f is string => typeof f === 'string' && f !== '')
       .filter((f) => !known.has(f));
@@ -289,8 +318,29 @@ function validateMapLayer(
       popupFields: raw.popupFields,
       tooltipField: raw.tooltipField,
       selectedPalette: raw.selectedPalette,
+      popupTemplate: raw.popupTemplate || undefined,
+      popupMode: raw.popupMode as MapPopupMode | undefined,
+      popupTitleField: raw.popupTitleField || undefined,
+      cluster: raw.cluster === true ? true : undefined,
+      clusterRadius: raw.clusterRadius,
     },
   };
+}
+
+/** « a, b ,c » -> ['a', 'b', 'c'] (champs de popupFields). */
+function splitFieldList(list: string | undefined): string[] {
+  if (typeof list !== 'string') return [];
+  return list
+    .split(',')
+    .map((f) => f.trim())
+    .filter(Boolean);
+}
+
+/** Champs cites dans un gabarit « {nom} — {montant} € » (#1109). */
+function templateFields(template: string | undefined): string[] {
+  if (typeof template !== 'string') return [];
+  // `[^{}]` : ni imbrication ni retour arriere couteux.
+  return [...template.matchAll(/\{([^{}]+)\}/g)].map((m) => m[1].trim());
 }
 
 function buildMapWidget(
@@ -544,12 +594,43 @@ const MAP_LAYER_SCHEMA = {
     },
     tooltipField: { type: 'string', description: 'Champ affiché au survol' },
     selectedPalette: { type: 'string' },
+    popupTemplate: {
+      type: 'string',
+      description:
+        'Contenu du clic, champs entre accolades : "{nom} — {montant} €". Prime sur popupFields.',
+    },
+    popupMode: {
+      type: 'string',
+      enum: [...MAP_POPUP_MODES],
+      description:
+        "Affichage du clic : popup (bulle, défaut), panel-right / panel-left (volet latéral), modal. Le volet montre UN enregistrement : l'objet cliqué.",
+    },
+    popupTitleField: {
+      type: 'string',
+      description:
+        'Champ de titre du volet ou de la modale (popupMode panel-right, panel-left, modal)',
+    },
+    cluster: {
+      type: 'boolean',
+      description:
+        "marker seulement : regroupe les marqueurs PROCHES À L'ÉCRAN selon le zoom. Ne regroupe PAS par entité (ville, commune…).",
+    },
+    clusterRadius: {
+      type: 'integer',
+      description: 'Rayon de regroupement en pixels (défaut 80), avec cluster',
+    },
   },
   required: ['type'],
   additionalProperties: false,
 } as const;
 
-const BLOCK_SPEC_SCHEMA = {
+/**
+ * Schema d'un bloc — la SOURCE UNIQUE du vocabulaire (#1109) : il valide les
+ * appels d'outils ET engendre la liste des options donnee au modele dans le
+ * prompt (`describeBlockVocabulary`). Une option absente d'ici n'existe pas
+ * pour le Studio, quoi qu'en disent les skills.
+ */
+export const BLOCK_SPEC_SCHEMA = {
   type: 'object',
   properties: {
     kind: {
@@ -619,7 +700,7 @@ export const DOCUMENT_TOOLS = [
     function: {
       name: 'update_block',
       description:
-        'Modifie un bloc existant (patch partiel : title, content/style, config, fields).',
+        'Modifie un bloc existant (patch partiel : title, content/style, config, fields, layers — layers remplace toutes les couches).',
       parameters: {
         type: 'object',
         properties: {
