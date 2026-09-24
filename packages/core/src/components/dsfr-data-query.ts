@@ -294,12 +294,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Pendant une version mineure, un avertissement de transition nomme le
    * champ et la valeur des lignes qui se mettent à compter (dédupliqué par
    * couple champ/valeur, jamais par ligne).
+   * @champ clauses
    */
   @property({ type: String })
   where = '';
 
   /**
    * Alias pour where (compatibilite)
+   * @champ clauses
    */
   @property({ type: String })
   filter = '';
@@ -317,6 +319,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * abonnés. Source partagée (un KPI, un autre graphique…) : calcul côté
    * client sur les lignes chargées, avec un avertissement. Pour garder
    * l'agrégation serveur, donner à la query sa propre `dsfr-data-source`.
+   * @champ liste
    */
   @property({ type: String, attribute: 'group-by' })
   groupBy = '';

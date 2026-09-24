@@ -154,7 +154,10 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   @property({ type: String })
   gap = 'fr-grid-row--gutters';
 
-  /** Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index */
+  /**
+   * Champ de données a utiliser comme identifiant unique par item. Si vide, utilise l'index
+   * @champ nom
+   */
   @property({ type: String, attribute: 'uid-field' })
   uidField = '';
 

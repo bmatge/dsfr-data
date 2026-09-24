@@ -27,6 +27,13 @@ export interface TagContract {
    * de la couche… Un attribut absent d'ici accepte toute valeur.
    */
   enums?: Readonly<Record<string, readonly string[]>>;
+  /**
+   * Attributs qui designent un CHAMP des donnees (#1141), et la grammaire de
+   * leur valeur (`nom`, `liste`, `liste-alias`…) : tag JSDoc `@champ` des
+   * composants, relu par `build:component-contract`. Attributs retires
+   * compris.
+   */
+  fields?: Readonly<Record<string, string>>;
 }
 
 export type ComponentContract = Record<string, TagContract>;

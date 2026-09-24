@@ -48,7 +48,10 @@ export class DsfrDataMapPopup extends LitElement {
   @property({ type: String })
   mode: PopupMode = 'popup';
 
-  /** Champ utilise comme titre du panneau ou de la modale. */
+  /**
+   * Champ utilise comme titre du panneau ou de la modale.
+   * @champ nom
+   */
   @property({ type: String, attribute: 'title-field' })
   titleField = '';
 

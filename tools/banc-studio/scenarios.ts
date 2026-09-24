@@ -189,6 +189,35 @@ export const SCENARIOS: readonly Scenario[] = [
     },
   },
   {
+    // #1141 : l'usager nomme une colonne qui n'existe pas (« Catégorie » pour
+    // « Type »). Le bloc libre refuse le nom avec la liste des champs de la
+    // source ; le modele doit se corriger, pas abandonner ni garder le faux nom.
+    id: 'champ-errone',
+    titre: 'Nom de champ erroné : l’usager dit « Catégorie », le jeu dit « Type »',
+    pr: true,
+    source: { nom: 'Établissements scolaires', lignes: ETABLISSEMENTS },
+    messages: [
+      'Fais un tableau croisé des établissements : une ligne par commune, une colonne par ' +
+        '« Catégorie » (c’est le nom de la colonne dans le jeu), et dans chaque case le nombre ' +
+        'total d’élèves.',
+    ],
+    attendu: {
+      blocs: [
+        {
+          libelle: 'pivot sur la vraie colonne (Type), puis liste',
+          kind: 'component',
+          composants: [
+            {
+              tag: 'dsfr-data-pivot',
+              attributs: { row: 'Commune', column: 'Type', value: 'Nombre d’élèves' },
+            },
+            { tag: 'dsfr-data-list' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     id: 'demande-impossible',
     titre: 'Demande impossible : formulaire de saisie, à dire d’emblée',
     pr: true,

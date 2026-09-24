@@ -717,6 +717,57 @@ describe('banc Studio — tableau croisé (bloc composant libre, #1111)', () => 
 });
 
 // ---------------------------------------------------------------------------
+// « Champ erroné » (#1141) : le nom faux est refusé, le modèle se corrige
+// ---------------------------------------------------------------------------
+
+describe('banc Studio — nom de champ erroné (#1141)', () => {
+  const pivot = (column: string) => ({
+    tag: 'dsfr-data-pivot',
+    attributes: Object.entries({
+      id: 'croise',
+      source: 'banc-champ-errone',
+      row: 'Commune',
+      column,
+      value: 'Nombre d’élèves',
+    }).map(([name, value]) => ({ name, value })),
+  });
+  const LISTE = { tag: 'dsfr-data-list', attributes: [{ name: 'source', value: 'croise' }] };
+  const ajout = (column: string) =>
+    reponse([
+      {
+        name: 'add_blocks',
+        args: { blocks: [{ kind: 'component', components: [pivot(column), LISTE] }] },
+      },
+    ]);
+
+  it('le nom faux est refusé avec les champs de la source, la correction est acceptée', async () => {
+    const { post, corps } = modele([
+      ajout('Catégorie'),
+      ajout('Type'),
+      reponse([{ name: 'finish', args: { message: 'Colonne « Type » utilisée.' } }]),
+    ]);
+    const e = await executerScenario(scenario('champ-errone'), { post, model: 'simule' });
+    const refus = JSON.stringify(corps[1]);
+    expect(refus).toContain('champ \\"Catégorie\\" absent de la source #banc-champ-errone');
+    expect(refus).toContain('Type');
+    expect(verdicts(evaluer(scenario('champ-errone'), e))).toMatchObject({
+      'blocs-attendus': 'ok',
+      'code-valide': 'ok',
+      'fin-propre': 'ok',
+    });
+  });
+
+  it('le modèle qui garde le nom faux n’obtient aucun bloc : échec', async () => {
+    const e = await jouer('champ-errone', [
+      ajout('Catégorie'),
+      reponse([{ name: 'finish', args: { message: 'Fait.' } }]),
+    ]);
+    expect(e.document.widgets).toHaveLength(0);
+    expect(verdicts(evaluer(scenario('champ-errone'), e))['blocs-attendus']).toBe('echec');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // « Source par URL » (#1140) : aucune source au depart, le modele la charge
 // ---------------------------------------------------------------------------
 

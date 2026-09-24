@@ -243,7 +243,8 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 - Lire `docs/ARCHITECTURE.md` (et sa section **Couplages non-évidents ⚠️**) avant de toucher au pipeline de composants, au proxy, aux bundles, au beacon ou au build.
 - Acceder a `import.meta.env.VITE_*` **en direct**, sans indirection.
 - Apres modif d'un **attribut / evenement / slot / variable CSS** d'un composant `dsfr-data-*` :
-  ecrire le JSDoc sur le composant (`@fires`, `@slot`, `@cssprop`) puis lancer **`npm run build:skills`** —
+  ecrire le JSDoc sur le composant (`@fires`, `@slot`, `@cssprop`, et `@champ <grammaire>` pour un
+  attribut qui designe un champ des donnees, #1141) puis lancer **`npm run build:skills`** —
   la partie « reference » des skills est GENEREE depuis le custom-elements manifest (#512), ne jamais
   editer `packages/shared/src/skills/skills-reference.generated.ts` a la main
   (sinon `tests/skills/skills-reference.test.ts` casse).
@@ -287,7 +288,8 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 - **Jamais** modifier les `.js` dans `packages/core/src/` (artefacts de build).
 - **Jamais** editer a la main `packages/shared/src/skills/skills-reference.generated.ts`,
   `packages/core/custom-elements.json`, `mcp-server/src/skill-matching.generated.ts`,
-  `mcp-server/src/skill-levels.generated.ts` ni `skills/dsfr-data/` —
+  `mcp-server/src/skill-levels.generated.ts`, `mcp-server/src/component-contract.generated.ts`,
+  `packages/shared/src/debug/field-attrs.generated.ts` ni `skills/dsfr-data/` —
   ce sont des artefacts generes (`npm run build:skills`).
 - **Jamais** ajouter d'`import` dans `packages/shared/src/ia/skill-matching.ts` ni dans
   `skill-levels.ts` (adressage par niveau / reference, #1035) : ces fichiers sont

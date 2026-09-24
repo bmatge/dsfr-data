@@ -23,7 +23,10 @@
  */
 
 import {
+  FIELD_ATTRS,
+  SHAPE_ATTRS,
   escapeHtml,
+  fieldsInAttr,
   generateWidgetHTML,
   lintMarkup,
   nettoyerGabarit,
@@ -35,6 +38,7 @@ import type {
   DashboardData,
   FreeComponentSpec,
   LintFinding,
+  Trace,
   Widget,
 } from '@dsfr-data/shared';
 import { COMPONENT_CONTRACT } from '../../../mcp-server/src/component-contract.generated';
@@ -166,10 +170,35 @@ export const FREE_COMPONENT_SCHEMA = {
 // Validation
 // ---------------------------------------------------------------------------
 
+/**
+ * Une etape telle que la derniere trace de l'apercu l'a observee (#1141) :
+ * ses attributs de forme, ses amonts et les champs de sa SORTIE.
+ */
+export interface ObservationEtape {
+  tag: string;
+  attrs: Readonly<Record<string, string>>;
+  upstream: readonly string[];
+  fields: readonly string[];
+}
+
 /** Ids que les composants du bloc peuvent viser, hors du bloc lui-meme. */
 export interface ContexteLibre {
   /** Sources du document et ids declares par les AUTRES blocs libres. */
   idsExternes: readonly string[];
+  /**
+   * Champs des sources dont les lignes sont connues (la source chargee), par
+   * id de source (#1141). Une source absente d'ici a une sortie inconnue.
+   */
+  champsDesSources?: Readonly<Record<string, readonly string[]>>;
+  /** Composants des AUTRES blocs libres, par id — pour relire leur sortie observee. */
+  composantsExternes?: ReadonlyMap<string, FreeComponentSpec>;
+  /**
+   * Derniere trace de l'apercu, par id d'etape (volet Diagnostic). Absente
+   * (banc, pas d'apercu) : seules les sources chargees sont connues.
+   */
+  observations?: ReadonlyMap<string, ObservationEtape>;
+  /** `run_and_trace` est disponible : le compte-rendu y renvoie pour ce qui reste a verifier. */
+  peutTracer?: boolean;
 }
 
 export interface ResultatLibre {
@@ -177,6 +206,40 @@ export interface ResultatLibre {
   error?: string;
   /** Avertissements du lint, rendus au modele sans refuser le bloc. */
   avertissements?: string[];
+  /** Champs lus sur une sortie encore inconnue (#1141), rendus au modele. */
+  nonVerifies?: string;
+}
+
+/**
+ * Etapes observees par la derniere trace de l'apercu, par id (#1141). Seules
+ * celles dont la sortie porte des champs sont retenues.
+ */
+export function observationsDeTrace(trace: Trace | null): Map<string, ObservationEtape> {
+  const out = new Map<string, ObservationEtape>();
+  if (!trace) return out;
+  for (const node of trace.graph.nodes) {
+    if (node.synthetic || node.ambiguous) continue;
+    const fields = (trace.states[node.id]?.fields ?? []).map((f) => f.name);
+    if (fields.length === 0) continue;
+    out.set(node.id, { tag: node.tag, attrs: node.attrs, upstream: node.upstream, fields });
+  }
+  return out;
+}
+
+/** Composants des blocs libres d'un document par id, sauf ceux du bloc `sauf`. */
+export function composantsDuDocument(
+  doc: DashboardData,
+  sauf?: string
+): Map<string, FreeComponentSpec> {
+  const out = new Map<string, FreeComponentSpec>();
+  for (const w of doc.widgets) {
+    if (w.type !== 'component' || w.id === sauf) continue;
+    for (const c of w.config.components) {
+      const id = c.attributes.find((a) => a.name === 'id')?.value;
+      if (id) out.set(id, c);
+    }
+  }
+  return out;
 }
 
 /** Ids connus d'un document : ses sources, et les ids declares par ses blocs libres. */
@@ -310,6 +373,167 @@ function balisesExternes(ids: readonly string[]): string {
   return ids.map((id) => `<dsfr-data-source id="${escapeHtml(id)}"></dsfr-data-source>`).join('\n');
 }
 
+// ---------------------------------------------------------------------------
+// Noms de champs, etape par etape (#1141)
+// ---------------------------------------------------------------------------
+
+/** Valeur d'un attribut d'un composant, ou undefined. */
+function attr(c: FreeComponentSpec, nom: string): string | undefined {
+  return c.attributes.find((a) => a.name === nom)?.value;
+}
+
+/**
+ * Transformateurs qui FILTRENT ou trient sans toucher au schema : leur sortie
+ * a les champs de leur entree. Seule connaissance de la semantique des
+ * composants ecrite ici — tout le reste (pivot, agregation, jointure,
+ * normalisation…) se lit dans la trace, jamais recalcule.
+ */
+function conserveLeSchema(c: FreeComponentSpec): boolean {
+  switch (c.tag) {
+    case 'dsfr-data-facets':
+      return true;
+    // `highlight` ajoute `_highlight` a chaque ligne.
+    case 'dsfr-data-search':
+      return attr(c, 'highlight') === undefined;
+    // Sans regroupement ni agregat, une requete filtre, trie, limite.
+    case 'dsfr-data-query':
+      return attr(c, 'group-by') === undefined && attr(c, 'aggregate') === undefined;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Attributs qui decrivent la forme d'une etape dans la trace (`snapshotGraph`) :
+ * le cadrage de `SHAPE_ATTRS` plus les attributs-champs. Une observation n'est
+ * reprise que si ces attributs sont ceux du composant tel qu'il est ECRIT
+ * maintenant — sinon l'apercu montre une version precedente.
+ */
+function attrsDeForme(tag: string): string[] {
+  return [...new Set([...(SHAPE_ATTRS[tag] ?? []), ...Object.keys(FIELD_ATTRS[tag] ?? {})])];
+}
+
+function observationConforme(c: FreeComponentSpec, obs: ObservationEtape): boolean {
+  if (obs.tag !== c.tag || obs.fields.length === 0) return false;
+  for (const nom of attrsDeForme(c.tag)) {
+    if (attr(c, nom) !== obs.attrs[nom]) return false;
+  }
+  const amonts = amontsDe(c);
+  return amonts.length === obs.upstream.length && amonts.every((a, i) => a === obs.upstream[i]);
+}
+
+/** Racine d'un chemin imbrique (`a.b`, `items[0]`) : seule cle contredite sans risque. */
+function racine(champ: string): string {
+  const fin = Math.min(
+    ...[champ.indexOf('.'), champ.indexOf('['), champ.length].filter((i) => i >= 0)
+  );
+  return champ.slice(0, fin);
+}
+
+/** Liste de champs bornee pour un message. */
+function listerChamps(champs: readonly string[], max = 25): string {
+  return champs.length <= max
+    ? champs.join(', ')
+    : `${champs.slice(0, max).join(', ')}, … (+${champs.length - max})`;
+}
+
+export interface ResultatChamps {
+  error?: string;
+  /** Lectures non verifiees faute de sortie connue, pour le compte-rendu. */
+  nonVerifies?: string[];
+}
+
+/**
+ * Verifie les noms de champs du bloc, ETAPE PAR ETAPE : un attribut marque
+ * `@champ` (FIELD_ATTRS, genere depuis le JSDoc) doit nommer un champ de ce que
+ * le composant RECOIT — la source chargee, ou la sortie de l'etape qui
+ * l'alimente.
+ *
+ * Sortie d'une etape : la source chargee (lignes connues) ; un filtre qui
+ * conserve le schema (`conserveLeSchema`) ; sinon la derniere TRACE de
+ * l'apercu, si elle a observe cette etape ecrite a l'identique et que ses
+ * amonts sont eux-memes connus. Un pivot tout juste ecrit n'a pas encore ete
+ * calcule : sa sortie est INCONNUE, et un champ lu dessus n'est pas refuse —
+ * il est rendu au modele comme « non verifie » (verification par
+ * `run_and_trace` une fois l'apercu rendu). Jamais de refus sur une supposition.
+ */
+export function verifierChampsLibres(
+  components: readonly FreeComponentSpec[],
+  ctx: ContexteLibre
+): ResultatChamps {
+  const sources = ctx.champsDesSources ?? {};
+  const internes = new Map<string, FreeComponentSpec>();
+  for (const c of components) {
+    const id = attr(c, 'id');
+    if (id) internes.set(id, c);
+  }
+  const memo = new Map<string, readonly string[] | null>();
+
+  const sortieDe = (
+    id: string,
+    pile: ReadonlySet<string> = new Set()
+  ): readonly string[] | null => {
+    if (memo.has(id)) return memo.get(id) ?? null;
+    if (pile.has(id)) return null; // cycle : le lint le dira
+    const suite = new Set(pile).add(id);
+    let out: readonly string[] | null = null;
+    const spec = internes.get(id) ?? ctx.composantsExternes?.get(id);
+    if (!spec && Object.prototype.hasOwnProperty.call(sources, id)) {
+      out = sources[id].length > 0 ? sources[id] : null;
+    } else if (spec) {
+      const amonts = amontsDe(spec);
+      const entrees = amonts.map((a) => sortieDe(a, suite));
+      const amontsConnus = amonts.length > 0 && entrees.every((e) => e !== null);
+      if (amontsConnus && conserveLeSchema(spec) && amonts.length === 1) {
+        out = entrees[0];
+      } else {
+        const obs = ctx.observations?.get(id);
+        if (amontsConnus && obs && observationConforme(spec, obs)) out = obs.fields;
+      }
+    }
+    memo.set(id, out);
+    return out;
+  };
+
+  const nonVerifies: string[] = [];
+  for (const c of components) {
+    const table = FIELD_ATTRS[c.tag];
+    if (!table) continue;
+    const lus = c.attributes.filter((a) => a.name in table);
+    if (lus.length === 0) continue;
+    const amonts = amontsDe(c).filter(Boolean);
+    // Popup, legende : alimentes par leur carte, pas par un `source=` — hors controle.
+    if (amonts.length === 0) continue;
+    const entrees = amonts.map((a) => sortieDe(a));
+    const inconnus = amonts.filter((_, i) => entrees[i] === null);
+    if (inconnus.length > 0) {
+      nonVerifies.push(
+        `<${c.tag}> ${lus.map((a) => a.name).join(', ')} (lit ${inconnus.map((i) => `#${i}`).join(', ')})`
+      );
+      continue;
+    }
+    // Union des entrees (jointure) : ne peut que sous-signaler, jamais inventer.
+    const connus = [...new Set(entrees.flatMap((e) => e ?? []))];
+    for (const { name, value } of lus) {
+      for (const champ of fieldsInAttr(value, table[name])) {
+        if (connus.includes(racine(champ))) continue;
+        const ou =
+          amonts.length > 1
+            ? `des entrées ${amonts.map((a) => `#${a}`).join(' et ')}`
+            : internes.has(amonts[0]) || ctx.composantsExternes?.has(amonts[0])
+              ? `de la sortie de #${amonts[0]}`
+              : `de la source #${amonts[0]}`;
+        return {
+          error:
+            `Bloc component refusé : <${c.tag}> ${name}="${value}" : champ "${champ}" absent ${ou}` +
+            ` (champs disponibles : ${listerChamps(connus)}).`,
+        };
+      }
+    }
+  }
+  return nonVerifies.length > 0 ? { nonVerifies } : {};
+}
+
 /**
  * Valide les composants d'un bloc libre. Refus au premier defaut de forme ;
  * puis le lint de balisage sur le HTML QUE L'EXPORT EMETTRA, precede d'une
@@ -380,9 +604,18 @@ export function validerComposantsLibres(raw: unknown, ctx: ContexteLibre): Resul
       };
     }
   }
+  // Les noms de champs, etape par etape (#1141).
+  const champs = verifierChampsLibres(components, ctx);
+  if (champs.error) return { error: champs.error };
   const avertissements = constats.filter((f) => f.severity === 'avertissement');
   return {
     components,
     avertissements: avertissements.length > 0 ? avertissements.map(decrireConstat) : undefined,
+    nonVerifies: champs.nonVerifies
+      ? `champs non vérifiés, la sortie lue n'est pas encore calculée : ${champs.nonVerifies.join(' ; ')}. ` +
+        (ctx.peutTracer
+          ? 'Appelle run_and_trace une fois l’aperçu rendu pour les vérifier.'
+          : 'Ils ne seront vérifiés qu’au rendu de la page : relis la fiche du composant amont pour les noms qu’il produit.')
+      : undefined,
   };
 }

@@ -93,11 +93,17 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   source = '';
 
-  /** Chemin vers le champ label */
+  /**
+   * Chemin vers le champ label
+   * @champ nom
+   */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
-  /** Chemin vers le champ valeur (numérique) */
+  /**
+   * Chemin vers le champ valeur (numérique)
+   * @champ nom
+   */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
@@ -105,7 +111,10 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   subtitle = '';
 
-  /** Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) */
+  /**
+   * Chemin vers un champ pour le sous-titre (prioritaire sur subtitle)
+   * @champ nom
+   */
   @property({ type: String, attribute: 'subtitle-field' })
   subtitleField = '';
 
@@ -138,6 +147,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
    * relative). Une URL refusée n'affiche rien et avertit en console, une fois
    * par valeur. Exclusif avec `icon-field` / `icon` et `picto` / `picto-field`
    * (l'image l'emporte, et le cumul est signalé).
+   * @champ nom
    */
   @property({ type: String, attribute: 'image-field' })
   imageField = '';
@@ -160,6 +170,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
    * marche (le masque d'une `fr-icon-*` est en `1em`, donc pilotable par
    * `font-size`), mais c'est un usage hors échelle : `picto` est la voie
    * conforme pour une illustration de cette taille.
+   * @champ nom
    */
   @property({ type: String, attribute: 'icon-field' })
   iconField = '';
@@ -179,7 +190,10 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   picto = '';
 
-  /** Chemin vers un champ contenant le nom du pictogramme. Même contrainte que `picto`. */
+  /**
+   * Chemin vers un champ contenant le nom du pictogramme. Même contrainte que `picto`.
+   * @champ nom
+   */
   @property({ type: String, attribute: 'picto-field' })
   pictoField = '';
 

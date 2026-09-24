@@ -24,6 +24,15 @@
  * pas : toute valeur y est acceptee. Le lint de balisage et le bloc « composant
  * libre » du Studio refusent une valeur hors liste.
  *
+ * Champs (#1141) : un attribut dont le JSDoc porte `@champ <grammaire>`
+ * designe un champ des donnees (le plugin `champsDesDonnees` de
+ * `custom-elements-manifest.config.mjs` le reporte sur l'attribut du manifeste,
+ * cle `champ`). Le contrat recoit `fields: { attribut: grammaire }` (attributs
+ * retires compris : ils lisent encore un champ), et la meme table est ecrite
+ * dans `packages/shared/src/debug/field-attrs.generated.ts`, d'ou le
+ * diagnostic (`FIELD_ATTRS`) et le bloc libre du Studio la lisent. Une seule
+ * source : le JSDoc du composant.
+ *
  * Usage : npx vite-node scripts/build-component-contract.ts
  */
 
@@ -39,6 +48,8 @@ interface CemAttribute {
   name?: string;
   deprecated?: boolean | string;
   fieldName?: string;
+  /** Grammaire du champ designe (`@champ`, #1141). */
+  champ?: string;
 }
 interface CemDeclaration {
   name?: string;
@@ -58,6 +69,7 @@ interface TagContractOut {
   attributes: string[];
   deprecated?: Record<string, string>;
   enums?: Record<string, string[]>;
+  fields?: Record<string, string>;
 }
 
 const contract: Record<string, TagContractOut> = {};
@@ -133,8 +145,10 @@ for (const mod of cem.modules ?? []) {
     if (!decl.tagName) continue;
     const attributes: string[] = [];
     const deprecated: Record<string, string> = {};
+    const fields: Record<string, string> = {};
     for (const attr of decl.attributes ?? []) {
       if (!attr.name) continue;
+      if (attr.champ) fields[attr.name] = attr.champ;
       if (attr.deprecated) {
         deprecated[attr.name] =
           typeof attr.deprecated === 'string' ? attr.deprecated : 'attribut deprecie';
@@ -152,6 +166,13 @@ for (const mod of cem.modules ?? []) {
           .map((k) => [k, enums[k]])
       );
     }
+    if (Object.keys(fields).length) {
+      out.fields = Object.fromEntries(
+        Object.keys(fields)
+          .sort()
+          .map((k) => [k, fields[k]])
+      );
+    }
     contract[decl.tagName] = out;
   }
 }
@@ -163,7 +184,7 @@ const body = `/**
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * ${tags.length} balises, ${Object.values(contract).reduce((n, c) => n + c.attributes.length, 0)} attributs, ${Object.values(contract).reduce((n, c) => n + Object.keys(c.enums ?? {}).length, 0)} enumerations.
+ * ${tags.length} balises, ${Object.values(contract).reduce((n, c) => n + c.attributes.length, 0)} attributs, ${Object.values(contract).reduce((n, c) => n + Object.keys(c.enums ?? {}).length, 0)} enumerations, ${Object.values(contract).reduce((n, c) => n + Object.keys(c.fields ?? {}).length, 0)} attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = ${JSON.stringify(
@@ -175,6 +196,25 @@ export const COMPONENT_CONTRACT = ${JSON.stringify(
 
 const outPath = resolve(root, 'mcp-server/src/component-contract.generated.ts');
 writeFileSync(outPath, body);
+// --- Table des attributs-champs pour le diagnostic et le Studio (#1141) ----
+
+const champs = Object.fromEntries(
+  tags.filter((t) => contract[t].fields).map((t) => [t, contract[t].fields])
+);
+const champsBody = `/**
+ * FICHIER GENERE — NE PAS EDITER A LA MAIN.
+ *
+ * Attributs qui designent un champ des donnees, par balise, et la grammaire de
+ * leur valeur (#1141). Source : le tag JSDoc \`@champ <grammaire>\` des
+ * composants (packages/core/src/components), relu dans le manifeste.
+ * Regeneration : npm run build:component-contract (inclus dans build:skills).
+ */
+
+export const CHAMPS_DES_COMPOSANTS = ${JSON.stringify(champs, null, 2)} as const;
+`;
+const champsPath = resolve(root, 'packages/shared/src/debug/field-attrs.generated.ts');
+writeFileSync(champsPath, champsBody);
+
 console.log(
   `component-contract.generated.ts : ${tags.length} balises, ${(Buffer.byteLength(body, 'utf-8') / 1024).toFixed(1)} Ko -> ${outPath}`
 );

@@ -143,7 +143,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   type: DSFRChartType = 'bar';
 
-  /** Chemin vers le champ label */
+  /**
+   * Chemin vers le champ label
+   * @champ nom
+   */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
@@ -168,6 +171,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /**
    * Chemin vers le champ code (prioritaire sur label-field) : departement/region
    * (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)
+   * @champ nom
    */
   @property({ type: String, attribute: 'code-field' })
   codeField = '';
@@ -177,11 +181,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * `value-field="Panier_moyen:Panier moyen"` affiche « Panier moyen » dans la
    * légende à la place du nom technique. Un `name` explicite prime sur l'alias.
    * Un `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue).
+   * @champ liste-alias
    */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
-  /** Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668). */
+  /**
+   * Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668).
+   * @champ liste-alias
+   */
   @property({ type: String, attribute: 'value-field-2' })
   valueField2 = '';
 
@@ -189,6 +197,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score').
    * Alias inline `champ:Libellé` par série (#668) : `value-fields="budget:Budget, score:Score"`.
    * Un `name` explicite (tableau JSON) prime sur les alias.
+   * @champ liste-alias
    */
   @property({ type: String, attribute: 'value-fields' })
   valueFields = '';
@@ -198,6 +207,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * distinctes deviennent autant de series (mode multi-series sans colonnes multiples).
    * Ex: données {mois, groupe, valeur} avec series-field="groupe" → une série par groupe.
    * S'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields.
+   * @champ nom
    */
   @property({ type: String, attribute: 'series-field' })
   seriesField = '';
@@ -326,6 +336,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * colonne affichée — qui serait le chiffre faux que l'attribut évite.
    *
    * **Attribut absent : rien ne change.**
+   * @champ nom
    */
   @property({ type: String, attribute: 'map-summary-field' })
   mapSummaryField = '';
@@ -417,6 +428,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * (`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date
    * de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date`
    * est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.
+   * @champ nom
    */
   @property({ type: String, attribute: 'databox-date-field' })
   databoxDateField = '';

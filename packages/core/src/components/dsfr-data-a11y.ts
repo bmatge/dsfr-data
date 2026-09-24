@@ -61,11 +61,17 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   description = '';
 
-  /** Colonne utilisée pour les labels du tableau. */
+  /**
+   * Colonne utilisée pour les labels du tableau.
+   * @champ nom
+   */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
-  /** Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules). */
+  /**
+   * Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).
+   * @champ liste
+   */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
 
@@ -113,6 +119,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    *
    * Absent (défaut), le rendu est inchangé. La valeur n'est PAS reprise du
    * graphique visé par `for`.
+   * @champ nom
    */
   @property({ type: String, attribute: 'series-field' })
   seriesField = '';

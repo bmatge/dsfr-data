@@ -104,7 +104,10 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: String })
   source = '';
 
-  /** Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs */
+  /**
+   * Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs
+   * @champ liste
+   */
   @property({ type: String })
   fields = '';
 

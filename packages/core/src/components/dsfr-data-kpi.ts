@@ -191,11 +191,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * lignes DANS LEUR ORDRE COURANT — poser un `order-by` chronologique en
    * amont. Fraction, rendue en pourcentage par `format="pourcentage"`,
    * `trend` et `lines` ; « — » si moins de deux valeurs ou première = 0.
+   * @champ expression
    */
   @property({ type: String })
   value = '';
 
-  /** @deprecated alias français de `value` (#300) */
+  /**
+   * @deprecated alias français de `value` (#300)
+   * @champ expression
+   */
   @property({ type: String })
   valeur = '';
 
@@ -225,6 +229,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * `where="a_urgent:eq:1"`) reste valide et garde un intérêt — le filtre
    * final porte sur un scalaire, donc regroupable et délégable — mais il
    * n'est plus NÉCESSAIRE.
+   * @champ clauses
    */
   @property({ type: String })
   where = '';
@@ -301,6 +306,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * Même chose que `picto`, mais le nom est lu dans un CHAMP de la première
    * ligne reçue (`picto-field="theme_picto"`) — utile dans un répéteur. Même
    * motif, même refus. `picto` prime s'il est posé.
+   * @champ nom
    */
   @property({ type: String, attribute: 'picto-field' })
   pictoField = '';
@@ -411,11 +417,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
    * Rendue avec une fleche (↑/↓) en pourcentage fr-FR ("↑ 5,2 %").
    * `trend="recettes:evolution"` (#675) : taux d'évolution entre la première
    * et la dernière ligne, rendu en pourcentage.
+   * @champ expression
    */
   @property({ type: String })
   trend = '';
 
-  /** @deprecated alias français de `trend` (#300) */
+  /**
+   * @deprecated alias français de `trend` (#300)
+   * @champ expression
+   */
   @property({ type: String })
   tendance = '';
 

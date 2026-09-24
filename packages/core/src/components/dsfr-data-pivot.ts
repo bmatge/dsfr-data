@@ -58,15 +58,22 @@ export class DsfrDataPivot extends TransformerMixin(LitElement) {
   /**
    * Champs formant l'identité de ligne, virgule-séparés : une ligne émise par
    * combinaison distincte. Ex : `"commune"` ou `"etab, dep"`.
+   * @champ liste
    */
   @property({ type: String })
   row = '';
 
-  /** Champ dont chaque valeur distincte devient une colonne. Ex : `"annee"`. */
+  /**
+   * Champ dont chaque valeur distincte devient une colonne. Ex : `"annee"`.
+   * @champ nom
+   */
   @property({ type: String })
   column = '';
 
-  /** Champ dont les valeurs remplissent les cellules. Ex : `"montant"`. */
+  /**
+   * Champ dont les valeurs remplissent les cellules. Ex : `"montant"`.
+   * @champ nom
+   */
   @property({ type: String })
   value = '';
 
