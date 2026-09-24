@@ -522,6 +522,9 @@ describe('banc Studio — outillage', () => {
     const mots = { libelle: 't', tous: [['total'], ['répété', 'constant']] };
     expect(groupesManquants('Le TOTAL est repete', mots)).toEqual([]);
     expect(groupesManquants('Le total', mots)).toEqual(['répété | constant']);
+    expect(
+      groupesManquants('total\u202frépété', { libelle: 't', tous: [['total répété']] })
+    ).toEqual([]);
   });
 
   it('cadence : attend le reste de la pause depuis le debut du dernier appel', async () => {

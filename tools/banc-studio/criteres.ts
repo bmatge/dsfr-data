@@ -150,9 +150,17 @@ const OUTILS_DOCUMENT = new Set([
   'reset_document',
 ]);
 
-/** Minuscules, sans accents, apostrophes unifiees. */
+/** Minuscules, sans accents, apostrophes et espaces unifiees. */
 export function normaliser(texte: string): string {
-  return texte.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’‘]/g, "'").toLowerCase();
+  return (
+    texte
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\u2018\u2019]/g, "'")
+      // Espaces insecables (fine et normale) : le modele les emploie devant « : ».
+      .replace(/[\u00a0\u202f]/g, ' ')
+      .toLowerCase()
+  );
 }
 
 /** Chaque groupe de mots-cles trouve dans le texte ? Rend les groupes manquants. */
