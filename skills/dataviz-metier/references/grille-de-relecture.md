@@ -60,6 +60,12 @@ Les dix précédentes, puis :
   étaient chez `dsfr-data`, et une à `dsfr-data` était chez DSFR Chart. Quatre verdicts avant
   d'écrire « impossible » : natif / natif mais postérieur à la version chargée / sur `main` non
   publié / absent du source (ADR-109 du banc).
+- **Afficher par ligne un total d'entité.** En données longues (une ligne par ville × aide), une
+  colonne constante sur toutes les lignes d'une ville (« Nombre total d'actions » = 4 sur les 4
+  lignes de Lille) est un attribut de la ville : affichée à côté de chaque aide, elle devient
+  « Chèque énergie : 4 », faux ; sommée, elle compte Lille quatre fois. Vérifier (une seule valeur
+  par entité ?) avant d'afficher, l'afficher une fois par entité, et le dire
+  ([échelles honnêtes](echelles-honnetes.md), « Le total répété »).
 - **Relire l'honnêteté et oublier le récit.** Une page dont chaque chiffre est juste et qui ne
   dit rien a passé la grille de la version précédente de ce skill. Les points I6 à I8 et A11 à
   A12 existent pour cela.

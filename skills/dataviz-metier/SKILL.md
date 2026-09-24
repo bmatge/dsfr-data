@@ -58,7 +58,7 @@ avancée relit chaque bloc au niveau base.
 | Les cas de forme payés par le banc : 236 lignes, barre d'écart, part qui se calcule, trois points, bar-line, radar | [forme-cas-du-banc](references/forme-cas-du-banc.md) |
 | Titre-message, sous-titre de méthode, chapô, formulations prudentes, vocabulaire du lecteur | [titres-et-mots](references/titres-et-mots.md) |
 | Phrase de lecture calculée, repère et cible dessinés, titre qui reprend le filtre, source et date lues dans la donnée | [annotation](references/annotation.md) |
-| Axe, double axe, moyenne de taux, arrondi avant pondération, compte approximatif | [echelles-honnetes](references/echelles-honnetes.md) |
+| Axe, double axe, moyenne de taux, arrondi avant pondération, compte approximatif, total d'entité répété sur chaque ligne (données longues) | [echelles-honnetes](references/echelles-honnetes.md) |
 | Sens de la variation, couleur automatique, cumul qui recule, légende qui ment | [sens-des-variations](references/sens-des-variations.md) |
 | Groupe null, troncature, lignes sans code, jeu vide, échantillon qui fond, agrégat sans sens | [ce-qu-on-ne-montre-pas](references/ce-qu-on-ne-montre-pas.md) |
 | Tableau équivalent lisible, description, titres, région live | [accessibilite-comme-sens](references/accessibilite-comme-sens.md) |
