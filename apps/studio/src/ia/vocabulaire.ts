@@ -12,6 +12,7 @@
  */
 
 import { BLOCK_SPEC_SCHEMA } from '../document.js';
+import { CHARGER_SOURCE_URL_TOOL, listerFormatsReconnus } from '../source-url.js';
 
 /** Forme minimale d'un noeud de JSON Schema, telle qu'on la parcourt ici. */
 interface NoeudSchema {
@@ -89,4 +90,20 @@ export function blockOptionNames(): Set<string> {
   };
   parcourir(BLOCK_SPEC_SCHEMA as unknown as NoeudSchema);
   return noms;
+}
+
+/**
+ * L'outil `charger_source_url` (#1140), decrit depuis SON schema : ses
+ * parametres sont ceux que la boucle lit, et les formats reconnus viennent de
+ * la reconnaissance partagee avec l'app Sources — rien n'est recopie ici.
+ */
+export function describeSourceUrlTool(): string {
+  const { name, description, parameters } = CHARGER_SOURCE_URL_TOOL.function;
+  const sections: string[] = [];
+  decrireObjet(
+    `${name} — ${description}\nParamètres :`,
+    parameters as unknown as NoeudSchema,
+    sections
+  );
+  return `${sections.join('\n\n')}\nFormats d'URL reconnus :\n${listerFormatsReconnus()}`;
 }

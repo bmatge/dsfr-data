@@ -10,14 +10,26 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { IA_CONFIG_KEY, fetchServerConfig, resetServerConfigCache } from '@dsfr-data/shared';
+import {
+  IA_CONFIG_KEY,
+  createEmptyDashboard,
+  fetchServerConfig,
+  resetServerConfigCache,
+  type Source,
+} from '@dsfr-data/shared';
+import { state } from '../../../apps/studio/src/state';
 import {
   chargerConfigIA,
   etatIA,
   majBadgeIA,
   utiliserCleServeur,
 } from '../../../apps/studio/src/ia/ia-config';
-import { RESUME_SANS_SOURCE, resumeSource } from '../../../apps/studio/src/sources';
+import {
+  RESUME_SANS_SOURCE,
+  appliquerSource,
+  enregistrerSourceChargee,
+  resumeSource,
+} from '../../../apps/studio/src/sources';
 
 vi.mock('@dsfr-data/shared', async (importOriginal) => {
   const reel = await importOriginal<Record<string, unknown>>();
@@ -185,5 +197,50 @@ describe('colonne gauche compacte (#1142)', () => {
     );
     expect(resumeSource('X', 1, 1)).toBe('X · 1 ligne, 1 champ');
     expect(RESUME_SANS_SOURCE).toBe('aucune source choisie');
+  });
+
+  it('source chargée par charger_source_url (#1140) : résumé à jour, bloc replié, source lue gardée', () => {
+    document.body.innerHTML = `
+      <details id="section-source" open>
+        <summary><span id="source-summary">${RESUME_SANS_SOURCE}</span></summary>
+        <select id="saved-source"></select>
+        <div id="saved-source-info"></div>
+        <button id="show-data-btn" hidden></button>
+      </details>`;
+    state.document = createEmptyDashboard();
+    state.document.sources = [
+      { id: 'ancienne', name: 'Ancienne', type: 'manual', data: [{ a: 1 }] },
+    ] as unknown as typeof state.document.sources;
+    state.document.widgets = [
+      {
+        id: 'b1',
+        type: 'chart',
+        title: 'x',
+        position: { row: 0, col: 0 },
+        config: { sourceId: 'ancienne' },
+      },
+    ] as unknown as typeof state.document.widgets;
+    const source: Source = {
+      id: 'url-aides',
+      name: 'Aides nationales',
+      type: 'api',
+      data: [
+        { region: 'Nord', montant: 10 },
+        { region: 'Sud', montant: 20 },
+      ],
+    };
+
+    // Le chemin de main.ts (sourceParUrl.surChargement).
+    appliquerSource(source);
+    enregistrerSourceChargee(source);
+
+    const summary = document.getElementById('source-summary');
+    expect(summary?.textContent).toBe('Aides nationales · 2 lignes, 2 champs');
+    expect(summary?.title).toBe(summary?.textContent);
+    expect((document.getElementById('section-source') as HTMLDetailsElement).open).toBe(false);
+    expect((document.getElementById('show-data-btn') as HTMLButtonElement).hidden).toBe(false);
+    expect((document.getElementById('saved-source') as HTMLSelectElement).value).toBe('url-aides');
+    // Règle de #1143 conservée : la source encore lue par un bloc reste.
+    expect(state.document.sources.map((s) => s.id)).toEqual(['url-aides', 'ancienne']);
   });
 });

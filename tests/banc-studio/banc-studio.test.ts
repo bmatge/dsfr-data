@@ -27,6 +27,7 @@ import {
   type MetaRapport,
 } from '../../tools/banc-studio/rapport.js';
 import { SCENARIOS, choisirScenarios } from '../../tools/banc-studio/scenarios.js';
+import { chargerSourceDepuisUrl } from '../../apps/studio/src/source-url.js';
 import { ecartsAuSchema, ecartsDeLAppel } from '../../tools/banc-studio/schema.js';
 import { creerCadence, normaliserInstance } from '../../tools/banc-studio/transport.js';
 
@@ -477,7 +478,7 @@ describe('banc Studio — autres scenarios, forme des attentes', () => {
   });
 
   it('la fixture « Aides nationales » porte bien un total REPETE par ville', () => {
-    const lignes = scenario('aides-nationales').source.lignes;
+    const lignes = scenario('aides-nationales').source?.lignes ?? [];
     const parVille = new Map<unknown, Set<unknown>>();
     for (const l of lignes) {
       const s = parVille.get(l.Ville) ?? new Set();
@@ -712,5 +713,67 @@ describe('banc Studio — tableau croisé (bloc composant libre, #1111)', () => 
     const r = verdicts(evaluer(scenario('tableau-croise'), e));
     expect(r['blocs-attendus']).toBe('echec');
     expect(r['bloc-non-demande']).toBe('echec');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// « Source par URL » (#1140) : aucune source au depart, le modele la charge
+// ---------------------------------------------------------------------------
+
+const JEI = [
+  { annee: '2004', montant_d_exoneration: 62416226, nombre_de_jei: 1302 },
+  { annee: '2010', montant_d_exoneration: 143485878, nombre_de_jei: 2937 },
+  { annee: '2017', montant_d_exoneration: 187960511, nombre_de_jei: 3798 },
+];
+const URL_JEI = 'https://data.economie.gouv.fr/explore/dataset/les-jeunes-entreprises-innovantes/';
+
+/** Portail simule : le vrai chargement, sur un reseau qui ne sort pas. */
+const chargerSimule = (url: string, ressource?: string) =>
+  chargerSourceDepuisUrl(url, {
+    ressource,
+    fetchImpl: (async () =>
+      new Response(JSON.stringify({ total_count: JEI.length, results: JEI }))) as typeof fetch,
+  });
+
+const GRAPHIQUE_JEI = {
+  kind: 'chart',
+  title: 'Jeunes entreprises innovantes',
+  config: { type: 'line', labelField: 'annee', valueField: 'nombre_de_jei' },
+};
+
+describe('banc Studio — source par URL', () => {
+  it('le modele charge le jeu donne par URL puis compose : vert', async () => {
+    const { post, corps } = modele([
+      reponse([{ name: 'charger_source_url', args: { url: URL_JEI } }]),
+      reponse([{ name: 'add_blocks', args: { blocks: [GRAPHIQUE_JEI] } }]),
+      reponse([{ name: 'finish', args: { message: 'Graphique ajouté.' } }]),
+    ]);
+    const e = await executerScenario(scenario('source-par-url'), {
+      post,
+      model: 'simule',
+      chargerSource: chargerSimule,
+    });
+    expect(e.erreur).toBeUndefined();
+    const outils = (corps[0].tools as Array<{ function: { name: string } }>).map(
+      (t) => t.function.name
+    );
+    expect(outils).toContain('charger_source_url');
+    expect(e.html).toContain('dataset-id="les-jeunes-entreprises-innovantes"');
+    const r = verdicts(evaluer(scenario('source-par-url'), e));
+    expect(r['blocs-attendus']).toBe('ok');
+    expect(r['hors-schema']).toBe('ok');
+    expect(r['code-valide']).toBe('ok');
+  });
+
+  it('sans charger la source, aucun bloc data ne passe : rouge', async () => {
+    const e = await executerScenario(scenario('source-par-url'), {
+      ...modele([
+        reponse([{ name: 'add_blocks', args: { blocks: [GRAPHIQUE_JEI] } }]),
+        reponse([{ name: 'finish', args: { message: 'Graphique ajouté.' } }]),
+      ]),
+      model: 'simule',
+      chargerSource: chargerSimule,
+    });
+    expect(verdicts(evaluer(scenario('source-par-url'), e))['blocs-attendus']).toBe('echec');
   });
 });

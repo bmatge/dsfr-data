@@ -6,7 +6,7 @@
 import { constantColumnsByEntity, describeConstantColumns } from '@dsfr-data/shared';
 import type { Row } from '@dsfr-data/shared';
 import { describeDocument } from '../document.js';
-import { describeBlockVocabulary } from './vocabulaire.js';
+import { describeBlockVocabulary, describeSourceUrlTool } from './vocabulaire.js';
 import type { DashboardData, Field, Source } from '../state.js';
 
 export function buildSystemPrompt(opts: {
@@ -23,6 +23,8 @@ export function buildSystemPrompt(opts: {
    * quand il n'y a rien a signaler : le prompt ne grossit que pour un FAIT.
    */
   data?: Row[];
+  /** L'outil `charger_source_url` est disponible (#1140). */
+  sourceParUrl?: boolean;
 }): string {
   const { source, fields, sampleRecord, document } = opts;
 
@@ -61,7 +63,26 @@ Source : « ${source.name} » (${source.type}), id « ${source.id} » (à citer 
 Champs : ${fields.map((f) => `${f.name} (${f.type})`).join(', ') || 'non analysés'}.
 Exemple d'enregistrement : ${sampleRecord ? JSON.stringify(sampleRecord) : 'n/a'}${repetees ? `\n${repetees}` : ''}`
     : `## Données
-AUCUNE source chargée : demande à l'utilisateur d'en choisir une avant de créer des blocs data (les blocs text restent possibles).`;
+AUCUNE source chargée : ${
+        opts.sourceParUrl
+          ? "si l'utilisateur donne l'URL d'un jeu, charge-la avec charger_source_url ; sinon demande-lui"
+          : 'demande à l’utilisateur'
+      } d'en choisir une avant de créer des blocs data (les blocs text restent possibles).`;
+
+  const sourceUrlSection = opts.sourceParUrl
+    ? `
+
+## Source donnée par URL
+Quand l'utilisateur donne l'adresse d'un jeu (« avec https://… », « à partir de ce jeu »), \
+appelle charger_source_url AVANT tout autre outil de données : il crée la source du \
+document et te rend fournisseur, champs et nombre de lignes. Ensuite seulement \
+inspect_data et add_blocks, sur les champs qu'il a rendus.
+- Un refus (URL non reconnue, jeu introuvable, ressource non tabulaire, accès refusé) \
+se reformule à l'utilisateur tel quel, avec l'alternative qu'il propose (l'app Sources).
+- Ne demande JAMAIS de clé, de jeton ni d'identifiant dans la conversation : un jeu privé \
+se connecte dans l'app Sources.
+${describeSourceUrlTool()}`
+    : '';
 
   return `Tu es l'assistant du Studio dsfr-data. Tu composes une PAGE de tableau de bord \
 DSFR (État français) faite de BLOCS : texte éditorial, visualisations de données, filtres partagés.
@@ -149,7 +170,7 @@ d'authentification, données saisies : données embarquées dans la page).
 - Toute affirmation sur le code (données en dur ou non, combien de lignes, \
 attributs émis, API appelée) se VÉRIFIE avec read_generated_code AVANT d'être dite.
 - Si l'utilisateur conteste ce que tu dis du code, relis-le : c'est lui qui fait foi, \
-pas ta réponse précédente. Reconnais l'erreur s'il y en a une.${diagnosticSection}
+pas ta réponse précédente. Reconnais l'erreur s'il y en a une.${diagnosticSection}${sourceUrlSection}
 
 ## Vocabulaire des blocs
 Engendré depuis le schéma de tes outils : ce sont les SEULES options écrivables.

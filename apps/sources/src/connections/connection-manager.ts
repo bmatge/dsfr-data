@@ -24,8 +24,9 @@ import {
   httpErrorMessage,
   resolveSourceUrl,
   normalizeProviderAuthHeaders,
-  parseDataGouvDataset,
   dataGouvDatasetApiUrl,
+  parseGristDocRef,
+  reconnaitreUrlSource,
   looksLikeNumber,
   navigateTo,
 } from '@dsfr-data/shared';
@@ -44,46 +45,10 @@ import { loadTableData } from '../editors/table-editor.js';
 // Parsing URL doc Grist public
 // ============================================================
 
-/**
- * Extrait le serveur (`baseUrl`) et le `docId` d'une référence de document Grist.
- *
- * Accepte :
- *  - URL UI : `https://grist.numerique.gouv.fr/o/mon-org/jGd2ge4dy2ZM/MaPage`
- *  - URL UI sans org : `https://docs.getgrist.com/jGd2ge4dy2ZM/MonDoc`
- *  - URL API : `https://grist.numerique.gouv.fr/api/docs/jGd2ge4dy2ZM/tables/...`
- *  - docId brut : `jGd2ge4dy2ZM` (serveur par défaut grist.numerique.gouv.fr)
- *
- * Retourne `null` si l'entrée est vide ou non parsable.
- */
-export function parseGristDocRef(input: string): { baseUrl: string; docId: string } | null {
-  const raw = input.trim();
-  if (!raw) return null;
-
-  // docId brut (ni schéma ni chemin) → serveur gouv par défaut.
-  if (!raw.includes('/') && !raw.includes(' ') && !raw.includes('.')) {
-    return { baseUrl: 'https://grist.numerique.gouv.fr', docId: raw };
-  }
-
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
-  }
-
-  const baseUrl = `${url.protocol}//${url.host}`;
-  const segments = url.pathname.split('/').filter(Boolean);
-
-  const docsIdx = segments.indexOf('docs');
-  // Forme API : /api/docs/{docId}/... — sinon forme UI : /o/{org}/{docId}/{page} ou /{docId}/{page}
-  const docId =
-    docsIdx > 0 && segments[docsIdx - 1] === 'api' && segments[docsIdx + 1]
-      ? segments[docsIdx + 1]
-      : (segments[segments[0] === 'o' && segments.length >= 2 ? 2 : 0] ?? null);
-
-  if (!docId) return null;
-  return { baseUrl, docId };
-}
+// La reconnaissance d'URL vit dans @dsfr-data/shared (#1140), partagee avec
+// l'outil `charger_source_url` du Studio IA. Reexportee ici pour les appelants
+// historiques.
+export { parseGristDocRef };
 
 // ============================================================
 // Render — accordéon des connexions (refonte « Sources v2 »)
@@ -1372,19 +1337,11 @@ export async function runUrlDetection(): Promise<void> {
     return;
   }
 
-  let host = '';
-  try {
-    host = new URL(raw).hostname;
-  } catch {
-    // pas une URL absolue — on laissera l'utilisateur compléter en mode manuel
-  }
-  const isGrist = /grist/i.test(host) || host === 'getgrist.com' || host.endsWith('.getgrist.com');
-
-  const resolved = resolveSourceUrl(raw);
+  const reconnue = reconnaitreUrlSource(raw);
 
   // --- Grist ---
-  if (isGrist || resolved.provider.id === 'grist') {
-    const ref = parseGristDocRef(raw);
+  if (reconnue.kind === 'grist') {
+    const ref = reconnue.ref;
 
     // Document précis : on sonde l'accès public (anonyme) sur /docs/{id}/tables.
     if (ref?.docId) {
@@ -1431,7 +1388,8 @@ export async function runUrlDetection(): Promise<void> {
   }
 
   // --- Plateforme de données connue : champs API pré-remplis ---
-  if (resolved.provider.id !== 'generic' && resolved.apiUrl) {
+  if (reconnue.kind === 'api') {
+    const { resolved } = reconnue;
     setConnType('api');
     const apiUrlEl = document.getElementById('api-url') as HTMLInputElement | null;
     const dataPathEl = document.getElementById('api-data-path') as HTMLInputElement | null;
@@ -1451,14 +1409,13 @@ export async function runUrlDetection(): Promise<void> {
   }
 
   // --- Page dataset data.gouv.fr : crée une connexion (1→N jeux), browse dans l'explorateur ---
-  const dgSlug = parseDataGouvDataset(raw);
-  if (dgSlug) {
-    await createDataGouvConnection(dgSlug, raw);
+  if (reconnue.kind === 'datagouv-jeu') {
+    await createDataGouvConnection(reconnue.slug, raw);
     return;
   }
 
   // --- Racine data.gouv.fr (sans dataset ni ressource) : pas assez d'info → on guide. ---
-  if (host.endsWith('data.gouv.fr')) {
+  if (reconnue.kind === 'datagouv-racine') {
     toastWarning(
       "Collez l'URL d'une page de jeu de données data.gouv (ex : data.gouv.fr/datasets/<nom-du-jeu>), pas la racine du site."
     );

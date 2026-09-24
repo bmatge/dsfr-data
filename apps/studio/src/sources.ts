@@ -19,10 +19,12 @@ import {
   migrateSource,
   resolveSelectedSource,
   SAMPLE_DATASETS,
+  saveToStorage,
   STORAGE_KEYS,
 } from '@dsfr-data/shared';
 import type { Field, Source } from '@dsfr-data/shared';
 import { state } from './state.js';
+import { definirSourceDuDocument } from './document.js';
 
 /** Libellé d'option : « Nom · N lignes ». */
 function libelleOption(nom: string, lignes: number): string {
@@ -133,6 +135,59 @@ export function resumeSource(nom: string, lignes: number, champs: number): strin
   return `${nom} · ${n(lignes, 'ligne')}, ${n(champs, 'champ')}`;
 }
 
+/** Etat du Studio pour une source : lignes, champs, et source du document. */
+export function appliquerSource(source: Source): { id: string; name: string }[] {
+  state.source = source;
+  state.localData = source.data ?? [];
+  state.fields = analyzeDataFields(state.localData);
+  return definirSourceDuDocument(state.document, source);
+}
+
+/**
+ * Bloc « Source » d'une source chargée, quel que soit le chemin (sélecteur ou
+ * `charger_source_url`) : détail, ligne de résumé, « Voir les données ».
+ */
+function afficherSourceChargee(source: Source): void {
+  const infoEl = document.getElementById('saved-source-info');
+  const summaryEl = document.getElementById('source-summary');
+  const voirBtn = document.getElementById('show-data-btn') as HTMLButtonElement | null;
+  if (infoEl) {
+    infoEl.textContent = `${state.localData?.length ?? 0} enregistrements · ${state.fields
+      .map((f) => f.name)
+      .join(', ')}`;
+  }
+  if (summaryEl) {
+    summaryEl.textContent = resumeSource(
+      source.name,
+      state.localData?.length ?? 0,
+      state.fields.length
+    );
+    summaryEl.title = summaryEl.textContent;
+  }
+  if (voirBtn) voirBtn.hidden = false;
+}
+
+/**
+ * Source creee par l'outil `charger_source_url` (#1140) : enregistree avec les
+ * autres (elle reapparait dans l'app Sources et survit a un rafraichissement),
+ * puis choisie dans le selecteur — l'usager voit ce que le modele a charge.
+ * Le bloc « Source » se replie sur sa ligne de résumé (#1142) : la source est
+ * configurée sans que l'usager ait touché à ce bloc.
+ */
+export function enregistrerSourceChargee(source: Source): void {
+  const sources = loadFromStorage<Source[]>(STORAGE_KEYS.SOURCES, []);
+  const autres = sources.filter((s) => s.id !== source.id);
+  saveToStorage(STORAGE_KEYS.SOURCES, [...autres, source]);
+  loadSavedSources();
+  const select = document.getElementById('saved-source') as HTMLSelectElement | null;
+  if (select && Array.from(select.options).some((o) => o.value === source.id)) {
+    select.value = source.id;
+  }
+  afficherSourceChargee(source);
+  const bloc = document.getElementById('section-source') as HTMLDetailsElement | null;
+  if (bloc) bloc.open = false;
+}
+
 /** Charge la source selectionnee dans l'etat + met a jour l'UI. */
 export function handleSourceChange(onLoaded?: (source: Source) => void): void {
   const select = document.getElementById('saved-source') as HTMLSelectElement | null;
@@ -152,23 +207,8 @@ export function handleSourceChange(onLoaded?: (source: Source) => void): void {
   }
 
   const source: Source = JSON.parse(selectedOption.dataset.source);
-  state.source = source;
-  state.localData = source.data ?? [];
-  state.fields = analyzeDataFields(state.localData);
-
-  // La source devient LA source du document (id stable pour l'export).
-  state.document.sources = [source as unknown as (typeof state.document.sources)[number]];
-
-  if (infoEl) {
-    infoEl.textContent = `${state.localData.length} enregistrements · ${state.fields
-      .map((f) => f.name)
-      .join(', ')}`;
-  }
-  if (summaryEl) {
-    summaryEl.textContent = resumeSource(source.name, state.localData.length, state.fields.length);
-    summaryEl.title = summaryEl.textContent;
-  }
-  if (voirBtn) voirBtn.hidden = false;
+  appliquerSource(source);
+  afficherSourceChargee(source);
   onLoaded?.(source);
 }
 

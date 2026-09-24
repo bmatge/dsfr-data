@@ -63,7 +63,12 @@ export interface Scenario {
   titre: string;
   /** Fait partie du sous-ensemble joue sur une PR (les plus discriminants). */
   pr: boolean;
-  source: { nom: string; lignes: Ligne[] };
+  /**
+   * Jeu charge avant le premier message, comme le selecteur de source. `null` :
+   * aucune source, l'usager donne l'URL du jeu dans son message et le modele la
+   * charge par `charger_source_url` (#1140).
+   */
+  source: { nom: string; lignes: Ligne[] } | null;
   /** Messages successifs de l'usager (un tour de boucle par message). */
   messages: readonly string[];
   attendu: {
