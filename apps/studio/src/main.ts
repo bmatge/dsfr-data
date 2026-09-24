@@ -29,11 +29,14 @@ import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
 import { state } from './state.js';
 import {
+  appliquerSource,
+  enregistrerSourceChargee,
   loadSavedSources,
   handleSourceChange,
   remplirApercuDonnees,
   suggestionsPourChamps,
 } from './sources.js';
+import { chargerSourceDepuisUrl } from './source-url.js';
 import {
   addMessage,
   clearChat,
@@ -125,6 +128,7 @@ async function sendMessage(): Promise<void> {
         document: state.document,
         diagnostic: !!diagnosticMonte?.attachment,
         data: state.localData ?? [],
+        sourceParUrl: true,
       }),
       document: state.document,
       data: state.localData ?? [],
@@ -161,6 +165,15 @@ async function sendMessage(): Promise<void> {
       // parler (#787) — jamais décrit de mémoire.
       generatedCode: currentExportHtml,
       reclasserSkills: reclasseurPour(transport, user),
+      // Source donnee par URL dans la conversation (#1140) : meme etat que le
+      // selecteur (`appliquerSource`), puis enregistree et selectionnee.
+      sourceParUrl: {
+        charger: (url, ressource) => chargerSourceDepuisUrl(url, { ressource }),
+        surChargement: (source) => {
+          appliquerSource(source);
+          enregistrerSourceChargee(source);
+        },
+      },
       extra: { max_completion_tokens: 4096 },
     });
 

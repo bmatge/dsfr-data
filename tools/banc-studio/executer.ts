@@ -27,6 +27,10 @@ import {
 } from '@dsfr-data/shared';
 import { runStudioLoop } from '../../apps/studio/src/ia/agent-loop.js';
 import { buildSystemPrompt } from '../../apps/studio/src/ia/system-prompt.js';
+import {
+  chargerSourceDepuisUrl,
+  type ResultatChargement,
+} from '../../apps/studio/src/source-url.js';
 import { COMPONENT_CONTRACT } from '../../mcp-server/src/component-contract.generated.js';
 import type { Execution, Scenario, Tokens } from './criteres.js';
 import type { AppelOutil, OutilDeclare } from './schema.js';
@@ -37,6 +41,12 @@ export interface OptionsExecution {
   model: string;
   /** Attente AVANT chaque appel (sobriete) — hors de la latence mesuree. */
   avantAppel?: () => Promise<void>;
+  /**
+   * Chargement d'une source par URL (#1140) : le vrai par defaut
+   * (`chargerSourceDepuisUrl`, reseau reel) ; les tests y branchent un reseau
+   * simule.
+   */
+  chargerSource?: (url: string, ressource?: string) => Promise<ResultatChargement>;
 }
 
 /** Messages gardes dans la conversation, comme `state.messages.slice(-10)`. */
@@ -67,17 +77,23 @@ export async function executerScenario(
   options: OptionsExecution
 ): Promise<Execution> {
   const document = createEmptyDashboard();
-  const donnees = scenario.source.lignes;
-  const source: Source = {
-    id: `banc-${scenario.id}`,
-    name: scenario.source.nom,
-    type: 'manual',
-    data: donnees,
-    recordCount: donnees.length,
-  };
+  // Source courante : celle du scenario (comme le selecteur), ou celle que le
+  // modele charge par `charger_source_url` (#1140) — comme `main.ts`, le
+  // message suivant voit la source chargee au precedent.
+  let source: Source | null = scenario.source
+    ? {
+        id: `banc-${scenario.id}`,
+        name: scenario.source.nom,
+        type: 'manual',
+        data: scenario.source.lignes,
+        recordCount: scenario.source.lignes.length,
+      }
+    : null;
   // Comme `handleSourceChange` : la source devient LA source du document.
-  document.sources = [source as unknown as (typeof document.sources)[number]];
-  const fields = analyzeDataFields(donnees);
+  if (source) document.sources = [source as unknown as (typeof document.sources)[number]];
+  const charger =
+    options.chargerSource ??
+    ((url: string, ressource?: string) => chargerSourceDepuisUrl(url, { ressource }));
 
   const appels: AppelOutil[] = [];
   let outils: OutilDeclare[] = [];
@@ -116,6 +132,8 @@ export async function executerScenario(
   try {
     for (const message of scenario.messages) {
       conversation.push({ role: 'user', content: message });
+      const donnees = source?.data ?? [];
+      const fields = analyzeDataFields(donnees);
       const resultat = await runStudioLoop({
         conversation: conversation.slice(-FENETRE_CONVERSATION),
         systemPrompt: buildSystemPrompt({
@@ -125,15 +143,22 @@ export async function executerScenario(
           document,
           diagnostic: true,
           data: donnees,
+          sourceParUrl: true,
         }),
         document,
         data: donnees,
         fields,
-        sourceId: source.id,
+        sourceId: source?.id ?? '',
         post,
         model: options.model,
         diagnostic: DIAGNOSTIC_SANS_APERCU,
         generatedCode: codeGenere,
+        sourceParUrl: {
+          charger,
+          surChargement: (chargee) => {
+            source = chargee;
+          },
+        },
         extra: { ...EXTRA_STUDIO },
       });
       // Texte BRUT pour les criteres (une reponse vide est un defaut) ; la

@@ -33,6 +33,7 @@ import type {
   MapLayerSpec,
   MapPopupMode,
   Row,
+  Source,
   TextStyle,
   Widget,
 } from '@dsfr-data/shared';
@@ -76,6 +77,39 @@ export interface DocumentContext {
   fields: Field[];
   /** Id de la source du dashboard a associer aux blocs data. */
   sourceId: string;
+}
+
+/** Chaines contenues dans une valeur, a toute profondeur. */
+function chainesDe(valeur: unknown, acc: Set<string>): Set<string> {
+  if (typeof valeur === 'string') acc.add(valeur);
+  else if (Array.isArray(valeur)) for (const v of valeur) chainesDe(v, acc);
+  else if (valeur && typeof valeur === 'object') {
+    for (const v of Object.values(valeur as Record<string, unknown>)) chainesDe(v, acc);
+  }
+  return acc;
+}
+
+/**
+ * La source devient LA source du document (en tete : id stable pour l'export,
+ * cible des nouveaux blocs). Le Studio compose sur une source a la fois ; une
+ * source precedente n'est gardee que si un bloc la lit encore (config.sourceId,
+ * couche de carte, `source=` d'un composant libre) — sinon ces blocs perdraient
+ * leur balise `<dsfr-data-source>` a l'export. Rend les sources gardees.
+ *
+ * Chemin UNIQUE du selecteur de source et de l'outil `charger_source_url`
+ * (#1140).
+ */
+export function definirSourceDuDocument(
+  doc: DashboardData,
+  source: Source
+): { id: string; name: string }[] {
+  const lues = chainesDe(
+    doc.widgets.map((w) => w.config),
+    new Set<string>()
+  );
+  const conservees = doc.sources.filter((s) => s.id !== source.id && lues.has(s.id));
+  doc.sources = [source as unknown as DashboardData['sources'][number], ...conservees];
+  return conservees.map((s) => ({ id: s.id, name: s.name }));
 }
 
 /** Resultat d'une action : texte a remettre au modele (succes OU erreur actionnable). */
@@ -215,6 +249,14 @@ function buildChartWidget(
   spec: BlockSpec,
   ctx: DocumentContext
 ): { widget?: Widget; error?: string } {
+  // Sans source, le bloc s'exporterait vide (« aucune source associée ») : le
+  // refuser dit au modele quoi faire d'abord (#1140).
+  if (!ctx.sourceId) {
+    return {
+      error:
+        "aucune source chargée. Si l'usager a donné l'URL d'un jeu, appelle charger_source_url ; sinon demande-lui de choisir une source.",
+    };
+  }
   const raw = spec.config;
   if (!raw || typeof raw.type !== 'string') {
     return { error: 'Bloc chart invalide : "config" doit contenir au minimum un "type" connu.' };

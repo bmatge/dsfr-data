@@ -296,3 +296,118 @@ test.describe('parite du Studio avec l’Assistant — de la reponse du modele a
     await expect(page.locator('#preview-frame')).toBeHidden();
   });
 });
+
+/**
+ * Source donnee par URL (#1140) : l'usager ne choisit AUCUNE source, il donne
+ * l'adresse d'un jeu Opendatasoft sur domaine propre dans sa demande. Le modele
+ * (simule) appelle `charger_source_url`, puis `add_blocks` sur les champs que
+ * l'outil lui a rendus, puis `finish`. L'API du portail est servie par
+ * `page.route` : aucun appel ne sort.
+ *
+ * Chemin relatif (`/apps/studio/`) : le spec suit le `baseURL` de la config.
+ */
+test.describe('source donnee par URL dans la conversation (#1140)', () => {
+  const URL_JEU =
+    'https://data.economie.gouv.fr/explore/dataset/les-jeunes-entreprises-innovantes/';
+  const JEI = [
+    { annee: '2004', montant_d_exoneration: 62416226, nombre_de_jei: 1302 },
+    { annee: '2010', montant_d_exoneration: 143485878, nombre_de_jei: 2937 },
+    { annee: '2017', montant_d_exoneration: 187960511, nombre_de_jei: 3798 },
+  ];
+  const FIN = 'Graphique de l’évolution des JEI composé.';
+
+  test('« fais un graphique … avec https://data.economie.gouv.fr/explore/dataset/… » : source chargée, bloc créé', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dsfr-data-tours', JSON.stringify({ disabled: true, tours: {} }));
+      localStorage.setItem(
+        'dsfr-data-ia-config',
+        JSON.stringify({
+          apiUrl: 'https://llm.recette.invalid/v1/chat/completions',
+          model: 'modele-recette',
+          token: 'jeton-recette',
+        })
+      );
+    });
+
+    // Le portail, joint en direct (apercu) ou par le proxy CORS generique
+    // (`/api-proxy` + X-Target-URL : l'outil route comme une connexion API).
+    const CHEMIN_API = '/api/explore/v2.1/catalog/datasets/les-jeunes-entreprises-innovantes';
+    const appelsPortail: string[] = [];
+    const servirPortail = (route: Route) => {
+      const cible = route.request().headers()['x-target-url'] ?? route.request().url();
+      if (!cible.includes(`data.economie.gouv.fr${CHEMIN_API}`)) return route.fallback();
+      appelsPortail.push(cible);
+      return route.fulfill({ json: { total_count: JEI.length, results: JEI } });
+    };
+    await page.route(
+      (url) => url.hostname === 'data.economie.gouv.fr' && url.pathname.startsWith(CHEMIN_API),
+      servirPortail
+    );
+    await page.route((url) => url.pathname === '/api-proxy', servirPortail);
+    await page.route(
+      (url) => url.pathname === '/ia-server-config',
+      (route: Route) => route.fulfill({ json: { available: false } })
+    );
+    const retours: string[] = [];
+    await page.route(
+      (url) => url.pathname === '/ia-proxy',
+      async (route: Route) => {
+        const corps = route.request().postDataJSON() as CorpsModele;
+        const outils = (corps.messages ?? []).filter((m) => m.role === 'tool');
+        const dernier = outils.at(-1);
+        if (dernier) retours.push(dernier.content ?? '');
+        const reponse =
+          outils.length === 0
+            ? reponseOutil('charger_source_url', { url: URL_JEU }, 'appel-1')
+            : outils.length === 1
+              ? reponseOutil(
+                  'add_blocks',
+                  {
+                    blocks: [
+                      {
+                        kind: 'chart',
+                        title: 'Nombre de JEI par année',
+                        config: { type: 'line', labelField: 'annee', valueField: 'nombre_de_jei' },
+                      },
+                    ],
+                  },
+                  'appel-2'
+                )
+              : reponseOutil('finish', { message: FIN }, 'appel-3');
+        await route.fulfill({ json: reponse });
+      }
+    );
+
+    await page.goto('/apps/studio/', { waitUntil: 'domcontentloaded' });
+    await page
+      .locator('#chat-input')
+      .fill(`Fais un graphique de l’évolution du nombre de JEI par année avec ${URL_JEU}`);
+    await page.locator('#chat-send-btn').click();
+
+    const chat = page.locator('#chat-messages');
+    await expect(chat.locator('.chat-message--assistant', { hasText: FIN })).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // L'outil a charge le jeu par l'API du portail et l'a resume au modele.
+    expect(appelsPortail.length, 'le portail n’a pas été interrogé').toBeGreaterThan(0);
+    expect(retours[0]).toContain('Source chargée');
+    expect(retours[0]).toContain('nombre_de_jei');
+    expect(retours[1], 'bloc refusé par le Studio').toContain('ajouté');
+
+    // La source est celle du selecteur, comme choisie a la main.
+    const idSource = 'url_opendatasoft_les-jeunes-entreprises-innovantes';
+    await expect(page.locator('#saved-source')).toHaveValue(idSource);
+
+    // Le code exporte une source Opendatasoft declarative et le bloc.
+    const code = page.locator('#generated-code');
+    await expect(code).toContainText('api-type="opendatasoft"');
+    await expect(code).toContainText('dataset-id="les-jeunes-entreprises-innovantes"');
+    await expect(code).toContainText('Nombre de JEI par année');
+    await expect(
+      page.frameLocator('#preview-frame').locator('dsfr-data-chart').first()
+    ).toBeAttached({ timeout: 20_000 });
+  });
+});
