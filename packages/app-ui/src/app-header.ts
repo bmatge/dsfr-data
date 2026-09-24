@@ -70,6 +70,14 @@ export const COMPACT_GAIN_PX = 130;
 /** Course minimale qui doit rester a la zone une fois l'en-tete compacte. */
 export const COMPACT_RESIDUAL_PX = 12;
 
+/**
+ * Choix manuel « Reduire l'en-tete » (bouton-icone des acces rapides),
+ * memorise par navigateur. Il l'emporte sur le defilement : utile la ou rien
+ * ne defile assez (Carte, canevas plein ecran). « Deplier » l'efface, et le
+ * repli au defilement reprend.
+ */
+export const CLE_ENTETE_REDUITE = 'dsfr-data-entete-reduite';
+
 /** Etat compact suivant, pour une zone qui vient de defiler. */
 export function nextCompact(compact: boolean, scrollTop: number, scrollMax: number): boolean {
   if (scrollTop <= COMPACT_EXIT_PX) return false;
@@ -87,7 +95,7 @@ const HEADER_LG = '(min-width:62em)';
  * seule la devise est retiree, comme la tagline et la ligne de navigation,
  * remplacee par le selecteur d'app.
  */
-const COMPACT_CSS = `@media ${HEADER_LG}{app-header.app-header--compact .fr-header__body-row{padding:.25rem 0}app-header.app-header--compact .fr-header__brand{margin-top:0;margin-bottom:0}app-header.app-header--compact .fr-header__logo,app-header.app-header--compact .fr-header__service{padding-top:.5rem;padding-bottom:.5rem}app-header.app-header--compact .fr-header__logo .fr-logo{display:flex;align-items:center;gap:.5rem;font-size:.7875rem;line-height:1rem}app-header.app-header--compact .fr-header__logo .fr-logo br{display:none}app-header.app-header--compact .fr-header__logo .fr-logo::before{width:2.0625rem;height:.75rem;margin:0;background-size:2.0625rem .84375rem,2.0625rem .75rem,0;background-position:0 -.046875rem,0 0,0 0}app-header.app-header--compact .fr-header__logo .fr-logo::after{display:none}app-header.app-header--compact .fr-header__service-title{font-size:1rem;line-height:1.5rem}app-header.app-header--compact .fr-header__service-tagline{display:none!important}app-header.app-header--compact .fr-header__menu{display:none}app-header.app-header--compact .app-header-switch{display:block}}.app-header-switch{display:none;position:relative;padding:0 1rem;flex:0 0 auto}.app-header-switch__list{position:absolute;left:1rem;top:calc(100% + .25rem);z-index:1000;min-width:16rem;margin:0;padding:.25rem 0;list-style:none;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16)}.app-header-switch__list[hidden]{display:none}.app-header-switch__list a{display:block;padding:.5rem 1rem;font-size:.875rem;color:var(--text-title-grey);background-image:none}.app-header-switch__list a:hover{background-color:var(--background-default-grey-hover)}.app-header-switch__list a[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france);box-shadow:inset 3px 0 0 var(--border-action-high-blue-france)}`;
+const COMPACT_CSS = `@media ${HEADER_LG}{app-header.app-header--compact .fr-header__body-row{padding:.25rem 0}app-header.app-header--compact .fr-header__brand{margin-top:0;margin-bottom:0}app-header.app-header--compact .fr-header__logo,app-header.app-header--compact .fr-header__service{padding-top:.5rem;padding-bottom:.5rem}app-header.app-header--compact .fr-header__logo .fr-logo{display:flex;align-items:center;gap:.5rem;font-size:.7875rem;line-height:1rem}app-header.app-header--compact .fr-header__logo .fr-logo br{display:none}app-header.app-header--compact .fr-header__logo .fr-logo::before{width:2.0625rem;height:.75rem;margin:0;background-size:2.0625rem .84375rem,2.0625rem .75rem,0;background-position:0 -.046875rem,0 0,0 0}app-header.app-header--compact .fr-header__logo .fr-logo::after{display:none}app-header.app-header--compact .fr-header__service-title{font-size:1rem;line-height:1.5rem}app-header.app-header--compact .fr-header__service-tagline{display:none!important}app-header.app-header--compact .fr-header__menu{display:none}app-header.app-header--compact .app-header-switch{display:block}.app-header-reduire{display:list-item}}.app-header-reduire{display:none}.app-header-switch{display:none;position:relative;padding:0 1rem;flex:0 0 auto}.app-header-switch__list{position:absolute;left:1rem;top:calc(100% + .25rem);z-index:1000;min-width:16rem;margin:0;padding:.25rem 0;list-style:none;background:var(--background-default-grey);box-shadow:0 8px 16px rgba(0,0,0,.16)}.app-header-switch__list[hidden]{display:none}.app-header-switch__list a{display:block;padding:.5rem 1rem;font-size:.875rem;color:var(--text-title-grey);background-image:none}.app-header-switch__list a:hover{background-color:var(--background-default-grey-hover)}.app-header-switch__list a[aria-current="page"]{font-weight:700;color:var(--text-action-high-blue-france);box-shadow:inset 3px 0 0 var(--border-action-high-blue-france)}`;
 
 /**
  * Feuille de style de l'en-tete, injectee une fois par document.
@@ -166,6 +174,8 @@ export class AppHeader extends LitElement {
   private _switchOpen = false;
 
   private _compact = false;
+  /** Choix manuel memorise (`CLE_ENTETE_REDUITE`) : compact quoi qu'il defile. */
+  private _reduitManuel = false;
   private _scrollRaf = 0;
   /** Derniere position verticale vue par zone : ignore les defilements horizontaux. */
   private _lastScrollTop = new WeakMap<Element, number>();
@@ -187,7 +197,10 @@ export class AppHeader extends LitElement {
     if (this._scrollRaf) return;
     this._scrollRaf = requestAnimationFrame(() => {
       this._scrollRaf = 0;
-      this._setCompact(nextCompact(this._compact, el.scrollTop, el.scrollHeight - el.clientHeight));
+      this._setCompact(
+        this._reduitManuel ||
+          nextCompact(this._compact, el.scrollTop, el.scrollHeight - el.clientHeight)
+      );
     });
   };
 
@@ -231,6 +244,12 @@ export class AppHeader extends LitElement {
     }
     injectAppPrimitives();
     injectAppHeaderStyles();
+    try {
+      this._reduitManuel = localStorage.getItem(CLE_ENTETE_REDUITE) === '1';
+    } catch {
+      this._reduitManuel = false;
+    }
+    if (this._reduitManuel) this._setCompact(true);
     document.addEventListener('scroll', this._onAnyScroll, { capture: true, passive: true });
     // Check auth state
     this._initAuth();
@@ -345,6 +364,40 @@ export class AppHeader extends LitElement {
     this._compact = compact;
     this.classList.toggle('app-header--compact', compact);
     if (!compact) this._closeSwitch();
+    // Le bouton-icone (libelle, icone, etat) suit.
+    this.requestUpdate();
+  }
+
+  /**
+   * Bouton « Reduire / Deplier l'en-tete ». Reduire est memorise et l'emporte
+   * sur le defilement ; deplier efface ce choix (le repli au defilement reprend).
+   */
+  private _basculerReduction(): void {
+    const reduire = !this._compact;
+    this._reduitManuel = reduire;
+    try {
+      if (reduire) localStorage.setItem(CLE_ENTETE_REDUITE, '1');
+      else localStorage.removeItem(CLE_ENTETE_REDUITE);
+    } catch {
+      // Stockage indisponible : le choix vaut pour la page.
+    }
+    this._setCompact(reduire);
+  }
+
+  private _renderBoutonReduire() {
+    const libelle = this._compact ? 'Déplier l’en-tête' : 'Réduire l’en-tête';
+    return html`<li class="app-header-reduire">
+      <button
+        type="button"
+        class="fr-btn fr-btn--tertiary-no-outline ${
+          this._compact ? 'fr-icon-arrow-down-s-line' : 'fr-icon-arrow-up-s-line'
+        }"
+        title=${libelle}
+        @click=${this._basculerReduction}
+      >
+        <span class="fr-sr-only">${libelle}</span>
+      </button>
+    </li>`;
   }
 
   private _toggleSwitch(e: Event): void {
@@ -535,7 +588,7 @@ export class AppHeader extends LitElement {
             }
           </a>
         </li>
-        ${this._renderSyncStatus()} ${this._renderAuthButton()}
+        ${this._renderSyncStatus()} ${this._renderAuthButton()} ${this._renderBoutonReduire()}
       </ul>
     `;
   }

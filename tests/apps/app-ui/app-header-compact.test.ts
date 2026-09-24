@@ -1,7 +1,22 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Le montage d'<app-header> vérifie la connexion : sans ces doublures, chaque
+// test tenterait un appel réseau (ECONNREFUSED :80 dans le journal).
+vi.mock('@dsfr-data/shared', async (importOriginal) => {
+  const reel = await importOriginal<Record<string, unknown>>();
+  return {
+    ...reel,
+    checkAuth: vi.fn(async () => ({ user: null })),
+    isDbMode: vi.fn(async () => false),
+    onAuthChange: vi.fn(() => () => {}),
+    onSyncStatusChange: vi.fn(() => () => {}),
+    logout: vi.fn(async () => {}),
+  };
+});
 import {
   nextCompact,
   injectAppHeaderStyles,
+  CLE_ENTETE_REDUITE,
   COMPACT_ENTER_PX,
   COMPACT_EXIT_PX,
   COMPACT_GAIN_PX,
@@ -106,5 +121,62 @@ describe('<app-footer variant="slim">', () => {
     expect(el.querySelector('.fr-footer__body')).not.toBeNull();
     expect(el.querySelector('.app-footer--slim')).toBeNull();
     el.remove();
+  });
+});
+
+describe('bouton-icône « Réduire / Déplier l’en-tête »', () => {
+  beforeEach(() => {
+    document.getElementById('app-header-active-style')?.remove();
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  async function monter() {
+    const el = document.createElement('app-header') as HTMLElement & {
+      updateComplete: Promise<boolean>;
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+    return el;
+  }
+
+  const bouton = (el: HTMLElement) =>
+    el.querySelector<HTMLButtonElement>('.fr-header__tools-links .app-header-reduire button')!;
+
+  it('suit les accès rapides, invisible sous 62em (l’en-tête n’y est jamais compact)', () => {
+    injectAppHeaderStyles();
+    const css = document.getElementById('app-header-active-style')!.textContent!;
+    expect(css).toContain('.app-header-reduire{display:none}');
+    expect(css).toContain('@media (min-width:62em){');
+    expect(css).toMatch(
+      /@media \(min-width:62em\)\{[^@]*\.app-header-reduire\{display:list-item\}/
+    );
+  });
+
+  it('Réduire : compacte, change de libellé, et le choix est mémorisé', async () => {
+    const el = await monter();
+    expect(bouton(el).title).toBe('Réduire l’en-tête');
+    bouton(el).click();
+    await el.updateComplete;
+    expect(el.classList.contains('app-header--compact')).toBe(true);
+    expect(bouton(el).title).toBe('Déplier l’en-tête');
+    expect(bouton(el).querySelector('.fr-sr-only')?.textContent).toBe('Déplier l’en-tête');
+    expect(localStorage.getItem(CLE_ENTETE_REDUITE)).toBe('1');
+  });
+
+  it('le choix mémorisé s’applique dès l’ouverture suivante', async () => {
+    // Mutation : ne plus relire CLE_ENTETE_REDUITE au montage → rouge.
+    localStorage.setItem(CLE_ENTETE_REDUITE, '1');
+    const el = await monter();
+    expect(el.classList.contains('app-header--compact')).toBe(true);
+  });
+
+  it('Déplier : redéplie et efface le choix (le repli au défilement reprend)', async () => {
+    localStorage.setItem(CLE_ENTETE_REDUITE, '1');
+    const el = await monter();
+    bouton(el).click();
+    await el.updateComplete;
+    expect(el.classList.contains('app-header--compact')).toBe(false);
+    expect(localStorage.getItem(CLE_ENTETE_REDUITE)).toBeNull();
   });
 });
