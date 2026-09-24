@@ -3234,6 +3234,10 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
       'clic sur la carte',
       'carte comme filtre',
       'annuaire',
+      'group-field',
+      'un marqueur par',
+      'format long',
+      'données longues',
     ],
     content:
       `## dsfr-data-map + dsfr-data-map-layer — Carte interactive multi-couches
@@ -3287,6 +3291,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | shape-class | String | \`""\` | Classe CSS appliquee aux traces SVG (geoshape/circle) — motifs hachures via <pattern> defini par la page |
 | no-interactive | Boolean | \`false\` | Couche decorative : aucun clic/tooltip/popup (contours administratifs, habillage) |
 | label | String | \`""\` | Libellé de la couche — libellé du tag du contexte en \`refine-on-click\` (défaut : le nom du champ) |
+| group-field | String | \`""\` | Regroupement (#1108) : un élément tracé par valeur distincte du champ ; au clic, popup / volet reçoivent TOUTES les lignes du groupe (une ligne de tableau par enregistrement, \`popup-template\` appliqué par ligne). Position, couleur, rayon, tooltip : ceux du premier enregistrement positionné. \`max-items\` compte des groupes. Sans effet sur \`heatmap\` |
 | refine-on-click | String | \`""\` | Champ dont la valeur de l'objet clique devient un filtre \`eq\` (#681) : premier clic = filtre, second clic sur le même objet = retrait, autre objet = remplacement. Avec \`context\` (recommandé) : filtre du dsfr-data-context (tag, URL, dialecte de chaque cible). Sans \`context\` : commande directe a \`source\` (whereKey \`map-select-ID\`, sans tag ni URL) |
 | context | String | \`""\` | Id du dsfr-data-context auquel s'enregistrer en \`refine-on-click\` (#681, ADR-104). Peut etre declare apres la couche |
 | popup-template | String | \`""\` | Template : \`"{nom} — {val} kW"\` |
@@ -3495,6 +3500,53 @@ prévoir une largeur responsive.
   </template>
 </dsfr-data-map-popup>
 \`\`\`
+
+### Exemple : données longues — un marqueur par entité, la liste de ses éléments (group-field, #1108)
+
+Données au format **long** : une ligne par couple entité × élément (ville × aide), coordonnées
+répétées sur chaque ligne (Lille ×4, Amiens ×4…). Demande typique : **un seul marqueur par ville**
+et, au clic, un **volet qui liste chaque aide** de la ville. Recette : \`group-field\` sur la couche
++ \`dsfr-data-map-popup mode="panel-right"\`. Les données restent telles quelles, sans query.
+
+\`\`\`html
+<!-- Une ligne par couple ville x aide ; toute source convient (Grist, Opendatasoft, CSV...) -->
+<dsfr-data-source id="aides" data='[
+  {"Ville":"Lille","Latitude":50.63,"Longitude":3.06,"Action / aide nationale":"Action cœur de ville","Domaine":"Urbanisme"},
+  {"Ville":"Lille","Latitude":50.63,"Longitude":3.06,"Action / aide nationale":"Fonds vert","Domaine":"Transition écologique"},
+  {"Ville":"Amiens","Latitude":49.89,"Longitude":2.30,"Action / aide nationale":"Action cœur de ville","Domaine":"Urbanisme"}
+]'></dsfr-data-source>
+
+<dsfr-data-map center="46.6,2.3" zoom="6" height="550px">
+  <dsfr-data-map-layer source="aides" type="marker"
+    lat-field="Latitude" lon-field="Longitude"
+    group-field="Ville" tooltip-field="Ville"
+    popup-fields="Action / aide nationale,Domaine">
+  </dsfr-data-map-layer>
+  <dsfr-data-map-popup mode="panel-right" title-field="Ville" width="380px"></dsfr-data-map-popup>
+</dsfr-data-map>
+\`\`\`
+
+- Un marqueur par valeur distincte de \`Ville\` ; le volet a pour titre la ville, puis un tableau
+  \`Action / aide nationale\` | \`Domaine\` avec **une ligne par aide** (borne : 200 lignes, puis
+  « … et N autres »). Avec un \`<template>\` dans le compagnon, le gabarit est appliqué **par ligne**.
+- Une colonne constante sur toutes les lignes d'une ville (« Nombre total d'actions » = 4 sur
+  les 4 lignes de Lille) est un attribut de la ville, pas de l'aide : ne pas la mettre dans
+  \`popup-fields\` (le volet afficherait « Chèque énergie | 4 »). Voir le piège du total répété
+  (skill métier \`datavizMetier\`, référence \`echelles-honnetes\`).
+- Alternatives et leurs limites :
+  - \`dsfr-data-query group-by="Ville,Latitude,Longitude"\` : un marqueur par ville, mais **perd les
+    lignes** (aucune agrégation ne collecte la liste des aides).
+  - \`dsfr-data-pivot\` : une **colonne par élément**, vides comprises, avec un compte en cellule —
+    pas une liste.
+  - \`refine-on-click="Ville"\` + \`context\` + \`dsfr-data-list\` filtrée : la liste est **à côté** de
+    la carte, pas dans le volet (utile quand la liste doit rester visible ou triable).
+
+### Piège : clustering n'est pas regroupement
+
+\`cluster\` rassemble des marqueurs **proches à l'écran**, selon le zoom : la grappe se défait en
+zoomant, et les quatre lignes de Lille redeviennent quatre marqueurs empilés au même point. Il ne
+dédoublonne pas une entité. Pour « un point par entité » : \`group-field\` (compatible avec
+\`cluster\` : chaque groupe devient un point de la grappe).
 
 ### La carte comme filtre — dsfr-data-map-select et refine-on-click (#681, ADR-104)
 

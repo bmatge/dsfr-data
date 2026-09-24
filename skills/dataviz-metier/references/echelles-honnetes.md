@@ -1,8 +1,8 @@
 # Échelles honnêtes
 
-> Axe tronqué, double axe, moyenne de pourcentages, moyenne non pondérée des territoires, arrondi avant pondération, base 100, compte distinct approximatif : les façons dont un chiffre exact devient un chiffre faux.
+> Axe tronqué, double axe, moyenne de pourcentages, moyenne non pondérée des territoires, arrondi avant pondération, base 100, compte distinct approximatif, total d'entité répété sur chaque ligne : les façons dont un chiffre exact devient un chiffre faux.
 >
-> Déclencheurs : échelle honnête, axe tronqué, y-min, double axe, moyenne de pourcentages, moyenne de taux, moyenne non pondérée, pondération, en France, résumé de carte, arrondi, décimales, base 100, indice, échelle logarithmique, count distinct, total_count
+> Déclencheurs : échelle honnête, axe tronqué, y-min, double axe, moyenne de pourcentages, moyenne de taux, moyenne non pondérée, pondération, en France, résumé de carte, arrondi, décimales, base 100, indice, échelle logarithmique, count distinct, total_count, total répété, données longues, nombre total par entité
 >
 > Niveaux : base (les pièges résumés dans niveau-base), avancé (tout)
 
@@ -81,6 +81,28 @@ questions différentes ne mesure rien. La règle de calcul se lit dans le jeu
 - Un KPI `count` sur une query `limit="12"` affiche 12 (PG-017 : « 12 activités » pour 28, 22 et
   29 réelles pendant sept lots ; « 18 métiers » pour 358 cinq lots plus tard). `value="meta:total"`
   lit le nombre de lignes **avant** `limit`.
+
+## Le total répété : un attribut de l'entité, pas une valeur de ligne
+
+**Le cas** (Studio IA, jeu « Aides nationales », 2026-09-24) : données longues, une ligne par
+couple ville × aide. La colonne « Nombre total d'actions » vaut 4 sur les 4 lignes de Lille :
+c'est le nombre d'aides **de Lille**, recopié sur chaque ligne. Posée dans le volet ou le tableau
+à côté de chaque aide, elle se lit « Chèque énergie : 4 » — faux, le chèque énergie ne compte
+pas pour 4. Sommée (KPI « total des actions » en `:sum` sur les lignes), elle compte Lille
+**quatre fois** : 16 au lieu de 4.
+
+- **Vérifier avant d'afficher** : une colonne dont la valeur est **constante pour toutes les lignes
+  d'une même entité** (une seule valeur distincte par ville) est un attribut de l'entité. Le test,
+  la colonne renommée `nb_actions` (`dsfr-data-normalize rename`) : `group-by="Ville"` +
+  `aggregate="nb_actions:min, nb_actions:max"` — si min = max pour chaque ville, c'est un total
+  répété.
+- **L'afficher une fois par entité** : titre ou en-tête du volet (`title-field`, gabarit du
+  compagnon), carte ou KPI par entité (`aggregate="…:first"` après `group-by="Ville"`), jamais
+  dans les `popup-fields` d'une ligne.
+- **Ne jamais le sommer sur les lignes.** Le total général se recalcule : `count` des lignes, ou
+  somme de l'attribut après un `group-by` sur l'entité (`first`, puis `sum`).
+- **Le dire** à l'usager : « Nombre total d'actions est un total par ville, répété sur chaque ligne :
+  il est affiché une fois par ville. »
 
 ## Les décimales et l'unité sont de l'échelle aussi
 

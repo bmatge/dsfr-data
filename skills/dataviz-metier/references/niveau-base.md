@@ -68,6 +68,12 @@ fallback="Résultats pour toute la France"`. Détail : [titres-et-mots](titres-e
 | **Groupe null écarté en silence** | des parts qui somment à 100 % sur un total amputé | 21 projets sur 3 080 en « Série 4 » (PG-015) ; 95 309 signalements sans département hors carte (AM-027) | `empty-label="Non renseigné"` pour nommer, `where="champ:isnotnull"` pour écarter — et une phrase qui le dit |
 | **Total tronqué** | 1 000 lignes chargées sur 3 080, KPI et carte faux « avec l'aplomb de chiffres justes » | AM-002 ; « 12 activités » pour 28 derrière un `limit` (PG-017) | relever `total_count` à l'API avant de poser la source ; `max-records` explicite ; `value="meta:total"` derrière un `limit` |
 
+En données longues (une ligne par entité × élément), un cinquième : le **total répété** — une
+colonne constante sur toutes les lignes d'une même entité (« Nombre total d'actions » = 4 sur les
+4 lignes de Lille) est un attribut de l'entité ; l'afficher par ligne (« Chèque énergie : 4 ») est
+faux, la sommer compte l'entité N fois. Vérifier qu'elle n'a qu'une valeur par entité, l'afficher
+une fois par entité, le dire ([échelles honnêtes](echelles-honnetes.md)).
+
 ## Règles de relecture : cinq vérifications
 
 1. Le titre se lit sans le graphique et dit ce qu'on va voir.
