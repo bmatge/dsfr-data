@@ -30,6 +30,7 @@ import {
   getProxiedUrl,
   getProxyUrl,
   GRIST_CONFIG,
+  isUnsafeKey,
   reconnaitreUrlSource,
   resolveSourceUrl,
   type Field,
@@ -119,12 +120,16 @@ function lireChemin(objet: unknown, chemin: string | null): unknown {
   let courant: unknown = objet;
   for (const cle of chemin.split('.')) {
     if (
+      isUnsafeKey(cle) ||
       courant === null ||
       typeof courant !== 'object' ||
       !Object.prototype.hasOwnProperty.call(courant, cle)
     ) {
       return undefined;
     }
+    // Lecture seule, chemin issu de la config du fournisseur (jamais de l'URL),
+    // clés dangereuses écartées ci-dessus : aucune écriture, donc aucune pollution.
+    // nosemgrep: javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop.prototype-pollution-loop
     courant = (courant as Record<string, unknown>)[cle];
   }
   return courant;
