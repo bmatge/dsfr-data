@@ -89,6 +89,11 @@ npm run check:specs-tables    # Meme script en --check, BLOQUANT en CI (etape qu
                       #   echoue si une page est perimee, si un attribut n'est range dans
                       #   aucune section (`fields="..."` d'un bloc ATTRS ou ATTRS-PROSE),
                       #   ou si un composant n'apparait sur aucune page.
+npm run check:studio-couverture  # BLOQUANT en CI (etape quality, #1109) : chaque composant et
+                      #   attribut du manifeste est ECRIT par le Studio IA (mesure sur son export,
+                      #   depuis le schema de ses outils) ou EXCLU avec sa raison dans
+                      #   apps/studio/src/couverture-exclusions.ts. Un attribut ajoute a la lib
+                      #   doit y etre tranche. Lancer `npm run build:shared` avant.
 
 # Skills (connaissance IA : builder-IA + serveur MCP)
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runStudioLoop } from '../../../apps/studio/src/ia/agent-loop.js';
 import { buildSystemPrompt } from '../../../apps/studio/src/ia/system-prompt.js';
+import { describeBlockVocabulary } from '../../../apps/studio/src/ia/vocabulaire.js';
 import { REPEATABLE_TOOLS, createEmptyDashboard } from '@dsfr-data/shared';
 import type { FrameAttachment, Trace, PostChat } from '@dsfr-data/shared';
 
@@ -238,7 +239,10 @@ describe('prompt système', () => {
     const prompt = buildSystemPrompt({ ...base, diagnostic: true });
 
     expect(prompt).not.toContain('Flux —');
-    expect(prompt.length).toBeLessThan(4000);
+    // Borne sur la partie redigee : le vocabulaire des blocs, engendre depuis
+    // le schema des outils (#1109), grandit avec le modele de blocs et se
+    // mesure a part.
+    expect(prompt.length - describeBlockVocabulary().length).toBeLessThan(6000);
   });
 });
 

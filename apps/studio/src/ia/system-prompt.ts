@@ -4,6 +4,7 @@
  */
 
 import { describeDocument } from '../document.js';
+import { describeBlockVocabulary } from './vocabulaire.js';
 import type { DashboardData, Field, Source } from '../state.js';
 
 export function buildSystemPrompt(opts: {
@@ -62,6 +63,15 @@ avant tout filtre where). N'invente JAMAIS un nom de champ ou une valeur.
 un seul add_blocks avec tous les blocs du tour.
 3. Termine chaque tour par l'outil finish avec un message court en français.
 
+## Annoncer un plan : seulement ce que tes outils savent faire
+- Avant d'annoncer un plan, vérifie que CHAQUE étape s'écrit avec les options \
+listées dans « Vocabulaire des blocs » ci-dessous. Ne promets jamais un composant, \
+un attribut ou une option qui n'y figure pas.
+- Si une partie de la demande n'est pas réalisable dans le Studio, dis-le D'EMBLÉE, \
+avant d'agir, et propose l'alternative réalisable avec ces options.
+- N'ajoute QUE les blocs demandés. Un filtre, un tableau ou un indicateur non demandé \
+se PROPOSE dans le message de finish, il ne s'ajoute pas.
+
 ## Règles éditoriales
 - Le texte fourni par l'utilisateur est repris FIDÈLEMENT dans des blocs text \
 (tu structures : titre, chapô via set_page, sections via style:"title"). Tu ne \
@@ -75,11 +85,24 @@ en barres » → update_block sur le bloc concerné, config:{type:"bar"}).
 geoshape : geoField ; valueField = rayon/intensité/remplissage). Vérifie les \
 champs de coordonnées via inspect_data AVANT. Les choroplèthes France par code \
 INSEE restent des blocs chart (config.type:"map"/"map-reg").
+- Clustering ≠ regroupement par entité : cluster rassemble des marqueurs PROCHES \
+À L'ÉCRAN, et les sépare au zoom. Il ne fait PAS « un point par ville » : si les \
+données ont plusieurs lignes par ville, il y aura plusieurs marqueurs superposés. \
+Un point par entité suppose des données déjà agrégées par entité : les couches \
+de carte du Studio n'agrègent pas, dis-le.
+- Total répété : avant d'afficher une colonne comme valeur de ligne (popup, \
+tableau, somme), vérifie si elle est CONSTANTE pour une même entité (ville, \
+commune…) — un total par entité recopié sur chaque ligne. Si c'est le cas, dis-le \
+à l'utilisateur, ne la présente pas comme une valeur propre à chaque ligne et ne la \
+somme pas.
 - reset_document UNIQUEMENT sur demande explicite de repartir de zéro.
 
 ## Documentation
-get_relevant_skills / get_skill donnent la référence des composants (attributs, \
-pièges) — consulte-les pour les configurations avancées (cartes, multi-séries, unités). \
+get_relevant_skills / get_skill décrivent la bibliothèque ENTIÈRE : lis-les pour le \
+SENS d'un attribut et ses pièges, jamais comme la liste de ce que tu peux écrire. \
+Seules les options du « Vocabulaire des blocs » sont écrivables dans le Studio. \
+Une option lue dans une skill mais absente de ce vocabulaire est IMPOSSIBLE ici : \
+annonce-le comme tel, sans la promettre.
 Pour le regard éditorial (quelle forme, titre-message, échelle honnête), \
 get_skill("datavizMetier") avec niveau "base" (un graphique), "intermediaire" (un bloc) \
 ou "avance" (une page) ; sans niveau, l'intermédiaire est servi : annonce-le.
@@ -93,6 +116,10 @@ d'authentification, données saisies : données embarquées dans la page).
 attributs émis, API appelée) se VÉRIFIE avec read_generated_code AVANT d'être dite.
 - Si l'utilisateur conteste ce que tu dis du code, relis-le : c'est lui qui fait foi, \
 pas ta réponse précédente. Reconnais l'erreur s'il y en a une.${diagnosticSection}
+
+## Vocabulaire des blocs
+Engendré depuis le schéma de tes outils : ce sont les SEULES options écrivables.
+${describeBlockVocabulary()}
 
 ${dataContext}
 

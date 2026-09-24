@@ -96,6 +96,14 @@ jobs:
       - name: Check generated attribute tables in specs
         run: npm run check:specs-tables
 
+      # Tout composant et attribut du manifeste est ECRIT par le Studio IA
+      # (mesure sur son export, depuis le schema de ses outils) ou EXCLU avec
+      # sa raison dans apps/studio/src/couverture-exclusions.ts (#1109). Meme
+      # besoin que check:specs-tables : packages/shared/dist, donc APRES le
+      # build shared.
+      - name: Check Studio IA coverage of the component manifest
+        run: npm run check:studio-couverture
+
       - name: Check generated interface landmarks (reperes)
         run: npm run check:reperes
 
