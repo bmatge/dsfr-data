@@ -444,3 +444,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Lien « Retour au Playground » (#1132), au-dessus de la barre d'actions. */
+.studio-retour {
+  padding: 0.25rem 1rem;
+}
+
+.studio-retour[hidden] {
+  display: none;
+}

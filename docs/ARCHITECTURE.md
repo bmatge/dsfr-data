@@ -1230,6 +1230,8 @@ Les composants DSFR Chart (`map-chart`, `map-chart-reg`) sont des Web Components
 
 Les builders et favoris envoient du code au playground via `sessionStorage` : (1) l'app source stocke `sessionStorage.setItem('playground-code', code)`, (2) navigue vers le playground avec `?from=builder` (ou `studio`, `builder-ia`, `favorites`), (3) le playground lit `from`, charge le code et le supprime. `from` ∈ { `builder`, `studio`, `builder-ia`, `favorites`, `pipeline-helper` }. Le lien de retour vers l'ancien Assistant porte `ancien=1`, sans quoi `apps/builder-ia/` redirigerait vers le Studio (#1081).
 
+Vers le Studio IA, deux clés, lues et consommées par `recupererDiagnosticTransmis()` (`apps/studio/src/main.ts`) : `dsfr-data-diagnostic-handoff` (`transmettreDiagnostic`, #1016, toutes les apps à assistant) et, depuis le Playground seul, `dsfr-data-studio-passation` (`transmettrePassationStudio`, #1132 : le code, et l'**adresse publique** de sa source — jamais d'en-tête ni de clé). Le Studio valide la passation (entrée externe), charge la source par le chemin de `charger_source_url` (`chargerSourceDepuisUrl`), pose la consigne de reconstruction dans son champ sans l'envoyer, et garde le code (`studio-retour-playground`) pour son lien « Retour au Playground » (`?from=playground` → `playground-code` + `?from=studio`).
+
 ### 10.2 MariaDB
 
 Le serveur Express utilise **MariaDB 11** via `mysql2/promise` (pool de connexions). Conteneur défini dans `docker-compose.db.yml` (healthcheck), données dans le volume `mariadb-data`.
