@@ -1,5 +1,11 @@
 # dsfr-data
 
+## 0.38.1
+
+### Patch Changes
+
+- [#1106](https://github.com/bmatge/dsfr-data/pull/1106) [`9b41303`](https://github.com/bmatge/dsfr-data/commit/9b41303447850468a5521d559dd6892a272ef502) Thanks [@bmatge](https://github.com/bmatge)! - Assistant du Playground : « comment changer la limite de 15 ? » ou « où est la ligne pour changer la couleur ? » désigne et surligne la ou les lignes du code en cause, par une correspondance locale sur le code courant (balises, attributs, valeurs citées, synonymes français), sans appel au modèle. En secours, Albert reçoit un plan compact du code et peut citer un repère de code, montré seulement s'il désigne le code courant. Côté `mountAssistant` : options `correspondanceHorsRegistre`, `libelleHorsRegistre` et `reperesEnglobants` ; côté profil Albert : `contexte` ([#1105](https://github.com/bmatge/dsfr-data/issues/1105)).
+
 ## 0.38.0
 
 ### Minor Changes
