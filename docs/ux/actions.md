@@ -298,7 +298,22 @@ les tokens du DSFR, avec `:hover`, `:focus-visible` et `:disabled` garantis :
 Les anciennes classes maison (`chart-type-btn`, `sample-dataset-card`, `carto-choice`,
 `row-control-btn`…) ne portent plus de style de boîte ; elles restent comme ancres de tests et de
 logique. Recette : `e2e/buttons.spec.ts` (aucun bouton hors DSFR/primitives, aucune cible < 24 px,
-focus visible au clavier) sur les 14 pages.
+focus visible au clavier) sur les 14 pages, **bloquante en CI** dans `e2e-layout.yml` (#1118).
+
+Quelques contrôles propres à un composant n'ont d'équivalent ni DSFR ni dans les deux primitives ;
+ils sont déclarés un à un dans la liste `ALLOWED` du spec, chacun avec sa raison, et passent les
+mêmes mesures (cible, focus) :
+
+| Classe | Composant | Pourquoi pas un bouton DSFR |
+|---|---|---|
+| `carto-rail__btn` | rail de la Carto (#1088) | icône et libellé en colonne, ouvre un volet |
+| `app-diag__rail` | tiroir Diagnostic (#605) | poignée pleine largeur d'un tiroir fixé en bas, porte le résumé du pipeline et `aria-expanded` ; `fr-accordion__btn` exige la structure d'accordéon du DSFR |
+| `app-diag__tab` | tiroir Diagnostic | onglets d'un tiroir à corps défilant unique ; `fr-tabs` impose ses panneaux et son calcul de hauteur |
+| `assistant-lanceur` · `assistant-onglet` · `assistant-icone` · `assistant-suggestion` · `assistant-bouton` · `assistant-envoi` · `assistant-mode-bouton` | panneau `app-assistant` (#1011) | format des assistants `proto-ecosysteme-sircom` / `proto-catalogue-donnees` (§2.2), cibles de 44 px |
+
+La recette ouvre aussi ces panneaux (assistant, son onglet Diagnostic, tiroir Diagnostic) : ils
+n'existent pas à l'arrivée sur la page. Une nouvelle classe s'ajoute à `ALLOWED` et à ce tableau
+**dans la PR qui l'introduit**.
 
 ### 5.5 Ce que la barre remplace (à supprimer au lot 2)
 

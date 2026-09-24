@@ -174,7 +174,7 @@ app-assistant{display:contents}
 .assistant-mode{display:flex;align-items:center;gap:.5rem;margin:0;font-size:.75rem;line-height:1.25rem;color:var(--text-mention-grey)}
 .assistant-mode-choix{display:inline-flex;align-items:center;gap:.125rem}
 .assistant-mode-choix button{min-height:1.5rem;margin:0;padding:0 .25rem;border:0;border-radius:.25rem;font:inherit;font-size:.75rem;color:var(--text-action-high-blue-france);background:none;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.assistant-mode-choix button{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
+.assistant-mode-choix button,.assistant-mode-bouton{--hover:var(--background-default-grey-hover);--active:var(--background-default-grey-active)}
 .assistant-mode-choix button[aria-pressed="true"]{color:var(--text-title-grey);font-weight:700;text-decoration:none;cursor:default}
 .assistant-mode-choix button+button::before{content:"·";display:inline-block;text-decoration:none;margin-right:.375rem;color:var(--text-mention-grey);font-weight:400}
 .assistant-fil{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:1rem .75rem .5rem;background-color:var(--background-default-grey)}
@@ -749,7 +749,9 @@ export class AppAssistant extends LitElement {
 
   /**
    * Préférence « Dire » / « Guider », sous le champ de saisie : elle prenait
-   * une bande entière au-dessus du fil.
+   * une bande entière au-dessus du fil. `assistant-mode-bouton` nomme ces
+   * boutons pour la recette des boutons (`e2e/buttons.spec.ts`, #1118) ; le
+   * style reste porté par `.assistant-mode-choix button`.
    */
   private _renderMode(): TemplateResult {
     return html`
@@ -758,6 +760,7 @@ export class AppAssistant extends LitElement {
         <div class="assistant-mode-choix" role="group" aria-labelledby=${`${this._uid}-mode`}>
           <button
             type="button"
+            class="assistant-mode-bouton"
             aria-pressed=${this.mode === 'dire' ? 'true' : 'false'}
             title="Le surligner et annoncer son chemin, sans déplacer le focus"
             @click=${() => this._choisirMode('dire')}
@@ -766,6 +769,7 @@ export class AppAssistant extends LitElement {
           </button>
           <button
             type="button"
+            class="assistant-mode-bouton"
             aria-pressed=${this.mode === 'guider' ? 'true' : 'false'}
             title="Y amener l’écran et le focus"
             @click=${() => this._choisirMode('guider')}

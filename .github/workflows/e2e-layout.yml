@@ -17,6 +17,11 @@ name: E2E layout
 # `display:none`. Meme raison d'etre ici — happy-dom n'a pas
 # d'IntersectionObserver et ne connaît pas la notion de boîte — et memes
 # criteres : deterministe (JSON local), sans API tierce, sur PR.
+#
+# `buttons.spec.ts` (#542, branche ici par #1118) mesure lui aussi des boites
+# et des styles calcules : cibles >= 24 px (WCAG 2.5.8) et `:focus-visible`,
+# sur 14 pages et sur les panneaux Assistant / Diagnostic ouverts. Il
+# n'etait lance nulle part : une classe maison l'avait rougi sans bruit.
 
 on:
   pull_request:
@@ -64,6 +69,7 @@ jobs:
           e2e/chart-legend.spec.ts
           e2e/mobile-chrome.spec.ts
           e2e/source-lazy.spec.ts
+          e2e/buttons.spec.ts
           --project=chromium
 
       - name: Upload traces on failure
