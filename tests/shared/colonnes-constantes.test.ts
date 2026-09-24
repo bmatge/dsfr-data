@@ -12,6 +12,7 @@ import {
   analyzeDataFields,
   constantColumnsByEntity,
   describeConstantColumns,
+  estColonneCoordonnee,
   inspectData,
   type Row,
 } from '../../packages/shared/src/ia/data-tools';
@@ -133,5 +134,32 @@ describe('constantColumnsByEntity — bornes', () => {
       });
     expect(detecter(jeu(5))).toEqual([{ field: 'mesure', entity: 't5' }]);
     expect(detecter(jeu(20))).toEqual([]);
+  });
+});
+
+describe('constantColumnsByEntity — coordonnees exclues', () => {
+  it('Latitude et Longitude, constantes par ville par nature, ne sont jamais signalees', () => {
+    // Mutation : retirer le filtre `estColonneCoordonnee` → Latitude/Longitude
+    // reviennent dans le signal et dans la note « À noter » hors carte.
+    const champs = detecter(AIDES_NATIONALES).map((c) => c.field);
+    expect(champs).not.toContain('Latitude');
+    expect(champs).not.toContain('Longitude');
+    expect(champs).toContain("Nombre total d'actions");
+  });
+
+  it.each([
+    ['Latitude', true],
+    ['Longitude (WGS84)', true],
+    ['consolidated_latitude', true],
+    ['lon_wgs84', true],
+    ['lng', true],
+    ['LAT', true],
+    ['coord_x', true],
+    ['Nombre total d’actions', false],
+    ['Population', false],
+    ['Longueur', false],
+    ['Plateau', false],
+  ])('estColonneCoordonnee(%j) = %s', (nom, attendu) => {
+    expect(estColonneCoordonnee(nom)).toBe(attendu);
   });
 });

@@ -290,6 +290,39 @@ function cellKey(v: unknown): string {
   return v === null || v === undefined || v === '' ? '\u0000absent' : `v:${String(v)}`;
 }
 
+/** Noms de colonnes de coordonnees, apres normalisation (casse, accents, separateurs). */
+const NOMS_COORDONNEES = new Set([
+  'lat',
+  'latitude',
+  'lon',
+  'lng',
+  'long',
+  'longitude',
+  'x',
+  'y',
+  'coordx',
+  'coordy',
+]);
+
+/**
+ * La colonne designe-t-elle une coordonnee (latitude, longitude) ? Lecture du
+ * NOM de colonne (schema), jamais des valeurs : `Latitude`, `consolidated_latitude`,
+ * `lon_wgs84`, `Longitude (WGS84)`.
+ */
+export function estColonneCoordonnee(nom: string): boolean {
+  const norme = nom
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const mots = norme.split(/[^a-z0-9]+/).filter(Boolean);
+  return (
+    NOMS_COORDONNEES.has(mots.join('')) ||
+    mots.some(
+      (m) => m === 'latitude' || m === 'longitude' || m === 'lat' || m === 'lon' || m === 'lng'
+    )
+  );
+}
+
 /**
  * Colonnes numeriques constantes pour chaque valeur d'une colonne entite.
  *
@@ -318,7 +351,10 @@ export function constantColumnsByEntity(data: Row[], fields: Field[] = []): Cons
     })
   );
   // Cibles : numeriques ET variables sur le jeu (une constante globale ne dit rien).
+  // Les coordonnees sont exclues : constantes par lieu par nature, elles ne
+  // sont jamais un total repete a signaler (#1123).
   const targets = [...numericKeys]
+    .filter((field) => !estColonneCoordonnee(field))
     .slice(0, CONSTANT_MAX_TARGETS)
     .filter((field) => new Set(rows.map((r) => cellKey(r[field]))).size >= 2);
   if (targets.length === 0) return [];
