@@ -373,6 +373,14 @@
   background: var(--background-contrast-info);
 }
 
+/* `.fr-input` / `.fr-select` : width 100 % + padding en content-box —
+   débordaient de 32 px à droite de la colonne (#1142). */
+.builder-config-panel .fr-input,
+.builder-config-panel .fr-select {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
 .studio-ia-config .fr-input-group,
 .studio-ia-config .fr-select-group {
   margin-bottom: 0.75rem;
