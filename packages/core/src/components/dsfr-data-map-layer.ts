@@ -928,11 +928,31 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // Determine the geo field for the bbox clause
     const field = this.bboxField || this.geoField || this._autoDetectGeoField();
 
-    // Find the source element to check adapter capabilities
+    // L'adaptateur de la source construit la clause de zone visible dans son
+    // dialecte (#1149) : la couche ne connait aucune grammaire. Sans methode
+    // (ou sur un refus `null`), le filtre se fait dans le navigateur.
     const sourceEl = document.getElementById(this.source) as unknown as SourceElement | null;
     const adapter = sourceEl?.getAdapter?.();
+    const box = { south: sw.lat, west: sw.lng, north: ne.lat, east: ne.lng };
+    const canBuild = typeof adapter?.buildBboxWhere === 'function';
 
-    if (adapter?.capabilities?.serverGeo && !field) {
+    // Colonnes visees : la colonne geographique, sinon le couple lat/lon
+    const where = field
+      ? adapter?.buildBboxWhere?.({ field }, box)
+      : this.latField && this.lonField
+        ? adapter?.buildBboxWhere?.({ lat: this.latField, lon: this.lonField }, box)
+        : null;
+
+    if (where) {
+      dispatchSourceCommand(this.source, {
+        where,
+        whereKey: 'map-bbox',
+        origin: this.id,
+      });
+      return;
+    }
+
+    if (canBuild && !field) {
       // Aucun champ déclaré, aucune ligne pour le deviner (#1139) : pas de
       // champ supposé — la clause attend les premières lignes. Des lignes
       // sans colonne géographique reconnue : on le dit, et l'on filtre
@@ -949,22 +969,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
             `serveur. Filtrage fait dans le navigateur.`
         );
       }
-      this._renderLayer(bounds);
-      return;
     }
 
-    if (adapter?.capabilities?.serverGeo) {
-      // ODS-style in_bbox clause
-      const where = `in_bbox(${field}, ${sw.lat}, ${sw.lng}, ${ne.lat}, ${ne.lng})`;
-      dispatchSourceCommand(this.source, {
-        where,
-        whereKey: 'map-bbox',
-        origin: this.id,
-      });
-    } else {
-      // Client-side fallback — filter cached data by bounds
-      this._renderLayer(bounds);
-    }
+    // Filtre dans le navigateur : les lignes deja recues, bornees a la zone
+    this._renderLayer(bounds);
   }
 
   /**

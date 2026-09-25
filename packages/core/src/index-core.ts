@@ -64,6 +64,8 @@ export type {
   AdapterParams,
   FetchResult,
   FieldKind,
+  BboxBounds,
+  BboxTarget,
   FacetResult,
   ServerSideOverlay,
 } from './adapters/api-adapter.js';

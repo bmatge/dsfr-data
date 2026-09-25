@@ -20,7 +20,10 @@ import type {
   FacetDescriptor,
   FacetWhereOptions,
   FieldKind,
+  BboxBounds,
+  BboxTarget,
 } from './api-adapter.js';
+import { ODSQL_WHERE_DIALECT } from './where-dialect.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
 import { parseOrderBy } from '../utils/where.js';
@@ -752,6 +755,35 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     })();
     this._fieldTypes.set(key, pending);
     return pending;
+  }
+
+  /**
+   * Dialecte ODSQL (#1135) : la clause colon des composants traduite par
+   * `filterToOdsql` — le même traducteur, lib-safe, que l'export HTML.
+   */
+  translateWhere(colonWhere: string): string {
+    return ODSQL_WHERE_DIALECT.translate(colonWhere);
+  }
+
+  /** Clauses ODSQL jointes par ` AND ` (#271, #1135). */
+  joinWhere(clauses: string[]): string {
+    return ODSQL_WHERE_DIALECT.join(clauses);
+  }
+
+  /** Terme libre inséré entre guillemets : `\` et `"` échappés (#271, #1135). */
+  escapeSearchTerm(term: string): string {
+    return ODSQL_WHERE_DIALECT.escape(term);
+  }
+
+  /**
+   * Zone visible d'une carte (#1149) : `in_bbox(champ, sud, ouest, nord, est)`
+   * sur une colonne géographique (`geo_point_2d`, `geo_shape`…). Deux colonnes
+   * latitude / longitude séparées n'ont pas d'équivalent ici : `null`, la
+   * couche filtre dans le navigateur.
+   */
+  buildBboxWhere(target: BboxTarget, bounds: BboxBounds): string | null {
+    if (!('field' in target) || !target.field) return null;
+    return `in_bbox(${target.field}, ${bounds.south}, ${bounds.west}, ${bounds.north}, ${bounds.east})`;
   }
 
   /** Source de verite : OPENDATASOFT_CONFIG.query.searchTemplate (#285) */

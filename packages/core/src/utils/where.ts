@@ -1,11 +1,12 @@
 /**
  * Utilitaires WHERE partagés entre composants et adapters (#271).
  *
- * Deux dialectes coexistent dans le pipeline (cf. `AdapterCapabilities.whereFormat`) :
- * - `odsql` (OpenDataSoft) : clauses SQL-like jointes par ` AND `, valeurs
- *   entre guillemets échappées par l'adapter ODS ;
- * - `colon` (Tabular, Grist, INSEE, Generic) : `field:op:value` joints par
- *   `, `, multi-valeurs séparées par `|`.
+ * Les composants écrivent leurs filtres dans la grammaire colon
+ * (`field:op:value` joints par `, `, multi-valeurs séparées par `|`). Le
+ * dialecte de l'API (traduction, jointure, échappement) appartient à
+ * l'adaptateur (#1135) : `translateWhere`, `joinWhere` et `escapeSearchTerm`
+ * ci-dessous le résolvent via `adapters/where-dialect.ts`, sans qu'aucun
+ * composant ne connaisse un dialecte.
  *
  * Les caractères structurels de la syntaxe colon (`,` `:` `|`) présents dans
  * une VALEUR sont percent-encodés par `escapeColonValue` (avec `%` lui-même,
@@ -22,9 +23,9 @@
  * et laissent le filtre au client.
  */
 
-import type { AdapterCapabilities } from '../adapters/api-adapter.js';
+import { whereDialectOf, type WhereDialectCarrier } from '../adapters/where-dialect.js';
 
-export type WhereFormat = AdapterCapabilities['whereFormat'];
+export type { WhereDialectCarrier } from '../adapters/where-dialect.js';
 
 // Implementation partagee avec les utilitaires app-side (filter-translator) :
 // definie dans @dsfr-data/shared (lib-safe), re-exportee ici pour les
@@ -36,7 +37,7 @@ export {
   splitColonFields,
   isMultiFieldClause,
 } from '@dsfr-data/shared/lib';
-import { escapeColonValue, filterToOdsql as filterToOdsqlImpl } from '@dsfr-data/shared/lib';
+import { escapeColonValue } from '@dsfr-data/shared/lib';
 
 /**
  * Construit la clause WHERE colon des sélections de facettes.
@@ -59,36 +60,43 @@ export function buildColonFacetWhere(
 }
 
 /**
- * Joint des clauses WHERE selon le dialecte du provider.
- * ` AND ` en ODSQL, `, ` en colon — joindre du colon par ` AND ` produit
- * des clauses invalides (le parseur colon découpe sur `,`).
+ * Joint par un ET des clauses WHERE dans le dialecte de l'adaptateur (#271,
+ * #1135) — ` AND ` en ODSQL, `, ` en colon : joindre du colon par ` AND `
+ * produit des clauses invalides (le parseur colon découpe sur `,`). Les
+ * clauses vides sont écartées. `adapter` absent (source sans adaptateur) =
+ * colon.
  */
-export function joinWhere(format: WhereFormat, clauses: Array<string | undefined | null>): string {
+export function joinWhere(
+  adapter: WhereDialectCarrier | null | undefined,
+  clauses: Array<string | undefined | null>
+): string {
   const list = clauses.filter((c): c is string => !!c);
-  return list.join(format === 'odsql' ? ' AND ' : ', ');
+  return whereDialectOf(adapter).join(list);
 }
 
 /**
- * Traduit une clause colon (la grammaire des composants) vers le dialecte
- * `format` d'un adaptateur (#275, #1134). Seul `odsql` se traduit ; `colon`
- * part telle quelle. Les composants passent par ici plutôt que de tester le
- * dialecte eux-mêmes : c'est ce qui les garde neutres (garde-fou
- * `tests/lib-provider-neutrality.test.ts`).
+ * Traduit une clause colon (la grammaire des composants) dans le dialecte de
+ * l'adaptateur (#275, #1135). Les composants passent par ici plutôt que de
+ * connaître un dialecte : c'est ce qui les garde neutres (garde-fou
+ * `tests/lib-provider-neutrality.test.ts`). Une clause vide reste vide.
  */
-export function toWhereDialect(format: WhereFormat | undefined, colonWhere: string): string {
+export function translateWhere(
+  adapter: WhereDialectCarrier | null | undefined,
+  colonWhere: string
+): string {
   if (!colonWhere) return colonWhere;
-  return format === 'odsql' ? filterToOdsqlImpl(colonWhere) : colonWhere;
+  return whereDialectOf(adapter).translate(colonWhere);
 }
 
 /**
- * Échappe une VALEUR libre (terme de recherche) pour l'insérer dans une
- * clause du dialecte `format` (#271) : ODSQL échappe `\` et `"` (valeur entre
- * guillemets), colon percent-encode `,` `:` `|` (caractères structurels).
+ * Échappe un terme libre (recherche serveur) pour l'insérer dans une clause
+ * du dialecte de l'adaptateur (#271, #1135).
  */
-export function escapeWhereValue(format: WhereFormat, value: string): string {
-  return format === 'odsql'
-    ? value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-    : escapeColonValue(value);
+export function escapeSearchTerm(
+  adapter: WhereDialectCarrier | null | undefined,
+  term: string
+): string {
+  return whereDialectOf(adapter).escape(term);
 }
 
 /** Partie d'un tri multi-champs. */

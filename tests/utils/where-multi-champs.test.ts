@@ -247,7 +247,6 @@ interface QueryInternals {
   _validateFilterExpr(expr: string): string | null;
   _buildWhereDelegation(
     expr: string,
-    format: 'odsql' | 'colon',
     adapter?: ApiAdapter
   ): { ok: boolean; where: string; fields: string[] };
 }
@@ -266,24 +265,18 @@ describe('#1026 — dsfr-data-query', () => {
   });
 
   it('délègue à Tabular avec les champs découpés', () => {
-    const d = query._buildWhereDelegation('nom|prenom:contains:x', 'colon', new TabularAdapter());
+    const d = query._buildWhereDelegation('nom|prenom:contains:x', new TabularAdapter());
     expect(d).toEqual({ ok: true, where: 'nom|prenom:contains:x', fields: ['nom', 'prenom'] });
   });
 
   it('traduit en ODSQL pour Opendatasoft', () => {
-    const d = query._buildWhereDelegation(
-      'nom|prenom:contains:x',
-      'odsql',
-      new OpenDataSoftAdapter()
-    );
+    const d = query._buildWhereDelegation('nom|prenom:contains:x', new OpenDataSoftAdapter());
     expect(d.where).toBe('(nom like "%x%" OR prenom like "%x%")');
   });
 
   it('ne délègue rien quand l’adaptateur refuse (INSEE, valeur intransmissible)', () => {
-    expect(query._buildWhereDelegation('a|b:eq:x', 'colon', new InseeAdapter()).ok).toBe(false);
-    expect(
-      query._buildWhereDelegation('a|b:contains:A%2CB', 'colon', new TabularAdapter()).ok
-    ).toBe(false);
+    expect(query._buildWhereDelegation('a|b:eq:x', new InseeAdapter()).ok).toBe(false);
+    expect(query._buildWhereDelegation('a|b:contains:A%2CB', new TabularAdapter()).ok).toBe(false);
   });
 });
 

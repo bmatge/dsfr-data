@@ -1,6 +1,6 @@
 import type { AdapterParams, ApiAdapter, FacetDescriptor } from '../../adapters/api-adapter.js';
 import type { SourceElement } from '../../utils/source-element.js';
-import { joinWhere, type WhereFormat } from '../../utils/where.js';
+import { joinWhere, type WhereDialectCarrier } from '../../utils/where.js';
 import type { FacetGroup, FacetSelections, FacetValue } from './facets-types.js';
 
 /**
@@ -160,19 +160,18 @@ export function resolveServerParams(
  * partagent la meme clause tiennent dans UN appel a l'API.
  *
  * `baseWhere` est invariant : il etait recalcule a chaque iteration (#313).
- * La jointure suit le dialecte du provider — ' AND ' en ODSQL, ', ' en colon.
- * Joindre du colon par AND produisait des clauses croisees invalides sur
- * Grist/Tabular (#271).
+ * La jointure suit le dialecte de l'adaptateur (`joinWhere`, #1135) : joindre
+ * du colon par AND produisait des clauses croisees invalides (#271).
  */
 export function groupFieldsByWhere(
   fields: string[],
   baseWhere: string,
-  whereFormat: WhereFormat,
+  adapter: WhereDialectCarrier | null | undefined,
   facetWhereExcluding: (field: string) => string
 ): Map<string, string[]> {
   const whereToFields = new Map<string, string[]>();
   for (const field of fields) {
-    const effectiveWhere = joinWhere(whereFormat, [baseWhere, facetWhereExcluding(field)]);
+    const effectiveWhere = joinWhere(adapter, [baseWhere, facetWhereExcluding(field)]);
     if (!whereToFields.has(effectiveWhere)) whereToFields.set(effectiveWhere, []);
     whereToFields.get(effectiveWhere)!.push(field);
   }

@@ -148,6 +148,9 @@ export default tseslint.config(
                 '**/adapters/*',
                 '!**/adapters/api-adapter.js',
                 '!**/adapters/adapter-registry.js',
+                // Résolution du dialecte WHERE d'un adaptateur (#1135) : seul
+                // utils/where.ts l'importe, pour déléguer à l'adaptateur
+                '!**/adapters/where-dialect.js',
               ],
               message:
                 'Un composant ne connaît aucun adaptateur : passer par le contrat ApiAdapter (import type) ou le registre getAdapter (#1134).',

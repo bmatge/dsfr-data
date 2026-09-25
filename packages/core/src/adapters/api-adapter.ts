@@ -25,11 +25,39 @@ export interface AdapterCapabilities {
   serverGroupBy: boolean;
   /** Supporte le tri cote serveur */
   serverOrderBy: boolean;
-  /** Supporte le filtrage geographique server-side (in_bbox) */
+  /**
+   * Supporte le filtrage géographique côté serveur : vrai SI ET SEULEMENT SI
+   * l'adaptateur fournit `buildBboxWhere` (#1149). La couche de carte lit la
+   * méthode, pas ce drapeau ; il reste la déclaration lisible de la capacité.
+   */
   serverGeo: boolean;
-  /** Format du where clause : 'odsql' ou 'colon' (field:op:value) */
-  whereFormat: 'odsql' | 'colon';
+  /**
+   * Nom du dialecte WHERE de l'API. `colon` (`champ:op:valeur`, la grammaire
+   * des composants) et `odsql` ont un dialecte par défaut ; un adaptateur
+   * tiers peut nommer le sien librement et fournir `translateWhere`,
+   * `joinWhere` et `escapeSearchTerm` (#1135) — sans elles, un format
+   * inconnu reçoit la grammaire colon telle quelle.
+   */
+  whereFormat: 'odsql' | 'colon' | (string & {});
 }
+
+/**
+ * Rectangle visible d'une carte (#1149), en degrés décimaux WGS 84 :
+ * `south`/`north` sont des latitudes, `west`/`east` des longitudes.
+ */
+export interface BboxBounds {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
+/**
+ * Colonnes géographiques visées par un filtre de zone visible (#1149) : une
+ * colonne géographique unique (`field`), ou deux colonnes numériques de
+ * latitude et de longitude (`lat`, `lon`).
+ */
+export type BboxTarget = { field: string } | { lat: string; lon: string };
 
 /**
  * Parametres passes de dsfr-data-query a l'adapter.
@@ -304,6 +332,39 @@ export interface ApiAdapter {
    * Non implemente = toute clause est delegable (comportement par defaut).
    */
   supportsServerWhere?(where: string): boolean;
+
+  /**
+   * Traduit une clause colon — la grammaire des composants, `champ:op:valeur`
+   * joints par `, ` — dans le dialecte de l'API (#1135). Absent = dialecte
+   * par défaut de `whereFormat` (`colon` : telle quelle ; `odsql` :
+   * `filterToOdsql`). Appelée par `translateWhere` de `utils/where.ts`, jamais
+   * directement par un composant.
+   */
+  translateWhere?(colonWhere: string): string;
+
+  /**
+   * Joint par un ET des clauses DÉJÀ dans le dialecte de l'API (#1135), les
+   * clauses vides étant écartées en amont. Absent = `, ` (colon) ou ` AND `
+   * (odsql) selon `whereFormat`.
+   */
+  joinWhere?(clauses: string[]): string;
+
+  /**
+   * Échappe un terme libre (recherche serveur) avant de l'insérer à la place
+   * de `{q}` dans le gabarit de recherche (#1135). Absent = percent-encodage
+   * de `,` `:` `|` `%` (colon) ou échappement de `\` et `"` (odsql).
+   */
+  escapeSearchTerm?(term: string): string;
+
+  /**
+   * Clause WHERE, dans le dialecte de l'API, qui ne garde que les lignes
+   * situées dans le rectangle `bounds` (#1149) — la zone visible d'une couche
+   * `bbox` de `dsfr-data-map-layer`. `null` = l'adaptateur ne sait pas filtrer
+   * ces colonnes-là côté serveur : la couche filtre alors dans le navigateur.
+   * Absent = aucun filtre géographique serveur (même repli). Doit être fourni
+   * si et seulement si `capabilities.serverGeo` est vrai.
+   */
+  buildBboxWhere?(target: BboxTarget, bounds: BboxBounds): string | null;
 
   /**
    * Retourne le search template par défaut pour cette API.

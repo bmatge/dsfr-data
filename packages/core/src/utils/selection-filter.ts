@@ -30,7 +30,7 @@
  */
 import type { LitElement } from 'lit';
 import { getByPath } from './json-path.js';
-import { escapeColonValue, toWhereDialect } from './where.js';
+import { escapeColonValue, translateWhere } from './where.js';
 import { dispatchSourceCommand } from './data-bridge.js';
 import { ContextBindingMixin } from './context-binding.js';
 import type { ContextHost } from './context-registry.js';
@@ -312,8 +312,7 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
       if (colon === this._lastPushedWhere) return;
       this._lastPushedWhere = colon;
       const sourceEl = document.getElementById(this.source) as unknown as SourceElement | null;
-      const whereFormat = sourceEl?.getAdapter?.()?.capabilities?.whereFormat;
-      const where = toWhereDialect(whereFormat, colon);
+      const where = translateWhere(sourceEl?.getAdapter?.(), colon);
       dispatchSourceCommand(this.source, {
         where,
         whereKey: this._directWhereKey,

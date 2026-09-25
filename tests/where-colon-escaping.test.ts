@@ -121,7 +121,7 @@ describe('échappement colon des valeurs WHERE (#271)', () => {
   it('facettes croisées Grist : clauses jointes par virgule (dialecte colon)', () => {
     const whereA = buildColonFacetWhere({ region: new Set([TRICKY]) });
     const whereB = buildColonFacetWhere({ type: new Set(['Hôpital']) });
-    const joined = joinWhere('colon', [whereA, whereB]);
+    const joined = joinWhere(new GristAdapter(), [whereA, whereB]);
     expect(joined).not.toContain(' AND ');
 
     const adapter = new GristAdapter();
@@ -130,7 +130,9 @@ describe('échappement colon des valeurs WHERE (#271)', () => {
   });
 
   it('facettes croisées ODSQL : clauses jointes par AND', () => {
-    expect(joinWhere('odsql', ['a = "1"', 'b = "2"'])).toBe('a = "1" AND b = "2"');
-    expect(joinWhere('odsql', ['', 'b = "2"', null])).toBe('b = "2"');
+    expect(joinWhere(new OpenDataSoftAdapter(), ['a = "1"', 'b = "2"'])).toBe(
+      'a = "1" AND b = "2"'
+    );
+    expect(joinWhere(new OpenDataSoftAdapter(), ['', 'b = "2"', null])).toBe('b = "2"');
   });
 });
