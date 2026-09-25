@@ -21,6 +21,7 @@ globalThis.fetch = mockFetch;
 
 import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { clearDataCache, subscribeToSourceCommands } from '@/utils/data-bridge.js';
+import { OpenDataSoftAdapter } from '@/adapters/opendatasoft-adapter.js';
 
 function fakeBounds(swLat: number, swLng: number, neLat: number, neLng: number) {
   return {
@@ -195,9 +196,11 @@ describe('#652 — mode bbox : commande émise dès la carte prête', () => {
 
     const src = document.createElement('div');
     src.id = sourceId;
-    (src as unknown as { getAdapter: () => unknown }).getAdapter = () => ({
-      capabilities: { serverGeo: opts.serverGeo },
-    });
+    // Filtre serveur : un adaptateur qui sait construire la clause (#1149)
+    const adapter = opts.serverGeo
+      ? new OpenDataSoftAdapter()
+      : { capabilities: { serverGeo: false } };
+    (src as unknown as { getAdapter: () => unknown }).getAdapter = () => adapter;
     document.body.appendChild(src);
 
     const layer = new DsfrDataMapLayer();

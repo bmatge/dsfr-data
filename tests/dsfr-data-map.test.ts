@@ -9,6 +9,7 @@ import { DsfrDataMapLayer } from '@/components/dsfr-data-map-layer.js';
 import { DsfrDataMapTimeline } from '@/components/dsfr-data-map-timeline.js';
 import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
 import { parseColorMap } from '@/utils/color-map.js';
+import { OpenDataSoftAdapter } from '@/adapters/opendatasoft-adapter.js';
 import { nothing } from 'lit';
 
 // ============================================================================
@@ -1213,7 +1214,8 @@ describe('DsfrDataMapLayer rendering with mock Leaflet', () => {
       // Mock source element with serverGeo adapter
       const mockSource = document.createElement('div');
       mockSource.id = 'test-src';
-      (mockSource as any).getAdapter = () => ({ capabilities: { serverGeo: true } });
+      const adapter = new OpenDataSoftAdapter();
+      (mockSource as any).getAdapter = () => adapter;
       document.body.appendChild(mockSource);
 
       let capturedCommand: any;

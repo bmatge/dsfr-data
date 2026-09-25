@@ -620,7 +620,7 @@ export class DsfrDataSource extends LitElement {
     for (const [key, value] of this._whereOverlays) {
       if (!excluded.has(key) && value) parts.push(value);
     }
-    return joinWhere(this.getAdapter()?.capabilities.whereFormat ?? 'colon', parts);
+    return joinWhere(this.getAdapter(), parts);
   }
 
   public reload() {

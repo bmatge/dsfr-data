@@ -352,7 +352,7 @@ describe('facets-server — parametres et regroupement par clause', () => {
   });
 
   it('regroupe les champs qui partagent la meme clause (#313)', () => {
-    const grouped = groupFieldsByWhere(['a', 'b', 'c'], 'base', 'colon', (field) =>
+    const grouped = groupFieldsByWhere(['a', 'b', 'c'], 'base', null, (field) =>
       field === 'c' ? 'c:eq:1' : ''
     );
     expect([...grouped.entries()]).toEqual([

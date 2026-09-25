@@ -170,28 +170,12 @@ interface Exception {
  */
 const EXCEPTIONS: readonly Exception[] = [
   {
-    file: 'utils/where.ts',
-    line: /['"`]odsql['"`]/,
-    issue: '#1134',
-    reason:
-      'where.ts est le SEUL endroit qui connaît les deux dialectes de la capacité whereFormat ' +
-      '(jointure, traduction, échappement) ; les composants passent par ses fonctions.',
-  },
-  {
     file: 'utils/map-geo-keys.ts',
     line: /INSEE_TO_REGION/,
     issue: '#1134',
     reason:
       'Code officiel géographique (COG) : un référentiel de l’État lu dans les données, ' +
       'pas une API — le nom de l’organisme qui le publie n’est pas une dépendance.',
-  },
-  {
-    file: 'components/dsfr-data-map-layer.ts',
-    line: /in_bbox\(/,
-    issue: '#1090',
-    reason:
-      'Filtre de viewport écrit en ODSQL par la couche ; à déplacer derrière une méthode ' +
-      'd’adaptateur (capacité serverGeo) par #1090.',
   },
   {
     file: 'index.ts',
@@ -282,7 +266,15 @@ describe('#1134 — le contrat ApiAdapter reste une surface de capacités', () =
 
   it('les méthodes optionnelles sont repérées', () => {
     expect(optionalMethods).toEqual(
-      expect.arrayContaining(['fetchFacets', 'describeFieldTypes', 'supportsServerWhere'])
+      expect.arrayContaining([
+        'fetchFacets',
+        'describeFieldTypes',
+        'supportsServerWhere',
+        'translateWhere',
+        'joinWhere',
+        'escapeSearchTerm',
+        'buildBboxWhere',
+      ])
     );
   });
 

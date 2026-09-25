@@ -1169,11 +1169,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       ? [this.id, ...[...this._contextFilters.values()].map((c) => c.whereKey)]
       : this.id;
     const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(ownKeys) || '';
-    const whereToFields = groupFieldsByWhere(
-      fields,
-      baseWhere,
-      adapter.capabilities.whereFormat,
-      (field) => this._buildFacetWhere(field)
+    const whereToFields = groupFieldsByWhere(fields, baseWhere, adapter, (field) =>
+      this._buildFacetWhere(field)
     );
 
     // Deux interactions rapides = deux series de fetch concurrentes : la

@@ -146,13 +146,29 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   (`in_bbox(`, `group_by`, `page_size`, `champ__sum`, `/records`…), noms de fournisseur, littéral
   `'odsql'`, types déclarés bruts (`int`, `double`…), tests d'`api-type` et noms d'hôtes. Les dérives
   légitimes sont déclarées dans `EXCEPTIONS` avec leur issue, et une exception qui ne couvre plus rien
-  fait échouer le test. Le dialecte `whereFormat` ne se teste que dans `utils/where.ts`
-  (`joinWhere`, `toWhereDialect`, `escapeWhereValue`). Le même test impose que
+  fait échouer le test. Aucun composant ne connaît de dialecte WHERE : voir « Dialecte WHERE et
+  zone visible » ci-dessous (#1135, #1149). Le même test impose que
   `AdapterCapabilities` ne porte que des booléens et `whereFormat`, et que toute méthode optionnelle
   d'`ApiAdapter` soit appelée en `?.` (un adaptateur tiers enregistré par `registerAdapter` peut ne
   pas l'avoir). ESLint (`@typescript-eslint/no-restricted-imports`) interdit aux composants
-  d'importer un `*-adapter.js` (seuls `api-adapter.js` en `import type` et `adapter-registry.js`) et
-  les exports fournisseur de `@dsfr-data/shared/lib` (`ODS_CONFIG`, `buildGristHeaders`…).
+  d'importer un `*-adapter.js` (seuls `api-adapter.js` en `import type`, `adapter-registry.js` et
+  `where-dialect.js`, importé par `utils/where.ts`) et les exports fournisseur de
+  `@dsfr-data/shared/lib` (`ODS_CONFIG`, `buildGristHeaders`…).
+- **Dialecte WHERE et zone visible (#1135, #1149)** : les composants écrivent leurs filtres en colon
+  (`champ:op:valeur`, joints par `, `) ; l'adaptateur dit cette grammaire dans la langue de son API par
+  trois méthodes optionnelles d'`ApiAdapter` — `translateWhere(colon)`, `joinWhere(clauses)`,
+  `escapeSearchTerm(terme)` — et construit la clause de zone visible d'une carte par
+  `buildBboxWhere({ field } | { lat, lon }, bornes)` (`null` = ne sait pas). **Un seul point d'appel** :
+  `translateWhere` / `joinWhere` / `escapeSearchTerm` de `utils/where.ts` (source, query, context,
+  selection-filter, search, facets-server), qui délèguent à `whereDialectOf(adapter)`
+  (`adapters/where-dialect.ts`) : méthode de l'adaptateur quand il l'a, sinon dialecte par défaut
+  de son `whereFormat` (`odsql` : `filterToOdsql`, ` AND `, `\` et `"` échappés ; tout autre nom,
+  ou pas d'adaptateur : colon tel quel). `whereFormat` accepte un nom de dialecte libre : un
+  adaptateur tiers à grammaire propre (SQL, CKAN, PostgREST) n'a qu'à fournir les trois méthodes.
+  La couche de carte appelle `adapter.buildBboxWhere?.(…)` et filtre dans le navigateur sur absence
+  ou `null` ; `serverGeo` est vrai si et seulement si la méthode existe (test
+  `tests/adapters/where-dialect.test.ts`). `filterToOdsql` reste dans `@dsfr-data/shared/lib`,
+  lib-safe, pour l'export HTML et les générateurs de code.
 
 #### Capacités des adapters
 
@@ -165,6 +181,8 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
 | whereFormat | odsql | colon | colon | colon | colon |
+| dialecte WHERE (`translateWhere`, `joinWhere`, `escapeSearchTerm`, #1135) | fournis : `filterToOdsql`, ` AND `, `\` et `"` échappés | défaut colon | défaut colon | défaut colon | défaut colon |
+| zone visible (`buildBboxWhere`, #1149) | `in_bbox(champ, sud, ouest, nord, est)` ; `null` sur lat/lon séparés | — (filtre navigateur ; serveur prévu par #1090) | — | — | — |
 | plafond fetchAll (#286) | 1 000 (10×100), relevable via `max-records` (#233) | 25 000 (125×200, 200 = maximum de l'API, #1019), relevable via `max-records` (#1027) | illimite (1 requete) | 100 000 (100×1000) | n/a |
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
 | projection `select` | clause ODSQL (expressions, alias) | `columns=` : noms seuls, ignore avec group-by/aggregate (#985) | non | non | non |

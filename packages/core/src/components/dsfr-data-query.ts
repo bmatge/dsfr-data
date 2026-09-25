@@ -20,7 +20,7 @@ import {
 import { countDistinct } from '../utils/aggregations.js';
 import {
   unescapeColonValue,
-  toWhereDialect,
+  translateWhere,
   parseOrderBy,
   splitColonFields,
 } from '../utils/where.js';
@@ -883,11 +883,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // donc avant un group-by qui reste alors client-side lui aussi.
     // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
     // les champs bruts n'existent plus → toutes les lignes éliminées.
-    const whereDelegation = this._buildWhereDelegation(
-      this.filter || this.where,
-      caps.whereFormat,
-      adapter
-    );
+    const whereDelegation = this._buildWhereDelegation(this.filter || this.where, adapter);
     const aggregates = this._parseAggregates(this.aggregate);
     const fields = [
       ...this.groupBy.split(','),
@@ -937,17 +933,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _delegateWhereOnly(
     cmd: Record<string, string>,
-    { adapter, caps }: DelegationTarget,
+    { adapter }: DelegationTarget,
     exclusive: boolean
   ): void {
     if (this._serverDelegated.where || !exclusive || this.explode) return;
     if (!this.filter && !this.where) return;
 
-    const whereOnly = this._buildWhereDelegation(
-      this.filter || this.where,
-      caps.whereFormat,
-      adapter
-    );
+    const whereOnly = this._buildWhereDelegation(this.filter || this.where, adapter);
     if (!whereOnly.ok || !whereOnly.where || !this._canDelegateFields(adapter, whereOnly.fields)) {
       return;
     }
@@ -1255,14 +1247,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * Prépare la délégation serveur du where (#275) : valide que chaque clause
    * est exprimable dans la grammaire colon (`field:op[:value]`) puis la
-   * traduit au dialecte de l'adapter (ODSQL ou colon pass-through).
+   * traduit au dialecte de l'adaptateur (`translateWhere`, #1135).
    *
    * Retourne ok=false si une clause est intraduisible (syntaxe non-colon,
    * opérateur inconnu) — l'appelant ne délègue alors RIEN.
    */
   private _buildWhereDelegation(
     filterExpr: string,
-    format: AdapterCapabilities['whereFormat'],
     adapter?: ApiAdapter
   ): { ok: boolean; where: string; fields: string[] } {
     if (!filterExpr) return { ok: true, where: '', fields: [] };
@@ -1287,7 +1278,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       return { ok: false, where: '', fields: [] };
     }
 
-    const where = toWhereDialect(format, filterExpr);
+    const where = translateWhere(adapter, filterExpr);
     return { ok: true, where, fields };
   }
 

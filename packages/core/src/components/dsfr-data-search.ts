@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml, formatNumber, stripAccents } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeColonValue, escapeWhereValue } from '../utils/where.js';
+import { escapeColonValue, escapeSearchTerm } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
@@ -568,9 +568,8 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     let refusal: string | null = null;
 
     if (term && term.length >= this.minLength) {
-      // Echappement selon le dialecte du provider (#271) : ODSQL echappe
-      // \ et " (valeur entre guillemets), colon percent-encode , : |
-      // (caracteres structurels de la clause)
+      // Echappement du terme dans le dialecte de l'adaptateur (#271,
+      // #1135) : c'est lui qui sait quels caracteres sont structurels
       const adapter = this.getAdapter();
       // `{fields}` (#1026) : les champs de la recherche, separes par `|` —
       // la grammaire colon des champs multiples, un OU entre eux
@@ -587,7 +586,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
           `le gabarit "${this.searchTemplate}" cherche dans {fields}, mais l'attribut ` +
           `"fields" est vide — nommez les colonnes a interroger`;
       } else {
-        const escaped = escapeWhereValue(adapter.capabilities.whereFormat, term);
+        const escaped = escapeSearchTerm(adapter, term);
         where = this.searchTemplate
           .replace(/\{fields\}/g, fields.join('|'))
           .replace(/\{q\}/g, escaped);
