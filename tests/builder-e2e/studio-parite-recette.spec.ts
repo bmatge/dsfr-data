@@ -418,7 +418,7 @@ test.describe('source donnee par URL dans la conversation (#1140)', () => {
 });
 
 /**
- * « Envoyer au Studio IA » depuis le Playground (#1132) : un code Opendatasoft
+ * « Ouvrir dans le Studio IA » depuis le Playground (#1132) : un code Opendatasoft
  * + graphique + tableau croise (`dsfr-data-pivot`) arrive dans le Studio avec
  * sa source DEJA chargee (chemin de `charger_source_url`), la consigne de
  * reconstruction posee dans le champ et RIEN d'envoye au modele. Apres envoi
@@ -542,12 +542,12 @@ test.describe('Playground → Studio IA (#1132)', () => {
       cm.setValue(code);
     }, CODE_PLAYGROUND);
 
-    // 2. « Envoyer au Studio IA », dans « Plus d'actions ».
+    // 2. « Ouvrir dans le Studio IA », dans « Plus d'actions ».
     const bouton = page.locator('#studio-btn');
     if (!(await bouton.isVisible())) {
       await page.getByRole('button', { name: "Plus d'actions" }).click();
     }
-    await expect(bouton).toHaveText('Envoyer au Studio IA');
+    await expect(bouton).toHaveText('Ouvrir dans le Studio IA');
     await bouton.click();
     await page.waitForURL(/\/apps\/studio\/index\.html\?from=playground$/);
 

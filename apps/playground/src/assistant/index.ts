@@ -105,14 +105,14 @@ export function construireDansLeStudio(
   return true;
 }
 
-/** Messages de « Envoyer au Studio IA » quand le code ne part pas. */
+/** Messages de « Ouvrir dans le Studio IA » quand le code ne part pas. */
 export const MESSAGES_ENVOI_STUDIO = {
-  vide: 'Écrivez du code avant de l’envoyer au Studio IA.',
+  vide: 'Écrivez du code avant de l’ouvrir dans le Studio IA.',
   impossible: `Le code n’a pas pu être confié au Studio IA : il dépasse ${LONGUEUR_MAX_CODE_PASSATION.toLocaleString('fr-FR')} caractères, ou le stockage du navigateur est indisponible.`,
 } as const;
 
 /**
- * « Envoyer au Studio IA » de la barre d'actions (#1132) : la passation de
+ * « Ouvrir dans le Studio IA » de la barre d'actions (#1132) : la passation de
  * `construireDansLeStudio`, avec le code de l'éditeur. Rend `true` si l'on part.
  */
 export function envoyerAuStudio(

@@ -301,7 +301,7 @@ export const SCENARIOS: readonly Scenario[] = [
     },
   },
   {
-    // #1132 : « Envoyer au Studio IA » depuis le Playground. La source est deja
+    // #1132 : « Ouvrir dans le Studio IA » depuis le Playground. La source est deja
     // chargee (comme apres la passation) et le message est CELUI que le Studio
     // pose dans son champ (`messageReconstruction`, le vrai), code compris : le
     // modele doit reconstruire fidelement — un bloc chart guide pour le

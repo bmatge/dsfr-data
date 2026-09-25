@@ -1,5 +1,5 @@
 /**
- * Passation « Envoyer au Studio IA » (#1132) : ce qu'une app confie au Studio
+ * Passation « Ouvrir dans le Studio IA » (#1132) : ce qu'une app confie au Studio
  * À CÔTÉ du diagnostic (`transmettreDiagnostic`, #1016), pour qu'il reprenne
  * fidèlement un code au lieu de le deviner :
  *

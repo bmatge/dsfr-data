@@ -283,7 +283,7 @@ export {
   RETOUR_VERS_ACCUEIL,
 } from './ui/passation.js';
 export type { VerdictRetour, AppAccueil, AvertissementRetour } from './ui/passation.js';
-// Passation « Envoyer au Studio IA » (#1132) — app-side
+// Passation « Ouvrir dans le Studio IA » (#1132) — app-side
 export {
   PASSATION_STUDIO_KEY,
   LONGUEUR_MAX_CODE_PASSATION,

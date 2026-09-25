@@ -1,5 +1,5 @@
 /**
- * « Envoyer au Studio IA » (#1132), côté Playground :
+ * « Ouvrir dans le Studio IA » (#1132), côté Playground :
  *
  * - la source déclarée par le code est réduite à une adresse PUBLIQUE, que
  *   reconnaît `reconnaitreUrlSource` (le chemin de `charger_source_url`) ;
@@ -144,7 +144,7 @@ describe('construirePassation', () => {
 describe('passation vers le Studio : une seule voie', () => {
   beforeEach(() => sessionStorage.clear());
 
-  it('« Envoyer au Studio IA » dépose code + source + diagnostic et ouvre le Studio', () => {
+  it('« Ouvrir dans le Studio IA » dépose code + source + diagnostic et ouvre le Studio', () => {
     const cibles: string[] = [];
     expect(envoyerAuStudio(ODS, 'data → 12 lignes', (href) => cibles.push(href))).toBe(true);
     expect(cibles).toHaveLength(1);

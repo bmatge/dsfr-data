@@ -1,5 +1,5 @@
 /**
- * « Envoyer au Studio IA » (#1132) : ce que le Playground confie au Studio
+ * « Ouvrir dans le Studio IA » (#1132) : ce que le Playground confie au Studio
  * à côté du diagnostic — le code, et la source qu'il déclare.
  *
  * La source est réduite à une ADRESSE PUBLIQUE, reconnue par la même

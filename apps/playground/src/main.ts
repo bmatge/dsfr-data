@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Correspondance locale d'abord ; Albert en secours s'il est configuré.
   assistant = monterAssistantPlayground({ editor, adaptateur, diagnostic });
 
-  // « Envoyer au Studio IA » (#1132) : la même passation que « Construire
+  // « Ouvrir dans le Studio IA » (#1132) : la même passation que « Construire
   // pour moi » de l'assistant — code, source publique et diagnostic.
   document.getElementById('studio-btn')?.addEventListener('click', () => {
     envoyerAuStudio(editor.getValue(), diagnostic?.text() ?? '');

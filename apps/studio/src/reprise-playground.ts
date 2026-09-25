@@ -1,7 +1,7 @@
 /**
  * Studio IA - Reprise d'un code du Playground (#1132).
  *
- * Le Playground confie au Studio, par « Envoyer au Studio IA » (ou « Construire
+ * Le Playground confie au Studio, par « Ouvrir dans le Studio IA » (ou « Construire
  * pour moi » de son assistant), son code, la source publique qu'il déclare
  * (`PassationStudio`) et le diagnostic de son pipeline. Le Studio :
  *
