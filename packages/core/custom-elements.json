@@ -11137,7 +11137,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
+              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.\nLa clause de zone visible est écrite par l'adaptateur de la source\n(adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à\ndéfaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues\nsont filtrées dans le navigateur.",
               "attribute": "bbox"
             },
             {
@@ -12798,7 +12798,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.",
+              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.\nLa clause de zone visible est écrite par l'adaptateur de la source\n(adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à\ndéfaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues\nsont filtrées dans le navigateur.",
               "fieldName": "bbox"
             },
             {
@@ -17553,7 +17553,7 @@
                   }
                 },
                 {
-                  "name": "{ adapter, caps }",
+                  "name": "{ adapter }",
                   "type": {
                     "text": "DelegationTarget"
                   }
@@ -17792,12 +17792,6 @@
                   }
                 },
                 {
-                  "name": "format",
-                  "type": {
-                    "text": "AdapterCapabilities['whereFormat']"
-                  }
-                },
-                {
                   "name": "adapter",
                   "optional": true,
                   "type": {
@@ -17805,7 +17799,7 @@
                   }
                 }
               ],
-              "description": "Prépare la délégation serveur du where (#275) : valide que chaque clause\nest exprimable dans la grammaire colon (`field:op[:value]`) puis la\ntraduit au dialecte de l'adapter (ODSQL ou colon pass-through).\n\nRetourne ok=false si une clause est intraduisible (syntaxe non-colon,\nopérateur inconnu) — l'appelant ne délègue alors RIEN."
+              "description": "Prépare la délégation serveur du where (#275) : valide que chaque clause\nest exprimable dans la grammaire colon (`field:op[:value]`) puis la\ntraduit au dialecte de l'adaptateur (`translateWhere`, #1135).\n\nRetourne ok=false si une clause est intraduisible (syntaxe non-colon,\nopérateur inconnu) — l'appelant ne délègue alors RIEN."
             },
             {
               "kind": "method",

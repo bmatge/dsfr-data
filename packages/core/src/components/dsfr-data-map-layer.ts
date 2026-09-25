@@ -355,6 +355,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
    * premier fetch de la source reste NON filtre (elle charge des sa connexion,
    * avant que la carte — différée a la visibilité — ait un viewport) : sur un
    * gros jeu, poser un `limit` ou un `where` initial sur la source.
+   * La clause de zone visible est écrite par l'adaptateur de la source
+   * (adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à
+   * défaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues
+   * sont filtrées dans le navigateur.
    */
   @property({ type: Boolean })
   bbox = false;
