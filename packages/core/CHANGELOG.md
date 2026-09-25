@@ -1,5 +1,15 @@
 # dsfr-data
 
+## 0.42.0
+
+### Minor Changes
+
+- [#1150](https://github.com/bmatge/dsfr-data/pull/1150) [`84f9561`](https://github.com/bmatge/dsfr-data/commit/84f956129fd42b54343dc3299c241ee6973aad0f) Thanks [@bmatge](https://github.com/bmatge)! - Le dialecte WHERE appartient à l'adaptateur ([#1135](https://github.com/bmatge/dsfr-data/issues/1135)) : trois méthodes optionnelles sur `ApiAdapter`, `translateWhere(colon)` (clause `champ:op:valeur` des composants → dialecte de l'API), `joinWhere(clauses)` (jointure par ET) et `escapeSearchTerm(terme)` (échappement du terme de recherche serveur). Opendatasoft les fournit (`filterToOdsql`, ` AND `, `\` et `"` échappés) ; Tabular, Grist, INSEE et le générique gardent le dialecte colon par défaut. Aucune clause ne change pour les fournisseurs livrés. Source, query, contexte, filtre de sélection, recherche et facettes serveur passent tous par ce seul point, et `whereFormat` accepte désormais un nom de dialecte libre : un adaptateur tiers enregistré par `registerAdapter` avec sa propre grammaire (SQL, CKAN, PostgREST…) est parlé par les composants sans les modifier. Un adaptateur qui ne fournit pas ces méthodes reçoit le dialecte par défaut de son `whereFormat`, comme avant. `filterToOdsql` reste exporté, lib-safe, pour l'export HTML.
+
+### Patch Changes
+
+- [#1150](https://github.com/bmatge/dsfr-data/pull/1150) [`84f9561`](https://github.com/bmatge/dsfr-data/commit/84f956129fd42b54343dc3299c241ee6973aad0f) Thanks [@bmatge](https://github.com/bmatge)! - La clause de zone visible d'une couche `bbox` est construite par l'adaptateur ([#1149](https://github.com/bmatge/dsfr-data/issues/1149), partie neutralité de [#1090](https://github.com/bmatge/dsfr-data/issues/1090)) : méthode optionnelle `buildBboxWhere({ field } | { lat, lon }, bornes)` sur `ApiAdapter`. Opendatasoft y porte son `in_bbox(...)`, clause identique à celle qu'écrivait `dsfr-data-map-layer` ; Tabular, Grist, INSEE et le générique n'en ont pas et la couche garde son filtre dans le navigateur, comme avant. Un refus (`null`) produit le même repli. `serverGeo` est vrai si et seulement si l'adaptateur fournit la méthode ; un adaptateur tiers qui déclarait `serverGeo: true` sans la fournir reçoit désormais le filtre du navigateur au lieu d'une clause Opendatasoft qu'il ne comprenait pas. Les types `BboxTarget` et `BboxBounds` sont exportés.
+
 ## 0.41.0
 
 ### Minor Changes
