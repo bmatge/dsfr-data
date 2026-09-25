@@ -1,5 +1,0 @@
----
-'dsfr-data': minor
----
-
-Le dialecte WHERE appartient à l'adaptateur (#1135) : trois méthodes optionnelles sur `ApiAdapter`, `translateWhere(colon)` (clause `champ:op:valeur` des composants → dialecte de l'API), `joinWhere(clauses)` (jointure par ET) et `escapeSearchTerm(terme)` (échappement du terme de recherche serveur). Opendatasoft les fournit (`filterToOdsql`, ` AND `, `\` et `"` échappés) ; Tabular, Grist, INSEE et le générique gardent le dialecte colon par défaut. Aucune clause ne change pour les fournisseurs livrés. Source, query, contexte, filtre de sélection, recherche et facettes serveur passent tous par ce seul point, et `whereFormat` accepte désormais un nom de dialecte libre : un adaptateur tiers enregistré par `registerAdapter` avec sa propre grammaire (SQL, CKAN, PostgREST…) est parlé par les composants sans les modifier. Un adaptateur qui ne fournit pas ces méthodes reçoit le dialecte par défaut de son `whereFormat`, comme avant. `filterToOdsql` reste exporté, lib-safe, pour l'export HTML.
