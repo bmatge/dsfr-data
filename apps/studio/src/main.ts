@@ -29,6 +29,7 @@ import {
 import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
 import { state } from './state.js';
+import { initRetours, retours } from './retours.js';
 import {
   appliquerSource,
   enregistrerSourceChargee,
@@ -115,6 +116,9 @@ async function sendMessage(): Promise<void> {
   addMessage('user', text);
   state.isThinking = true;
   showThinking();
+  retours.track('message-envoye', { longueur: text.length });
+  const debut = performance.now();
+  let modele: string | undefined;
 
   try {
     const user = lireConfigFormulaire();
@@ -122,11 +126,14 @@ async function sendMessage(): Promise<void> {
     if (transport.mode === 'none') {
       removeThinking();
       addMessage('assistant', MESSAGE_IA_NON_CONFIGUREE);
+      retours.track('ia-non-configuree');
+      retours.moment('erreur');
       const section = document.getElementById('section-ia-config') as HTMLDetailsElement | null;
       if (section) section.open = true;
       return;
     }
 
+    modele = transport.model;
     const result = await runStudioLoop({
       conversation: state.messages.slice(-10),
       systemPrompt: buildSystemPrompt({
@@ -190,9 +197,29 @@ async function sendMessage(): Promise<void> {
       suggestions: result.applied > 0 ? SUGGESTIONS_APRES_COMPOSITION : [],
       etapes: result.steps,
     });
+    retours.tour({
+      question: text,
+      reponse: result.text,
+      outils: result.steps.map((nom) => ({ nom })),
+      modele,
+      dureeMs: Math.round(performance.now() - debut),
+    });
+    retours.track('assistant-reponse', {
+      blocsAppliques: result.applied,
+      etapes: result.steps.length,
+    });
   } catch (err) {
     removeThinking();
-    addMessage('assistant', `Erreur : ${err instanceof Error ? err.message : String(err)}`);
+    const message = err instanceof Error ? err.message : String(err);
+    addMessage('assistant', `Erreur : ${message}`);
+    retours.tour({
+      question: text,
+      modele,
+      dureeMs: Math.round(performance.now() - debut),
+      erreur: message,
+    });
+    retours.track('assistant-erreur');
+    retours.moment('erreur');
   } finally {
     state.isThinking = false;
     persistSession();
@@ -230,6 +257,7 @@ function restoreSession(): void {
 function saveDashboard(): void {
   if (state.document.widgets.length === 0) {
     toastWarning('Rien à enregistrer : le document est vide.');
+    retours.track('enregistrement-document-vide');
     return;
   }
   const now = new Date().toISOString();
@@ -243,6 +271,8 @@ function saveDashboard(): void {
   else saved.push(state.document);
   saveToStorage(STORAGE_KEYS.DASHBOARDS, saved);
   toastSuccess(`« ${state.document.name} » enregistré — visible dans l'app Dashboard.`);
+  retours.track('dashboard-enregistre', { blocs: state.document.widgets.length });
+  retours.moment('succes-probable');
 }
 
 /**
@@ -252,6 +282,7 @@ function saveDashboard(): void {
  * La source chargee est conservee (elle reste liee au document vierge).
  */
 function resetStudio(): void {
+  retours.track('studio-reinitialise');
   clearChat();
   const fresh = createEmptyDashboard();
   if (state.document.sources.length > 0) fresh.sources = state.document.sources;
@@ -266,7 +297,11 @@ function resetStudio(): void {
 
 function copyCode(): void {
   const code = document.getElementById('generated-code')?.textContent ?? '';
-  void navigator.clipboard.writeText(code).then(() => toastSuccess('Code copié !'));
+  void navigator.clipboard.writeText(code).then(() => {
+    toastSuccess('Code copié !');
+    retours.track('code-copie');
+    retours.moment('succes-probable');
+  });
 }
 
 /**
@@ -360,10 +395,13 @@ function envoyerTexte(texte: string): void {
   const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   if (!input || state.isThinking) return;
   input.value = texte;
+  retours.track('suggestion-cliquee');
   void sendMessage();
 }
 
 function init(): void {
+  // Retours d'usage : chargé seulement sur les déploiements déclarés (chartsbeta), sans effet ailleurs.
+  initRetours();
   // Volet Diagnostic (#606) — l'aperçu du Studio EST l'export : de vrais
   // composants dans une iframe srcdoc, donc un pipeline pleinement observable.
   // Seule app avec le Studio à porter un chat : le diagnostic peut partir
@@ -384,6 +422,7 @@ function init(): void {
   initApercuDonnees();
 
   document.getElementById('saved-source')?.addEventListener('change', () => {
+    retours.track('source-choisie');
     handleSourceChange(surSourceChargee);
   });
   restaurerSource(preselection?.id ?? null);
@@ -400,7 +439,10 @@ function init(): void {
   document.getElementById('save-dashboard-btn')?.addEventListener('click', saveDashboard);
   // Visite guidée (lot UX 7, #544)
   injectTourStyles();
-  document.getElementById('tour-btn')?.addEventListener('click', () => startTour(STUDIO_TOUR));
+  document.getElementById('tour-btn')?.addEventListener('click', () => {
+    retours.track('visite-guidee');
+    startTour(STUDIO_TOUR);
+  });
   startTourIfFirstVisit(STUDIO_TOUR);
   document.getElementById('copy-code-btn')?.addEventListener('click', copyCode);
   document
@@ -437,6 +479,7 @@ function init(): void {
  */
 function injecterDiagnostic(texte: string, question = QUESTION_DIAGNOSTIC): void {
   poserDansLeChamp(`${question}\n\n${texte}`);
+  retours.track('diagnostic-injecte');
 }
 
 /** Pose un message dans le champ du chat, sans l'envoyer. */

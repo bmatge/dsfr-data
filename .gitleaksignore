@@ -1,0 +1,6 @@
+# Empreintes de faux positifs gitleaks (commit:fichier:règle:ligne), une par ligne, chacune justifiée.
+
+# Clé PUBLIQUE de l'application chartsbeta auprès de feedback-collector : servie dans la page à tout
+# visiteur, elle identifie l'application ; le collecteur filtre par origine. Commit antérieur au
+# marqueur gitleaks:allow posé dans apps/studio/src/retours.ts.
+a943c9c1045fe4bfcafd1dcfcb65f99a24f03067:apps/studio/src/retours.ts:generic-api-key:18

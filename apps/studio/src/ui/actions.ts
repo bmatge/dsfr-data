@@ -20,6 +20,7 @@ import {
 } from '@dsfr-data/shared';
 import { state } from '../state.js';
 import { currentExportHtml } from './preview.js';
+import { retours } from '../retours.js';
 
 /** Favori tel que l'app Favoris le lit (`sourceApp`, colonne serveur `source_app`). */
 export interface FavoriStudio {
@@ -61,6 +62,7 @@ export async function ajouterAuxFavoris(
   const code = currentExportHtml();
   if (!code) {
     toastWarning(DOCUMENT_VIDE);
+    retours.track('favori-document-vide');
     return null;
   }
   const nom = (await demanderNom(state.document.name || 'Mon tableau de bord'))?.trim();
@@ -77,6 +79,8 @@ export async function ajouterAuxFavoris(
   favoris.unshift(favori);
   saveToStorage(STORAGE_KEYS.FAVORITES, favoris);
   toastSuccess(`« ${nom} » ajouté aux favoris.`);
+  retours.track('favori-ajoute');
+  retours.moment('succes-probable');
   return favori;
 }
 
@@ -93,6 +97,7 @@ export function ouvrirDansPlayground(naviguer: typeof navigateTo = navigateTo): 
     toastError('Impossible de transmettre le code au Playground (stockage indisponible).');
     return false;
   }
+  retours.track('playground-ouvert');
   naviguer('playground', { from: 'studio' });
   return true;
 }
@@ -104,8 +109,12 @@ export async function exporterImage(format: 'png' | 'jpg'): Promise<void> {
     const frame = document.getElementById('preview-frame') as HTMLIFrameElement | null;
     if (!frame) throw new ImageExportError('iframe-inaccessible');
     await exportPreviewImage(frame, format, state.document.name || 'tableau-de-bord');
+    retours.track('image-exportee', { format });
+    retours.moment('succes-probable');
   } catch (err) {
-    if (err instanceof ImageExportError) toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
-    else throw err;
+    if (!(err instanceof ImageExportError)) throw err;
+    toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
+    retours.track('image-export-echec', { format, raison: err.reason });
+    retours.moment('erreur');
   }
 }
