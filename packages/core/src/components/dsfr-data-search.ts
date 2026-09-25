@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { escapeHtml, formatNumber, stripAccents } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeColonValue } from '../utils/where.js';
+import { escapeColonValue, escapeWhereValue } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
@@ -189,14 +189,15 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
    * {q} est remplacé par le terme de recherche, {fields} par les champs de
    * `fields` séparés par `|` (#1026) — la grammaire colon des champs
    * multiples, un OU entre eux.
-   * Si vide et server-search activé, lu depuis l'adaptateur de la source amont :
-   * ODS `search("{q}")`, Tabular `{fields}:contains:{q}` (traduit en
-   * `or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais
-   * sensible aux accents : « ecole » n'y trouve pas « École »).
+   * Si vide et server-search activé, lu depuis l'adaptateur de la source
+   * amont (gabarit par défaut de chaque adaptateur déclarant
+   * `serverSearch` : recherche plein texte native, ou `{fields}:contains:{q}`
+   * traduit en OU entre colonnes — la casse et les accents suivent l'API ;
+   * table des capacités d'ARCHITECTURE).
    * Ex. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.
-   * Une clause que l'adaptateur ne sait pas transmettre (terme portant
-   * `,` `.` `(` `)` `"` `&` sur Tabular) retombe sur une recherche locale,
-   * signalée en console.
+   * Une clause que l'adaptateur ne sait pas transmettre (caractère que son
+   * API ne sait pas porter), ou une source sans adaptateur, retombe sur une
+   * recherche locale, signalée en console.
    */
   @property({ type: String, attribute: 'search-template' })
   searchTemplate = '';
@@ -429,8 +430,9 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     if (this.serverSearch && !this.searchTemplate) {
       const sourceEl = document.getElementById(this.source);
       const adapter = (sourceEl as unknown as SourceElement)?.getAdapter?.();
-      if (adapter?.getDefaultSearchTemplate) {
-        this.searchTemplate = adapter.getDefaultSearchTemplate() || '';
+      const template = adapter?.getDefaultSearchTemplate?.();
+      if (template !== undefined) {
+        this.searchTemplate = template || '';
       }
     }
 
@@ -570,26 +572,29 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       // \ et " (valeur entre guillemets), colon percent-encode , : |
       // (caracteres structurels de la clause)
       const adapter = this.getAdapter();
-      const format = adapter?.capabilities?.whereFormat ?? 'odsql';
-      const escaped =
-        format === 'colon'
-          ? escapeColonValue(term)
-          : term.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       // `{fields}` (#1026) : les champs de la recherche, separes par `|` —
       // la grammaire colon des champs multiples, un OU entre eux
       const fields = this._getFields();
-      if (this.searchTemplate.includes('{fields}') && fields.length === 0) {
+      if (!adapter) {
+        // Sans adaptateur (source en mode URL, ou id introuvable), aucun
+        // dialecte de filtre serveur n'est connu (#1139) : on n'en suppose
+        // aucun, la recherche se fait dans le navigateur
+        refusal =
+          `la source "${this.source}" n'a pas d'adaptateur (api-type) : ` +
+          `aucun filtre ne peut partir au serveur`;
+      } else if (this.searchTemplate.includes('{fields}') && fields.length === 0) {
         refusal =
           `le gabarit "${this.searchTemplate}" cherche dans {fields}, mais l'attribut ` +
           `"fields" est vide — nommez les colonnes a interroger`;
       } else {
+        const escaped = escapeWhereValue(adapter.capabilities.whereFormat, term);
         where = this.searchTemplate
           .replace(/\{fields\}/g, fields.join('|'))
           .replace(/\{q\}/g, escaped);
-        if (adapter?.supportsServerWhere?.(where) === false) {
+        if (adapter.supportsServerWhere?.(where) === false) {
           refusal =
             `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
-            `par exemple un terme portant , . ( ) " ou & sur Tabular`;
+            `l'adaptateur ne sait pas transmettre ce terme ou ces champs tels quels`;
         }
       }
     }

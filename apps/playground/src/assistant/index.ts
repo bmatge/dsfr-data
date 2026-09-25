@@ -26,6 +26,10 @@ import {
   montrer,
   mountAssistant,
   transmettreDiagnostic,
+  transmettrePassationStudio,
+  toastError,
+  toastWarning,
+  LONGUEUR_MAX_CODE_PASSATION,
   type AdaptateurReperage,
   type ContexteAssistant,
   type MountedAssistant,
@@ -39,6 +43,7 @@ import type { CodeMirrorEditor } from '../editor.js';
 import { lireRepereCode, montrerCode, REPERE_EDITEUR, type EtatPlayground } from './adaptateur.js';
 import { correspondanceCode, libelleRepereCode, planDuCode } from './correspondance-code.js';
 import { REGISTRE } from './reperes.generated.js';
+import { construirePassation } from '../vers-studio.js';
 
 /** Phrase d'aide de l'état vide, propre au Playground. */
 export const AIDE_PLAYGROUND =
@@ -74,15 +79,56 @@ export function suggestionsPlayground(etat: EtatPlayground): SuggestionAssistant
 /** En-tête du diagnostic transmis au Studio par « Construire pour moi ». */
 export const ENTETE_PASSATION_STUDIO = 'Code en cours dans le Playground';
 
-/** Passation « Construire pour moi » : le diagnostic, puis le Studio (sans envoi). */
+/**
+ * Passation vers le Studio IA : LA voie unique, prise par « Construire pour
+ * moi dans le Studio » (panneau de l'assistant, #1016) comme par « Envoyer au
+ * Studio IA » (barre d'actions, #1132). Le code et sa source d'abord
+ * (`construirePassation`), si le code est fourni ; puis le diagnostic ; enfin
+ * le Studio, où rien n'est envoyé au modèle sans que l'usager relise.
+ *
+ * Rend `false` (et ne navigue pas) si le code fourni ne peut pas être confié :
+ * vide, trop long pour la session, ou stockage indisponible.
+ */
 export function construireDansLeStudio(
   texteDiagnostic: string,
   naviguer: (href: string) => void = (href) => {
     window.location.href = href;
+  },
+  code?: string
+): boolean {
+  if (code !== undefined) {
+    const passation = construirePassation(code);
+    if (!passation || !transmettrePassationStudio(passation)) return false;
   }
-): void {
   transmettreDiagnostic(`${ENTETE_PASSATION_STUDIO}\n\n${texteDiagnostic}`);
   naviguer(appHref('studio', { from: 'playground' }));
+  return true;
+}
+
+/** Messages de « Ouvrir dans le Studio IA » quand le code ne part pas. */
+export const MESSAGES_ENVOI_STUDIO = {
+  vide: 'Écrivez du code avant de l’ouvrir dans le Studio IA.',
+  impossible: `Le code n’a pas pu être confié au Studio IA : il dépasse ${LONGUEUR_MAX_CODE_PASSATION.toLocaleString('fr-FR')} caractères, ou le stockage du navigateur est indisponible.`,
+} as const;
+
+/**
+ * « Ouvrir dans le Studio IA » de la barre d'actions (#1132) : la passation de
+ * `construireDansLeStudio`, avec le code de l'éditeur. Rend `true` si l'on part.
+ */
+export function envoyerAuStudio(
+  code: string,
+  texteDiagnostic: string,
+  naviguer?: (href: string) => void
+): boolean {
+  if (!code.trim()) {
+    toastWarning(MESSAGES_ENVOI_STUDIO.vide);
+    return false;
+  }
+  if (!construireDansLeStudio(texteDiagnostic, naviguer, code)) {
+    toastError(MESSAGES_ENVOI_STUDIO.impossible);
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -138,7 +184,9 @@ export function monterAssistantPlayground(opts: OptionsAssistantPlayground): Mou
     aide: AIDE_PLAYGROUND,
     ouvrirDiagnostic: diagnostic ? () => diagnostic.panel.toggle(true) : undefined,
     diagnostic: diagnostic?.panel,
-    construire: () => construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer),
+    construire: () => {
+      construireDansLeStudio(diagnostic?.text() ?? '', opts.naviguer, editor.getValue());
+    },
     host: opts.host,
   });
   if (!opts.repondre) {

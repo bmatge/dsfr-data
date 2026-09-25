@@ -690,6 +690,7 @@ describe('DsfrDataSearch', () => {
       mockSource = document.createElement('div');
       mockSource.id = 'test-source';
       (mockSource as any).getAdapter = () => ({
+        capabilities: { whereFormat: 'odsql' },
         getDefaultSearchTemplate: () => 'search("{q}")',
       });
       document.body.appendChild(mockSource);
@@ -1191,6 +1192,7 @@ describe('DsfrDataSearch', () => {
       const mockSource = document.createElement('div');
       mockSource.id = 'ss-source';
       (mockSource as any).getAdapter = () => ({
+        capabilities: { whereFormat: 'odsql' },
         getDefaultSearchTemplate: () => 'search("{q}")',
       });
       document.body.appendChild(mockSource);

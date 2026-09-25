@@ -33,7 +33,11 @@ import { getPreviewHTML } from './preview.js';
 import { aDesDependances, ajouterDependances, retirerDependances } from './deps.js';
 import { estOrigineCode, MESSAGE_ORIGINE_INCONNUE, ORIGINES_CODE } from './origines.js';
 import { creerAdaptateurPlayground } from './assistant/adaptateur.js';
-import { monterAssistantPlayground, montrerReperePlayground } from './assistant/index.js';
+import {
+  envoyerAuStudio,
+  monterAssistantPlayground,
+  montrerReperePlayground,
+} from './assistant/index.js';
 import { REGLE_BALISAGE } from './assistant/constats-balisage.js';
 
 let editor: CodeMirrorEditor;
@@ -376,6 +380,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }) ?? null;
   // Correspondance locale d'abord ; Albert en secours s'il est configuré.
   assistant = monterAssistantPlayground({ editor, adaptateur, diagnostic });
+
+  // « Ouvrir dans le Studio IA » (#1132) : la même passation que « Construire
+  // pour moi » de l'assistant — code, source publique et diagnostic.
+  document.getElementById('studio-btn')?.addEventListener('click', () => {
+    envoyerAuStudio(editor.getValue(), diagnostic?.text() ?? '');
+  });
 
   // Product tour : auto au premier passage, sinon « Visite guidée » de la barre
   injectTourStyles();

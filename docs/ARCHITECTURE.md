@@ -141,6 +141,18 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 - **ProviderConfig** (`packages/shared/src/providers/`) : configuration declarative par provider (pagination, response parsing, query syntax, code generation).
 - **Registre** (`packages/core/src/adapters/adapter-registry.ts`) : `getAdapter(apiType)` retourne l'adapter pour un type donne.
 - Ajouter un nouveau provider (CKAN...) = 1 ProviderConfig + 1 Adapter, zero modification dans les composants.
+- **Neutralité fournisseur, garde-fou (#1134)** : `tests/lib-provider-neutrality.test.ts` analyse
+  `components/**`, `utils/**` et `index*.ts` (commentaires retirés) et refuse grammaires et endpoints
+  (`in_bbox(`, `group_by`, `page_size`, `champ__sum`, `/records`…), noms de fournisseur, littéral
+  `'odsql'`, types déclarés bruts (`int`, `double`…), tests d'`api-type` et noms d'hôtes. Les dérives
+  légitimes sont déclarées dans `EXCEPTIONS` avec leur issue, et une exception qui ne couvre plus rien
+  fait échouer le test. Le dialecte `whereFormat` ne se teste que dans `utils/where.ts`
+  (`joinWhere`, `toWhereDialect`, `escapeWhereValue`). Le même test impose que
+  `AdapterCapabilities` ne porte que des booléens et `whereFormat`, et que toute méthode optionnelle
+  d'`ApiAdapter` soit appelée en `?.` (un adaptateur tiers enregistré par `registerAdapter` peut ne
+  pas l'avoir). ESLint (`@typescript-eslint/no-restricted-imports`) interdit aux composants
+  d'importer un `*-adapter.js` (seuls `api-adapter.js` en `import type` et `adapter-registry.js`) et
+  les exports fournisseur de `@dsfr-data/shared/lib` (`ODS_CONFIG`, `buildGristHeaders`…).
 
 #### Capacités des adapters
 
@@ -157,6 +169,21 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | chargement en une requete | `fetch-mode="export"` (#689) | non | natif | non | n/a |
 | projection `select` | clause ODSQL (expressions, alias) | `columns=` : noms seuls, ignore avec group-by/aggregate (#985) | non | non | non |
 | noms delegables (group-by, agregat, filtre, tri) | tous, backquotes (#767) | tous sauf `,` `:` `|` (grammaire colon), percent-encodes (#985) | tous | n/a | n/a |
+| identifiant du jeu | `base-url` + `dataset-id` | `resource` | `base-url` (URL `/records` de la table) | `dataset-id` | `base-url` |
+| `params` libres transmis (#726) | oui | non | non | non | non |
+| cles reservees de `params` (#1137) | `select where group_by order_by limit offset facet` | `page page_size columns or` + suffixes `champ__sort`, `champ__exact`… | — | — | — |
+| en-tete de cle reecrit (#655) | `apikey` → `Authorization: Apikey K` | non | non | non | non |
+| decouverte des facettes (#680) | metadonnees du jeu | — | colonnes Choice/ChoiceList | — | — |
+| gabarit de recherche par defaut | `search("{q}")` | `{fields}:contains:{q}` → `or=(…)`, sensible aux accents | — | — | — |
+| types declares (`describeFieldTypes`, #1138) | `int`/`double`/`decimal` → `number`… | — | — | — | — |
+| export (`fetch-mode="export"`) | `/exports/json`, memes clauses | Parquet data.gouv (#1055), lignes brutes seulement | — | — | — |
+
+**Les JSDoc des attributs parlent en capacites** (#1139) : « adaptateurs declarant `serverFacets` »,
+« plafond par defaut de l'adaptateur », jamais « pour ODS ». Les exemples par fournisseur vivent dans
+cette table (et dans le guide redige `packages/shared/src/skills/skills.ts`) ; une JSDoc periment
+des qu'un adaptateur gagne une capacite (cas de `server-facets`, reste « ODS » apres que Grist a
+declare `serverFacets`, #680). Les messages qui listent des api-types les derivent du registre
+(`listAdapterTypes()`, filtre `serverFetch`), pour nommer un adaptateur ajoute par `registerAdapter`.
 
 **Tabular : projection et profil (#985).** `select` devient `columns=` (`_columnsFlag`, emis par
 `buildUrl` ET `buildServerSideUrl`) — aucune inference : une colonne lue en aval doit y figurer, et
@@ -1230,6 +1257,8 @@ Les composants DSFR Chart (`map-chart`, `map-chart-reg`) sont des Web Components
 
 Les builders et favoris envoient du code au playground via `sessionStorage` : (1) l'app source stocke `sessionStorage.setItem('playground-code', code)`, (2) navigue vers le playground avec `?from=builder` (ou `studio`, `builder-ia`, `favorites`), (3) le playground lit `from`, charge le code et le supprime. `from` ∈ { `builder`, `studio`, `builder-ia`, `favorites`, `pipeline-helper` }. Le lien de retour vers l'ancien Assistant porte `ancien=1`, sans quoi `apps/builder-ia/` redirigerait vers le Studio (#1081).
 
+Vers le Studio IA, deux clés, lues et consommées par `recupererDiagnosticTransmis()` (`apps/studio/src/main.ts`) : `dsfr-data-diagnostic-handoff` (`transmettreDiagnostic`, #1016, toutes les apps à assistant) et, depuis le Playground seul, `dsfr-data-studio-passation` (`transmettrePassationStudio`, #1132 : le code, et l'**adresse publique** de sa source — jamais d'en-tête ni de clé). Le Studio valide la passation (entrée externe), charge la source par le chemin de `charger_source_url` (`chargerSourceDepuisUrl`), pose la consigne de reconstruction dans son champ sans l'envoyer, et garde le code (`studio-retour-playground`) pour son lien « Retour au Playground » (`?from=playground` → `playground-code` + `?from=studio`).
+
 ### 10.2 MariaDB
 
 Le serveur Express utilise **MariaDB 11** via `mysql2/promise` (pool de connexions). Conteneur défini dans `docker-compose.db.yml` (healthcheck), données dans le volume `mariadb-data`.
@@ -1309,6 +1338,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 - **`tsc` et Vite ne resolvent pas `@dsfr-data/shared` au meme endroit** — `apps/*/vite.config.ts:13` aliase `@dsfr-data/shared` vers `packages/shared/**src**`, mais `tsc` ignore cet alias et suit les `exports` du `package.json` (`packages/shared/package.json`), qui pointent vers `dist/*.d.ts`. Les deux moities de `tsc && vite build` voient donc **deux versions differentes du meme package** : le bundle est toujours a jour, le typage peut dater. Consequences en local, dans les deux sens : un `dist/` perime fait apparaitre des **erreurs de type fantomes** (une signature elargie dans `src` que `tsc` ne voit pas encore — cas vecu sur `confirmDialog`, #543), et inversement un nouvel export ajoute dans `src` reste invisible a `tsc` (`has no exported member`) alors que Vite le bundle sans broncher. Meme piege avec `packages/app-ui` (`main: dist/app-ui.esm.js`), ou un `dist/` perime a produit un **echec e2e fantome** (« position: static », session du 2026-09-02). **Reflexe : `npm run build:shared && npm run build:app-ui` apres un `git pull` ou une modif de `packages/shared/src`, avant de croire un `tsc` local.** La CI n'est pas exposee : `ci.yml:69` lance `build:shared` avant `typecheck` (`:72`) et `build:apps` (`:94`).
 
 - **Deux chemins d'import, un seul aplatissement** — `packages/shared/src/providers/flatten.ts`. Un jeu de donnees entre dans l'app par deux routes independantes : le **chemin composant** (adapters de `packages/core`, ex. `insee-adapter.ts:234`) et le **chemin connexion** (`apps/sources/src/connections/api-explorer.ts:267`). Les providers dont les enregistrements sont imbriques (INSEE en `attributes`/`dimensions`/`measures`, Grist sous `fields`) doivent produire **exactement les memes noms de colonnes** par les deux routes, sinon un graphique construit depuis une connexion casse quand la meme source est rechargee par un composant. La strategie est donc declaree une fois dans `ProviderConfig.response` (`flattenRecord`, sinon `nestedDataKey`) et appliquee par `flattenProviderRecords()`, partage par les deux. **Piege historique** : `requiresFlatten` et `nestedDataKey` ont existe pendant des mois **sans aucun consommateur** — les observations INSEE arrivaient en `[object Object]` dans les tables du chemin connexion (#586). Ajouter un provider imbrique sans renseigner l'un des deux champs reproduit le bug en silence.
+  **Troisieme route, le mode URL de `dsfr-data-source` (#1136)** : `detectProvider(url)` une fois en tete de `_fetchViaUrl`, puis `flattenProviderRecords(lignes, provider.response)` — le fournisseur est reconnu au CHEMIN (`/api/docs/…/tables/…` pour Grist, `melodi/data/…` pour INSEE), donc aussi derriere un proxy. L'ancien `flattenGristEnvelope` (test de forme dans le composant, #482) est supprime. L'`id` Grist : `GristAdapter._flattenRecords` et le mode URL (`stripEnvelopeKeys` dans la source) le retirent — une liste sans `fields` n'affiche pas d'`id` technique (arbitrage #1136) ; seul le chemin connexion de l'app Sources (`flattenNestedKey`) le garde. La convention `paginate` du mode URL (`page`/`page_size` en requete, `data` + `meta.{page,page_size,total}` en reponse) est declaree dans `GENERIC_CONFIG.pagination` (`params`, `serverMeta`) et lue par la source.
 
 - **La version est estampillee a deux endroits, un seul etait synchronise** — `scripts/sync-versions.ts` propage la version de `packages/core/package.json` vers `packages/core/src/version.ts`, mais la skill Claude Code `skills/dsfr-data/SKILL.md` l'estampille **aussi**, depuis `scripts/build-skills-claude.ts:20-26`. Son test-garde `tests/skills-export.test.ts:50` compare le fichier commite a une generation fraiche : apres le bump de `changeset version`, le SKILL.md commite portait encore l'ancienne version et **toute PR de release echouait sur ce test** (vecu sur la 0.19.0, PR #528 — 4070 tests verts, 1 rouge). `version-packages` enchaine donc `build:skills-claude` apres `sync-versions`. **Tout nouvel artefact commite qui embarque la version doit etre ajoute a cette chaine**, pas seulement a `sync-versions.ts`. Second etage du piege : `build:skills-claude` chargeait `apps/builder-ia/src/skills.ts`, qui importait `@dsfr-data/shared` — donc `packages/shared/dist` (voir le point precedent sur tsc vs alias Vite). Depuis #1081 le guide vit dans `packages/shared/src/skills/` et n'importe plus qu'en relatif : la chaine ne lit plus `dist/`, mais la regle ci-apres reste. Le workflow Release ne fait que `npm ci`, sans `build:shared` : la chaine a echoue en CI sur `Cannot find package '@dsfr-data/shared'` alors qu'elle passait en local, ou le `dist/` trainait d'un build precedent. `version-packages` lance donc `build:shared` lui-meme, comme le fait deja `release-publish`. **Un script de release doit etre autosuffisant : ne jamais supposer qu'un `dist/` existe.**
 

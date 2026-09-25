@@ -364,7 +364,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   bboxDebounce = 300;
 
   /**
-   * Champ géographique utilisé pour la requête bbox (auto-détecté si vide).
+   * Champ géographique utilisé pour la requête bbox. Vide : `geo-field`, sinon
+   * détecté sur les premières lignes reçues — la clause serveur attend ces
+   * lignes, aucun nom de colonne n'est supposé (#1139).
    * @champ nom
    */
   @property({ type: String, attribute: 'bbox-field' })
@@ -417,6 +419,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   private _visible = true;
   private _data: Record<string, unknown>[] = [];
   private _bboxTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Clause bbox serveur différée : aucun champ géo connu avant les premières lignes (#1139). */
+  private _bboxAwaitingField = false;
+  /** Avertissement « aucun champ géographique détecté » déjà émis. */
+  private _bboxNoFieldWarned = false;
   private _banner: HTMLDivElement | null = null;
   private _totalCount = 0;
   /** La source n'a livre qu'une partie du jeu au dernier rendu (#1020). */
@@ -699,6 +705,12 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+    // Une clause bbox attendait de connaître son champ (#1139) : les
+    // premières lignes le disent, la commande repart
+    if (this._bboxAwaitingField && this._data.length > 0) {
+      this._bboxAwaitingField = false;
+      this._scheduleBboxCommand();
+    }
     if (this.timeField) {
       this._buildTimeFrames();
       // If timeline is active, re-render current frame; else show all
@@ -920,6 +932,27 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     const sourceEl = document.getElementById(this.source) as unknown as SourceElement | null;
     const adapter = sourceEl?.getAdapter?.();
 
+    if (adapter?.capabilities?.serverGeo && !field) {
+      // Aucun champ déclaré, aucune ligne pour le deviner (#1139) : pas de
+      // champ supposé — la clause attend les premières lignes. Des lignes
+      // sans colonne géographique reconnue : on le dit, et l'on filtre
+      // dans le navigateur.
+      if (this._data.length === 0) {
+        this._bboxAwaitingField = true;
+        return;
+      }
+      if (!this._bboxNoFieldWarned) {
+        this._bboxNoFieldWarned = true;
+        console.warn(
+          `dsfr-data-map-layer[${this.id || this.source}]: bbox — aucune colonne géographique ` +
+            `reconnue dans les données ; poser bbox-field (ou geo-field) pour filtrer côté ` +
+            `serveur. Filtrage fait dans le navigateur.`
+        );
+      }
+      this._renderLayer(bounds);
+      return;
+    }
+
     if (adapter?.capabilities?.serverGeo) {
       // ODS-style in_bbox clause
       const where = `in_bbox(${field}, ${sw.lat}, ${sw.lng}, ${ne.lat}, ${ne.lng})`;
@@ -934,8 +967,12 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     }
   }
 
+  /**
+   * Colonne géographique devinée sur la première ligne, ou chaîne vide :
+   * jamais de nom supposé sans donnée qui le porte (#1139).
+   */
   private _autoDetectGeoField(): string {
-    if (this._data.length === 0) return 'geo_point_2d';
+    if (this._data.length === 0) return '';
     const first = this._data[0];
     for (const candidate of [
       'geo_point_2d',
@@ -947,7 +984,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     ]) {
       if (first[candidate] !== undefined) return candidate;
     }
-    return 'geo_point_2d';
+    return '';
   }
 
   /**

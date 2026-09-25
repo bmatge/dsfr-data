@@ -64,8 +64,7 @@ export class ServerFacetsDiscovery {
     this._key = key;
     this._facets = null;
     this.emptyWarned = false;
-    const promise = adapter
-      .discoverFacets(params)
+    const promise = (adapter.discoverFacets?.(params) ?? Promise.resolve([] as FacetDescriptor[]))
       .catch((e: unknown) => {
         onError(e);
         return [] as FacetDescriptor[];
@@ -210,7 +209,7 @@ export async function fetchFacetGroups(
   let error: string | null = null;
   for (const [where, groupFields] of whereToFields) {
     try {
-      const results = await adapter.fetchFacets(params, groupFields, where, signal);
+      const results = (await adapter.fetchFacets?.(params, groupFields, where, signal)) ?? [];
       for (const result of results) {
         groups.push({
           field: result.field,

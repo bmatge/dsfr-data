@@ -19,6 +19,7 @@ import type {
   FacetResult,
   FacetDescriptor,
   FacetWhereOptions,
+  FieldKind,
 } from './api-adapter.js';
 import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
@@ -33,6 +34,30 @@ import { ODS_CONFIG, getProxiedUrl, normalizeProviderAuthHeaders } from '@dsfr-d
  */
 function escapeOdsqlString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+/**
+ * Type declare d'un champ Opendatasoft (`fields[].type` des metadonnees du
+ * jeu) → type normalise de `describeFieldTypes` (#1138). Les composants ne
+ * voient que le type normalise.
+ */
+const ODS_FIELD_KINDS: Readonly<Record<string, FieldKind>> = {
+  int: 'number',
+  integer: 'number',
+  long: 'number',
+  double: 'number',
+  float: 'number',
+  decimal: 'number',
+  text: 'text',
+  date: 'date',
+  datetime: 'date',
+  boolean: 'bool',
+  geo_point_2d: 'geo',
+  geo_shape: 'geo',
+};
+
+export function odsFieldKind(odsType: string): FieldKind {
+  return ODS_FIELD_KINDS[odsType.toLowerCase()] ?? 'other';
 }
 
 /**
@@ -295,7 +320,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   private readonly _exportUnavailable = new Set<string>();
 
   /** Types declares des champs, par jeu (#980) — une requete par jeu, au plus. */
-  private readonly _fieldTypes = new Map<string, Promise<Record<string, string>>>();
+  private readonly _fieldTypes = new Map<string, Promise<Record<string, FieldKind>>>();
 
   /** Oublie les types memorises (tests). */
   resetFieldTypesCache(): void {
@@ -311,6 +336,21 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     serverGeo: true,
     whereFormat: 'odsql',
   };
+
+  /**
+   * Clés que l'adaptateur construit lui-même (#726, #1137) : les clauses
+   * ODSQL posées par `_applyOdsqlClauses` (`select`, `where`, `group_by`,
+   * `order_by`), la pagination (`limit`, `offset`) et `facet` (facettes).
+   */
+  readonly reservedParamKeys: ReadonlySet<string> = new Set([
+    'select',
+    'where',
+    'group_by',
+    'order_by',
+    'limit',
+    'offset',
+    'facet',
+  ]);
 
   validate(params: AdapterParams): string | null {
     if (!params.datasetId) {
@@ -684,12 +724,12 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    */
   describeFieldTypes(
     params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
-  ): Promise<Record<string, string>> {
+  ): Promise<Record<string, FieldKind>> {
     const key = this._datasetKey(params);
     const known = this._fieldTypes.get(key);
     if (known) return known;
     const datasetUrl = this._datasetUrl(params);
-    const pending = (async (): Promise<Record<string, string>> => {
+    const pending = (async (): Promise<Record<string, FieldKind>> => {
       try {
         const response = await fetch(
           getProxiedUrl(datasetUrl, params.proxyUrl),
@@ -699,9 +739,11 @@ export class OpenDataSoftAdapter implements ApiAdapter {
         const meta = (await response.json()) as {
           fields?: Array<{ name?: unknown; type?: unknown }>;
         };
-        const types: Record<string, string> = {};
+        const types: Record<string, FieldKind> = {};
         for (const f of Array.isArray(meta?.fields) ? meta.fields : []) {
-          if (typeof f?.name === 'string' && typeof f.type === 'string') types[f.name] = f.type;
+          if (typeof f?.name === 'string' && typeof f.type === 'string') {
+            types[f.name] = odsFieldKind(f.type);
+          }
         }
         return types;
       } catch {

@@ -28,16 +28,17 @@
  *
  * Mais les lignes ne portent pas toujours le champ (#980, PG-030) : une
  * source agrégée côté serveur (`select=sum(nb_missions) as m`) ne ramène que
- * `m`, et le filtre est DÉLÉGUÉ au portail sans aucune comparaison locale. Le
+ * `m`, et le filtre est DÉLÉGUÉ au serveur sans aucune comparaison locale. Le
  * montage le plus courant — un KPI agrégé filtré par région — restait donc
  * muet. Dans ce cas, et dans ce cas seulement, on lit le type DÉCLARÉ par le
- * jeu (`describeFieldTypes` de l'adaptateur : `/datasets/<id>` sur
- * Opendatasoft), une fois par jeu, après l'émission de la clause.
+ * jeu (`describeFieldTypes` de l'adaptateur), une fois par jeu, après
+ * l'émission de la clause. L'adaptateur rend un type NORMALISÉ (#1138) :
+ * ce module ne connaît aucun type de fournisseur.
  */
 
 import { splitColonFields, unescapeColonValue } from '@dsfr-data/shared/lib';
 import { getDataCache } from './data-bridge.js';
-import type { AdapterParams, ApiAdapter } from '../adapters/api-adapter.js';
+import type { AdapterParams, ApiAdapter, FieldKind } from '../adapters/api-adapter.js';
 
 /** Situations déjà signalées : un message par champ et par source. */
 const warned = new Set<string>();
@@ -103,12 +104,6 @@ function observeField(sourceId: string, field: string): Observed {
   return sample === null ? { kind: 'unknown' } : { kind: 'number', sample };
 }
 
-/**
- * Types déclarés qui disent NOMBRE (Opendatasoft : `int`, `double`,
- * `decimal`). Une date, un booléen, un texte : on se tait.
- */
-const DECLARED_NUMERIC = new Set(['int', 'integer', 'long', 'double', 'float', 'decimal']);
-
 /** Ce dont la lecture du type déclaré a besoin sur l'élément source. */
 interface SourceWithDeclaredTypes extends HTMLElement {
   getAdapter?: () => Pick<ApiAdapter, 'describeFieldTypes'> | null;
@@ -121,15 +116,14 @@ interface SourceWithDeclaredTypes extends HTMLElement {
  * `getAdapterParams()` (headers et api-key-ref résolus, #274), jamais des
  * attributs DOM.
  */
-async function declaredType(sourceId: string, field: string): Promise<string | null> {
+async function declaredType(sourceId: string, field: string): Promise<FieldKind | null> {
   const el = document.getElementById(sourceId) as SourceWithDeclaredTypes | null;
   const adapter = el?.getAdapter?.();
   if (!adapter?.describeFieldTypes) return null;
   const params = el?.getAdapterParams?.();
   if (!params?.datasetId) return null;
-  const types = await adapter.describeFieldTypes(params);
-  const type = types[field];
-  return typeof type === 'string' ? type : null;
+  const types = (await adapter.describeFieldTypes?.(params)) ?? {};
+  return types[field] ?? null;
 }
 
 /** Les valeurs comparées par une clause colon, par champ, pour `eq`/`neq`/`in`. */
@@ -157,7 +151,7 @@ function warnMismatch(field: string, culprit: string, sourceId: string, evidence
   console.warn(
     `dsfr-data-context-filter (${field}) : la valeur "${culprit}" est comparée en TEXTE, ` +
       `alors que la source "${sourceId}" publie "${field}" en NOMBRE (${evidence}) — ` +
-      `aucune ligne ne correspondra, sans erreur, là où le refine du portail trouvait. ` +
+      `aucune ligne ne correspondra, sans erreur, là où une comparaison en nombre trouvait. ` +
       `Seuls les codes à zéro de tête sont touchés ("75" passe, "01" non), ce qui cache ` +
       `le défaut. Alimenter ce filtre avec la valeur sans zéro de tête ("${Number(culprit)}"), ` +
       `ou réserver ce filtre aux sources qui publient le code en texte avec apply-to.`
@@ -203,9 +197,10 @@ export function checkNumericFieldMismatch(sourceId: string, colonWhere: string):
       Promise.resolve()
         .then(() => declaredType(sourceId, field))
         .then((type) => {
-          if (type === null || !DECLARED_NUMERIC.has(type) || warned.has(key)) return;
+          // Seul un type NOMBRE parle ; date, booléen, texte : on se tait
+          if (type !== 'number' || warned.has(key)) return;
           warned.add(key);
-          warnMismatch(field, culprit, sourceId, `type « ${type} » déclaré par le jeu`);
+          warnMismatch(field, culprit, sourceId, 'type nombre déclaré par le jeu');
         })
         .catch(() => undefined)
         .finally(() => pending.delete(key))

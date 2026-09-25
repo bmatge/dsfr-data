@@ -5347,7 +5347,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)",
+              "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données, pour les adaptateurs qui savent les découvrir (#680 — métadonnées du jeu,\ncolonnes à choix ; détail par fournisseur dans la table des capacités d'ARCHITECTURE)",
               "attribute": "fields"
             },
             {
@@ -5477,7 +5477,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active le mode facettes serveur ODS.\nFetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.\nRequiert source pointant vers un dsfr-data-source avec api-type=\"opendatasoft\" et server-side.\nSans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le\njeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type\ndate (valeurs par année) sont filtrées par intervalle et non par égalité (#676).",
+              "description": "Active le mode facettes serveur : les valeurs et leurs compteurs sont demandés à l'API au\nlieu d'être calculés sur les lignes chargées. Requiert une source amont dont l'adaptateur\ndéclare la capacité `serverFacets` (table des capacités d'ARCHITECTURE) ; sinon, repli sur\nles facettes calculées localement. Sans `fields`, un appel de découverte au premier cycle\nliste les facettes déclarées par le jeu, pour les adaptateurs qui savent les découvrir\n(mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type date\n(valeurs par année) sont filtrées par intervalle et non par égalité (#676).",
               "attribute": "server-facets"
             },
             {
@@ -5487,7 +5487,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Valeurs de facettes pre-calculees (JSON).\nFormat: {\"field\": [\"val1\", \"val2\"], \"field2\": [\"a\", \"b\"]}\nQuand cet attribut est défini, les facettes utilisent ces valeurs sans les\ncalculer depuis les données. Les selections envoient des commandes WHERE\nen colon syntax (compatible Tabular / generique) au dsfr-data-query en amont.\nAttribut fields requis (pas d'auto-detection).",
+              "description": "Valeurs de facettes pre-calculees (JSON).\nFormat: {\"field\": [\"val1\", \"val2\"], \"field2\": [\"a\", \"b\"]}\nQuand cet attribut est défini, les facettes utilisent ces valeurs sans les\ncalculer depuis les données. Les selections envoient des commandes WHERE\ndans le dialecte de l'adaptateur amont (colon à défaut) au dsfr-data-query en amont.\nAttribut fields requis (pas d'auto-detection).",
               "attribute": "static-values"
             },
             {
@@ -7338,7 +7338,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données (OpenDataSoft : métadonnées du jeu ; Grist : colonnes Choice/ChoiceList, #680)",
+              "description": "Champs à exposer comme facettes (virgule-séparés). Vide = auto-détection sur les\ndonnées chargées ; en `server-facets`, vide = découverte des facettes déclarées par le\njeu de données, pour les adaptateurs qui savent les découvrir (#680 — métadonnées du jeu,\ncolonnes à choix ; détail par fournisseur dans la table des capacités d'ARCHITECTURE)",
               "fieldName": "fields",
               "champ": "liste"
             },
@@ -7458,7 +7458,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active le mode facettes serveur ODS.\nFetch les valeurs de facettes depuis l'API ODS /facets au lieu de les calculer localement.\nRequiert source pointant vers un dsfr-data-source avec api-type=\"opendatasoft\" et server-side.\nSans `fields`, un appel de découverte au premier cycle liste les facettes déclarées par le\njeu (mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type\ndate (valeurs par année) sont filtrées par intervalle et non par égalité (#676).",
+              "description": "Active le mode facettes serveur : les valeurs et leurs compteurs sont demandés à l'API au\nlieu d'être calculés sur les lignes chargées. Requiert une source amont dont l'adaptateur\ndéclare la capacité `serverFacets` (table des capacités d'ARCHITECTURE) ; sinon, repli sur\nles facettes calculées localement. Sans `fields`, un appel de découverte au premier cycle\nliste les facettes déclarées par le jeu, pour les adaptateurs qui savent les découvrir\n(mémorisé, invalidé si la source ou `dataset-id` change, #680). Les facettes de type date\n(valeurs par année) sont filtrées par intervalle et non par égalité (#676).",
               "fieldName": "serverFacets"
             },
             {
@@ -7467,7 +7467,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Valeurs de facettes pre-calculees (JSON).\nFormat: {\"field\": [\"val1\", \"val2\"], \"field2\": [\"a\", \"b\"]}\nQuand cet attribut est défini, les facettes utilisent ces valeurs sans les\ncalculer depuis les données. Les selections envoient des commandes WHERE\nen colon syntax (compatible Tabular / generique) au dsfr-data-query en amont.\nAttribut fields requis (pas d'auto-detection).",
+              "description": "Valeurs de facettes pre-calculees (JSON).\nFormat: {\"field\": [\"val1\", \"val2\"], \"field2\": [\"a\", \"b\"]}\nQuand cet attribut est défini, les facettes utilisent ces valeurs sans les\ncalculer depuis les données. Les selections envoient des commandes WHERE\ndans le dialecte de l'adaptateur amont (colon à défaut) au dsfr-data-query en amont.\nAttribut fields requis (pas d'auto-detection).",
               "fieldName": "staticValues"
             },
             {
@@ -11157,7 +11157,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ géographique utilisé pour la requête bbox (auto-détecté si vide).",
+              "description": "Champ géographique utilisé pour la requête bbox. Vide : `geo-field`, sinon\ndétecté sur les premières lignes reçues — la clause serveur attend ces\nlignes, aucun nom de colonne n'est supposé (#1139).",
               "attribute": "bbox-field"
             },
             {
@@ -11271,6 +11271,26 @@
               },
               "privacy": "private",
               "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_bboxAwaitingField",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Clause bbox serveur différée : aucun champ géo connu avant les premières lignes (#1139)."
+            },
+            {
+              "kind": "field",
+              "name": "_bboxNoFieldWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Avertissement « aucun champ géographique détecté » déjà émis."
             },
             {
               "kind": "field",
@@ -11897,7 +11917,8 @@
                 "type": {
                   "text": "string"
                 }
-              }
+              },
+              "description": "Colonne géographique devinée sur la première ligne, ou chaîne vide :\njamais de nom supposé sans donnée qui le porte (#1139)."
             },
             {
               "kind": "method",
@@ -12795,7 +12816,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ géographique utilisé pour la requête bbox (auto-détecté si vide).",
+              "description": "Champ géographique utilisé pour la requête bbox. Vide : `geo-field`, sinon\ndétecté sur les premières lignes reçues — la clause serveur attend ces\nlignes, aucun nom de colonne n'est supposé (#1139).",
               "fieldName": "bboxField",
               "champ": "nom"
             },
@@ -19213,7 +19234,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Template pour la recherche serveur.\n{q} est remplacé par le terme de recherche, {fields} par les champs de\n`fields` séparés par `|` (#1026) — la grammaire colon des champs\nmultiples, un OU entre eux.\nSi vide et server-search activé, lu depuis l'adaptateur de la source amont :\nODS `search(\"{q}\")`, Tabular `{fields}:contains:{q}` (traduit en\n`or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais\nsensible aux accents : « ecole » n'y trouve pas « École »).\nEx. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.\nUne clause que l'adaptateur ne sait pas transmettre (terme portant\n`,` `.` `(` `)` `\"` `&` sur Tabular) retombe sur une recherche locale,\nsignalée en console.",
+              "description": "Template pour la recherche serveur.\n{q} est remplacé par le terme de recherche, {fields} par les champs de\n`fields` séparés par `|` (#1026) — la grammaire colon des champs\nmultiples, un OU entre eux.\nSi vide et server-search activé, lu depuis l'adaptateur de la source\namont (gabarit par défaut de chaque adaptateur déclarant\n`serverSearch` : recherche plein texte native, ou `{fields}:contains:{q}`\ntraduit en OU entre colonnes — la casse et les accents suivent l'API ;\ntable des capacités d'ARCHITECTURE).\nEx. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.\nUne clause que l'adaptateur ne sait pas transmettre (caractère que son\nAPI ne sait pas porter), ou une source sans adaptateur, retombe sur une\nrecherche locale, signalée en console.",
               "attribute": "search-template"
             },
             {
@@ -19961,7 +19982,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Template pour la recherche serveur.\n{q} est remplacé par le terme de recherche, {fields} par les champs de\n`fields` séparés par `|` (#1026) — la grammaire colon des champs\nmultiples, un OU entre eux.\nSi vide et server-search activé, lu depuis l'adaptateur de la source amont :\nODS `search(\"{q}\")`, Tabular `{fields}:contains:{q}` (traduit en\n`or=(nom__contains.q,commune__contains.q)`, insensible à la casse mais\nsensible aux accents : « ecole » n'y trouve pas « École »).\nEx. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.\nUne clause que l'adaptateur ne sait pas transmettre (terme portant\n`,` `.` `(` `)` `\"` `&` sur Tabular) retombe sur une recherche locale,\nsignalée en console.",
+              "description": "Template pour la recherche serveur.\n{q} est remplacé par le terme de recherche, {fields} par les champs de\n`fields` séparés par `|` (#1026) — la grammaire colon des champs\nmultiples, un OU entre eux.\nSi vide et server-search activé, lu depuis l'adaptateur de la source\namont (gabarit par défaut de chaque adaptateur déclarant\n`serverSearch` : recherche plein texte native, ou `{fields}:contains:{q}`\ntraduit en OU entre colonnes — la casse et les accents suivent l'API ;\ntable des capacités d'ARCHITECTURE).\nEx. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'.\nUne clause que l'adaptateur ne sait pas transmettre (caractère que son\nAPI ne sait pas porter), ou une source sans adaptateur, retombe sur une\nrecherche locale, signalée en console.",
               "fieldName": "searchTemplate"
             },
             {
@@ -20047,7 +20068,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-têtes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
+              "description": "En-têtes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nQuand le fournisseur attend sa clé sous un en-tête précis (déclaré par sa\nconfiguration), un `apikey` nu est réécrit automatiquement au bon format\n(#655) ; détail par fournisseur : table des capacités d'ARCHITECTURE.",
               "attribute": "headers"
             },
             {
@@ -20057,7 +20078,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la\nbibliothèque construit elle-même (`select`, `where`, `group_by`,\n`order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont\nrefusées avec une erreur de configuration plutôt que d'écraser une clause.\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
+              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres à\nl'API que la bibliothèque ne modélise pas — par exemple\n`params='{\"timezone\":\"Europe/Paris\"}'` pour lire des dates dans un\nfuseau donné, sans quitter le mode adaptateur. Les clés que\nl'adaptateur construit lui-même (il les déclare : clauses, pagination,\nprojection, suffixes d'opérateur) sont réservées : elles sont refusées\navec une erreur de configuration plutôt que d'écraser une clause (#1137).\nSeuls les adaptateurs qui acceptent des paramètres libres les\ntransmettent (en chargement paginé comme en `fetch-mode=\"export\"`) ; les\nautres les ignorent — voir la table des capacités d'ARCHITECTURE.",
               "attribute": "params"
             },
             {
@@ -20127,7 +20148,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le\n`use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture des hotes connus (ceux que la configuration d'un fournisseur\ndeclare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
               "attribute": "proxy-url"
             },
             {
@@ -20157,7 +20178,7 @@
                 "text": "string"
               },
               "default": "'generic'",
-              "description": "Type d'API — active le mode adapter si != 'generic' et url est vide",
+              "description": "Type d'API : l'identifiant d'un adaptateur du registre (ceux de la\nbibliothèque, ou un adaptateur ajouté par `registerAdapter`). Toute autre\nvaleur que `generic` active le mode adaptateur ; `generic` avec une `url`\nreste en mode URL.",
               "attribute": "api-type"
             },
             {
@@ -20167,7 +20188,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "URL de base de l'API (pour ODS, Tabular)",
+              "description": "URL de base de l'API, pour les adaptateurs qui adressent un portail par son URL.",
               "attribute": "base-url"
             },
             {
@@ -20177,7 +20198,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "ID du dataset (pour ODS)",
+              "description": "Identifiant du jeu de données, pour les adaptateurs qui désignent un jeu par son identifiant.",
               "attribute": "dataset-id"
             },
             {
@@ -20187,7 +20208,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "ID de la ressource (pour Tabular)",
+              "description": "Identifiant de la ressource (fichier d'un jeu), pour les adaptateurs qui désignent une ressource.",
               "attribute": "resource"
             },
             {
@@ -20207,7 +20228,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (ODS, et projection de colonnes sur Tabular), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.\n\nQuand une `dsfr-data-query` délègue son regroupement à cette source, le\n`select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes\nd'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon\nla colonne d'alias n'existerait pas dans la réponse et le chiffre affiché\nserait faux (#859). S'il définit une colonne par une expression aliasée\n(`year(date) as annee`) que le regroupement vise, la délégation est\nrefusée — avertissement en console, regroupement calculé côté client.\n\nTabular (#985) : une liste de NOMS de colonnes (`select=\"nom, Code sexe\"`,\nespaces et accents admis), traduite en `columns=` — l'API ne rend que ces\ncolonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne\nn'est ajoutée d'office : une colonne lue en aval (graphique, liste,\nfacette, filtre client) doit y figurer, et un nom inconnu du jeu fait\nrépondre l'API en erreur. Sans effet quand un `group-by` ou un\n`aggregate` est posé (sur la source ou délégué par une query) : l'API\nrefuse `columns` à côté d'un agrégateur. Une expression (fonction, alias,\n`*`) est ignorée avec un avertissement : toutes les colonnes sont chargées.",
+              "description": "Clause SELECT, liste séparée par des virgules. Sa grammaire dépend de\nl'adaptateur (table des capacités d'ARCHITECTURE, ligne « projection\nselect ») : clause complète ou simple liste de noms de colonnes ; un\nadaptateur sans projection l'ignore.\n\n**Clause complète** : `select=\"count(*) as total, region\"`. Une\nexpression (fonction, alias `as`, `*`, chemin pointé, opérateur) est\ntransmise telle quelle ; un nom de champ qui n'est pas un identifiant nu\n(espace, accent, chiffre initial comme `1_uai`) est échappé\nautomatiquement (#767). Une virgule à l'intérieur d'une fonction ou d'une\nchaîne ne sépare pas. Un `select` fait UNIQUEMENT d'agrégats, sans\n`group-by` (`select=\"sum(montant) as total\"`) se charge en une requête\nd'une ligne, la valeur calculée par le serveur sur tout le jeu (#810) ;\nsi le filtre ne garde aucune ligne, un `count` vaut 0 et les autres\nfonctions `null`.\n\nQuand une `dsfr-data-query` délègue son regroupement à cette source, le\n`select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes\nd'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon\nla colonne d'alias n'existerait pas dans la réponse et le chiffre affiché\nserait faux (#859). S'il définit une colonne par une expression aliasée\n(`year(date) as annee`) que le regroupement vise, la délégation est\nrefusée — avertissement en console, regroupement calculé côté client.\n\n**Liste de noms de colonnes** (projection seule, #985) :\n`select=\"nom, Code sexe\"`, espaces et accents admis — l'API ne rend que\nces colonnes, soit dix fois moins d'octets sur un jeu large. Aucune\ncolonne n'est ajoutée d'office : une colonne lue en aval (graphique,\nliste, facette, filtre client) doit y figurer, et un nom inconnu du jeu\nfait répondre l'API en erreur. Sans effet quand un `group-by` ou un\n`aggregate` est posé (sur la source ou délégué par une query), si l'API\nrefuse la projection à côté d'un agrégateur. Une expression (fonction,\nalias, `*`) est ignorée avec un avertissement : toutes les colonnes sont\nchargées.",
               "attribute": "select"
             },
             {
@@ -20217,7 +20238,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée, avec ou sans fonction\n(`year(date) as annee`, `periode as an`), transmise telle quelle —\nl'alias `as` est obligatoire cote ODS (#641). Même découpe et même\néchappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m`\nreste d'un seul tenant.",
+              "description": "Group-by, délégué aux adaptateurs déclarant `serverGroupBy`. Avec un\n`select` en clause complète, un élément peut être une expression\naliasée, avec ou sans fonction (`year(date) as annee`, `periode as an`),\ntransmise telle quelle — l'alias `as` y est obligatoire (#641). Même\ndécoupe et même échappement que `select` (#767) :\n`date_format(d, 'yyyy-MM') as m` reste d'un seul tenant.",
               "attribute": "group-by"
             },
             {
@@ -20227,7 +20248,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégation (pour les APIs qui le supportent server-side)",
+              "description": "Agrégation, déléguée aux adaptateurs déclarant `serverGroupBy`.",
               "attribute": "aggregate"
             },
             {
@@ -20267,7 +20288,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de lignes du chargement complet en mode adaptateur, honoré par\nOpendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de\nl'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever\nexplicitement pour charger un jeu plus long par la pagination — par\nexemple une carte des ≈ 35 000 communes sur Tabular (`max-records=\"40000\"`)\n— ou pour les tableaux de bord « un fetch, N agrégations client » :\nattention au nombre de requêtes en boucle (Tabular : une par tranche de\n200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.\nQuand le plafond coupe le jeu, la source signale la troncature\n(`truncated`) et un avertissement console cite `max-records`.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.",
               "attribute": "max-records"
             },
             {
@@ -20277,7 +20298,7 @@
                 "text": "'records' | 'export'"
               },
               "default": "'records'",
-              "description": "Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,\ncomportement historique — pagination par pages de 100) ou `export`, qui\ncharge tout le jeu en **une seule requête** sur l'endpoint d'export du\nportail, avec les mêmes clauses (`select`, `where`, `group-by`,\n`order-by`). Implémenté par OpenDataSoft et Tabular ; les autres\nadaptateurs ignorent l'attribut.\n\n**Tabular** (#1055) : lit l'export **Parquet** que data.gouv publie pour\nchaque ressource, par plages, colonnes projetées depuis `select` — le\njeu entier en quelques requêtes au lieu de pages de 200. Le lecteur\n(≈ 22 Ko gzip) n'est chargé qu'à ce moment-là. Lignes brutes seulement :\navec un `where`, `group-by`, `aggregate` ou `order-by` délégué (posé sur\nla source ou transmis par une `dsfr-data-query`), la source reste sur la\npagination, qui les exécute côté serveur, et le dit en console.\n`max-records` (25 000 par défaut) borne les lignes lues. Les entiers et\nles dates arrivent dans la forme de l'API (nombre, `AAAA-MM-JJ`).\nPour une première page rapide sur un petit jeu, la pagination reste plus\nvive ; l'export l'emporte au-delà de 1 000 à 2 000 lignes.\n\nÀ activer pour une page « un fetch, N agrégations client », un jeu de\nplus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail\nles rend tous d'un coup au lieu d'une page. À ne pas activer avec\n`server-side` (pagination page par page), qui reste sur l'endpoint\npaginé et signale la contradiction dans la console.\n\nEn mode `export` le total serveur est inconnu : la troncature est\ndétectée en demandant une ligne de plus que le plafond `max-records`.\nSi le portail n'expose pas d'endpoint d'export, la source retombe une\nfois sur le chargement paginé, avec un avertissement en console.",
+              "description": "Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,\ncomportement historique — pagination par pages) ou `export`, qui charge\ntout le jeu en **une seule requête**, ou en quelques plages, sur\nl'endpoint d'export de l'API. Implémenté par les adaptateurs qui ont un\nendpoint d'export (table des capacités d'ARCHITECTURE, ligne\n« chargement en une requête ») ; les autres ignorent l'attribut.\n\nSelon l'adaptateur, l'export porte les mêmes clauses (`select`, `where`,\n`group-by`, `order-by`) ou ne rend que des **lignes brutes** (#1055) :\ndans ce dernier cas, avec un `where`, `group-by`, `aggregate` ou\n`order-by` délégué (posé sur la source ou transmis par une\n`dsfr-data-query`), la source reste sur la pagination, qui les exécute\ncôté serveur, et le dit en console. Un export binaire (colonnes projetées\ndepuis `select`) charge son lecteur à la demande seulement. Pour une\npremière page rapide sur un petit jeu, la pagination reste plus vive ;\nl'export l'emporte au-delà de 1 000 à 2 000 lignes.\n\nÀ activer pour une page « un fetch, N agrégations client », un jeu de\nplus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : l'API\nles rend tous d'un coup au lieu d'une page. À ne pas activer avec\n`server-side` (pagination page par page), qui reste sur l'endpoint\npaginé et signale la contradiction dans la console.\n\nEn mode `export` le total serveur est inconnu : la troncature est\ndétectée en demandant une ligne de plus que le plafond `max-records`,\nqui borne aussi les lignes lues. Si l'API n'expose pas d'endpoint\nd'export, la source retombe une fois sur le chargement paginé, avec un\navertissement en console.",
               "attribute": "fetch-mode"
             },
             {
@@ -20837,7 +20858,16 @@
                 "type": {
                   "text": "RequestInit"
                 }
-              }
+              },
+              "parameters": [
+                {
+                  "name": "provider",
+                  "default": "detectProvider(this.url)",
+                  "type": {
+                    "text": "ProviderConfig"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -20931,7 +20961,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "En-têtes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nOpenDataSoft : la clé va dans `Authorization: Apikey CLE` (seul en-tête\nautorisé en CORS) — un `apikey` nu est réécrit automatiquement (#655).",
+              "description": "En-têtes HTTP en JSON. Ex: `'{\"Authorization\": \"Bearer xxx\"}'`.\nQuand le fournisseur attend sa clé sous un en-tête précis (déclaré par sa\nconfiguration), un `apikey` nu est réécrit automatiquement au bon format\n(#655) ; détail par fournisseur : table des capacités d'ARCHITECTURE.",
               "fieldName": "headers"
             },
             {
@@ -20940,7 +20970,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres au\nportail que la bibliothèque ne modélise pas — le cas d'usage est\n`params='{\"timezone\":\"Europe/Paris\"}'` sur un jeu Opendatasoft à\ndates, qui n'obligeait jusqu'ici à rester en mode URL. Les clés que la\nbibliothèque construit elle-même (`select`, `where`, `group_by`,\n`order_by`, `limit`, `offset`, `facet`) sont réservées : elles sont\nrefusées avec une erreur de configuration plutôt que d'écraser une clause.\nTransmis par l'adaptateur Opendatasoft seulement, en chargement paginé\ncomme en `fetch-mode=\"export\"`.",
+              "description": "Paramètres de requête en JSON. Mode URL : query string en GET, corps de la\nrequête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à\nl'URL construite par l'adaptateur, ce qui sert les paramètres propres à\nl'API que la bibliothèque ne modélise pas — par exemple\n`params='{\"timezone\":\"Europe/Paris\"}'` pour lire des dates dans un\nfuseau donné, sans quitter le mode adaptateur. Les clés que\nl'adaptateur construit lui-même (il les déclare : clauses, pagination,\nprojection, suffixes d'opérateur) sont réservées : elles sont refusées\navec une erreur de configuration plutôt que d'écraser une clause (#1137).\nSeuls les adaptateurs qui acceptent des paramètres libres les\ntransmettent (en chargement paginé comme en `fetch-mode=\"export\"`) ; les\nautres les ignorent — voir la table des capacités d'ARCHITECTURE.",
               "fieldName": "params"
             },
             {
@@ -21003,7 +21033,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) et le\n`use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture des hotes connus (ceux que la configuration d'un fournisseur\ndeclare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
               "fieldName": "proxyUrl"
             },
             {
@@ -21030,7 +21060,7 @@
                 "text": "string"
               },
               "default": "'generic'",
-              "description": "Type d'API — active le mode adapter si != 'generic' et url est vide",
+              "description": "Type d'API : l'identifiant d'un adaptateur du registre (ceux de la\nbibliothèque, ou un adaptateur ajouté par `registerAdapter`). Toute autre\nvaleur que `generic` active le mode adaptateur ; `generic` avec une `url`\nreste en mode URL.",
               "fieldName": "apiType"
             },
             {
@@ -21039,7 +21069,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "URL de base de l'API (pour ODS, Tabular)",
+              "description": "URL de base de l'API, pour les adaptateurs qui adressent un portail par son URL.",
               "fieldName": "baseUrl"
             },
             {
@@ -21048,7 +21078,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "ID du dataset (pour ODS)",
+              "description": "Identifiant du jeu de données, pour les adaptateurs qui désignent un jeu par son identifiant.",
               "fieldName": "datasetId"
             },
             {
@@ -21057,7 +21087,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "ID de la ressource (pour Tabular)",
+              "description": "Identifiant de la ressource (fichier d'un jeu), pour les adaptateurs qui désignent une ressource.",
               "fieldName": "resource"
             },
             {
@@ -21075,7 +21105,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause SELECT (ODS, et projection de colonnes sur Tabular), liste séparée par des virgules :\n`select=\"count(*) as total, region\"`. Une expression (fonction, alias\n`as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom\nde champ qui n'est pas un identifiant nu (espace, accent, chiffre\ninitial comme `1_uai`) est backquoté automatiquement (#767). Une virgule\nà l'intérieur d'une fonction ou d'une chaîne ne sépare pas.\nUn `select` fait UNIQUEMENT d'agrégats, sans `group-by`\n(`select=\"sum(montant) as total\"`) se charge en une requête d'une ligne,\nla valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre\nne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`.\n\nQuand une `dsfr-data-query` délègue son regroupement à cette source, le\n`select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes\nd'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon\nla colonne d'alias n'existerait pas dans la réponse et le chiffre affiché\nserait faux (#859). S'il définit une colonne par une expression aliasée\n(`year(date) as annee`) que le regroupement vise, la délégation est\nrefusée — avertissement en console, regroupement calculé côté client.\n\nTabular (#985) : une liste de NOMS de colonnes (`select=\"nom, Code sexe\"`,\nespaces et accents admis), traduite en `columns=` — l'API ne rend que ces\ncolonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne\nn'est ajoutée d'office : une colonne lue en aval (graphique, liste,\nfacette, filtre client) doit y figurer, et un nom inconnu du jeu fait\nrépondre l'API en erreur. Sans effet quand un `group-by` ou un\n`aggregate` est posé (sur la source ou délégué par une query) : l'API\nrefuse `columns` à côté d'un agrégateur. Une expression (fonction, alias,\n`*`) est ignorée avec un avertissement : toutes les colonnes sont chargées.",
+              "description": "Clause SELECT, liste séparée par des virgules. Sa grammaire dépend de\nl'adaptateur (table des capacités d'ARCHITECTURE, ligne « projection\nselect ») : clause complète ou simple liste de noms de colonnes ; un\nadaptateur sans projection l'ignore.\n\n**Clause complète** : `select=\"count(*) as total, region\"`. Une\nexpression (fonction, alias `as`, `*`, chemin pointé, opérateur) est\ntransmise telle quelle ; un nom de champ qui n'est pas un identifiant nu\n(espace, accent, chiffre initial comme `1_uai`) est échappé\nautomatiquement (#767). Une virgule à l'intérieur d'une fonction ou d'une\nchaîne ne sépare pas. Un `select` fait UNIQUEMENT d'agrégats, sans\n`group-by` (`select=\"sum(montant) as total\"`) se charge en une requête\nd'une ligne, la valeur calculée par le serveur sur tout le jeu (#810) ;\nsi le filtre ne garde aucune ligne, un `count` vaut 0 et les autres\nfonctions `null`.\n\nQuand une `dsfr-data-query` délègue son regroupement à cette source, le\n`select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes\nd'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon\nla colonne d'alias n'existerait pas dans la réponse et le chiffre affiché\nserait faux (#859). S'il définit une colonne par une expression aliasée\n(`year(date) as annee`) que le regroupement vise, la délégation est\nrefusée — avertissement en console, regroupement calculé côté client.\n\n**Liste de noms de colonnes** (projection seule, #985) :\n`select=\"nom, Code sexe\"`, espaces et accents admis — l'API ne rend que\nces colonnes, soit dix fois moins d'octets sur un jeu large. Aucune\ncolonne n'est ajoutée d'office : une colonne lue en aval (graphique,\nliste, facette, filtre client) doit y figurer, et un nom inconnu du jeu\nfait répondre l'API en erreur. Sans effet quand un `group-by` ou un\n`aggregate` est posé (sur la source ou délégué par une query), si l'API\nrefuse la projection à côté d'un agrégateur. Une expression (fonction,\nalias, `*`) est ignorée avec un avertissement : toutes les colonnes sont\nchargées.",
               "fieldName": "select"
             },
             {
@@ -21084,7 +21114,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Group-by (pour les APIs qui le supportent server-side). ODS : un élément\npeut être une expression aliasée, avec ou sans fonction\n(`year(date) as annee`, `periode as an`), transmise telle quelle —\nl'alias `as` est obligatoire cote ODS (#641). Même découpe et même\néchappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m`\nreste d'un seul tenant.",
+              "description": "Group-by, délégué aux adaptateurs déclarant `serverGroupBy`. Avec un\n`select` en clause complète, un élément peut être une expression\naliasée, avec ou sans fonction (`year(date) as annee`, `periode as an`),\ntransmise telle quelle — l'alias `as` y est obligatoire (#641). Même\ndécoupe et même échappement que `select` (#767) :\n`date_format(d, 'yyyy-MM') as m` reste d'un seul tenant.",
               "fieldName": "groupBy"
             },
             {
@@ -21093,7 +21123,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Agrégation (pour les APIs qui le supportent server-side)",
+              "description": "Agrégation, déléguée aux adaptateurs déclarant `serverGroupBy`.",
               "fieldName": "aggregate"
             },
             {
@@ -21129,7 +21159,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de lignes du chargement complet en mode adaptateur, honoré par\nOpendatasoft (#233) et Tabular (#1027). 0 = plafond par défaut de\nl'adaptateur (Opendatasoft : 1 000 ; Tabular : 25 000). À relever\nexplicitement pour charger un jeu plus long par la pagination — par\nexemple une carte des ≈ 35 000 communes sur Tabular (`max-records=\"40000\"`)\n— ou pour les tableaux de bord « un fetch, N agrégations client » :\nattention au nombre de requêtes en boucle (Tabular : une par tranche de\n200 lignes) et au poids mémoire. Un `limit` plus petit reste prioritaire.\nQuand le plafond coupe le jeu, la source signale la troncature\n(`truncated`) et un avertissement console cite `max-records`.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.",
               "fieldName": "maxRecords"
             },
             {
@@ -21138,7 +21168,7 @@
                 "text": "'records' | 'export'"
               },
               "default": "'records'",
-              "description": "Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,\ncomportement historique — pagination par pages de 100) ou `export`, qui\ncharge tout le jeu en **une seule requête** sur l'endpoint d'export du\nportail, avec les mêmes clauses (`select`, `where`, `group-by`,\n`order-by`). Implémenté par OpenDataSoft et Tabular ; les autres\nadaptateurs ignorent l'attribut.\n\n**Tabular** (#1055) : lit l'export **Parquet** que data.gouv publie pour\nchaque ressource, par plages, colonnes projetées depuis `select` — le\njeu entier en quelques requêtes au lieu de pages de 200. Le lecteur\n(≈ 22 Ko gzip) n'est chargé qu'à ce moment-là. Lignes brutes seulement :\navec un `where`, `group-by`, `aggregate` ou `order-by` délégué (posé sur\nla source ou transmis par une `dsfr-data-query`), la source reste sur la\npagination, qui les exécute côté serveur, et le dit en console.\n`max-records` (25 000 par défaut) borne les lignes lues. Les entiers et\nles dates arrivent dans la forme de l'API (nombre, `AAAA-MM-JJ`).\nPour une première page rapide sur un petit jeu, la pagination reste plus\nvive ; l'export l'emporte au-delà de 1 000 à 2 000 lignes.\n\nÀ activer pour une page « un fetch, N agrégations client », un jeu de\nplus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : le portail\nles rend tous d'un coup au lieu d'une page. À ne pas activer avec\n`server-side` (pagination page par page), qui reste sur l'endpoint\npaginé et signale la contradiction dans la console.\n\nEn mode `export` le total serveur est inconnu : la troncature est\ndétectée en demandant une ligne de plus que le plafond `max-records`.\nSi le portail n'expose pas d'endpoint d'export, la source retombe une\nfois sur le chargement paginé, avec un avertissement en console.",
+              "description": "Stratégie de chargement en mode adaptateur (#689) : `records` (défaut,\ncomportement historique — pagination par pages) ou `export`, qui charge\ntout le jeu en **une seule requête**, ou en quelques plages, sur\nl'endpoint d'export de l'API. Implémenté par les adaptateurs qui ont un\nendpoint d'export (table des capacités d'ARCHITECTURE, ligne\n« chargement en une requête ») ; les autres ignorent l'attribut.\n\nSelon l'adaptateur, l'export porte les mêmes clauses (`select`, `where`,\n`group-by`, `order-by`) ou ne rend que des **lignes brutes** (#1055) :\ndans ce dernier cas, avec un `where`, `group-by`, `aggregate` ou\n`order-by` délégué (posé sur la source ou transmis par une\n`dsfr-data-query`), la source reste sur la pagination, qui les exécute\ncôté serveur, et le dit en console. Un export binaire (colonnes projetées\ndepuis `select`) charge son lecteur à la demande seulement. Pour une\npremière page rapide sur un petit jeu, la pagination reste plus vive ;\nl'export l'emporte au-delà de 1 000 à 2 000 lignes.\n\nÀ activer pour une page « un fetch, N agrégations client », un jeu de\nplus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : l'API\nles rend tous d'un coup au lieu d'une page. À ne pas activer avec\n`server-side` (pagination page par page), qui reste sur l'endpoint\npaginé et signale la contradiction dans la console.\n\nEn mode `export` le total serveur est inconnu : la troncature est\ndétectée en demandant une ligne de plus que le plafond `max-records`,\nqui borne aussi les lignes lues. Si l'API n'expose pas d'endpoint\nd'export, la source retombe une fois sur le chargement paginé, avec un\navertissement en console.",
               "fieldName": "fetchMode"
             },
             {

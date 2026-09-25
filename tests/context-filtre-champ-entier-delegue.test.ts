@@ -33,7 +33,7 @@ import {
   resetNumericFieldMismatchWarnings,
 } from '@/utils/numeric-field-mismatch.js';
 import { getAdapter } from '@/adapters/adapter-registry.js';
-import { OpenDataSoftAdapter } from '@/adapters/opendatasoft-adapter.js';
+import { OpenDataSoftAdapter, odsFieldKind } from '@/adapters/opendatasoft-adapter.js';
 
 const BASE = 'https://data.sports.gouv.fr';
 const DATASET_META = `${BASE}/api/explore/v2.1/catalog/datasets/sc_missions`;
@@ -144,7 +144,7 @@ describe('#980 (PG-030) — filtre délégué à une source agrégée côté ser
     expect(messages[0]).toContain('"01"');
     expect(messages[0]).toContain('"a"');
     expect(messages[0]).toContain('NOMBRE');
-    expect(messages[0]).toContain('« int » déclaré par le jeu');
+    expect(messages[0]).toContain('type nombre déclaré par le jeu');
     expect(messages[0]).toContain('("1")');
   });
 
@@ -204,7 +204,7 @@ describe('#980 (PG-030) — filtre délégué à une source agrégée côté ser
     const messages = mismatches(warn);
     expect(messages).toHaveLength(2);
     // Source agrégée : preuve par le type déclaré
-    expect(messages.find((m) => m.includes('"a"'))).toContain('« int » déclaré par le jeu');
+    expect(messages.find((m) => m.includes('"a"'))).toContain('type nombre déclaré par le jeu');
     // Source aux lignes brutes : preuve par la donnée, comme avant (#948)
     expect(messages.find((m) => m.includes('"b"'))).toContain('(ex. 94)');
   });
@@ -258,7 +258,7 @@ describe('#980 — describeFieldTypes (adaptateur Opendatasoft)', () => {
     const first = await adapter.describeFieldTypes(params);
     const second = await adapter.describeFieldTypes(params);
 
-    expect(first).toEqual({ annee: 'text', reg: 'int', dep: 'text', nb_missions: 'int' });
+    expect(first).toEqual({ annee: 'text', reg: 'number', dep: 'text', nb_missions: 'number' });
     expect(second).toBe(first);
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
@@ -269,5 +269,56 @@ describe('#980 — describeFieldTypes (adaptateur Opendatasoft)', () => {
     await expect(adapter.describeFieldTypes({ baseUrl: BASE, datasetId: 'x' })).resolves.toEqual(
       {}
     );
+  });
+});
+
+describe('#1138 — describeFieldTypes rend un type normalisé', () => {
+  it('Opendatasoft traduit ses types bruts dans l’adaptateur', () => {
+    const cas: Array<[string, string]> = [
+      ['int', 'number'],
+      ['double', 'number'],
+      ['decimal', 'number'],
+      ['text', 'text'],
+      ['date', 'date'],
+      ['datetime', 'date'],
+      ['boolean', 'bool'],
+      ['geo_point_2d', 'geo'],
+      ['geo_shape', 'geo'],
+      ['file', 'other'],
+      ['json_blob', 'other'],
+    ];
+    for (const [brut, normalise] of cas) expect(odsFieldKind(brut), brut).toBe(normalise);
+  });
+
+  it('un adaptateur tiers qui rend « number » suffit : le composant ne connaît aucun type brut', async () => {
+    const el = document.createElement('div');
+    el.id = 'tiers';
+    Object.assign(el, {
+      getAdapter: () => ({ describeFieldTypes: async () => ({ code: 'number' }) }),
+      getAdapterParams: () => ({ datasetId: 'jeu' }),
+    });
+    document.body.appendChild(el);
+    await checkNumericFieldMismatch('tiers', 'code:eq:01');
+
+    const messages = mismatches(warn);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toContain('type nombre déclaré par le jeu');
+    // Aucun vocabulaire de fournisseur dans le message
+    expect(messages[0]).not.toMatch(/portail|refine|opendatasoft/i);
+    el.remove();
+  });
+
+  it('un type brut qui ne serait pas normalisé (« int ») ne déclenche plus rien', async () => {
+    const el = document.createElement('div');
+    el.id = 'brut';
+    Object.assign(el, {
+      getAdapter: () => ({ describeFieldTypes: async () => ({ code: 'int' }) }),
+      getAdapterParams: () => ({ datasetId: 'jeu' }),
+    });
+    document.body.appendChild(el);
+    await checkNumericFieldMismatch('brut', 'code:eq:01');
+
+    expect(mismatches(warn)).toEqual([]);
+    el.remove();
   });
 });

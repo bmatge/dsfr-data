@@ -541,9 +541,14 @@ describe('DsfrDataMapLayer', () => {
       expect((layer as any)._autoDetectGeoField()).toBe('geometry');
     });
 
-    it('falls back to geo_point_2d when no data', () => {
+    it('#1139 — sans donnée, aucun champ supposé', () => {
       (layer as any)._data = [];
-      expect((layer as any)._autoDetectGeoField()).toBe('geo_point_2d');
+      expect((layer as any)._autoDetectGeoField()).toBe('');
+    });
+
+    it('#1139 — des lignes sans colonne reconnue : aucun champ supposé', () => {
+      (layer as any)._data = [{ lat: 1, lon: 2 }];
+      expect((layer as any)._autoDetectGeoField()).toBe('');
     });
   });
 });
@@ -2869,16 +2874,16 @@ describe('DsfrDataMapLayer _autoDetectGeoField', () => {
     expect((layer as any)._autoDetectGeoField()).toBe('geopoint');
   });
 
-  it('falls back to geo_point_2d for empty data', () => {
+  it('#1139 — empty data: no field assumed', () => {
     const layer = new DsfrDataMapLayer();
     (layer as any)._data = [];
-    expect((layer as any)._autoDetectGeoField()).toBe('geo_point_2d');
+    expect((layer as any)._autoDetectGeoField()).toBe('');
   });
 
-  it('falls back to geo_point_2d when no candidate matches', () => {
+  it('#1139 — no candidate matches: no field assumed', () => {
     const layer = new DsfrDataMapLayer();
     (layer as any)._data = [{ name: 'test', value: 42 }];
-    expect((layer as any)._autoDetectGeoField()).toBe('geo_point_2d');
+    expect((layer as any)._autoDetectGeoField()).toBe('');
   });
 
   it('prioritizes geo_point_2d over geometry', () => {

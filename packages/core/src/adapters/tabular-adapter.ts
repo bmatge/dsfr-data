@@ -240,6 +240,40 @@ export class TabularAdapter implements ApiAdapter {
     whereFormat: 'colon',
   };
 
+  /**
+   * Clés que l'adaptateur construit lui-même (#1137) : pagination (`page`,
+   * `page_size`), projection (`columns`, #985), OU multi-champs (`or`, #1026),
+   * et les suffixes de colonne — tri, regroupement, agrégats et opérateurs
+   * de filtre (`champ__sort`, `champ__groupby`, `champ__sum`, `champ__exact`…).
+   */
+  readonly reservedParamKeys: ReadonlySet<string> = new Set([
+    'page',
+    'page_size',
+    'columns',
+    'or',
+    ...[
+      'sort',
+      'groupby',
+      'count',
+      'sum',
+      'avg',
+      'min',
+      'max',
+      'exact',
+      'differs',
+      'strictly_greater',
+      'greater',
+      'strictly_less',
+      'less',
+      'contains',
+      'notcontains',
+      'in',
+      'notin',
+      'isnull',
+      'isnotnull',
+    ].map((suffix) => `*__${suffix}`),
+  ]);
+
   validate(params: AdapterParams): string | null {
     if (!params.resource) {
       return 'attribut "resource" requis pour les requêtes Tabular';

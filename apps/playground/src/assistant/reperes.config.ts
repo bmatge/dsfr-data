@@ -36,6 +36,7 @@ const config: ReperesConfig = {
     'playground.actions.exemples': ['exemples', 'modèles', 'catalogue'],
     'playground.editeur.code': ['éditeur', 'code html', 'saisir le code'],
     'playground.actions.dependances': ['cdn', 'dépendances', 'page autonome'],
+    'playground.actions.studio': ['studio', 'studio ia', 'reconstruire'],
   },
 };
 

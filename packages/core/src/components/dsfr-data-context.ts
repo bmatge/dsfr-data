@@ -2,7 +2,7 @@ import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { dispatchSourceCommand, getDataCache } from '../utils/data-bridge.js';
-import { filterToOdsql } from '../utils/where.js';
+import { toWhereDialect, type WhereFormat } from '../utils/where.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
@@ -11,7 +11,7 @@ import { scheduleContextUrlParamConflictScan } from '../utils/context-url-confli
 import { checkNumericFieldMismatch } from '../utils/numeric-field-mismatch.js';
 
 interface SourceWithAdapter extends HTMLElement {
-  getAdapter?: () => { capabilities?: { whereFormat?: string } } | null;
+  getAdapter?: () => { capabilities?: { whereFormat?: WhereFormat } } | null;
 }
 
 let contextSeq = 0;
@@ -467,10 +467,7 @@ export class DsfrDataContext extends LitElement {
   private _translateFor(sourceId: string, colonWhere: string): string {
     const sourceEl = document.getElementById(sourceId) as SourceWithAdapter | null;
     const whereFormat = sourceEl?.getAdapter?.()?.capabilities?.whereFormat;
-    if (whereFormat === 'odsql') {
-      return filterToOdsql(colonWhere);
-    }
-    return colonWhere;
+    return toWhereDialect(whereFormat, colonWhere);
   }
 
   render() {

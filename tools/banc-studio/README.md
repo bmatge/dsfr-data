@@ -76,6 +76,7 @@ l'usager, et les attentes, écrites dans le vocabulaire des **outils** du Studio
 | `demande-impossible` | oui | Un formulaire de saisie : le dire d'emblée, sans toucher au document, en 4 appels au plus. |
 | `modification` | | Deux messages : barres, puis « passe-le en camembert » — un seul graphique à la fin (`pie`/`doughnut`). |
 | `source-par-url` | | **Aucune source** au départ (#1140) : l’usager donne l’URL d’un jeu Opendatasoft réel (data.economie.gouv.fr, 14 lignes, figé depuis 2018) ; le modèle le charge par `charger_source_url`, puis une courbe ou des barres `labelField:"annee"`, `valueField:"nombre_de_jei"`. Réseau réel vers le portail. |
+| `reprendre-playground` | | « Ouvrir dans le Studio IA » depuis le Playground (#1132) : source déjà chargée, message **tel que le Studio le pose** (`messageReconstruction`, code du Playground compris). Reconstruction fidèle : barres `labelField:"Commune"`, `valueField:"Nombre d’élèves"`, `aggregation:"sum"` en bloc guidé, et le `dsfr-data-pivot` + `dsfr-data-list` en bloc « composant libre ». Un bloc texte (le titre du code) est toléré. |
 
 Les critères (`criteres.ts`) sont **déterministes** — pas de juge LLM dans ce premier lot. Chacun
 rend `ok`, `échec` ou `sans objet` :

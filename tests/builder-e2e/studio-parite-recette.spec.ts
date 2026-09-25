@@ -345,7 +345,12 @@ test.describe('source donnee par URL dans la conversation (#1140)', () => {
       (url) => url.hostname === 'data.economie.gouv.fr' && url.pathname.startsWith(CHEMIN_API),
       servirPortail
     );
-    await page.route((url) => url.pathname === '/api-proxy', servirPortail);
+    // `/cors-proxy` : le proxy CORS generique en dev (proxy relatif) — sans
+    // lui, l'outil joignait le vrai portail par le proxy de Vite (#1132).
+    await page.route(
+      (url) => url.pathname === '/api-proxy' || url.pathname === '/cors-proxy',
+      servirPortail
+    );
     await page.route(
       (url) => url.pathname === '/ia-server-config',
       (route: Route) => route.fulfill({ json: { available: false } })
@@ -409,5 +414,194 @@ test.describe('source donnee par URL dans la conversation (#1140)', () => {
     await expect(
       page.frameLocator('#preview-frame').locator('dsfr-data-chart').first()
     ).toBeAttached({ timeout: 20_000 });
+  });
+});
+
+/**
+ * « Ouvrir dans le Studio IA » depuis le Playground (#1132) : un code Opendatasoft
+ * + graphique + tableau croise (`dsfr-data-pivot`) arrive dans le Studio avec
+ * sa source DEJA chargee (chemin de `charger_source_url`), la consigne de
+ * reconstruction posee dans le champ et RIEN d'envoye au modele. Apres envoi
+ * par l'usager, le modele (simule) reconstruit en un bloc chart guide et un
+ * bloc « composant libre » pour le pivot ; l'apercu rend les deux. Le lien
+ * « Retour au Playground » rend le code d'origine.
+ */
+test.describe('Playground → Studio IA (#1132)', () => {
+  const ID_SOURCE = 'url_opendatasoft_industrie-du-futur';
+  const LIGNES_ODS = [
+    { region: 'Bretagne', annee: '2022', nombre: 12 },
+    { region: 'Bretagne', annee: '2023', nombre: 15 },
+    { region: 'Corse', annee: '2022', nombre: 3 },
+    { region: 'Corse', annee: '2023', nombre: 4 },
+  ];
+  const CODE_PLAYGROUND = `<div class="fr-container fr-my-4w">
+  <dsfr-data-source id="data" api-type="opendatasoft"
+    base-url="https://data.economie.gouv.fr"
+    dataset-id="industrie-du-futur">
+  </dsfr-data-source>
+  <dsfr-data-chart source="data" type="bar" label-field="region" value-field="nombre"></dsfr-data-chart>
+  <dsfr-data-pivot id="croise" source="data" row="region" column="annee" value="nombre"></dsfr-data-pivot>
+  <dsfr-data-list source="croise"></dsfr-data-list>
+</div>`;
+  const FIN = 'Code du Playground reconstruit : un graphique et un tableau croisé.';
+
+  test('source chargée, consigne posée sans envoi, reconstruction fidèle, retour au Playground', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('dsfr-data-tours', JSON.stringify({ disabled: true, tours: {} }));
+      localStorage.setItem(
+        'dsfr-data-ia-config',
+        JSON.stringify({
+          apiUrl: 'https://llm.recette.invalid/v1/chat/completions',
+          model: 'modele-recette',
+          token: 'jeton-recette',
+        })
+      );
+    });
+
+    const CHEMIN_API = '/api/explore/v2.1/catalog/datasets/industrie-du-futur';
+    const appelsPortail: string[] = [];
+    const servirPortail = (route: Route) => {
+      const cible = route.request().headers()['x-target-url'] ?? route.request().url();
+      if (!cible.includes(`data.economie.gouv.fr${CHEMIN_API}`)) return route.fallback();
+      appelsPortail.push(cible);
+      return route.fulfill({ json: { total_count: LIGNES_ODS.length, results: LIGNES_ODS } });
+    };
+    await page.route(
+      (url) => url.hostname === 'data.economie.gouv.fr' && url.pathname.startsWith(CHEMIN_API),
+      servirPortail
+    );
+    // Proxy CORS generique : `/cors-proxy` quand le proxy est relatif (dev),
+    // `/api-proxy` sur une instance distante.
+    await page.route(
+      (url) => url.pathname === '/api-proxy' || url.pathname === '/cors-proxy',
+      servirPortail
+    );
+    await page.route(
+      (url) => url.pathname === '/ia-server-config',
+      (route: Route) => route.fulfill({ json: { available: false } })
+    );
+    const requetesModele: CorpsModele[] = [];
+    const retours: string[] = [];
+    await page.route(
+      (url) => url.pathname === '/ia-proxy',
+      async (route: Route) => {
+        const corps = route.request().postDataJSON() as CorpsModele;
+        requetesModele.push(corps);
+        const outils = (corps.messages ?? []).filter((m) => m.role === 'tool');
+        const dernier = outils.at(-1);
+        if (dernier) retours.push(dernier.content ?? '');
+        const a = (name: string, value: string) => ({ name, value });
+        const reponse =
+          outils.length === 0
+            ? reponseOutil(
+                'add_blocks',
+                {
+                  blocks: [
+                    {
+                      kind: 'chart',
+                      title: 'Nombre par région',
+                      config: { type: 'bar', labelField: 'region', valueField: 'nombre' },
+                    },
+                    {
+                      kind: 'component',
+                      title: 'Tableau croisé',
+                      components: [
+                        {
+                          tag: 'dsfr-data-pivot',
+                          attributes: [
+                            a('id', 'croise'),
+                            a('source', ID_SOURCE),
+                            a('row', 'region'),
+                            a('column', 'annee'),
+                            a('value', 'nombre'),
+                          ],
+                        },
+                        { tag: 'dsfr-data-list', attributes: [a('source', 'croise')] },
+                      ],
+                    },
+                  ],
+                },
+                'appel-1'
+              )
+            : reponseOutil('finish', { message: FIN }, 'appel-2');
+        await route.fulfill({ json: reponse });
+      }
+    );
+
+    // 1. Le Playground, avec le code de l'usager.
+    await page.goto('/apps/playground/', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => !!document.querySelector('.CodeMirror'));
+    await page.evaluate((code) => {
+      const cm = (
+        document.querySelector('.CodeMirror') as unknown as {
+          CodeMirror: { setValue(v: string): void };
+        }
+      ).CodeMirror;
+      cm.setValue(code);
+    }, CODE_PLAYGROUND);
+
+    // 2. « Ouvrir dans le Studio IA », dans « Plus d'actions ».
+    const bouton = page.locator('#studio-btn');
+    if (!(await bouton.isVisible())) {
+      await page.getByRole('button', { name: "Plus d'actions" }).click();
+    }
+    await expect(bouton).toHaveText('Ouvrir dans le Studio IA');
+    await bouton.click();
+    await page.waitForURL(/\/apps\/studio\/index\.html\?from=playground$/);
+
+    // 3. La source du code est chargée, comme par charger_source_url.
+    await expect(page.locator('#saved-source')).toHaveValue(ID_SOURCE, { timeout: 20_000 });
+    const chat = page.locator('#chat-messages');
+    await expect(
+      chat.locator('.chat-message--assistant', { hasText: 'chargée depuis ce code' })
+    ).toBeVisible();
+    expect(appelsPortail.length, 'le portail n’a pas été interrogé').toBeGreaterThan(0);
+
+    // 4. La consigne est dans le champ, et RIEN n'est parti vers le modèle.
+    const champ = page.locator('#chat-input');
+    await expect(champ).toHaveValue(/Reconstruisez fidèlement/);
+    await expect(champ).toHaveValue(/composant libre/);
+    await expect(champ).toHaveValue(/dsfr-data-pivot id="croise"/);
+    await expect(champ).toHaveValue(new RegExp(`id « ${ID_SOURCE} »`));
+    expect(requetesModele, 'aucun appel au modèle sans action de l’usager').toHaveLength(0);
+
+    // 5. L'usager envoie : le modèle reçoit le code et reconstruit.
+    await page.locator('#chat-send-btn').click();
+    await expect(chat.locator('.chat-message--assistant', { hasText: FIN })).toBeVisible({
+      timeout: 20_000,
+    });
+    const demande = (requetesModele[0].messages ?? []).filter((m) => m.role === 'user').at(-1);
+    expect(demande?.content).toContain('dsfr-data-pivot');
+    expect(retours[0], 'blocs refusés par le Studio').toContain('ajouté');
+    expect(retours[0]).not.toContain('refusé');
+
+    // 6. Même rendu : graphique et tableau croisé, dans le code et l'aperçu.
+    const code = page.locator('#generated-code');
+    await expect(code).toContainText('api-type="opendatasoft"');
+    await expect(code).toContainText('dataset-id="industrie-du-futur"');
+    await expect(code).toContainText('<dsfr-data-chart');
+    await expect(code).toContainText('<dsfr-data-pivot');
+    const apercu = page.frameLocator('#preview-frame');
+    await expect(apercu.locator('dsfr-data-chart').first()).toBeAttached({ timeout: 20_000 });
+    await expect(apercu.locator('dsfr-data-list').getByText('Bretagne').first()).toBeVisible({
+      timeout: 20_000,
+    });
+
+    // 7. Retour au Playground : le code d'origine, et le lien vers le Studio.
+    const retour = page.locator('#retour-playground-link');
+    await expect(retour).toBeVisible();
+    await retour.click();
+    await page.waitForURL(/\/apps\/playground\/index\.html\?from=studio$/);
+    await expect(page.getByRole('link', { name: 'Retour au Studio IA' })).toBeVisible();
+    const codeRendu = await page.evaluate(() =>
+      (
+        document.querySelector('.CodeMirror') as unknown as {
+          CodeMirror: { getValue(): string };
+        }
+      ).CodeMirror.getValue()
+    );
+    expect(codeRendu).toBe(CODE_PLAYGROUND);
   });
 });

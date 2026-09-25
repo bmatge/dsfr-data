@@ -68,10 +68,11 @@ export type {
   AdapterCapabilities,
   AdapterParams,
   FetchResult,
+  FieldKind,
   FacetResult,
   ServerSideOverlay,
 } from './adapters/api-adapter.js';
-export { getAdapter, registerAdapter } from './adapters/api-adapter.js';
+export { getAdapter, registerAdapter, listAdapterTypes } from './adapters/api-adapter.js';
 // Profil d'une ressource Tabular (#985) : `(getAdapter('tabular') as TabularAdapter).fetchProfile(...)`
 export type {
   TabularAdapter,

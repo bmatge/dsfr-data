@@ -22,6 +22,7 @@ export const REPERES = [
   {"id":"playground.actions.jpg","genre":"controle","libelle":"Exporter en JPG","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
   {"id":"playground.actions.pipeline","genre":"controle","libelle":"Ouvrir dans le Pipeline","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
   {"id":"playground.actions.png","genre":"controle","libelle":"Exporter en PNG","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
+  {"id":"playground.actions.studio","genre":"controle","libelle":"Ouvrir dans le Studio IA","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":["studio","studio ia","reconstruire"],"sources":["apps/playground/index.html"]},
   {"id":"playground.actions.visite","genre":"controle","libelle":"Visite guidée","element":"button","zone":"playground.actions","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
   {"id":"playground.apercu","genre":"zone","libelle":"Aperçu","element":"div","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},
   {"id":"playground.editeur","genre":"zone","libelle":"Éditeur de code","element":"div","attributs":[],"prerequis":[],"synonymes":[],"sources":["apps/playground/index.html"]},

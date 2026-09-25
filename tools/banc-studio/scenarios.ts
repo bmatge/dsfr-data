@@ -12,6 +12,27 @@
 
 import type { MotsCles, Scenario } from './criteres.js';
 import { AIDES_NATIONALES, ETABLISSEMENTS, MUSEES, POPULATION_REGIONS } from './fixtures.js';
+import { messageReconstruction } from '../../apps/studio/src/reprise-playground.js';
+
+/**
+ * Code du Playground repris par le scenario `reprendre-playground` (#1132) :
+ * une source Opendatasoft, un graphique agrege par une query, un tableau
+ * croise et sa liste — la forme d'une page ecrite a la main.
+ */
+export const CODE_PLAYGROUND_ETABLISSEMENTS = `<div class="fr-container fr-my-4w">
+  <h2>Élèves par commune</h2>
+  <dsfr-data-source id="etab" api-type="opendatasoft"
+    base-url="https://data.education.gouv.fr"
+    dataset-id="etablissements-scolaires">
+  </dsfr-data-source>
+  <dsfr-data-query id="par-commune" source="etab" group-by="Commune" aggregate="Nombre d’élèves:sum">
+  </dsfr-data-query>
+  <dsfr-data-chart source="par-commune" type="bar" label-field="Commune" value-field="Nombre d’élèves__sum">
+  </dsfr-data-chart>
+  <dsfr-data-pivot id="croise" source="etab" row="Commune" column="Type" value="Nombre d’élèves">
+  </dsfr-data-pivot>
+  <dsfr-data-list source="croise"></dsfr-data-list>
+</div>`;
 
 /** « Ce n'est pas possible dans le Studio », sous ses formes usuelles. */
 const DIT_IMPOSSIBLE: MotsCles = {
@@ -277,6 +298,59 @@ export const SCENARIOS: readonly Scenario[] = [
           },
         },
       ],
+    },
+  },
+  {
+    // #1132 : « Ouvrir dans le Studio IA » depuis le Playground. La source est deja
+    // chargee (comme apres la passation) et le message est CELUI que le Studio
+    // pose dans son champ (`messageReconstruction`, le vrai), code compris : le
+    // modele doit reconstruire fidelement — un bloc chart guide pour le
+    // graphique, un bloc « composant libre » pour le pivot.
+    id: 'reprendre-playground',
+    titre: 'Reprendre un code du Playground : graphique guidé + tableau croisé en bloc libre',
+    pr: false,
+    source: { nom: 'Établissements scolaires', lignes: ETABLISSEMENTS },
+    messages: [
+      messageReconstruction(
+        { origine: 'playground', code: CODE_PLAYGROUND_ETABLISSEMENTS, sources: 1 },
+        {
+          charge: true,
+          source: {
+            id: 'banc-reprendre-playground',
+            name: 'Établissements scolaires',
+            type: 'manual',
+          },
+        },
+        null
+      ),
+    ],
+    attendu: {
+      blocs: [
+        {
+          libelle: 'barres : élèves par commune',
+          kind: 'chart',
+          chart: {
+            type: { unDe: ['bar', 'horizontalBar'] },
+            labelField: 'Commune',
+            valueField: 'Nombre d’élèves',
+            aggregation: 'sum',
+          },
+        },
+        {
+          libelle: 'pivot commune × type, puis liste',
+          kind: 'component',
+          composants: [
+            {
+              tag: 'dsfr-data-pivot',
+              attributs: { row: 'Commune', column: 'Type', value: 'Nombre d’élèves' },
+            },
+            { tag: 'dsfr-data-list' },
+          ],
+        },
+      ],
+      // Le titre du code (<h2>) peut devenir un bloc texte ou le titre de page.
+      toleres: [{ libelle: 'titre du code repris', kind: 'text' }],
+      maxTours: 8,
     },
   },
 ];

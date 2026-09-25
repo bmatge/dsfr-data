@@ -4,7 +4,12 @@
  * posé dans le champ du chat, JAMAIS envoyé, et consommé une seule fois.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DIAGNOSTIC_HANDOFF_KEY, transmettreDiagnostic } from '@dsfr-data/shared';
+import {
+  DIAGNOSTIC_HANDOFF_KEY,
+  PASSATION_STUDIO_KEY,
+  transmettreDiagnostic,
+  transmettrePassationStudio,
+} from '@dsfr-data/shared';
 
 vi.mock('@dsfr-data/shared', async (importOriginal) => {
   const reel = await importOriginal<Record<string, unknown>>();
@@ -50,6 +55,52 @@ describe('Studio : passation d’un diagnostic transmis (#1016)', () => {
     // Consommé : un rechargement ne le repose pas.
     expect(sessionStorage.getItem(DIAGNOSTIC_HANDOFF_KEY)).toBeNull();
     expect(studio.recupererDiagnosticTransmis()).toBe(false);
+  });
+
+  it('code du Playground (#1132) : source chargée par charger_source_url, consigne posée sans envoi', async () => {
+    const url =
+      'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/industrie-du-futur/records';
+    const appels: string[] = [];
+    const fetchReel = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (entree: RequestInfo | URL, init?: RequestInit) => {
+      const cible =
+        (init?.headers as Record<string, string> | undefined)?.['X-Target-URL'] ?? String(entree);
+      appels.push(cible);
+      return new Response(
+        JSON.stringify({
+          total_count: 2,
+          results: [
+            { region: 'Bretagne', nombre: 3 },
+            { region: 'Corse', nombre: 1 },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }) as typeof fetch;
+    try {
+      transmettreDiagnostic('Code en cours dans le Playground\n\ndata → 2 lignes');
+      transmettrePassationStudio({
+        origine: 'playground',
+        code: '<dsfr-data-source id="data"></dsfr-data-source>',
+        sources: 1,
+        source: { url },
+      });
+      expect(studio.recupererDiagnosticTransmis()).toBe(true);
+      await studio.repriseEnCours;
+
+      expect(appels.some((a) => a.includes('/datasets/industrie-du-futur/records'))).toBe(true);
+      const { state } = await import('../../../apps/studio/src/state');
+      expect(state.source?.id).toBe('url_opendatasoft_industrie-du-futur');
+      expect(state.document.sources[0]?.id).toBe('url_opendatasoft_industrie-du-futur');
+      const champ = (document.getElementById('chat-input') as HTMLTextAreaElement).value;
+      expect(champ).toContain('Reconstruisez fidèlement');
+      expect(champ).toContain('data → 2 lignes');
+      // Rien n'est parti : aucun message usager dans la conversation.
+      expect(state.messages.filter((m) => m.role === 'user')).toEqual([]);
+      expect(sessionStorage.getItem(PASSATION_STUDIO_KEY)).toBeNull();
+    } finally {
+      globalThis.fetch = fetchReel;
+    }
   });
 
   it('rien de transmis : le champ reste vide', () => {
