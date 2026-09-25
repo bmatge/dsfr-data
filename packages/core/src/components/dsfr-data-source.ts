@@ -44,6 +44,21 @@ function parentPath(path: string): string {
 function numberOr(value: unknown, fallback: number): number {
   return value === undefined || value === null ? fallback : (value as number);
 }
+
+/**
+ * Mode URL : ne garde que le contenu imbrique sous `nestedKey` (#1136) —
+ * les cles d'enveloppe (`id` Grist) ne deviennent pas des colonnes.
+ * Une ligne sans enveloppe garde son aplatissement commun.
+ */
+function stripEnvelopeKeys(raw: unknown[], flat: unknown[], nestedKey: string): unknown[] {
+  return raw.map((r, i) => {
+    if (r === null || typeof r !== 'object' || Array.isArray(r)) return flat[i];
+    const nested = (r as Record<string, unknown>)[nestedKey];
+    return nested !== null && typeof nested === 'object' && !Array.isArray(nested)
+      ? { ...(nested as Record<string, unknown>) }
+      : flat[i];
+  });
+}
 import type {
   ApiAdapter,
   AdapterParams,
@@ -1038,8 +1053,18 @@ export class DsfrDataSource extends LitElement {
       // Enregistrements imbriques (#482, #1136) : la strategie est celle que
       // declare la ProviderConfig du fournisseur detecte (Grist : `fields`),
       // la meme que le chemin connexion — ARCHITECTURE §12, un seul aplatissement.
+      // En mode URL, seul le contenu imbrique est garde : les cles d'enveloppe
+      // (l'`id` Grist) ne deviennent pas des colonnes, comme avant #1136 et
+      // comme l'adaptateur — une liste sans `fields` n'affiche pas d'`id` technique.
       if (Array.isArray(this._data)) {
-        this._data = flattenProviderRecords(this._data, provider.response);
+        const flat = flattenProviderRecords(this._data, provider.response);
+        const nestedKey = provider.response.requiresFlatten
+          ? provider.response.nestedDataKey
+          : null;
+        this._data =
+          nestedKey && !provider.response.flattenRecord
+            ? stripEnvelopeKeys(this._data, flat, nestedKey)
+            : flat;
       }
 
       dispatchDataLoaded(this.id, this._data);

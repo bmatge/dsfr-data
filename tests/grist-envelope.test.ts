@@ -54,10 +54,12 @@ describe('#482 — dsfr-data-source aplatit l’enveloppe Grist en mode URL', ()
 
     await (source as unknown as SourceInternals)._fetchData();
 
-    // Colonnes métier à plat, plus aucune clé `fields` ; l'`id` de la ligne
-    // est conservé, comme sur le chemin connexion (flattenNestedKey).
+    // Colonnes métier à plat, plus aucune clé `fields` ; l'`id` technique de
+    // Grist n'est pas une colonne (arbitrage #1136 : rendu identique à avant,
+    // une liste sans `fields` n'affiche pas d'`id`). Mutation : garder la
+    // sortie de flattenProviderRecords telle quelle → `id: 1` revient.
     expect(source.getData()).toEqual([
-      { id: 1, nom: 'Ajaccio', lat: 41.9, lon: 8.7, geojson: '{"type":"Point"}' },
+      { nom: 'Ajaccio', lat: 41.9, lon: 8.7, geojson: '{"type":"Point"}' },
     ]);
   });
 
@@ -70,7 +72,7 @@ describe('#482 — dsfr-data-source aplatit l’enveloppe Grist en mode URL', ()
 
     await (source as unknown as SourceInternals)._fetchData();
 
-    expect(source.getData()).toEqual([{ id: 7, a: 1 }]);
+    expect(source.getData()).toEqual([{ a: 1 }]);
   });
 
   it('une réponse non-Grist passe inchangée', async () => {
