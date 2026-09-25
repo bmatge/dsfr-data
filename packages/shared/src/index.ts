@@ -283,6 +283,15 @@ export {
   RETOUR_VERS_ACCUEIL,
 } from './ui/passation.js';
 export type { VerdictRetour, AppAccueil, AvertissementRetour } from './ui/passation.js';
+// Passation « Envoyer au Studio IA » (#1132) — app-side
+export {
+  PASSATION_STUDIO_KEY,
+  LONGUEUR_MAX_CODE_PASSATION,
+  transmettrePassationStudio,
+  validerPassationStudio,
+  recupererPassationStudio,
+} from './ui/passation-studio.js';
+export type { PassationStudio, SourceNonTransmise } from './ui/passation-studio.js';
 
 // Repères d'interface : contrat du registre généré (#997, ADR-143) — app-side, types seuls
 export type {

@@ -22,6 +22,11 @@
        actée : l'envoi du chat reste le geste primaire de l'app ; la barre
        porte les actions sur l'artefact, Enregistrer en primaire. Ids conservés
        (#save-dashboard-btn, #open-dashboard-link, #copy-code-btn, #clear-chat). -->
+  <!-- Retour au Playground (#1132) : montré par reprise-playground.ts quand le
+       Studio reprend un code du Playground ; rend ce code tel qu'il était. -->
+  <p id="retour-playground" class="studio-retour fr-mb-0" hidden>
+    <a id="retour-playground-link" class="fr-link fr-icon-arrow-left-line fr-link--icon-left" href="../playground/index.html?from=studio">Retour au Playground</a>
+  </p>
   <app-action-bar heading="Studio IA">
     <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
     <button slot="secondary" id="copy-code-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>

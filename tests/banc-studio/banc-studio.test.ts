@@ -828,3 +828,78 @@ describe('banc Studio — source par URL', () => {
     expect(verdicts(evaluer(scenario('source-par-url'), e))['blocs-attendus']).toBe('echec');
   });
 });
+
+// ---------------------------------------------------------------------------
+// « Reprendre un code du Playground » (#1132)
+// ---------------------------------------------------------------------------
+
+describe('banc Studio — reprendre un code du Playground (#1132)', () => {
+  const a = (name: string, value: string) => ({ name, value });
+  const GRAPHIQUE = {
+    kind: 'chart',
+    title: 'Élèves par commune',
+    config: {
+      type: 'bar',
+      labelField: 'Commune',
+      valueField: 'Nombre d’élèves',
+      aggregation: 'sum',
+    },
+  };
+  const LIBRE = {
+    kind: 'component',
+    title: 'Tableau croisé',
+    components: [
+      {
+        tag: 'dsfr-data-pivot',
+        attributes: [
+          a('id', 'croise'),
+          a('source', 'banc-reprendre-playground'),
+          a('row', 'Commune'),
+          a('column', 'Type'),
+          a('value', 'Nombre d’élèves'),
+        ],
+      },
+      { tag: 'dsfr-data-list', attributes: [a('source', 'croise')] },
+    ],
+  };
+  const essai = (blocks: unknown[]) =>
+    jouer('reprendre-playground', [
+      reponse([{ name: 'add_blocks', args: { blocks } }]),
+      reponse([{ name: 'finish', args: { message: 'Code du Playground reconstruit.' } }]),
+    ]);
+
+  it('le message est celui que pose le Studio : consigne, source chargée, code', () => {
+    const message = scenario('reprendre-playground').messages[0];
+    expect(message).toContain('Reconstruisez fidèlement');
+    expect(message).toContain('composant libre');
+    expect(message).toContain('id « banc-reprendre-playground »');
+    expect(message).toContain('<dsfr-data-pivot id="croise"');
+  });
+
+  it('VERT : graphique guidé et pivot en bloc libre', async () => {
+    const r = evaluer(scenario('reprendre-playground'), await essai([GRAPHIQUE, LIBRE]));
+    expect(verdicts(r)).toMatchObject({
+      'blocs-attendus': 'ok',
+      'hors-schema': 'ok',
+      'bloc-non-demande': 'ok',
+      'code-valide': 'ok',
+      'fin-propre': 'ok',
+    });
+  });
+
+  it('ROUGE quand le pivot est remplacé par un tableau guidé (reconstruction infidèle)', async () => {
+    const r = verdicts(
+      evaluer(
+        scenario('reprendre-playground'),
+        await essai([GRAPHIQUE, { kind: 'chart', config: { type: 'datalist' } }])
+      )
+    );
+    expect(r['blocs-attendus']).toBe('echec');
+    expect(r['bloc-non-demande']).toBe('echec');
+  });
+
+  it('ROUGE quand le graphique est oublié', async () => {
+    const r = evaluer(scenario('reprendre-playground'), await essai([LIBRE]));
+    expect(verdicts(r)['blocs-attendus']).toBe('echec');
+  });
+});

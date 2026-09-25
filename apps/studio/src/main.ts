@@ -18,6 +18,7 @@ import {
   mountDiagnosticPanel,
   resolveTransport,
   recupererDiagnostic,
+  recupererPassationStudio,
   fetchServerConfig,
   rerankSkills,
   type MountedDiagnostic,
@@ -37,6 +38,11 @@ import {
   suggestionsPourChamps,
 } from './sources.js';
 import { chargerSourceDepuisUrl } from './source-url.js';
+import {
+  garderCodePourRetour,
+  monterRetourPlayground,
+  reprendreCodePlayground,
+} from './reprise-playground.js';
 import {
   addMessage,
   clearChat,
@@ -417,8 +423,10 @@ function init(): void {
     );
   }
 
-  // Passation « Construire pour moi dans le Studio » (#1016).
+  // Passation « Construire pour moi dans le Studio » (#1016) et « Envoyer au
+  // Studio IA » du Playground (#1132), puis son lien de retour.
   recupererDiagnosticTransmis();
+  monterRetourPlayground(new URLSearchParams(window.location.search).get('from'));
 }
 
 /**
@@ -428,9 +436,14 @@ function init(): void {
  * l'accompagner de sa question.
  */
 function injecterDiagnostic(texte: string, question = QUESTION_DIAGNOSTIC): void {
+  poserDansLeChamp(`${question}\n\n${texte}`);
+}
+
+/** Pose un message dans le champ du chat, sans l'envoyer. */
+function poserDansLeChamp(message: string): void {
   const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   if (!input) return;
-  input.value = `${question}\n\n${texte}`;
+  input.value = message;
   input.focus();
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
@@ -454,9 +467,33 @@ export const QUESTION_CONSTRUIRE =
  */
 export function recupererDiagnosticTransmis(): boolean {
   const texte = recupererDiagnostic();
+  // Code confié par le Playground (#1132) : source chargée, puis consigne de
+  // reconstruction fidèle — toujours posée, jamais envoyée.
+  const passation = recupererPassationStudio();
+  if (passation) {
+    garderCodePourRetour(passation.code);
+    repriseEnCours = reprendreCodePlayground(passation, texte, {
+      charger: (url, ressource) => chargerSourceDepuisUrl(url, { ressource }),
+      adopter: (source) => {
+        appliquerSource(source);
+        enregistrerSourceChargee(source);
+        renderPreview();
+      },
+      sourceCourante: () => state.source?.name ?? null,
+      annoncer: (annonce) => {
+        addMessage('assistant', annonce);
+        persistSession();
+      },
+      poser: (message) => poserDansLeChamp(message),
+    });
+    return true;
+  }
   if (!texte) return false;
   injecterDiagnostic(texte, QUESTION_CONSTRUIRE);
   return true;
 }
+
+/** Reprise d'un code du Playground en cours (tests : l'attendre). */
+export let repriseEnCours: Promise<unknown> | null = null;
 
 document.addEventListener('DOMContentLoaded', init);
