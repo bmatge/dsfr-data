@@ -315,6 +315,35 @@ interface BarreAvecAssistant extends HTMLElement {
 
 // ─── Montage ───────────────────────────────────────────────────────────
 
+/**
+ * Retours d'usage (bmatge/feedback-collector) : un tour de l'assistant contextuel est transmis au kit
+ * s'il est chargé sur la page (`window.fc`, instances de test seulement). Sans kit, rien ne se passe.
+ * Aucun import : le kit est optionnel et extérieur à la bibliothèque.
+ */
+function signalerTour(
+  question: string,
+  nouveaux: readonly MessageAssistant[],
+  dureeMs: number
+): void {
+  const fc = (globalThis as { fc?: { assistant?: { turn(t: unknown): unknown } } }).fc;
+  if (!fc?.assistant) return;
+  const reponses = nouveaux.filter((m) => m.role === 'assistant');
+  const erreur = nouveaux.find((m) => m.role === 'systeme' && m.erreur);
+  const reperes = reponses.flatMap((m) => m.reperes ?? []);
+  fc.assistant.turn({
+    question,
+    reponse: reponses.map((m) => m.texte).join('\n\n'),
+    modele:
+      reponses
+        .map((m) => m.source)
+        .filter(Boolean)
+        .join(',') || undefined,
+    outils: reperes.length ? [{ nom: 'reperes', resultat: reperes }] : undefined,
+    dureeMs,
+    erreur: erreur?.texte,
+  });
+}
+
 export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssistant {
   const { registre, adaptateur } = opts;
   const host = opts.host ?? document.body;
@@ -460,7 +489,20 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
 
   let controleur: AbortController | null = null;
 
+  /** Toute question posée, quel que soit le chemin (champ, suggestion, passation), est signalée au kit. */
   const poser = async (brute: string): Promise<void> => {
+    const avant = panel.messages.length;
+    const debut = Date.now();
+    try {
+      await poserSansSignal(brute);
+    } finally {
+      if (brute.trim()) {
+        signalerTour(brute.trim(), panel.messages.slice(avant), Date.now() - debut);
+      }
+    }
+  };
+
+  const poserSansSignal = async (brute: string): Promise<void> => {
     const question = brute.trim();
     if (!question) return;
     controleur?.abort();

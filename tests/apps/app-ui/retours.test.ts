@@ -1,6 +1,7 @@
 /**
- * Retours d'usage du Studio : le kit ne se charge que sur les déploiements déclarés
- * (chartsbeta), la production reste intacte, et l'utilisateur n'est transmis qu'haché.
+ * Retours d'usage (toutes les pages, via <app-header>) : le kit ne se charge que sur les
+ * déploiements déclarés (chartsbeta), une seule fois même entre bundles, la production reste
+ * intacte, et l'utilisateur n'est transmis qu'haché.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -16,7 +17,7 @@ vi.mock('@dsfr-data/shared', () => ({
 
 async function charger() {
   vi.resetModules();
-  return import('../../../apps/studio/src/retours');
+  return import('../../../packages/app-ui/src/retours');
 }
 
 // Les <script> ajoutés sont interceptés : aucun téléchargement réel pendant les tests.
@@ -24,11 +25,12 @@ let ajoutes: HTMLScriptElement[] = [];
 const scriptsDuKit = () =>
   ajoutes.filter((s) => s.src.startsWith('https://feedback-collector.lab.miweb.run/'));
 
-describe('retours d’usage du Studio', () => {
+describe('retours d’usage de chartsbuilder', () => {
   beforeEach(() => {
     auth.user = null;
     auth.ecouteurs = [];
     delete window.fc;
+    delete (window as { __dsfrDataRetours?: boolean }).__dsfrDataRetours;
     ajoutes = [];
     vi.spyOn(document.head, 'appendChild').mockImplementation(<T extends Node>(n: T): T => {
       ajoutes.push(n as unknown as HTMLScriptElement);
@@ -46,6 +48,27 @@ describe('retours d’usage du Studio', () => {
     expect(initRetours('chartsbuilder.miweb.run')).toBe(false);
     expect(initRetours('localhost')).toBe(false);
     expect(scriptsDuKit()).toHaveLength(0);
+  });
+
+  it('une seule fois, même si un second bundle réimporte le module', async () => {
+    const a = await charger();
+    expect(a.initRetours('chartsbeta.lab.miweb.run')).toBe(true);
+    const b = await charger(); // vi.resetModules : nouvelle copie du module, comme un autre bundle
+    expect(b.initRetours('chartsbeta.lab.miweb.run')).toBe(false);
+    expect(scriptsDuKit()).toHaveLength(1);
+  });
+
+  it('propose les types de tâche de tout le site', async () => {
+    const { TACHES } = await charger();
+    expect(TACHES.map((t) => t.id)).toEqual([
+      'graphique-csv',
+      'dataviz-jeu-en-ligne',
+      'carte',
+      'tableau-de-bord',
+      'integrer',
+      'reprendre',
+      'comprendre',
+    ]);
   });
 
   it('les appels sont sans effet quand le kit n’est pas chargé', async () => {

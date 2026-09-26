@@ -42,3 +42,4 @@ export { AppMenu } from './app-menu.js';
 export { AppDiagnosticPanel, injectAppDiagnosticStyles } from './app-diagnostic-panel.js';
 export { AppAssistant, injectAppAssistantStyles } from './app-assistant.js';
 export { injectAppPrimitives } from './app-primitives.js';
+export { initRetours, retours, TACHES } from './retours.js';
