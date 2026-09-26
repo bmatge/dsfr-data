@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { checkAuth, logout, onAuthChange, isDbMode, onSyncStatusChange } from '@dsfr-data/shared';
 import type { User, SyncStatus } from '@dsfr-data/shared';
 import { injectAppPrimitives } from './app-primitives.js';
+import { initRetours } from './retours.js';
 import { PINNED } from './chrome-breakpoints.js';
 // Version injectee au build par define (#306) — plus d'import vers core
 declare const __DSFR_DATA_VERSION__: string;
@@ -244,6 +245,8 @@ export class AppHeader extends LitElement {
     }
     injectAppPrimitives();
     injectAppHeaderStyles();
+    // Retours d'usage (feedback-collector) : toutes les pages, sur les seuls hôtes déclarés.
+    initRetours();
     try {
       this._reduitManuel = localStorage.getItem(CLE_ENTETE_REDUITE) === '1';
     } catch {

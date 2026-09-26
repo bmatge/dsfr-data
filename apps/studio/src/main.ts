@@ -29,7 +29,7 @@ import {
 import type { DashboardData } from '@dsfr-data/shared';
 import './styles/studio.css';
 import { state } from './state.js';
-import { initRetours, retours } from './retours.js';
+import { retours } from './retours.js';
 import {
   appliquerSource,
   enregistrerSourceChargee,
@@ -400,8 +400,6 @@ function envoyerTexte(texte: string): void {
 }
 
 function init(): void {
-  // Retours d'usage : chargé seulement sur les déploiements déclarés (chartsbeta), sans effet ailleurs.
-  initRetours();
   // Volet Diagnostic (#606) — l'aperçu du Studio EST l'export : de vrais
   // composants dans une iframe srcdoc, donc un pipeline pleinement observable.
   // Seule app avec le Studio à porter un chat : le diagnostic peut partir

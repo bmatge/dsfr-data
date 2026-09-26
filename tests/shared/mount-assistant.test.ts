@@ -102,6 +102,60 @@ async function rendu(): Promise<void> {
 
 // ─── Enchaînement de poser() ───────────────────────────────────────────
 
+describe('retours d’usage : chaque question est signalée au kit s’il est chargé', () => {
+  afterEach(() => {
+    delete (globalThis as { fc?: unknown }).fc;
+  });
+
+  it('sans kit, rien ne se passe', async () => {
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur({ pret: true }),
+    });
+    await expect(monte.poser('quelle heure est-il à Tokyo')).resolves.toBeUndefined();
+  });
+
+  it('avec kit : question, réponse, source, repères cités et erreur transmis', async () => {
+    const turn = vi.fn();
+    (globalThis as { fc?: unknown }).fc = { assistant: { turn } };
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur({ pret: true }),
+      repondre: async () => ({ texte: 'Voici.', montrer: 'carto.elements.clic.popup-mode' }),
+    });
+
+    await monte.poser('  quelle heure est-il à Tokyo  ');
+
+    expect(turn).toHaveBeenCalledTimes(1);
+    expect(turn.mock.calls[0][0]).toMatchObject({
+      question: 'quelle heure est-il à Tokyo',
+      reponse: 'Voici.',
+      modele: 'modele',
+      outils: [{ nom: 'reperes', resultat: ['carto.elements.clic.popup-mode'] }],
+    });
+    expect(typeof turn.mock.calls[0][0].dureeMs).toBe('number');
+  });
+
+  it('une erreur du modèle est transmise comme erreur du tour', async () => {
+    const turn = vi.fn();
+    (globalThis as { fc?: unknown }).fc = { assistant: { turn } };
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur({ pret: true }),
+      repondre: async () => {
+        throw new Error('429 Too Many Requests');
+      },
+    });
+
+    await monte.poser('quelle heure est-il à Tokyo');
+
+    expect(turn.mock.calls[0][0].erreur).toContain('429 Too Many Requests');
+  });
+});
+
 describe('poser() : la correspondance sans modèle d’abord', () => {
   it('« afficher les POI dans une fiche » montre le comportement au clic sans appeler le modèle', async () => {
     const repondre = vi.fn<(c: ContexteAssistant) => Promise<Reponse>>();
