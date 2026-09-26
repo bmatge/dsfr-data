@@ -28,16 +28,16 @@
     <a id="retour-playground-link" class="fr-link fr-icon-arrow-left-line fr-link--icon-left" href="../playground/index.html?from=studio">Retour au Playground</a>
   </p>
   <app-action-bar heading="Studio IA">
-    <button slot="help" id="tour-btn" class="fr-icon-question-line">Visite guidée</button>
-    <button slot="secondary" id="copy-code-btn" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <button slot="help" id="tour-btn" data-fc-ignorer class="fr-icon-question-line">Visite guidée</button>
+    <button slot="secondary" id="copy-code-btn" data-fc-ignorer class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
     <a slot="tertiary" id="open-dashboard-link" href="../dashboard/index.html" class="fr-icon-dashboard-3-line" title="Ouvrir ce tableau de bord dans l'éditeur">Ouvrir dans le tableau de bord</a>
-    <button slot="tertiary" id="save-favorite-btn" class="fr-icon-star-line">Ajouter aux favoris</button>
-    <button slot="tertiary" id="open-playground-btn" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
-    <button slot="tertiary" id="export-png-btn" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
-    <button slot="tertiary" id="export-jpg-btn" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
-    <button slot="tertiary" id="clear-chat" class="fr-icon-delete-line" title="Effacer la conversation et repartir de zéro">Effacer la conversation</button>
+    <button slot="tertiary" id="save-favorite-btn" data-fc-ignorer class="fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" data-fc-ignorer class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="export-png-btn" data-fc-ignorer class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" data-fc-ignorer class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
+    <button slot="tertiary" id="clear-chat" data-fc-ignorer class="fr-icon-delete-line" title="Effacer la conversation et repartir de zéro">Effacer la conversation</button>
     <button slot="tertiary" id="diagnostic-btn" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
-    <button slot="primary" id="save-dashboard-btn" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
+    <button slot="primary" id="save-dashboard-btn" data-fc-ignorer class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
   </app-action-bar>
 
   <app-layout-builder left-ratio="40">
@@ -141,7 +141,7 @@
             <textarea class="chat-input" id="chat-input"
                       placeholder="Décrivez le tableau de bord souhaité (collez votre texte éditorial si vous en avez)…"
                       rows="1"></textarea>
-            <button type="button" class="fr-btn fr-icon-send-plane-fill chat-send-btn" id="chat-send-btn" title="Envoyer">Envoyer</button>
+            <button type="button" class="fr-btn fr-icon-send-plane-fill chat-send-btn" id="chat-send-btn" data-fc-ignorer title="Envoyer">Envoyer</button>
           </div>
           <p class="chat-input-hint">Entrée pour envoyer · Maj + Entrée pour un saut de ligne</p>
         </div>
