@@ -200,7 +200,8 @@ async function sendMessage(): Promise<void> {
     retours.tour({
       question: text,
       reponse: result.text,
-      outils: result.steps.map((nom) => ({ nom })),
+      outils: result.appels,
+      fin: result.fin,
       modele,
       dureeMs: Math.round(performance.now() - debut),
     });
