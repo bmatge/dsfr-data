@@ -21,6 +21,18 @@ export const DEPLOIEMENTS: Readonly<Record<string, { app: string; key: string }>
   'chartsbeta.lab.miweb.run': { app: 'chartsbeta', key: 'Ix_H0YV03otvXW5osPqYCHe4' }, // gitleaks:allow
 };
 
+/** Types de tâche proposés dans le volet testeur (« Autre », en texte libre, est ajouté par le kit). */
+export const TACHES_STUDIO = [
+  { id: 'graphique-csv', libelle: 'Un graphique simple depuis un fichier CSV' },
+  {
+    id: 'dataviz-jeu-en-ligne',
+    libelle: 'Une dataviz depuis un jeu de données en ligne (data.gouv, ODS…)',
+  },
+  { id: 'tableau-de-bord', libelle: 'Un tableau de bord complet' },
+  { id: 'reprendre', libelle: 'Reprendre ou modifier un travail existant' },
+  { id: 'decouvrir', libelle: 'Découvrir l’outil' },
+] as const;
+
 type Props = Record<string, string | number | boolean | null>;
 
 export interface TourAssistant {
@@ -75,7 +87,14 @@ export function initRetours(hote?: string): boolean {
   script.src = `${COLLECTEUR}/kit.js`;
   script.async = true;
   script.onload = () => {
-    window.fc?.init({ ...cfg, endpoint: COLLECTEUR, assistant: true });
+    window.fc?.init({
+      ...cfg,
+      endpoint: COLLECTEUR,
+      assistant: true,
+      taches: TACHES_STUDIO,
+      // Au-dessus de la barre « Diagnostic » fixée en bas de l'écran.
+      decalage: '3.5rem',
+    });
     void identifier(getUser());
     onAuthChange((etat) => void identifier(etat.user));
   };
