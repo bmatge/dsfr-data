@@ -31,17 +31,17 @@
        historiques conservés (#generate-btn, #footer-copy-btn, #restart-tour-btn) ;
        les actions du tablist d'aperçu (Playground / Favoris / Image) la rejoignent. -->
   <app-action-bar heading="Créer un graphique" data-zone="builder.actions" data-repere-libelle="Barre d'actions" reason-host="#preview-aside">
-    <button slot="help" id="restart-tour-btn" data-repere="builder.actions.visite" class="fr-icon-question-line" title="Revoir la visite guidée">Visite guidée</button>
-    <button slot="secondary" id="footer-copy-btn" data-repere="builder.actions.copier" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
-    <button slot="tertiary" id="save-favorite-btn" data-repere="builder.actions.favori" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
-    <button slot="tertiary" id="open-playground-btn" data-repere="builder.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
-    <button slot="tertiary" id="open-pipeline-btn" data-repere="builder.actions.pipeline" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants">Ouvrir dans le Pipeline</button>
-    <button slot="tertiary" id="export-png-btn" data-repere="builder.actions.png" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
-    <button slot="tertiary" id="export-jpg-btn" data-repere="builder.actions.jpg" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
-    <button slot="tertiary" id="diagnostic-btn" data-repere="builder.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <button slot="help" id="restart-tour-btn" data-fc="relancer-visite" data-repere="builder.actions.visite" class="fr-icon-question-line" title="Revoir la visite guidée">Visite guidée</button>
+    <button slot="secondary" id="footer-copy-btn" data-fc="copier-code" data-repere="builder.actions.copier" class="fr-icon-clipboard-line fr-btn--icon-left" title="Copier le code généré">Copier le code</button>
+    <button slot="tertiary" id="save-favorite-btn" data-fc="ajouter-favori" data-repere="builder.actions.favori" class="preview-panel-save-btn fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" data-fc="ouvrir-playground" data-repere="builder.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code généré dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="open-pipeline-btn" data-fc="ouvrir-pipeline" data-repere="builder.actions.pipeline" class="fr-icon-git-branch-line" title="Visualiser le pipeline de composants">Ouvrir dans le Pipeline</button>
+    <button slot="tertiary" id="export-png-btn" data-fc="exporter-png" data-repere="builder.actions.png" class="fr-icon-image-line" title="Exporter l'aperçu en PNG">Exporter en PNG</button>
+    <button slot="tertiary" id="export-jpg-btn" data-fc="exporter-jpg" data-repere="builder.actions.jpg" class="fr-icon-image-line" title="Exporter l'aperçu en JPG">Exporter en JPG</button>
+    <button slot="tertiary" id="diagnostic-btn" data-fc="ouvrir-diagnostic" data-repere="builder.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
     <!-- Assistant contextuel (#1017, #1018) : déclaré ici pour porter son repère. -->
-    <button slot="tertiary" id="assistant-btn" data-repere="builder.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
-    <button slot="primary" id="generate-btn" data-repere="builder.actions.generer" data-prerequis="source-chargee champs-choisis" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
+    <button slot="tertiary" id="assistant-btn" data-fc="ouvrir-assistant" data-repere="builder.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
+    <button slot="primary" id="generate-btn" data-fc="generer" data-repere="builder.actions.generer" data-prerequis="source-chargee champs-choisis" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 
   <app-layout-builder mode="fullscreen" left-ratio="38" min-right-width="480">
@@ -195,7 +195,7 @@
         <!-- Séries supplementaires (affiches conditionnellement) -->
         <div id="extra-series-group" data-zone="builder.donnees.series" data-repere-libelle="Séries supplémentaires" style="display: none;">
           <div id="extra-series-container"></div>
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn" data-repere="builder.donnees.series.ajouter" data-attribut="dsfr-data-chart:value-fields" data-prerequis="type-multi-series source-chargee champs-choisis">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn" data-fc="ajouter-serie" data-repere="builder.donnees.series.ajouter" data-attribut="dsfr-data-chart:value-fields" data-prerequis="type-multi-series source-chargee champs-choisis">
             <i class="ri-add-line"></i> Ajouter une série
           </button>
         </div>
@@ -292,7 +292,7 @@
             <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline filters-zone__mode" id="filters-mode-toggle" data-repere="builder.donnees.filtres.mode">Mode texte (expert)</button>
           </div>
           <div id="filters-visual"></div>
-          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left" id="add-filter-btn" data-repere="builder.donnees.filtres.ajouter" data-attribut="dsfr-data-query:filter" data-prerequis="source-chargee">
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left" id="add-filter-btn" data-fc="ajouter-filtre" data-repere="builder.donnees.filtres.ajouter" data-attribut="dsfr-data-query:filter" data-prerequis="source-chargee">
             <i class="ri-add-line"></i> Ajouter un filtre
           </button>
           <div id="filters-text" hidden>
@@ -366,7 +366,7 @@
               </div>
             </div>
           </fieldset>
-          <button class="fr-btn fr-btn--secondary fr-btn--sm fr-mt-1w fr-icon-settings-5-line fr-btn--icon-left" id="datalist-columns-btn" data-repere="builder.donnees.tableau.configurer" data-attribut="dsfr-data-list:columns" data-prerequis="source-chargee" type="button">
+          <button class="fr-btn fr-btn--secondary fr-btn--sm fr-mt-1w fr-icon-settings-5-line fr-btn--icon-left" id="datalist-columns-btn" data-fc="choisir-colonnes" data-repere="builder.donnees.tableau.configurer" data-attribut="dsfr-data-list:columns" data-prerequis="source-chargee" type="button">
             Configurer les colonnes
           </button>
         </div>
@@ -763,7 +763,7 @@
       <!-- Onglet Code -->
       <div slot="code" data-zone="builder.code" data-repere-libelle="Code">
         <p class="fr-text--sm">Copiez ce code pour l'integrer dans votre page :</p>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="copy-code-btn" data-repere="builder.code.copier">
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="copy-code-btn" data-fc="copier-code" data-repere="builder.code.copier">
           <i class="ri-file-copy-line"></i> Copier le code
         </button>
         <pre class="code-output" id="generated-code">// Le code sera généré ici...</pre>
