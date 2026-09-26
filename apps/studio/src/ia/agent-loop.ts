@@ -164,12 +164,34 @@ export interface StudioLoopOptions {
   extra?: Record<string, unknown>;
 }
 
+/**
+ * Un appel d'outil tel qu'exécuté (retours d'usage, bmatge/feedback-collector#11) : ce que
+ * l'assistant a décidé, avec quoi, et ce que l'outil a répondu. Le résultat est tronqué
+ * (les lectures de données ou de skills peuvent peser des dizaines de ko).
+ */
+export interface AppelOutil {
+  nom: string;
+  arguments: Record<string, unknown>;
+  resultat?: string;
+  erreur?: string;
+  dureeMs: number;
+}
+
 export interface StudioLoopResult {
   text: string;
   steps: string[];
   /** Nombre d'actions de document effectivement appliquees. */
   applied: number;
+  /** Appels d'outils exécutés, dans l'ordre. */
+  appels: AppelOutil[];
+  /** Pourquoi la boucle s'est arrêtée (`terminal`, `plafond`, ou réponse sans outil). */
+  fin: string;
 }
+
+/** Taille gardée d'un résultat d'outil dans les retours d'usage. */
+const RESULTAT_MAX = 2000;
+export const tronquerResultat = (s: string): string =>
+  s.length > RESULTAT_MAX ? `${s.slice(0, RESULTAT_MAX)}… [${s.length} caractères]` : s;
 
 function humanizeStep(name: string, args: Record<string, unknown>): string {
   switch (name) {
@@ -337,8 +359,28 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
     return resumerChargement(resultat, conservees);
   };
 
-  /** Aiguillage des outils non terminaux : document, code, diagnostic, lookups. */
+  /** Chaque appel est consigné pour les retours d'usage, puis aiguillé. */
+  const appels: AppelOutil[] = [];
   const executer = async (name: string, args: Record<string, unknown>): Promise<string> => {
+    const debut = Date.now();
+    try {
+      const resultat = await aiguiller(name, args);
+      appels.push({
+        nom: name,
+        arguments: args,
+        resultat: tronquerResultat(resultat),
+        dureeMs: Date.now() - debut,
+      });
+      return resultat;
+    } catch (e) {
+      const erreur = e instanceof Error ? e.message : String(e);
+      appels.push({ nom: name, arguments: args, erreur, dureeMs: Date.now() - debut });
+      throw e;
+    }
+  };
+
+  /** Aiguillage des outils non terminaux : document, code, diagnostic, lookups. */
+  const aiguiller = async (name: string, args: Record<string, unknown>): Promise<string> => {
     if (name === 'charger_source_url') return chargerSource(args);
     if (DOCUMENT_TOOL_NAMES.has(name)) return applyDocumentTool(name, args);
     if (CODE_TOOL_NAMES.has(name)) {
@@ -372,6 +414,7 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   });
 
   const { steps } = result;
+  const fin: string = result.fin;
   // L'argument de finish écrit EN TEXTE (`{"message": "…"}`) au lieu d'un appel
   // d'outil (#1123) : c'est un finish, l'usager n'en voit que le message.
   const brut = texteAffichable(result.text);
@@ -390,17 +433,19 @@ export async function runStudioLoop(opts: StudioLoopOptions): Promise<StudioLoop
   switch (result.fin) {
     case 'terminal':
       // `finish` : son message, sinon le contenu du message (boucle commune).
-      return { text: text || 'Document mis à jour.', steps, applied };
+      return { text: text || 'Document mis à jour.', steps, applied, appels, fin };
     case 'plafond':
       // Budget épuisé : le document reflète les actions déjà appliquées.
       return {
         text: applied > 0 ? `${text || 'Document mis à jour.'}\n\n${describeDocument(doc)}` : text,
         steps,
         applied,
+        appels,
+        fin,
       };
     default:
       // Réponse sans outil (clarification, ou conclusion du dernier tour),
       // ou transport muet.
-      return { text, steps, applied };
+      return { text, steps, applied, appels, fin };
   }
 }

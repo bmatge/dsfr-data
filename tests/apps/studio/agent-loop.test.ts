@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { createEmptyDashboard } from '@dsfr-data/shared';
-import { runStudioLoop } from '../../../apps/studio/src/ia/agent-loop';
+import { runStudioLoop, tronquerResultat } from '../../../apps/studio/src/ia/agent-loop';
 import type { PostChat, OpenAIResponse } from '@dsfr-data/shared';
 
 const DATA = [
@@ -59,6 +59,31 @@ function baseOpts(post: PostChat, doc = createEmptyDashboard()) {
 }
 
 describe('studio/agent-loop', () => {
+  it('consigne chaque appel d’outil (nom, arguments, résultat, durée) et la fin de la boucle (feedback-collector#11)', async () => {
+    const post = scriptedPost([
+      toolCallMsg([
+        { name: 'inspect_data', args: {} },
+        { name: 'set_page', args: { name: 'Populations' } },
+      ]),
+      toolCallMsg([{ name: 'finish', args: { message: 'Fait.' } }]),
+    ]);
+    const res = await runStudioLoop(baseOpts(post));
+    expect(res.fin).toBe('terminal');
+    expect(res.appels.map((a) => a.nom)).toEqual(['inspect_data', 'set_page']);
+    expect(res.appels[1].arguments).toEqual({ name: 'Populations' });
+    expect(typeof res.appels[0].resultat).toBe('string');
+    expect(res.appels[0].resultat!.length).toBeGreaterThan(0);
+    expect(res.appels.every((a) => typeof a.dureeMs === 'number' && !a.erreur)).toBe(true);
+  });
+
+  it('tronque un résultat d’outil volumineux, en disant sa taille', () => {
+    expect(tronquerResultat('court')).toBe('court');
+    const long = 'x'.repeat(5000);
+    const r = tronquerResultat(long);
+    expect(r.startsWith('x'.repeat(2000))).toBe(true);
+    expect(r.endsWith('… [5000 caractères]')).toBe(true);
+  });
+
   it('applique un add_blocks batch puis termine sur finish', async () => {
     const doc = createEmptyDashboard();
     const changes: number[] = [];

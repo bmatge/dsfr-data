@@ -9,7 +9,16 @@ type Props = Record<string, string | number | boolean | null>;
 export interface TourAssistant {
   question?: string;
   reponse?: string;
-  outils?: { nom: string }[];
+  /** Appels d'outils : nom, arguments, résultat (tronqué), erreur, durée. */
+  outils?: {
+    nom: string;
+    arguments?: Record<string, unknown>;
+    resultat?: string;
+    erreur?: string;
+    dureeMs?: number;
+  }[];
+  /** Pourquoi la boucle s'est arrêtée (`terminal`, `plafond`…). */
+  fin?: string;
   modele?: string;
   dureeMs?: number;
   erreur?: string;
