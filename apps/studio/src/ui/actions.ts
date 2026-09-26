@@ -80,7 +80,6 @@ export async function ajouterAuxFavoris(
   saveToStorage(STORAGE_KEYS.FAVORITES, favoris);
   toastSuccess(`« ${nom} » ajouté aux favoris.`);
   retours.track('favori-ajoute');
-  retours.moment('succes-probable');
   return favori;
 }
 
@@ -110,11 +109,9 @@ export async function exporterImage(format: 'png' | 'jpg'): Promise<void> {
     if (!frame) throw new ImageExportError('iframe-inaccessible');
     await exportPreviewImage(frame, format, state.document.name || 'tableau-de-bord');
     retours.track('image-exportee', { format });
-    retours.moment('succes-probable');
   } catch (err) {
     if (!(err instanceof ImageExportError)) throw err;
     toastError(IMAGE_EXPORT_MESSAGES[err.reason]);
     retours.track('image-export-echec', { format, raison: err.reason });
-    retours.moment('erreur');
   }
 }

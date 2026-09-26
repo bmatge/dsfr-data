@@ -116,7 +116,6 @@ async function sendMessage(): Promise<void> {
   addMessage('user', text);
   state.isThinking = true;
   showThinking();
-  retours.track('message-envoye', { longueur: text.length });
   const debut = performance.now();
   let modele: string | undefined;
 
@@ -127,7 +126,6 @@ async function sendMessage(): Promise<void> {
       removeThinking();
       addMessage('assistant', MESSAGE_IA_NON_CONFIGUREE);
       retours.track('ia-non-configuree');
-      retours.moment('erreur');
       const section = document.getElementById('section-ia-config') as HTMLDetailsElement | null;
       if (section) section.open = true;
       return;
@@ -204,10 +202,7 @@ async function sendMessage(): Promise<void> {
       fin: result.fin,
       modele,
       dureeMs: Math.round(performance.now() - debut),
-    });
-    retours.track('assistant-reponse', {
-      blocsAppliques: result.applied,
-      etapes: result.steps.length,
+      blocs: result.applied,
     });
   } catch (err) {
     removeThinking();
@@ -219,8 +214,6 @@ async function sendMessage(): Promise<void> {
       dureeMs: Math.round(performance.now() - debut),
       erreur: message,
     });
-    retours.track('assistant-erreur');
-    retours.moment('erreur');
   } finally {
     state.isThinking = false;
     persistSession();
@@ -273,7 +266,6 @@ function saveDashboard(): void {
   saveToStorage(STORAGE_KEYS.DASHBOARDS, saved);
   toastSuccess(`« ${state.document.name} » enregistré — visible dans l'app Dashboard.`);
   retours.track('dashboard-enregistre', { blocs: state.document.widgets.length });
-  retours.moment('succes-probable');
 }
 
 /**
@@ -301,7 +293,6 @@ function copyCode(): void {
   void navigator.clipboard.writeText(code).then(() => {
     toastSuccess('Code copié !');
     retours.track('code-copie');
-    retours.moment('succes-probable');
   });
 }
 
