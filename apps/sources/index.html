@@ -36,7 +36,7 @@
     <div class="sources-page__head">
       <h1>Sources</h1>
       <div class="sources-page__actions" data-zone="sources.actions" data-repere-libelle="Actions sur les sources">
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="export-data-btn" data-repere="sources.actions.exporter" title="Exporter toutes les données">
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="export-data-btn" data-fc="exporter-donnees" data-repere="sources.actions.exporter" title="Exporter toutes les données">
           <i class="ri-download-line" aria-hidden="true"></i> Exporter
         </button>
         <label class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="import-data-btn" title="Importer des données" style="cursor:pointer;">
@@ -44,10 +44,10 @@
           <input type="file" id="import-data-file" data-repere="sources.actions.importer" accept=".json" style="display:none;">
         </label>
         <!-- Assistant contextuel (#1018) : guidage seul, la page n'a pas de volet Diagnostic. -->
-        <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="assistant-btn" data-repere="sources.actions.assistant" title="Ouvrir l'assistant : où se trouve un réglage" aria-expanded="false">
+        <button type="button" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline" id="assistant-btn" data-fc="ouvrir-assistant" data-repere="sources.actions.assistant" title="Ouvrir l'assistant : où se trouve un réglage" aria-expanded="false">
           <i class="ri-question-answer-line" aria-hidden="true"></i> Assistant
         </button>
-        <button class="fr-btn fr-btn--sm" id="add-connection-btn" data-repere="sources.actions.nouvelle-connexion">
+        <button class="fr-btn fr-btn--sm" id="add-connection-btn" data-fc="ajouter-connexion" data-repere="sources.actions.nouvelle-connexion">
           <i class="ri-add-line" aria-hidden="true"></i> Nouvelle connexion
         </button>
       </div>
@@ -85,8 +85,8 @@
     <div class="sources-locals">
       <div id="local-sources-list" class="sources-rows"></div>
       <div class="sources-locals__footer" data-zone="sources.locaux" data-repere-libelle="Jeux de données locaux">
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" id="add-source-btn" data-repere="sources.locaux.creer" type="button">Créer une source manuelle</button>
-        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-links-line fr-btn--icon-left" id="add-join-btn" data-repere="sources.locaux.joindre" type="button">Joindre deux sources
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" id="add-source-btn" data-fc="ajouter-source" data-repere="sources.locaux.creer" type="button">Créer une source manuelle</button>
+        <button class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-links-line fr-btn--icon-left" id="add-join-btn" data-fc="ajouter-jointure" data-repere="sources.locaux.joindre" type="button">Joindre deux sources
         </button>
       </div>
     </div>
@@ -116,22 +116,22 @@
       </div>
     </div>
     <div class="preview-panel__footer">
-      <button class="fr-btn fr-btn--sm" id="use-in-builder-btn" data-repere="sources.apercu.builder" data-prerequis="apercu-ouvert">
+      <button class="fr-btn fr-btn--sm" id="use-in-builder-btn" data-fc="utiliser-dans-builder" data-repere="sources.apercu.builder" data-prerequis="apercu-ouvert">
         <i class="ri-bar-chart-box-line" aria-hidden="true"></i> Utiliser dans le Builder
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-online-btn" data-repere="sources.apercu.en-ligne" data-prerequis="apercu-ouvert" style="display: none;" title="Requêté en direct — pour un graphique dynamique">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-online-btn" data-fc="ajouter-source-en-ligne" data-repere="sources.apercu.en-ligne" data-prerequis="apercu-ouvert" style="display: none;" title="Requêté en direct — pour un graphique dynamique">
         <i class="ri-cloud-line" aria-hidden="true"></i> En faire un jeu en ligne
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-local-btn" data-repere="sources.apercu.local" data-prerequis="apercu-ouvert" style="display: none;" title="Copie figée dans le projet">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="add-local-btn" data-fc="ajouter-source-locale" data-repere="sources.apercu.local" data-prerequis="apercu-ouvert" style="display: none;" title="Copie figée dans le projet">
         <i class="ri-download-line" aria-hidden="true"></i> En faire un jeu local
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" data-repere="sources.apercu.favori" data-prerequis="apercu-ouvert" style="display: none;">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="save-favorite-btn" data-fc="ajouter-favori" data-repere="sources.apercu.favori" data-prerequis="apercu-ouvert" style="display: none;">
         <i class="ri-star-line" aria-hidden="true"></i> Ajouter aux favoris
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" data-repere="sources.apercu.exporter-grist" data-prerequis="apercu-ouvert" style="display: none;">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary" id="export-grist-btn" data-fc="exporter-grist" data-repere="sources.apercu.exporter-grist" data-prerequis="apercu-ouvert" style="display: none;">
         <i class="ri-upload-cloud-line" aria-hidden="true"></i> Exporter vers Grist
       </button>
-      <button class="fr-btn fr-btn--sm fr-btn--secondary preview-panel__refresh" id="refresh-btn" data-repere="sources.apercu.actualiser" data-prerequis="apercu-ouvert">
+      <button class="fr-btn fr-btn--sm fr-btn--secondary preview-panel__refresh" id="refresh-btn" data-fc="rafraichir" data-repere="sources.apercu.actualiser" data-prerequis="apercu-ouvert">
         <i class="ri-refresh-line" aria-hidden="true"></i> Actualiser
       </button>
     </div>
@@ -285,8 +285,8 @@
       </div>
       <div class="modal-footer">
         <button class="fr-btn fr-btn--secondary" data-repere="sources.connexion.annuler" onclick="closeModal('connection-modal')">Annuler</button>
-        <button class="fr-btn" id="detect-continue-btn" data-repere="sources.connexion.continuer">Continuer</button>
-        <button class="fr-btn" id="save-connection-btn" data-repere="sources.connexion.enregistrer" style="display: none;">Tester et sauvegarder</button>
+        <button class="fr-btn" id="detect-continue-btn" data-fc="detection-continuer" data-repere="sources.connexion.continuer">Continuer</button>
+        <button class="fr-btn" id="save-connection-btn" data-fc="enregistrer-connexion" data-repere="sources.connexion.enregistrer" style="display: none;">Tester et sauvegarder</button>
       </div>
     </div>
   </div>
@@ -484,7 +484,7 @@
       </div>
       <div class="modal-footer">
         <button class="fr-btn fr-btn--secondary" data-repere="sources.jointure.annuler" onclick="closeModal('join-source-modal')">Annuler</button>
-        <button class="fr-btn" id="save-join-btn" data-repere="sources.jointure.enregistrer" data-prerequis="deux-sources-locales">Joindre et sauvegarder</button>
+        <button class="fr-btn" id="save-join-btn" data-fc="enregistrer-jointure" data-repere="sources.jointure.enregistrer" data-prerequis="deux-sources-locales">Joindre et sauvegarder</button>
       </div>
     </div>
   </div>
@@ -630,7 +630,7 @@
       </div>
       <div class="modal-footer">
         <button class="fr-btn fr-btn--secondary" data-repere="sources.manuelle.annuler" onclick="closeManualSourceModal()">Annuler</button>
-        <button class="fr-btn" id="save-source-btn" data-repere="sources.manuelle.enregistrer">Enregistrer</button>
+        <button class="fr-btn" id="save-source-btn" data-fc="enregistrer-source" data-repere="sources.manuelle.enregistrer">Enregistrer</button>
       </div>
     </div>
   </div>

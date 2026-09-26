@@ -31,15 +31,15 @@
        #btn-preview) ; le titre éditable et les templates restent dans la
        barre d'outils du canevas (.vde-toolbar). -->
   <app-action-bar heading="Créer un tableau de bord" data-zone="dashboard.actions" data-repere-libelle="Barre d'actions">
-    <button slot="help" id="tour-btn" data-repere="dashboard.actions.visite" class="fr-icon-question-line">Visite guidée</button>
-    <button slot="secondary" id="btn-load" data-repere="dashboard.actions.ouvrir" class="fr-icon-folder-2-line fr-btn--icon-left" title="Ouvrir un tableau de bord enregistré">Ouvrir</button>
-    <button slot="tertiary" id="btn-export" data-repere="dashboard.actions.exporter" class="fr-icon-download-line" title="Télécharger le tableau de bord en page HTML autonome">Exporter la page HTML</button>
-    <button slot="tertiary" id="btn-preview" data-repere="dashboard.actions.plein-ecran" class="fr-icon-fullscreen-line" title="Afficher l'aperçu en plein écran">Plein écran</button>
-    <button slot="tertiary" id="btn-new" data-repere="dashboard.actions.nouveau" class="fr-icon-add-line" title="Repartir d'un tableau de bord vierge">Nouveau</button>
-    <button slot="tertiary" id="diagnostic-btn" data-repere="dashboard.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <button slot="help" id="tour-btn" data-fc="relancer-visite" data-repere="dashboard.actions.visite" class="fr-icon-question-line">Visite guidée</button>
+    <button slot="secondary" id="btn-load" data-fc="ouvrir-tableau" data-repere="dashboard.actions.ouvrir" class="fr-icon-folder-2-line fr-btn--icon-left" title="Ouvrir un tableau de bord enregistré">Ouvrir</button>
+    <button slot="tertiary" id="btn-export" data-fc="exporter" data-repere="dashboard.actions.exporter" class="fr-icon-download-line" title="Télécharger le tableau de bord en page HTML autonome">Exporter la page HTML</button>
+    <button slot="tertiary" id="btn-preview" data-fc="previsualiser" data-repere="dashboard.actions.plein-ecran" class="fr-icon-fullscreen-line" title="Afficher l'aperçu en plein écran">Plein écran</button>
+    <button slot="tertiary" id="btn-new" data-fc="nouveau-tableau" data-repere="dashboard.actions.nouveau" class="fr-icon-add-line" title="Repartir d'un tableau de bord vierge">Nouveau</button>
+    <button slot="tertiary" id="diagnostic-btn" data-fc="ouvrir-diagnostic" data-repere="dashboard.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
     <!-- Assistant contextuel (#1017, #1018) : déclaré ici pour porter son repère. -->
-    <button slot="tertiary" id="assistant-btn" data-repere="dashboard.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
-    <button slot="primary" id="btn-save" data-repere="dashboard.actions.enregistrer" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
+    <button slot="tertiary" id="assistant-btn" data-fc="ouvrir-assistant" data-repere="dashboard.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
+    <button slot="primary" id="btn-save" data-fc="enregistrer-tableau" data-repere="dashboard.actions.enregistrer" class="fr-icon-save-line fr-btn--icon-left">Enregistrer</button>
   </app-action-bar>
 
   <div class="vde-container">
@@ -107,7 +107,7 @@
         <div id="sources-list">
           <p class="favorites-empty">Aucune source</p>
         </div>
-        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w" id="add-source-btn" data-repere="dashboard.sources.ajouter">
+        <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mt-1w" id="add-source-btn" data-fc="ajouter-source" data-repere="dashboard.sources.ajouter">
           <i class="ri-add-line"></i> Ajouter une source
         </button>
         </div>
@@ -131,10 +131,10 @@
             <button type="button" id="tab-design-btn" data-repere="dashboard.canevas.onglet-apercu" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="tab-design">Aperçu</button>
           </li>
           <li role="presentation">
-            <button type="button" id="tab-code-btn" data-repere="dashboard.canevas.onglet-code" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-code">Code</button>
+            <button type="button" id="tab-code-btn" data-fc="onglet-code" data-repere="dashboard.canevas.onglet-code" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-code">Code</button>
           </li>
           <li role="presentation">
-            <button type="button" id="tab-json-btn" data-repere="dashboard.canevas.onglet-json" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-json">JSON</button>
+            <button type="button" id="tab-json-btn" data-fc="onglet-json" data-repere="dashboard.canevas.onglet-json" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="tab-json">JSON</button>
           </li>
         </ul>
         <!-- À droite sur la ligne des onglets : modèles de tableau de bord -->
@@ -173,7 +173,7 @@
               </div>
             </div>
 
-            <button type="button" class="add-row-btn app-card-choice app-card-choice--dashed" id="add-row-btn" data-repere="dashboard.canevas.ajouter-ligne">
+            <button type="button" class="add-row-btn app-card-choice app-card-choice--dashed" id="add-row-btn" data-fc="ajouter-ligne" data-repere="dashboard.canevas.ajouter-ligne">
               <i class="ri-add-line" aria-hidden="true"></i> Ajouter une ligne
             </button>
           </div>
@@ -205,7 +205,7 @@
       </div>
       <div class="config-modal-footer">
         <button class="fr-btn fr-btn--secondary" id="cancel-config" data-repere="dashboard.widget.annuler">Annuler</button>
-        <button class="fr-btn" id="apply-config" data-repere="dashboard.widget.appliquer">Appliquer</button>
+        <button class="fr-btn" id="apply-config" data-fc="appliquer-configuration" data-repere="dashboard.widget.appliquer">Appliquer</button>
       </div>
     </div>
   </div>
@@ -242,7 +242,7 @@
       </div>
       <div class="config-modal-footer">
         <button class="fr-btn fr-btn--secondary" id="cancel-save" data-repere="dashboard.enregistrement.annuler">Annuler</button>
-        <button class="fr-btn fr-icon-save-line fr-btn--icon-left" id="confirm-save" data-repere="dashboard.enregistrement.confirmer">Enregistrer</button>
+        <button class="fr-btn fr-icon-save-line fr-btn--icon-left" id="confirm-save" data-fc="confirmer-enregistrement" data-repere="dashboard.enregistrement.confirmer">Enregistrer</button>
       </div>
     </div>
   </div>

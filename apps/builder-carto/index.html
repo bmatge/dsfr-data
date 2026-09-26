@@ -18,15 +18,15 @@
        historiques conservés (#btn-execute, #btn-export, #btn-reset) ; la
        modale « code » reste jusqu'au PreviewPanel du lot 4 (#541). -->
   <app-action-bar heading="Créer une carte" data-zone="carto.actions" data-repere-libelle="Barre d'actions">
-    <button slot="help" id="tour-btn" data-repere="carto.actions.visite" class="fr-icon-question-line">Visite guidée</button>
-    <button slot="secondary" id="btn-export" data-repere="carto.actions.exporter" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
-    <button slot="tertiary" id="save-favorite-btn" data-repere="carto.actions.favori" class="fr-icon-star-line">Ajouter aux favoris</button>
-    <button slot="tertiary" id="open-playground-btn" data-repere="carto.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code de la carte dans le Playground">Ouvrir dans le Playground</button>
-    <button slot="tertiary" id="btn-reset" data-repere="carto.actions.reinitialiser" class="fr-icon-add-line" title="Repartir d'une carte vierge">Nouveau</button>
-    <button slot="tertiary" id="diagnostic-btn" data-repere="carto.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
+    <button slot="help" id="tour-btn" data-fc="relancer-visite" data-repere="carto.actions.visite" class="fr-icon-question-line">Visite guidée</button>
+    <button slot="secondary" id="btn-export" data-fc="exporter" data-repere="carto.actions.exporter" class="fr-icon-clipboard-line fr-btn--icon-left">Copier le code</button>
+    <button slot="tertiary" id="save-favorite-btn" data-fc="ajouter-favori" data-repere="carto.actions.favori" class="fr-icon-star-line">Ajouter aux favoris</button>
+    <button slot="tertiary" id="open-playground-btn" data-fc="ouvrir-playground" data-repere="carto.actions.playground" class="fr-icon-code-s-slash-line" title="Ouvrir le code de la carte dans le Playground">Ouvrir dans le Playground</button>
+    <button slot="tertiary" id="btn-reset" data-fc="reinitialiser" data-repere="carto.actions.reinitialiser" class="fr-icon-add-line" title="Repartir d'une carte vierge">Nouveau</button>
+    <button slot="tertiary" id="diagnostic-btn" data-fc="ouvrir-diagnostic" data-repere="carto.actions.diagnostic" class="fr-icon-tools-line" title="Ouvrir le volet Diagnostic : ce qui transite entre les composants du pipeline">Diagnostic</button>
     <!-- Assistant contextuel (#1016) : déclaré ici, pas ajouté par mountAssistant(), pour porter son repère. -->
-    <button slot="tertiary" id="assistant-btn" data-repere="carto.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
-    <button slot="primary" id="btn-execute" data-repere="carto.actions.generer" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
+    <button slot="tertiary" id="assistant-btn" data-fc="ouvrir-assistant" data-repere="carto.actions.assistant" class="fr-icon-question-answer-line" title="Ouvrir l'assistant : où se trouve un réglage, ce qu'il faut corriger" aria-expanded="false">Assistant</button>
+    <button slot="primary" id="btn-execute" data-fc="executer" data-repere="carto.actions.generer" class="fr-icon-play-line fr-btn--icon-left">Générer</button>
   </app-action-bar>
 
   <!-- Onglets DSFR natifs Aperçu · Code (lot UX 4 #541) : la carte reste en
@@ -38,7 +38,7 @@
         <button type="button" id="carto-tab-preview-btn" class="fr-tabs__tab" tabindex="0" role="tab" aria-selected="true" aria-controls="carto-tab-preview">Aperçu</button>
       </li>
       <li role="presentation">
-        <button type="button" id="carto-tab-code-btn" data-repere="carto.code.onglet" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="carto-tab-code">Code</button>
+        <button type="button" id="carto-tab-code-btn" data-fc="onglet-code" data-repere="carto.code.onglet" class="fr-tabs__tab" tabindex="-1" role="tab" aria-selected="false" aria-controls="carto-tab-code">Code</button>
       </li>
     </ul>
     <div id="carto-tab-preview" class="fr-tabs__panel fr-tabs__panel--selected carto-tabs__panel" role="tabpanel" aria-labelledby="carto-tab-preview-btn" tabindex="0">
@@ -87,7 +87,7 @@
       <section class="carto-panel" id="panel-couches" aria-label="Couches de données" data-zone="carto.couches">
         <div class="carto-panel__header">
           <h2 class="carto-panel__title" id="panel-couches-titre">Couches</h2>
-          <button id="btn-add-layer" data-repere="carto.couches.ajouter" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
+          <button id="btn-add-layer" data-fc="ajouter-couche" data-repere="carto.couches.ajouter" class="fr-btn fr-btn--sm fr-btn--tertiary-no-outline fr-icon-add-line fr-btn--icon-left" type="button" title="Ajouter une couche">Ajouter</button>
           <button class="carto-panel__replier app-btn--icon app-btn--icon--sm app-btn--icon--muted" type="button" data-volet-replier
                   title="Replier le volet" aria-label="Replier le volet Couches">
             <i class="ri-arrow-left-s-line" aria-hidden="true"></i>
