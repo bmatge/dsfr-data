@@ -74,7 +74,12 @@ describe('retours d’usage du Studio', () => {
     };
     script.onload?.(new Event('load'));
     expect(init).toHaveBeenCalledWith(
-      expect.objectContaining({ app: 'chartsbeta', endpoint: COLLECTEUR, assistant: true })
+      expect.objectContaining({
+        app: 'chartsbeta',
+        endpoint: COLLECTEUR,
+        assistant: true,
+        taches: expect.arrayContaining([expect.objectContaining({ id: 'tableau-de-bord' })]),
+      })
     );
   });
 
