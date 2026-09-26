@@ -19,6 +19,8 @@ export interface TourAssistant {
   }[];
   /** Pourquoi la boucle s'est arrêtée (`terminal`, `plafond`…). */
   fin?: string;
+  /** Nombre de blocs du document effectivement appliqués pendant le tour. */
+  blocs?: number;
   modele?: string;
   dureeMs?: number;
   erreur?: string;
@@ -27,7 +29,6 @@ export interface TourAssistant {
 /** Le peu que le Studio utilise du kit. */
 interface Kit {
   track(nom: string, props?: Props): unknown;
-  moment(nom: string): unknown;
   assistant: { turn(t: TourAssistant): unknown };
 }
 
@@ -36,9 +37,6 @@ const kit = (): Kit | undefined => (window as unknown as { fc?: Kit }).fc;
 export const retours = {
   track(nom: string, props?: Props): void {
     kit()?.track(nom, props);
-  },
-  moment(nom: 'succes-probable' | 'erreur'): void {
-    kit()?.moment(nom);
   },
   tour(t: TourAssistant): void {
     kit()?.assistant.turn(t);
