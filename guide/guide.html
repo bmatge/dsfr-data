@@ -27,6 +27,7 @@
     .guide-content li { margin-bottom: 0.25rem; }
     .guide-content .fr-card__img img { margin: 0; border: 0; border-radius: 0; }
     #videos { scroll-margin-top: 7rem; }
+    .guide-content #reglages .fr-accordion__title { border-top: none; margin-top: 0; padding-top: 0; }
     .guide-video-principale video { display: block; width: 100%; height: auto; background: #000; border: 1px solid var(--border-default-grey); border-radius: 4px; }
     .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
   </style>
@@ -57,6 +58,35 @@
           <p class="fr-text--lead">
             ChartsBuilder permet à tout agent public de transformer une donnée ouverte en graphique dynamique, accessible et conforme au Système de design de l'État. Ce guide présente ses outils et la bibliothèque libre <strong>dsfr-data</strong> sur laquelle il repose.
           </p>
+
+          <section class="fr-accordion fr-mb-4w" id="reglages">
+            <h2 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="reglages-contenu">Réglages : visites guidées et jeux de démonstration</button>
+            </h2>
+            <div class="fr-collapse" id="reglages-contenu">
+              <div id="tours-panel">
+                <p class="fr-mb-1w">Chaque outil propose une visite guidée, lancée une seule fois automatiquement ; vous pouvez la relancer ou la réinitialiser ici.</p>
+                <div class="fr-toggle">
+                  <input type="checkbox" class="fr-toggle__input" id="tours-disabled-toggle">
+                  <label class="fr-toggle__label" for="tours-disabled-toggle">
+                    Désactiver toutes les visites guidées
+                    <span class="fr-hint-text">Elles ne démarreront plus automatiquement ; le tableau ci-dessous permet toujours de les relancer.</span>
+                  </label>
+                </div>
+                <div id="tours-table-container" class="fr-mt-2w"></div>
+              </div>
+              <div id="demo-datasets-panel" class="fr-mt-3w">
+                <div class="fr-toggle">
+                  <input type="checkbox" class="fr-toggle__input" id="demo-datasets-disabled-toggle">
+                  <label class="fr-toggle__label" for="demo-datasets-disabled-toggle">
+                    Masquer les jeux de données de démonstration
+                    <span class="fr-hint-text">Le Builder et le Studio IA ne proposeront plus les jeux d'exemple dans leurs sélecteurs de source (effectif au prochain chargement).</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+          <script src="guide-tours.js"></script>
 
           <h2 id="videos">Découvrir en vidéo</h2>
           <div class="guide-video-principale">
@@ -207,34 +237,6 @@
             </div>
           </div>
 
-          <section class="fr-accordion fr-mt-6w" id="reglages">
-            <h3 class="fr-accordion__title">
-              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="reglages-contenu">Réglages : visites guidées et jeux de démonstration</button>
-            </h3>
-            <div class="fr-collapse" id="reglages-contenu">
-              <div id="tours-panel">
-                <p class="fr-mb-1w">Chaque outil propose une visite guidée, lancée une seule fois automatiquement ; vous pouvez la relancer ou la réinitialiser ici.</p>
-                <div class="fr-toggle">
-                  <input type="checkbox" class="fr-toggle__input" id="tours-disabled-toggle">
-                  <label class="fr-toggle__label" for="tours-disabled-toggle">
-                    Désactiver toutes les visites guidées
-                    <span class="fr-hint-text">Elles ne démarreront plus automatiquement ; le tableau ci-dessous permet toujours de les relancer.</span>
-                  </label>
-                </div>
-                <div id="tours-table-container" class="fr-mt-2w"></div>
-              </div>
-              <div id="demo-datasets-panel" class="fr-mt-3w">
-                <div class="fr-toggle">
-                  <input type="checkbox" class="fr-toggle__input" id="demo-datasets-disabled-toggle">
-                  <label class="fr-toggle__label" for="demo-datasets-disabled-toggle">
-                    Masquer les jeux de données de démonstration
-                    <span class="fr-hint-text">Le Builder et le Studio IA ne proposeront plus les jeux d'exemple dans leurs sélecteurs de source (effectif au prochain chargement).</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </section>
-          <script src="guide-tours.js"></script>
         </section>
 
         <!-- Ressources -->
