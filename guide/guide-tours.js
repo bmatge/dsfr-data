@@ -133,7 +133,7 @@
     var table = document.createElement('table');
     var thead = document.createElement('thead');
     var headRow = document.createElement('tr');
-    ['Visite', 'Statut', 'Joue', 'Actions'].forEach(function (label) {
+    ['Visite', 'Statut', 'Jouée', 'Actions'].forEach(function (label) {
       var th = document.createElement('th');
       th.scope = 'col';
       th.textContent = label;
@@ -157,7 +157,7 @@
       badge.className = seen
         ? 'fr-badge fr-badge--success fr-badge--no-icon'
         : 'fr-badge fr-badge--info fr-badge--no-icon';
-      badge.textContent = seen ? 'Joue' : 'Non joue';
+      badge.textContent = seen ? 'Jouée' : 'Non jouée';
       tdStatus.appendChild(badge);
       tr.appendChild(tdStatus);
 
@@ -170,7 +170,7 @@
       toggleInput.className = 'fr-toggle__input';
       toggleInput.id = toggleId;
       toggleInput.checked = seen;
-      toggleInput.setAttribute('aria-label', 'Marquer la visite ' + tour.label + ' comme jouee');
+      toggleInput.setAttribute('aria-label', 'Marquer la visite ' + tour.label + ' comme jouée');
       toggleInput.addEventListener('change', function () {
         var current = loadState();
         if (toggleInput.checked) {

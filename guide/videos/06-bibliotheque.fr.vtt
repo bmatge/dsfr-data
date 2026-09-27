@@ -1,0 +1,143 @@
+WEBVTT
+
+1
+00:00:00.300 --> 00:00:04.274
+ChartsBuilder, c'est d'abord
+une bibliothèque : dsfr-data.
+
+2
+00:00:04.554 --> 00:00:08.497
+Voyons ce qu'elle offre à une
+intégratrice, dans n'importe quelle page.
+
+3
+00:00:09.597 --> 00:00:14.684
+Dans ChartsBuilder, le Playground : l'éditeur
+de code à gauche, l'aperçu à droite.
+
+4
+00:00:14.964 --> 00:00:18.720
+Je vide l'exemple chargé pour
+partir d'une page blanche.
+
+5
+00:00:20.083 --> 00:00:24.020
+Une balise source : OpenDataSoft,
+l'adresse du portail,
+
+6
+00:00:24.020 --> 00:00:26.668
+le jeu de données Industrie du futur.
+
+7
+00:00:26.948 --> 00:00:31.839
+Une balise requête : regrouper par
+région, additionner les bénéficiaires,
+
+8
+00:00:31.839 --> 00:00:33.715
+trier par ordre décroissant.
+
+9
+00:00:33.995 --> 00:00:38.269
+Une balise graphique, en barres, branchée
+sur la requête par son identifiant.
+
+10
+00:00:39.369 --> 00:00:44.572
+J'exécute : le graphique se dessine, dans
+le cadre officiel du Système de design de
+
+11
+00:00:44.572 --> 00:00:45.010
+l'État.
+
+12
+00:00:45.290 --> 00:00:50.651
+Le graphique du Builder, démonstration
+deux, sans une ligne de JavaScript.
+
+13
+00:00:51.752 --> 00:00:56.647
+Les composants se branchent par leur
+identifiant. Une balise accessibilité :
+
+14
+00:00:56.647 --> 00:00:59.030
+tableau équivalent et téléchargement.
+
+15
+00:00:59.310 --> 00:01:02.514
+Une balise recherche entre
+la source et la requête,
+
+16
+00:01:02.514 --> 00:01:04.649
+qui écoute désormais la recherche.
+
+17
+00:01:04.929 --> 00:01:08.528
+J'exécute. Sous le graphique,
+le bloc Accessibilité,
+
+18
+00:01:08.528 --> 00:01:12.128
+données et description, avec
+le tableau des valeurs.
+
+19
+00:01:12.408 --> 00:01:17.138
+Je tape Loire : le graphique se
+recalcule sur les deux régions trouvées.
+
+20
+00:01:18.391 --> 00:01:23.029
+Je copie mon code. Le volet
+Exemples en propose des dizaines,
+
+21
+00:01:23.029 --> 00:01:25.995
+filtrés par source, pipeline et sortie.
+
+22
+00:01:26.275 --> 00:01:31.090
+Sortie Carte : les centres de contrôle
+technique de la démonstration quatre,
+
+23
+00:01:31.090 --> 00:01:32.864
+cinq mille points regroupés.
+
+24
+00:01:34.256 --> 00:01:38.889
+Les specs, publiques sur l'instance,
+décrivent chaque composant et tous ses
+
+25
+00:01:38.889 --> 00:01:39.506
+attributs.
+
+26
+00:01:39.786 --> 00:01:44.116
+La bibliothèque est libre,
+licence MIT : un paquet npm,
+
+27
+00:01:44.116 --> 00:01:49.706
+un dépôt GitHub, et les mêmes trois
+balises en tête de sa présentation.
+
+28
+00:01:50.906 --> 00:01:53.925
+Trois balises, un graphique
+officiel et accessible,
+
+29
+00:01:53.925 --> 00:01:57.182
+qui vit dans votre page sans
+dépendre de l'application.
+
+30
+00:01:57.462 --> 00:02:03.369
+Suite dans la démonstration sept : le
+même savoir, servi à votre assistant IA.

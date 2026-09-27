@@ -1,0 +1,186 @@
+WEBVTT
+
+1
+00:00:00.300 --> 00:00:04.666
+Une page d'un site public, illustrée
+par une capture d'écran de tableur.
+
+2
+00:00:04.946 --> 00:00:10.247
+Voyons comment la remplacer par un
+graphique officiel, accessible et vivant.
+
+3
+00:00:11.349 --> 00:00:15.634
+Voici la page Industrie du futur de
+mon site, avec son image de tableur.
+
+4
+00:00:15.914 --> 00:00:20.553
+Un lecteur d'écran n'y lit rien, et elle
+sera fausse à la prochaine mise à jour des
+
+5
+00:00:20.553 --> 00:00:21.000
+données.
+
+6
+00:00:22.099 --> 00:00:26.189
+Dans ChartsBuilder, Créer un
+graphique : à l'étape une,
+
+7
+00:00:26.189 --> 00:00:32.434
+je choisis la source Industrie du futur,
+connectée dans la démonstration précédente.
+
+8
+00:00:32.714 --> 00:00:36.303
+Un clic sur Voir : une centaine
+de lignes, une par département,
+
+9
+00:00:36.303 --> 00:00:38.867
+avec la région et le
+nombre de bénéficiaires.
+
+10
+00:00:39.967 --> 00:00:42.079
+À l'étape deux, je garde les barres.
+
+11
+00:00:42.359 --> 00:00:48.021
+À l'étape trois : en étiquettes, la région
+; en valeur, le nombre de bénéficiaires.
+
+12
+00:00:48.301 --> 00:00:53.590
+Les lignes sont par département : le Builder
+les additionne par région. Je trie par
+
+13
+00:00:53.590 --> 00:00:54.738
+ordre décroissant.
+
+14
+00:00:55.018 --> 00:01:00.393
+À l'étape quatre, le titre dit le message
+: Auvergne-Rhône-Alpes concentre un quart
+
+15
+00:01:00.393 --> 00:01:01.559
+des bénéficiaires.
+
+16
+00:01:01.839 --> 00:01:04.263
+J'indique la source, et je génère.
+
+17
+00:01:07.472 --> 00:01:11.507
+La première barre, Auvergne-Rhône-Alpes
+: près de deux mille bénéficiaires.
+
+18
+00:01:11.787 --> 00:01:14.861
+Un titre qui dit le message,
+la source affichée,
+
+19
+00:01:14.861 --> 00:01:18.255
+un tri qui hiérarchise : on
+comprend d'un coup d'œil.
+
+20
+00:01:19.356 --> 00:01:24.650
+Sous les réglages avancés, le cadre
+officiel du Système de design de l'État.
+
+21
+00:01:24.930 --> 00:01:28.317
+J'encadre le graphique :
+téléchargement, plein écran,
+
+22
+00:01:28.317 --> 00:01:32.279
+date. Je génère : c'est le bloc
+graphique des sites de l'État.
+
+23
+00:01:36.704 --> 00:01:42.681
+La section Accessibilité est déjà active.
+J'ajoute une description en une phrase,
+
+24
+00:01:42.681 --> 00:01:43.640
+et je génère.
+
+25
+00:01:43.920 --> 00:01:47.931
+Sous le graphique, le bloc
+Accessibilité : données et description,
+
+26
+00:01:47.931 --> 00:01:51.516
+avec le tableau équivalent que
+lisent les lecteurs d'écran,
+
+27
+00:01:51.516 --> 00:01:52.124
+et le CSV.
+
+28
+00:01:53.288 --> 00:01:58.049
+Dernier réglage, le mode de génération.
+Données intégrées copierait les chiffres
+
+29
+00:01:58.049 --> 00:02:00.013
+dans le code : simple, mais figé.
+
+30
+00:02:00.293 --> 00:02:04.192
+Chargement dynamique les recharge à
+chaque affichage, ici toutes les heures.
+
+31
+00:02:04.472 --> 00:02:07.999
+Dans l'onglet Code :
+source, requête, graphique,
+
+32
+00:02:07.999 --> 00:02:12.629
+accessibilité. Aucun chiffre,
+seulement l'adresse de la donnée.
+
+33
+00:02:12.909 --> 00:02:14.557
+Je copie le code.
+
+34
+00:02:15.657 --> 00:02:20.793
+Dans l'éditeur de ma page, je remplace
+l'image par le code copié, et j'enregistre.
+
+35
+00:02:21.894 --> 00:02:26.082
+Le graphique officiel s'affiche dans
+la page, avec son cadre et son bloc
+
+36
+00:02:26.082 --> 00:02:26.896
+accessibilité.
+
+37
+00:02:27.176 --> 00:02:30.946
+Branché sur la donnée, il restera
+juste, sans qu'on retouche la page.
+
+38
+00:02:32.148 --> 00:02:35.735
+Une image figée de moins, un
+graphique vivant de plus.
+
+39
+00:02:36.015 --> 00:02:41.713
+Suite : démonstration cinq, le tableau
+de bord ; six, le même code à la main.

@@ -1,0 +1,150 @@
+WEBVTT
+
+1
+00:00:00.300 --> 00:00:04.208
+Sami, chargé d’études, travaille
+déjà avec un assistant IA.
+
+2
+00:00:04.488 --> 00:00:07.978
+Il voudrait qu’il lui écrive un
+graphique ChartsBuilder juste,
+
+3
+00:00:07.978 --> 00:00:09.386
+sans inventer de balises.
+
+4
+00:00:10.487 --> 00:00:15.180
+MCP est le protocole standard qui
+relie un assistant IA à des outils.
+
+5
+00:00:15.460 --> 00:00:18.907
+Ces échanges restent invisibles
+dans votre assistant :
+
+6
+00:00:18.907 --> 00:00:22.674
+je les montre ici, dans
+l’inspecteur officiel du protocole.
+
+7
+00:00:23.773 --> 00:00:31.760
+J’ajoute un serveur : transport HTTP,
+et l’adresse publique du serveur MCP de
+
+8
+00:00:31.760 --> 00:00:33.212
+ChartsBuilder.
+
+9
+00:00:33.492 --> 00:00:37.629
+Je me connecte : le serveur
+répond, et annonce ses outils.
+
+10
+00:00:38.731 --> 00:00:42.029
+ChartsBuilder en expose
+cinq : lister les fiches,
+
+11
+00:00:42.029 --> 00:00:46.606
+lire une fiche, trouver les fiches
+utiles, obtenir la spécification,
+
+12
+00:00:46.606 --> 00:00:48.289
+et diagnostiquer un code.
+
+13
+00:00:49.390 --> 00:00:53.107
+L’assistant demande d’abord les
+fiches utiles à la demande :
+
+14
+00:00:53.107 --> 00:00:55.586
+les bénéficiaires par région, en barres.
+
+15
+00:00:55.866 --> 00:00:59.377
+Quatre fiches sont retenues,
+le graphique en tête :
+
+16
+00:00:59.377 --> 00:01:04.196
+la documentation exacte des composants,
+la même que pour le Studio IA.
+
+17
+00:01:05.297 --> 00:01:09.865
+Pour écrire le code, il reçoit la
+spécification complète du graphique en barres.
+
+18
+00:01:09.865 --> 00:01:10.949
+Rien n’est inventé.
+
+19
+00:01:12.627 --> 00:01:16.284
+Il propose trois balises :
+source, requête, graphique,
+
+20
+00:01:16.284 --> 00:01:19.060
+et les fait vérifier avant de les rendre.
+
+21
+00:01:19.340 --> 00:01:21.589
+Aucun problème détecté.
+
+22
+00:01:21.869 --> 00:01:25.327
+Avec un attribut inconnu
+et une requête absente,
+
+23
+00:01:25.327 --> 00:01:27.993
+le diagnostic nomme les deux erreurs.
+
+24
+00:01:29.094 --> 00:01:33.512
+Je colle le code produit par l’assistant
+dans le Playground de ChartsBuilder,
+
+25
+00:01:33.512 --> 00:01:34.430
+et je l’exécute.
+
+26
+00:01:34.710 --> 00:01:39.487
+Le graphique officiel s’affiche
+: les bénéficiaires par région,
+
+27
+00:01:39.487 --> 00:01:41.685
+Auvergne-Rhône-Alpes en tête.
+
+28
+00:01:41.965 --> 00:01:44.333
+Je le garde en favori.
+
+29
+00:01:49.780 --> 00:01:53.613
+Dans votre assistant, une ligne
+de configuration suffit :
+
+30
+00:01:53.613 --> 00:01:56.572
+l’adresse du serveur,
+ou la commande locale.
+
+31
+00:01:57.773 --> 00:02:02.778
+Le même savoir que le Studio IA, servi
+à l’assistant que vous utilisez déjà.
+
+32
+00:02:03.058 --> 00:02:06.896
+La bibliothèque elle-même :
+démonstration six. Le tout est libre.

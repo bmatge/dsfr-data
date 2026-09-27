@@ -8,6 +8,7 @@
     title: 'Guide',
     items: [
       { id: 'overview', label: "Vue d'ensemble", href: 'guide.html' },
+      { id: 'videos', label: 'Vidéos de démonstration', href: 'guide-videos.html' },
       {
         id: 'parcours',
         label: 'Parcours utilisateur',
