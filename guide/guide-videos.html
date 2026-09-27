@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Charts builder — Vidéos de démonstration</title>
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <script type="module" src="/dist/app-ui.esm.js"></script>
+  <script src="guide-menu.js"></script>
+<style>
+    .guide-layout { display: flex; gap: 2rem; }
+    .guide-content { flex: 1; min-width: 0; }
+    @media (max-width: 992px) { .guide-layout { flex-direction: column; } }
+    .guide-video { padding-top: 2rem; margin-top: 2rem; border-top: 1px solid var(--border-default-grey); }
+    .guide-video video { display: block; width: 100%; height: auto; background: #000; border: 1px solid var(--border-default-grey); border-radius: 4px; }
+    .guide-video h2 { margin-bottom: 0.5rem; }
+    .guide-video, #videos { scroll-margin-top: 7rem; }
+  </style>
+</head>
+<body>
+  <app-header current-page="guide" base-path="../"></app-header>
+
+  <main class="fr-container fr-py-4w" id="main-content">
+    <nav role="navigation" class="fr-breadcrumb" aria-label="vous êtes ici :">
+      <button class="fr-breadcrumb__button" aria-expanded="false" aria-controls="page-breadcrumb">Voir le fil d'Ariane</button>
+      <div class="fr-collapse" id="page-breadcrumb">
+        <ol class="fr-breadcrumb__list">
+          <li><a class="fr-breadcrumb__link" href="../index.html">Accueil</a></li>
+          <li><a class="fr-breadcrumb__link" href="guide.html">Guide</a></li>
+          <li><a class="fr-breadcrumb__link" aria-current="page">Vidéos de démonstration</a></li>
+        </ol>
+      </div>
+    </nav>
+    <div class="guide-layout">
+
+      <app-sidemenu section="guide"></app-sidemenu>
+
+      <div class="guide-content">
+        <h1><i class="ri-video-line fr-mr-1w" aria-hidden="true"></i>Vidéos de démonstration</h1>
+        <p class="fr-text--lead">Huit vidéos de deux à trois minutes : une présentation de ChartsBuilder, puis des cas d'usage d'agents publics, de la donnée ouverte à la page publiée.</p>
+        <p>Chaque vidéo a ses sous-titres et sa transcription. La narration décrit tout ce qui se passe à l'écran. Les vidéos ne se lancent jamais seules et ne sont téléchargées qu'à la lecture.</p>
+
+        <section id="video-00-decouvrir" class="guide-video">
+          <h2>0. Découvrir ChartsBuilder</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Présentation</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">3 min 32</span></p>
+          <p>Ce que ChartsBuilder change pour publier des données : le problème des images figées, la bibliothèque dsfr-data, l&#x27;application et le tour de ses outils.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/00-decouvrir.jpg" aria-describedby="transcription-00-decouvrir-titre">
+            <source src="videos/00-decouvrir.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/00-decouvrir.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/00-decouvrir.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-00-decouvrir" id="transcription-00-decouvrir-titre">Transcription de la vidéo « Découvrir ChartsBuilder »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-00-decouvrir">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : sur-titre « Présentation », « Découvrir ChartsBuilder ».</em></p>
+<p>Voix off : ChartsBuilder transforme une donnée ouverte en graphique vivant, officiel et accessible, dans la page. Trois minutes pour le découvrir.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le problème : des images figées (00:09)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Page « Industrie du futur » d&#x27;un site d&#x27;exemple au Système de design de l&#x27;État : titre, chapeau, puis une capture d&#x27;écran de tableur (régions, bénéficiaires, montants) ; zoom sur l&#x27;image.</em></p>
+<p>Voix off : Les sites publics illustrent encore souvent leurs données avec une capture d&#x27;écran de tableur. Cette image est inaccessible, fausse dès que la donnée change, et coûteuse à refaire. C&#x27;est le dernier kilomètre : la donnée est ouverte sur un portail, mais figée dans la page.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">L&#x27;accueil : une bibliothèque, une application (00:27)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Accueil de ChartsBuilder : titre « Créez des visualisations conformes au Design System de l&#x27;État. », les trois étapes « 01 · Connecter », « 02 · Configurer », « 03 · Exporter », un carrousel de graphiques à droite, les boutons « Créer un graphique » et « Démarrer avec l&#x27;IA » ; défilement jusqu&#x27;à la grille « Tous les outils » ; survol des tuiles Sources, Studio IA, Créer un graphique, Créer une carte, Créer un tableau de bord, Playground.</em></p>
+<p>Voix off : ChartsBuilder règle ce dernier kilomètre : connecter une source, configurer un graphique, exporter le code. Ses graphiques sont ceux du Système de design de l&#x27;État, et ils sont accessibles. Deux outils : une bibliothèque libre, dsfr-data, pour les intégrateurs ; et par-dessus, une application guidée, pour tous les autres.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Sources (00:48)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Sources » : écran avec deux connexions (« Industrie du futur », « Prix des contrôles techniques ») et les jeux de données enregistrés. Clic sur « Nouvelle connexion », adresse d&#x27;un jeu collée, « Continuer », message « Plateforme détectée : OpenDataSoft. Tout est prêt — enregistrez pour récupérer les données. », puis « Annuler ».</em></p>
+<p>Voix off : Tout commence par les données. L&#x27;outil Sources reconnaît les portails de l&#x27;administration : data.gouv.fr, OpenDataSoft, Grist, Insee Melodi, ou toute API. Je colle l&#x27;adresse d&#x27;un jeu, je continue : la plateforme est détectée, tout est prêt. Un fichier local convient aussi. J&#x27;annule : la démonstration un le fait pour de bon.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Créer un graphique (01:12)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Créer un graphique ». Panneau gauche en quatre étapes numérotées (« Source de données » avec « Industrie du futur » sélectionnée, « Type de graphique », « Configuration des données », « Apparence ») ; étiquettes nom_region, valeur nombre_beneficiaires ; clic sur « Générer » : histogramme dans l&#x27;onglet « Aperçu » ; onglet « Code » ; « Plus d&#x27;actions », « Assistant » : volet de l&#x27;assistant, question « Changer les couleurs » saisie et envoyée, le réglage « Palette » est encadré ; fermeture du volet.</em></p>
+<p>Voix off : Créer un graphique guide en quatre étapes : la source, le type, les données, l’apparence. Onze types ; la source est déjà choisie ; en étiquettes la région, en valeur les bénéficiaires. Je génère. Le graphique s&#x27;affiche tel qu&#x27;il sera dans la page ; l&#x27;onglet Code contient le bloc à coller dans son site. Et l&#x27;assistant, dans Plus d&#x27;actions, dit où se trouve un réglage : les couleurs, par exemple.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Studio IA (01:44)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Studio IA » : à gauche la source « Industrie du futur » chargée et la conversation (« Bienvenue dans le Studio IA… »), à droite la page à composer. Saisie de « les bénéficiaires par région, en barres », « Envoyer » ; les appels d&#x27;outils défilent dans le fil ; l&#x27;histogramme par région apparaît dans l&#x27;aperçu.</em></p>
+<p>Voix off : Le Studio IA prend la demande en français. La source est chargée ; j&#x27;écris : les bénéficiaires par région, en barres. J&#x27;envoie. L&#x27;assistant ne devine pas : il agit avec des outils, visibles dans le fil, et vérifie contre les données réelles. La page se compose à droite. L&#x27;aperçu est l&#x27;export : on garde la main, et on repart avec le code.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Créer une carte (02:07)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Créer une carte » : carte de l&#x27;Ille-et-Vilaine avec des grappes numérotées de centres de contrôle technique, rail Carte / Couches / Éléments à gauche ; clic sur la grappe de Rennes, qui se défait ; clic sur un centre : panneau latéral avec le nom du centre, l&#x27;adresse, la commune et le prix de la visite.</em></p>
+<p>Voix off : Créer une carte, ici avec les prix du contrôle technique, ramenés à un département. Trois volets : Carte, Couches, Éléments. Points, zones ou chaleur ; des grappes qui se défont au zoom ; et une fiche au clic : le centre, son adresse, le prix.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Favoris (02:25)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur le lien « Favoris » de l&#x27;en-tête (badge 3). Page « Mes favoris » : trois vignettes ; clic sur « Bénéficiaires par région » : volet d&#x27;aperçu avec l&#x27;histogramme et les boutons « Copier le code », « Builder », « Playground ».</em></p>
+<p>Voix off : Chaque graphique gardé en favori devient une brique. Dans Favoris, trois vignettes ; un clic, et l&#x27;aperçu se dessine avec les vraies données : le code est prêt à copier, ou à rouvrir dans le Builder.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Créer un tableau de bord (02:39)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Créer un tableau de bord », puis « Ouvrir » : liste « Mes tableaux de bord », clic sur « Industrie du futur — suivi » : la grille se remplit (indicateur « Total bénéficiaires », encart « Contexte », histogramme, camembert). « Plus d&#x27;actions », « Plein écran » : aperçu de la page avec l&#x27;indicateur 7 735 et les graphiques ; fermeture.</em></p>
+<p>Voix off : Créer un tableau de bord assemble ces briques sur une grille. J&#x27;ouvre le tableau de bord préparé : indicateur clé, encart, graphiques. En plein écran, la page telle que la verront les lecteurs, avec des chiffres interrogés en direct. Elle s’exporte en une page HTML autonome.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Playground et code (02:58)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Playground » : exemple « Barres — Beneficiaires par region » chargé, l&#x27;éditeur à gauche avec les balises dsfr-data-source, dsfr-data-query et dsfr-data-chart, l&#x27;histogramme dans l&#x27;aperçu à droite ; zoom sur l&#x27;éditeur.</em></p>
+<p>Voix off : Le Playground montre ce qui se cache derrière : trois balises, source, requête, graphique. Dans tous les cas, on repart avec un bloc de code à coller.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Au-delà de l&#x27;application (03:09)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Plan fixe : logo ChartsBuilder, « dsfr-data, licence MIT · serveur MCP · hébergeable ».</em></p>
+<p>Voix off : Un serveur MCP, le protocole qui relie les assistants IA à des outils, apprend la bibliothèque à tout assistant. Et l&#x27;ensemble est libre, hébergeable par toute administration.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Démonstrations 1 à 5 : les sources, un graphique, une page composée par l’IA, une carte, un tableau de bord. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Pour aller plus loin, cinq démonstrations : les sources, un graphique, une page composée par l&#x27;IA, une carte, un tableau de bord.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-01-les-sources" class="guide-video">
+          <h2>1. Les sources : des données en direct ou locales</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Sources</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 55</span></p>
+          <p>Brancher une donnée en direct (OpenDataSoft, data.gouv.fr, Grist, INSEE Melodi) ou créer un jeu local : saisie, import CSV, jointure.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/01-les-sources.jpg" aria-describedby="transcription-01-les-sources-titre">
+            <source src="videos/01-les-sources.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/01-les-sources.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/01-les-sources.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-01-les-sources" id="transcription-01-les-sources-titre">Transcription de la vidéo « Les sources : des données en direct ou locales »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-01-les-sources">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « Les sources : des données en direct ou locales ».</em></p>
+<p>Voix off : Vos données sont sur un portail public, dans un tableur partagé, ou dans un fichier sur votre poste. Voyons comment les faire entrer dans ChartsBuilder.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">L&#x27;écran Sources (00:09)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Écran Sources vide : boutons « Exporter », « Importer », « Assistant », « Nouvelle connexion » ; section « Connexions » (aucune) ; section « Jeux de données locaux » avec « Créer une source manuelle » et « Joindre deux sources ».</em></p>
+<p>Voix off : L&#x27;outil Sources distingue deux familles : les connexions, interrogées en direct sur leur plateforme, et les jeux locaux, figés dans le projet.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Une plateforme OpenDataSoft (00:18)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Fenêtre « Nouvelle connexion » : adresse collée dans « Adresse du jeu de données », bouton « Continuer », message « Plateforme détectée : OpenDataSoft. Tout est prêt — enregistrez pour récupérer les données. », nom pré-rempli « industrie-du-futur » remplacé par « Industrie du futur », « Paramètres avancés » dépliés sur l&#x27;URL d&#x27;API, bouton « Tester et sauvegarder ». La connexion apparaît dans la liste.</em></p>
+<p>Voix off : Première source : le jeu Industrie du futur, sur le portail du ministère de l&#x27;Économie. Nouvelle connexion : je colle l&#x27;adresse de la page, telle quelle, et je continue. La plateforme est reconnue, OpenDataSoft ; l&#x27;adresse technique est déduite, visible dans les paramètres avancés. Je nomme la connexion. Tester et sauvegarder : elle est vérifiée avant d&#x27;être enregistrée.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Aperçu et jeu en ligne (00:45)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Volet « Aperçu » à droite : badge Connexion, « 101 lignes · 10 colonnes », URL d&#x27;API, tableau des premières lignes, que l&#x27;on fait défiler jusqu&#x27;aux colonnes nom_departement, nom_region, nombre_beneficiaires, montant_investissement ; boutons « Utiliser dans le Builder », « Ajouter aux favoris », « Actualiser ». Fermeture du volet.</em></p>
+<p>Voix off : L&#x27;aperçu s&#x27;ouvre : une centaine de lignes, dix colonnes avec leur type. Le département, la région, les bénéficiaires, les montants : requêtés en direct, ils tiendront un graphique à jour.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">data.gouv.fr (00:59)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] « Nouvelle connexion », adresse de la page data.gouv.fr collée, « Continuer » : la connexion « Code officiel géographique » (badge data.gouv) se crée et se déplie sur la liste de ses ressources. Clic sur « Aperçu » de « Millésime 2026 : Liste des départements au 01/01/2026 » : tableau DEP, REG, CHEFLIEU, LIBELLE. Boutons « En faire un jeu en ligne » et « En faire un jeu local » ; clic sur le premier, badge « JEU EN LIGNE » sur la ressource.</em></p>
+<p>Voix off : Deuxième source : data.gouv.fr, avec la page du Code officiel géographique de l&#x27;Insee, l&#x27;Institut de la statistique. Même geste. Le jeu est reconnu, et seules les ressources interrogeables par l&#x27;API tabulaire sont proposées. J&#x27;ouvre l&#x27;aperçu des départements, et j&#x27;en fais un jeu en ligne. Un jeu local, lui, serait une copie figée.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Grist (01:25)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] « Nouvelle connexion », adresse d&#x27;une page d&#x27;un document Grist public collée, « Continuer » : la connexion « Barometre » (badges Grist et Public, statut « Doc public ») se crée et liste ses tables. Clic sur « Aperçu » de la table Plan_Elec_Indic_dyanmiques : tableau des indicateurs par mois.</em></p>
+<p>Voix off : Troisième source : Grist, le tableur collaboratif de l&#x27;État. Un document public se branche par l&#x27;adresse de sa page. Ses tables apparaissent ; un document privé demanderait une clé, conservée uniquement dans votre navigateur.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Insee Melodi (01:43)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] « Nouvelle connexion », adresse Melodi filtrée collée, « Continuer » : message « Plateforme détectée : INSEE (Melodi). » ; « Paramètres avancés » dépliés, l&#x27;adresse complète recollée dans « URL des données » ; nom « Population des régions » ; « Tester et sauvegarder ». Aperçu : 13 lignes, colonnes GEO (libellé de région), TIME_PERIOD, POPREF_MEASURE (Population municipale) et OBS_VALUE, révélées en faisant défiler le tableau.</em></p>
+<p>Voix off : Quatrième source : Melodi, l&#x27;API de l&#x27;Insee, avec une adresse déjà filtrée sur la population des treize régions. Reconnue aussi, mais les filtres de l&#x27;adresse ne sont pas repris : je la recolle en entier dans les paramètres avancés. Treize lignes, les codes traduits en libellés : une région, une population.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Un fichier CSV local (02:06)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Fenêtre « Nouvelle source manuelle » : nom « Apprentissage 2025 par département », onglets « Tableau », « Coller JSON », « Importer CSV » ; choix du fichier apprentissage-aura-2025.csv, séparateur « Automatique », aperçu « 12 lignes détectées », « Enregistrer ». La source apparaît sous « Jeux de données locaux » avec le badge Manuel et « 12 lignes ».</em></p>
+<p>Voix off : Pas d&#x27;API ? Je crée une source manuelle : un tableau, du JSON, ou un fichier CSV. Je choisis mon fichier : le séparateur est détecté, douze lignes sont lues. J&#x27;enregistre.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Joindre deux sources (02:20)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Fenêtre « Joindre deux sources » : Source A « Apprentissage 2025 par département », Source B « Industrie du futur », colonne commune nom_departement, « Type de jointure » : « Garder toutes les lignes de A, compléter avec B si possible (recommandé) », résultat 12 enregistrements. Bouton « Annuler ».</em></p>
+<p>Voix off : Deux sources se joignent sans code, sur une colonne commune, avec un type de jointure en langage clair. J&#x27;annule.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Emporter, puis vers le Builder (02:28)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Exporter » (message « Export téléchargé »). Dans la connexion « Industrie du futur », clic sur « Aperçu » du flux, puis sur « Utiliser dans le Builder » : l&#x27;outil « Créer un graphique » s&#x27;ouvre avec la source « Industrie du futur » sélectionnée.</em></p>
+<p>Voix off : Exporter produit un fichier de toutes mes sources, réimportable sur un autre poste. Retour sur Industrie du futur : Utiliser dans le Builder, qui s&#x27;ouvre avec la source choisie.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Une adresse ou un fichier : les données sont prêtes. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Une adresse ou un fichier, une plateforme reconnue, une connexion testée : les données sont prêtes. Prochaine démonstration : illustrer une page de son site avec un graphique vivant.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-02-illustrer-une-page" class="guide-video">
+          <h2>2. Illustrer une page de son site avec un graphique vivant</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Builder</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 43</span></p>
+          <p>Remplacer une capture de tableur par un graphique officiel, accessible et à jour, puis le coller dans sa page.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/02-illustrer-une-page.jpg" aria-describedby="transcription-02-illustrer-une-page-titre">
+            <source src="videos/02-illustrer-une-page.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/02-illustrer-une-page.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/02-illustrer-une-page.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-02-illustrer-une-page" id="transcription-02-illustrer-une-page-titre">Transcription de la vidéo « Illustrer une page de son site avec un graphique vivant »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-02-illustrer-une-page">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « Illustrer une page de son site avec un graphique vivant ».</em></p>
+<p>Voix off : Une page d&#x27;un site public, illustrée par une capture d&#x27;écran de tableur. Voyons comment la remplacer par un graphique officiel, accessible et vivant.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le point de départ (00:10)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Page « Industrie du futur » d&#x27;un site d&#x27;exemple au Système de design de l&#x27;État : titre, chapeau, puis une capture d&#x27;écran de tableur (régions, nombre de bénéficiaires, montants) ; zoom sur l&#x27;image.</em></p>
+<p>Voix off : Voici la page Industrie du futur de mon site, avec son image de tableur. Un lecteur d&#x27;écran n&#x27;y lit rien, et elle sera fausse à la prochaine mise à jour des données.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Choisir la donnée (00:21)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Builder : étape « 1 Source de données », sélection de « Industrie du futur » ; bouton « Voir » puis fenêtre « Aperçu des données » (101 enregistrements, 10 champs, premières lignes).</em></p>
+<p>Voix off : Dans ChartsBuilder, Créer un graphique : à l&#x27;étape une, je choisis la source Industrie du futur, connectée dans la démonstration précédente. Un clic sur Voir : une centaine de lignes, une par département, avec la région et le nombre de bénéficiaires.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Construire le message (00:39)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Étape « 2 Type de graphique » : « Barres » ; « 3 Configuration des données » : étiquettes nom_region (libellé Région), valeur nombre_beneficiaires (libellé Bénéficiaires), agrégation « Somme », ordre « Decroissant » ; « 4 Apparence » : titre, sous-titre « Source : DGE, data.economie.gouv.fr », palette « Bleu France » ; clic sur « Générer ».</em></p>
+<p>Voix off : À l&#x27;étape deux, je garde les barres. À l&#x27;étape trois : en étiquettes, la région ; en valeur, le nombre de bénéficiaires. Les lignes sont par département : le Builder les additionne par région. Je trie par ordre décroissant. À l&#x27;étape quatre, le titre dit le message : Auvergne-Rhône-Alpes concentre un quart des bénéficiaires. J&#x27;indique la source, et je génère.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Aperçu : histogramme trié, Auvergne-Rhône-Alpes en tête ; infobulle « 1 948 » au survol de la première barre ; titre-message et source sous le graphique.</em></p>
+<p>Voix off : La première barre, Auvergne-Rhône-Alpes : près de deux mille bénéficiaires. Un titre qui dit le message, la source affichée, un tri qui hiérarchise : on comprend d&#x27;un coup d&#x27;œil.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le cadre officiel (01:18)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Section « Cadre officiel DSFR » : case « Encadrer le graphique (titre, source, téléchargement) » cochée, « Téléchargement CSV » déjà coché, « Plein écran » coché, date « Janvier 2026 » ; « Générer » : le graphique s&#x27;affiche dans le bloc officiel avec ses boutons.</em></p>
+<p>Voix off : Sous les réglages avancés, le cadre officiel du Système de design de l&#x27;État. J&#x27;encadre le graphique : téléchargement, plein écran, date. Je génère : c&#x27;est le bloc graphique des sites de l&#x27;État.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">L&#x27;accessibilité embarquée (01:36)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Section « Accessibilité » (résumé « tableau, téléchargement ») : « Ajouter le composant accessibilité » coché ; description saisie ; « Générer » ; dans l&#x27;aperçu, sous le graphique, l&#x27;accordéon « Accessibilité : données et description » ouvert sur la description, le tableau région / bénéficiaires et « Télécharger en CSV ».</em></p>
+<p>Voix off : La section Accessibilité est déjà active. J&#x27;ajoute une description en une phrase, et je génère. Sous le graphique, le bloc Accessibilité : données et description, avec le tableau équivalent que lisent les lecteurs d&#x27;écran, et le CSV.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le code, et pourquoi il est vivant (01:52)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Section « Mode de generation » : « Données intégrées » puis « Chargement dynamique », « Rafraîchissement automatique » = 3600 ; « Générer » ; onglet « Code » : balises dsfr-data-source, dsfr-data-query, dsfr-data-chart, dsfr-data-a11y ; bouton « Copier le code ».</em></p>
+<p>Voix off : Dernier réglage, le mode de génération. Données intégrées copierait les chiffres dans le code : simple, mais figé. Chargement dynamique les recharge à chaque affichage, ici toutes les heures. Dans l&#x27;onglet Code : source, requête, graphique, accessibilité. Aucun chiffre, seulement l&#x27;adresse de la donnée. Je copie le code.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Dans la page (02:15)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Éditeur de page du site d&#x27;exemple : le bloc &lt;figure&gt; qui contenait l&#x27;image de tableur est remplacé par le fragment HTML copié ; clic sur « Enregistrer et publier ».</em></p>
+<p>Voix off : Dans l&#x27;éditeur de ma page, je remplace l&#x27;image par le code copié, et j&#x27;enregistre.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] La page publiée du site d&#x27;exemple : titre, chapeau, le graphique en barres dans son cadre officiel, l&#x27;accordéon d&#x27;accessibilité, puis le texte.</em></p>
+<p>Voix off : Le graphique officiel s&#x27;affiche dans la page, avec son cadre et son bloc accessibilité. Branché sur la donnée, il restera juste, sans qu&#x27;on retouche la page.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Une image figée de moins, un graphique vivant de plus. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Une image figée de moins, un graphique vivant de plus. Suite : démonstration cinq, le tableau de bord ; six, le même code à la main.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-03-studio-ia" class="guide-video">
+          <h2>3. Une page complète composée par l&#x27;IA à partir de son texte</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Studio IA</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 47</span></p>
+          <p>Coller son texte, décrire la page en français : l&#x27;IA compose l&#x27;indicateur, le graphique, le filtre et le tableau, et l&#x27;on garde la main.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/03-studio-ia.jpg" aria-describedby="transcription-03-studio-ia-titre">
+            <source src="videos/03-studio-ia.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/03-studio-ia.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/03-studio-ia.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-03-studio-ia" id="transcription-03-studio-ia-titre">Transcription de la vidéo « Une page complète composée par l&#x27;IA à partir de son texte »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-03-studio-ia">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « Une page complète composée par l’IA à partir de son texte ».</em></p>
+<p>Voix off : Inès, rédactrice web d’un site ministériel, a écrit un texte sur le guichet Industrie du futur. Elle voudrait la page qui va avec : un chiffre clé, un graphique, un filtre. Voyons comment le Studio IA de ChartsBuilder la compose à partir de son texte.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Ouvrir le Studio IA (00:15)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Page d’accueil de ChartsBuilder, clic sur « Démarrer avec l’IA ». Écran du Studio IA : colonne gauche avec le bloc « Source », le bloc « IA » (badge « Clé serveur ») et le message d’accueil de l’assistant ; à droite, « Discutez avec l’assistant pour composer votre tableau de bord » ; barre d’actions avec « Enregistrer ».</em></p>
+<p>Voix off : Depuis l’accueil de ChartsBuilder, je choisis « Démarrer avec l’IA ». À gauche, la source de données et la conversation avec l’assistant. À droite, la page qui va se composer. L’assistant s’appuie sur Albert, l’intelligence artificielle de l’État, hébergée en France.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Choisir la source (00:35)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Bloc « Source » : la liste déroulante passe sur « Industrie du futur · 101 lignes ». Le fil affiche « Source « Industrie du futur » chargée (101 lignes, 10 champs) ». Clic sur « Voir les données » : dialogue « Aperçu des données » avec les champs et les premières lignes, puis fermeture.</em></p>
+<p>Voix off : Je choisis ma source : Industrie du futur, la même que dans le Builder. L’assistant l’a chargée : une centaine de lignes, dix champs. Un clic sur « Voir les données », pour vérifier avant de lui parler.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Coller le texte et décrire la page (00:50)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Zone de saisie du chat : le texte éditorial sur le guichet Industrie du futur est collé, puis la demande est tapée à la suite. Clic sur « Envoyer » (« Entrée pour envoyer · Maj + Entrée pour un saut de ligne »).</em></p>
+<p>Voix off : Je colle mon texte éditorial, tel quel, dans la zone de saisie. Puis je décris ce que je veux. Ce texte en introduction, un indicateur clé du total, les bénéficiaires par région en barres, et un filtre par région. J’envoie.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">La page se compose (01:07)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Dans le fil, sous la demande, l’étape de l’assistant s’affiche (« J’ajoute 4 blocs… »), puis sa réponse « Page créée : texte d’introduction, filtre, KPI total des bénéficiaires et barres par région, triées décroissantes ». L’aperçu de droite se remplit : texte d’introduction, sélecteur de région, tuile d’indicateur clé, graphique en barres trié.</em></p>
+<p>Voix off : L’assistant ne devine pas : il agit sur le document avec des outils, et chaque action reste visible dans le fil. À droite, la page prend forme : le texte, le filtre par région, l’indicateur clé, et le graphique trié. Chaque bloc a été vérifié contre les données réelles avant d’être accepté.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Aperçu : la page complète avec le texte, la tuile « 7 735 » bénéficiaires, les barres par région (Auvergne-Rhône-Alpes en tête) et le filtre par région. Dans le fil, la réponse finale de l’assistant, suivie des relances « Ajouter des filtres partagés », « Ajouter un indicateur clé », « Ajouter un tableau des données ».</em></p>
+<p>Voix off : Tout y est : le total des bénéficiaires, et les régions classées par ordre décroissant. La réponse de l’assistant résume ce qu’il a fait, et propose des suites.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Retoucher par la conversation (01:37)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur la relance « Ajouter un tableau des données » ; l’assistant travaille, puis un tableau paginé des données apparaît sous le graphique dans l’aperçu.</em></p>
+<p>Voix off : La conversation continue : je clique sur « Ajouter un tableau des données ». Le tableau s’ajoute sous le graphique, avec sa pagination.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Dans l’aperçu, la liste déroulante du filtre passe sur « BRETAGNE » ; la tuile d’indicateur (470), le graphique (une seule barre) et le tableau, plus bas, se recalculent sur cette région.</em></p>
+<p>Voix off : Dans l’aperçu, je choisis une région dans le filtre. L’indicateur, le graphique et le tableau se mettent à jour ensemble : le filtre pilote tous les blocs.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Vérifier et garder la main (01:59)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Onglet « Code » : le code HTML complet de la page (composants dsfr-data, source Opendatasoft, filtres). Onglet « JSON » : le document. Retour à l’onglet « Aperçu », clic sur « Enregistrer » : message de confirmation.</em></p>
+<p>Voix off : L’aperçu est l’export : l’onglet Code montre la page HTML complète, prête à coller dans mon site. L’onglet JSON garde la description du document. J’enregistre la page.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Menu « Plus d’actions » déplié : « Ouvrir dans le tableau de bord », « Ajouter aux favoris », « Ouvrir dans le Playground », « Exporter en PNG », « Diagnostic »… Fermeture du menu, clic sur « Copier le code » : « Code copié ! ».</em></p>
+<p>Voix off : Dans « Plus d’actions », je peux l’ouvrir dans l’éditeur de tableau de bord, pour la retoucher à la main. Ou l’ouvrir dans le Playground, ou encore l’exporter en image. Je copie le code : il est prêt à coller dans mon site.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Plan large du Studio IA : la conversation à gauche, la page composée à droite.</em></p>
+<p>Voix off : Du texte à la page publiée, par la conversation.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Décrire la page en français, garder la main sur le résultat. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Pour retoucher cette page à la main, ouvrez-la dans l’éditeur de tableau de bord : c’est la démonstration 5. ChartsBuilder et la bibliothèque dsfr-data sont libres et en accès libre.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-04-carte" class="guide-video">
+          <h2>4. Cartographier les centres de contrôle technique de son département</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Carte</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 58</span></p>
+          <p>Du jeu national des prix du contrôle technique à la carte filtrée d&#x27;un département, avec sa fiche au clic.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/04-carte.jpg" aria-describedby="transcription-04-carte-titre">
+            <source src="videos/04-carte.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/04-carte.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/04-carte.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-04-carte" id="transcription-04-carte-titre">Transcription de la vidéo « Cartographier les centres de contrôle technique de son département »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-04-carte">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « Cartographier les centres de contrôle technique de son département ».</em></p>
+<p>Voix off : Une direction départementale de la protection des populations veut montrer aux usagers où faire contrôler leur véhicule, et à quel prix. Les tarifs, publiés par la DGCCRF, la répression des fraudes, forment un jeu national. Le besoin, lui, est local.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Créer une carte (00:17)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Page « Créer une carte » : barre d&#x27;actions (« Copier le code », « Plus d&#x27;actions », « Générer »), canevas vide « Choisissez vos données, la carte s&#x27;affiche ici. », rail Carte / Couches / Éléments, volet Couches ouvert avec le bouton « Choisir les données de cette couche ».</em></p>
+<p>Voix off : Ouvrons Créer une carte. Le canevas attend les données. À gauche, trois volets : Carte, Couches, Éléments.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">D&#x27;où viennent les données (00:26)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Choisir les données de cette couche » : fenêtre « D&#x27;où viennent vos données ? » avec « Essayer avec un jeu d&#x27;exemple », « Coller un lien de données », « Une source enregistrée ». Clic sur « Une source enregistrée » puis sur « Prix des contrôles techniques ». Volet Couches : « Champs détectés automatiquement », Latitude = latitude, Longitude = longitude. La carte de France se couvre de points ; bandeau « 1 000 éléments affichés sur 145 878, dans l&#x27;ordre du fichier » ; encart « Trop de points pour la vue nationale » avec le bouton « Composer par échelle ».</em></p>
+<p>Voix off : Choisir les données de cette couche : un jeu d&#x27;exemple, un lien à coller, ou une source enregistrée. Je prends la source enregistrée dans Sources : les prix des contrôles techniques. ChartsBuilder repère lui-même la latitude et la longitude. La carte se dessine, mais le bandeau prévient : mille éléments affichés, sur près de cent quarante-six mille. Composer par échelle est proposé. Moi, je filtrerai par département.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">L&#x27;assistant signale ce qui cloche (00:52)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Volet Couches : Latitude saisi « longitude », Longitude saisi « latitude », clic sur « Générer » : la carte se recadre hors de France. Menu « Plus d&#x27;actions », « Assistant » : volet Assistant avec le constat « latitude et longitude semblent inversées » et le bouton « Me montrer », qui encadre le champ Latitude du volet Couches. Réduction de l&#x27;assistant, champs corrigés, « Générer » : la carte de France revient avec ses mille points.</em></p>
+<p>Voix off : Une erreur classique : je permute latitude et longitude, et je génère. Les points tombent loin de la France. L&#x27;assistant a relevé le constat : latitude et longitude semblent inversées. Me montrer désigne le réglage à corriger. Je corrige, je génère : la carte revient.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Grappes et fiche au clic (01:14)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Volet Éléments : case « Regrouper les points proches (clustering) » cochée, la carte passe en grappes numérotées ; « Comportement au clic » réglé sur « Un panneau latéral droit » ; « Champ titre » = cct_denomination ; cases « Champs à afficher » cct_adresse, cct_commune, prix_visite cochées.</em></p>
+<p>Voix off : Dans Éléments : regrouper les points proches. Des grappes, lisibles à toutes les échelles. Au clic, un panneau latéral : le nom du centre en titre, puis l&#x27;adresse, la commune et le prix de la visite.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">La carte elle-même (01:27)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Volet Carte : « Fond de carte » = IGN Plan, cases « Les 5 DROM en vignettes (encarts) » et « La Corse en vignette », case « Tableau des données sous la carte (accessibilité) » cochée ; « Réglages avancés de la carte » dépliés, case « Cadrer automatiquement sur les données (fit-bounds) » cochée.</em></p>
+<p>Voix off : Le volet Carte règle le fond, ici le plan IGN, et les encarts d&#x27;outre-mer et de Corse. Le tableau des données sous la carte est coché : elle part avec son tableau accessible. Et je demande le cadrage automatique sur les données.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Ramener au département (01:45)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Volet Éléments, section « Options avancées » dépliée, champ « Filtrer les données » saisi : nom_departement:eq:ILLE-ET-VILAINE, cat_vehicule_libelle:eq:Voiture particulière, cat_energie_libelle:eq:Essence. Clic sur « Générer » : la carte se recadre sur l&#x27;Ille-et-Vilaine ; statut « 104 éléments affichés (104 enregistrements) ». Clic sur la grappe la plus grosse : zoom, les grappes se séparent. Clic sur un centre : panneau latéral avec le nom du centre en titre et un tableau adresse, commune, prix de la visite.</em></p>
+<p>Voix off : Reste à ramener le jeu au département : dans Options avancées, je filtre. Champ, opérateur, valeur. Le département, la voiture particulière, l&#x27;essence : un tarif par catégorie et par énergie, je veux un point par centre. Générer : la carte recharge et se recadre. Cent quatre éléments affichés, un par centre. Je clique la grappe de Rennes, elle se défait. Un clic sur un centre ouvre sa fiche, avec le prix de la visite.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le code (02:15)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Onglet « Code » : « Mode de génération » = « Page autonome (avec scripts et CSS) », code avec les balises dsfr-data-source, dsfr-data-query, dsfr-data-map, dsfr-data-map-layer, dsfr-data-map-popup, dsfr-data-a11y ; passage à « Ma page charge déjà dsfr-data (composants seuls) » ; clic sur « Copier le code ».</em></p>
+<p>Voix off : L&#x27;onglet Code donne une page autonome, ou les composants seuls si ma page charge déjà dsfr-data. Je copie le code et je le colle dans la page Contrôle technique de mon site. La carte suivra les données de la DGCCRF, mises à jour chaque jour.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Retour à l&#x27;onglet « Aperçu » : la carte de l&#x27;Ille-et-Vilaine zoomée sur Rennes, la fiche d&#x27;un centre ouverte dans le panneau latéral.</em></p>
+<p>Voix off : Une carte publique, filtrée, accessible, avec sa fiche au clic : prête pour le site.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Un jeu national, un filtre, une carte publique. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Le même jeu est dans le Playground, exemple Carte, cinq mille centres : démonstration six. ChartsBuilder et la bibliothèque dsfr-data sont libres et en accès libre.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-05-tableau-de-bord" class="guide-video">
+          <h2>5. Assembler un tableau de bord à partir de ses favoris</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Tableau de bord</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 24</span></p>
+          <p>Déposer ses graphiques favoris sur une grille, ajouter un encart, passer en plein écran et exporter la page.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/05-tableau-de-bord.jpg" aria-describedby="transcription-05-tableau-de-bord-titre">
+            <source src="videos/05-tableau-de-bord.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/05-tableau-de-bord.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/05-tableau-de-bord.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-05-tableau-de-bord" id="transcription-05-tableau-de-bord-titre">Transcription de la vidéo « Assembler un tableau de bord à partir de ses favoris »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-05-tableau-de-bord">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « Assembler un tableau de bord à partir de ses favoris ».</em></p>
+<p>Voix off : Un chef de service veut suivre son programme sur une seule page, sans rien reconstruire. Dans ChartsBuilder, les graphiques gardés en favori deviennent des briques de tableau de bord.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Les favoris, une réserve de briques (00:12)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Accueil de ChartsBuilder, clic sur le lien « Favoris » de l&#x27;en-tête (badge 3). Page « Mes favoris » : trois vignettes (barres, camembert, KPI). Clic sur « Bénéficiaires par région » : volet d&#x27;aperçu avec l&#x27;histogramme, dépliage de « Code HTML/JS », boutons « Copier le code », « Builder », « Playground », « PNG », « JPG ». Fermeture du volet, survol de « Exporter ».</em></p>
+<p>Voix off : Dans l&#x27;en-tête, Favoris rassemble les graphiques enregistrés depuis le Builder : ici trois, sur le programme Industrie du futur. Un clic sur une vignette : l&#x27;aperçu se dessine avec les vraies données, et le code est prêt à copier. Et le lot entier s&#x27;exporte, pour un collègue.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">L&#x27;éditeur de tableau de bord (00:33)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Créer un tableau de bord » dans la navigation. Éditeur : colonne « Widgets » (KPI, Graphique, Tableau, Texte), « Mes favoris » (trois entrées), « Grille », « Sources » ; au centre la grille avec deux cellules « Glisser un widget ici » ; sélecteur « Modèles… » ; barre d&#x27;actions « Plus d&#x27;actions », « Ouvrir », « Enregistrer ».</em></p>
+<p>Voix off : Ouvrons Créer un tableau de bord. À gauche, les blocs : indicateur clé, graphique, tableau, texte ; puis mes favoris et la grille. Au centre, la grille où déposer chaque brique ; des modèles proposent des mises en page toutes faites.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Déposer ses favoris (00:51)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Glisser-déposer de « Total bénéficiaires » (Mes favoris) sur la première cellule : le bloc s&#x27;affiche avec sa vignette « Graphique depuis favoris ». Clic sur « Configurer » : fenêtre « Configurer : Total bénéficiaires » avec le message « Ce graphique provient de vos favoris et utilise sa configuration d&#x27;origine. » Fermeture.</em></p>
+<p>Voix off : Je glisse le favori Total bénéficiaires sur la première cellule. La brique arrive entière : source, calcul, réglages. Configurer le confirme.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Un encart de contexte (01:01)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Glisser-déposer du bloc « Texte » sur la deuxième cellule : fenêtre « Configurer », titre « Contexte », style « Callout », contenu saisi, bouton « Appliquer ». L&#x27;encart apparaît dans la grille.</em></p>
+<p>Voix off : À côté, un bloc de texte pour le contexte. Je choisis le style Callout, j&#x27;écris une phrase, j&#x27;applique.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le graphique (01:11)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Réglage « Colonnes par défaut » à « 1 colonne », clic sur « Ajouter une ligne » : une ligne 2 d&#x27;une seule cellule apparaît. Glisser-déposer du favori « Bénéficiaires par région » dans cette cellule.</em></p>
+<p>Voix off : Pour le graphique, une ligne entière : je passe la grille à une colonne et j&#x27;ajoute une ligne. J&#x27;y dépose le favori Bénéficiaires par région. Ici, chaque brique n&#x27;est qu&#x27;une vignette : le rendu viendra en plein écran.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Enregistrer et vérifier (01:25)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Saisie du titre « Suivi Industrie du futur », clic sur « Enregistrer » : fenêtre « Enregistrer le tableau de bord » (nom prérempli, description saisie), confirmation, message « Tableau de bord sauvegardé ». Clic sur « Ouvrir » : liste « Mes tableaux de bord » avec l&#x27;entrée créée ; fermeture.</em></p>
+<p>Voix off : Un titre, puis Enregistrer : le tableau de bord reste dans mon navigateur. Ouvrir le retrouve, avec ceux que le Studio IA a composés.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Menu « Plus d&#x27;actions », « Plein écran » : « Aperçu du tableau de bord » avec le titre, l&#x27;indicateur 7 735 « Entreprises bénéficiaires », l&#x27;encart de contexte et l&#x27;histogramme par région, Auvergne-Rhône-Alpes en tête. Fermeture.</em></p>
+<p>Voix off : Plein écran affiche la page telle que la verront les lecteurs. Près de huit mille entreprises bénéficiaires, les régions dans l&#x27;ordre : des chiffres interrogés en direct.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Exporter la page (01:53)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Onglet « Code » : le HTML complet de la page. Menu « Plus d&#x27;actions », « Exporter la page HTML » : message « Fichier HTML téléchargé ». La page exportée s&#x27;ouvre à l&#x27;adresse d&#x27;un intranet d&#x27;exemple : indicateur, encart et histogramme s&#x27;y dessinent.</em></p>
+<p>Voix off : L&#x27;onglet Code montre la page complète ; Exporter la page HTML la télécharge en un seul fichier. Déposé sur l&#x27;intranet du service, ce fichier s&#x27;affiche tel quel, et ses chiffres suivent la donnée.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Des graphiques en favori, un tableau de bord en quelques gestes. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Des favoris aux briques, des briques à la page : un tableau de bord vivant, sans rien reconstruire. Pour fabriquer ces briques : démonstrations deux et trois, le Builder et le Studio IA.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-06-bibliotheque" class="guide-video">
+          <h2>6. La bibliothèque dsfr-data pour les intégrateurs</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">Bibliothèque</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 04</span></p>
+          <p>Trois balises HTML, sans JavaScript : la bibliothèque libre dsfr-data utilisée directement dans une page.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/06-bibliotheque.jpg" aria-describedby="transcription-06-bibliotheque-titre">
+            <source src="videos/06-bibliotheque.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/06-bibliotheque.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/06-bibliotheque.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-06-bibliotheque" id="transcription-06-bibliotheque-titre">Transcription de la vidéo « La bibliothèque dsfr-data pour les intégrateurs »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-06-bibliotheque">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « La bibliothèque dsfr-data pour les intégrateurs ».</em></p>
+<p>Voix off : ChartsBuilder, c&#x27;est d&#x27;abord une bibliothèque : dsfr-data. Voyons ce qu&#x27;elle offre à une intégratrice, dans n&#x27;importe quelle page.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le Playground (00:09)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Playground : barre d&#x27;actions (« Exemples », « Copier le code », « Exécuter »), éditeur de code sombre à gauche chargé d&#x27;un exemple, aperçu du graphique à droite ; l&#x27;éditeur est vidé, l&#x27;aperçu aussi.</em></p>
+<p>Voix off : Dans ChartsBuilder, le Playground : l&#x27;éditeur de code à gauche, l&#x27;aperçu à droite. Je vide l&#x27;exemple chargé pour partir d&#x27;une page blanche.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Trois balises (00:19)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Saisie dans l&#x27;éditeur, en gros plan : &lt;dsfr-data-source&gt; (api-type, base-url, dataset-id), &lt;dsfr-data-query&gt; (group-by, aggregate, order-by), &lt;dsfr-data-chart&gt; (type bar, label-field, value-field, databox).</em></p>
+<p>Voix off : Une balise source : OpenDataSoft, l&#x27;adresse du portail, le jeu de données Industrie du futur. Une balise requête : regrouper par région, additionner les bénéficiaires, trier par ordre décroissant. Une balise graphique, en barres, branchée sur la requête par son identifiant.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Exécuter (00:38)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Clic sur « Exécuter » ; dans l&#x27;aperçu, l&#x27;histogramme des bénéficiaires par région dans son cadre officiel, Auvergne-Rhône-Alpes en tête ; infobulle au survol de la première barre.</em></p>
+<p>Voix off : J&#x27;exécute : le graphique se dessine, dans le cadre officiel du Système de design de l&#x27;État. Le graphique du Builder, démonstration deux, sans une ligne de JavaScript.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Accessibilité et filtre : une balise chacun (00:51)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Saisie de &lt;dsfr-data-a11y for=&quot;chart&quot; source=&quot;q&quot; table download&gt; sous le graphique, puis de &lt;dsfr-data-search id=&quot;s&quot; source=&quot;src&quot; fields=&quot;nom_region&quot;&gt; sous la source ; dans la requête, source=&quot;src&quot; devient source=&quot;s&quot;. « Exécuter » : champ « Rechercher une région » au-dessus du graphique, accordéon « Accessibilité : données et description » ouvert sur le tableau région / total. Saisie de « Loire » : deux barres, Pays de la Loire et Centre-Val de Loire.</em></p>
+<p>Voix off : Les composants se branchent par leur identifiant. Une balise accessibilité : tableau équivalent et téléchargement. Une balise recherche entre la source et la requête, qui écoute désormais la recherche. J&#x27;exécute. Sous le graphique, le bloc Accessibilité, données et description, avec le tableau des valeurs. Je tape Loire : le graphique se recalcule sur les deux régions trouvées.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Des dizaines d&#x27;exemples (01:17)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] « Copier le code », message de confirmation. Volet « Exemples » ouvert sur l&#x27;éditeur : filtres Source, Pipeline, Sortie ; Sortie = « Carte », exemple « Carte — 5000 CT avec clustering + panneau », « Voir l&#x27;exemple », confirmation du remplacement ; dans l&#x27;aperçu, la carte de France avec ses grappes de points.</em></p>
+<p>Voix off : Je copie mon code. Le volet Exemples en propose des dizaines, filtrés par source, pipeline et sortie. Sortie Carte : les centres de contrôle technique de la démonstration quatre, cinq mille points regroupés.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Documentation et licence (01:33)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Lien « Specs » de l&#x27;en-tête : index des composants en tuiles ; fiche dsfr-data-query, tableau « Attributs » (attribut, type, description). Dépôt GitHub bmatge/dsfr-data : « MIT license » dans la colonne À propos, bloc de code source / requête / graphique en tête du README.</em></p>
+<p>Voix off : Les specs, publiques sur l&#x27;instance, décrivent chaque composant et tous ses attributs. La bibliothèque est libre, licence MIT : un paquet npm, un dépôt GitHub, et les mêmes trois balises en tête de sa présentation.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Trois balises HTML, un graphique officiel. Libre, licence MIT. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Trois balises, un graphique officiel et accessible, qui vit dans votre page sans dépendre de l&#x27;application. Suite dans la démonstration sept : le même savoir, servi à votre assistant IA.</p>
+            </div>
+          </section>
+        </section>
+        <section id="video-07-assistant-mcp" class="guide-video">
+          <h2>7. Créer un graphique depuis son assistant IA (MCP)</h2>
+          <p class="fr-mb-2w"><span class="fr-badge fr-badge--sm fr-badge--blue-france fr-badge--no-icon fr-mr-1w">MCP</span><span class="fr-badge fr-badge--sm fr-badge--no-icon">2 min 08</span></p>
+          <p>Le serveur MCP met ChartsBuilder à disposition de l&#x27;assistant IA que l&#x27;on utilise déjà : les échanges, pas à pas.</p>
+          <video controls preload="none" width="1920" height="1080" poster="videos/07-assistant-mcp.jpg" aria-describedby="transcription-07-assistant-mcp-titre">
+            <source src="videos/07-assistant-mcp.mp4" type="video/mp4">
+            <track kind="captions" srclang="fr" label="Français" src="videos/07-assistant-mcp.fr.vtt" default>
+            <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/07-assistant-mcp.mp4">téléchargez-la</a>.</p>
+          </video>
+          <section class="fr-accordion fr-mt-2w">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="transcription-07-assistant-mcp" id="transcription-07-assistant-mcp-titre">Transcription de la vidéo « Créer un graphique depuis son assistant IA (MCP) »</button>
+            </h3>
+            <div class="fr-collapse" id="transcription-07-assistant-mcp">
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton titre : « Créer un graphique depuis son assistant IA ».</em></p>
+<p>Voix off : Sami, chargé d’études, travaille déjà avec un assistant IA. Il voudrait qu’il lui écrive un graphique ChartsBuilder juste, sans inventer de balises.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le protocole MCP (00:10)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton : « Ce que vous allez voir — les échanges d’un assistant avec ChartsBuilder, pas à pas. Ces échanges sont invisibles dans votre assistant ; ils sont montrés ici dans l’inspecteur officiel du protocole MCP. »</em></p>
+<p>Voix off : MCP est le protocole standard qui relie un assistant IA à des outils. Ces échanges restent invisibles dans votre assistant : je les montre ici, dans l’inspecteur officiel du protocole.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Se connecter au serveur MCP (00:23)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Inspecteur MCP (interface en anglais) : « Add Servers », « Add manually », identifiant « chartsbuilder », transport « streamable-http », adresse https://chartsbuilder.miweb.run/mcp, « Add ». La carte du serveur apparaît ; l’interrupteur de connexion passe à « Connected ». Le volet « Messages » liste les échanges initialize et tools/list.</em></p>
+<p>Voix off : J’ajoute un serveur : transport HTTP, et l’adresse publique du serveur MCP de ChartsBuilder. Je me connecte : le serveur répond, et annonce ses outils.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Onglet « Tools » : la liste des cinq outils, list_skills, get_skill, get_relevant_skills, generate_widget_code, diagnose_widget_code, survolés un à un.</em></p>
+<p>Voix off : ChartsBuilder en expose cinq : lister les fiches, lire une fiche, trouver les fiches utiles, obtenir la spécification, et diagnostiquer un code.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Ce que l’assistant demande (00:48)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Outil get_relevant_skills : le message est saisi dans le champ « message », « Execute Tool ». Le résultat s’affiche : « 4 skill(s) matched », la fiche dsfr-data-chart en premier, puis dsfr-data-query ; défilement lent du texte.</em></p>
+<p>Voix off : L’assistant demande d’abord les fiches utiles à la demande : les bénéficiaires par région, en barres. Quatre fiches sont retenues, le graphique en tête : la documentation exacte des composants, la même que pour le Studio IA.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Outil generate_widget_code, champ « chart_type » = bar, « Execute Tool » : la spécification s’affiche, à partir de « Patterns de composition dsfr-data ».</em></p>
+<p>Voix off : Pour écrire le code, il reçoit la spécification complète du graphique en barres. Rien n’est inventé.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le code et son diagnostic (01:12)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Outil diagnose_widget_code : le code des trois balises est collé dans le champ « html », « Execute Tool » : « Analyse statique : aucun probleme detecte ». Puis la version fautive : « 2 erreur(s) », « Attribut inconnu &quot;couleur&quot; », « L’amont &quot;requete&quot; n’existe pas dans ce code ».</em></p>
+<p>Voix off : Il propose trois balises : source, requête, graphique, et les fait vérifier avant de les rendre. Aucun problème détecté. Avec un attribut inconnu et une requête absente, le diagnostic nomme les deux erreurs.</p>
+<p class="fr-text--bold fr-mb-1v fr-mt-2w">Le rendu dans le Playground (01:28)</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Playground : les trois balises collées dans l’éditeur de code, clic sur « Exécuter » ; l’aperçu rend le graphique en barres des bénéficiaires par région. Menu « Plus d’actions », « Ajouter aux favoris ».</em></p>
+<p>Voix off : Je colle le code produit par l’assistant dans le Playground de ChartsBuilder, et je l’exécute. Le graphique officiel s’affiche : les bénéficiaires par région, Auvergne-Rhône-Alpes en tête. Je le garde en favori.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton : « Dans votre assistant, une ligne de configuration suffit » — connecteur HTTP : https://chartsbuilder.miweb.run/mcp ; en local : claude mcp add dsfr-data -- node mcp-server/dist/index.js.</em></p>
+<p>Voix off : Dans votre assistant, une ligne de configuration suffit : l’adresse du serveur, ou la commande locale.</p>
+<p class="fr-text--sm fr-mb-1w"><em>[À l&#x27;écran] Carton de fin : « Le même savoir que le Studio IA, servi à votre assistant. » et adresse chartsbuilder.miweb.run.</em></p>
+<p>Voix off : Le même savoir que le Studio IA, servi à l’assistant que vous utilisez déjà. La bibliothèque elle-même : démonstration six. Le tout est libre.</p>
+            </div>
+          </section>
+        </section>
+
+      </div><!-- /guide-content -->
+    </div><!-- /guide-layout -->
+  </main>
+
+  <app-footer base-path="../"></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

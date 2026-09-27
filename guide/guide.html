@@ -25,6 +25,9 @@
     .guide-content h3 { margin-top: 2rem; }
     .guide-content ol, .guide-content ul { margin: 0.5rem 0 1rem 1.5rem; }
     .guide-content li { margin-bottom: 0.25rem; }
+    .guide-content .fr-card__img img { margin: 0; border: 0; border-radius: 0; }
+    #videos { scroll-margin-top: 7rem; }
+    .guide-video-principale video { display: block; width: 100%; height: auto; background: #000; border: 1px solid var(--border-default-grey); border-radius: 4px; }
     .guide-content pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin: 0; }
   </style>
 </head>
@@ -50,52 +53,135 @@
 
         <!-- Vue d'ensemble -->
         <section id="overview">
-          <h1><i class="ri-book-open-line fr-mr-1w"></i>Guide utilisateur — dsfr-data</h1>
+          <h1><i class="ri-book-open-line fr-mr-1w" aria-hidden="true"></i>Guide de ChartsBuilder</h1>
           <p class="fr-text--lead">
-            Ce guide presente les principaux parcours d'utilisation de <strong>dsfr-data</strong>, une bibliothèque de Web Components de dataviz pour les sites gouvernementaux francais, conforme au DSFR.
+            ChartsBuilder permet à tout agent public de transformer une donnée ouverte en graphique dynamique, accessible et conforme au Système de design de l'État. Ce guide présente ses outils et la bibliothèque libre <strong>dsfr-data</strong> sur laquelle il repose.
           </p>
-          <p>Chaque parcours est presente comme une <strong>user story</strong> :</p>
-          <div class="user-story">
-            <strong>Pour</strong> [objectif metier], <strong>je dois</strong> [etapes concretes], <strong>afin de</strong> [resultat d'integration].
+
+          <h2 id="videos">Découvrir en vidéo</h2>
+          <div class="guide-video-principale">
+            <video controls preload="none" width="1920" height="1080" poster="videos/00-decouvrir.jpg">
+              <source src="videos/00-decouvrir.mp4" type="video/mp4">
+              <track kind="captions" srclang="fr" label="Français" src="videos/00-decouvrir.fr.vtt" default>
+              <p>Votre navigateur ne lit pas cette vidéo : <a href="videos/00-decouvrir.mp4">téléchargez-la</a>.</p>
+            </video>
+            <p class="fr-text--sm fr-mt-1w">Découvrir ChartsBuilder (3 min 32) — Ce que ChartsBuilder change pour publier des données : le problème des images figées, la bibliothèque dsfr-data, l&#x27;application et le tour de ses outils. <a href="guide-videos.html#video-00-decouvrir">Lire la transcription</a></p>
           </div>
 
-          <div class="fr-callout fr-mt-3w fr-mb-3w" id="tours-panel">
-            <h3 class="fr-callout__title">Visites guidees</h3>
-            <p class="fr-callout__text">Lancez une visite guidée pour decouvrir chaque outil. Chaque visite ne se lance qu'une fois automatiquement ; vous pouvez la relancer ou la réinitialiser a tout moment.</p>
-            <div class="fr-toggle fr-toggle--label-left fr-mt-2w">
-              <input type="checkbox" class="fr-toggle__input" id="tours-disabled-toggle">
-              <label class="fr-toggle__label" for="tours-disabled-toggle">
-                Desactiver toutes les visites guidees
-                <span class="fr-hint-text">Les visites ne demarreront plus automatiquement. Vous pouvez toujours les relancer ci-dessous.</span>
-              </label>
+          <p class="fr-mt-3w">Puis, cas par cas, de la donnée ouverte à la page publiée :</p>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-01-les-sources">Les sources : des données en direct ou locales</a></h3>
+                    <p class="fr-card__desc">Brancher une donnée en direct (OpenDataSoft, data.gouv.fr, Grist, INSEE Melodi) ou créer un jeu local : saisie, import CSV, jointure.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">Sources · 2 min 55</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/01-les-sources-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
             </div>
-            <div id="tours-table-container" class="fr-mt-3w"></div>
-          </div>
-
-          <div class="fr-callout fr-mt-3w fr-mb-3w" id="demo-datasets-panel">
-            <h3 class="fr-callout__title">Jeux de donnees de demonstration</h3>
-            <p class="fr-callout__text">Le Builder et le Studio IA proposent des jeux de donnees d'exemple prets a l'emploi pour decouvrir l'outil sans connecter de source. Vous pouvez les masquer si vous ne souhaitez utiliser que vos propres donnees.</p>
-            <div class="fr-toggle fr-toggle--label-left fr-mt-2w">
-              <input type="checkbox" class="fr-toggle__input" id="demo-datasets-disabled-toggle">
-              <label class="fr-toggle__label" for="demo-datasets-disabled-toggle">
-                Masquer les jeux de donnees de demonstration
-                <span class="fr-hint-text">Les exemples n'apparaitront plus dans les selecteurs de source des builders. Effectif au prochain chargement d'un builder.</span>
-              </label>
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-02-illustrer-une-page">Illustrer une page de son site avec un graphique vivant</a></h3>
+                    <p class="fr-card__desc">Remplacer une capture de tableur par un graphique officiel, accessible et à jour, puis le coller dans sa page.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">Builder · 2 min 43</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/02-illustrer-une-page-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-03-studio-ia">Une page complète composée par l&#x27;IA à partir de son texte</a></h3>
+                    <p class="fr-card__desc">Coller son texte, décrire la page en français : l&#x27;IA compose l&#x27;indicateur, le graphique, le filtre et le tableau, et l&#x27;on garde la main.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">Studio IA · 2 min 47</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/03-studio-ia-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-04-carte">Cartographier les centres de contrôle technique de son département</a></h3>
+                    <p class="fr-card__desc">Du jeu national des prix du contrôle technique à la carte filtrée d&#x27;un département, avec sa fiche au clic.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">Carte · 2 min 58</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/04-carte-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-05-tableau-de-bord">Assembler un tableau de bord à partir de ses favoris</a></h3>
+                    <p class="fr-card__desc">Déposer ses graphiques favoris sur une grille, ajouter un encart, passer en plein écran et exporter la page.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">Tableau de bord · 2 min 24</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/05-tableau-de-bord-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-06-bibliotheque">La bibliothèque dsfr-data pour les intégrateurs</a></h3>
+                    <p class="fr-card__desc">Trois balises HTML, sans JavaScript : la bibliothèque libre dsfr-data utilisée directement dans une page.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">Bibliothèque · 2 min 04</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/06-bibliotheque-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
+            </div>
+            <div class="fr-col-12 fr-col-sm-6 fr-col-lg-4">
+              <div class="fr-card fr-enlarge-link fr-card--sm">
+                <div class="fr-card__body">
+                  <div class="fr-card__content">
+                    <h3 class="fr-card__title"><a href="guide-videos.html#video-07-assistant-mcp">Créer un graphique depuis son assistant IA (MCP)</a></h3>
+                    <p class="fr-card__desc">Le serveur MCP met ChartsBuilder à disposition de l&#x27;assistant IA que l&#x27;on utilise déjà : les échanges, pas à pas.</p>
+                    <div class="fr-card__start"><p class="fr-card__detail">MCP · 2 min 08</p></div>
+                  </div>
+                </div>
+                <div class="fr-card__header">
+                  <div class="fr-card__img"><img class="fr-responsive-img" src="videos/07-assistant-mcp-apercu.jpg" alt="" loading="lazy" width="960" height="540"></div>
+                </div>
+              </div>
             </div>
           </div>
-          <script src="guide-tours.js"></script>
+          <p class="fr-mt-2w"><a class="fr-link fr-icon-arrow-right-line fr-link--icon-right" href="guide-videos.html">Toutes les vidéos, avec leurs transcriptions</a></p>
 
           <h2>L'interface</h2>
           <p>L'application est accessible depuis la page d'accueil qui regroupe tous les outils :</p>
-          <img src="images/guide-hub.png" alt="Page d'accueil dsfr-data">
-          <p>Les outils disponibles sont :</p>
+          <img src="images/guide-hub.png" alt="Page d'accueil de ChartsBuilder">
           <ul>
-            <li><strong>Sources</strong> : connecter et gerer les sources de donnees (Grist, API, manuelles)</li>
-            <li><strong>Builder</strong> : générateur visuel de graphiques pas-a-pas</li>
+            <li><strong>Sources</strong> : connecter et gérer les sources de données (API, data.gouv.fr, Grist, INSEE, jeux locaux)</li>
+            <li><strong>Créer un graphique</strong> : le Builder, un générateur visuel de graphiques pas à pas</li>
             <li><strong>Studio IA</strong> : graphiques et tableaux de bord composés par conversation avec l'IA Albert</li>
-            <li><strong>Playground</strong> : editeur de code interactif avec apercu temps reel</li>
-            <li><strong>Dashboard</strong> : editeur visuel de tableaux de bord multi-widgets</li>
-            <li><strong>Monitoring</strong> : suivi des deployements de widgets en production</li>
+            <li><strong>Créer une carte</strong> : points, zones et fiches au clic, sur des données géographiques</li>
+            <li><strong>Créer un tableau de bord</strong> : assembler ses graphiques favoris sur une grille</li>
+            <li><strong>Playground</strong> : éditeur de code interactif avec aperçu en temps réel</li>
+            <li><strong>Suivi</strong> : suivi des déploiements de widgets en production</li>
           </ul>
 
           <div class="fr-grid-row fr-grid-row--gutters fr-mt-4w">
@@ -104,7 +190,7 @@
                 <div class="fr-card__body">
                   <div class="fr-card__content">
                     <h3 class="fr-card__title"><a href="guide-parcours.html">Parcours utilisateur</a></h3>
-                    <p class="fr-card__desc">7 parcours pas-a-pas : donnees locales, Grist, Studio IA, Playground, Dashboard, API REST, Monitoring.</p>
+                    <p class="fr-card__desc">Des parcours pas à pas, écrits comme des récits d'usage : données locales, Grist, Studio IA, Playground, tableau de bord, API REST, suivi.</p>
                   </div>
                 </div>
               </div>
@@ -114,12 +200,41 @@
                 <div class="fr-card__body">
                   <div class="fr-card__content">
                     <h3 class="fr-card__title"><a href="guide-exemples-source.html">Exemples par composant</a></h3>
-                    <p class="fr-card__desc">Exemples live avec code source : dsfr-data-source, normalize, query, search, facets, display.</p>
+                    <p class="fr-card__desc">Exemples en direct avec leur code source : dsfr-data-source, normalize, query, search, facets, display.</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+
+          <section class="fr-accordion fr-mt-6w" id="reglages">
+            <h3 class="fr-accordion__title">
+              <button class="fr-accordion__btn" aria-expanded="false" aria-controls="reglages-contenu">Réglages : visites guidées et jeux de démonstration</button>
+            </h3>
+            <div class="fr-collapse" id="reglages-contenu">
+              <div id="tours-panel">
+                <p class="fr-mb-1w">Chaque outil propose une visite guidée, lancée une seule fois automatiquement ; vous pouvez la relancer ou la réinitialiser ici.</p>
+                <div class="fr-toggle">
+                  <input type="checkbox" class="fr-toggle__input" id="tours-disabled-toggle">
+                  <label class="fr-toggle__label" for="tours-disabled-toggle">
+                    Désactiver toutes les visites guidées
+                    <span class="fr-hint-text">Elles ne démarreront plus automatiquement ; le tableau ci-dessous permet toujours de les relancer.</span>
+                  </label>
+                </div>
+                <div id="tours-table-container" class="fr-mt-2w"></div>
+              </div>
+              <div id="demo-datasets-panel" class="fr-mt-3w">
+                <div class="fr-toggle">
+                  <input type="checkbox" class="fr-toggle__input" id="demo-datasets-disabled-toggle">
+                  <label class="fr-toggle__label" for="demo-datasets-disabled-toggle">
+                    Masquer les jeux de données de démonstration
+                    <span class="fr-hint-text">Le Builder et le Studio IA ne proposeront plus les jeux d'exemple dans leurs sélecteurs de source (effectif au prochain chargement).</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </section>
+          <script src="guide-tours.js"></script>
         </section>
 
         <!-- Ressources -->
@@ -131,7 +246,7 @@
                 <div class="fr-card__body">
                   <div class="fr-card__content">
                     <h3 class="fr-card__title">Playground</h3>
-                    <p class="fr-card__desc">Editeur de code interactif avec exemples precharges et apercu en temps reel.</p>
+                    <p class="fr-card__desc">Éditeur de code interactif avec exemples préchargés et aperçu en temps réel.</p>
                   </div>
                   <div class="fr-card__footer">
                     <a class="fr-btn fr-btn--secondary" href="../apps/playground/index.html">Ouvrir le Playground</a>
@@ -143,7 +258,7 @@
               <div class="fr-card fr-card--no-arrow">
                 <div class="fr-card__body">
                   <div class="fr-card__content">
-                    <h3 class="fr-card__title">Demo composants</h3>
+                    <h3 class="fr-card__title">Démo des composants</h3>
                     <p class="fr-card__desc">Voir tous les composants avec leurs attributs et exemples interactifs.</p>
                   </div>
                   <div class="fr-card__footer">
