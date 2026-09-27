@@ -279,6 +279,41 @@
       letter-spacing: 0.04em;
     }
 
+    /* ───────── OPEN-DATA-VIZ (teaser de la vitrine) ───────── */
+    .home-odv {
+      padding: 2.5rem 0 3rem;
+      background: var(--background-alt-blue-france);
+      border-top: 1px solid var(--border-default-grey);
+    }
+    .home-odv__video video {
+      display: block; width: 100%; height: auto;
+      background: #000; border: 1px solid var(--border-default-grey); border-radius: 4px;
+    }
+    .home-odv__kicker {
+      font-weight: 700; font-size: 0.75rem; line-height: 1rem; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-action-high-blue-france); margin: 0 0 0.5rem;
+    }
+    .home-odv__title {
+      font-size: 1.5rem; line-height: 2rem; font-weight: 700;
+      color: var(--text-title-grey); margin: 0 0 0.75rem;
+    }
+    .home-odv__kpis {
+      display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem; margin: 1.25rem 0 1.5rem; padding: 0; list-style: none;
+    }
+    .home-odv__kpi {
+      padding: 0.75rem 1rem; margin: 0;
+      background: var(--background-default-grey);
+      border-left: 3px solid var(--text-action-high-blue-france);
+    }
+    .home-odv__kpi-value {
+      display: block; font-size: 1.75rem; line-height: 2rem; font-weight: 700;
+      color: var(--text-title-grey);
+    }
+    .home-odv__kpi-label {
+      display: block; font-size: 0.8125rem; line-height: 1.125rem; color: var(--text-mention-grey);
+    }
+
     /* ───────── RESPONSIVE ───────── */
     @media (max-width: 992px) {
       .home-hero__inner { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
@@ -566,6 +601,36 @@
               <p class="home-tool__desc">Utilisateurs, connexions et paramètres de la plateforme.</p>
             </div>
           </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vitrine open-data-viz : la vidéo du guide (guide/videos/08-open-data-viz.*) et quatre chiffres
+         relevés sur https://open-data-viz.lab.miweb.run le 2026-09-27 (le site ne les expose pas en
+         CORS : à mettre à jour à la main si la vitrine évolue beaucoup). -->
+    <section class="home-odv" aria-labelledby="home-odv-titre">
+      <div class="fr-container">
+        <div class="fr-grid-row fr-grid-row--gutters fr-grid-row--middle">
+          <div class="fr-col-12 fr-col-md-6 home-odv__video">
+            <video controls preload="none" width="1920" height="1080" poster="guide/videos/08-open-data-viz.jpg">
+              <source src="guide/videos/08-open-data-viz.mp4" type="video/mp4">
+              <track kind="captions" srclang="fr" label="Français" src="guide/videos/08-open-data-viz.fr.vtt" default>
+              <p>Votre navigateur ne lit pas cette vidéo : <a href="guide/videos/08-open-data-viz.mp4">téléchargez-la</a>.</p>
+            </video>
+            <p class="fr-text--xs fr-mt-1w fr-mb-0">Vidéo de 3 min 33, sous-titrée · <a href="guide/guide-videos.html#video-08-open-data-viz">lire la transcription</a></p>
+          </div>
+          <div class="fr-col-12 fr-col-md-6">
+            <p class="home-odv__kicker">La vitrine de dsfr-data</p>
+            <h2 class="home-odv__title" id="home-odv-titre">open-data-viz : des dataviz de données publiques, écrites en balises HTML</h2>
+            <p class="fr-mb-0">Des graphiques, des cartes et des récits chiffrés, branchés en direct sur les API des portails de l'État. Chaque page montre son code, et un banc d'essai mesure ce que la bibliothèque sait faire.</p>
+            <ul class="home-odv__kpis">
+              <li class="home-odv__kpi"><span class="home-odv__kpi-value">110</span><span class="home-odv__kpi-label">dataviz en ligne</span></li>
+              <li class="home-odv__kpi"><span class="home-odv__kpi-value">5</span><span class="home-odv__kpi-label">portails de l'État</span></li>
+              <li class="home-odv__kpi"><span class="home-odv__kpi-value">26</span><span class="home-odv__kpi-label">composants dsfr-data employés</span></li>
+              <li class="home-odv__kpi"><span class="home-odv__kpi-value">360</span><span class="home-odv__kpi-label">constats au banc d'essai</span></li>
+            </ul>
+            <a class="fr-btn fr-btn--secondary fr-icon-external-link-line fr-btn--icon-right" href="https://open-data-viz.lab.miweb.run" target="_blank" rel="noopener" title="Découvrir open-data-viz — nouvelle fenêtre">Découvrir open-data-viz</a>
+          </div>
         </div>
       </div>
     </section>
