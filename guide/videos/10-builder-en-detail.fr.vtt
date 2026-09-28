@@ -1,0 +1,922 @@
+WEBVTT
+
+1
+00:00:00.600 --> 00:00:04.583
+Le Builder de graphiques,
+fonctionnalité par fonctionnalité.
+
+2
+00:00:04.863 --> 00:00:09.656
+Sept chapitres de moins de deux
+minutes, sur une même donnée ouverte :
+
+3
+00:00:09.656 --> 00:00:11.711
+le guichet Industrie du futur.
+
+4
+00:00:11.991 --> 00:00:16.063
+Chaque chapitre se regarde seul
+; le sommaire, sous la vidéo,
+
+5
+00:00:16.063 --> 00:00:19.000
+mène directement à celui
+qui vous intéresse.
+
+6
+00:00:20.300 --> 00:00:24.669
+J'ai un premier graphique : les
+bénéficiaires par région, en barres.
+
+7
+00:00:24.949 --> 00:00:29.462
+Mais les noms des régions se lisent mal, et
+je me demande quelle forme sert vraiment
+
+8
+00:00:29.462 --> 00:00:30.106
+mon message.
+
+9
+00:00:31.206 --> 00:00:36.160
+Voici le graphique : dix-huit régions,
+aux noms longs et en majuscules,
+
+10
+00:00:36.160 --> 00:00:37.416
+serrés sous l'axe.
+
+11
+00:00:37.696 --> 00:00:41.464
+Le statut, sous les réglages,
+dit : Graphique à jour.
+
+12
+00:00:42.566 --> 00:00:46.828
+À l'étape deux, onze formes :
+barres, barres horizontales,
+
+13
+00:00:46.828 --> 00:00:50.503
+lignes, camembert, anneau,
+radar, nuage de points,
+
+14
+00:00:50.503 --> 00:00:53.295
+jauge, indicateur clé, carte, tableau.
+
+15
+00:00:53.575 --> 00:00:56.759
+Chaque type dit ce qu'il
+attend. Si je choisis Lignes,
+
+16
+00:00:56.759 --> 00:00:58.999
+l'étape trois demande un axe du temps.
+
+17
+00:00:59.279 --> 00:01:03.143
+Camembert : des segments, sept au plus.
+
+18
+00:01:05.636 --> 00:01:09.933
+Pour des libellés longs : Barres
+H, les barres horizontales.
+
+19
+00:01:10.213 --> 00:01:13.731
+Le statut prévient :
+modifications non générées.
+
+20
+00:01:14.011 --> 00:01:17.194
+Je génère : les dix-huit
+régions se lisent en entier,
+
+21
+00:01:17.194 --> 00:01:19.295
+de la plus grande à la plus petite.
+
+22
+00:01:22.349 --> 00:01:27.332
+À l'étape quatre, la palette. Les
+couleurs s'affichent sous le sélecteur,
+
+23
+00:01:27.332 --> 00:01:28.834
+avant même de générer.
+
+24
+00:01:29.114 --> 00:01:32.677
+Un dégradé dit un ordre ;
+des couleurs distinctes,
+
+25
+00:01:32.677 --> 00:01:36.240
+des catégories ; le bleu
+France, une seule mesure.
+
+26
+00:01:36.520 --> 00:01:40.246
+C'est mon cas : bleu France, et je génère.
+
+27
+00:01:41.346 --> 00:01:46.191
+Et le camembert ? Dix-huit parts : impossible
+à lire. Il vaut pour sept parts au
+
+28
+00:01:46.191 --> 00:01:46.494
+plus.
+
+29
+00:01:46.774 --> 00:01:51.422
+Pour n'en garder que quelques-unes, il
+faudrait filtrer : c'est un autre chapitre.
+
+30
+00:01:51.702 --> 00:01:55.111
+Je reviens aux barres
+horizontales, et je génère.
+
+31
+00:01:55.391 --> 00:02:00.622
+La forme sert le message : chaque région
+se lit, et le graphique est à jour.
+
+32
+00:02:02.167 --> 00:02:05.814
+Mon graphique montre une mesure
+: les bénéficiaires par région.
+
+33
+00:02:06.094 --> 00:02:10.655
+J'en veux deux, côte à côte :
+l'investissement total des entreprises,
+
+34
+00:02:10.655 --> 00:02:12.638
+et la participation de l'État.
+
+35
+00:02:13.739 --> 00:02:17.796
+Pour comparer, il faut deux mesures
+dans la même unité : ici, des euros.
+
+36
+00:02:18.076 --> 00:02:20.997
+À l'étape trois, je change
+la valeur à mesurer :
+
+37
+00:02:20.997 --> 00:02:25.014
+le montant d'investissement, avec
+le libellé Investissement total.
+
+38
+00:02:25.294 --> 00:02:29.609
+Les lignes sont par département :
+la Somme les additionne par région,
+
+39
+00:02:29.609 --> 00:02:30.735
+pour chaque série.
+
+40
+00:02:31.835 --> 00:02:36.092
+Sous la première valeur, le bouton Ajouter
+une série. Il n'apparaît que pour les
+
+41
+00:02:36.092 --> 00:02:37.741
+barres, les lignes et le radar.
+
+42
+00:02:38.021 --> 00:02:41.516
+Série deux : la participation
+de l'État, et son libellé,
+
+43
+00:02:41.516 --> 00:02:44.823
+celui que liront la légende
+et le tableau accessible.
+
+44
+00:02:45.103 --> 00:02:49.258
+Même agrégation, même axe :
+des euros contre des euros.
+
+45
+00:02:50.358 --> 00:02:53.894
+À l'étape quatre, un titre
+qui dit le message :
+
+46
+00:02:53.894 --> 00:02:57.731
+l'État finance près d'un
+tiers des investissements.
+
+47
+00:02:58.011 --> 00:03:04.151
+Palette : couleurs distinctes par catégorie,
+une couleur par mesure. Je génère.
+
+48
+00:03:04.431 --> 00:03:09.498
+Le résumé de l'étape trois le dit :
+plus une série. Deux barres par région,
+
+49
+00:03:09.498 --> 00:03:12.402
+une légende par mesure,
+dans la même unité.
+
+50
+00:03:13.504 --> 00:03:16.773
+Dans l'onglet Code, une seule
+balise porte les deux mesures :
+
+51
+00:03:16.773 --> 00:03:19.131
+value-field, value-fields,
+et les deux noms.
+
+52
+00:03:19.411 --> 00:03:23.112
+Rien à recopier : le graphique
+reste branché sur la donnée.
+
+53
+00:03:23.392 --> 00:03:26.446
+Retour à l'aperçu. Deux
+mesures dans la même unité,
+
+54
+00:03:26.446 --> 00:03:30.159
+sur un même graphique : la
+comparaison se lit d'un coup d'œil.
+
+55
+00:03:31.700 --> 00:03:35.688
+J'ai un graphique des bénéficiaires
+par région, dix-huit barres.
+
+56
+00:03:35.968 --> 00:03:40.107
+Pour une page régionale, je veux le
+même, pour la Bretagne seulement,
+
+57
+00:03:40.107 --> 00:03:42.807
+par département, sans
+créer une autre source.
+
+58
+00:03:43.908 --> 00:03:47.571
+Dans Configuration des données, je
+passe les étiquettes au département.
+
+59
+00:03:47.851 --> 00:03:52.270
+Sans filtre, ce serait une centaine
+de barres : je ne génère pas encore.
+
+60
+00:03:53.370 --> 00:03:56.935
+Plus bas, la zone Filtres.
+Ajouter un filtre.
+
+61
+00:03:57.215 --> 00:04:03.439
+Un filtre se construit en trois cases
+: le champ, l'opérateur, la valeur.
+
+62
+00:04:03.719 --> 00:04:07.233
+Le champ : la région.
+L’opérateur : égal. La valeur :
+
+63
+00:04:07.233 --> 00:04:11.940
+BRETAGNE, en majuscules, comme dans
+la donnée, car le filtre est exact.
+
+64
+00:04:12.220 --> 00:04:16.427
+Le compteur passe à un actif.
+Plusieurs filtres se cumuleraient.
+
+65
+00:04:17.529 --> 00:04:22.448
+Pour qui préfère écrire, le mode texte
+montre le même filtre en une ligne.
+
+66
+00:04:22.728 --> 00:04:25.872
+Les opérateurs disponibles
+sont listés dessous.
+
+67
+00:04:26.152 --> 00:04:31.359
+Je reviens au mode visuel : les deux
+écritures restent synchronisées.
+
+68
+00:04:32.459 --> 00:04:37.027
+Trier par valeur hiérarchise. Ici
+je trie par nom de département,
+
+69
+00:04:37.027 --> 00:04:40.471
+en ordre croissant : le
+lecteur retrouve le sien.
+
+70
+00:04:40.751 --> 00:04:45.400
+Ordre source garderait l'ordre de la
+donnée, utile pour des mois en lettres.
+
+71
+00:04:45.680 --> 00:04:51.165
+Le titre dit le périmètre : Bretagne,
+quatre cent soixante-dix entreprises
+
+72
+00:04:51.165 --> 00:04:53.018
+bénéficiaires. Je génère.
+
+73
+00:04:53.298 --> 00:04:58.331
+Quatre barres, dans l’ordre alphabétique,
+des Côtes-d’Armor au Morbihan.
+
+74
+00:05:01.236 --> 00:05:05.020
+Dans l'onglet Code, le
+filtre est dans la requête,
+
+75
+00:05:05.020 --> 00:05:07.668
+avec where ; le tri, avec order-by.
+
+76
+00:05:07.948 --> 00:05:12.148
+Pas de copie des données : la page ne
+recevra que les lignes de Bretagne,
+
+77
+00:05:12.148 --> 00:05:13.643
+à jour à chaque affichage.
+
+78
+00:05:14.745 --> 00:05:18.524
+Sous les filtres, la requête
+avancée va plus loin :
+
+79
+00:05:18.524 --> 00:05:22.526
+un regroupement libre, et
+plusieurs calculs à la fois.
+
+80
+00:05:22.806 --> 00:05:26.051
+J'ajoute le total investi
+à côté des bénéficiaires,
+
+81
+00:05:26.051 --> 00:05:28.214
+chaque calcul nommé, et je génère.
+
+82
+00:05:28.494 --> 00:05:34.294
+Le graphique ne trace que le premier
+calcul. Les autres sont dans le tableau
+
+83
+00:05:34.294 --> 00:05:36.354
+accessible, et dans le CSV.
+
+84
+00:05:36.634 --> 00:05:42.047
+Une région, ses départements, deux calculs
+: le périmètre est fixé par l'auteur,
+
+85
+00:05:42.047 --> 00:05:45.024
+et le graphique reste
+branché sur la donnée.
+
+86
+00:05:46.567 --> 00:05:50.072
+Dans un autre chapitre, c'est
+l'auteur qui fixait la région.
+
+87
+00:05:50.352 --> 00:05:53.872
+Pour la page nationale, je veux le
+contraire : toutes les régions,
+
+88
+00:05:53.872 --> 00:05:56.059
+et le lecteur coche celles qu’il compare.
+
+89
+00:05:57.159 --> 00:06:02.181
+Sous Réglages avancés, le mode de génération
+: Chargement dynamique est déjà coché
+
+90
+00:06:02.181 --> 00:06:03.712
+pour une source en ligne.
+
+91
+00:06:03.992 --> 00:06:09.307
+C'est la page qui interroge la donnée. Les
+filtres du lecteur n'existent que dans ce
+
+92
+00:06:09.307 --> 00:06:09.623
+mode.
+
+93
+00:06:10.725 --> 00:06:14.018
+Dans Filtres à facettes, j'active
+les filtres interactifs,
+
+94
+00:06:14.018 --> 00:06:15.664
+puis Configurer les facettes.
+
+95
+00:06:16.765 --> 00:06:19.862
+La fenêtre s’ouvre avec
+tous les champs cochés :
+
+96
+00:06:19.862 --> 00:06:24.701
+je désélectionne tout, pour ne garder
+que ce qui a un sens pour le lecteur.
+
+97
+00:06:24.981 --> 00:06:29.414
+Je coche la région, avec le
+libellé Région, en cases à cocher,
+
+98
+00:06:29.414 --> 00:06:32.202
+et Multi : plusieurs régions à la fois.
+
+99
+00:06:32.482 --> 00:06:35.918
+J'applique : une facette configurée.
+
+100
+00:06:36.198 --> 00:06:40.569
+Je trie ses valeurs par ordre
+alphabétique : chacun retrouve sa région.
+
+101
+00:06:41.669 --> 00:06:46.672
+La section Partage par l'adresse vient
+d'apparaître. J'active Adresse partageable.
+
+102
+00:06:46.952 --> 00:06:50.879
+La sélection du lecteur s'écrit
+dans l'adresse de la page :
+
+103
+00:06:50.879 --> 00:06:53.076
+le lien copié rouvre la même vue.
+
+104
+00:06:54.178 --> 00:06:58.477
+Je génère. Dans l’aperçu, le bloc
+Région, avec ses cases à cocher.
+
+105
+00:06:58.757 --> 00:07:03.558
+Je joue le lecteur : je coche Bretagne,
+puis Corse. Le graphique se réduit à deux
+
+106
+00:07:03.558 --> 00:07:05.099
+barres, sans rechargement.
+
+107
+00:07:05.379 --> 00:07:08.465
+Réinitialiser les filtres
+rend toutes les régions.
+
+108
+00:07:11.830 --> 00:07:17.896
+Dans l'onglet Code, une balise de plus
+entre la requête et le graphique :
+
+109
+00:07:17.896 --> 00:07:20.555
+dsfr-data-facets, avec url-sync.
+
+110
+00:07:20.835 --> 00:07:24.700
+Le graphique lit faceted-data.
+On colle ce code dans la page,
+
+111
+00:07:24.700 --> 00:07:26.600
+et le lecteur filtre lui-même.
+
+112
+00:07:26.880 --> 00:07:31.378
+Toutes les régions, un lien par
+sélection : le graphique reste vivant.
+
+113
+00:07:32.934 --> 00:07:38.717
+Sous le graphique par région, le service
+veut la liste complète par département :
+
+114
+00:07:38.717 --> 00:07:41.073
+consultable, triable, exportable.
+
+115
+00:07:41.353 --> 00:07:43.991
+Sans en copier cent lignes dans la page.
+
+116
+00:07:45.094 --> 00:07:50.720
+Le graphique résume ; le tableau donne
+tout. À l’étape deux, je choisis Tableau.
+
+117
+00:07:51.000 --> 00:07:54.281
+L’étape trois change : un
+champ principal, Colonnes,
+
+118
+00:07:54.281 --> 00:07:57.562
+et les options du tableau.
+Je prends le département,
+
+119
+00:07:57.562 --> 00:08:00.402
+en ordre source : le
+lecteur triera lui-même.
+
+120
+00:08:01.503 --> 00:08:06.739
+Configurer les colonnes : une ligne
+par champ. Je décoche les six colonnes
+
+121
+00:08:06.739 --> 00:08:07.517
+techniques.
+
+122
+00:08:07.797 --> 00:08:11.251
+Je renomme les quatre qui
+restent : Département,
+
+123
+00:08:11.251 --> 00:08:15.496
+Région, Bénéficiaires,
+Investissement en euros. J’applique.
+
+124
+00:08:16.597 --> 00:08:23.349
+Options du tableau : Recherche et Export
+CSV sont cochés. Je coche Filtres par
+
+125
+00:08:23.349 --> 00:08:24.042
+colonne.
+
+126
+00:08:24.322 --> 00:08:28.358
+Mais ce tableau est paginé par
+l’API, vingt lignes à la fois :
+
+127
+00:08:28.358 --> 00:08:31.743
+une recherche locale ne
+verrait qu’une page sur six.
+
+128
+00:08:32.023 --> 00:08:36.756
+La bibliothèque la désactive, et le
+code dira quoi mettre à la place.
+
+129
+00:08:37.857 --> 00:08:43.373
+Partage par l’adresse : Adresse partageable.
+Le numéro de page suivra dans le lien.
+
+130
+00:08:43.653 --> 00:08:47.496
+À l’étape quatre, un titre
+pour le tableau, et je génère.
+
+131
+00:08:49.456 --> 00:08:52.258
+Une centaine de résultats
+annoncés, vingt affichés,
+
+132
+00:08:52.258 --> 00:08:54.565
+six pages. Les en-têtes sont mes libellés.
+
+133
+00:08:54.845 --> 00:08:59.533
+Un clic sur Département : le tri
+est demandé à l’API. Page deux :
+
+134
+00:08:59.533 --> 00:09:03.067
+la suite arrive du serveur,
+la page reste légère.
+
+135
+00:09:04.169 --> 00:09:07.632
+Onglet Code : la source
+paginée par le serveur,
+
+136
+00:09:07.632 --> 00:09:11.316
+vingt par page ; la liste,
+ses colonnes, l’export,
+
+137
+00:09:11.316 --> 00:09:12.937
+le tri, la pagination.
+
+138
+00:09:13.217 --> 00:09:16.398
+En commentaire, le rappel :
+pour chercher dans tout le jeu,
+
+139
+00:09:16.398 --> 00:09:18.070
+une recherche serveur en amont.
+
+140
+00:09:18.350 --> 00:09:21.260
+Un tableau vivant, branché sur
+la donnée comme le graphique.
+
+141
+00:09:22.800 --> 00:09:28.657
+Le webmestre veut savoir ce que fait
+chaque case de l’accessibilité et du cadre
+
+142
+00:09:28.657 --> 00:09:32.660
+officiel, avant de fixer un
+réglage pour tout le site.
+
+143
+00:09:33.761 --> 00:09:39.230
+Accessibilité, trois cases : Tableau de
+données et Téléchargement CSV sont cochés.
+
+144
+00:09:39.230 --> 00:09:43.166
+J’ajoute la description, le
+message que l’image ne dit pas.
+
+145
+00:09:43.446 --> 00:09:46.312
+Je génère, et je déplie l’accordéon.
+
+146
+00:09:46.592 --> 00:09:51.582
+Un lecteur d’écran entend : dix-huit
+lignes, la description, puis le tableau.
+
+147
+00:09:51.862 --> 00:09:56.921
+Télécharger en CSV : le jeu,
+prêt pour la donnée ouverte.
+
+148
+00:09:58.022 --> 00:10:02.418
+Tableau déjà publié à côté ? Je
+décoche Tableau de données :
+
+149
+00:10:02.418 --> 00:10:05.788
+le résumé devient
+téléchargement, description.
+
+150
+00:10:06.068 --> 00:10:09.646
+La description, elle,
+reste. Je le recoche.
+
+151
+00:10:10.747 --> 00:10:16.103
+Cadre officiel DSFR : j’encadre
+le graphique. Sept réglages ;
+
+152
+00:10:16.103 --> 00:10:21.020
+les cases tableau et CSV se
+retirent de l’accessibilité,
+
+153
+00:10:21.020 --> 00:10:22.688
+le cadre les porte.
+
+154
+00:10:22.968 --> 00:10:28.509
+Titre et Source s’affichent dans le cadre
+; Date, janvier deux mille vingt-six.
+
+155
+00:10:28.789 --> 00:10:33.986
+Tendance : une évolution saisie par
+l’auteur, plus douze, pas calculée.
+
+156
+00:10:34.266 --> 00:10:39.324
+Je coche Screenshot PNG et
+Plein écran, et je génère.
+
+157
+00:10:40.672 --> 00:10:44.414
+Le bloc officiel du Système
+de design de l’État :
+
+158
+00:10:44.414 --> 00:10:48.155
+titre, tendance en badge,
+source et date en pied.
+
+159
+00:10:48.435 --> 00:10:53.171
+Sous les trois points, capture d’écran et
+téléchargement en CSV. Plein écran est
+
+160
+00:10:53.171 --> 00:10:56.782
+dans le code ; le composant
+officiel ne l’affiche pas encore.
+
+161
+00:10:57.062 --> 00:10:59.621
+En bas, la bascule vers la vue tableau.
+
+162
+00:11:02.099 --> 00:11:05.978
+Onglet Code : les attributs
+databox sur le graphique,
+
+163
+00:11:05.978 --> 00:11:11.468
+puis la balise d’accessibilité avec
+tableau, téléchargement et description.
+
+164
+00:11:11.748 --> 00:11:15.966
+Deux composants, dix attributs,
+à la main de l’auteur.
+
+165
+00:11:16.246 --> 00:11:21.922
+Retour à l’aperçu : le graphique, son cadre,
+et tout ce qu’il faut pour le lire sans
+
+166
+00:11:21.922 --> 00:11:22.462
+le voir.
+
+167
+00:11:24.000 --> 00:11:27.054
+Avant de publier : savoir
+ce que reçoit le graphique,
+
+168
+00:11:27.054 --> 00:11:31.145
+retrouver un réglage sans fouiller,
+garder de quoi retoucher plus tard.
+
+169
+00:11:32.245 --> 00:11:34.378
+Dans Plus d'actions, Diagnostic.
+
+170
+00:11:34.658 --> 00:11:37.909
+Quatre étapes, dix-huit
+lignes, aucune alerte :
+
+171
+00:11:37.909 --> 00:11:43.236
+l'onglet Flux suit les lignes de la
+source au graphique et à l'accessibilité.
+
+172
+00:11:43.516 --> 00:11:49.682
+L'onglet Champs liste ce qui arrive : la
+région et la somme des bénéficiaires. Un
+
+173
+00:11:49.682 --> 00:11:51.889
+champ manquant se lirait ici.
+
+174
+00:11:52.990 --> 00:11:57.670
+Provoquons une alerte : un filtre trop
+strict, plus de cent mille bénéficiaires,
+
+175
+00:11:57.670 --> 00:11:58.430
+et je génère.
+
+176
+00:11:58.710 --> 00:12:03.567
+Zéro ligne, quatre alertes en cascade.
+Le premier constat dit la cause :
+
+177
+00:12:03.567 --> 00:12:05.860
+la source ne renvoie aucune ligne.
+
+178
+00:12:06.140 --> 00:12:09.337
+Me montrer désigne la section en cause.
+
+179
+00:12:09.617 --> 00:12:13.521
+Je retire le filtre, je
+génère : aucune alerte.
+
+180
+00:12:16.085 --> 00:12:20.684
+L'onglet Conversation : l'assistant
+retrouve un réglage. En mode Guider,
+
+181
+00:12:20.684 --> 00:12:23.303
+je demande où est la palette de couleurs.
+
+182
+00:12:23.583 --> 00:12:27.537
+La section Apparence s'ouvre,
+la palette est encadrée :
+
+183
+00:12:27.537 --> 00:12:30.557
+une correspondance sur place, sans modèle.
+
+184
+00:12:30.837 --> 00:12:35.825
+Albert, l'IA de l'État, n'intervient
+qu'en secours, réponses à vérifier.
+
+185
+00:12:36.105 --> 00:12:38.575
+Construire pour moi
+passe la main au Studio.
+
+186
+00:12:39.675 --> 00:12:41.838
+Le même code se retrouve ailleurs
+: Ouvrir dans le Playground,
+
+187
+00:12:41.838 --> 00:12:43.581
+pour l'éditer à la main ;
+Ouvrir dans le Pipeline,
+
+188
+00:12:43.581 --> 00:12:44.802
+pour voir les composants en chaîne.
+
+189
+00:12:45.082 --> 00:12:47.166
+Chacune ramène au Builder d’un clic.
+
+190
+00:12:48.505 --> 00:12:53.323
+Pour un support imprimé, Exporter
+en PNG télécharge l'aperçu,
+
+191
+00:12:53.323 --> 00:12:55.139
+nommé d'après le titre.
+
+192
+00:12:55.419 --> 00:12:58.622
+Et je garde le graphique en
+favori, pour le tableau de bord.
+
+193
+00:13:00.087 --> 00:13:05.652
+Vérifié, guidé, gardé : le graphique
+est à jour, prêt à coller dans la page.
+
+194
+00:13:07.500 --> 00:13:12.725
+Retrouvez les autres vidéos et la
+documentation dans le guide de ChartsBuilder.
