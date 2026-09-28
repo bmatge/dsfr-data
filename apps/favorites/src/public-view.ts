@@ -61,7 +61,7 @@ async function load(): Promise<void> {
     });
   } catch {
     setTitle('Erreur reseau');
-    showEmptyState('ri-wifi-off-line', 'Impossible de joindre le serveur. Reessayez plus tard.');
+    showEmptyState('ri-wifi-off-line', 'Impossible de joindre le serveur. Réessayez plus tard.');
     return;
   }
 

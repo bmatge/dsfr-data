@@ -51,12 +51,12 @@ export const LIBELLES_SOURCE: ReadonlyArray<[AxeSource, string]> = [
   ['grist', 'Grist'],
   ['insee', 'INSEE Melodi'],
   ['generic', 'API JSON (generic)'],
-  ['inline', 'Donnees en dur'],
+  ['inline', 'Données en dur'],
 ];
 
 export const LIBELLES_PIPELINE: ReadonlyArray<[AxePipeline, string]> = [
   ['direct', 'Direct (sans transformation)'],
-  ['query', 'Requete (query)'],
+  ['query', 'Requête (query)'],
   ['normalize', 'Normalisation (normalize)'],
   ['search', 'Recherche (search)'],
   ['facets', 'Facettes (facets)'],
@@ -179,7 +179,7 @@ export const catalogue: ExempleMeta[] = [
   },
   {
     id: 'query-map',
-    title: `Carte — Taux TFB par departement`,
+    title: `Carte — Taux TFB par département`,
     source: ['opendatasoft'],
     pipeline: ['query'],
     output: ['chart', 'map'],
@@ -347,7 +347,7 @@ export const catalogue: ExempleMeta[] = [
   },
   {
     id: 'podium-lycees-dept',
-    title: `Podium — Top 10 des departements en lycees`,
+    title: `Podium — Top 10 des départements en lycées`,
     source: ['opendatasoft'],
     pipeline: ['query'],
     output: ['podium'],
@@ -403,7 +403,7 @@ export const catalogue: ExempleMeta[] = [
   },
   {
     id: 'unpivot-pivot-aller-retour',
-    title: `Tableau + Ligne — Les deux formes d'un meme tableau`,
+    title: `Tableau + Ligne — Les deux formes d'un même tableau`,
     source: ['inline'],
     pipeline: ['pivot'],
     output: ['list', 'chart'],
@@ -480,7 +480,7 @@ export const catalogue: ExempleMeta[] = [
   },
   {
     id: 'kpi-etat-vs-categorie',
-    title: `Indicateurs — Couleur d'etat ou de categorie`,
+    title: `Indicateurs — Couleur d'état ou de catégorie`,
     source: ['opendatasoft'],
     pipeline: ['query'],
     output: ['kpi'],

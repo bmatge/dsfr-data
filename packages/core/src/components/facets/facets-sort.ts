@@ -30,8 +30,8 @@ export function resolveSortCriterion(raw: string, warn: SortWarn): FacetSort {
     const dir = by === 'count' ? 'asc' : 'desc';
     warn(
       raw,
-      `sort="${raw}" est deprecie — le tiret signifie « inverse du defaut » ` +
-        `(${by === 'count' ? 'du plus rare au plus fréquent' : 'Z vers A'}), une convention ambigue. ` +
+      `sort="${raw}" est déprécié — le tiret signifie « inverse du défaut » ` +
+        `(${by === 'count' ? 'du plus rare au plus fréquent' : 'Z vers A'}), une convention ambiguë. ` +
         `Utiliser sort="${by}:${dir}" (grammaire de order-by : count:desc, count:asc, alpha:asc, alpha:desc).`
     );
     return { by, dir };

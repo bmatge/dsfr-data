@@ -368,7 +368,7 @@ export function generateFacetsElement(
   }
 
   const element = `
-  <!-- Filtres a facettes -->
+  <!-- Filtres à facettes -->
   <dsfr-data-facets
     id="${facetsId}"
     ${attrs.join('\n    ')}>
@@ -540,8 +540,8 @@ function noteRechercheServeur(): string {
   if (!state.datalistRecherche && !state.datalistFiltres) return '';
   return `
   <!-- Pagination serveur : la recherche et les filtres de dsfr-data-list sont
-       locaux, ils n'opereraient que sur la page chargee (#304). Pour porter
-       ces controles sur TOUT le jeu, inserer en amont de la liste un
+       locaux, ils n'opéreraient que sur la page chargée (#304). Pour porter
+       ces contrôles sur TOUT le jeu, insérer en amont de la liste un
        dsfr-data-search server-search et/ou un dsfr-data-facets server-facets. -->`;
 }
 
@@ -938,11 +938,11 @@ export function generateCodeForLocalData(): void {
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1085,7 +1085,7 @@ datalist.onSourceData(data);
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${state.savedSource?.name || 'Données locales'} -->
 
-<!-- Dependances (DSFR + DSFR Chart) -->
+<!-- Dépendances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
@@ -1385,7 +1385,7 @@ export function generateDsfrDataQueryCode(
   }
 
   const comment = state.advancedMode
-    ? '<!-- Requête avancee (filtrage et agrégation) -->'
+    ? '<!-- Requête avancée (filtrage et agrégation) -->'
     : '<!-- Agrégation et tri des données -->';
 
   const queryElement = `
@@ -1475,11 +1475,11 @@ export function generateDynamicCode(): void {
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1558,14 +1558,14 @@ ${middlewareHtml}
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique depuis ${gristHost}) -->
-${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
+${state.advancedMode ? '<!-- Mode avancé activé : filtrage et agrégation via dsfr-data-query -->' : ''}
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -1573,14 +1573,14 @@ ${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via ds
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 
-  <!-- Source de données (via proxy CORS si proxy-url defini) -->
+  <!-- Source de données (via proxy CORS si proxy-url défini) -->
 ${proxyComment}  <dsfr-data-source
     id="chart-data"
     url="${realUrl}"${proxyAttr}
     transform="records"${refreshAttr}>
   </dsfr-data-source>
 ${middlewareHtml}${queryElement}
-  <!-- Graphique DSFR (se met a jour automatiquement) -->
+  <!-- Graphique DSFR (se met à jour automatiquement) -->
   <dsfr-data-chart
     id="chart"
     source="${chartSource}"
@@ -1649,11 +1649,11 @@ export function generateDynamicCodeForApi(): void {
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (agrégation serveur) -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1693,13 +1693,13 @@ export function generateDynamicCodeForApi(): void {
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
       const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
-<!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
+<!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page à la fois) -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1745,13 +1745,13 @@ ${facets.element}${noteRechercheServeur()}
       const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
       const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
-<!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page a la fois) -->
+<!-- Source : ${escapeHtml(source.name)} (pagination serveur : une page à la fois) -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1790,11 +1790,11 @@ ${facets.element}${noteRechercheServeur()}
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1907,14 +1907,14 @@ ${middlewareHtml}
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(source.name)} (chargement dynamique) -->
-${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via dsfr-data-query -->' : ''}
+${state.advancedMode ? '<!-- Mode avancé activé : filtrage et agrégation via dsfr-data-query -->' : ''}
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
@@ -1922,7 +1922,7 @@ ${state.advancedMode ? '<!-- Mode avance active : filtrage et agrégation via ds
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
 ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}
-  <!-- Graphique DSFR (se met a jour automatiquement) -->
+  <!-- Graphique DSFR (se met à jour automatiquement) -->
   <dsfr-data-chart
     id="chart"
     source="${chartSource}"
@@ -2049,11 +2049,11 @@ loadGauge();
     const code = `<!-- Tableau généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -2088,7 +2088,7 @@ loadTable();
     const code = `<!-- Nuage de points généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 
-<!-- Dependances (DSFR + DSFR Chart) -->
+<!-- Dépendances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">
@@ -2237,7 +2237,7 @@ loadMap();
   const code = `<!-- Graphique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 
-<!-- Dependances (DSFR + DSFR Chart) -->
+<!-- Dépendances (DSFR + DSFR Chart) -->
 <link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
 <link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">

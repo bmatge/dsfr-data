@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Generique (REST) - API supportees - dsfr-data</title>
+  <title>Générique (REST) - API supportees - dsfr-data</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
@@ -25,16 +25,16 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Mode <strong>generique</strong> pour toute API REST retournant du JSON.
+          Mode <strong>générique</strong> pour toute API REST retournant du JSON.
           C'est le mode de repli (<em>fallback</em>) quand l'URL ne correspond a aucun fournisseur connu.
         </p>
 
         <div class="fr-callout fr-callout--orange-terre-battue">
-          <h4 class="fr-callout__title">Tout cote client</h4>
+          <h4 class="fr-callout__title">Tout côté client</h4>
           <p class="fr-callout__text">
-            Le mode generique ne connait pas la structure de l'API cible. Il recupere les données
+            Le mode générique ne connait pas la structure de l'API cible. Il récupère les données
             via <code>dsfr-data-source</code> et <strong>toutes les transformations</strong> (tri, filtrage,
-            agrégation, facettes, recherche) sont effectuees cote client par <code>dsfr-data-query</code>.
+            agrégation, facettes, recherche) sont effectuees côté client par <code>dsfr-data-query</code>.
           </p>
         </div>
 
@@ -59,27 +59,27 @@
                 <tr>
                   <td>Facettes serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Facettes calculees cote client</td>
+                  <td>Facettes calculées côté client</td>
                 </tr>
                 <tr>
                   <td>Recherche serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Recherche effectuee cote client</td>
+                  <td>Recherche effectuee côté client</td>
                 </tr>
                 <tr>
                   <td>Group-by serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Group-by effectue cote client</td>
+                  <td>Group-by effectue côté client</td>
                 </tr>
                 <tr>
                   <td>Tri serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Tri effectue cote client</td>
+                  <td>Tri effectue côté client</td>
                 </tr>
                 <tr>
                   <td>Agrégation serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Agrégation effectuee cote client</td>
+                  <td>Agrégation effectuee côté client</td>
                 </tr>
               </tbody>
             </table>
@@ -90,15 +90,15 @@
         <section class="fr-mt-4w">
           <h2>Pagination</h2>
           <p>
-            <strong>Aucune pagination automatique.</strong> dsfr-data recupere l'URL telle quelle et
-            traite la reponse JSON comme un tableau de données. Si votre API utilise de la pagination,
+            <strong>Aucune pagination automatique.</strong> dsfr-data récupère l'URL telle quelle et
+            traite la réponse JSON comme un tableau de données. Si votre API utilise de la pagination,
             vous devez la gerer manuellement dans l'URL ou utiliser un des fournisseurs specialises.
           </p>
         </section>
 
         <!-- Structure de reponse -->
         <section class="fr-mt-4w">
-          <h2>Structure de reponse</h2>
+          <h2>Structure de réponse</h2>
           <div class="fr-table">
             <table>
               <thead>
@@ -114,9 +114,9 @@
           </div>
           <div class="fr-highlight fr-mt-2w">
             <p>
-              La reponse JSON doit etre un tableau d'objets a la racine, ou vous pouvez utiliser
+              La réponse JSON doit être un tableau d'objets a la racine, ou vous pouvez utiliser
               l'attribut <code>transform</code> sur <code>dsfr-data-source</code> pour specifier le
-              chemin vers le tableau de données dans la reponse (ex. <code>transform="results.items"</code>).
+              chemin vers le tableau de données dans la réponse (ex. <code>transform="results.items"</code>).
             </p>
           </div>
         </section>
@@ -125,9 +125,9 @@
         <section class="fr-mt-4w">
           <h2>Syntaxe de requête</h2>
           <p>
-            Le mode generique n'envoie aucun paramètre de requête a l'API. Toutes les
-            transformations sont effectuees <strong>cote client</strong> par <code>dsfr-data-query</code>
-            avec la syntaxe colon generique (<code>field:operator:value</code>).
+            Le mode générique n'envoie aucun paramètre de requête a l'API. Toutes les
+            transformations sont effectuees <strong>côté client</strong> par <code>dsfr-data-query</code>
+            avec la syntaxe colon générique (<code>field:operator:value</code>).
           </p>
         </section>
 
@@ -151,7 +151,7 @@
         <section class="fr-mt-4w">
           <h2>Authentification</h2>
           <p>
-            Type : <strong>aucune</strong>. Le mode generique ne gere pas l'authentification
+            Type : <strong>aucune</strong>. Le mode générique ne gère pas l'authentification
             automatiquement. Si votre API necessite une clé, passez-la directement dans l'URL
             ou configurez un proxy.
           </p>
@@ -161,7 +161,7 @@
         <section class="fr-mt-4w">
           <h2>Detection automatique</h2>
           <p>
-            Le mode generique est le <strong>fallback</strong> : il est sélectionne automatiquement
+            Le mode générique est le <strong>fallback</strong> : il est sélectionne automatiquement
             quand l'URL ne correspond a aucun des autres fournisseurs (OpenDataSoft, Tabular, Grist).
           </p>
         </section>

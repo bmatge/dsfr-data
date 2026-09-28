@@ -152,8 +152,8 @@ function install(precoce?: DataflowRecorder): DebugApi {
     const avis = document.createElement('div');
     avis.style.cssText = 'margin-bottom:6px;color:#e7b26a';
     avis.textContent =
-      'Trace reconstituee depuis le cache : le collecteur est arrive apres le chargement. ' +
-      'Chronologie et erreurs deja passees manquent. Chargez ce script AVANT la bibliotheque ' +
+      'Trace reconstituée depuis le cache : le collecteur est arrivé après le chargement. ' +
+      'Chronologie et erreurs déjà passées manquent. Chargez ce script AVANT la bibliothèque ' +
       '(balise <script> en tete de page) pour une trace complete.';
     overlay.appendChild(avis);
   }

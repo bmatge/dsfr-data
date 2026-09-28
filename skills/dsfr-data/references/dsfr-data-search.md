@@ -131,7 +131,7 @@ contradictoires (#654).
 | `count-label` | `string` | `""` (vide) | Nom compté par le compteur de `count`, à la place de « résultat » : `count-label="établissement"` affiche « 12 345 établissements ». Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier, donner les deux formes séparées par une barre verticale : `count-label="cheval\|chevaux"`, `count-label="prix\|prix"`. |
 | `debounce` | `number` | `300` | Délai en ms avant déclenchement du filtre après la dernière frappe |
 | `fields` | `string` | `""` (vide) | Champs sur lesquels rechercher (virgule-séparés). Vide = tous les champs |
-| `highlight` | `boolean` | `false` | Ajoute un champ _highlight a chaque record avec les termes trouves marques en <mark> |
+| `highlight` | `boolean` | `false` | Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en <mark> |
 | `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `label` | `string` | `'Rechercher'` | Label du champ (accessible) |
 | `min-length` | `number` | `0` | Nombre minimum de caractères avant déclenchement |

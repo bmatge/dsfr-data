@@ -36,7 +36,7 @@
             L'adapter Grist choisit automatiquement entre deux modes :
             <strong>mode Records</strong> (GET /records) pour le filtrage par egalite, le tri et la pagination,
             et <strong>mode SQL</strong> (POST /sql) pour le group-by, l'agrégation, les facettes et
-            les operateurs avances (LIKE, comparaisons). Le fallback vers le mode Records + client-side
+            les opérateurs avancés (LIKE, comparaisons). Le fallback vers le mode Records + client-side
             est automatique si le endpoint SQL n'est pas disponible.
           </p>
         </div>
@@ -135,7 +135,7 @@
           <div class="fr-highlight fr-mt-2w">
             <p>
               L'API Grist ne retourne pas de <code>total_count</code>. L'adapter utilise une heuristique :
-              si le nombre de resultats est inferieur a <code>pageSize</code>, c'est la derniere page.
+              si le nombre de résultats est inférieur a <code>pageSize</code>, c'est la derniere page.
               Sinon, le total est indetermine.
             </p>
           </div>
@@ -158,7 +158,7 @@
           <h3 class="fr-mt-2w">Mode SQL (POST /sql)</h3>
           <p>
             Active automatiquement quand les capacites de l'endpoint Records sont insuffisantes
-            (group-by, agrégation, operateurs avances comme <code>contains</code>, <code>gt</code>, <code>lt</code>).
+            (group-by, agrégation, opérateurs avancés comme <code>contains</code>, <code>gt</code>, <code>lt</code>).
           </p>
           <pre><code>POST /api/docs/{docId}/sql
 {
@@ -189,7 +189,7 @@
 
         <!-- Structure de reponse -->
         <section class="fr-mt-4w">
-          <h2>Structure de reponse</h2>
+          <h2>Structure de réponse</h2>
           <div class="fr-table">
             <table>
               <thead>
@@ -207,7 +207,7 @@
           <h3 class="fr-mt-2w">Format Records vs SQL</h3>
           <div class="fr-grid-row fr-grid-row--gutters fr-mt-1w">
             <div class="fr-col-12 fr-col-md-6">
-              <h4>Reponse Records (GET)</h4>
+              <h4>Réponse Records (GET)</h4>
               <pre><code>{
   "records": [
     {
@@ -221,7 +221,7 @@
 }</code></pre>
             </div>
             <div class="fr-col-12 fr-col-md-6">
-              <h4>Reponse SQL (POST)</h4>
+              <h4>Réponse SQL (POST)</h4>
               <pre><code>{
   "records": [
     ["Bretagne", 3340000],
@@ -239,19 +239,19 @@
         <section class="fr-mt-4w">
           <h2>Syntaxe de requête</h2>
           <p>
-            L'adapter Grist utilise la syntaxe colon generique (<code>champ:operateur:valeur</code>)
+            L'adapter Grist utilise la syntaxe colon générique (<code>champ:operateur:valeur</code>)
             et la convertit automatiquement :
           </p>
           <ul>
             <li>En filtre JSON pour le mode Records (<code>eq</code>, <code>in</code> uniquement)</li>
-            <li>En SQL paramètre pour le mode SQL (tous les operateurs)</li>
+            <li>En SQL paramètre pour le mode SQL (tous les opérateurs)</li>
           </ul>
 
-          <h3 class="fr-mt-2w">Operateurs supportes</h3>
+          <h3 class="fr-mt-2w">Opérateurs supportés</h3>
           <div class="fr-table">
             <table>
               <thead>
-                <tr><th>Operateur</th><th>Mode Records</th><th>Mode SQL</th><th>Exemple</th></tr>
+                <tr><th>Opérateur</th><th>Mode Records</th><th>Mode SQL</th><th>Exemple</th></tr>
               </thead>
               <tbody>
                 <tr><td><code>eq</code></td><td class="capability-yes">Oui</td><td class="capability-yes">Oui</td><td><code>region:eq:Bretagne</code></td></tr>
@@ -286,8 +286,8 @@
             </table>
           </div>
           <p class="fr-mt-1w">
-            Les facettes sont calculees cote serveur via des requêtes SQL.
-            Si le endpoint SQL n'est pas disponible, les facettes sont calculees cote client.
+            Les facettes sont calculées côté serveur via des requêtes SQL.
+            Si le endpoint SQL n'est pas disponible, les facettes sont calculées côté client.
           </p>
         </section>
 
@@ -324,7 +324,7 @@
           <p>
             Type : <strong>Bearer token</strong>.<br>
             Les documents Grist prives necessitent un jeton d'API passe dans le header
-            <code>Authorization: Bearer {token}</code>. En production, le proxy nginx gere
+            <code>Authorization: Bearer {token}</code>. En production, le proxy nginx gère
             l'authentification.
           </p>
         </section>

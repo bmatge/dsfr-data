@@ -27,14 +27,14 @@ export const SOURCES_TOUR: TourConfig = {
       repere: 'sources.actions.nouvelle-connexion',
       title: 'Connecter une base de données',
       description:
-        'Ajoutez une connexion a une base Grist ou une API publique (data.gouv.fr, OpenDataSoft...) pour acceder a vos données.',
+        'Ajoutez une connexion à une base Grist ou une API publique (data.gouv.fr, OpenDataSoft...) pour accéder à vos données.',
       position: 'right',
     },
     {
       repere: 'sources.locaux.creer',
       title: 'Créer une source manuelle',
       description:
-        "Pas d'API ? Creez une source en collant du JSON, en important un CSV, ou en saisissant un tableau directement.",
+        "Pas d'API ? Créez une source en collant du JSON, en important un CSV, ou en saisissant un tableau directement.",
       position: 'right',
     },
     {
@@ -63,16 +63,16 @@ export const BUILDER_IA_TOUR: TourConfig = {
     },
     {
       selector: '#chat-input',
-      title: 'Decrivez votre graphique',
+      title: 'Décrivez votre graphique',
       description:
-        'Ecrivez en francais ce que vous voulez : "un graphique en barres de la population par region", "un camembert du budget"... L\'IA généré le code.',
+        'Écrivez en français ce que vous voulez : "un graphique en barres de la population par région", "un camembert du budget"... L\'IA génère le code.',
       position: 'top',
     },
     {
       selector: 'app-preview-panel',
-      title: 'Resultat et code',
+      title: 'Résultat et code',
       description:
-        'Le graphique généré s\'affiche ici. Basculez sur l\'onglet "Code" pour copier le HTML pret a integrer.',
+        'Le graphique généré s\'affiche ici. Basculez sur l\'onglet "Code" pour copier le HTML prêt à intégrer.',
       position: 'left',
     },
   ],
@@ -96,14 +96,14 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
       repere: 'carto.elements',
       title: 'La représentation',
       description:
-        'Marqueurs, zones colorees, cercles proportionnels ou carte de chaleur — puis couleurs, contenu du clic et options avancees.',
+        'Marqueurs, zones colorées, cercles proportionnels ou carte de chaleur — puis couleurs, contenu du clic et options avancées.',
       position: 'right',
     },
     {
       repere: 'carto.carte',
       title: 'La carte elle-même',
       description:
-        "Fond de carte, encarts DROM et Corse, tableau d'accessibilite et reglages avances.",
+        "Fond de carte, encarts DROM et Corse, tableau d'accessibilité et réglages avancés.",
       position: 'right',
     },
     {
@@ -117,7 +117,7 @@ export const BUILDER_CARTO_TOUR: TourConfig = {
       repere: 'carto.actions.exporter',
       title: 'Copier le code',
       description:
-        'Le HTML pret a copier-coller dans votre site, en mode composants seuls ou page autonome.',
+        'Le HTML prêt à copier-coller dans votre site, en mode composants seuls ou page autonome.',
       position: 'bottom',
     },
   ],
@@ -138,23 +138,23 @@ export const PLAYGROUND_TOUR: TourConfig = {
       repere: 'playground.actions.exemples',
       title: 'Parcourir les exemples',
       description:
-        "Le volet des exemples se croise sur trois axes : la SOURCE des donnees (Opendatasoft, data.gouv, Grist, INSEE...), le PIPELINE qui les transforme (requete, jointure, pivot, facettes...) et la SORTIE affichee (graphique, carte, tableau, indicateur...). Le compteur du bouton dit combien d'exemples repondent aux filtres poses.",
+        "Le volet des exemples se croise sur trois axes : la SOURCE des données (Opendatasoft, data.gouv, Grist, INSEE...), le PIPELINE qui les transforme (requête, jointure, pivot, facettes...) et la SORTIE affichée (graphique, carte, tableau, indicateur...). Le compteur du bouton dit combien d'exemples répondent aux filtres posés.",
       position: 'bottom',
     },
     {
       // La zone de l'editeur, et non le textarea que CodeMirror masque pour
       // rendre le sien a cote.
       repere: 'playground.editeur',
-      title: 'Editeur de code',
+      title: 'Éditeur de code',
       description:
-        "Modifiez le HTML/JS directement. Tous les composants dsfr-data sont disponibles. L'editeur propose la coloration syntaxique.",
+        "Modifiez le HTML/JS directement. Tous les composants dsfr-data sont disponibles. L'éditeur propose la coloration syntaxique.",
       position: 'right',
     },
     {
       repere: 'playground.actions.executer',
       title: 'Exécuter',
       description:
-        'Cliquez pour voir le rendu en direct dans le panneau de droite. Le resultat se met a jour a chaque execution.',
+        'Cliquez pour voir le rendu en direct dans le panneau de droite. Le résultat se met à jour à chaque exécution.',
       position: 'bottom',
     },
     {
@@ -178,14 +178,14 @@ export const DASHBOARD_TOUR: TourConfig = {
       repere: 'dashboard.bibliotheque',
       title: 'Bibliothèque de widgets',
       description:
-        'Glissez un widget (KPI, graphique, tableau ou texte) sur la grille pour commencer a construire votre tableau de bord.',
+        'Glissez un widget (KPI, graphique, tableau ou texte) sur la grille pour commencer à construire votre tableau de bord.',
       position: 'right',
     },
     {
       repere: 'dashboard.canevas.grille',
       title: 'Votre grille',
       description:
-        'Deposez les widgets ici. Cliquez sur un widget pour le configurer (source de données, type de graphique, titre...).',
+        'Déposez les widgets ici. Cliquez sur un widget pour le configurer (source de données, type de graphique, titre...).',
       position: 'left',
     },
     {

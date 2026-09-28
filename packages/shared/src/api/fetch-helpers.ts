@@ -47,7 +47,7 @@ export function httpErrorMessage(status: number): string {
     case status === 404:
       return "Ressource introuvable. Vérifiez l'URL de la source.";
     case status === 429:
-      return 'Trop de requêtes. Reessayez dans quelques secondes.';
+      return 'Trop de requêtes. Réessayez dans quelques secondes.';
     case status >= 500:
       return `Erreur serveur (${status}). Le service est peut-etre temporairement indisponible.`;
     default:

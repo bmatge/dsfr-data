@@ -242,12 +242,12 @@ export class DsfrDataContextFilter extends LitElement {
    * lt-day-after, last-n-days, current-year, current-month (#682 — case à
    * cocher, mois en cours, borne dynamique).
    *
-   * `year-of` et `month-of` acceptent une date plus precise que l'opérateur
-   * et la tronquent (#646) : "2026-09-09" -> annee 2026 / mois 2026-09, ce
+   * `year-of` et `month-of` acceptent une date plus précise que l'opérateur
+   * et la tronquent (#646) : "2026-09-09" -> année 2026 / mois 2026-09, ce
    * qui permet de les nourrir d'un <input type="date"> (il n'existe pas de
    * type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni
-   * annee) retire le filtre et le signale par un avertissement console,
-   * emis une seule fois par filtre.
+   * année) retire le filtre et le signale par un avertissement console,
+   * émis une seule fois par filtre.
    */
   @property({ type: String })
   operator: ContextOperator = 'eq';
@@ -696,7 +696,7 @@ export class DsfrDataContextFilter extends LitElement {
       if (!range) {
         return this._unusableDate(
           raw,
-          'une annee "AAAA", un mois "AAAA-MM" ou une date "AAAA-MM-JJ"'
+          'une année "AAAA", un mois "AAAA-MM" ou une date "AAAA-MM-JJ"'
         );
       }
       return `${this.field}:gte:${range[0]}, ${this.field}:lt:${range[1]}`;

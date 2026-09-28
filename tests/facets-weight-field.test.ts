@@ -120,7 +120,7 @@ describe('weight-field (#739)', () => {
         .map((el) => el.textContent ?? '')
         .join(' ');
       expect(srOnly).toContain('total');
-      expect(srOnly).not.toContain('resultats');
+      expect(srOnly).not.toContain('résultats');
     });
 
     it('signale une seule fois un champ absent des donnees', async () => {

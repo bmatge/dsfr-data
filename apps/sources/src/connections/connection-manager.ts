@@ -726,7 +726,7 @@ export async function saveGristConnection(name: string): Promise<boolean> {
     statusText = 'Mode public';
   } else {
     const orgs = Array.isArray(payload) ? payload : [];
-    statusText = `Connecte (${orgs.length} org${orgs.length > 1 ? 's' : ''})`;
+    statusText = `Connecté (${orgs.length} org${orgs.length > 1 ? 's' : ''})`;
   }
 
   const editingConn = state.editingConnectionId
@@ -782,7 +782,7 @@ export async function saveApiConnection(name: string): Promise<boolean> {
     try {
       headers = JSON.parse(headersText);
     } catch {
-      toastWarning('Les en-tetes doivent etre au format JSON valide');
+      toastWarning('Les en-têtes doivent être au format JSON valide');
       return false;
     }
   }
@@ -796,7 +796,7 @@ export async function saveApiConnection(name: string): Promise<boolean> {
     headersText = JSON.stringify(headers);
     populateApiHeadersFromJson(headersText);
     toastWarning(
-      'Cle reformatee en en-tete « Authorization: Apikey … » (format attendu par OpenDataSoft).'
+      'Clé reformatée en en-tête « Authorization: Apikey … » (format attendu par OpenDataSoft).'
     );
   }
 
@@ -840,7 +840,7 @@ export async function saveApiConnection(name: string): Promise<boolean> {
     headers: headersText || null,
     dataPath: dataPath || null,
     status: 'connected',
-    statusText: `Connecte (${count} ${isArray ? 'elements' : 'objet'})`,
+    statusText: `Connecté (${count} ${isArray ? 'éléments' : 'objet'})`,
   };
 
   if (editingConn) {
@@ -1884,7 +1884,7 @@ export function saveAsFavorite(): void {
   // Check if already exists
   const exists = state.sources.some((s) => s.id === source.id);
   if (exists) {
-    toastWarning('Cette source est déjà enregistree.');
+    toastWarning('Cette source est déjà enregistrée.');
     return;
   }
 
@@ -2052,7 +2052,9 @@ export async function exportToGrist(): Promise<void> {
 
     if (!createResponse.ok) {
       const error = await createResponse.json();
-      throw new Error(error.error || `Erreur creation table: HTTP ${createResponse.status}`);
+      throw new Error(
+        error.error || `Erreur de création de la table : HTTP ${createResponse.status}`
+      );
     }
 
     // Insert records
@@ -2256,7 +2258,7 @@ export function saveJoinSource(): void {
     return;
   }
   if (leftId === rightId) {
-    toastWarning('Les deux sources doivent etre differentes.');
+    toastWarning('Les deux sources doivent être différentes.');
     return;
   }
   if (!on) {

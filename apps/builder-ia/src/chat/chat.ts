@@ -176,7 +176,7 @@ export async function sendMessage(): Promise<void> {
     resetChartPreview();
     addMessage(
       'assistant',
-      'Aperçu reinitialise ! Decrivez le graphique que vous souhaitez créer.',
+      'Aperçu réinitialisé ! Décrivez le graphique que vous souhaitez créer.',
       ['Barres', 'Camembert', 'Courbe', 'Tableau', 'KPI']
     );
     return;
@@ -260,7 +260,7 @@ En attendant, je peux vous aider avec des commandes simples. Essayez :
       resetChartPreview();
       addMessage(
         'assistant',
-        textWithoutJson || 'Aperçu reinitialise ! Decrivez le graphique que vous souhaitez créer.',
+        textWithoutJson || 'Aperçu réinitialisé ! Décrivez le graphique que vous souhaitez créer.',
         ['Barres', 'Camembert', 'Courbe', 'Tableau', 'KPI'],
         reasoning
       );
@@ -320,7 +320,7 @@ function buildDataContext(): string {
     const gristNote = isGrist
       ? `\nIMPORTANT: Source Grist détectée. Les données sont sous "records[].fields". Pour le code embarquable, utiliser <dsfr-data-normalize flatten="fields" trim numeric-auto> et referencer les champs par leur nom plat (sans prefixe "fields.").`
       : '';
-    dataContext = `\n\nDonnees actuelles (${state.localData.length} enregistrements${totalNote}) :
+    dataContext = `\n\nDonnées actuelles (${state.localData.length} enregistrements${totalNote}) :
 Champs : ${state.fields.map((f) => `${f.name} (${f.type})`).join(', ')}
 Exemple d'enregistrement : ${JSON.stringify(state.localData[0])}${paginationNote}${gristNote}`;
   }
@@ -581,7 +581,7 @@ async function callAlbertAPI(userMessage: string, config: IAConfig): Promise<AIC
         if (firstTime) {
           addMessage(
             'assistant',
-            "⚠️ Le mode avance d'Albert (agentique : exploration des donnees + auto-correction) n'est pas disponible sur ce gateway. Je passe en mode simplifie pour cette session — les reponses seront moins fines. Rechargez la page pour retenter le mode avance."
+            "⚠️ Le mode avancé d'Albert (agentique : exploration des données + autocorrection) n'est pas disponible sur ce gateway. Je passe en mode simplifié pour cette session — les réponses seront moins fines. Rechargez la page pour retenter le mode avancé."
           );
         }
       }
@@ -840,7 +840,7 @@ async function handleReloadData(actionData: Record<string, unknown>): Promise<bo
     const records: Record<string, unknown>[] = json.results || json.records || [];
 
     if (records.length === 0) {
-      infoEl.innerHTML = '<span style="color: orange;">Aucun resultat avec ces filtres</span>';
+      infoEl.innerHTML = '<span style="color: orange;">Aucun résultat avec ces filtres</span>';
       return false;
     }
 
@@ -852,7 +852,7 @@ async function handleReloadData(actionData: Record<string, unknown>): Promise<bo
     updateFieldsList();
     updateRawData();
 
-    infoEl.innerHTML = `<span class="source-badge source-badge-api">API</span> ${state.localData.length} resultats (filtre)`;
+    infoEl.innerHTML = `<span class="source-badge source-badge-api">API</span> ${state.localData.length} résultats (filtre)`;
 
     return true;
   } catch (error: unknown) {

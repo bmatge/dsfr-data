@@ -25,9 +25,9 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Composant invisible de connexion aux données. Recupere des données depuis une API REST
+          Composant invisible de connexion aux données. Récupère des données depuis une API REST
           (URL brute ou via un adapter specialise) et les distribue aux autres composants via
-          le systeme d'événements. Supporte aussi les données JSON inline.
+          le système d'événements. Supporte aussi les données JSON inline.
         </p>
 
         <div class="fr-callout fr-callout--blue-france">
@@ -40,12 +40,12 @@
         <div class="fr-callout fr-callout--green-emeraude fr-mb-3w">
           <h4 class="fr-callout__title">dsfr-data-source vs dsfr-data-query</h4>
           <p class="fr-callout__text">
-            <strong><code>dsfr-data-source</code></strong> se connecte a une API, recupere les données et les
-            redistribue. En mode adapter, il gere la pagination automatique, les filtres server-side
+            <strong><code>dsfr-data-source</code></strong> se connecte a une API, récupère les données et les
+            redistribue. En mode adapter, il gère la pagination automatique, les filtres server-side
             et la pagination pilotable (server-side).<br><br>
             <strong><code>dsfr-data-query</code></strong> est une couche de transformation client-side : il filtre, groupe,
             agrège et trie les données. Il ecoute un <code>dsfr-data-source</code> via l'attribut
-            <code>source</code> et traite les données cote client.<br><br>
+            <code>source</code> et traite les données côté client.<br><br>
             <strong>Pattern recommande :</strong> <code>&lt;dsfr-data-source api-type="..."&gt;</code> +
             <code>&lt;dsfr-data-query source="..."&gt;</code> pour combiner fetch serveur et
             transformation client.
@@ -60,12 +60,12 @@
             <tbody>
               <tr>
                 <td><strong>URL brute</strong></td>
-                <td>Appel HTTP generique via l'attribut <code>url</code>. Supporte GET/POST, headers,
+                <td>Appel HTTP générique via l'attribut <code>url</code>. Supporte GET/POST, headers,
                   params JSON, extraction via <code>transform</code> et pagination manuelle via <code>paginate</code>.</td>
               </tr>
               <tr>
                 <td><strong>Adapter</strong></td>
-                <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gere la construction d'URL,
+                <td>Active via <code>api-type</code> (sans <code>url</code>). L'adapter gère la construction d'URL,
                   la pagination automatique, les filtres et le parsing spécifiques au provider
                   (OpenDataSoft, Tabular, Grist, INSEE Melodi).</td>
               </tr>
@@ -124,7 +124,7 @@
             <tbody>
               <tr><td><code>id</code></td><td>String</td><td><code>id="ma-source"</code></td><td>Identifiant unique (requis). Les composants en aval l'utilisent pour s'abonner aux données.</td></tr>
               <!-- ATTRS:dsfr-data-source fields="refresh,transform,headers,api-key-ref,cache-ttl" -->
-                <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Rafraichissement automatique en secondes (0 = desactive).</td></tr>
+                <tr><td><code>refresh</code></td><td>Number</td><td>Entier en secondes. <code>0</code> = off</td><td>Rafraîchissement automatique en secondes (0 = désactivé).</td></tr>
                 <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath vers le tableau de données dans la réponse. Ex: <code>"results"</code>, <code>"data.items"</code>.</td></tr>
                 <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>En-têtes HTTP en JSON. Ex: <code>'{"Authorization": "Bearer xxx"}'</code>. Quand le fournisseur attend sa clé sous un en-tête précis (déclaré par sa configuration), un <code>apikey</code> nu est réécrit automatiquement au bon format (#655) ; détail par fournisseur : table des capacités d'ARCHITECTURE.</td></tr>
                 <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS</td></tr>
@@ -412,12 +412,12 @@
           <h3>WHERE dynamique (overlays)</h3>
           <p>
             Les composants en aval (<code>dsfr-data-facets</code>, <code>dsfr-data-search</code>) peuvent ajouter
-            des filtres dynamiques via le systeme de commandes. Ces filtres sont <strong>fusionnes</strong>
-            avec le <code>where</code> statique a chaque requête.
+            des filtres dynamiques via le système de commandes. Ces filtres sont <strong>fusionnes</strong>
+            avec le <code>where</code> statique à chaque requête.
           </p>
           <p>
             Chaque composant envoie un overlay identifie par une clé unique (<code>whereKey</code>).
-            Les overlays sont combines en <strong>ET logique</strong>. La méthode <code>getEffectiveWhere()</code>
+            Les overlays sont combinés en <strong>ET logique</strong>. La méthode <code>getEffectiveWhere()</code>
             retourne la clause WHERE fusionnee.
           </p>
           <div class="code-block"><pre><span class="tok-comment">&lt;!-- WHERE statique + overlays dynamiques des facettes et recherche --&gt;</span>
@@ -460,7 +460,7 @@
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
-          <h3>Mode URL brute : API REST generique</h3>
+          <h3>Mode URL brute : API REST générique</h3>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
   <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"prix-ct"</span>
   <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-controle-technique/records"</span>
@@ -534,7 +534,7 @@
         <section class="demo-section">
           <h3>Mode adapter : OpenDataSoft</h3>
           <p>
-            L'adapter gere automatiquement la construction d'URL, la pagination et le parsing.
+            L'adapter gère automatiquement la construction d'URL, la pagination et le parsing.
             Pagination automatique (toutes les pages en une seule requête) jusqu'a 1 000 records.
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
@@ -559,7 +559,7 @@
         <section class="demo-section">
           <h3>Mode adapter : OpenDataSoft (data.economie.gouv.fr)</h3>
           <p>
-            L'adapter ODS gere la pagination, le tri serveur, la recherche full-text et les facettes.
+            L'adapter ODS gère la pagination, le tri serveur, la recherche full-text et les facettes.
             Ici un simple datalist pagine.
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
@@ -583,7 +583,7 @@
           <p>
             L'adapter Grist se connecte aux instances Grist (grist.numerique.gouv.fr ou getgrist.com).
             Il détecté automatiquement si la requête necessite le mode SQL (groupement, agrégation,
-            operateurs avances) ou le mode Records standard.
+            opérateurs avancés) ou le mode Records standard.
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
   <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"grist-data"</span>
@@ -649,7 +649,7 @@
           <p>
             Au lieu d'ecrire les tokens directement dans les attributs HTML, declarez-les une seule fois
             dans un registre global <code>window.DSFR_DATA_KEYS</code>, puis referencez-les par nom
-            avec <code>api-key-ref</code>. La clé est injectee comme header <code>Authorization</code>.
+            avec <code>api-key-ref</code>. La clé est injectée comme header <code>Authorization</code>.
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span>
   window.DSFR_DATA_KEYS = {
@@ -667,8 +667,8 @@
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
               <strong>Comportement :</strong> si <code>api-key-ref</code> est défini et que la clé existe
-              dans <code>window.DSFR_DATA_KEYS</code>, elle est injectee en header <code>Authorization</code>
-              a chaque requête. Si la clé n'est pas trouvee, un avertissement est emis dans la console et
+              dans <code>window.DSFR_DATA_KEYS</code>, elle est injectée en header <code>Authorization</code>
+              à chaque requête. Si la clé n'est pas trouvee, un avertissement est emis dans la console et
               la requête est envoyee sans authentification. Fonctionne avec les deux modes (URL brute et adapter).
             </p>
           </div>
@@ -683,7 +683,7 @@
         </section>
 
         <section class="demo-section">
-          <h3>Rafraichissement automatique</h3>
+          <h3>Rafraîchissement automatique</h3>
           <p>
             L'attribut <code>refresh</code> re-execute la requête a intervalles reguliers (en secondes).
             Fonctionne dans les deux modes (URL brute et adapter).
@@ -698,9 +698,9 @@
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
-        <p>Le composant emet des événements personnalises via le systeme data-bridge :</p>
+        <p>Le composant émet des événements personnalises via le système data-bridge :</p>
         <ul>
-          <li><code>dsfr-data-loaded</code> : Données chargees avec succes (detail : tableau de records)</li>
+          <li><code>dsfr-data-loaded</code> : Données chargées avec succès (detail : tableau de records)</li>
           <li><code>dsfr-data-loading</code> : Chargement en cours</li>
           <li><code>dsfr-data-error</code> : Erreur de chargement (detail : objet Error)</li>
           <li><code>cache-fallback</code> : Les données proviennent du cache serveur suite a une erreur API (mode DB uniquement)</li>

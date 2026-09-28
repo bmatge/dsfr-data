@@ -72,9 +72,9 @@ async function listCounter(label: string, rows: number): Promise<string> {
 
 describe('#925 — count-label sur display', () => {
   it('sans l’attribut, le compteur est celui d’avant, au caractère près', async () => {
-    expect(await displayCounter('', 1)).toBe('1 resultat');
-    expect(await displayCounter('', 3)).toBe('3 resultats');
-    expect(await displayCounter('', 1234)).toBe('1234 resultats');
+    expect(await displayCounter('', 1)).toBe('1 résultat');
+    expect(await displayCounter('', 3)).toBe('3 résultats');
+    expect(await displayCounter('', 1234)).toBe('1234 résultats');
   });
 
   it('une forme seule prend un s au pluriel, et le nombre son séparateur', async () => {

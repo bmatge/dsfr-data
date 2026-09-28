@@ -35,21 +35,21 @@ export const BUILDER_TOUR: TourConfig = {
       repere: 'builder.donnees',
       title: 'Configuration',
       description:
-        'Sélectionnez les champs a afficher (axe X et axe Y). Les options avancees (filtres, agrégations) sont accessibles via le mode avance.',
+        'Sélectionnez les champs à afficher (axe X et axe Y). Les options avancées (filtres, agrégations) sont accessibles via le mode avancé.',
       position: 'right',
     },
     {
       repere: 'builder.actions.generer',
       title: 'Générer !',
       description:
-        'Cliquez ici pour voir le resultat. Vous pouvez modifier et re-générer autant de fois que necessaire.',
+        'Cliquez ici pour voir le résultat. Vous pouvez modifier et re-générer autant de fois que nécessaire.',
       position: 'right',
     },
     {
       repere: 'builder.actions.copier',
       title: 'Aperçu et code',
       description:
-        'Le graphique s\'affiche dans l\'aperçu, à droite. "Copier le code" copie le HTML pret a integrer dans votre site ; l\'onglet "Code" de l\'aperçu le montre.',
+        'Le graphique s\'affiche dans l\'aperçu, à droite. "Copier le code" copie le HTML prêt à intégrer dans votre site ; l\'onglet "Code" de l\'aperçu le montre.',
       position: 'bottom',
     },
   ],

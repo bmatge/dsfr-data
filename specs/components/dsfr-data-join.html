@@ -33,7 +33,7 @@
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
             <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il attend que ses deux sources
-            aient emis leurs données, les joint en memoire, puis redistribue le resultat via le systeme d'événements.
+            aient emis leurs données, les joint en mémoire, puis redistribue le résultat via le système d'événements.
           </p>
         </div>
 
@@ -47,7 +47,7 @@
         <h2 id="pipeline">Position dans le pipeline</h2>
         <p><code>&lt;dsfr-data-join&gt;</code> se place entre les sources et les composants de transformation/visualisation.
           Il souscrit a deux <code>&lt;dsfr-data-source&gt;</code> (ou tout composant emettant <code>dsfr-data-loaded</code>),
-          les joint, et emet le resultat sous son propre <code>id</code>.</p>
+          les joint, et émet le résultat sous son propre <code>id</code>.</p>
         <div class="code-block"><pre>dsfr-data-source (A)  ──────┐
                              ├──► dsfr-data-join ──► dsfr-data-query ──► dsfr-data-chart
 dsfr-data-source (B)  ──────┘</pre></div>
@@ -86,7 +86,7 @@ dsfr-data-source (B)  ──────┘</pre></div>
 
         <section class="demo-section">
           <h4>Multi-clé</h4>
-          <p>Jointure sur plusieurs champs (separes par virgule) :</p>
+          <p>Jointure sur plusieurs champs (séparés par virgule) :</p>
           <div class="code-block"><pre><span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"annee,code_region"</span>
 <span class="tok-attr">on</span><span class="tok-punct">=</span><span class="tok-string">"annee, dept_code=code"</span></pre></div>
         </section>
@@ -96,7 +96,7 @@ dsfr-data-source (B)  ──────┘</pre></div>
           <table class="attr-table">
             <thead><tr><th>Type</th><th>Description</th><th>Equivalent SQL</th></tr></thead>
             <tbody>
-              <tr><td><code>inner</code></td><td>Seuls les enregistrements presents dans les deux sources</td><td><code>INNER JOIN</code></td></tr>
+              <tr><td><code>inner</code></td><td>Seuls les enregistrements présents dans les deux sources</td><td><code>INNER JOIN</code></td></tr>
               <tr><td><code>left</code></td><td>Tous les enregistrements gauche ; champs droite a <code>null</code> si absent</td><td><code>LEFT JOIN</code></td></tr>
               <tr><td><code>right</code></td><td>Tous les enregistrements droite ; champs gauche a <code>null</code> si absent</td><td><code>RIGHT JOIN</code></td></tr>
               <tr><td><code>full</code></td><td>Union de tous les enregistrements ; <code>null</code> pour les champs manquants</td><td><code>FULL OUTER JOIN</code></td></tr>
@@ -134,7 +134,7 @@ dsfr-data-source (B)  ──────┘</pre></div>
         <section class="demo-section">
           <h3>Jointure avec transformation aval</h3>
           <p>
-            Apres la jointure, un <code>&lt;dsfr-data-query&gt;</code> peut agréger et trier les données fusionnees.
+            Après la jointure, un <code>&lt;dsfr-data-query&gt;</code> peut agréger et trier les données fusionnees.
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-join</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"joined"</span>
   <span class="tok-attr">left</span><span class="tok-punct">=</span><span class="tok-string">"src1"</span> <span class="tok-attr">right</span><span class="tok-punct">=</span><span class="tok-string">"src2"</span>
@@ -163,7 +163,7 @@ dsfr-data-source (B)  ──────┘</pre></div>
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
-        <p>Le composant emet les mêmes événements que <code>&lt;dsfr-data-source&gt;</code> :</p>
+        <p>Le composant émet les mêmes événements que <code>&lt;dsfr-data-source&gt;</code> :</p>
         <ul>
           <li><code>dsfr-data-loaded</code> : Données jointes disponibles</li>
           <li><code>dsfr-data-loading</code> : En attente d'une ou plusieurs sources</li>
@@ -198,8 +198,8 @@ dsfr-data-source (B)  ──────┘</pre></div>
         </div>
         <div class="fr-callout fr-mt-2w">
           <p class="fr-callout__text">
-            <strong>Recalcul automatique :</strong> Si l'une des sources emet de nouvelles données (rechargement,
-            filtre, pagination), la jointure est recalculee automatiquement.
+            <strong>Recalcul automatique :</strong> Si l'une des sources émet de nouvelles données (rechargement,
+            filtre, pagination), la jointure est recalculée automatiquement.
           </p>
         </div>
 

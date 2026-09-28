@@ -65,10 +65,10 @@ export function openFacetsModal(): void {
       <td><code>${field.name}</code></td>
       <td><input type="text" class="fr-input fr-input--sm facets-field-label" data-repere="builder.facettes.champs.libelle" data-attribut="dsfr-data-facets:labels" data-repere-libelle="Libellé de la facette" value="${label}" placeholder="Label"></td>
       <td><select class="fr-select fr-select--sm facets-field-display" data-repere="builder.facettes.champs.affichage" data-attribut="dsfr-data-facets:display" data-repere-libelle="Affichage de la facette">
-        <option value="checkbox" ${display === 'checkbox' ? 'selected' : ''}>Cases a cocher</option>
+        <option value="checkbox" ${display === 'checkbox' ? 'selected' : ''}>Cases à cocher</option>
         <option value="radio" ${display === 'radio' ? 'selected' : ''}>Boutons radio</option>
-        <option value="select" ${display === 'select' ? 'selected' : ''}>Liste deroulante</option>
-        <option value="multiselect" ${display === 'multiselect' ? 'selected' : ''}>Multi-selection</option>
+        <option value="select" ${display === 'select' ? 'selected' : ''}>Liste déroulante</option>
+        <option value="multiselect" ${display === 'multiselect' ? 'selected' : ''}>Multisélection</option>
       </select></td>
       <td class="text-center"><input type="checkbox" class="facets-field-searchable" data-repere="builder.facettes.champs.recherche" data-attribut="dsfr-data-facets:searchable" data-repere-libelle="Recherche dans la facette" ${searchable ? 'checked' : ''}></td>
       <td class="text-center"><input type="checkbox" class="facets-field-disjunctive" data-repere="builder.facettes.champs.multi" data-attribut="dsfr-data-facets:disjunctive" data-repere-libelle="Sélection multiple (OU)" ${disjunctive ? 'checked' : ''}></td>
@@ -151,11 +151,11 @@ export function updateFacetsSummary(): void {
 
   const count = state.facetsConfig.fields.length;
   if (count === 0) {
-    summaryEl.textContent = 'Aucun champ configure';
+    summaryEl.textContent = 'Aucun champ configuré';
   } else if (count === 1) {
-    summaryEl.textContent = `1 facette configuree (${state.facetsConfig.fields[0].field})`;
+    summaryEl.textContent = `1 facette configurée (${state.facetsConfig.fields[0].field})`;
   } else {
-    summaryEl.textContent = `${count} facettes configurees (${state.facetsConfig.fields.map((f) => f.field).join(', ')})`;
+    summaryEl.textContent = `${count} facettes configurées (${state.facetsConfig.fields.map((f) => f.field).join(', ')})`;
   }
 }
 

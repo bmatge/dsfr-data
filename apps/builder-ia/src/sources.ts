@@ -166,7 +166,7 @@ export function handleSourceChange(): void {
     // Inform the chat
     addMessage(
       'assistant',
-      `Source "${source.name}" chargee (${source.data.length} lignes, ${state.fields.length} champs). Que voulez-vous visualiser ?`,
+      `Source "${source.name}" chargée (${source.data.length} lignes, ${state.fields.length} champs). Que voulez-vous visualiser ?`,
       suggestions.slice(0, 3)
     );
 

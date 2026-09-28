@@ -176,7 +176,7 @@ export async function loadTablePreview(): Promise<void> {
     });
     if (tbody) tbody.innerHTML = bodyHtml;
 
-    info.textContent = `Table "${state.selectedTable}" -- ${state.tableData.length} lignes affichees`;
+    info.textContent = `Table "${state.selectedTable}" -- ${state.tableData.length} lignes affichées`;
 
     // Ajout explicite (ADR-035) : on arme le jeu candidat ; l'utilisateur clique
     // ensuite « en faire un jeu en ligne / local ». Plus d'auto-création.
@@ -262,7 +262,7 @@ export async function createGristTable(): Promise<void> {
       );
     }
 
-    toastSuccess(`Table "${tableName}" créée avec succes !`);
+    toastSuccess(`Table "${tableName}" créée avec succès !`);
     const { closeModal } = await import('@dsfr-data/shared');
     closeModal('create-table-modal');
 
@@ -515,7 +515,7 @@ export async function exportToGrist(): Promise<void> {
       const error = await createResponse.json();
       throw new Error(
         ((error as Record<string, unknown>).error as string) ||
-          `Erreur creation table: HTTP ${createResponse.status}`
+          `Erreur de création de la table : HTTP ${createResponse.status}`
       );
     }
 

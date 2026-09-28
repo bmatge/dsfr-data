@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     data = await fetchMonitoringData();
     if (errorEl) {
       errorEl.className = 'fr-alert fr-alert--success fr-mb-2w';
-      errorEl.textContent = `Données reelles chargees (${data.entries.length} entrees)`;
+      errorEl.textContent = `Données réelles chargées (${data.entries.length} entrées)`;
       errorEl.style.display = 'block';
     }
   } catch (err) {
@@ -169,7 +169,7 @@ function renderKpis(): void {
     </div>
     <div class="monitoring-kpi">
       <div class="monitoring-kpi__value" style="font-size:1rem">${generated}</div>
-      <div class="monitoring-kpi__label">Derniere mise a jour</div>
+      <div class="monitoring-kpi__label">Dernière mise à jour</div>
     </div>
   `;
 }
@@ -451,7 +451,7 @@ async function refreshData(): Promise<void> {
     data = await fetchMonitoringData();
     if (errEl) {
       errEl.className = 'fr-alert fr-alert--success fr-mb-2w';
-      errEl.textContent = `Données reelles chargees (${data.entries.length} entrees)`;
+      errEl.textContent = `Données réelles chargées (${data.entries.length} entrées)`;
       errEl.style.display = 'block';
     }
   } catch (err) {

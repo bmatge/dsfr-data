@@ -350,8 +350,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   maxZoom = 18;
 
   /**
-   * Chargement par viewport : re-interroge la source a chaque déplacement de
-   * la carte, et une première fois des que la carte est prête (#652). Le tout
+   * Chargement par viewport : réinterroge la source à chaque déplacement de
+   * la carte, et une première fois dès que la carte est prête (#652). Le tout
    * premier fetch de la source reste NON filtre (elle charge des sa connexion,
    * avant que la carte — différée a la visibilité — ait un viewport) : sur un
    * gros jeu, poser un `limit` ou un `where` initial sur la source.

@@ -767,7 +767,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     if (this._weightField && !this._weightUnsupported) {
       return `, total ${formatted}`;
     }
-    return `, ${formatted} resultat${count > 1 ? 's' : ''}`;
+    return `, ${formatted} résultat${count > 1 ? 's' : ''}`;
   }
 
   /** Libellé « valeur + compteur » — etait copie 3x (checkbox, multiselect, radio) */
@@ -801,7 +801,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
           @input="${(e: Event) => this._handleSearch(group.field, e)}"
         />
         <span class="fr-sr-only" id="${uid}-search-hint"
-          >Les resultats se mettent a jour automatiquement</span
+          >Les résultats se mettent à jour automatiquement</span
         >
         <button class="fr-btn" type="button" title="Rechercher" aria-hidden="true" tabindex="-1">
           Rechercher

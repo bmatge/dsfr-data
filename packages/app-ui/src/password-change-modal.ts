@@ -115,7 +115,7 @@ export class PasswordChangeModal extends LitElement {
                             class="fr-alert fr-alert--success fr-alert--sm"
                             style="margin-bottom:1rem"
                           >
-                            <p>Mot de passe modifie avec succes</p>
+                            <p>Mot de passe modifié avec succès</p>
                           </div>
                         `
                       : nothing

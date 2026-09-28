@@ -25,8 +25,8 @@ window.addEventListener('dsfr-data:storage-quota', (e) => {
   import('@dsfr-data/shared').then(({ toastError }) => {
     toastError(
       mo
-        ? `Espace de stockage plein : l'enregistrement de ${mo} Mo a ete refuse. Supprimez un jeu de donnees volumineux pour continuer.`
-        : 'Espace de stockage plein. Supprimez des elements pour continuer.'
+        ? `Espace de stockage plein : l'enregistrement de ${mo} Mo a été refusé. Supprimez un jeu de données volumineux pour continuer.`
+        : 'Espace de stockage plein. Supprimez des éléments pour continuer.'
     );
   });
 });

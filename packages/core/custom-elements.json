@@ -789,7 +789,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ code (prioritaire sur label-field) : departement/region\n(map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)",
+              "description": "Chemin vers le champ code (prioritaire sur label-field) : département/région\n(map/map-reg), nom d'académie (map-aca), code pays ISO a2/a3/num (map-monde)",
               "attribute": "code-field"
             },
             {
@@ -2375,7 +2375,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ code (prioritaire sur label-field) : departement/region\n(map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)",
+              "description": "Chemin vers le champ code (prioritaire sur label-field) : département/région\n(map/map-reg), nom d'académie (map-aca), code pays ISO a2/a3/num (map-monde)",
               "fieldName": "codeField",
               "champ": "nom"
             },
@@ -3205,7 +3205,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus précise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> année 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannée) retire le filtre et le signale par un avertissement console,\némis une seule fois par filtre.",
               "attribute": "operator"
             },
             {
@@ -3528,7 +3528,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus precise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> annee 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannee) retire le filtre et le signale par un avertissement console,\nemis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus précise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> année 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannée) retire le filtre et le signale par un avertissement console,\némis une seule fois par filtre.",
               "fieldName": "operator"
             },
             {
@@ -4608,7 +4608,7 @@
               "type": {
                 "text": "string"
               },
-              "default": "'Aucun resultat'",
+              "default": "'Aucun résultat'",
               "description": "Message quand aucune donnee",
               "attribute": "empty"
             },
@@ -4619,7 +4619,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nom compté par le compteur rendu au-dessus de la grille, à la place de\n« resultat » : `count-label=\"établissement\"` affiche\n« 12 345 établissements » (#925, AM-077 — même grammaire que\n`dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le\ncompteur est rendu exactement comme avant — le corriger par défaut\nchangerait le texte de toutes les pages existantes, et reste à trancher\n(#925, point résiduel).\n\nCet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est\nune liste de résultats, et sa région annoncée fait partie de son contrat\n(ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —\nune fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.",
+              "description": "Nom compté par le compteur rendu au-dessus de la grille, à la place de\n« résultat » : `count-label=\"établissement\"` affiche\n« 12 345 établissements » (#925, AM-077 — même grammaire que\n`dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le\ncompteur est rendu exactement comme avant — le corriger par défaut\nchangerait le texte de toutes les pages existantes, et reste à trancher\n(#925, point résiduel).\n\nCet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est\nune liste de résultats, et sa région annoncée fait partie de son contrat\n(ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —\nune fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.",
               "attribute": "count-label"
             },
             {
@@ -5200,7 +5200,7 @@
               "type": {
                 "text": "string"
               },
-              "default": "'Aucun resultat'",
+              "default": "'Aucun résultat'",
               "description": "Message quand aucune donnee",
               "fieldName": "empty"
             },
@@ -5210,7 +5210,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Nom compté par le compteur rendu au-dessus de la grille, à la place de\n« resultat » : `count-label=\"établissement\"` affiche\n« 12 345 établissements » (#925, AM-077 — même grammaire que\n`dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le\ncompteur est rendu exactement comme avant — le corriger par défaut\nchangerait le texte de toutes les pages existantes, et reste à trancher\n(#925, point résiduel).\n\nCet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est\nune liste de résultats, et sa région annoncée fait partie de son contrat\n(ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —\nune fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.",
+              "description": "Nom compté par le compteur rendu au-dessus de la grille, à la place de\n« résultat » : `count-label=\"établissement\"` affiche\n« 12 345 établissements » (#925, AM-077 — même grammaire que\n`dsfr-data-search`, #779).\n\nUne forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou\nun mot invariable, donner les deux formes séparées par une **barre\nverticale** : `count-label=\"cheval|chevaux\"`, `count-label=\"prix|prix\"`.\nLa virgule ne sépare PAS les deux formes.\n\nPoser l'attribut fait aussi passer le nombre par le formateur fr-FR\n(séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le\ncompteur est rendu exactement comme avant — le corriger par défaut\nchangerait le texte de toutes les pages existantes, et reste à trancher\n(#925, point résiduel).\n\nCet attribut ne sait pas TAIRE le compteur : un `dsfr-data-display` est\nune liste de résultats, et sa région annoncée fait partie de son contrat\n(ADR-135). Pour mettre en forme une ligne sans landmark ni compteur —\nune fiche, un nom dans une phrase — le composant est `dsfr-data-repeat`.",
               "fieldName": "countLabel"
             },
             {
@@ -11137,7 +11137,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.\nLa clause de zone visible est écrite par l'adaptateur de la source\n(adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à\ndéfaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues\nsont filtrées dans le navigateur.",
+              "description": "Chargement par viewport : réinterroge la source à chaque déplacement de\nla carte, et une première fois dès que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.\nLa clause de zone visible est écrite par l'adaptateur de la source\n(adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à\ndéfaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues\nsont filtrées dans le navigateur.",
               "attribute": "bbox"
             },
             {
@@ -12798,7 +12798,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Chargement par viewport : re-interroge la source a chaque déplacement de\nla carte, et une première fois des que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.\nLa clause de zone visible est écrite par l'adaptateur de la source\n(adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à\ndéfaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues\nsont filtrées dans le navigateur.",
+              "description": "Chargement par viewport : réinterroge la source à chaque déplacement de\nla carte, et une première fois dès que la carte est prête (#652). Le tout\npremier fetch de la source reste NON filtre (elle charge des sa connexion,\navant que la carte — différée a la visibilité — ait un viewport) : sur un\ngros jeu, poser un `limit` ou un `where` initial sur la source.\nLa clause de zone visible est écrite par l'adaptateur de la source\n(adaptateurs déclarant `serverGeo`, #1149), sur `bbox-field` ou, à\ndéfaut, sur `lat-field` / `lon-field` ; sinon, les lignes déjà reçues\nsont filtrées dans le navigateur.",
               "fieldName": "bbox"
             },
             {
@@ -19141,7 +19141,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Ajoute un champ _highlight a chaque record avec les termes trouves marques en <mark>",
+              "description": "Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en <mark>",
               "attribute": "highlight"
             },
             {
@@ -19898,7 +19898,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Ajoute un champ _highlight a chaque record avec les termes trouves marques en <mark>",
+              "description": "Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en <mark>",
               "fieldName": "highlight"
             },
             {
@@ -20082,7 +20082,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Rafraichissement automatique en secondes (0 = desactive).",
+              "description": "Rafraîchissement automatique en secondes (0 = désactivé).",
               "attribute": "refresh"
             },
             {
@@ -20973,7 +20973,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Rafraichissement automatique en secondes (0 = desactive).",
+              "description": "Rafraîchissement automatique en secondes (0 = désactivé).",
               "fieldName": "refresh"
             },
             {

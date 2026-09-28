@@ -595,7 +595,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Taux moyen de taxe fonciere par departement</h2>
+  <h2>Taux moyen de taxe foncière par département</h2>
   <p class="fr-text--sm fr-text--light">
     Source : data.economie.gouv.fr — Fiscalite locale des particuliers
   </p>
@@ -635,7 +635,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Top 15 departements par logements vacants (2025)</h2>
+  <h2>Top 15 départements par logements vacants (2025)</h2>
   <p class="fr-text--sm fr-text--light">
     Source : tabular-api.data.gouv.fr — LOVAC, logements vacants du parc prive
     <br>Pipeline : dsfr-data-source → <strong>dsfr-data-normalize</strong> → dsfr-data-query → dsfr-data-chart
@@ -730,7 +730,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>LOVAC — Logements vacants par departement</h2>
+  <h2>LOVAC — Logements vacants par département</h2>
   <p class="fr-text--sm fr-text--light">
     Source : tabular-api.data.gouv.fr — LOVAC, logements vacants du parc prive
     <br>Pipeline : dsfr-data-source → <strong>dsfr-data-normalize</strong> → dsfr-data-list
@@ -933,7 +933,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Communes — Departement de l'Ain</h2>
+  <h2>Communes — Département de l'Ain</h2>
   <p class="fr-text--sm fr-text--light">
     Source : tabular-api.data.gouv.fr — Code officiel geographique (communes)
     <br>Pipeline : <strong>dsfr-data-source server-side</strong> (Tabular, where) → dsfr-data-display
@@ -974,7 +974,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Top 9 departements — Logements vacants (2025)</h2>
+  <h2>Top 9 départements — Logements vacants (2025)</h2>
   <p class="fr-text--sm fr-text--light">
     Source : tabular-api.data.gouv.fr — LOVAC, logements vacants du parc prive
     <br>Pipeline : dsfr-data-source → <strong>dsfr-data-normalize</strong> → dsfr-data-query → dsfr-data-display
@@ -1883,7 +1883,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Les 10 departements les mieux dotes en lycees</h2>
+  <h2>Les 10 départements les mieux dotés en lycées</h2>
   <p class="fr-text--sm fr-text--light">
     Source : data.education.gouv.fr — Annuaire de l'education
   </p>
@@ -2070,7 +2070,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Les departements francais</h2>
+  <h2>Les départements français</h2>
   <p class="fr-text--sm fr-text--light">
     Source : geo.api.gouv.fr — API Decoupage administratif
   </p>
@@ -2819,7 +2819,7 @@ export const examples: Record<string, string> = {
 -->
 
 <div class="fr-container fr-my-4w">
-  <h2>Les lycees des departements et regions d'outre-mer</h2>
+  <h2>Les lycées des départements et régions d'outre-mer</h2>
   <p class="fr-text--sm fr-text--light">
     Source : data.education.gouv.fr — Annuaire de l'education
   </p>
@@ -3039,12 +3039,12 @@ export const examples: Record<string, string> = {
 
   <div class="fr-callout fr-mt-4w">
     <p class="fr-callout__text">
-      <strong>Un libelle n'est pas un identifiant.</strong> « Nombre immatriculations VE »
+      <strong>Un libellé n'est pas un identifiant.</strong> « Nombre immatriculations VE »
       figure cinq fois dans ce document, une fois par segment de vehicule. Brancher un
       graphique sur cette colonne empilerait cinq series sous un seul nom, sans rien signaler.
       La colonne calculee par <code>compute</code> — <code>Indicateurs + ' — ' + Sous_theme</code>
       — rend l'identite explicite avant qu'un affichage en depende.
-      <br><strong>Aucun <code>flatten</code> n'a ete necessaire.</strong> En mode adaptateur,
+      <br><strong>Aucun <code>flatten</code> n'a été nécessaire.</strong> En mode adaptateur,
       Grist aplatit <code>records[].fields</code> de lui-meme. Le <code>flatten</code> de
       <code>dsfr-data-normalize</code> ne sert qu'en mode URL brute (attribut <code>url</code>
       sans <code>api-type</code>), ou la reponse arrive telle quelle.

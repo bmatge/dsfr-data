@@ -214,7 +214,7 @@ describe('formatLintFindings', () => {
     // Honnetete du diagnostic : « rien detecte » ne veut pas dire « ca marche ».
     const texte = formatLintFindings([]);
 
-    expect(texte).toContain('aucun probleme detecte');
+    expect(texte).toContain('aucun problème détecté');
     expect(texte).toContain('ne garantit pas');
   });
 

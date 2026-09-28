@@ -93,7 +93,7 @@ export function selectChartType(type: ChartType): void {
     if (isSingleValue) {
       aggHint.textContent = "Calcul sur l'ensemble des données";
     } else if (isMap) {
-      aggHint.textContent = 'Si plusieurs valeurs par departement';
+      aggHint.textContent = 'Si plusieurs valeurs par département';
     } else {
       aggHint.textContent = 'Comment combiner les valeurs partageant la même catégorie';
     }

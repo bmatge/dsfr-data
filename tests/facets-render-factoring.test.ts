@@ -30,7 +30,7 @@ describe('#313 — duplication éliminée (garde statique)', () => {
   });
 
   it('la barre de recherche des panels n’existe qu’une fois', () => {
-    expect(SRC.split('Les resultats se mettent a jour automatiquement').length - 1).toBe(1);
+    expect(SRC.split('Les résultats se mettent à jour automatiquement').length - 1).toBe(1);
   });
 
   it('le closest() mort a disparu', () => {
@@ -53,7 +53,7 @@ describe('#313 — comportement identique (mêmes rendus)', () => {
     const idf = labels.find((l) => (l.textContent || '').includes('IDF'));
     expect(idf).toBeDefined();
     expect(idf!.querySelector('.dsfr-data-facets__count')?.textContent).toBe('2');
-    expect(idf!.querySelector('.fr-sr-only')?.textContent).toContain('2 resultats');
+    expect(idf!.querySelector('.fr-sr-only')?.textContent).toContain('2 résultats');
 
     facets.remove();
   });

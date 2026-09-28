@@ -175,9 +175,9 @@ function generateKPICode(config: ChartConfig, data: AggregatedResult[]): string 
     const apiUrl = appendQuery(state.source.apiUrl, String(params));
 
     return `<!-- KPI généré avec dsfr-data Builder IA -->
-<!-- Source API dynamique : les données se mettent a jour automatiquement -->
+<!-- Source API dynamique : les données se mettent à jour automatiquement -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
@@ -239,9 +239,9 @@ loadKPI();
 
   // Embedded-data variant
   return `<!-- KPI généré avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Données locales'} - valeur embarquee -->
+<!-- Source : ${state.source?.name || 'Données locales'} - valeur embarquée -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
@@ -279,7 +279,7 @@ function generateGaugeCode(config: ChartConfig, data: AggregatedResult[]): strin
   return `<!-- Jauge générée avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
-<!-- Dependances (DSFR Chart) -->
+<!-- Dépendances (DSFR Chart) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -302,11 +302,11 @@ function generateScatterCode(config: ChartConfig, data: AggregatedResult[]): str
   return `<!-- Nuage de points généré avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${escapeHtml(CHARTJS_STANDALONE_URL)}"></script>
 
 <div class="fr-container fr-my-4w">
@@ -389,7 +389,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
       return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -439,7 +439,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
       return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -485,7 +485,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
     return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source API dynamique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -517,7 +517,7 @@ function generateMapCode(config: ChartConfig, data: AggregatedResult[]): string 
   return `<!-- Carte générée avec dsfr-data Builder IA -->
 <!-- Source : ${state.source?.name || 'Données locales'} -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -601,11 +601,11 @@ function generateDatalistCode(config: ChartConfig): string {
       return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination serveur -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -626,8 +626,8 @@ function generateDatalistCode(config: ChartConfig): string {
   </dsfr-data-query>
 
   <!-- Pas d'attribut search ici : en pagination serveur, la recherche locale
-       n'opererait que sur la page chargee. Le composant la desactive avec un
-       avertissement (#304). Pour chercher sur TOUT le jeu, inserer un
+       n'opérerait que sur la page chargée. Le composant la désactive avec un
+       avertissement (#304). Pour chercher sur TOUT le jeu, insérer un
        dsfr-data-search server-search en amont de la liste. -->
   <dsfr-data-list
     source="table-data"
@@ -646,11 +646,11 @@ function generateDatalistCode(config: ChartConfig): string {
       return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination serveur -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -671,8 +671,8 @@ function generateDatalistCode(config: ChartConfig): string {
   </dsfr-data-query>
 
   <!-- Pas d'attribut search ici : en pagination serveur, la recherche locale
-       n'opererait que sur la page chargee. Le composant la desactive avec un
-       avertissement (#304). Pour chercher sur TOUT le jeu, inserer un
+       n'opérerait que sur la page chargée. Le composant la désactive avec un
+       avertissement (#304). Pour chercher sur TOUT le jeu, insérer un
        dsfr-data-search server-search en amont de la liste. -->
   <dsfr-data-list
     source="table-data"
@@ -693,13 +693,13 @@ function generateDatalistCode(config: ChartConfig): string {
     }
 
     return `<!-- Tableau dynamique généré avec dsfr-data Builder IA -->
-<!-- Source API dynamique : les données se mettent a jour automatiquement -->
+<!-- Source API dynamique : les données se mettent à jour automatiquement -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -725,13 +725,13 @@ function generateDatalistCode(config: ChartConfig): string {
   // Embedded-data variant
   const rawData = state.localData || [];
   return `<!-- Tableau généré avec dsfr-data Builder IA -->
-<!-- Source : ${state.source?.name || 'Données locales'} - données embarquees -->
+<!-- Source : ${state.source?.name || 'Données locales'} - données embarquées -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
 <div class="fr-container fr-my-4w">
@@ -896,7 +896,7 @@ function generateStandardChartCodeODS(
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique avec pagination automatique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -966,7 +966,7 @@ function generateStandardChartCodeTabular(
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular avec pagination automatique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrChartCss)}">
@@ -1022,13 +1022,13 @@ function generateStandardChartCodeAPI(
   const apiUrl = appendQuery(state.source!.apiUrl!, String(params));
 
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
-<!-- Source API dynamique : les données se mettent a jour automatiquement -->
+<!-- Source API dynamique : les données se mettent à jour automatiquement -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${escapeHtml(CHARTJS_STANDALONE_URL)}"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1135,14 +1135,14 @@ function generateStandardChartCodeEmbedded(
   datasetsCode += ']';
 
   return `<!-- Graphique généré avec dsfr-data Builder IA -->
-<!-- Source : ${sourceName} (${sourceType}) - données embarquees -->
+<!-- Source : ${sourceName} (${sourceType}) - données embarquées -->
 ${hasSecondSeries ? '<!-- Note: Graphique multi-séries -->' : ''}
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 
-<!-- Dependances JS -->
+<!-- Dépendances JS -->
 <script src="${escapeHtml(CHARTJS_STANDALONE_URL)}"></script>
 
 <div class="fr-container fr-my-4w">
@@ -1210,7 +1210,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
       return `<!-- Podium généré avec dsfr-data Builder IA -->
 <!-- Source API dynamique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
@@ -1247,7 +1247,7 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
       return `<!-- Podium généré avec dsfr-data Builder IA -->
 <!-- Source API Tabular dynamique -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
@@ -1286,9 +1286,9 @@ function generatePodiumCode(config: ChartConfig, data: AggregatedResult[]): stri
   const sourceType = state.source?.type === 'grist' ? 'Grist' : 'source manuelle';
 
   return `<!-- Podium généré avec dsfr-data Builder IA -->
-<!-- Source : ${sourceName} (${sourceType}) - données embarquees -->
+<!-- Source : ${sourceName} (${sourceType}) - données embarquées -->
 
-<!-- Dependances CSS (DSFR) -->
+<!-- Dépendances CSS (DSFR) -->
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrCss)}">
 <link rel="stylesheet" href="${escapeHtml(CDN_URLS.dsfrUtilityCss)}">
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>

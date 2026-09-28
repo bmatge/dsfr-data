@@ -81,14 +81,7 @@ describe('dsfr-data-repeat', () => {
     const observed = (DsfrDataRepeat as unknown as { observedAttributes: string[] })
       .observedAttributes;
     // `scopes` et `lazy` sont livrés au lot 2 (#891) ; `lazy-margin` reste réservé.
-    expect(observed.sort()).toEqual([
-      'empty',
-      'key-field',
-      'lazy',
-      'per-row',
-      'scopes',
-      'source',
-    ]);
+    expect(observed.sort()).toEqual(['empty', 'key-field', 'lazy', 'per-row', 'scopes', 'source']);
     for (const reserved of [
       'lazy-margin',
       'if',
@@ -240,7 +233,7 @@ describe('dsfr-data-repeat', () => {
     await tick();
     expect(rep.querySelectorAll('p').length).toBe(3);
     expect(rep.querySelector('[role], [aria-live], [aria-label], nav')).toBeNull();
-    expect(rep.textContent).not.toMatch(/resultat/i);
+    expect(rep.textContent).not.toMatch(/r[eé]sultat/i);
   });
 
   it('per-row : grille DSFR par échelle, sans cols ; valeur fausse → erreur nommée', async () => {

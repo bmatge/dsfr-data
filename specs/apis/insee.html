@@ -69,27 +69,27 @@
                 <tr>
                   <td>Facettes serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Facettes calculees cote client</td>
+                  <td>Facettes calculées côté client</td>
                 </tr>
                 <tr>
                   <td>Recherche serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Recherche effectuee cote client</td>
+                  <td>Recherche effectuee côté client</td>
                 </tr>
                 <tr>
                   <td>Group-by serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Agrégation effectuee cote client via dsfr-data-query</td>
+                  <td>Agrégation effectuee côté client via dsfr-data-query</td>
                 </tr>
                 <tr>
                   <td>Tri serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Tri effectue cote client via dsfr-data-query</td>
+                  <td>Tri effectue côté client via dsfr-data-query</td>
                 </tr>
                 <tr>
                   <td>Agrégation serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Agrégation effectuee cote client via dsfr-data-query</td>
+                  <td>Agrégation effectuee côté client via dsfr-data-query</td>
                 </tr>
               </tbody>
             </table>
@@ -111,7 +111,7 @@
                 <tr><td>Enregistrements max</td><td>100 000</td></tr>
                 <tr><td>Paramètres URL</td><td><code>page</code>, <code>maxResult</code></td></tr>
                 <tr><td>Total disponible</td><td><code>paging.count</code> (via <code>totalCount=TRUE</code>)</td></tr>
-                <tr><td>Page suivante</td><td><code>paging.next</code> dans la reponse</td></tr>
+                <tr><td>Page suivante</td><td><code>paging.next</code> dans la réponse</td></tr>
               </tbody>
             </table>
           </div>
@@ -149,16 +149,16 @@
           </div>
           <div class="fr-highlight fr-mt-2w">
             <p>
-              Seuls les operateurs <code>eq</code> et <code>in</code> sont geres cote serveur.
-              Les operateurs avances (<code>gt</code>, <code>lt</code>, <code>contains</code>...)
-              sont appliques cote client par <code>dsfr-data-query</code>.
+              Seuls les opérateurs <code>eq</code> et <code>in</code> sont gérés côté serveur.
+              Les opérateurs avancés (<code>gt</code>, <code>lt</code>, <code>contains</code>...)
+              sont appliques côté client par <code>dsfr-data-query</code>.
             </p>
           </div>
         </section>
 
         <!-- Structure de reponse -->
         <section class="fr-mt-4w">
-          <h2>Structure de reponse</h2>
+          <h2>Structure de réponse</h2>
           <p>
             Les observations INSEE ont une structure <strong>dimensionnelle imbriquee</strong>,
             automatiquement aplatie par l'adapter :
@@ -187,7 +187,7 @@
   "paging": { "count": 35355, "next": "...&amp;page=2" }
 }</code></pre>
 
-          <h3 class="fr-mt-2w">Apres aplatissement (exploitable par dsfr-data-query)</h3>
+          <h3 class="fr-mt-2w">Après aplatissement (exploitable par dsfr-data-query)</h3>
           <pre><code>{
   "GEO": "2025-FRANCE-F",
   "FREQ": "A",
@@ -218,7 +218,7 @@
                 <tr><th>Identifiant</th><th>Description</th></tr>
               </thead>
               <tbody>
-                <tr><td><code>DS_POPULATIONS_REFERENCE</code></td><td>Populations de reference (communes, departements, regions)</td></tr>
+                <tr><td><code>DS_POPULATIONS_REFERENCE</code></td><td>Populations de référence (communes, départements, régions)</td></tr>
                 <tr><td><code>DD_CNA_AGREGATS</code></td><td>PIB et grands agregats economiques</td></tr>
                 <tr><td><code>DS_TOUR_FREQ</code></td><td>Frequentation touristique</td></tr>
                 <tr><td><code>DS_BPE</code></td><td>Base permanente des equipements</td></tr>
@@ -273,7 +273,7 @@
   format="nombre"&gt;
 &lt;/dsfr-data-kpi&gt;</code></pre>
 
-          <h3 class="fr-mt-2w">Populations par departement avec graphique</h3>
+          <h3 class="fr-mt-2w">Populations par département avec graphique</h3>
           <pre><code>&lt;dsfr-data-source
   id="src"
   api-type="insee"
@@ -301,7 +301,7 @@
           <p>
             Les dimensions INSEE utilisent des codes (<code>AGE: "Y30T39"</code>, <code>PCS: "3"</code>).
             L'attribut <code>replace-fields</code> de <code>&lt;dsfr-data-normalize&gt;</code> permet de les
-            remplacer par des libelles lisibles, <strong>sans affecter</strong> les autres champs
+            remplacer par des libellés lisibles, <strong>sans affecter</strong> les autres champs
             qui pourraient contenir les mêmes valeurs.
           </p>
           <pre><code>&lt;dsfr-data-source

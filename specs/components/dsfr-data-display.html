@@ -28,7 +28,7 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Composant d'affichage dynamique qui genere des elements HTML repetitifs (cartes, tuiles, etc.)
+          Composant d'affichage dynamique qui génère des éléments HTML répétitifs (cartes, tuiles, etc.)
           a partir d'un template et d'une source de données.
           Se connecte a un <code>&lt;dsfr-data-source&gt;</code>, <code>&lt;dsfr-data-query&gt;</code> ou
           <code>&lt;dsfr-data-normalize&gt;</code> pour recevoir les données.
@@ -53,7 +53,7 @@
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td>Synchronise le numéro de page dans l'URL (replaceState)</td></tr>
                 <tr><td><code>url-page-param</code></td><td>String</td><td>Nom du paramètre URL pour la page (défaut: "page")</td></tr>
                 <tr><td><code>idle-message</code></td><td>String</td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
-                <tr><td><code>count-label</code></td><td>String</td><td>Nom compté par le compteur rendu au-dessus de la grille, à la place de « resultat » : <code>count-label="établissement"</code> affiche « 12 345 établissements » (#925, AM-077 — même grammaire que <code>dsfr-data-search</code>, #779). Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou un mot invariable, donner les deux formes séparées par une **barre verticale** : <code>count-label="cheval|chevaux"</code>, <code>count-label="prix|prix"</code>. La virgule ne sépare PAS les deux formes. Poser l'attribut fait aussi passer le nombre par le formateur fr-FR (séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le compteur est rendu exactement comme avant — le corriger par défaut changerait le texte de toutes les pages existantes, et reste à trancher (#925, point résiduel). Cet attribut ne sait pas TAIRE le compteur : un <code>dsfr-data-display</code> est une liste de résultats, et sa région annoncée fait partie de son contrat (ADR-135). Pour mettre en forme une ligne sans landmark ni compteur — une fiche, un nom dans une phrase — le composant est <code>dsfr-data-repeat</code>.</td></tr>
+                <tr><td><code>count-label</code></td><td>String</td><td>Nom compté par le compteur rendu au-dessus de la grille, à la place de « résultat » : <code>count-label="établissement"</code> affiche « 12 345 établissements » (#925, AM-077 — même grammaire que <code>dsfr-data-search</code>, #779). Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier ou un mot invariable, donner les deux formes séparées par une **barre verticale** : <code>count-label="cheval|chevaux"</code>, <code>count-label="prix|prix"</code>. La virgule ne sépare PAS les deux formes. Poser l'attribut fait aussi passer le nombre par le formateur fr-FR (séparateur de milliers) : « 1 234 » et non « 1234 ». Sans l'attribut, le compteur est rendu exactement comme avant — le corriger par défaut changerait le texte de toutes les pages existantes, et reste à trancher (#925, point résiduel). Cet attribut ne sait pas TAIRE le compteur : un <code>dsfr-data-display</code> est une liste de résultats, et sa région annoncée fait partie de son contrat (ADR-135). Pour mettre en forme une ligne sans landmark ni compteur — une fiche, un nom dans une phrase — le composant est <code>dsfr-data-repeat</code>.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -128,8 +128,8 @@
               <tr><td><code>{{champ:number}}</code></td><td>Valeur avec separateurs de milliers (ex: 32073247 &rarr; 32 073 247)</td></tr>
               <tr><td><code>{{champ:number|0}}</code></td><td>Format number + fallback si null/undefined</td></tr>
               <tr><td><code>{{champ.sous.clé}}</code></td><td>Acces aux proprietes imbriquees</td></tr>
-              <tr><td><code>{{$index}}</code></td><td>Index de l'element (0-based)</td></tr>
-              <tr><td><code>{{$uid}}</code></td><td>Identifiant unique de l'element</td></tr>
+              <tr><td><code>{{$index}}</code></td><td>Index de l'élément (0-based)</td></tr>
+              <tr><td><code>{{$uid}}</code></td><td>Identifiant unique de l'élément</td></tr>
             </tbody>
           </table>
         </div>
@@ -217,7 +217,7 @@
         <!-- Variante 3: Liste simple -->
         <section class="demo-section" id="list">
           <h3>3. Liste avec index</h3>
-          <p>Affiche une liste simple avec l'index de chaque element via <code>{{$index}}</code>.</p>
+          <p>Affiche une liste simple avec l'index de chaque élément via <code>{{$index}}</code>.</p>
 
           <dsfr-data-display source="sites" cols="1" pagination="5">
             <template>
@@ -313,7 +313,7 @@
           </div>
           <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
             <p class="fr-callout__text">
-              <strong>Comportement :</strong> en mode pagination serveur, les données recues sont affichees telles quelles
+              <strong>Comportement :</strong> en mode pagination serveur, les données reçues sont affichées telles quelles
               (pas de slicing client). Le total affiche (ex: "1 743 pages") vient de <code>meta.total / meta.page_size</code>.
               La recherche et le tri ne s'appliquent qu'aux données de la page courante.
             </p>
@@ -414,7 +414,7 @@
         <h2 class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
           <p class="fr-callout__text">
-            <strong>Template :</strong> Le contenu du <code>&lt;template&gt;</code> est clone pour chaque element de données.
+            <strong>Template :</strong> Le contenu du <code>&lt;template&gt;</code> est clone pour chaque élément de données.
             Utilisez n'importe quelle structure HTML DSFR (cartes, tuiles, callouts, badges...) — et des composants
             <code>dsfr-data-*</code> (variante 6 : un graphique ou un KPI par ligne).
           </p>
@@ -423,7 +423,7 @@
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
             <strong>Performance :</strong> Pour les grands ensembles de données, utilisez l'attribut <code>pagination</code>
-            pour limiter le nombre d'elements rendus simultanement.
+            pour limiter le nombre d'éléments rendus simultanement.
           </p>
         </div>
 

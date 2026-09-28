@@ -29,7 +29,8 @@ import { CDN_URLS, LIB_URL } from '@dsfr-data/shared';
  */
 const DEPS_LINE_RE =
   /^[ \t]*(<link[^>]*(dsfr|DSFRChart)[^>]*>|<script[^>]*(dsfr|chart\.js|DSFRChart|dsfr-data)[^>]*><\/script>)[ \t]*\n?/gm;
-const DEPS_COMMENT_RE = /^[ \t]*<!--\s*Dependances[^>]*-->\s*\n?/gm;
+// `D[eé]pendances` : les exports anterieurs a #1158 ecrivaient le commentaire sans accent.
+const DEPS_COMMENT_RE = /^[ \t]*<!--\s*D[eé]pendances[^>]*-->\s*\n?/gm;
 /** Marqueurs d'une ligne de dependance (CDN dsfr, DSFRChart, ancien Chart.js). */
 const MARQUEURS_DEPS = ['dsfr', 'DSFRChart', 'chart.js'];
 
@@ -68,7 +69,7 @@ export function blocDependances(code: string): string {
   const graphique = utiliseGraphique(code);
   const libelle = ['DSFR', graphique ? 'DSFR Chart' : '', 'dsfr-data'].filter(Boolean).join(' + ');
   const lignes = [
-    `<!-- Dependances (${libelle}) -->`,
+    `<!-- Dépendances (${libelle}) -->`,
     `<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">`,
     `<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">`,
   ];

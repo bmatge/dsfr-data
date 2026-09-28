@@ -217,7 +217,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `code-field` | `string` | `""` (vide) | Chemin vers le champ code (prioritaire sur label-field) : departement/region (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde) |
+| `code-field` | `string` | `""` (vide) | Chemin vers le champ code (prioritaire sur label-field) : département/région (map/map-reg), nom d'académie (map-aca), code pays ISO a2/a3/num (map-monde) |
 | `color-map` | `string` | `""` (vide) | Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées par des virgules, même grammaire que `dsfr-data-map-layer`. Ex : `"Réalisé:#000091,Objectif:#E1000F"`. La modalité est un nom de série (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe (une couleur par part de camembert). Les modalités non citées gardent la couleur de la palette. Une virgule ou un deux-points dans une modalité s'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`). |
 | `databox` | `boolean` | `false` | Envelopper le chart dans une DataBox DSFR native |
 | `databox-actions` | `string` | `""` (vide) | Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]') |

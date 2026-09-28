@@ -113,7 +113,7 @@ export const FACETS_CONFIG: PipelineNodeConfig = {
   component: 'dsfr-data-facets',
   category: 'interact',
   icon: 'ri-list-check-2',
-  description: 'Filtres a facettes interactifs',
+  description: 'Filtres à facettes interactifs',
   attributes: [
     {
       name: 'fields',
@@ -139,7 +139,7 @@ export const OUTPUT_CONFIG: PipelineNodeConfig = {
   component: '__output__',
   category: 'display',
   icon: 'ri-check-double-line',
-  description: 'Données recues en bout de chaine',
+  description: 'Données reçues en bout de chaîne',
   attributes: [],
 };
 

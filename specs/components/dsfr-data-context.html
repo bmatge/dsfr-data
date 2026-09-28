@@ -26,8 +26,8 @@
     <div slot="content">
         <p class="fr-text--lead">
           Filtres transverses multi-sources pour les dashboards a filtre commun.
-          Le contexte ecoute des elements d'UI natifs (<code>select</code>, <code>input</code>...)
-          et diffuse les filtres a N sources nommees — le « fan-out » declaratif qui evitait
+          Le contexte ecoute des éléments d'UI natifs (<code>select</code>, <code>input</code>...)
+          et diffuse les filtres a N sources nommées — le « fan-out » declaratif qui evitait
           jusqu'ici d'ecrire du JavaScript d'orchestration a la main.
         </p>
 
@@ -35,7 +35,7 @@
           <p class="fr-callout__text">
             <strong>Opt-in et additif (ADR-031) :</strong> sans contexte, chaque source reste
             autonome — rien ne change pour les pages mono-graphique. Le contexte n'effectue
-            aucun fetch et ne transforme aucune donnee : il emet des commandes <code>where</code>
+            aucun fetch et ne transforme aucune donnée : il émet des commandes <code>where</code>
             avec un <code>whereKey</code> stable par filtre, combinees en <strong>AND</strong> par
             le merge multi-emetteurs des sources (jamais « le dernier gagne »).
           </p>
@@ -83,7 +83,7 @@
             <!-- ATTRS:dsfr-data-context-filter fields="field,ui,operator,apply-to,label,default,context" -->
               <tr><td><code>field</code></td><td>String</td><td>requis</td><td>Colonne filtrée — une colonne des SOURCES ciblées, telle que l'API la connaît. Le filtre y est délégué et s'applique avant tout regroupement (ordre ODSQL : <code>where</code> puis <code>group_by</code>) : ni un alias d'agrégat (<code>montant__sum</code>), ni une colonne calculée en aval (<code>compute</code> d'un <code>dsfr-data-normalize</code>) n'existent à ce stade. Quand le contexte sait que la colonne manque (source sans <code>select</code> ni <code>group-by</code>, déjà chargée, #805) : absente de toutes les sources visées, erreur de configuration nommée et rien n'est diffusé ; absente de certaines seulement, ces sources sont exclues du filtre, avec un message console. Sinon le filtre part, et l'API répond (HTTP 400 si la colonne n'existe pas). TYPE DE LA COLONNE (#924) : un contrôle de formulaire rend toujours du TEXTE, et le filtre émet <code>reg = "01"</code>. Sur une colonne que le jeu publie en ENTIER, le portail compare en texte et ne trouve rien, là où son <code>refine</code> trouvait — « — » à l'écran, sans erreur. Les codes métropolitains (« 75 ») passent, ce qui cache le défaut : seuls les codes à zéro de tête (Guadeloupe 01, départements 01 à 09) sont muets. Quand les lignes déjà rendues par une source montrent que la colonne y est numérique, la console le dit, une fois par colonne et par source. Quand elles ne la portent pas — source agrégée côté serveur (<code>select="sum(...)"</code>), filtre délégué au portail (#980) — c'est le type DÉCLARÉ par le jeu Opendatasoft qui décide, lu une fois par jeu. Le geste : alimenter le filtre avec la valeur sans zéro de tête, ou réserver ce filtre aux sources qui publient le code en texte avec <code>apply-to</code>.</td></tr>
               <tr><td><code>ui</code></td><td>String</td><td>requis</td><td>Id(s) de l'élément d'UI écouté — deux ids (min max) pour between</td></tr>
-              <tr><td><code>operator</code></td><td>ContextOperator</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code>, <code>current-month</code></td><td>Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et dates (#230, clauses en plages [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (#682 — case à cocher, mois en cours, borne dynamique). <code>year-of</code> et <code>month-of</code> acceptent une date plus precise que l'opérateur et la tronquent (#646) : "2026-09-09" -&gt; annee 2026 / mois 2026-09, ce qui permet de les nourrir d'un &lt;input type="date"&gt; (il n'existe pas de type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni annee) retire le filtre et le signale par un avertissement console, emis une seule fois par filtre.</td></tr>
+              <tr><td><code>operator</code></td><td>ContextOperator</td><td><code>eq</code> (défaut), <code>in</code>, <code>lt</code>, <code>gte</code>, <code>between</code>, <code>month-of</code>, <code>year-of</code>, <code>lt-day-after</code>, <code>last-n-days</code>, <code>current-year</code>, <code>current-month</code></td><td>Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et dates (#230, clauses en plages [debut, fin)) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (#682 — case à cocher, mois en cours, borne dynamique). <code>year-of</code> et <code>month-of</code> acceptent une date plus précise que l'opérateur et la tronquent (#646) : "2026-09-09" -&gt; année 2026 / mois 2026-09, ce qui permet de les nourrir d'un &lt;input type="date"&gt; (il n'existe pas de type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni année) retire le filtre et le signale par un avertissement console, émis une seule fois par filtre.</td></tr>
               <tr><td><code>apply-to</code></td><td>String</td><td><code>*</code></td><td>Cibles : "*" (défaut, toutes les sources du contexte) ou ids ciblés</td></tr>
               <tr><td><code>label</code></td><td>String</td><td>défaut : field</td><td>Libellé naturel pour l'affichage (tags #232) — défaut : field</td></tr>
               <tr><td><code>default</code></td><td>String</td><td><code>today</code>, <code>first-of-month</code>, <code>first-of-year</code> ou littéral</td><td>Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL — un paramètre d'URL présent gagne toujours (ADR-031). Mots-clés dynamiques résolus dans le fuseau local : <code>today</code> (date du jour), <code>first-of-month</code> (1er du mois en cours), <code>first-of-year</code> (1er janvier de l'année en cours) ; toute autre valeur est un littéral. La date est adaptée au contrôle (input type="month" → AAAA-MM, <code>year-of</code> → AAAA) puis écrite dans l'UI et émise par le chemin normal, jamais injectée dans un where. Pour <code>between</code> et <code>in</code>, plusieurs valeurs séparées par une virgule (ex. <code>first-of-year,today</code>).</td></tr>
@@ -93,22 +93,22 @@
           </table>
         </div>
 
-        <h2 class="fr-h4">Operateurs</h2>
+        <h2 class="fr-h4">Opérateurs</h2>
         <div class="fr-table fr-table--sm">
           <table>
             <thead>
-              <tr><th>Operateur</th><th>UI typique</th><th>Clause générée</th></tr>
+              <tr><th>Opérateur</th><th>UI typique</th><th>Clause générée</th></tr>
             </thead>
             <tbody>
               <tr><td><code>eq</code></td><td>input, select</td><td><code>field = valeur</code></td></tr>
-              <tr><td><code>in</code></td><td>select multiple</td><td><code>field IN (v1, v2)</code> — valeurs separees par <code>|</code> ou <code>,</code></td></tr>
+              <tr><td><code>in</code></td><td>select multiple</td><td><code>field IN (v1, v2)</code> — valeurs séparées par <code>|</code> ou <code>,</code></td></tr>
               <tr><td><code>lt</code> / <code>gte</code></td><td>input</td><td>comparaison stricte / large</td></tr>
               <tr><td><code>between</code></td><td>deux inputs (min, max)</td><td><code>gte min</code> + <code>lt max</code></td></tr>
               <tr><td><code>month-of</code></td><td><code>input type="month"</code></td><td>plage <code>[1er du mois, 1er du mois suivant)</code></td></tr>
-              <tr><td><code>year-of</code></td><td>input annee</td><td>plage annuelle</td></tr>
+              <tr><td><code>year-of</code></td><td>input année</td><td>plage annuelle</td></tr>
               <tr><td><code>lt-day-after</code></td><td><code>input type="date"</code></td><td>inclusif jusqu'au jour choisi</td></tr>
-              <tr><td><code>last-n-days</code></td><td>input N</td><td>borne dynamique « N derniers jours », recalculee a chaque diffusion</td></tr>
-              <tr><td><code>current-year</code></td><td>checkbox</td><td>plage de l'annee en cours (dynamique)</td></tr>
+              <tr><td><code>last-n-days</code></td><td>input N</td><td>borne dynamique « N derniers jours », recalculée à chaque diffusion</td></tr>
+              <tr><td><code>current-year</code></td><td>checkbox</td><td>plage de l'année en cours (dynamique)</td></tr>
               <tr><td><code>current-month</code></td><td>checkbox</td><td>plage du mois en cours (dynamique, #682)</td></tr>
             </tbody>
           </table>
@@ -239,7 +239,7 @@
         <h2 class="fr-h4">Voir aussi</h2>
         <ul>
           <li><a href="../../guide/guide-exemples-context.html">Guide : dashboard RappelConso filtre</a></li>
-          <li><a href="dsfr-data-facets.html">dsfr-data-facets</a> — facettes calculees depuis les données (mono-source)</li>
+          <li><a href="dsfr-data-facets.html">dsfr-data-facets</a> — facettes calculées depuis les données (mono-source)</li>
         </ul>
     </div>
   </app-layout-demo>

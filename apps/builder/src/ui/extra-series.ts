@@ -36,8 +36,8 @@ export function addExtraSeries(): void {
     </div>
     <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
       <label class="fr-label" for="extra-series-label-${seriesCounter}">
-        Libelle
-        <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
+        Libellé
+        <span class="fr-hint-text">Nom affiché (vide = nom du champ)</span>
       </label>
       <input type="text" class="fr-input fr-input--sm extra-series-label" id="extra-series-label-${seriesCounter}" placeholder="Nom de la série" data-repere="builder.donnees.series.libelle" data-repere-libelle="Nom affiché de la série">
     </div>
