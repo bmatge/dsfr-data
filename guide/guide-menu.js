@@ -10,6 +10,11 @@
       { id: 'overview', label: "Vue d'ensemble", href: 'guide.html' },
       { id: 'videos', label: 'Vidéos de démonstration', href: 'guide-videos.html' },
       {
+        id: 'builder-en-detail',
+        label: 'Le Builder en détail (vidéo)',
+        href: 'guide-builder-en-detail.html',
+      },
+      {
         id: 'parcours',
         label: 'Parcours utilisateur',
         children: [
