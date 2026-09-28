@@ -287,7 +287,7 @@ export class DsfrDataMapPopup extends LitElement {
       // pas les compagnons hors-carte (encarts DROM...) du host
       this._panelEl.style.width = this.width;
       this._panelEl.setAttribute('role', 'complementary');
-      this._panelEl.setAttribute('aria-label', "Details de l'element sélectionné");
+      this._panelEl.setAttribute('aria-label', "Détails de l'élément sélectionné");
       this._panelEl.setAttribute('aria-live', 'polite');
       const anchor = mapParent.querySelector(':scope > .dsfr-data-map__container') ?? mapParent;
       // Le panel vit dans le conteneur Leaflet (#431) : isoler ses evenements

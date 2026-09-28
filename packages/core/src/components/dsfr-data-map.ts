@@ -196,8 +196,8 @@ export function buildTileLayerConfig(
   if (!tilesAttribution) {
     warnings.push(
       `tiles="${tiles}" est une URL custom sans tiles-attribution. Les fonds de carte ` +
-        `OpenStreetMap et derives exigent une mention visible : ajouter ` +
-        `tiles-attribution="..." pour etre conforme.`
+        `OpenStreetMap et dérivés exigent une mention visible : ajouter ` +
+        `tiles-attribution="..." pour être conforme.`
     );
   }
 

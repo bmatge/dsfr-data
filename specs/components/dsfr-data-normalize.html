@@ -49,7 +49,7 @@
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
             <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il normalise les données
-            et les redistribue aux composants en aval via le systeme d'événements.
+            et les redistribue aux composants en aval via le système d'événements.
           </p>
         </div>
 
@@ -67,9 +67,9 @@
         <h2>Cas d'usage</h2>
         <ul>
           <li><strong>Nombres en string</strong> : valeurs numériques stockees comme texte (<code>"1234"</code> au lieu de <code>1234</code>)</li>
-          <li><strong>Separateurs decimaux</strong> : virgule francaise vs point international (<code>"12,5"</code> vs <code>"12.5"</code>)</li>
+          <li><strong>Separateurs decimaux</strong> : virgule française vs point international (<code>"12,5"</code> vs <code>"12.5"</code>)</li>
           <li><strong>Caracteres speciaux</strong> : balises HTML, espaces superflus dans les valeurs</li>
-          <li><strong>Libelles peu clairs</strong> : clés d'API cryptiques a renommer pour la lisibilite</li>
+          <li><strong>Libellés peu clairs</strong> : clés d'API cryptiques a renommer pour la lisibilité</li>
           <li><strong>Valeurs manquantes</strong> : remplacer <code>N/A</code>, <code>n.d.</code>, <code>-</code> par des valeurs exploitables</li>
           <li><strong>Decimales parasites</strong> : arrondir <code>32073247.269999996</code> a <code>32073247</code></li>
           <li><strong>Objets imbriques</strong> : aplatir un sous-objet pour remonter ses clés au premier niveau</li>
@@ -115,7 +115,7 @@
         <!-- Exemple 1 : conversion numerique + renommage -->
         <h2 class="fr-mt-4w">Exemple : trim + renommage</h2>
         <p>Les données brutes RappelConso contiennent des noms de colonnes longs et techniques.
-          On renomme les colonnes pour la lisibilite et on nettoie les espaces superflus.</p>
+          On renomme les colonnes pour la lisibilité et on nettoie les espaces superflus.</p>
 
         <dsfr-data-normalize
           id="demo-clean"
@@ -136,7 +136,7 @@
 }</code></pre>
           </div>
           <div class="fr-col-12 fr-col-md-6">
-            <h3>Apres normalisation</h3>
+            <h3>Après normalisation</h3>
             <pre><code>{
   "Produit": "Lot 2024-ABC",       <em>// trim + rename</em>
   "Catégorie": "Alimentation",     <em>// rename</em>

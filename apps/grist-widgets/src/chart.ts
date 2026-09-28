@@ -29,9 +29,9 @@ const ALL_OPTIONS: OptionDef[] = [
       { value: 'scatter', label: 'Nuage de points' },
       { value: 'gauge', label: 'Jauge' },
       { value: 'bar-line', label: 'Barres + Lignes' },
-      { value: 'map', label: 'Carte departements' },
-      { value: 'map-reg', label: 'Carte regions' },
-      { value: 'map-aca', label: 'Carte academies' },
+      { value: 'map', label: 'Carte départements' },
+      { value: 'map-reg', label: 'Carte régions' },
+      { value: 'map-aca', label: 'Carte académies' },
       { value: 'map-monde', label: 'Carte monde' },
       { value: 'kpi', label: 'KPI' },
     ],
@@ -94,10 +94,10 @@ const ALL_OPTIONS: OptionDef[] = [
   },
   {
     key: 'label',
-    label: 'Libelle KPI',
+    label: 'Libellé KPI',
     type: 'text',
     defaultValue: 'Indicateur',
-    hint: 'Texte affiche sous la valeur (KPI uniquement)',
+    hint: 'Texte affiché sous la valeur (KPI uniquement)',
   },
   {
     key: 'icone',
@@ -219,7 +219,7 @@ function generateFixedHtml(): string {
 
   // Dependances CDN (a ajouter dans le <head> de la page hote)
   const deps = [
-    '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
+    '<!-- Dépendances dsfr-data (à ajouter dans le <head> si absentes) -->',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">',
@@ -278,7 +278,7 @@ function generateFixedHtml(): string {
 function generateDynamicHtml(): string {
   const { apiBaseUrl, tableId, columnMappings } = getGristApiInfo();
   if (!apiBaseUrl || !tableId)
-    return "(Information API Grist non disponible.\nLe widget doit etre charge dans Grist pour detecter l'URL du document.)";
+    return "(Information API Grist non disponible.\nLe widget doit être chargé dans Grist pour détecter l'URL du document.)";
 
   const match = apiBaseUrl.match(/\/api\/docs\/([^/]+)/);
   if (!match) return '(URL API Grist non reconnue)';
@@ -295,7 +295,7 @@ function generateDynamicHtml(): string {
   const codeCol = columnMappings?.Code as string | undefined;
 
   const deps = [
-    '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
+    '<!-- Dépendances dsfr-data (à ajouter dans le <head> si absentes) -->',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">',
@@ -429,7 +429,7 @@ function showOptionsPanel() {
 // Initialisation : toutes les colonnes possibles (flexibilite maximale)
 initGristBridge(
   [
-    { name: 'Label', title: 'Etiquettes (graphiques) ou Nom (cartes)', optional: true },
+    { name: 'Label', title: 'Étiquettes (graphiques) ou Nom (cartes)', optional: true },
     { name: 'Value', title: 'Valeur numérique', type: 'Numeric' },
     { name: 'Value2', title: 'Série 2 (graphiques multi-séries)', type: 'Numeric', optional: true },
     { name: 'Code', title: 'Code geo INSEE (cartes uniquement)', type: 'Text', optional: true },

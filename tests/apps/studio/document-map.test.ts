@@ -67,7 +67,7 @@ describe('studio/document — bloc map (#531)', () => {
       ctx
     );
     expect(notNumeric.ok).toBe(false);
-    expect(notNumeric.summary).toContain('numerique');
+    expect(notNumeric.summary).toContain('numérique');
   });
 
   it('refuse les structures incompletes (pas de couche, sans lat/lon)', () => {

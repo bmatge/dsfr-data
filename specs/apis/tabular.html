@@ -33,13 +33,13 @@
           <h4 class="fr-callout__title">Agrégation et group-by serveur</h4>
           <p class="fr-callout__text">
             Tabular supporte la <strong>pagination par page</strong> (125 pages de 200, soit 25 000 enregistrements par défaut, relevable par <code>max-records</code>),
-            le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agrégation cote serveur</strong>
+            le <strong>tri serveur</strong>, et surtout le <strong>group-by et l'agrégation côté serveur</strong>
             (<code>sum</code>, <code>avg</code>, <code>count</code>, <code>min</code>, <code>max</code>).
             Un <code>group-by</code> sans agrégat n'est pas délégué : l'API ne regroupe pas
             (<code>column__groupby</code> seul rend une ligne par ligne brute, modalités répétées),
             le regroupement se fait côté client (#1025).
             La recherche passe au serveur sur plusieurs colonnes (<code>or=(…)</code>, #1026, ci-dessous) ;
-            les facettes restent cote client.
+            les facettes restent côté client.
           </p>
         </div>
 
@@ -64,7 +64,7 @@
                 <tr>
                   <td>Facettes serveur</td>
                   <td class="capability-no">Non</td>
-                  <td>Facettes calculees cote client (mode statique)</td>
+                  <td>Facettes calculées côté client (mode statique)</td>
                 </tr>
                 <tr>
                   <td>Recherche serveur</td>
@@ -111,7 +111,7 @@
                 <tr><td>Pages max</td><td>125</td></tr>
                 <tr><td>Enregistrements max</td><td>25 000 par défaut, relevable par <code>max-records</code></td></tr>
                 <tr><td>Paramètres URL</td><td><code>page</code>, <code>page_size</code></td></tr>
-                <tr><td>Page suivante</td><td>Champ <code>next</code> dans la reponse</td></tr>
+                <tr><td>Page suivante</td><td>Champ <code>next</code> dans la réponse</td></tr>
               </tbody>
             </table>
           </div>
@@ -167,19 +167,19 @@
             <code>field:operator:value</code>.
           </p>
 
-          <h3 class="fr-mt-2w">Operateurs disponibles</h3>
+          <h3 class="fr-mt-2w">Opérateurs disponibles</h3>
           <div class="fr-table">
             <table>
               <thead>
-                <tr><th>Operateur generique</th><th>Operateur Tabular</th><th>Description</th></tr>
+                <tr><th>Opérateur générique</th><th>Opérateur Tabular</th><th>Description</th></tr>
               </thead>
               <tbody>
                 <tr><td><code>eq</code></td><td><code>exact</code></td><td>Egal a</td></tr>
                 <tr><td><code>neq</code></td><td><code>differs</code></td><td>Different de</td></tr>
                 <tr><td><code>gt</code></td><td><code>strictly_greater</code></td><td>Strictement superieur</td></tr>
                 <tr><td><code>gte</code></td><td><code>greater</code></td><td>Superieur ou egal</td></tr>
-                <tr><td><code>lt</code></td><td><code>strictly_less</code></td><td>Strictement inferieur</td></tr>
-                <tr><td><code>lte</code></td><td><code>less</code></td><td>Inferieur ou egal</td></tr>
+                <tr><td><code>lt</code></td><td><code>strictly_less</code></td><td>Strictement inférieur</td></tr>
+                <tr><td><code>lte</code></td><td><code>less</code></td><td>Inférieur ou egal</td></tr>
                 <tr><td><code>contains</code></td><td><code>contains</code></td><td>Contient la valeur</td></tr>
                 <tr><td><code>notcontains</code></td><td><code>notcontains</code></td><td>Ne contient pas</td></tr>
                 <tr><td><code>in</code></td><td><code>in</code></td><td>Dans la liste</td></tr>
@@ -220,7 +220,7 @@
 
           <h3 class="fr-mt-2w">Agrégation serveur</h3>
           <p>
-            L'API supporte l'agrégation cote serveur via des paramètres URL :
+            L'API supporte l'agrégation côté serveur via des paramètres URL :
           </p>
           <div class="fr-table">
             <table>
@@ -239,7 +239,7 @@
           </div>
           <div class="fr-highlight fr-mt-2w">
             <p>
-              Les colonnes de resultat sont nommees <code>column__operator</code> (ex : <code>population__sum</code>).
+              Les colonnes de résultat sont nommées <code>column__operator</code> (ex : <code>population__sum</code>).
               Les filtres sont appliques <strong>avant</strong> l'agrégation.
             </p>
           </div>
@@ -341,7 +341,7 @@
             </table>
           </div>
           <p class="fr-mt-1w">
-            Les facettes sont calculees sur les données deja recuperees cote client.
+            Les facettes sont calculées sur les données déjà récupérées côté client.
             Si le jeu de données est volumineux, pensez a relever <code>max-records</code>
             pour charger plus de données avant le calcul des facettes.
           </p>
@@ -358,7 +358,7 @@
 
         <!-- Structure de reponse -->
         <section class="fr-mt-4w">
-          <h2>Structure de reponse</h2>
+          <h2>Structure de réponse</h2>
           <div class="fr-table">
             <table>
               <thead>

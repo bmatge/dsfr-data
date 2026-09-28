@@ -20,11 +20,11 @@
 
   <app-layout-demo title="Carte de France" icon="ri-map-line" active-path="charts/map-chart" base-path="../">
     <div slot="content">
-      <p class="fr-text--lead">Le composant <code>&lt;map-chart&gt;</code> visualise des données geographiques : departements, regions, academies ou monde selon l'attribut <code>level</code> (API cartes unifiee de <a href="https://github.com/GouvernementFR/dsfr-chart" target="_blank" rel="noopener">DSFR Chart</a> 2.1).</p>
+      <p class="fr-text--lead">Le composant <code>&lt;map-chart&gt;</code> visualise des données géographiques : départements, régions, academies ou monde selon l'attribut <code>level</code> (API cartes unifiée de <a href="https://github.com/GouvernementFR/dsfr-chart" target="_blank" rel="noopener">DSFR Chart</a> 2.1).</p>
 
       <section class="demo-section">
-        <h3>Carte departementale (level="dep", défaut)</h3>
-        <p>Sans attribut <code>level</code> (ou avec <code>level="dep"</code>), <code>&lt;map-chart&gt;</code> affiche une carte de France avec données par departement.</p>
+        <h3>Carte départementale (level="dep", défaut)</h3>
+        <p>Sans attribut <code>level</code> (ou avec <code>level="dep"</code>), <code>&lt;map-chart&gt;</code> affiche une carte de France avec données par département.</p>
         <map-chart
           data='{"75": 95, "13": 82, "69": 78, "33": 71, "31": 68, "59": 88, "67": 75, "44": 80, "34": 72, "06": 91}'
           date="2024-01-15"
@@ -43,7 +43,7 @@
 
       <section class="demo-section">
         <h3>Carte regionale nationale (level="reg")</h3>
-        <p>Avec <code>level="reg"</code>, la carte affiche le decoupage regional national. Les clés de <code>data</code> sont les codes region INSEE.</p>
+        <p>Avec <code>level="reg"</code>, la carte affiche le decoupage regional national. Les clés de <code>data</code> sont les codes région INSEE.</p>
         <map-chart
           level="reg"
           data='{"11": 95, "84": 82, "76": 78, "75": 71, "44": 68, "32": 88}'
@@ -62,7 +62,7 @@
 
       <section class="demo-section">
         <h3>Carte des academies (level="aca")</h3>
-        <p>Avec <code>level="aca"</code>, les clés de <code>data</code> sont les noms d'academie en majuscules.</p>
+        <p>Avec <code>level="aca"</code>, les clés de <code>data</code> sont les noms d'académie en majuscules.</p>
         <map-chart
           level="aca"
           data='{"PARIS": 95, "LYON": 82, "STRASBOURG": 78, "BORDEAUX": 71, "LILLE": 88}'
@@ -99,8 +99,8 @@
       </section>
 
       <section class="demo-section">
-        <h3>Zoom sur une region (&lt;map-chart-reg&gt;)</h3>
-        <p>Le composant <code>&lt;map-chart-reg region="…"&gt;</code> zoome sur <strong>une</strong> region donnee : les clés de <code>data</code> sont alors les departements de cette region. Pour la carte nationale des regions, utiliser <code>level="reg"</code> ci-dessus.</p>
+        <h3>Zoom sur une région (&lt;map-chart-reg&gt;)</h3>
+        <p>Le composant <code>&lt;map-chart-reg region="…"&gt;</code> zoome sur <strong>une</strong> région donnée : les clés de <code>data</code> sont alors les départements de cette region. Pour la carte nationale des régions, utiliser <code>level="reg"</code> ci-dessus.</p>
         <div class="code-block"><pre>&lt;map-chart-reg
   data='{"75": 95, "77": 82, "78": 85, "91": 78, "92": 90}'
   date="2024-01-15"
@@ -129,7 +129,7 @@
             <tr>
               <td><code>data</code></td>
               <td>String (JSON)</td>
-              <td>Dictionnaire JSON : clés selon le <code>level</code> (code departement, code region, nom d'academie en majuscules, code pays ISO alpha-2), valeurs numériques</td>
+              <td>Dictionnaire JSON : clés selon le <code>level</code> (code département, code région, nom d'académie en majuscules, code pays ISO alpha-2), valeurs numériques</td>
             </tr>
             <tr>
               <td><code>date</code></td>
@@ -139,7 +139,7 @@
             <tr>
               <td><code>highlight-index</code></td>
               <td>String (JSON)</td>
-              <td>Liste des codes departements a mettre en avant : <code>'["75", "69"]'</code></td>
+              <td>Liste des codes départements a mettre en avant : <code>'["75", "69"]'</code></td>
             </tr>
             <tr>
               <td><code>name</code></td>
@@ -149,13 +149,13 @@
             <tr>
               <td><code>value-nat</code></td>
               <td>Number</td>
-              <td>(map-chart uniquement) Valeur nationale de reference</td>
+              <td>(map-chart uniquement) Valeur nationale de référence</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <h2 class="fr-mt-4w">Codes des departements</h2>
+      <h2 class="fr-mt-4w">Codes des départements</h2>
       <p>Les codes utilisent la nomenclature officielle INSEE :</p>
       <ul>
         <li><strong>Metropole</strong> : "01" a "95" (sauf Corse)</li>

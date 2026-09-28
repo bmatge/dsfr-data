@@ -598,8 +598,8 @@ describe('DsfrDataChart', () => {
         gauge: 'jauge',
         scatter: 'nuage de points',
         'bar-line': 'barres et lignes',
-        map: 'carte departements',
-        'map-reg': 'carte regions',
+        map: 'carte départements',
+        'map-reg': 'carte régions',
       };
       for (const [type, label] of Object.entries(types)) {
         chart.type = type as DsfrDataChart['type'];

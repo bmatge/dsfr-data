@@ -66,7 +66,7 @@
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
             <strong>Visuel et intermediaire :</strong> Ce composant affiche un champ de recherche
-            ET redistribue les données filtrees aux composants en aval via le systeme d'événements.
+            ET redistribue les données filtrees aux composants en aval via le système d'événements.
             Il se combine naturellement avec <code>dsfr-data-facets</code>.
           </p>
         </div>
@@ -103,7 +103,7 @@
                 <tr><td><code>label</code></td><td>String</td><td><code>Rechercher</code></td><td>Label du champ (accessible)</td></tr>
                 <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai en ms avant déclenchement du filtre après la dernière frappe</td></tr>
                 <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caractères avant déclenchement</td></tr>
-                <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute un champ _highlight a chaque record avec les termes trouves marques en &lt;mark&gt;</td></tr>
+                <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en &lt;mark&gt;</td></tr>
                 <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de recherche : contains, starts, words</td></tr>
                 <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Si true, le label est en sr-only (visuellement masque, accessible)</td></tr>
                 <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de résultats sous le champ (compte serveur <code>meta.total</code> en <code>server-search</code>), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (<code>require-where</code>), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide.</td></tr>
@@ -149,7 +149,7 @@
             <strong>Modes de recherche :</strong><br>
             <code>contains</code> (défaut) : sous-chaine insensible a la casse et aux accents.<br>
             <code>starts</code> : chaque mot du champ doit commencer par le terme.<br>
-            <code>words</code> : tous les mots saisis doivent etre presents (dans n'importe quel champ, n'importe quel ordre). Le plus utile pour la recherche multi-criteres.
+            <code>words</code> : tous les mots saisis doivent être présents (dans n'importe quel champ, n'importe quel ordre). Le plus utile pour la recherche multi-criteres.
           </p>
         </div>
 
@@ -158,7 +158,7 @@
              ======================================================== -->
         <h2 class="fr-mt-4w">Exemple 1 : recherche simple + tableau</h2>
         <p>Recherche textuelle sur les champs <code>Produit</code>, <code>Marque</code> et <code>Catégorie</code>.
-        Le tableau se filtre en temps reel avec un compteur de resultats.</p>
+        Le tableau se filtre en temps réel avec un compteur de resultats.</p>
 
         <dsfr-data-search id="elus-searched" source="elus-clean"
           fields="Produit, Marque, Categorie"
@@ -259,8 +259,8 @@
              Exemple 3 : Recherche + KPI dynamiques + Graphique
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 3 : recherche + KPI + graphique</h2>
-        <p>Les KPI et le graphique se recalculent en temps reel selon la recherche.
-        Rechercher par nom d'entreprise, departement ou region.</p>
+        <p>Les KPI et le graphique se recalculent en temps réel selon la recherche.
+        Rechercher par nom d'entreprise, département ou region.</p>
 
         <dsfr-data-search id="industrie-searched" source="industrie-clean"
           fields="Entreprise, Region, Departement"

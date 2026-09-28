@@ -169,8 +169,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   idleMessage = IDLE_MESSAGE_DEFAULT;
 
   /**
-   * Chemin vers le champ code (prioritaire sur label-field) : departement/region
-   * (map/map-reg), nom d'academie (map-aca), code pays ISO a2/a3/num (map-monde)
+   * Chemin vers le champ code (prioritaire sur label-field) : département/région
+   * (map/map-reg), nom d'académie (map-aca), code pays ISO a2/a3/num (map-monde)
    * @champ nom
    */
   @property({ type: String, attribute: 'code-field' })
@@ -1329,9 +1329,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       gauge: 'jauge',
       scatter: 'nuage de points',
       'bar-line': 'barres et lignes',
-      map: 'carte departements',
-      'map-reg': 'carte regions',
-      'map-aca': 'carte academies',
+      map: 'carte départements',
+      'map-reg': 'carte régions',
+      'map-aca': 'carte académies',
       'map-monde': 'carte monde',
     };
     const typeName = typeLabels[this.type] || this.type;

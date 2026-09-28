@@ -132,7 +132,7 @@
             <i class="ri-numbers-fill" aria-hidden="true"></i>
             <span>KPI</span>
           </button>
-          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map" data-repere="builder.type.map" data-attribut="dsfr-data-chart:type" title="Carte departementale">
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map" data-repere="builder.type.map" data-attribut="dsfr-data-chart:type" title="Carte départementale">
             <i class="ri-map-fill" aria-hidden="true"></i>
             <span>Carte</span>
           </button>
@@ -157,7 +157,7 @@
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="label-field">
               Étiquettes (axe horizontal)
-              <span class="fr-hint-text">Le champ pour les etiquettes (ex&nbsp;: region, annee)</span>
+              <span class="fr-hint-text">Le champ pour les étiquettes (ex&nbsp;: région, année)</span>
             </label>
             <select class="fr-select" id="label-field" data-repere="builder.donnees.champ-x" data-attribut="dsfr-data-chart:label-field" data-prerequis="source-chargee">
               <option value="">— Charger les champs —</option>
@@ -165,8 +165,8 @@
           </div>
           <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="label-field-label">
-              Libelle
-              <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
+              Libellé
+              <span class="fr-hint-text">Nom affiché (vide = nom du champ)</span>
             </label>
             <input type="text" class="fr-input fr-input--sm" id="label-field-label" data-repere="builder.donnees.champ-x-libelle" data-repere-libelle="Nom affiché des étiquettes" placeholder="Nom des étiquettes">
           </div>
@@ -177,7 +177,7 @@
           <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field">
               Valeur à mesurer (Série 1)
-              <span class="fr-hint-text">Le champ numérique a mesurer (ex&nbsp;: population, budget)</span>
+              <span class="fr-hint-text">Le champ numérique à mesurer (ex&nbsp;: population, budget)</span>
             </label>
             <select class="fr-select" id="value-field" data-repere="builder.donnees.champ-y" data-attribut="dsfr-data-chart:value-field" data-prerequis="source-chargee">
               <option value="">— Charger les champs —</option>
@@ -185,8 +185,8 @@
           </div>
           <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
             <label class="fr-label" for="value-field-label">
-              Libelle
-              <span class="fr-hint-text">Nom affiche (vide = nom du champ)</span>
+              Libellé
+              <span class="fr-hint-text">Nom affiché (vide = nom du champ)</span>
             </label>
             <input type="text" class="fr-input fr-input--sm" id="value-field-label" data-repere="builder.donnees.champ-y-libelle" data-repere-libelle="Nom affiché de la série 1" placeholder="Nom de la série">
           </div>
@@ -227,7 +227,7 @@
               <select class="fr-select" id="kpi-variant" data-repere="builder.donnees.kpi-style">
                 <option value="">Par défaut</option>
                 <option value="info">Info (bleu)</option>
-                <option value="success">Succes (vert)</option>
+                <option value="success">Succès (vert)</option>
                 <option value="warning">Attention (orange)</option>
                 <option value="error">Alerte (rouge)</option>
               </select>
@@ -257,7 +257,7 @@
             </label>
             <select class="fr-select" id="sort-order" data-repere="builder.donnees.tri-ordre" data-attribut="dsfr-data-query:order-by">
               <option value="none">Ordre source</option>
-              <option value="desc">Decroissant</option>
+              <option value="desc">Décroissant</option>
               <option value="asc">Croissant</option>
             </select>
           </div>
@@ -423,7 +423,7 @@
 
       <div class="config-section collapsed" id="section-generation-mode" data-zone="builder.generation" data-repere-libelle="Mode de génération" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-generation-mode')">
-          <h3><i class="ri-code-s-slash-line"></i> Mode de generation</h3>
+          <h3><i class="ri-code-s-slash-line"></i> Mode de génération</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <p class="fr-hint-text config-section-hint">Embarqué : les données sont copiées dans le code (simple, mais figé). Dynamique : elles sont rechargées depuis l’API à chaque affichage.</p>
@@ -432,14 +432,14 @@
             <input type="radio" id="mode-embedded" data-repere="builder.generation.embarque" name="generation-mode" value="embedded" checked>
             <label class="fr-label" for="mode-embedded">
               Données intégrées
-              <span class="fr-hint-text">Les données sont copiees dans le code HTML (simple, mais ne se met pas a jour)</span>
+              <span class="fr-hint-text">Les données sont copiées dans le code HTML (simple, mais ne se mettent pas à jour)</span>
             </label>
           </div>
           <div class="fr-radio-group fr-mt-1w">
             <input type="radio" id="mode-dynamic" data-repere="builder.generation.dynamique" name="generation-mode" value="dynamic">
             <label class="fr-label" for="mode-dynamic">
               Chargement dynamique
-              <span class="fr-hint-text">Les données sont chargees depuis l'API a chaque affichage (toujours a jour)</span>
+              <span class="fr-hint-text">Les données sont chargées depuis l'API à chaque affichage (toujours à jour)</span>
             </label>
           </div>
 
@@ -447,7 +447,7 @@
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="refresh-interval">
                 Rafraîchissement automatique
-                <span class="fr-hint-text">En secondes (0 = pas de rafraichissement)</span>
+                <span class="fr-hint-text">En secondes (0 = pas de rafraîchissement)</span>
               </label>
               <input class="fr-input" type="number" id="refresh-interval" data-repere="builder.generation.rafraichissement" data-attribut="dsfr-data-source:refresh" value="0" min="0" max="3600">
             </div>
@@ -472,14 +472,14 @@
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
               Normalisation des données
             </label>
-            <p class="fr-hint-text" id="normalize-hint">Prepare les données brutes : supprime les espaces, convertit en nombres, renomme les colonnes</p>
+            <p class="fr-hint-text" id="normalize-hint">Prépare les données brutes : supprime les espaces, convertit en nombres, renomme les colonnes</p>
           </div>
 
           <div id="normalize-options" style="display: none;" class="fr-mt-2w">
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="normalize-flatten">
                 Aplatir un sous-objet
-                <span class="fr-hint-text">Clé du sous-objet a promouvoir (ex: fields)</span>
+                <span class="fr-hint-text">Clé du sous-objet à promouvoir (ex: fields)</span>
               </label>
               <input class="fr-input" type="text" id="normalize-flatten" data-repere="builder.nettoyage.aplatir" data-attribut="dsfr-data-normalize:flatten" placeholder="Ex: fields">
             </div>
@@ -493,14 +493,14 @@
               <input type="checkbox" id="normalize-numeric-auto" data-repere="builder.nettoyage.nombres-auto" data-attribut="dsfr-data-normalize:numeric-auto">
               <label class="fr-label" for="normalize-numeric-auto">
                 Détection automatique des nombres
-                <span class="fr-hint-text">Convertit les chaines "123" en nombres</span>
+                <span class="fr-hint-text">Convertit les chaînes "123" en nombres</span>
               </label>
             </div>
 
             <div class="fr-input-group fr-input-group--sm fr-mt-1w">
               <label class="fr-label" for="normalize-numeric">
                 Champs numériques explicites
-                <span class="fr-hint-text">Noms de champs separes par virgule</span>
+                <span class="fr-hint-text">Noms de champs séparés par une virgule</span>
               </label>
               <input class="fr-input" type="text" id="normalize-numeric" data-repere="builder.nettoyage.nombres" data-attribut="dsfr-data-normalize:numeric" placeholder="Ex: population, budget, surface">
             </div>
@@ -551,7 +551,7 @@
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-title">Titre</label>
               <input class="fr-input fr-input--sm" type="text" id="databox-title" data-repere="builder.cadre.titre" data-attribut="dsfr-data-chart:databox-title" data-repere-libelle="Titre du cadre"
-                placeholder="Ex : Population par region">
+                placeholder="Ex : Population par région">
             </div>
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-source">Source</label>
@@ -586,7 +586,7 @@
 
       <div class="config-section collapsed" id="section-facets" data-zone="builder.facettes" data-repere-libelle="Filtres à facettes" style="display: none;">
         <div class="config-section-header" onclick="toggleSection('section-facets')">
-          <h3><i class="ri-filter-3-line"></i> Filtres a facettes</h3>
+          <h3><i class="ri-filter-3-line"></i> Filtres à facettes</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
         <p class="fr-hint-text config-section-hint">Ajoute des filtres interactifs sous le graphique (mode dynamique uniquement).</p>
@@ -597,7 +597,7 @@
               data-fr-checked-label="Active" data-fr-unchecked-label="Desactive">
               Filtres interactifs
             </label>
-            <p class="fr-hint-text" id="facets-hint">L'utilisateur final pourra filtrer les données par catégorie, annee, etc.</p>
+            <p class="fr-hint-text" id="facets-hint">L'utilisateur final pourra filtrer les données par catégorie, année, etc.</p>
           </div>
 
           <div id="facets-options" style="display: none;" class="fr-mt-2w">
@@ -605,7 +605,7 @@
               id="facets-fields-btn" data-repere="builder.facettes.configurer" data-attribut="dsfr-data-facets:fields" data-prerequis="source-chargee" type="button">
               Configurer les facettes
             </button>
-            <p class="fr-text--xs fr-mt-1v" id="facets-fields-summary">Aucun champ configure</p>
+            <p class="fr-text--xs fr-mt-1v" id="facets-fields-summary">Aucun champ configuré</p>
 
             <div class="fr-input-group fr-input-group--sm fr-mt-2w">
               <label class="fr-label" for="facets-max-values">
@@ -618,10 +618,10 @@
             <div class="fr-select-group fr-select-group--sm fr-mt-1w">
               <label class="fr-label" for="facets-sort">Tri des valeurs</label>
               <select class="fr-select" id="facets-sort" data-repere="builder.facettes.tri" data-attribut="dsfr-data-facets:sort">
-                <option value="count">Par nombre (decroissant)</option>
+                <option value="count">Par nombre (décroissant)</option>
                 <option value="count:asc">Par nombre (croissant)</option>
-                <option value="alpha">Alphabetique (A-Z)</option>
-                <option value="alpha:desc">Alphabetique (Z-A)</option>
+                <option value="alpha">Alphabétique (A-Z)</option>
+                <option value="alpha:desc">Alphabétique (Z-A)</option>
               </select>
             </div>
 
@@ -692,7 +692,7 @@
             <div class="fr-input-group fr-input-group--sm">
               <label class="fr-label" for="a11y-description">Description (optionnelle)</label>
               <textarea class="fr-input fr-input--sm" id="a11y-description" data-repere="builder.accessibilite.description" data-attribut="dsfr-data-a11y:description" rows="2"
-                placeholder="Ex : Ce graphique montre la repartition par region..."></textarea>
+                placeholder="Ex : Ce graphique montre la répartition par région..."></textarea>
             </div>
           </div>
         </div>
@@ -762,7 +762,7 @@
 
       <!-- Onglet Code -->
       <div slot="code" data-zone="builder.code" data-repere-libelle="Code">
-        <p class="fr-text--sm">Copiez ce code pour l'integrer dans votre page :</p>
+        <p class="fr-text--sm">Copiez ce code pour l'intégrer dans votre page :</p>
         <button class="fr-btn fr-btn--sm fr-btn--secondary fr-mb-1w" id="copy-code-btn" data-fc="copier-code" data-repere="builder.code.copier">
           <i class="ri-file-copy-line"></i> Copier le code
         </button>
@@ -771,7 +771,7 @@
 
       <!-- Onglet Données -->
       <div slot="data">
-        <p class="fr-text--sm">Données brutes recues de l'API :</p>
+        <p class="fr-text--sm">Données brutes reçues de l'API :</p>
         <pre class="code-output" id="raw-data">// Chargez d'abord les données...</pre>
       </div>
 

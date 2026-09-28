@@ -329,7 +329,7 @@ describe('DsfrDataFacets', () => {
         expect(warnSpy).toHaveBeenCalledTimes(1);
         const message = String(warnSpy.mock.calls[0][0]);
         expect(message).toContain('sort="-count"');
-        expect(message).toContain('deprecie');
+        expect(message).toContain('déprécié');
         expect(message).toContain('sort="count:asc"');
 
         // Deuxieme tri sur la meme instance : pas de second avertissement

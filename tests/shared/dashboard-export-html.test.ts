@@ -302,7 +302,7 @@ describe('export-html — widget fromBuilder', () => {
       builderWidget({ type: 'bar', valueField: 'x' }, ''),
       dashboardWith([], [])
     );
-    expect(html).toContain('aucune source associee');
+    expect(html).toContain('aucune source associée');
     expect(html).not.toContain('dsfr-data-chart');
   });
 });

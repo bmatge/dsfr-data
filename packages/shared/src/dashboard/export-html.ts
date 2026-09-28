@@ -160,7 +160,7 @@ export function generateSourceHTML(
     const transform = dataPath ? `\n${indent}  transform="${escapeHtml(dataPath)}"` : '';
     return `${indent}<dsfr-data-source id="${id}" url="${escapeHtml(apiUrl)}"${transform}></dsfr-data-source>\n`;
   }
-  return `${indent}<!-- Source « ${escapeHtml(source.name)} » (${id}) : pas de donnees embarquees ni d'URL exportable -->\n`;
+  return `${indent}<!-- Source « ${escapeHtml(source.name)} » (${id}) : pas de données embarquées ni d'URL exportable -->\n`;
 }
 
 /**
@@ -309,7 +309,7 @@ function generateBuilderChartHTML(
   const c = config.chart;
   const baseSourceId = config.sourceId || dashboard.sources[0]?.id || '';
   if (!baseSourceId) {
-    return `${indent}<!-- Widget « ${escapeHtml(widget.title)} » : aucune source associee -->\n`;
+    return `${indent}<!-- Widget « ${escapeHtml(widget.title)} » : aucune source associée -->\n`;
   }
   // Source dediee (#765) : un graphique agrege sur une source que d'autres
   // widgets lisent recoit sa PROPRE balise de source, meme jeu, id propre.
@@ -531,7 +531,7 @@ function generateMapHTML(
   indent: string
 ): string {
   if (config.layers.length === 0) {
-    return `${indent}<!-- Carte « ${escapeHtml(widget.title)} » : aucune couche configuree -->\n`;
+    return `${indent}<!-- Carte « ${escapeHtml(widget.title)} » : aucune couche configurée -->\n`;
   }
   const attrs = [
     `id="map-${escapeHtml(widget.id)}"`,

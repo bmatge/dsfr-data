@@ -382,7 +382,7 @@ function renderPagination(
     );
   }
   buttons.push(
-    `<span>Page ${pagination.page} / ${pagination.pages} (${pagination.total} resultats)</span>`
+    `<span>Page ${pagination.page} / ${pagination.pages} (${pagination.total} résultats)</span>`
   );
   if (pagination.page < pagination.pages) {
     buttons.push(

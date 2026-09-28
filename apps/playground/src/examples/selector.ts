@@ -181,7 +181,7 @@ export function initSelecteurExemples(onSelect: (id: string) => void): Selecteur
     e.voir.classList.toggle('fr-btn--secondary', aJour);
     e.voir.setAttribute(
       'title',
-      aJour ? "Recharger l'exemple selectionne" : "Charger l'exemple selectionne dans l'editeur"
+      aJour ? "Recharger l'exemple sélectionné" : "Charger l'exemple sélectionné dans l'éditeur"
     );
   }
 

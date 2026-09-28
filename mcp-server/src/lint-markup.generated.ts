@@ -363,7 +363,7 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
       const manquant = lat ? 'lon-field' : 'lat-field';
       out.push(
         situer(
-          `"${present}" sans "${manquant}" : les coordonnees separees exigent les deux, "${present}" est ignore en silence.`,
+          `"${present}" sans "${manquant}" : les coordonnées séparées exigent les deux, "${present}" est ignoré en silence.`,
           'erreur',
           'carte/lat-sans-lon'
         )
@@ -379,7 +379,7 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
     if (type === 'geoshape' && !geo) {
       out.push(
         situer(
-          `Couche "geoshape" sans "geo-field" : la couche cherche la geometrie dans ${CHAMPS_FORME_DEVINES.join(', ')}, dans cet ordre. Si les donnees la portent sous un autre nom, aucune forme n'est dessinee ; indiquer le champ qui porte le GeoJSON rend la page explicite.`,
+          `Couche "geoshape" sans "geo-field" : la couche cherche la géométrie dans ${CHAMPS_FORME_DEVINES.join(', ')}, dans cet ordre. Si les données la portent sous un autre nom, aucune forme n'est dessinée ; indiquer le champ qui porte le GeoJSON rend la page explicite.`,
           'avertissement',
           'carte/geoshape-sans-geo-field'
         )
@@ -388,7 +388,7 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
       // Pas une erreur certaine : la couche devine quelques noms de champs.
       out.push(
         situer(
-          `Ni "lat-field"/"lon-field" ni "geo-field" : la couche ne trouvera des positions que si les donnees ont un champ ${CHAMPS_GEO_DEVINES.join(', ')}. Sinon la carte reste vide.`,
+          `Ni "lat-field"/"lon-field" ni "geo-field" : la couche ne trouvera des positions que si les données ont un champ ${CHAMPS_GEO_DEVINES.join(', ')}. Sinon la carte reste vide.`,
           'avertissement',
           'carte/sans-coordonnees'
         )
@@ -404,7 +404,7 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
       if (brut === '' || Number.isNaN(n)) {
         out.push(
           situer(
-            `"max-items" n'est pas un nombre ("${a['max-items']}") : le plafond est desactive en silence et la couche tente de tout dessiner.`,
+            `"max-items" n'est pas un nombre ("${a['max-items']}") : le plafond est désactivé en silence et la couche tente de tout dessiner.`,
             'erreur',
             'carte/max-items-invalide'
           )
@@ -412,7 +412,7 @@ function reglesCarte(b: BaliseLue, balises: BaliseLue[], situer: Situer): LintFi
       } else if (n <= 0) {
         out.push(
           situer(
-            `"max-items" vaut ${brut} : le plafond est desactive, la couche dessine toutes les lignes recues. Sur un gros jeu la page peut ramer ; preferer un nombre positif (defaut 5000).`,
+            `"max-items" vaut ${brut} : le plafond est désactivé, la couche dessine toutes les lignes reçues. Sur un gros jeu la page peut ramer ; préférer un nombre positif (défaut 5000).`,
             'avertissement',
             'carte/max-items-nul'
           )
@@ -693,7 +693,7 @@ export function lintMarkup(html: string, contract: ComponentContract): LintFindi
 /** Rend le diagnostic en texte francais — meme doctrine que `formatTrace`. */
 export function formatLintFindings(findings: LintFinding[]): string {
   if (findings.length === 0) {
-    return 'Analyse statique : aucun probleme detecte. Cela ne garantit pas que les donnees arrivent — seule une execution le dira.';
+    return 'Analyse statique : aucun problème détecté. Cela ne garantit pas que les données arrivent — seule une exécution le dira.';
   }
   const erreurs = findings.filter((f) => f.severity === 'erreur');
   const avertissements = findings.filter((f) => f.severity === 'avertissement');
@@ -709,7 +709,7 @@ export function formatLintFindings(findings: LintFinding[]): string {
   }
   lignes.push('');
   lignes.push(
-    "Cette analyse ne lit que le balisage. Pour savoir ce qui transite reellement entre les composants (lignes, champs, erreurs d'API), il faut executer la page — voir le volet Diagnostic des apps."
+    "Cette analyse ne lit que le balisage. Pour savoir ce qui transite réellement entre les composants (lignes, champs, erreurs d'API), il faut exécuter la page — voir le volet Diagnostic des apps."
   );
   return lignes.join('\n');
 }

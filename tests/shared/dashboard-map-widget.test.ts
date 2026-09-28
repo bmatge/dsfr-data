@@ -128,7 +128,7 @@ describe('export — widget map (#531)', () => {
   it('sans couche, emet un commentaire plutot qu’une carte vide', () => {
     const empty = mapWidget({ layers: [] });
     const html = generateWidgetHTML(empty, dashboardWith([empty], []));
-    expect(html).toContain('aucune couche configuree');
+    expect(html).toContain('aucune couche configurée');
     expect(html).not.toContain('<dsfr-data-map ');
   });
 });

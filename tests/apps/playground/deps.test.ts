@@ -90,6 +90,13 @@ describe('playground : bloc de dependances selon le code (#1085)', () => {
     expect(aDesDependances(code)).toBe(true);
   });
 
+  it('retire le commentaire d’en-tête, accentué ou non (#1158)', () => {
+    expect(blocDependances(GRAPHIQUE)).toContain('<!-- Dépendances (');
+    for (const commentaire of ['<!-- Dépendances JS -->', '<!-- Dependances JS -->']) {
+      expect(retirerDependances(`${commentaire}\n${GRAPHIQUE}`)).toBe(GRAPHIQUE);
+    }
+  });
+
   it('retire aussi le Chart.js des snippets anterieurs a #656', () => {
     const ancien = `<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>\n${GRAPHIQUE}`;
     expect(retirerDependances(ancien)).toBe(GRAPHIQUE);

@@ -4981,7 +4981,7 @@ cochee = filtre actif, decochee = filtre retire.
 
 \`\`\`html
 <input type="checkbox" id="cette-annee" checked>
-<label for="cette-annee">Annee en cours</label>
+<label for="cette-annee">Année en cours</label>
 <dsfr-data-context sources="src">
   <dsfr-data-context-filter field="date_debut" operator="current-year" ui="cette-annee"></dsfr-data-context-filter>
 </dsfr-data-context>

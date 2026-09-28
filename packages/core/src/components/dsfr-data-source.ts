@@ -170,7 +170,7 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   params = '';
 
-  /** Rafraichissement automatique en secondes (0 = desactive). */
+  /** Rafraîchissement automatique en secondes (0 = désactivé). */
   @property({ type: Number })
   refresh = 0;
 

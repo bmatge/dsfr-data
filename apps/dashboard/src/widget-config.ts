@@ -118,7 +118,7 @@ function getConfigForm(widget: Widget): string {
         </div>
         <div class="config-group">
           <label for="config-labelField">Champ pour les étiquettes (axe X)
-            <span class="fr-hint-text">Ex : region, annee, catégorie</span>
+            <span class="fr-hint-text">Ex : région, année, catégorie</span>
           </label>
           <input type="text" id="config-labelField" data-repere="dashboard.widget.graphique.champ-x" data-prerequis="widget-graphique" data-attribut="dsfr-data-chart:label-field" value="${escapeHtml(widget.config.labelField || '')}">
         </div>

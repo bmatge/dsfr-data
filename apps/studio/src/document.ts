@@ -390,7 +390,7 @@ function validateMapLayer(
     raw.clusterRadius !== undefined &&
     (typeof raw.clusterRadius !== 'number' || !(raw.clusterRadius > 0))
   ) {
-    return { error: 'clusterRadius doit etre un nombre de pixels positif.' };
+    return { error: 'clusterRadius doit être un nombre de pixels positif.' };
   }
 
   // Verification des champs uniquement contre la source chargee ici.
@@ -418,7 +418,7 @@ function validateMapLayer(
     for (const coord of [raw.latField, raw.lonField]) {
       if (coord && known.get(coord) !== 'numérique') {
         return {
-          error: `Le champ de coordonnee "${coord}" n'est pas numerique (vois inspect_data).`,
+          error: `Le champ de coordonnée "${coord}" n'est pas numérique (vois inspect_data).`,
         };
       }
     }
@@ -828,7 +828,7 @@ const MAP_LAYER_SCHEMA = {
     geoField: {
       type: 'string',
       description:
-        'Champ GeoJSON (geoshape). Facultatif : sans lui, la couche detecte geo_shape, geometry ou geom.',
+        'Champ GeoJSON (geoshape). Facultatif : sans lui, la couche détecte geo_shape, geometry ou geom.',
     },
     valueField: {
       type: 'string',

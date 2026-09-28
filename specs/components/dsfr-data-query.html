@@ -39,7 +39,7 @@
     <div slot="content">
         <p class="fr-text--lead">
           Composant de transformation de données.
-          Filtre, groupe, agrège et trie les données recues d'une <code>&lt;dsfr-data-source&gt;</code>
+          Filtre, groupe, agrège et trie les données reçues d'une <code>&lt;dsfr-data-source&gt;</code>
           avant de les transmettre aux composants de visualisation.
           Ne fait aucun fetch HTTP : c'est un pur transformateur.
         </p>
@@ -47,7 +47,7 @@
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
             <strong>Invisible :</strong> Ce composant ne rend rien visuellement. Il transforme les données
-            et les redistribue aux composants de visualisation via le systeme d'événements.
+            et les redistribue aux composants de visualisation via le système d'événements.
           </p>
         </div>
 
@@ -87,12 +87,12 @@
 
         <section class="demo-section">
           <h4><code>where</code> / <code>filter</code> (modes generic et tabular)</h4>
-          <p>Format : <code>champ:operateur:valeur</code>. Plusieurs filtres separes par <code>,</code> (logique ET).</p>
+          <p>Format : <code>champ:operateur:valeur</code>. Plusieurs filtres séparés par <code>,</code> (logique ET).</p>
           <div class="code-block"><pre><span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000"</span>
 <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"population:gt:5000, region:in:IDF|OCC|BRE"</span>
 <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"email:isnull"</span>                 <span class="tok-comment">&lt;!-- pas de valeur pour isnull/isnotnull --&gt;</span>
 <span class="tok-attr">where</span><span class="tok-punct">=</span><span class="tok-string">"region:in:IDF|OCC|BRE"</span>        <span class="tok-comment">&lt;!-- separateur | pour in/notin --&gt;</span></pre></div>
-          <p class="fr-text--sm fr-mt-1w">Les valeurs <code>"true"</code>/<code>"false"</code> sont parsees en booleen, les chaines numériques en nombre.</p>
+          <p class="fr-text--sm fr-mt-1w">Les valeurs <code>"true"</code>/<code>"false"</code> sont parsées en booléen, les chaînes numériques en nombre.</p>
         </section>
 
         <section class="demo-section">
@@ -108,7 +108,7 @@
         <section class="demo-section">
           <h4><code>order-by</code></h4>
           <p>Format : <code>champ:direction</code> ou <code>champ</code> (défaut : <code>asc</code>).<br>
-            Pour trier des resultats agrégés, utiliser le nom du champ de sortie.</p>
+            Pour trier des résultats agrégés, utiliser le nom du champ de sortie.</p>
           <div class="code-block"><pre><span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"nom:asc"</span>
 <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"population__sum:desc"</span>       <span class="tok-comment">&lt;!-- champ agrège sans alias --&gt;</span>
 <span class="tok-attr">order-by</span><span class="tok-punct">=</span><span class="tok-string">"total:desc"</span>                 <span class="tok-comment">&lt;!-- champ agrège avec alias --&gt;</span></pre></div>
@@ -181,18 +181,18 @@
           <code>&lt;dsfr-data-source&gt;</code></a>, qui, lui, empêche le fetch.
         </p>
 
-        <h2 id="operateurs" class="fr-mt-4w">Operateurs de filtre</h2>
+        <h2 id="operateurs" class="fr-mt-4w">Opérateurs de filtre</h2>
         <p>Utilisables dans les attributs <code>where</code> / <code>filter</code> (format <code>"champ:operateur:valeur"</code>) :</p>
         <div class="fr-table">
           <table class="attr-table">
-            <thead><tr><th>Operateur</th><th>Description</th><th>Exemple</th></tr></thead>
+            <thead><tr><th>Opérateur</th><th>Description</th><th>Exemple</th></tr></thead>
             <tbody>
               <tr><td><code>eq</code></td><td>Egal a</td><td><code>status:eq:active</code></td></tr>
               <tr><td><code>neq</code></td><td>Different de</td><td><code>status:neq:archived</code></td></tr>
               <tr><td><code>gt</code></td><td>Strictement superieur</td><td><code>population:gt:5000</code></td></tr>
               <tr><td><code>gte</code></td><td>Superieur ou egal</td><td><code>population:gte:5000</code></td></tr>
-              <tr><td><code>lt</code></td><td>Strictement inferieur</td><td><code>population:lt:1000</code></td></tr>
-              <tr><td><code>lte</code></td><td>Inferieur ou egal</td><td><code>population:lte:1000</code></td></tr>
+              <tr><td><code>lt</code></td><td>Strictement inférieur</td><td><code>population:lt:1000</code></td></tr>
+              <tr><td><code>lte</code></td><td>Inférieur ou egal</td><td><code>population:lte:1000</code></td></tr>
               <tr><td><code>contains</code></td><td>Contient (insensible a la casse)</td><td><code>nom:contains:paris</code></td></tr>
               <tr><td><code>notcontains</code></td><td>Ne contient pas</td><td><code>nom:notcontains:test</code></td></tr>
               <tr><td><code>in</code></td><td>Dans une liste (separateur <code>|</code>)</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
@@ -208,7 +208,7 @@
         <section class="demo-section">
           <h3>Mode generic : filtrer et trier des données existantes</h3>
           <p>
-            Recupere les données d'une <code>&lt;dsfr-data-source&gt;</code> et les filtre/trie cote client.
+            Récupère les données d'une <code>&lt;dsfr-data-source&gt;</code> et les filtre/trie côté client.
             Ici on filtre les 10 premieres lignes triees par nom.
             <a href="../../guide/guide-exemples-query.html#query-datalist" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
@@ -237,7 +237,7 @@
         <section class="demo-section">
           <h3>Mode generic : grouper et agréger</h3>
           <p>
-            Regroupe les données par region et calcule la somme de la population
+            Regroupe les données par région et calcule la somme de la population
             et le nombre d'enregistrements par groupe.
             <a href="../../guide/guide-exemples-query.html#query-bar" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
@@ -268,7 +268,7 @@
           <h3>OpenDataSoft : requête serveur via dsfr-data-source</h3>
           <p>
             Utilise <code>&lt;dsfr-data-source&gt;</code> pour interroger une API OpenDataSoft,
-            puis <code>&lt;dsfr-data-query&gt;</code> pour le tri et la limite cote client.
+            puis <code>&lt;dsfr-data-query&gt;</code> pour le tri et la limite côté client.
             <a href="../../guide/guide-exemples-query.html#server-side-ods" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
@@ -331,8 +331,8 @@
         <section class="demo-section">
           <h3>Combinaison de filtres multiples</h3>
           <p>
-            Plusieurs filtres peuvent etre combines en les separant par des virgules.
-            Tous les filtres doivent etre satisfaits (logique ET).
+            Plusieurs filtres peuvent être combinés en les separant par des virgules.
+            Tous les filtres doivent être satisfaits (logique ET).
             <a href="../../guide/guide-exemples-query.html#query-kpi" class="fr-link fr-link--sm">Voir l'exemple live</a>
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-query</span>
@@ -383,7 +383,7 @@
         </section>
 
         <section class="demo-section">
-          <h3>Rafraichissement automatique</h3>
+          <h3>Rafraîchissement automatique</h3>
           <p>
             L'attribut <code>refresh</code> sur <code>&lt;dsfr-data-source&gt;</code> permet de re-exécuter
             la requête a intervalles reguliers.
@@ -404,7 +404,7 @@
         </section>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
-        <p>Le composant emet les mêmes événements que <code>&lt;dsfr-data-source&gt;</code> :</p>
+        <p>Le composant émet les mêmes événements que <code>&lt;dsfr-data-source&gt;</code> :</p>
         <ul>
           <li><code>dsfr-data-loaded</code> : Données transformees disponibles</li>
           <li><code>dsfr-data-loading</code> : Traitement en cours</li>

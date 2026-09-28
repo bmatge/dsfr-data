@@ -131,11 +131,11 @@ export function updateAggregationBadge(): void {
   const unique = isLabelFieldUniqueInSample();
   if (unique) {
     badge.hidden = false;
-    badge.textContent = 'Données déjà groupees (1 ligne par catégorie)';
+    badge.textContent = 'Données déjà groupées (1 ligne par catégorie)';
     badge.title =
-      "Detecte sur l'echantillon charge : chaque valeur de '" +
+      "Détecté sur l'échantillon chargé : chaque valeur de '" +
       state.labelField +
-      "' n'apparait qu'une fois. L'agrégation n'a pas d'effet visible (sauf 'count' qui renverra 1).";
+      "' n'apparaît qu'une fois. L'agrégation n'a pas d'effet visible (sauf 'count' qui renverra 1).";
   } else {
     badge.hidden = true;
     badge.textContent = '';

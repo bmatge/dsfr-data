@@ -127,7 +127,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: Number, attribute: 'min-length' })
   minLength = 0;
 
-  /** Ajoute un champ _highlight a chaque record avec les termes trouves marques en <mark> */
+  /** Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en <mark> */
   @property({ type: Boolean })
   highlight = false;
 

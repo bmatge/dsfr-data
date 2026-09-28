@@ -123,11 +123,11 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
 
   /** Message quand aucune donnee */
   @property({ type: String })
-  empty = 'Aucun resultat';
+  empty = 'Aucun résultat';
 
   /**
    * Nom compté par le compteur rendu au-dessus de la grille, à la place de
-   * « resultat » : `count-label="établissement"` affiche
+   * « résultat » : `count-label="établissement"` affiche
    * « 12 345 établissements » (#925, AM-077 — même grammaire que
    * `dsfr-data-search`, #779).
    *
@@ -624,7 +624,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
       <div
         class="dsfr-data-display"
         role="region"
-        aria-label="${this.getAttribute('aria-label') || 'Liste de resultats'}"
+        aria-label="${this.getAttribute('aria-label') || 'Liste de résultats'}"
       >
         <div aria-live="polite" aria-atomic="true" class="fr-sr-only">
           ${this._liveAnnouncement}
@@ -652,7 +652,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
                         ${
                           this.countLabel.trim()
                             ? formatCountWithLabel(this.countLabel, totalItems)
-                            : `${totalItems} resultat${totalItems > 1 ? 's' : ''}`
+                            : `${totalItems} résultat${totalItems > 1 ? 's' : ''}`
                         }
                       </p>
                       ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}

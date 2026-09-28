@@ -104,7 +104,7 @@ function generateFixedHtml(): string {
   const jsonData = jsonLiteral(data);
 
   const deps = [
-    '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
+    '<!-- Dépendances dsfr-data (à ajouter dans le <head> si absentes) -->',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">',
@@ -125,7 +125,7 @@ function generateFixedHtml(): string {
 function generateDynamicHtml(): string {
   const { apiBaseUrl, tableId } = getGristApiInfo();
   if (!apiBaseUrl || !tableId)
-    return "(Information API Grist non disponible.\nLe widget doit etre charge dans Grist pour detecter l'URL du document.)";
+    return "(Information API Grist non disponible.\nLe widget doit être chargé dans Grist pour détecter l'URL du document.)";
 
   const match = apiBaseUrl.match(/\/api\/docs\/([^/]+)/);
   if (!match) return '(URL API Grist non reconnue)';
@@ -145,7 +145,7 @@ function generateDynamicHtml(): string {
   const colonnes = dataColumnKeys.map((k) => `fields.${k}:${k}`).join(' | ');
 
   const deps = [
-    '<!-- Dependances dsfr-data (a ajouter dans le <head> si absentes) -->',
+    '<!-- Dépendances dsfr-data (à ajouter dans le <head> si absentes) -->',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css">',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css">',

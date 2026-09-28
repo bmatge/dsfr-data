@@ -549,7 +549,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       ['page-size', 'la taille de page se configure sur dsfr-data-source (attribut "page-size")'],
       [
         'refresh',
-        'le rafraichissement periodique se configure sur dsfr-data-source (attribut "refresh") — la source refetche et le pipeline suit (#279)',
+        'le rafraîchissement périodique se configure sur dsfr-data-source (attribut "refresh") — la source refetche et le pipeline suit (#279)',
       ],
     ];
     for (const [attr, hint] of removed) {
@@ -1233,8 +1233,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       const operator = segments[1] as FilterOperator;
       if (!FILTER_OPERATORS.includes(operator)) {
         return (
-          `operateur inconnu "${operator}" dans la clause where "${part}" — ` +
-          `operateurs supportes : ${FILTER_OPERATORS.join(', ')}`
+          `opérateur inconnu "${operator}" dans la clause where "${part}" — ` +
+          `opérateurs supportés : ${FILTER_OPERATORS.join(', ')}`
         );
       }
       if (segments.length < 3 && operator !== 'isnull' && operator !== 'isnotnull') {

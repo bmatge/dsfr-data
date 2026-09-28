@@ -25,7 +25,7 @@
     base-path="../">
     <div slot="content">
         <p class="fr-text--lead">
-          Cible de telemetrie <strong>declarative</strong>. Pendant cote telemetrie de
+          Cible de télémétrie <strong>declarative</strong>. Pendant côté télémétrie de
           <code>proxy-url</code> : rend la collecte d'usage <strong>visible et retirable</strong>
           dans le HTML, au lieu d'un <code>window.*</code> opaque.
         </p>
@@ -33,7 +33,7 @@
         <div class="fr-callout fr-callout--blue-france">
           <p class="fr-callout__text">
             <strong>Invisible et opt-in :</strong> Ce composant ne rend rien et n'envoie aucun beacon
-            lui-même. Par defaut la telemetrie est <strong>desactivee</strong>. Poser un
+            lui-même. Par défaut la télémétrie est <strong>desactivee</strong>. Poser un
             <code>&lt;dsfr-data-beacon url="..."&gt;</code> avec un <code>url</code> non vide
             <strong>active</strong> la collecte et en designe la cible.
           </p>
@@ -41,13 +41,13 @@
 
         <h2 id="probleme">Le probleme resolu</h2>
         <p>
-          Historiquement, la telemetrie d'usage se pilotait uniquement par des variables globales posees
+          Historiquement, la télémétrie d'usage se pilotait uniquement par des variables globales posees
           sur <code>window</code> avant le chargement des composants (<code>window.DSFR_DATA_BEACON = true</code>,
           <code>window.DSFR_DATA_BEACON_URL</code>). Un integrateur qui colle un embed ne <em>voit</em> pas
-          qu'une telemetrie part, ni vers ou.
+          qu'une télémétrie part, ni vers ou.
         </p>
         <p>
-          L'element rend cette intention explicite dans le DOM : un operateur (ministère, etablissement public)
+          L'élément rend cette intention explicite dans le DOM : un opérateur (ministère, établissement public)
           peut diriger la collecte vers <strong>son propre collecteur</strong> sans toucher au JavaScript de la
           page, et un integrateur peut la <strong>retirer en connaissance de cause</strong> (argument RGPD /
           souverainete solide, contrairement a un <code>window.*</code> invisible).
@@ -76,15 +76,15 @@
         <div class="fr-callout fr-callout--blue-france fr-mt-2w">
           <p class="fr-callout__text">
             <strong>Kill switch :</strong> <code>window.DSFR_DATA_BEACON = false</code> neutralise la collecte
-            <em>même</em> si un element est present (coherent avec <code>window.DSFR_DATA_PROXY = false</code>).
+            <em>même</em> si un élément est present (coherent avec <code>window.DSFR_DATA_PROXY = false</code>).
           </p>
         </div>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">
-          <h3>Telemetrie vers un collecteur souverain</h3>
-          <p>L'element, visible dans la page, active et cible la collecte. Il peut etre place avant ou apres les composants.</p>
+          <h3>Télémétrie vers un collecteur souverain</h3>
+          <p>L'élément, visible dans la page, active et cible la collecte. Il peut être placé avant ou après les composants.</p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-beacon</span> <span class="tok-attr">url</span><span class="tok-punct">=</span><span class="tok-string">"https://collecte.ministere.fr"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-beacon</span><span class="tok-punct">&gt;</span>
 
 <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span> <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"src"</span> <span class="tok-attr">api-type</span><span class="tok-punct">=</span><span class="tok-string">"opendatasoft"</span>
@@ -97,20 +97,20 @@
 
         <section class="demo-section">
           <h3>Retrait par l'integrateur</h3>
-          <p>Pour desactiver la telemetrie, il suffit de retirer la ligne — ou de poser le kill switch :</p>
+          <p>Pour desactiver la télémétrie, il suffit de retirer la ligne — ou de poser le kill switch :</p>
           <div class="code-block"><pre><span class="tok-comment">&lt;!-- Aucune ligne &lt;dsfr-data-beacon&gt; : aucune telemetrie declarative --&gt;</span>
 
-<span class="tok-comment">&lt;!-- ...ou neutralisation explicite, même si un element traine ailleurs : --&gt;</span>
+<span class="tok-comment">&lt;!-- ...ou neutralisation explicite, même si un élément traîne ailleurs : --&gt;</span>
 <span class="tok-punct">&lt;</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span>window.DSFR_DATA_BEACON = false;<span class="tok-punct">&lt;/</span><span class="tok-tag">script</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
         <h2 id="comportement" class="fr-mt-4w">Comportement</h2>
         <ul>
           <li><strong>Invisible :</strong> aucun rendu, aucun footprint de layout.</li>
-          <li><strong>N'emet rien lui-même :</strong> ce sont les composants <code>dsfr-data-*</code> qui envoient
-            le beacon a leur initialisation ; l'element fournit seulement la cible/opt-in.</li>
-          <li><strong>Ordre du DOM indifferent :</strong> l'element est consulte en lookup paresseux au moment de
-            l'envoi ; place après un composant dans le HTML, il est malgre tout pris en compte.</li>
+          <li><strong>N'émet rien lui-même :</strong> ce sont les composants <code>dsfr-data-*</code> qui envoient
+            le beacon a leur initialisation ; l'élément fournit seulement la cible/opt-in.</li>
+          <li><strong>Ordre du DOM indifferent :</strong> l'élément est consulte en lookup paresseux au moment de
+            l'envoi ; placé après un composant dans le HTML, il est malgre tout pris en compte.</li>
           <li><strong>Deduplication :</strong> un beacon par composant + variante par chargement de page.</li>
           <li><strong>Skip en dev :</strong> aucun envoi sur <code>localhost</code> / <code>127.0.0.1</code> ni sur
             le domaine de collecte lui-même.</li>
@@ -119,14 +119,14 @@
         <h2 id="conseils" class="fr-mt-4w">Conseils d'utilisation</h2>
         <div class="fr-callout">
           <p class="fr-callout__text">
-            <strong>Transparence d'abord :</strong> preferez l'element au <code>window.*</code> opaque pour les
+            <strong>Transparence d'abord :</strong> preferez l'élément au <code>window.*</code> opaque pour les
             embeds destines a des sites tiers — l'integrateur voit la collecte et peut l'auditer.
           </p>
         </div>
         <div class="fr-callout fr-mt-2w">
           <p class="fr-callout__text">
             <strong>Self-hosting :</strong> pointez <code>url</code> vers votre propre collecteur compatible
-            (endpoint <code>/beacon</code>) pour garder la donnee d'usage chez vous.
+            (endpoint <code>/beacon</code>) pour garder la donnée d'usage chez vous.
           </p>
         </div>
     </div>

@@ -74,7 +74,7 @@
         <div class="fr-callout fr-callout--green-emeraude">
           <p class="fr-callout__text">
             <strong>Visuel et intermediaire :</strong> Ce composant affiche des controles de filtre
-            ET redistribue les données filtrees aux composants en aval via le systeme d'événements.
+            ET redistribue les données filtrees aux composants en aval via le système d'événements.
           </p>
         </div>
 
@@ -92,8 +92,8 @@
         <h2>Cas d'usage</h2>
         <ul>
           <li><strong>Exploration de données</strong> : permettre a l'utilisateur de filtrer un jeu de données par catégories</li>
-          <li><strong>Tableau de bord interactif</strong> : les graphiques et tableaux se mettent a jour en temps reel</li>
-          <li><strong>Recherche a facettes</strong> : comme sur un site e-commerce (filtrer par marque, prix, couleur...)</li>
+          <li><strong>Tableau de bord interactif</strong> : les graphiques et tableaux se mettent à jour en temps réel</li>
+          <li><strong>Recherche à facettes</strong> : comme sur un site e-commerce (filtrer par marque, prix, couleur...)</li>
         </ul>
 
         <h2>Attributs</h2>
@@ -167,7 +167,7 @@
           <p class="fr-callout__text">
             <strong>Logique de filtrage :</strong> au sein d'une facette, les selections sont en <strong>OU</strong>
             (afficher Paris ou Lyon). Entre facettes differentes, c'est du <strong>ET</strong>
-            (region = PACA ET type = Commune). Les compteurs se recalculent dynamiquement.
+            (région = PACA ET type = Commune). Les compteurs se recalculent dynamiquement.
           </p>
         </div>
 
@@ -175,9 +175,9 @@
           <p class="fr-callout__text">
             <strong>Modes d'affichage :</strong><br>
             <code>checkbox</code> (défaut) : checkboxes DSFR dans un fieldset ouvert.<br>
-            <code>select</code> : liste deroulante DSFR native, selection exclusive.<br>
+            <code>select</code> : liste déroulante DSFR native, sélection exclusive.<br>
             <code>multiselect</code> : dropdown DSFR avec checkboxes, recherche, "Tout sélectionner/deselectionner".<br>
-            <code>radio</code> : dropdown DSFR avec radio buttons, recherche, selection exclusive.<br>
+            <code>radio</code> : dropdown DSFR avec radio buttons, recherche, sélection exclusive.<br>
             Le mode <code>select</code>/<code>radio</code> est automatiquement exclusif, <code>multiselect</code> automatiquement disjonctif.
           </p>
         </div>
@@ -188,7 +188,7 @@
             et l'attribut <code>server-side</code>, les valeurs des facettes et les compteurs sont
             calcules directement par l'API (pas de téléchargement complet des données).
             Les exemples ci-dessous utilisent le dataset
-            <em>Prix du controle technique</em> (~133 000 enregistrements) de data.economie.gouv.fr.
+            <em>Prix du contrôle technique</em> (~133 000 enregistrements) de data.economie.gouv.fr.
           </p>
         </div>
 
@@ -197,7 +197,7 @@
              ======================================================== -->
         <h2 class="fr-mt-4w">Exemple 1 : tableau filtrable avec facettes server-side</h2>
         <p>Les facettes <code>Region</code> (multiselect), <code>Type de vehicule</code> (select) et <code>Energie</code> (radio) filtrent
-        le tableau des prix du controle technique avec colonnage DSFR (<code>cols="4"</code>).</p>
+        le tableau des prix du contrôle technique avec colonnage DSFR (<code>cols="4"</code>).</p>
 
         <dsfr-data-facets id="ct-filtered1" source="ct-src1"
           server-facets
@@ -239,9 +239,9 @@
         <!-- ========================================================
              Exemple 2 : Facettes + Query + Barres (prix moyen par departement)
              ======================================================== -->
-        <h2 class="fr-mt-6w">Exemple 2 : graphique filtre par region</h2>
-        <p>La facette Region en mode multiselect filtre les données, puis <code>dsfr-data-query</code> agrège
-        le prix moyen du controle technique par departement pour le graphique en barres.</p>
+        <h2 class="fr-mt-6w">Exemple 2 : graphique filtre par région</h2>
+        <p>La facette Région en mode multiselect filtre les données, puis <code>dsfr-data-query</code> agrège
+        le prix moyen du contrôle technique par département pour le graphique en barres.</p>
 
         <dsfr-data-facets id="ct-filtered2" source="ct-src2"
           server-facets
@@ -295,9 +295,9 @@
         <!-- ========================================================
              Exemple 3 : Facettes + KPI + Carte (prix par departement)
              ======================================================== -->
-        <h2 class="fr-mt-6w">Exemple 3 : KPI + carte filtres par region</h2>
+        <h2 class="fr-mt-6w">Exemple 3 : KPI + carte filtres par région</h2>
         <p>Un même <code>dsfr-data-facets</code> alimente a la fois des <strong>KPI</strong> et une <strong>carte</strong>.
-        Sélectionner des regions met a jour simultanement les indicateurs et la carte departementale.</p>
+        Sélectionner des régions met à jour simultanément les indicateurs et la carte departementale.</p>
 
         <dsfr-data-facets id="ct-filtered3" source="ct-src3"
           server-facets
@@ -368,9 +368,9 @@
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 4 : les 4 modes d'affichage</h2>
         <p>Quatre facettes avec des modes differents :
-        <code>radio</code> pour l'Energie (dropdown avec radio buttons, selection exclusive),
-        <code>multiselect</code> pour la Region (dropdown avec checkboxes, recherche et "Tout sélectionner"),
-        <code>select</code> pour le Type de vehicule (liste deroulante native DSFR),
+        <code>radio</code> pour l'Energie (dropdown avec radio buttons, sélection exclusive),
+        <code>multiselect</code> pour la Région (dropdown avec checkboxes, recherche et "Tout sélectionner"),
+        <code>select</code> pour le Type de véhicule (liste déroulante native DSFR),
         et <code>checkbox</code> (défaut) pour le Departement.</p>
 
         <dsfr-data-facets id="ct-display-demo" source="ct-local"
@@ -405,7 +405,7 @@
              Exemple 5 : hide-counts
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 5 : masquer les compteurs</h2>
-        <p>L'attribut <code>hide-counts</code> masque les compteurs a cote de chaque valeur de facette,
+        <p>L'attribut <code>hide-counts</code> masque les compteurs a côté de chaque valeur de facette,
         pour un affichage plus epure.</p>
 
         <dsfr-data-facets id="ct-hide-counts-demo" source="ct-local"
@@ -438,8 +438,8 @@
              ======================================================== -->
         <h2 class="fr-mt-6w">Exemple 6 : colonnage DSFR des facettes</h2>
         <p>L'attribut <code>cols</code> permet de controler la largeur de chaque facette
-        dans la grille DSFR. Ici, Region occupe la moitie (<code>col-6</code>),
-        Type de vehicule un tiers (<code>col-4</code>) et Energie toute la largeur (<code>col-12</code>).</p>
+        dans la grille DSFR. Ici, Région occupe la moitie (<code>col-6</code>),
+        Type de véhicule un tiers (<code>col-4</code>) et Energie toute la largeur (<code>col-12</code>).</p>
 
         <dsfr-data-facets id="ct-cols-demo" source="ct-local"
           server-facets
