@@ -5,6 +5,7 @@
  * Structure de sortie :
  *   app-dist/
  *     index.html          (hub page)
+ *     confiance.html      (page « Adopter en confiance »)
  *     dist/               (dsfr-data library)
  *     demo/               (demo pages)
  *     favoris.html         (redirect -> apps/favorites/)
@@ -34,9 +35,9 @@ if (existsSync(distDir)) {
 }
 mkdirSync(distDir, { recursive: true });
 
-// Copy root index.html (hub page)
+// Copy root HTML pages (hub + pages editoriales)
 console.log('Copying root files...');
-const rootFiles = ['index.html'];
+const rootFiles = ['index.html', 'confiance.html'];
 for (const file of rootFiles) {
   const src = join(rootDir, file);
   const dest = join(distDir, file);

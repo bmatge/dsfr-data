@@ -279,6 +279,44 @@
       letter-spacing: 0.04em;
     }
 
+    /* ───────── ADOPTER EN CONFIANCE (encart vers confiance.html) ───────── */
+    .home-conf {
+      padding: 2.5rem 0;
+      background: var(--background-alt-grey);
+      border-top: 1px solid var(--border-default-grey);
+    }
+    .home-conf__inner {
+      display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 2.5rem; align-items: center;
+    }
+    .home-conf__kicker {
+      font-weight: 700; font-size: 0.75rem; line-height: 1rem; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text-action-high-blue-france); margin: 0 0 0.5rem;
+    }
+    .home-conf__title {
+      font-size: 1.5rem; line-height: 2rem; font-weight: 700;
+      color: var(--text-title-grey); margin: 0 0 0.75rem;
+    }
+    .home-conf__lead { margin: 0 0 1.25rem; max-width: 56ch; }
+    .home-conf__answers {
+      list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem;
+    }
+    .home-conf__answer {
+      display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; align-items: start;
+      margin: 0; padding: 0.75rem 1rem;
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+    }
+    .home-conf__answer i {
+      color: var(--text-default-success); font-size: 1.25rem; line-height: 1.5rem;
+    }
+    .home-conf__answer strong {
+      display: block; font-size: 0.9375rem; line-height: 1.25rem; color: var(--text-title-grey);
+    }
+    .home-conf__answer span {
+      display: block; font-size: 0.8125rem; line-height: 1.125rem; color: var(--text-mention-grey);
+    }
+
     /* ───────── OPEN-DATA-VIZ (teaser de la vitrine) ───────── */
     .home-odv {
       padding: 2.5rem 0 3rem;
@@ -319,6 +357,7 @@
       .home-hero__inner { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
       .home-hero__title { font-size: 2.25rem; line-height: 2.75rem; }
       .home-tools__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .home-conf__inner { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
     }
     @media (max-width: 576px) {
       .home-hero__steps { grid-template-columns: 1fr; }
@@ -601,6 +640,56 @@
               <p class="home-tool__desc">Utilisateurs, connexions et paramètres de la plateforme.</p>
             </div>
           </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Adopter en confiance : les quatre questions d'avant-adoption, réponse courte + renvoi
+         vers confiance.html. Les chiffres cités sont ceux de la page complète : mettre à jour
+         les deux ensemble. -->
+    <section class="home-conf" aria-labelledby="home-conf-titre">
+      <div class="fr-container">
+        <div class="home-conf__inner">
+          <div>
+            <p class="home-conf__kicker">Avant d'adopter</p>
+            <h2 class="home-conf__title" id="home-conf-titre">Une bêta, oui. Un risque pour votre site, non.</h2>
+            <p class="home-conf__lead">
+              Bugs, pérennité, sécurité, réversibilité : les quatre questions que se posent les
+              équipes avant d'intégrer dsfr-data ont chacune une réponse courte — et un moyen de la
+              vérifier vous-même, sans nous croire sur parole.
+            </p>
+            <a class="fr-btn" href="confiance.html">Lire les réponses et les vérifier</a>
+          </div>
+          <ul class="home-conf__answers">
+            <li class="home-conf__answer">
+              <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+              <div>
+                <strong>Un bug se voit, jamais un chiffre faux en silence</strong>
+                <span>8 600 tests unitaires et un oracle indépendant recalculent chaque valeur affichée.</span>
+              </div>
+            </li>
+            <li class="home-conf__answer">
+              <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+              <div>
+                <strong>Vos pages survivent au projet</strong>
+                <span>Code MIT, versions immuables, rendu par DSFR Chart : le HTML que vous écrivez vous appartient.</span>
+              </div>
+            </li>
+            <li class="home-conf__answer">
+              <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+              <div>
+                <strong>Rien ne transite par nos serveurs</strong>
+                <span>Lecture seule, ni cookie ni traceur, chaîne de production auditée en continu.</span>
+              </div>
+            </li>
+            <li class="home-conf__answer">
+              <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+              <div>
+                <strong>Un test de cinq minutes prouve la réversibilité</strong>
+                <span>Le « test de débranchement », à faire dès votre première page.</span>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
     </section>

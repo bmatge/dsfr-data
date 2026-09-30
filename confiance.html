@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Charts builder — Adopter en confiance</title>
+  <meta name="description" content="Quels sont les risques d'adopter dsfr-data, une bibliothèque en bêta ? Bugs, pérennité, sécurité, réversibilité : les réponses, et comment les vérifier vous-même.">
+
+  <link rel="icon" href="/favicon/favicon.svg" type="image/svg+xml">
+  <link rel="alternate icon" href="/favicon/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png">
+  <link rel="manifest" href="/favicon/manifest.webmanifest" crossorigin="use-credentials">
+  <style>@view-transition{navigation:auto}app-header:not(:defined){display:block;min-height:56px}app-footer:not(:defined){display:block;min-height:48px}</style>
+
+  <!-- DSFR -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" integrity="sha384-6FSSi597BTd6QcnsBNoLclRKxTOyyYqkaucRjFgCNr8wHVCp0COLClSPY4Vy/bjh" crossorigin="anonymous">
+
+  <script type="module" src="dist/app-ui.esm.js"></script>
+
+  <style>
+    body { min-height: 100vh; display: flex; flex-direction: column; }
+    main { flex: 1; }
+
+    .conf-hero {
+      background: var(--background-alt-blue-france);
+      border-bottom: 1px solid var(--border-default-blue-france);
+      padding-block: 3rem 2.5rem;
+    }
+    .conf-hero h1 { margin-bottom: 1rem; }
+    .conf-hero h1 em { font-style: normal; color: var(--text-action-high-blue-france); }
+    .conf-hero__lead { font-size: 1.125rem; line-height: 1.75rem; max-width: 60ch; margin-bottom: 1.5rem; }
+
+    /* Réponses courtes — 4 cartes */
+    .conf-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+    .conf-answer {
+      background: var(--background-default-grey);
+      border: 1px solid var(--border-default-grey);
+      border-top: 4px solid var(--border-action-high-blue-france);
+      padding: 1.25rem 1.25rem 1rem;
+      display: flex; flex-direction: column; gap: .5rem;
+    }
+    .conf-answer__q { font-size: .875rem; color: var(--text-mention-grey); margin: 0; }
+    .conf-answer__a { font-weight: 700; font-size: 1.0625rem; line-height: 1.5rem; margin: 0; color: var(--text-title-grey); }
+    .conf-answer__link { margin-top: auto; font-size: .875rem; }
+
+    /* Sections */
+    .conf-section { padding-block: 3rem; }
+    .conf-section + .conf-section { border-top: 1px solid var(--border-default-grey); }
+    .conf-section__kicker {
+      display: inline-block; font-size: .875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--text-action-high-blue-france); margin-bottom: .5rem;
+    }
+    .conf-section h2 { margin-bottom: .75rem; }
+    .conf-section__intro { font-size: 1.0625rem; max-width: 66ch; }
+
+    /* Faits chiffrés */
+    .conf-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .conf-fact { border-left: 3px solid var(--border-action-high-blue-france); padding: .25rem 0 .25rem 1rem; }
+    .conf-fact__n { display: block; font-size: 1.75rem; font-weight: 700; line-height: 2.25rem; color: var(--text-title-grey); }
+    .conf-fact__l { display: block; font-size: .875rem; color: var(--text-mention-grey); line-height: 1.25rem; }
+
+    /* Vérifier soi-même */
+    .conf-verify {
+      background: var(--background-contrast-grey);
+      padding: 1.25rem 1.5rem; margin-top: 1.5rem;
+    }
+    .conf-verify h3 { font-size: 1rem; margin-bottom: .75rem; }
+    .conf-verify h3 i { margin-right: .5rem; }
+    .conf-verify pre { margin: .5rem 0 0; }
+
+    .conf-table-wrap { overflow-x: auto; }
+    .conf-honest { background: var(--background-alt-grey); }
+    .conf-cta { padding-block: 3rem; background: var(--background-alt-blue-france); text-align: center; }
+    .conf-cta .fr-btns-group { justify-content: center; }
+    pre.conf-code { background: var(--background-contrast-grey); padding: .75rem 1rem; overflow-x: auto; font-size: .875rem; }
+    .conf-toc { position: sticky; top: calc(var(--app-header-h, 4rem) + 1rem); }
+    @media (max-width: 62em) { .conf-toc { position: static; } }
+  </style>
+</head>
+<body>
+  <a class="fr-link fr-sr-only fr-sr-only-focusable" href="#main-content">Aller au contenu</a>
+  <app-header current-page="confiance" base-path=""></app-header>
+
+  <main id="main-content">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="conf-hero">
+      <div class="fr-container">
+        <p class="fr-badge fr-badge--info fr-badge--no-icon fr-mb-2w">Version 0.42 · bêta publique</p>
+        <h1>Adopter une bêta <em>sans mettre votre site en risque</em></h1>
+        <p class="conf-hero__lead">
+          dsfr-data est en version 0.x. Vous êtes en droit de vous demander ce que vous risquez :
+          des bugs ? un projet qui s'arrête ? une faille ? Cette page répond aux quatre questions
+          que se posent les équipes avant d'adopter — et surtout, vous donne les moyens de
+          vérifier chaque réponse sans nous croire sur parole.
+        </p>
+
+        <div class="conf-answers">
+          <div class="conf-answer">
+            <p class="conf-answer__q">Risque de bug ?</p>
+            <p class="conf-answer__a">Un bug se voit : un graphique vide, jamais un chiffre faux affiché en silence.</p>
+            <a class="fr-link conf-answer__link" href="#bugs">Comment on le garantit</a>
+          </div>
+          <div class="conf-answer">
+            <p class="conf-answer__q">Pérennité et maintenance ?</p>
+            <p class="conf-answer__a">Vos pages continuent de fonctionner même si le projet s'arrête.</p>
+            <a class="fr-link conf-answer__link" href="#perennite">Ce qui reste, ce qui part</a>
+          </div>
+          <div class="conf-answer">
+            <p class="conf-answer__q">Sécurité ?</p>
+            <p class="conf-answer__a">Lecture seule, pas de cookie, pas de donnée qui transite par nos serveurs.</p>
+            <a class="fr-link conf-answer__link" href="#securite">Ce que votre RSSI doit savoir</a>
+          </div>
+          <div class="conf-answer">
+            <p class="conf-answer__q">Et pour en sortir ?</p>
+            <p class="conf-answer__a">Votre HTML vous appartient et se lit sans nous. Un test de cinq minutes le prouve.</p>
+            <a class="fr-link conf-answer__link" href="#reversibilite">Le test de débranchement</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="fr-container">
+      <div class="fr-grid-row fr-grid-row--gutters">
+
+        <!-- ===================== SOMMAIRE ===================== -->
+        <div class="fr-col-12 fr-col-lg-3">
+          <nav class="fr-sidemenu conf-toc fr-mt-6w" aria-labelledby="conf-toc-title">
+            <div class="fr-sidemenu__inner">
+              <button class="fr-sidemenu__btn" hidden aria-controls="conf-toc-wrapper" aria-expanded="false">Sur cette page</button>
+              <div class="fr-collapse" id="conf-toc-wrapper">
+                <p class="fr-sidemenu__title" id="conf-toc-title">Sur cette page</p>
+                <ul class="fr-sidemenu__list">
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#beta">Ce que « bêta » veut dire ici</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#bugs">Le risque de bug</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#perennite">Pérennité et maintenance</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#securite">Sécurité</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#reversibilite">Réversibilité</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#limites">Ce que nous ne promettons pas</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#ressources">Pour aller plus loin</a></li>
+                  <li class="fr-sidemenu__item"><a class="fr-sidemenu__link" href="#faq">Questions fréquentes</a></li>
+                </ul>
+              </div>
+            </div>
+          </nav>
+        </div>
+
+        <div class="fr-col-12 fr-col-lg-9">
+
+          <!-- ===================== BÊTA ===================== -->
+          <section class="conf-section" id="beta">
+            <span class="conf-section__kicker">Avant tout</span>
+            <h2>Ce que « bêta » veut dire ici — et ce que ça ne veut pas dire</h2>
+            <p class="conf-section__intro">
+              Un numéro de version en 0.x signifie une chose précise : <strong>l'API JavaScript interne
+              peut encore changer entre deux versions</strong>. Il ne signifie pas que le code est
+              expérimental, peu testé ou instable en production.
+            </p>
+            <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
+              <div class="fr-col-12 fr-col-md-6">
+                <div class="fr-callout fr-icon-checkbox-circle-line">
+                  <h3 class="fr-callout__title">Ce qui est stable</h3>
+                  <p class="fr-callout__text">
+                    Le HTML que vous écrivez. Les balises <code>&lt;dsfr-data-*&gt;</code> et leurs attributs,
+                    documentés dans les <a href="specs/index.html">spécifications des composants</a>, sont le contrat public : un attribut n'est jamais retiré ni changé de sens sans
+                    dépréciation annoncée, remplaçant indiqué et période de transition.
+                  </p>
+                </div>
+              </div>
+              <div class="fr-col-12 fr-col-md-6">
+                <div class="fr-callout fr-icon-information-line">
+                  <h3 class="fr-callout__title">Ce qui peut bouger</h3>
+                  <p class="fr-callout__text">
+                    L'intérieur de la bibliothèque, entre deux versions mineures. C'est pourquoi la
+                    règle d'or est simple : <strong>chargez toujours une version exacte</strong>
+                    (<code>dsfr-data@0.42.0</code>), jamais <code>@latest</code>. Vous décidez quand changer.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p class="fr-mt-3w">
+              Le 0.x a aussi un avantage : le projet livre vite. Un défaut signalé est en général corrigé
+              dans la version suivante, et chaque version est documentée ligne par ligne dans le
+              <a href="https://github.com/bmatge/dsfr-data/blob/main/packages/core/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>.
+            </p>
+            <div class="conf-facts">
+              <div class="conf-fact"><span class="conf-fact__n">61</span><span class="conf-fact__l">versions publiées depuis mars 2026</span></div>
+              <div class="conf-fact"><span class="conf-fact__n">&gt; 1 100</span><span class="conf-fact__l">issues et PR tracées publiquement</span></div>
+              <div class="conf-fact"><span class="conf-fact__n">23</span><span class="conf-fact__l">décisions d'architecture documentées (ADR)</span></div>
+              <div class="conf-fact"><span class="conf-fact__n">MIT</span><span class="conf-fact__l">licence, comme le DSFR</span></div>
+            </div>
+          </section>
+
+          <!-- ===================== BUGS ===================== -->
+          <section class="conf-section" id="bugs">
+            <span class="conf-section__kicker">Question 1</span>
+            <h2>Le risque de bug</h2>
+            <p class="conf-section__intro">
+              Il y aura des bugs : c'est du logiciel. La question utile est : <strong>à quoi ressemble
+              un bug pour vous, et comment est-il attrapé avant d'arriver sur votre site ?</strong>
+            </p>
+
+            <h3 class="fr-h5 fr-mt-4w">À quoi ressemble un bug, concrètement</h3>
+            <div class="conf-table-wrap">
+              <div class="fr-table fr-table--bordered">
+                <table>
+                  <thead>
+                    <tr><th scope="col">Ce qui peut arriver</th><th scope="col">Ce qui ne peut pas arriver</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Un graphique ne s'affiche pas, ou affiche un message d'erreur explicite.</td>
+                      <td>Qu'un chiffre faux soit affiché sans avertissement : chaque valeur rendue est recalculée par un contrôle indépendant.</td>
+                    </tr>
+                    <tr>
+                      <td>Une mise à jour de version demande d'ajuster un attribut (annoncé en console et dans le journal).</td>
+                      <td>Que votre page change sans que vous l'ayez décidé, si vous chargez une version exacte.</td>
+                    </tr>
+                    <tr>
+                      <td>Une API de données change et le graphique se vide (voir <a href="#limites">nos limites</a>).</td>
+                      <td>Que le reste de votre page soit affecté : les composants ne touchent ni votre CSS, ni votre JavaScript, ni votre CMS.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <h3 class="fr-h5 fr-mt-4w">Comment les bugs sont attrapés</h3>
+            <p>
+              Le projet applique une règle inhabituelle pour une bibliothèque de dataviz :
+              <strong>tout chiffre affiché a un contrôle</strong>. Au-delà des tests unitaires, un
+              <em>oracle</em> indépendant — une seconde implémentation, écrite à part, qui n'importe
+              rien de la bibliothèque — repart des données brutes et recalcule ce que la page affiche :
+              indicateurs, graphiques, cartes, tableaux, exports. Un écart à la précision affichée
+              est un échec bloquant. Une troisième voix, en Python standard, recalcule encore les
+              mêmes attendus ; et en mode « vivant », c'est le serveur de données lui-même qui est
+              interrogé pour recouper.
+            </p>
+            <div class="conf-facts">
+              <div class="conf-fact"><span class="conf-fact__n">8 600</span><span class="conf-fact__l">tests unitaires exécutés à chaque changement</span></div>
+              <div class="conf-fact"><span class="conf-fact__n">250</span><span class="conf-fact__l">contrôles numériques par l'oracle indépendant</span></div>
+              <div class="conf-fact"><span class="conf-fact__n">35</span><span class="conf-fact__l">scénarios de bout en bout dans un vrai navigateur</span></div>
+              <div class="conf-fact"><span class="conf-fact__n">WCAG 2 AA</span><span class="conf-fact__l">vérifié automatiquement (axe) à chaque changement</span></div>
+            </div>
+            <p>
+              Tout cela est bloquant : une pull request qui fait tomber un contrôle ne peut pas être
+              fusionnée. Et chaque contrôle a été vu en échec sur un défaut injecté volontairement —
+              un test qui ne peut pas échouer ne prouve rien.
+            </p>
+
+            <h3 class="fr-h5 fr-mt-4w">Quand vous trouvez un bug</h3>
+            <p>
+              Vous ouvrez une <a href="https://github.com/bmatge/dsfr-data/issues" target="_blank" rel="noopener">issue publique</a>,
+              avec la page ou le code qui le reproduit. Vous voyez la discussion, la correction, et la
+              version qui l'embarque. Rien ne se passe en privé.
+            </p>
+
+            <div class="conf-verify">
+              <h3><i class="ri-search-eye-line" aria-hidden="true"></i>Vérifiez par vous-même</h3>
+              <ul class="fr-mb-0">
+                <li>La doctrine de l'oracle et la liste des contrôles : <a href="https://github.com/bmatge/dsfr-data/blob/main/tools/oracle/README.md" target="_blank" rel="noopener">tools/oracle/README.md</a></li>
+                <li>L'état de la CI, en temps réel : <a href="https://github.com/bmatge/dsfr-data/actions" target="_blank" rel="noopener">github.com/bmatge/dsfr-data/actions</a></li>
+                <li>Les issues ouvertes et fermées, pour juger du délai de correction : <a href="https://github.com/bmatge/dsfr-data/issues?q=is%3Aissue" target="_blank" rel="noopener">issues</a></li>
+                <li>La méthode d'évaluation d'une reproduction (quatre verdicts, chronométrage, vérification au navigateur) : <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/EVALUER-UNE-REPRODUCTION.md" target="_blank" rel="noopener">EVALUER-UNE-REPRODUCTION.md</a></li>
+                <li>Le banc d'essai public, 110 dataviz branchées sur les portails de l'État : <a href="https://open-data-viz.lab.miweb.run" target="_blank" rel="noopener">open-data-viz</a></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ===================== PÉRENNITÉ ===================== -->
+          <section class="conf-section" id="perennite">
+            <span class="conf-section__kicker">Question 2</span>
+            <h2>Pérennité et maintenance</h2>
+            <p class="conf-section__intro">
+              La question derrière la question : <strong>que se passe-t-il pour mes pages si le projet
+              s'arrête ?</strong> La réponse honnête tient en deux parties, parce que vous dépendez de
+              deux choses différentes.
+            </p>
+
+            <div class="conf-table-wrap fr-mt-3w">
+              <div class="fr-table fr-table--bordered">
+                <table>
+                  <thead>
+                    <tr><th scope="col"></th><th scope="col">Vous dépendez de…</th><th scope="col">Si ça disparaît</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row">Ce qui s'exécute<br>chez vos visiteurs</th>
+                      <td>La bibliothèque <code>dsfr-data</code> et <a href="https://github.com/GouvernementFR/dsfr-chart" target="_blank" rel="noopener">DSFR Chart</a>, la bibliothèque officielle de l'État qui dessine les graphiques.</td>
+                      <td><strong>Rien ne casse.</strong> Une version publiée est immuable et auto-hébergeable ; votre page continue sans limite de durée.</td>
+                    </tr>
+                    <tr>
+                      <th scope="row">Ce qui aide vos équipes<br>à produire les pages</th>
+                      <td>Le <a href="apps/builder/index.html">Builder</a>, cette instance en ligne, le <a href="apps/studio/index.html">Studio IA</a>, le <a href="guide/guide.html">guide utilisateur</a>.</td>
+                      <td><strong>Vous perdez du confort, pas des pages.</strong> Le HTML publié ne dépend pas de l'outil qui l'a généré.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p>Le pire scénario est donc une perte de productivité pour vos équipes — jamais un incident sur un site en production.</p>
+
+            <h3 class="fr-h5 fr-mt-4w">Ce que vous possédez : votre HTML</h3>
+            <p>
+              Une visualisation dsfr-data est quelques lignes de HTML dont les attributs disent tout :
+              quelle source, quel filtre, quelle agrégation, quel graphique. Il n'y a pas de JavaScript
+              applicatif, pas de format propriétaire, pas de base de données à migrer. Ce HTML se
+              lit sans la bibliothèque, par un humain comme par une IA, et se convertit vers un autre
+              outil attribut par attribut. Il n'y a rien à exporter : vous l'avez déjà.
+            </p>
+<pre class="conf-code" tabindex="0" role="region" aria-label="Exemple de code HTML d'une visualisation"><code>&lt;dsfr-data-source id="src" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="industrie-du-futur"&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-query id="q" source="src"
+  group-by="nom_region" aggregate="nombre_beneficiaires:sum:total" order-by="total:desc"&gt;&lt;/dsfr-data-query&gt;
+&lt;dsfr-data-chart source="q" type="bar" label-field="nom_region" value-field="total"&gt;&lt;/dsfr-data-chart&gt;</code></pre>
+
+            <h3 class="fr-h5 fr-mt-4w">Pourquoi ça tient sans nous</h3>
+            <ul>
+              <li><strong>Code ouvert, licence MIT</strong> — la même que le DSFR. Forkable, hébergeable, modifiable sans autorisation.</li>
+              <li><strong>Versions immuables</strong> — le registre npm interdit de republier ou de retirer une version publiée. Ce que vous avez installé le restera.</li>
+              <li><strong>Tout est dans le paquet</strong> — modules de carte, lecteur de données, fonds géographiques. À l'exécution, la bibliothèque ne charge rien depuis un CDN tiers ni depuis nos serveurs (détail des bundles dans l'<a href="https://github.com/bmatge/dsfr-data/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">architecture</a>).</li>
+              <li><strong>Le rendu est celui de l'État</strong> — dsfr-data prépare les données ; DSFR Chart, maintenu par le Service d'information du Gouvernement, dessine. Si dsfr-data s'arrête, ce qui dessine vos graphiques continue d'exister.</li>
+              <li><strong>Standards du navigateur</strong> — les composants sont des Web Components natifs. Aucune obsolescence de plateforme à prévoir.</li>
+            </ul>
+
+            <h3 class="fr-h5 fr-mt-4w">Ce que nous nous engageons à faire si le projet devait s'arrêter</h3>
+            <p>Peu de choses, choisies parce qu'elles ne coûtent rien à tenir — c'est ce qui les rend crédibles.</p>
+            <ol>
+              <li><strong>Chercher d'abord un repreneur public.</strong> La trajectoire visée est le versement aux communs numériques, pas l'arrêt.</li>
+              <li><strong>Prévenir au moins trois mois avant</strong> toute fermeture de cette instance et de son proxy, sur le dépôt et auprès des adoptants connus.</li>
+              <li><strong>Publier une dernière version</strong> corrigeant les défauts connus, avec le plan de sortie en tête du README.</li>
+              <li><strong>Archiver le dépôt en lecture seule</strong> — jamais le supprimer.</li>
+            </ol>
+
+            <div class="conf-verify">
+              <h3><i class="ri-search-eye-line" aria-hidden="true"></i>Vérifiez par vous-même</h3>
+              <p class="fr-mb-1w">Le paquet publié ne contient l'adresse d'aucun de nos services :</p>
+<pre class="conf-code" tabindex="0" role="region" aria-label="Commandes de vérification du paquet publié"><code>npm pack dsfr-data@0.42.0 &amp;&amp; tar xzf dsfr-data-0.42.0.tgz
+grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
+              <ul class="fr-mt-2w fr-mb-0">
+                <li>Installer et auto-héberger la bibliothèque : <a href="https://github.com/bmatge/dsfr-data#installation" target="_blank" rel="noopener">README — Installation</a> ; héberger votre propre instance des outils : <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/DEPLOYMENT.md" target="_blank" rel="noopener">guide de déploiement</a></li>
+                <li>Les versions publiées, immuables : <a href="https://www.npmjs.com/package/dsfr-data?activeTab=versions" target="_blank" rel="noopener">npmjs.com/package/dsfr-data</a></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ===================== SÉCURITÉ ===================== -->
+          <section class="conf-section" id="securite">
+            <span class="conf-section__kicker">Question 3</span>
+            <h2>Sécurité</h2>
+            <p class="conf-section__intro">
+              Deux questions distinctes : <strong>que fait le code dans le navigateur de vos visiteurs ?</strong>
+              et <strong>comment le projet se protège-t-il contre les vulnérabilités ?</strong>
+            </p>
+
+            <h3 class="fr-h5 fr-mt-4w">Dans le navigateur de vos visiteurs</h3>
+            <ul>
+              <li><strong>Lecture seule.</strong> La bibliothèque lit des API de données publiques et affiche. Elle n'écrit nulle part.</li>
+              <li><strong>Aucune donnée ne transite par nos serveurs.</strong> Le navigateur interroge directement la source (data.gouv.fr, Opendatasoft, INSEE…). Nous ne voyons ni vos données, ni vos visiteurs.</li>
+              <li><strong>Ni cookie, ni traceur.</strong> La balise de mesure d'usage est désactivée tant que vous ne la configurez pas explicitement. Rien à déclarer au titre du RGPD.</li>
+              <li><strong>Aucune clé d'API dans la bibliothèque.</strong> Elle n'en porte pas et n'en portera pas : une clé dans le navigateur est une clé publique. Les fonds de carte par défaut sont ceux de l'IGN, souverains et sans clé.</li>
+              <li><strong>Compatible avec une politique de sécurité de contenu (CSP) stricte</strong> et livrée avec des empreintes d'intégrité (SRI) sur chaque script chargé depuis un CDN — en-têtes et CSP de référence dans la <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/DEPLOYMENT.md#checklist-securite" target="_blank" rel="noopener">checklist sécurité du déploiement</a>.</li>
+            </ul>
+
+            <h3 class="fr-h5 fr-mt-4w">Dans la chaîne de production du code</h3>
+            <p>
+              Chaque modification passe dix contrôles de sécurité avant d'être fusionnée, et des
+              analyses hebdomadaires rattrapent les vulnérabilités découvertes après coup :
+            </p>
+            <div class="conf-table-wrap">
+              <div class="fr-table fr-table--bordered">
+                <table>
+                  <thead><tr><th scope="col">Ce qui est contrôlé</th><th scope="col">Outil</th><th scope="col">Bloquant</th></tr></thead>
+                  <tbody>
+                    <tr><td>Vulnérabilités connues dans les dépendances</td><td>npm audit, Trivy, Dependabot</td><td>Oui (haute et critique)</td></tr>
+                    <tr><td>Failles dans le code (injection, XSS, ReDoS…)</td><td>Semgrep, CodeQL, ESLint security</td><td>Oui</td></tr>
+                    <tr><td>Secrets commis par erreur</td><td>Gitleaks + protection au push</td><td>Oui, toute détection</td></tr>
+                    <tr><td>Intégrité des scripts CDN</td><td>Vérification SRI</td><td>Oui</td></tr>
+                    <tr><td>Images Docker</td><td>Trivy</td><td>Oui (critique)</td></tr>
+                    <tr><td>Application en fonctionnement</td><td>OWASP ZAP (hebdomadaire)</td><td>Consultatif</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p>
+              Aucune exclusion silencieuse : toute règle ou vulnérabilité ignorée est documentée avec
+              sa justification, son suivi et sa date de revue.
+            </p>
+
+            <h3 class="fr-h5 fr-mt-4w">Si vous trouvez une vulnérabilité</h3>
+            <p>
+              Un canal privé est ouvert (GitHub Security Advisories). Engagement : accusé de réception
+              sous 72 heures, correctif ou plan de mitigation sous 7 jours pour les vulnérabilités
+              significatives. Détail dans la
+              <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/SECURITY.md" target="_blank" rel="noopener">politique de sécurité</a>.
+            </p>
+
+            <div class="fr-highlight fr-mt-3w">
+              <p><strong>À transmettre à votre RSSI.</strong> dsfr-data est une bibliothèque JavaScript front, open source (MIT), sans backend requis, qui lit des API de données publiques en HTTPS depuis le navigateur et n'envoie rien à des tiers. Chargée en version exacte avec SRI, compatible CSP <code>default-src 'self'</code> plus les domaines de vos sources. Chaîne de production auditée en continu (SCA, SAST, secrets, DAST), politique de divulgation publiée, dépendances suivies par Dependabot. Un proxy CORS est nécessaire uniquement pour les sources Grist ; il est à héberger par vos soins.</p>
+            </div>
+
+            <div class="conf-verify">
+              <h3><i class="ri-search-eye-line" aria-hidden="true"></i>Vérifiez par vous-même</h3>
+              <ul class="fr-mb-0">
+                <li>La politique complète et le détail de chaque contrôle : <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/SECURITY.md" target="_blank" rel="noopener">docs/SECURITY.md</a></li>
+                <li>Les alertes et scans en temps réel : <a href="https://github.com/bmatge/dsfr-data/security" target="_blank" rel="noopener">onglet Security du dépôt</a></li>
+                <li>Les licences des dépendances tierces : <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/THIRD-PARTY-LICENSES.md" target="_blank" rel="noopener">THIRD-PARTY-LICENSES.md</a></li>
+                <li>Sur une de vos pages : outils de développement, onglet Réseau — les seules requêtes sortantes visent vos fichiers et vos sources de données.</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ===================== RÉVERSIBILITÉ ===================== -->
+          <section class="conf-section" id="reversibilite">
+            <span class="conf-section__kicker">Question 4</span>
+            <h2>Réversibilité : le test de débranchement</h2>
+            <p class="conf-section__intro">
+              Plutôt qu'une promesse, un test. Cinq minutes, à faire dès votre première page, puis à
+              chaque nouvelle. S'il passe, la fin du projet ne changerait rien pour vos visiteurs.
+            </p>
+
+            <div class="fr-mt-3w">
+              <h3 class="fr-h5">Trois étapes</h3>
+              <ol class="fr-mt-2w">
+                <li><strong>Ouvrez la page</strong>, puis les outils de développement (F12), onglet <strong>Réseau</strong>, et rechargez.</li>
+                <li><strong>Regardez d'où viennent les fichiers chargés.</strong> Ils doivent venir uniquement de votre domaine et de vos sources de données.</li>
+                <li><strong>Deux signaux d'alerte :</strong> une requête vers <code>miweb.run</code> (votre page dépend de notre instance) ; une adresse de script contenant <code>@0</code>, <code>@latest</code> ou aucun numéro de version (votre page changera un jour sans que vous l'ayez décidé).</li>
+              </ol>
+            </div>
+
+            <div class="conf-table-wrap fr-mt-3w">
+              <div class="fr-table fr-table--bordered">
+                <table>
+                  <thead><tr><th scope="col">Résultat du test</th><th scope="col">Niveau</th><th scope="col">Ce qui peut casser</th></tr></thead>
+                  <tbody>
+                    <tr><td>Aucune requête hors de chez vous</td><td><span class="fr-badge fr-badge--success fr-badge--no-icon">Autonome</span></td><td>Rien côté bibliothèque</td></tr>
+                    <tr><td>CDN public, version exacte, empreinte d'intégrité</td><td><span class="fr-badge fr-badge--info fr-badge--no-icon">Figé</span></td><td>La disponibilité du CDN — sans effet sur le contenu</td></tr>
+                    <tr><td>Version flottante, ou proxy vers notre instance</td><td><span class="fr-badge fr-badge--warning fr-badge--no-icon">Dépendant</span></td><td>Une mise à jour non choisie ; la fermeture de l'instance</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="fr-alert fr-alert--info fr-mt-3w">
+              <h3 class="fr-alert__title">Le cas Grist</h3>
+              <p>
+                Grist n'accepte pas les appels directs d'un navigateur : un widget Grist passe par un
+                proxy. Sur un site public, ce proxy doit être le vôtre — quelques lignes de configuration
+                que votre DSI trouvera dans le <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/DEPLOYMENT.md#contrat-des-chemins-de-proxying" target="_blank" rel="noopener">guide de déploiement</a>.
+                Si elle ne peut pas en héberger un, sachez que vos widgets Grist dépendent de notre
+                instance. Les sources Opendatasoft, data.gouv.fr et INSEE n'ont pas cette contrainte.
+              </p>
+            </div>
+
+            <h3 class="fr-h5 fr-mt-4w">Et si vous voulez partir un jour</h3>
+            <p>Trois trajectoires, dont deux ne demandent aucun développeur :</p>
+            <ul>
+              <li><strong>Figer et garder.</strong> Une page figée fonctionne tant que l'API de sa source ne change pas — cela peut durer des années.</li>
+              <li><strong>Passer à DSFR Chart nu.</strong> C'est déjà lui qui dessine vos graphiques ; seule la préparation des données est à refaire, et votre HTML la décrit attribut par attribut. Une IA sait faire cette conversion.</li>
+              <li><strong>Reprendre le code</strong>, seul ou à plusieurs adoptants : le projet se construit en deux commandes, tests et oracle fournis (<a href="https://github.com/bmatge/dsfr-data/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener">guide de contribution</a>, <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">architecture</a>).</li>
+            </ul>
+
+            <div class="conf-verify">
+              <h3><i class="ri-checkbox-multiple-line" aria-hidden="true"></i>Liste de contrôle avant mise en production</h3>
+              <ul class="fr-mb-0">
+                <li>La bibliothèque, le DSFR et DSFR Chart sont chargés à version exacte, ou auto-hébergés.</li>
+                <li>Le test de débranchement est passé : aucune requête vers <code>miweb.run</code>.</li>
+                <li>Si Grist : le proxy est le vôtre, ou la dépendance est acceptée et documentée.</li>
+                <li>Le HTML des widgets est versionné dans <em>votre</em> dépôt ou CMS, pas seulement dans nos favoris.</li>
+                <li>Quelqu'un est désigné pour remarquer un widget vide.</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ===================== LIMITES ===================== -->
+          <section class="conf-section" id="limites">
+            <span class="conf-section__kicker">En toute franchise</span>
+            <h2>Ce que nous ne promettons pas</h2>
+            <p class="conf-section__intro">Pour que vous ne nous l'attribuiez pas le jour où ça arrive.</p>
+            <ul>
+              <li><strong>Les changements des fournisseurs de données.</strong> Si une API source change, une page peut cesser d'afficher ses données. Figer dsfr-data ne protège pas de cela : un site vivant a besoin de quelqu'un qui regarde ses pages.</li>
+              <li><strong>La compatibilité automatique entre versions.</strong> Tant que le projet est en 0.x, une mise à jour peut demander un ajustement. Vous choisissez quand.</li>
+              <li><strong>La disponibilité des services tiers</strong> — CDN publics, fonds de carte communautaires.</li>
+              <li><strong>Un niveau de service sur cette instance.</strong> <code>chartsbuilder.miweb.run</code> est un outil d'édition et de démonstration, pas une infrastructure de production pour vos pages.</li>
+              <li><strong>Un support 24/7.</strong> Le support passe par les issues publiques, en heures ouvrées, par une équipe réduite.</li>
+            </ul>
+          </section>
+
+          <!-- ===================== RESSOURCES ===================== -->
+          <section class="conf-section" id="ressources">
+            <span class="conf-section__kicker">Pour aller plus loin</span>
+            <h2>Toute la documentation, au même endroit</h2>
+            <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
+              <div class="fr-col-12 fr-col-md-6">
+                <h3 class="fr-h6">Sur cette plateforme</h3>
+                <ul>
+                  <li><a href="specs/index.html">Spécifications des composants</a> — la référence exhaustive de chaque balise et attribut, avec exemples interactifs</li>
+                  <li><a href="guide/guide.html">Guide utilisateur</a> — parcours pas à pas, exemples live, vidéos</li>
+                  <li><a href="apps/playground/index.html">Playground</a> — pour tester un bloc HTML avant de l'intégrer</li>
+                  <li><a href="https://open-data-viz.lab.miweb.run" target="_blank" rel="noopener">open-data-viz</a> — la vitrine : 110 dataviz sur les portails de l'État, code visible</li>
+                </ul>
+              </div>
+              <div class="fr-col-12 fr-col-md-6">
+                <h3 class="fr-h6">Sur GitHub</h3>
+                <ul>
+                  <li><a href="https://github.com/bmatge/dsfr-data" target="_blank" rel="noopener">Le dépôt</a> — code, issues, CI en temps réel</li>
+                  <li><a href="https://github.com/bmatge/dsfr-data/blob/main/docs/DATASHEET.md" target="_blank" rel="noopener">Fiche produit</a> — positionnement, comparatif, cibles</li>
+                  <li><a href="https://github.com/bmatge/dsfr-data/blob/main/docs/SECURITY.md" target="_blank" rel="noopener">Politique de sécurité</a> et <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/security-baseline.md" target="_blank" rel="noopener">baseline réutilisable</a></li>
+                  <li><a href="https://github.com/bmatge/dsfr-data/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">Architecture</a>, <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/DEPLOYMENT.md" target="_blank" rel="noopener">déploiement</a>, <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener">contribution</a></li>
+                  <li><a href="https://github.com/bmatge/dsfr-data/blob/main/tools/oracle/README.md" target="_blank" rel="noopener">Vérification des données</a> — la doctrine de l'oracle indépendant</li>
+                  <li><a href="https://github.com/bmatge/dsfr-data/blob/main/docs/AI-SKILLS.md" target="_blank" rel="noopener">Skills IA et serveur MCP</a> — pour produire des pages avec un assistant</li>
+                  <li><a href="https://github.com/bmatge/dsfr-data/blob/main/packages/core/CHANGELOG.md" target="_blank" rel="noopener">Journal des modifications</a> et <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/THIRD-PARTY-LICENSES.md" target="_blank" rel="noopener">licences tierces</a></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ===================== FAQ ===================== -->
+          <section class="conf-section" id="faq">
+            <span class="conf-section__kicker">Pour finir</span>
+            <h2>Questions fréquentes</h2>
+            <div class="fr-accordions-group">
+              <section class="fr-accordion">
+                <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="faq-1">Faut-il un développeur pour adopter ?</button></h3>
+                <div class="fr-collapse" id="faq-1">
+                  <p>Non pour produire une page : le <a href="apps/builder/index.html">Builder</a> génère le HTML à coller dans votre CMS (parcours pas à pas dans le <a href="guide/guide.html">guide utilisateur</a>). Oui, ponctuellement, si vous utilisez Grist sur un site public (le proxy) ou si vous voulez auto-héberger la bibliothèque — une opération d'une heure pour un intégrateur.</p>
+                </div>
+              </section>
+              <section class="fr-accordion">
+                <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="faq-2">Ça fonctionne dans mon CMS ?</button></h3>
+                <div class="fr-collapse" id="faq-2">
+                  <p>Oui, dans tout environnement qui accepte du HTML : Drupal, WordPress, page statique, React, Vue… Les composants sont des Web Components standard et n'exigent rien du CMS. La seule condition est de pouvoir charger un script — deux lignes, décrites dans le <a href="https://github.com/bmatge/dsfr-data#installation" target="_blank" rel="noopener">README</a>.</p>
+                </div>
+              </section>
+              <section class="fr-accordion">
+                <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="faq-3">Mes données ou celles de mes visiteurs transitent-elles par vos serveurs ?</button></h3>
+                <div class="fr-collapse" id="faq-3">
+                  <p>Non. Le navigateur du visiteur interroge directement la source de données. Une seule exception : les sources Grist, qui nécessitent un proxy — le vôtre en production. Aucune mesure d'audience n'est envoyée tant que vous ne l'activez pas.</p>
+                </div>
+              </section>
+              <section class="fr-accordion">
+                <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="faq-4">Est-ce conforme au RGAA ?</button></h3>
+                <div class="fr-collapse" id="faq-4">
+                  <p>Les composants suivent le DSFR et sont vérifiés automatiquement contre WCAG 2 A/AA (axe) à chaque changement. Chaque graphique peut être accompagné d'un tableau de données, d'un export CSV et d'une transcription via <a href="specs/index.html"><code>&lt;dsfr-data-a11y&gt;</code></a>. La conformité RGAA d'une page reste celle de la page entière, que vous auditez ; nous vous fournissons des composants qui ne la dégradent pas.</p>
+                </div>
+              </section>
+              <section class="fr-accordion">
+                <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="faq-5">Et si une API source change ?</button></h3>
+                <div class="fr-collapse" id="faq-5">
+                  <p>Le graphique se vide et une erreur explicite apparaît dans la console du navigateur. Si la bibliothèque est maintenue, l'adaptateur est corrigé dans la version suivante et vous mettez à jour votre numéro de version. Si elle ne l'est plus, votre HTML décrit exactement ce que faisait la page, et sert de spécification pour la refaire.</p>
+                </div>
+              </section>
+              <section class="fr-accordion">
+                <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="faq-6">Qui est derrière le projet ?</button></h3>
+                <div class="fr-collapse" id="faq-6">
+                  <p>La Mission Ingénierie du Web du ministère de l'Économie, des Finances et de la Souveraineté industrielle et numérique, qui l'utilise pour ses propres portails de données. Le projet est développé en public (<a href="https://github.com/bmatge/dsfr-data/blob/main/docs/DATASHEET.md" target="_blank" rel="noopener">fiche produit</a>), et des échanges sont engagés avec les mainteneurs du DSFR et la DINUM pour l'inscrire dans les communs numériques de l'État.</p>
+                </div>
+              </section>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== CTA ===================== -->
+    <section class="conf-cta">
+      <div class="fr-container">
+        <h2 class="fr-h3">Une question que cette page ne couvre pas ?</h2>
+        <p>Posez-la publiquement : la réponse servira au suivant.</p>
+        <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--center">
+          <li><a class="fr-btn" href="https://github.com/bmatge/dsfr-data/issues/new" target="_blank" rel="noopener">Poser une question sur GitHub</a></li>
+          <li><a class="fr-btn fr-btn--secondary" href="apps/builder/index.html">Essayer le Builder</a></li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+
+  <app-footer base-path=""></app-footer>
+
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.module.min.js" integrity="sha384-gPgRd2+olihO/srZe/Bqw6iVLiiaL7meuri1d5YVMejwPXg7VehLSBeORYq9yh2F" crossorigin="anonymous"></script>
+</body>
+</html>

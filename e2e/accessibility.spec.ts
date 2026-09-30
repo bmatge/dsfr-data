@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 const pages = [
   { name: 'Hub', path: '/' },
+  { name: 'Adopter en confiance', path: '/confiance.html' },
   { name: 'Builder', path: '/apps/builder/index.html' },
   { name: 'Builder IA', path: '/apps/builder-ia/index.html' },
   { name: 'Builder Carto', path: '/apps/builder-carto/index.html' },
