@@ -183,38 +183,13 @@ export class AppFooter extends LitElement {
               }
               <ul class="fr-footer__content-list">
                 <li class="fr-footer__content-item">
-                  <a
-                    class="fr-footer__content-link"
-                    target="_blank"
-                    rel="noopener"
-                    href="https://www.systeme-de-design.gouv.fr/"
-                  >
-                    systeme-de-design.gouv.fr
-                  </a>
-                </li>
-                <li class="fr-footer__content-item">
-                  <a
-                    class="fr-footer__content-link"
-                    target="_blank"
-                    rel="noopener"
-                    href="https://github.com/GouvernementFR/dsfr-chart"
-                  >
-                    DSFR Chart
-                  </a>
-                </li>
-                <li class="fr-footer__content-item">
-                  <a
-                    class="fr-footer__content-link"
-                    target="_blank"
-                    rel="noopener"
-                    href="https://github.com/bmatge/dsfr-data"
-                  >
-                    GitHub
-                  </a>
-                </li>
-                <li class="fr-footer__content-item">
                   <a class="fr-footer__content-link" href="${this._base}specs/roadmap.html">
                     Feuille de route
+                  </a>
+                </li>
+                <li class="fr-footer__content-item">
+                  <a class="fr-footer__content-link" href="${this._base}confiance.html">
+                    Adopter en confiance
                   </a>
                 </li>
               </ul>
@@ -227,6 +202,33 @@ export class AppFooter extends LitElement {
               </li>
               <li class="fr-footer__bottom-item">
                 <a class="fr-footer__bottom-link" href="#">Mentions légales</a>
+              </li>
+              <li class="fr-footer__bottom-item">
+                <a
+                  class="fr-footer__bottom-link"
+                  target="_blank"
+                  rel="noopener"
+                  href="https://www.systeme-de-design.gouv.fr/"
+                  >systeme-de-design.gouv.fr</a
+                >
+              </li>
+              <li class="fr-footer__bottom-item">
+                <a
+                  class="fr-footer__bottom-link"
+                  target="_blank"
+                  rel="noopener"
+                  href="https://github.com/GouvernementFR/dsfr-chart"
+                  >DSFR Chart</a
+                >
+              </li>
+              <li class="fr-footer__bottom-item">
+                <a
+                  class="fr-footer__bottom-link"
+                  target="_blank"
+                  rel="noopener"
+                  href="https://github.com/bmatge/dsfr-data"
+                  >GitHub</a
+                >
               </li>
             </ul>
             <div class="fr-footer__bottom-copy">
