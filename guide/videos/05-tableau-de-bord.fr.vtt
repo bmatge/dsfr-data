@@ -1,166 +1,109 @@
 WEBVTT
 
 1
-00:00:00.300 --> 00:00:04.458
-Un chef de service veut suivre
-son programme sur une seule page,
+00:00:00.300 --> 00:00:06.150
+Vous suivez un programme et souhaitez réunir ses
+chiffres sur une seule page, à jour sans ressaisie.
 
 2
-00:00:04.458 --> 00:00:05.952
-sans rien reconstruire.
+00:00:06.430 --> 00:00:11.756
+Dans ChartsBuilder, c'est un tableau de bord,
+assemblé à partir des graphiques gardés en favori.
 
 3
-00:00:06.232 --> 00:00:11.199
-Dans ChartsBuilder, les graphiques gardés
-en favori deviennent des briques de
+00:00:14.057 --> 00:00:17.273
+Commençons par la réserve : dans l'en-tête, Favoris.
 
 4
-00:00:11.199 --> 00:00:12.232
-tableau de bord.
+00:00:17.553 --> 00:00:23.081
+Trois graphiques y sont enregistrés depuis le Builder,
+sur le programme Industrie du futur.
 
 5
-00:00:13.333 --> 00:00:18.379
-Dans l'en-tête, Favoris rassemble les
-graphiques enregistrés depuis le Builder :
+00:00:23.361 --> 00:00:28.610
+Un clic sur une vignette : l'aperçu se dessine avec
+les vraies données, et le code est prêt à copier.
 
 6
-00:00:18.379 --> 00:00:21.344
-ici trois, sur le programme
-Industrie du futur.
+00:00:28.890 --> 00:00:32.373
+Exporter enregistre le lot entier, pour un collègue.
 
 7
-00:00:21.624 --> 00:00:25.791
-Un clic sur une vignette : l'aperçu
-se dessine avec les vraies données,
+00:00:34.674 --> 00:00:38.121
+Passons à l'assemblage : Créer un tableau de bord ouvre l'éditeur.
 
 8
-00:00:25.791 --> 00:00:27.493
-et le code est prêt à copier.
+00:00:38.401 --> 00:00:44.057
+À gauche, les blocs, KPI, Graphique, Tableau,
+Texte, puis Mes favoris et la Grille.
 
 9
-00:00:27.773 --> 00:00:30.064
-Et le lot entier s'exporte,
-pour un collègue.
+00:00:44.337 --> 00:00:49.543
+Au centre, la grille des briques ;
+Modèles propose des mises en page toutes faites.
 
 10
-00:00:34.015 --> 00:00:36.238
-Ouvrons Créer un tableau de bord.
+00:00:51.844 --> 00:00:55.571
+Je glisse le favori Total bénéficiaires sur la première cellule.
 
 11
-00:00:36.518 --> 00:00:40.075
-À gauche, les blocs :
-indicateur clé, graphique,
+00:00:55.851 --> 00:01:02.059
+La brique arrive entière, source, calcul et réglages ; Configurer le confirme.
 
 12
-00:00:40.075 --> 00:00:43.557
-tableau, texte ; puis mes
-favoris et la grille.
+00:01:02.339 --> 00:01:04.920
+Rien à régler : je referme.
 
 13
-00:00:43.837 --> 00:00:46.883
-Au centre, la grille où
-déposer chaque brique ;
+00:01:06.822 --> 00:01:10.539
+À côté, le bloc Texte, pour le contexte : je le titre Contexte.
 
 14
-00:00:46.883 --> 00:00:50.382
-des modèles proposent des
-mises en page toutes faites.
+00:01:10.819 --> 00:01:15.594
+Style Callout, un encadré mis en valeur ; une phrase, puis Appliquer.
 
 15
-00:00:51.483 --> 00:00:55.712
-Je glisse le favori Total
-bénéficiaires sur la première cellule.
+00:01:17.494 --> 00:01:22.290
+Le graphique mérite une ligne entière :
+la grille à une colonne, puis Ajouter une ligne.
 
 16
-00:00:55.992 --> 00:01:01.072
-La brique arrive entière : source,
-calcul, réglages. Configurer le confirme.
+00:01:22.570 --> 00:01:26.208
+J'y dépose le favori Bénéficiaires par région.
 
 17
-00:01:02.173 --> 00:01:04.803
-À côté, un bloc de texte pour le contexte.
+00:01:26.488 --> 00:01:30.495
+Ici, chaque brique n'est qu'une vignette ; le rendu viendra en plein écran.
 
 18
-00:01:05.083 --> 00:01:09.574
-Je choisis le style Callout,
-j'écris une phrase, j'applique.
+00:01:32.797 --> 00:01:37.383
+Un titre, puis Enregistrer :
+le tableau de bord est conservé dans mon navigateur.
 
 19
-00:01:11.724 --> 00:01:16.826
-Pour le graphique, une ligne entière : je
-passe la grille à une colonne et j'ajoute
+00:01:37.663 --> 00:01:41.321
+Ouvrir le retrouve dans Mes tableaux de bord, pour le reprendre plus tard.
 
 20
-00:01:16.826 --> 00:01:17.440
-une ligne.
+00:01:44.554 --> 00:01:48.744
+Vérifions : Plein écran affiche la page telle que la verront les lecteurs.
 
 21
-00:01:17.720 --> 00:01:20.124
-J'y dépose le favori
-Bénéficiaires par région.
+00:01:49.024 --> 00:01:55.296
+Près de huit mille entreprises bénéficiaires,
+les régions dans l'ordre : des chiffres interrogés en direct.
 
 22
-00:01:20.404 --> 00:01:25.197
-Ici, chaque brique n'est qu'une vignette
-: le rendu viendra en plein écran.
+00:01:58.757 --> 00:02:05.816
+Dernière étape : l'onglet Code montre la page complète ;
+Exporter la page HTML la télécharge en un fichier.
 
 23
-00:01:26.299 --> 00:01:31.310
-Un titre, puis Enregistrer : le tableau
-de bord reste dans mon navigateur.
-
-24
-00:01:31.590 --> 00:01:35.455
-Ouvrir le retrouve, avec ceux
-que le Studio IA a composés.
-
-25
-00:01:40.596 --> 00:01:44.107
-Plein écran affiche la page telle
-que la verront les lecteurs.
-
-26
-00:01:44.387 --> 00:01:49.378
-Près de huit mille entreprises
-bénéficiaires, les régions dans l'ordre :
-
-27
-00:01:49.378 --> 00:01:51.735
-des chiffres interrogés en direct.
-
-28
-00:01:54.307 --> 00:02:00.652
-L'onglet Code montre la page complète ;
-Exporter la page HTML la télécharge en un
-
-29
-00:02:00.652 --> 00:02:01.671
-seul fichier.
-
-30
-00:02:01.951 --> 00:02:05.739
-Déposé sur l'intranet du service,
-ce fichier s'affiche tel quel,
-
-31
-00:02:05.739 --> 00:02:07.751
+00:02:06.096 --> 00:02:11.766
+Déposé sur l'intranet du service, ce fichier s'affiche tel quel,
 et ses chiffres suivent la donnée.
 
-32
-00:02:08.951 --> 00:02:12.581
-Des favoris aux briques,
-des briques à la page :
-
-33
-00:02:12.581 --> 00:02:16.362
-un tableau de bord vivant,
-sans rien reconstruire.
-
-34
-00:02:16.642 --> 00:02:20.838
-Pour fabriquer ces briques :
-démonstrations deux et trois,
-
-35
-00:02:20.838 --> 00:02:22.792
-le Builder et le Studio IA.
+24
+00:02:14.167 --> 00:02:22.952
+Récapitulons : des favoris sur une grille, un encart, une page enregistrée,
+vérifiée, exportée ; un tableau de bord vivant, sans rien refaire.

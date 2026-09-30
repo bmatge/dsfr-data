@@ -1,199 +1,140 @@
 WEBVTT
 
 1
-00:00:00.300 --> 00:00:04.794
+00:00:00.300 --> 00:00:06.752
 Inès, rédactrice web d’un site ministériel,
-a écrit un texte sur le guichet
+a écrit un texte sur le guichet Industrie du futur.
 
 2
-00:00:04.794 --> 00:00:08.089
-Industrie du futur. Elle
-voudrait la page qui va avec :
+00:00:07.032 --> 00:00:11.608
+Elle voudrait la page qui va avec : un chiffre clé, un graphique, un filtre.
 
 3
-00:00:08.089 --> 00:00:10.485
-un chiffre clé, un graphique, un filtre.
+00:00:11.888 --> 00:00:16.742
+Voyons comment le Studio IA de ChartsBuilder la compose à partir de son texte.
 
 4
-00:00:10.765 --> 00:00:15.131
-Voyons comment le Studio IA de ChartsBuilder
-la compose à partir de son texte.
+00:00:19.042 --> 00:00:22.924
+Depuis l’accueil de ChartsBuilder, je choisis « Démarrer avec l’IA ».
 
 5
-00:00:16.233 --> 00:00:20.784
-Depuis l’accueil de ChartsBuilder,
-je choisis « Démarrer avec l’IA ».
+00:00:23.204 --> 00:00:29.453
+À gauche, la source de données et la conversation avec l’assistant ;
+à droite, la page qui va se composer.
 
 6
-00:00:21.064 --> 00:00:26.708
-À gauche, la source de données et la
-conversation avec l’assistant. À droite,
+00:00:29.733 --> 00:00:35.194
+L’assistant s’appuie sur Albert,
+l’intelligence artificielle de l’État, hébergée en France.
 
 7
-00:00:26.708 --> 00:00:28.686
-la page qui va se composer.
+00:00:35.474 --> 00:00:39.984
+Le badge « Clé serveur » le signale : il n’y a rien à configurer.
 
 8
-00:00:28.966 --> 00:00:33.637
-L’assistant s’appuie sur Albert,
-l’intelligence artificielle de l’État,
+00:00:42.284 --> 00:00:46.554
+Je choisis ma source : Industrie du futur, la même que dans le Builder.
 
 9
-00:00:33.637 --> 00:00:34.887
-hébergée en France.
+00:00:46.834 --> 00:00:50.372
+L’assistant l’a chargée : une centaine de lignes, dix champs.
 
 10
-00:00:35.987 --> 00:00:40.545
-Je choisis ma source : Industrie du
-futur, la même que dans le Builder.
+00:00:50.652 --> 00:00:54.127
+Un clic sur « Voir les données », pour vérifier avant de lui parler.
 
 11
-00:00:40.825 --> 00:00:44.663
-L’assistant l’a chargée : une
-centaine de lignes, dix champs.
+00:00:56.430 --> 00:01:01.181
+Je colle mon texte éditorial, tel quel, dans la zone de saisie.
 
 12
-00:00:44.943 --> 00:00:49.522
-Un clic sur « Voir les données »,
-pour vérifier avant de lui parler.
+00:01:01.461 --> 00:01:05.474
+Puis je décris ce que je veux, en français.
 
 13
-00:00:50.622 --> 00:00:54.253
-Je colle mon texte éditorial, tel
-quel, dans la zone de saisie.
+00:01:05.754 --> 00:01:12.948
+Ce texte en introduction, un indicateur clé du total,
+les bénéficiaires par région en barres, et un filtre par région.
 
 14
-00:00:54.533 --> 00:00:56.221
-Puis je décris ce que je veux.
-
-15
-00:00:56.501 --> 00:01:00.580
-Ce texte en introduction,
-un indicateur clé du total,
-
-16
-00:01:00.580 --> 00:01:05.504
-les bénéficiaires par région en
-barres, et un filtre par région.
-
-17
-00:01:05.784 --> 00:01:07.059
+00:01:13.228 --> 00:01:13.972
 J’envoie.
 
+15
+00:01:15.872 --> 00:01:22.579
+L’assistant ne devine pas : il agit sur le document avec des outils,
+et chaque action reste visible dans le fil.
+
+16
+00:01:22.859 --> 00:01:30.796
+À droite, la page prend forme : le texte,
+le filtre par région, l’indicateur clé, et le graphique trié.
+
+17
+00:01:31.076 --> 00:01:35.485
+Chaque bloc a été vérifié contre les données réelles avant d’être accepté.
+
 18
-00:01:08.158 --> 00:01:12.084
-L’assistant ne devine pas : il agit
-sur le document avec des outils,
+00:01:37.787 --> 00:01:42.786
+Tout y est : le total des bénéficiaires,
+et les régions classées par ordre décroissant.
 
 19
-00:01:12.084 --> 00:01:14.566
-et chaque action reste
-visible dans le fil.
+00:01:43.066 --> 00:01:47.005
+La réponse de l’assistant résume ce qu’il a fait, et propose des suites.
 
 20
-00:01:14.846 --> 00:01:19.117
-À droite, la page prend forme :
-le texte, le filtre par région,
+00:01:49.306 --> 00:01:54.236
+La conversation continue : je clique sur « Ajouter un tableau des données ».
 
 21
-00:01:19.117 --> 00:01:21.761
-l’indicateur clé, et le graphique trié.
+00:01:54.516 --> 00:01:57.418
+Le tableau s’ajoute sous le graphique, avec sa pagination.
 
 22
-00:01:22.041 --> 00:01:26.302
-Chaque bloc a été vérifié contre les
-données réelles avant d’être accepté.
+00:01:59.319 --> 00:02:02.417
+Dans l’aperçu, je choisis une région dans le filtre.
 
 23
-00:01:27.405 --> 00:01:31.901
-Tout y est : le total des bénéficiaires,
-et les régions classées par ordre
-
-24
-00:01:31.901 --> 00:01:32.630
-décroissant.
-
-25
-00:01:32.910 --> 00:01:36.780
-La réponse de l’assistant résume ce
-qu’il a fait, et propose des suites.
-
-26
-00:01:37.880 --> 00:01:42.309
-La conversation continue : je clique
-sur « Ajouter un tableau des données ».
-
-27
-00:01:42.589 --> 00:01:45.875
-Le tableau s’ajoute sous le
-graphique, avec sa pagination.
-
-28
-00:01:46.974 --> 00:01:50.803
-Dans l’aperçu, je choisis
-une région dans le filtre.
-
-29
-00:01:51.083 --> 00:01:56.150
-L’indicateur, le graphique et le
-tableau se mettent à jour ensemble :
-
-30
-00:01:56.150 --> 00:01:58.500
+00:02:02.697 --> 00:02:08.283
+L’indicateur, le graphique et le tableau se mettent à jour ensemble :
 le filtre pilote tous les blocs.
 
+24
+00:02:10.585 --> 00:02:16.420
+L’onglet Code montre la page HTML complète,
+celle de l’aperçu, prête à coller dans mon site.
+
+25
+00:02:16.700 --> 00:02:20.222
+L’onglet JSON garde la description du document.
+
+26
+00:02:20.502 --> 00:02:22.908
+Je reviens à l’aperçu et j’enregistre la page.
+
+27
+00:02:25.210 --> 00:02:31.332
+Dans « Plus d’actions », je peux l’ouvrir dans l’éditeur
+de tableau de bord, pour la retoucher à la main.
+
+28
+00:02:31.612 --> 00:02:35.194
+Ou l’ouvrir dans le Playground, ou encore l’exporter en image.
+
+29
+00:02:35.474 --> 00:02:39.409
+Je copie le code : il est prêt à coller dans mon site.
+
+30
+00:02:41.710 --> 00:02:46.097
+Du texte à la page prête à publier, par la conversation.
+
 31
-00:01:59.601 --> 00:02:04.238
-L’aperçu est l’export : l’onglet
-Code montre la page HTML complète,
+00:02:48.498 --> 00:02:56.532
+Récapitulons : un texte collé, une demande en français,
+et la page se compose bloc par bloc, vérifiée sur les données.
 
 32
-00:02:04.238 --> 00:02:06.246
-prête à coller dans mon site.
-
-33
-00:02:06.526 --> 00:02:09.661
-L’onglet JSON garde la
-description du document.
-
-34
-00:02:09.941 --> 00:02:11.656
-J’enregistre la page.
-
-35
-00:02:13.794 --> 00:02:18.585
-Dans « Plus d’actions », je peux l’ouvrir
-dans l’éditeur de tableau de bord,
-
-36
-00:02:18.585 --> 00:02:20.350
-pour la retoucher à la main.
-
-37
-00:02:20.630 --> 00:02:24.636
-Ou l’ouvrir dans le Playground,
-ou encore l’exporter en image.
-
-38
-00:02:24.916 --> 00:02:28.453
-Je copie le code : il est
-prêt à coller dans mon site.
-
-39
-00:02:29.555 --> 00:02:33.282
-Du texte à la page publiée,
-par la conversation.
-
-40
-00:02:34.484 --> 00:02:39.532
-Pour retoucher cette page à la main,
-ouvrez-la dans l’éditeur de tableau de bord :
-
-41
-00:02:39.532 --> 00:02:41.071
-c’est la démonstration 5.
-
-42
-00:02:41.351 --> 00:02:46.342
-ChartsBuilder et la bibliothèque
-dsfr-data sont libres et en accès libre.
+00:02:56.812 --> 00:03:01.715
+ChartsBuilder et la bibliothèque dsfr-data sont libres et en accès libre.

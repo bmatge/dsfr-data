@@ -1,266 +1,145 @@
 WEBVTT
 
 1
-00:00:00.300 --> 00:00:04.311
-ChartsBuilder transforme une donnée
-ouverte en graphique vivant,
+00:00:00.300 --> 00:00:08.712
+Un graphique vivant, accessible et à la charte de l'État,
+dans la page de votre site : c'est ce que ChartsBuilder fait d'une donnée ouverte.
 
 2
-00:00:04.311 --> 00:00:06.630
-officiel et accessible, dans la page.
-
-3
-00:00:06.910 --> 00:00:09.249
+00:00:08.992 --> 00:00:10.709
 Trois minutes pour le découvrir.
 
+3
+00:00:13.010 --> 00:00:20.958
+Les sites publics illustrent encore souvent leurs données par une image :
+un graphique copié d'un rapport, ou fait avec un outil bureautique.
+
 4
-00:00:10.349 --> 00:00:14.380
-Les sites publics illustrent encore souvent
-leurs données avec une capture d'écran
+00:00:21.238 --> 00:00:26.409
+Cette image n'est pas à jour, elle ne respecte pas
+la charte de l'État, et elle n'est pas accessible.
 
 5
-00:00:14.380 --> 00:00:14.920
-de tableur.
+00:00:26.689 --> 00:00:31.089
+Pourtant, l'information est sans doute disponible en open data,
+ou dans un tableur Grist.
 
 6
-00:00:15.200 --> 00:00:19.464
-Cette image est inaccessible,
-fausse dès que la donnée change,
+00:00:33.390 --> 00:00:41.803
+ChartsBuilder a été conçu pour publier des graphiques dynamiques en HTML,
+connectés à des données ouvertes, et conformes au Système de design de l'État.
 
 7
-00:00:19.464 --> 00:00:20.977
-et coûteuse à refaire.
+00:00:42.083 --> 00:00:46.670
+Son accueil le résume en trois étapes : connecter, configurer, exporter.
 
 8
-00:00:21.257 --> 00:00:25.538
-C'est le dernier kilomètre : la
-donnée est ouverte sur un portail,
+00:00:46.950 --> 00:00:54.962
+Pour y arriver, deux outils : une bibliothèque libre, dsfr-data,
+pour les intégrateurs ; et par-dessus, une application guidée, pour tous les autres.
 
 9
-00:00:25.538 --> 00:00:27.094
-mais figée dans la page.
+00:00:57.262 --> 00:01:06.261
+Tout part des données. J'ouvre Sources : l'outil reconnaît les portails de l'administration,
+data.gouv.fr, OpenDataSoft, Grist, INSEE Melodi, ou toute API.
 
 10
-00:00:28.194 --> 00:00:32.290
-ChartsBuilder règle ce dernier
-kilomètre : connecter une source,
+00:01:06.541 --> 00:01:11.656
+Je colle l'adresse d'un jeu de données : la plateforme est détectée aussitôt.
 
 11
-00:00:32.290 --> 00:00:34.978
-configurer un graphique, exporter le code.
+00:01:11.936 --> 00:01:16.215
+Je nomme la connexion, j'enregistre : elle rejoint la liste, prête à servir.
 
 12
-00:00:35.258 --> 00:00:40.126
-Ses graphiques sont ceux du Système de
-design de l'État, et ils sont accessibles.
+00:01:18.745 --> 00:01:23.805
+Créer un graphique guide en quatre étapes :
+la source, le type, les données, l’apparence.
 
 13
-00:00:40.406 --> 00:00:43.064
-Deux outils : une bibliothèque
-libre, dsfr-data,
+00:01:24.085 --> 00:01:31.617
+Ma nouvelle source est présélectionnée ; onze types au choix ;
+en étiquettes la région, en valeur les bénéficiaires. Je génère.
 
 14
-00:00:43.064 --> 00:00:46.497
-pour les intégrateurs ; et
-par-dessus, une application guidée,
+00:01:31.897 --> 00:01:39.212
+Le graphique s'affiche tel qu'il sera dans la page ;
+l'onglet Code contient le bloc HTML à coller dans son site.
 
 15
-00:00:46.497 --> 00:00:47.659
-pour tous les autres.
+00:01:39.492 --> 00:01:45.543
+Un doute sur un réglage ? L'assistant, dans Plus d'actions,
+le montre : je tape Changer les couleurs, il encadre Palette.
 
 16
-00:00:48.760 --> 00:00:54.308
-Tout commence par les données. L'outil
-Sources reconnaît les portails de
+00:01:49.224 --> 00:01:57.355
+Le Studio IA, lui, prend la demande en français. Ma source est chargée ;
+j'écris : les bénéficiaires par région, en barres. J'envoie.
 
 17
-00:00:54.308 --> 00:00:58.392
-l'administration : data.gouv.fr,
-OpenDataSoft, Grist,
+00:01:57.635 --> 00:02:04.041
+L'assistant ne devine rien : il agit avec des outils,
+visibles dans le fil, et vérifie contre les données réelles.
 
 18
-00:00:58.392 --> 00:01:00.472
-Insee Melodi, ou toute API.
+00:02:04.321 --> 00:02:13.324
+La page se compose à droite : l'aperçu se génère,
+et le code HTML est prêt à copier-coller. On peut aussi l'exporter en image.
 
 19
-00:01:00.752 --> 00:01:04.729
-Je colle l'adresse d'un jeu, je
-continue : la plateforme est détectée,
+00:02:15.625 --> 00:02:20.609
+Créer une carte, maintenant,
+avec les prix du contrôle technique ramenés à un département.
 
 20
-00:01:04.729 --> 00:01:07.399
-tout est prêt. Un fichier
-local convient aussi.
+00:02:20.889 --> 00:02:28.671
+Elle se règle en trois volets : Carte, Couches,
+Éléments. Chaque couche s’affiche en points, en zones ou en chaleur.
 
 21
-00:01:07.679 --> 00:01:11.717
-J'annule : la démonstration
-un le fait pour de bon.
+00:02:28.951 --> 00:02:35.763
+Ici, des grappes de centres : elles se défont au zoom,
+et un clic ouvre la fiche, avec le centre, son adresse, le prix.
 
 22
-00:01:12.818 --> 00:01:16.536
-Créer un graphique guide en
-quatre étapes : la source,
+00:02:38.656 --> 00:02:42.195
+Chaque graphique gardé en favori devient une brique réutilisable.
 
 23
-00:01:16.536 --> 00:01:18.876
-le type, les données, l’apparence.
+00:02:42.475 --> 00:02:47.615
+Dans Favoris, trois vignettes. Un clic,
+et l'aperçu se dessine avec les vraies données.
 
 24
-00:01:19.156 --> 00:01:23.567
-Onze types ; la source est déjà
-choisie ; en étiquettes la région,
+00:02:47.895 --> 00:02:52.076
+Le code est prêt à copier, et un bouton rouvre le graphique dans le Builder.
 
 25
-00:01:23.567 --> 00:01:26.174
-en valeur les bénéficiaires. Je génère.
+00:02:54.378 --> 00:03:03.323
+Créer un tableau de bord assemble ces briques sur une grille. J'ouvre
+le tableau de bord préparé : indicateur clé, encart, graphiques.
 
 26
-00:01:26.454 --> 00:01:30.345
-Le graphique s'affiche tel
-qu'il sera dans la page ;
+00:03:03.603 --> 00:03:11.881
+Plein écran : voilà la page telle que la verront les lecteurs,
+chiffres interrogés en direct. Elle s’exporte en une page HTML autonome.
 
 27
-00:01:30.345 --> 00:01:34.387
-l'onglet Code contient le
-bloc à coller dans son site.
-
-28
-00:01:34.667 --> 00:01:37.988
-Et l'assistant, dans Plus d'actions,
-dit où se trouve un réglage :
-
-29
-00:01:37.988 --> 00:01:39.296
-les couleurs, par exemple.
-
-30
-00:01:44.573 --> 00:01:49.255
-Le Studio IA prend la demande en
-français. La source est chargée ;
-
-31
-00:01:49.255 --> 00:01:53.511
-j'écris : les bénéficiaires par
-région, en barres. J'envoie.
-
-32
-00:01:53.791 --> 00:01:57.264
-L'assistant ne devine pas
-: il agit avec des outils,
-
-33
-00:01:57.264 --> 00:02:01.271
-visibles dans le fil, et vérifie
-contre les données réelles.
-
-34
-00:02:01.551 --> 00:02:04.592
-La page se compose à droite.
-L'aperçu est l'export :
-
-35
-00:02:04.592 --> 00:02:07.165
-on garde la main, et on
-repart avec le code.
-
-36
-00:02:08.267 --> 00:02:12.129
-Créer une carte, ici avec les
-prix du contrôle technique,
-
-37
-00:02:12.129 --> 00:02:15.313
-ramenés à un département.
-Trois volets : Carte,
-
-38
-00:02:15.313 --> 00:02:16.533
-Couches, Éléments.
-
-39
-00:02:16.813 --> 00:02:20.563
-Points, zones ou chaleur ; des
-grappes qui se défont au zoom ;
-
-40
-00:02:20.563 --> 00:02:23.890
-et une fiche au clic : le
-centre, son adresse, le prix.
-
-41
-00:02:26.184 --> 00:02:29.554
-Chaque graphique gardé en
-favori devient une brique.
-
-42
-00:02:29.834 --> 00:02:34.539
-Dans Favoris, trois vignettes ; un clic,
-et l'aperçu se dessine avec les vraies
-
-43
-00:02:34.539 --> 00:02:38.470
-données : le code est prêt à copier,
-ou à rouvrir dans le Builder.
-
-44
-00:02:39.569 --> 00:02:45.238
-Créer un tableau de bord assemble ces briques
-sur une grille. J'ouvre le tableau de
-
-45
-00:02:45.238 --> 00:02:48.652
-bord préparé : indicateur
-clé, encart, graphiques.
-
-46
-00:02:48.932 --> 00:02:52.709
-En plein écran, la page telle
-que la verront les lecteurs,
-
-47
-00:02:52.709 --> 00:02:57.983
-avec des chiffres interrogés en direct.
-Elle s’exporte en une page HTML autonome.
-
-48
-00:02:59.083 --> 00:03:02.219
-Le Playground montre ce
-qui se cache derrière :
-
-49
-00:03:02.219 --> 00:03:05.022
+00:03:14.183 --> 00:03:20.510
+Le Playground dévoile l'envers du décor :
 trois balises, source, requête, graphique.
 
-50
-00:03:05.302 --> 00:03:08.668
-Dans tous les cas, on repart
-avec un bloc de code à coller.
+28
+00:03:20.790 --> 00:03:25.331
+Quel que soit l’outil, on repart avec le même bloc de code,
+à coller dans sa page.
 
-51
-00:03:09.771 --> 00:03:14.595
-Un serveur MCP, le protocole qui
-relie les assistants IA à des outils,
-
-52
-00:03:14.595 --> 00:03:17.421
+29
+00:03:27.632 --> 00:03:34.558
+Un serveur MCP, le protocole qui relie les assistants IA à des outils,
 apprend la bibliothèque à tout assistant.
 
-53
-00:03:17.701 --> 00:03:21.097
-Et l'ensemble est libre, hébergeable
-par toute administration.
-
-54
-00:03:22.298 --> 00:03:25.969
-Pour aller plus loin, cinq
-démonstrations : les sources,
-
-55
-00:03:25.969 --> 00:03:29.378
-un graphique, une page
-composée par l'IA, une carte,
-
-56
-00:03:29.378 --> 00:03:30.623
-un tableau de bord.
+30
+00:03:34.838 --> 00:03:42.092
+Et l'ensemble est libre, sous licence MIT :
+chaque administration peut l'héberger. Vos données méritent mieux qu'une image.
