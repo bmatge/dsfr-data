@@ -29,58 +29,28 @@
       padding-block: 3rem 2.5rem;
     }
     .conf-hero h1 { margin-bottom: 1rem; }
-    .conf-hero h1 em { font-style: normal; color: var(--text-action-high-blue-france); }
-    .conf-hero__lead { font-size: 1.125rem; line-height: 1.75rem; max-width: 60ch; margin-bottom: 1.5rem; }
-
-    /* Réponses courtes — 4 cartes */
-    .conf-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
-    .conf-answer {
-      background: var(--background-default-grey);
-      border: 1px solid var(--border-default-grey);
-      border-top: 4px solid var(--border-action-high-blue-france);
-      padding: 1.25rem 1.25rem 1rem;
-      display: flex; flex-direction: column; gap: .5rem;
-    }
-    .conf-answer__q { font-size: .875rem; color: var(--text-mention-grey); margin: 0; }
-    .conf-answer__a { font-weight: 700; font-size: 1.0625rem; line-height: 1.5rem; margin: 0; color: var(--text-title-grey); }
-    .conf-answer__link { margin-top: auto; font-size: .875rem; }
+    .conf-hero__lead { max-width: 60ch; }
 
     /* Sections */
     .conf-section { padding-block: 3rem; }
     .conf-section + .conf-section { border-top: 1px solid var(--border-default-grey); }
-    .conf-section__kicker {
-      display: inline-block; font-size: .875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-      color: var(--text-action-high-blue-france); margin-bottom: .5rem;
-    }
     .conf-section h2 { margin-bottom: .75rem; }
-    .conf-section__intro { font-size: 1.0625rem; max-width: 66ch; }
+    .conf-section__intro { max-width: 66ch; }
 
-    /* Faits chiffrés */
+    /* Faits chiffrés — seul écart assumé : le DSFR 1.14 n'a pas de
+       composant « chiffre clé ». Tokens DSFR uniquement. */
     .conf-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; margin: 1.5rem 0; }
     .conf-fact { border-left: 3px solid var(--border-action-high-blue-france); padding: .25rem 0 .25rem 1rem; }
     .conf-fact__n { display: block; font-size: 1.75rem; font-weight: 700; line-height: 2.25rem; color: var(--text-title-grey); }
     .conf-fact__l { display: block; font-size: .875rem; color: var(--text-mention-grey); line-height: 1.25rem; }
 
-    /* Vérifier soi-même */
-    .conf-verify {
-      background: var(--background-contrast-grey);
-      padding: 1.25rem 1.5rem; margin-top: 1.5rem;
-    }
-    .conf-verify h3 { font-size: 1rem; margin-bottom: .75rem; }
-    .conf-verify h3 i { margin-right: .5rem; }
-    .conf-verify pre { margin: .5rem 0 0; }
-
-    .conf-table-wrap { overflow-x: auto; }
-    .conf-honest { background: var(--background-alt-grey); }
     .conf-cta { padding-block: 3rem; background: var(--background-alt-blue-france); text-align: center; }
-    .conf-cta .fr-btns-group { justify-content: center; }
     pre.conf-code { background: var(--background-contrast-grey); padding: .75rem 1rem; overflow-x: auto; font-size: .875rem; }
     .conf-toc { position: sticky; top: calc(var(--app-header-h, 4rem) + 1rem); }
     @media (max-width: 62em) { .conf-toc { position: static; } }
   </style>
 </head>
 <body>
-  <a class="fr-link fr-sr-only fr-sr-only-focusable" href="#main-content">Aller au contenu</a>
   <app-header current-page="confiance" base-path=""></app-header>
 
   <main id="main-content">
@@ -89,34 +59,63 @@
     <section class="conf-hero">
       <div class="fr-container">
         <p class="fr-badge fr-badge--info fr-badge--no-icon fr-mb-2w">Version 0.42 · bêta publique</p>
-        <h1>Adopter une bêta <em>sans mettre votre site en risque</em></h1>
-        <p class="conf-hero__lead">
+        <h1>Adopter une bêta sans mettre votre site en risque</h1>
+        <p class="fr-text--lg conf-hero__lead fr-mb-3w">
           dsfr-data est en version 0.x. Vous êtes en droit de vous demander ce que vous risquez :
           des bugs ? un projet qui s'arrête ? une faille ? Cette page répond aux quatre questions
           que se posent les équipes avant d'adopter — et surtout, vous donne les moyens de
           vérifier chaque réponse sans nous croire sur parole.
         </p>
 
-        <div class="conf-answers">
-          <div class="conf-answer">
-            <p class="conf-answer__q">Risque de bug ?</p>
-            <p class="conf-answer__a">Un bug se voit : un graphique vide, jamais un chiffre faux affiché en silence.</p>
-            <a class="fr-link conf-answer__link" href="#bugs">Comment on le garantit</a>
+        <h2 class="fr-sr-only">Les quatre questions, en résumé</h2>
+        <div class="fr-grid-row fr-grid-row--gutters">
+          <div class="fr-col-12 fr-col-sm-6 fr-col-lg-3">
+            <div class="fr-card fr-card--sm fr-enlarge-link">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <h3 class="fr-card__title"><a href="#bugs">Un bug se voit : un graphique vide, jamais un chiffre faux affiché en silence.</a></h3>
+                  <div class="fr-card__start">
+                    <p class="fr-card__detail">Risque de bug ?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="conf-answer">
-            <p class="conf-answer__q">Pérennité et maintenance ?</p>
-            <p class="conf-answer__a">Vos pages continuent de fonctionner même si le projet s'arrête.</p>
-            <a class="fr-link conf-answer__link" href="#perennite">Ce qui reste, ce qui part</a>
+          <div class="fr-col-12 fr-col-sm-6 fr-col-lg-3">
+            <div class="fr-card fr-card--sm fr-enlarge-link">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <h3 class="fr-card__title"><a href="#perennite">Vos pages continuent de fonctionner même si le projet s'arrête.</a></h3>
+                  <div class="fr-card__start">
+                    <p class="fr-card__detail">Pérennité et maintenance ?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="conf-answer">
-            <p class="conf-answer__q">Sécurité ?</p>
-            <p class="conf-answer__a">Lecture seule, pas de cookie, pas de donnée qui transite par nos serveurs.</p>
-            <a class="fr-link conf-answer__link" href="#securite">Ce que votre RSSI doit savoir</a>
+          <div class="fr-col-12 fr-col-sm-6 fr-col-lg-3">
+            <div class="fr-card fr-card--sm fr-enlarge-link">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <h3 class="fr-card__title"><a href="#securite">Lecture seule, pas de cookie, pas de donnée qui transite par nos serveurs.</a></h3>
+                  <div class="fr-card__start">
+                    <p class="fr-card__detail">Sécurité ?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="conf-answer">
-            <p class="conf-answer__q">Et pour en sortir ?</p>
-            <p class="conf-answer__a">Votre HTML vous appartient et se lit sans nous. Un test de cinq minutes le prouve.</p>
-            <a class="fr-link conf-answer__link" href="#reversibilite">Le test de débranchement</a>
+          <div class="fr-col-12 fr-col-sm-6 fr-col-lg-3">
+            <div class="fr-card fr-card--sm fr-enlarge-link">
+              <div class="fr-card__body">
+                <div class="fr-card__content">
+                  <h3 class="fr-card__title"><a href="#reversibilite">Votre HTML vous appartient et se lit sans nous. Un test de cinq minutes le prouve.</a></h3>
+                  <div class="fr-card__start">
+                    <p class="fr-card__detail">Et pour en sortir ?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -151,9 +150,9 @@
 
           <!-- ===================== BÊTA ===================== -->
           <section class="conf-section" id="beta">
-            <span class="conf-section__kicker">Avant tout</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Avant tout</p>
             <h2>Ce que « bêta » veut dire ici — et ce que ça ne veut pas dire</h2>
-            <p class="conf-section__intro">
+            <p class="fr-text--lg conf-section__intro">
               Un numéro de version en 0.x signifie une chose précise : <strong>l'API JavaScript interne
               peut encore changer entre deux versions</strong>. Il ne signifie pas que le code est
               expérimental, peu testé ou instable en production.
@@ -195,17 +194,20 @@
 
           <!-- ===================== BUGS ===================== -->
           <section class="conf-section" id="bugs">
-            <span class="conf-section__kicker">Question 1</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Question 1</p>
             <h2>Le risque de bug</h2>
-            <p class="conf-section__intro">
+            <p class="fr-text--lg conf-section__intro">
               Il y aura des bugs : c'est du logiciel. La question utile est : <strong>à quoi ressemble
               un bug pour vous, et comment est-il attrapé avant d'arriver sur votre site ?</strong>
             </p>
 
             <h3 class="fr-h5 fr-mt-4w">À quoi ressemble un bug, concrètement</h3>
-            <div class="conf-table-wrap">
-              <div class="fr-table fr-table--bordered">
-                <table>
+            <div class="fr-table fr-table--bordered fr-table--multiline fr-table--no-caption">
+              <div class="fr-table__wrapper">
+                <div class="fr-table__container">
+                  <div class="fr-table__content">
+                    <table>
+                      <caption>Ce qu'un bug peut faire, et ce qu'il ne peut pas faire</caption>
                   <thead>
                     <tr><th scope="col">Ce qui peut arriver</th><th scope="col">Ce qui ne peut pas arriver</th></tr>
                   </thead>
@@ -226,6 +228,8 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
 
             <h3 class="fr-h5 fr-mt-4w">Comment les bugs sont attrapés</h3>
             <p>
@@ -257,8 +261,8 @@
               version qui l'embarque. Rien ne se passe en privé.
             </p>
 
-            <div class="conf-verify">
-              <h3><i class="ri-search-eye-line" aria-hidden="true"></i>Vérifiez par vous-même</h3>
+            <div class="fr-callout fr-icon-search-line fr-mt-3w">
+              <h3 class="fr-callout__title">Vérifiez par vous-même</h3>
               <ul class="fr-mb-0">
                 <li>La doctrine de l'oracle et la liste des contrôles : <a href="https://github.com/bmatge/dsfr-data/blob/main/tools/oracle/README.md" target="_blank" rel="noopener">tools/oracle/README.md</a></li>
                 <li>L'état de la CI, en temps réel : <a href="https://github.com/bmatge/dsfr-data/actions" target="_blank" rel="noopener">github.com/bmatge/dsfr-data/actions</a></li>
@@ -271,17 +275,20 @@
 
           <!-- ===================== PÉRENNITÉ ===================== -->
           <section class="conf-section" id="perennite">
-            <span class="conf-section__kicker">Question 2</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Question 2</p>
             <h2>Pérennité et maintenance</h2>
-            <p class="conf-section__intro">
+            <p class="fr-text--lg conf-section__intro">
               La question derrière la question : <strong>que se passe-t-il pour mes pages si le projet
               s'arrête ?</strong> La réponse honnête tient en deux parties, parce que vous dépendez de
               deux choses différentes.
             </p>
 
-            <div class="conf-table-wrap fr-mt-3w">
-              <div class="fr-table fr-table--bordered">
-                <table>
+            <div class="fr-table fr-table--bordered fr-table--multiline fr-table--no-caption fr-mt-3w">
+              <div class="fr-table__wrapper">
+                <div class="fr-table__container">
+                  <div class="fr-table__content">
+                    <table>
+                      <caption>Ce dont vous dépendez, et ce qui arrive si cela disparaît</caption>
                   <thead>
                     <tr><th scope="col"></th><th scope="col">Vous dépendez de…</th><th scope="col">Si ça disparaît</th></tr>
                   </thead>
@@ -300,6 +307,8 @@
                 </table>
               </div>
             </div>
+          </div>
+        </div>
             <p>Le pire scénario est donc une perte de productivité pour vos équipes — jamais un incident sur un site en production.</p>
 
             <h3 class="fr-h5 fr-mt-4w">Ce que vous possédez : votre HTML</h3>
@@ -334,8 +343,8 @@
               <li><strong>Archiver le dépôt en lecture seule</strong> — jamais le supprimer.</li>
             </ol>
 
-            <div class="conf-verify">
-              <h3><i class="ri-search-eye-line" aria-hidden="true"></i>Vérifiez par vous-même</h3>
+            <div class="fr-callout fr-icon-search-line fr-mt-3w">
+              <h3 class="fr-callout__title">Vérifiez par vous-même</h3>
               <p class="fr-mb-1w">Le paquet publié ne contient l'adresse d'aucun de nos services :</p>
 <pre class="conf-code" tabindex="0" role="region" aria-label="Commandes de vérification du paquet publié"><code>npm pack dsfr-data@0.42.0 &amp;&amp; tar xzf dsfr-data-0.42.0.tgz
 grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
@@ -348,9 +357,9 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
 
           <!-- ===================== SÉCURITÉ ===================== -->
           <section class="conf-section" id="securite">
-            <span class="conf-section__kicker">Question 3</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Question 3</p>
             <h2>Sécurité</h2>
-            <p class="conf-section__intro">
+            <p class="fr-text--lg conf-section__intro">
               Deux questions distinctes : <strong>que fait le code dans le navigateur de vos visiteurs ?</strong>
               et <strong>comment le projet se protège-t-il contre les vulnérabilités ?</strong>
             </p>
@@ -369,9 +378,12 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
               Chaque modification passe dix contrôles de sécurité avant d'être fusionnée, et des
               analyses hebdomadaires rattrapent les vulnérabilités découvertes après coup :
             </p>
-            <div class="conf-table-wrap">
-              <div class="fr-table fr-table--bordered">
-                <table>
+            <div class="fr-table fr-table--bordered fr-table--multiline fr-table--no-caption">
+              <div class="fr-table__wrapper">
+                <div class="fr-table__container">
+                  <div class="fr-table__content">
+                    <table>
+                      <caption>Les contrôles de sécurité de la chaîne de production</caption>
                   <thead><tr><th scope="col">Ce qui est contrôlé</th><th scope="col">Outil</th><th scope="col">Bloquant</th></tr></thead>
                   <tbody>
                     <tr><td>Vulnérabilités connues dans les dépendances</td><td>npm audit, Trivy, Dependabot</td><td>Oui (haute et critique)</td></tr>
@@ -384,6 +396,8 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
                 </table>
               </div>
             </div>
+          </div>
+        </div>
             <p>
               Aucune exclusion silencieuse : toute règle ou vulnérabilité ignorée est documentée avec
               sa justification, son suivi et sa date de revue.
@@ -401,8 +415,8 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
               <p><strong>À transmettre à votre RSSI.</strong> dsfr-data est une bibliothèque JavaScript front, open source (MIT), sans backend requis, qui lit des API de données publiques en HTTPS depuis le navigateur et n'envoie rien à des tiers. Chargée en version exacte avec SRI, compatible CSP <code>default-src 'self'</code> plus les domaines de vos sources. Chaîne de production auditée en continu (SCA, SAST, secrets, DAST), politique de divulgation publiée, dépendances suivies par Dependabot. Un proxy CORS est nécessaire uniquement pour les sources Grist ; il est à héberger par vos soins.</p>
             </div>
 
-            <div class="conf-verify">
-              <h3><i class="ri-search-eye-line" aria-hidden="true"></i>Vérifiez par vous-même</h3>
+            <div class="fr-callout fr-icon-search-line fr-mt-3w">
+              <h3 class="fr-callout__title">Vérifiez par vous-même</h3>
               <ul class="fr-mb-0">
                 <li>La politique complète et le détail de chaque contrôle : <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/SECURITY.md" target="_blank" rel="noopener">docs/SECURITY.md</a></li>
                 <li>Les alertes et scans en temps réel : <a href="https://github.com/bmatge/dsfr-data/security" target="_blank" rel="noopener">onglet Security du dépôt</a></li>
@@ -414,9 +428,9 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
 
           <!-- ===================== RÉVERSIBILITÉ ===================== -->
           <section class="conf-section" id="reversibilite">
-            <span class="conf-section__kicker">Question 4</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Question 4</p>
             <h2>Réversibilité : le test de débranchement</h2>
-            <p class="conf-section__intro">
+            <p class="fr-text--lg conf-section__intro">
               Plutôt qu'une promesse, un test. Cinq minutes, à faire dès votre première page, puis à
               chaque nouvelle. S'il passe, la fin du projet ne changerait rien pour vos visiteurs.
             </p>
@@ -430,9 +444,12 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
               </ol>
             </div>
 
-            <div class="conf-table-wrap fr-mt-3w">
-              <div class="fr-table fr-table--bordered">
-                <table>
+            <div class="fr-table fr-table--bordered fr-table--multiline fr-table--no-caption fr-mt-3w">
+              <div class="fr-table__wrapper">
+                <div class="fr-table__container">
+                  <div class="fr-table__content">
+                    <table>
+                      <caption>Les trois résultats possibles du test de débranchement</caption>
                   <thead><tr><th scope="col">Résultat du test</th><th scope="col">Niveau</th><th scope="col">Ce qui peut casser</th></tr></thead>
                   <tbody>
                     <tr><td>Aucune requête hors de chez vous</td><td><span class="fr-badge fr-badge--success fr-badge--no-icon">Autonome</span></td><td>Rien côté bibliothèque</td></tr>
@@ -442,6 +459,8 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
                 </table>
               </div>
             </div>
+          </div>
+        </div>
 
             <div class="fr-alert fr-alert--info fr-mt-3w">
               <h3 class="fr-alert__title">Le cas Grist</h3>
@@ -462,8 +481,8 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
               <li><strong>Reprendre le code</strong>, seul ou à plusieurs adoptants : le projet se construit en deux commandes, tests et oracle fournis (<a href="https://github.com/bmatge/dsfr-data/blob/main/docs/CONTRIBUTING.md" target="_blank" rel="noopener">guide de contribution</a>, <a href="https://github.com/bmatge/dsfr-data/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener">architecture</a>).</li>
             </ul>
 
-            <div class="conf-verify">
-              <h3><i class="ri-checkbox-multiple-line" aria-hidden="true"></i>Liste de contrôle avant mise en production</h3>
+            <div class="fr-callout fr-icon-list-check fr-mt-3w">
+              <h3 class="fr-callout__title">Liste de contrôle avant mise en production</h3>
               <ul class="fr-mb-0">
                 <li>La bibliothèque, le DSFR et DSFR Chart sont chargés à version exacte, ou auto-hébergés.</li>
                 <li>Le test de débranchement est passé : aucune requête vers <code>miweb.run</code>.</li>
@@ -476,9 +495,9 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
 
           <!-- ===================== LIMITES ===================== -->
           <section class="conf-section" id="limites">
-            <span class="conf-section__kicker">En toute franchise</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">En toute franchise</p>
             <h2>Ce que nous ne promettons pas</h2>
-            <p class="conf-section__intro">Pour que vous ne nous l'attribuiez pas le jour où ça arrive.</p>
+            <p class="fr-text--lg conf-section__intro">Pour que vous ne nous l'attribuiez pas le jour où ça arrive.</p>
             <ul>
               <li><strong>Les changements des fournisseurs de données.</strong> Si une API source change, une page peut cesser d'afficher ses données. Figer dsfr-data ne protège pas de cela : un site vivant a besoin de quelqu'un qui regarde ses pages.</li>
               <li><strong>La compatibilité automatique entre versions.</strong> Tant que le projet est en 0.x, une mise à jour peut demander un ajustement. Vous choisissez quand.</li>
@@ -490,7 +509,7 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
 
           <!-- ===================== RESSOURCES ===================== -->
           <section class="conf-section" id="ressources">
-            <span class="conf-section__kicker">Pour aller plus loin</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Pour aller plus loin</p>
             <h2>Toute la documentation, au même endroit</h2>
             <div class="fr-grid-row fr-grid-row--gutters fr-mt-2w">
               <div class="fr-col-12 fr-col-md-6">
@@ -519,7 +538,7 @@ grep -rl "miweb.run" package/dist     # aucun résultat attendu</code></pre>
 
           <!-- ===================== FAQ ===================== -->
           <section class="conf-section" id="faq">
-            <span class="conf-section__kicker">Pour finir</span>
+            <p class="fr-badge fr-badge--sm fr-badge--no-icon fr-mb-2w">Pour finir</p>
             <h2>Questions fréquentes</h2>
             <div class="fr-accordions-group">
               <section class="fr-accordion">
