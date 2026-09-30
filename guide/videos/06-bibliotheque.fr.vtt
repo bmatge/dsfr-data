@@ -1,143 +1,92 @@
 WEBVTT
 
 1
-00:00:00.300 --> 00:00:04.274
-ChartsBuilder, c'est d'abord
-une bibliothèque : dsfr-data.
+00:00:00.300 --> 00:00:05.280
+Derrière ChartsBuilder, il y a une bibliothèque : dsfr-data.
 
 2
-00:00:04.554 --> 00:00:08.497
-Voyons ce qu'elle offre à une
-intégratrice, dans n'importe quelle page.
+00:00:05.560 --> 00:00:09.752
+Voyons ce qu'elle apporte à une intégratrice web, dans n'importe quelle page.
 
 3
-00:00:09.597 --> 00:00:14.684
-Dans ChartsBuilder, le Playground : l'éditeur
-de code à gauche, l'aperçu à droite.
+00:00:12.053 --> 00:00:17.334
+Le Playground est son atelier d'essai :
+l'éditeur de code à gauche, l'aperçu à droite.
 
 4
-00:00:14.964 --> 00:00:18.720
-Je vide l'exemple chargé pour
-partir d'une page blanche.
+00:00:17.614 --> 00:00:21.601
+Il s'ouvre sur un exemple ; je le vide, pour partir d'une page blanche.
 
 5
-00:00:20.083 --> 00:00:24.020
-Une balise source : OpenDataSoft,
-l'adresse du portail,
+00:00:23.502 --> 00:00:27.269
+Tout tient en trois balises, trois éléments HTML dans la page.
 
 6
-00:00:24.020 --> 00:00:26.668
+00:00:27.549 --> 00:00:33.434
+La source : le portail OpenDataSoft, son adresse,
 le jeu de données Industrie du futur.
 
 7
-00:00:26.948 --> 00:00:31.839
-Une balise requête : regrouper par
-région, additionner les bénéficiaires,
+00:00:33.714 --> 00:00:40.899
+La requête, la question posée : regrouper par région,
+additionner les bénéficiaires, trier par ordre décroissant.
 
 8
-00:00:31.839 --> 00:00:33.715
-trier par ordre décroissant.
+00:00:41.179 --> 00:00:44.997
+Le graphique, en barres, branché sur la requête par son identifiant.
 
 9
-00:00:33.995 --> 00:00:38.269
-Une balise graphique, en barres, branchée
-sur la requête par son identifiant.
+00:00:46.897 --> 00:00:51.884
+Je clique sur Exécuter : le graphique se dessine,
+dans le cadre du Système de design de l'État.
 
 10
-00:00:39.369 --> 00:00:44.572
-J'exécute : le graphique se dessine, dans
-le cadre officiel du Système de design de
+00:00:52.164 --> 00:00:55.937
+Le même graphique que dans le Builder, sans une ligne de JavaScript.
 
 11
-00:00:44.572 --> 00:00:45.010
-l'État.
+00:00:58.237 --> 00:01:05.546
+Tout se branche par identifiant : sous le graphique,
+une balise accessibilité, tableau équivalent et téléchargement.
 
 12
-00:00:45.290 --> 00:00:50.651
-Le graphique du Builder, démonstration
-deux, sans une ligne de JavaScript.
+00:01:05.826 --> 00:01:11.827
+Entre la source et la requête, une balise recherche ;
+la requête écoute désormais ce filtre.
 
 13
-00:00:51.752 --> 00:00:56.647
-Les composants se branchent par leur
-identifiant. Une balise accessibilité :
+00:01:12.107 --> 00:01:18.778
+J'exécute : sous le graphique, le bloc Accessibilité,
+données et description, avec le tableau des valeurs.
 
 14
-00:00:56.647 --> 00:00:59.030
-tableau équivalent et téléchargement.
+00:01:19.058 --> 00:01:22.936
+Je tape Loire : le graphique se recalcule sur les deux régions trouvées.
 
 15
-00:00:59.310 --> 00:01:02.514
-Une balise recherche entre
-la source et la requête,
-
-16
-00:01:02.514 --> 00:01:04.649
-qui écoute désormais la recherche.
-
-17
-00:01:04.929 --> 00:01:08.528
-J'exécute. Sous le graphique,
-le bloc Accessibilité,
-
-18
-00:01:08.528 --> 00:01:12.128
-données et description, avec
-le tableau des valeurs.
-
-19
-00:01:12.408 --> 00:01:17.138
-Je tape Loire : le graphique se
-recalcule sur les deux régions trouvées.
-
-20
-00:01:18.391 --> 00:01:23.029
-Je copie mon code. Le volet
-Exemples en propose des dizaines,
-
-21
-00:01:23.029 --> 00:01:25.995
+00:01:25.485 --> 00:01:32.486
+Je copie mon code ; le volet Exemples en propose des dizaines,
 filtrés par source, pipeline et sortie.
 
-22
-00:01:26.275 --> 00:01:31.090
-Sortie Carte : les centres de contrôle
-technique de la démonstration quatre,
+16
+00:01:32.766 --> 00:01:37.889
+Sortie Carte : les centres de contrôle technique, regroupés en grappes.
 
-23
-00:01:31.090 --> 00:01:32.864
-cinq mille points regroupés.
-
-24
-00:01:34.256 --> 00:01:38.889
+17
+00:01:40.545 --> 00:01:45.961
 Les specs, publiques sur l'instance,
-décrivent chaque composant et tous ses
+décrivent chaque composant et tous ses attributs.
 
-25
-00:01:38.889 --> 00:01:39.506
-attributs.
+18
+00:01:46.241 --> 00:01:54.480
+La bibliothèque est libre, sous licence MIT : un paquet npm,
+un dépôt GitHub, et ces trois balises en tête de sa présentation.
 
-26
-00:01:39.786 --> 00:01:44.116
-La bibliothèque est libre,
-licence MIT : un paquet npm,
+19
+00:01:56.879 --> 00:02:00.046
+Récapitulons : trois balises pour un graphique vivant.
 
-27
-00:01:44.116 --> 00:01:49.706
-un dépôt GitHub, et les mêmes trois
-balises en tête de sa présentation.
-
-28
-00:01:50.906 --> 00:01:53.925
-Trois balises, un graphique
-officiel et accessible,
-
-29
-00:01:53.925 --> 00:01:57.182
-qui vit dans votre page sans
-dépendre de l'application.
-
-30
-00:01:57.462 --> 00:02:03.369
-Suite dans la démonstration sept : le
-même savoir, servi à votre assistant IA.
+20
+00:02:00.326 --> 00:02:06.243
+Une de plus pour l'accessibilité, une pour le filtre :
+tout tient dans votre page, sans dépendre de l'application.

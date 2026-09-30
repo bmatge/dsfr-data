@@ -1,237 +1,138 @@
 WEBVTT
 
 1
-00:00:00.300 --> 00:00:05.322
-Des graphiques, des cartes et des
-récits chiffrés de données publiques,
+00:00:00.300 --> 00:00:08.417
+Cent dix pages de graphiques, de cartes et de récits chiffrés,
+branchées en direct sur les API de l'État, et écrites en balises HTML.
 
 2
-00:00:05.322 --> 00:00:06.949
-écrits en balises HTML.
+00:00:08.697 --> 00:00:17.577
+Voici open-data-viz : la vitrine de dsfr-data, les composants dataviz du
+Système de design de l'État, et le banc d'essai qui en fait la preuve.
 
 3
-00:00:07.229 --> 00:00:13.338
-Voici open-data-viz : la vitrine de dsfr-data,
-les composants dataviz du Système de
+00:00:19.878 --> 00:00:28.623
+L'accueil pose la promesse : des dataviz branchées en direct sur les API
+des portails de l'État, conformes au Système de design par construction.
 
 4
-00:00:13.338 --> 00:00:17.091
-design de l'État, et le
-banc d'essai qui la prouve.
+00:00:28.903 --> 00:00:34.776
+La recette tient en trois mots : une balise,
+un CDN, aucune ligne de JavaScript applicatif.
 
 5
-00:00:18.192 --> 00:00:22.828
-L'accueil pose la promesse : des dataviz
-branchées en direct sur les API des
+00:00:35.056 --> 00:00:43.199
+Six chiffres, recomptés à chaque chargement :
+110 dataviz en ligne, 5 portails, 5 types d'API, 26 composants.
 
 6
-00:00:22.828 --> 00:00:26.976
-portails de l'État, conformes au
-Système de design par construction.
+00:00:54.943 --> 00:01:03.791
+Une démonstration : la vacance des logements. Le titre
+dit déjà le message : longue durée, loyers bas, zone C.
 
 7
-00:00:27.256 --> 00:00:31.274
-Une balise, un CDN, aucune
-ligne de JavaScript applicatif.
+00:01:04.071 --> 00:01:09.984
+La page lit en direct quatre jeux de trois producteurs,
+et les joint commune par commune, dans le navigateur.
 
 8
-00:00:31.554 --> 00:00:36.683
-Six chiffres, comptés à chaque
-chargement : cent dix dataviz en ligne,
+00:01:10.264 --> 00:01:15.638
+Plus bas, la carte par département,
+avec son résumé pondéré et son tableau équivalent.
 
 9
-00:00:36.683 --> 00:00:40.640
-cinq portails, cinq types
-d'API, vingt-six composants.
+00:01:15.918 --> 00:01:21.705
+Sous chaque bloc, Voir le code : une balise, ses attributs,
+rien d'autre. C'est tout ce qu'un intégrateur écrit.
 
 10
-00:00:41.741 --> 00:00:46.610
-Une démonstration : la vacance des
-logements. Le titre dit le message :
+00:01:24.007 --> 00:01:28.118
+Le catalogue réunit les 110 pages, chacune sur sa carte.
 
 11
-00:00:46.610 --> 00:00:48.873
-longue durée, loyers bas, zone C.
+00:01:28.398 --> 00:01:36.870
+On filtre par portail, par nature, par capacité,
+par API. Je coche le portail Économie, celui de Bercy : 24 dataviz recréées.
 
 12
-00:00:49.153 --> 00:00:53.865
-Quatre jeux de trois producteurs, lus en
-direct et joints commune par commune,
+00:01:37.150 --> 00:01:40.530
+Chacune renvoie à la dataviz d'origine, sur le portail.
 
 13
-00:00:53.865 --> 00:00:55.013
-dans le navigateur.
+00:01:40.810 --> 00:01:47.658
+Je passe à Culture : 28 dataviz créées sur
+l'API Tabular de data.gouv.fr, sans original.
 
 14
-00:00:55.293 --> 00:01:00.214
-La carte par département, avec son résumé
-pondéré et son tableau équivalent.
+00:01:49.959 --> 00:01:58.374
+J'ouvre les festivals soutenus par l'État. Le titre dit le message :
+Aix et Avignon reçoivent près de trois euros sur dix.
 
 15
-00:01:00.494 --> 00:01:06.110
-Sous chaque bloc, Voir le code : une balise
-et ses attributs. C'est tout ce qu'un
+00:01:58.654 --> 00:02:05.895
+Chapô et chiffres clés sont calculés à l'ouverture,
+pas tapés à la main : 810 aides, près de 32 millions d'euros au total.
 
 16
-00:01:06.110 --> 00:01:07.357
-intégrateur écrit.
+00:02:08.196 --> 00:02:14.306
+Retour à l'accueil : quatorze capacités,
+chacune comptée sur les pages qui l'emploient, et illustrée par l'une d'elles.
 
 17
-00:01:08.459 --> 00:01:12.448
-Le catalogue rassemble les cent
-dix pages, sur une même carte.
+00:02:14.586 --> 00:02:23.201
+Du graphique au croisement de sources, en passant par la carte, les chiffres clés,
+la phrase calculée, la recherche, les facettes, la jointure, le pivot.
 
 18
-00:01:12.728 --> 00:01:16.211
-On filtre par portail,
-par nature, par capacité,
-
-19
-00:01:16.211 --> 00:01:21.653
-par API. Économie : vingt-quatre pages
-recréées depuis le portail de Bercy.
-
-20
-00:01:21.933 --> 00:01:25.915
-Chacune renvoie à la dataviz
-d'origine sur le portail.
-
-21
-00:01:26.195 --> 00:01:31.443
-Puis Culture : vingt-huit pages créées
-sur l'API Tabular de data.gouv,
-
-22
-00:01:31.443 --> 00:01:32.492
-sans original.
-
-23
-00:01:33.762 --> 00:01:38.135
-J'ouvre les festivals soutenus par
-l'État. Le titre dit le message :
-
-24
-00:01:38.135 --> 00:01:41.543
-Aix et Avignon reçoivent
-près de trois euros sur dix.
-
-25
-00:01:41.823 --> 00:01:45.846
-Le chapô et les chiffres clés
-sont calculés à l'ouverture :
-
-26
-00:01:45.846 --> 00:01:49.800
-huit cent dix aides, près de
-trente-deux millions d'euros.
-
-27
-00:01:50.901 --> 00:01:56.179
-Retour à l'accueil : quatorze capacités,
-chacune comptée sur les pages qui
-
-28
-00:01:56.179 --> 00:01:59.246
-l'emploient et illustrée
-par l'une d'elles.
-
-29
-00:01:59.526 --> 00:02:03.097
-Graphique, carte, chiffres
-clés, phrase calculée,
-
-30
-00:02:03.097 --> 00:02:07.470
-recherche, facettes, jointure,
-pivot, croisement de sources.
-
-31
-00:02:07.750 --> 00:02:11.075
-Et les cent dix dataviz,
-par portail et par nature :
-
-32
-00:02:11.075 --> 00:02:13.761
+00:02:23.481 --> 00:02:31.202
+En bas de page, un graphique classe les 110 dataviz par portail et par nature :
 reproduites, recréées en récit, ou créées.
 
-33
-00:02:14.863 --> 00:02:20.649
-Ce site est né d'un banc d'essai : refaire
-une à une les dataviz de trois portails,
+19
+00:02:33.503 --> 00:02:41.148
+Ce site est né d'un banc d'essai : refaire une à une les dataviz de trois portails,
+pour mesurer ce que dsfr-data coûte, vraiment.
 
-34
-00:02:20.649 --> 00:02:23.159
-pour mesurer ce que dsfr-data coûte.
+20
+00:02:41.428 --> 00:02:53.110
+Le verdict, en trois chiffres : 360 constats au registre, 111 corrigés par dsfr-data,
+63 faux problèmes, des critiques retirées après vérification.
 
-35
-00:02:23.439 --> 00:02:28.855
-Trois cent soixante constats au registre,
-cent onze corrigés par dsfr-data,
-
-36
-00:02:28.855 --> 00:02:34.200
-soixante-trois faux problèmes : des
-critiques retirées après vérification.
-
-37
-00:02:35.301 --> 00:02:41.078
-La synthèse tranche : refaire les dataviz
-des portails publics avec dsfr-data,
-
-38
-00:02:41.078 --> 00:02:43.745
+21
+00:02:55.011 --> 00:03:03.093
+La synthèse tranche : refaire les dataviz des portails publics avec dsfr-data,
 oui, et le risque n'est pas l'outil.
 
-39
-00:02:44.025 --> 00:02:49.179
-En une phrase : la bibliothèque suffit, et
-elle a corrigé ce qu'on lui a signalé. Ce
+22
+00:03:03.373 --> 00:03:07.543
+En une phrase : la bibliothèque suffit,
+et elle a corrigé ce qu'on lui a signalé.
 
-40
-00:02:49.179 --> 00:02:52.738
-qui reste difficile, c'est de
-savoir ce que dit la donnée.
+23
+00:03:07.823 --> 00:03:10.494
+Ce qui reste difficile, c'est de savoir ce que dit la donnée.
 
-41
-00:02:53.838 --> 00:02:58.260
-Le registre des retours, rendu
-avec les composants qu'il évalue :
+24
+00:03:12.794 --> 00:03:19.468
+Le registre des retours est rendu avec les composants qu'il évalue :
+chaque constat porte l'observation qui l'établit.
 
-42
-00:02:58.260 --> 00:03:01.593
-chaque constat porte
-l'observation qui l'établit.
+25
+00:03:19.748 --> 00:03:26.763
+Je coche Corrigé par dsfr-data : 111 constats,
+chacun avec ce qui est vrai, et la version qui l’a réglé.
 
-43
-00:03:01.873 --> 00:03:06.336
-Je filtre sur Corrigé par
-dsfr-data : cent onze constats,
-
-44
-00:03:06.336 --> 00:03:10.720
-chacun avec ce qui est vrai
-et la version qui l’a réglé.
-
-45
-00:03:11.000 --> 00:03:14.536
-C'est la boucle avec
-ChartsBuilder : le banc demande,
-
-46
-00:03:14.536 --> 00:03:17.339
+26
+00:03:27.043 --> 00:03:33.715
+C'est la boucle avec ChartsBuilder : le banc demande,
 la bibliothèque livre, le registre rejoue.
 
-47
-00:03:18.541 --> 00:03:22.592
-Cent dix dataviz, des balises,
-des données en direct,
+27
+00:03:36.116 --> 00:03:41.833
+110 dataviz, des balises, des données en direct,
+et un banc d'essai qui dit ce que ça coûte.
 
-48
-00:03:22.592 --> 00:03:25.879
-et un banc d'essai qui
-dit ce que ça coûte.
-
-49
-00:03:26.159 --> 00:03:31.425
-Pour écrire les vôtres : ChartsBuilder,
-sur chartsbuilder point miweb point run.
+28
+00:03:42.113 --> 00:03:51.353
+Tout est en ligne, code compris : open-data-viz point lab
+point miweb point run. Pour écrire les vôtres : ChartsBuilder.
