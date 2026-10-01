@@ -8,6 +8,24 @@ import { openConfigModal } from './widget-config.js';
 import { updateGeneratedCode } from './code-generator.js';
 import type { Widget, WidgetType, DashboardFavorite } from './state.js';
 
+/**
+ * Une cellule ne porte qu'UN widget (#1162). Déposer sur une cellule occupée
+ * — typiquement un widget posé par un modèle (« 3 KPIs + Graphique ») — le
+ * REMPLACE, après confirmation : le dépôt s'empilait à côté, et l'export
+ * rendait les deux (un KPI vide à côté du favori). Rend `false` si
+ * l'utilisateur garde le widget en place.
+ */
+export async function freeCell(row: number, col: number): Promise<boolean> {
+  const occupants = state.dashboard.widgets.filter(
+    (w) => w.position.row === row && w.position.col === col
+  );
+  if (occupants.length === 0) return true;
+  const names = occupants.map((w) => `« ${w.title} »`).join(', ');
+  if (!(await confirmDialog(`Remplacer ${names} par le widget déposé ?`))) return false;
+  state.dashboard.widgets = state.dashboard.widgets.filter((w) => !occupants.includes(w));
+  return true;
+}
+
 export function addWidget(type: WidgetType, row: number, col: number, cell: HTMLElement): void {
   const widget = createWidget(type, row, col);
 

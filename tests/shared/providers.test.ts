@@ -497,6 +497,24 @@ describe('resolveSourceUrl', () => {
     );
     expect(r.normalized).toBe(false);
   });
+
+  // #1163 — chez Melodi, la requête PORTE les filtres de dimension : une URL
+  // filtrée (13 régions) donnait une connexion sur tout le jeu.
+  it('INSEE Melodi : garde les filtres de dimension, retire la seule pagination', () => {
+    const r = resolveSourceUrl(
+      'https://api.insee.fr/melodi/data/DS_POPULATIONS_REFERENCE?GEO=REG&TIME_PERIOD=2021&POPREF_MEASURE=PMUN&maxResult=10&page=2'
+    );
+    expect(r.provider.id).toBe('insee');
+    expect(r.apiUrl).toBe(
+      'https://api.insee.fr/melodi/data/DS_POPULATIONS_REFERENCE?GEO=REG&TIME_PERIOD=2021&POPREF_MEASURE=PMUN'
+    );
+    expect(r.normalized).toBe(false);
+  });
+
+  it('INSEE Melodi : une dimension répétée reste répétée', () => {
+    const r = resolveSourceUrl('https://api.insee.fr/melodi/data/DS_X?GEO=REG-11&GEO=REG-24');
+    expect(r.apiUrl).toBe('https://api.insee.fr/melodi/data/DS_X?GEO=REG-11&GEO=REG-24');
+  });
 });
 
 // =========================================================================

@@ -658,6 +658,66 @@ function generateComponentHTML(
   return `${title}${racines.map((k) => rendre(k, indent)).join('\n')}\n`;
 }
 
+/** Attributs dont la valeur DÉSIGNE un id (seul, ou en liste séparée par des virgules). */
+const ID_REFERENCE_ATTRS = new Set([
+  'source',
+  'sources',
+  'for',
+  'left',
+  'right',
+  'context',
+  'aria-describedby',
+  'aria-labelledby',
+  'aria-controls',
+]);
+
+/**
+ * Identifiants d'un favori rendus PROPRES À SON WIDGET (#1161).
+ *
+ * Le code d'un favori du Builder porte des ids fixes (`chart-src`,
+ * `query-data`, `chart`…) et des références vers eux (`source="query-data"`).
+ * Recopié tel quel pour chaque widget, deux favoris donnaient deux sources et
+ * deux requêtes homonymes : le second graphique s'abonnait à la requête du
+ * premier — ou à aucune — et se rendait vide. Chaque id déclaré dans le code
+ * reçoit le suffixe du widget, ainsi que chaque attribut qui le désigne
+ * (`source`, `for`, `left`/`right`, `sources`, `context`, ARIA), les ancres
+ * `href="#…"` et les sélecteurs des scripts (`getElementById('…')`,
+ * `querySelector('#…')`). Un id que le favori ne déclare pas (une source du
+ * tableau de bord) n'est pas touché.
+ */
+export function scopeFavoriteIds(code: string, suffix: string): string {
+  const declared = new Set<string>();
+  for (const m of code.matchAll(/\sid\s*=\s*["']([^"']+)["']/g)) declared.add(m[1]);
+  if (declared.size === 0) return code;
+  const scoped = (id: string) => (declared.has(id) ? `${id}--${suffix}` : id);
+
+  let out = code.replace(
+    /(\s)([\w:-]+)(\s*=\s*)(["'])([^"']*)\4/g,
+    (whole, sp: string, name: string, eq: string, q: string, value: string) => {
+      const attr = name.toLowerCase();
+      if (attr === 'id') return `${sp}${name}${eq}${q}${scoped(value)}${q}`;
+      if (attr === 'href' && value.startsWith('#'))
+        return `${sp}${name}${eq}${q}#${scoped(value.slice(1))}${q}`;
+      if (!ID_REFERENCE_ATTRS.has(attr)) return whole;
+      const sep = attr.startsWith('aria-') ? ' ' : ',';
+      const parts = value.split(sep).map((part) => {
+        const id = part.trim();
+        return id ? part.replace(id, scoped(id)) : part;
+      });
+      return `${sp}${name}${eq}${q}${parts.join(sep)}${q}`;
+    }
+  );
+  out = out.replace(
+    /(getElementById\(\s*)(["'])([^"']+)\2/g,
+    (_w, call: string, q: string, id: string) => `${call}${q}${scoped(id)}${q}`
+  );
+  out = out.replace(
+    /(querySelector(?:All)?\(\s*)(["'])#([\w-]+)/g,
+    (_w, call: string, q: string, id: string) => `${call}${q}#${scoped(id)}`
+  );
+  return out;
+}
+
 /** Ids amont cites par un composant libre (`source`, `left`, `right`, `sources`). */
 function freeComponentUpstreams(c: FreeComponentSpec): string[] {
   const out: string[] = [];
@@ -693,7 +753,8 @@ ${indent}</dsfr-data-kpi>\n`;
       // quel plutot que de reconstruire une balise a partir de rien.
       if (isFavoriteChart(cfg)) {
         if (!cfg.code) return '';
-        return `${indent}<!-- Graphique: ${escapeHtml(widget.title)} -->\n${indent}${cfg.code.split('\n').join('\n' + indent)}\n`;
+        const code = scopeFavoriteIds(cfg.code, widget.id.slice(0, 8));
+        return `${indent}<!-- Graphique: ${escapeHtml(widget.title)} -->\n${indent}${code.split('\n').join('\n' + indent)}\n`;
       }
       if (isBuilderChart(cfg)) {
         const title = widget.title
