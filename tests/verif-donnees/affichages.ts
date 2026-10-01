@@ -30,6 +30,7 @@ import {
   CONTOURS_DEPARTEMENTS,
   LIBELLES,
   LONG,
+  ABSENCES,
   RESSOURCE_TABULAR_AFFICHAGES,
   SERIE,
   ZONES,
@@ -71,7 +72,7 @@ const CLASSES_KPI = {
 /** Une source qui sert un jeu du lot, en tableau nu. */
 const source = (
   id: string,
-  jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'zones' | 'aides'
+  jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'absences' | 'zones' | 'aides'
 ): string => `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 /**
@@ -901,6 +902,114 @@ const CHECKS: Check[] = [
                 field: 'valeur',
                 filter: [{ field: 'groupe', op: 'eq', value: 'Agents' }],
               },
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'query-groupe-sans-valeur-null',
+    mode: 'deterministic',
+    origin:
+      "#1198 — une absence n'est pas un zéro (BUG-028 du banc, #301). Le groupe « Stagiaires » n'a AUCUNE valeur numérique (`null`, chaîne vide) : `sum`, `avg`, `min` et `max` valent `null`, pas 0. Le 0 entrait dans les classements et les totaux (« 0 logement commencé », « voie professionnelle 0,0 »). Le groupe mixte « Agents » garde la moyenne de ses seules valeurs.",
+    feed: { kind: 'fixture', datasets: { main: ABSENCES } },
+    markup: `
+  ${source('s-abs-q', 'absences')}
+  <dsfr-data-query id="q-abs" source="s-abs-q" group-by="groupe"
+    aggregate="valeur:sum:s, valeur:avg:m, valeur:min:mi, valeur:max:ma"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-abs',
+        key: 'groupe',
+        columns: ['s', 'm', 'mi', 'ma'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'groupe',
+            columns: {
+              s: { agg: 'sum', field: 'valeur' },
+              m: { agg: 'avg', field: 'valeur' },
+              mi: { agg: 'min', field: 'valeur' },
+              ma: { agg: 'max', field: 'valeur' },
+            },
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'graphique-format-long-cellule-absente',
+    mode: 'deterministic',
+    origin:
+      "#1198 — BUG-029 du banc : au format long, une cellule (mois, groupe) sans observation était remplie par 0. Une série qui s'arrête devenait une chute à zéro. Cadres n'a pas de mars, Agents n'a qu'un `null` en février, Stagiaires n'a rien : ces cellules passent au graphique en `null`.",
+    feed: { kind: 'fixture', datasets: { main: ABSENCES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-abs-long', 'absences')}
+  <dsfr-data-chart id="g-abs-long" source="s-abs-long" type="line"
+    label-field="mois" series-field="groupe" value-field="valeur"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'chart',
+        id: 'g-abs-long',
+        labelColumn: 'mois',
+        valueColumns: ['cadres', 'agents', 'stagiaires'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'mois',
+            columns: {
+              cadres: {
+                agg: 'sum',
+                field: 'valeur',
+                filter: [{ field: 'groupe', op: 'eq', value: 'Cadres' }],
+              },
+              agents: {
+                agg: 'sum',
+                field: 'valeur',
+                filter: [{ field: 'groupe', op: 'eq', value: 'Agents' }],
+              },
+              stagiaires: {
+                agg: 'sum',
+                field: 'valeur',
+                filter: [{ field: 'groupe', op: 'eq', value: 'Stagiaires' }],
+              },
+            },
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'graphique-format-large-valeur-absente',
+    mode: 'deterministic',
+    origin:
+      "#1198 — BUG-029, format large : `toNumber` non strict convertissait `null` en 0. Le graphique lit la sortie d'une query dont le groupe « Stagiaires » n'a aucune valeur : sa barre est absente, pas posée à zéro.",
+    feed: { kind: 'fixture', datasets: { main: ABSENCES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-abs-large', 'absences')}
+  <dsfr-data-query id="q-abs-large" source="s-abs-large" group-by="groupe"
+    aggregate="valeur:sum:s, valeur:max:ma"></dsfr-data-query>
+  <dsfr-data-chart id="g-abs-large" source="q-abs-large" type="bar"
+    label-field="groupe" value-field="s" value-fields="ma"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'chart',
+        id: 'g-abs-large',
+        labelColumn: 'groupe',
+        valueColumns: ['s', 'ma'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'groupe',
+            columns: {
+              s: { agg: 'sum', field: 'valeur' },
+              ma: { agg: 'max', field: 'valeur' },
             },
           },
         ],

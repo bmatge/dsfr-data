@@ -1072,19 +1072,20 @@ describe('DsfrDataQuery', () => {
   });
 
   describe('Aggregation edge cases', () => {
-    it('returns 0 for avg of empty values', () => {
+    // Une absence n'est pas un zéro (#1198, BUG-028) : null, plus 0.
+    it('returns null for avg of empty values', () => {
       const agg = { field: 'val', function: 'avg' };
-      expect(internals(query)._computeAggregate([], agg)).toBe(0);
+      expect(internals(query)._computeAggregate([], agg)).toBeNull();
     });
 
-    it('returns 0 for min of empty values', () => {
+    it('returns null for min of empty values', () => {
       const agg = { field: 'val', function: 'min' };
-      expect(internals(query)._computeAggregate([], agg)).toBe(0);
+      expect(internals(query)._computeAggregate([], agg)).toBeNull();
     });
 
-    it('returns 0 for max of empty values', () => {
+    it('returns null for max of empty values', () => {
       const agg = { field: 'val', function: 'max' };
-      expect(internals(query)._computeAggregate([], agg)).toBe(0);
+      expect(internals(query)._computeAggregate([], agg)).toBeNull();
     });
 
     it('throws on an unknown function instead of returning 0 (#649)', () => {

@@ -39,8 +39,8 @@ describe('dsfr-data-chart — series-field (mode tidy)', () => {
     const yMulti = JSON.parse(result.yMulti);
     expect(yMulti).toHaveLength(2);
     expect(yMulti[0]).toEqual([10, 20, 30]); // serie A
-    // serie B : cellule manquante en 2023-02 → 0
-    expect(yMulti[1]).toEqual([1, 0, 3]);
+    // serie B : cellule manquante en 2023-02 → null, jamais 0 (#1198, BUG-029)
+    expect(yMulti[1]).toEqual([1, null, 3]);
   });
 
   it('expose les noms de series = valeurs distinctes de series-field', () => {

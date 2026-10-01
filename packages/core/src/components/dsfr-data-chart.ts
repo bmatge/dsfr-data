@@ -207,6 +207,8 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * distinctes deviennent autant de series (mode multi-series sans colonnes multiples).
    * Ex: données {mois, groupe, valeur} avec series-field="groupe" → une série par groupe.
    * S'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields.
+   * Une cellule (libellé, série) sans observation vaut `null` (#1198) : la courbe
+   * s'interrompt, la barre est absente — jamais un 0 dessiné.
    * @champ nom
    */
   @property({ type: String, attribute: 'series-field' })
@@ -647,7 +649,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Build the series matrix for tidy/long data : pivots {labelField, seriesField, valueField}
-   * into one aligned value array per distinct series. Missing (label, series) cells are 0.
+   * into one aligned value array per distinct series.
+   *
+   * Une cellule (libellé, série) sans observation vaut `null`, jamais 0 (#1198,
+   * BUG-029 du banc, règle #301 déjà appliquée par pivot et compute) : un
+   * remplissage à 0 dessinait une chute ou une naissance qui n'a pas eu lieu.
+   * Chart.js interrompt une courbe sur `null` et n'y dessine pas de barre.
    */
   private _processTidyData(): {
     x: string;
@@ -655,9 +662,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     y2?: string;
     yMulti?: string;
     labels: string[];
-    values: number[];
-    values2: number[];
-    allSeries: number[][];
+    values: Array<number | null>;
+    values2: Array<number | null>;
+    allSeries: Array<Array<number | null>>;
   } {
     const labels: string[] = [];
     const labelIndex = new Map<string, number>();
@@ -671,7 +678,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     const seriesNames = this._getSeriesNames();
     const seriesIndex = new Map(seriesNames.map((s, i) => [s, i]));
-    const allSeries: number[][] = seriesNames.map(() => new Array(labels.length).fill(0));
+    const allSeries: Array<Array<number | null>> = seriesNames.map(() =>
+      new Array<number | null>(labels.length).fill(null)
+    );
 
     for (const record of this._data) {
       const l = this._labelOf(record);
@@ -679,7 +688,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const li = labelIndex.get(l);
       const si = seriesIndex.get(s);
       if (li !== undefined && si !== undefined) {
-        allSeries[si][li] = toNumber(getByPath(record, this._valueFieldKey()));
+        allSeries[si][li] = toNumber(getByPath(record, this._valueFieldKey()), true);
       }
     }
 
@@ -705,9 +714,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     y2?: string;
     yMulti?: string;
     labels: string[];
-    values: number[];
-    values2: number[];
-    allSeries: number[][];
+    values: Array<number | null>;
+    values2: Array<number | null>;
+    allSeries: Array<Array<number | null>>;
   } {
     if (!this._data || this._data.length === 0) {
       return { x: '[[]]', y: '[[]]', labels: [], values: [], values2: [], allSeries: [] };
@@ -720,12 +729,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     const allFields = this._getAllValueFields();
     const labels: string[] = [];
-    const allSeries: number[][] = allFields.map(() => []);
+    const allSeries: Array<Array<number | null>> = allFields.map(() => []);
 
     for (const record of this._data) {
       labels.push(this._labelOf(record));
       for (let i = 0; i < allFields.length; i++) {
-        allSeries[i].push(toNumber(getByPath(record, allFields[i])));
+        // Strict (#1198) : une valeur absente reste absente, pas un 0 plausible.
+        allSeries[i].push(toNumber(getByPath(record, allFields[i]), true));
       }
     }
 
@@ -1189,7 +1199,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     attrs: Record<string, string>,
     paddedLabels: unknown[],
     paddedSeries: Array<Array<number | null>>,
-    values: number[]
+    values: Array<number | null>
   ): void {
     attrs['x'] = JSON.stringify(paddedLabels);
     attrs['y-bar'] = JSON.stringify(paddedSeries[0] ?? values);
@@ -1254,11 +1264,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    */
   private _applyTargetBounds(
     attrs: Record<string, string>,
-    allSeries: number[][],
+    allSeries: Array<Array<number | null>>,
     activeTargets: ChartTarget[]
   ): void {
-    const setBound = (attr: string, kind: 'max' | 'min', data: number[], targetVals: number[]) => {
-      const finite = data.filter((v) => Number.isFinite(v));
+    const setBound = (
+      attr: string,
+      kind: 'max' | 'min',
+      data: Array<number | null>,
+      targetVals: number[]
+    ) => {
+      const finite = data.filter((v): v is number => v !== null && Number.isFinite(v));
       if (!finite.length || !targetVals.length) return;
       if (kind === 'max') {
         const t = Math.max(...targetVals);

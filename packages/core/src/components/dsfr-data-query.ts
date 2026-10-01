@@ -378,6 +378,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Format: "field:function, field2:function"
    * Ex: "population:sum, count:count"
    *
+   * Une absence n'est pas un zéro (#1198) : un groupe sans aucune valeur
+   * numérique rend `null` pour `sum`, `avg`, `min` et `max` ; `count` reste
+   * le nombre de lignes.
+   *
    * `running_sum` (#738) n'est pas une réduction de groupe mais un CUMUL :
    * il produit une ligne par ligne de sortie, chacune portant la somme des
    * précédentes, calculée APRÈS `order-by`. Sans `order-by`, l'ordre des
@@ -1959,23 +1963,28 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return row;
   }
 
-  private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number {
+  private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number | null {
     // toNumber strict (#301) : decimales francaises parsees, NaN exclus
     const values = items
       .map((item) => toNumber(getByPath(item, agg.field), true))
       .filter((v): v is number => v !== null);
 
+    // Une absence n'est pas un zéro (#1198, BUG-028 du banc) : un groupe sans
+    // AUCUNE valeur numérique rend `null` pour sum, avg, min et max. Le 0
+    // d'avant entrait dans les classements, les moyennes nationales et les
+    // totaux (« 0 logement commencé en 2025 », « voie professionnelle 0,0 »).
+    // `count` compte les lignes, et reste un nombre.
     switch (agg.function) {
       case 'count':
         return items.length;
       case 'sum':
-        return values.reduce((a, b) => a + b, 0);
+        return values.length > 0 ? values.reduce((a, b) => a + b, 0) : null;
       case 'avg':
-        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+        return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
       case 'min':
-        return values.length > 0 ? Math.min(...values) : 0;
+        return values.length > 0 ? Math.min(...values) : null;
       case 'max':
-        return values.length > 0 ? Math.max(...values) : 0;
+        return values.length > 0 ? Math.max(...values) : null;
       case 'distinct':
         // Meme semantique que count(distinct x) serveur (#672) : null et
         // chaine vide exclus, comparaison sur la valeur en chaine.
