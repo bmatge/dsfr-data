@@ -315,6 +315,25 @@ describe('#689 — AC : repli sur /records quand l’export echoue', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('HTTP 400'));
   });
 
+  // #1199, BUG-027 : un 400 vise la CLAUSE, pas le jeu. Le mémoriser
+  // condamnait l'export pour toutes les sources de la page.
+  it('400 de clause : l’export n’est PAS condamné pour le jeu', async () => {
+    const adapter = new OpenDataSoftAdapter();
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 400, statusText: 'Bad Request' });
+    mockRecordsPage(10, 10);
+    await adapter.fetchAll(
+      makeParams({ fetchMode: 'export', where: 'n >= 40' }),
+      new AbortController().signal
+    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('sera retente'));
+
+    mockFetch.mockClear();
+    mockExport(30);
+    await adapter.fetchAll(makeParams({ fetchMode: 'export' }), new AbortController().signal);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(calledUrl(0)).toContain('/exports/json');
+  });
+
   it('erreur reseau : pas de repli, l’erreur remonte comme aujourd’hui', async () => {
     const adapter = new OpenDataSoftAdapter();
     mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));

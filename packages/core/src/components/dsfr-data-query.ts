@@ -174,6 +174,48 @@ function relayTargetOf(el: Element): string | null {
 }
 
 /**
+ * Élément qui INTERROGE l'API au bout de la chaîne de délégation (#1199) : on
+ * remonte les relais (normalize, facettes, recherche…) et les queries, jusqu'au
+ * premier élément qui ne relaie plus — la `dsfr-data-source`.
+ */
+function fetchingSourceOf(startId: string): Element | null {
+  let el = startId ? document.getElementById(startId) : null;
+  for (let hop = 0; hop < 10 && el; hop++) {
+    const next =
+      el.tagName.toLowerCase() === 'dsfr-data-query' ? linkOf(el, 'source') : relayTargetOf(el);
+    if (!next) return el;
+    el = document.getElementById(next);
+  }
+  return el;
+}
+
+/** Une fonction d'agrégat SQL dans un `select` (`count(*) as n`, `sum(x)`). */
+const SELECT_AGGREGATE = /\b(count|sum|avg|min|max)\s*\(/i;
+
+/**
+ * La source porte-t-elle déjà SON regroupement (#1199, BUG-026) ? Son propre
+ * `group-by`, son `aggregate`, ou un agrégat dans son `select`. Ses lignes sont
+ * alors des GROUPES : une query en aval les regroupe à nouveau côté client,
+ * jamais en remplaçant celui de la source.
+ */
+function sourceIsGrouped(el: Element | null): boolean {
+  if (!el) return false;
+  const src = el as unknown as { groupBy?: string; aggregate?: string; select?: string };
+  return !!(src.groupBy || src.aggregate || SELECT_AGGREGATE.test(src.select ?? ''));
+}
+
+/**
+ * Noms de colonnes que la source FABRIQUE (#1199, BUG-027) : les alias de son
+ * `select` (`count(*) as n`). Un `where` qui les vise ne peut pas partir au
+ * serveur : le filtre s'y applique AVANT le regroupement, sur des colonnes
+ * brutes où l'alias n'existe pas (le portail répond 400).
+ */
+function sourceAliases(el: Element | null): Set<string> {
+  const select = (el as unknown as { select?: string } | null)?.select ?? '';
+  return new Set([...select.matchAll(/\bas\s+([\w.]+)/gi)].map((m) => m[1]));
+}
+
+/**
  * <dsfr-data-query> - Composant de transformation de données
  *
  * Transforme, filtre, agrégé et trie des données provenant d'une source
@@ -590,6 +632,28 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     super.disconnectedCallback();
   }
 
+  /**
+   * Cette query change-t-elle le schéma de ses lignes (#1199, BUG-036) ?
+   * Oui si elle regroupe, agrège ou éclate : ses lignes de sortie ne portent
+   * plus les colonnes de la source. Sinon, la réponse de sa propre source —
+   * une query de simple filtre est transparente.
+   *
+   * Une query en aval interroge son amont pour savoir si elle peut déléguer
+   * (`_delegationTarget`) ; `dsfr-data-normalize` relaie la question à SA
+   * source. Faute de cette méthode, la remontée s'arrêtait sur une query :
+   * `normalize(rename) → query → normalize(valeurs) → query` jugeait la
+   * dernière délégable, et l'API recevait des noms renommés (Tabular :
+   * `?d__groupby`, toute la source en échec).
+   */
+  public transformsSchema(): boolean {
+    if (this.groupBy || this.aggregate || this.explode) return true;
+    const upstream = this.source ? document.getElementById(this.source) : null;
+    if (upstream && 'transformsSchema' in upstream) {
+      return (upstream as unknown as SourceElement).transformsSchema?.() === true;
+    }
+    return false;
+  }
+
   /** Alias historique de reinitTransformer() — conserve pour les tests */
   _initialize() {
     this.reinitTransformer();
@@ -893,6 +957,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       !caps.serverGroupBy ||
       sourceEl.groupBy ||
       sourceEl.aggregate ||
+      // BUG-026 : la source au BOUT de la chaîne (derrière un normalize…)
+      // porte déjà son regroupement. Le remplacer faisait regrouper le
+      // serveur sur les lignes brutes : KPI à 96 667 200 au lieu de 966 672.
+      sourceIsGrouped(fetchingSourceOf(this.source)) ||
       this._aggregateError ||
       this.explode
     ) {
@@ -964,6 +1032,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (!whereOnly.ok || !whereOnly.where || !this._canDelegateFields(adapter, whereOnly.fields)) {
       return;
     }
+    // BUG-027 : une clause sur un alias que la source fabrique (`n` de
+    // `count(*) as n`) reste côté client, sur les lignes déjà regroupées.
+    const aliases = sourceAliases(fetchingSourceOf(this.source));
+    if (whereOnly.fields.some((f) => aliases.has(f.trim()))) return;
     cmd.where = whereOnly.where;
     cmd.whereKey = this._whereOverlayKey();
     this._serverDelegated.where = true;

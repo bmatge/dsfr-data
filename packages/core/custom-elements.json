@@ -17331,6 +17331,17 @@
             },
             {
               "kind": "method",
+              "name": "transformsSchema",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Cette query change-t-elle le schéma de ses lignes (#1199, BUG-036) ?\nOui si elle regroupe, agrège ou éclate : ses lignes de sortie ne portent\nplus les colonnes de la source. Sinon, la réponse de sa propre source —\nune query de simple filtre est transparente.\n\nUne query en aval interroge son amont pour savoir si elle peut déléguer\n(`_delegationTarget`) ; `dsfr-data-normalize` relaie la question à SA\nsource. Faute de cette méthode, la remontée s'arrêtait sur une query :\n`normalize(rename) → query → normalize(valeurs) → query` jugeait la\ndernière délégable, et l'API recevait des noms renommés (Tabular :\n`?d__groupby`, toute la source en échec)."
+            },
+            {
+              "kind": "method",
               "name": "_initialize",
               "description": "Alias historique de reinitTransformer() — conserve pour les tests"
             },
