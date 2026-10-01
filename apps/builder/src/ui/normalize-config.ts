@@ -5,6 +5,7 @@
  */
 
 import { state } from '../state.js';
+import { detectProvider } from '@dsfr-data/shared';
 import { updateUrlSyncSection } from './url-sync-config.js';
 
 /**
@@ -33,8 +34,36 @@ export function updateMiddlewareSections(): void {
     if (facetsOpts) facetsOpts.style.display = 'none';
   }
 
+  updateNormalizeNote();
+
   // Le partage par l'adresse suit les facettes (et le type tableau) : #714
   updateUrlSyncSection();
+}
+
+/**
+ * Ce que fait le nettoyage selon la source et le type (#1169). Pour
+ * OpenDataSoft et Tabular, le regroupement est calculé par le serveur :
+ * le nettoyage porte sur le RÉSULTAT agrégé, et il est sans effet sur un
+ * tableau paginé ou un indicateur calculés par le serveur. La section
+ * l'annonce au lieu d'afficher « activée » sans rien produire.
+ */
+export function normalizeNote(): string {
+  const source = state.savedSource;
+  if (state.generationMode !== 'dynamic' || source?.type !== 'api' || !source.apiUrl) return '';
+  const provider = detectProvider(source.apiUrl).id;
+  if (provider !== 'opendatasoft' && provider !== 'tabular') return '';
+  if (state.chartType === 'datalist' || state.chartType === 'kpi') {
+    return 'Sans effet ici : avec cette source, le tableau et l’indicateur sont calculés par le serveur, page par page.';
+  }
+  return 'Avec cette source, le serveur regroupe d’abord tout le jeu : le nettoyage s’applique au résultat (libellés du groupe et valeurs agrégées). « Renommer » vise donc ses colonnes, par exemple le champ de l’axe.';
+}
+
+export function updateNormalizeNote(): void {
+  const el = document.getElementById('normalize-note');
+  if (!el) return;
+  const note = normalizeNote();
+  el.textContent = note;
+  el.hidden = !note;
 }
 
 /**

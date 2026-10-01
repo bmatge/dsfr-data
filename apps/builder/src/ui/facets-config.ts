@@ -7,41 +7,12 @@ import { openModal, closeModal, setupModalOverlayClose } from '@dsfr-data/shared
 import { updateUrlSyncSection } from './url-sync-config.js';
 
 /**
- * Initialize facets fields from current state.fields (all inactive by default).
- * Preserves existing config if fields haven't changed.
- */
-export function initFacetsFields(): void {
-  if (state.fields.length === 0) return;
-
-  const currentFieldNames = state.fields.map((f) => f.name);
-  const existingFieldNames = state.facetsConfig.fields.map((c) => c.field);
-
-  // Skip if already initialized with the same fields
-  if (
-    existingFieldNames.length > 0 &&
-    existingFieldNames.length === currentFieldNames.length &&
-    existingFieldNames.every((f, i) => f === currentFieldNames[i])
-  ) {
-    return;
-  }
-
-  state.facetsConfig.fields = state.fields.map((f) => ({
-    field: f.name,
-    label: f.name,
-    display: 'checkbox' as const,
-    searchable: false,
-    disjunctive: false,
-  }));
-}
-
-/**
  * Open the facets field configuration modal.
  */
 export function openFacetsModal(): void {
-  if (state.facetsConfig.fields.length === 0) {
-    initFacetsFields();
-  }
-
+  // Aucune présélection (#1171) : `facetsConfig.fields` ne contient que les
+  // champs RETENUS. L'ancien `initFacetsFields` y versait tous les champs du
+  // jeu, cochés d'office — il fallait « Tout désélectionner » avant de choisir.
   const listEl = document.getElementById('facets-fields-list');
   if (!listEl) return;
 
