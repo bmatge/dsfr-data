@@ -600,6 +600,75 @@ const ATTENTE: Check[] = [
   },
 
   {
+    id: 'where-delegue-apres-regeneration',
+    mode: 'deterministic',
+    origin:
+      "#1164 — le Builder carto reecrit son apercu par `innerHTML` a chaque « Générer » : source et query renaissent SOUS LES MEMES IDS, et Chrome connecte les nouvelles instances AVANT de deconnecter les anciennes. L'ancienne query, encore inscrite, faisait passer la chaine pour partagee (le `where` restait client, sur les 50 lignes chargees : 8 au lieu de 20), puis effacait par id la clause que la nouvelle venait de poser. Deux regenerations : filtre ajoute, puis filtre constant.",
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <template id="t-regen-filtre">
+    ${sourceOds('s-regen', { maxRecords: 50 })}
+    <dsfr-data-query id="q-regen" source="s-regen" where="pays_iso2:eq:FR"></dsfr-data-query>
+    <dsfr-data-kpi id="k-regen" source="q-regen" value="count" format="nombre"
+      label="Territoires FR"></dsfr-data-kpi>
+  </template>
+  <button id="b-regen" type="button"
+    onclick="document.getElementById('apercu-regen').innerHTML = document.getElementById('t-regen-filtre').innerHTML">
+    Générer</button>
+  <div id="apercu-regen">
+    ${sourceOds('s-regen', { maxRecords: 50 })}
+    <dsfr-data-kpi id="k-regen-avant" source="s-regen" value="count" format="nombre"
+      label="Lignes chargées"></dsfr-data-kpi>
+  </div>`,
+    actions: [
+      { kind: 'click', selector: '#b-regen' },
+      { kind: 'click', selector: '#b-regen' },
+    ],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-regen',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'pays_iso2', op: 'eq', value: 'FR' }] }],
+      },
+      urlsDe('where-apres-regeneration', 'ods', 'where=pays_iso2 = "FR"', 'last'),
+    ],
+  },
+
+  {
+    id: 'where-garde-quand-seule-la-query-renait',
+    mode: 'deterministic',
+    origin:
+      "#1164 — variante : la source reste, SEULE la query (et son afficheur) renait sous le meme id. La nouvelle reprend la cle d'overlay `query-<id>` de l'ancienne ; en partant, l'ancienne ne doit effacer que ce que l'homonyme ne delegue pas, sinon la source repart sans filtre (50 lignes au lieu de 20).",
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-renait', { maxRecords: 50 })}
+  <template id="t-renait">
+    <dsfr-data-query id="q-renait" source="s-renait" where="pays_iso2:eq:FR"></dsfr-data-query>
+    <dsfr-data-kpi id="k-renait" source="q-renait" value="count" format="nombre"
+      label="Territoires FR"></dsfr-data-kpi>
+  </template>
+  <button id="b-renait" type="button"
+    onclick="document.getElementById('apercu-renait').innerHTML = document.getElementById('t-renait').innerHTML">
+    Générer</button>
+  <div id="apercu-renait">
+    <dsfr-data-query id="q-renait" source="s-renait" where="pays_iso2:eq:FR"></dsfr-data-query>
+    <dsfr-data-kpi id="k-renait" source="q-renait" value="count" format="nombre"
+      label="Territoires FR"></dsfr-data-kpi>
+  </div>`,
+    actions: [{ kind: 'click', selector: '#b-renait' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-renait',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'pays_iso2', op: 'eq', value: 'FR' }] }],
+      },
+      urlsDe('where-garde-query-renait', 'ods', 'where=pays_iso2 = "FR"', 'last'),
+    ],
+  },
+
+  {
     id: 'where-seul-devrait-etre-delegue',
     mode: 'deterministic',
     origin:
@@ -674,6 +743,44 @@ const ATTENTE: Check[] = [
         pipeline: [{ op: 'filter', filters: [{ field: 'pays_iso2', op: 'eq', value: 'DE' }] }],
       },
       urlsDe('contexte-filtre-des-le-depart', 'ods', 'where=', 'all'),
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 4 bis. Tri INITIAL d'une liste en pagination serveur (#1178)
+// ---------------------------------------------------------------------------
+
+/**
+ * `sort` posé sur une `dsfr-data-list` en `server-sort` : la flèche de tri
+ * s'affichait sur l'en-tête, mais seul le CLIC envoyait `orderBy` à la source.
+ * La première page était donc celle de l'ordre du serveur, sous une flèche qui
+ * annonçait un autre ordre. Le tableau à 137 lignes en pages de 40 rend le
+ * défaut visible dès la page 1 : ses 40 lignes ne sont pas les 40 premières
+ * du tri.
+ */
+const TRI_INITIAL: Check[] = [
+  {
+    id: 'liste-tri-initial-serveur',
+    mode: 'deterministic',
+    origin:
+      '#1178 — liste en `server-sort` avec `sort="population:asc"` : la PREMIERE requete porte deja le tri (`order_by`), la page 1 montre les 40 territoires les MOINS peuples. Le jeu est livre par ordre decroissant : sans le tri transmis, la page 1 montre l’inverse. Le tri etait affiche sur l’en-tete sans etre transmis a l’API au chargement.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-tri-init', { serverSide: true })}
+  <dsfr-data-list id="l-tri-init" source="s-tri-init" columns="region:Région, population:Population"
+    sort="population:asc" server-sort></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-tri-init',
+        columns: [{ column: 'region' }, { column: 'population', numeric: true }],
+        pipeline: [
+          { op: 'order-by', column: 'population', dir: 'asc' },
+          { op: 'page', size: TAILLE_PAGE, number: 1 },
+        ],
+      },
+      urlsDe('tri-initial-delegue', 'ods', 'order_by=population ASC', 'all'),
     ],
   },
 ];
@@ -1142,6 +1249,7 @@ export const DELEGATION: Manifest = {
     ...PARTAGE,
     ...PLAFOND,
     ...ATTENTE,
+    ...TRI_INITIAL,
     ...SANS_ADAPTATEUR,
     ...TABULAR_API,
     ...TABULAR_TRI_AGREGAT,

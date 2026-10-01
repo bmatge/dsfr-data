@@ -151,6 +151,19 @@ export class PaginationController {
     this.host.requestUpdate();
   }
 
+  /**
+   * Tri INITIAL délégué au serveur (#1178) : l'attribut `sort` d'un afficheur
+   * en `server-sort` part à la source dès la connexion, avant son premier
+   * chargement — sans quoi la flèche de tri s'affichait sur des lignes non
+   * triées. La page n'est PAS ramenée à 1 : celle restaurée depuis l'URL
+   * (#304) reste celle qu'on affiche.
+   */
+  notifyInitialServerSort(orderBy: string): void {
+    if (this.host.source) {
+      dispatchSourceCommand(this.host.source, { orderBy, origin: this.host.id });
+    }
+  }
+
   /** Recherche/filtre local : retour page 1 */
   resetToFirstPage(): void {
     this.currentPage = 1;

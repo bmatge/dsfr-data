@@ -333,6 +333,8 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   disconnectedCallback() {
     super.disconnectedCallback();
     this._pager.disconnect();
+    // Reconnecté, l'élément peut viser une source neuve : le tri repartira.
+    this._serverSortSent = '';
   }
 
   willUpdate(changedProperties: Map<string, unknown>) {
@@ -466,7 +468,33 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
     if (sortExpr) {
       const [key, direction] = sortExpr.split(':');
       this._sort = { key, direction: (direction as 'asc' | 'desc') || 'asc' };
+      this._sendInitialServerSort();
     }
+  }
+
+  /**
+   * Dernier tri envoyé à la source en `server-sort` : `_initSort` court à la
+   * connexion PUIS au premier `willUpdate` (la propriété `sort` y figure
+   * toujours), une seule commande doit partir.
+   */
+  private _serverSortSent = '';
+
+  /**
+   * Tri initial délégué au serveur (#1178) — jusqu'ici seul le clic sur un
+   * en-tête l'envoyait : la flèche annonçait `sort`, les lignes suivaient
+   * l'ordre du serveur. Différé d'une micro-tâche : une source écrite APRÈS
+   * la liste dans le même fragment n'écoute pas encore ses commandes, et son
+   * premier chargement attend, lui, une macro-tâche — la requête part donc
+   * déjà triée.
+   */
+  private _sendInitialServerSort() {
+    if (!(this.serverSort || this.serverTri) || !this.source || !this._sort) return;
+    const orderBy = `${this._sort.key}:${this._sort.direction}`;
+    if (orderBy === this._serverSortSent) return;
+    this._serverSortSent = orderBy;
+    queueMicrotask(() => {
+      if (this.isConnected) this._pager.notifyInitialServerSort(orderBy);
+    });
   }
 
   // --- Data processing ---
@@ -583,7 +611,8 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
     // retour page 1 dans la MEME commande (#304) : trier en page 5
     // affichait la page 5 du nouveau tri
     if ((this.serverSort || this.serverTri) && this.source) {
-      this._pager.notifyServerSort(`${this._sort.key}:${this._sort.direction}`);
+      this._serverSortSent = `${this._sort.key}:${this._sort.direction}`;
+      this._pager.notifyServerSort(this._serverSortSent);
     }
   }
 

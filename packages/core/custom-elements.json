@@ -9837,6 +9837,22 @@
               "privacy": "private"
             },
             {
+              "kind": "field",
+              "name": "_serverSortSent",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Dernier tri envoyé à la source en `server-sort` : `_initSort` court à la\nconnexion PUIS au premier `willUpdate` (la propriété `sort` y figure\ntoujours), une seule commande doit partir."
+            },
+            {
+              "kind": "method",
+              "name": "_sendInitialServerSort",
+              "privacy": "private",
+              "description": "Tri initial délégué au serveur (#1178) — jusqu'ici seul le clic sur un\nen-tête l'envoyait : la flèche annonçait `sort`, les lignes suivaient\nl'ordre du serveur. Différé d'une micro-tâche : une source écrite APRÈS\nla liste dans le même fragment n'écoute pas encore ses commandes, et son\npremier chargement attend, lui, une macro-tâche — la requête part donc\ndéjà triée."
+            },
+            {
               "kind": "method",
               "name": "_getUniqueValues",
               "privacy": "private",
@@ -17235,6 +17251,16 @@
             },
             {
               "kind": "field",
+              "name": "_delegatedSourceEl",
+              "type": {
+                "text": "Element | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "INSTANCE de l'élément visé par `source` au moment de la délégation\n(#1164) : la libération au départ s'adresse à elle, pas à l'id. Une page\nrégénérée recrée une source de même id, connectée avant la déconnexion de\nl'ancienne query — l'effacement par id vidait le `where` que la nouvelle\nquery venait d'y déléguer."
+            },
+            {
+              "kind": "field",
               "name": "_aggregateError",
               "type": {
                 "text": "string | null"
@@ -17806,6 +17832,25 @@
               "name": "_clearServerDelegation",
               "privacy": "private",
               "description": "Clear server-side overlays on dsfr-data-source (disconnect cleanup).\nSends empty values so dsfr-data-source reverts to its own attributes.\nAdresse a la source reellement deleguee (#276) — pas a `this.source`,\nqui peut avoir change entre-temps."
+            },
+            {
+              "kind": "method",
+              "name": "_clearsOnDeparture",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean } | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Ce que la libération au départ doit effacer (#1164) — la libération est\nportée par INSTANCE, pas par id :\n\n  - la source déléguée a été remplacée par une homonyme (page régénérée) :\n    rien. L'ancienne part avec ses overlays, et la nouvelle porte ceux de\n    la nouvelle query ;\n  - une query HOMONYME connectée délègue à la même source (seule la query\n    a été régénérée) : elle a repris nos overlays, sous la même clé de\n    `where`. On n'efface que ce qu'elle ne délègue pas."
             },
             {
               "kind": "method",

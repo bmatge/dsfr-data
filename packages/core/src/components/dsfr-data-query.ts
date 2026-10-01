@@ -133,6 +133,13 @@ function readersOf(id: string): Element[] {
   const out: Element[] = [];
   for (const el of dsfrDataInstances()) {
     if (el.tagName.toLowerCase() === 'dsfr-data-context') continue;
+    // #1164 — un élément DÉTACHÉ ne lit plus rien. Quand un `innerHTML` est
+    // réécrit (Builder carto, « Générer »), le navigateur connecte les
+    // nouvelles instances AVANT de déconnecter les anciennes : l'ancienne
+    // query homonyme, encore inscrite au registre, faisait passer la chaîne
+    // pour partagée, et la nouvelle ne déléguait plus son `where` (filtrage
+    // client sur les 1 000 lignes chargées).
+    if (!el.isConnected) continue;
     if (upstreamLinksOf(el).includes(id)) out.push(el);
   }
   return out;
@@ -485,6 +492,15 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _delegatedSourceId: string | null = null;
 
   /**
+   * INSTANCE de l'élément visé par `source` au moment de la délégation
+   * (#1164) : la libération au départ s'adresse à elle, pas à l'id. Une page
+   * régénérée recrée une source de même id, connectée avant la déconnexion de
+   * l'ancienne query — l'effacement par id vidait le `where` que la nouvelle
+   * query venait d'y déléguer.
+   */
+  private _delegatedSourceEl: Element | null = null;
+
+  /**
    * Message d'erreur de configuration de `aggregate` (fonction hors liste
    * blanche, #649), posé à la (re)négociation ; null si l'expression est valide.
    */
@@ -779,6 +795,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
     this._appendDelegationDiff(cmd, prev, prevSourceId);
     this._delegatedSourceId = this._hasServerDelegation() ? this.source : null;
+    this._delegatedSourceEl = this._delegatedSourceId ? rawEl : null;
     this._sendDelegationCommand(cmd);
   }
 
@@ -1096,6 +1113,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _onInstanceRegistered = (el: Element) => {
     if (el === this || this._chainIds.size === 0) return;
+    // #1164 — détachée, cette query n'a plus rien à négocier : son
+    // `disconnectedCallback` n'a pas encore couru (les nouvelles instances
+    // d'un `innerHTML` réécrit se connectent avant), et sa renégociation
+    // envoyait un effacement de `where` à la source HOMONYME qui vient de
+    // naître, vidant le filtre de la nouvelle query.
+    if (!this.isConnected) return;
     if (el.tagName.toLowerCase() === 'dsfr-data-context') return;
     const isChainLink = el.id !== '' && this._chainIds.has(el.id);
     const touchesChain =
@@ -1161,6 +1184,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _onDelegationContested = (e: Event) => {
     const { sourceId } = (e as CustomEvent<{ sourceId: string }>).detail;
+    if (!this.isConnected) return; // #1164, voir _onInstanceRegistered
     if (!this._delegatedSourceId || this._delegatedSourceId !== sourceId) return;
     if (
       !this._serverDelegated.groupBy &&
@@ -1290,11 +1314,44 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _clearServerDelegation() {
     if (this._delegatedSourceId && this._hasServerDelegation()) {
-      this._sendDelegationClears(this._delegatedSourceId, this._serverDelegated);
+      const toClear = this._clearsOnDeparture(this._delegatedSourceId);
+      if (toClear) this._sendDelegationClears(this._delegatedSourceId, toClear);
     }
     this._serverDelegated = { groupBy: false, aggregate: false, orderBy: false, where: false };
     this._delegatedSourceId = null;
+    this._delegatedSourceEl = null;
     this._lastDelegation = null;
+  }
+  /**
+   * Ce que la libération au départ doit effacer (#1164) — la libération est
+   * portée par INSTANCE, pas par id :
+   *
+   *   - la source déléguée a été remplacée par une homonyme (page régénérée) :
+   *     rien. L'ancienne part avec ses overlays, et la nouvelle porte ceux de
+   *     la nouvelle query ;
+   *   - une query HOMONYME connectée délègue à la même source (seule la query
+   *     a été régénérée) : elle a repris nos overlays, sous la même clé de
+   *     `where`. On n'efface que ce qu'elle ne délègue pas.
+   */
+  private _clearsOnDeparture(
+    sourceId: string
+  ): { groupBy: boolean; aggregate: boolean; orderBy: boolean; where: boolean } | null {
+    const current = document.getElementById(sourceId);
+    if (this._delegatedSourceEl && current !== this._delegatedSourceEl) return null;
+    const delegated = { ...this._serverDelegated };
+    const homonym = this.id ? document.getElementById(this.id) : null;
+    if (
+      homonym &&
+      homonym !== this &&
+      homonym instanceof DsfrDataQuery &&
+      homonym._delegatedSourceId === sourceId
+    ) {
+      const kept = homonym.getDelegation();
+      for (const op of Object.keys(delegated) as Array<keyof typeof delegated>) {
+        if (kept[op]) delegated[op] = false;
+      }
+    }
+    return Object.values(delegated).some(Boolean) ? delegated : null;
   }
 
   /**
