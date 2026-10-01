@@ -20,6 +20,7 @@
 import type { Row } from '../../tools/oracle/manifest.js';
 import territoires from './jeux/transformations-territoires.json' with { type: 'json' };
 import brutes from './jeux/transformations-brutes.json' with { type: 'json' };
+import prefixes from './jeux/transformations-prefixes.json' with { type: 'json' };
 import calculs from './jeux/transformations-calculs.json' with { type: 'json' };
 import long from './jeux/transformations-long.json' with { type: 'json' };
 import editions from './jeux/transformations-editions.json' with { type: 'json' };
@@ -39,6 +40,13 @@ export const TERRITOIRES: Row[] = territoires;
 
 /** Huit lignes brutes pour la normalisation (typage, arrondi, renommage, découpe, repli). */
 export const BRUTES: Row[] = brutes;
+
+/**
+ * Valeurs qui COMMENCENT par un nombre sans en être un (#1200, BUG-023/032) :
+ * un code `75A`, une période `1922-1930`. La lecture stricte les rend absentes ;
+ * `numeric-prefix` lit exprès le nombre de tête.
+ */
+export const PREFIXES: Row[] = prefixes;
 
 /** Six lignes taillées pour la grammaire des colonnes calculées. */
 export const CALCULS: Row[] = calculs;

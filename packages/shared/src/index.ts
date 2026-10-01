@@ -21,7 +21,7 @@ export {
   isFormatType,
 } from './utils/formatters.js';
 export type { FormatType, FormatValueOptions } from './utils/formatters.js';
-export { toNumber, looksLikeNumber } from './utils/number-parser.js';
+export { toNumber, toLeadingNumber, looksLikeNumber } from './utils/number-parser.js';
 export { isIsoDateString } from './utils/iso-date.js';
 export { stripAccents } from './utils/strip-accents.js';
 export {

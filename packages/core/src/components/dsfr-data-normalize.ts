@@ -3,6 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { warnSuspectSeparator } from '../utils/attr-separators.js';
 import {
   toNumber,
+  toLeadingNumber,
   looksLikeNumber,
   compileCompute,
   applyCompute,
@@ -102,10 +103,25 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
 
   /**
    * Champs a convertir en nombre (virgule-séparés). Ex: "population, surface"
+   * Lecture STRICTE (#1200) : la valeur entière doit être un nombre (décimale
+   * française, milliers, symbole d'unité final « % » « € » acceptés), sinon
+   * `null` — « 2026-09-25 » ou « 75A » ne valent plus 2026 ni 75. Pour lire
+   * le nombre en tête exprès : `numeric-prefix`.
    * @champ liste
    */
   @property({ type: String })
   numeric = '';
+
+  /**
+   * Champs dont on lit le nombre qui OUVRE la valeur (#1200), en connaissance
+   * de cause : « 1922-1930 » → 1922, « 75A » → 75. `numeric` lit désormais une
+   * valeur ENTIÈRE ou rien (« 2026-09-25 » n'est plus 2026) ; ce mode-ci est
+   * l'ancienne lecture, devenue un choix explicite. Aucun nombre en tête →
+   * absent (`null`). Ex: `numeric-prefix="periode"`.
+   * @champ liste
+   */
+  @property({ type: String, attribute: 'numeric-prefix' })
+  numericPrefix = '';
 
   /** Detection automatique des champs numériques via looksLikeNumber() */
   @property({ type: Boolean, attribute: 'numeric-auto' })
@@ -351,6 +367,7 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       'flatten',
       'split',
       'numeric',
+      'numericPrefix',
       'numericAuto',
       'round',
       'rename',
@@ -393,6 +410,12 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       }
 
       const numericFields = this._parseNumericFields();
+      this._prefixFields = new Set(
+        this.numericPrefix
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean)
+      );
       const roundFields = this._parseRoundFields();
       if (this.rename) {
         // `rename` prend la barre, `fold` la virgule, sur la même balise (#772)
@@ -549,7 +572,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
       }
 
       // 4. Numeric conversion (uses trimmed key for field matching)
-      if (numericFields.has(key)) {
+      if (this._prefixFields.has(key)) {
+        normalizedValue = toLeadingNumber(normalizedValue);
+      } else if (numericFields.has(key)) {
         // Semantique stricte alignee sur numeric-auto (#301) : "N/A"/null
         // devenait 0 et faussait les sommes — desormais null (exclu des
         // agregats par la politique NaN unique)
@@ -777,6 +802,9 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
     }
     return map;
   }
+
+  /** Champs de `numeric-prefix`, relus à chaque traitement (#1200). */
+  private _prefixFields = new Set<string>();
 
   /** Parse l'attribut numeric en Set de noms de champs */
   _parseNumericFields(): Set<string> {

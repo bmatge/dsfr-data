@@ -40,6 +40,7 @@ import {
   BAROMETRE_QUESTIONS,
   BAROMETRE_SCORES,
   BRUTES,
+  PREFIXES,
   CALCULS,
   COMPOSITE_DROITE,
   COMPOSITE_GAUCHE,
@@ -769,6 +770,56 @@ ${kpi('k-num-nul', 'q-num-nul')}`,
             },
           },
         ],
+      },
+    ],
+  },
+  {
+    id: 'query-agregat-refuse-un-prefixe',
+    mode: 'deterministic',
+    constats: ['BUG-023', 'BUG-032'],
+    origin:
+      "#1200, BUG-023 et BUG-032 du banc — la lecture « stricte » se terminait par `parseFloat` et acceptait tout PRÉFIXE : `75A` valait 75, `2B` valait 2, `2026-09-25` valait 2026 (un `max` de dates rendait l'année). Une valeur qui n'est pas ENTIÈREMENT un nombre est désormais absente des agrégats de la query, comme pour le KPI.",
+    feed: { kind: 'fixture', datasets: { main: PREFIXES } },
+    markup: `${source('s-prefixe', PREFIXES)}
+  <dsfr-data-query id="q-prefixe" source="s-prefixe"
+    aggregate="code:max:mx, code:min:mn, code:sum:s, cle:count:lignes"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-prefixe',
+        key: 'lignes',
+        columns: ['mx', 'mn', 's'],
+        pipeline: [
+          {
+            op: 'global',
+            columns: {
+              mx: { agg: 'max', field: 'code' },
+              mn: { agg: 'min', field: 'code' },
+              s: { agg: 'sum', field: 'code' },
+              lignes: { agg: 'count' },
+            },
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'normalize-numeric-prefix',
+    mode: 'deterministic',
+    constats: ['BUG-023'],
+    origin:
+      '#1200 — la lecture du nombre de tête devient un CHOIX explicite : `numeric-prefix="periode"` lit `1922-1930` → 1922 (culture/architecture-contemporaine en dépend, 1 794 édifices datés), et rend absent ce qui ne commence pas par un nombre (`vers 1880`, vide).',
+    feed: { kind: 'fixture', datasets: { main: PREFIXES } },
+    markup: `${source('s-np', PREFIXES)}
+  <dsfr-data-normalize id="n-prefixe" source="s-np" numeric-prefix="periode"></dsfr-data-normalize>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'n-prefixe',
+        key: 'cle',
+        columns: ['periode'],
+        pipeline: [{ op: 'derive', expr: 'periode = leading_number(periode)' }],
       },
     ],
   },

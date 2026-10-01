@@ -412,6 +412,14 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
         args[0] === '' ||
         (Array.isArray(args[0]) && args[0].length === 0)
       );
+    case 'leading_number': {
+      // Le nombre qui OUVRE le texte (#1200, `numeric-prefix`) : « 1922-1930 »
+      // → 1922, « vers 1880 » → null. Réécrit ici, sans rien emprunter à la lib.
+      if (typeof args[0] === 'number') return args[0];
+      if (typeof args[0] !== 'string') return null;
+      const m = /^\s*([+-]?\d+)(?:[.,](\d+))?/.exec(args[0]);
+      return m === null ? null : Number(m[2] === undefined ? m[1] : `${m[1]}.${m[2]}`);
+    }
     case 'join':
       return Array.isArray(args[0]) ? args[0].map(texteDe).join(texteDe(args[1])) : null;
     case 'contains':
