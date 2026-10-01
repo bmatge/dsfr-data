@@ -549,6 +549,11 @@ Nommage automatique sans alias : \`champ__fonction\` (ex: \`population__sum\`)
 | share | **Part du total** (#926) : valeur de la ligne / somme de la colonne sur les lignes de sortie. FRACTION (0,334) | \`"lics__sum:share"\` → colonne \`lics__sum__share\` |
 | share_percent | La même part **en points de pourcentage** (33,4), pour un axe de graphique | \`"lics__sum:share_percent"\` → colonne \`lics__sum__share_percent\` |
 
+**Une absence n'est pas un zéro** (#301, #1198) : un groupe sans AUCUNE valeur numérique
+rend \`null\` pour \`sum\`, \`avg\`, \`min\` et \`max\` (pas 0) ; \`count\` compte les lignes et
+reste un nombre. Un afficheur rend \`null\` comme une absence (cellule vide, barre absente,
+courbe interrompue), jamais comme un 0.
+
 Délégation de \`distinct\` : ODS \`count(distinct champ)\`, Grist SQL \`COUNT(DISTINCT champ)\` ;
 **Tabular ne le délègue pas** (calcul client sur les lignes reçues, warn console si l'API en
 détient davantage — chiffre partiel derrière un \`max-records\` ou un \`limit\`).
