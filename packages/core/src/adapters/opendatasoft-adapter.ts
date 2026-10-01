@@ -921,10 +921,13 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
     if (!response.ok) {
-      // Seule une reponse 4xx (hors 429) dit que l'export n'existe pas pour ce
-      // jeu : un 429 ou un 5xx est transitoire, on replie cette fois-ci sans
-      // condamner l'export pour la session (revue du 2026-09-13).
-      const definitive = response.status >= 400 && response.status < 500 && response.status !== 429;
+      // Seul un 404 dit que l'export n'existe pas pour ce JEU (#1199, BUG-027).
+      // Un 400 vise la CLAUSE (un `where` sur un alias d'agrégat, refusé par
+      // le portail) : le memoriser condamnait l'export du jeu entier pour
+      // toutes les sources de la page, et la clause suivante, valide, n'y
+      // aurait plus eu droit. Un 429 ou un 5xx est transitoire. Dans tous ces
+      // cas on replie cette fois-ci, sans condamner l'export.
+      const definitive = response.status === 404;
       if (definitive) this._exportUnavailable.add(this._datasetKey(params));
       console.warn(
         `[dsfr-data] opendatasoft: export JSON indisponible pour "${params.datasetId}" ` +
