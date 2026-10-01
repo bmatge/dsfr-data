@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
@@ -393,6 +393,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * qui faussent `weighted` sans se voir (PG-031, #929). L'arrondi au centième
    * que la carte applique pour SE DESSINER, lui, ne compte pas. Pour arrondir
    * l'affichage sans fausser le calcul : `map-summary-field`.
+   *
+   * Ce que le résumé écarte est DIT sous la carte (#1201) : les lignes au code
+   * absent ou hors du découpage ne sont ni dessinées ni comptées, et une note
+   * « Ce chiffre écarte N lignes sans territoire sur la carte » le signale —
+   * avec leur total pour `sum`.
    */
   @property({ type: String, attribute: 'map-summary' })
   mapSummary = '';
@@ -781,6 +786,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   /** Jeu pour lequel le warn de doublons a deja ete emis (un warn par cycle). */
   private _duplicateWarnedData: unknown[] | null = null;
+
+  /** Un resume est-il affiche sous la carte (dernier `_applyMapAttrs`) ? */
+  private _mapSummaryShown = false;
 
   /** Erreur de configuration du resume de carte (#763), jointe aux overlays. */
   private _mapSummaryError: string | null = null;
@@ -1245,6 +1253,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     deferred['data'] = mapData;
     const summary = this._computeMapSummary();
     this._mapSummaryError = summary.error;
+    this._mapSummaryShown = summary.value !== null;
     if (summary.value !== null) {
       deferred['value'] = String(Math.round(summary.value * 100) / 100);
     }
@@ -2095,6 +2104,41 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._pendingTimers.add(timer);
   }
 
+  /**
+   * Ce que le résumé de la carte ÉCARTE, dit sous la carte (#1201, PG-083 du
+   * banc). Le résumé ne porte que sur les lignes dessinées : une ligne au code
+   * absent ou hors du découpage (COM 975-988, entité hors académies) n'y entre
+   * pas, et le chiffre « …, en France » restait plausible et faux — seul un
+   * `console.warn` les comptait. Sans attribut : dès qu'un résumé est affiché
+   * et qu'une ligne est écartée. Pour une SOMME, la part écartée est chiffrée.
+   */
+  private _mapNote() {
+    if (!this.type.startsWith('map') || !this._mapSummaryShown) return nothing;
+    const n = this._skippedGeoCount;
+    if (n === 0) return nothing;
+    const drawn = new Set(this._mapRows);
+    const skipped = this._data.filter((r) => !drawn.has(r));
+    const field = this.mapSummaryField.trim() || this._valueFieldKey();
+    let part = '';
+    if (this.mapSummary.trim().toLowerCase() === 'sum') {
+      let total = 0;
+      let any = false;
+      for (const r of skipped) {
+        const v = toNumber(getByPath(r, field), true);
+        if (v !== null) {
+          total += v;
+          any = true;
+        }
+      }
+      if (any) part = ` : ${total.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} de plus`;
+    }
+    const lignes = n > 1 ? `${n} lignes` : '1 ligne';
+    return html`<p class="dsfr-data-chart__map-note fr-text--sm fr-mt-1v">
+      Ce chiffre écarte ${lignes} sans territoire sur la carte (code absent ou hors
+      découpage)${part}.
+    </p>`;
+  }
+
   private _renderChart() {
     const tagName = CHART_TAG_MAP[this.type];
     if (!tagName) {
@@ -2127,7 +2171,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       if (prevSimpleWrapper && existing) {
         this._applyChartAttributes(existing, allAttrs, deferred);
         prevSimpleWrapper.setAttribute('aria-label', this._getAriaLabel());
-        return html`${prevSimpleWrapper}`;
+        return html`${prevSimpleWrapper}${this._mapNote()}`;
       }
     }
 
@@ -2140,10 +2184,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     if (this.databox) {
       const databoxEl = this._createDataboxElement(tagName, allAttrs, deferred);
-      return html`${databoxEl}`;
+      return html`${databoxEl}${this._mapNote()}`;
     }
     const wrapper = this._createChartElement(tagName, allAttrs, deferred);
-    return html`${wrapper}`;
+    return html`${wrapper}${this._mapNote()}`;
   }
 
   render() {
