@@ -3,7 +3,7 @@
  */
 
 import { state } from './state.js';
-import { addWidget, addWidgetFromFavorite } from './widgets.js';
+import { addWidget, addWidgetFromFavorite, freeCell } from './widgets.js';
 import type { WidgetType, DashboardFavorite } from './state.js';
 
 let draggedData: { type: string; widgetType?: string; favorite?: DashboardFavorite } | null = null;
@@ -20,7 +20,7 @@ export function initDropZones(): void {
   document.querySelectorAll('.drop-cell').forEach((cell) => {
     cell.addEventListener('dragover', handleDragOver as EventListener);
     cell.addEventListener('dragleave', handleDragLeave as EventListener);
-    cell.addEventListener('drop', handleDrop as EventListener);
+    cell.addEventListener('drop', (e) => void handleDrop(e as DragEvent));
   });
 }
 
@@ -58,7 +58,7 @@ function handleDragLeave(e: DragEvent): void {
   (e.currentTarget as HTMLElement).classList.remove('drag-over');
 }
 
-function handleDrop(e: DragEvent): void {
+async function handleDrop(e: DragEvent): Promise<void> {
   e.preventDefault();
   (e.currentTarget as HTMLElement).classList.remove('drag-over');
 
@@ -73,12 +73,15 @@ function handleDrop(e: DragEvent): void {
   const cell = e.currentTarget as HTMLElement;
   const row = parseInt(cell.dataset.row || '0');
   const col = parseInt(cell.dataset.col || '0');
-
-  if (draggedData!.type === 'new') {
-    addWidget(draggedData!.widgetType as WidgetType, row, col, cell);
-  } else if (draggedData!.type === 'favorite' && draggedData!.favorite) {
-    addWidgetFromFavorite(draggedData!.favorite, row, col, cell);
-  }
-
+  // Lu AVANT l'attente de la confirmation : `dragend` remet `draggedData` à
+  // null pendant que la boîte de dialogue est ouverte.
+  const dropped = draggedData!;
   draggedData = null;
+
+  if (!(await freeCell(row, col))) return;
+  if (dropped.type === 'new') {
+    addWidget(dropped.widgetType as WidgetType, row, col, cell);
+  } else if (dropped.type === 'favorite' && dropped.favorite) {
+    addWidgetFromFavorite(dropped.favorite, row, col, cell);
+  }
 }

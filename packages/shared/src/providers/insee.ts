@@ -75,5 +75,6 @@ export const INSEE_CONFIG: ProviderConfig = {
       const m = url.match(INSEE_RE);
       return m ? { datasetId: m[1] } : null;
     },
+    queryParamsAreFilters: true,
   },
 };

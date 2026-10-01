@@ -152,9 +152,23 @@ export function resolveSourceUrl(rawUrl: string): ResolvedSourceUrl {
       // l'URL : les autres params (limit/offset/where…) sont gérés par
       // l'adapter et seraient redondants/conflictuels. Sans ça, coller une URL
       // type `.../records?apikey=KEY` perdait la clé lors de la normalisation.
+      //
+      // Exception (#1163) : chez un fournisseur dont la requête PORTE les
+      // filtres (Melodi : `GEO=REG&TIME_PERIOD=2023`), ils sont gardés — sans
+      // eux, la connexion visait le jeu entier. Seuls les paramètres de
+      // pagination, que l'adaptateur pilote, sont retirés.
       try {
-        const apikey = new URL(url).searchParams.get('apikey');
-        if (apikey) apiUrl = `${canonical}?apikey=${encodeURIComponent(apikey)}`;
+        const pasted = new URL(url).searchParams;
+        const kept = new URLSearchParams();
+        if (provider.resource.queryParamsAreFilters) {
+          const paging = new Set(Object.values(provider.pagination.params ?? {}));
+          for (const [key, value] of pasted) if (!paging.has(key)) kept.append(key, value);
+        } else {
+          const apikey = pasted.get('apikey');
+          if (apikey) kept.set('apikey', apikey);
+        }
+        const query = kept.toString();
+        if (query) apiUrl = `${canonical}?${query}`;
       } catch {
         /* url non parseable → pas de query à préserver */
       }

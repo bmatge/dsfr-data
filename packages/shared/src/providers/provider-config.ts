@@ -132,5 +132,12 @@ export interface ProviderConfig {
     apiPathTemplate: string;
     /** Extract resource IDs from a URL */
     extractIds: (url: string) => Record<string, string> | null;
+    /**
+     * Les paramètres de la chaîne de requête SONT des filtres du jeu (#1163) :
+     * INSEE Melodi filtre par dimension (`GEO=REG&TIME_PERIOD=2023`). La
+     * détection d'une URL collée les conserve alors — hors pagination, que
+     * l'adaptateur pilote — au lieu de ramener la connexion au jeu entier.
+     */
+    queryParamsAreFilters?: boolean;
   };
 }
