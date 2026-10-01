@@ -35,6 +35,7 @@ import { GELS } from './gel.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 import { repondreAffichages, repondreAffichagesTabular } from './fixtures-affichages.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
+import exAequo from './jeux/delegation-tabular-ex-aequo.json' with { type: 'json' };
 import mesures from './jeux/mesures.json' with { type: 'json' };
 import regions from './jeux/regions.json' with { type: 'json' };
 
@@ -62,6 +63,14 @@ export const HOTE_TABULAR = 'https://tabular-api.data.gouv.fr';
  * le faux serveur reste lisible.
  */
 export const RESSOURCE_TABULAR = 'ea1b5c3d-0000-4000-8000-verifdonnees01';
+
+/**
+ * Ressource Tabular du jeu `delegation-tabular-ex-aequo` (#1202) : trois pages
+ * de 200, des ex-aequo de tri et des libelles a parenthese — ce que l'API
+ * reelle perd en silence (PG-033, PG-034).
+ */
+export const RESSOURCE_TABULAR_EX_AEQUO = 'ea1b5c3d-0000-4000-8000-verifexaequo02';
+export const EX_AEQUO: Row[] = exAequo;
 
 /** Jeu ODS de la vérification. */
 export const DATASET = 'jeu-de-verif';
@@ -197,6 +206,9 @@ export function repondre(url: URL): unknown | null {
   if (url.origin === HOTE_TABULAR) {
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR}/data/`) {
       return repondreTabular(url, TERRITOIRES);
+    }
+    if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_EX_AEQUO}/data/`) {
+      return repondreTabular(url, EX_AEQUO);
     }
     // La ressource Tabular du lot AFFICHAGES (#1020) : meme hote, autre chemin.
     return repondreAffichagesTabular(url);

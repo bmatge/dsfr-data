@@ -97,6 +97,21 @@ describe('vérification des données — les jeux JSON', () => {
     expect(empreinte(jeux.get('territoires'))).toBe(empreinte(JEU));
   });
 
+  it('`delegation-tabular-ex-aequo.json` est exactement ce que sa formule engendre (#1202)', () => {
+    const CATEGORIES = [
+      'Homicides',
+      'Usage de stupéfiants (AFD)',
+      'Vols (avec violence)',
+      'Cambriolages',
+    ];
+    const attendu = Array.from({ length: 450 }, (_, i) => ({
+      id: i + 1,
+      categorie: CATEGORIES[i % 4],
+      nombre: (i * 7) % 5,
+    }));
+    expect(empreinte(jeux.get('delegation-tabular-ex-aequo'))).toBe(empreinte(attendu));
+  });
+
   it('`canari-volume.json` est exactement ce que son générateur à graine engendre (#882)', () => {
     // Générateur congruentiel linéaire, graine 42 — la formule est écrite dans
     // jeux/README.md ; le fichier en est la matérialisation, et les deux ne
