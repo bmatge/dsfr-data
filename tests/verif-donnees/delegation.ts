@@ -20,7 +20,7 @@
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
 import type { Check, Expect, Manifest, Step } from '../../tools/oracle/manifest.js';
-import { MESURES, RESSOURCE_TABULAR, TERRITOIRES, urlJeu } from './fixtures.js';
+import { DATASET, HOTE_ODS, MESURES, RESSOURCE_TABULAR, TERRITOIRES, urlJeu } from './fixtures.js';
 import {
   pairePaginee,
   sourceOds,
@@ -786,6 +786,89 @@ const TRI_INITIAL: Check[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// 4 ter. La délégation à travers la chaîne (#1199)
+// ---------------------------------------------------------------------------
+
+/** Source ODS qui porte DÉJÀ son regroupement : une ligne par académie, `n` = son compte. */
+const SOURCE_GROUPEE = (id: string): string => `
+  <dsfr-data-source id="${id}" api-type="opendatasoft" base-url="${HOTE_ODS}" dataset-id="${DATASET}"
+    select="academie, count(*) as n" group-by="academie"></dsfr-data-source>`;
+
+const COMPTE_PAR_ACADEMIE: Step[] = [
+  { op: 'group-by', by: 'academie', columns: { n: { agg: 'count' } } },
+];
+
+const TRANSIT: Check[] = [
+  {
+    id: 'source-groupee-garde-son-regroupement',
+    mode: 'deterministic',
+    constats: ['BUG-026'],
+    origin:
+      '#1199, BUG-026 du banc — la source porte DÉJÀ son regroupement (`select="academie, count(*) as n" group-by="academie"`), un `normalize` de valeurs s\'intercale, et une query regroupe à nouveau. La query déléguait son `group-by` À TRAVERS le normalize et remplaçait celui de la source : le serveur regroupait les lignes brutes, et le KPI affichait un chiffre faux de deux ordres de grandeur. La query regroupe désormais les GROUPES de la source, côté client.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `${SOURCE_GROUPEE('s-grp')}
+  <dsfr-data-normalize id="n-grp" source="s-grp" trim></dsfr-data-normalize>
+  <dsfr-data-query id="q-grp" source="n-grp" group-by="academie" aggregate="n:sum:n"></dsfr-data-query>
+  <dsfr-data-kpi id="k-grp" source="q-grp" value="n:sum" format="nombre" label="Territoires"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'rows', id: 'q-grp', key: 'academie', columns: ['n'], pipeline: COMPTE_PAR_ACADEMIE },
+      { kind: 'kpi', id: 'k-grp', agg: 'count' },
+      urlsDe('regroupement-de-la-source', 'ods', 'group_by=academie', 'all'),
+      urlsDe('select-de-la-source', 'ods', 'select=academie, count(*) as n', 'all'),
+    ],
+  },
+
+  {
+    id: 'where-sur-alias-reste-client',
+    mode: 'deterministic',
+    constats: ['BUG-027'],
+    origin:
+      "#1199, BUG-027 du banc — `where=\"n:gte:18\"` vise l'alias `n` que la source FABRIQUE (`count(*) as n`). Délégué, il partait au portail AVANT le regroupement, sur des colonnes brutes où `n` n'existe pas : HTTP 400, et l'export du jeu était condamné pour toute la page. La clause reste côté client, sur les groupes.",
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `${SOURCE_GROUPEE('s-alias')}
+  <dsfr-data-query id="q-alias" source="s-alias" where="n:gte:18"></dsfr-data-query>
+  <dsfr-data-kpi id="k-alias" source="q-alias" value="count" format="nombre" label="Académies"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-alias',
+        agg: 'count',
+        pipeline: [
+          ...COMPTE_PAR_ACADEMIE,
+          { op: 'filter', filters: [{ field: 'n', op: 'gte', value: 18 }] },
+        ],
+      },
+      urlsDe('alias-jamais-au-portail', 'ods', 'where=', 'none'),
+    ],
+  },
+
+  {
+    id: 'query-qui-renomme-bloque-la-delegation',
+    mode: 'deterministic',
+    constats: ['BUG-036'],
+    origin:
+      "#1199, BUG-036 du banc — `normalize(rename) → query → normalize(valeurs) → query group-by`. La remontée de `transformsSchema()` s'arrêtait sur la query intermédiaire, qui ne l'implémentait pas : la dernière query déléguait son `group-by` sous le nom RENOMMÉ, et l'API Tabular recevait `Academie__groupby` (toute la source en échec). La query répond désormais à la question, et la dernière regroupe côté client.",
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-36')}
+  <dsfr-data-normalize id="n-36a" source="s-36" rename="academie:Academie"></dsfr-data-normalize>
+  <dsfr-data-query id="q-36a" source="n-36a" where="Academie:isnotnull"></dsfr-data-query>
+  <dsfr-data-normalize id="n-36b" source="q-36a" trim></dsfr-data-normalize>
+  <dsfr-data-query id="q-36b" source="n-36b" group-by="Academie" aggregate="population:sum"></dsfr-data-query>
+  <dsfr-data-kpi id="k-36" source="q-36b" value="count" format="nombre" label="Académies"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-36',
+        agg: 'count',
+        pipeline: [{ op: 'group-by', by: 'academie', columns: {} }],
+      },
+      urlsDe('aucun-groupby-renomme', 'tabular', '__groupby', 'none'),
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // 5. Sans adaptateur : le même balisage, tout côté client
 // ---------------------------------------------------------------------------
 
@@ -1250,6 +1333,7 @@ export const DELEGATION: Manifest = {
     ...PLAFOND,
     ...ATTENTE,
     ...TRI_INITIAL,
+    ...TRANSIT,
     ...SANS_ADAPTATEUR,
     ...TABULAR_API,
     ...TABULAR_TRI_AGREGAT,
