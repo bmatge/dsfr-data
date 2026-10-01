@@ -88,7 +88,8 @@ describe('#301 — AC : pipeline avec décimales françaises agrégé sans norma
 
     expect(query.getData()).toEqual([
       { region: 'IDF', total: 2000 },
-      { region: 'BRE', total: 0 },
+      // #1198 (BUG-028) : « N/A » seul dans son groupe → somme absente.
+      { region: 'BRE', total: null },
     ]);
 
     (query as any)._cleanup();

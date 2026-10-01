@@ -147,13 +147,14 @@ describe('DsfrDataChart', () => {
       expect(result.labels).toEqual(['0', 'false']);
     });
 
-    it('uses 0 for non-numeric values', () => {
+    // #1198 (BUG-029) : une valeur non numérique n'est pas un 0 plausible.
+    it('uses null for non-numeric values', () => {
       internals(chart)._data = [{ cat: 'A', val: 'not-a-number' }];
       chart.labelField = 'cat';
       chart.valueField = 'val';
 
       const result = internals(chart)._processData();
-      expect(JSON.parse(result.y)).toEqual([[0]]);
+      expect(JSON.parse(result.y)).toEqual([[null]]);
     });
 
     it('processes second value field for bar-line', () => {
@@ -1042,9 +1043,10 @@ describe('DsfrDataChart', () => {
         chart.seriesField = 'groupe';
         chart.valueField = 'v';
         const { allSeries } = internals(chart)._processData();
+        // Cellule (Fev, B) sans observation → null (#1198, BUG-029)
         expect(allSeries).toEqual([
           [1, 2],
-          [3, 0],
+          [3, null],
         ]);
       });
 
