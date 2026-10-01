@@ -26,6 +26,7 @@ import communes from './jeux/affichages-communes.json' with { type: 'json' };
 import serie from './jeux/affichages-serie.json' with { type: 'json' };
 import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
 import long from './jeux/affichages-long.json' with { type: 'json' };
+import absences from './jeux/affichages-absences.json' with { type: 'json' };
 import contoursDepartements from './jeux/affichages-contours-departements.json' with { type: 'json' };
 import zones from './jeux/affichages-zones.json' with { type: 'json' };
 import aides from './jeux/affichages-aides.json' with { type: 'json' };
@@ -64,6 +65,14 @@ export const LIBELLES: Row[] = libelles;
 export const LONG: Row[] = long;
 
 /**
+ * Trois absences au format long (#1198, BUG-028 et BUG-029 du banc) : une
+ * cellule manquante (Cadres en mars), une valeur nulle (Agents en février) et
+ * un groupe sans AUCUNE valeur (Stagiaires, `null` puis chaîne vide). Une
+ * absence n'est pas un zéro : l'oracle rend `null`, la bibliothèque aussi.
+ */
+export const ABSENCES: Row[] = absences;
+
+/**
  * Dix zones à la manière d'un jeu Opendatasoft (#1053) : chaque ligne porte
  * À LA FOIS `geo_point_2d` (un point {lat, lon}) et `geo_shape` (un polygone
  * GeoJSON). Une couche `geoshape` sans `geo-field` doit tracer la FORME : le
@@ -80,12 +89,13 @@ export const ZONES: Row[] = zones;
  */
 export const AIDES: Row[] = aides;
 
-/** Les six jeux, sous le nom que les manifestes leur donnent. */
+/** Les sept jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
   libelles: LIBELLES,
   long: LONG,
+  absences: ABSENCES,
   zones: ZONES,
   aides: AIDES,
 } as const;

@@ -1,0 +1,9 @@
+[
+  {"mois":"Janvier","groupe":"Cadres","valeur":120},
+  {"mois":"Janvier","groupe":"Agents","valeur":310},
+  {"mois":"Janvier","groupe":"Stagiaires","valeur":null},
+  {"mois":"Février","groupe":"Cadres","valeur":145},
+  {"mois":"Février","groupe":"Agents","valeur":null},
+  {"mois":"Février","groupe":"Stagiaires","valeur":""},
+  {"mois":"Mars","groupe":"Agents","valeur":341}
+]

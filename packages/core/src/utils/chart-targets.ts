@@ -171,7 +171,7 @@ export function isNativeLinearAxis(labels: unknown[]): boolean {
  */
 export function padSeriesForTargets(
   labels: unknown[],
-  series: number[][],
+  series: Array<Array<number | null>>,
   targetXs: Array<string | number>
 ): { labels: unknown[]; series: Array<Array<number | null>>; added: Array<string | number> } {
   const existing = new Set(labels.map((l) => String(l)));

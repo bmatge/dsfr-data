@@ -32,6 +32,7 @@ import {
   HOTE_CANARI,
   urlCanari,
 } from './fixtures-canari.js';
+import { ABSENCES, urlAffichage } from './fixtures-affichages.js';
 
 const JEUX = { main: LIGNES, ref: CANARI_REF };
 
@@ -94,6 +95,37 @@ const CHECKS: Check[] = [
         pipeline: [{ op: 'ratio', numerator: 'montant', denominator: 'poids', as: 'ratio' }],
         // Un montant absent en amont ne devient jamais un quotient en aval.
         invariants: [{ kind: 'null-stays-null', field: 'ratio', rawField: 'montant', key: 'id' }],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-groupe-vide-null',
+    mode: 'deterministic',
+    constats: ['BUG-028', 'BUG-029'],
+    origin:
+      "Canari — #1198, BUG-028 et BUG-029 : un groupe sans AUCUNE valeur numérique rend `null` pour `sum`, `avg`, `min`, `max` (le 0 d'avant entrait dans les classements et les totaux), et une cellule absente d'un graphique reste absente. Le jeu `affichages-absences` porte les trois formes d'absence ; `affichages/query-groupe-sans-valeur-null`, `graphique-format-long-cellule-absente` et `graphique-format-large-valeur-absente` tiennent la règle sur la query et sur les deux formats du graphique.",
+    feed: { kind: 'fixture', datasets: { main: ABSENCES } },
+    markup: `
+  <dsfr-data-source id="s-canari-abs" url="${urlAffichage('absences')}"></dsfr-data-source>
+  <dsfr-data-query id="q-canari-abs" source="s-canari-abs" group-by="groupe"
+    aggregate="valeur:sum:s, valeur:avg:m"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-canari-abs',
+        key: 'groupe',
+        columns: ['s', 'm'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'groupe',
+            columns: {
+              s: { agg: 'sum', field: 'valeur' },
+              m: { agg: 'avg', field: 'valeur' },
+            },
+          },
+        ],
       },
     ],
   },

@@ -273,12 +273,14 @@ describe('#278 — agrégat global (aggregate sans group-by)', () => {
     expect(query.getData()).toEqual([{ population__sum: 20300 }]);
   });
 
-  it('données vides → une ligne de zéros (count 0)', () => {
+  // #1198 (BUG-028) : sans aucune valeur, la somme est absente (null) ; le
+  // comptage, lui, vaut bien 0.
+  it('données vides → une ligne : somme null, count 0', () => {
     query.aggregate = 'population:sum, region:count';
     (query as any)._initialize();
     dispatchDataLoaded('b4-src', []);
 
-    expect(query.getData()).toEqual([{ population__sum: 0, region__count: 0 }]);
+    expect(query.getData()).toEqual([{ population__sum: null, region__count: 0 }]);
   });
 
   it('sans aggregate ni group-by, pass-through inchangé', () => {
