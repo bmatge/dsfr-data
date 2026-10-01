@@ -25,6 +25,12 @@ import {
   extractResourceIds,
   getProvider,
 } from '@dsfr-data/shared';
+import {
+  advancedAggregates,
+  colonAggregate,
+  extraTraced,
+  seriesNames,
+} from './series-aggregates.js';
 import { state, type DataRecord, PROXY_BASE_URL_EMBED, LIB_URL } from '../state.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
@@ -403,6 +409,74 @@ export function computeStaticFacetValues(): Record<string, string[]> | null {
   return Object.keys(result).length > 0 ? result : null;
 }
 
+/** Attributs de `dsfr-data-normalize` tels que réglés dans « Nettoyage des données ». */
+function normalizeAttrs(sourceId: string): string[] {
+  const attrs: string[] = [`source="${sourceId}"`];
+  if (state.normalizeConfig.trim) attrs.push('trim');
+  if (state.normalizeConfig.numericAuto) attrs.push('numeric-auto');
+  if (state.normalizeConfig.numeric)
+    attrs.push(`numeric="${escapeHtml(state.normalizeConfig.numeric)}"`);
+  if (state.normalizeConfig.rename)
+    attrs.push(`rename="${escapeHtml(state.normalizeConfig.rename)}"`);
+  if (state.normalizeConfig.stripHtml) attrs.push('strip-html');
+  if (state.normalizeConfig.replace)
+    attrs.push(`replace="${escapeHtml(state.normalizeConfig.replace)}"`);
+  if (state.normalizeConfig.lowercaseKeys) attrs.push('lowercase-keys');
+  if (state.normalizeConfig.flatten)
+    attrs.push(`flatten="${escapeHtml(state.normalizeConfig.flatten)}"`);
+  return attrs;
+}
+
+function normalizeElement(sourceId: string, comment: string): string {
+  return `
+  <!-- ${comment} -->
+  <dsfr-data-normalize
+    id="normalized-data"
+    ${normalizeAttrs(sourceId).join('\n    ')}>
+  </dsfr-data-normalize>`;
+}
+
+/**
+ * Nom d'une colonne APRÈS le nettoyage : `rename` (`ancien:Nouveau | …`), puis
+ * `lowercase-keys` — l'ordre de `dsfr-data-normalize`. Sert à remapper
+ * `label-field`, `value-field` et les colonnes d'un tableau quand le
+ * nettoyage s'applique au résultat agrégé (#1169).
+ */
+export function cleanedFieldName(field: string): string {
+  if (!state.normalizeConfig.enabled || !field) return field;
+  let name = field;
+  for (const pair of (state.normalizeConfig.rename || '').split('|')) {
+    const i = pair.indexOf(':');
+    if (i <= 0) continue;
+    if (pair.slice(0, i).trim() === name) {
+      name = pair.slice(i + 1).trim();
+      break;
+    }
+  }
+  return state.normalizeConfig.lowercaseKeys ? name.toLowerCase() : name;
+}
+
+/**
+ * Nettoyage APRÈS agrégation (#1169) — OpenDataSoft et Tabular en mode
+ * dynamique. Le regroupement y est calculé par le serveur sur TOUT le jeu ;
+ * le nettoyer avant obligerait à rapatrier les lignes brutes et à agréger dans
+ * le navigateur, sur les seules lignes chargées. `dsfr-data-normalize` lit
+ * donc la sortie de la query : il nettoie les libellés de groupe et les
+ * valeurs agrégées, et son renommage porte sur les colonnes du résultat.
+ * Conséquence assumée : deux libellés qui ne diffèrent que par une espace
+ * restent deux groupes.
+ */
+export function generatePostAggregationNormalize(sourceId: string): {
+  element: string;
+  finalSourceId: string;
+} {
+  if (!state.normalizeConfig.enabled) return { element: '', finalSourceId: sourceId };
+  return {
+    element: normalizeElement(sourceId, 'Nettoyage du résultat agrégé par le serveur'),
+    finalSourceId: 'normalized-data',
+  };
+}
+
 export function generateMiddlewareElements(
   sourceId: string,
   facetsMode?: FacetsMode
@@ -412,28 +486,8 @@ export function generateMiddlewareElements(
 
   // dsfr-data-normalize
   if (state.normalizeConfig.enabled) {
-    const normalizeId = 'normalized-data';
-    const attrs: string[] = [`source="${currentSourceId}"`];
-    if (state.normalizeConfig.trim) attrs.push('trim');
-    if (state.normalizeConfig.numericAuto) attrs.push('numeric-auto');
-    if (state.normalizeConfig.numeric)
-      attrs.push(`numeric="${escapeHtml(state.normalizeConfig.numeric)}"`);
-    if (state.normalizeConfig.rename)
-      attrs.push(`rename="${escapeHtml(state.normalizeConfig.rename)}"`);
-    if (state.normalizeConfig.stripHtml) attrs.push('strip-html');
-    if (state.normalizeConfig.replace)
-      attrs.push(`replace="${escapeHtml(state.normalizeConfig.replace)}"`);
-    if (state.normalizeConfig.lowercaseKeys) attrs.push('lowercase-keys');
-    if (state.normalizeConfig.flatten)
-      attrs.push(`flatten="${escapeHtml(state.normalizeConfig.flatten)}"`);
-
-    elements += `
-  <!-- Nettoyage des données -->
-  <dsfr-data-normalize
-    id="${normalizeId}"
-    ${attrs.join('\n    ')}>
-  </dsfr-data-normalize>`;
-    currentSourceId = normalizeId;
+    elements += normalizeElement(currentSourceId, 'Nettoyage des données');
+    currentSourceId = 'normalized-data';
   }
 
   // dsfr-data-facets
@@ -668,10 +722,20 @@ export async function generateChart(): Promise<void> {
       limit: '200',
     });
   } else {
-    // Chart: group by label field — limit=200 to fetch all catégories
+    // Chart: group by label field — limit=200 to fetch all catégories.
+    // Requête avancée (#1170) : l'onglet Données montrait la requête du
+    // FORMULAIRE, pas celle du code exporté. Même regroupement et mêmes
+    // agrégats que l'export, sous les noms que lit l'aperçu (value, value2…).
+    const advanced = advancedAggregates();
+    const groupBy =
+      state.advancedMode && state.queryGroupBy ? state.queryGroupBy : state.labelField;
+    const aggSelect =
+      advanced.length > 0
+        ? advanced.map((a, i) => `${a.func}(${a.field}) as value${i === 0 ? '' : i + 1}`).join(', ')
+        : `${valueExpression}${extraValueExpressions}`;
     const baseParams: Record<string, string> = {
-      select: `${state.labelField}, ${valueExpression}${extraValueExpressions}`,
-      group_by: state.labelField,
+      select: `${groupBy}, ${aggSelect}`,
+      group_by: groupBy,
       limit: '200',
     };
     // Skip order_by when sortOrder is 'none' (preserve source order)
@@ -693,6 +757,11 @@ export async function generateChart(): Promise<void> {
 
   try {
     state.data = await fetchOdsResults(apiUrl);
+    // Regroupement avancé sur un autre champ que l'axe : l'aperçu lit l'axe.
+    const advancedGroup = state.advancedMode && state.queryGroupBy;
+    if (advancedGroup && advancedGroup !== state.labelField && !isSingleValue && !isMap) {
+      state.data = state.data.map((d) => ({ ...d, [state.labelField]: d[advancedGroup] }));
+    }
 
     // Update raw data view
     const rawDataEl = document.getElementById('raw-data');
@@ -1149,20 +1218,13 @@ export function generateOdsQueryCode(
   );
   const extraValueFields: string[] = [];
 
-  if (state.advancedMode && state.queryAggregate) {
-    // Advanced mode: parse custom aggregation expressions
-    const aggParts = state.queryAggregate.split(',').map((a) => a.trim());
-    for (const agg of aggParts) {
-      const segs = agg.split(':');
-      if (segs.length >= 2) {
-        const field = segs[0];
-        const func = segs[1];
-        const alias = segs[2] || `${field}__${func}`;
-        selectParts.push(`${func}(${field}) as ${alias}`);
-      }
-    }
-    const firstAgg = aggParts[0].split(':');
-    resultValueField = firstAgg[2] || `${firstAgg[0]}__${firstAgg[1]}`;
+  const advanced = advancedAggregates();
+  if (advanced.length > 0) {
+    // Requête avancée (#1170) : chaque agrégat est sélectionné ET tracé.
+    for (const a of advanced) selectParts.push(`${a.func}(${a.field}) as ${a.alias}`);
+    resultValueField = advanced[0].alias;
+    extraValueFields.push(...extraTraced(advanced));
+    if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
   } else {
     // Standard mode: use form aggregation
     if (state.aggregation === 'count') {
@@ -1262,11 +1324,13 @@ export function generateTabularQueryCode(
   );
   const extraValueFields: string[] = [];
 
-  if (state.advancedMode && state.queryAggregate) {
-    aggregateExpr = state.queryAggregate;
-    const firstAgg = aggregateExpr.split(',')[0].trim();
-    const parts = firstAgg.split(':');
-    resultValueField = parts.length >= 2 ? `${parts[0]}__${parts[1]}` : groupByField;
+  const advanced = advancedAggregates();
+  if (advanced.length > 0) {
+    // Requête avancée (#1170) : chaque agrégat est tracé, alias compris.
+    aggregateExpr = advanced.map(colonAggregate).join(', ');
+    resultValueField = advanced[0].alias;
+    extraValueFields.push(...extraTraced(advanced));
+    if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
   } else {
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
     resultValueField = `${valueFieldPath}__${state.aggregation}`;
@@ -1357,12 +1421,14 @@ export function generateDsfrDataQueryCode(
   );
   const extraValueFields: string[] = [];
 
-  if (state.advancedMode && state.queryAggregate) {
-    aggregateExpr = state.queryAggregate;
-    const firstAgg = aggregateExpr.split(',')[0].trim();
-    const parts = firstAgg.split(':');
-    sortField = parts.length >= 2 ? `${parts[0]}__${parts[1]}` : groupByField;
+  const advanced = advancedAggregates();
+  if (advanced.length > 0) {
+    // Requête avancée (#1170) : chaque agrégat est tracé, alias compris.
+    aggregateExpr = advanced.map(colonAggregate).join(', ');
+    sortField = advanced[0].alias;
     resultValueField = sortField;
+    extraValueFields.push(...extraTraced(advanced));
+    if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
   } else {
     aggregateExpr = `${valueFieldPath}:${state.aggregation}`;
     // Add extra séries aggregations
@@ -1546,11 +1612,7 @@ ${middlewareHtml}
   if (extraVFs && extraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${extraVFs.join(',')}"`;
     // Build séries names from labels
-    const seriesNames = [
-      state.valueFieldLabel || state.valueField,
-      ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
-    ];
-    nameAttr = `name='${jsonAttr(seriesNames)}'`;
+    nameAttr = `name='${jsonAttr(seriesNames())}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }
@@ -1841,7 +1903,11 @@ ${middlewareHtml}
     queryValueField2 = result.valueField2 || '';
     queryExtraVFs = result.extraValueFields;
     sourceElement = '';
-    const facets = generateFacetsElement(chartSource);
+    // Facettes SERVEUR (#1171) : placées après l'agrégation, elles ne
+    // voyaient que le champ d'axe. En `server-facets`, leurs valeurs viennent
+    // de l'API et le filtre remonte en `where` jusqu'à la source, qui
+    // réagrège : tout champ du jeu est facettable.
+    const facets = generateFacetsElement(chartSource, { serverFacets: true });
     if (facets.element) {
       facetsHtml = facets.element;
       chartSource = facets.finalSourceId;
@@ -1856,7 +1922,14 @@ ${middlewareHtml}
     queryValueField2 = result.valueField2 || '';
     queryExtraVFs = result.extraValueFields;
     sourceElement = '';
-    const facets = generateFacetsElement(chartSource);
+    // Tabular n'a pas de facettes serveur : valeurs précalculées sur les
+    // lignes chargées, filtre relayé en `where` jusqu'à la source (#1171),
+    // comme pour le tableau.
+    const staticVals = computeStaticFacetValues();
+    const facets = generateFacetsElement(
+      chartSource,
+      staticVals ? { staticValues: staticVals } : undefined
+    );
     if (facets.element) {
       facetsHtml = facets.element;
       chartSource = facets.finalSourceId;
@@ -1879,6 +1952,22 @@ ${middlewareHtml}
   </dsfr-data-source>`;
   }
 
+  // Nettoyage après agrégation (#1169) : la section « Nettoyage des données »
+  // était sans effet pour OpenDataSoft et Tabular. Le normalize lit la
+  // sortie de la query (ou des facettes) ; le graphique lit le normalize, sous
+  // les noms de colonnes qu'il produit.
+  if (!sourceElement) {
+    const cleaning = generatePostAggregationNormalize(chartSource);
+    if (cleaning.element) {
+      facetsHtml += cleaning.element;
+      chartSource = cleaning.finalSourceId;
+      queryLabelField = cleanedFieldName(queryLabelField);
+      queryValueField = cleanedFieldName(queryValueField);
+      queryValueField2 = cleanedFieldName(queryValueField2);
+      queryExtraVFs = queryExtraVFs.map(cleanedFieldName);
+    }
+  }
+
   // Map palette
   const palette = isMap
     ? state.palette.includes('sequential') || state.palette.includes('divergent')
@@ -1895,11 +1984,7 @@ ${middlewareHtml}
 
   if (queryExtraVFs.length > 0) {
     extraFieldsAttr = `\n    value-fields="${queryExtraVFs.join(',')}"`;
-    const seriesNames = [
-      state.valueFieldLabel || state.valueField,
-      ...state.extraSeries.filter((s) => s.field).map((s) => s.label || s.field),
-    ];
-    nameAttr = `name='${jsonAttr(seriesNames)}'`;
+    nameAttr = `name='${jsonAttr(seriesNames())}'`;
   } else if (queryValueField2) {
     extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
   }

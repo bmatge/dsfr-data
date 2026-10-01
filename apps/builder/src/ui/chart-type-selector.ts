@@ -7,6 +7,7 @@ import { state, supportsMultiSeries, type ChartType } from '../state.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
 import { updateUrlSyncSection } from './url-sync-config.js';
+import { updateNormalizeNote } from './normalize-config.js';
 
 /**
  * Select a chart type and update the UI accordingly.
@@ -47,6 +48,8 @@ export function selectChartType(type: ChartType): void {
   // Partage par l'adresse : pertinent pour un tableau (pagination) ou des
   // facettes (#714)
   updateUrlSyncSection();
+  // Portée du nettoyage selon le type (#1169)
+  updateNormalizeNote();
 
   // Palette config: hide for KPI, gauge, and datalist
   const paletteConfig = document.getElementById('palette-config') as HTMLElement | null;
