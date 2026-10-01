@@ -417,8 +417,20 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
       // → 1922, « vers 1880 » → null. Réécrit ici, sans rien emprunter à la lib.
       if (typeof args[0] === 'number') return args[0];
       if (typeof args[0] !== 'string') return null;
-      const m = /^\s*([+-]?\d+)(?:[.,](\d+))?/.exec(args[0]);
-      return m === null ? null : Number(m[2] === undefined ? m[1] : `${m[1]}.${m[2]}`);
+      // Lu caractère par caractère : signe, entier, puis décimale éventuelle.
+      const t = args[0].trimStart();
+      let i = 0;
+      if (t[i] === '+' || t[i] === '-') i++;
+      const debut = i;
+      while (t[i] >= '0' && t[i] <= '9') i++;
+      if (i === debut) return null;
+      let fin = i;
+      if ((t[i] === ',' || t[i] === '.') && t[i + 1] >= '0' && t[i + 1] <= '9') {
+        i++;
+        while (t[i] >= '0' && t[i] <= '9') i++;
+        fin = i;
+      }
+      return Number(t.slice(0, fin).replace(',', '.'));
     }
     case 'join':
       return Array.isArray(args[0]) ? args[0].map(texteDe).join(texteDe(args[1])) : null;
