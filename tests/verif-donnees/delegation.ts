@@ -20,7 +20,16 @@
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
 import type { Check, Expect, Manifest, Step } from '../../tools/oracle/manifest.js';
-import { DATASET, HOTE_ODS, MESURES, RESSOURCE_TABULAR, TERRITOIRES, urlJeu } from './fixtures.js';
+import {
+  DATASET,
+  EX_AEQUO,
+  HOTE_ODS,
+  MESURES,
+  RESSOURCE_TABULAR,
+  RESSOURCE_TABULAR_EX_AEQUO,
+  TERRITOIRES,
+  urlJeu,
+} from './fixtures.js';
 import {
   pairePaginee,
   sourceOds,
@@ -869,6 +878,88 @@ const TRANSIT: Check[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// 4 quater. Ce que l'API Tabular perd en silence (#1202)
+// ---------------------------------------------------------------------------
+
+/** La source Tabular du jeu à ex-æquo : 450 lignes, trois pages de 200. */
+const SOURCE_EX_AEQUO = (id: string): string =>
+  `<dsfr-data-source id="${id}" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"></dsfr-data-source>`;
+
+/** URL de données de cette ressource : les seules que les contrôles du lot regardent. */
+const DATA_EX_AEQUO = `/api/resources/${RESSOURCE_TABULAR_EX_AEQUO}/data/`;
+
+const TABULAR_PERTES: Check[] = [
+  {
+    id: 'tabular-tri-pagine-sans-perte',
+    mode: 'deterministic',
+    constats: ['PG-033'],
+    origin:
+      "#1202, PG-033 du banc — l'API Tabular pagine par offset et ne trie que sur une clé : sur un champ non unique (`nombre`, cinq valeurs pour 450 lignes), des lignes passent d'une page à l'autre, en double ou jamais (101 lues, 99 distinctes, rejoué le 2026-09-27). Le faux serveur l'imite. Le jeu tient sous le plafond : l'adaptateur relit sans `__sort` et trie lui-même — chaque ligne une fois, aucune perdue.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${SOURCE_EX_AEQUO('s-exaequo')}
+  <dsfr-data-query id="q-exaequo" source="s-exaequo" order-by="nombre:desc"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-exaequo',
+        key: 'id',
+        columns: ['nombre'],
+        pipeline: [{ op: 'order-by', column: 'nombre', dir: 'desc' }],
+      },
+      {
+        kind: 'urls',
+        id: 'tri-final-local',
+        among: DATA_EX_AEQUO,
+        contains: 'nombre__sort',
+        verdict: 'notLast',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-in-a-parenthese-reste-client',
+    mode: 'deterministic',
+    constats: ['PG-034'],
+    origin:
+      "#1202, PG-034 du banc — `__in` écarte EN SILENCE (HTTP 200) toute valeur à parenthèse : « Usage de stupéfiants (AFD) » est trouvé par `__exact` (101) et perdu par `__in` (0, rejoué le 2026-09-27). Le faux serveur l'imite. La clause `in` qui porte une parenthèse reste côté client.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${SOURCE_EX_AEQUO('s-in-paren')}
+  <dsfr-data-query id="q-in-paren" source="s-in-paren"
+    where="categorie:in:Homicides|Usage de stupéfiants (AFD)"></dsfr-data-query>
+  <dsfr-data-kpi id="k-in-paren" source="q-in-paren" value="count" format="nombre"
+    label="Faits"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-in-paren',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'categorie',
+                op: 'in',
+                values: ['Homicides', 'Usage de stupéfiants (AFD)'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'in-jamais-au-serveur',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__in',
+        verdict: 'none',
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // 5. Sans adaptateur : le même balisage, tout côté client
 // ---------------------------------------------------------------------------
 
@@ -1334,6 +1425,7 @@ export const DELEGATION: Manifest = {
     ...ATTENTE,
     ...TRI_INITIAL,
     ...TRANSIT,
+    ...TABULAR_PERTES,
     ...SANS_ADAPTATEUR,
     ...TABULAR_API,
     ...TABULAR_TRI_AGREGAT,
