@@ -71,6 +71,7 @@ export const CHAMPS_DES_COMPOSANTS = {
   "dsfr-data-normalize": {
     "flatten": "chemin",
     "numeric": "liste",
+    "numeric-prefix": "liste",
     "rename": "pipe-alias",
     "replace-fields": "pipe-alias",
     "round": "liste-alias",

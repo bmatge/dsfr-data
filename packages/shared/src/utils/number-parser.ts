@@ -16,6 +16,11 @@ export function toNumber(val: unknown, strict = false): number | null {
   let cleaned = val.trim();
   if (cleaned === '') return strict ? null : 0;
 
+  // Strict (#1200, BUG-023/032) : la chaîne entière doit être un nombre. Un
+  // symbole d'unité FINAL est toléré (« 45,2 % », « 12 € ») — il est courant
+  // dans les jeux publics et ne change pas la valeur.
+  if (strict && UNIT_SYMBOLS.includes(cleaned.slice(-1))) cleaned = cleaned.slice(0, -1).trimEnd();
+
   // Remove space separators (thousands)
   cleaned = cleaned.replace(/\s/g, '');
 
@@ -54,8 +59,72 @@ export function toNumber(val: unknown, strict = false): number | null {
     // Point unique : decimale — inchange
   }
 
+  // Strict : plus aucun PRÉFIXE numérique. `parseFloat` lisait « 2026-09-25 »
+  // 2026, « 2024-09 » 2024, « 75A » 75 : un `max` de dates rendait l'année,
+  // et « Depuis le 01/01/1970 » s'affichait. Pour lire un préfixe exprès
+  // (« 1922-1930 » → 1922), `toLeadingNumber`.
+  if (strict && !isFullNumber(cleaned)) return null;
   const num = parseFloat(cleaned);
   return isNaN(num) ? (strict ? null : 0) : num;
+}
+
+/** Symboles d'unité finaux tolérés par la lecture stricte (#1200). */
+const UNIT_SYMBOLS = ['%', '‰', '€', '$', '£'];
+
+/**
+ * Un nombre ENTIER après nettoyage des séparateurs : signe, décimales,
+ * exposant. Lu caractère par caractère, sans expression régulière : un motif
+ * à quantificateurs voisins (`\d+\.?\d*`) est un risque de retour arrière
+ * (CodeQL js/polynomial-redos).
+ */
+function isFullNumber(s: string): boolean {
+  let i = 0;
+  if (s[i] === '+' || s[i] === '-') i++;
+  const debut = i;
+  while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+  let chiffres = i - debut;
+  if (s[i] === '.') {
+    i++;
+    const d = i;
+    while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+    chiffres += i - d;
+  }
+  if (chiffres === 0) return false;
+  if (s[i] === 'e' || s[i] === 'E') {
+    i++;
+    if (s[i] === '+' || s[i] === '-') i++;
+    const e = i;
+    while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+    if (i === e) return false;
+  }
+  return i === s.length;
+}
+
+/**
+ * Le nombre qui OUVRE la chaîne, en connaissance de cause (#1200) :
+ * « 1922-1930 » → 1922, « 75A » → 75. C'est l'ancienne lecture « stricte »,
+ * devenue un choix explicite (`dsfr-data-normalize numeric-prefix`). Aucun
+ * nombre en tête → `null`.
+ */
+export function toLeadingNumber(val: unknown): number | null {
+  if (typeof val === 'number') return isNaN(val) ? null : val;
+  if (typeof val !== 'string') return null;
+  // Lu caractère par caractère (sans expression régulière, voir isFullNumber) :
+  // signe, chiffres et espaces de milliers, puis une décimale.
+  const s = val.trimStart();
+  let i = 0;
+  if (s[i] === '+' || s[i] === '-') i++;
+  if (!(s[i] >= '0' && s[i] <= '9')) return null;
+  while (
+    i < s.length &&
+    ((s[i] >= '0' && s[i] <= '9') || s[i] === ' ' || s[i] === '\u00a0' || s[i] === '\u202f')
+  )
+    i++;
+  if ((s[i] === ',' || s[i] === '.') && s[i + 1] >= '0' && s[i + 1] <= '9') {
+    i++;
+    while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+  }
+  return toNumber(s.slice(0, i).trim(), true);
 }
 
 /**
