@@ -230,6 +230,36 @@ function dsfrChartAttrs(): string {
 }
 
 /**
+ * Palette émise pour le type courant. Une carte veut un dégradé ; un camembert
+ * ou un anneau ne se colore par part qu'avec `categorical` (#1174) — toute
+ * autre palette donne un disque d'une seule couleur avec DSFR Chart 2.1.1.
+ * Le formulaire verrouille déjà ce choix (`applyPiePalette`) ; ceci garantit
+ * le code exporté quand l'état vient d'ailleurs (favori, instantané déposé).
+ */
+export function effectivePalette(): string {
+  if (state.chartType === 'map') {
+    return state.palette.includes('sequential') || state.palette.includes('divergent')
+      ? state.palette
+      : 'sequentialAscending';
+  }
+  if (state.chartType === 'pie' || state.chartType === 'doughnut') return 'categorical';
+  return state.palette;
+}
+
+/**
+ * Valeur de `value-field` du graphique exporté : le chemin, suivi de l'alias
+ * inline `:Libellé` quand un nom de série est saisi (« Nom affiché »). La
+ * légende le montrait déjà via `name` ; le tableau du cadre officiel et le
+ * CSV lisent l'alias (#1179). Un libellé qui contient `:` est laissé de côté
+ * (c'est le séparateur de la grammaire).
+ */
+export function valueFieldAttr(path: string): string {
+  const label = state.valueFieldLabel.trim();
+  if (!label || label === path || label.includes(':') || path.includes(':')) return path;
+  return `${path}:${label}`;
+}
+
+/**
  * Inline JS helper for ODS pagination in generated code.
  * Handles offset-based pagination (ODS API max 100 records/request).
  */
@@ -1142,7 +1172,10 @@ datalist.onSourceData(data);
   const dsfrTag = DSFR_TAG_MAP[state.chartType] || 'bar-chart';
   const x = JSON.stringify([labels]);
   const y = allSeriesValues.length > 1 ? JSON.stringify(allSeriesValues) : JSON.stringify([values]);
-  const seriesNames = JSON.stringify(allSeriesNames);
+  // Un camembert nomme ses parts, pas sa série : avec un seul nom, DSFR Chart
+  // complétait la légende en « Série 2 … Série N » (#1174).
+  const isPie = state.chartType === 'pie' || state.chartType === 'doughnut';
+  const seriesNames = JSON.stringify(isPie ? labels : allSeriesNames);
 
   // Build extra attributes
   const extraAttrs: string[] = [];
@@ -1169,7 +1202,7 @@ datalist.onSourceData(data);
     x='${singleQuoteAttr(x)}'
     y='${singleQuoteAttr(y)}'
     name='${singleQuoteAttr(seriesNames)}'
-    selected-palette="${state.palette}"${extraStr}>
+    selected-palette="${effectivePalette()}"${extraStr}>
   </${dsfrTag}>`,
     'chart'
   )}${generateEmbeddedA11y('chart')}
@@ -1594,12 +1627,7 @@ ${middlewareHtml}
     extraValueFields: queryExtraVFs,
   } = generateDsfrDataQueryCode(querySourceId, groupByPath, valueFieldPath);
 
-  // Map palette
-  const palette = isMap
-    ? state.palette.includes('sequential') || state.palette.includes('divergent')
-      ? state.palette
-      : 'sequentialAscending'
-    : state.palette;
+  const palette = effectivePalette();
 
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
@@ -1648,7 +1676,7 @@ ${middlewareHtml}${queryElement}
     source="${chartSource}"
     type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${codeFieldAttr}
     label-field="${queryLabelField}"
-    value-field="${queryValueField}"${extraFieldsAttr}
+    value-field="${valueFieldAttr(queryValueField)}"${extraFieldsAttr}
     ${nameAttr}
     selected-palette="${palette}"${generateDataboxAttrs()}>
   </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
@@ -1968,12 +1996,7 @@ ${middlewareHtml}
     }
   }
 
-  // Map palette
-  const palette = isMap
-    ? state.palette.includes('sequential') || state.palette.includes('divergent')
-      ? state.palette
-      : 'sequentialAscending'
-    : state.palette;
+  const palette = effectivePalette();
 
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
@@ -2013,7 +2036,7 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}
     source="${chartSource}"
     type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${codeFieldAttr}
     label-field="${queryLabelField}"
-    value-field="${queryValueField}"${extraFieldsAttr}
+    value-field="${valueFieldAttr(queryValueField)}"${extraFieldsAttr}
     ${nameAttr}
     selected-palette="${palette}"${generateDataboxAttrs()}>
   </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
@@ -2351,8 +2374,8 @@ async function loadChart() {
   var el = document.createElement('${dsfrTag}');
   el.setAttribute('x', JSON.stringify([labels]));
   el.setAttribute('y', y);
-  el.setAttribute('name', ${jsStringLiteral(seriesNames)});
-  el.setAttribute('selected-palette', '${state.palette}');${
+  el.setAttribute('name', ${state.chartType === 'pie' || state.chartType === 'doughnut' ? 'JSON.stringify(labels)' : jsStringLiteral(seriesNames)});
+  el.setAttribute('selected-palette', '${effectivePalette()}');${
     state.chartType === 'horizontalBar'
       ? `
   el.setAttribute('horizontal', '');`

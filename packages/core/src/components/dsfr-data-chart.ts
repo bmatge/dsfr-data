@@ -448,7 +448,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: Boolean, attribute: 'databox-screenshot' })
   databoxScreenshot = false;
 
-  /** Bouton plein écran */
+  /**
+   * Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il
+   * n'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale
+   * (`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).
+   */
   @property({ type: Boolean, attribute: 'databox-fullscreen' })
   databoxFullscreen = false;
 
@@ -1188,8 +1192,14 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     attrs['x'] = x;
     attrs['y'] = y;
     // For pie charts, DSFR Chart expects one name per slice (category),
-    // not one per séries. Use labels as legend entries.
-    if (!this.name && labels.length > 0) {
+    // not one per series. Use labels as legend entries.
+    //
+    // Un `name` en chaîne simple est un nom de SÉRIE (« Bénéficiaires ») :
+    // enveloppé en `["Bénéficiaires"]`, il ne nommait que la première part et
+    // DSFR Chart complétait la légende en « Série 2 … Série N » (#1174). Seul
+    // un tableau JSON écrit à la main (une entrée par part) est conservé.
+    const trimmed = this.name.trim();
+    if (!trimmed.startsWith('[') && labels.length > 0) {
       attrs['name'] = JSON.stringify(labels);
     }
   }
@@ -2070,38 +2080,79 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const container = document.getElementById(containerId);
       if (!container) return;
 
-      // Build table from data (like dsfr-data-a11y). En-tête = libellé de
-      // l'alias inline s'il existe, cellules lues sur le chemin (#668).
-      const columns: AliasedColumn[] = [];
-      if (this.labelField) columns.push({ key: this.labelField, label: this.labelField });
-      if (this.valueField) columns.push(parseAliasedColumn(this.valueField));
-      if (columns.length === 0) return;
-      const rows = this._data.slice(0, 100);
+      const tableHtml = this._databoxTableHtml();
+      if (tableHtml) container.innerHTML = tableHtml;
+    }, 500);
+    this._pendingTimers.add(timer);
+  }
 
-      const headerCells = columns
-        .map((c) => `<th scope="col">${escapeHtml(c.label)}</th>`)
-        .join('');
-      const bodyRows = rows
-        .map((row) => {
-          const cells = columns
-            .map((col) => {
-              const val = getByPath(row, col.key);
-              return `<td>${escapeHtml(String(val ?? ''))}</td>`;
-            })
-            .join('');
-          return `<tr>${cells}</tr>`;
-        })
-        .join('');
+  /**
+   * Colonnes du tableau de la DataBox : le champ de libellé, puis chaque champ
+   * de valeur (`value-field`, `value-field-2`, `value-fields`). L'en-tête d'une
+   * colonne de valeur est ce que la légende affiche déjà : l'alias inline
+   * (`champ:Libellé`, #668) s'il est écrit, sinon le nom de série de `name`,
+   * sinon le chemin. Le tableau montrait `nombre_beneficiaires__sum` quand la
+   * légende disait « Bénéficiaires » (#1179).
+   */
+  private _databoxColumns(): AliasedColumn[] {
+    const columns: AliasedColumn[] = [];
+    if (this.labelField) columns.push({ key: this.labelField, label: this.labelField });
+    const names = this._databoxSeriesNames();
+    this._getValueFieldSpecs().forEach((spec, i) => {
+      const aliased = spec.label !== spec.key;
+      columns.push({ key: spec.key, label: aliased ? spec.label : (names[i] ?? spec.key) });
+    });
+    return columns;
+  }
 
-      container.innerHTML = `
+  /**
+   * Noms de série portés par `name`, un par champ de valeur. Un camembert
+   * nomme ses parts, pas ses séries ; au format long, les séries sont des
+   * valeurs de `series-field` : dans ces deux cas `name` ne nomme aucune
+   * colonne.
+   */
+  private _databoxSeriesNames(): string[] {
+    if (!this.name || this.type === 'pie' || this.seriesField) return [];
+    const trimmed = this.name.trim();
+    if (!trimmed.startsWith('[')) return [trimmed];
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed.map((n) => String(n)) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * HTML du tableau injecté dans la DataBox (même approche que
+   * dsfr-data-a11y) : cellules lues sur le chemin, 100 lignes au plus.
+   * Chaîne vide sans colonne.
+   */
+  private _databoxTableHtml(): string {
+    const columns = this._databoxColumns();
+    if (columns.length === 0) return '';
+    const rows = this._data.slice(0, 100);
+
+    const headerCells = columns.map((c) => `<th scope="col">${escapeHtml(c.label)}</th>`).join('');
+    const bodyRows = rows
+      .map((row) => {
+        const cells = columns
+          .map((col) => {
+            const val = getByPath(row, col.key);
+            return `<td>${escapeHtml(String(val ?? ''))}</td>`;
+          })
+          .join('');
+        return `<tr>${cells}</tr>`;
+      })
+      .join('');
+
+    return `
         <div class="fr-table fr-m-2w">
           <table>
             <thead><tr>${headerCells}</tr></thead>
             <tbody>${bodyRows}</tbody>
           </table>
         </div>`;
-    }, 500);
-    this._pendingTimers.add(timer);
   }
 
   /**
