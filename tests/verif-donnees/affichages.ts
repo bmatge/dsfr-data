@@ -31,6 +31,7 @@ import {
   LIBELLES,
   LONG,
   ABSENCES,
+  HORS_DECOUPAGE,
   RESSOURCE_TABULAR_AFFICHAGES,
   SERIE,
   ZONES,
@@ -72,7 +73,8 @@ const CLASSES_KPI = {
 /** Une source qui sert un jeu du lot, en tableau nu. */
 const source = (
   id: string,
-  jeu: 'communes' | 'serie' | 'libelles' | 'long' | 'absences' | 'zones' | 'aides'
+  jeu:
+    'communes' | 'serie' | 'libelles' | 'long' | 'absences' | 'hors-decoupage' | 'zones' | 'aides'
 ): string => `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 /**
@@ -1161,6 +1163,56 @@ const CHECKS: Check[] = [
         decimals: 2,
         column: 'v',
         pipeline: [{ op: 'global', columns: { v: { agg: 'sum', field: 'population' } } }],
+      },
+    ],
+  },
+  {
+    id: 'carte-resume-dit-ce-quil-ecarte',
+    mode: 'deterministic',
+    constats: ['PG-083'],
+    origin:
+      "#1201, PG-083 du banc — `map-summary=\"sum\"` ne porte que sur les lignes DESSINÉES : un code vide, 99 et 988 n'existent pas sur la carte départementale et n'entrent pas dans « …, en France » (165 affiché pour 201 lignes reçues, sur la page du banc). Seul un `console.warn` le disait. La carte l'écrit désormais sous elle-même, avec le nombre de lignes écartées et, pour une somme, leur total.",
+    feed: { kind: 'fixture', datasets: { main: HORS_DECOUPAGE } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-carte-hors', 'hors-decoupage')}
+  <dsfr-data-chart id="g-carte-hors" source="s-carte-hors" type="map"
+    code-field="dept" value-field="population" map-summary="sum"
+    name="Habitants"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'attr',
+        id: 'g-carte-hors',
+        attr: 'value',
+        decimals: 2,
+        column: 'v',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'dept', op: 'notin', values: ['', '99', '988'] }] },
+          { op: 'global', columns: { v: { agg: 'sum', field: 'population' } } },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'g-carte-hors',
+        selector: '.dsfr-data-chart__map-note',
+        numeric: true,
+        number: 0,
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'dept', op: 'in', values: ['', '99', '988'] }] },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'g-carte-hors',
+        selector: '.dsfr-data-chart__map-note',
+        numeric: true,
+        number: 1,
+        agg: 'sum',
+        field: 'population',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'dept', op: 'in', values: ['', '99', '988'] }] },
+        ],
       },
     ],
   },

@@ -27,6 +27,7 @@ import serie from './jeux/affichages-serie.json' with { type: 'json' };
 import libelles from './jeux/affichages-libelles.json' with { type: 'json' };
 import long from './jeux/affichages-long.json' with { type: 'json' };
 import absences from './jeux/affichages-absences.json' with { type: 'json' };
+import horsDecoupage from './jeux/affichages-hors-decoupage.json' with { type: 'json' };
 import contoursDepartements from './jeux/affichages-contours-departements.json' with { type: 'json' };
 import zones from './jeux/affichages-zones.json' with { type: 'json' };
 import aides from './jeux/affichages-aides.json' with { type: 'json' };
@@ -73,6 +74,14 @@ export const LONG: Row[] = long;
 export const ABSENCES: Row[] = absences;
 
 /**
+ * Huit départements dont trois HORS découpage (#1201, PG-083 du banc) : un code
+ * vide, l'étranger (99) et la Nouvelle-Calédonie (988), que la
+ * carte départementale ne dessine pas. Le résumé de la carte ne les compte
+ * pas : la carte doit le DIRE, et chiffrer la part écartée d'une somme.
+ */
+export const HORS_DECOUPAGE: Row[] = horsDecoupage;
+
+/**
  * Dix zones à la manière d'un jeu Opendatasoft (#1053) : chaque ligne porte
  * À LA FOIS `geo_point_2d` (un point {lat, lon}) et `geo_shape` (un polygone
  * GeoJSON). Une couche `geoshape` sans `geo-field` doit tracer la FORME : le
@@ -89,13 +98,14 @@ export const ZONES: Row[] = zones;
  */
 export const AIDES: Row[] = aides;
 
-/** Les sept jeux, sous le nom que les manifestes leur donnent. */
+/** Les huit jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
   libelles: LIBELLES,
   long: LONG,
   absences: ABSENCES,
+  'hors-decoupage': HORS_DECOUPAGE,
   zones: ZONES,
   aides: AIDES,
 } as const;
