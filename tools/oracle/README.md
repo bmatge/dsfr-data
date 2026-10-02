@@ -106,7 +106,14 @@ ce que le régime vivant interdit (ADR-122, amendée par le lot 8). Le job
 `attendus` de `verif-donnees.yml` le régénère et refuse un diff non committé.
 
 **Le fichier gardé ne porte que des chiffres.** Son en-tête se limite à
-`source`, `conventions` et `couverture` : aucune métadonnée d'environnement.
+`source` et `conventions` : aucune métadonnée d'environnement, et aucun
+compteur. Les compteurs de couverture (total, couverts, raisons) vont dans la
+provenance ci-dessous ; et les entrées sont **triées par (domaine, contrôle,
+clé)**, pas dans l'ordre des manifestes. Les deux ensemble évitent que deux PR
+qui ajoutent chacune un contrôle se heurtent sur ce fichier : l'en-tête ne
+bouge plus, et leurs lignes ne sont voisines que si leurs contrôles le sont
+dans l'ordre alphabétique. En cas de conflit malgré tout, ne pas le résoudre
+à la main : `git checkout --theirs` puis `npm run verif:attendus`.
 La version exacte de l'interpréteur est écrite — mais dans
 `tools/oracle/out/attendus-provenance.json`, ignoré par git, affiché par le
 job juste avant le `git diff`. Tant qu'elle vivait dans l'en-tête, le garde-fou
@@ -824,6 +831,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | contexte | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `recherche-accents`, `recherche-compte` | 0 au lieu de 1 : « sete » ne trouve plus « Sète » ; et « 0 résultats » au lieu de 10 |
 | contexte | un `console.warn` ajouté dans `_validate()` (`dsfr-data-context.ts`), nommant la valeur reçue de `sources` | `ctx-sources-separateur-espace` tombe sur `diagnostic:ctx:silence` (« la bibliothèque a parlé : [warn] dsfr-data-context[ctx]: … sources reçu « s-etab s-budg » ») ; et sur `ctx-sources-separateur-virgule` rejoué hors `skip`, `diagnostic:ctx:warning « s-etab,s-budg »` PASSE pendant que les deux KPI restent rouges — le lecteur de silences éprouvé dans les deux sens | un silence attendu tombe dès que la bibliothèque parle ; un mot attendu passe dès qu'elle le dit |
 | transformations | `numberish` rend `0` pour `null` / `undefined` (`shared/utils/compute.ts`) | `pivot-normalize-soustraction-sur-null` | « ligne 4 (teletravail) / delta : lib −85.2, oracle — », puis « teletravail » en tête du top 3 et « mesuré » affiché pour une question non reposée : le chiffre du banc, reproduit à l'identique |
+| transformations | lecture stricte rendue à `parseFloat` (garde `FULL_NUMBER` retirée de `toNumber`, `shared/utils/number-parser.ts`, puis `build:shared`) | `query-agregat-refuse-un-prefixe` | écart 63 sur la somme des codes : `75A` relu 75, `2B` relu 2 (#1200, BUG-023/032) |
+| transformations | branche `numeric-prefix` neutralisée (`dsfr-data-normalize.ts`) | `normalize-numeric-prefix` | la période `1922-1930` reste un texte au lieu de 1922 (#1200) |
 | delegation | `readersOf()` rend `[]` (`dsfr-data-query.ts`) | `source-partagee-ne-delegue-pas` | KPI affiché 0, recalculé 127 684 000 ; 7 groupes au lieu de 8 |
 | delegation | `_onInstanceRegistered` sort sans renégocier (`dsfr-data-query.ts`) | au moins 5 : `query-tardive-renegociation`, `lecteur-tardif-renegociation`, `relais-normalize-devrait-deleguer`, `query/source-partagee-765`, `delegation/source-partagee-ne-delegue-pas` | la seconde query rend 1 ligne au lieu de 7 et le KPI 8 au lieu de 137 ; le lecteur tardif compte 8 groupes ; la délégation ne franchit plus le relais ; et sur une page pourtant STATIQUE, `kpi:k-partage` lib 8 / oracle 137 — les lecteurs écrits dans le document s'inscrivent après la première négociation de la query, c'est leur inscription qui la corrige (#836, #853, #855) |
 | delegation | le bloc « `where` seul » de `_negotiateServerSide` neutralisé (`dsfr-data-query.ts`) | `where-seul-devrait-etre-delegue`, `require-where-filtre-par-delegation` | 0 URL sur 2 portent `where=` ; la source `require-where` n'affiche jamais rien, 30 s de scrutation (#856, #854) |
@@ -846,6 +855,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | delegation | une query DÉTACHÉE renégocie encore (`isConnected` retiré de `_onInstanceRegistered`), ou la libération au départ vise l'id et non l'instance (`_clearsOnDeparture` contourné) | `where-delegue-apres-regeneration` | KPI affiché 50, recalculé 20 : l'ancienne query efface le `where` que la nouvelle a posé sur la source homonyme (#1164) |
 | delegation | la libération au départ ignore l'homonyme (`if (kept[op]) …` retiré, `dsfr-data-query.ts`) | `where-garde-quand-seule-la-query-renait` | KPI affiché 50, recalculé 20 : seule la query renaît, l'ancienne efface la clé `query-<id>` reprise par la nouvelle (#1164) |
 | delegation | `_sendInitialServerSort` neutralisé (`dsfr-data-list.ts`) | `liste-tri-initial-serveur` | 0/1 URL porte `order_by=population ASC`, et la page 1 montre les 40 territoires les PLUS peuplés : la flèche annonce un tri que l'API n'a pas reçu (#1178) |
+| delegation | relecture locale retirée de `fetchAll` (`tabular-adapter.ts`) : le tri d'un chargement paginé reste au serveur | `tabular-tri-pagine-sans-perte` | des `id` manquent et d'autres sont doublés sur 450 lignes, et la dernière URL porte encore `nombre__sort` — le faux serveur ordonne les ex-æquo autrement d'une page à l'autre, comme l'API (#1202, PG-033) |
+| delegation | `inValueUnsafe` retiré de `supportsServerWhere` (`tabular-adapter.ts`) | `tabular-in-a-parenthese-reste-client` | KPI 113 au lieu de 226 : « Usage de stupéfiants (AFD) » écarté en silence par `__in` (#1202, PG-034) |
 | delegation | `sourceIsGrouped` rend toujours `false` (`dsfr-data-query.ts`) | `source-groupee-garde-son-regroupement` | KPI 0 au lieu de 137, et aucune URL ne porte plus `group_by=academie` : la query a remplacé le regroupement de la source à travers le normalize (#1199, BUG-026) |
 | delegation | garde des alias de la source retirée de `_delegateWhereOnly` | `where-sur-alias-reste-client` | `where=n >= 18` part au portail, KPI 0 au lieu de 1 (#1199, BUG-027) |
 | delegation | `transformsSchema()` de la query rend `false` | `query-qui-renomme-bloque-la-delegation` | `Academie__groupby` part à l'API Tabular, KPI 0 au lieu de 8 (#1199, BUG-036) |

@@ -780,7 +780,8 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | id | String | - | oui | Identifiant unique. Sans cet attribut, dsfr-data-normalize ne se monte pas (log \`console.error\` + attribut \`data-dsfr-config-error\` sur l'element). |
 | source | String | \`""\` | oui | ID de la source a ecouter |
 | flatten | String | \`""\` | non | Clé du sous-objet a extraire au premier niveau. Utilise pour les APIs Grist, ODS v1, Airtable qui wrappent les données sous \`fields\`. Supporte la dot notation (\`data.attributes\`). |
-| numeric | String | \`""\` | non | Champs a forcer en nombre (virgule-separes) : \`"population, surface"\` |
+| numeric | String | \`""\` | non | Champs a forcer en nombre (virgule-separes) : \`"population, surface"\`. Lecture STRICTE (#1200) : la valeur entiere doit etre un nombre (decimale francaise, milliers, symbole final \`%\` \`€\` acceptes), sinon \`null\` — \`"2026-09-25"\` ou \`"75A"\` ne valent plus 2026 ni 75 |
+| numeric-prefix | String | \`""\` | non | Champs dont on lit EXPRES le nombre de tete : \`"1922-1930"\` → 1922, \`"vers 1880"\` → \`null\` (#1200). Pour une periode ou un code dont seul le debut est un nombre |
 | numeric-auto | Boolean | \`false\` | non | Detection et conversion auto des champs numériques |
 | rename | String | \`""\` | non | Renommage : \`"ancien:nouveau \\| ancien2:nouveau2"\` (pipe-separe) |
 | trim | Boolean | \`false\` | non | Supprime les espaces en debut/fin des clés ET valeurs string |
@@ -801,7 +802,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 4a. **replace-fields** — remplace les valeurs dans les champs specifies
 4b. replace — remplace les valeurs globalement (tous les champs)
 4c. **split** — decoupe les champs multivalues en tableaux (apres replace : un placeholder remplace par vide donne un tableau vide)
-5. numeric / numeric-auto — conversion en nombres
+5. numeric / numeric-prefix / numeric-auto — conversion en nombres
 6. **round** — arrondit les valeurs numériques
 7. rename — renomme les clés
 8. lowercase-keys — clés en minuscules

@@ -599,7 +599,7 @@ function computeAverage(items: Record<string, unknown>[], field: string): number
  * 2026. Le garde porte sur le tableau FILTRE, pas sur items.length : aucune
  * valeur numerique -> Math.min(...[]) = Infinity (#301).
  */
-function computeExtremum(
+export function computeExtremum(
   items: Record<string, unknown>[],
   field: string,
   bound: 'min' | 'max'
@@ -656,6 +656,9 @@ export function countDistinct(items: Record<string, unknown>[], field: string): 
  * pour que `2026-09-09 17:30` et `2026-09-09T08:00` se comparent entre eux.
  * Les decalages horaires ne sont PAS normalises (comparaison textuelle).
  */
+/** Mois ISO `AAAA-MM` (#1200). */
+const ISO_MONTH = /^\d{4}-\d{2}$/;
+
 function isoKey(value: string): string {
   return value.replace(' ', 'T');
 }
@@ -673,8 +676,10 @@ function collectIsoDates(items: Record<string, unknown>[], field: string): strin
   for (const item of items) {
     const v = getByPath(item, field);
     if (v === null || v === undefined || v === '') continue;
-    if (!isIsoDateString(v)) return null;
-    out.push(v.trim());
+    // Un MOIS `AAAA-MM` (#1200, BUG-032) se compare comme une date : son ordre
+    // lexicographique est chronologique. Lu en nombre, « 2024-09 » valait 2024.
+    if (!isIsoDateString(v) && !(typeof v === 'string' && ISO_MONTH.test(v.trim()))) return null;
+    out.push((v as string).trim());
   }
   return out.length > 0 ? out : null;
 }

@@ -203,6 +203,23 @@ interface SortPlan {
   local: OrderByPart[];
 }
 
+/**
+ * Clause `champ:in|notin:a|b` dont une valeur porte `(`, `)` ou `,` (#1202,
+ * PG-034) : le parseur de liste de l'API Tabular l'ecarte sans erreur.
+ */
+function inValueUnsafe(clause: string): boolean {
+  const parts = clause.split(':');
+  if (parts.length < 3 || isMultiFieldClause(clause)) return false;
+  const op = parts[1].trim();
+  if (op !== 'in' && op !== 'notin') return false;
+  return parts
+    .slice(2)
+    .join(':')
+    .split('|')
+    .map(unescapeColonValue)
+    .some((v) => /[(),]/.test(v));
+}
+
 export class TabularAdapter implements ApiAdapter {
   readonly type = 'tabular';
 
@@ -667,8 +684,12 @@ export class TabularAdapter implements ApiAdapter {
     }
 
     // Tri sur une colonne d'agregat (#1045) : groupes complets, puis tri ici
-    const localSort = this._sortPlan(params, params.orderBy).local;
+    const sortPlan = this._sortPlan(params, params.orderBy);
+    const localSort = sortPlan.local;
     if (localSort.length > 0) return this._fetchAllSortedLocally(params, localSort, signal);
+    // Lignes BRUTES triees par le serveur (PG-033) : voir apres la 1re page.
+    const rawServerSort =
+      sortPlan.server.length > 0 && !(params.groupBy?.trim() || params.aggregate?.trim());
 
     const fetchAllRecords = params.limit <= 0;
     const maxRecords = this._maxRecords(params);
@@ -713,6 +734,21 @@ export class TabularAdapter implements ApiAdapter {
 
       if (json.meta && typeof json.meta.total === 'number') {
         totalCount = json.meta.total;
+      }
+
+      // Tri serveur d'un chargement PAGINE (#1202, PG-033 du banc) : l'API
+      // pagine par offset et n'applique qu'UNE cle de tri — sur un champ non
+      // unique, des lignes a valeurs egales passent d'une page a l'autre, en
+      // double ou jamais (101 lignes lues, 99 distinctes). Quand tout le jeu
+      // tient sous le plafond, on relit sans `__sort` et on trie ici : meme
+      // nombre de pages, plus aucune perte. Tronque par le plafond, le tri
+      // serveur reste le seul moyen d'avoir les PREMIERES lignes : on le
+      // garde, et on le dit.
+      if (i === 0 && rawServerSort && totalCount > pageResults.length) {
+        if (totalCount <= requestedLimit) {
+          return this._fetchAllSortedLocally(params, sortPlan.server, signal);
+        }
+        this._warnTruncatedServerSort(params.orderBy || '');
       }
 
       // Page suivante via links.next
@@ -1198,6 +1234,9 @@ export class TabularAdapter implements ApiAdapter {
           op === 'in' || op === 'notin'
             ? raw.split('|').map(unescapeColonValue).join(',')
             : unescapeColonValue(raw);
+        // Un `where` pose sur la SOURCE (sans query en aval pour le reprendre)
+        // part tel quel : on dit qu'une valeur a parenthese sera ignoree (PG-034).
+        if (inValueUnsafe(filter)) this._warnInRefused(filter);
         // append : deux filtres meme champ+op sont AND-es comme Grist/ODS (#289)
         url.searchParams.append(`${field}__${op}`, value);
       }
@@ -1251,6 +1290,10 @@ export class TabularAdapter implements ApiAdapter {
    * mesures, la seconde clause retombe donc sur le filtre client.
    */
   supportsServerWhere(where: string): boolean {
+    // PG-034 : le parseur de liste de `__in` ecarte EN SILENCE (HTTP 200) une
+    // valeur a parenthese — `__exact` la trouve (101), `__in` rend 0 — et
+    // la virgule y separe les valeurs. La clause reste cote client.
+    if (where.split(',').some((c) => inValueUnsafe(c.trim()))) return false;
     const multi = where
       .split(',')
       .map((c) => c.trim())
@@ -1258,6 +1301,33 @@ export class TabularAdapter implements ApiAdapter {
     if (multi.length === 0) return true;
     if (multi.length > 1) return false;
     return this._orGroup(multi[0].split(':')) !== null;
+  }
+
+  /** Tri serveur sur un chargement tronque deja signale (une fois par adaptateur). */
+  private _truncatedSortWarned = false;
+
+  private _warnTruncatedServerSort(orderBy: string): void {
+    if (this._truncatedSortWarned) return;
+    this._truncatedSortWarned = true;
+    console.warn(
+      `[dsfr-data] tabular: tri "${orderBy}" laisse a l'API sur un chargement TRONQUE par ` +
+        `max-records — l'API pagine par offset et ne trie que sur une cle : des lignes a ` +
+        `valeurs egales peuvent manquer ou etre doublees aux limites de page (PG-033). ` +
+        `Relever max-records pour que le tri se fasse sur le jeu complet.`
+    );
+  }
+
+  /** Clauses in/notin a parenthese deja signalees (#1202, PG-034). */
+  private readonly _inRefusedWarned = new Set<string>();
+
+  private _warnInRefused(clause: string): void {
+    if (this._inRefusedWarned.has(clause)) return;
+    this._inRefusedWarned.add(clause);
+    console.warn(
+      `dsfr-data: la clause "${clause}" liste une valeur a parenthese ou a virgule — l'API ` +
+        `Tabular l'ecarte EN SILENCE de \`__in\` (PG-034). Posez ce filtre sur une ` +
+        `dsfr-data-query, qui l'applique alors sur les lignes chargees.`
+    );
   }
 
   /** Une clause multi-champs non traduisible : ignoree cote serveur, et dit (#1026). */

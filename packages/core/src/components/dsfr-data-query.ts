@@ -17,7 +17,7 @@ import {
   validateAggregateFunctions,
   type ParsedAggregate,
 } from '../utils/aggregates.js';
-import { countDistinct } from '../utils/aggregations.js';
+import { computeExtremum, countDistinct } from '../utils/aggregations.js';
 import {
   unescapeColonValue,
   translateWhere,
@@ -1963,7 +1963,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return row;
   }
 
-  private _computeAggregate(items: Record<string, unknown>[], agg: QueryAggregate): number | null {
+  private _computeAggregate(
+    items: Record<string, unknown>[],
+    agg: QueryAggregate
+  ): number | string | null {
     // toNumber strict (#301) : decimales francaises parsees, NaN exclus
     const values = items
       .map((item) => toNumber(getByPath(item, agg.field), true))
@@ -1981,10 +1984,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         return values.length > 0 ? values.reduce((a, b) => a + b, 0) : null;
       case 'avg':
         return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+      // Même calcul que le KPI (#1200, BUG-023/032) : une colonne de dates
+      // ou de mois se compare en ordre chronologique et rend sa valeur
+      // (« 2026-09-25 »), jamais l'année que lisait le parseur.
       case 'min':
-        return values.length > 0 ? Math.min(...values) : null;
+        return computeExtremum(items, agg.field, 'min');
       case 'max':
-        return values.length > 0 ? Math.max(...values) : null;
+        return computeExtremum(items, agg.field, 'max');
       case 'distinct':
         // Meme semantique que count(distinct x) serveur (#672) : null et
         // chaine vide exclus, comparaison sur la valeur en chaine.

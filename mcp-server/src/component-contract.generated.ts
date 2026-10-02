@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 376 attributs, 16 enumerations, 64 attributs-champs.
+ * 28 balises, 377 attributs, 16 enumerations, 65 attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -553,6 +553,7 @@ export const COMPONENT_CONTRACT = {
       "lowercase-keys",
       "numeric",
       "numeric-auto",
+      "numeric-prefix",
       "rename",
       "replace",
       "replace-fields",
@@ -565,6 +566,7 @@ export const COMPONENT_CONTRACT = {
     "fields": {
       "flatten": "chemin",
       "numeric": "liste",
+      "numeric-prefix": "liste",
       "rename": "pipe-alias",
       "replace-fields": "pipe-alias",
       "round": "liste-alias",

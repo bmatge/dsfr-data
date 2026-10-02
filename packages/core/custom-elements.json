@@ -15020,8 +15020,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"",
+              "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"\nLecture STRICTE (#1200) : la valeur entière doit être un nombre (décimale\nfrançaise, milliers, symbole d'unité final « % » « € » acceptés), sinon\n`null` — « 2026-09-25 » ou « 75A » ne valent plus 2026 ni 75. Pour lire\nle nombre en tête exprès : `numeric-prefix`.",
               "attribute": "numeric"
+            },
+            {
+              "kind": "field",
+              "name": "numericPrefix",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champs dont on lit le nombre qui OUVRE la valeur (#1200), en connaissance\nde cause : « 1922-1930 » → 1922, « 75A » → 75. `numeric` lit désormais une\nvaleur ENTIÈRE ou rien (« 2026-09-25 » n'est plus 2026) ; ce mode-ci est\nl'ancienne lecture, devenue un choix explicite. Aucun nombre en tête →\nabsent (`null`). Ex: `numeric-prefix=\"periode\"`.",
+              "attribute": "numeric-prefix"
             },
             {
               "kind": "field",
@@ -15560,6 +15570,13 @@
               "description": "Parse l'attribut split en Map<champ, séparateur>. Format : \"champ:sep, champ2:sep2\".\nEntrees séparées par virgule ; le premier `:` separe le champ du séparateur.\nSéparateur absent ou vide = virgule (ainsi \"Tags\" et \"Tags:,\" sont equivalents)."
             },
             {
+              "kind": "field",
+              "name": "_prefixFields",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Champs de `numeric-prefix`, relus à chaque traitement (#1200)."
+            },
+            {
               "kind": "method",
               "name": "_parseNumericFields",
               "return": {
@@ -15632,8 +15649,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"",
+              "description": "Champs a convertir en nombre (virgule-séparés). Ex: \"population, surface\"\nLecture STRICTE (#1200) : la valeur entière doit être un nombre (décimale\nfrançaise, milliers, symbole d'unité final « % » « € » acceptés), sinon\n`null` — « 2026-09-25 » ou « 75A » ne valent plus 2026 ni 75. Pour lire\nle nombre en tête exprès : `numeric-prefix`.",
               "fieldName": "numeric",
+              "champ": "liste"
+            },
+            {
+              "name": "numeric-prefix",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Champs dont on lit le nombre qui OUVRE la valeur (#1200), en connaissance\nde cause : « 1922-1930 » → 1922, « 75A » → 75. `numeric` lit désormais une\nvaleur ENTIÈRE ou rien (« 2026-09-25 » n'est plus 2026) ; ce mode-ci est\nl'ancienne lecture, devenue un choix explicite. Aucun nombre en tête →\nabsent (`null`). Ex: `numeric-prefix=\"periode\"`.",
+              "fieldName": "numericPrefix",
               "champ": "liste"
             },
             {
@@ -18321,7 +18348,7 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "number | null"
+                  "text": "number | string | null"
                 }
               },
               "parameters": [

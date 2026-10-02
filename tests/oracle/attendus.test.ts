@@ -42,7 +42,6 @@ interface EntreePython {
 interface Entete {
   source: string;
   conventions: Record<string, unknown>;
-  couverture: { total: number; couverts: number; nonCouverts: Record<string, number> };
 }
 
 /**
@@ -53,8 +52,12 @@ interface Entete {
  * l'auteur — ce qui était le cas de `python` (3.11.5 contre 3.12.3), alors que
  * toutes les valeurs étaient égales. La provenance vit à côté, dans
  * `tools/oracle/out/attendus-provenance.json`, hors zone gardée.
+ *
+ * Les compteurs de couverture y sont partis aussi (2026-10-02) : toute PR qui
+ * ajoutait un contrôle modifiait cette ligne, et deux PR en parallèle
+ * entraient toujours en conflit sur elle. Le taux se recalcule ci-dessous.
  */
-const CLES_ENTETE = ['conventions', 'couverture', 'source'];
+const CLES_ENTETE = ['conventions', 'source'];
 
 function lireAttendus(): { entete: Entete; entrees: EntreePython[] } {
   const brut = JSON.parse(readFileSync(CHEMIN, 'utf-8')) as [Entete, ...EntreePython[]];
