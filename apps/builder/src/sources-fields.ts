@@ -71,6 +71,23 @@ export function populateFieldSelects(): void {
   const fieldNameLower = (f: { displayName?: string; name: string }): string =>
     (f.displayName || f.name).toLowerCase();
 
+  // Un champ déjà choisi et toujours présent dans la liste est CONSERVÉ : la
+  // suggestion ne vaut que pour une configuration vide, ou pour un choix
+  // devenu étranger à la source (changement de source). Avant, elle écrasait
+  // le champ d'une configuration rouverte (retour du Playground ou du
+  // Pipeline, favori) : `nom_region` redevenait `nom_departement`, et
+  // l'aperçu régénéré sur un axe sans valeurs restait vide (#1176).
+  const connu = (nom: string): boolean => !!nom && state.fields.some((f) => f.name === nom);
+  const labelConserve = connu(state.labelField);
+  const valueConserve = connu(state.valueField);
+  const codeConserve = connu(state.codeField);
+  if (labelConserve) labelSelect.value = state.labelField;
+  else state.labelField = '';
+  if (valueConserve) valueSelect.value = state.valueField;
+  else state.valueField = '';
+  if (codeConserve) codeSelect.value = state.codeField;
+  else state.codeField = '';
+
   // Smart defaults (T-6 from audit UX 2026-05-26) : 1) prioritise field names
   // matching domain keywords, 2) fall back to "the only candidate" when there
   // is no ambiguity. Saves Marie one click on simple datasets.
@@ -105,15 +122,15 @@ export function populateFieldSelects(): void {
         fieldNameLower(f).includes('insee'))
   );
 
-  if (stringField) {
+  if (stringField && !labelConserve) {
     labelSelect.value = stringField.name;
     state.labelField = stringField.name;
   }
-  if (numberField) {
+  if (numberField && !valueConserve) {
     valueSelect.value = numberField.name;
     state.valueField = numberField.name;
   }
-  if (codeField) {
+  if (codeField && !codeConserve) {
     codeSelect.value = codeField.name;
     state.codeField = codeField.name;
   }
