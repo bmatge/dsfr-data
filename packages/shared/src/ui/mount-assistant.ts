@@ -237,6 +237,13 @@ export interface MountedAssistant {
   basculer(open?: boolean): void;
   /** Relit `constats()` : pastille du bouton et résumé du panneau. */
   rafraichirConstats(): void;
+  /**
+   * Relit `suggestions()` : les propositions de l'état vide suivent l'état réel
+   * de l'app. Appelé d'office à l'ouverture du panneau et à chaque
+   * `rafraichirConstats()` ; une app peut l'appeler quand son état change
+   * sans constat (une source chargée, par exemple — #1177).
+   */
+  rafraichirSuggestions(): void;
   /** Pose une question comme si l'usager l'avait tapée. */
   poser(question: string): Promise<void>;
   /**
@@ -349,11 +356,12 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
   const host = opts.host ?? document.body;
   const index = indexerReperes(registre);
   const lireConstats = (): readonly Constat[] => opts.constats?.() ?? [];
+  const lireSuggestions = (): readonly SuggestionAssistant[] => opts.suggestions?.() ?? [];
 
   const panel = document.createElement('app-assistant') as AssistantPanelElement;
   panel.app = opts.app;
   if (opts.aide) panel.aide = opts.aide;
-  panel.suggestions = opts.suggestions?.() ?? [];
+  panel.suggestions = lireSuggestions();
   let repondre = opts.repondre ?? null;
   const presenter = (): void => {
     panel.pied = repondre ? PIED_AVEC_MODELE : PIED_SANS_MODELE;
@@ -394,9 +402,17 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
   }
 
   // ── Constats : pastille du bouton et résumé ──
+  // Les suggestions de l'état vide étaient calculées UNE fois, au montage, et
+  // ne bougeaient plus qu'à « Nouvelle conversation » : une source chargée
+  // après coup laissait « Choisir la source » à l'écran (#1177). Elles sont
+  // relues à l'ouverture du panneau, avec les constats, et à la demande.
+  const rafraichirSuggestions = (): void => {
+    panel.suggestions = lireSuggestions();
+  };
   const rafraichirConstats = (): void => {
     const constats = lireConstats();
     panel.constats = constats;
+    rafraichirSuggestions();
     if (!bouton) return;
     const n = constats.filter((c) => c.gravite !== 'info').length;
     if (n > 0) {
@@ -652,7 +668,7 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     controleur = null;
     panel.busy = false;
     panel.messages = [];
-    panel.suggestions = opts.suggestions?.() ?? [];
+    rafraichirSuggestions();
     panel.statut = 'Nouvelle conversation.';
     panel.toggle(true);
   };
@@ -682,6 +698,8 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
       e as CustomEvent<{ open: boolean; focusDedans?: boolean; parLanceur?: boolean }>
     ).detail;
     bouton?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    // Ouvert : les suggestions suivent l'état de l'app au moment où on les voit.
+    if (open) rafraichirSuggestions();
     // Fermé alors que le focus était dans le panneau : il revient au
     // déclencheur. La languette, le panneau s'en charge lui-même.
     if (!open && focusDedans && !parLanceur) rendreFocus();
@@ -700,6 +718,7 @@ export function mountAssistant<Etat>(opts: OptionsAssistant<Etat>): MountedAssis
     fermer: () => panel.toggle(false),
     basculer: (open?: boolean) => panel.toggle(open),
     rafraichirConstats,
+    rafraichirSuggestions,
     poser,
     brancherModele: (r) => {
       repondre = r;
