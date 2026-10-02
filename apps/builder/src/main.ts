@@ -36,6 +36,7 @@ import {
   toggleSection,
   syncFavoriteIcon,
   renderPaletteSwatches,
+  syncA11yWithDatabox,
 } from './ui/ui-helpers.js';
 import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
@@ -273,14 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     databoxToggle.addEventListener('change', (e) => {
       state.databoxEnabled = (e.target as HTMLInputElement).checked;
       if (databoxOptions) databoxOptions.style.display = state.databoxEnabled ? 'block' : 'none';
-      const a11yTableEl = document.getElementById('a11y-table') as HTMLInputElement | null;
-      const a11yDownloadEl = document.getElementById('a11y-download') as HTMLInputElement | null;
-      if (a11yTableEl)
-        (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display =
-          state.databoxEnabled ? 'none' : '';
-      if (a11yDownloadEl)
-        (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display =
-          state.databoxEnabled ? 'none' : '';
+      syncA11yWithDatabox();
     });
   }
   const databoxTitleEl = document.getElementById('databox-title') as HTMLInputElement | null;
