@@ -706,6 +706,12 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
     lignes = agregerOds(filtrees, groupes.map((g) => `\`${g}\``).join(', '), select);
   }
   if (tris.length > 0) {
+    // Comme l'API (PG-033, rejoue le 2026-09-27) : une seule cle de tri, et
+    // l'ordre des EX-AEQUO n'est pas stable d'une requete a l'autre —
+    // pagine par offset, un tri sur un champ non unique fait passer des
+    // lignes d'une page a l'autre (101 lues, 99 distinctes). Le faux serveur
+    // l'imite : sur une page paire, les ex-aequo sortent dans l'ordre inverse.
+    if (page % 2 === 0) lignes = [...lignes].reverse();
     lignes = trierOds(
       lignes,
       tris.map((t) => `${t.champ} ${t.descendant ? 'DESC' : 'ASC'}`).join(', ')
@@ -823,7 +829,13 @@ function filtrerTabular(
       case 'greater':
         return nombre(gauche) >= Number(valeur);
       case 'in':
-        return valeur.split(',').includes(String(gauche));
+        // Comme l'API (PG-034, rejoue le 2026-09-27) : le parseur de liste
+        // ecarte EN SILENCE toute valeur a parenthese — `__exact` trouve
+        // « Usage de stupefiants (AFD) », `__in` la meme valeur rend 0.
+        return valeur
+          .split(',')
+          .filter((v) => !/[()]/.test(v))
+          .includes(String(gauche));
       default:
         return true;
     }
