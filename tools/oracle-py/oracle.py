@@ -1002,10 +1002,18 @@ def ecrire(attendus: list[dict[str, Any]], sortie: Path, provenance: Path, pytho
             "absence": "null et chaîne vide (blancs compris) ; isnull-strict ne voit que null",
             "horsV1": sorted(set(RAISONS.values())),
         },
-        "couverture": {"total": len(attendus), "couverts": couverts, "nonCouverts": dict(sorted(raisons.items()))},
     }
+    # Ni compteur dans l'en-tête, ni ordre du manifeste (2026-10-02) : chaque
+    # PR qui ajoute un contrôle changeait la ligne d'en-tête (`couverture`) et
+    # insérait ses lignes à la fin de la section de son domaine — deux PR en
+    # parallèle entraient TOUJOURS en conflit sur ce fichier, sans que leurs
+    # attendus se contredisent. Les compteurs vont dans la provenance (hors
+    # zone gardée) ; les lignes sont triées par (domaine, contrôle, clé), si
+    # bien que deux PR ne se touchent que si leurs contrôles sont voisins
+    # dans cet ordre.
+    tries = sorted(attendus, key=lambda a: (a["domaine"], a["controle"], a["cle"]))
     lignes = [json.dumps(entete, ensure_ascii=False, sort_keys=True)]
-    lignes.extend(json.dumps(a, ensure_ascii=False) for a in attendus)
+    lignes.extend(json.dumps(a, ensure_ascii=False) for a in tries)
     sortie.parent.mkdir(parents=True, exist_ok=True)
     sortie.write_text("[\n" + ",\n".join(lignes) + "\n]\n", encoding="utf-8")
     provenance.parent.mkdir(parents=True, exist_ok=True)
@@ -1018,6 +1026,7 @@ def ecrire(attendus: list[dict[str, Any]], sortie: Path, provenance: Path, pytho
                 "attendus": str(sortie.relative_to(RACINE)),
                 "total": len(attendus),
                 "couverts": couverts,
+                "nonCouverts": dict(sorted(raisons.items())),
             },
             ensure_ascii=False,
             indent=2,

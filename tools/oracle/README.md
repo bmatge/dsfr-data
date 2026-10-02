@@ -106,7 +106,14 @@ ce que le régime vivant interdit (ADR-122, amendée par le lot 8). Le job
 `attendus` de `verif-donnees.yml` le régénère et refuse un diff non committé.
 
 **Le fichier gardé ne porte que des chiffres.** Son en-tête se limite à
-`source`, `conventions` et `couverture` : aucune métadonnée d'environnement.
+`source` et `conventions` : aucune métadonnée d'environnement, et aucun
+compteur. Les compteurs de couverture (total, couverts, raisons) vont dans la
+provenance ci-dessous ; et les entrées sont **triées par (domaine, contrôle,
+clé)**, pas dans l'ordre des manifestes. Les deux ensemble évitent que deux PR
+qui ajoutent chacune un contrôle se heurtent sur ce fichier : l'en-tête ne
+bouge plus, et leurs lignes ne sont voisines que si leurs contrôles le sont
+dans l'ordre alphabétique. En cas de conflit malgré tout, ne pas le résoudre
+à la main : `git checkout --theirs` puis `npm run verif:attendus`.
 La version exacte de l'interpréteur est écrite — mais dans
 `tools/oracle/out/attendus-provenance.json`, ignoré par git, affiché par le
 job juste avant le `git diff`. Tant qu'elle vivait dans l'en-tête, le garde-fou
