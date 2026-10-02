@@ -1,5 +1,51 @@
 # dsfr-data
 
+## 0.43.0
+
+### Minor Changes
+
+- [#1205](https://github.com/bmatge/dsfr-data/pull/1205) [`cb47e38`](https://github.com/bmatge/dsfr-data/commit/cb47e3895b93e8c033289c52a97b834e20dd31fb) Thanks [@bmatge](https://github.com/bmatge)! - Une absence n'est pas un zéro ([#1198](https://github.com/bmatge/dsfr-data/issues/1198), règle [#301](https://github.com/bmatge/dsfr-data/issues/301) étendue) — **changement de comportement** :
+  
+  - `dsfr-data-query` : un groupe sans AUCUNE valeur numérique rend `null` pour `sum`, `avg`, `min` et `max` (au lieu de 0). `count` reste le nombre de lignes. Le 0 d'avant entrait dans les classements, les moyennes et les totaux. Résout le constat BUG-028 du banc d'essai.
+  - `dsfr-data-chart` : une cellule sans observation vaut `null`, au format long (`series-field`, plus de remplissage à 0) comme au format large (lecture stricte des valeurs). La courbe s'interrompt et la barre est absente, au lieu d'une chute à zéro qui n'a pas eu lieu. Résout le constat BUG-029 du banc d'essai (et AM-089, réuni).
+  
+  Pour retrouver l'ancien rendu, remplacer explicitement l'absence (`dsfr-data-normalize`, `compute` avec `coalesce(x, 0)`).
+
+- [#1209](https://github.com/bmatge/dsfr-data/pull/1209) [`32f35b6`](https://github.com/bmatge/dsfr-data/commit/32f35b6172987b9eee80d14eb31cf5f427044a58) Thanks [@bmatge](https://github.com/bmatge)! - Lecture stricte des nombres ([#1200](https://github.com/bmatge/dsfr-data/issues/1200)) — **changement de comportement** :
+  
+  - `toNumber(v, true)`, utilisé par les agrégats, `normalize numeric`, le graphique et le KPI, refuse désormais une chaîne qui n'est pas ENTIÈREMENT un nombre : « 2026-09-25 », « 2024-09 » ou « 75A » deviennent absents (`null`) au lieu de 2026, 2024 ou 75. Un symbole d'unité final reste accepté (« 45,2 % », « 12 € »).
+  - `dsfr-data-query` : `min` et `max` passent par le même calcul que le KPI. Une colonne de dates ISO ou de mois `AAAA-MM` rend la date ou le mois extrême (ordre chronologique), jamais l'année.
+  - `dsfr-data-normalize` : nouvel attribut `numeric-prefix` pour lire EXPRÈS le nombre de tête d'une valeur (« 1922-1930 » → 1922) ; nouvelle fonction `toLeadingNumber` dans `@dsfr-data/shared`.
+  
+  Résout les constats BUG-023 et BUG-032 du banc d'essai.
+
+### Patch Changes
+
+- [#1173](https://github.com/bmatge/dsfr-data/pull/1173) [`82edb66`](https://github.com/bmatge/dsfr-data/commit/82edb66e9b3318f6cb95012103cff1388a2116c8) Thanks [@bmatge](https://github.com/bmatge)! - Libellés et messages accentués ([#1158](https://github.com/bmatge/dsfr-data/issues/1158)) : les textes affichés par les composants perdaient leurs accents — compteur de `dsfr-data-display` (« 12 résultats », `empty` par défaut « Aucun résultat »), compteurs et aide de recherche lus par les lecteurs d'écran dans `dsfr-data-facets`, libellé accessible du panneau de `dsfr-data-map-popup`, noms des cartes dans le libellé accessible de `dsfr-data-chart`, messages d'erreur et d'avertissement (`dsfr-data-query`, `dsfr-data-context-filter`, `dsfr-data-map`, tri déprécié des facettes, overlay de débogage). Les descriptions d'attributs concernées (`refresh`, `bbox`, `highlight`, `code-field`, `count-label`) et le diagnostic statique du balisage sont corrigés dans la foulée. Aucun changement de comportement.
+
+- [#1207](https://github.com/bmatge/dsfr-data/pull/1207) [`2c3e025`](https://github.com/bmatge/dsfr-data/commit/2c3e025d7c9344f9951bcb6934b22a411b562177) Thanks [@bmatge](https://github.com/bmatge)! - Délégation à travers la chaîne ([#1199](https://github.com/bmatge/dsfr-data/issues/1199)) :
+  
+  - `dsfr-data-query` ne délègue plus son `group-by` à une source qui porte déjà son regroupement (`group-by`, `aggregate` ou agrégat dans `select`), même derrière un `dsfr-data-normalize` : elle regroupe les groupes côté client au lieu de remplacer celui de la source. Résout le constat BUG-026 du banc d'essai.
+  - `dsfr-data-query` implémente `transformsSchema()` (vrai si elle regroupe, agrège ou éclate, sinon la réponse de sa source) : une query en aval ne délègue plus sous des noms renommés en amont. Résout le constat BUG-036 du banc d'essai.
+  - Un `where` de query sur un alias fabriqué par la source (`count(*) as n`) reste côté client, et l'adaptateur Opendatasoft ne condamne plus l'export du jeu sur un 400 dû à la clause (seulement sur un 404). Résout le constat BUG-027 du banc d'essai.
+
+- [#1195](https://github.com/bmatge/dsfr-data/pull/1195) [`9f3a0ac`](https://github.com/bmatge/dsfr-data/commit/9f3a0acec246c54c4dc87e3e8dd5e3f1c0ab37d4) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-query` : le `where` reste délégué à l'API quand la page est régénérée par `innerHTML` (Builder carto, « Générer »). Chrome connecte les nouvelles instances avant de déconnecter les anciennes : la query homonyme encore inscrite faisait passer la chaîne pour partagée (filtre appliqué côté client sur les seules lignes chargées, « aucune donnée » sur un gros jeu), puis effaçait en partant la clause que la nouvelle venait de poser. Un élément détaché n'est plus compté comme lecteur, une query détachée ne renégocie plus, et la libération au départ vise l'instance de source réellement déléguée ([#1164](https://github.com/bmatge/dsfr-data/issues/1164)).
+  
+  `dsfr-data-list` : en `server-sort`, le tri initial (`sort`) est transmis à l'API dès la première requête, au lieu de n'être envoyé qu'au clic sur un en-tête — la flèche annonçait un tri que les lignes ne suivaient pas ([#1178](https://github.com/bmatge/dsfr-data/issues/1178)).
+
+- [#1197](https://github.com/bmatge/dsfr-data/pull/1197) [`44ae406`](https://github.com/bmatge/dsfr-data/commit/44ae4060310c5529399c4661437e383492b78bdf) Thanks [@bmatge](https://github.com/bmatge)! - Tableau de bord exporté : deux favoris du Builder dans un même tableau de bord ne partagent plus leurs identifiants. Les ids du code d'un favori (`chart-src`, `query-data`, `chart`…) et les attributs qui les désignent (`source`, `for`, `left`/`right`, `sources`, `context`, ARIA, sélecteurs de script) reçoivent le suffixe du widget : le second graphique s'abonnait à la requête du premier et se rendait vide ([#1161](https://github.com/bmatge/dsfr-data/issues/1161)).
+  
+  Détection d'une URL INSEE Melodi : les filtres de dimension de la chaîne de requête (`GEO`, `TIME_PERIOD`…) sont conservés, seule la pagination est retirée — la connexion visait le jeu entier ([#1163](https://github.com/bmatge/dsfr-data/issues/1163)).
+
+- [#1210](https://github.com/bmatge/dsfr-data/pull/1210) [`6f6e0e6`](https://github.com/bmatge/dsfr-data/commit/6f6e0e68c54f6385755545dae5973508a1feaec4) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-chart` (cartes) : le résumé affiché sous le titre (`map-summary`) ne porte que sur les lignes dessinées. Ce qu'il écarte est désormais écrit sous la carte, sans attribut — « Ce chiffre écarte N lignes sans territoire sur la carte (code absent ou hors découpage) », avec leur total pour une somme ([#1201](https://github.com/bmatge/dsfr-data/issues/1201)). Le total national plausible et faux n'était signalé qu'en console. Résout le constat PG-083 du banc d'essai.
+
+- [#1153](https://github.com/bmatge/dsfr-data/pull/1153) [`9cd939d`](https://github.com/bmatge/dsfr-data/commit/9cd939df44ebb14da1d4db4e3a1947e9bfcb8c85) Thanks [@bmatge](https://github.com/bmatge)! - L'assistant contextuel (`mountAssistant`) signale chaque question posée, avec sa réponse, sa source, les repères cités, sa durée et son éventuelle erreur, au kit de retours d'usage (`window.fc.assistant.turn`) **s'il est chargé sur la page**. Ce n'est le cas que sur les instances de test déclarées de chartsbuilder. Sans kit, rien ne change : aucun import, aucune requête, aucun effet sur l'usage de la bibliothèque.
+
+- [#1208](https://github.com/bmatge/dsfr-data/pull/1208) [`e19230c`](https://github.com/bmatge/dsfr-data/commit/e19230c49572f92cab7b3c37be97ca826b93cc47) Thanks [@bmatge](https://github.com/bmatge)! - Adaptateur Tabular : deux pertes de lignes silencieuses de l'API ne passent plus ([#1202](https://github.com/bmatge/dsfr-data/issues/1202)).
+  
+  - Un chargement paginé trié sur un champ non unique perdait ou doublait des lignes aux limites de page (pagination par offset, une seule clé de tri). Quand tout le jeu tient sous `max-records`, l'adaptateur le relit sans tri et trie lui-même ; tronqué, il garde le tri serveur et l'avertit. Résout le constat PG-033 du banc d'essai.
+  - Un `in`/`notin` dont une valeur porte une parenthèse ou une virgule n'est plus délégué (l'API écartait la valeur avec un HTTP 200) : la query filtre côté client ; un `where` posé sur la source avertit une fois. Résout le constat PG-034 du banc d'essai.
+
 ## 0.42.0
 
 ### Minor Changes
