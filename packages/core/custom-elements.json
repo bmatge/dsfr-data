@@ -11153,6 +11153,16 @@
             },
             {
               "kind": "field",
+              "name": "colorOtherLabel",
+              "default": "'Autres valeurs'",
+              "description": "Libellé, dans la légende, des valeurs de `color-field` ABSENTES de\n`color-map` — celles qui prennent la couleur de repli `color`. L'entrée\nn'apparaît que si le repli a servi au dernier rendu. Ex. :\n`color-other-label=\"Autres secteurs\"`. Vide, le libellé par défaut est\nutilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui\nnomme une valeur VIDE : une valeur hors `color-map` peut être renseignée,\net l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle\napparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner\nune paire dans `color-map` après un recodage amont (`dsfr-data-normalize`).",
+              "attribute": "color-other-label",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "kind": "field",
               "name": "fillField",
               "type": {
                 "text": "string"
@@ -11228,8 +11238,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).",
+              "description": "Champ numérique pilotant un rayon variable (`type=\"circle\"`). L'échelle est celle de\n`radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`.",
               "attribute": "radius-field"
+            },
+            {
+              "kind": "field",
+              "name": "radiusScale",
+              "type": {
+                "text": "'linear' | 'sqrt'"
+              },
+              "default": "'linear'",
+              "description": "Échelle du rayon variable (`radius-field`, `radius-unit=\"px\"`).\n`linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus\npetite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est\nproportionnelle à la valeur — c'est l'échelle des symboles proportionnels,\nà préférer dès que le lecteur compare des tailles. Elle est ancrée à\nzéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur\nquatre fois plus grande a un rayon double, la plus grande prend\n`radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le\ncercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs\nnégatives sont signalées en console. `radius-min` est sans effet en\n`sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet\navec `radius-unit=\"m\"`, où le champ donne le rayon en mètres.",
+              "attribute": "radius-scale"
             },
             {
               "kind": "field",
@@ -11248,7 +11268,7 @@
                 "text": "number"
               },
               "default": "4",
-              "description": "Rayon minimum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale=\"sqrt\"`.",
               "attribute": "radius-min"
             },
             {
@@ -11258,7 +11278,7 @@
                 "text": "number"
               },
               "default": "30",
-              "description": "Rayon maximum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`).",
               "attribute": "radius-max"
             },
             {
@@ -11880,7 +11900,7 @@
                   "text": "LegendEntry[]"
                 }
               },
-              "description": "Entrées de légende du dernier rendu (#685) : les classes de `fill-field`\navec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le\nrepli `color` s'il a servi, sinon la seule couleur de la couche (libellé\nvide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui\nse rafraîchit sur `dsfr-data-map-layer-render`."
+              "description": "Entrées de légende du dernier rendu (#685) : les classes de `fill-field`\navec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le\nrepli `color` s'il a servi (libellé `color-other-label`), sinon la seule couleur de la couche (libellé\nvide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui\nse rafraîchit sur `dsfr-data-map-layer-render`."
             },
             {
               "kind": "method",
@@ -11962,8 +11982,60 @@
               "privacy": "private",
               "static": true,
               "readonly": true,
-              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
+              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'colorOtherLabel', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusScale', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
               "description": "Proprietes dont le changement doit redessiner la couche (#482 bug 6) :\nsans ce hook, modifier un attribut en place (type, cluster, couleur…)\nne produisait aucun effet avant la prochaine emission de la source."
+            },
+            {
+              "kind": "method",
+              "name": "onSourceReset",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Retour en attente de l'amont (`require-where`, dernier filtre retiré) ou\nchangement de `source` (BUG-039) : la couche rend ce qu'elle avait tracé.\nSans ce hook, les marqueurs du dernier filtre restaient sur la carte, sous\nune page dont les autres afficheurs disent « choisissez un filtre ».\nAppelé aussi à chaque (ré)abonnement, avant la lecture du cache : sans\ncarte prête, il n'y a rien à vider."
+            },
+            {
+              "kind": "method",
+              "name": "_clearRendered",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Vide la couche : formes, grappes, carte de chaleur, emprise, bandeau et\nentrées de légende. Un rendu encore en vol (import différé des grappes ou\nde la carte de chaleur) est abandonné par le jeton de génération."
+            },
+            {
+              "kind": "field",
+              "name": "_idleNotified",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Dernier état d'attente signalé à la carte : elle n'est prévenue que d'un\nchangement, pas à chaque cycle de rendu."
+            },
+            {
+              "kind": "method",
+              "name": "_syncIdleWithMap",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Signale à la carte hôte que l'attente de cette couche a changé (BUG-039)."
+            },
+            {
+              "kind": "method",
+              "name": "isIdle",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La source de cette couche attend-elle un filtre (`require-where`) ?"
             },
             {
               "kind": "method",
@@ -12160,6 +12232,67 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "_updateMapDescription",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Résumé des couches dans la description de la carte lue par les lecteurs\nd'écran. Une carte dont plus aucune couche ne trace rien retrouve sa\ndescription nue : l'ancien « 30 marqueurs » n'y reste pas (BUG-039)."
+            },
+            {
+              "kind": "field",
+              "name": "_radiusScaleWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Valeur de `radius-scale` déjà signalée comme inconnue (un avertissement par valeur)."
+            },
+            {
+              "kind": "field",
+              "name": "_negativeRadiusWarned",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0",
+              "description": "Dernier compte de valeurs négatives signalé en `radius-scale=\"sqrt\"`."
+            },
+            {
+              "kind": "method",
+              "name": "_areaScale",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "L'échelle du rayon est-elle en aire (`radius-scale=\"sqrt\"`) ? Une valeur\ninconnue est dite en console et retombe sur l'échelle linéaire : une\nfaute de frappe ne change pas la carte en silence."
+            },
+            {
+              "kind": "method",
+              "name": "_warnNegativeRadius",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "count",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Une aire ne peut pas être négative : ces valeurs ont un rayon nul, et on le dit une fois."
             },
             {
               "kind": "method",
@@ -12645,18 +12778,18 @@
           ],
           "events": [
             {
-              "name": "dsfr-data-map-layer-time-ready",
-              "type": {
-                "text": "CustomEvent"
-              },
-              "description": "`{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur."
-            },
-            {
               "name": "dsfr-data-map-layer-render",
               "type": {
                 "text": "CustomEvent"
               },
               "description": "`{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020 ; le nombre de groupes avec `group-field`, #1108), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685)."
+            },
+            {
+              "name": "dsfr-data-map-layer-time-ready",
+              "type": {
+                "text": "CustomEvent"
+              },
+              "description": "`{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur."
             },
             {
               "description": "`{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). Avec `group-field` (#1108), `record` est le premier enregistrement du groupe et le détail porte en plus `group` (valeur du groupe) et `records` (toutes ses lignes).",
@@ -12829,6 +12962,12 @@
               "fieldName": "colorMap"
             },
             {
+              "name": "color-other-label",
+              "default": "COLOR_OTHER_LABEL_DEFAULT",
+              "description": "Libellé, dans la légende, des valeurs de `color-field` ABSENTES de\n`color-map` — celles qui prennent la couleur de repli `color`. L'entrée\nn'apparaît que si le repli a servi au dernier rendu. Ex. :\n`color-other-label=\"Autres secteurs\"`. Vide, le libellé par défaut est\nutilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui\nnomme une valeur VIDE : une valeur hors `color-map` peut être renseignée,\net l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle\napparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner\nune paire dans `color-map` après un recodage amont (`dsfr-data-normalize`).",
+              "fieldName": "colorOtherLabel"
+            },
+            {
               "name": "fill-field",
               "type": {
                 "text": "string"
@@ -12898,9 +13037,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).",
+              "description": "Champ numérique pilotant un rayon variable (`type=\"circle\"`). L'échelle est celle de\n`radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`.",
               "fieldName": "radiusField",
               "champ": "nom"
+            },
+            {
+              "name": "radius-scale",
+              "type": {
+                "text": "'linear' | 'sqrt'"
+              },
+              "default": "'linear'",
+              "description": "Échelle du rayon variable (`radius-field`, `radius-unit=\"px\"`).\n`linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus\npetite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est\nproportionnelle à la valeur — c'est l'échelle des symboles proportionnels,\nà préférer dès que le lecteur compare des tailles. Elle est ancrée à\nzéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur\nquatre fois plus grande a un rayon double, la plus grande prend\n`radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le\ncercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs\nnégatives sont signalées en console. `radius-min` est sans effet en\n`sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet\navec `radius-unit=\"m\"`, où le champ donne le rayon en mètres.",
+              "fieldName": "radiusScale"
             },
             {
               "name": "radius-unit",
@@ -12917,7 +13065,7 @@
                 "text": "number"
               },
               "default": "4",
-              "description": "Rayon minimum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale=\"sqrt\"`.",
               "fieldName": "radiusMin"
             },
             {
@@ -12926,7 +13074,7 @@
                 "text": "number"
               },
               "default": "30",
-              "description": "Rayon maximum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`).",
               "fieldName": "radiusMax"
             },
             {
@@ -14472,6 +14620,13 @@
             },
             {
               "kind": "field",
+              "name": "idleMessage",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu sur la carte tant qu'une de ses couches attend un filtre\n(`require-where` sur la source ou la requête amont, #690) : la couche est\nalors vidée, et le fond de carte seul ne dirait pas pourquoi. Distinct de\n« aucune donnée » : aucune requête n'a été faite. Vide, le libellé par\ndéfaut est utilisé. Le message est aussi ajouté à la description lue par\nles lecteurs d'écran ; les encarts (`dsfr-data-map-inset`) ne le répètent pas.",
+              "attribute": "idle-message"
+            },
+            {
+              "kind": "field",
               "name": "_leafletMap",
               "type": {
                 "text": "LeafletMap | null"
@@ -14547,6 +14702,26 @@
               },
               "privacy": "private",
               "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_idleRoot",
+              "type": {
+                "text": "HTMLDivElement | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Bloc du message d'attente (`idle-message`), posé dans le conteneur Leaflet."
+            },
+            {
+              "kind": "field",
+              "name": "_layerSummaries",
+              "type": {
+                "text": "string[]"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Dernier résumé des couches reçu : la description se recompose quand l'attente change."
             },
             {
               "kind": "field",
@@ -14780,6 +14955,58 @@
                 }
               ],
               "description": "Met a jour la description de la carte (appele par les layers quand les données changent)"
+            },
+            {
+              "kind": "method",
+              "name": "isIdle",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Une couche directe de la carte attend-elle un filtre ?"
+            },
+            {
+              "kind": "method",
+              "name": "_showsIdle",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Le message d'attente s'affiche-t-il ? Jamais dans un encart : sa carte\nclone les couches de la carte hôte, qui porte déjà le message — 160 px de\nhaut n'ont pas la place d'une phrase répétée par territoire."
+            },
+            {
+              "kind": "method",
+              "name": "_idleText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "_onLayerIdleChange",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Appelé par une couche dont l'état d'attente vient de changer (BUG-039)."
+            },
+            {
+              "kind": "method",
+              "name": "_syncIdle",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Pose ou retire le bloc d'attente — le même gabarit que les autres\nafficheurs (`renderSourceIdle`), centré SUR le fond de carte : celui-ci\nreste visible et manipulable, le bloc ne capte pas le pointeur."
             },
             {
               "kind": "method",
@@ -15094,6 +15321,12 @@
               "default": "''",
               "description": "Titre de la carte, utilise comme nom accessible (aria-label).",
               "fieldName": "name"
+            },
+            {
+              "name": "idle-message",
+              "default": "IDLE_MESSAGE_DEFAULT",
+              "description": "Message rendu sur la carte tant qu'une de ses couches attend un filtre\n(`require-where` sur la source ou la requête amont, #690) : la couche est\nalors vidée, et le fond de carte seul ne dirait pas pourquoi. Distinct de\n« aucune donnée » : aucune requête n'a été faite. Vide, le libellé par\ndéfaut est utilisé. Le message est aussi ajouté à la description lue par\nles lecteurs d'écran ; les encarts (`dsfr-data-map-inset`) ne le répètent pas.",
+              "fieldName": "idleMessage"
             }
           ],
           "superclass": {

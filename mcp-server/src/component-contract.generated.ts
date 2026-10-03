@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 29 balises, 385 attributs, 16 enumerations, 66 attributs-champs.
+ * 29 balises, 388 attributs, 17 enumerations, 66 attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -391,6 +391,7 @@ export const COMPONENT_CONTRACT = {
       "fit-zone",
       "fullscreen",
       "height",
+      "idle-message",
       "insets",
       "locked",
       "max-bounds",
@@ -435,6 +436,7 @@ export const COMPONENT_CONTRACT = {
       "color",
       "color-field",
       "color-map",
+      "color-other-label",
       "context",
       "fill-field",
       "fill-opacity",
@@ -457,6 +459,7 @@ export const COMPONENT_CONTRACT = {
       "radius-field",
       "radius-max",
       "radius-min",
+      "radius-scale",
       "radius-unit",
       "refine-on-click",
       "selected-palette",
@@ -473,6 +476,10 @@ export const COMPONENT_CONTRACT = {
         "quantile",
         "equal",
         "manual"
+      ],
+      "radius-scale": [
+        "linear",
+        "sqrt"
       ],
       "radius-unit": [
         "px",

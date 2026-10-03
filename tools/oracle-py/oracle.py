@@ -49,6 +49,10 @@ Conventions ÉCRITES (README de l'oracle, « La troisième voix ») :
 - **Chaîne d'une valeur** (clés de groupe, de jointure, de pivot) : la forme
   que JavaScript donnerait — ``true`` / ``false``, entiers sans décimale,
   tableaux joints par une virgule, ``null`` en chaîne vide.
+- **Rayon tracé** d'un symbole proportionnel (étape ``radius``) : des pixels
+  entiers, arrondi ``ROUND_HALF_UP``, jamais sous 1 px — un cercle de rayon
+  nul reste un point. L'arrondi de la racine se décide en fractions exactes,
+  sans calculer de racine (``pixel``).
 - **Hors v1** : ``derive`` (la grammaire ADR-105 est une seconde réécriture
   à part), ``class``, ``dots``, ``csv``, ``urls``, ``legend``, ``attr``,
   ``diagnostic``. Chaque attente non couverte est ÉCRITE avec sa raison.
@@ -711,6 +715,49 @@ def concat_rows(datasets: dict[str, list[Row]], sources: list[str], origin_field
     return out
 
 
+def pixel(carre: Fraction) -> int:
+    """Arrondi HALF_UP de la racine de ``carre``, plancher 1 px, SANS calculer de racine.
+
+    ``n`` est l'arrondi de ``√carre`` quand ``n − ½ ≤ √carre < n + ½`` : le plus
+    grand entier ``n`` tel que ``(2n − 1)² ≤ 4·carre``. Tout reste en fractions
+    exactes — là où l'autre voix passe par ``Math.sqrt`` en binaire.
+    """
+    n = 0
+    while (2 * (n + 1) - 1) ** 2 <= 4 * carre:
+        n += 1
+    return max(1, n)
+
+
+def rayon_symbole(rows: list[Row], champ: str, alias: str, s: dict[str, Any]) -> list[Row]:
+    """Rayon TRACÉ d'un symbole proportionnel (étape ``radius``, AM-107), en pixels entiers.
+
+    ``linear`` : de ``min`` à ``max`` entre la plus petite et la plus grande
+    valeur (le milieu quand elles sont égales), absent → ``None``. ``sqrt`` :
+    ``max × √(valeur / plus grande valeur)``, ancré à zéro — nulle, négative
+    ou absente : rayon nul. Arrondi au pixel, jamais sous 1 px.
+    """
+    valeurs = [to_num(r.get(champ)) for r in rows]
+    presentes = [v for v in valeurs if v is not None]
+    r_min = Fraction(Decimal(str(s.get("min") or 0)))
+    r_max = Fraction(Decimal(str(s["max"])))
+    out = []
+    for r, v in zip(rows, valeurs):
+        if s["scale"] == "sqrt":
+            plus_grande = max(presentes) if presentes else Fraction(0)
+            if v is None or v <= 0 or plus_grande <= 0:
+                out.append({**r, alias: 1})
+            else:
+                out.append({**r, alias: pixel(r_max * r_max * v / plus_grande)})
+            continue
+        if v is None:
+            out.append({**r, alias: None})
+            continue
+        etendue = max(presentes) - min(presentes)
+        rayon = r_min + (v - min(presentes)) / etendue * (r_max - r_min) if etendue > 0 else (r_min + r_max) / 2
+        out.append({**r, alias: pixel(rayon * rayon)})
+    return out
+
+
 def eclater(rows: list[Row], champ: str, distinct: bool) -> list[Row]:
     out: list[Row] = []
     for r in rows:
@@ -752,6 +799,8 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1), s.get("by"))
         elif op == "ratio":
             rows = ratio(rows, s["numerator"], s["denominator"], s["as"])
+        elif op == "radius":
+            rows = rayon_symbole(rows, s["from"], s["as"], s)
         elif op == "sqrt":
             rows = [{**r, s["as"]: racine(r.get(s["from"]))} for r in rows]
         elif op == "substring":

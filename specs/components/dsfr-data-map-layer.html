@@ -83,13 +83,14 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-map-layer fields="popup-template,popup-fields,tooltip-field,color,color-field,color-map,fill-field,fill-opacity,selected-palette,method,classes,breaks,radius,radius-field,radius-unit,radius-min,radius-max" -->
+              <!-- ATTRS:dsfr-data-map-layer fields="popup-template,popup-fields,tooltip-field,color,color-field,color-map,color-other-label,fill-field,fill-opacity,selected-palette,method,classes,breaks,radius,radius-field,radius-scale,radius-unit,radius-min,radius-max" -->
                 <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td>Template du contenu de la popup, avec substitution de champs. Ex: <code>"{nom} — {val} kW"</code>.</td></tr>
                 <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td>Champs a presenter en tableau automatique dans la popup. Ex: <code>"nom,adresse"</code>.</td></tr>
                 <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiché au survol de l'élément.</td></tr>
                 <tr><td><code>color</code></td><td>String</td><td><code>#000091</code></td><td>Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand <code>color-map</code> ne matche pas.</td></tr>
                 <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur détermine la couleur (mapping catégoriel via <code>color-map</code>).</td></tr>
                 <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> séparées par des virgules. Ex: <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code>. Une virgule ou un deux-points dans une valeur s'écrit <code>%2C</code> ou <code>%3A</code>.</td></tr>
+                <tr><td><code>color-other-label</code></td><td>String</td><td><code>COLOR_OTHER_LABEL_DEFAULT</code></td><td>Libellé, dans la légende, des valeurs de <code>color-field</code> ABSENTES de <code>color-map</code> — celles qui prennent la couleur de repli <code>color</code>. L'entrée n'apparaît que si le repli a servi au dernier rendu. Ex. : <code>color-other-label="Autres secteurs"</code>. Vide, le libellé par défaut est utilisé. À ne pas confondre avec l'<code>empty-label</code> d'autres composants, qui nomme une valeur VIDE : une valeur hors <code>color-map</code> peut être renseignée, et l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle apparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner une paire dans <code>color-map</code> après un recodage amont (<code>dsfr-data-normalize</code>).</td></tr>
                 <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche <code>geoshape</code> ou <code>circle</code> (#768) — avec <code>classes</code>, <code>method</code>, <code>breaks</code> et <code>selected-palette</code>. Posé avec <code>color-field</code>, il gagne pour le REMPLISSAGE ; <code>color-field</code> / <code>color</code> donnent alors le contour, et la légende décrit les classes. Sans effet sur <code>marker</code> et <code>heatmap</code>.</td></tr>
                 <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacite du remplissage (0-1).</td></tr>
                 <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR utilisée pour le dégradé choroplèthe (<code>fill-field</code>) : <code>sequentialAscending</code> (défaut), <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code>, <code>categorical</code>.</td></tr>
@@ -97,14 +98,82 @@
                 <tr><td><code>classes</code></td><td>Number</td><td><code>0</code></td><td>Nombre de classes de la choroplèthe (<code>fill-field</code>). <code>0</code> (défaut) = autant de classes que de couleurs dans l'échelle (9). Plafonné à la taille de l'échelle (#685).</td></tr>
                 <tr><td><code>breaks</code></td><td>String</td><td><code>""</code></td><td>Bornes supérieures manuelles des classes, séparées par des virgules : <code>"10,50,100"</code> donne 4 classes (jusqu'à 10, 10 à 50, 50 à 100, plus de 100). Implique <code>method="manual"</code>.</td></tr>
                 <tr><td><code>radius</code></td><td>Number</td><td><code>8</code></td><td>Rayon fixe des cercles (<code>type="circle"</code>).</td></tr>
-                <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pilotant un rayon variable (auto-scaling entre <code>radius-min</code> et <code>radius-max</code>).</td></tr>
+                <tr><td><code>radius-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique pilotant un rayon variable (<code>type="circle"</code>). L'échelle est celle de <code>radius-scale</code> : linéaire entre <code>radius-min</code> et <code>radius-max</code> par défaut, en aire avec <code>sqrt</code>.</td></tr>
+                <tr><td><code>radius-scale</code></td><td><code>linear</code> · <code>sqrt</code></td><td><code>linear</code></td><td>Échelle du rayon variable (<code>radius-field</code>, <code>radius-unit="px"</code>). <code>linear</code> (défaut) : le RAYON suit la valeur, de <code>radius-min</code> pour la plus petite à <code>radius-max</code> pour la plus grande. <code>sqrt</code> : l'AIRE du cercle est proportionnelle à la valeur — c'est l'échelle des symboles proportionnels, à préférer dès que le lecteur compare des tailles. Elle est ancrée à zéro : rayon = <code>radius-max</code> × √(valeur / plus grande valeur), une valeur quatre fois plus grande a un rayon double, la plus grande prend <code>radius-max</code>. Une valeur nulle, négative ou absente a un rayon nul (le cercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs négatives sont signalées en console. <code>radius-min</code> est sans effet en <code>sqrt</code> : un plancher fausserait le rapport des petites valeurs. Sans effet avec <code>radius-unit="m"</code>, où le champ donne le rayon en mètres.</td></tr>
                 <tr><td><code>radius-unit</code></td><td><code>px</code> · <code>m</code></td><td><code>px</code></td><td>Unité du rayon : <code>px</code> (constant à l'écran) ou <code>m</code> (mètres, suit le zoom).</td></tr>
-                <tr><td><code>radius-min</code></td><td>Number</td><td><code>4</code></td><td>Rayon minimum de l'auto-scaling, en pixels.</td></tr>
-                <tr><td><code>radius-max</code></td><td>Number</td><td><code>30</code></td><td>Rayon maximum de l'auto-scaling, en pixels.</td></tr>
+                <tr><td><code>radius-min</code></td><td>Number</td><td><code>4</code></td><td>Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec <code>radius-scale="sqrt"</code>.</td></tr>
+                <tr><td><code>radius-max</code></td><td>Number</td><td><code>30</code></td><td>Rayon de la plus grande valeur, en pixels (les deux échelles de <code>radius-scale</code>).</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
+
+        <h4 id="symboles-proportionnels">Symboles proportionnels : l'échelle du rayon</h4>
+        <p>
+          <code>radius-field</code> fait varier le rayon des cercles (<code>type="circle"</code>) selon un champ
+          numérique. <code>radius-scale</code> dit comment :
+        </p>
+        <ul>
+          <li>
+            <code>linear</code> (défaut) &mdash; le <strong>rayon</strong> suit la valeur, de
+            <code>radius-min</code> pour la plus petite à <code>radius-max</code> pour la plus grande. La plus
+            petite valeur a donc toujours un cercle, même quand elle vaut zéro, et une valeur dix fois plus grande
+            peut occuper jusqu'à cent fois plus de surface. Convient à un indice ou à un rang, pas à une quantité.
+          </li>
+          <li>
+            <code>sqrt</code> &mdash; l'<strong>aire</strong> du cercle est proportionnelle à la valeur, et l'échelle
+            est ancrée à zéro : rayon = <code>radius-max</code> × √(valeur / plus grande valeur). Une valeur quatre
+            fois plus grande a un rayon double ; la plus grande prend <code>radius-max</code>.
+          </li>
+        </ul>
+        <p>
+          <strong>Pour des symboles proportionnels, utilisez <code>radius-scale="sqrt"</code></strong> : l'œil compare
+          des surfaces, pas des rayons. L'échelle linéaire reste le défaut pour que les cartes existantes ne bougent pas.
+        </p>
+        <p>En <code>sqrt</code> :</p>
+        <ul>
+          <li>une valeur nulle, négative ou absente a un <strong>rayon nul</strong> &mdash; le cercle se réduit à un
+            point d'un pixel, qui reste cliquable et compté ; les valeurs négatives sont signalées en console (une
+            aire ne représente pas une valeur négative) ;</li>
+          <li><code>radius-min</code> est <strong>sans effet</strong> : un plancher fausserait le rapport des petites
+            valeurs. Si les plus petits cercles sont illisibles, relevez <code>radius-max</code> ;</li>
+          <li>les rayons sont tracés au pixel entier : avec <code>radius-max="30"</code>, les valeurs 1, 4 et 100
+            donnent 3, 6 et 30 px ;</li>
+          <li>l'échelle se cale sur les éléments tracés (après <code>max-items</code>) et se recalcule à chaque
+            nouvelle donnée : un filtre amont change la plus grande valeur, donc la taille de tous les cercles.</li>
+        </ul>
+        <p>
+          <code>radius-scale</code> ne s'applique pas avec <code>radius-unit="m"</code>, où le champ donne directement
+          un rayon en mètres. Une valeur inconnue (<code>radius-scale="log"</code>) est signalée en console et
+          l'échelle linéaire s'applique.
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-map-layer source="musees" type="circle" geo-field="position"
+  radius-field="entrees" radius-scale="sqrt" radius-max="30"
+  color="#000091" fill-opacity="0.4" tooltip-field="nom"&gt;&lt;/dsfr-data-map-layer&gt;</pre>
+        </div>
+
+        <h4 id="valeurs-hors-color-map">Valeurs absentes de <code>color-map</code></h4>
+        <p>
+          Une valeur de <code>color-field</code> qui n'a pas de paire dans <code>color-map</code> prend la couleur de
+          repli <code>color</code>, et la légende (<a href="dsfr-data-map.html#legende"><code>dsfr-data-map-legend</code></a>)
+          lui ajoute une entrée dès que le repli a servi. Son libellé est celui de <code>color-other-label</code>,
+          « Autres valeurs » par défaut :
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-map-layer id="reseau" source="communes" type="circle" geo-field="position"
+  color-field="etat" color-map="Fermé:#00A95F,En cours:#FF9940" color="#929292"
+  color-other-label="État inconnu"&gt;&lt;/dsfr-data-map-layer&gt;
+&lt;dsfr-data-map-legend for="reseau" label="Fermeture du réseau"&gt;&lt;/dsfr-data-map-legend&gt;</pre>
+        </div>
+        <p>
+          Ce libellé nomme des valeurs <strong>hors de la table des couleurs</strong>, pas des valeurs vides : c'est
+          pourquoi l'attribut ne s'appelle pas <code>empty-label</code>, qui sur
+          <code>dsfr-data-chart</code>, <code>dsfr-data-facets</code> et <code>dsfr-data-a11y</code> nomme une valeur
+          absente. Sur un champ ouvert, une modalité nouvelle du jeu tombe elle aussi dans le repli : l'appeler
+          « Non renseigné » serait faux. Pour distinguer les valeurs vides, les recoder en amont
+          (<code>dsfr-data-normalize</code>) et leur donner leur propre paire dans <code>color-map</code>.
+        </p>
 
         <h3>Filtrage au clic</h3>
         <div class="fr-table">
@@ -377,10 +446,10 @@
 
         <section class="demo-section fr-mt-4w">
           <h3>3. Cercles proportionnels (px) et zones réelles (m)</h3>
-          <div class="code-block"><pre><span class="tok-comment">&lt;!-- Rayon écran : échelle linéaire radius-min..radius-max en pixels --&gt;</span>
+          <div class="code-block"><pre><span class="tok-comment">&lt;!-- Rayon écran : l'aire suit la valeur (radius-scale="sqrt"), radius-max en pixels --&gt;</span>
 <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-layer</span> <span class="tok-attr">source</span><span class="tok-punct">=</span><span class="tok-string">"villes"</span> <span class="tok-attr">type</span><span class="tok-punct">=</span><span class="tok-string">"circle"</span>
   <span class="tok-attr">lat-field</span><span class="tok-punct">=</span><span class="tok-string">"latitude"</span> <span class="tok-attr">lon-field</span><span class="tok-punct">=</span><span class="tok-string">"longitude"</span>
-  <span class="tok-attr">radius-field</span><span class="tok-punct">=</span><span class="tok-string">"population"</span> <span class="tok-attr">radius-unit</span><span class="tok-punct">=</span><span class="tok-string">"px"</span> <span class="tok-attr">radius-min</span><span class="tok-punct">=</span><span class="tok-string">"6"</span> <span class="tok-attr">radius-max</span><span class="tok-punct">=</span><span class="tok-string">"35"</span>
+  <span class="tok-attr">radius-field</span><span class="tok-punct">=</span><span class="tok-string">"population"</span> <span class="tok-attr">radius-unit</span><span class="tok-punct">=</span><span class="tok-string">"px"</span> <span class="tok-attr">radius-scale</span><span class="tok-punct">=</span><span class="tok-string">"sqrt"</span> <span class="tok-attr">radius-max</span><span class="tok-punct">=</span><span class="tok-string">"35"</span>
   <span class="tok-attr">color</span><span class="tok-punct">=</span><span class="tok-string">"#000091"</span> <span class="tok-attr">fill-opacity</span><span class="tok-punct">=</span><span class="tok-string">"0.4"</span>
   <span class="tok-attr">tooltip-field</span><span class="tok-punct">=</span><span class="tok-string">"nom"</span><span class="tok-punct">&gt;</span>
 <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-layer</span><span class="tok-punct">&gt;</span>

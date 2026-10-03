@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — carte et retour en attente d'un filtre (BUG-039)</title>
+  <!--
+    BUG-039 du banc d'essai open-data-viz (#1229) : une couche de carte gardait
+    les marqueurs du dernier filtre quand son amont en `require-where`
+    repassait en attente, et la carte n'avait pas d'`idle-message`.
+
+    Deux montages, les deux que le constat nomme :
+      - #bloc-query  : une `dsfr-data-query require-where` sur un fichier
+        statique ; le filtre est son attribut `where`, posé puis retiré ;
+      - #bloc-source : une `dsfr-data-source require-where` Opendatasoft, dont
+        le filtre arrive par commande (`dsfr-data-source-command`), comme le
+        ferait une facette. Le spec sert la réponse de l'API : rien ne sort.
+
+    Les tuiles pointent sur un gabarit local qui n'existe pas : la carte se
+    passe de fond, et la page ne touche aucun serveur tiers.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Carte et attente d'un filtre</h1>
+
+    <section id="bloc-query">
+      <h2>Query en require-where</h2>
+      <dsfr-data-source id="q-points" url="/e2e/map-idle-points.json"></dsfr-data-source>
+      <dsfr-data-query id="q-filtre" source="q-points" require-where></dsfr-data-query>
+      <dsfr-data-list id="q-liste" source="q-filtre" columns="nom:Nom"></dsfr-data-list>
+      <dsfr-data-map id="q-carte" center="46.6,2.3" zoom="5" height="320px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="q-couche" source="q-filtre" type="circle"
+          lat-field="lat" lon-field="lon" shape-class="idle-cercle"
+          color-field="zone" color-map="Nord:#000091"></dsfr-data-map-layer>
+        <dsfr-data-map-legend id="q-legende" for="q-couche" label="Zone"></dsfr-data-map-legend>
+      </dsfr-data-map>
+    </section>
+
+    <section id="bloc-source">
+      <h2>Source en require-where</h2>
+      <dsfr-data-source id="s-points" api-type="opendatasoft"
+        base-url="https://exemple.invalid" dataset-id="points" require-where></dsfr-data-source>
+      <dsfr-data-map id="s-carte" center="46.6,2.3" zoom="5" height="320px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond"
+        idle-message="Choisissez une zone pour afficher ses points">
+        <dsfr-data-map-layer id="s-couche" source="s-points" type="marker"
+          lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+      </dsfr-data-map>
+    </section>
+  </main>
+</body>
+</html>
