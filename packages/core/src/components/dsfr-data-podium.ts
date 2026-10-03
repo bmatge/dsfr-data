@@ -455,7 +455,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     if (this._sourceError) {
       return html`
         <div class="dsfr-data-podium">
-          ${renderSourceError('dsfr-data-podium', this._sourceError)}
+          ${renderSourceError('dsfr-data-podium', this._sourceError, this.source)}
         </div>
         ${this._renderStyles()}
       `;

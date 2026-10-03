@@ -194,7 +194,41 @@ DSFR au lieu d'un graphique vide.
 
 Retirer le dernier filtre ramène la page en attente : il n'y a jamais de requête
 « tout » implicite. L'état est visible dans le volet Diagnostic (« en attente d'un
-filtre ») et sur le bus via l'événement \`dsfr-data-idle\`.` + reference('dsfr-data-source'),
+filtre ») et sur le bus via l'événement \`dsfr-data-idle\`.
+
+### Quand la source est en panne : message lisible, dit une fois (#1203)
+
+Un échec de chargement n'affiche plus \`Erreur de chargement: HTTP 503\` en rouge dans chaque bloc.
+Chaque bloc branché sur la source garde sa place et affiche un encart NEUTRE avec une phrase pour
+l'usager ; le code HTTP, l'adresse appelée et l'heure sont repliés dans « Détails techniques ».
+La phrase dépend de la cause :
+
+| Cause | Phrase lue par l'usager | Réessayer |
+|-------|-------------------------|-----------|
+| HTTP 5xx, délai dépassé, réponse bloquée (CORS) | Données momentanément indisponibles. | oui |
+| Hors connexion | Vous semblez hors connexion. | oui + automatique au retour du réseau |
+| HTTP 429 | Le service est très sollicité. | oui, jamais automatique |
+| HTTP 404 | Ces données ne sont plus publiées à cette adresse. | non |
+| HTTP 401, 403 | Ces données ne sont pas accessibles publiquement. | non |
+| HTTP 400, source mal configurée | Cet affichage n'a pas pu être construit. | non |
+
+- \`error-message="..."\` sur la source remplace la phrase usager (le détail technique reste replié).
+- \`<dsfr-data-source-status source="id">\` en haut du contenu dit la panne UNE fois par source, avec
+  le seul bouton « Réessayer » : les blocs de cette source gardent leur message, sans bouton. Sans
+  \`source\`, il suit toutes les sources de la page. Il n'affiche rien tant que tout va bien.
+- Sans bandeau, chaque bloc en erreur porte son propre « Réessayer ».
+- L'événement \`dsfr-data-error\` et la trace console ne changent pas : le code HTTP reste dans
+  \`error.message\`.
+
+\`\`\`html
+<dsfr-data-source-status source="prix"></dsfr-data-source-status>
+<dsfr-data-source id="prix" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-carburants" error-message="Les prix sont en cours de mise à jour.">
+</dsfr-data-source>
+<dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"></dsfr-data-kpi>
+\`\`\`` +
+      reference('dsfr-data-source') +
+      reference('dsfr-data-source-status'),
   },
 
   dsfrDataQuery: {

@@ -71,6 +71,7 @@ import { logFetchError } from '../utils/fetch-diagnostics.js';
 import {
   dispatchDataLoaded,
   dispatchDataError,
+  getDataErrorState,
   dispatchDataLoading,
   dispatchDataIdle,
   clearDataCache,
@@ -130,6 +131,8 @@ function isReservedParamKey(reserved: ReadonlySet<string> | undefined, key: stri
  *   (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct
  *   d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message
  *   « choisissez un filtre » (#690).
+ *   Le contrat de cet événement ne change pas avec le message lisible des blocs (#1203) : le
+ *   code HTTP reste dans `error.message`, et l'échec reste journalisé en console.
  * @fires cache-fallback - `{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307).
  */
 @customElement('dsfr-data-source')
@@ -447,6 +450,21 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'lazy-target' })
   lazyTarget = '';
 
+  /**
+   * Phrase affichée à l'usager quand cette source est en panne (#1203), à la
+   * place du message du barème — dans les blocs branchés sur la source comme
+   * dans le bandeau `dsfr-data-source-status`.
+   *
+   * `error-message="Les chiffres de la DGFiP sont en cours de mise à jour."` :
+   * à poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie
+   * les données et quoi faire. Ne remplace QUE la phrase usager d'un échec de
+   * chargement : le code HTTP, l'adresse appelée et l'heure restent dans
+   * « Détails techniques », l'`Error` de `dsfr-data-error` et la console ne
+   * changent pas. Sans effet sur une erreur de configuration de la source.
+   */
+  @property({ type: String, attribute: 'error-message' })
+  errorMessage = '';
+
   // --- Internal state ---
 
   @state()
@@ -504,7 +522,21 @@ export class DsfrDataSource extends LitElement {
     sendWidgetBeacon('dsfr-data-source', this._isAdapterMode() ? this.apiType : undefined);
     this._setupRefresh();
     this._setupCommandListener();
+    window.addEventListener('online', this._onOnline);
   }
+
+  /**
+   * Retour de la connexion (#1203) : UN nouvel essai, et seulement si le
+   * dernier échec de cette source était « hors connexion ». Jamais sur un 429
+   * ni sur une panne du service — relancer en boucle un producteur qui limite
+   * le débit aggrave le blocage. L'état d'erreur est effacé par le
+   * `dsfr-data-loading` de la relance : un second `online` ne relance rien.
+   */
+  private _onOnline = (): void => {
+    if (!this.id || !this._error) return;
+    const state = getDataErrorState(this.id);
+    if (state?.originId === this.id && state.cause === 'hors-connexion') this.reload();
+  };
 
   /**
    * Purge du cache de l'id — SEULEMENT si plus aucun élément du document ne le
@@ -518,6 +550,7 @@ export class DsfrDataSource extends LitElement {
    */
   disconnectedCallback() {
     super.disconnectedCallback();
+    window.removeEventListener('online', this._onOnline);
     this._cleanup();
     if (this.id && !document.getElementById(this.id)) {
       clearDataCache(this.id);
@@ -623,7 +656,15 @@ export class DsfrDataSource extends LitElement {
     return joinWhere(this.getAdapter(), parts);
   }
 
+  /**
+   * Relance le chargement à l'identique (mêmes filtres, même page). C'est ce
+   * que fait « Réessayer » (#1203), par la commande `{ reload: true }`.
+   */
   public reload() {
+    if (this.data) {
+      this._dispatchInlineData();
+      return;
+    }
     this._fetchData();
   }
 
@@ -655,6 +696,11 @@ export class DsfrDataSource extends LitElement {
       dispatchDataError(this.id, this._error);
       console.error(`dsfr-data-source[${this.id}]: JSON invalide dans data`, e);
     }
+  }
+
+  /** Phrase de l'intégrateur jointe à un échec de chargement (#1203). */
+  private _errorOptions(): { userMessage?: string } {
+    return this.errorMessage ? { userMessage: this.errorMessage } : {};
   }
 
   private _isAdapterMode(): boolean {
@@ -700,10 +746,18 @@ export class DsfrDataSource extends LitElement {
 
     if (!this.id) return;
 
-    const needsListener = this.paginate || this.serverSide || this._isAdapterMode();
-    if (!needsListener) return;
-
     this._unsubscribeCommands = subscribeToSourceCommands(this.id, (cmd) => {
+      // « Réessayer » (#1203) : servi dans TOUS les modes, URL brute comprise.
+      if (cmd.reload) {
+        this.reload();
+        return;
+      }
+
+      // Les autres commandes ne concernent qu'une source paginée, serveur ou
+      // en mode adaptateur — même garde qu'avant, évaluée à la réception.
+      const needsListener = this.paginate || this.serverSide || this._isAdapterMode();
+      if (!needsListener) return;
+
       let needsFetch = false;
 
       if (cmd.page !== undefined && cmd.page !== this._currentPage) {
@@ -1090,7 +1144,7 @@ export class DsfrDataSource extends LitElement {
       }
 
       this._error = error as Error;
-      dispatchDataError(this.id, this._error, attemptedUrl || undefined);
+      dispatchDataError(this.id, this._error, attemptedUrl || undefined, this._errorOptions());
       logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, attemptedUrl);
     } finally {
       // Un fetch remplace (abort concurrent) ne doit pas eteindre le
@@ -1284,7 +1338,7 @@ export class DsfrDataSource extends LitElement {
 
     this._error = error as Error;
     const diagnosticUrl = this._diagnosticUrl(adapter, params, overlay);
-    dispatchDataError(this.id, this._error, diagnosticUrl);
+    dispatchDataError(this.id, this._error, diagnosticUrl, this._errorOptions());
     logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, diagnosticUrl);
   }
 

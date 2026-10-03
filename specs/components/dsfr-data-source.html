@@ -697,12 +697,90 @@
 <span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-source</span><span class="tok-punct">&gt;</span></pre></div>
         </section>
 
+        <h2 id="erreurs" class="fr-mt-4w">Quand la source est en panne : un message lisible, dit une fois</h2>
+        <p>
+          Quand le chargement échoue, les blocs branchés sur la source ne montrent plus
+          <code>Erreur de chargement: HTTP 503: Service Unavailable</code> en rouge. Chacun garde sa place et
+          affiche, dans un encart neutre, une phrase que l'usager peut comprendre ; le code HTTP, l'adresse
+          appelée et l'heure sont repliés dans « Détails techniques ». La phrase dépend de la cause :
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Cause</th><th>Ce que lit l'usager</th><th>Action proposée</th></tr></thead>
+            <tbody>
+              <tr><td>Service indisponible (HTTP 5xx, délai dépassé) ou réponse bloquée (pas d'en-tête CORS)</td><td><strong>Données momentanément indisponibles.</strong> Le service qui publie ces chiffres ne répond pas pour l'instant.</td><td>Réessayer</td></tr>
+              <tr><td>Hors connexion</td><td><strong>Vous semblez hors connexion.</strong> Les chiffres s'afficheront quand la connexion reviendra.</td><td>Réessayer, et nouvel essai automatique au retour du réseau</td></tr>
+              <tr><td>Service très sollicité (HTTP 429)</td><td><strong>Le service est très sollicité.</strong> Réessayez dans quelques instants.</td><td>Réessayer — jamais de nouvel essai automatique</td></tr>
+              <tr><td>Données introuvables (HTTP 404)</td><td><strong>Ces données ne sont plus publiées à cette adresse.</strong> Le producteur les a peut-être déplacées ou retirées.</td><td>Aucune</td></tr>
+              <tr><td>Accès restreint (HTTP 401, 403)</td><td><strong>Ces données ne sont pas accessibles publiquement.</strong></td><td>Aucune</td></tr>
+              <tr><td>Page mal réglée (HTTP 400, source mal configurée)</td><td><strong>Cet affichage n'a pas pu être construit.</strong> Le problème vient de la page, pas de votre connexion.</td><td>Aucune</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          « Réessayer » recharge la source à l'identique (mêmes filtres, même page) : c'est la méthode
+          <code>reload()</code>, déclenchée par la commande <code>{ reload: true }</code>. Après un échec
+          hors connexion, la source se relance d'elle-même, une fois, au retour du réseau. L'erreur de
+          <strong>configuration</strong> d'un composant d'affichage (attribut invalide) n'est pas concernée :
+          elle reste une alerte, écrite pour l'intégrateur.
+        </p>
+        <p>
+          Pour dire la panne avec vos mots, posez <code>error-message</code> sur la source :
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="error-message" -->
+                <tr><td><code>error-message</code></td><td>String</td><td><code>""</code></td><td>Phrase affichée à l'usager quand cette source est en panne (#1203), à la place du message du barème — dans les blocs branchés sur la source comme dans le bandeau <code>dsfr-data-source-status</code>. <code>error-message="Les chiffres de la DGFiP sont en cours de mise à jour."</code> : à poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie les données et quoi faire. Ne remplace QUE la phrase usager d'un échec de chargement : le code HTTP, l'adresse appelée et l'heure restent dans « Détails techniques », l'<code>Error</code> de <code>dsfr-data-error</code> et la console ne changent pas. Sans effet sur une erreur de configuration de la source.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="source-status" class="fr-mt-3w">dsfr-data-source-status : le bandeau qui dit la panne une fois</h3>
+        <p>
+          Sans bandeau, huit blocs branchés sur une source en panne affichent huit messages et huit boutons
+          « Réessayer ». Posez <code>&lt;dsfr-data-source-status&gt;</code> en haut du contenu : la panne est
+          dite <strong>une fois par source</strong>, avec le seul bouton « Réessayer ». Les blocs concernés
+          gardent leur place et leur message court, sans bouton ; les blocs d'une autre source ne sont pas
+          touchés. Le bandeau n'affiche rien tant qu'aucune source n'est en panne.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source-status fields="source" -->
+                <tr><td><code>source</code></td><td>String</td><td><code>""</code></td><td>Id de la source à suivre. Vide : toutes les sources de la page, un message par source en panne. Une étape intermédiaire (<code>dsfr-data-query</code>…) branchée sur la source est suivie avec elle : c'est la source qui charge qui est relancée.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;!-- La panne de "prix" est dite ici, une fois --&gt;
+&lt;dsfr-data-source-status source="prix"&gt;&lt;/dsfr-data-source-status&gt;
+
+&lt;dsfr-data-source id="prix" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="prix-carburants"
+  error-message="Les prix sont en cours de mise à jour. Revenez dans quelques minutes."&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-chart source="prix" type="bar" label-field="ville" value-field="prix"&gt;&lt;/dsfr-data-chart&gt;</pre>
+        </div>
+        <p>
+          Accessibilité : le bandeau est une région <code>role="status"</code> (annonce polie, qui
+          n'interrompt pas la lecture). Les blocs en erreur ne sont plus des alertes assertives : sans
+          bandeau, chacun est une région <code>role="status"</code> ; avec bandeau, seul le bandeau annonce.
+          Le bouton « Réessayer » est un bouton DSFR d'au moins 44 px de haut.
+        </p>
+
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
         <p>Le composant émet des événements personnalises via le système data-bridge :</p>
         <ul>
           <li><code>dsfr-data-loaded</code> : Données chargées avec succès (detail : tableau de records)</li>
           <li><code>dsfr-data-loading</code> : Chargement en cours</li>
-          <li><code>dsfr-data-error</code> : Erreur de chargement (detail : objet Error)</li>
+          <li><code>dsfr-data-error</code> : Erreur de chargement (detail : objet Error, dont le message porte le code HTTP). Inchangé par le message lisible des blocs : l'événement et la trace console restent la voie de l'intégrateur.</li>
           <li><code>cache-fallback</code> : Les données proviennent du cache serveur suite a une erreur API (mode DB uniquement)</li>
         </ul>
 
@@ -711,7 +789,7 @@
           <table class="attr-table">
             <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données</td></tr>
+              <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données, à l'identique. C'est ce que déclenche « Réessayer ».</td></tr>
               <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles</td></tr>
               <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un chargement est en cours</td></tr>
               <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>

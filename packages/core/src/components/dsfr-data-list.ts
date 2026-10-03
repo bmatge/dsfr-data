@@ -1168,7 +1168,7 @@ ${bodyRows}
       return renderSourceLoading('dsfr-data-list', 'Chargement des données...');
     }
     if (this._sourceError && !(this._serverPagination && this._data.length > 0)) {
-      return renderSourceError('dsfr-data-list', this._sourceError);
+      return renderSourceError('dsfr-data-list', this._sourceError, this.source);
     }
     if (this._sourceIdle) {
       return renderSourceIdle('dsfr-data-list', this.idleMessage);

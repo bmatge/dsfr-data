@@ -2261,7 +2261,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     if (this._sourceError) {
       return html`
-        ${renderSourceError('dsfr-data-chart', this._sourceError)}
+        ${renderSourceError('dsfr-data-chart', this._sourceError, this.source)}
         <style>
           .dsfr-data-chart__error {
             display: flex;

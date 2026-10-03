@@ -1098,8 +1098,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * decouverte ici et, si un champ date est concerne, on re-emet la
    * commande en intervalle. Une seule tentative par jeu (decouverte memorisee).
    */
-  public emitTransformerError(error: Error): void {
-    super.emitTransformerError(error);
+  public emitTransformerError(error: Error, relayedFrom?: string): void {
+    super.emitTransformerError(error, relayedFrom);
     if (!this.serverFacets || this._discoveredFacets !== null || this._discovery.pending) return;
     if (!this._hasYearShapedSelection()) return;
     const sourceEl = document.getElementById(this.source);

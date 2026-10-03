@@ -588,6 +588,36 @@ A l'interieur d'une meme page, les Web Components communiquent par un bus d'even
 <dsfr-data-list source="...">     Ecoute via SourceSubscriberMixin
 ```
 
+### 3.5.0 Erreurs de source : barème, registre d'erreur, bandeau, relance (#1203)
+
+Une erreur de source ne s'affiche plus telle quelle (`Erreur de chargement: HTTP 503…`, en rouge, une
+alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
+
+- **Barème** — `utils/source-errors.ts`, fonctions PURES : `classifySourceError(error, online)` rend une
+  cause (`service-indisponible`, `hors-connexion`, `service-sollicite`, `donnees-introuvables`,
+  `acces-restreint`, `page-mal-reglee`, `reponse-bloquee`), `describeSourceCause` le titre, la phrase,
+  l'action et la piste pour l'intégrateur. L'erreur de CONFIGURATION d'un afficheur
+  (`renderConfigError`, #649) n'y passe jamais.
+- **Registre d'erreur** — `data-bridge.ts`, `window.__dsfrDataErrors` : `dispatchDataError` y enregistre,
+  AVANT d'émettre, `{ error, originId, cause, attemptedUrl?, userMessage?, at }` sous l'id de l'étape ;
+  `dsfr-data-loading`, `dsfr-data-loaded` et `clearDataCache` l'effacent. `originId` est la source qui
+  a réellement échoué : `TransformerMixin` relaie l'erreur avec `{ relayedFrom }`, l'origine suit donc la
+  chaîne jusqu'aux afficheurs. Le détail de l'événement `dsfr-data-error` est INCHANGÉ.
+- **Bloc** — `renderSourceError(classe, error, sourceId)` lit le registre : encart neutre (styles en
+  ligne, qui l'emportent sur le rouge de la classe `__error` de chaque composant sans la toucher),
+  `role="status"`, « Détails techniques » repliés.
+- **Bandeau** — `<dsfr-data-source-status>` se déclare par `registerStatusBanner(source)`
+  (`window.__dsfrDataStatusBanners`, compteur par source, `*` = toutes). Un bloc dont l'origine est
+  couverte (`isSourceCoveredByBanner`) ne rend ni bouton ni `role` : la panne est annoncée une fois.
+  L'apparition ou le départ d'un bandeau émet `dsfr-data-status-coverage` (événement interne, HORS de
+  `DATA_EVENTS` — ce dernier est aligné clé pour clé sur le collecteur de diagnostic), que
+  `SourceSubscriberMixin` écoute pour redessiner les blocs en erreur. Le bandeau écoute le bus sur
+  `document` (il suit TOUTES les sources) : pas de `subscribeToSource`, réservé aux mixins.
+- **Relance** — commande `{ reload: true }` adressée à `originId` (`requestSourceRetry`). La source
+  l'écoute dans tous ses modes ; les autres commandes gardent leur garde (paginée, serveur ou
+  adaptateur). Relance automatique : écouteur `online` sur `window`, une fois, seulement si la cause
+  enregistrée est `hors-connexion` — jamais sur 429.
+
 ### 3.5.1 Modeles de hauteur des editeurs deux-volets (#613)
 
 `<app-layout-builder>` expose un attribut `mode` plutot que de laisser les

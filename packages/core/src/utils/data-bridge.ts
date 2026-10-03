@@ -4,6 +4,7 @@
  */
 
 import type { JoinStats, PivotStats } from '@dsfr-data/shared/lib';
+import { classifySourceError, type SourceErrorCause } from './source-errors.js';
 
 export interface DataLoadedEvent {
   sourceId: string;
@@ -106,6 +107,45 @@ export interface SourceCommandEvent {
   orderBy?: string; // tri serveur ("field:direction")
   groupBy?: string; // group-by serveur (delegue par dsfr-data-query)
   aggregate?: string; // agrégation serveur (delegue par dsfr-data-query)
+  /**
+   * Relance le chargement de la source, à l'identique (#1203). Émise par
+   * « Réessayer » — du bandeau ou d'un bloc en erreur. La source la sert dans
+   * tous ses modes, URL brute comprise.
+   */
+  reload?: boolean;
+}
+
+/**
+ * État d'erreur d'une étape (#1203), lu par les blocs et le bandeau.
+ *
+ * L'événement `dsfr-data-error` ne porte que l'`Error` : un bloc branché sur
+ * une `dsfr-data-query` ne sait pas QUELLE source a échoué, ni à quelle
+ * adresse, ni s'il existe un bandeau qui dit déjà la panne. Ce registre joue
+ * pour l'erreur le rôle que `dataCache` joue pour les lignes.
+ */
+export interface DataErrorState {
+  error: Error;
+  /**
+   * Id de la source qui a RÉELLEMENT échoué — celle qui fetch, au bout de la
+   * chaîne. Égal à l'id de l'étape quand c'est elle qui a échoué.
+   */
+  originId: string;
+  /** Cause au sens du barème, classée au moment de l'échec. */
+  cause: SourceErrorCause;
+  /** URL réellement appelée (proxy appliqué), si connue. */
+  attemptedUrl?: string;
+  /** Phrase de l'intégrateur (`error-message` de la source). */
+  userMessage?: string;
+  /** Horodatage de l'échec (`Date.now()`). */
+  at: number;
+}
+
+/** Options de `dispatchDataError` (#1203). */
+export interface DataErrorOptions {
+  /** Étape amont dont l'erreur est relayée : son origine est reprise. */
+  relayedFrom?: string;
+  /** Phrase de l'intégrateur, posée par la source (`error-message`). */
+  userMessage?: string;
 }
 
 // Noms des événements custom
@@ -117,17 +157,29 @@ export const DATA_EVENTS = {
   SOURCE_COMMAND: 'dsfr-data-source-command',
 } as const;
 
+/**
+ * Un bandeau `dsfr-data-source-status` est apparu ou a disparu (#1203) : les
+ * blocs en erreur se redessinent pour montrer ou retirer leur propre
+ * « Réessayer ». Événement INTERNE, sans détail — tenu hors de `DATA_EVENTS`,
+ * qui est le contrat public du bus (aligné sur le collecteur de diagnostic).
+ */
+export const STATUS_COVERAGE_EVENT = 'dsfr-data-status-coverage';
+
 // Cache global des données par sourceId — stocké sur window pour partage entre bundles UMD
 type WindowWithCache = Window & {
   __dsfrDataCache?: Map<string, unknown>;
   __dsfrDataMeta?: Map<string, PaginationMeta>;
   __dsfrDataIdle?: Set<string>;
+  __dsfrDataErrors?: Map<string, DataErrorState>;
+  __dsfrDataStatusBanners?: Map<string, number>;
 };
 const _win: WindowWithCache | Record<string, never> =
   typeof window !== 'undefined' ? (window as WindowWithCache) : {};
 if (!_win.__dsfrDataCache) _win.__dsfrDataCache = new Map<string, unknown>();
 if (!_win.__dsfrDataMeta) _win.__dsfrDataMeta = new Map<string, PaginationMeta>();
 if (!_win.__dsfrDataIdle) _win.__dsfrDataIdle = new Set<string>();
+if (!_win.__dsfrDataErrors) _win.__dsfrDataErrors = new Map<string, DataErrorState>();
+if (!_win.__dsfrDataStatusBanners) _win.__dsfrDataStatusBanners = new Map<string, number>();
 const dataCache: Map<string, unknown> = _win.__dsfrDataCache;
 const metaCache: Map<string, PaginationMeta> = _win.__dsfrDataMeta;
 /**
@@ -138,6 +190,64 @@ const metaCache: Map<string, PaginationMeta> = _win.__dsfrDataMeta;
  * joue pour l'état « idle » le rôle que `dataCache` joue pour les lignes.
  */
 const idleSources: Set<string> = _win.__dsfrDataIdle;
+/** États d'erreur par étape (#1203) — voir `DataErrorState`. */
+const errorStates: Map<string, DataErrorState> = _win.__dsfrDataErrors;
+/**
+ * Bandeaux montés, par source couverte (#1203) ; la clé `*` vaut pour toutes
+ * les sources de la page. Compteur et non booléen : deux bandeaux peuvent
+ * couvrir la même source, et le départ de l'un ne découvre pas l'autre.
+ */
+const statusBanners: Map<string, number> = _win.__dsfrDataStatusBanners;
+
+/** Clé de `registerStatusBanner` pour « toutes les sources de la page ». */
+export const ALL_SOURCES = '*';
+
+/** État d'erreur courant d'une étape, ou `undefined` si elle n'est pas en erreur. */
+export function getDataErrorState(sourceId: string): DataErrorState | undefined {
+  return errorStates.get(sourceId);
+}
+
+/** Toutes les étapes en erreur — lu par le bandeau à son montage. */
+export function listDataErrorStates(): Array<[string, DataErrorState]> {
+  return [...errorStates.entries()];
+}
+
+function notifyStatusCoverage(): void {
+  document.dispatchEvent(new CustomEvent(STATUS_COVERAGE_EVENT));
+}
+
+/**
+ * Un bandeau déclare les sources dont il dit la panne (#1203). Rend la
+ * fonction qui retire la déclaration.
+ */
+export function registerStatusBanner(sourceId: string = ALL_SOURCES): () => void {
+  const key = sourceId || ALL_SOURCES;
+  statusBanners.set(key, (statusBanners.get(key) ?? 0) + 1);
+  notifyStatusCoverage();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const left = (statusBanners.get(key) ?? 1) - 1;
+    if (left > 0) statusBanners.set(key, left);
+    else statusBanners.delete(key);
+    notifyStatusCoverage();
+  };
+}
+
+/** Un bandeau dit-il déjà la panne de cette source (#1203) ? */
+export function isSourceCoveredByBanner(originId: string): boolean {
+  return statusBanners.has(ALL_SOURCES) || statusBanners.has(originId);
+}
+
+/**
+ * « Réessayer » (#1203) : relance la source qui a réellement échoué. La
+ * commande est adressée à l'ORIGINE, sans passer par les relais de la chaîne.
+ */
+export function requestSourceRetry(sourceId: string): void {
+  const originId = errorStates.get(sourceId)?.originId ?? sourceId;
+  dispatchSourceCommand(originId, { reload: true });
+}
 
 /**
  * Enregistre des données dans le cache global
@@ -159,6 +269,7 @@ export function getDataCache(sourceId: string): unknown | undefined {
 export function clearDataCache(sourceId: string): void {
   dataCache.delete(sourceId);
   idleSources.delete(sourceId);
+  errorStates.delete(sourceId);
 }
 
 /**
@@ -196,6 +307,7 @@ export function clearDataMeta(sourceId: string): void {
 export function dispatchDataLoaded(sourceId: string, data: unknown): void {
   setDataCache(sourceId, data);
   idleSources.delete(sourceId);
+  errorStates.delete(sourceId);
 
   const event = new CustomEvent<DataLoadedEvent>(DATA_EVENTS.LOADED, {
     bubbles: true,
@@ -211,9 +323,30 @@ export function dispatchDataLoaded(sourceId: string, data: unknown): void {
  *
  * `attemptedUrl` est optionnelle et purement diagnostique (#603) : elle ne
  * modifie ni le message de l'`Error`, ni le contrat des abonnés existants.
+ *
+ * L'état d'erreur de l'étape est enregistré AVANT l'émission (#1203) : un
+ * abonné qui se redessine dans son callback y lit déjà l'origine de la panne.
+ * Le détail de l'événement, lui, ne change pas.
  */
-export function dispatchDataError(sourceId: string, error: Error, attemptedUrl?: string): void {
+export function dispatchDataError(
+  sourceId: string,
+  error: Error,
+  attemptedUrl?: string,
+  options: DataErrorOptions = {}
+): void {
   idleSources.delete(sourceId);
+  const upstream = options.relayedFrom ? errorStates.get(options.relayedFrom) : undefined;
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  const url = attemptedUrl ?? upstream?.attemptedUrl;
+  const userMessage = options.userMessage ?? upstream?.userMessage;
+  errorStates.set(sourceId, {
+    error,
+    originId: upstream?.originId ?? options.relayedFrom ?? sourceId,
+    cause: upstream?.cause ?? classifySourceError(error, online),
+    ...(url ? { attemptedUrl: url } : {}),
+    ...(userMessage ? { userMessage } : {}),
+    at: upstream?.at ?? Date.now(),
+  });
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {
     bubbles: true,
     composed: true,
@@ -228,6 +361,7 @@ export function dispatchDataError(sourceId: string, error: Error, attemptedUrl?:
  */
 export function dispatchDataLoading(sourceId: string): void {
   idleSources.delete(sourceId);
+  errorStates.delete(sourceId);
   const event = new CustomEvent<DataLoadingEvent>(DATA_EVENTS.LOADING, {
     bubbles: true,
     composed: true,

@@ -339,7 +339,7 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
   }
 
   render() {
-    if (this._sourceError) return renderSourceError(REPEAT_TAG, this._sourceError);
+    if (this._sourceError) return renderSourceError(REPEAT_TAG, this._sourceError, this.source);
     // `loading` et `idle` : rien de visible — c'est une structure, pas une feuille.
     if (this._hasData && this._data.length === 0 && this.empty && !this._sourceLoading) {
       return html`<p class="${REPEAT_TAG}__empty">${this.empty}</p>`;

@@ -106,7 +106,8 @@ function documentedAttributes(markdown: string): Set<string> {
 
 /** Skills de composant -> tags dont elles embarquent la reference. */
 const SKILL_TAGS: Record<string, string[]> = {
-  dsfrDataSource: ['dsfr-data-source'],
+  // Le bandeau d'état est documenté dans la skill de la source (#1203)
+  dsfrDataSource: ['dsfr-data-source', 'dsfr-data-source-status'],
   dsfrDataQuery: ['dsfr-data-query'],
   dsfrDataNormalize: ['dsfr-data-normalize'],
   dsfrDataFacets: ['dsfr-data-facets'],

@@ -6474,6 +6474,13 @@
                   "type": {
                     "text": "Error"
                   }
+                },
+                {
+                  "name": "relayedFrom",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
+                  }
                 }
               ],
               "description": "Erreur amont en mode serveur AVANT toute decouverte (#676) : une\nselection annuelle issue de l'URL a pu être emise en egalite sur un\nchamp date (400) — la source n'emet alors aucune donnee, donc le cycle\nde facettes (et sa decouverte) n'aurait jamais lieu. On lance la\ndecouverte ici et, si un champ date est concerne, on re-emet la\ncommande en intervalle. Une seule tentative par jeu (decouverte memorisee)."
@@ -20160,6 +20167,211 @@
     },
     {
       "kind": "javascript-module",
+      "path": "packages/core/src/components/dsfr-data-source-status.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "<dsfr-data-source-status> - Dire une panne de données UNE fois, en tête de page\n\nSans lui, chaque bloc branché sur une source en panne dit la panne à sa place et porte son\npropre « Réessayer » : huit blocs, huit messages. Avec lui, la panne est dite une fois par\nsource, ici, avec le seul bouton « Réessayer » ; les blocs concernés gardent leur place et un\nmessage court, sans bouton ni annonce répétée. Les blocs d'une AUTRE source ne sont pas touchés.\n\nComposant d'ÉTAT, à poser là où le message doit se lire (en général en haut du contenu). Il\nn'affiche rien tant qu'aucune source n'est en panne.\n\n- `source=\"id\"` : ne suit que cette source (et les étapes branchées dessus) ;\n- sans `source` : suit toutes les sources de la page, un message par source en panne.\n\nLa phrase lue par l'usager vient du barème de la bibliothèque (service indisponible, hors\nconnexion, service très sollicité, données introuvables, accès restreint, page mal réglée) ou de\nl'attribut `error-message` de la source. Le code HTTP, l'adresse appelée et l'heure restent\nrepliés dans « Détails techniques ».\n\n« Réessayer » relance la source à l'identique. Il n'apparaît que lorsque réessayer a un sens :\npas sur des données introuvables (404), un accès restreint (401, 403) ni une page mal réglée.\nHors connexion, la source se relance d'elle-même au retour du réseau ; sur un service très\nsollicité (429), jamais automatiquement.\n\nAccessibilité : le bandeau est une région `role=\"status\"` (annonce polie, non interruptive),\nprésente dès le montage pour que la panne y soit annoncée quand elle survient. Les blocs\ncouverts cessent d'être des régions live : la panne n'est annoncée qu'une fois. Le bouton fait\nau moins 44 px de haut et reste en place, donc garde le focus, pendant le nouvel essai.",
+          "name": "DsfrDataSourceStatus",
+          "members": [
+            {
+              "kind": "field",
+              "name": "source",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id de la source à suivre. Vide : toutes les sources de la page, un message par source en\npanne. Une étape intermédiaire (`dsfr-data-query`…) branchée sur la source est suivie avec\nelle : c'est la source qui charge qui est relancée.",
+              "attribute": "source"
+            },
+            {
+              "kind": "field",
+              "name": "_outages",
+              "privacy": "private",
+              "default": "new Map<string, Outage>()",
+              "description": "Pannes affichées, par id de la source d'origine."
+            },
+            {
+              "kind": "field",
+              "name": "_releaseBanner",
+              "type": {
+                "text": "(() => void) | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_registeredFor",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "method",
+              "name": "_follow",
+              "privacy": "private",
+              "description": "Déclare au bus les sources que ce bandeau couvre — leurs blocs n'ont plus\nà dire la panne — puis relit les pannes déjà là : une panne peut précéder\nle montage du bandeau, le registre fait foi."
+            },
+            {
+              "kind": "method",
+              "name": "_follows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "originId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "stepId",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_noteError",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "stepId",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_eventSourceId",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "_onError",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_onLoading",
+              "privacy": "private",
+              "description": "La source d'origine recharge : le message reste, le bouton attend — le focus n'est pas perdu."
+            },
+            {
+              "kind": "field",
+              "name": "_onSettled",
+              "privacy": "private",
+              "description": "La source d'origine a livré (ou attend un filtre) : la panne est finie."
+            },
+            {
+              "kind": "method",
+              "name": "_retry",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "originId",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "_renderOutage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "TemplateResult"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "originId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "outage",
+                  "type": {
+                    "text": "Outage"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "description": "`{ sourceId, reload: true }` sur `document` — « Réessayer » a été activé : la source d'origine de la panne recharge à l'identique.",
+              "name": "dsfr-data-source-command"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "source",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Id de la source à suivre. Vide : toutes les sources de la page, un message par source en\npanne. Une étape intermédiaire (`dsfr-data-query`…) branchée sur la source est suivie avec\nelle : c'est la source qui charge qui est relancée.",
+              "fieldName": "source"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "summary": "Bandeau d'état d'une source : la panne dite une fois, avec « Réessayer »",
+          "tagName": "dsfr-data-source-status",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "DsfrDataSourceStatus",
+          "declaration": {
+            "name": "DsfrDataSourceStatus",
+            "module": "packages/core/src/components/dsfr-data-source-status.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "dsfr-data-source-status",
+          "declaration": {
+            "name": "DsfrDataSourceStatus",
+            "module": "packages/core/src/components/dsfr-data-source-status.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "packages/core/src/components/dsfr-data-source.ts",
       "declarations": [
         {
@@ -20459,6 +20671,16 @@
             },
             {
               "kind": "field",
+              "name": "errorMessage",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Phrase affichée à l'usager quand cette source est en panne (#1203), à la\nplace du message du barème — dans les blocs branchés sur la source comme\ndans le bandeau `dsfr-data-source-status`.\n\n`error-message=\"Les chiffres de la DGFiP sont en cours de mise à jour.\"` :\nà poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie\nles données et quoi faire. Ne remplace QUE la phrase usager d'un échec de\nchargement : le code HTTP, l'adresse appelée et l'heure restent dans\n« Détails techniques », l'`Error` de `dsfr-data-error` et la console ne\nchangent pas. Sans effet sur une erreur de configuration de la source.",
+              "attribute": "error-message"
+            },
+            {
+              "kind": "field",
               "name": "_loading",
               "type": {
                 "text": "boolean"
@@ -20646,6 +20868,12 @@
               "description": "Cached adapter instance"
             },
             {
+              "kind": "field",
+              "name": "_onOnline",
+              "privacy": "private",
+              "description": "Retour de la connexion (#1203) : UN nouvel essai, et seulement si le\ndernier échec de cette source était « hors connexion ». Jamais sur un 429\nni sur une panne du service — relancer en boucle un producteur qui limite\nle débit aggrave le blocage. L'état d'erreur est effacé par le\n`dsfr-data-loading` de la relance : un second `online` ne relance rien."
+            },
+            {
               "kind": "method",
               "name": "getAdapter",
               "privacy": "public",
@@ -20679,7 +20907,8 @@
             {
               "kind": "method",
               "name": "reload",
-              "privacy": "public"
+              "privacy": "public",
+              "description": "Relance le chargement à l'identique (mêmes filtres, même page). C'est ce\nque fait « Réessayer » (#1203), par la commande `{ reload: true }`."
             },
             {
               "kind": "method",
@@ -20715,6 +20944,17 @@
               "kind": "method",
               "name": "_dispatchInlineData",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_errorOptions",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ userMessage?: string }"
+                }
+              },
+              "description": "Phrase de l'intégrateur jointe à un échec de chargement (#1203)."
             },
             {
               "kind": "method",
@@ -21058,7 +21298,7 @@
               "name": "dsfr-data-error"
             },
             {
-              "description": "`{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690).",
+              "description": "`{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690). Le contrat de cet événement ne change pas avec le message lisible des blocs (#1203) : le code HTTP reste dans `error.message`, et l'échec reste journalisé en console.",
               "name": "dsfr-data-idle"
             }
           ],
@@ -21323,6 +21563,15 @@
               "default": "''",
               "description": "Sélecteur CSS de l'élément dont la visibilité déclenche le chargement,\nà la place des consommateurs détectés (#931). Sans effet sans `lazy`.\n\n`lazy lazy-target=\"#panneau-2\"` : la source part quand le panneau entre\ndans la marge de 200 px. À utiliser quand la détection automatique ne\npeut pas voir le bon élément — un consommateur créé en JavaScript, une\ncarte dont on préfère observer la section entière, ou plusieurs blocs\nqu'on veut traiter comme un seul (le sélecteur peut désigner plusieurs\néléments : le PREMIER vu ouvre la porte).\n\nSélecteur invalide, ou qui ne désigne aucun élément : la source part\nimmédiatement, avec un message en console. Rien de silencieux.",
               "fieldName": "lazyTarget"
+            },
+            {
+              "name": "error-message",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Phrase affichée à l'usager quand cette source est en panne (#1203), à la\nplace du message du barème — dans les blocs branchés sur la source comme\ndans le bandeau `dsfr-data-source-status`.\n\n`error-message=\"Les chiffres de la DGFiP sont en cours de mise à jour.\"` :\nà poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie\nles données et quoi faire. Ne remplace QUE la phrase usager d'un échec de\nchargement : le code HTTP, l'adresse appelée et l'heure restent dans\n« Détails techniques », l'`Error` de `dsfr-data-error` et la console ne\nchangent pas. Sans effet sur une erreur de configuration de la source.",
+              "fieldName": "errorMessage"
             }
           ],
           "superclass": {

@@ -14,7 +14,13 @@ globalThis.fetch = mockFetch;
 
 // We need to import after setting up fetch mock
 import { DsfrDataSource } from '@/components/dsfr-data-source.js';
-import { getDataCache, clearDataCache, getDataMeta, clearDataMeta } from '@/utils/data-bridge.js';
+import {
+  getDataCache,
+  clearDataCache,
+  getDataMeta,
+  clearDataMeta,
+  dispatchSourceCommand,
+} from '@/utils/data-bridge.js';
 
 describe('DsfrDataSource', () => {
   let source: DsfrDataSource;
@@ -912,15 +918,25 @@ describe('DsfrDataSource', () => {
   });
 
   describe('command listener', () => {
-    it('does not set up listener when no pagination and not adapter mode', () => {
+    it('ignores non-reload commands when no pagination and not adapter mode (#1203)', () => {
       source.id = 'test-source';
       source.url = 'https://api.example.com/data';
       source.apiType = 'generic';
       source.paginate = false;
       source.serverSide = false;
 
+      // L'écoute existe désormais dans tous les modes, pour servir « Réessayer »…
       (source as any)._setupCommandListener();
-      expect((source as any)._unsubscribeCommands).toBeNull();
+      expect((source as any)._unsubscribeCommands).not.toBeNull();
+
+      // …mais une source URL non paginée n'obéit toujours à aucune autre commande.
+      const scheduleSpy = vi.spyOn(source as any, '_scheduleFetch').mockImplementation(() => {});
+      const reemitSpy = vi.spyOn(source as any, '_scheduleReemit').mockImplementation(() => {});
+      dispatchSourceCommand('test-source', { page: 3, where: 'a = 1' });
+      expect(scheduleSpy).not.toHaveBeenCalled();
+      expect(reemitSpy).not.toHaveBeenCalled();
+      expect((source as any)._currentPage).toBe(1);
+      (source as any)._cleanup();
     });
 
     it('sets up listener when paginate=true', () => {

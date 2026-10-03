@@ -156,6 +156,38 @@ Retirer le dernier filtre ramène la page en attente : il n'y a jamais de requê
 « tout » implicite. L'état est visible dans le volet Diagnostic (« en attente d'un
 filtre ») et sur le bus via l'événement `dsfr-data-idle`.
 
+### Quand la source est en panne : message lisible, dit une fois (#1203)
+
+Un échec de chargement n'affiche plus `Erreur de chargement: HTTP 503` en rouge dans chaque bloc.
+Chaque bloc branché sur la source garde sa place et affiche un encart NEUTRE avec une phrase pour
+l'usager ; le code HTTP, l'adresse appelée et l'heure sont repliés dans « Détails techniques ».
+La phrase dépend de la cause :
+
+| Cause | Phrase lue par l'usager | Réessayer |
+|-------|-------------------------|-----------|
+| HTTP 5xx, délai dépassé, réponse bloquée (CORS) | Données momentanément indisponibles. | oui |
+| Hors connexion | Vous semblez hors connexion. | oui + automatique au retour du réseau |
+| HTTP 429 | Le service est très sollicité. | oui, jamais automatique |
+| HTTP 404 | Ces données ne sont plus publiées à cette adresse. | non |
+| HTTP 401, 403 | Ces données ne sont pas accessibles publiquement. | non |
+| HTTP 400, source mal configurée | Cet affichage n'a pas pu être construit. | non |
+
+- `error-message="..."` sur la source remplace la phrase usager (le détail technique reste replié).
+- `<dsfr-data-source-status source="id">` en haut du contenu dit la panne UNE fois par source, avec
+  le seul bouton « Réessayer » : les blocs de cette source gardent leur message, sans bouton. Sans
+  `source`, il suit toutes les sources de la page. Il n'affiche rien tant que tout va bien.
+- Sans bandeau, chaque bloc en erreur porte son propre « Réessayer ».
+- L'événement `dsfr-data-error` et la trace console ne changent pas : le code HTTP reste dans
+  `error.message`.
+
+```html
+<dsfr-data-source-status source="prix"></dsfr-data-source-status>
+<dsfr-data-source id="prix" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="prix-carburants" error-message="Les prix sont en cours de mise à jour.">
+</dsfr-data-source>
+<dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"></dsfr-data-kpi>
+```
+
 ### Référence `<dsfr-data-source>` (générée depuis le code)
 
 **Rôle pipeline** : autonome — n’utilise pas les mixins d’abonnement du pipeline (voir les événements ci-dessous).
@@ -171,6 +203,7 @@ filtre ») et sur le bus via l'événement `dsfr-data-idle`.
 | `cache-ttl` | `number` | `3600` | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme. |
 | `data` | `string` | `""` (vide) | Données JSON inline (pas de fetch) |
 | `dataset-id` | `string` | `""` (vide) | Identifiant du jeu de données, pour les adaptateurs qui désignent un jeu par son identifiant. |
+| `error-message` | `string` | `""` (vide) | Phrase affichée à l'usager quand cette source est en panne (#1203), à la place du message du barème — dans les blocs branchés sur la source comme dans le bandeau `dsfr-data-source-status`. `error-message="Les chiffres de la DGFiP sont en cours de mise à jour."` : à poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie les données et quoi faire. Ne remplace QUE la phrase usager d'un échec de chargement : le code HTTP, l'adresse appelée et l'heure restent dans « Détails techniques », l'`Error` de `dsfr-data-error` et la console ne changent pas. Sans effet sur une erreur de configuration de la source. |
 | `fetch-mode` | `'records' \| 'export'` | `'records'` | Stratégie de chargement en mode adaptateur (#689) : `records` (défaut, comportement historique — pagination par pages) ou `export`, qui charge tout le jeu en **une seule requête**, ou en quelques plages, sur l'endpoint d'export de l'API. Implémenté par les adaptateurs qui ont un endpoint d'export (table des capacités d'ARCHITECTURE, ligne « chargement en une requête ») ; les autres ignorent l'attribut. Selon l'adaptateur, l'export porte les mêmes clauses (`select`, `where`, `group-by`, `order-by`) ou ne rend que des **lignes brutes** (#1055) : dans ce dernier cas, avec un `where`, `group-by`, `aggregate` ou `order-by` délégué (posé sur la source ou transmis par une `dsfr-data-query`), la source reste sur la pagination, qui les exécute côté serveur, et le dit en console. Un export binaire (colonnes projetées depuis `select`) charge son lecteur à la demande seulement. Pour une première page rapide sur un petit jeu, la pagination reste plus vive ; l'export l'emporte au-delà de 1 000 à 2 000 lignes. À activer pour une page « un fetch, N agrégations client », un jeu de plus de 1 000 lignes, ou un `group-by` à beaucoup de groupes : l'API les rend tous d'un coup au lieu d'une page. À ne pas activer avec `server-side` (pagination page par page), qui reste sur l'endpoint paginé et signale la contradiction dans la console. En mode `export` le total serveur est inconnu : la troncature est détectée en demandant une ligne de plus que le plafond `max-records`, qui borne aussi les lignes lues. Si l'API n'expose pas d'endpoint d'export, la source retombe une fois sur le chargement paginé, avec un avertissement en console. |
 | `group-by` | `string` | `""` (vide) | Group-by, délégué aux adaptateurs déclarant `serverGroupBy`. Avec un `select` en clause complète, un élément peut être une expression aliasée, avec ou sans fonction (`year(date) as annee`, `periode as an`), transmise telle quelle — l'alias `as` y est obligatoire (#641). Même découpe et même échappement que `select` (#767) : `date_format(d, 'yyyy-MM') as m` reste d'un seul tenant. |
 | `headers` | `string` | `""` (vide) | En-têtes HTTP en JSON. Ex: `'{"Authorization": "Bearer xxx"}'`. Quand le fournisseur attend sa clé sous un en-tête précis (déclaré par sa configuration), un `apikey` nu est réécrit automatiquement au bon format (#655) ; détail par fournisseur : table des capacités d'ARCHITECTURE. |
@@ -205,7 +238,7 @@ filtre ») et sur le bus via l'événement `dsfr-data-idle`.
 | `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Returns the effective WHERE clause (static + all dynamic overlays merged). `excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 — une facette en mode `context` emet un whereKey PAR champ et doit les exclure tous du where de base de sa cascade). |
 | `getError()` | `Error \| null` | — |
 | `isLoading()` | `boolean` | — |
-| `reload()` | `void` | — |
+| `reload()` | `void` | Relance le chargement à l'identique (mêmes filtres, même page). C'est ce que fait « Réessayer » (#1203), par la commande `{ reload: true }`. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)
@@ -216,7 +249,31 @@ filtre ») et sur le bus via l'événement `dsfr-data-idle`.
 | `dsfr-data-loaded` | — | émis | `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. |
 | `dsfr-data-loading` | — | émis | `{ sourceId }` sur `document` — un chargement demarre. |
 | `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration). |
-| `dsfr-data-idle` | — | émis | `{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690). |
+| `dsfr-data-idle` | — | émis | `{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690). Le contrat de cet événement ne change pas avec le message lisible des blocs (#1203) : le code HTTP reste dans `error.message`, et l'échec reste journalisé en console. |
+
+
+**Slots** — aucun (le composant rend son propre contenu).
+
+**Variables CSS publiques** — aucune (styler via les variables du DSFR sur le conteneur parent).
+
+
+### Référence `<dsfr-data-source-status>` (générée depuis le code)
+
+**Rôle pipeline** : autonome — n’utilise pas les mixins d’abonnement du pipeline (voir les événements ci-dessous).
+
+**Attributs**
+
+| Attribut | Type | Défaut | Description |
+|---|---|---|---|
+| `source` | `string` | `""` (vide) | Id de la source à suivre. Vide : toutes les sources de la page, un message par source en panne. Une étape intermédiaire (`dsfr-data-query`…) branchée sur la source est suivie avec elle : c'est la source qui charge qui est relancée. |
+
+
+
+**Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)
+
+| Événement | Payload | Direction | Quand |
+|---|---|---|---|
+| `dsfr-data-source-command` | — | émis | `{ sourceId, reload: true }` sur `document` — « Réessayer » a été activé : la source d'origine de la panne recharge à l'identique. |
 
 
 **Slots** — aucun (le composant rend son propre contenu).
