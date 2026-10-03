@@ -1107,6 +1107,87 @@ const CHECKS: Check[] = [
     ],
   },
 
+  // ------------------------------------------ Tableau équivalent (a11y) ----
+  {
+    id: 'a11y-tableau-libelles-en-tete',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1230, PG-032 du banc — `dsfr-data-a11y` accepte la grammaire `champ:Libellé` de `dsfr-data-chart` : la colonne lue est `champ`, le libellé va en en-tête du tableau et du CSV. Avant, l’entrée entière était cherchée comme nom de colonne : le tableau avait ses 48 lignes et AUCUNE valeur, sans un mot. Le contrôle relit donc les cellules (elles ne sont pas vides, et ce sont les bonnes), le fichier exporté (en-têtes = libellés) et exige le silence.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-a11y-libelles', 'communes')}
+  <dsfr-data-a11y id="a-libelles" source="s-a11y-libelles" table download
+    label-field="nom:Commune" value-field="budget:Budget en euros, taux:Taux"></dsfr-data-a11y>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'a-libelles',
+        selector: 'tbody td:nth-child(1)',
+        column: 'nom',
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-libelles',
+        selector: 'tbody td:nth-child(2)',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-libelles',
+        selector: 'tbody td:nth-child(3)',
+        column: 'taux',
+        numeric: true,
+        decimals: 2,
+        pipeline: [],
+      },
+      {
+        kind: 'csv',
+        id: 'a-libelles',
+        pipeline: [],
+        columns: [
+          { column: 'nom', label: 'Commune' },
+          { column: 'budget', label: 'Budget en euros' },
+          { column: 'taux', label: 'Taux' },
+        ],
+      },
+      { kind: 'diagnostic', id: 'a-libelles', expect: 'silence', contains: 'introuvable' },
+    ],
+  },
+
+  {
+    id: 'a11y-colonne-introuvable-dite',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1230, PG-032 du banc — une entrée de `value-field` qui ne désigne aucune colonne des données rend une colonne VIDE : le tableau a le bon nombre de lignes, et une recette qui compte des lignes passe. La bibliothèque doit le DIRE (la colonne cherchée, les colonnes disponibles), et la colonne voisine, elle, garde ses valeurs.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-a11y-introuvable', 'communes')}
+  <dsfr-data-a11y id="a-introuvable" source="s-a11y-introuvable" table
+    label-field="nom" value-field="population, effectif"></dsfr-data-a11y>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'a-introuvable',
+        selector: 'tbody td:nth-child(2)',
+        column: 'population',
+        numeric: true,
+        pipeline: [],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'a-introuvable',
+        expect: 'warning',
+        contains: 'colonne « effectif » introuvable',
+      },
+    ],
+  },
+
   {
     id: 'carte-resume-non-pondere-763',
     mode: 'deterministic',

@@ -3033,6 +3033,26 @@ Quand \`for="mon-graph"\` est défini :
 </dsfr-data-a11y>
 \`\`\`
 
+### En-têtes lisibles : la même grammaire que le graphique
+\`label-field\` et \`value-field\` acceptent l'alias inline \`champ:Libellé\` de
+\`dsfr-data-chart\` : la colonne lue est \`champ\`, le libellé va en en-tête du tableau
+et du CSV. On recopie donc les champs du graphique tels quels (\`value-field\` et
+\`value-fields\` du graphique se réunissent, séparés par des virgules, dans le
+\`value-field\` de dsfr-data-a11y).
+\`\`\`html
+<dsfr-data-chart id="g" source="data" type="line" label-field="annee"
+  value-field="v_fede:Fédération sélectionnée"
+  value-fields="v_all:Ensemble des fédérations">
+</dsfr-data-chart>
+<dsfr-data-a11y for="g" source="data" table download
+  label-field="annee:Année"
+  value-field="v_fede:Fédération sélectionnée, v_all:Ensemble des fédérations">
+</dsfr-data-a11y>
+\`\`\`
+Sans deux-points, l'en-tête reste le nom de la colonne. Une colonne nommée qui
+n'existe pas dans les données est signalée en console (« colonne … introuvable ») :
+sa colonne du tableau serait vide.
+
 ### Mode manuel (sans ARIA automatique)
 \`\`\`html
 <dsfr-data-a11y source="data" no-auto-aria table download></dsfr-data-a11y>

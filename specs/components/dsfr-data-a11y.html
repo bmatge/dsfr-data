@@ -101,6 +101,17 @@
 
         <h3 class="fr-mt-3w">Un graphique multi-séries</h3>
         <p>
+          <strong>En-têtes lisibles.</strong> <code>label-field</code> et <code>value-field</code> acceptent
+          l'alias inline <code>champ:Libellé</code>, la grammaire de <code>value-field</code> et
+          <code>value-fields</code> de <code>dsfr-data-chart</code> : la colonne lue est <code>champ</code>, le
+          libellé va en en-tête du tableau et du CSV téléchargé. Les champs du graphique se recopient donc
+          tels quels — <code>value-field="v_fede:Fédération sélectionnée, v_all:Ensemble des fédérations"</code>
+          — et le tableau équivalent dit « Fédération sélectionnée » là où le graphique le dit. Sans
+          deux-points, l'en-tête reste le nom de la colonne. Une colonne nommée qui n'existe dans aucune
+          ligne reçue est signalée en console (« colonne … introuvable », avec les colonnes disponibles) :
+          sa colonne du tableau serait vide alors que le tableau a le bon nombre de lignes.
+        </p>
+        <p>
           Un jeu au format long — celui que produit <a href="dsfr-data-concat.html">dsfr-data-concat</a>
           avec <code>origin-field</code>, et que <code>&lt;dsfr-data-chart series-field&gt;</code> consomme
           déjà — a une ligne par couple (libellé, série). Rendu tel quel, le tableau équivalent répète
