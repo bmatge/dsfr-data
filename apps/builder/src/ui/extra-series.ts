@@ -5,6 +5,7 @@
 
 import { state } from '../state.js';
 import { buildSeriesFieldOptions } from '../sources-fields.js';
+import { updatePreviewSteps } from './help-tooltips.js';
 
 let seriesCounter = 0;
 
@@ -56,6 +57,10 @@ export function addExtraSeries(): void {
     if (idx >= 0 && idx < state.extraSeries.length) {
       state.extraSeries[idx].field = fieldSelect.value;
       syncValueField2();
+      // Le résumé « … (+1 série) » et les étapes de l'aperçu lisent l'état :
+      // sans ce rappel, ils ne bougeaient qu'à « Générer » ou au changement
+      // d'un champ principal (#1175).
+      updatePreviewSteps();
     }
   });
 
@@ -84,6 +89,7 @@ function removeExtraSeries(row: HTMLElement): void {
   row.remove();
   renumberSeriesRows();
   syncValueField2();
+  updatePreviewSteps();
 }
 
 /**

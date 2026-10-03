@@ -164,3 +164,65 @@ describe('builder sources-fields', () => {
     });
   });
 });
+
+/**
+ * #1176 : la suggestion automatique ne vaut que pour une configuration vide.
+ * Preuve de mutation : retirer les gardes `!labelConserve` / `!valueConserve`
+ * de `populateFieldSelects` rend rouge le premier cas (nom_region → nom_departement).
+ */
+describe('populateFieldSelects conserve un champ déjà choisi (#1176)', () => {
+  const champsIndustrie = [
+    { name: 'nom_departement', type: 'string', sample: 'Ain' },
+    { name: 'nom_region', type: 'string', sample: 'Auvergne-Rhône-Alpes' },
+    { name: 'nombre_beneficiaires', type: 'number', sample: 12 },
+    { name: 'montant', type: 'number', sample: 3.5 },
+  ];
+
+  beforeEach(() => {
+    state.fields = [];
+    state.labelField = '';
+    state.valueField = '';
+    state.valueField2 = '';
+    state.extraSeries = [];
+    state.codeField = '';
+    document.body.innerHTML = `
+      <select id="label-field"></select>
+      <select id="value-field"></select>
+      <select id="code-field"></select>
+      <div id="extra-series-container"></div>
+    `;
+  });
+
+  it('un champ choisi et présent dans la source est gardé, dans l’état et dans le select', () => {
+    state.fields = champsIndustrie;
+    state.labelField = 'nom_region';
+    state.valueField = 'montant';
+    populateFieldSelects();
+
+    expect(state.labelField).toBe('nom_region');
+    expect(state.valueField).toBe('montant');
+    expect((document.getElementById('label-field') as HTMLSelectElement).value).toBe('nom_region');
+    expect((document.getElementById('value-field') as HTMLSelectElement).value).toBe('montant');
+  });
+
+  it('configuration vide : la suggestion s’applique', () => {
+    state.fields = champsIndustrie;
+    populateFieldSelects();
+
+    expect(state.labelField).toBe('nom_departement');
+    expect((document.getElementById('label-field') as HTMLSelectElement).value).toBe(
+      'nom_departement'
+    );
+  });
+
+  it('champ d’une autre source (absent de la liste) : la suggestion reprend la main', () => {
+    state.fields = champsIndustrie;
+    state.labelField = 'commune';
+    state.valueField = 'population';
+    populateFieldSelects();
+
+    expect(state.labelField).toBe('nom_departement');
+    expect(state.valueField).toBe('');
+    expect((document.getElementById('value-field') as HTMLSelectElement).value).toBe('');
+  });
+});

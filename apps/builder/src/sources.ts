@@ -49,6 +49,7 @@ import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/norm
 import { updateUrlSyncSection, syncUrlSyncControls } from './ui/url-sync-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
 import { updatePreviewSteps } from './ui/help-tooltips.js';
+import { markGenerated } from './ui/smart-guard.js';
 
 /**
  * Load saved sources from localStorage and populate the dropdown.
@@ -769,6 +770,9 @@ export async function loadFavoriteState(): Promise<void> {
     if (state.data && state.data.length > 0) {
       setTimeout(() => {
         generateCodeForLocalData();
+        // Le graphique rouvert est celui qui a été généré : la puce de statut
+        // le dit (« Graphique à jour ») au lieu de disparaître (#1176).
+        markGenerated();
 
         // Show "Voir les données" button
         showDataPreviewButton();

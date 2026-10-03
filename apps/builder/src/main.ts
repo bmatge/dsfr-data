@@ -93,6 +93,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }) ?? null;
   // Correspondance locale d'abord ; Albert en secours s'il est configuré.
   assistant = monterAssistantBuilder({ adaptateur, diagnostic });
+  // Une source chargée change les suggestions de l'état vide (#1177) : le
+  // panneau, s'il est déjà ouvert, les relit sans attendre une génération.
+  document.addEventListener('builder:fields-updated', () => assistant?.rafraichirSuggestions());
   await initAuth();
 
   // Tabs

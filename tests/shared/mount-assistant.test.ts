@@ -520,3 +520,50 @@ describe('résumé des constats et bouton « Assistant »', () => {
     expect(document.getElementById('assistant-btn')).toBeNull();
   });
 });
+
+// ─── Suggestions de l'état vide ────────────────────────────────────────
+
+describe('les suggestions de l’état vide suivent l’état de l’app (#1177)', () => {
+  /** Suggestions « d'app » : selon que l'état est prêt ou non. */
+  function suggestionsDe(etat: Etat): { texte: string }[] {
+    return etat.pret ? [{ texte: 'Changer les couleurs' }] : [{ texte: 'Choisir la source' }];
+  }
+
+  it('relues à l’ouverture du panneau, pas seulement au montage', () => {
+    const etat: Etat = { pret: false };
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur(etat),
+      suggestions: () => suggestionsDe(etat),
+      boutonId: false,
+    });
+    expect(monte.panel.suggestions.map((s) => s.texte)).toEqual(['Choisir la source']);
+
+    etat.pret = true; // une source est chargée
+    monte.panel.toggle(true);
+    expect(monte.panel.suggestions.map((s) => s.texte)).toEqual(['Changer les couleurs']);
+  });
+
+  it('relues avec les constats et à la demande, panneau déjà ouvert', () => {
+    const etat: Etat = { pret: false };
+    monte = mountAssistant({
+      app: 'builder-carto',
+      registre: REGISTRE_CARTO,
+      adaptateur: adaptateur(etat),
+      suggestions: () => suggestionsDe(etat),
+      constats: () => [],
+      boutonId: false,
+    });
+    monte.panel.toggle(true);
+    expect(monte.panel.suggestions.map((s) => s.texte)).toEqual(['Choisir la source']);
+
+    etat.pret = true;
+    monte.rafraichirConstats();
+    expect(monte.panel.suggestions.map((s) => s.texte)).toEqual(['Changer les couleurs']);
+
+    etat.pret = false;
+    monte.rafraichirSuggestions();
+    expect(monte.panel.suggestions.map((s) => s.texte)).toEqual(['Choisir la source']);
+  });
+});
