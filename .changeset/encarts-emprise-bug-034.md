@@ -8,15 +8,15 @@ Carte : un encart (`dsfr-data-map-inset`) ne trace plus que les entités de son 
 
 **Le coût.** La couche d'un encart reçoit les mêmes lignes que celle de la carte hôte (aucune requête de plus : c'était déjà le cas, et c'est désormais contrôlé), mais ne trace que celles de son cadre, élargi de la taille des symboles pour qu'un cercle à cheval sur le bord reste dessiné. Classes de couleur, rayons proportionnels, intensités de chaleur et plafond `max-items` restent calculés sur le jeu entier : un même enregistrement a la même apparence dans l'encart et sur la carte principale. Un encart redimensionné (palier de `width`, plein écran) retrace sa nouvelle emprise.
 
-Mesures sur 7 250 points en cercles, Chromium sans tête, médiane de dix rafraîchissements après un filtre :
+Mesures sur 7 250 points, Chromium sans tête, médiane de vingt rafraîchissements après un filtre (`e2e/map-insets-perf.html`) :
 
-| Encarts | Cercles posés dans les encarts, avant | après | Rafraîchissement, avant | après |
-|---|---|---|---|---|
-| 0 | — | — | 40 ms | 43 ms |
-| 5 (`insets="drom"`) | 36 250 (7 250 par encart) | 363 | 235 ms | 51 ms |
-| 9 | 65 250 | 363 | 378 ms | 63 ms |
+| Encarts | Entités posées dans les encarts, avant | après | Cercles, avant | après | Marqueurs, avant | après |
+|---|---|---|---|---|---|---|
+| 0 | — | — | 44 ms | 57 ms | 227 ms | 228 ms |
+| 5 (`insets="drom"`) | 36 250 (7 250 par encart) | 363 | 227 ms | 70 ms | 1 361 ms | 247 ms |
+| 9 | 65 250 | 363 | 367 ms | 61 ms | 2 435 ms | 260 ms |
 
-Le temps de rafraîchissement ne croît plus avec le nombre d'encarts vides. Une requête réseau pour la source dans les trois cas, avant comme après.
+Le temps de rafraîchissement ne croît plus avec le nombre d'encarts (l'écart restant est celui d'une mesure à l'autre). Une requête réseau pour la source dans les trois cas, avant comme après. Sur la page minimale du banc (4 points, cinq encarts), cinq essais : des encarts doublés à chaque essai avant, aucun après.
 
 Dans le même mouvement, trois défauts du même emboîtement de cartes :
 
