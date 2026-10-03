@@ -4,6 +4,8 @@
  */
 
 import type { Source } from '@dsfr-data/shared';
+import { REFERENTIELS } from './geo-codes.js';
+export { isMapType, MAP_TYPES, type MapType } from './geo-codes.js';
 export { PROXY_BASE_URL, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
 /** Favorites localStorage key */
@@ -24,7 +26,10 @@ export type ChartType =
   | 'datalist'
   // Formes ajoutées par #1204 : la bibliothèque les rendait, le Builder non.
   | 'podium'
-  | 'bar-line';
+  | 'bar-line'
+  | 'map-reg'
+  | 'map-aca'
+  | 'map-monde';
 
 /**
  * Types qui acceptent plusieurs séries (bouton « Ajouter une série »). Source
@@ -45,7 +50,16 @@ export function supportsMultiSeries(type: ChartType): boolean {
  * ceux-ci écrivent `<dsfr-data-source data='…'>` suivi du composant, qui porte
  * la mise en forme (podium, deux axes du barres + ligne).
  */
-export const LIB_RENDERED_TYPES: readonly ChartType[] = ['podium', 'bar-line'];
+export const LIB_RENDERED_TYPES: readonly ChartType[] = [
+  'podium',
+  'bar-line',
+  // La carte départementale historique garde sa balise nue ; les trois
+  // découpages ajoutés laissent la bibliothèque traduire codes et noms vers
+  // les clés de DSFR Chart, et compter ce qu'elle ignore.
+  'map-reg',
+  'map-aca',
+  'map-monde',
+];
 
 /**
  * Séries tracées en plus de la première, selon le type (source unique, lue par
@@ -303,6 +317,13 @@ export function getCompleteness(s: BuilderState, generated: boolean = false): Co
       case 'map':
         config = !!s.valueField && !!s.codeField;
         if (!s.codeField) missing.push('le champ code (département/région)');
+        if (!s.valueField) missing.push('le champ numérique (valeur)');
+        break;
+      case 'map-reg':
+      case 'map-aca':
+      case 'map-monde':
+        config = !!s.valueField && !!s.codeField;
+        if (!s.codeField) missing.push(REFERENTIELS[s.chartType].manque);
         if (!s.valueField) missing.push('le champ numérique (valeur)');
         break;
       case 'bar-line':

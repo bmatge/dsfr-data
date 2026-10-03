@@ -14,7 +14,7 @@ import {
   REGLES_GENERIQUES,
   type MountedAssistant,
 } from '@dsfr-data/shared';
-import { state } from './state.js';
+import { state, isMapType } from './state.js';
 import { creerAdaptateurBuilder } from './assistant/adaptateur.js';
 import { REGLES_BUILDER } from './assistant/constats.js';
 import { monterAssistantBuilder, montrerRepereBuilder } from './assistant/index.js';
@@ -37,6 +37,7 @@ import {
   syncFavoriteIcon,
   renderPaletteSwatches,
   syncA11yWithDatabox,
+  suggestGeoCodeField,
 } from './ui/ui-helpers.js';
 import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
@@ -123,6 +124,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const type = (btn as HTMLElement).dataset.type as ChartType | undefined;
       if (type) {
         selectChartType(type);
+        // Carte : proposer le champ qui porte le référentiel du découpage (#1204)
+        if (isMapType(type)) suggestGeoCodeField(type);
         updatePreviewSteps();
       }
     });

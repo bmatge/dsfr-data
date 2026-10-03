@@ -3,7 +3,8 @@
  * Updates state.chartType and toggles visibility of type-specific config options.
  */
 
-import { state, supportsMultiSeries, type ChartType } from '../state.js';
+import { state, supportsMultiSeries, isMapType, type ChartType } from '../state.js';
+import { REFERENTIELS } from '../geo-codes.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
 import { updateUrlSyncSection } from './url-sync-config.js';
@@ -28,7 +29,8 @@ export function selectChartType(type: ChartType): void {
   const isKPI = type === 'kpi';
   const isGauge = type === 'gauge';
   const isScatter = type === 'scatter';
-  const isMap = type === 'map';
+  const isMap = isMapType(type);
+  const referentiel = isMapType(type) ? REFERENTIELS[type] : null;
   const isDatalist = type === 'datalist';
   const isPieOrDoughnut = ['pie', 'doughnut'].includes(type);
   const isRadar = type === 'radar';
@@ -110,7 +112,7 @@ export function selectChartType(type: ChartType): void {
     if (isSingleValue) {
       aggHint.textContent = "Calcul sur l'ensemble des données";
     } else if (isMap) {
-      aggHint.textContent = 'Si plusieurs valeurs par département';
+      aggHint.textContent = `Si plusieurs valeurs par ${referentiel?.unite ?? 'département'}`;
     } else {
       aggHint.textContent = 'Comment combiner les valeurs partageant la même catégorie';
     }
@@ -143,6 +145,11 @@ export function selectChartType(type: ChartType): void {
   // Map chart needs code field for department codes
   const codeFieldGroup = document.getElementById('code-field-group') as HTMLElement | null;
   if (codeFieldGroup) codeFieldGroup.style.display = isMap ? 'block' : 'none';
+  // Libellé et aide du champ géographique : ils suivent le découpage (#1204).
+  const codeFieldLabel = document.querySelector('label[for="code-field"]');
+  if (codeFieldLabel && referentiel) {
+    codeFieldLabel.innerHTML = `${referentiel.libelle}<span class="fr-hint-text">${referentiel.aide}</span>`;
+  }
   if (!isMap) {
     state.codeField = '';
     const codeSelect = document.getElementById('code-field') as HTMLSelectElement | null;
@@ -166,7 +173,7 @@ export function selectChartType(type: ChartType): void {
         'Axe Y (num\u00e9rique)<span class="fr-hint-text">Valeurs verticales</span>';
     } else if (isMap) {
       labelFieldLabel.innerHTML =
-        'Nom (optionnel)<span class="fr-hint-text">Nom du d\u00e9partement pour l\'affichage</span>';
+        'Nom (optionnel)<span class="fr-hint-text">Nom affiché à la place du code</span>';
       valueFieldLabel.innerHTML =
         'Valeur<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 visualiser</span>';
     } else if (isPodium) {

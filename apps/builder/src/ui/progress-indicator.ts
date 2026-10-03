@@ -33,6 +33,9 @@ const CHART_TYPE_LABELS: Record<string, string> = {
   datalist: 'Tableau',
   podium: 'Podium',
   'bar-line': 'Barres + ligne',
+  'map-reg': 'Carte régions',
+  'map-aca': 'Carte académies',
+  'map-monde': 'Carte monde',
 };
 
 /** One entry per section header — value is a short text summary (may be ''). */
@@ -82,6 +85,9 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
           configText = s.valueField;
           break;
         case 'map':
+        case 'map-reg':
+        case 'map-aca':
+        case 'map-monde':
           configText = `${s.codeField} → ${s.valueField}`;
           break;
         case 'bar-line':

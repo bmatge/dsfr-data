@@ -20,6 +20,8 @@ import {
   CLE_CODE_RAPPORTE,
 } from '@dsfr-data/shared';
 import type { Favorite } from '../state.js';
+import { isMapType, type MapType } from '../state.js';
+import { REFERENTIELS, champConvient, trouverChampGeo } from '../geo-codes.js';
 import { getLastGeneratedCode } from './code-generator.js';
 
 /**
@@ -229,11 +231,42 @@ export function findDeptCodeField(): string | null {
 export function updateMapCodeFieldWarning(): void {
   const warning = document.getElementById('code-field-warning');
   if (!warning) return;
-  if (state.chartType !== 'map' || state.fields.length === 0) {
+  if (!isMapType(state.chartType) || state.fields.length === 0) {
     warning.hidden = true;
     return;
   }
-  warning.hidden = findDeptCodeField() !== null;
+  // Le texte suit le découpage : départements, régions, académies, pays (#1204).
+  warning.innerHTML = REFERENTIELS[state.chartType].avertissement;
+  warning.hidden = findGeoCodeField(state.chartType) !== null;
+}
+
+/**
+ * Champ de la source qui porte le référentiel du type de carte (codes
+ * département, régions, académies, pays), ou `null`. Lit les lignes SOURCE,
+ * comme `findDeptCodeField` (#610).
+ */
+export function findGeoCodeField(type: MapType): string | null {
+  if (type === 'map') return findDeptCodeField();
+  const data = (state.localData ?? state.data ?? []) as Record<string, unknown>[];
+  if (!Array.isArray(data)) return null;
+  return trouverChampGeo(type, state.fields, data);
+}
+
+/**
+ * Au choix d'un type de carte : si le champ géographique courant ne porte pas
+ * le référentiel du découpage et qu'un autre champ le porte, c'est lui qui est
+ * proposé. Appelé au CLIC sur la tuile seulement — une configuration rouverte
+ * (favori, retour d'une autre app) garde le champ qu'elle a enregistré.
+ */
+export function suggestGeoCodeField(type: MapType): void {
+  const data = (state.localData ?? state.data ?? []) as Record<string, unknown>[];
+  if (state.codeField && champConvient(type, state.codeField, data)) return;
+  const trouve = findGeoCodeField(type);
+  if (!trouve || trouve === state.codeField) return;
+  state.codeField = trouve;
+  const select = document.getElementById('code-field') as HTMLSelectElement | null;
+  if (select) select.value = trouve;
+  updateMapCodeFieldWarning();
 }
 
 /**

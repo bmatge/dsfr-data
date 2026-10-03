@@ -24,7 +24,12 @@ import {
   effectivePalette,
   podiumPlaces,
 } from '../../../apps/builder/src/ui/code-generator';
-import { getBuilderStateToSave } from '../../../apps/builder/src/ui/ui-helpers';
+import {
+  getBuilderStateToSave,
+  findGeoCodeField,
+  suggestGeoCodeField,
+  updateMapCodeFieldWarning,
+} from '../../../apps/builder/src/ui/ui-helpers';
 import { selectChartType } from '../../../apps/builder/src/ui/chart-type-selector';
 import {
   state,
@@ -455,5 +460,232 @@ describe('sélecteur de type : contrôles affichés', () => {
     expect(affiche('podium-config')).toBe(false);
     expect(affiche('line-field-group')).toBe(false);
     expect(affiche('extra-series-group')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cartes des régions, des académies et du monde
+// ---------------------------------------------------------------------------
+
+const TERRITOIRES = [
+  { code_region: '11', nom: 'Île-de-France', academie: 'Paris', iso: 'FR', effectif: 10 },
+  { code_region: '11', nom: 'Île-de-France', academie: 'Créteil', iso: 'FR', effectif: 5 },
+  { code_region: '84', nom: 'Auvergne-Rhône-Alpes', academie: 'Lyon', iso: 'DE', effectif: 7 },
+];
+
+const CHAMPS_TERRITOIRES = [
+  { name: 'code_region', type: 'string', sample: '11' },
+  { name: 'nom', type: 'string', sample: 'Île-de-France' },
+  { name: 'academie', type: 'string', sample: 'Paris' },
+  { name: 'iso', type: 'string', sample: 'FR' },
+  { name: 'effectif', type: 'number', sample: 10 },
+];
+
+function carte(type: 'map' | 'map-reg' | 'map-aca' | 'map-monde', champ: string): void {
+  reinitialiser();
+  state.chartType = type;
+  state.localData = TERRITOIRES.map((l) => ({ ...l }));
+  state.fields = CHAMPS_TERRITOIRES;
+  state.labelField = '';
+  state.codeField = champ;
+  state.valueField = 'effectif';
+  state.title = 'Effectifs';
+}
+
+describe('cartes des régions, des académies et du monde : état', () => {
+  it.each([
+    ['map-reg', 'le champ région (code ou nom)'],
+    ['map-aca', 'le champ académie (nom)'],
+    ['map-monde', 'le champ pays (code ISO ou nom)'],
+  ] as const)('%s : champ géographique et valeur requis, le nom ne l’est pas', (type, manque) => {
+    carte(type, '');
+    const avant = getCompleteness(state);
+    expect(avant.config).toBe(false);
+    expect(avant.missing).toEqual([manque]);
+    state.codeField = 'code_region';
+    expect(getCompleteness(state).config).toBe(true);
+  });
+
+  it('une carte veut un dégradé, quel que soit le découpage', () => {
+    for (const type of ['map', 'map-reg', 'map-aca', 'map-monde'] as const) {
+      carte(type, 'code_region');
+      state.palette = 'categorical';
+      expect(effectivePalette(), type).toBe('sequentialAscending');
+      state.palette = 'divergentDescending';
+      expect(effectivePalette(), type).toBe('divergentDescending');
+    }
+  });
+});
+
+describe('cartes des régions, des académies et du monde : code généré', () => {
+  it('régions, données intégrées : regroupées par code, rendues par dsfr-data-chart', () => {
+    carte('map-reg', 'code_region');
+    generateChartFromLocalData();
+    const c = code();
+    expect(c).toContain('<!-- Carte générée avec dsfr-data Builder -->');
+    expect(c).toContain('type="map-reg"');
+    expect(c).toContain('code-field="code_region"');
+    expect(c).toContain('label-field="code_region"');
+    expect(c).toContain('value-field="value"');
+    expect(c).toContain('selected-palette="sequentialAscending"');
+    // Pas de balise DSFR Chart nue : la bibliothèque traduit les codes.
+    expect(c).not.toContain('<map-chart');
+    expect(lignesIntegrees()).toEqual([
+      { code_region: '11', value: 15 },
+      { code_region: '84', value: 7 },
+    ]);
+    expect(c).toContain('<dsfr-data-a11y for="chart" source="chart-data"');
+  });
+
+  it('académies, données intégrées : regroupées par nom', () => {
+    carte('map-aca', 'academie');
+    generateChartFromLocalData();
+    expect(code()).toContain('type="map-aca"');
+    expect(code()).toContain('code-field="academie"');
+    expect(lignesIntegrees()).toEqual([
+      { academie: 'Paris', value: 10 },
+      { academie: 'Créteil', value: 5 },
+      { academie: 'Lyon', value: 7 },
+    ]);
+  });
+
+  it('monde, API intégrée : les lignes agrégées par pays sont intégrées', () => {
+    carte('map-monde', 'iso');
+    state.data = [
+      { iso: 'FR', value: 15 },
+      { iso: 'DE', value: 7 },
+    ];
+    generateCode('https://data.exemple.fr/api/records');
+    const c = code();
+    expect(c).toContain('type="map-monde"');
+    expect(c).toContain('code-field="iso"');
+    expect(c).not.toContain('fetch(');
+    expect(lignesIntegrees()).toEqual(state.data);
+  });
+
+  it('régions, Grist dynamique : la requête regroupe par le champ géographique', () => {
+    carte('map-reg', 'code_region');
+    state.generationMode = 'dynamic';
+    state.savedSource = GRIST;
+    generateDynamicCode();
+    const c = code();
+    expect(c).toContain('group-by="fields.code_region"');
+    expect(c).toContain('type="map-reg"');
+    expect(c).toContain('code-field="code_region"');
+    expect(c).toContain('label-field="fields.code_region"');
+    expect(c).toContain('selected-palette="sequentialAscending"');
+  });
+
+  it.each([
+    ['OpenDataSoft', ODS, 'group-by="academie"'],
+    ['Tabular', TABULAR, 'group-by="academie"'],
+    ['API générique', GENERIQUE, 'group-by="academie"'],
+  ])('académies, %s dynamique : regroupement et code-field', (_nom, source, regroupement) => {
+    carte('map-aca', 'academie');
+    state.generationMode = 'dynamic';
+    state.savedSource = source;
+    generateDynamicCodeForApi();
+    const c = code();
+    expect(c).toContain(regroupement);
+    expect(c).toContain('type="map-aca"');
+    expect(c).toContain('code-field="academie"');
+    expect(c).toContain('value-field="effectif__sum"');
+  });
+
+  it('monde, OpenDataSoft dynamique', () => {
+    carte('map-monde', 'iso');
+    state.generationMode = 'dynamic';
+    state.savedSource = ODS;
+    generateDynamicCodeForApi();
+    expect(code()).toContain('type="map-monde"');
+    expect(code()).toContain('code-field="iso"');
+    expect(code()).toContain('select="iso, sum(effectif) as effectif__sum"');
+  });
+
+  it('non-régression : la carte départementale intégrée garde sa balise DSFR Chart', () => {
+    carte('map', 'code_region');
+    generateChartFromLocalData();
+    expect(code()).toContain('<map-chart id="chart"');
+    expect(code()).not.toContain('<dsfr-data-chart');
+  });
+});
+
+describe('cartes : champ géographique proposé et avertissement', () => {
+  beforeEach(() => {
+    carte('map-reg', '');
+    document.body.innerHTML = `
+      <button class="chart-type-btn" data-type="map-reg"></button>
+      <button class="chart-type-btn" data-type="map-aca"></button>
+      <button class="chart-type-btn" data-type="bar"></button>
+      <div id="code-field-group" style="display:none">
+        <label for="code-field"></label>
+        <select id="code-field">
+          <option value=""></option><option value="code_region"></option>
+          <option value="nom"></option><option value="academie"></option><option value="iso"></option>
+        </select>
+        <div id="code-field-warning" hidden></div>
+      </div>
+      <div id="palette-config"><select id="chart-palette"></select><div id="palette-swatches"></div></div>
+    `;
+  });
+
+  it('chaque découpage trouve son champ dans la source', () => {
+    expect(findGeoCodeField('map-reg')).toBe('code_region');
+    expect(findGeoCodeField('map-aca')).toBe('academie');
+    expect(findGeoCodeField('map-monde')).toBe('iso');
+  });
+
+  it('le libellé et l’aide du champ suivent le découpage', () => {
+    selectChartType('map-aca');
+    const libelle = document.querySelector('label[for="code-field"]')!.textContent!;
+    expect(libelle).toContain('Académie');
+    expect(libelle).toContain('Nom de l’académie');
+    expect(document.getElementById('code-field-group')!.style.display).toBe('block');
+    selectChartType('map-reg');
+    expect(document.querySelector('label[for="code-field"]')!.textContent).toContain('Région');
+    selectChartType('bar');
+    expect(document.getElementById('code-field-group')!.style.display).toBe('none');
+  });
+
+  it('au choix du type, un champ qui ne porte pas le référentiel est remplacé', () => {
+    state.codeField = 'iso';
+    selectChartType('map-aca');
+    state.codeField = 'iso';
+    suggestGeoCodeField('map-aca');
+    expect(state.codeField).toBe('academie');
+    expect((document.getElementById('code-field') as HTMLSelectElement).value).toBe('academie');
+  });
+
+  it('un champ qui convient déjà est conservé (nom de région plutôt que code)', () => {
+    selectChartType('map-reg');
+    state.codeField = 'nom';
+    suggestGeoCodeField('map-reg');
+    expect(state.codeField).toBe('nom');
+  });
+
+  it('avertissement : affiché quand la source ne porte pas le référentiel, avec le texte du type', () => {
+    state.localData = [{ produit: 'Blé', effectif: 3 }];
+    state.fields = [
+      { name: 'produit', type: 'string', sample: 'Blé' },
+      { name: 'effectif', type: 'number', sample: 3 },
+    ];
+    const avertissement = document.getElementById('code-field-warning')!;
+    state.chartType = 'map-aca';
+    updateMapCodeFieldWarning();
+    expect(avertissement.hidden).toBe(false);
+    expect(avertissement.textContent).toContain('Aucune académie détectée');
+    state.chartType = 'map-monde';
+    updateMapCodeFieldWarning();
+    expect(avertissement.textContent).toContain('Aucun code pays détecté');
+    // Source compatible : pas d'avertissement.
+    state.localData = TERRITOIRES.map((l) => ({ ...l }));
+    state.fields = CHAMPS_TERRITOIRES;
+    updateMapCodeFieldWarning();
+    expect(avertissement.hidden).toBe(true);
+    // Hors carte : jamais affiché.
+    state.chartType = 'bar';
+    state.localData = [{ produit: 'Blé', effectif: 3 }];
+    updateMapCodeFieldWarning();
+    expect(avertissement.hidden).toBe(true);
   });
 });

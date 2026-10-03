@@ -34,12 +34,15 @@ import {
 import {
   state,
   tracedExtraSeries,
+  isMapType,
   LIB_RENDERED_TYPES,
   PODIUM_PLACES_DEFAUT,
+  type MapType,
   type DataRecord,
   PROXY_BASE_URL_EMBED,
   LIB_URL,
 } from '../state.js';
+import { REFERENTIELS } from '../geo-codes.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
@@ -245,7 +248,7 @@ function dsfrChartAttrs(): string {
  * le code exporté quand l'état vient d'ailleurs (favori, instantané déposé).
  */
 export function effectivePalette(): string {
-  if (state.chartType === 'map') {
+  if (isMapType(state.chartType)) {
     return state.palette.includes('sequential') || state.palette.includes('divergent')
       ? state.palette
       : 'sequentialAscending';
@@ -747,7 +750,7 @@ export async function generateChart(): Promise<void> {
   const isKPI = state.chartType === 'kpi';
   const isGauge = state.chartType === 'gauge';
   const isDatalist = state.chartType === 'datalist';
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const isSingleValue = isKPI || isGauge;
 
   // Validation: datalist only needs labelField, KPI/Gauge need valueField, charts need both
@@ -757,7 +760,15 @@ export async function generateChart(): Promise<void> {
     );
     return;
   }
-  if (!isSingleValue && !isDatalist && (!state.labelField || !state.valueField)) {
+  if (isMap && (!state.codeField || !state.valueField)) {
+    // Une carte se lit par son champ géographique ; le nom affiché est optionnel.
+    const missing = !state.codeField
+      ? REFERENTIELS[state.chartType as MapType].manque
+      : 'le champ numérique à représenter';
+    toastWarning(`Il manque ${missing}. Ouvrez la section "Configuration des donn\u00e9es".`);
+    return;
+  }
+  if (!isSingleValue && !isDatalist && !isMap && (!state.labelField || !state.valueField)) {
     const missing =
       !state.labelField && !state.valueField
         ? "les champs pour l'axe X (cat\u00e9gories) et l'axe Y (valeurs num\u00e9riques)"
@@ -949,7 +960,7 @@ export function generateChartFromLocalData(): void {
     {};
 
   // For maps, aggregate by codeField; for other charts, by labelField
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const groupField = isMap ? state.codeField : state.labelField;
   const activeExtraSeries = tracedExtraSeries(state);
 
@@ -1083,11 +1094,12 @@ export function generateEmbeddedLibCode(): void {
     return row;
   });
   const isPodium = state.chartType === 'podium';
-  const objet = isPodium ? 'Podium' : 'Graphique';
+  const isMap = isMapType(state.chartType);
+  const objet = isPodium ? 'Podium généré' : isMap ? 'Carte générée' : 'Graphique généré';
   const chartDeps = isPodium ? '' : `\n<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">`;
   const chartJs = isPodium ? '' : `\n<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>`;
 
-  const code = `<!-- ${objet} généré avec dsfr-data Builder -->
+  const code = `<!-- ${objet} avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
 <!-- Source : ${escapeHtml(state.savedSource?.name || 'Données locales')} (données intégrées) -->
 
@@ -1106,11 +1118,12 @@ export function generateEmbeddedLibCode(): void {
   <dsfr-data-source id="chart-data" data='${jsonAttr(rows)}'></dsfr-data-source>
 ${visualElement({
   source: 'chart-data',
-  labelField: state.labelField,
+  // Une carte regroupe par son champ géographique : c'est lui que portent les lignes.
+  labelField: isMap ? state.codeField : state.labelField,
   valueField: 'value',
   valueField2: '',
   extraValueFields: traced.map((_, i) => `value${i + 2}`),
-  codeFieldAttr: '',
+  codeFieldAttr: isMap ? `\n    code-field="${escapeHtml(state.codeField)}"` : '',
 }).replace(/^\n/, '')}
 </div>`;
   displayGeneratedCode(code);
@@ -1759,7 +1772,7 @@ ${middlewareHtml}
   );
 
   // For maps, group by codeField (not labelField)
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const groupByPath =
     isMap && state.codeField
       ? isFlattened
@@ -2040,7 +2053,7 @@ ${middlewareHtml}
   }
 
   // For maps, group by codeField (not labelField)
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const groupByPath = isMap && state.codeField ? state.codeField : labelFieldPath;
 
   let queryElement: string;

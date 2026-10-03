@@ -122,6 +122,9 @@ const TYPES: ChartType[] = [
   'datalist',
   'podium',
   'bar-line',
+  'map-reg',
+  'map-aca',
+  'map-monde',
 ];
 
 function cliquer(selecteur: string): void {

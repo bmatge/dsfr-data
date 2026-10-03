@@ -136,6 +136,18 @@
             <i class="ri-map-fill" aria-hidden="true"></i>
             <span>Carte</span>
           </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map-reg" data-repere="builder.type.map-reg" data-attribut="dsfr-data-chart:type" title="Carte des régions">
+            <i class="ri-map-2-fill" aria-hidden="true"></i>
+            <span>Carte régions</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map-aca" data-repere="builder.type.map-aca" data-attribut="dsfr-data-chart:type" title="Carte des académies">
+            <i class="ri-graduation-cap-fill" aria-hidden="true"></i>
+            <span>Carte académies</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map-monde" data-repere="builder.type.map-monde" data-attribut="dsfr-data-chart:type" title="Carte du monde">
+            <i class="ri-earth-fill" aria-hidden="true"></i>
+            <span>Carte monde</span>
+          </button>
           <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="datalist" data-repere="builder.type.datalist" title="Tableau de données">
             <i class="ri-table-line" aria-hidden="true"></i>
             <span>Tableau</span>
@@ -246,12 +258,13 @@
             <option value="">— Charger les champs —</option>
           </select>
           <!-- Avertissement affiché par updateMapCodeFieldWarning() quand aucun champ
-               de la source ne ressemble à un code INSEE valide (audit UX §m-B-6). -->
+               de la source ne porte le référentiel du découpage choisi (audit UX §m-B-6) ;
+               le texte suit le type de carte (#1204). -->
           <div id="code-field-warning" class="field-warning" hidden>
             <strong>Aucun code département détecté.</strong>
             Cette carte est <em>départementale</em> : elle attend des codes INSEE
-            (01-95, 2A, 2B, 971-976). Si vos données sont régionales, utilisez la
-            carte des régions — exemple « Carte régions » dans le Playground.
+            (01-95, 2A, 2B, 971-976). Si vos données sont régionales, choisissez le
+            type « Carte régions ».
             Sinon, convertissez vos noms de départements en codes.
           </div>
         </div>
