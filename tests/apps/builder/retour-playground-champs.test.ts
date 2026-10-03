@@ -126,4 +126,54 @@ describe('retour du Playground : les champs choisis sont conservés (#1176)', ()
       'Graphique à jour'
     );
   });
+
+  // #1204 : les réglages des formes ajoutées font le même aller-retour. Preuve
+  // de mutation : retirer `syncFormesControls()` de `loadFavoriteState` rend
+  // ce cas rouge (l'état est restauré, les contrôles restent vides).
+  it('barres + ligne, format long, empilement, places du podium : état et contrôles restaurés', async () => {
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      `<select id="line-field"></select><input id="line-field-label">
+       <select id="series-field"></select><input type="checkbox" id="stacked-toggle">
+       <input type="number" id="podium-max-items" value="5">`
+    );
+    const { setupFormesListeners } = await import('../../../apps/builder/src/ui/formes');
+    setupFormesListeners();
+    sessionStorage.setItem(
+      'builder-state',
+      JSON.stringify({
+        chartType: 'bar-line',
+        labelField: 'nom_region',
+        valueField: 'nombre_beneficiaires',
+        lineField: 'nombre_beneficiaires',
+        lineFieldLabel: 'Bénéficiaires',
+        seriesField: 'nom_departement',
+        stacked: true,
+        podiumMaxItems: 3,
+        aggregation: 'sum',
+        fields: CHAMPS,
+        data: [{ nom_region: 'Bretagne', value: 10, value2: 4 }],
+        localData: [{ nom_departement: 'Ain', nom_region: 'Auvergne-Rhône-Alpes' }],
+        savedSource: { id: 'ods-1', name: 'industrie-du-futur', type: 'api', apiUrl: 'https://x' },
+      })
+    );
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state).toMatchObject({
+      chartType: 'bar-line',
+      lineField: 'nombre_beneficiaires',
+      lineFieldLabel: 'Bénéficiaires',
+      seriesField: 'nom_departement',
+      stacked: true,
+      podiumMaxItems: 3,
+    });
+    const valeur = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+    expect(valeur('line-field')).toBe('nombre_beneficiaires');
+    expect(valeur('line-field-label')).toBe('Bénéficiaires');
+    expect(valeur('series-field')).toBe('nom_departement');
+    expect(valeur('podium-max-items')).toBe('3');
+    expect((document.getElementById('stacked-toggle') as HTMLInputElement).checked).toBe(true);
+    expect(toastError).not.toHaveBeenCalled();
+  });
 });
