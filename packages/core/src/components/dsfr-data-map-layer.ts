@@ -9,6 +9,13 @@
  * `getLegendEntries()` expose les classes (ou les paires de `color-map`) pour le
  * compagnon dsfr-data-map-legend, qui se rafraîchit sur l'événement
  * `dsfr-data-map-layer-render` (#685).
+ *
+ * Dans un encart (`dsfr-data-map-inset`), la couche est un clone de celle de
+ * la carte hôte : elle lit les mêmes lignes, sans requête de plus, mais ne
+ * trace que les entités de l'emprise de l'encart — plafond `max-items`,
+ * classes de couleur, rayons et intensités calculés sur le jeu entier, comme
+ * sur la carte principale. `getRenderedCount()` y compte les entités de
+ * l'emprise, et l'événement de rendu les porte dans `rendered`.
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';

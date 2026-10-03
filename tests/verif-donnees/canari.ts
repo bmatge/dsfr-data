@@ -35,7 +35,14 @@ import {
   HOTE_CANARI,
   urlCanari,
 } from './fixtures-canari.js';
-import { ABSENCES, urlAffichage } from './fixtures-affichages.js';
+import {
+  ABSENCES,
+  DANS_LA_GUADELOUPE,
+  DANS_LA_REUNION,
+  ENCARTS,
+  MARKUP_ENCARTS,
+  urlAffichage,
+} from './fixtures-affichages.js';
 import { EX_AEQUO, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
 
 /** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
@@ -85,6 +92,9 @@ const SRC_VOLUME_EMPILE = `${IDS_VOLUME.map(
 ).join('')}
   <dsfr-data-concat id="c-vol" sources="${IDS_VOLUME.join(', ')}"></dsfr-data-concat>`;
 const EMPILER_VOLUME: Step = { op: 'concat', sources: IDS_VOLUME.map(() => 'main') };
+
+/** Le filtre que pose la case « Musée » de la facette des encarts (BUG-034). */
+const MUSEES: Step = { op: 'filter', filters: [{ field: 'type', op: 'eq', value: 'Musée' }] };
 
 const CHECKS: Check[] = [
   // -------------------------------------------------------------------------
@@ -961,6 +971,40 @@ const CHECKS: Check[] = [
             ],
           },
         ],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // une entité, une fois par carte — et pas une de plus après un filtre
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-encart-entites-remplacees',
+    mode: 'deterministic',
+    constats: ['BUG-034'],
+    origin:
+      'Canari — BUG-034, #1229 : une forme qui A L’AIR d’être à sa place. Dans un encart de carte, les entités d’AVANT le filtre restaient tracées sous les nouvelles : six cercles pour deux lignes, sans erreur, sur une carte de 160 px où personne ne compte. Le défaut venait d’un groupe Leaflet orphelin (la couche clonée refaisait le sien quand la carte hôte lui redisait « prête »), et ne se voyait qu’après un geste. On coche « Musée » : il reste un lieu à La Réunion et un en Guadeloupe, quatre sur la carte principale — et non les trois, les deux et les dix d’avant en plus. `affichages/carte-encarts-entites-par-emprise-bug-034` tient le compte par emprise SANS geste, sur le même balisage.',
+    feed: { kind: 'fixture', datasets: { main: ENCARTS } },
+    markup: MARKUP_ENCARTS,
+    actions: [{ kind: 'click', selector: '#f-encarts label:has-text("Musée")' }],
+    expects: [
+      {
+        kind: 'count',
+        id: 'carte-encarts',
+        selector: ':scope > .dsfr-data-map__container path.verif-encart',
+        pipeline: [MUSEES],
+      },
+      {
+        kind: 'count',
+        id: 'encart-reunion',
+        selector: 'path.verif-encart',
+        pipeline: [MUSEES, DANS_LA_REUNION],
+      },
+      {
+        kind: 'count',
+        id: 'encart-guadeloupe',
+        selector: 'path.verif-encart',
+        pipeline: [MUSEES, DANS_LA_GUADELOUPE],
       },
     ],
   },

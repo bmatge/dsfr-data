@@ -30,7 +30,10 @@ const SPEEDS = [0.5, 1, 2, 4];
 
 @customElement('dsfr-data-map-timeline')
 export class DsfrDataMapTimeline extends LitElement {
-  /** Target specific layer IDs (comma-separated). If empty, targets all layers with time-field. */
+  /**
+   * Ids des couches pilotées, séparés par des virgules. Vide : toutes les couches à `time-field`.
+   * Les clones de ces couches dans les encarts (`dsfr-data-map-inset`) suivent le même pas.
+   */
   @property({ type: String })
   for = '';
 

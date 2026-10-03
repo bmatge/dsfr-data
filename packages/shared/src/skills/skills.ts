@@ -3667,6 +3667,12 @@ sur un element de l'encart ouvre le volet/la modale de la carte principale (un s
 <!-- Raccourci equivalent pour les 5 DROM : <dsfr-data-map insets="drom"> -->
 \`\`\`
 
+Chaque encart clone les couches de la carte hote : memes lignes, **aucune requete de plus**, mais il
+ne trace que les entites de **son emprise** (classes de couleur, rayons et plafond \`max-items\`
+calcules sur le jeu entier, comme sur la carte principale). Un filtre ou un pas de timeline
+remplace ses entites. Limite : avec \`bbox\` sur la couche, la source ne charge que la zone visible
+de la carte principale — les encarts restent vides ; pour des encarts renseignes, ne pas poser \`bbox\`.
+
 ### dsfr-data-map-timeline — Animation temporelle
 
 Composant compagnon place comme enfant de \`dsfr-data-map\`. Decouvre automatiquement les layers ayant \`time-field\` et pilote leur affichage frame par frame.

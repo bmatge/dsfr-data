@@ -1,0 +1,12 @@
+[
+  {"ville":"Paris","type":"Musée","lat":48.86,"lon":2.35},
+  {"ville":"Saint-Denis","type":"Musée","lat":-20.88,"lon":55.45},
+  {"ville":"Lyon","type":"Musée","lat":45.76,"lon":4.84},
+  {"ville":"Pointe-à-Pitre","type":"Musée","lat":16.24,"lon":-61.53},
+  {"ville":"Marseille","type":"Théâtre","lat":43.3,"lon":5.37},
+  {"ville":"Saint-Pierre","type":"Théâtre","lat":-21.34,"lon":55.48},
+  {"ville":"Lille","type":"Théâtre","lat":50.63,"lon":3.06},
+  {"ville":"Saint-Paul","type":"Théâtre","lat":-21.01,"lon":55.27},
+  {"ville":"Les Abymes","type":"Théâtre","lat":16.27,"lon":-61.5},
+  {"ville":"Cayenne","type":"Théâtre","lat":4.93,"lon":-52.33}
+]

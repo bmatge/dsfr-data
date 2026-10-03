@@ -199,6 +199,24 @@ test('page du banc : chaque encart trace les entités de son emprise, une fois, 
     });
   await expect(page.locator('#m dsfr-data-map-inset path.encart-cercle')).toHaveCount(2);
 
+  // Filtre t=b : les deux points d'outre-mer, un par encart — puis retrait.
+  // La couche de la carte hôte retrace AVANT celles des encarts : sa
+  // description se compose donc pendant que les encarts montrent encore
+  // l'état précédent (ici un cercle chacun), le cas où elle les recomptait.
+  await basculer(page, 'b');
+  await expect
+    .poll(() => posees(page, 'm'))
+    .toEqual({
+      Points: 2,
+      'Encart — Guadeloupe': 1,
+      'Encart — Martinique': 0,
+      'Encart — Guyane': 0,
+      'Encart — La Réunion': 1,
+      'Encart — Mayotte': 0,
+    });
+  await basculer(page, 'b');
+  await expect.poll(async () => (await posees(page, 'm')).Points).toBe(4);
+
   // La description lue par les lecteurs d'écran : la carte principale compte
   // ses quatre cercles UNE fois (elle en annonçait six fois quatre), chaque
   // encart compte ce qu'il montre, et un encart vide ne dit rien.
@@ -318,4 +336,48 @@ test('un encart agrandi retrace sa nouvelle emprise', async ({ page }) => {
   await expect
     .poll(async () => (await etat(page, 'm-recadrage')).map((c) => c.posees))
     .toEqual([6, 2]);
+});
+
+test('couche en bbox : l’encart ne commande pas la source avec son emprise', async ({ page }) => {
+  const POINTS = [
+    { nom: 'Paris', position: { lat: 48.85, lon: 2.35 } },
+    { nom: 'Lyon', position: { lat: 45.76, lon: 4.83 } },
+    { nom: 'Pointe-à-Pitre', position: { lat: 16.24, lon: -61.53 } },
+  ];
+  /** Bord ouest de chaque clause de zone visible reçue par le faux portail. */
+  const ouests: number[] = [];
+  await page.route('https://exemple.invalid/**', async (route) => {
+    const where = new URL(route.request().url()).searchParams.get('where') ?? '';
+    const zone = /in_bbox\(position,\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)/.exec(
+      where
+    );
+    let results = POINTS;
+    if (zone) {
+      const [sud, ouest, nord, est] = zone.slice(1).map(Number);
+      ouests.push(ouest);
+      results = POINTS.filter(
+        (p) =>
+          p.position.lat >= sud &&
+          p.position.lat <= nord &&
+          p.position.lon >= ouest &&
+          p.position.lon <= est
+      );
+    }
+    await route.fulfill({ json: { total_count: results.length, results } });
+  });
+  await page.goto('/e2e/map-insets-bbox.html');
+  await montrer(page, 'm-bbox');
+
+  // La carte principale a demandé SA zone visible : Paris et Lyon.
+  const cercles = page.locator('#m-bbox > .dsfr-data-map__container path.encart-bbox');
+  await expect.poll(() => ouests.length).toBeGreaterThan(0);
+  await expect(cercles).toHaveCount(2);
+  // Le temps qu'une commande d'encart serait partie (anti-rebond de 50 ms),
+  // puis revenue : la carte principale garde ses deux points.
+  await page.waitForTimeout(600);
+  await expect(cercles).toHaveCount(2);
+  // Aucune clause n'a porté sur la Guadeloupe (61° ouest) : avant le
+  // correctif, le clone poussait son emprise sous la même clé que la couche
+  // d'origine, et la source ne rendait plus que Pointe-à-Pitre.
+  expect(ouests.filter((ouest) => ouest < -30)).toEqual([]);
 });

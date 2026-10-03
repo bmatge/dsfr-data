@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — encart d'une couche en bbox (BUG-034)</title>
+  <!--
+    Une couche en `bbox` commande sa source : à chaque déplacement, elle lui
+    pousse la clause de la zone visible (clé `map-bbox`). Clonée telle quelle
+    dans un encart, elle poussait AUSSI la clause de l'emprise de l'encart,
+    sous la même clé : le dernier prêt l'emportait, et la source — donc la
+    carte principale — se retrouvait filtrée sur la Guadeloupe.
+
+    La source est une source Opendatasoft fictive : le spec sert ses réponses
+    et relève la clause `where` de chaque requête. Rien ne sort de la page.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Encart d'une couche en bbox</h1>
+    <dsfr-data-source id="s-bbox" api-type="opendatasoft"
+      base-url="https://exemple.invalid" dataset-id="points"></dsfr-data-source>
+    <dsfr-data-map id="m-bbox" name="Zone visible" center="46.5,2.5" zoom="5" height="320px"
+      tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+      <dsfr-data-map-layer id="l-bbox" source="s-bbox" type="circle" radius="6" bbox bbox-debounce="50"
+        geo-field="position" shape-class="encart-bbox"></dsfr-data-map-layer>
+      <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+    </dsfr-data-map>
+  </main>
+</body>
+</html>
