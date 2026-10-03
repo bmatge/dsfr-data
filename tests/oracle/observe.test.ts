@@ -81,6 +81,20 @@ describe('vérification des données — lecteurs d’observation', () => {
     expect(lireGraphique('absent')).toBeNull();
   });
 
+  it('barres + ligne : y-bar puis y-line, deux séries à plat (#1081)', () => {
+    document.body.innerHTML = `
+      <div id="bl">
+        <bar-line-chart x='["nord","sud"]' y-bar='[110,90]' y-line='[400,null]'></bar-line-chart>
+      </div>`;
+    const lu = lireGraphique('bl')!;
+    expect(lu.tag).toBe('bar-line-chart');
+    expect(lu.labels).toEqual(['nord', 'sud']);
+    expect(lu.series).toEqual([
+      [110, 90],
+      [400, null],
+    ]);
+  });
+
   it('légende de carte : les entrées de getLegendEntries(), bornes comprises', () => {
     document.body.innerHTML = `<div id="couche"></div><div id="muet"></div>`;
     const couche = document.getElementById('couche') as HTMLElement & {

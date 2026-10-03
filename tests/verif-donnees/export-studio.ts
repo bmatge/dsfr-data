@@ -16,12 +16,19 @@
  *          un agrégat calculé par le serveur (`select` ODSQL), ou le total
  *          annoncé par l'API (`meta:total` sur Tabular).
  *
+ *   #1081 — un graphique à PLUSIEURS mesures et une agrégation n'agrégeait
+ *          que la première : `aggregate="population:sum"` face à
+ *          `value-fields="pop2025"`. Une requête agrégée ne rend que les champs
+ *          de groupe et les agrégats, la colonne désignée n'existait plus — la
+ *          seconde série se traçait vide, sans erreur. Le remède : chaque
+ *          mesure est agrégée, et le graphique désigne les colonnes agrégées.
+ *
  * Chaque contrôle regarde les deux faces : le chiffre affiché, recalculé par
  * l'oracle depuis les lignes brutes, ET les URL appelées, qui disent si le
  * serveur a bien fait le calcul.
  */
 import type { Check, Manifest, Step } from '../../tools/oracle/manifest.js';
-import { TERRITOIRES } from './fixtures.js';
+import { MESURES, TERRITOIRES } from './fixtures.js';
 import { TETE_CHART, urlsDe } from './fixtures-delegation.js';
 import {
   ID_SOURCE,
@@ -29,6 +36,7 @@ import {
   document_,
   nommer,
   preremplir,
+  sourceEmbarquee,
   widget,
 } from './fixtures-export-studio.js';
 
@@ -372,6 +380,145 @@ const CHECKS: Check[] = [
       // Aucune requete de donnees ne part sans la clause : ni la source
       // partagee, ni les deux sources derivees.
       urlsDe('filtre-sur-toutes-les-sources', 'ods', 'pays_iso2 = "FR"', 'all'),
+    ],
+  },
+
+  {
+    id: 'multi-series-agrege',
+    mode: 'deterministic',
+    origin:
+      '#1081 — un graphique a deux mesures et une agregation, sur des donnees embarquees : l’export agrege CHAQUE mesure (`aggregate="indice:sum, poids:sum"`) et le graphique designe les colonnes agregees. Avant, seule la premiere l’etait : la seconde serie designait une colonne que la requete ne rendait plus, et se tracait vide. Les deux colonnes du jeu ont des sommes sans rapport (indice ~300, poids jusqu’a 4 000) : une serie qui relirait l’autre se verrait.',
+    feed: { kind: 'fixture', datasets: { main: MESURES } },
+    head: TETE_CHART,
+    markup:
+      corpsExporte(
+        document_('Deux séries agrégées', sourceEmbarquee(MESURES), [
+          widget(
+            'w-series',
+            {
+              type: 'bar',
+              labelField: 'zone',
+              valueField: 'indice',
+              valueFields: ['poids'],
+              aggregation: 'sum',
+              sortOrder: 'desc',
+              title: 'Indice et poids par zone',
+            },
+            0
+          ),
+        ])
+      ) + nommer([[`dsfr-data-chart[source="q-w-series"]`, 'w-series']]),
+    expects: [
+      {
+        kind: 'chart',
+        id: 'w-series',
+        labelColumn: 'zone',
+        valueColumns: ['indice__sum', 'poids__sum'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'zone',
+            columns: {
+              indice__sum: { agg: 'sum', field: 'indice' },
+              poids__sum: { agg: 'sum', field: 'poids' },
+            },
+          },
+          { op: 'order-by', column: 'indice__sum', dir: 'desc' },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'bar-line-agrege',
+    mode: 'deterministic',
+    origin:
+      '#1081 — meme defaut pour la seconde mesure d’un « barres + ligne » (`valueField2`) : `value-field-2="poids"` face a `aggregate="indice:avg"`. La ligne doit porter la moyenne de `poids` par zone, les barres celle de `indice` — deux moyennes sans rapport, dans cet ordre.',
+    feed: { kind: 'fixture', datasets: { main: MESURES } },
+    head: TETE_CHART,
+    markup:
+      corpsExporte(
+        document_('Barres et ligne agrégées', sourceEmbarquee(MESURES), [
+          widget(
+            'w-barres-ligne',
+            {
+              type: 'bar-line',
+              labelField: 'zone',
+              valueField: 'indice',
+              valueField2: 'poids',
+              aggregation: 'avg',
+              sortOrder: 'desc',
+              title: 'Indice (barres) et poids (ligne) par zone',
+            },
+            0
+          ),
+        ])
+      ) + nommer([[`dsfr-data-chart[source="q-w-barres-ligne"]`, 'w-barres-ligne']]),
+    expects: [
+      {
+        kind: 'chart',
+        id: 'w-barres-ligne',
+        labelColumn: 'zone',
+        valueColumns: ['indice__avg', 'poids__avg'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'zone',
+            columns: {
+              indice__avg: { agg: 'avg', field: 'indice' },
+              poids__avg: { agg: 'avg', field: 'poids' },
+            },
+          },
+          { op: 'order-by', column: 'indice__avg', dir: 'desc' },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'multi-series-agrege-serveur',
+    mode: 'deterministic',
+    origin:
+      '#1081 — le meme graphique a deux mesures sur Opendatasoft, seul lecteur de sa source : le regroupement est DELEGUE, et les deux agregats doivent partir au serveur. La seconde mesure porte un nom a espaces et apostrophe (« Nombre d’habitants »), celui qui casse un alias construit sans precaution.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    head: TETE_CHART,
+    markup:
+      corpsExporte(
+        document_('Deux séries agrégées (ODS)', 'ods', [
+          widget(
+            'w-series-ods',
+            {
+              type: 'bar',
+              labelField: 'academie',
+              valueField: 'population',
+              valueFields: ["Nombre d'habitants"],
+              aggregation: 'sum',
+              sortOrder: 'desc',
+              title: 'Population par académie, deux colonnes',
+            },
+            0
+          ),
+        ])
+      ) + nommer([[`dsfr-data-chart[source="q-w-series-ods"]`, 'w-series-ods']]),
+    expects: [
+      {
+        kind: 'chart',
+        id: 'w-series-ods',
+        labelColumn: 'academie',
+        valueColumns: ['population__sum', "Nombre d'habitants__sum"],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'academie',
+            columns: {
+              population__sum: { agg: 'sum', field: 'population' },
+              "Nombre d'habitants__sum": { agg: 'sum', field: "Nombre d'habitants" },
+            },
+          },
+          { op: 'order-by', column: 'population__sum', dir: 'desc' },
+        ],
+      },
+      urlsDe('deux-agregats-au-serveur', 'ods', 'group_by=academie', 'some'),
     ],
   },
 ];

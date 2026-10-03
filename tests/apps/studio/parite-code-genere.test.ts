@@ -24,9 +24,10 @@
  * Tout se lit APRÈS parsage du HTML : c'est ce que le composant recevra. Une
  * assertion sur le texte brut passe au vert avec un attribut disloqué.
  *
- * Deux comportements attendus sont rouges aujourd'hui (multi-séries avec
- * agrégation) : ils restent en `it.skip`, avec la raison et les deux faits (ce que le Studio écrit, ce
- * qu'il devrait écrire). Le rendu, lui, est l'affaire de
+ * Trois comportements étaient rouges à l'écriture de ce fichier et y sont
+ * restés en `it.skip` ; ils sont corrigés et actifs. Leur commentaire garde les
+ * deux faits (ce que le Studio écrivait, ce qu'il écrit). Le rendu, lui, est
+ * l'affaire de
  * `tests/builder-e2e/studio-recette.spec.ts` et `studio-parite-recette.spec.ts`.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -544,7 +545,10 @@ describe('multi-séries', () => {
     expect(state.document.widgets).toHaveLength(0);
   });
 
-  // DÉFAUT DU STUDIO — laissé en `skip`, non corrigé ici (#1081, parité des tests).
+  // DÉFAUT DU STUDIO, CORRIGÉ (#1081) : chaque série est agrégée, et le
+  // graphique désigne les colonnes agrégées, sous l'alias inline
+  // `pop2025__sum:pop2025` (#668) qui garde le nom du champ en légende. Le
+  // défaut, tel qu'il était :
   //
   // Avec une agrégation, l'export n'agrège QUE `valueField`
   // (`generateBuilderChartHTML`, packages/shared/src/dashboard/export-html.ts :
@@ -562,7 +566,7 @@ describe('multi-séries', () => {
   // `value-fields` désigne, sur ses variantes à composant (#624). Le schéma des
   // outils du Studio propose `valueFields` et `aggregation` ensemble, et
   // `diagnoseConfig` accepte le bloc.
-  it.skip('avec une agrégation, la série supplémentaire est agrégée elle aussi', () => {
+  it('avec une agrégation, la série supplémentaire est agrégée elle aussi', () => {
     for (const variante of VARIANTES) {
       const { page, compteRendu } = composer(SOURCES[variante](), [
         bloc({ ...AVEC_SERIE, aggregation: 'sum' }),
@@ -577,12 +581,16 @@ describe('multi-séries', () => {
     }
   });
 
-  // DÉFAUT DU STUDIO — même cause que le précédent, pour `valueField2`
+  // DÉFAUT DU STUDIO, CORRIGÉ — même cause que le précédent, pour `valueField2`
   // (seconde mesure d'un `bar-line`) :
   //
-  //   Studio écrit : aggregate="population:sum" … value-field-2="pop2025"
-  //   attendu      : aggregate="population:sum, pop2025:sum" … value-field-2="pop2025__sum"
-  it.skip('avec une agrégation, la seconde mesure d’un bar-line est agrégée elle aussi', () => {
+  //   Studio écrivait : aggregate="population:sum" … value-field-2="pop2025"
+  //   il écrit        : aggregate="population:sum, pop2025:sum"
+  //                     … value-field-2="pop2025__sum:pop2025"
+  //
+  // `value-field-2` accepte l'alias inline comme `value-fields` : la colonne
+  // lue est ce qui précède le `:` (`colonneLue`).
+  it('avec une agrégation, la seconde mesure d’un bar-line est agrégée elle aussi', () => {
     const { page, compteRendu } = composer(SOURCES['embarquée (données saisies)'](), [
       bloc({
         type: 'bar-line',
@@ -594,7 +602,10 @@ describe('multi-séries', () => {
     ]);
     expect(compteRendu).toContain('+ b1 (chart)');
     expect(colonnesProduites(page)).toContain(
-      attributLu(page, 'dsfr-data-chart', 'value-field-2') ?? ''
+      colonneLue(attributLu(page, 'dsfr-data-chart', 'value-field-2') ?? '')
+    );
+    expect(colonnesProduites(page)).toContain(
+      colonneLue(attributLu(page, 'dsfr-data-chart', 'value-field') ?? '')
     );
   });
 });

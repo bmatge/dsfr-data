@@ -125,7 +125,10 @@ export function lireGraphique(id: string): ObservationChart | null {
   const x = lire('x');
   const labels = aplatirUnNiveau(x).map((v) => String(v));
 
-  const y = lire('y');
+  // Un « barres + ligne » ne porte pas `y` : DSFR Chart y lit deux attributs
+  // plats, `y-bar` puis `y-line` — deux séries, dans cet ordre.
+  const yBar = lire('y-bar');
+  const y = Array.isArray(yBar) ? [yBar, lire('y-line') ?? []] : lire('y');
   let series: Array<Array<number | null>> = [];
   if (Array.isArray(y)) {
     const enSeries = Array.isArray(y[0]) ? (y as unknown[][]) : [y as unknown[]];

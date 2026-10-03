@@ -307,6 +307,104 @@ describe('export-html — widget fromBuilder', () => {
   });
 });
 
+describe('export-html — chaque série est agrégée (#1081)', () => {
+  // Lu APRES parsage : c'est la valeur que le composant recevra.
+  const attribut = (html: string, balise: string, nom: string): string | null =>
+    new DOMParser().parseFromString(html, 'text/html').querySelector(balise)?.getAttribute(nom) ??
+    null;
+  const exporter = (chart: ChartConfig) =>
+    generateWidgetHTML(builderWidget(chart), dashboardWith([], [SRC]));
+
+  it('multi-séries : la requête agrège chaque colonne, le graphique désigne les colonnes agrégées', () => {
+    const html = exporter({
+      type: 'bar',
+      labelField: 'region',
+      valueField: 'population',
+      valueFields: ['pop2025', 'pop2030'],
+      aggregation: 'sum',
+    });
+    expect(attribut(html, 'dsfr-data-query', 'aggregate')).toBe(
+      'population:sum, pop2025:sum, pop2030:sum'
+    );
+    // Alias inline `colonne:Libellé` (#668) : la légende garde le nom du champ.
+    expect(attribut(html, 'dsfr-data-chart', 'value-field')).toBe('population__sum:population');
+    expect(attribut(html, 'dsfr-data-chart', 'value-fields')).toBe(
+      'pop2025__sum:pop2025,pop2030__sum:pop2030'
+    );
+  });
+
+  it('bar-line : la seconde mesure est agrégée et désignée sous son alias', () => {
+    const html = exporter({
+      type: 'bar-line',
+      labelField: 'region',
+      valueField: 'population',
+      valueField2: 'pop2025',
+      aggregation: 'avg',
+      sortOrder: 'desc',
+    });
+    expect(attribut(html, 'dsfr-data-query', 'aggregate')).toBe('population:avg, pop2025:avg');
+    expect(attribut(html, 'dsfr-data-query', 'order-by')).toBe('population__avg:desc');
+    expect(attribut(html, 'dsfr-data-chart', 'value-field-2')).toBe('pop2025__avg:pop2025');
+  });
+
+  it('une colonne citée deux fois n’est agrégée qu’une fois', () => {
+    const html = exporter({
+      type: 'bar',
+      labelField: 'region',
+      valueField: 'population',
+      valueField2: 'pop2025',
+      valueFields: ['pop2025', 'population', ''],
+      aggregation: 'sum',
+    });
+    expect(attribut(html, 'dsfr-data-query', 'aggregate')).toBe('population:sum, pop2025:sum');
+  });
+
+  it('un nom de champ à deux-points est échappé dans l’alias', () => {
+    const html = exporter({
+      type: 'bar',
+      labelField: 'region',
+      valueField: 'population',
+      valueFields: ['taux:2025'],
+      aggregation: 'sum',
+    });
+    expect(attribut(html, 'dsfr-data-chart', 'value-fields')).toBe('taux%3A2025__sum:taux%3A2025');
+  });
+
+  it('une seule mesure : rien ne change (ni alias, ni agrégat en plus)', () => {
+    const html = exporter({
+      type: 'bar',
+      labelField: 'region',
+      valueField: 'population',
+      aggregation: 'sum',
+    });
+    expect(attribut(html, 'dsfr-data-query', 'aggregate')).toBe('population:sum');
+    expect(attribut(html, 'dsfr-data-chart', 'value-field')).toBe('population__sum');
+  });
+
+  it('sans agrégation, les séries sont lues telles quelles sur la source', () => {
+    const html = exporter({
+      type: 'line',
+      labelField: 'region',
+      valueField: 'population',
+      valueFields: ['pop2025'],
+    });
+    expect(html).not.toContain('<dsfr-data-query');
+    expect(attribut(html, 'dsfr-data-chart', 'value-field')).toBe('population');
+    expect(attribut(html, 'dsfr-data-chart', 'value-fields')).toBe('pop2025');
+  });
+
+  it('un podium n’a qu’une mesure : les séries supplémentaires ne sont pas agrégées', () => {
+    const html = exporter({
+      type: 'podium',
+      labelField: 'region',
+      valueField: 'population',
+      valueFields: ['pop2025'],
+      aggregation: 'sum',
+    });
+    expect(attribut(html, 'dsfr-data-query', 'aggregate')).toBe('population:sum');
+  });
+});
+
 describe('export-html — filtres partages', () => {
   const filtersWidget: Widget = {
     id: 'f1',

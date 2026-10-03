@@ -258,6 +258,34 @@ describe('studio/document — bloc text nettoyé à l’écriture (#1081)', () =
   });
 });
 
+describe('studio/document — multi-séries et count (#1081)', () => {
+  const serie = (aggregation: 'sum' | 'count') =>
+    addBlocks(
+      createEmptyDashboard(),
+      [
+        {
+          kind: 'chart',
+          config: {
+            type: 'bar',
+            labelField: 'region',
+            valueField: 'population',
+            valueFields: ['annee'],
+            aggregation,
+          },
+        },
+      ],
+      ctx
+    ).summary;
+
+  it('count sur plusieurs séries : le modèle est averti que les séries seront identiques', () => {
+    expect(serie('count')).toContain('attention : aggregation "count" compte les lignes');
+  });
+
+  it('sum sur plusieurs séries : aucune note', () => {
+    expect(serie('sum')).not.toContain('attention');
+  });
+});
+
 describe('studio/document — helpers', () => {
   it('defaultWidth : kpi=third, datalist=full, chart=half, text/filters=full', () => {
     expect(defaultWidth({ kind: 'chart', config: { type: 'kpi', valueField: 'x' } })).toBe('third');

@@ -277,7 +277,7 @@ function buildChartWidget(
   id: string,
   spec: BlockSpec,
   ctx: DocumentContext
-): { widget?: Widget; error?: string } {
+): { widget?: Widget; error?: string; notes?: string[] } {
   // Sans source, le bloc s'exporterait vide (« aucune source associée ») : le
   // refuser dit au modele quoi faire d'abord (#1140).
   if (!ctx.sourceId) {
@@ -306,7 +306,17 @@ function buildChartWidget(
     const diag = diagnoseConfig(config, ctx.data);
     if (!diag.ok) return { error: diag.text };
   }
+  // Chaque serie est agregee par la meme fonction (#1081). `count` compte des
+  // LIGNES, pas un champ : les series seraient le meme nombre repete.
+  const plusieursMesures = Boolean(config.valueField2) || (config.valueFields?.length ?? 0) > 0;
+  const notes =
+    config.aggregation === 'count' && config.labelField && plusieursMesures
+      ? [
+          'aggregation "count" compte les lignes de chaque groupe, quel que soit le champ : toutes les séries porteront le même nombre. Garde une seule mesure, ou choisis sum, avg, min ou max.',
+        ]
+      : [];
   return {
+    notes,
     widget: {
       id,
       type: 'chart',
@@ -683,6 +693,7 @@ export function updateBlock(
         const built = buildChartWidget(widget.id, { kind: 'chart', config: merged }, ctx);
         if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
         widget.config = built.widget.type === 'chart' ? built.widget.config : widget.config;
+        for (const note of built.notes ?? []) notes.push(`  attention : ${note}`);
       }
       break;
     }

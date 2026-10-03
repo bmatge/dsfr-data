@@ -441,6 +441,93 @@ test.describe('le champ de code survit a l’agregation', () => {
   });
 });
 
+test.describe('chaque série agrégée arrive au graphique (#1081)', () => {
+  // LE DEFAUT : avec une agregation, l'export n'agregeait que `valueField` et
+  // designait les autres mesures par leur nom brut. La requete agregee ne rend
+  // que le champ de groupe et les agregats : la seconde serie se tracait VIDE,
+  // sans erreur. Mesure sur l'element DSFR Chart rendu, pour chaque variante —
+  // le regroupement part au serveur sur Opendatasoft et Tabular, il est fait
+  // dans le navigateur sur l'API generique.
+  //
+  // Les deux colonnes du jeu portent les memes valeurs (`population` et sa
+  // jumelle au nom piegeux) : chaque serie doit donc valoir la somme par
+  // academie, recalculee ici depuis le jeu.
+  const sommes: Record<string, number> = {};
+  for (const ligne of JEU) {
+    const academie = String(ligne.academie);
+    sommes[academie] = (sommes[academie] ?? 0) + Number(ligne.population);
+  }
+
+  /** Attribut JSON de l'element DSFR Chart rendu dans `dsfr-data-chart`. */
+  async function lire(page: Page, balise: string, attribut: string): Promise<unknown> {
+    const element = page.locator(`dsfr-data-chart ${balise}`);
+    await expect(element).toHaveAttribute(attribut, /^\[/, { timeout: 20_000 });
+    return JSON.parse((await element.getAttribute(attribut)) ?? 'null');
+  }
+
+  const parLibelle = (labels: unknown, valeurs: unknown): Record<string, number> =>
+    Object.fromEntries(
+      (labels as string[]).map((label, i) => [label, (valeurs as number[])[i]] as const)
+    );
+
+  for (const variante of VARIANTES) {
+    test(`bar à deux séries — ${LIBELLE_VARIANTE[variante]}`, async ({ page }) => {
+      const erreurs = collecterErreurs(page);
+      await harnais.ouvrir(
+        pagePour(
+          {
+            type: 'bar',
+            labelField: 'academie',
+            valueField: 'population',
+            valueFields: [CHAMP_PIEGE],
+            aggregation: 'sum',
+            sortOrder: 'desc',
+            title: 'Deux séries agrégées',
+          },
+          variante
+        )
+      );
+
+      const x = ((await lire(page, 'bar-chart', 'x')) as string[][])[0];
+      const y = (await lire(page, 'bar-chart', 'y')) as number[][];
+      expect(y, 'deux séries attendues').toHaveLength(2);
+      expect(parLibelle(x, y[0])).toEqual(sommes);
+      expect(parLibelle(x, y[1]), 'la seconde série est vide ou fausse').toEqual(sommes);
+      // La légende porte le nom des champs, pas l'alias technique.
+      expect(await lire(page, 'bar-chart', 'name')).toEqual(['population', CHAMP_PIEGE]);
+      expect(harnais.journal.inattendues, 'fuite reseau').toEqual([]);
+      expect(erreurs).toEqual([]);
+    });
+
+    test(`bar-line, seconde mesure — ${LIBELLE_VARIANTE[variante]}`, async ({ page }) => {
+      const erreurs = collecterErreurs(page);
+      await harnais.ouvrir(
+        pagePour(
+          {
+            type: 'bar-line',
+            labelField: 'academie',
+            valueField: 'population',
+            valueField2: CHAMP_PIEGE,
+            aggregation: 'sum',
+            sortOrder: 'desc',
+            title: 'Barres et ligne agrégées',
+          },
+          variante
+        )
+      );
+
+      const x = await lire(page, 'bar-line-chart', 'x');
+      expect(parLibelle(x, await lire(page, 'bar-line-chart', 'y-bar'))).toEqual(sommes);
+      expect(
+        parLibelle(x, await lire(page, 'bar-line-chart', 'y-line')),
+        'la ligne est vide ou fausse'
+      ).toEqual(sommes);
+      expect(harnais.journal.inattendues, 'fuite reseau').toEqual([]);
+      expect(erreurs).toEqual([]);
+    });
+  }
+});
+
 test.describe('mode export ODS (#689, ADR-106)', () => {
   // Le faux serveur `/exports/json` sert un tableau nu et respecte `limit`
   // (cf. api-fixtures.test.ts) ; l'attribut est livre par #689.
