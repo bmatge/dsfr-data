@@ -519,7 +519,7 @@ function comparerListe(
   base: Base,
   attendues: Row[],
   obs: ObservationListe,
-  columns: Array<{ column: string; numeric?: boolean }>,
+  columns: Array<{ column: string; numeric?: boolean; absent?: string }>,
   decimals = DECIMALES_LIGNES
 ): Constat {
   const lib = `${obs.rows.length} lignes rendues`;
@@ -555,13 +555,17 @@ function comparerListe(
         }
         continue;
       }
-      if (cellule !== String(attendue ?? '')) {
+      // Une valeur ABSENTE s'affiche comme la colonne le dit (`absent`), une
+      // chaîne vide reste une cellule vide.
+      const texteAttendu =
+        attendue === null || attendue === undefined ? (columns[c].absent ?? '') : String(attendue);
+      if (cellule !== texteAttendu) {
         return {
           ...base,
           lib,
           oracle,
           comparaisons,
-          message: `ligne ${i} / ${columns[c].column} : affiché « ${cellule} », recalculé « ${String(attendue ?? '')} »`,
+          message: `ligne ${i} / ${columns[c].column} : affiché « ${cellule} », recalculé « ${texteAttendu} »`,
         };
       }
     }

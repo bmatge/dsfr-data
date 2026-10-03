@@ -76,6 +76,20 @@ describe('oracle / expressions', () => {
     expect(r.eau).toBe(true);
   });
 
+  it('coupe une sous-chaîne à positions comptées à partir de 1 (AM-103)', () => {
+    const r = deriver(
+      [{ siret: '13002526500013', code: 97105, vide: '', rien: null }],
+      'siren = left(siret, 9); dep = substr(code, 1, 2); suite = substr(code, 3); loin = substr(code, 9, 2); v = left(vide, 2); n = left(rien, 2); z = substr(siret, 0, 2)'
+    )[0];
+    expect(r.siren).toBe('130025265');
+    expect(r.dep).toBe('97');
+    expect(r.suite).toBe('105');
+    expect(r.loin).toBe('');
+    expect(r.v).toBe('');
+    expect(r.n).toBeNull();
+    expect(r.z).toBeNull();
+  });
+
   it('distingue l’absence (is_null) du vide (is_empty)', () => {
     const r = deriver(
       [{ a: null, v: '', l: [] }],

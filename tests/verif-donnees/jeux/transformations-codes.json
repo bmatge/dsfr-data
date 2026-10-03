@@ -1,0 +1,10 @@
+[
+  {"cle":"e1","siret":"13002526500013","code_insee":"75056","libelle":"J'en ai","surface":16},
+  {"cle":"e2","siret":"21330063500017","code_insee":"01004","libelle":"Je n'en ai pas","surface":2.25},
+  {"cle":"e3","siret":"13002526500021","code_insee":"2A004","libelle":"J'en ai","surface":0},
+  {"cle":"e4","siret":13002526500039,"code_insee":97105,"libelle":"Aucun","surface":-4},
+  {"cle":"e5","siret":null,"code_insee":null,"libelle":null,"surface":null},
+  {"cle":"e6","siret":"","code_insee":"","libelle":"","surface":""},
+  {"cle":"e7","siret":"2133","code_insee":"1","libelle":"J''en ai","surface":"6,25"},
+  {"cle":"e8","siret":"21690123100011","code_insee":"69123","libelle":"L'été","surface":"NC"}
+]

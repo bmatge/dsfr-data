@@ -813,6 +813,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | transformations | repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
 | transformations | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
 | transformations | `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
+| transformations | `substr` compté à partir de 0 — `s.slice(start, start + n)` (`shared/utils/compute.ts`) | `compute-sous-chaine-left-et-substr` | département de Paris affiché « 50 » au lieu de « 75 » : un décalage d'un caractère rend un code plausible (AM-103) |
+| transformations | `left` trop long — `s.slice(0, n + 5)` (`shared/utils/compute.ts`) | `compute-sous-chaine-left-et-substr` | 6 entreprises au lieu de 4 : le SIREN redevient le SIRET, et trois établissements d'une même entreprise comptent pour trois |
 | transformations | `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
 | transformations | `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
 | transformations | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |

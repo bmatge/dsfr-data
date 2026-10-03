@@ -179,6 +179,87 @@ describe('compute v2 — fonctions texte', () => {
   });
 });
 
+describe('compute — sous-chaînes left / substr (AM-103)', () => {
+  it('left(siret, 9) rend le SIREN, substr(code, 1, 2) le département', () => {
+    expect(run('left(siret, 9)', { siret: '13002526500013' })).toBe('130025265');
+    expect(run('substr(code, 1, 2)', { code: '01004' })).toBe('01');
+    expect(run('substr(code, 1, 2)', { code: '2A004' })).toBe('2A');
+    // Un DROM tient sur trois caractères : la règle des deux premiers n'y suffit pas.
+    expect(run('substr(code, 1, 2)', { code: '97105' })).toBe('97');
+    expect(run('substr(code, 1, 3)', { code: '97105' })).toBe('971');
+  });
+
+  it('substr compte à partir de 1 ; sans longueur, va jusqu’au bout', () => {
+    expect(run('substr(s, 1, 1)', { s: 'abcdef' })).toBe('a');
+    expect(run('substr(s, 3, 2)', { s: 'abcdef' })).toBe('cd');
+    expect(run('substr(s, 3)', { s: 'abcdef' })).toBe('cdef');
+    expect(run('substr(s, 10, 5)', { s: '13002526500013' })).toBe('00013');
+  });
+
+  it('le résultat est toujours du TEXTE, même sur une valeur numérique', () => {
+    expect(run('left(code, 2)', { code: 75056 })).toBe('75');
+    expect(run('substr(code, 3, 3)', { code: 75056 })).toBe('056');
+    // Le zéro de tête d'un code stocké en nombre est déjà perdu en amont.
+    expect(run('left(code, 2)', { code: 1004 })).toBe('10');
+    // L'égalité lâche relit ce texte comme un nombre : `dep = 75` tient.
+    expect(run('when left(code, 2) = 75 then 1 else 0', { code: '75056' })).toBe(1);
+  });
+
+  it('se compte comme len, et s’imbrique dans les autres fonctions de texte', () => {
+    expect(run('len(left(s, 3))', { s: 'Évreux' })).toBe(3);
+    expect(run('left(s, 3)', { s: 'Évreux' })).toBe('Évr');
+    expect(run('upper(left(trim(s), 2))', { s: '  paris ' })).toBe('PA');
+    expect(run("concat(left(s, 2), '-', substr(s, 3))", { s: '75056' })).toBe('75-056');
+  });
+
+  it('bornes : plus long que la chaîne, longueur nulle ou négative, début au-delà de la fin', () => {
+    expect(run('left(s, 20)', { s: 'abc' })).toBe('abc');
+    expect(run('left(s, 0)', { s: 'abc' })).toBe('');
+    expect(run('left(s, 0 - 2)', { s: 'abc' })).toBe('');
+    expect(run('substr(s, 2, 20)', { s: 'abc' })).toBe('bc');
+    expect(run('substr(s, 2, 0)', { s: 'abc' })).toBe('');
+    expect(run('substr(s, 4)', { s: 'abc' })).toBe('');
+    expect(run('substr(s, 9, 2)', { s: 'abc' })).toBe('');
+    expect(run('left(s, 2)', { s: '' })).toBe('');
+    // Une longueur décimale est tronquée, comme le ferait un compte de caractères.
+    expect(run('left(s, 2.9)', { s: 'abcdef' })).toBe('ab');
+  });
+
+  it('une valeur absente reste absente (null, champ manquant)', () => {
+    expect(run('left(s, 2)', { s: null })).toBeNull();
+    expect(run('left(s, 2)', {})).toBeNull();
+    expect(run('substr(s, 1, 2)', { s: null })).toBeNull();
+    expect(run('substr(s, 1)', {})).toBeNull();
+  });
+
+  it('une position ou une longueur absente ou non numérique rend null, jamais un préfixe plausible', () => {
+    expect(run('left(s, n)', { s: 'abcdef', n: null })).toBeNull();
+    expect(run('left(s, n)', { s: 'abcdef' })).toBeNull();
+    expect(run('left(s, n)', { s: 'abcdef', n: 'deux' })).toBeNull();
+    expect(run('substr(s, d, 2)', { s: 'abcdef', d: null })).toBeNull();
+    expect(run('substr(s, 1, n)', { s: 'abcdef', n: 'deux' })).toBeNull();
+    // Une chaîne numérique est une longueur.
+    expect(run('left(s, n)', { s: 'abcdef', n: '2' })).toBe('ab');
+  });
+
+  it('un début inférieur à 1 : erreur de configuration en littéral, null quand il est calculé', () => {
+    const msg = compileError('out = substr(s, 0, 2)');
+    expect(msg).toContain('"substr" compte les positions à partir de 1, reçu 0');
+    expect(msg).toContain('substr(s, 1, 2)');
+    expect(compileError('out = substr(s, -1, 2)')).toContain('reçu -1');
+    expect(run('substr(s, d, 2)', { s: 'abcdef', d: 0 })).toBeNull();
+    expect(run('substr(s, d, 2)', { s: 'abcdef', d: -3 })).toBeNull();
+  });
+
+  it('arité : left attend 2 arguments, substr 2 ou 3', () => {
+    expect(compileError('out = left(s)')).toContain('"left" attend 2 arguments, 1 reçu');
+    expect(compileError('out = substr(s)')).toContain('"substr" attend 2 à 3 arguments, 1 reçu');
+    expect(compileError('out = substr(s, 1, 2, 3)')).toContain(
+      '"substr" attend 2 à 3 arguments, 4 reçus'
+    );
+  });
+});
+
 describe('compute v2 — fonctions d’absence', () => {
   it('coalesce : première valeur non nulle (null/undefined seulement, pas la chaîne vide)', () => {
     expect(run("coalesce(t, 'Non renseigné')", { t: null })).toBe('Non renseigné');
@@ -241,6 +322,8 @@ describe('compute v2 — liste blanche', () => {
       'upper',
       'trim',
       'len',
+      'left',
+      'substr',
       'concat',
       'replace',
       'coalesce',
@@ -255,6 +338,8 @@ describe('compute v2 — liste blanche', () => {
     const minArity: Record<string, number> = {
       replace: 3,
       contains: 2,
+      left: 2,
+      substr: 2,
     };
     for (const fn of COMPUTE_FUNCTIONS) {
       const args = Array.from({ length: minArity[fn] ?? 1 }, (_, i) => `a${i}`).join(', ');

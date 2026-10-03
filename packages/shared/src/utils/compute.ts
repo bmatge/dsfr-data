@@ -43,8 +43,21 @@
  * yields null (never a plausible 0), and a division by zero yields null
  * (never Infinity) — the same doctrine as the numeric functions.
  *
+ * SUBSTRINGS (AM-103): `left(s, n)` and `substr(s, start, n)`. Positions are
+ * 1-BASED, as in SQL and ODSQL — `substr(code, 1, 2)` is the first two
+ * characters — and lengths are counted like `len` (UTF-16 code units). The
+ * value is read through its TEXT form, like `lower` or `replace`: a number
+ * is converted (`left(75056, 2)` is '75'), but a code stored as a NUMBER has
+ * already lost its leading zeros upstream (`1004` for « 01004 ») — that is a
+ * typing problem of the source, not something a substring can repair. The
+ * result is always TEXT. null stays null; a missing or non-numeric position
+ * or length yields null (never a plausible prefix); a length of 0 or less,
+ * or a start beyond the end, yields ''. A start below 1 is a configuration
+ * error when it is written as a literal (`substr(s, 0, 2)` is the off-by-one
+ * of a 0-based habit), and null when it is computed.
+ *
  * Still out of scope: aggregated values (query / kpi), windowing (previous
- * row, cumulative sum), user-defined functions.
+ * row, cumulative sum), user-defined functions, the n-th element of an array.
  *
  * Safety: tokenizer + recursive-descent parser → AST → evaluator. NEVER uses
  * eval()/new Function() — public repo + miweb mirror, no injection. Only the
@@ -99,6 +112,12 @@ interface FunctionSpec {
   /** `Infinity` = variadic. */
   max: number;
   impl: (args: unknown[]) => unknown;
+  /**
+   * Optional compile-time check on the argument NODES (arity already
+   * verified): returns the fault to report as a configuration error, or null.
+   * For what can be read without a row — a literal position, say.
+   */
+  check?: (args: Node[]) => string | null;
 }
 
 /** Returns the numeric value of v if it is a number or a numeric-looking string, else null. */
@@ -164,6 +183,23 @@ function textFn(fn: (s: string) => unknown): (args: unknown[]) => unknown {
   };
 }
 
+/**
+ * Position or length argument of a text function: the integer part of a
+ * numeric value, null when the argument is absent or not numeric.
+ */
+function integerArg(v: unknown): number | null {
+  const n = numberish(v);
+  return n === null ? null : Math.trunc(n);
+}
+
+/** Value of a NUMERIC LITERAL node (`2`, `-1`), null for anything computed. */
+function literalNumber(node: Node | undefined): number | null {
+  if (!node) return null;
+  if (node.type === 'num') return node.value;
+  if (node.type === 'neg' && node.operand.type === 'num') return -node.operand.value;
+  return null;
+}
+
 const FUNCTIONS: Record<string, FunctionSpec> = {
   // Dates — ISO string or Date → number, null otherwise.
   year: { min: 1, max: 1, impl: (a) => dateParts(a[0])?.year ?? null },
@@ -197,6 +233,38 @@ const FUNCTIONS: Record<string, FunctionSpec> = {
       if (isNil(a[0])) return 0;
       if (Array.isArray(a[0])) return a[0].length;
       return String(a[0]).length;
+    },
+  },
+  // Substrings (AM-103) — 1-based positions, see the header.
+  left: {
+    min: 2,
+    max: 2,
+    impl: (a) => {
+      const s = textOf(a[0]);
+      const n = integerArg(a[1]);
+      if (s === null || n === null) return null;
+      return n <= 0 ? '' : s.slice(0, n);
+    },
+  },
+  substr: {
+    min: 2,
+    max: 3,
+    check: (args) => {
+      const start = literalNumber(args[1]);
+      if (start === null || start >= 1) return null;
+      return (
+        `"substr" compte les positions à partir de 1, reçu ${start} — ` +
+        "les deux premiers caractères s'écrivent substr(s, 1, 2)"
+      );
+    },
+    impl: (a) => {
+      const s = textOf(a[0]);
+      const start = integerArg(a[1]);
+      if (s === null || start === null || start < 1) return null;
+      if (a.length < 3) return s.slice(start - 1);
+      const n = integerArg(a[2]);
+      if (n === null) return null;
+      return n <= 0 ? '' : s.slice(start - 1, start - 1 + n);
     },
   },
   concat: {
@@ -654,6 +722,8 @@ class Parser {
         `compute: "${name}" attend ${expected} argument${spec.min > 1 || spec.max > 1 ? 's' : ''}, ${args.length} reçu${args.length > 1 ? 's' : ''}`
       );
     }
+    const fault = spec.check?.(args);
+    if (fault) throw new Error(`compute: ${fault}`);
     return { type: 'call', name, fn: spec, args };
   }
 }

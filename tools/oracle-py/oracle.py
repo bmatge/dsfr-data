@@ -468,6 +468,25 @@ def share(rows: list[Row], champ: str, alias: str, echelle: Fraction) -> list[Ro
     return out
 
 
+def sous_chaine(v: Any, debut: int, longueur: int | None) -> str | None:
+    """Sous-chaîne (AM-103) : ``longueur`` caractères à partir de la position ``debut``.
+
+    Les positions se comptent À PARTIR DE 1, comme en SQL. La valeur est lue par
+    sa forme texte (``str_js``) et le résultat est du texte. Valeur absente
+    (``null``) : ``None`` — la chaîne vide, elle, est une valeur. Début inférieur
+    à 1 : ``None``. Longueur nulle ou négative, début au-delà de la fin : chaîne
+    vide. Sans longueur : jusqu'au bout.
+    """
+    if v is None or debut < 1:
+        return None
+    texte = str_js(v)
+    if longueur is None:
+        return texte[debut - 1 :]
+    if longueur <= 0:
+        return ""
+    return texte[debut - 1 : debut - 1 + longueur]
+
+
 def ratio(rows: list[Row], num: str, den: str, alias: str) -> list[Row]:
     out = []
     for r in rows:
@@ -692,6 +711,8 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1))
         elif op == "ratio":
             rows = ratio(rows, s["numerator"], s["denominator"], s["as"])
+        elif op == "substring":
+            rows = [{**r, s["as"]: sous_chaine(r.get(s["from"]), int(s["start"]), s.get("length"))} for r in rows]
         elif op == "join":
             if s["right"] not in datasets:
                 raise ErreurConfiguration(f"jointure : jeu « {s['right']} » absent du feed")

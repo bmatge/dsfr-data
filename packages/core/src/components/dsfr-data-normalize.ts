@@ -240,7 +240,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;
    *   nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;
    *   texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,
-   *   `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex) ;
+   *   `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex),
+   *   sous-chaînes `left(s, n)` (les n premiers caractères) et
+   *   `substr(s, debut, n)` (n caractères à partir de la position `debut`,
+   *   comptée À PARTIR DE 1 comme en SQL et en ODSQL ; sans `n`, jusqu'au bout) ;
    *   absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,
    *   `is_empty(x)` (null, '' ou tableau vide) ;
    *   tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;
@@ -265,6 +268,18 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   champ tableau : `where="tags:eq:urgent"` le fait directement.
    * - arithmétique `- * /` et moins unaire : un opérande absent ou non numérique rend
    *   null (jamais un 0 plausible), une division par zéro rend null (jamais Infinity).
+   * - sous-chaînes (AM-103) : `left(siret, 9)` rend le SIREN, `substr(code_insee, 1, 2)`
+   *   le département — sauf outre-mer, dont le code de département tient sur TROIS
+   *   caractères (`971`…`976`) : écrire
+   *   `dep = when left(code_insee, 2) = '97' then left(code_insee, 3) else left(code_insee, 2)`.
+   *   Le résultat est toujours du TEXTE ; une valeur numérique est lue par sa forme
+   *   texte (`left(75056, 2)` rend `'75'`), mais un code stocké en NOMBRE a déjà perdu
+   *   ses zéros de tête en amont (`1004` pour « 01004 ») — à corriger à la source, pas
+   *   par une sous-chaîne. Valeur absente : null. Position ou longueur absente ou non
+   *   numérique : null. Longueur nulle ou négative, début au-delà de la fin : chaîne
+   *   vide. Début inférieur à 1 : erreur de configuration s'il est écrit en dur
+   *   (`substr(s, 0, 2)`), null s'il est calculé. Le n-ième élément d'un TABLEAU n'est
+   *   pas couvert : `left` et `substr` lisent du texte.
    *
    * Exemples : `solde = actif - passif` (null si l'un des deux manque),
    * `tranche = when montant = 0 then 'Nul' when is_empty(montant) then 'Inconnu' else 'Renseigné'`,

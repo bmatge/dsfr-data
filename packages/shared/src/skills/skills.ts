@@ -670,7 +670,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
 | fold | String | \`""\` | non | Replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité) en UN champ tableau : \`"handicap_*:handicaps"\` (entrees separees par virgule, \`motif:cible\`, joker \`*\` en debut ou en fin de motif seulement, ou nom exact ; plusieurs motifs peuvent viser la meme cible). Le tableau contient les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide via \`toBoolean\`), etiquetees par la partie variable du motif (\`handicap_moteur\` → « moteur ») ou le nom complet pour un motif exact. Colonnes sources conservees. |
 | fold-drop | Boolean | \`false\` | non | Avec \`fold\` : retire les colonnes sources repliees du resultat. |
-| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
+| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len left substr concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
@@ -711,6 +711,7 @@ configuration, jamais une colonne vide :
 | Dates | \`year(d)\`, \`month(d)\`, \`day(d)\` | Date ISO (\`2024-03-15\`, \`2024-03-15T10:00:00Z\`, \`2024-03\`) ou objet Date → nombre ; sinon \`null\` (une date \`15/03/2024\` n'est pas reconnue) |
 | Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` |
 | Texte | \`lower(s)\`, \`upper(s)\`, \`trim(s)\`, \`len(s)\`, \`concat(a, b, …)\`, \`replace(s, 'de', 'vers')\` | \`replace\` est litteral (toutes les occurrences, pas de regex) ; \`null\` reste \`null\` sauf \`len\` (0) et \`concat\` (vide) |
+| Sous-chaines | \`left(s, n)\`, \`substr(s, debut, n)\` | Positions comptees A PARTIR DE 1, comme SQL et ODSQL : \`left(siret, 9)\` = SIREN, \`substr(code_insee, 1, 2)\` = departement (outre-mer : trois caracteres, \`971\`…\`976\`). \`n\` facultatif dans \`substr\` (jusqu'au bout). Resultat toujours TEXTE ; un nombre est lu par sa forme texte, mais un code stocke en nombre a deja perdu ses zeros de tete. Valeur, position ou longueur absente → \`null\` ; longueur ≤ 0 ou debut au-dela de la fin → chaine vide ; \`substr(s, 0, 2)\` = erreur de configuration |
 | Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
 | Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
 
@@ -774,6 +775,12 @@ de valeur).
   compute="part_pct = round(part * 100, 1);
            libelle = concat(upper(code), ' - ', trim(nom));
            actif = when statut = 'A' and not is_empty(siret) then true else false">
+</dsfr-data-normalize>
+
+<!-- Sous-chaines : SIREN depuis un SIRET, departement depuis un code commune (outre-mer : 3 caracteres) -->
+<dsfr-data-normalize id="calc" source="raw"
+  compute="siren = left(siret, 9);
+           dep = when left(code_insee, 2) = '97' then left(code_insee, 3) else left(code_insee, 2)">
 </dsfr-data-normalize>
 
 <!-- Recodage d'une liste (split) puis reconstitution -->
@@ -4916,8 +4923,8 @@ Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
 
 \`dsfr-data-normalize compute\` : \`"cible = expression; cible2 = expression2"\`, par ligne,
 en dernier. Arithmetique, concatenation, fonctions en liste blanche (\`year month day
-round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
-contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
+round abs floor ceil lower upper trim len left substr concat replace coalesce is_null
+is_empty join contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
 comparaisons \`= != < <= > >=\`, \`and or not\`). Meme egalite lache que \`where\` : la
 condition \`when dept = 75\` garde les memes lignes que \`where="dept:eq:75"\`.
 

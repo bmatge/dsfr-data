@@ -21,6 +21,8 @@ import {
   quantileBreaks,
   ratioColumn,
   roundTo,
+  sousChaine,
+  substringColumn,
   runPipeline,
   runningSum,
   toNum,
@@ -285,6 +287,27 @@ describe('oracle — recalcul indépendant', () => {
     expect(ratioColumn([{ a: 3, b: 0 }], 'a', 'b', 'r')[0].r).toBeNull();
     expect(ratioColumn([{ a: 3, b: 'NC' }], 'a', 'b', 'r')[0].r).toBeNull();
     expect(ratioColumn([{ a: 3, b: 4 }], 'a', 'b', 'r')[0].r).toBe(0.75);
+  });
+
+  it('sous-chaîne : positions à partir de 1, texte en sortie, absence tenue (AM-103)', () => {
+    expect(sousChaine('13002526500013', 1, 9)).toBe('130025265');
+    expect(sousChaine('abcdef', 3, 2)).toBe('cd');
+    expect(sousChaine('abcdef', 3)).toBe('cdef');
+    expect(sousChaine(75056, 1, 2)).toBe('75');
+    expect(sousChaine('abc', 2, 20)).toBe('bc');
+    expect(sousChaine('abc', 9, 2)).toBe('');
+    expect(sousChaine('abc', 1, 0)).toBe('');
+    expect(sousChaine('abc', 1, -2)).toBe('');
+    expect(sousChaine('', 1, 2)).toBe('');
+    expect(sousChaine(null, 1, 2)).toBeNull();
+    expect(sousChaine(undefined, 1, 2)).toBeNull();
+    expect(sousChaine('abc', 0, 2)).toBeNull();
+    expect(sousChaine('abc', 'x', 2)).toBeNull();
+    expect(sousChaine('abc', 1, null)).toBeNull();
+    expect(substringColumn([{ c: '01004' }, { c: null }], 'c', 'dep', 1, 2)).toEqual([
+      { c: '01004', dep: '01' },
+      { c: null, dep: null },
+    ]);
   });
 
   it('page : la tranche affichée, pas les premières lignes', () => {

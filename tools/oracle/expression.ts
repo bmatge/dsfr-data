@@ -14,7 +14,8 @@
  * ne rend jamais un `null` plausible) :
  *   - arithmétique `+ - * /`, parenthèses, moins unaire ;
  *   - littéraux : nombres, texte entre quotes simples, `null`, `true`, `false` ;
- *   - fonctions en liste blanche (dates, nombres, texte, absence, tableaux) ;
+ *   - fonctions en liste blanche (dates, nombres, texte, sous-chaînes à
+ *     positions comptées à partir de 1, absence, tableaux) ;
  *   - `when COND then EXPR … else EXPR` ;
  *   - comparaisons `= != < <= > >=`, `and`, `or`, `not`.
  *
@@ -30,7 +31,7 @@
  *     `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai.
  */
 import type { Row } from './manifest.js';
-import { absent, egal, toNum } from './compute.js';
+import { absent, egal, sousChaine, toNum } from './compute.js';
 
 // ---------------------------------------------------------------------------
 // Lexique
@@ -397,6 +398,14 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
       return texteDe(args[0]).trim();
     case 'len':
       return Array.isArray(args[0]) ? args[0].length : texteDe(args[0]).length;
+    case 'left':
+      // Les n premiers caractères : une sous-chaîne qui part de la position 1.
+      return sousChaine(args[0], 1, args[1] ?? null);
+    case 'substr':
+      // Positions comptées à partir de 1 (AM-103) ; sans longueur, jusqu'au bout.
+      return args.length > 2
+        ? sousChaine(args[0], args[1], args[2] ?? null)
+        : sousChaine(args[0], args[1]);
     case 'concat':
       return args.map(texteDe).join('');
     case 'replace':

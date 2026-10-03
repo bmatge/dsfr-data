@@ -221,6 +221,21 @@ export type Step =
     }
   /** Colonnes calculées : la MÊME expression que l'attribut `compute`, réévaluée à part. */
   | { op: 'derive'; expr: string }
+  | {
+      /**
+       * SOUS-CHAÎNE (AM-103) : la colonne `as` reçoit `length` caractères de
+       * `from` à partir de la position `start`, comptée À PARTIR DE 1 (sans
+       * `length` : jusqu'au bout). C'est ce que `left(s, n)` et
+       * `substr(s, debut, n)` de `compute` doivent montrer, énoncé SANS la
+       * grammaire d'expressions — donc recalculable par la troisième voix,
+       * qui ne lit pas `derive`.
+       */
+      op: 'substring';
+      from: string;
+      as: string;
+      start: number;
+      length?: number;
+    }
   /**
    * Éclate un champ MULTIVALUÉ (tableau) : une ligne par valeur, le champ
    * portant cette valeur ; une ligne sans tableau (absent, vide) n'en produit
@@ -428,8 +443,15 @@ export interface ExpectChart extends ExpectBase {
 export interface ExpectList extends ExpectBase {
   kind: 'list';
   pipeline: Step[];
-  /** Colonnes du tableau, dans l'ordre d'affichage. */
-  columns: Array<{ column: string; numeric?: boolean }>;
+  /**
+   * Colonnes du tableau, dans l'ordre d'affichage. `absent` est ce que le
+   * tableau MONTRE pour une valeur absente (`null`) de cette colonne — le
+   * tiret cadratin de `dsfr-data-list` — là où une chaîne VIDE reste une
+   * cellule vide : le poser fait de la distinction `null` / `''` une chose
+   * contrôlée (une sous-chaîne d'une valeur absente reste absente, AM-103).
+   * Sans lui, une absence est comparée à une cellule vide, comme avant.
+   */
+  columns: Array<{ column: string; numeric?: boolean; absent?: string }>;
   /**
    * Décimales AFFICHÉES par les cellules numériques (`decimals` du composant,
    * ou son défaut : deux au plus). La comparaison se fait à cette précision —

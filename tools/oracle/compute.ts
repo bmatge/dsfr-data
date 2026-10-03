@@ -386,6 +386,45 @@ export function shareColumn(rows: Row[], from: string, as: string, scale = 1): R
 }
 
 /**
+ * Sous-chaîne d'une valeur (AM-103), sur le contrat ÉCRIT de `left` et de
+ * `substr` : la valeur est lue par sa forme TEXTE, les positions se comptent
+ * À PARTIR DE 1, et le résultat est du texte. Valeur absente (`null`,
+ * `undefined`) : `null`. Début ou longueur non numérique : `null`. Début
+ * inférieur à 1 : `null`. Longueur nulle ou négative, début au-delà de la
+ * fin : chaîne vide. Sans longueur : jusqu'au bout.
+ *
+ * Écrite caractère par caractère, sans rien emprunter à la bibliothèque.
+ */
+export function sousChaine(v: unknown, debut: unknown, longueur?: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const d = toNum(debut);
+  if (d === null) return null;
+  const premier = Math.trunc(d);
+  if (premier < 1) return null;
+  const texte = String(v);
+  let dernier = texte.length;
+  if (longueur !== undefined) {
+    const n = toNum(longueur);
+    if (n === null) return null;
+    dernier = Math.min(texte.length, premier - 1 + Math.trunc(n));
+  }
+  let out = '';
+  for (let rang = premier; rang <= dernier; rang++) out += texte.charAt(rang - 1);
+  return out;
+}
+
+/** La colonne `as` reçoit la sous-chaîne de `from` (voir `sousChaine`). */
+export function substringColumn(
+  rows: Row[],
+  from: string,
+  as: string,
+  start: number,
+  length?: number
+): Row[] {
+  return rows.map((r) => ({ ...r, [as]: sousChaine(r[from], start, length) }));
+}
+
+/**
  * Quotient de deux colonnes, ligne à ligne — la FRACTION qu'un ratio de KPI
  * affiche (#673). Dénominateur nul, absent ou non numérique : `null`, jamais
  * l'infini ni un zéro de complaisance.
@@ -860,6 +899,9 @@ export function runPipeline(
         break;
       case 'ratio':
         rows = ratioColumn(rows, step.numerator, step.denominator, step.as);
+        break;
+      case 'substring':
+        rows = substringColumn(rows, step.from, step.as, step.start, step.length);
         break;
       case 'join': {
         const droite = datasets[step.right];
