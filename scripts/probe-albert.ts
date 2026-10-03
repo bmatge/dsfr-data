@@ -7,8 +7,8 @@
  * Un parametre present dans l'OpenAPI d'Albert (tools, response_format
  * json_schema...) ne garantit pas qu'il fonctionne de bout en bout sur leur
  * deploiement vLLM. Ce script verifie, avec un vrai token, ce qui marche
- * REELLEMENT, pour decider quelles capacites activer dans builder-ia
- * (cf. apps/builder-ia/src/ia/albert-capabilities.ts).
+ * REELLEMENT, pour decider quelles capacites activer dans le Studio IA
+ * (cf. packages/shared/src/ia/albert-capabilities.ts).
  *
  * READ-ONLY : n'ecrit aucun fichier, imprime sur stdout.
  *

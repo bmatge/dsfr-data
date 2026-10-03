@@ -202,7 +202,7 @@ export function formatDate(value: string | Date): string {
 }
 
 /**
- * Format KPI des previews d'apps (builder, builder-ia, favorites).
+ * Format KPI des previews d'apps (builder, favorites).
  *
  * @deprecated Wrapper de compatibilite (#317) : delegue a formatValue —
  * la preview rend desormais EXACTEMENT ce que rend le composant (euro

@@ -7,7 +7,7 @@
  *
  * Deux consommateurs :
  *  - `scripts/build-skills-reference.ts` -> section « reference » generee des
- *    skills builder-IA / MCP (issue #512) ;
+ *    skills Studio IA / MCP (issue #512) ;
  *  - les integrateurs de la lib npm (autocompletion editeur via le manifeste).
  *
  * Regenerer avec `npm run build:cem` (le fichier produit est commite).

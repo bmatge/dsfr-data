@@ -1,5 +1,5 @@
 /**
- * Generate dist/skills.json from the builder-IA skills definitions.
+ * Generate dist/skills.json from the hand-written skills guide (packages/shared/src/skills).
  * This file is served statically in production and consumed by the MCP server.
  *
  * Genere aussi `dist/skills-meta.json`, le TAMPON DE FRAICHEUR (#733).
@@ -40,8 +40,8 @@ mkdirSync(outDir, { recursive: true });
 
 // Skills ecrites a la main dans skills/<nom>/ (ADR-136) : la skill metier
 // `dataviz-metier` n'a pas de source dans le code, son markdown EST la source.
-// Elle est AJOUTEE apres les skills du builder-IA, jamais melangee : le
-// builder-IA (`getRelevantSkills` sur SKILLS) ne la voit pas, le serveur MCP
+// Elle est AJOUTEE apres les skills du guide, jamais melangee :
+// `getRelevantSkills` (sur SKILLS) ne la voit pas, le serveur MCP
 // et le client skills du studio (qui lisent skills.json) la voient.
 const markdownSkills = readMarkdownSkills(resolve(root, 'skills'));
 

@@ -1,6 +1,6 @@
 /**
  * Transport IA commun (#998, ADR-143) — seule implementation des appels au
- * modele pour le Studio et le builder-IA :
+ * modele pour le Studio et les assistants contextuels :
  *
  *   - mode serveur : POST /ia-proxy-default (jeton injecte cote serveur,
  *     jamais expose au navigateur), configuration via GET /ia-server-config ;
@@ -130,7 +130,7 @@ export async function postProxy<T = Record<string, unknown>>(
 
 /**
  * Fournisseurs a API native (non OpenAI-compatible), servis en mode
- * utilisateur seulement : le builder-IA les propose, le jeton serveur est
+ * utilisateur seulement : le Studio les propose, le jeton serveur est
  * toujours Albert.
  */
 export type FournisseurNatif = 'gemini' | 'anthropic';
@@ -241,7 +241,7 @@ export interface ResolvedTransport {
 export interface ResolveTransportOptions {
   /**
    * Config utilisateur a utiliser plutot que celle de localStorage (le
-   * builder-IA passe celle du formulaire, qui peut ne pas etre sauvegardee).
+   * Studio passe celle du formulaire, qui peut ne pas etre sauvegardee).
    */
   user?: UserIAConfig;
   /** Delai maximal par requete, en ms (fetchWithTimeout) ; aucun si absent. */

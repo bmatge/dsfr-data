@@ -48,7 +48,7 @@ export interface MarkdownSkill {
 /** Dossier de la skill générée, exclu de la découverte. */
 export const GENERATED_SKILL_DIR = 'dsfr-data';
 
-/** `dataviz-metier` → `datavizMetier`, même convention d'id que les skills du builder-IA. */
+/** `dataviz-metier` → `datavizMetier`, même convention d'id que les skills du guide. */
 export function skillIdFromDir(dir: string): string {
   return dir.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
 }
