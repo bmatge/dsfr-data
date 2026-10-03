@@ -4,7 +4,9 @@
  *
  * Grammar v2 (#671, ADR-105) — strict extension of the original arithmetic:
  *   - arithmetic on numeric fields + constants: + - * /
- *   - text concatenation with `+` and single-quoted string literals
+ *   - text concatenation with `+` and single-quoted string literals; a
+ *     single quote INSIDE a literal is written doubled, as in SQL and ODSQL
+ *     (`'J''en ai'` is the text « J'en ai », AM-090). No backslash escape.
  *   - parentheses for precedence
  *   - whitelisted functions, `f(a, b)` call syntax (see FUNCTIONS)
  *   - conditions: `when <cond> then <expr> [when … then …]… else <expr>`
@@ -395,11 +397,21 @@ function tokenize(input: string): Token[] {
       continue;
     }
 
-    // String literal (single quotes)
+    // String literal (single quotes). A quote inside the literal is written
+    // doubled (`'J''en ai'`, AM-090), as in SQL and ODSQL. Two adjacent
+    // literals were never a valid expression (no implicit concatenation), so
+    // no accepted expression changes meaning; `''` alone is still the empty
+    // string — the doubled quote is only read INSIDE an open literal.
     if (ch === "'") {
       let j = i + 1;
       let str = '';
-      while (j < input.length && input[j] !== "'") {
+      while (j < input.length) {
+        if (input[j] === "'") {
+          if (input[j + 1] !== "'") break;
+          str += "'";
+          j += 2;
+          continue;
+        }
         str += input[j];
         j++;
       }

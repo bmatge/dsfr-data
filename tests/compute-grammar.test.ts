@@ -86,6 +86,52 @@ describe('compute v2 — littéraux', () => {
     expect(out.b).toBe(2);
   });
 
+  it("une quote dans un littéral s'écrit doublée, comme en SQL et en ODSQL (AM-090)", () => {
+    expect(run("'J''en ai'")).toBe("J'en ai");
+    expect(run("when libelle = 'J''en ai' then 1 else 0", { libelle: "J'en ai" })).toBe(1);
+    expect(run("when libelle = 'J''en ai' then 1 else 0", { libelle: "Je n'en ai pas" })).toBe(0);
+    // Le libellé qui porte DEUX apostrophes n'est pas celui qui en porte une.
+    expect(run("when libelle = 'J''en ai' then 1 else 0", { libelle: "J''en ai" })).toBe(0);
+    expect(run("'Provence-Alpes-Côte d''Azur'")).toBe("Provence-Alpes-Côte d'Azur");
+    // En tête, en queue, seule, répétée.
+    expect(run("'''tête'")).toBe("'tête");
+    expect(run("'queue'''")).toBe("queue'");
+    expect(run("''''")).toBe("'");
+    expect(run("''''''")).toBe("''");
+    expect(run("len('l''été')")).toBe(5);
+    expect(run("replace(s, '''', ' ')", { s: "l'été d'avant" })).toBe('l été d avant');
+    expect(run("contains(s, 'd''art')", { s: "Métiers d'art et du patrimoine" })).toBe(true);
+  });
+
+  it('les littéraux sans quote, et le littéral vide, gardent leur comportement', () => {
+    expect(run("''")).toBe('');
+    expect(run("'' + ''")).toBe('');
+    expect(run("concat('', 'a', '')")).toBe('a');
+    expect(run("concat('a','b')")).toBe('ab');
+    expect(run("when s = '' then 'vide' else 'plein'", { s: '' })).toBe('vide');
+    expect(run("coalesce(s, '')", { s: null })).toBe('');
+    expect(run("replace(s, 'a', '')", { s: 'banana' })).toBe('bnn');
+    expect(run("'a' + 'b'")).toBe('ab');
+  });
+
+  it('aucune expression valide ne change de sens : deux littéraux accolés étaient déjà une erreur', () => {
+    // Avant AM-090, `'a''b'` se lisait comme deux littéraux à la suite, que le
+    // parseur refusait (pas de concaténation implicite). C'est désormais UN
+    // littéral ; la forme séparée par un blanc reste refusée.
+    expect(run("'a''b'")).toBe("a'b");
+    expect(compileError("out = 'a' 'b'")).toContain('expression mal formée');
+    expect(compileError("out = '''")).toContain('chaîne non terminée');
+    expect(compileError("out = 'J''en ai")).toContain('chaîne non terminée');
+    // Pas d'échappement par barre oblique : `\'` ferme le littéral.
+    expect(() => compileCompute("out = 'J\\'en ai'")).toThrow();
+  });
+
+  it("un ';' ou une quote doublée dans un littéral ne coupent pas l'assignation", () => {
+    const out = applyCompute({ x: 1 }, compileCompute("a = 'l''un; l''autre'; b = x + 1"));
+    expect(out.a).toBe("l'un; l'autre");
+    expect(out.b).toBe(2);
+  });
+
   it('un champ homonyme d’une fonction reste lisible sans parenthèses', () => {
     // `day` seul est un champ ; `day(x)` est un appel.
     expect(run('day', { day: 7 })).toBe(7);

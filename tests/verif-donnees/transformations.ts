@@ -1185,6 +1185,46 @@ const COMPUTE: Check[] = [
   },
 
   {
+    id: 'compute-apostrophe-doublee-dans-un-litteral',
+    mode: 'deterministic',
+    origin:
+      "AM-090 (#1231) — une apostrophe dans un littéral s’écrit doublée : `when libelle = 'J''en ai' then 1 else 0` compare au libellé « J'en ai ». Le contournement du banc (`contains(libelle, 'en ai')`) compte aussi « Je n'en ai pas » : 4 lignes au lieu de 2. Le littéral vide `''` garde son sens, et le libellé qui porte DEUX apostrophes n’est pas pris pour celui qui en porte une. Le compte est recalculé par un filtre d’égalité, sans la grammaire — donc par la troisième voix aussi.",
+    constats: ['AM-090'],
+    feed: { kind: 'fixture', datasets: JEU_CODE },
+    markup: `${CODE}
+  <dsfr-data-normalize id="n-apo" source="s-code"
+    compute="a_en = when libelle = 'J''en ai' then 1 else 0; sans_libelle = when coalesce(libelle, 'x') = '' then 1 else 0; neutre = replace(coalesce(libelle, ''), '''', '_')"></dsfr-data-normalize>
+  <dsfr-data-query id="q-apo" source="n-apo" where="a_en:eq:1"></dsfr-data-query>
+${kpi('k-apo', 'q-apo')}
+  <dsfr-data-list id="l-apo" source="n-apo"
+    columns="cle:Clé, neutre:Libellé sans apostrophe, a_en:En a, sans_libelle:Sans libellé"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-apo',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'libelle', op: 'eq', value: "J'en ai" }] }],
+      },
+      {
+        kind: 'list',
+        id: 'l-apo',
+        columns: [
+          { column: 'cle' },
+          { column: 'neutre' },
+          { column: 'a_en', numeric: true },
+          { column: 'sans_libelle', numeric: true },
+        ],
+        pipeline: [
+          {
+            op: 'derive',
+            expr: "a_en = when libelle = 'J''en ai' then 1 else 0; sans_libelle = when coalesce(libelle, 'x') = '' then 1 else 0; neutre = replace(coalesce(libelle, ''), '''', '_')",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'compute-absence-coalesce-is-null-is-empty',
     mode: 'deterministic',
     origin:

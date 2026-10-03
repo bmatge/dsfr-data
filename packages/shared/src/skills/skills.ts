@@ -715,6 +715,12 @@ configuration, jamais une colonne vide :
 | Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
 | Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
 
+**Apostrophe dans un litteral** : elle s'ecrit DOUBLEE, comme en SQL et en ODSQL —
+\`when libelle = 'J''en ai' then 1 else 0\`, \`region = 'Provence-Alpes-Côte d''Azur'\`. Pas
+d'echappement par barre oblique (\`\\'\` ferme le litteral : erreur de configuration). Seule
+l'apostrophe droite delimite ; une apostrophe typographique (’) des donnees s'ecrit telle quelle.
+Ne PAS contourner par \`contains(champ, 'en ai')\`, qui matche aussi « Je n'en ai pas ».
+
 **Conditions** : \`when COND then EXPR [when COND then EXPR]… else EXPR\`. La premiere
 condition vraie gagne ; le \`else\` est **obligatoire**. Une condition combine des
 comparaisons \`= != < <= > >=\` avec \`and\`, \`or\`, \`not\` (priorite : \`not\` > \`and\` > \`or\` ;

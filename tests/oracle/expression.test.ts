@@ -90,6 +90,19 @@ describe('oracle / expressions', () => {
     expect(r.z).toBeNull();
   });
 
+  it('lit une apostrophe doublée dans un littéral, et garde le littéral vide (AM-090)', () => {
+    const r = deriver(
+      [{ l: "J'en ai", m: "J''en ai", v: '' }],
+      "un = when l = 'J''en ai' then 1 else 0; deux = when m = 'J''en ai' then 1 else 0; vide = when v = '' then 1 else 0; seule = ''''; bord = concat('''a', 'b''')"
+    )[0];
+    expect(r.un).toBe(1);
+    expect(r.deux).toBe(0);
+    expect(r.vide).toBe(1);
+    expect(r.seule).toBe("'");
+    expect(r.bord).toBe("'ab'");
+    expect(() => deriver([{}], "x = 'J''en ai")).toThrow('texte non terminé');
+  });
+
   it('distingue l’absence (is_null) du vide (is_empty)', () => {
     const r = deriver(
       [{ a: null, v: '', l: [] }],

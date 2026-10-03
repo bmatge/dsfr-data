@@ -13,7 +13,8 @@
  * Ce qui est couvert, et rien de plus (une construction non gérée lève, elle
  * ne rend jamais un `null` plausible) :
  *   - arithmétique `+ - * /`, parenthèses, moins unaire ;
- *   - littéraux : nombres, texte entre quotes simples, `null`, `true`, `false` ;
+ *   - littéraux : nombres, texte entre quotes simples (une apostrophe du
+ *     texte s'y écrit doublée), `null`, `true`, `false` ;
  *   - fonctions en liste blanche (dates, nombres, texte, sous-chaînes à
  *     positions comptées à partir de 1, absence, tableaux) ;
  *   - `when COND then EXPR … else EXPR` ;
@@ -49,6 +50,17 @@ interface Jeton {
 
 const SYMBOLES = ['!=', '<=', '>=', '=', '<', '>', '+', '-', '*', '/', '(', ')', ',', ';'];
 
+/**
+ * Position de la quote qui FERME un littéral ouvert juste avant `depuis`, ou
+ * -1 s'il ne se ferme pas. Une paire de quotes est sautée d'un bloc : c'est
+ * une apostrophe du texte, pas une fermeture.
+ */
+function quoteFermante(source: string, depuis: number): number {
+  let j = source.indexOf("'", depuis);
+  while (j !== -1 && source[j + 1] === "'") j = source.indexOf("'", j + 2);
+  return j;
+}
+
 /** Découpe une source en jetons. Un caractère inattendu est une erreur, pas un silence. */
 export function decouper(source: string): Jeton[] {
   const jetons: Jeton[] = [];
@@ -60,15 +72,17 @@ export function decouper(source: string): Jeton[] {
       continue;
     }
     if (c === "'") {
-      let j = i + 1;
-      let texte = '';
-      while (j < source.length && source[j] !== "'") {
-        texte += source[j];
-        j++;
-      }
-      if (j >= source.length) throw new Error(`texte non terminé à la position ${i}`);
+      // Un littéral va jusqu'à la quote FERMANTE : la première quote qui n'est
+      // pas suivie d'une autre. Deux quotes à la suite, dans un littéral
+      // ouvert, sont UNE apostrophe du texte (AM-090, comme SQL et ODSQL).
+      const fermante = quoteFermante(source, i + 1);
+      if (fermante === -1) throw new Error(`texte non terminé à la position ${i}`);
+      const texte = source
+        .slice(i + 1, fermante)
+        .split("''")
+        .join("'");
       jetons.push({ genre: 'texte', texte, valeur: texte, position: i });
-      i = j + 1;
+      i = fermante + 1;
       continue;
     }
     if (/[0-9]/.test(c)) {

@@ -235,6 +235,11 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * Grammaire (ADR-105, #671) :
    * - arithmétique `+ - * /`, parenthèses, moins unaire ; `+` concatène dès qu'un côté
    *   n'est pas numérique ; littéraux texte 'entre quotes simples', nombres à point ;
+   *   une apostrophe DANS un littéral s'écrit doublée, comme en SQL et en ODSQL
+   *   (AM-090) : `when libelle = 'J''en ai' then 1 else 0` compare au libellé
+   *   « J'en ai », `'Provence-Alpes-Côte d''Azur'` est un seul littéral. Pas
+   *   d'échappement par barre oblique. Seule l'apostrophe droite (ASCII) délimite :
+   *   une apostrophe typographique (’) dans les données s'écrit telle quelle ;
    * - littéraux `null`, `true`, `false` ;
    * - fonctions en liste blanche, appel `f(a, b)` :
    *   dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;
