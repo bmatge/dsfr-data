@@ -26,6 +26,7 @@ export { DsfrDataDisplay } from './components/dsfr-data-display.js';
 export { DsfrDataRepeat, REPEAT_TAG } from './components/dsfr-data-repeat.js';
 export { DsfrDataChart } from './components/dsfr-data-chart.js';
 export { DsfrDataPodium } from './components/dsfr-data-podium.js';
+export { DsfrDataSourceStatus } from './components/dsfr-data-source-status.js';
 export { DsfrDataA11y } from './components/dsfr-data-a11y.js';
 export { DsfrDataBeacon } from './components/dsfr-data-beacon.js';
 
