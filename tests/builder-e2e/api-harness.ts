@@ -3,7 +3,7 @@
  *
  * Il monte la page reellement exportee — celle que produit
  * `packages/shared/src/dashboard/export-html.ts`, partagee par le Studio et
- * l'Assistant IA — et lui sert un reseau ENTIEREMENT FIGE :
+ * l'ancien Assistant IA (retire en #1081) — et lui sert un reseau ENTIEREMENT FIGE :
  *
  *   - la page elle-meme, sur un hote `.invalid` (TLD reserve, RFC 2606) ;
  *   - les actifs CDN, depuis `node_modules` et `packages/core/dist` ;

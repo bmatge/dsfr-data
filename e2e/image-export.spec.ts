@@ -3,7 +3,7 @@
  * (evenement download Playwright) sur les deux mecaniques :
  *   - playground : canvas dans une iframe same-origin ;
  *   - favoris : iframe d'apercu d'un favori seede en localStorage.
- * Le chemin builder / builder-IA passe par le meme module partage
+ * Le chemin du builder passe par le meme module partage
  * (exportPreviewImage) — couvert unitairement.
  */
 import { test, expect } from '@playwright/test';

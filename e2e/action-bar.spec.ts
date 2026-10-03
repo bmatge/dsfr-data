@@ -88,15 +88,6 @@ const editors: EditorSpec[] = [
     help: 'btn-toggle-help',
   },
   {
-    name: 'Assistant IA',
-    path: '/apps/builder-ia/index.html',
-    primary: 'clear-chat',
-    primaryLabel: 'Effacer la conversation',
-    secondary: 'copy-code-btn',
-    more: ['save-favorite-btn', 'open-playground-btn', 'export-png-btn', 'export-jpg-btn'],
-    help: 'tour-btn',
-  },
-  {
     name: 'Studio IA',
     path: '/apps/studio/index.html',
     primary: 'save-dashboard-btn',

@@ -1,5 +1,5 @@
 /**
- * Recette des 16 types dans le Studio IA — pendant de `builder-ia-recette`.
+ * Recette des 16 types dans le Studio IA — pendant de l'ancienne recette de l'Assistant IA (retiree, #1081).
  *
  * Le Studio remplace l'Assistant IA comme entree usager (#1081) : chaque type
  * que l'Assistant savait rendre doit rendre aussi comme bloc `chart` d'un

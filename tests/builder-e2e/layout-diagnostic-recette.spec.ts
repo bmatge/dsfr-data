@@ -11,7 +11,7 @@
  *     il est monte, Carto comprise.
  *
  * Deux formes du volet depuis que l'assistant contextuel l'accueille : un
- * TIROIR en bas d'ecran (Studio, ancien Assistant IA, sans assistant
+ * TIROIR en bas d'ecran (Studio, sans assistant
  * contextuel) ou un ONGLET du panneau de l'assistant (`integre`), sans rail ni
  * reserve en bas. Le bouton « Diagnostic » de la barre ouvre l'un ou l'autre.
  *
@@ -42,8 +42,6 @@ interface AppSousTest {
 
 const APPS: AppSousTest[] = [
   { nom: 'Builder', url: '/apps/builder/', mode: 'fullscreen', integre: true },
-  // `?ancien=1` : sans lui, l'ancien Assistant redirige vers le Studio IA (#1081).
-  { nom: 'Assistant IA (ancien)', url: '/apps/builder-ia/?ancien=1', mode: 'fullscreen' },
   { nom: 'Playground', url: '/apps/playground/', mode: 'sticky-left', integre: true },
   { nom: 'Studio', url: '/apps/studio/', mode: 'page-scroll' },
   // La Carto assume un layout maison (canevas plein ecran + panneaux

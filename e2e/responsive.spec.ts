@@ -23,7 +23,6 @@ const PAGES: PageSpec[] = [
   { name: 'Pipeline', path: '/apps/pipeline-helper/index.html', primary: 'btn-execute' },
   { name: 'Playground', path: '/apps/playground/index.html', primary: 'run-btn' },
   { name: 'Dashboard', path: '/apps/dashboard/index.html', primary: 'btn-save' },
-  { name: 'Assistant IA', path: '/apps/builder-ia/index.html' },
   { name: 'Studio IA', path: '/apps/studio/index.html', primary: 'save-dashboard-btn' },
   { name: 'Sources', path: '/apps/sources/index.html' },
   { name: 'Favoris', path: '/apps/favorites/index.html' },

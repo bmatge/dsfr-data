@@ -1,7 +1,7 @@
 /**
- * Parite du Studio IA avec `builder-ia-recette` : le parcours COMPLET (#1081).
+ * Parite du Studio IA avec la recette de l'ancien Assistant IA (retiree, #1081) : le parcours COMPLET (#1081).
  *
- * `builder-ia-recette` passe par `applyChartConfig`, « exactement comme le
+ * L'ancienne recette passait par `applyChartConfig`, « exactement comme le
  * fait l'assistant apres une reponse » : c'est le chemin d'une reponse du
  * modele jusqu'a l'apercu. `studio-recette` rend les 16 types dans le Studio,
  * mais en posant le document dans l'etat de l'app : il saute le chemin que
