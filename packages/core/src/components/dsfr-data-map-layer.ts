@@ -801,6 +801,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     this._groups = null;
     this._colorFallbackUsed = false;
     this._legendEntries = [];
+    // Plus rien de tracé : un encart redimensionné n'a rien à retracer
+    this._drawnFrame = null;
     this._removeBanner();
     if (!this._leafletMap || !this._layerGroup) return;
     this._layerGroup.clearLayers();
