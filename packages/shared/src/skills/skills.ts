@@ -71,12 +71,12 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | base-url | String | \`""\` | non | URL de base de l'API (mode adapter). Ex: \`"https://data.iledefrance.fr"\` |
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
-| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). Tabular : une liste \`in\`/\`notin\` dont une valeur porte une parenthese ou une virgule n'est pas deleguee (l'API l'ecarterait sans erreur) — elle est calculee sur les lignes chargees (#1233). |
+| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). Tabular : une liste \`in\`/\`notin\` dont une valeur porte une parenthese ou une virgule est deleguee, la valeur entre guillemets (#1233) ; si l'API refuse cette forme, la clause est calculee sur les lignes chargees. |
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
 | order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\`. Tabular : au-dela d'une page, le jeu est relu sans tri et trie sur place, ou le tri est complete d'une cle de departage si \`limit\`/\`max-records\` coupe le chargement (#1202, #1233). |
-| server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
+| server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). La source ne livre qu'UNE page : une dsfr-data-query en aval qui regroupe ou agrege cote client passe en erreur de configuration (#1242). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter, honore par ODS (#233) et Tabular (#1027). 0 = plafond par defaut de l'adapter (ODS : 1000, Tabular : 25000). A relever pour charger un jeu plus long (ex. les ~35 000 communes sur Tabular : \`max-records="40000"\`) ou pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
 | fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft et Tabular ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. Tabular (#1055) : lit l'export Parquet de data.gouv (lecteur ~22 Ko gzip charge a la demande), lignes brutes seulement — un where/group-by/aggregate/order-by delegue garde la pagination ; \`max-records\` borne les lignes lues. |
@@ -151,10 +151,17 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > corrige seule, lignes brutes comme \`group-by\` : jeu complet → relu sans tri et trie sur place (une requete de plus,
 > ordre du pipeline : vides, nombres, textes) ; \`limit\` ou \`max-records\` atteint → tri serveur complete d'une cle de
 > departage. Une seule page : tri serveur inchange. Rien de tel en \`server-side\` : y trier sur une cle unique.
-> Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause n'est pas envoyee
-> (l'API ecarterait la valeur sans erreur), la source charge les lignes des autres clauses et filtre sur place — le jeu
-> entier au lieu des seules lignes gardees ; un \`group-by\` sur la meme source est alors rendu a une dsfr-data-query.
-> En \`server-side\` la clause part quand meme et le resultat est incomplet (le volet Diagnostic le signale).
+> Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause part au serveur,
+> la valeur ENTRE GUILLEMETS (nue, l'API l'ecarterait sans erreur) — une requete filtree, sur la source comme sur une
+> dsfr-data-query, en chargement complet comme en \`server-side\`. Si l'API refuse cette forme : en chargement complet
+> la source charge les lignes des autres clauses et filtre sur place (resultat juste, jeu entier charge, un \`group-by\`
+> a cote est rendu a une dsfr-data-query) ; en \`server-side\` la liste repart nue et le resultat est incomplet. Dans
+> les deux cas le volet Diagnostic le signale.
+> \`server-side\` et regroupement (#1242) : la source ne livre qu'UNE page. Une dsfr-data-query en aval qui regroupe ou
+> agrege cote client (part, cumul, \`explode\`, agregat sans \`group-by\`, source partagee, transformateur amont) passe
+> en ERREUR DE CONFIGURATION au lieu d'emettre un chiffre partiel. Correction : retirer \`server-side\` (jeu entier,
+> dans la limite de \`max-records\`), ou donner a la query sa propre source sans \`server-side\` qui porte le
+> \`group-by\`/\`aggregate\` delegable — la part se calcule alors en aval, sur les groupes.
 > Le mode adapter ecoute aussi les commandes \`dsfr-data-source-command\` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 
@@ -416,7 +423,9 @@ lignes portant la valeur » : compter les identifiants distincts (\`aggregate="i
 Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
 champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
 et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ
-multivalué. Sur un gros jeu, surveiller \`max-records\` (chiffre partiel silencieux).
+multivalué. Sur un gros jeu, surveiller \`max-records\` (chiffre partiel silencieux). Sur une source
+en \`server-side\`, qui ne livre qu'une page, la requête passe en erreur de configuration (#1242) :
+retirer \`server-side\` de la source.
 
 \`\`\`html
 <dsfr-data-query id="par-besoin" source="orgs"
@@ -2401,6 +2410,14 @@ HTML parfaitement bien forme. Pour un gros jeu partage, la reponse est \`fetch-m
 requete au lieu de trente, et le jeu entier. Les deux ne se combinent jamais — \`server-side\` ignore
 \`fetch-mode\` et le signale en console.
 
+Seule une \`dsfr-data-query\` se refuse d'elle-meme (#1242) : quand son regroupement ou son agregat
+reste cote client (part, cumul, \`explode\`, agregat sans \`group-by\`, source partagee…) derriere
+une source en \`server-side\`, elle passe en erreur de configuration (\`data-dsfr-config-error\`)
+au lieu d'emettre le chiffre d'une page. Un KPI ou un graphique branche DIRECTEMENT sur la source
+paginee, lui, calcule toujours sur la page recue. Pour un total a cote d'un tableau pagine :
+\`value="meta:total"\` pour un compte, ou une source dediee sans \`server-side\` qui porte
+l'agregat (\`group-by\` + \`aggregate\`, ou un \`select\` agrege).
+
 En pagination serveur, ne pas mettre \`search\` ni \`filters\` sur la liste : ils n'opereraient que sur
 la page chargee (compteurs faux), et le composant les desactive avec un avertissement. Utiliser
 \`dsfr-data-search server-search\` ou \`dsfr-data-facets server-facets\` en amont.
@@ -3756,6 +3773,21 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   donne sa \`libVersion\`.
 Méthode d'évaluation (les quatre verdicts, le chronométrage, le rendu différé) :
 \`docs/EVALUER-UNE-REPRODUCTION.md\`.
+
+### 0 bis. « … est en pagination serveur (server-side) et ne livre qu'une page »
+Erreur de configuration d'une \`dsfr-data-query\` (#1242) : elle regroupe ou agrège côté client
+(part, cumul, \`explode\`, agrégat sans \`group-by\`, source partagée, transformateur amont qui
+change les colonnes) alors que sa source est en \`server-side\` et ne lui livre qu'une page. Avant,
+elle affichait le chiffre de cette page, sans rien dire. Deux corrections, au choix :
+- **retirer \`server-side\`** de la source : le jeu est chargé en entier, dans la limite de
+  \`max-records\` (à relever si le jeu est plus long) ;
+- si le jeu dépasse ce plafond, ou si un tableau paginé lit la même source : **donner à la requête
+  sa propre source**, sans \`server-side\`, qui porte le regroupement délégable
+  (\`group-by="region" aggregate="population:sum"\`), et garder sur la requête la part ou le cumul
+  (\`aggregate="population__sum:share_percent"\`) — il se calcule alors sur les groupes.
+En mode URL (\`paginate\`), aucun attribut ne charge le jeu entier : la requête calcule sur la page
+reçue et le dit (avertissement console, réserve « regroupement calculé sur une seule page » au
+volet Diagnostic).
 
 ### 1. Le graphique est vide / ne s'affiche pas
 - **Vérifier \`transform\`** : l'API retourne souvent un objet enveloppe (\`{results: [...]}\`).

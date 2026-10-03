@@ -183,7 +183,19 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   transform = '';
 
-  /** Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta. */
+  /**
+   * Active la pagination serveur en mode URL : injecte page/page_size dans
+   * l'URL et publie la meta.
+   *
+   * La source ne livre alors qu'UNE page. Une `dsfr-data-query` en aval qui
+   * regroupe ou agrège (`group-by`, `aggregate`, `explode`) calcule sur cette
+   * seule page : le chiffre est partiel. Le mode URL ne délègue rien et aucun
+   * attribut ne lui fait charger le jeu entier — sans `paginate`, c'est la
+   * page par défaut de l'API qui revient. La requête le dit donc sans se
+   * refuser (#1242) : avertissement en console, réserve au volet Diagnostic.
+   * Pour un chiffre sur tout le jeu, passer par un `api-type` qui sait le
+   * charger, ou par une URL qui rend déjà l'agrégat.
+   */
   @property({ type: Boolean })
   paginate = false;
 
@@ -256,17 +268,24 @@ export class DsfrDataSource extends LitElement {
   /**
    * Clause WHERE statique, déléguée à l'API de l'adaptateur.
    *
-   * Une clause que l'API n'applique pas fidèlement n'est pas déléguée :
-   * l'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,
-   * sur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une
-   * parenthèse ou une virgule — l'API écarte cette valeur sans erreur
-   * (#1233). Les autres clauses restent déléguées ; celle-ci demande de
-   * charger toutes les lignes qu'elles gardent (une requête par page, sous
-   * `max-records`) au lieu des seules lignes filtrées, et un `group-by` posé
-   * à côté n'est plus délégué : les lignes filtrées sont rendues brutes, une
-   * `dsfr-data-query` en aval regroupe. En pagination serveur
-   * (`server-side`), où ce calcul n'est pas possible, la clause part telle
-   * quelle : le résultat est incomplet, et le volet Diagnostic le signale.
+   * Une liste `in` ou `notin` dont une valeur porte une parenthèse ou une
+   * virgule est déléguée comme les autres (#1233). Sur l'API Tabular, qui
+   * écarte sans erreur une telle valeur écrite nue, l'adaptateur l'envoie
+   * entre guillemets — seule forme que l'API lise —, en chargement complet
+   * comme en pagination serveur ; les autres valeurs de la liste restent
+   * nues.
+   *
+   * Cette forme n'est écrite dans aucune documentation de l'API. Si elle est
+   * refusée, l'adaptateur se replie, et le volet Diagnostic le signale :
+   * - en chargement complet, il calcule la clause lui-même, sur les lignes
+   *   chargées. Le résultat reste juste ; les autres clauses restent
+   *   déléguées, mais toutes les lignes qu'elles gardent sont chargées (une
+   *   requête par page, sous `max-records`), et un `group-by` posé à côté
+   *   n'est plus délégué — les lignes filtrées sont rendues brutes, une
+   *   `dsfr-data-query` en aval regroupe ;
+   * - en pagination serveur (`server-side`), où ce calcul n'est pas
+   *   possible, la liste repart sans guillemets : la valeur est écartée par
+   *   l'API et le résultat est incomplet.
    */
   @property({ type: String })
   where = '';
@@ -353,9 +372,26 @@ export class DsfrDataSource extends LitElement {
    *
    * Ce qui est délégué ne change pas avec ce mode : une page porte les mêmes
    * filtres, le même regroupement et les mêmes agrégats qu'un chargement
-   * complet — seule la façon dont les lignes arrivent change (#852). Un
-   * adaptateur qui ne sait pas déléguer une opération rend les lignes brutes
-   * et le signale, et l'aval la calcule côté client.
+   * complet — seule la façon dont les lignes arrivent change (#852).
+   *
+   * La source ne livre qu'UNE page : rien de ce qui se calcule côté client
+   * sur l'ensemble des lignes n'a de sens derrière elle. Une
+   * `dsfr-data-query` en aval dont le regroupement ou l'agrégat n'est pas
+   * délégué — part ou cumul, `explode`, agrégat sans `group-by`, fonction que
+   * l'adaptateur ne traduit pas, transformateur amont qui change les
+   * colonnes, source lue par d'autres composants, source déjà regroupée —
+   * passe en **erreur de configuration** au lieu d'émettre un chiffre
+   * partiel (#1242). Deux corrections :
+   * - retirer `server-side` : la source charge le jeu entier, dans la limite
+   *   de `max-records` ;
+   * - si le jeu dépasse ce plafond, ou si une liste paginée lit la même
+   *   source : donner à la requête sa propre source sans `server-side`, qui
+   *   porte le regroupement délégable (`group-by`, `aggregate`) — le serveur
+   *   regroupe alors le jeu entier, et la part ou le cumul se calcule en
+   *   aval, sur les groupes.
+   *
+   * Une requête qui délègue réellement son regroupement, ou qui ne regroupe
+   * pas (filtre et tri d'un tableau paginé), n'est pas concernée.
    */
   @property({ type: Boolean, attribute: 'server-side' })
   serverSide = false;

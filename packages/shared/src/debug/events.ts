@@ -38,10 +38,12 @@ export interface BusPaginationMeta {
    */
   truncated?: boolean;
   /**
-   * Réserves de l'adaptateur sur un chargement abouti (#1233) :
+   * Réserves d'une étape sur un résultat abouti (#1233, #1242) :
    * `unstable-sort` (tri serveur paginé sans ordre total, des lignes peuvent
    * manquer ou être doublées), `in-values-dropped` (valeur d'un `in` écartée
-   * par le serveur).
+   * par le serveur), `in-quoted-refused` (liste `in` entre guillemets refusée
+   * par le serveur), `aggregate-on-page` (regroupement d'une requête calculé
+   * sur la seule page d'une source qui pagine au serveur).
    */
   caveats?: string[];
   /** Taux d'appariement posé par un dsfr-data-join (#660). */

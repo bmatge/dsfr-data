@@ -925,7 +925,7 @@ const CHECKS: Check[] = [
     mode: 'deterministic',
     constats: ['PG-034'],
     origin:
-      "Canari — #1202, #1233, PG-034 : `__in` de l'API Tabular écarte sans erreur toute valeur à parenthèse (`__exact` la trouve : 101 ; `__in` : 0), et les libellés à parenthèse sont banals en open data. La clause ne part jamais : sur une query comme sur la source, elle se calcule sur les lignes chargées. `delegation/tabular-in-a-parenthese-reste-client` et `tabular-in-a-parenthese-sur-la-source` tiennent les deux poses, URL comprises.",
+      "Canari — #1202, #1233, PG-034 : `__in` de l'API Tabular écarte sans erreur toute valeur NUE à parenthèse (`__exact` la trouve : 101 ; `__in` : 0), et les libellés à parenthèse sont banals en open data. La clause part ENTRE GUILLEMETS, seule forme que l'API lise (mesuré le 2026-10-04 : 202 lignes) : sur une query comme sur la source, le compte est celui des deux catégories. `delegation/tabular-in-a-parenthese-sur-la-query`, `tabular-in-a-parenthese-sur-la-source` et `tabular-in-a-parenthese-server-side` tiennent les trois poses, URL comprises.",
     feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
     markup: `
   <dsfr-data-source id="s-canari-in" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"

@@ -31,6 +31,21 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
 Méthode d'évaluation (les quatre verdicts, le chronométrage, le rendu différé) :
 `docs/EVALUER-UNE-REPRODUCTION.md`.
 
+### 0 bis. « … est en pagination serveur (server-side) et ne livre qu'une page »
+Erreur de configuration d'une `dsfr-data-query` (#1242) : elle regroupe ou agrège côté client
+(part, cumul, `explode`, agrégat sans `group-by`, source partagée, transformateur amont qui
+change les colonnes) alors que sa source est en `server-side` et ne lui livre qu'une page. Avant,
+elle affichait le chiffre de cette page, sans rien dire. Deux corrections, au choix :
+- **retirer `server-side`** de la source : le jeu est chargé en entier, dans la limite de
+  `max-records` (à relever si le jeu est plus long) ;
+- si le jeu dépasse ce plafond, ou si un tableau paginé lit la même source : **donner à la requête
+  sa propre source**, sans `server-side`, qui porte le regroupement délégable
+  (`group-by="region" aggregate="population:sum"`), et garder sur la requête la part ou le cumul
+  (`aggregate="population__sum:share_percent"`) — il se calcule alors sur les groupes.
+En mode URL (`paginate`), aucun attribut ne charge le jeu entier : la requête calcule sur la page
+reçue et le dit (avertissement console, réserve « regroupement calculé sur une seule page » au
+volet Diagnostic).
+
 ### 1. Le graphique est vide / ne s'affiche pas
 - **Vérifier `transform`** : l'API retourne souvent un objet enveloppe (`{results: [...]}`).
   Si `transform` n'est pas défini ou pointe au mauvais endroit, les données seront vides.

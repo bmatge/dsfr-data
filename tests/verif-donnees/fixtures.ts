@@ -107,6 +107,33 @@ export function urlJeu(nom: keyof typeof JEUX): string {
   return `${HOTE_API}/${nom}`;
 }
 
+/** Taille de page par défaut de l'API paginée ci-dessous, quand rien n'est demandé. */
+export const PAGE_PAR_DEFAUT = 20;
+
+/**
+ * URL d'un jeu servi PAGINÉ, à la convention de l'attribut `paginate` du mode
+ * URL (#1242) : `?page=N&page_size=M` en requête, `{ data, meta: { page,
+ * page_size, total } }` en réponse.
+ *
+ * Comme une API réelle de cette forme (l'API tabulaire de data.gouv rend 20
+ * lignes sans `page_size`, mesuré le 2026-10-04), elle pagine TOUJOURS : sans
+ * paramètre, c'est sa première page par défaut qui revient, jamais le jeu
+ * entier. C'est ce qui fait qu'aucun attribut ne corrige un regroupement posé
+ * derrière une telle source — retirer `paginate` ne charge pas plus de lignes.
+ */
+export function urlJeuPagine(nom: keyof typeof JEUX): string {
+  return `${HOTE_API}/pagine/${nom}`;
+}
+
+function repondreJeuPagine(url: URL, jeu: Row[]): Record<string, unknown> {
+  const page = Number(url.searchParams.get('page') ?? '1');
+  const taille = Number(url.searchParams.get('page_size') ?? String(PAGE_PAR_DEFAUT));
+  return {
+    data: jeu.slice((page - 1) * taille, page * taille),
+    meta: { page, page_size: taille, total: jeu.length },
+  };
+}
+
 const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET}`;
 
 /** Un agrégat ODSQL aliasé d'un `select` : `sum(population) as population__sum`. */
@@ -214,6 +241,11 @@ export function repondre(url: URL): unknown | null {
     return repondreAffichagesTabular(url);
   }
   if (url.origin === HOTE_API) {
+    const pagine = /^\/pagine\/(.+)$/.exec(url.pathname);
+    if (pagine) {
+      const jeu = JEUX[pagine[1] as keyof typeof JEUX];
+      return jeu ? repondreJeuPagine(url, jeu) : null;
+    }
     const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX;
     return JEUX[nom] ?? null;
   }

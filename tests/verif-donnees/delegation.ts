@@ -29,6 +29,7 @@ import {
   RESSOURCE_TABULAR_EX_AEQUO,
   TERRITOIRES,
   urlJeu,
+  urlJeuPagine,
 } from './fixtures.js';
 import {
   pairePaginee,
@@ -918,11 +919,11 @@ const TABULAR_PERTES: Check[] = [
   },
 
   {
-    id: 'tabular-in-a-parenthese-reste-client',
+    id: 'tabular-in-a-parenthese-sur-la-query',
     mode: 'deterministic',
     constats: ['PG-034'],
     origin:
-      "#1202, PG-034 du banc — `__in` écarte EN SILENCE (HTTP 200) toute valeur à parenthèse : « Usage de stupéfiants (AFD) » est trouvé par `__exact` (101) et perdu par `__in` (0, rejoué le 2026-09-27). Le faux serveur l'imite. La clause `in` qui porte une parenthèse reste côté client.",
+      "#1202, #1233, PG-034 du banc — `__in` écarte EN SILENCE (HTTP 200) toute valeur NUE à parenthèse : « Usage de stupéfiants (AFD) » est trouvé par `__exact` (101) et perdu par `__in` (0, rejoué le 2026-09-27) ; la même valeur ENTRE GUILLEMETS est lue (202 avec `Homicides`, mesuré le 2026-10-04). Le faux serveur imite les deux. La clause `in` d'une query part donc au serveur, la valeur à parenthèse citée et elle seule (arbitrage du 2026-10-04) : une requête filtrée au lieu du jeu entier — elle restait côté client depuis #1202.",
     feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
     markup: `
   ${SOURCE_EX_AEQUO('s-in-paren')}
@@ -950,9 +951,16 @@ const TABULAR_PERTES: Check[] = [
       },
       {
         kind: 'urls',
-        id: 'in-jamais-au-serveur',
+        id: 'in-de-la-query-delegue-entre-guillemets',
         among: DATA_EX_AEQUO,
-        contains: 'categorie__in',
+        contains: 'categorie__in=Homicides,"Usage de stupéfiants (AFD)"',
+        verdict: 'last',
+      },
+      {
+        kind: 'urls',
+        id: 'in-de-la-query-jamais-nu',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__in=Homicides,Usage',
         verdict: 'none',
       },
     ],
@@ -1071,7 +1079,7 @@ const TABULAR_PERTES: Check[] = [
     mode: 'deterministic',
     constats: ['PG-034'],
     origin:
-      "#1233, PG-034 du banc, suite de #1202 — le même `in` à parenthèse posé sur la SOURCE, sans query en aval pour le reprendre : `__in` partait au serveur avec un simple avertissement console, 101 lignes au lieu de 202 (rejoué le 2026-10-03 en 0.44.0). La clause ne part plus : l'adaptateur charge les lignes et la calcule, comme une query. `notin` suit la même règle. Une clause ordinaire du même `where` reste déléguée.",
+      "#1233, PG-034 du banc, suite de #1202 — le même `in` à parenthèse posé sur la SOURCE, sans query en aval pour le reprendre : `__in` partait au serveur avec un simple avertissement console, 101 lignes au lieu de 202 (rejoué le 2026-10-03 en 0.44.0) ; la 0.45.0 le calculait côté client, au prix du jeu entier. La clause part désormais ENTRE GUILLEMETS (arbitrage du 2026-10-04, mesuré sur l'API : 202 lignes en une requête, 1 717 pour `notin`), et seule la valeur qui en a besoin est citée. `notin` suit la même règle. Une clause ordinaire du même `where` reste déléguée, inchangée.",
     feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
     markup: `
   <dsfr-data-source id="s-in-source" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
@@ -1121,16 +1129,30 @@ const TABULAR_PERTES: Check[] = [
       },
       {
         kind: 'urls',
-        id: 'in-de-la-source-jamais-au-serveur',
+        id: 'in-de-la-source-entre-guillemets',
         among: DATA_EX_AEQUO,
-        contains: 'categorie__in',
+        contains: 'categorie__in=Homicides,"Usage de stupéfiants (AFD)"',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'notin-de-la-source-entre-guillemets',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__notin="Vols (avec violence)",Cambriolages',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'in-de-la-source-jamais-nu',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__in=Homicides,Usage',
         verdict: 'none',
       },
       {
         kind: 'urls',
-        id: 'notin-de-la-source-jamais-au-serveur',
+        id: 'notin-de-la-source-jamais-nu',
         among: DATA_EX_AEQUO,
-        contains: 'categorie__notin',
+        contains: 'categorie__notin=Vols',
         verdict: 'none',
       },
       {
@@ -1140,6 +1162,97 @@ const TABULAR_PERTES: Check[] = [
         contains: 'nombre__greater=1',
         verdict: 'some',
       },
+    ],
+  },
+
+  {
+    id: 'tabular-in-a-parenthese-server-side',
+    mode: 'deterministic',
+    constats: ['PG-034'],
+    origin:
+      "#1233, PG-034 du banc — le même `in` à parenthèse sur une source en PAGINATION SERVEUR (pages de 40), là où aucun calcul côté client ne peut le reprendre : la clause partait nue, la valeur à parenthèse était écartée par l'API (113 lignes annoncées au lieu de 226), avec un avertissement console et la réserve `in-values-dropped`. Elle part entre guillemets : le total annoncé et la page sont ceux des DEUX catégories, et la bibliothèque n'a rien à dire. `notin` de même.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-in-page" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    where="categorie:in:Homicides|Usage de stupéfiants (AFD)" server-side page-size="40"></dsfr-data-source>
+  <dsfr-data-kpi id="k-in-page-total" source="s-in-page" value="meta:total" format="nombre"
+    label="Faits annoncés"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-in-page-somme" source="s-in-page" value="id:sum" format="nombre"
+    label="Somme des identifiants de la page"></dsfr-data-kpi>
+  <dsfr-data-source id="s-notin-page" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    where="categorie:notin:Vols (avec violence)|Cambriolages" server-side page-size="40"></dsfr-data-source>
+  <dsfr-data-kpi id="k-notin-page-total" source="s-notin-page" value="meta:total" format="nombre"
+    label="Faits annoncés"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-in-page-total',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'categorie',
+                op: 'in',
+                values: ['Homicides', 'Usage de stupéfiants (AFD)'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-in-page-somme',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'categorie',
+                op: 'in',
+                values: ['Homicides', 'Usage de stupéfiants (AFD)'],
+              },
+            ],
+          },
+          { op: 'limit', n: TAILLE_PAGE },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-notin-page-total',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'categorie',
+                op: 'notin',
+                values: ['Vols (avec violence)', 'Cambriolages'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'in-de-la-page-entre-guillemets',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__in=Homicides,"Usage de stupéfiants (AFD)"',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'notin-de-la-page-entre-guillemets',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__notin="Vols (avec violence)",Cambriolages',
+        verdict: 'some',
+      },
+      // Plus rien n'est écarté : ni avertissement, ni réserve à dire.
+      { kind: 'diagnostic', id: 's-in-page', expect: 'silence', contains: 'PG-034' },
     ],
   },
 ];
@@ -1676,19 +1789,132 @@ const PART_PAR_GROUPE: Check[] = [
     id: 'part-par-groupe-ods-server-side',
     mode: 'deterministic',
     origin:
-      'AM-110 (#1228) — le même balisage sur une source en `server-side` (pagination serveur, pages de 40 lignes) : la part par groupe doit rester celle du jeu entier, ou la page doit dire qu’elle ne l’est pas.',
+      'AM-110 (#1228), #1242 — le même balisage sur une source en `server-side` (pagination serveur, pages de 40 lignes). Une part retient le regroupement côté client, sur les lignes chargées ; or la source n’en livre qu’UNE page. Mesuré avant #1242 : 40 lignes (les couples pays × académie de la première page, parts rapportées aux seuls territoires de cette page) pour 56 attendues, aucun marqueur, aucun message. Le montage se corrige par un attribut (sans `server-side`, le chiffre est juste : `part-par-groupe-ods-reste-client`) : la requête passe en ERREUR DE CONFIGURATION, qui nomme la source, `server-side` et la correction, et n’émet aucun chiffre. La source, elle, livre toujours sa page.',
     constats: ['AM-110'],
-    skip: 'DÉFAUT, antérieur à `share-by` et commun à tout regroupement que la query garde côté client (part #926, cumul #738, `explode` #736) — une part retient le regroupement dans le navigateur, « sur les lignes chargées » dit la doc de `aggregate` ; or une source en `server-side` ne charge qu’UNE page. Mesuré le 2026-10-03 : lib 40 lignes (les 40 couples pays × académie de la première page, parts rapportées aux seuls territoires de cette page) / oracle 56 lignes sur les 137 territoires ; aucun marqueur, aucun message console. Attendu : les 56 lignes et leurs parts — ou un refus dit (erreur de configuration nommant `server-side`). Sans `server-side`, le chiffre est juste (`part-par-groupe-ods-reste-client`). Issue à ouvrir par la supervision.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
     markup: `
   ${sourceOds('s-part-page', { serverSide: true })}${BALISAGE_PART_PAR_PAYS('q-part-page', 's-part-page')}`,
     expects: [
+      // La page est arrivée : la requête a donc été servie, et a refusé.
       {
         kind: 'rows',
+        id: 's-part-page',
+        key: 'region',
+        columns: ['population'],
+        pipeline: [{ op: 'limit', n: TAILLE_PAGE }],
+      },
+      {
+        kind: 'diagnostic',
         id: 'q-part-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-part-page"',
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 9. Un regroupement gardé côté client ne se calcule pas sur UNE page (#1242)
+// ---------------------------------------------------------------------------
+
+/**
+ * La règle est conditionnelle (arbitrage du 2026-10-04) : erreur de
+ * configuration là où des attributs corrigent le montage (`server-side` d'une
+ * source en mode adaptateur), statu quo avec avertissement là où il n'y en a
+ * pas (mode URL `paginate`). Un contrôle par verdict, un pour la correction
+ * qui porte le regroupement sur la source, et `part-par-groupe-ods-server-side`
+ * ci-dessus pour la part.
+ */
+const REGROUPEMENT_SUR_UNE_PAGE: Check[] = [
+  {
+    id: 'agregat-client-tabular-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1242, verdict ERREUR — le montage le plus banal de la famille : une source Tabular en `server-side` (elle alimente d’ordinaire un tableau paginé) et, sur la même source, une `dsfr-data-query` qui somme une colonne pour un KPI. Un agrégat sans `group-by` n’est jamais délégué : la requête sommait les 40 lignes de la page (39 220 000 pour 127 684 000), sans un mot. Elle passe en erreur de configuration ; la source garde sa pagination — total annoncé 137, 40 lignes reçues — c’est-à-dire ce dont une liste paginée a besoin.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-agg-page', { serverSide: true })}
+  <dsfr-data-kpi id="k-agg-total" source="s-agg-page" value="meta:total" format="nombre"
+    label="Territoires"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-agg-recues" source="s-agg-page" value="count" format="nombre"
+    label="Lignes de la page"></dsfr-data-kpi>
+  <dsfr-data-query id="q-agg-page" source="s-agg-page" aggregate="population:sum:pop"></dsfr-data-query>
+  <dsfr-data-kpi id="k-agg-somme" source="q-agg-page" value="pop" format="nombre"
+    label="Population"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-agg-total', agg: 'count' },
+      {
+        kind: 'kpi',
+        id: 'k-agg-recues',
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: TAILLE_PAGE }],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'q-agg-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-agg-page"',
+      },
+    ],
+  },
+
+  {
+    id: 'part-par-groupe-regroupement-sur-la-source',
+    mode: 'deterministic',
+    origin:
+      '#1242, la correction quand le jeu DÉPASSE `max-records` (ici plafonné à 100 lignes pour 137) : retirer `server-side` ne suffit plus, la query regrouperait un jeu tronqué. Le regroupement délégable est porté par la source — le serveur regroupe le jeu entier, 56 groupes qui tiennent sous le plafond — et la part se calcule en aval, sur les groupes. C’est la correction que nomme le message d’erreur ; elle doit rendre le chiffre du jeu entier.',
+    constats: ['AM-110'],
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-part-src" api-type="opendatasoft" base-url="${HOTE_ODS}"
+    dataset-id="${DATASET}" max-records="100" group-by="pays_iso2, academie"
+    aggregate="population:sum:pop"></dsfr-data-source>
+  <dsfr-data-query id="q-part-src" source="s-part-src" aggregate="pop:share_percent:part"
+    share-by="pays_iso2" order-by="pop:desc"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-src',
         key: ['pays_iso2', 'academie'],
         columns: ['pop', 'part'],
         pipeline: PART_PAR_PAYS,
+      },
+      urlsDe('part-regroupement-porte-par-la-source', 'ods', 'group_by=', 'all'),
+      { kind: 'diagnostic', id: 'q-part-src', expect: 'silence' },
+    ],
+  },
+
+  {
+    id: 'agregat-client-url-paginate-averti',
+    mode: 'deterministic',
+    origin:
+      '#1242, verdict AVERTISSEMENT — une source en mode URL avec `paginate` (API à la convention `page` / `page_size`, qui pagine toujours : 20 lignes sans paramètre). Aucun attribut ne lui fait charger le jeu entier — sans `paginate`, c’est la page par défaut de l’API qui revient —, et le mode URL ne délègue rien. La règle est donc le statu quo : le regroupement est calculé sur la page reçue (40 lignes sur 137), la page n’est pas cassée, et la bibliothèque le DIT (console, et réserve `aggregate-on-page` au volet Diagnostic). L’oracle recalcule ce que la doc promet : la somme par pays des 40 premières lignes.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-url-page" url="${urlJeuPagine('territoires')}" paginate
+    page-size="${TAILLE_PAGE}"></dsfr-data-source>
+  <dsfr-data-query id="q-url-page" source="s-url-page" group-by="pays_iso2"
+    aggregate="population:sum:pop"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-url-page',
+        key: 'pays_iso2',
+        columns: ['pop'],
+        pipeline: [
+          { op: 'limit', n: TAILLE_PAGE },
+          {
+            op: 'group-by',
+            by: 'pays_iso2',
+            columns: { pop: { agg: 'sum', field: 'population' } },
+          },
+        ],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'q-url-page',
+        expect: 'warning',
+        contains: 'sur la seule page reçue (40 lignes sur 137)',
       },
     ],
   },
@@ -1710,5 +1936,6 @@ export const DELEGATION: Manifest = {
     ...TABULAR_VOLUME,
     ...TABULAR_OU,
     ...PART_PAR_GROUPE,
+    ...REGROUPEMENT_SUR_UNE_PAGE,
   ],
 };
