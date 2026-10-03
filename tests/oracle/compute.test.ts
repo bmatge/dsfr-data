@@ -23,6 +23,7 @@ import {
   roundTo,
   runPipeline,
   runningSum,
+  symbolRadius,
   toNum,
   toRgb,
   weightedAverage,
@@ -329,6 +330,45 @@ describe('oracle — recalcul indépendant', () => {
       ['Dit "oui"', '3'],
     ]);
     expect(parseCsv('')).toEqual([]);
+  });
+
+  it('rayon d’un symbole proportionnel : l’aire suit la valeur, ancrée à zéro (AM-107)', () => {
+    const lignes = [0, 1, 4, 100, 50, -3, null].map((v) => ({ v }));
+    // 30 × √(v / 100) : 3, 6, 30 ; 21,2 → 21 ; nul, négatif, absent → rayon nul, tracé 1 px.
+    expect(symbolRadius(lignes, 'v', 'r', { scale: 'sqrt', max: 30 }).map((l) => l.r)).toEqual([
+      1, 3, 6, 30, 21, 1, 1,
+    ]);
+    // Quatre fois la valeur, deux fois le rayon — et `min` ne joue pas.
+    const [un, quatre] = symbolRadius([{ v: 25 }, { v: 100 }], 'v', 'r', {
+      scale: 'sqrt',
+      min: 12,
+      max: 40,
+    });
+    expect([un.r, quatre.r]).toEqual([20, 40]);
+    // Aucune valeur positive : tout est nul, sans division par zéro.
+    expect(
+      symbolRadius([{ v: 0 }, { v: 0 }], 'v', 'r', { scale: 'sqrt', max: 30 }).map((l) => l.r)
+    ).toEqual([1, 1]);
+  });
+
+  it('rayon en échelle linéaire : de min à max entre les bornes de la colonne', () => {
+    const lignes = [0, 1, 4, 100, null].map((v) => ({ v }));
+    // 4 + v/100 × 26 : 4 ; 4,26 → 4 ; 5,04 → 5 ; 30. Absent : null, pas une taille.
+    expect(
+      symbolRadius(lignes, 'v', 'r', { scale: 'linear', min: 4, max: 30 }).map((l) => l.r)
+    ).toEqual([4, 4, 5, 30, null]);
+    // Valeurs toutes égales : le milieu.
+    expect(
+      symbolRadius([{ v: 7 }, { v: 7 }], 'v', 'r', { scale: 'linear', min: 4, max: 30 }).map(
+        (l) => l.r
+      )
+    ).toEqual([17, 17]);
+    // L'étape du pipeline rend la même colonne.
+    expect(
+      runPipeline({ main: lignes.slice(0, 4) }, [
+        { op: 'radius', from: 'v', as: 'r', scale: 'sqrt', max: 30 },
+      ]).map((l) => l.r)
+    ).toEqual([1, 3, 6, 30]);
   });
 
   it('couleur ramenée à r,g,b — sinon null plutôt qu’une comparaison à tort', () => {

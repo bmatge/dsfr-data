@@ -311,21 +311,39 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   radius = 8;
 
   /**
-   * Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).
+   * Champ numérique pilotant un rayon variable (`type="circle"`). L'échelle est celle de
+   * `radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`.
    * @champ nom
    */
   @property({ type: String, attribute: 'radius-field' })
   radiusField = '';
 
+  /**
+   * Échelle du rayon variable (`radius-field`, `radius-unit="px"`).
+   * `linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus
+   * petite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est
+   * proportionnelle à la valeur — c'est l'échelle des symboles proportionnels,
+   * à préférer dès que le lecteur compare des tailles. Elle est ancrée à
+   * zéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur
+   * quatre fois plus grande a un rayon double, la plus grande prend
+   * `radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le
+   * cercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs
+   * négatives sont signalées en console. `radius-min` est sans effet en
+   * `sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet
+   * avec `radius-unit="m"`, où le champ donne le rayon en mètres.
+   */
+  @property({ type: String, attribute: 'radius-scale' })
+  radiusScale: 'linear' | 'sqrt' = 'linear';
+
   /** Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). */
   @property({ type: String, attribute: 'radius-unit' })
   radiusUnit: 'px' | 'm' = 'px';
 
-  /** Rayon minimum de l'auto-scaling, en pixels. */
+  /** Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale="sqrt"`. */
   @property({ type: Number, attribute: 'radius-min' })
   radiusMin = 4;
 
-  /** Rayon maximum de l'auto-scaling, en pixels. */
+  /** Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`). */
   @property({ type: Number, attribute: 'radius-max' })
   radiusMax = 30;
 
@@ -690,6 +708,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     'breaks',
     'radius',
     'radiusField',
+    'radiusScale',
     'radiusUnit',
     'radiusMin',
     'radiusMax',
@@ -1223,23 +1242,42 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       }));
     }
 
-    // Auto-scaling for circle radius-field
+    // Rayon variable d'une couche de cercles (radius-field) : échelle linéaire
+    // entre radius-min et radius-max (défaut), ou en aire ancrée à zéro
+    // (radius-scale="sqrt", AM-107). Bornes relevées en boucle : l'étalement
+    // d'un grand tableau en arguments déborde la pile.
     this._radiusScale = null;
     if (this.radiusField && this.type === 'circle') {
-      const values = items
-        .map((r) => Number(getByPath(r, this.radiusField)))
-        .filter((v) => !isNaN(v) && isFinite(v));
-      if (values.length > 0) {
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        const range = max - min;
-        if (range > 0) {
-          const rMin = this.radiusMin;
-          const rMax = this.radiusMax;
-          this._radiusScale = (val: number) => rMin + ((val - min) / range) * (rMax - rMin);
+      let min = Infinity;
+      let max = -Infinity;
+      let negatives = 0;
+      for (const record of items) {
+        const v = Number(getByPath(record, this.radiusField));
+        if (isNaN(v) || !isFinite(v)) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+        if (v < 0) negatives++;
+      }
+      if (max >= min) {
+        const rMin = this.radiusMin;
+        const rMax = this.radiusMax;
+        if (this._areaScale()) {
+          // L'AIRE du cercle est proportionnelle à la valeur : rayon nul à
+          // zéro, radius-max à la plus grande valeur. radius-min ne joue pas
+          // — un plancher fausserait le rapport des petites valeurs.
+          this._radiusScale =
+            max > 0
+              ? (val: number) => (val > 0 ? rMax * Math.sqrt(Math.min(val / max, 1)) : 0)
+              : () => 0;
+          this._warnNegativeRadius(negatives);
         } else {
-          const mid = (this.radiusMin + this.radiusMax) / 2;
-          this._radiusScale = () => mid;
+          const range = max - min;
+          if (range > 0) {
+            this._radiusScale = (val: number) => rMin + ((val - min) / range) * (rMax - rMin);
+          } else {
+            const mid = (rMin + rMax) / 2;
+            this._radiusScale = () => mid;
+          }
         }
       }
     }
@@ -1420,6 +1458,42 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     }
     this._mapParent.updateDescription(
       summaries.length > 0 ? [`Couches : ${summaries.join(', ')}.`] : []
+    );
+  }
+
+  /** Valeur de `radius-scale` déjà signalée comme inconnue (un avertissement par valeur). */
+  private _radiusScaleWarned = '';
+
+  /** Dernier compte de valeurs négatives signalé en `radius-scale="sqrt"`. */
+  private _negativeRadiusWarned = 0;
+
+  /**
+   * L'échelle du rayon est-elle en aire (`radius-scale="sqrt"`) ? Une valeur
+   * inconnue est dite en console et retombe sur l'échelle linéaire : une
+   * faute de frappe ne change pas la carte en silence.
+   */
+  private _areaScale(): boolean {
+    const scale = (this.radiusScale || 'linear').trim().toLowerCase();
+    if (scale === 'sqrt') return true;
+    if (scale !== 'linear' && scale !== this._radiusScaleWarned) {
+      this._radiusScaleWarned = scale;
+      console.warn(
+        `dsfr-data-map-layer[${this.id || this.source}]: radius-scale="${this.radiusScale}" inconnu — ` +
+          `valeurs admises : linear (défaut), sqrt. Échelle linéaire appliquée.`
+      );
+    }
+    return false;
+  }
+
+  /** Une aire ne peut pas être négative : ces valeurs ont un rayon nul, et on le dit une fois. */
+  private _warnNegativeRadius(count: number): void {
+    if (count === this._negativeRadiusWarned) return;
+    this._negativeRadiusWarned = count;
+    if (count === 0) return;
+    console.warn(
+      `dsfr-data-map-layer[${this.id || this.source}]: radius-scale="sqrt" — ${count} valeur(s) ` +
+        `négative(s) de "${this.radiusField}" tracée(s) avec un rayon nul : une aire ne représente ` +
+        `pas une valeur négative.`
     );
   }
 

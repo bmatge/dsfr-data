@@ -22,6 +22,7 @@ import {
   lireLegende,
   lireListe,
   lirePastilles,
+  lireRayons,
   lireTexte,
   lireTextes,
   lireUrls,
@@ -243,7 +244,10 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
           nombre: e.number,
         });
       case 'texts':
-        return await page.evaluate(lireTextes, { id: e.id, selecteur: e.selector });
+        return await page.evaluate(e.measure === 'radius' ? lireRayons : lireTextes, {
+          id: e.id,
+          selecteur: e.selector,
+        });
       case 'count':
         return await page.evaluate(lireCompte, { id: e.id, selecteur: e.selector });
       case 'class':

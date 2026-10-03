@@ -11109,8 +11109,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).",
+              "description": "Champ numérique pilotant un rayon variable (`type=\"circle\"`). L'échelle est celle de\n`radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`.",
               "attribute": "radius-field"
+            },
+            {
+              "kind": "field",
+              "name": "radiusScale",
+              "type": {
+                "text": "'linear' | 'sqrt'"
+              },
+              "default": "'linear'",
+              "description": "Échelle du rayon variable (`radius-field`, `radius-unit=\"px\"`).\n`linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus\npetite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est\nproportionnelle à la valeur — c'est l'échelle des symboles proportionnels,\nà préférer dès que le lecteur compare des tailles. Elle est ancrée à\nzéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur\nquatre fois plus grande a un rayon double, la plus grande prend\n`radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le\ncercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs\nnégatives sont signalées en console. `radius-min` est sans effet en\n`sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet\navec `radius-unit=\"m\"`, où le champ donne le rayon en mètres.",
+              "attribute": "radius-scale"
             },
             {
               "kind": "field",
@@ -11129,7 +11139,7 @@
                 "text": "number"
               },
               "default": "4",
-              "description": "Rayon minimum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale=\"sqrt\"`.",
               "attribute": "radius-min"
             },
             {
@@ -11139,7 +11149,7 @@
                 "text": "number"
               },
               "default": "30",
-              "description": "Rayon maximum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`).",
               "attribute": "radius-max"
             },
             {
@@ -11843,7 +11853,7 @@
               "privacy": "private",
               "static": true,
               "readonly": true,
-              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'colorOtherLabel', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
+              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'colorOtherLabel', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusScale', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
               "description": "Proprietes dont le changement doit redessiner la couche (#482 bug 6) :\nsans ce hook, modifier un attribut en place (type, cluster, couleur…)\nne produisait aucun effet avant la prochaine emission de la source."
             },
             {
@@ -12104,6 +12114,56 @@
                 }
               },
               "description": "Résumé des couches dans la description de la carte lue par les lecteurs\nd'écran. Une carte dont plus aucune couche ne trace rien retrouve sa\ndescription nue : l'ancien « 30 marqueurs » n'y reste pas (BUG-039)."
+            },
+            {
+              "kind": "field",
+              "name": "_radiusScaleWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Valeur de `radius-scale` déjà signalée comme inconnue (un avertissement par valeur)."
+            },
+            {
+              "kind": "field",
+              "name": "_negativeRadiusWarned",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0",
+              "description": "Dernier compte de valeurs négatives signalé en `radius-scale=\"sqrt\"`."
+            },
+            {
+              "kind": "method",
+              "name": "_areaScale",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "L'échelle du rayon est-elle en aire (`radius-scale=\"sqrt\"`) ? Une valeur\ninconnue est dite en console et retombe sur l'échelle linéaire : une\nfaute de frappe ne change pas la carte en silence."
+            },
+            {
+              "kind": "method",
+              "name": "_warnNegativeRadius",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "count",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Une aire ne peut pas être négative : ces valeurs ont un rayon nul, et on le dit une fois."
             },
             {
               "kind": "method",
@@ -12848,9 +12908,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).",
+              "description": "Champ numérique pilotant un rayon variable (`type=\"circle\"`). L'échelle est celle de\n`radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`.",
               "fieldName": "radiusField",
               "champ": "nom"
+            },
+            {
+              "name": "radius-scale",
+              "type": {
+                "text": "'linear' | 'sqrt'"
+              },
+              "default": "'linear'",
+              "description": "Échelle du rayon variable (`radius-field`, `radius-unit=\"px\"`).\n`linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus\npetite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est\nproportionnelle à la valeur — c'est l'échelle des symboles proportionnels,\nà préférer dès que le lecteur compare des tailles. Elle est ancrée à\nzéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur\nquatre fois plus grande a un rayon double, la plus grande prend\n`radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le\ncercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs\nnégatives sont signalées en console. `radius-min` est sans effet en\n`sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet\navec `radius-unit=\"m\"`, où le champ donne le rayon en mètres.",
+              "fieldName": "radiusScale"
             },
             {
               "name": "radius-unit",
@@ -12867,7 +12936,7 @@
                 "text": "number"
               },
               "default": "4",
-              "description": "Rayon minimum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale=\"sqrt\"`.",
               "fieldName": "radiusMin"
             },
             {
@@ -12876,7 +12945,7 @@
                 "text": "number"
               },
               "default": "30",
-              "description": "Rayon maximum de l'auto-scaling, en pixels.",
+              "description": "Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`).",
               "fieldName": "radiusMax"
             },
             {

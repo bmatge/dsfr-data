@@ -73,10 +73,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | method | String | `"quantile"` | Discretisation : `quantile` (effectifs egaux), `equal` (intervalles egaux), `manual` (bornes de breaks) |
 | breaks | String | `""` | Bornes superieures manuelles `"10,50,100"` (= 4 classes) ; implique `method="manual"` |
 | radius | Number | `8` | Rayon fixe (circle) |
-| radius-field | String | `""` | Champ rayon variable |
+| radius-field | String | `""` | Champ rayon variable (circle). Echelle : voir `radius-scale` |
+| radius-scale | String | `"linear"` | Echelle du rayon variable. `linear` (defaut) : le RAYON suit la valeur, de radius-min (plus petite valeur) a radius-max (plus grande). `sqrt` : l'AIRE suit la valeur, ancree a zero — rayon = radius-max × √(valeur / max) ; valeur ×4 = rayon ×2 ; 0, negatif ou absent = rayon nul (point d'1 px) ; radius-min sans effet. **Symboles proportionnels : toujours `sqrt`.** Sans effet avec radius-unit="m" |
 | radius-unit | String | `"px"` | `px` ou `m` |
-| radius-min | Number | `4` | Rayon min auto-scaling (px) |
-| radius-max | Number | `30` | Rayon max auto-scaling (px) |
+| radius-min | Number | `4` | Rayon de la plus petite valeur en echelle lineaire (px). Sans effet en `sqrt` |
+| radius-max | Number | `30` | Rayon de la plus grande valeur (px), les deux echelles |
 | heat-radius | Number | `25` | Rayon heatmap (px) |
 | heat-blur | Number | `15` | Flou heatmap (px) |
 | heat-field | String | `""` | Champ ponderation heatmap |
@@ -179,13 +180,20 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 <dsfr-data-map center="46.6,2.3" zoom="6">
   <dsfr-data-map-layer source="villes" type="circle"
     lat-field="latitude" lon-field="longitude"
-    radius-field="population" radius-unit="px"
+    radius-field="population" radius-scale="sqrt" radius-max="30"
     color="#000091" fill-opacity="0.4"
     popup-fields="nom,population"
     tooltip-field="nom">
   </dsfr-data-map-layer>
 </dsfr-data-map>
 ```
+
+**Toujours `radius-scale="sqrt"` pour des symboles proportionnels.** L'œil compare des AIRES :
+avec l'echelle par defaut (`linear`), c'est le rayon qui suit la valeur, et une valeur dix fois
+plus grande occupe jusqu'a cent fois plus de surface. En `sqrt`, l'aire est proportionnelle a la
+valeur et l'echelle part de zero : une valeur nulle n'a pas de cercle (un point d'un pixel), la
+plus grande prend `radius-max`. L'echelle lineaire reste le defaut pour ne pas deplacer les
+cartes existantes ; elle convient a un indice ou un rang, pas a une quantite.
 
 ### Exemple : couleurs catégorielles (color-map)
 
@@ -561,9 +569,10 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `popup-fields` | `string` | `""` (vide) | Champs a presenter en tableau automatique dans la popup. Ex: `"nom,adresse"`. |
 | `popup-template` | `string` | `""` (vide) | Template du contenu de la popup, avec substitution de champs. Ex: `"{nom} — {val} kW"`. |
 | `radius` | `number` | `8` | Rayon fixe des cercles (`type="circle"`). |
-| `radius-field` | `string` | `""` (vide) | Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`). |
-| `radius-max` | `number` | `30` | Rayon maximum de l'auto-scaling, en pixels. |
-| `radius-min` | `number` | `4` | Rayon minimum de l'auto-scaling, en pixels. |
+| `radius-field` | `string` | `""` (vide) | Champ numérique pilotant un rayon variable (`type="circle"`). L'échelle est celle de `radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`. |
+| `radius-max` | `number` | `30` | Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`). |
+| `radius-min` | `number` | `4` | Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale="sqrt"`. |
+| `radius-scale` | `'linear' \| 'sqrt'` | `'linear'` | Échelle du rayon variable (`radius-field`, `radius-unit="px"`). `linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus petite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est proportionnelle à la valeur — c'est l'échelle des symboles proportionnels, à préférer dès que le lecteur compare des tailles. Elle est ancrée à zéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur quatre fois plus grande a un rayon double, la plus grande prend `radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le cercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs négatives sont signalées en console. `radius-min` est sans effet en `sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet avec `radius-unit="m"`, où le champ donne le rayon en mètres. |
 | `radius-unit` | `'px' \| 'm'` | `'px'` | Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). |
 | `refine-on-click` | `string` | `""` (vide) | Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681). Premier clic = filtre, second clic sur le même objet = retrait, clic sur un autre objet = remplacement. Avec `context="id"` (recommandé), la couche s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la clause part directement à `source` (whereKey `map-select-ID`) — sans tag ni URL. Attention : si `source` est aussi une cible du contexte, la carte se filtre elle-même (seul l'objet cliqué reste, jusqu'au second clic) ; pour garder tous les points, ne pas lister cette source dans `sources` du contexte (ou donner à la carte sa propre source). |
 | `selected-palette` | `string` | `""` (vide) | Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`. |

@@ -34,6 +34,7 @@ import {
   HORS_DECOUPAGE,
   RESSOURCE_TABULAR_AFFICHAGES,
   SERIE,
+  SYMBOLES,
   ZONES,
   urlAffichage,
 } from './fixtures-affichages.js';
@@ -74,7 +75,15 @@ const CLASSES_KPI = {
 const source = (
   id: string,
   jeu:
-    'communes' | 'serie' | 'libelles' | 'long' | 'absences' | 'hors-decoupage' | 'zones' | 'aides'
+    | 'communes'
+    | 'serie'
+    | 'libelles'
+    | 'long'
+    | 'absences'
+    | 'hors-decoupage'
+    | 'zones'
+    | 'aides'
+    | 'symboles'
 ): string => `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 /**
@@ -1576,6 +1585,61 @@ const CHECKS: Check[] = [
         id: 'couche-marqueurs',
         expect: 'silence',
         contains: 'lignes ignorées',
+      },
+    ],
+  },
+
+  // --------------------- Carte : rayon des symboles proportionnels (AM-107) ----
+  {
+    id: 'carte-rayons-symboles-proportionnels-am-107',
+    mode: 'deterministic',
+    origin:
+      'AM-107 du banc (#1229) — `radius-field` transforme un nombre en TAILLE : un cercle dont le rayon ne suit pas l’échelle annoncée ment comme un chiffre faux, et rien d’autre à l’écran ne le dit. Deux couches `circle` sur les mêmes neuf villes : l’échelle par défaut (linéaire, de `radius-min` pour la plus petite valeur à `radius-max` pour la plus grande) et `radius-scale="sqrt"` (l’aire suit la valeur, ancrée à zéro : 1, 4 et 100 donnent 3, 6 et 30 px ; la valeur nulle, un point d’un pixel). Le rayon est relu sur la forme TRACÉE (les arcs du chemin SVG), dans l’ordre du fichier.',
+    constats: ['AM-107'],
+    feed: { kind: 'fixture', datasets: { main: SYMBOLES } },
+    markup: `
+  ${source('s-symboles', 'symboles')}
+  <dsfr-data-map id="carte-symboles" center="46.6,2.3" zoom="5" height="400px" tiles="osm">
+    <dsfr-data-map-layer id="couche-lineaire" source="s-symboles" type="circle"
+      lat-field="lat" lon-field="lon" radius-field="entrees" radius-min="2" radius-max="22"
+      shape-class="verif-rayon-lineaire"></dsfr-data-map-layer>
+    <dsfr-data-map-layer id="couche-aire" source="s-symboles" type="circle"
+      lat-field="lat" lon-field="lon" radius-field="entrees" radius-scale="sqrt" radius-max="30"
+      shape-class="verif-rayon-aire" color="#E1000F"></dsfr-data-map-layer>
+  </dsfr-data-map>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'carte-symboles',
+        selector: 'path.verif-rayon-aire',
+        measure: 'radius',
+        numeric: true,
+        column: 'rayon',
+        pipeline: [{ op: 'radius', from: 'entrees', as: 'rayon', scale: 'sqrt', max: 30 }],
+      },
+      {
+        // Le défaut ne change pas : l'échelle linéaire, bornes de la colonne.
+        kind: 'texts',
+        id: 'carte-symboles',
+        selector: 'path.verif-rayon-lineaire',
+        measure: 'radius',
+        numeric: true,
+        column: 'rayon',
+        pipeline: [
+          { op: 'radius', from: 'entrees', as: 'rayon', scale: 'linear', min: 2, max: 22 },
+        ],
+      },
+      {
+        kind: 'count',
+        id: 'carte-symboles',
+        selector: 'path.verif-rayon-aire',
+      },
+      {
+        // Aucune valeur négative, aucune échelle inconnue : la couche n'a rien à dire.
+        kind: 'diagnostic',
+        id: 'couche-aire',
+        expect: 'silence',
+        contains: 'radius-scale',
       },
     ],
   },

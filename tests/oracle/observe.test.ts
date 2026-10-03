@@ -10,6 +10,7 @@ import {
   lireLegende,
   lireListe,
   lirePastilles,
+  lireRayons,
   lireTexte,
   lireTextes,
 } from '../../tools/oracle/observe.js';
@@ -307,6 +308,20 @@ describe('vérification des données — lecteurs d’observation', () => {
 
     delete w.__verifConsole;
     expect(lireDiagnostics('sain')).toEqual({ configError: null, console: [] });
+  });
+
+  it('rayons : celui de chaque cercle tracé, lu dans ses arcs, dans l’ordre', () => {
+    document.body.innerHTML = `
+      <div id="carte"><svg>
+        <path class="c" d="M370,224a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 "></path>
+        <path class="c" d="M100,50a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0 "></path>
+        <path class="c" d="M0 0"></path>
+        <path class="autre" d="M1,1a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0 "></path>
+      </svg></div>`;
+    // Un cercle hors de la vue (« M0 0 ») n'a pas de rayon : chaîne vide, pas zéro.
+    expect(lireRayons({ id: 'carte', selecteur: 'path.c' })).toEqual(['3', '30', '']);
+    expect(lireRayons({ id: 'carte', selecteur: 'path.absent' })).toEqual([]);
+    expect(lireRayons({ id: 'absent', selecteur: 'path.c' })).toBeNull();
   });
 
   it('pastilles de légende : la couleur de chacune, dans l’ordre', () => {

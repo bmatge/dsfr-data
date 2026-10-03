@@ -3200,10 +3200,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | method | String | \`"quantile"\` | Discretisation : \`quantile\` (effectifs egaux), \`equal\` (intervalles egaux), \`manual\` (bornes de breaks) |
 | breaks | String | \`""\` | Bornes superieures manuelles \`"10,50,100"\` (= 4 classes) ; implique \`method="manual"\` |
 | radius | Number | \`8\` | Rayon fixe (circle) |
-| radius-field | String | \`""\` | Champ rayon variable |
+| radius-field | String | \`""\` | Champ rayon variable (circle). Echelle : voir \`radius-scale\` |
+| radius-scale | String | \`"linear"\` | Echelle du rayon variable. \`linear\` (defaut) : le RAYON suit la valeur, de radius-min (plus petite valeur) a radius-max (plus grande). \`sqrt\` : l'AIRE suit la valeur, ancree a zero — rayon = radius-max × √(valeur / max) ; valeur ×4 = rayon ×2 ; 0, negatif ou absent = rayon nul (point d'1 px) ; radius-min sans effet. **Symboles proportionnels : toujours \`sqrt\`.** Sans effet avec radius-unit="m" |
 | radius-unit | String | \`"px"\` | \`px\` ou \`m\` |
-| radius-min | Number | \`4\` | Rayon min auto-scaling (px) |
-| radius-max | Number | \`30\` | Rayon max auto-scaling (px) |
+| radius-min | Number | \`4\` | Rayon de la plus petite valeur en echelle lineaire (px). Sans effet en \`sqrt\` |
+| radius-max | Number | \`30\` | Rayon de la plus grande valeur (px), les deux echelles |
 | heat-radius | Number | \`25\` | Rayon heatmap (px) |
 | heat-blur | Number | \`15\` | Flou heatmap (px) |
 | heat-field | String | \`""\` | Champ ponderation heatmap |
@@ -3306,13 +3307,20 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 <dsfr-data-map center="46.6,2.3" zoom="6">
   <dsfr-data-map-layer source="villes" type="circle"
     lat-field="latitude" lon-field="longitude"
-    radius-field="population" radius-unit="px"
+    radius-field="population" radius-scale="sqrt" radius-max="30"
     color="#000091" fill-opacity="0.4"
     popup-fields="nom,population"
     tooltip-field="nom">
   </dsfr-data-map-layer>
 </dsfr-data-map>
 \`\`\`
+
+**Toujours \`radius-scale="sqrt"\` pour des symboles proportionnels.** L'œil compare des AIRES :
+avec l'echelle par defaut (\`linear\`), c'est le rayon qui suit la valeur, et une valeur dix fois
+plus grande occupe jusqu'a cent fois plus de surface. En \`sqrt\`, l'aire est proportionnelle a la
+valeur et l'echelle part de zero : une valeur nulle n'a pas de cercle (un point d'un pixel), la
+plus grande prend \`radius-max\`. L'echelle lineaire reste le defaut pour ne pas deplacer les
+cartes existantes ; elle convient a un indice ou un rang, pas a une quantite.
 
 ### Exemple : couleurs catégorielles (color-map)
 

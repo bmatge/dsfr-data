@@ -386,6 +386,46 @@ export function shareColumn(rows: Row[], from: string, as: string, scale = 1): R
 }
 
 /**
+ * Rayon TRACÉ d'un symbole proportionnel (étape `radius`, AM-107), en pixels
+ * entiers : arrondi au pixel, jamais sous 1 px — c'est ce que le tracé montre.
+ *
+ * `linear` : de `min` à `max` entre la plus petite et la plus grande valeur
+ * de la colonne (le milieu quand elles sont égales) ; une valeur absente
+ * donne `null`. `sqrt` : `max × √(valeur / plus grande valeur)`, ancré à zéro
+ * — une valeur nulle, négative ou absente a un rayon nul.
+ */
+export function symbolRadius(
+  rows: Row[],
+  from: string,
+  as: string,
+  options: { scale: 'linear' | 'sqrt'; min?: number; max: number }
+): Row[] {
+  const valeurs = rows.map((r) => toNum(r[from]));
+  let plusPetite = Infinity;
+  let plusGrande = -Infinity;
+  for (const v of valeurs) {
+    if (v === null) continue;
+    if (v < plusPetite) plusPetite = v;
+    if (v > plusGrande) plusGrande = v;
+  }
+  const trace = (rayon: number): number => Math.max(1, Math.round(rayon));
+  const rMin = options.min ?? 0;
+  const rMax = options.max;
+  return rows.map((r, i) => {
+    const v = valeurs[i];
+    if (options.scale === 'sqrt') {
+      const rayon = v === null || v <= 0 || plusGrande <= 0 ? 0 : rMax * Math.sqrt(v / plusGrande);
+      return { ...r, [as]: trace(rayon) };
+    }
+    if (v === null) return { ...r, [as]: null };
+    const etendue = plusGrande - plusPetite;
+    const rayon =
+      etendue > 0 ? rMin + ((v - plusPetite) / etendue) * (rMax - rMin) : (rMin + rMax) / 2;
+    return { ...r, [as]: trace(rayon) };
+  });
+}
+
+/**
  * Quotient de deux colonnes, ligne à ligne — la FRACTION qu'un ratio de KPI
  * affiche (#673). Dénominateur nul, absent ou non numérique : `null`, jamais
  * l'infini ni un zéro de complaisance.
@@ -860,6 +900,9 @@ export function runPipeline(
         break;
       case 'ratio':
         rows = ratioColumn(rows, step.numerator, step.denominator, step.as);
+        break;
+      case 'radius':
+        rows = symbolRadius(rows, step.from, step.as, step);
         break;
       case 'join': {
         const droite = datasets[step.right];

@@ -219,6 +219,28 @@ export type Step =
       type: 'inner' | 'left' | 'right' | 'full';
       prefixRight?: string;
     }
+  | {
+      /**
+       * RAYON TRACÉ d'un symbole proportionnel (`radius-field` d'une couche
+       * `circle`, AM-107), en pixels entiers : ce que le tracé SVG montre,
+       * arrondi au pixel et jamais sous 1 px — un cercle de rayon nul reste un
+       * point. Les bornes sont celles de la colonne sur les lignes reçues.
+       *
+       * `linear` : le rayon va de `min` (plus petite valeur) à `max` (plus
+       * grande), le milieu des deux quand toutes les valeurs sont égales.
+       * `sqrt` : l'AIRE suit la valeur, ancrée à zéro — `max × √(valeur /
+       * plus grande valeur)` ; une valeur nulle, négative ou absente a un
+       * rayon nul, et `min` ne joue pas.
+       */
+      op: 'radius';
+      from: string;
+      as: string;
+      scale: 'linear' | 'sqrt';
+      /** `radius-min` de la couche (échelle linéaire). */
+      min?: number;
+      /** `radius-max` de la couche. */
+      max: number;
+    }
   /** Colonnes calculées : la MÊME expression que l'attribut `compute`, réévaluée à part. */
   | { op: 'derive'; expr: string }
   /**
@@ -476,6 +498,14 @@ export interface ExpectTexts extends ExpectBase {
   scale?: number;
   /** Motif que CHAQUE texte doit vérifier — la forme, pas la valeur. */
   pattern?: string;
+  /**
+   * Ce qui est lu sur chaque élément, quand ce n'est pas son texte. `radius` :
+   * le rayon TRACÉ d'un cercle de carte (`path.<shape-class>` d'une couche
+   * `circle`), en pixels — une taille est un chiffre affiché comme un autre
+   * (AM-107). À comparer en `numeric`, à une colonne produite par l'étape
+   * `radius`.
+   */
+  measure?: 'radius';
 }
 
 /**
