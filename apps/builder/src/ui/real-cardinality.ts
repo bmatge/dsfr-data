@@ -139,13 +139,17 @@ function parseHeaders(raw: string | null | undefined): Record<string, string> {
   }
 }
 
+/**
+ * Lit `a.b.c` dans la réponse. Propriétés PROPRES seulement : un chemin ne
+ * remonte jamais dans le prototype (`__proto__`, `constructor`).
+ */
+function readOwn(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null) return undefined;
+  return Object.prototype.hasOwnProperty.call(value, key) ? Reflect.get(value, key) : undefined;
+}
+
 function readPath(json: unknown, path: string): unknown {
-  let current: unknown = json;
-  for (const part of path.split('.')) {
-    if (typeof current !== 'object' || current === null) return undefined;
-    current = (current as Record<string, unknown>)[part];
-  }
-  return current;
+  return path.split('.').reduce<unknown>(readOwn, json);
 }
 
 const cache = new Map<string, RealCardinality>();
