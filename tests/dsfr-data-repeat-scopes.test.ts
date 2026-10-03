@@ -242,7 +242,7 @@ describe('dsfr-data-repeat — scopes, états, lazy (#891)', () => {
       dispatchDataError('scores', new Error('502 du portail'));
       await tick();
       expect(ligne('k-002')).toContain('502 du portail');
-      expect(host.querySelectorAll('#rep [role="alert"]').length).toBe(3);
+      expect(host.querySelectorAll('#rep .dsfr-data-status--source-error').length).toBe(3);
     });
 
     it('attente d’un filtre (`require-where`) : le message d’attente, pas « aucune donnée »', async () => {
@@ -347,10 +347,7 @@ describe('dsfr-data-repeat — scopes, états, lazy (#891)', () => {
         cibles,
         montrer: (n = cibles.length) => {
           const vues = cibles.slice(0, n);
-          rappel(
-            vues.map((target) => ({ target, isIntersecting: true })) as never,
-            null as never
-          );
+          rappel(vues.map((target) => ({ target, isIntersecting: true })) as never, null as never);
         },
         restaurer: () => {
           (globalThis as Record<string, unknown>).IntersectionObserver = avant;

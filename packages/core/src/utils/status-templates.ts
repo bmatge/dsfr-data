@@ -4,14 +4,18 @@
  * Avant : quatre comportements pour la même erreur — list/chart affichaient
  * error.message, display un texte générique sans message, kpi/podium un
  * libellé sans message ni role. Même UX partout désormais :
- * - erreur : role="alert" + aria-live="assertive", icône, message inclus ;
+ * - erreur de SOURCE (#1203) : bloc neutre, message du barème pour l'usager,
+ *   code et adresse repliés dans « Détails techniques », role="status" ;
+ * - erreur de CONFIGURATION (#649) : role="alert", message de l'intégrateur ;
  * - loading : aria-live="polite" + aria-busy, icône, libellé personnalisable.
  *
  * La classe par composant (`dsfr-data-kpi__error`…) est conservée pour ne
  * pas casser les styles existants ; une classe commune
  * (`dsfr-data-status--*`) permet un theming global.
  */
-import { html, type TemplateResult } from 'lit';
+import { html, nothing, type TemplateResult } from 'lit';
+import { getDataErrorState, isSourceCoveredByBanner, requestSourceRetry } from './data-bridge.js';
+import { describeSourceCause, describeSourceError, formatErrorTime } from './source-errors.js';
 
 /** Bloc de chargement commun (libellé personnalisable par composant) */
 export function renderSourceLoading(
@@ -58,19 +62,115 @@ export function renderSourceIdle(
   `;
 }
 
-/** Bloc d'erreur commun — message TOUJOURS affiché quand disponible (#284) */
-export function renderSourceError(componentClass: string, error: Error | null): TemplateResult {
-  const message = error?.message
-    ? `Erreur de chargement: ${error.message}`
-    : 'Erreur de chargement';
+/**
+ * Styles du bloc d'erreur de source, posés EN LIGNE (#1203).
+ *
+ * Les composants rendent en light DOM et chacun colore sa classe `__error` en
+ * rouge — ce que l'erreur de configuration doit garder. Le style en ligne
+ * l'emporte sans toucher à ces règles : le bloc reste neutre, garde la place
+ * que la classe du composant lui réserve, et la page ne « saute » pas.
+ */
+const SOURCE_ERROR_STYLE =
+  'color: var(--text-default-grey, #3a3a3a);' +
+  'background: var(--background-alt-grey, #f6f6f6);' +
+  'border: 0; border-radius: 0.25rem; padding: 1rem;' +
+  'display: flex; flex-direction: column; align-items: center; justify-content: center;' +
+  'gap: 0.5rem; text-align: center; font-size: 0.875rem; font-weight: 400;';
+const SOURCE_ERROR_TEXT_STYLE = 'margin: 0; color: var(--text-default-grey, #3a3a3a);';
+const SOURCE_ERROR_DETAILS_STYLE =
+  'font-size: 0.75rem; color: var(--text-mention-grey, #666); text-align: left; max-width: 100%;';
+/** Cible tactile de 44 px minimum (RGAA / WCAG 2.5.5). */
+const RETRY_BUTTON_STYLE = 'min-height: 2.75rem; min-width: 2.75rem;';
+
+/** Libellé de l'action de relance (lexique `docs/ux/actions.md`). */
+export const RETRY_LABEL = 'Réessayer';
+
+/**
+ * Bloc d'erreur de SOURCE (#1203) : ce que l'usager peut comprendre, ce que
+ * l'intégrateur peut déplier.
+ *
+ * - neutre, sans rouge : une panne du producteur n'est pas une faute de
+ *   l'usager, ni un bug de la page ;
+ * - `role="status"` (poli) et non plus `role="alert"` : huit blocs en panne
+ *   n'interrompent plus huit fois le lecteur d'écran. Quand un bandeau
+ *   `dsfr-data-source-status` dit déjà la panne de cette source, le bloc
+ *   n'est plus une région live du tout — la panne est annoncée UNE fois ;
+ * - « Réessayer » dans le bloc seulement s'il n'y a pas de bandeau pour sa
+ *   source, et seulement quand réessayer a un sens (pas sur un 404).
+ *
+ * @param sourceId attribut `source` du composant : donne l'état d'erreur
+ *   enregistré par le bus (origine de la panne, adresse, heure). Sans lui, le
+ *   bloc classe l'`Error` seule et ne propose pas de relance.
+ */
+export function renderSourceError(
+  componentClass: string,
+  error: Error | null,
+  sourceId?: string
+): TemplateResult {
+  const state = sourceId ? getDataErrorState(sourceId) : undefined;
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  const desc = state
+    ? describeSourceCause(state.cause, state.error)
+    : describeSourceError(error, online);
+  const originId = state?.originId ?? sourceId;
+  const covered = originId ? isSourceCoveredByBanner(originId) : false;
+  const showRetry = Boolean(sourceId) && desc.retry && !covered;
+  const technical = (state?.error ?? error)?.message;
+  const userMessage = state?.userMessage;
+
   return html`
     <div
-      class="${componentClass}__error dsfr-data-status--error"
-      role="alert"
-      aria-live="assertive"
+      class="${componentClass}__error dsfr-data-status--error dsfr-data-status--source-error"
+      role=${covered ? nothing : 'status'}
+      data-cause=${desc.cause}
+      style=${SOURCE_ERROR_STYLE}
     >
-      <span class="fr-icon-error-line" aria-hidden="true"></span>
-      ${message}
+      <span class="fr-icon-information-line" aria-hidden="true"></span>
+      ${
+        userMessage
+          ? html`<p class="dsfr-data-status__title" style=${SOURCE_ERROR_TEXT_STYLE}>
+              ${userMessage}
+            </p>`
+          : html`<p class="dsfr-data-status__title" style=${SOURCE_ERROR_TEXT_STYLE}>
+                <strong>${desc.title}</strong>
+              </p>
+              ${
+                desc.detail
+                  ? html`<p class="dsfr-data-status__detail" style=${SOURCE_ERROR_TEXT_STYLE}>
+                      ${desc.detail}
+                    </p>`
+                  : nothing
+              }`
+      }
+      ${
+        showRetry
+          ? html`<button
+              type="button"
+              class="fr-btn fr-btn--secondary dsfr-data-status__retry"
+              style=${RETRY_BUTTON_STYLE}
+              @click=${() => requestSourceRetry(sourceId as string)}
+            >
+              ${RETRY_LABEL}
+            </button>`
+          : nothing
+      }
+      <details class="dsfr-data-status__details" style=${SOURCE_ERROR_DETAILS_STYLE}>
+        <summary>Détails techniques</summary>
+        <ul class="dsfr-data-status__details-list" style="margin: 0.25rem 0 0; padding-left: 1rem;">
+          ${desc.status !== undefined ? html`<li>Code HTTP : ${desc.status}</li>` : nothing}
+          ${technical ? html`<li>Message : ${technical}</li>` : nothing}
+          ${originId ? html`<li>Source : ${originId}</li>` : nothing}
+          ${
+            state?.attemptedUrl
+              ? html`<li style="overflow-wrap: anywhere;">
+                  Adresse appelée : ${state.attemptedUrl}
+                </li>`
+              : nothing
+          }
+          ${state ? html`<li>Heure : ${formatErrorTime(state.at)}</li>` : nothing}
+          <li>${desc.hint}</li>
+        </ul>
+      </details>
     </div>
   `;
 }

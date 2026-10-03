@@ -633,7 +633,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           this._sourceLoading
             ? renderSourceLoading('dsfr-data-display')
             : this._sourceError && !(this._serverPagination && this._data.length > 0)
-              ? renderSourceError('dsfr-data-display', this._sourceError)
+              ? renderSourceError('dsfr-data-display', this._sourceError, this.source)
               : this._sourceIdle
                 ? renderSourceIdle('dsfr-data-display', this.idleMessage)
                 : totalItems === 0

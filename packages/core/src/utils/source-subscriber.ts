@@ -5,7 +5,12 @@
  * dsfr-data-kpi, dsfr-data-list, dsfr-data-chart.
  */
 import type { LitElement } from 'lit';
-import { subscribeToSource, getDataCache, isDataIdle } from './data-bridge.js';
+import {
+  subscribeToSource,
+  getDataCache,
+  isDataIdle,
+  STATUS_COVERAGE_EVENT,
+} from './data-bridge.js';
 import { checkUnknownAttributes } from './unknown-attributes.js';
 import { registerDsfrDataInstance, unregisterDsfrDataInstance } from './instance-registry.js';
 
@@ -93,10 +98,20 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
       // délégation posée par une query montée avant lui (#853) — il doit
       // alors être en mesure de recevoir les lignes rebrutes.
       registerDsfrDataInstance(this);
+      document.addEventListener(STATUS_COVERAGE_EVENT, this._onStatusCoverage);
     }
+
+    /**
+     * Un bandeau de source est apparu ou parti (#1203) : un bloc en erreur se
+     * redessine pour retirer — ou reprendre — son propre « Réessayer ».
+     */
+    private _onStatusCoverage = (): void => {
+      if (this._sourceError) this.requestUpdate();
+    };
 
     disconnectedCallback() {
       super.disconnectedCallback();
+      document.removeEventListener(STATUS_COVERAGE_EVENT, this._onStatusCoverage);
       unregisterDsfrDataInstance(this);
       this._cleanupSubscription();
     }

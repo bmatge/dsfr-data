@@ -178,11 +178,15 @@ function separer(html: string): { markup: string; css: string } {
 }
 
 function normaliser(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/> </g, '><')
-    .trim();
+  return (
+    html
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/> </g, '><')
+      // L'heure de l'échec (« Détails techniques », #1203) varie à chaque exécution.
+      .replace(/Heure : \d{2}:\d{2}:\d{2}/g, 'Heure : HH:MM:SS')
+      .trim()
+  );
 }
 
 /**

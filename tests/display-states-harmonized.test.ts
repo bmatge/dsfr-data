@@ -50,7 +50,7 @@ describe('#284 — AC : même UX d’erreur sur les composants d’affichage', (
   });
 
   for (const [tag, build] of DISPLAY_COMPONENTS) {
-    it(`${tag} : role="alert" + message de l'erreur affiché`, async () => {
+    it(`${tag} : role="status", message lisible, détail technique replié (#1203)`, async () => {
       const el = build() as HTMLElement & { source: string; updateComplete: Promise<boolean> };
       el.source = SRC;
       document.body.appendChild(el);
@@ -61,8 +61,17 @@ describe('#284 — AC : même UX d’erreur sur les composants d’affichage', (
 
       const alert = el.querySelector(`.${tag}__error`);
       expect(alert, `${tag} doit rendre .${tag}__error`).not.toBeNull();
-      expect(alert!.getAttribute('role'), `${tag} role=alert`).toBe('alert');
-      expect(alert!.textContent, `${tag} message inclus`).toContain('quota API dépassé');
+      // #1203 : annonce polie — plus d'alerte assertive par bloc.
+      expect(alert!.getAttribute('role'), `${tag} role=status`).toBe('status');
+      expect(alert!.hasAttribute('aria-live')).toBe(false);
+      // Le message technique reste disponible, mais replié.
+      const details = alert!.querySelector('details');
+      expect(details, `${tag} détails techniques`).not.toBeNull();
+      expect(details!.hasAttribute('open')).toBe(false);
+      expect(details!.textContent, `${tag} message inclus`).toContain('quota API dépassé');
+      expect(alert!.querySelector('.dsfr-data-status__title')!.textContent).not.toContain(
+        'quota API dépassé'
+      );
       expect(alert!.classList.contains('dsfr-data-status--error')).toBe(true);
 
       el.remove();

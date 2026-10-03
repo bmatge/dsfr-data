@@ -1067,7 +1067,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
             : this._sourceLoading
               ? renderSourceLoading('dsfr-data-kpi')
               : this._sourceError
-                ? renderSourceError('dsfr-data-kpi', this._sourceError)
+                ? renderSourceError('dsfr-data-kpi', this._sourceError, this.source)
                 : this._sourceIdle
                   ? renderSourceIdle('dsfr-data-kpi', this.idleMessage)
                   : html`

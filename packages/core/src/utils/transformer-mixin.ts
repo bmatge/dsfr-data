@@ -67,7 +67,7 @@ export interface TransformerInterface {
   _transformerIdle: boolean;
   reinitTransformer(): void;
   emitTransformedData(data: unknown): void;
-  emitTransformerError(error: Error): void;
+  emitTransformerError(error: Error, relayedFrom?: string): void;
   emitTransformerLoading(): void;
   emitTransformerIdle(): void;
   /** L'élément amont s'il est dans le DOM, null sinon (délégation #274) */
@@ -400,7 +400,9 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
             },
             onError: (err: Error) => {
               this._noteInputState(index, 'error');
-              this.emitTransformerError(err);
+              // L'id de l'amont suit l'erreur (#1203) : l'aval saura quelle
+              // source a réellement échoué, donc laquelle relancer.
+              this.emitTransformerError(err, sourceId);
             },
             // Une étape en attente d'un filtre ne livre rien : le relayer
             // aval est la seule façon qu'a un afficheur derrière une chaîne
@@ -443,12 +445,19 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       this.requestUpdate();
     }
 
-    /** Erreur amont ou de traitement : état + propagation aval */
-    public emitTransformerError(error: Error): void {
+    /**
+     * Erreur amont ou de traitement : état + propagation aval.
+     *
+     * `relayedFrom` (#1203) : id de l'étape amont quand l'erreur n'est que
+     * relayée. Absent, l'erreur est celle de CE transformateur.
+     */
+    public emitTransformerError(error: Error, relayedFrom?: string): void {
       this._transformerError = error;
       this._transformerLoading = false;
       this._transformerIdle = false;
-      if (this.id) dispatchDataError(this.id, error);
+      if (this.id) {
+        dispatchDataError(this.id, error, undefined, relayedFrom ? { relayedFrom } : {});
+      }
       this.requestUpdate();
     }
 
