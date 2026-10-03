@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt : **218 contrôles déterministes** et **32 contrôles vivants**, répartis en onze
-domaines, pour 500 observations et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt (mesuré le 2026-10-03) : **268 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 548 observations déterministes et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
-**16 reproductions** du banc d'essai ; avec le canari, **36 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 342 des attentes déterministes
+**16 reproductions** du banc d'essai ; avec le canari, **49 constats** de son registre sont
+cités. Une troisième voix, en Python standard, recalcule 423 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -277,8 +277,9 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   fixtures-affichages.ts       le faux serveur du domaine `affichages`
   fixtures-canari.ts           le faux serveur du canari — tableau nu, export et /records ODS
-                               sur canari.json, canari-ref.json (doublon de clé) et
-                               canari-volume.json (1 001 lignes, graine 42)
+                               sur canari.json, canari-ref.json (doublon de clé),
+                               canari-volume.json (1 001 lignes, graine 42) et
+                               canari-facettes.json (valeurs à virgule, éléments répétés)
 
 tools/oracle/            LE MOTEUR
   manifest.ts              la grammaire (types seuls) : Feed, Step, Expect, Check
@@ -328,7 +329,8 @@ tests/oracle/            LES TESTS DU MOTEUR (Vitest)
   oracle-py.test.ts        le garde de la troisième voix : ni sous-processus, ni node, ni
                              packages/, rien hors de la stdlib
   invariants.test.ts       les six sortes d'invariants, tenues et violées en tableaux nus
-  canari-ops.test.ts       les deux opérations venues du canari : explode et eq-strict
+  canari-ops.test.ts       les opérations venues du canari : explode (et son option
+                             `distinct`, le compte d'une facette) et eq-strict
   crosscheck.test.ts       le recoupement serveur : ce que le serveur ne sait pas dire (refusé
                              sur tous les manifestes), l'URL écrite à la main, le quota qui coupe,
                              l'accord par clé, les cinq verdicts
@@ -561,7 +563,8 @@ en NFC et en NFD, une clé qui apparaît deux fois à droite, un champ
 multivalué, un jeu de 1 001 lignes derrière un plafond de 1 000. Le canari
 (#882) est **un jeu de quarante lignes écrites à la main** — `jeux/canari.json`,
 chaque ligne décrite dans `jeux/README.md` —, une table de droite à doublon,
-un jeu de volume engendré à graine, et **seize contrôles** dans
+un jeu de volume engendré à graine, un jeu de dix lignes pour les pièges de
+facette (`jeux/canari-facettes.json`), et **vingt et un contrôles** dans
 `tests/verif-donnees/canari.ts`, un par piège, chacun citant le registre
 (`constats`) et nommant le contrôle existant qui couvrait déjà le cas plutôt
 que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
@@ -579,6 +582,9 @@ que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
 | plafond | `canari-plafond-export` | mille lignes sur 1 001 : `not-truncated` tenu parce que la source le dit en nommant dsfr-data-source (AM-002, #1032) |
 | dates partielles | `canari-date-partielle` | un filtre d'ordre compare en texte : « 2024 » ≤ « 2024-03 » < « 2025 » |
 | `distinct` | `canari-distinct` | ni les vides ni les doublons ; `'1'` et `1` sont une modalité, `'01'` une autre |
+| virgule dans une valeur de facette | `canari-facette-virgule-aller-retour`, `canari-facette-virgule-lien-ancien` | « 1,5 » à côté de « 1 » et de « 5 » : cochée, écrite dans l'URL, rechargée, la valeur reste UNE valeur — 3 lignes, et non les 6 de « 1 » et « 5 » (BUG-031). La virgule part échappée (`%2C`) ; un lien d'avant l'échappement est recollé contre les valeurs des données (4 lignes, et non 0), et `?note=1,5` reste deux valeurs quand « 1 » et « 5 » existent |
+| élément répété dans une cellule | `canari-facette-element-repete` | une ligne compte une fois par valeur distincte dans une FACETTE (Patrimoine 4, et la sélection rend 4 — étape `explode` à `distinct` de l'oracle) ; `explode` d'une query compte les éléments (Patrimoine 5), côte à côte dans le même contrôle (BUG-037) |
+| volume au-delà du plafond d'arguments | `canari-volume-min-max` | `min` et `max` sur 150 150 valeurs — le jeu de volume empilé 150 fois, sans fichier de plus de 1 001 lignes — par le KPI et par l'agrégat global d'une query (BUG-038) |
 | `neq` et les nuls | `canari-neq-nuls-exclus`, `-delegue` | une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : `eq` 7 + `neq` 27 = 34 renseignées sur 40, `notin` 33 (il garde les nuls, comme le `NOT … in (…)` qu'il délègue), `isnull` 6 — et le même 27 que la clause parte au serveur ou non |
 
 Ce que le canari a **appris en s'écrivant** — trois faux pas d'auteur, tous
@@ -588,7 +594,7 @@ qui ne voit que `null`, une chaîne vide étant une valeur) ; les clauses d'un
 `where` se séparent par une **virgule**, et un `AND` devient la fin de la valeur
 (deux dates de 2025 passaient un `date:lt:2025 AND …`) ; le faux serveur ODS
 compare la forme texte d'un code, comme le portail. La troisième voix couvre
-**quarante des quarante et une attentes** du canari : aucun `derive`, le
+**cinquante-trois des cinquante-quatre attentes** du canari : aucun `derive`, le
 quotient passe par `ratio`, et la seule non couverte est un contrôle d'URL
 (la délégation du `neq`), qui n'est pas un chiffre.
 
@@ -928,6 +934,11 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | `facetValuesOf` stringifie le tableau, « a,b » — l'ancien comportement d'avant #421 (`facets/facets-client.ts`) | `canari-multivalue` | 5 valeurs de facette au lieu de 3 |
 | canari | `looseEquals` ne regarde plus dans le tableau — l'ancien comportement d'avant #953, `if (false && Array.isArray(a) …)` dans `packages/shared/src/query/filter-translator.ts` (puis `npm run build:shared`) | `canari-multivalue-where` | `tags:eq:eau` affiche 7 au lieu de 16, `neq` 33 au lieu de 24, `in` 11 au lieu de 21, et les deux écritures du KPI retombent à 7 |
 | canari | `_compareForRange` sans repli lexicographique (`dsfr-data-query.ts`) | `canari-date-partielle` | 4 lignes au lieu de 32 : seules les dates réduites à l'année, numériques, survivent au filtre |
+| canari | jointure NUE à l'écriture et découpage nu à la lecture — l'ancien code d'avant #1227 : `joinUrlFacetValues` rend `[...values].join(',')`, `splitUrlFacetValues` rend `raw.split(',').map(trim).filter(Boolean)` (`facets/facets-url.ts`) | `canari-facette-virgule-aller-retour`, `canari-facette-virgule-lien-ancien` | k-note lib 6, oracle 3 (« 1,5 » relu « 1 » et « 5 » : faux ET plausible) ; k-int lib 0, oracle 4, dans les deux contrôles (BUG-031) |
+| canari | l'écriture seule : `joinUrlFacetValues` sans `escapeUrlFacetValue` (`facets/facets-url.ts`) | `canari-facette-virgule-aller-retour` (le lien ancien reste vert) | k-note lib 6, oracle 3 ; k-int reste à 4 — le recollage rattrape « 1,5 à 2 parcours », pas « 1,5 » dont les deux morceaux existent : seul l'échappement est exact |
+| canari | le recollage seul : `known` forcé à `null` dans `readUrlSelections` (`facets/facets-url.ts`) | `canari-facette-virgule-lien-ancien` (l'aller-retour reste vert) | k-int lib 0, oracle 4 : le lien d'avant l'échappement retombe en deux cases fantômes |
+| canari | `countFacetValues` sans `new Set(…)` autour de `facetValuesOf` (`facets/facets-client.ts`) | `canari-facette-element-repete` (`canari-multivalue` reste vert : ses cellules ne répètent rien) | « facets:f-dom:Domaines … écart 1 » : Patrimoine 5 et Musée 5 annoncés pour une sélection qui rend 4 (BUG-037) |
+| canari | `computeExtremum` rend `Math.min(...values)` / `Math.max(...values)` (`core/utils/aggregations.ts`) | `canari-volume-min-max` | « dsfr-data-query[q-ext]: Erreur de traitement RangeError: Maximum call stack size exceeded », deux rejets non rattrapés, KPI vides : le contrôle tombe sans chiffre (BUG-038) |
 | canari | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `canari-distinct` | 28 codes au lieu de 27 |
 | canari | `_normalize` sans `stripAccents` (`dsfr-data-search.ts`) | `canari-accents-nfc-nfd` | « 0 lignes » au lieu de 3 : « elancourt » ne trouve plus aucune des trois formes ; le regroupement, lui, ne normalise rien et n'a rien à muter |
 | canari | l'avertissement d'export tronqué sans « dsfr-data- » (l'ancien texte d'avant #1032), ou supprimé (`opendatasoft-adapter.ts`, `_fetchViaExport`) | `canari-plafond-export#not-truncated`, `ods-plafond-sans-compteur` (avertissement de pagination incomplète, idem) | « 1000 lignes, aucun diagnostic » ; « 120 lignes sur 137 » et le diagnostic `s-cap2` introuvable |

@@ -14,6 +14,7 @@
  */
 
 import { toNumber, looksLikeNumber } from '../utils/number-parser.js';
+import { maxOf, minOf } from '../utils/extremum.js';
 import type { ChartConfig, AggregatedResult } from '../dashboard/chart-config.js';
 
 export type Row = Record<string, unknown>;
@@ -65,9 +66,9 @@ function reduceValues(values: number[], agg: Aggregation, count: number): number
     case 'count':
       return count;
     case 'min':
-      return values.length ? Math.min(...values) : 0;
+      return values.length ? minOf(values) : 0;
     case 'max':
-      return values.length ? Math.max(...values) : 0;
+      return values.length ? maxOf(values) : 0;
     case 'avg':
       return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
     case 'sum':
@@ -242,8 +243,8 @@ export function inspectData(data: Row[], fields: Field[], sampleSize = 8): strin
     const numeric = analyzed ? analyzed === 'numérique' : isNumericField(data, key);
     if (numeric) {
       const nums = vals.map((v) => toNumber(v)).filter((n): n is number => Number.isFinite(n));
-      const min = nums.length ? Math.min(...nums) : NaN;
-      const max = nums.length ? Math.max(...nums) : NaN;
+      const min = nums.length ? minOf(nums) : NaN;
+      const max = nums.length ? maxOf(nums) : NaN;
       lines.push(`- ${key} (nombre) — min ${min}, max ${max}, ${distinct.size} valeurs distinctes`);
     } else {
       const sample = Array.from(distinct)

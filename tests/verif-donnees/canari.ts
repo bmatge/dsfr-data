@@ -63,6 +63,23 @@ const JOINTURE_GAUCHE: Step = { op: 'join', right: 'ref', on: 'code', type: 'lef
 const SRC_FACETTES = `
   <dsfr-data-source id="s-fac" url="${urlCanari('facettes')}"></dsfr-data-source>`;
 
+/**
+ * Cent cinquante fois le jeu de volume, empilées : 150 150 lignes sans qu'aucun
+ * fichier n'en porte plus de 1 001. C'est au-delà du plafond d'arguments d'un
+ * appel (entre 120 000 et 125 000 sous V8) que BUG-038 a payé.
+ */
+const COPIES_VOLUME = 150;
+const IDS_VOLUME = Array.from(
+  { length: COPIES_VOLUME },
+  (_, i) => `s-v${String(i + 1).padStart(3, '0')}`
+);
+const SRC_VOLUME_EMPILE = `${IDS_VOLUME.map(
+  (id) => `
+  <dsfr-data-source id="${id}" url="${urlCanari('volume')}"></dsfr-data-source>`
+).join('')}
+  <dsfr-data-concat id="c-vol" sources="${IDS_VOLUME.join(', ')}"></dsfr-data-concat>`;
+const EMPILER_VOLUME: Step = { op: 'concat', sources: IDS_VOLUME.map(() => 'main') };
+
 const CHECKS: Check[] = [
   // -------------------------------------------------------------------------
   // null ≠ 0 ≠ ''
@@ -795,6 +812,29 @@ const CHECKS: Check[] = [
           { op: 'group-by', by: 'domaines', columns: { nb: { agg: 'count', field: 'id' } } },
         ],
       },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // le volume : un minimum sur plus de valeurs qu'un appel n'a d'arguments
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-volume-min-max',
+    mode: 'deterministic',
+    constats: ['BUG-038'],
+    origin:
+      'Canari — BUG-038, #1228 : `min` et `max` sur 150 150 valeurs (le jeu de volume empilé cent cinquante fois par `dsfr-data-concat`). `Math.min(...values)` passe chaque valeur en ARGUMENT : au-delà de 120 000 à 125 000 sous V8, l’appel lève « RangeError: Maximum call stack size exceeded », le KPI reste vide et la query garde son ancien résultat, sans un mot à l’écran. Les deux chemins sont tenus — le KPI direct et l’agrégat global d’une query, relu par un KPI —, avec le compte, qui dit que les 150 150 lignes sont bien arrivées.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_VOLUME } },
+    markup: `${SRC_VOLUME_EMPILE}
+  ${kpi('k-n', 'c-vol', 'count')}${kpi('k-min', 'c-vol', 'valeur:min')}${kpi('k-max', 'c-vol', 'valeur:max')}
+  <dsfr-data-query id="q-ext" source="c-vol" aggregate="valeur:min:mini, valeur:max:maxi"></dsfr-data-query>
+  ${kpi('k-q-min', 'q-ext', 'mini:min')}${kpi('k-q-max', 'q-ext', 'maxi:max')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-n', agg: 'count', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-min', agg: 'min', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-max', agg: 'max', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-q-min', agg: 'min', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-q-max', agg: 'max', field: 'valeur', pipeline: [EMPILER_VOLUME] },
     ],
   },
 ];

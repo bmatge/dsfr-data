@@ -101,6 +101,7 @@ export {
   splitColonFields,
   isMultiFieldClause,
 } from './utils/colon-escape.js';
+export { minOf, maxOf, appendAll } from './utils/extremum.js';
 export { toBoolean } from './utils/to-boolean.js';
 export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';

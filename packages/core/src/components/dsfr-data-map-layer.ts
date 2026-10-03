@@ -26,6 +26,7 @@ import {
   choroplethLegendEntries,
   escapeHtml,
 } from '@dsfr-data/shared/lib';
+import { appendAll, maxOf, minOf } from '@dsfr-data/shared/lib';
 import type { LegendEntry } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import { defaultGroupFields, groupListHtml, groupTableHtml } from '../utils/map-group.js';
@@ -778,7 +779,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       const result: Record<string, unknown>[] = [];
       for (let i = 0; i <= frameIndex; i++) {
         const key = this._timeSteps[i];
-        result.push(...(this._timeFrames.get(key) || []));
+        // Lignes de données : ajout en boucle, jamais étalé (BUG-038)
+        appendAll(result, this._timeFrames.get(key) || []);
       }
       return result;
     }
@@ -1123,8 +1125,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
         .map((r) => Number(getByPath(r, this.radiusField)))
         .filter((v) => !isNaN(v) && isFinite(v));
       if (values.length > 0) {
-        const min = Math.min(...values);
-        const max = Math.max(...values);
+        // Une valeur par ligne : jamais étalée en arguments (BUG-038)
+        const min = minOf(values);
+        const max = maxOf(values);
         const range = max - min;
         if (range > 0) {
           const rMin = this.radiusMin;

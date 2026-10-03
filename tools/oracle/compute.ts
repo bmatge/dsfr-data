@@ -256,10 +256,28 @@ export function aggregate(rows: Row[], agg: Agg, field?: string, weight?: string
     case 'avg':
       return nums.reduce((a, b) => a + b, 0) / nums.length;
     case 'min':
-      return Math.min(...nums);
+      return plusPetit(nums);
     case 'max':
-      return Math.max(...nums);
+      return plusGrand(nums);
   }
+}
+
+/**
+ * Minimum et maximum en BOUCLE : `Math.min(...nums)` passe chaque valeur en
+ * argument, et lève une `RangeError` au-delà d'environ 125 000 valeurs — le
+ * défaut que BUG-038 a payé dans la bibliothèque. Un oracle qui tomberait au
+ * même endroit qu'elle ne pourrait pas la contredire.
+ */
+function plusPetit(nums: number[]): number {
+  let min = Infinity;
+  for (const n of nums) if (n < min) min = n;
+  return min;
+}
+
+function plusGrand(nums: number[]): number {
+  let max = -Infinity;
+  for (const n of nums) if (n > max) max = n;
+  return max;
 }
 
 function appliquer(rows: Row[], spec: AggSpec): number | null {
@@ -549,7 +567,7 @@ function reduireCellule(valeurs: unknown[], agg: PivotAgg): unknown {
   if (agg === 'avg') {
     return nombres.length > 0 ? nombres.reduce((a, b) => a + b, 0) / nombres.length : null;
   }
-  if (nombres.length > 0) return agg === 'min' ? Math.min(...nombres) : Math.max(...nombres);
+  if (nombres.length > 0) return agg === 'min' ? plusPetit(nombres) : plusGrand(nombres);
   const textes = valeurs.filter((v) => !celluleVide(v)).map((v) => String(v));
   if (textes.length === 0) return null;
   return textes.reduce((acc, s) => (agg === 'min' ? (s < acc ? s : acc) : s > acc ? s : acc));
@@ -755,8 +773,8 @@ export function concatRows(
  */
 export function equalIntervalBreaks(values: number[], steps: number): number[] {
   if (values.length === 0 || steps < 2) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = plusPetit(values);
+  const max = plusGrand(values);
   const largeur = (max - min) / steps;
   const bornes: number[] = [];
   for (let i = 1; i < steps; i++) bornes.push(min + largeur * i);
@@ -805,8 +823,8 @@ export function legendClasses(
 ): Array<{ from: number | null; to: number | null }> {
   const bornes = discretiser(values, steps, method, manuelles);
   if (bornes.length === 0 || values.length === 0) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = plusPetit(values);
+  const max = plusGrand(values);
   const classes: Array<{ from: number | null; to: number | null }> = [];
   const n = bornes.length + 1;
   for (let i = 0; i < n; i++) {
