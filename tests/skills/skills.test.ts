@@ -1,23 +1,23 @@
 import { describe, it, expect } from 'vitest';
-import {
-  SKILLS,
-  getRelevantSkills,
-  buildSkillsContext,
-} from '../../packages/shared/src/skills/skills';
+import { SKILLS, getRelevantSkills } from '../../packages/shared/src/skills/skills';
 import type { Source } from '../../packages/shared/src/types/source';
 
 // Type/constant imports for alignment checks
 import type { FilterOperator, AggregateFunction } from '@/components/dsfr-data-query.js';
 
-describe('builder-ia skills', () => {
-  it('should have 36 skill definitions', () => {
-    expect(Object.keys(SKILLS)).toHaveLength(36);
+describe('guide des skills', () => {
+  it('should have 34 skill definitions', () => {
+    expect(Object.keys(SKILLS)).toHaveLength(34);
+  });
+
+  it('les actions JSON de l’ancien Assistant IA sont parties avec lui (#1081)', () => {
+    expect(SKILLS).not.toHaveProperty('createChartAction');
+    expect(SKILLS).not.toHaveProperty('reloadDataAction');
+    expect(Object.keys(SKILLS).filter((id) => id.endsWith('Action'))).toEqual([]);
   });
 
   it('should have expected skill IDs', () => {
-    expect(SKILLS).toHaveProperty('createChartAction');
     expect(SKILLS).toHaveProperty('dsfrDataConcat');
-    expect(SKILLS).toHaveProperty('reloadDataAction');
     expect(SKILLS).toHaveProperty('dsfrDataSource');
     expect(SKILLS).toHaveProperty('dsfrDataQuery');
     expect(SKILLS).toHaveProperty('dsfrDataNormalize');
@@ -212,26 +212,6 @@ describe('builder-ia skills', () => {
     ])('« %s » remonte attributeGrammars', (question) => {
       const ids = getRelevantSkills(question, null).map((s) => s.id);
       expect(ids).toContain('attributeGrammars');
-    });
-  });
-
-  describe('buildSkillsContext', () => {
-    it('should return empty string for no skills', () => {
-      expect(buildSkillsContext([])).toBe('');
-    });
-
-    it('should include skill content', () => {
-      const skills = [SKILLS.dsfrColors];
-      const result = buildSkillsContext(skills);
-      expect(result).toContain('SKILLS INJECTES');
-      expect(result).toContain('Bleu France');
-    });
-
-    it('should concatenate multiple skills', () => {
-      const skills = [SKILLS.chartTypes, SKILLS.dsfrColors];
-      const result = buildSkillsContext(skills);
-      expect(result).toContain('Choix du type de graphique');
-      expect(result).toContain('Bleu France');
     });
   });
 

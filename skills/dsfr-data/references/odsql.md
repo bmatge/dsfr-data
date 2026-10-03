@@ -6,8 +6,7 @@
 
 ## ODSQL - OpenDataSoft Query Language
 
-Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode `api-type="opendatasoft"` de dsfr-data-query)
-et par l'action `reloadData` du builder-IA.
+Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode `api-type="opendatasoft"` de dsfr-data-query).
 
 ### Parametres de requête
 | Parametre | Description | Exemple |

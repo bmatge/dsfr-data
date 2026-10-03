@@ -41,8 +41,7 @@ une refonte, la relecture d'une page entière.
 **poser la question avant de commencer**, dans la réponse elle-même : courte, trois options
 nommées, une recommandation déduite du prompt — « Vous voulez (a) un graphique juste et titré,
 (b) un bloc de trois ou quatre vues qui comparent, ou (c) une page qui raconte l'évolution ?
-D'après votre demande, je recommande (b). » Là où aucune réponse ne peut arriver (builder-IA,
-serveur MCP, génération en un tour) : **niveau intermédiaire par défaut, annoncé** en tête de la
+D'après votre demande, je recommande (b). » Là où aucune réponse ne peut arriver (serveur MCP, génération en un tour) : **niveau intermédiaire par défaut, annoncé** en tête de la
 réponse, avec la phrase qui permet de monter ou descendre d'un niveau au tour suivant. Une page
 avancée relit chaque bloc au niveau base.
 

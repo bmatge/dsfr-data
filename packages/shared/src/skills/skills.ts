@@ -4,11 +4,10 @@
  * Each skill is a self-contained knowledge block that can be consumed by:
  * - `npm run build:skills` -> dist/skills.json (Studio IA, serveur MCP) et la
  *   skill Claude Code `skills/dsfr-data/`
- * - The legacy builder-IA chat (injected into the Albert API system prompt),
- *   jusqu'a son retrait (#1081)
  *
- * Guide ECRIT A LA MAIN. Sorti de `apps/builder-ia/src/` (#1081) pour survivre
- * au retrait de l'ancien Assistant IA. Vit cote app de `@dsfr-data/shared`
+ * Guide ECRIT A LA MAIN. Il vivait dans l'ancien Assistant IA, retire depuis
+ * (#1081) ; ses deux skills d'action JSON (`createChart`, `reloadData`), que
+ * seul cet Assistant interpretait, sont parties avec lui. Vit cote app de `@dsfr-data/shared`
  * (sous-chemin `@dsfr-data/shared/skills/*`) : jamais dans les barrels, et
  * surtout pas dans l'entree lib-safe `@dsfr-data/shared/lib` (#319).
  * La partie « reference » est GENEREE : `skills-reference.generated.ts`.
@@ -35,162 +34,6 @@ export interface Skill {
 
 /** All available skills, keyed by ID */
 export const SKILLS: Record<string, Skill> = {
-  // ---------------------------------------------------------------------------
-  // Action builder-IA : createChart
-  // ---------------------------------------------------------------------------
-
-  createChartAction: {
-    id: 'createChartAction',
-    name: 'Action createChart',
-    description: "Specification de l'action JSON pour créer un graphique dans le builder-IA",
-    trigger: ['createchart', 'créer un graphique', 'aperçu', 'preview'],
-    content: `## Action createChart (builder-IA uniquement)
-
-Cette action généré un graphique interactif dans l'aperçu du builder-IA.
-Elle est distincte du code embarquable HTML (voir skills composants dsfr-data).
-
-### Format
-\`\`\`json
-{
-  "action": "createChart",
-  "config": {
-    "type": "bar",
-    "labelField": "nom_region",
-    "valueField": "population",
-    "aggregation": "sum",
-    "where": "status:eq:active",
-    "limit": 10,
-    "sortOrder": "desc",
-    "title": "Titre du graphique",
-    "subtitle": "Sous-titre",
-    "color": "#000091",
-    "palette": "categorical"
-  }
-}
-\`\`\`
-
-### Proprietes de config
-| Propriete | Type | Requis | Description |
-|-----------|------|--------|-------------|
-| type | String | oui | Type de visualisation (voir ci-dessous) |
-| labelField | String | selon type | Champ pour les labels / axe X |
-| valueField | String | oui | Champ pour les valeurs / axe Y |
-| valueField2 | String | non | 2e série (bar-line, comparaisons) |
-| codeField | String | non | Champ code : departement (map), region (map-reg : code INSEE, cle ISO IDF/20R/971 ou nom), academie (map-aca : nom accentue ou non, avec ou sans « Academie de »), code pays ISO ou nom de pays en francais (map-monde) |
-| aggregation | String | non | Fonction : sum, avg, count, min, max |
-| where | String | non | Filtre pre-agrégation (voir syntaxe ci-dessous) |
-| limit | Number | non | Nombre max de resultats |
-| sortOrder | String | non | Tri : "asc", "desc" ou "none" (preserve l'ordre source — utile pour mois/jours/séries temporelles déjà ordonnees en amont) |
-| sortField | String | non | Champ de tri. Vide = trie par valeur agregee (défaut). Mettre labelField pour tri alphabetique sur les catégories. |
-| title | String | non | Titre affiche |
-| subtitle | String | non | Sous-titre affiche |
-| color | String | non | Couleur primaire hex (défaut: #000091) |
-| color2 | String | non | Couleur secondaire hex (bar-line) |
-| variant | String | non | Style KPI : info, success, warning, error |
-| unit | String | non | Unite affichee : EUR, %, ou texte libre |
-| palette | String | non | Palette DSFR : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral. Fonctionne pour tous les types de graphiques. |
-| colonnes | String | non | Colonnes datalist : "champ:Label, champ2:Label2" |
-| pagination | Number | non | Lignes par page (datalist) |
-
-### Types valides et champs requis
-| Type | labelField | valueField | Cas d'usage |
-|------|-----------|------------|-------------|
-| bar | oui | oui | Comparer des catégories (5-15) |
-| line | oui | oui | Evolution temporelle, tendances |
-| pie | oui | oui | Parts d'un tout (max 5-7 segments) |
-| radar | oui | oui | Profils multicriteres |
-| scatter | oui | oui | Correlation entre 2 variables numériques |
-| bar-line | oui | oui (+valueField2) | 2 metriques : barres + ligne |
-| gauge | non | oui | Progression 0-100% |
-| kpi | non | oui | Indicateur chiffre clé unique |
-| map | non (codeField) | oui | Données par departement francais |
-| map-reg | non (codeField) | oui | Données par region francaise (code INSEE 11/84, cle IDF/20R/971 ou nom) |
-| map-aca | non (codeField) | oui | Données par academie (nom accentue ou non : « Academie de Besancon », BESANCON, Orleans-Tours) |
-| map-monde | non (codeField) | oui | Données par pays (ISO 3166-1 : FR, US... — a3/num convertis) ou nom francais (Allemagne, Pays-Bas) |
-| datalist | non | non (colonnes) | Tableau de données filtrable |
-
-IMPORTANT :
-- \`doughnut\` = \`pie\` (le composant pie est un anneau par défaut)
-- \`horizontalBar\` = \`bar\` (le renderer le convertit automatiquement)
-- Pour KPI et gauge : PAS de labelField
-- Pour map/map-reg/map-aca/map-monde : utiliser codeField (pas labelField)
-
-### Syntaxe du filtre (config.where)
-Format : \`"champ:operateur:valeur"\`
-Multiples filtres : virgule = ET logique \`"champ1:op:val, champ2:op:val"\`
-Operateurs : eq, neq, gt, gte, lt, lte, contains, in (separateur |)
-Le filtre s'applique AVANT l'agrégation. Utiliser les noms de champs bruts de la source.
-
-### Exemples
-\`\`\`json
-{"action":"createChart","config":{"type":"kpi","valueField":"prix","aggregation":"avg","where":"code_departement:eq:48","title":"Prix moyen dept 48","unit":"EUR"}}
-\`\`\`
-\`\`\`json
-{"action":"createChart","config":{"type":"bar","labelField":"region","valueField":"population","aggregation":"sum","limit":5,"sortOrder":"desc","title":"Top 5 regions"}}
-\`\`\`
-\`\`\`json
-{"action":"createChart","config":{"type":"map","codeField":"code_dept","valueField":"score","palette":"sequentialAscending","title":"Score par departement"}}
-\`\`\`
-\`\`\`json
-{"action":"createChart","config":{"type":"datalist","colonnes":"nom:Nom, email:Email, ville:Ville","pagination":20,"title":"Liste des contacts"}}
-\`\`\`
-\`\`\`json
-{"action":"createChart","config":{"type":"pie","labelField":"region","valueField":"population","aggregation":"sum","palette":"divergentAscending","title":"Population par region"}}
-\`\`\`
-
-Généré TOUJOURS UN SEUL bloc JSON par reponse. Pour changer la couleur ou palette d'un graphique existant, regenere le même createChart avec la palette souhaitee.`,
-  },
-
-  // ---------------------------------------------------------------------------
-  // Action builder-IA : reloadData
-  // ---------------------------------------------------------------------------
-
-  reloadDataAction: {
-    id: 'reloadDataAction',
-    name: 'Action reloadData',
-    description: 'Recharger les données de la source avec des parametres ODSQL',
-    trigger: ['recharger', 'reloaddata', 'nouveaux parametres', 'refiltrer'],
-    content: `## Action reloadData (builder-IA uniquement)
-
-Recharge les données depuis l'API source avec de nouveaux parametres ODSQL.
-Utile quand l'utilisateur veut modifier le jeu de données avant de créer un graphique.
-
-### Format
-\`\`\`json
-{
-  "action": "reloadData",
-  "query": {
-    "where": "condition ODSQL",
-    "select": "champs a sélectionner",
-    "group_by": "champ de groupement",
-    "order_by": "champ ASC|DESC",
-    "limit": 100
-  },
-  "reason": "Explication pour l'utilisateur"
-}
-\`\`\`
-
-### Proprietes de query
-| Propriete | Type | Description |
-|-----------|------|-------------|
-| select | String | Champs a retourner, avec aliases : \`"region, avg(prix) as prix_moyen"\` |
-| where | String | Filtre ODSQL : \`"population > 10000"\` ou \`"nom like 'Paris%'"\` |
-| group_by | String | Groupement : \`"region"\` |
-| order_by | String | Tri : \`"population DESC"\` |
-| limit | Number | Nombre max de resultats (défaut API : 10, max : 100 par requête) |
-
-### Exemples
-\`\`\`json
-{"action":"reloadData","query":{"order_by":"valeur DESC","limit":10},"reason":"Top 10 par valeur"}
-\`\`\`
-\`\`\`json
-{"action":"reloadData","query":{"where":"prix > 50","select":"region, avg(prix) as prix_moyen","group_by":"region"},"reason":"Prix moyen par region (> 50)"}
-\`\`\`
-
-IMPORTANT : la syntaxe \`query\` est de l'ODSQL (operateurs SQL), a ne pas confondre
-avec la syntaxe \`config.where\` de createChart qui utilise le format "champ:operateur:valeur".`,
-  },
-
   // ---------------------------------------------------------------------------
   // Composants dsfr-data
   // ---------------------------------------------------------------------------
@@ -2664,8 +2507,7 @@ Utiliser ce pattern quand l'utilisateur demande un graphique "presentable", "pub
     trigger: ['odsql', 'opendatasoft'],
     content: `## ODSQL - OpenDataSoft Query Language
 
-Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode \`api-type="opendatasoft"\` de dsfr-data-query)
-et par l'action \`reloadData\` du builder-IA.
+Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode \`api-type="opendatasoft"\` de dsfr-data-query).
 
 ### Parametres de requête
 | Parametre | Description | Exemple |
@@ -3803,8 +3645,6 @@ le champ \`population__sum\`. Utiliser ce nom dans \`value-field\` et \`order-by
 ### 5. Confusion syntaxe filtre generic vs ODSQL
 - **Mode generic** (dsfr-data-query avec source) : \`where="champ:operateur:valeur"\` (ex: \`"prix:gt:100"\`)
 - **Mode opendatasoft** (dsfr-data-query serveur) : \`where="prix > 100"\` (syntaxe SQL)
-- **Action reloadData** (builder-IA) : syntaxe ODSQL (SQL)
-- **Action createChart** (builder-IA) : syntaxe generic (\`"champ:operateur:valeur"\`)
 Ne pas melanger les deux !
 
 ### 6. Attributs HTML en kebab-case
@@ -6052,7 +5892,13 @@ contenu à l'impression et à la recherche dans la page.
 };
 
 /**
- * Get skills relevant to the current user message and source context
+ * Get skills relevant to the current user message and source context.
+ *
+ * Plus aucune app ne l'appelle depuis le retrait de l'ancien Assistant IA
+ * (#1081) : le Studio IA et le serveur MCP passent par `matchSkills`
+ * directement. Reste exportee pour le banc de connaissance
+ * (`tests/skills/skills-knowledge-bench.test.ts`), qui mesure la chaine
+ * question -> skills -> section sur le guide entier.
  */
 export function getRelevantSkills(message: string, currentSource: Source | null): Skill[] {
   // Couche 1 — moteur de matching partage avec le serveur MCP (#514).
@@ -6060,9 +5906,8 @@ export function getRelevantSkills(message: string, currentSource: Source | null)
   const relevant: Skill[] = matchSkills(Object.values(SKILLS), message);
   const lowerMsg = message.toLowerCase();
 
-  // Couche 2 — enrichissements contextuels PROPRES au builder-IA : il connait
-  // la source chargee (ODS, Grist) et l'intention de l'utilisateur, ce que le
-  // MCP n'a pas. Ces regles restent donc ici, au-dessus du moteur commun.
+  // Couche 2 — enrichissements contextuels : la source chargee (ODS, Grist)
+  // et l'intention de l'utilisateur, que le moteur commun ne connait pas.
 
   // Always include composition patterns for dashboard/integration requests
   if (
@@ -6157,27 +6002,4 @@ export function getRelevantSkills(message: string, currentSource: Source | null)
   }
 
   return relevant;
-}
-
-/**
- * Build the skills context string to inject into the AI prompt
- */
-export function buildSkillsContext(relevantSkills: Skill[]): string {
-  if (relevantSkills.length === 0) return '';
-
-  const actionSkills = relevantSkills.filter((s) => s.id.endsWith('Action'));
-  const componentSkills = relevantSkills.filter((s) => !s.id.endsWith('Action'));
-
-  let context = '\n\n---\nSKILLS INJECTES :';
-  if (actionSkills.length > 0) {
-    context +=
-      "\n\n### Actions (pour l'aperçu interactif)\n" +
-      actionSkills.map((s) => s.content).join('\n\n');
-  }
-  if (componentSkills.length > 0) {
-    context +=
-      '\n\n### Composants et references (pour le code embarquable)\n' +
-      componentSkills.map((s) => s.content).join('\n\n');
-  }
-  return context;
 }

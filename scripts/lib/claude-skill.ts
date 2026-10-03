@@ -1,6 +1,6 @@
 /**
  * Rendu de la skill Claude Code « dsfr-data » (export local pour les
- * développeurs, docs/AI-SKILLS.md) à partir des skills du builder-IA.
+ * développeurs, docs/AI-SKILLS.md) à partir du guide des skills.
  *
  * Format : le standard « Agent Skills » lu par Claude Code — un dossier avec
  * un `SKILL.md` (frontmatter `name` / `description` + corps court) et des
@@ -88,7 +88,6 @@ const GROUPS: Array<[string, string[]]> = [
       'troubleshooting',
     ],
   ],
-  ['Assistant IA (actions JSON du builder-IA)', ['createChartAction', 'reloadDataAction']],
 ];
 
 function fileName(id: string): string {

@@ -37,7 +37,7 @@
  *    et testable autrement que par « la bonne skill sort en premier ».
  */
 
-/** Forme minimale exploitee par le moteur (compatible builder-IA et MCP). */
+/** Forme minimale exploitee par le moteur (compatible guide des skills et MCP). */
 export interface MatchableSkill {
   id: string;
   name: string;

@@ -61,8 +61,6 @@ le champ `population__sum`. Utiliser ce nom dans `value-field` et `order-by`.
 ### 5. Confusion syntaxe filtre generic vs ODSQL
 - **Mode generic** (dsfr-data-query avec source) : `where="champ:operateur:valeur"` (ex: `"prix:gt:100"`)
 - **Mode opendatasoft** (dsfr-data-query serveur) : `where="prix > 100"` (syntaxe SQL)
-- **Action reloadData** (builder-IA) : syntaxe ODSQL (SQL)
-- **Action createChart** (builder-IA) : syntaxe generic (`"champ:operateur:valeur"`)
 Ne pas melanger les deux !
 
 ### 6. Attributs HTML en kebab-case
