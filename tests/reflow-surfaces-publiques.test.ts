@@ -42,7 +42,6 @@ const SURFACES_PUBLIQUES = ['specs', 'guide'];
  */
 const APPS_DE_CREATION = [
   'builder',
-  'builder-ia',
   'builder-carto',
   'dashboard',
   'playground',

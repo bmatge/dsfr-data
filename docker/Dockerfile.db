@@ -22,7 +22,6 @@ COPY packages/core/package.json packages/core/
 COPY apps/favorites/package.json apps/favorites/
 COPY apps/playground/package.json apps/playground/
 COPY apps/sources/package.json apps/sources/
-COPY apps/builder-ia/package.json apps/builder-ia/
 COPY apps/studio/package.json apps/studio/
 COPY apps/builder/package.json apps/builder/
 COPY apps/builder-carto/package.json apps/builder-carto/

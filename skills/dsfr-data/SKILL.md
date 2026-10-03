@@ -94,13 +94,6 @@ Bibliothèque de Web Components de dataviz conformes au DSFR (Design System de l
 | [Composants DSFR Chart natifs](references/dsfr-chart-native.md) | Attributs detailles des composants line-chart, bar-chart, pie-chart, etc. | dsfr, natif, officiel, accessibilité, rgaa, bar-chart |
 | [Troubleshooting](references/troubleshooting.md) | Pieges courants et erreurs frequentes | erreur, bug, marche pas, probleme, vide, affiche pas |
 
-### Assistant IA (actions JSON du builder-IA)
-
-| Référence | Quand la lire | Déclencheurs |
-|---|---|---|
-| [Action createChart](references/create-chart-action.md) | Specification de l'action JSON pour créer un graphique dans le builder-IA | createchart, créer un graphique, aperçu, preview |
-| [Action reloadData](references/reload-data-action.md) | Recharger les données de la source avec des parametres ODSQL | recharger, reloaddata, nouveaux parametres, refiltrer |
-
 ### Autres
 
 | Référence | Quand la lire | Déclencheurs |

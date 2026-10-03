@@ -4,7 +4,6 @@ import { disableProductTour } from './helpers';
 const apps = [
   { name: 'Hub', path: '/', selector: 'body', title: /Charts builder|dsfr-data/i },
   { name: 'Builder', path: '/apps/builder/index.html', selector: '#source-panel-saved' },
-  { name: 'Builder IA', path: '/apps/builder-ia/index.html', selector: '#section-source' },
   { name: 'Builder Carto', path: '/apps/builder-carto/index.html', selector: '#layers-list' },
   { name: 'Playground', path: '/apps/playground/index.html', selector: '.CodeMirror, .cm-editor' },
   { name: 'Sources', path: '/apps/sources/index.html', selector: '#connections-list' },

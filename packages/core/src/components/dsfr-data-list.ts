@@ -49,7 +49,7 @@ export type PageItem = number | 'ellipsis';
  * `@deprecated` depuis #300 : cet exemple montre les attributs COURANTS, pour
  * qui lit le composant. (Le custom-éléments manifest ne capte pas les
  * `@example` de classe : la référence servie a l'assistant IA vient de
- * `apps/builder-ia/src/skills.ts`, corrige separement — #615.)
+ * `packages/shared/src/skills/skills.ts`, corrige separement — #615.)
  *
  * @example
  * <dsfr-data-list

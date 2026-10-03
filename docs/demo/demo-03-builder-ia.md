@@ -1,5 +1,9 @@
 # Démo 3 — Utiliser le Builder IA
 
+> ⚠️ **Script historique.** L'app `apps/builder-ia` (ancien Assistant IA) est retirée depuis #1081 :
+> le Studio IA (`apps/studio`) la remplace. Ce script est gardé comme trace de la vidéo tournée ;
+> il est à réécrire pour le Studio avant tout nouveau tournage.
+
 > **Durée cible** : 2 min 55 · **App** : `apps/builder-ia` · **URL** : `/apps/builder-ia/index.html` (nav « Assistant IA »)
 
 ## Objectif de la vidéo

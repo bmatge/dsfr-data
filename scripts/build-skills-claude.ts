@@ -1,6 +1,6 @@
 /**
  * Génère l'export « skill Claude Code » dans skills/dsfr-data/ (SKILL.md +
- * references/*.md) depuis les skills du builder-IA. Dernière étape de
+ * references/*.md) depuis le guide des skills. Dernière étape de
  * `npm run build:skills` ; le test tests/skills-export.test.ts vérifie que
  * les fichiers commités sont le rendu exact des skills (docs/AI-SKILLS.md).
  *

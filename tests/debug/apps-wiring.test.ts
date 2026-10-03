@@ -162,28 +162,9 @@ describe('les apps sans iframe observent une racine locale', () => {
     expect(pkg.exports['./debug/*']).toBeDefined();
   });
 
-  it('l’Assistant IA est passé en mode live (#609)', () => {
-    // Ce test affirmait l'inverse jusqu'a #609 : l'app dessinait son apercu
-    // avec @gouvfr/dsfr-chart en direct, sans aucun composant dsfr-data, donc
-    // sans rien a observer sur le bus. Depuis que l'apercu rend le code
-    // genere dans une iframe, elle emet comme les autres.
-    const src = lire('apps/builder-ia/src/main.ts');
-
-    expect(src).toContain('mountDiagnosticPanel({');
-    expect(src).toContain('frame:');
-    expect(src).not.toContain('liveRoot:');
-  });
-
-  it('son aperçu demande le tampon précoce', () => {
-    const src = lire('apps/builder-ia/src/ui/preview.ts');
-
-    expect(src).toContain('getPreviewHTML(code, { debug: true })');
-  });
-
-  it('le rendu parallèle a disparu, pas seulement été débranché', () => {
-    // Le laisser en place aurait garanti sa reapparition : deux chemins de
-    // rendu qui divergent, c'est le defaut que #609 supprime.
-    expect(existsSync(join(ROOT, 'apps/builder-ia/src/ui/chart-renderer.ts'))).toBe(false);
+  it('l’ancien Assistant IA et son rendu parallèle ont disparu (#609, #1081)', () => {
+    // #609 avait retire le rendu parallele ; #1081 retire l'app entiere.
+    expect(existsSync(join(ROOT, 'apps/builder-ia'))).toBe(false);
   });
 });
 
@@ -253,13 +234,6 @@ describe('l’assistant contextuel lit les constats du volet', () => {
     expect(src).toContain('onSend: injecterDiagnostic');
     expect(src).not.toMatch(/function injecterDiagnostic[\s\S]*?sendMessage\(/);
     expect(src).not.toContain('navigateTo(');
-  });
-
-  it('l’ancien Assistant IA fait de même dans son propre chat', () => {
-    const src = lire('apps/builder-ia/src/main.ts');
-    expect(src).not.toContain("envoi: 'demander'");
-    expect(src).not.toContain('mountAssistant(');
-    expect(src).toContain('onSend: injecterDiagnostic');
   });
 
   it('« Envoyer à l’assistant » a disparu : un seul libellé, « Demander à l’assistant » (#1081)', () => {

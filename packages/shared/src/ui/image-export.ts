@@ -7,7 +7,7 @@
  * en effet leur titre, leur legende et leur source en HTML AUTOUR du canvas
  * Chart.js : une capture canvas-only produisait un camembert sans legende.
  *
- * La cible est soit un element direct (builder-IA), soit le document d'une
+ * La cible est soit un element direct, soit le document d'une
  * iframe same-origin (builder classique, playground, favoris).
  *
  * Bonus v2 : les apercus sans canvas (KPI, tableaux, podiums — du DOM)

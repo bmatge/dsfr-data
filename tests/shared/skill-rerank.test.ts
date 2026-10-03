@@ -7,8 +7,8 @@
  * l'ordre local inchange.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { rerankSkills, rerankUrlFrom } from '../../../apps/builder-ia/src/ia/skill-rerank';
-import type { SkillMatch, MatchableSkill } from '../../../apps/builder-ia/src/skill-matching';
+import { rerankSkills, rerankUrlFrom } from '../../packages/shared/src/ia/skill-rerank';
+import type { SkillMatch, MatchableSkill } from '../../packages/shared/src/ia/skill-matching';
 
 const skill = (id: string): MatchableSkill => ({
   id,

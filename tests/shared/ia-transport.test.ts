@@ -209,7 +209,7 @@ describe('resolveTransport — { post, model, capacites }', () => {
     expect(headers['X-Target-URL']).toBe('https://api.openai.example/v1');
   });
 
-  it('opts.user prime sur localStorage (config du formulaire du builder-IA)', async () => {
+  it('opts.user prime sur localStorage (config du formulaire)', async () => {
     localStorage.setItem(
       IA_CONFIG_KEY,
       JSON.stringify({ apiUrl: 'https://autre.example/v1', model: 'x', token: 'stocke' })

@@ -1,13 +1,12 @@
-# tests/builder-e2e — six specs bloquantes, quatre specs archivées, deux outils
+# tests/builder-e2e — cinq specs bloquantes, quatre specs archivées, deux outils
 
-> **Six specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869, #1081) :
-> `export-html-api-recette` (61 cas, vert depuis #866), `builder-ia-recette` et
-> `layout-diagnostic-recette` (43 cas ; l'ancien Assistant IA y est ouvert par `?ancien=1`),
-> `studio-recette` et `studio-navigation-recette` (21 cas, #1081 : le Studio IA remplace
-> l'Assistant comme entrée usager), `studio-parite-recette` (17 cas, #1081 étape 1 : le
-> remplaçant de `builder-ia-recette`, qui tourne à côté jusqu'au retrait de l'app). **142 cas**,
+> **Cinq specs tournent en CI sur chaque PR** (`.github/workflows/builder-e2e.yml`, #869, #1081) :
+> `export-html-api-recette` (61 cas, vert depuis #866), `layout-diagnostic-recette` (21 cas),
+> `studio-recette` et `studio-navigation-recette` (19 cas, #1081 : le Studio IA a remplacé
+> l'Assistant comme entrée usager), `studio-parite-recette` (19 cas, #1081 : le remplaçant de la
+> recette de l'ancien Assistant IA, retirée avec son app à l'étape 2). **120 cas**,
 > aucune API tierce. Playwright ramasse en plus par défaut `assistant-carto.spec.ts` (3 cas,
-> recette manuelle de #1016, que la CI ne nomme pas) : **145 cas** au total.
+> recette manuelle de #1016, que la CI ne nomme pas) : **123 cas** au total.
 >
 > **Quatre specs historiques du Builder ont été ARCHIVÉES** (#868, 2026-09-19) : elles portent
 > l'extension `.archive.ts`, sortent du `testMatch`, et se relancent avec
@@ -36,12 +35,11 @@ lance rien : le chiffre ne dépend ni du serveur de dev ni de l'état de l'UI). 
 | Spec | Serveur de dev | Cas | Résultat mesuré | Ce qu'il faut en penser |
 |---|---|---|---|---|
 | `export-html-api-recette.spec.ts` | **non** (tout par `page.route()`) | 61 | **61 vert** (2026-09-19, #866) | Le plus solide du dossier : déterministe, sans réseau, 11 s. Demande `npm run build` avant. |
-| `builder-ia-recette.spec.ts` | oui | 16 | **vert** (2026-09-14, #844) | Avec `layout-diagnostic-recette`, 43 cas en 16 s, sans réseau tiers. |
-| `layout-diagnostic-recette.spec.ts` | oui | 27 | **vert** (2026-09-23, #1081) | Idem. L'ancien Assistant y est ouvert par `?ancien=1`. |
-| `studio-recette.spec.ts` | oui | 16 | **16 vert** (2026-09-23, #1081) | Pendant Studio de `builder-ia-recette` : les 16 types rendus comme bloc `chart` d'un document, mesure sur le composant d'affichage lui-même. |
-| `studio-navigation-recette.spec.ts` | oui | 5 | **5 vert** (2026-09-23, #1081) | Nav → « Studio IA », accueil à une entrée IA, `apps/builder-ia/` redirigé (requête et ancre gardées), `?ancien=1` qui le garde joignable. |
-| `studio-parite-recette.spec.ts` | oui | 17 | **17 vert** (2026-09-24, #1081, 11 s) | Remplaçant de `builder-ia-recette` (étape 1 de #1081) : le parcours d'une réponse du modèle jusqu'à l'aperçu, par l'interface — source choisie et annoncée, demande envoyée, prompt système qui décrit la source, `add_blocks` validé par le Studio, code et aperçu des 16 types, `finish` affiché ; plus le cas « sans IA configurée ». Modèle simulé sur `/ia-proxy`. |
-| `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses six specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
+| `layout-diagnostic-recette.spec.ts` | oui | 21 | **21 vert** (2026-10-03, #1081 étape 2) | Quatre apps depuis le retrait de l'ancien Assistant IA. Sans réseau tiers, 7 s. |
+| `studio-recette.spec.ts` | oui | 16 | **16 vert** (2026-10-03, #1081) | Pendant Studio de l'ancienne recette de l'Assistant IA : les 16 types rendus comme bloc `chart` d'un document, mesure sur le composant d'affichage lui-même. |
+| `studio-navigation-recette.spec.ts` | oui | 3 | **3 vert** (2026-10-03, #1081 étape 2) | Nav → « Studio IA », accueil à une entrée IA, entrée courante dans le Studio. La redirection de `apps/builder-ia/` et `?ancien=1` sont partis avec l'app. |
+| `studio-parite-recette.spec.ts` | oui | 19 | **19 vert** (2026-10-03, #1081, 12 s) | Remplaçant de la recette de l'ancien Assistant IA (retirée à l'étape 2 de #1081) : le parcours d'une réponse du modèle jusqu'à l'aperçu, par l'interface — source choisie et annoncée, demande envoyée, prompt système qui décrit la source, `add_blocks` validé par le Studio, code et aperçu des 16 types, `finish` affiché ; plus le cas « sans IA configurée ». Modèle simulé sur `/ia-proxy`. |
+| `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses cinq specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
 | | | **145** | | Le total que Playwright ramasse. La CI en exécute **142** (les six premiers specs). |
 
 ### Archivés — hors `testMatch` depuis #868 (2026-09-19)
@@ -104,8 +102,8 @@ paramètres visés est plus bas, « Paramètres visés par les specs archivés �
 
 **Ce que cette couverture a de redondant** : le recalcul indépendant de tout chiffre affiché est
 assuré en CI par `verif-donnees.yml` (oracle), la forme du code généré par
-`tests/apps/builder-ia/code-generator-recette.test.ts` (hors ligne, vitest), et le fait qu'un type
-rende réellement par `builder-ia-recette.spec.ts` (16 types) et `export-html-api-recette.spec.ts`
+`tests/shared/dashboard-export-html.test.ts` (hors ligne, vitest), et le fait qu'un type
+rende réellement par `studio-recette.spec.ts` (16 types) et `export-html-api-recette.spec.ts`
 (16 types × 3 variantes API). **Ce qui n'est couvert nulle part ailleurs** : le pilotage de l'UI
 du Builder elle-même — cliquer ses contrôles et vérifier que le code généré change en
 conséquence. C'est cela, et seulement cela, que l'archivage laisse à la recette manuelle.
@@ -124,9 +122,9 @@ inclut `tests/**/*.ts`) : un renommage dans le Builder qui casserait leur compil
 toujours en CI. Ils gardent aussi leur adresse en dur `http://localhost:5173` — rien de leur
 contenu n'a été touché par l'archivage.
 
-**Ce qui est câblé en CI** (#869, sur le modèle d'`e2e-layout.yml`) : `builder-ia-recette` +
-`layout-diagnostic-recette` (43 cas, 16 s, verts et sans réseau) et `export-html-api-recette`
-(61 cas, vert depuis #866).
+**Ce qui est câblé en CI** (#869, sur le modèle d'`e2e-layout.yml`) : `layout-diagnostic-recette`
+(21 cas, verts et sans réseau), `export-html-api-recette` (61 cas, vert depuis #866) et les trois
+specs du Studio IA (#1081).
 
 **Les trois rouges d'`export-html-api-recette`, requalifiés (#866)** : ce n'était ni le faux
 serveur ni le parseur ODSQL strict des fixtures, mais une **attente périmée**. Le document
@@ -142,12 +140,8 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
 ### Specs
 - **`export-html-api-recette.spec.ts`** : recette des **16 types × 3 variantes API** de l'export
   HTML partagé, par interception de route (#625, ADR-106). Voir « Recette des variantes API ».
-- **`builder-ia-recette.spec.ts`** : recette des 16 types de l'Assistant IA (#615) — le code
-  généré est produit **et rend**, sur source locale. Depuis #609 l'aperçu EST l'export : ce spec
-  est la seule vérification qu'un type ne rend pas dans le vide. La forme du code des variantes
-  API est vérifiée hors ligne, en CI, par `tests/apps/builder-ia/code-generator-recette.test.ts`.
-- **`studio-parite-recette.spec.ts`** : remplaçant de `builder-ia-recette` dans le Studio IA
-  (#1081, étape 1). Là où `studio-recette` pose le document dans l'état de l'app, celui-ci
+- **`studio-parite-recette.spec.ts`** : remplaçant, dans le Studio IA, de la recette de l'ancien
+  Assistant IA (#1081 ; l'ancienne spec est partie avec l'app). Là où `studio-recette` pose le document dans l'état de l'app, celui-ci
   parcourt le chemin d'une réponse du modèle, par l'interface, pour les 16 types : source
   choisie dans le select et annoncée, demande envoyée depuis le chat, prompt système qui cite
   les champs de la source, appel `add_blocks` accepté par la validation du Studio
@@ -157,8 +151,8 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   réglage ouvert, aucun appel au modèle. Le modèle est simulé par `page.route()` sur
   `/ia-proxy` (et `/ia-server-config` figé à « indisponible »). Preuve de mutation : sans le
   rafraîchissement de l'aperçu sur `onDocumentChange`, le spec échoue.
-- **`layout-diagnostic-recette.spec.ts`** : recette de clôture de l'epic #614 — sur les 5 apps
-  (Builder, Assistant IA, Playground, Studio, Carto) : pas de défilement horizontal, mode de
+- **`layout-diagnostic-recette.spec.ts`** : recette de clôture de l'epic #614 — sur les 4 apps
+  (Builder, Playground, Studio, Carto) : pas de défilement horizontal, mode de
   hauteur déclaré, fin de document bordant le rail, et volet Diagnostic qui **reçoit réellement
   le clic**.
 - **`assistant-carto.spec.ts`** (recette manuelle, hors CI) : l'assistant contextuel de la carto
@@ -224,7 +218,7 @@ npx playwright install chromium
 
 # 2. Un spec, depuis la racine du dépôt. Le serveur de dev (port 5173) est démarré par
 #    Playwright lui-même ; un `npm run dev` déjà lancé est réutilisé.
-npx playwright test --config tests/builder-e2e/playwright.config.ts builder-ia-recette.spec.ts
+npx playwright test --config tests/builder-e2e/playwright.config.ts studio-recette.spec.ts
 
 # export-html-api-recette est le seul à ne demander aucun serveur, mais il demande
 # `npm run build` (le bundle packages/core/dist est servi à la place du CDN) :
@@ -238,14 +232,14 @@ BUILDER_E2E_ARCHIVES=1 npx playwright test --config tests/builder-e2e/playwright
 
 Lancer le dossier **avec les archives** (`BUILDER_E2E_ARCHIVES=1`) prend plus d'une heure (elles
 enchaînent les délais d'attente fixes puis expirent) et finit rouge : préférer un spec à la fois.
-Sans le drapeau, les 104 cas ramassés passent en une trentaine de secondes.
+Sans le drapeau, les 123 cas ramassés passent en une trentaine de secondes.
 
 
 ## 🌐 Recette des variantes API (#625, ADR-106)
 
 `export-html-api-recette.spec.ts` rend les **16 types × 3 variantes API** de l'export HTML
-partagé. C'est la moitié que ni `builder-ia-recette.spec.ts` (source locale) ni
-`code-generator-recette.test.ts` (forme du code, hors ligne) ne pouvaient couvrir : les deux
+partagé. C'est la moitié que ni `studio-recette.spec.ts` (source locale) ni
+`tests/shared/dashboard-export-html.test.ts` (forme du code, hors ligne) ne peuvent couvrir : les deux
 défauts les plus coûteux trouvés jusqu'ici (podium vide #617, datalist pilotée par script)
 produisaient un code parfaitement bien formé. Ce spec en a trouvé un troisième de la même
 famille — une carte agrégée dont le champ de code ne survivait pas au `group-by`.

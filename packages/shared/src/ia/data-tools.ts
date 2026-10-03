@@ -19,7 +19,7 @@ import type { ChartConfig, AggregatedResult } from '../dashboard/chart-config.js
 export type Row = Record<string, unknown>;
 export type Aggregation = 'sum' | 'avg' | 'count' | 'min' | 'max';
 
-/** Analyzed field metadata (promu depuis apps/builder-ia/src/state.ts, #515). */
+/** Analyzed field metadata (promu depuis l'ancien Assistant IA, #515). */
 export interface Field {
   name: string;
   type: string;

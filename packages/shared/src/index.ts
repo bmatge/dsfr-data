@@ -381,7 +381,6 @@ export {
 export type { TourRegistryEntry } from './tour/tour-configs.js';
 export {
   SOURCES_TOUR,
-  BUILDER_IA_TOUR,
   BUILDER_CARTO_TOUR,
   PLAYGROUND_TOUR,
   DASHBOARD_TOUR,
@@ -657,8 +656,8 @@ export {
 } from './ia/albert-capabilities.js';
 
 // --- Sonde des capacites et rerank des skills (#526, #514) — app-side (fetch) ---
-// Promus du builder-IA quand le Studio IA l'a remplace comme entree usager
-// (#1081) : les deux apps sondent et reclassent avec le MEME code.
+// Promus de l'ancien Assistant IA quand le Studio IA l'a remplace comme
+// entree usager (#1081).
 export type {
   ProbeConnexion,
   ProbeHttpResult,

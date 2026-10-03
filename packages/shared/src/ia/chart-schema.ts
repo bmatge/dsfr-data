@@ -1,11 +1,10 @@
 /**
- * Vocabulaire et JSON Schema de la ChartConfig — promus depuis
- * apps/builder-ia/src/ia/action-schema.ts (#515) : le meme fragment de schema
- * sert au builder-IA (action createChart) et au studio (bloc chart d'un
- * document multi-blocs). Compatible vLLM guided decoding (pas de oneOf).
+ * Vocabulaire et JSON Schema de la ChartConfig — promus depuis l'ancien
+ * Assistant IA (#515, app retiree en #1081) : ce fragment de schema sert au
+ * studio (bloc chart d'un document multi-blocs). Compatible vLLM guided decoding (pas de oneOf).
  *
  * `CHART_CONFIG_TYPES` DOIT rester aligne sur ChartConfig['type']
- * (chart-config.ts) — le test d'alignement du builder-IA le verifie.
+ * (chart-config.ts) — `tests/apps/studio/champs-requis.test.ts` le verifie.
  * (Nom distinct de CHART_TYPES du modele dashboard, qui n'en couvre que 4.)
  */
 

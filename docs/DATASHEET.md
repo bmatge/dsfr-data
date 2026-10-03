@@ -58,7 +58,7 @@ Une suite d'outils web qui permettent de **generer le code HTML du volet 1 sans 
 | **Sources** | Tous | Connecter une source de donnees : coller un CSV, saisir un tableau, connecter une API Grist ou REST |
 | **Builder** | Communicants | Creer un graphique pas a pas : choisir le type, les champs, les couleurs, voir le resultat en live, copier le code HTML |
 | **Builder carto** | Communicants | Creer une carte interactive Leaflet (couches, popups, encarts) sans coder |
-| **Builder IA** | Communicants | Decrire en francais ce qu'on veut ("montre-moi les beneficiaires par region en barres") et obtenir le graphique + le code |
+| **Studio IA** | Communicants | Decrire en francais ce qu'on veut ("montre-moi les beneficiaires par region en barres") et obtenir le graphique + le code |
 | **Playground** | Integrateurs | Editeur de code interactif avec previsualisation temps reel pour ajuster le HTML |
 | **Dashboard** | Communicants | Composer un tableau de bord multi-widgets par glisser-deposer |
 | **Favoris** | Tous | Sauvegarder et reutiliser ses creations |
@@ -70,7 +70,7 @@ Une suite d'outils web qui permettent de **generer le code HTML du volet 1 sans 
 **Le workflow type d'un communicant :**
 
 1. Importer ses donnees (CSV ou connexion API) dans **Sources**
-2. Creer son graphique visuellement dans le **Builder** (ou par conversation dans le **Builder IA**)
+2. Creer son graphique visuellement dans le **Builder** (ou par conversation dans le **Studio IA**)
 3. Cliquer sur **"Copier le code"**
 4. Coller le bloc HTML dans son CMS
 5. Le graphique est en ligne, dynamique, accessible, conforme DSFR

@@ -15,7 +15,6 @@ const TOUR_BUTTONS: Array<[string, string]> = [
   ['/apps/builder-carto/index.html', '#tour-btn'],
   ['/apps/dashboard/index.html', '#tour-btn'],
   ['/apps/pipeline-helper/index.html', '#btn-toggle-help'],
-  ['/apps/builder-ia/index.html', '#tour-btn'],
   ['/apps/studio/index.html', '#tour-btn'],
 ];
 

@@ -13,7 +13,6 @@ export const ORIGINES_CODE = {
   favorites: 'aux Favoris',
   builder: 'au Builder',
   'builder-carto': 'à la carte',
-  'builder-ia': 'au Builder IA',
   studio: 'au Studio IA',
   'pipeline-helper': 'au Pipeline',
 } as const;

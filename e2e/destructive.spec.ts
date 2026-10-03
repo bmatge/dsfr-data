@@ -12,7 +12,6 @@ import { disableProductTour } from './helpers';
 const PAGES = [
   '/index.html',
   '/apps/sources/index.html',
-  '/apps/builder-ia/index.html',
   '/apps/studio/index.html',
   '/apps/builder/index.html',
   '/apps/builder-carto/index.html',

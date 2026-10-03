@@ -6,7 +6,6 @@
 type AppId =
   | 'builder'
   | 'builder-carto'
-  | 'builder-ia'
   | 'dashboard'
   | 'monitoring'
   | 'playground'
@@ -18,7 +17,6 @@ type AppId =
 const APP_FILES: Record<AppId, string> = {
   builder: 'apps/builder/index.html',
   'builder-carto': 'apps/builder-carto/index.html',
-  'builder-ia': 'apps/builder-ia/index.html',
   dashboard: 'apps/dashboard/index.html',
   monitoring: 'apps/monitoring/index.html',
   playground: 'apps/playground/index.html',

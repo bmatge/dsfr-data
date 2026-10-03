@@ -7,12 +7,12 @@
  * retrograde pas les capacites memorisees.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runCapabilityProbe, type ProbeIO } from '../../../apps/builder-ia/src/ia/capability-probe';
+import { runCapabilityProbe, type ProbeIO } from '../../packages/shared/src/ia/capability-probe';
 import {
   getCapabilities,
   resetCapabilities,
   setCapabilities,
-} from '../../../packages/shared/src/ia/albert-capabilities';
+} from '../../packages/shared/src/ia/albert-capabilities';
 
 const okChat = (content = 'OK') => ({
   status: 200,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { renderMarkdown } from '../../../apps/builder-ia/src/chat/markdown';
+import { renderMarkdown } from '../../packages/shared/src/ui/markdown';
 
-describe('builder-ia renderMarkdown', () => {
+describe('renderMarkdown', () => {
   it('rend un tableau GFM en <table>', () => {
     const md = ['| A | B |', '|---|---|', '| 1 | 2 |', '| 3 | 4 |'].join('\n');
     const html = renderMarkdown(md);

@@ -1,7 +1,7 @@
 /**
  * Recette des 16 types x 3 variantes API, par interception de route (#625).
  *
- * L'ANGLE MORT QUE CE FICHIER FERME. `builder-ia-recette.spec.ts` rend les
+ * L'ANGLE MORT QUE CE FICHIER FERME. `studio-recette.spec.ts` rend les
  * 16 types sur une source LOCALE ; `code-generator-recette.test.ts` verifie la
  * FORME du code des trois variantes API hors ligne. Personne n'avait jamais
  * RENDU le cote API — or les deux defauts que la recette a trouves (podium
@@ -10,8 +10,8 @@
  *
  * ECRIT CONTRE L'EXPORT PARTAGE, PAS CONTRE L'ASSISTANT (arbitrage ADR-106) :
  * la page sous test est celle de `packages/shared/src/dashboard/export-html.ts`,
- * qui sert le Studio ET l'Assistant IA. Un harnais ecrit contre l'Assistant
- * seul serait a refaire, celui-ci ne l'est pas (ADR-099 §4).
+ * qui servait le Studio ET l'ancien Assistant IA. Un harnais ecrit contre l'Assistant
+ * seul aurait ete a refaire a son retrait (#1081), celui-ci ne l'est pas (ADR-099 §4).
  *
  * AUCUN RESEAU REEL, AUCUN SERVEUR. Tout passe par `page.route()` :
  * la page, les actifs CDN, les trois API. Un hote non prevu est refuse et

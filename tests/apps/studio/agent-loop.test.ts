@@ -1,6 +1,6 @@
 /**
  * Boucle agentique du studio (#515) — transport mocke (meme technique que
- * tests/apps/builder-ia/agent-loop.test.ts) : on scriptes les reponses du
+ * celui de l'ancien Assistant IA, retire en #1081) : on scriptes les reponses du
  * modele et on verifie que les actions de document s'appliquent en direct,
  * que finish termine, et que la boucle reste bornee.
  */

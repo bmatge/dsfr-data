@@ -22,10 +22,6 @@ describe('navigation', () => {
       expect(appHref('playground')).toBe('../../apps/playground/index.html');
     });
 
-    it('should return correct path for builder-ia', () => {
-      expect(appHref('builder-ia')).toBe('../../apps/builder-ia/index.html');
-    });
-
     it('should return correct path for favorites', () => {
       expect(appHref('favorites')).toBe('../../apps/favorites/index.html');
     });
@@ -39,7 +35,9 @@ describe('navigation', () => {
     });
 
     it('should append query params', () => {
-      expect(appHref('playground', { from: 'builder' })).toBe('../../apps/playground/index.html?from=builder');
+      expect(appHref('playground', { from: 'builder' })).toBe(
+        '../../apps/playground/index.html?from=builder'
+      );
     });
 
     it('should use ./ prefix from root-level pages', () => {

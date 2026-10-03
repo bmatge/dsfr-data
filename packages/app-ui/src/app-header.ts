@@ -35,8 +35,7 @@ export function navItemsFor(user: User | null): Array<{ id: string; label: strin
   return [
     { id: 'accueil', label: 'Accueil', href: 'index.html' },
     { id: 'sources', label: 'Sources', href: 'apps/sources/index.html' },
-    // Le Studio IA remplace l'Assistant IA comme entree usager (#1081) ;
-    // l'ancien Assistant reste joignable par `apps/builder-ia/?ancien=1`.
+    // Le Studio IA a remplace l'Assistant IA, retire depuis (#1081).
     { id: 'studio', label: 'Studio IA', href: 'apps/studio/index.html' },
     { id: 'builder', label: 'Créer un graphique', href: 'apps/builder/index.html' },
     { id: 'builder-carto', label: 'Créer une carte', href: 'apps/builder-carto/index.html' },

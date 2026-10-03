@@ -32,7 +32,6 @@ const BUREAU = { width: 1024, height: 800 };
  */
 const APPS = [
   'builder',
-  'builder-ia',
   'playground',
   'studio',
   'builder-carto',
@@ -44,8 +43,8 @@ const APPS = [
   'monitoring',
 ];
 
-/** Les 4 apps a barre d'actions dont la page defile en mobile. */
-const AVEC_BARRE_DEFILANTE = ['builder', 'builder-ia', 'playground', 'dashboard'];
+/** Les 3 apps a barre d'actions dont la page defile en mobile. */
+const AVEC_BARRE_DEFILANTE = ['builder', 'playground', 'dashboard'];
 
 async function ouvrir(page: Page, app: string) {
   await page.addInitScript(() => {

@@ -675,7 +675,7 @@ h3 .help-btn i {
    numérotées, builder de filtres, garde-fous, barre d'action.
    ============================================================ */
 
-/* Application plein écran (pattern builder-ia/carto) : le panneau de config
+/* Application plein écran (pattern carto) : le panneau de config
    scrolle en interne, la barre d'action reste épinglée en bas. */
 body.builder-v2 {
   height: 100vh;

@@ -5,9 +5,9 @@ import {
   setCapabilities,
   resetCapabilities,
   effectiveCapabilities,
-} from '../../../packages/shared/src/ia/albert-capabilities';
+} from '../../packages/shared/src/ia/albert-capabilities';
 
-describe('builder-ia albert-capabilities', () => {
+describe('albert-capabilities', () => {
   beforeEach(() => {
     localStorage.clear();
     resetCapabilities();

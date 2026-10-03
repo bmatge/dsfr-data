@@ -161,10 +161,10 @@ export function routeMcpRequest(opts: {
 }
 
 /**
- * Matching des skills — delegue au moteur PARTAGE avec le builder-IA (#514).
+ * Matching des skills — delegue au moteur PARTAGE avec les apps (#514).
  *
  * C'etait auparavant un `includes` sur les triggers, structurellement moins
- * pertinent que le cote builder-IA, et toute amelioration devait etre faite
+ * pertinent que le cote ancien Assistant IA, et toute amelioration devait etre faite
  * deux fois. Le moteur vit maintenant dans
  * `packages/shared/src/ia/skill-matching.ts` et est copie ici par
  * `npm run build:skill-matching`.

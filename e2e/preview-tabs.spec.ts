@@ -17,11 +17,6 @@ interface TabsSpec {
 
 const pages: TabsSpec[] = [
   { name: 'Builder', path: '/apps/builder/index.html', labels: ['Aperçu', 'Code', 'Données'] },
-  {
-    name: 'Assistant IA',
-    path: '/apps/builder-ia/index.html',
-    labels: ['Aperçu', 'Code', 'Données'],
-  },
   { name: 'Studio IA', path: '/apps/studio/index.html', labels: ['Aperçu', 'Code', 'JSON'] },
   { name: 'Dashboard', path: '/apps/dashboard/index.html', labels: ['Aperçu', 'Code', 'JSON'] },
   { name: 'Carto', path: '/apps/builder-carto/index.html', labels: ['Aperçu', 'Code'] },

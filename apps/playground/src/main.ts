@@ -207,12 +207,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // anchor via DOM APIs (textContent) to avoid XSS.
   const fromApp = new URLSearchParams(window.location.search).get('from');
   if (estOrigineCode(fromApp)) {
-    // L'ancien Assistant IA redirige vers le Studio IA (#1081) : on y revient
-    // par son parametre d'echappement, sinon le lien menerait au Studio.
     const retourParams: Record<string, string> | undefined =
-      fromApp === 'favorites'
-        ? undefined
-        : { from: 'playground', ...(fromApp === 'builder-ia' ? { ancien: '1' } : {}) };
+      fromApp === 'favorites' ? undefined : { from: 'playground' };
     const backHref = appHref(fromApp, retourParams);
     const backBar = document.createElement('div');
     backBar.className = 'fr-mb-1w';

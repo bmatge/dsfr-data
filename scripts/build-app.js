@@ -11,13 +11,13 @@
  *     favoris.html         (redirect -> apps/favorites/)
  *     builder.html         (redirect -> apps/builder/)
  *     builderIA.html       (redirect -> apps/studio/, #1081)
+ *     apps/builder-ia/index.html (redirect -> apps/studio/, app retiree, #1081)
  *     playground.html      (redirect -> apps/playground/)
  *     sources.html         (redirect -> apps/sources/)
  *     apps/
  *       favorites/         (built app)
  *       playground/
  *       sources/
- *       builder-ia/
  *       builder/
  */
 
@@ -100,7 +100,6 @@ const apps = [
   'favorites',
   'playground',
   'sources',
-  'builder-ia',
   'studio',
   'builder',
   'builder-carto',
@@ -128,6 +127,9 @@ const redirects = {
   'builder.html': 'apps/builder/index.html',
   // Le Studio IA remplace l'Assistant IA (#1081) : l'ancienne URL mene au Studio.
   'builderIA.html': 'apps/studio/index.html',
+  // L'app `apps/builder-ia` est retiree (#1081, etape 2) : son adresse, publiee
+  // dans des favoris et des liens externes, mene au Studio au lieu d'un 404.
+  'apps/builder-ia/index.html': '../studio/index.html',
   'playground.html': 'apps/playground/index.html',
   'sources.html': 'apps/sources/index.html',
   'dashboard.html': 'apps/dashboard/index.html',
@@ -136,6 +138,7 @@ const redirects = {
 
 for (const [oldFile, newPath] of Object.entries(redirects)) {
   const dest = join(distDir, oldFile);
+  mkdirSync(dirname(dest), { recursive: true });
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>

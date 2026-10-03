@@ -1,6 +1,6 @@
 /**
  * Tests e2e des refontes « v2 » (Claude Design, 2026-08) : Builder graphique,
- * Sources, Favoris, Assistant IA. Couvre les invariants de chaque nouvelle
+ * Sources, Favoris. Couvre les invariants de chaque nouvelle
  * interface (structure, synchronisations, garde-fous) avec des données
  * seedées en localStorage et des mocks réseau — aucun appel externe.
  */
@@ -259,45 +259,5 @@ test.describe('Favoris v2', () => {
     await page.waitForTimeout(400);
     await expect(page.locator('.fav-card')).toHaveCount(1);
     await expect(page.locator('#fav-panel')).toBeHidden();
-  });
-});
-
-// ===================================================================
-// Assistant IA (chat borné, saisie épinglée)
-// ===================================================================
-test.describe('Assistant IA v2', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/apps/builder-ia/index.html');
-    await page.waitForTimeout(1500);
-  });
-
-  test('volet borné : saisie épinglée en bas, conversation scrollable', async ({ page }) => {
-    const layout = await page.evaluate(() => {
-      const input = document.querySelector('.chat-input-container')!.getBoundingClientRect();
-      const msgs = document.querySelector('.chat-messages')!;
-      return {
-        bodyScrollable: document.documentElement.scrollHeight > window.innerHeight + 2,
-        inputPinned: Math.abs(input.bottom - window.innerHeight) < 3,
-        msgsInternalScroll: getComputedStyle(msgs).overflowY === 'auto',
-      };
-    });
-    expect(layout.bodyScrollable).toBe(false);
-    expect(layout.inputPinned).toBe(true);
-    expect(layout.msgsInternalScroll).toBe(true);
-  });
-
-  test('conversation : bulles asymétriques + chips cliquables', async ({ page }) => {
-    await page.fill('#chat-input', 'reset');
-    await page.press('#chat-input', 'Enter');
-    await page.waitForTimeout(600);
-    const userBubble = page.locator('.chat-message.user').last();
-    await expect(userBubble).toBeVisible();
-    expect(await userBubble.evaluate((el) => getComputedStyle(el).borderRadius)).toContain('2px');
-    await expect(page.locator('.chat-suggestion').first()).toBeVisible();
-    await expect(page.locator('.chat-input-hint')).toBeVisible();
-    // « Effacer la conversation » vit dans l'AppActionBar depuis le lot UX 2 (#539).
-    await expect(page.locator('app-action-bar #clear-chat')).toContainText(
-      'Effacer la conversation'
-    );
   });
 });

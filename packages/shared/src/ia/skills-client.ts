@@ -168,8 +168,6 @@ export function skillText(
 
 /**
  * `get_relevant_skills` / `get_skill`, schemas plats (decodage guide vLLM).
- * Le builder-IA garde les siens (`action-schema.ts`) : il lit le monolithe
- * `skills.ts`, pas le skills.json publie.
  */
 export const OUTILS_SKILLS = [
   {

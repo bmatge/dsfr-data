@@ -23,9 +23,6 @@ import { disableProductTour } from './helpers';
 const PAGES = [
   '/index.html',
   '/apps/sources/index.html',
-  // Sans `?ancien=1`, l'ancien Assistant IA redirige vers le Studio (#1081) :
-  // la page doublait alors celle du Studio et l'Assistant n'était plus audité.
-  '/apps/builder-ia/index.html?ancien=1',
   '/apps/studio/index.html',
   '/apps/builder/index.html',
   '/apps/builder-carto/index.html',

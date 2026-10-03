@@ -6,7 +6,7 @@
  * avec accès rapide Specs ↔ Guide, et `<app-footer>` par un footer statique.
  *
  * Rationale : sur GitHub Pages, seules `specs/` et `guide/` sont déployées
- * — les apps (Builder, Builder IA, Dashboard, etc.) ne le sont pas. Le menu
+ * — les apps (Builder, Studio IA, Dashboard, etc.) ne le sont pas. Le menu
  * du header pointait donc vers des routes inexistantes (404). Ce script
  * applique la transformation **uniquement** sur les fichiers copiés dans
  * `_site/` par le workflow `deploy-pages.yml` — les sources dans le repo

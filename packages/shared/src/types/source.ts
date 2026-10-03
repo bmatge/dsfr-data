@@ -1,5 +1,5 @@
 /**
- * Unified Source interface shared across all apps (sources, builder, builder-ia).
+ * Unified Source interface shared across all apps (sources, builder, studio).
  *
  * Replaces the 3 independent Source definitions that existed before:
  * - apps/sources/src/state.ts (14 fields)

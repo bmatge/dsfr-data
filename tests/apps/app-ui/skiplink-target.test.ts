@@ -14,7 +14,7 @@ import { join } from 'node:path';
  * verificateur automatique ne sait apprecier.
  *
  * Deux invariants :
- *  1. les douze apps portent une cible `#main-content`, FOCALISABLE — un
+ *  1. les onze apps portent une cible `#main-content`, FOCALISABLE — un
  *     `<main>` ne l'est pas de lui-meme, l'ancre y menait sans y poser le
  *     focus ;
  *  2. partout ou le chrome se reserve du `padding-bottom` sur le `body`, il
@@ -27,7 +27,7 @@ const RACINE = join(__dirname, '../../..');
 const lire = (p: string) => readFileSync(join(RACINE, p), 'utf-8');
 const compact = (s: string) => s.replace(/\s+/g, ' ');
 
-/** Les douze apps du monorepo — la liste se derive, elle ne s'ecrit pas. */
+/** Les onze apps du monorepo — la liste se derive, elle ne s'ecrit pas. */
 function apps(): string[] {
   return readdirSync(join(RACINE, 'apps'))
     .filter((a) => existsSync(join(RACINE, 'apps', a, 'index.html')))
@@ -43,13 +43,13 @@ function baliseCible(html: string): string | null {
 describe('le lien d’evitement a une cible focalisable', () => {
   const LISTE = apps();
 
-  it('les douze apps sont bien douze', () => {
-    expect(LISTE).toHaveLength(12);
+  it('les onze apps sont bien onze', () => {
+    expect(LISTE).toHaveLength(11);
   });
 
   it('le lien d’evitement vise toujours #main-content', () => {
     // T1 — mutation : renommer l'ancre dans app-header sans renommer les
-    // cibles. Les douze liens pointeraient dans le vide d'un coup.
+    // cibles. Les onze liens pointeraient dans le vide d'un coup.
     expect(compact(lire('packages/app-ui/src/app-header.ts'))).toContain('href="#main-content"');
   });
 
@@ -59,7 +59,7 @@ describe('le lien d’evitement a une cible focalisable', () => {
     const html = lire(`apps/${app}/index.html`);
     const propre = baliseCible(html);
 
-    // Les quatre apps a deux volets heritent leur cible d'app-layout-builder,
+    // Les trois apps a deux volets heritent leur cible d'app-layout-builder,
     // qui rend `<main class="builder-layout-right" id="main-content">`.
     if (!propre) {
       expect(html, `${app} n’a ni cible propre ni app-layout-builder`).toContain(
@@ -72,7 +72,7 @@ describe('le lien d’evitement a une cible focalisable', () => {
 
   it('la cible rendue par le layout deux-volets est focalisable elle aussi', () => {
     // T3 — meme mutation, cote composant : elle priverait Builder,
-    // Assistant IA, Playground et Studio d'un coup.
+    // Playground et Studio d'un coup.
     const layout = compact(lire('packages/app-ui/src/app-layout-builder.ts'));
 
     expect(layout).toContain('<main class="builder-layout-right" id="main-content" tabindex="-1">');

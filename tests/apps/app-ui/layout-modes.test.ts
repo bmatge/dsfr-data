@@ -147,16 +147,4 @@ describe('les apps ne stylent plus les classes internes du layout', () => {
     expect(html).toContain('<app-layout-builder');
     expect(html).not.toContain('mode=');
   });
-
-  it('l’Assistant IA a migré à son tour, une fois #609 livré', () => {
-    // Ses surcharges avaient ete CONSERVEES a dessein tant que son apercu
-    // avait une hauteur intrinseque. #609 l'a remplace par une iframe : la
-    // raison de l'exception a disparu, l'exception aussi.
-    expect(lire('apps/builder-ia/index.html')).toContain('mode="fullscreen"');
-
-    const css = reglesDe('apps/builder-ia/src/styles/builder-ia.css');
-    for (const classe of INTERNES) {
-      expect(css, `${classe} encore surchargée dans builder-ia.css`).not.toContain(classe);
-    }
-  });
 });

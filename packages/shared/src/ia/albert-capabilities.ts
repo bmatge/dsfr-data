@@ -12,8 +12,8 @@
  * Ces capacites ne s'appliquent QU'a la branche OpenAI-compatible de
  * callAlbertAPI. Gemini et Anthropic gardent leur chemin existant.
  *
- * Promu du builder-IA vers `@dsfr-data/shared` (#998) : le transport commun
- * (`ia/transport.ts`) lit ces capacites pour le Studio comme pour le builder-IA,
+ * Promu de l'ancien Assistant IA vers `@dsfr-data/shared` (#998) : le transport commun
+ * (`ia/transport.ts`) lit ces capacites,
  * et un seul module garde le cache memoire, donc la sonde (qui ecrit) et le
  * transport (qui lit) voient la meme valeur. App-side (localStorage) : exporte
  * depuis `index.ts` seulement, jamais depuis `lib.ts`.

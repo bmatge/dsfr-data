@@ -23,7 +23,6 @@ interface PageSpec {
 const pages: PageSpec[] = [
   { name: 'Accueil', path: '/index.html', title: 'Accueil' },
   { name: 'Sources', path: '/apps/sources/index.html', title: 'Sources' },
-  { name: 'Assistant IA', path: '/apps/builder-ia/index.html', title: 'Assistant IA' },
   { name: 'Studio IA', path: '/apps/studio/index.html', title: 'Studio IA', inNav: false },
   { name: 'Créer un graphique', path: '/apps/builder/index.html', title: 'Créer un graphique' },
   { name: 'Créer une carte', path: '/apps/builder-carto/index.html', title: 'Créer une carte' },
