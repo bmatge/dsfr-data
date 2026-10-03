@@ -93,6 +93,7 @@ export const CHAMPS_DES_COMPOSANTS = {
   "dsfr-data-query": {
     "filter": "clauses",
     "group-by": "liste",
+    "share-by": "liste",
     "where": "clauses"
   },
   "dsfr-data-repeat": {

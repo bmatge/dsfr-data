@@ -86,6 +86,52 @@ describe('compute v2 — littéraux', () => {
     expect(out.b).toBe(2);
   });
 
+  it("une quote dans un littéral s'écrit doublée, comme en SQL et en ODSQL (AM-090)", () => {
+    expect(run("'J''en ai'")).toBe("J'en ai");
+    expect(run("when libelle = 'J''en ai' then 1 else 0", { libelle: "J'en ai" })).toBe(1);
+    expect(run("when libelle = 'J''en ai' then 1 else 0", { libelle: "Je n'en ai pas" })).toBe(0);
+    // Le libellé qui porte DEUX apostrophes n'est pas celui qui en porte une.
+    expect(run("when libelle = 'J''en ai' then 1 else 0", { libelle: "J''en ai" })).toBe(0);
+    expect(run("'Provence-Alpes-Côte d''Azur'")).toBe("Provence-Alpes-Côte d'Azur");
+    // En tête, en queue, seule, répétée.
+    expect(run("'''tête'")).toBe("'tête");
+    expect(run("'queue'''")).toBe("queue'");
+    expect(run("''''")).toBe("'");
+    expect(run("''''''")).toBe("''");
+    expect(run("len('l''été')")).toBe(5);
+    expect(run("replace(s, '''', ' ')", { s: "l'été d'avant" })).toBe('l été d avant');
+    expect(run("contains(s, 'd''art')", { s: "Métiers d'art et du patrimoine" })).toBe(true);
+  });
+
+  it('les littéraux sans quote, et le littéral vide, gardent leur comportement', () => {
+    expect(run("''")).toBe('');
+    expect(run("'' + ''")).toBe('');
+    expect(run("concat('', 'a', '')")).toBe('a');
+    expect(run("concat('a','b')")).toBe('ab');
+    expect(run("when s = '' then 'vide' else 'plein'", { s: '' })).toBe('vide');
+    expect(run("coalesce(s, '')", { s: null })).toBe('');
+    expect(run("replace(s, 'a', '')", { s: 'banana' })).toBe('bnn');
+    expect(run("'a' + 'b'")).toBe('ab');
+  });
+
+  it('aucune expression valide ne change de sens : deux littéraux accolés étaient déjà une erreur', () => {
+    // Avant AM-090, `'a''b'` se lisait comme deux littéraux à la suite, que le
+    // parseur refusait (pas de concaténation implicite). C'est désormais UN
+    // littéral ; la forme séparée par un blanc reste refusée.
+    expect(run("'a''b'")).toBe("a'b");
+    expect(compileError("out = 'a' 'b'")).toContain('expression mal formée');
+    expect(compileError("out = '''")).toContain('chaîne non terminée');
+    expect(compileError("out = 'J''en ai")).toContain('chaîne non terminée');
+    // Pas d'échappement par barre oblique : `\'` ferme le littéral.
+    expect(() => compileCompute("out = 'J\\'en ai'")).toThrow();
+  });
+
+  it("un ';' ou une quote doublée dans un littéral ne coupent pas l'assignation", () => {
+    const out = applyCompute({ x: 1 }, compileCompute("a = 'l''un; l''autre'; b = x + 1"));
+    expect(out.a).toBe("l'un; l'autre");
+    expect(out.b).toBe(2);
+  });
+
   it('un champ homonyme d’une fonction reste lisible sans parenthèses', () => {
     // `day` seul est un champ ; `day(x)` est un appel.
     expect(run('day', { day: 7 })).toBe(7);
@@ -140,6 +186,28 @@ describe('compute v2 — fonctions nombres', () => {
     expect(run('ceil(x)', { x: '4.1' })).toBe(5);
   });
 
+  it('sqrt : racine carrée, chaîne numérique FR acceptée, zéro rend zéro', () => {
+    expect(run('sqrt(x)', { x: 16 })).toBe(4);
+    expect(run('sqrt(x)', { x: 2.25 })).toBe(1.5);
+    expect(run('sqrt(x)', { x: '6,25' })).toBe(2.5);
+    expect(run('sqrt(x)', { x: 0 })).toBe(0);
+    expect(run('round(sqrt(x), 2)', { x: 2 })).toBe(1.41);
+    // Le rayon d'un symbole proportionnel : l'aire suit la valeur.
+    expect(run('sqrt(population / 3.14159)', { population: 314159 })).toBeCloseTo(316.2278, 4);
+  });
+
+  it('sqrt : un négatif n’a pas de racine — null, jamais NaN ; absent et non numérique → null', () => {
+    expect(run('sqrt(x)', { x: -4 })).toBeNull();
+    expect(run('sqrt(x)', { x: null })).toBeNull();
+    expect(run('sqrt(x)', {})).toBeNull();
+    expect(run('sqrt(x)', { x: '' })).toBeNull();
+    expect(run('sqrt(x)', { x: 'NC' })).toBeNull();
+    // Le null se propage dans l'arithmétique, il ne devient pas un zéro.
+    expect(run('sqrt(x) * 2', { x: -4 })).toBeNull();
+    expect(compileError('out = sqrt()')).toContain('"sqrt" attend 1 argument, 0 reçu');
+    expect(compileError('out = sqrt(a, b)')).toContain('"sqrt" attend 1 argument, 2 reçus');
+  });
+
   it('non numérique → null (jamais un 0 plausible)', () => {
     expect(run('round(x)', { x: 'abc' })).toBeNull();
     expect(run('abs(x)', { x: null })).toBeNull();
@@ -176,6 +244,87 @@ describe('compute v2 — fonctions texte', () => {
     expect(run("replace(s, '(x)', '')", { s: 'a(x)b' })).toBe('ab');
     expect(run("replace(s, '', 'z')", { s: 'abc' })).toBe('abc'); // motif vide : inchangé
     expect(run("replace(s, 'a', 'b')", { s: null })).toBeNull();
+  });
+});
+
+describe('compute — sous-chaînes left / substr (AM-103)', () => {
+  it('left(siret, 9) rend le SIREN, substr(code, 1, 2) le département', () => {
+    expect(run('left(siret, 9)', { siret: '13002526500013' })).toBe('130025265');
+    expect(run('substr(code, 1, 2)', { code: '01004' })).toBe('01');
+    expect(run('substr(code, 1, 2)', { code: '2A004' })).toBe('2A');
+    // Un DROM tient sur trois caractères : la règle des deux premiers n'y suffit pas.
+    expect(run('substr(code, 1, 2)', { code: '97105' })).toBe('97');
+    expect(run('substr(code, 1, 3)', { code: '97105' })).toBe('971');
+  });
+
+  it('substr compte à partir de 1 ; sans longueur, va jusqu’au bout', () => {
+    expect(run('substr(s, 1, 1)', { s: 'abcdef' })).toBe('a');
+    expect(run('substr(s, 3, 2)', { s: 'abcdef' })).toBe('cd');
+    expect(run('substr(s, 3)', { s: 'abcdef' })).toBe('cdef');
+    expect(run('substr(s, 10, 5)', { s: '13002526500013' })).toBe('00013');
+  });
+
+  it('le résultat est toujours du TEXTE, même sur une valeur numérique', () => {
+    expect(run('left(code, 2)', { code: 75056 })).toBe('75');
+    expect(run('substr(code, 3, 3)', { code: 75056 })).toBe('056');
+    // Le zéro de tête d'un code stocké en nombre est déjà perdu en amont.
+    expect(run('left(code, 2)', { code: 1004 })).toBe('10');
+    // L'égalité lâche relit ce texte comme un nombre : `dep = 75` tient.
+    expect(run('when left(code, 2) = 75 then 1 else 0', { code: '75056' })).toBe(1);
+  });
+
+  it('se compte comme len, et s’imbrique dans les autres fonctions de texte', () => {
+    expect(run('len(left(s, 3))', { s: 'Évreux' })).toBe(3);
+    expect(run('left(s, 3)', { s: 'Évreux' })).toBe('Évr');
+    expect(run('upper(left(trim(s), 2))', { s: '  paris ' })).toBe('PA');
+    expect(run("concat(left(s, 2), '-', substr(s, 3))", { s: '75056' })).toBe('75-056');
+  });
+
+  it('bornes : plus long que la chaîne, longueur nulle ou négative, début au-delà de la fin', () => {
+    expect(run('left(s, 20)', { s: 'abc' })).toBe('abc');
+    expect(run('left(s, 0)', { s: 'abc' })).toBe('');
+    expect(run('left(s, 0 - 2)', { s: 'abc' })).toBe('');
+    expect(run('substr(s, 2, 20)', { s: 'abc' })).toBe('bc');
+    expect(run('substr(s, 2, 0)', { s: 'abc' })).toBe('');
+    expect(run('substr(s, 4)', { s: 'abc' })).toBe('');
+    expect(run('substr(s, 9, 2)', { s: 'abc' })).toBe('');
+    expect(run('left(s, 2)', { s: '' })).toBe('');
+    // Une longueur décimale est tronquée, comme le ferait un compte de caractères.
+    expect(run('left(s, 2.9)', { s: 'abcdef' })).toBe('ab');
+  });
+
+  it('une valeur absente reste absente (null, champ manquant)', () => {
+    expect(run('left(s, 2)', { s: null })).toBeNull();
+    expect(run('left(s, 2)', {})).toBeNull();
+    expect(run('substr(s, 1, 2)', { s: null })).toBeNull();
+    expect(run('substr(s, 1)', {})).toBeNull();
+  });
+
+  it('une position ou une longueur absente ou non numérique rend null, jamais un préfixe plausible', () => {
+    expect(run('left(s, n)', { s: 'abcdef', n: null })).toBeNull();
+    expect(run('left(s, n)', { s: 'abcdef' })).toBeNull();
+    expect(run('left(s, n)', { s: 'abcdef', n: 'deux' })).toBeNull();
+    expect(run('substr(s, d, 2)', { s: 'abcdef', d: null })).toBeNull();
+    expect(run('substr(s, 1, n)', { s: 'abcdef', n: 'deux' })).toBeNull();
+    // Une chaîne numérique est une longueur.
+    expect(run('left(s, n)', { s: 'abcdef', n: '2' })).toBe('ab');
+  });
+
+  it('un début inférieur à 1 : erreur de configuration en littéral, null quand il est calculé', () => {
+    const msg = compileError('out = substr(s, 0, 2)');
+    expect(msg).toContain('"substr" compte les positions à partir de 1, reçu 0');
+    expect(msg).toContain('substr(s, 1, 2)');
+    expect(compileError('out = substr(s, -1, 2)')).toContain('reçu -1');
+    expect(run('substr(s, d, 2)', { s: 'abcdef', d: 0 })).toBeNull();
+    expect(run('substr(s, d, 2)', { s: 'abcdef', d: -3 })).toBeNull();
+  });
+
+  it('arité : left attend 2 arguments, substr 2 ou 3', () => {
+    expect(compileError('out = left(s)')).toContain('"left" attend 2 arguments, 1 reçu');
+    expect(compileError('out = substr(s)')).toContain('"substr" attend 2 à 3 arguments, 1 reçu');
+    expect(compileError('out = substr(s, 1, 2, 3)')).toContain(
+      '"substr" attend 2 à 3 arguments, 4 reçus'
+    );
   });
 });
 
@@ -237,10 +386,13 @@ describe('compute v2 — liste blanche', () => {
       'abs',
       'floor',
       'ceil',
+      'sqrt',
       'lower',
       'upper',
       'trim',
       'len',
+      'left',
+      'substr',
       'concat',
       'replace',
       'coalesce',
@@ -255,6 +407,8 @@ describe('compute v2 — liste blanche', () => {
     const minArity: Record<string, number> = {
       replace: 3,
       contains: 2,
+      left: 2,
+      substr: 2,
     };
     for (const fn of COMPUTE_FUNCTIONS) {
       const args = Array.from({ length: minArity[fn] ?? 1 }, (_, i) => `a${i}`).join(', ');

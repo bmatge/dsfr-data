@@ -1,6 +1,6 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { toNumber, CHOROPLETH_SCALES } from '@dsfr-data/shared/lib';
+import { toNumber, CHOROPLETH_SCALES, maxOf } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
 import {
@@ -533,7 +533,8 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     items = items.slice(0, this.maxItems);
 
     // Compute bar ratios
-    const maxValue = this.barMax ?? Math.max(...items.map((i) => i.value), 1);
+    // `max-items` n'a pas de plafond : la liste n'est pas étalée en arguments (BUG-038)
+    const maxValue = this.barMax ?? Math.max(maxOf(items.map((i) => i.value)), 1);
 
     // Pick palette colors
     const palette =

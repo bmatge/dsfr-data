@@ -33,6 +33,10 @@ export function resolveFacetValue(row: FacetRow, field: string): unknown {
  * scalaire fournit sa valeur. Les éléments vides sont ignorés. L'ancien
  * `String(val)` stringifiait le tableau (« a,b ») : la valeur ne matchait
  * jamais une selection et polluait les groupes de facettes.
+ *
+ * Les éléments sont rendus dans l'ordre de la cellule, répétitions comprises :
+ * `collectCompanionLabels` les apparie par position à ceux du champ compagnon.
+ * Le COMPTAGE, lui, dédoublonne (`countFacetValues`, BUG-037).
  */
 export function facetValuesOf(val: unknown): string[] {
   if (val === null || val === undefined || val === '') return [];
@@ -125,6 +129,14 @@ export function filterRowsBySelections(
  * sur un jeu non vide signale un `weight-field` introuvable (#739), que
  * l'appelant rapporte une fois par champ.
  *
+ * **Une ligne compte une fois par valeur DISTINCTE** (BUG-037 du banc d'essai,
+ * #1227) : une cellule `["Patrimoine", "Patrimoine"]` ajoute un à
+ * « Patrimoine », pas deux. Le compteur d'une facette annonce le nombre de
+ * lignes que la sélection rendra — un élément répété le gonflait au-delà (3
+ * annoncés pour 2 lignes), et doublait le poids de la ligne sous
+ * `weight-field`. `explode` de `dsfr-data-query` garde, lui, son compte par
+ * ÉLÉMENT : c'est un éclatement, pas un compteur de lignes.
+ *
  * Les sommes flottantes accumulent des artefacts (0.1 + 0.2) : arrondi a
  * 6 decimales, largement au-dela de ce qu'un compteur affiche.
  */
@@ -138,8 +150,9 @@ export function countFacetValues(
   for (const row of rows) {
     const weight = rowWeight(row, weightField);
     if (weight !== 0) weightedRows++;
-    // Cellule tableau : chaque element compte dans son groupe (#421)
-    for (const strVal of facetValuesOf(resolveFacetValue(row, field))) {
+    // Cellule tableau : chaque element compte dans son groupe (#421), une
+    // seule fois par ligne (BUG-037)
+    for (const strVal of new Set(facetValuesOf(resolveFacetValue(row, field)))) {
       counts.set(strVal, (counts.get(strVal) ?? 0) + weight);
     }
   }

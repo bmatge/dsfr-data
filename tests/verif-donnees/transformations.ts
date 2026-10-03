@@ -35,17 +35,19 @@
  *     divergent d'un empilement) : elles n'émettent AUCUNE ligne, et l'oracle
  *     ne compare que ce qui s'affiche.
  */
-import type { Check, Manifest, Row } from '../../tools/oracle/manifest.js';
+import type { Check, Manifest, Row, Step } from '../../tools/oracle/manifest.js';
 import {
   BAROMETRE_QUESTIONS,
   BAROMETRE_SCORES,
   BRUTES,
   PREFIXES,
   CALCULS,
+  CODES,
   COMPOSITE_DROITE,
   COMPOSITE_GAUCHE,
   DROITE,
   EDITIONS,
+  ENQUETE,
   GAUCHE,
   GAUCHE_GRAPHIE,
   LARGE,
@@ -354,6 +356,16 @@ ${kpi('k-mixte-bas', 'q-mixte-bas')}`,
 // aggregate, group-by, order-by, limit
 // ---------------------------------------------------------------------------
 
+/** L'enquête regroupée par réponse : le départ des recalculs de part (AM-110). */
+const ENQUETE_PAR_REPONSE: Step[] = [
+  {
+    op: 'group-by',
+    by: ['annee', 'question', 'reponse'],
+    columns: { effectif: { agg: 'sum', field: 'n' } },
+  },
+  { op: 'order-by', column: 'annee', dir: 'asc' },
+];
+
 const AGREGATS: Check[] = [
   {
     id: 'agregat-sum-count-avg',
@@ -573,6 +585,63 @@ const AGREGATS: Check[] = [
           { op: 'order-by', column: 'pop', dir: 'desc' },
           { op: 'share', from: 'pop', as: 'part', scale: 100 },
           { op: 'limit', n: 2 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'agregat-part-par-groupe-share-by',
+    mode: 'deterministic',
+    origin:
+      'AM-110 (#1228) — `share-by="annee, question"` : la part d’une réponse parmi les répondants de SA question, SON année, et non parmi toutes les lignes de sortie. Les deux chiffres sont plausibles — « Souvent » en 2014 vaut 30 % de sa question et 6,5 % du tout — et sans partition il fallait un second regroupement, une jointure et un compute. La seconde query, sans l’attribut, garde la part du total : rien ne change pour qui ne le pose pas.',
+    constats: ['AM-110'],
+    feed: { kind: 'fixture', datasets: { main: ENQUETE } },
+    markup: `${source('s-enq', ENQUETE)}
+  <dsfr-data-query id="q-part-groupe" source="s-enq" group-by="annee, question, reponse"
+    aggregate="n:sum:effectif, effectif:share_percent:part, effectif:share:fraction"
+    share-by="annee, question" order-by="annee:asc"></dsfr-data-query>
+  <dsfr-data-query id="q-part-tout" source="s-enq" group-by="annee, question, reponse"
+    aggregate="n:sum:effectif, effectif:share_percent:part" order-by="annee:asc"></dsfr-data-query>
+  <dsfr-data-query id="q-part-annee" source="s-enq" group-by="annee, reponse"
+    aggregate="n:sum:effectif, effectif:share_percent:part"
+    share-by="annee" order-by="effectif:desc" limit="3"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-groupe',
+        key: ['annee', 'question', 'reponse'],
+        columns: ['effectif', 'part', 'fraction'],
+        pipeline: [
+          ...ENQUETE_PAR_REPONSE,
+          { op: 'share', from: 'effectif', as: 'part', scale: 100, by: ['annee', 'question'] },
+          { op: 'share', from: 'effectif', as: 'fraction', by: ['annee', 'question'] },
+        ],
+      },
+      {
+        kind: 'rows',
+        id: 'q-part-tout',
+        key: ['annee', 'question', 'reponse'],
+        columns: ['effectif', 'part'],
+        pipeline: [
+          ...ENQUETE_PAR_REPONSE,
+          { op: 'share', from: 'effectif', as: 'part', scale: 100 },
+        ],
+      },
+      {
+        kind: 'rows',
+        id: 'q-part-annee',
+        key: ['annee', 'reponse'],
+        columns: ['effectif', 'part'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: ['annee', 'reponse'],
+            columns: { effectif: { agg: 'sum', field: 'n' } },
+          },
+          { op: 'order-by', column: 'effectif', dir: 'desc' },
+          { op: 'share', from: 'effectif', as: 'part', scale: 100, by: 'annee' },
+          { op: 'limit', n: 3 },
         ],
       },
     ],
@@ -973,9 +1042,20 @@ ${kpi('k-rep', 'q-rep')}`,
 const CALC = source('s-calc', CALCULS);
 const JEU_CALC = { main: CALCULS };
 
+const CODE = source('s-code', CODES);
+const JEU_CODE = { main: CODES };
+
 /** L'arithmétique de la page, réécrite telle quelle pour l'oracle. */
 const EXPR_ARITH =
   "quotient = a / b; ecart = a - b; produit = a * b; oppose = 0 - a; verdict = when is_null(quotient) then 'sans valeur' else 'valeur'";
+
+/** Les quatre sous-chaînes de la page, énoncées SANS la grammaire d'expressions (AM-103). */
+const SOUS_CHAINES: Step[] = [
+  { op: 'substring', from: 'siret', as: 'siren', start: 1, length: 9 },
+  { op: 'substring', from: 'code_insee', as: 'dep', start: 1, length: 2 },
+  { op: 'substring', from: 'code_insee', as: 'commune', start: 3 },
+  { op: 'substring', from: 'siret', as: 'nic', start: 10, length: 5 },
+];
 
 const COMPUTE: Check[] = [
   {
@@ -1110,6 +1190,131 @@ const COMPUTE: Check[] = [
             expr: "net = trim(texte); bas = lower(net); haut = upper(net); taille = len(net); sans = replace(net, 'é', 'e'); ensemble = concat(cle, '-', bas)",
           },
         ],
+      },
+    ],
+  },
+
+  {
+    id: 'compute-sous-chaine-left-et-substr',
+    mode: 'deterministic',
+    origin:
+      'AM-103 (#1231) — `left(siret, 9)` rend le SIREN et `substr(code_insee, 1, 2)` le département. Les positions se comptent à partir de 1 : un décalage d’un caractère rend un code de département plausible et faux (« 50 » pour Paris), et un compte d’entreprises tout aussi plausible. Trois chemins : la grammaire réécrite par l’oracle (`derive`), puis la sous-chaîne énoncée sans elle (`substring`), que la troisième voix recalcule.',
+    constats: ['AM-103'],
+    feed: { kind: 'fixture', datasets: JEU_CODE },
+    markup: `${CODE}
+  <dsfr-data-normalize id="n-sub" source="s-code"
+    compute="siren = left(siret, 9); dep = substr(code_insee, 1, 2); commune = substr(code_insee, 3); nic = substr(siret, 10, 5)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-sub" source="n-sub"
+    columns="cle:Clé, siren:SIREN, dep:Département, commune:Commune, nic:NIC"></dsfr-data-list>
+  <dsfr-data-query id="q-siren" source="n-sub"
+    aggregate="siret:distinct:etablissements, siren:distinct:entreprises"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'n-sub',
+        key: 'cle',
+        columns: ['siren', 'dep', 'commune', 'nic'],
+        pipeline: [
+          {
+            op: 'derive',
+            expr: 'siren = left(siret, 9); dep = substr(code_insee, 1, 2); commune = substr(code_insee, 3); nic = substr(siret, 10, 5)',
+          },
+        ],
+      },
+      {
+        kind: 'list',
+        id: 'l-sub',
+        columns: [
+          { column: 'cle' },
+          { column: 'siren', absent: '—' },
+          { column: 'dep', absent: '—' },
+          { column: 'commune', absent: '—' },
+          { column: 'nic', absent: '—' },
+        ],
+        pipeline: SOUS_CHAINES,
+      },
+      {
+        kind: 'rows',
+        id: 'q-siren',
+        key: 'etablissements',
+        columns: ['entreprises'],
+        pipeline: [
+          ...SOUS_CHAINES,
+          {
+            op: 'global',
+            columns: {
+              etablissements: { agg: 'distinct', field: 'siret' },
+              entreprises: { agg: 'distinct', field: 'siren' },
+            },
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'compute-apostrophe-doublee-dans-un-litteral',
+    mode: 'deterministic',
+    origin:
+      "AM-090 (#1231) — une apostrophe dans un littéral s’écrit doublée : `when libelle = 'J''en ai' then 1 else 0` compare au libellé « J'en ai ». Le contournement du banc (`contains(libelle, 'en ai')`) compte aussi « Je n'en ai pas » : 4 lignes au lieu de 2. Le littéral vide `''` garde son sens, et le libellé qui porte DEUX apostrophes n’est pas pris pour celui qui en porte une. Le compte est recalculé par un filtre d’égalité, sans la grammaire — donc par la troisième voix aussi.",
+    constats: ['AM-090'],
+    feed: { kind: 'fixture', datasets: JEU_CODE },
+    markup: `${CODE}
+  <dsfr-data-normalize id="n-apo" source="s-code"
+    compute="a_en = when libelle = 'J''en ai' then 1 else 0; sans_libelle = when coalesce(libelle, 'x') = '' then 1 else 0; neutre = replace(coalesce(libelle, ''), '''', '_')"></dsfr-data-normalize>
+  <dsfr-data-query id="q-apo" source="n-apo" where="a_en:eq:1"></dsfr-data-query>
+${kpi('k-apo', 'q-apo')}
+  <dsfr-data-list id="l-apo" source="n-apo"
+    columns="cle:Clé, neutre:Libellé sans apostrophe, a_en:En a, sans_libelle:Sans libellé"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-apo',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'libelle', op: 'eq', value: "J'en ai" }] }],
+      },
+      {
+        kind: 'list',
+        id: 'l-apo',
+        columns: [
+          { column: 'cle' },
+          { column: 'neutre' },
+          { column: 'a_en', numeric: true },
+          { column: 'sans_libelle', numeric: true },
+        ],
+        pipeline: [
+          {
+            op: 'derive',
+            expr: "a_en = when libelle = 'J''en ai' then 1 else 0; sans_libelle = when coalesce(libelle, 'x') = '' then 1 else 0; neutre = replace(coalesce(libelle, ''), '''', '_')",
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'compute-racine-carree',
+    mode: 'deterministic',
+    origin:
+      'sqrt(x), relevée par AM-107 (#1229) : le rayon d’un symbole proportionnel est la racine de la valeur, pour que l’AIRE la suive. Un nombre négatif n’a pas de racine — la colonne vaut null, jamais NaN ni la racine de sa valeur absolue, qui serait un rayon plausible ; une cellule vide, un texte et un null restent absents ; zéro rend zéro. Recalculée deux fois : par la grammaire réécrite (`derive`), puis par l’étape `sqrt`, que la troisième voix sait lire.',
+    feed: { kind: 'fixture', datasets: JEU_CODE },
+    markup: `${CODE}
+  <dsfr-data-normalize id="n-rac" source="s-code"
+    compute="rayon = sqrt(surface); diametre = 2 * sqrt(surface)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-rac" source="n-rac" columns="cle:Clé, rayon:Rayon"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'n-rac',
+        key: 'cle',
+        columns: ['rayon', 'diametre'],
+        pipeline: [{ op: 'derive', expr: 'rayon = sqrt(surface); diametre = 2 * sqrt(surface)' }],
+      },
+      {
+        kind: 'list',
+        id: 'l-rac',
+        columns: [{ column: 'cle' }, { column: 'rayon', numeric: true }],
+        pipeline: [{ op: 'sqrt', from: 'surface', as: 'rayon' }],
       },
     ],
   },

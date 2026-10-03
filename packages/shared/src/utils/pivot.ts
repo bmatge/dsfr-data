@@ -16,6 +16,7 @@ import { toNumber, looksLikeNumber } from './number-parser.js';
 import { isIsoDateString } from './iso-date.js';
 import { unescapeColonValue } from './colon-escape.js';
 import { isUnsafeKey } from './security.js';
+import { maxOf, minOf } from './extremum.js';
 
 type Row = Record<string, unknown>;
 
@@ -186,7 +187,8 @@ function reduceCell(values: unknown[], aggregate: PivotAggregate): unknown {
       }
       const nums = numericValues(values);
       if (nums.length > 0) {
-        return aggregate === 'min' ? Math.min(...nums) : Math.max(...nums);
+        // Boucle, jamais d'étalement (BUG-038) : une cellule peut agréger tout le jeu
+        return aggregate === 'min' ? minOf(nums) : maxOf(nums);
       }
       // No numeric value at all (dates ISO, libellés) : lexicographic order.
       const strs = values.filter((v) => !isBlank(v)).map((v) => String(v));

@@ -26,7 +26,7 @@ describe('oracle / expressions', () => {
   });
 
   it('refuse une fonction hors liste blanche', () => {
-    expect(() => deriver([{ a: 1 }], 'x = sqrt(a)')).toThrow(/liste blanche/);
+    expect(() => deriver([{ a: 1 }], 'x = cbrt(a)')).toThrow(/liste blanche/);
   });
 
   it('rend null pour une division par zéro, jamais l’infini', () => {
@@ -74,6 +74,41 @@ describe('oracle / expressions', () => {
     expect(r.taille).toBe(10);
     expect(r.txt).toBe('eau+air');
     expect(r.eau).toBe(true);
+  });
+
+  it('coupe une sous-chaîne à positions comptées à partir de 1 (AM-103)', () => {
+    const r = deriver(
+      [{ siret: '13002526500013', code: 97105, vide: '', rien: null }],
+      'siren = left(siret, 9); dep = substr(code, 1, 2); suite = substr(code, 3); loin = substr(code, 9, 2); v = left(vide, 2); n = left(rien, 2); z = substr(siret, 0, 2)'
+    )[0];
+    expect(r.siren).toBe('130025265');
+    expect(r.dep).toBe('97');
+    expect(r.suite).toBe('105');
+    expect(r.loin).toBe('');
+    expect(r.v).toBe('');
+    expect(r.n).toBeNull();
+    expect(r.z).toBeNull();
+  });
+
+  it('lit une apostrophe doublée dans un littéral, et garde le littéral vide (AM-090)', () => {
+    const r = deriver(
+      [{ l: "J'en ai", m: "J''en ai", v: '' }],
+      "un = when l = 'J''en ai' then 1 else 0; deux = when m = 'J''en ai' then 1 else 0; vide = when v = '' then 1 else 0; seule = ''''; bord = concat('''a', 'b''')"
+    )[0];
+    expect(r.un).toBe(1);
+    expect(r.deux).toBe(0);
+    expect(r.vide).toBe(1);
+    expect(r.seule).toBe("'");
+    expect(r.bord).toBe("'ab'");
+    expect(() => deriver([{}], "x = 'J''en ai")).toThrow('texte non terminé');
+  });
+
+  it('prend la racine carrée, et rend null pour un négatif', () => {
+    const r = deriver(
+      [{ a: 16, b: -4, c: '6,25', d: null, z: 0 }],
+      'ra = sqrt(a); rb = sqrt(b); rc = sqrt(c); rd = sqrt(d); rz = sqrt(z)'
+    )[0];
+    expect([r.ra, r.rb, r.rc, r.rd, r.rz]).toEqual([4, null, 2.5, null, 0]);
   });
 
   it('distingue l’absence (is_null) du vide (is_empty)', () => {

@@ -4,6 +4,8 @@ import {
   validateColonFilter,
   isIsoDateString,
   looseEquals,
+  maxOf,
+  minOf,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from './json-path.js';
 
@@ -597,7 +599,7 @@ function computeAverage(items: Record<string, unknown>[], field: string): number
  * Minimum ou maximum d'une colonne. Colonne de dates ISO (#667) : ordre
  * lexicographique, AVANT le chemin numerique — toNumber('2026-09-09') vaudrait
  * 2026. Le garde porte sur le tableau FILTRE, pas sur items.length : aucune
- * valeur numerique -> Math.min(...[]) = Infinity (#301).
+ * valeur numerique -> le minimum d'un tableau vide vaut Infinity (#301).
  */
 export function computeExtremum(
   items: Record<string, unknown>[],
@@ -613,7 +615,9 @@ export function computeExtremum(
   }
   const values = collectNumericValues(items, field);
   if (values.length === 0) return null;
-  return bound === 'min' ? Math.min(...values) : Math.max(...values);
+  // Boucle, jamais d'étalement : au-delà de ~125 000 valeurs `Math.min(...values)`
+  // dépasse la pile (BUG-038, #1228).
+  return bound === 'min' ? minOf(values) : maxOf(values);
 }
 
 /**
