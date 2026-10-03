@@ -38,11 +38,18 @@ export interface ColorableDataset {
   borderColor?: unknown;
   hoverBackgroundColor?: unknown;
   hoverBorderColor?: unknown;
+  /** Points d'une courbe, d'un radar ou d'un nuage : posés à part par DSFR Chart. */
+  pointBackgroundColor?: unknown;
+  pointBorderColor?: unknown;
+  pointHoverBackgroundColor?: unknown;
+  pointHoverBorderColor?: unknown;
 }
 
 /** Sous-ensemble structurel d'une instance Chart.js recolorable. */
 export interface ColorableChart {
   data?: { labels?: unknown[]; datasets?: ColorableDataset[] };
+  /** Options Chart.js : seules les transitions nous intéressent (`refreshSeriesColors`). */
+  options?: { transitions?: Record<string, unknown> };
   update?: (mode?: string) => void;
 }
 
@@ -63,6 +70,90 @@ function colorAt(base: unknown, index: number): unknown {
   return Array.isArray(base) ? base[index] : base;
 }
 
+/** Propriétés de couleur des POINTS d'un jeu de données Chart.js. */
+const POINT_COLOR_KEYS = [
+  'pointBackgroundColor',
+  'pointBorderColor',
+  'pointHoverBackgroundColor',
+  'pointHoverBorderColor',
+] as const;
+
+/**
+ * Pose la couleur d'une série sur ses POINTS (BUG-033 du banc, #1230).
+ *
+ * DSFR Chart écrit les couleurs de point à part du trait — `pointBackgroundColor`,
+ * `pointBorderColor` et leurs variantes de survol — sur les courbes, les radars,
+ * les nuages de points et la courbe d'un `bar-line`. Tant que ces propriétés
+ * existent, Chart.js les préfère à `backgroundColor` / `borderColor` : un trait
+ * recoloré gardait donc ses points à la palette par défaut. On ne les pose que
+ * là où le jeu de données les porte déjà : un jeu de barres n'en a pas, et sans
+ * elles Chart.js retombe de lui-même sur la couleur du trait.
+ */
+function paintPoints(dataset: ColorableDataset, color: string): void {
+  for (const key of POINT_COLOR_KEYS) {
+    if (dataset[key] !== undefined) dataset[key] = color;
+  }
+}
+
+/** Nom de la transition Chart.js posée par `refreshSeriesColors`. */
+const COLOR_MAP_TRANSITION = 'dsfrDataColorMap';
+
+/**
+ * Redessine le graphique après un recoloriage par série (BUG-033, #1230).
+ *
+ * `update('none')` ne suffit PAS, et c'est la cause réelle du constat : quand
+ * tous les éléments d'un jeu de données ont les mêmes options — les points
+ * d'une courbe, les barres d'un `bar-line` — Chart.js les fait partager UN
+ * objet d'options, gardé d'une mise à jour à l'autre, et ne le rafraîchit que
+ * par ses animations. Les modes directs (`none`, `resize`) sautent cette étape :
+ * le trait, qui a ses propres options, changeait de couleur, et les points
+ * gardaient l'ancienne — même avec `pointBackgroundColor` correctement posé.
+ *
+ * On passe donc par une transition déclarée, de durée nulle : les options
+ * partagées sont réécrites à l'image suivante, sans fondu visible. Une
+ * transition nommée est le mécanisme documenté de Chart.js pour cela (un mode
+ * passé à `update` se lit dans `options.transitions`). Sans `options`
+ * atteignables, repli sur `update('none')`, le comportement d'avant.
+ */
+function refreshSeriesColors(chart: ColorableChart): void {
+  const transitions = chart.options?.transitions;
+  if (!transitions || typeof transitions !== 'object') {
+    chart.update?.('none');
+    return;
+  }
+  if (!transitions[COLOR_MAP_TRANSITION]) {
+    transitions[COLOR_MAP_TRANSITION] = { animation: { duration: 0 } };
+  }
+  chart.update?.(COLOR_MAP_TRANSITION);
+}
+
+/** `#rgb` ou `#rrggbb` → `#rrggbb` ; `null` pour toute autre écriture de couleur. */
+function toHex6(color: string): string | null {
+  const hex = color.trim();
+  if (/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  if (/^#[0-9a-f]{3}$/i.test(hex)) {
+    return `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  }
+  return null;
+}
+
+/**
+ * Couleur de FOND d'une série recolorée, dans la forme qu'avait le fond.
+ *
+ * Le radar de DSFR Chart teinte l'aire de chaque série en TRANSPARENCE
+ * (`#rrggbbaa`, alpha 0,3) pour que les séries se lisent l'une à travers
+ * l'autre. Y poser la couleur pleine rendait l'aire opaque : la dernière série
+ * dessinée masquait les autres. Quand le fond d'origine porte un canal alpha et
+ * que la couleur demandée s'écrit en hexadécimal, le même alpha est reconduit ;
+ * dans tous les autres cas la couleur est posée telle quelle, comme avant.
+ */
+function fillColor(previous: unknown, color: string): string {
+  if (typeof previous !== 'string') return color;
+  const alpha = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(previous.trim())?.[1];
+  const hex = toHex6(color);
+  return alpha && hex ? `${hex}${alpha}` : color;
+}
+
 /**
  * Applique `color-map` sur une instance Chart.js déjà rendue.
  *
@@ -75,6 +166,9 @@ function colorAt(base: unknown, index: number): unknown {
  * couleur par jeu de données), sinon un **libellé de l'axe** (une couleur par
  * part de camembert ou par barre). Les modalités absentes gardent la couleur
  * de la palette DSFR.
+ *
+ * Par série, la couleur est posée sur TOUT ce que la série dessine : le trait,
+ * le fond, leurs variantes de survol, et les points (`paintPoints`).
  */
 export function applyColorMap(
   chart: ColorableChart,
@@ -89,12 +183,13 @@ export function applyColorMap(
     datasets.forEach((dataset, i) => {
       const color = bySeries[i];
       if (!color) return;
-      dataset.backgroundColor = color;
+      dataset.backgroundColor = fillColor(dataset.backgroundColor, color);
       dataset.borderColor = color;
       dataset.hoverBackgroundColor = color;
       dataset.hoverBorderColor = color;
+      paintPoints(dataset, color);
     });
-    chart.update?.('none');
+    refreshSeriesColors(chart);
     return { applied: true, legendColors: bySeries };
   }
 
