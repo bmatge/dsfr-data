@@ -19,6 +19,7 @@ import {
   MAP_LAYER_TYPES,
   MAP_POPUP_MODES,
   diagnoseConfig,
+  nettoyerGabarit,
   serverPaginatedSources,
 } from '@dsfr-data/shared';
 import {
@@ -200,11 +201,25 @@ function distinctOptions(data: Row[], field: string, limit = 30): string[] {
   return Array.from(seen).slice(0, limit).sort();
 }
 
-function buildTextWidget(id: string, spec: BlockSpec): Widget {
+/** Dit au modele, quand le nettoyage d'un bloc text a retire quelque chose. */
+const NOTE_TEXTE_NETTOYE =
+  'contenu nettoyé : scripts, gestionnaires on*, URL javascript: et éléments actifs (iframe, object, embed, style…) ne sont pas permis dans un bloc text et ont été retirés. Le HTML simple (p, strong, em, a, ul, li) est gardé.';
+
+/**
+ * Bloc de texte. Le contenu est ecrit par le MODELE, qui peut le tenir d'une
+ * valeur du jeu de donnees : il est NETTOYE ici, a l'ecriture dans le document
+ * (`nettoyerGabarit`, le filtre des gabarits de carte et des blocs libres) —
+ * le HTML simple reste, ce qui execute du code ou charge un contenu actif est
+ * retire. Pas a l'export : `generateWidgetHTML` est partage avec l'app Tableau
+ * de bord, ou le bloc de texte est saisi par l'usager lui-meme (« Contenu
+ * HTML ») et ne doit rien perdre.
+ */
+function buildTextWidget(id: string, spec: BlockSpec): { widget: Widget; notes: string[] } {
   const style: TextStyle = TEXT_STYLES.includes((spec.style ?? '') as TextStyle)
     ? (spec.style as TextStyle)
     : 'paragraph';
-  const raw = spec.content ?? '';
+  const brut = spec.content ?? '';
+  const raw = nettoyerGabarit(brut);
   // Texte brut sans balise -> paragraphe(s) ; HTML simple laisse tel quel.
   const content = /<[a-z][\s\S]*>/i.test(raw)
     ? raw
@@ -213,12 +228,115 @@ function buildTextWidget(id: string, spec: BlockSpec): Widget {
         .map((p) => `<p>${p.trim()}</p>`)
         .join('\n');
   return {
-    id,
-    type: 'text',
-    title: spec.title ?? 'Texte',
-    position: { row: 0, col: 0 },
-    config: { content, style },
+    widget: {
+      id,
+      type: 'text',
+      title: spec.title ?? 'Texte',
+      position: { row: 0, col: 0 },
+      config: { content, style },
+    },
+    notes: raw === brut ? [] : [NOTE_TEXTE_NETTOYE],
   };
+}
+
+// ---------------------------------------------------------------------------
+// Forme des arguments (#1081)
+// ---------------------------------------------------------------------------
+
+/** Fragment de schema JSON tel que ce module en ecrit (forme plate). */
+interface SchemaForme {
+  readonly type?: string;
+  readonly properties?: Readonly<Record<string, SchemaForme>>;
+  readonly items?: SchemaForme;
+}
+
+const estObjet = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Ce que le modele a envoye, dit en un mot et un extrait. */
+function decrireRecu(v: unknown): string {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'un tableau';
+  if (typeof v === 'object') return 'un objet';
+  const extrait = JSON.stringify(v) ?? String(v);
+  const nature =
+    typeof v === 'string' ? 'une chaîne' : typeof v === 'number' ? 'un nombre' : 'un booléen';
+  return `${nature} ${extrait.length > 40 ? `${extrait.slice(0, 40)}…` : extrait}`;
+}
+
+/** Forme attendue d'un fragment, en clair et avec un exemple quand il aide. */
+function decrireAttendu(schema: SchemaForme): string {
+  switch (schema.type) {
+    case 'array':
+      return schema.items?.type === 'string'
+        ? 'un tableau de chaînes, ex. ["champ1", "champ2"] (même pour un seul élément)'
+        : "un tableau d'objets, ex. [{…}] (même pour un seul élément)";
+    case 'object':
+      return 'un objet {…}';
+    case 'string':
+      return 'une chaîne';
+    case 'boolean':
+      return 'un booléen';
+    default:
+      return 'un nombre';
+  }
+}
+
+/**
+ * Premiere erreur de FORME d'une valeur face a son schema, ou `null`.
+ *
+ * Ne juge que ce qui ferait lever le code en aval : un tableau la ou un objet
+ * est attendu, une chaine a la place d'un tableau, un objet a la place d'une
+ * chaine. Les valeurs hors vocabulaire (`kind`, `type`, `popupMode`…) et les
+ * champs requis gardent leurs messages propres, plus precis. `null` vaut
+ * absence, comme partout dans ce module (`??`) ; un nombre ecrit en chaine
+ * reste tolere.
+ */
+function erreurDeForme(valeur: unknown, schema: SchemaForme, chemin: string): string | null {
+  if (valeur === undefined || valeur === null) return null;
+  const refus = () =>
+    `"${chemin}" doit être ${decrireAttendu(schema)} ; reçu : ${decrireRecu(valeur)}.`;
+  switch (schema.type) {
+    case 'array': {
+      if (!Array.isArray(valeur)) return refus();
+      const items = schema.items;
+      if (!items) return null;
+      for (let i = 0; i < valeur.length; i++) {
+        const erreur = erreurDeForme(valeur[i], items, `${chemin}[${i}]`);
+        if (erreur) return erreur;
+      }
+      return null;
+    }
+    case 'object': {
+      if (!estObjet(valeur)) return refus();
+      for (const [nom, sous] of Object.entries(schema.properties ?? {})) {
+        const erreur = erreurDeForme(valeur[nom], sous, `${chemin}.${nom}`);
+        if (erreur) return erreur;
+      }
+      return null;
+    }
+    case 'string':
+      return typeof valeur === 'string' ? null : refus();
+    default:
+      return typeof valeur === 'object' ? refus() : null;
+  }
+}
+
+/**
+ * Erreur de forme d'un bloc recu du modele (`add_blocks`, `update_block`), ou
+ * `null`. `components` n'est controle qu'en surface : `validerComposantsLibres`
+ * lit une forme brute et porte ses propres messages.
+ */
+function erreurDeFormeDuBloc(spec: unknown): string | null {
+  if (!estObjet(spec)) {
+    return `un bloc doit être un objet {"kind": …} ; reçu : ${decrireRecu(spec)}.`;
+  }
+  const schemas: Readonly<Record<string, SchemaForme>> = BLOCK_SPEC_SCHEMA.properties;
+  for (const [nom, schema] of Object.entries(schemas)) {
+    const erreur = erreurDeForme(spec[nom], nom === 'components' ? { type: 'array' } : schema, nom);
+    if (erreur) return erreur;
+  }
+  return null;
 }
 
 /**
@@ -259,7 +377,7 @@ function buildChartWidget(
   id: string,
   spec: BlockSpec,
   ctx: DocumentContext
-): { widget?: Widget; error?: string } {
+): { widget?: Widget; error?: string; notes?: string[] } {
   // Sans source, le bloc s'exporterait vide (« aucune source associée ») : le
   // refuser dit au modele quoi faire d'abord (#1140).
   if (!ctx.sourceId) {
@@ -288,7 +406,17 @@ function buildChartWidget(
     const diag = diagnoseConfig(config, ctx.data);
     if (!diag.ok) return { error: diag.text };
   }
+  // Chaque serie est agregee par la meme fonction (#1081). `count` compte des
+  // LIGNES, pas un champ : les series seraient le meme nombre repete.
+  const plusieursMesures = Boolean(config.valueField2) || (config.valueFields?.length ?? 0) > 0;
+  const notes =
+    config.aggregation === 'count' && config.labelField && plusieursMesures
+      ? [
+          'aggregation "count" compte les lignes de chaque groupe, quel que soit le champ : toutes les séries porteront le même nombre. Garde une seule mesure, ou choisis sum, avg, min ou max.',
+        ]
+      : [];
   return {
+    notes,
     widget: {
       id,
       type: 'chart',
@@ -590,17 +718,33 @@ export function addBlocks(
   specs: BlockSpec[],
   ctx: DocumentContext
 ): ActionOutcome {
+  const recus: unknown = specs;
+  if (recus !== undefined && recus !== null && !Array.isArray(recus)) {
+    // Un bloc seul, ou une chaine, a la place du tableau : la forme est dite.
+    const forme = erreurDeForme(recus, { type: 'array', items: { type: 'object' } }, 'blocks');
+    return { ok: false, summary: `✗ add_blocks refusé : ${forme}` };
+  }
   if (!Array.isArray(specs) || specs.length === 0) {
     return { ok: false, summary: 'add_blocks : aucun bloc fourni.' };
   }
   const lines: string[] = [];
   let ok = false;
-  for (const spec of specs) {
+  for (const [rang, spec] of specs.entries()) {
+    // Forme d'abord (#1081) : un argument mal forme est REFUSE et rendu au
+    // modele, comme un type inconnu — jamais une exception qui ferait echouer
+    // le tour.
+    const forme = erreurDeFormeDuBloc(spec);
+    if (forme) {
+      const brut: unknown = spec;
+      const nom = estObjet(brut) && typeof brut.kind === 'string' ? brut.kind : `n°${rang + 1}`;
+      lines.push(`✗ bloc ${nom} refusé : ${forme}`);
+      continue;
+    }
     const id = nextBlockId(doc);
     let built: { widget?: Widget; error?: string; notes?: string[] };
     switch (spec.kind) {
       case 'text':
-        built = { widget: buildTextWidget(id, spec) };
+        built = buildTextWidget(id, spec);
         break;
       case 'chart':
         built = buildChartWidget(id, spec, ctx);
@@ -642,6 +786,8 @@ export function updateBlock(
   if (idx === -1) {
     return { ok: false, summary: `Bloc "${blockId}" introuvable.\n${describeDocument(doc)}` };
   }
+  const forme = erreurDeFormeDuBloc(patch);
+  if (forme) return { ok: false, summary: `✗ update refusé : ${forme}` };
   const widget = doc.widgets[idx];
   if (patch.title) widget.title = patch.title;
   const notes: string[] = [];
@@ -654,7 +800,8 @@ export function updateBlock(
         content: patch.content ?? widget.config.content,
         style: patch.style ?? widget.config.style,
       });
-      widget.config = rebuilt.type === 'text' ? rebuilt.config : widget.config;
+      widget.config = rebuilt.widget.type === 'text' ? rebuilt.widget.config : widget.config;
+      for (const note of rebuilt.notes) notes.push(`  attention : ${note}`);
       break;
     }
     case 'chart': {
@@ -664,6 +811,7 @@ export function updateBlock(
         const built = buildChartWidget(widget.id, { kind: 'chart', config: merged }, ctx);
         if (!built.widget) return { ok: false, summary: `✗ update refusé : ${built.error}` };
         widget.config = built.widget.type === 'chart' ? built.widget.config : widget.config;
+        for (const note of built.notes ?? []) notes.push(`  attention : ${note}`);
       }
       break;
     }

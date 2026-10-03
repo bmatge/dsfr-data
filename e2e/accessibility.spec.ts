@@ -7,6 +7,7 @@ const pages = [
   { name: 'Adopter en confiance', path: '/confiance.html' },
   { name: 'Builder', path: '/apps/builder/index.html' },
   { name: 'Builder Carto', path: '/apps/builder-carto/index.html' },
+  { name: 'Studio IA', path: '/apps/studio/index.html' },
   { name: 'Playground', path: '/apps/playground/index.html' },
   { name: 'Sources', path: '/apps/sources/index.html' },
   { name: 'Favorites', path: '/apps/favorites/index.html' },

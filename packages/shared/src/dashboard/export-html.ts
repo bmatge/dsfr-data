@@ -19,6 +19,7 @@
  */
 
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
+import { escapeColonValue } from '../utils/colon-escape.js';
 import { filterToOdsql } from '../query/filter-translator.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
@@ -293,6 +294,33 @@ function groupByFields(c: ChartConfig): string[] {
   return fields.filter(Boolean);
 }
 
+/** Types rendus par un autre composant que `<dsfr-data-chart>` : une seule mesure. */
+const TYPES_HORS_CHART: readonly string[] = ['kpi', 'datalist', 'podium'];
+
+/**
+ * Mesures qu'un graphique trace EN PLUS de `valueField` : `valueField2` (ligne
+ * d'un `bar-line`) puis `valueFields`, sans entree vide, sans doublon, sans la
+ * mesure principale. Vide pour les types a une seule mesure.
+ *
+ * Source unique de la requete et de l'affichage : une requete agregee ne rend
+ * que les champs de groupe et les agregats, donc toute colonne que le
+ * graphique designe doit avoir ete agregee (#624 dans l'ancien Assistant,
+ * #1081 ici). Le defaut que cette fonction ferme : `aggregate="population:sum"`
+ * face a `value-fields="pop2025"` — la colonne n'existait plus, la serie se
+ * tracait vide, sans erreur.
+ */
+function extraMeasures(c: ChartConfig): string[] {
+  if (TYPES_HORS_CHART.includes(c.type)) return [];
+  const seen = new Set<string>([c.valueField]);
+  const extras: string[] = [];
+  for (const field of [c.valueField2 ?? '', ...(c.valueFields ?? [])]) {
+    if (!field || seen.has(field)) continue;
+    seen.add(field);
+    extras.push(field);
+  }
+  return extras;
+}
+
 /**
  * Widget `fromBuilder` : traduit la ChartConfig complete du builder-IA en
  * pipeline declaratif. Un `dsfr-data-query` n'est emis que s'il apporte
@@ -346,7 +374,11 @@ function generateBuilderChartHTML(
     if (c.where) attrs.push(`where="${escapeHtml(c.where)}"`);
     if (aggregation) {
       attrs.push(`group-by="${escapeHtml(groupByFields(c).join(','))}"`);
-      attrs.push(`aggregate="${escapeHtml(c.valueField)}:${aggregation}"`);
+      // Chaque mesure tracee est agregee, pas seulement la premiere (#1081).
+      const aggregates = [c.valueField, ...extraMeasures(c)]
+        .map((field) => `${field}:${aggregation}`)
+        .join(', ');
+      attrs.push(`aggregate="${escapeHtml(aggregates)}"`);
     }
     if (c.sortOrder) attrs.push(`order-by="${escapeHtml(valueOut)}:${c.sortOrder}"`);
     if (c.limit) attrs.push(`limit="${c.limit}"`);
@@ -414,10 +446,21 @@ function generateBuilderChartHTML(
       if (c.type === 'horizontalBar') attrs.push('horizontal');
       if (c.type === 'pie') attrs.push('fill');
       if (c.labelField) attrs.push(`label-field="${escapeHtml(c.labelField)}"`);
-      attrs.push(`value-field="${escapeHtml(valueOut)}"`);
-      if (c.valueField2) attrs.push(`value-field-2="${escapeHtml(c.valueField2)}"`);
+      // Sous agregation, les colonnes lues sont les colonnes AGREGEES
+      // (`pop2025__sum`), nommees par l'alias inline `colonne:Libelle` (#668)
+      // des qu'il y a plusieurs series : la legende porte le nom du champ, pas
+      // l'alias technique. Sans agregation, les champs sont lus tels quels.
+      const multi = aggregation !== undefined && extraMeasures(c).length > 0;
+      const column = (field: string): string =>
+        aggregation === undefined
+          ? field
+          : multi
+            ? `${escapeColonValue(aggregatedAlias(field, aggregation))}:${escapeColonValue(field)}`
+            : aggregatedAlias(field, aggregation);
+      attrs.push(`value-field="${escapeHtml(column(c.valueField))}"`);
+      if (c.valueField2) attrs.push(`value-field-2="${escapeHtml(column(c.valueField2))}"`);
       if (c.valueFields?.length)
-        attrs.push(`value-fields="${escapeHtml(c.valueFields.join(','))}"`);
+        attrs.push(`value-fields="${escapeHtml(c.valueFields.map(column).join(','))}"`);
       if (c.codeField) attrs.push(`code-field="${escapeHtml(c.codeField)}"`);
       if (c.palette) attrs.push(`selected-palette="${escapeHtml(c.palette)}"`);
       if (c.unit) attrs.push(`unit-tooltip="${escapeHtml(c.unit)}"`);

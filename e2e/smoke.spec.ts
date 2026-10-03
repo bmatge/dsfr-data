@@ -5,6 +5,7 @@ const apps = [
   { name: 'Hub', path: '/', selector: 'body', title: /Charts builder|dsfr-data/i },
   { name: 'Builder', path: '/apps/builder/index.html', selector: '#source-panel-saved' },
   { name: 'Builder Carto', path: '/apps/builder-carto/index.html', selector: '#layers-list' },
+  { name: 'Studio IA', path: '/apps/studio/index.html', selector: '#chat-input' },
   { name: 'Playground', path: '/apps/playground/index.html', selector: '.CodeMirror, .cm-editor' },
   { name: 'Sources', path: '/apps/sources/index.html', selector: '#connections-list' },
   { name: 'Favorites', path: '/apps/favorites/index.html', selector: '#favorites-list' },

@@ -20,6 +20,7 @@ import type {
 } from '../../packages/shared/src/dashboard/model.js';
 import type { ChartConfig } from '../../packages/shared/src/dashboard/chart-config.js';
 
+import type { Row } from '../../tools/oracle/manifest.js';
 import { DATASET, HOTE_ODS, HOTE_TABULAR, RESSOURCE_TABULAR } from './fixtures.js';
 
 /** Id de la source partagée des documents du lot. */
@@ -45,6 +46,15 @@ export function sourceDu(api: 'ods' | 'tabular'): DashboardSource {
   };
 }
 
+/**
+ * Une source EMBARQUÉE : les lignes saisies ou importées voyagent dans la page
+ * (attribut `data` de la balise de source), aucun réseau. Les lignes viennent
+ * d'un jeu de `jeux/`, jamais d'un littéral.
+ */
+export function sourceEmbarquee(lignes: Row[]): DashboardSource {
+  return { id: ID_SOURCE, name: 'Jeu de vérif (embarqué)', data: lignes };
+}
+
 /** Un widget `chart` de l'assistant (`fromBuilder`), tel que le Studio l'enregistre. */
 export function widget(id: string, chart: ChartConfig, rang: number): Widget {
   return {
@@ -57,7 +67,11 @@ export function widget(id: string, chart: ChartConfig, rang: number): Widget {
 }
 
 /** Le document complet, à une source et N widgets. */
-export function document_(nom: string, api: 'ods' | 'tabular', widgets: Widget[]): DashboardData {
+export function document_(
+  nom: string,
+  api: 'ods' | 'tabular' | DashboardSource,
+  widgets: Widget[]
+): DashboardData {
   return {
     id: 'verif-l1',
     name: nom,
@@ -65,7 +79,7 @@ export function document_(nom: string, api: 'ods' | 'tabular', widgets: Widget[]
     createdAt: null,
     updatedAt: null,
     layout: { columns: 1, gap: 'fr-grid-row--gutters' },
-    sources: [sourceDu(api)],
+    sources: [typeof api === 'string' ? sourceDu(api) : api],
     widgets,
   };
 }

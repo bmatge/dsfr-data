@@ -211,6 +211,187 @@ describe('studio/document — update / remove / move / set_page', () => {
   });
 });
 
+describe('studio/document — bloc text nettoyé à l’écriture (#1081)', () => {
+  const contenu = (doc: ReturnType<typeof createEmptyDashboard>, i = 0) => {
+    const w = doc.widgets[i];
+    return w.type === 'text' ? w.config.content : '';
+  };
+
+  it('le HTML simple est gardé tel quel, sans note', () => {
+    const doc = createEmptyDashboard();
+    const html =
+      '<p>Un <strong>gras</strong>, un <em>italique</em>, un <a href="https://www.insee.fr">lien</a>.</p><ul><li>un</li></ul>';
+    const outcome = addBlocks(doc, [{ kind: 'text', content: html }], ctx);
+    expect(contenu(doc)).toBe(html);
+    expect(outcome.summary).not.toContain('nettoyé');
+  });
+
+  it('script, on*, javascript:, iframe sont retirés, et le modèle en est averti', () => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(
+      doc,
+      [
+        {
+          kind: 'text',
+          content:
+            '<p onclick="x()">Texte <a href="javascript:alert(1)">lien</a></p><script>alert(1)</script><iframe src="https://x"></iframe><img src=x onerror=alert(1)>',
+        },
+      ],
+      ctx
+    );
+    expect(contenu(doc)).toBe('<p>Texte <a>lien</a></p><img src=x>');
+    expect(outcome.ok).toBe(true);
+    expect(outcome.summary).toContain('attention : contenu nettoyé');
+  });
+
+  it('update_block nettoie aussi, et le dit', () => {
+    const doc = createEmptyDashboard();
+    addBlocks(doc, [{ kind: 'text', content: 'Sain' }], ctx);
+    const outcome = updateBlock(
+      doc,
+      'b1',
+      { kind: 'text', content: '<p>Neuf</p><script>alert(1)</script>' },
+      ctx
+    );
+    expect(contenu(doc)).toBe('<p>Neuf</p>');
+    expect(outcome.summary).toContain('attention : contenu nettoyé');
+  });
+});
+
+describe('studio/document — forme des arguments (#1081)', () => {
+  /** Un argument tel que le modèle l'envoie : la forme n'est PAS celle du type. */
+  const brut = (v: unknown) => v as Parameters<typeof addBlocks>[1];
+
+  it.each([
+    [
+      'un bloc null',
+      [null],
+      '✗ bloc n°1 refusé : un bloc doit être un objet {"kind": …} ; reçu : null.',
+    ],
+    [
+      'un bloc chaîne',
+      ['chart'],
+      '✗ bloc n°1 refusé : un bloc doit être un objet {"kind": …} ; reçu : une chaîne "chart".',
+    ],
+    [
+      'fields en chaîne',
+      [{ kind: 'filters', fields: 'region' }],
+      '✗ bloc filters refusé : "fields" doit être un tableau de chaînes, ex. ["champ1", "champ2"] (même pour un seul élément) ; reçu : une chaîne "region".',
+    ],
+    [
+      'un champ de fields en objet',
+      [{ kind: 'filters', fields: ['region', { name: 'annee' }] }],
+      '✗ bloc filters refusé : "fields[1]" doit être une chaîne ; reçu : un objet.',
+    ],
+    [
+      'layers en objet',
+      [{ kind: 'map', layers: { type: 'marker' } }],
+      `✗ bloc map refusé : "layers" doit être un tableau d'objets, ex. [{…}] (même pour un seul élément) ; reçu : un objet.`,
+    ],
+    [
+      'config en chaîne',
+      [{ kind: 'chart', config: 'bar' }],
+      '✗ bloc chart refusé : "config" doit être un objet {…} ; reçu : une chaîne "bar".',
+    ],
+    [
+      'valueFields en chaîne',
+      [{ kind: 'chart', config: { type: 'bar', valueField: 'population', valueFields: 'annee' } }],
+      '✗ bloc chart refusé : "config.valueFields" doit être un tableau de chaînes, ex. ["champ1", "champ2"] (même pour un seul élément) ; reçu : une chaîne "annee".',
+    ],
+    [
+      'content en nombre',
+      [{ kind: 'text', content: 2024 }],
+      '✗ bloc text refusé : "content" doit être une chaîne ; reçu : un nombre 2024.',
+    ],
+    [
+      'components en objet',
+      [{ kind: 'component', components: { tag: 'dsfr-data-kpi' } }],
+      `✗ bloc component refusé : "components" doit être un tableau d'objets, ex. [{…}] (même pour un seul élément) ; reçu : un objet.`,
+    ],
+  ])('%s : refus qui nomme l’argument et la forme attendue, sans lever', (_cas, blocs, attendu) => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(doc, brut(blocs), ctx);
+    expect(outcome.ok).toBe(false);
+    expect(outcome.summary.split('\n')[0]).toBe(attendu);
+    expect(doc.widgets).toHaveLength(0);
+  });
+
+  it('blocks en objet au lieu d’un tableau : refus qui le dit', () => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(doc, brut({ kind: 'text', content: 'a' }), ctx);
+    expect(outcome.ok).toBe(false);
+    expect(outcome.summary).toBe(
+      `✗ add_blocks refusé : "blocks" doit être un tableau d'objets, ex. [{…}] (même pour un seul élément) ; reçu : un objet.`
+    );
+  });
+
+  it('un bloc mal formé n’empêche pas ses voisins valides', () => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(doc, brut([null, { kind: 'text', content: 'a' }]), ctx);
+    expect(outcome.ok).toBe(true);
+    expect(outcome.summary).toContain('✗ bloc n°1 refusé');
+    expect(outcome.summary).toContain('+ b1 (text)');
+  });
+
+  it('null vaut absence, un nombre écrit en chaîne reste toléré', () => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(
+      doc,
+      brut([
+        {
+          kind: 'chart',
+          title: null,
+          fields: null,
+          config: { type: 'bar', labelField: 'region', valueField: 'population', limit: '5' },
+        },
+      ]),
+      ctx
+    );
+    expect(outcome.summary).toContain('+ b1 (chart)');
+  });
+
+  it('update_block : même contrôle, le bloc n’est pas touché', () => {
+    const doc = createEmptyDashboard();
+    addBlocks(doc, [{ kind: 'filters', fields: ['region'] }], ctx);
+    const avant = JSON.stringify(doc.widgets);
+    const patch = { fields: 'annee', title: 'Autre' } as unknown as Parameters<
+      typeof updateBlock
+    >[2];
+    const outcome = updateBlock(doc, 'b1', patch, ctx);
+    expect(outcome.ok).toBe(false);
+    expect(outcome.summary).toContain('✗ update refusé : "fields" doit être un tableau de chaînes');
+    expect(JSON.stringify(doc.widgets)).toBe(avant);
+  });
+});
+
+describe('studio/document — multi-séries et count (#1081)', () => {
+  const serie = (aggregation: 'sum' | 'count') =>
+    addBlocks(
+      createEmptyDashboard(),
+      [
+        {
+          kind: 'chart',
+          config: {
+            type: 'bar',
+            labelField: 'region',
+            valueField: 'population',
+            valueFields: ['annee'],
+            aggregation,
+          },
+        },
+      ],
+      ctx
+    ).summary;
+
+  it('count sur plusieurs séries : le modèle est averti que les séries seront identiques', () => {
+    expect(serie('count')).toContain('attention : aggregation "count" compte les lignes');
+  });
+
+  it('sum sur plusieurs séries : aucune note', () => {
+    expect(serie('sum')).not.toContain('attention');
+  });
+});
+
 describe('studio/document — helpers', () => {
   it('defaultWidth : kpi=third, datalist=full, chart=half, text/filters=full', () => {
     expect(defaultWidth({ kind: 'chart', config: { type: 'kpi', valueField: 'x' } })).toBe('third');

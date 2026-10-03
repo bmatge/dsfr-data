@@ -20,7 +20,8 @@
  * contenu des fiches par section et le repli du reclasseur
  * (`tests/shared/ia-skills-client.test.ts`, `skill-rerank.test.ts`).
  *
- * Un comportement attendu est rouge aujourd'hui : il reste en `it.skip`.
+ * Un comportement était rouge à l'écriture de ce fichier (argument d'outil mal
+ * formé) et y est resté en `it.skip` ; il est corrigé et actif.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -373,7 +374,9 @@ describe('un appel d’outil cassé est rendu au modèle, qui se corrige', () =>
     expect(doc.widgets).toHaveLength(1);
   });
 
-  // DÉFAUT DU STUDIO — laissé en `skip`, non corrigé ici (#1081, parité des tests).
+  // DÉFAUT DU STUDIO, CORRIGÉ (#1081) : la forme des arguments est validée à
+  // l'entrée (`erreurDeFormeDuBloc`, document.ts) et le refus rendu au modèle.
+  // Le défaut, tel qu'il était :
   //
   // Un argument dont la FORME n'est pas celle du schéma fait lever une
   // exception dans `apps/studio/src/document.ts`, au lieu d'un refus rendu au
@@ -392,7 +395,7 @@ describe('un appel d’outil cassé est rendu au modèle, qui se corrige', () =>
   // (`validateAction(null)` rendait null) et renvoyait l'appel cassé au modèle.
   // Une chaîne à la place d'un tableau d'un seul élément est une erreur
   // courante d'un modèle sans décodage guidé.
-  it.skip.each([
+  it.each([
     ['un bloc null', { blocks: [null] }],
     ['fields en chaîne au lieu d’un tableau', { blocks: [{ kind: 'filters', fields: 'region' }] }],
     [

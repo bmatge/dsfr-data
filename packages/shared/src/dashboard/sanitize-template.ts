@@ -8,6 +8,8 @@
  * donc a l'export ce qui execute du code ou charge un contenu actif :
  *   - les elements script, iframe, object, embed, style, template (avec leur
  *     contenu ; `template` fermerait aussi celui du compagnon) ;
+ *   - les elements meta, base et link, qui redirigent la page, deroutent ses
+ *     URL relatives ou chargent une feuille de style (#1081) ;
  *   - tout attribut `on*` ;
  *   - les URL `javascript:`, `vbscript:` et `data:` dans href, src,
  *     xlink:href, action, formaction ;
@@ -34,7 +36,7 @@ const ELEMENTS_RETIRES: ReadonlySet<string> = new Set([
 ]);
 
 /** Elements retires sans contenu (vides par nature). */
-const ELEMENTS_VIDES_RETIRES: ReadonlySet<string> = new Set(['embed']);
+const ELEMENTS_VIDES_RETIRES: ReadonlySet<string> = new Set(['embed', 'meta', 'base', 'link']);
 
 /** Attributs portant une URL. */
 const ATTRIBUTS_URL: ReadonlySet<string> = new Set([
