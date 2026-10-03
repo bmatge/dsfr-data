@@ -35,9 +35,11 @@ function buildDOM(): void {
     <!-- Palette select (for map auto-switch) -->
     <select id="chart-palette">
       <option value="default">Default</option>
+      <option value="categorical">Categorical</option>
       <option value="sequentialAscending">Sequential Ascending</option>
       <option value="sequentialDescending">Sequential Descending</option>
     </select>
+    <p id="palette-note" hidden></p>
 
     <!-- Label field inside a .fr-select-group wrapper -->
     <div class="fr-select-group" style="display: block;">

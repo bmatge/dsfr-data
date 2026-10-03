@@ -45,6 +45,7 @@ import {
   updateAggregationBadge,
 } from './ui/aggregation-smart.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
+import { syncA11yWithDatabox } from './ui/ui-helpers.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
 import { updateUrlSyncSection, syncUrlSyncControls } from './ui/url-sync-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
@@ -708,13 +709,7 @@ export async function loadFavoriteState(): Promise<void> {
       'databox-fullscreen'
     ) as HTMLInputElement | null;
     if (databoxFullscreenEl) databoxFullscreenEl.checked = state.databoxFullscreen || false;
-    if (state.databoxEnabled) {
-      if (a11yTableEl)
-        (a11yTableEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display = 'none';
-      if (a11yDownloadEl)
-        (a11yDownloadEl.closest('.fr-checkbox-group') as HTMLElement | null)!.style.display =
-          'none';
-    }
+    syncA11yWithDatabox(!!state.databoxEnabled);
 
     // Update fields if available
     if (state.fields && state.fields.length > 0) {

@@ -1109,7 +1109,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Bouton plein écran",
+              "description": "Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il\nn'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale\n(`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).",
               "attribute": "databox-fullscreen"
             },
             {
@@ -2331,6 +2331,39 @@
             },
             {
               "kind": "method",
+              "name": "_databoxColumns",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn[]"
+                }
+              },
+              "description": "Colonnes du tableau de la DataBox : le champ de libellé, puis chaque champ\nde valeur (`value-field`, `value-field-2`, `value-fields`). L'en-tête d'une\ncolonne de valeur est ce que la légende affiche déjà : l'alias inline\n(`champ:Libellé`, #668) s'il est écrit, sinon le nom de série de `name`,\nsinon le chemin. Le tableau montrait `nombre_beneficiaires__sum` quand la\nlégende disait « Bénéficiaires » (#1179)."
+            },
+            {
+              "kind": "method",
+              "name": "_databoxSeriesNames",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Noms de série portés par `name`, un par champ de valeur. Un camembert\nnomme ses parts, pas ses séries ; au format long, les séries sont des\nvaleurs de `series-field` : dans ces deux cas `name` ne nomme aucune\ncolonne."
+            },
+            {
+              "kind": "method",
+              "name": "_databoxTableHtml",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y) : cellules lues sur le chemin, 100 lignes au plus.\nChaîne vide sans colonne."
+            },
+            {
+              "kind": "method",
               "name": "_mapNote",
               "privacy": "private",
               "description": "Ce que le résumé de la carte ÉCARTE, dit sous la carte (#1201, PG-083 du\nbanc). Le résumé ne porte que sur les lignes dessinées : une ligne au code\nabsent ou hors du découpage (COM 975-988, entité hors académies) n'y entre\npas, et le chiffre « …, en France » restait plausible et faux — seul un\n`console.warn` les comptait. Sans attribut : dès qu'un résumé est affiché\net qu'une ligne est écartée. Pour une SOMME, la part écartée est chiffrée."
@@ -2686,7 +2719,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Bouton plein écran",
+              "description": "Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il\nn'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale\n(`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).",
               "fieldName": "databoxFullscreen"
             },
             {

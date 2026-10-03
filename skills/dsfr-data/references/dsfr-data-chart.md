@@ -225,7 +225,7 @@ Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `downl
 | `databox-date-field` | `string` | `""` (vide) | Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO (`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date` est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide. |
 | `databox-default-source` | `string` | `""` (vide) | Source par défaut dans le selecteur multi-source DataBox |
 | `databox-download` | `boolean` | `false` | Bouton téléchargement CSV dans DataBox |
-| `databox-fullscreen` | `boolean` | `false` | Bouton plein écran |
+| `databox-fullscreen` | `boolean` | `false` | Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il n'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale (`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179). |
 | `databox-modal-content` | `string` | `""` (vide) | Contenu de la modale DataBox |
 | `databox-modal-title` | `string` | `""` (vide) | Titre de la modale DataBox |
 | `databox-screenshot` | `boolean` | `false` | Bouton screenshot PNG |

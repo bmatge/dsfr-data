@@ -415,6 +415,36 @@ describe('DsfrDataChart', () => {
       expect(JSON.parse(attrs['name'])).toEqual(['A', 'B']);
     });
 
+    it('pie : un name en chaîne simple est un nom de série, la légende garde les parts (#1174)', () => {
+      internals(chart)._data = [
+        { region: 'Bretagne', n: 10 },
+        { region: 'Normandie', n: 21 },
+        { region: 'Occitanie', n: 5 },
+      ];
+      chart.type = 'pie';
+      chart.labelField = 'region';
+      chart.valueField = 'n';
+      chart.name = 'Bénéficiaires';
+      const { attrs } = internals(chart)._getTypeSpecificAttributes();
+      // Avant : ["Bénéficiaires"] → DSFR Chart complétait « Série 2 », « Série 3 »
+      expect(JSON.parse(attrs['name'])).toEqual(['Bretagne', 'Normandie', 'Occitanie']);
+    });
+
+    it('pie : un name en tableau JSON (une entrée par part) est conservé tel quel', () => {
+      internals(chart)._data = [
+        { region: 'Bretagne', n: 10 },
+        { region: 'Normandie', n: 21 },
+      ];
+      chart.type = 'pie';
+      chart.labelField = 'region';
+      chart.valueField = 'n';
+      chart.name = '["BZH", "NOR"]';
+      const { attrs } = internals(chart)._getTypeSpecificAttributes();
+      // Pas de surcharge par les libellés : le tableau commun passe tel quel
+      expect(attrs['name']).toBeUndefined();
+      expect(JSON.parse(internals(chart)._getCommonAttributes()['name'])).toEqual(['BZH', 'NOR']);
+    });
+
     it('radar maps y-min/y-max to upstream scale-min/scale-max', () => {
       chart.type = 'radar';
       chart.yMin = '0';

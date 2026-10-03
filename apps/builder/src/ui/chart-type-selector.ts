@@ -63,6 +63,9 @@ export function selectChartType(type: ChartType): void {
     renderPaletteSwatches(state.palette);
   }
 
+  // Un camembert se colore par part (#1174)
+  applyPiePalette(isPieOrDoughnut);
+
   // Warn the user if they pick "Carte départementale" on a source that doesn't
   // actually contain INSEE codes (audit UX §m-B-6). Re-evaluated on every
   // chart-type change since the warning only shows when chartType === 'map'.
@@ -167,5 +170,41 @@ export function selectChartType(type: ChartType): void {
       valueFieldLabel.innerHTML =
         'Axe Y / Valeurs (S\u00e9rie 1)<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 mesurer</span>';
     }
+  }
+}
+
+/** Palette qui colore chaque part d'un camembert : la seule que DSFR Chart applique par part. */
+export const PIE_PALETTE = 'categorical';
+
+export const PIE_PALETTE_NOTE =
+  'Un camembert se colore par part : DSFR Chart n’applique que la palette « Couleurs distinctes par catégorie ». Les autres rendraient un disque d’une seule couleur.';
+
+/**
+ * Camembert et anneau (#1174) : DSFR Chart 2.1.1 ne distribue une couleur par
+ * part qu'avec la palette `categorical` ; toute autre (« Bleu France »,
+ * dégradés, neutre) colore le disque d'une seule teinte, et la légende ne
+ * nomme que la première part. Le Builder pose donc cette palette, verrouille
+ * le choix et le dit, au lieu de laisser générer un disque illisible.
+ */
+export function applyPiePalette(isPieOrDoughnut: boolean): void {
+  const paletteSelect = document.getElementById('chart-palette') as HTMLSelectElement | null;
+  const note = document.getElementById('palette-note') as HTMLElement | null;
+  if (isPieOrDoughnut) {
+    if (state.palette !== PIE_PALETTE) {
+      state.palette = PIE_PALETTE;
+      if (paletteSelect) paletteSelect.value = PIE_PALETTE;
+      renderPaletteSwatches(state.palette);
+    }
+    if (paletteSelect) paletteSelect.disabled = true;
+    if (note) {
+      note.textContent = PIE_PALETTE_NOTE;
+      note.hidden = false;
+    }
+    return;
+  }
+  if (paletteSelect) paletteSelect.disabled = false;
+  if (note) {
+    note.textContent = '';
+    note.hidden = true;
   }
 }

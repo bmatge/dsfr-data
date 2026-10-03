@@ -125,6 +125,21 @@ export function openInPipeline(): void {
 }
 
 /**
+ * Cadre officiel DSFR et composant d'accessibilité (#1179) : le cadre fournit
+ * déjà le tableau de données et le téléchargement CSV. Les deux cases de la
+ * section Accessibilité restent visibles mais désactivées quand il est coché,
+ * et une note le dit — elles disparaissaient sans un mot.
+ */
+export function syncA11yWithDatabox(databoxEnabled: boolean = state.databoxEnabled): void {
+  const note = document.getElementById('a11y-databox-note') as HTMLElement | null;
+  for (const id of ['a11y-table', 'a11y-download']) {
+    const input = document.getElementById(id) as HTMLInputElement | null;
+    if (input) input.disabled = databoxEnabled;
+  }
+  if (note) note.hidden = !databoxEnabled;
+}
+
+/**
  * Render the colour swatches preview right below the palette `<select>`,
  * giving an immediate visual feedback on the selected palette without
  * having to generate the chart (audit UX 2026-05-26 §T-5).

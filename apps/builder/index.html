@@ -411,6 +411,8 @@
           </select>
           <!-- Aperçu visuel des couleurs de la palette sélectionnée. Rendu par renderPaletteSwatches(). -->
           <div id="palette-swatches" class="palette-swatches" role="img" aria-label="Aperçu des couleurs de la palette"></div>
+          <!-- Camembert : palette imposée par DSFR Chart, expliquée ici (#1174). Rendu par applyPiePalette(). -->
+          <p class="fr-hint-text" id="palette-note" aria-live="polite" hidden></p>
         </div>
 
 
@@ -578,8 +580,12 @@
               <label class="fr-label" for="databox-screenshot">Screenshot PNG</label>
             </div>
             <div class="fr-checkbox-group fr-checkbox-group--sm">
-              <input type="checkbox" id="databox-fullscreen" data-repere="builder.cadre.plein-ecran" data-attribut="dsfr-data-chart:databox-fullscreen">
-              <label class="fr-label" for="databox-fullscreen">Plein écran</label>
+              <!-- DSFR Chart 2.1.1 n'affiche ce bouton qu'avec un titre de modale, qu'il ouvre :
+                   le graphique n'est pas agrandi. La case reste visible, mais sans effet (#1179). -->
+              <input type="checkbox" id="databox-fullscreen" data-repere="builder.cadre.plein-ecran" data-attribut="dsfr-data-chart:databox-fullscreen" disabled aria-describedby="databox-fullscreen-note">
+              <label class="fr-label" for="databox-fullscreen">Plein écran
+                <span class="fr-hint-text" id="databox-fullscreen-note">Sans effet avec la version actuelle de DSFR Chart (2.1.1) : le bouton n’apparaît qu’avec un titre de modale, et il ouvre cette modale.</span>
+              </label>
             </div>
           </div>
         </div>
@@ -682,6 +688,9 @@
             </label>
           </div>
           <div id="a11y-options" style="display: block; margin-left: 1.5rem; margin-top: 0.5rem;">
+            <!-- Cadre officiel coché : les deux cases restent visibles, désactivées, et la note dit pourquoi (#1179).
+                 Rendu par syncA11yWithDatabox(). -->
+            <p class="fr-hint-text" id="a11y-databox-note" aria-live="polite" hidden>Tableau de données et téléchargement CSV : fournis par le cadre officiel DSFR.</p>
             <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
               <input type="checkbox" id="a11y-table" data-repere="builder.accessibilite.tableau" data-attribut="dsfr-data-a11y:table" data-repere-libelle="Tableau de données accessible" checked>
               <label class="fr-label" for="a11y-table">Tableau de données</label>
