@@ -13,8 +13,8 @@ import { join } from 'node:path';
  * donne une fausse assurance, et masque le fait que le vrai chemin de rendu
  * n'est pas couvert.
  *
- * A ne pas confondre avec `apps/builder-ia/src/ui/chart-renderer.ts`, bien
- * vivant (et vise par #609).
+ * (Le `chart-renderer.ts` de l'ancien Assistant IA, lui, etait bien vivant
+ * jusqu'a #609 ; l'app entiere est retiree depuis #1081.)
  */
 
 const RACINE = join(__dirname, '../../..');

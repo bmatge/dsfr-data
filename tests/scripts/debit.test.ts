@@ -1,7 +1,7 @@
 /**
  * Plafond global d'appels IA cote serveur (#999) : `scripts/lib/debit.cjs`,
  * partage par `scripts/ia-default-server.js` (prod) et le middleware
- * `/ia-proxy-default` de `vite.config.ts` et `apps/builder-ia/vite.config.ts` (dev).
+ * `/ia-proxy-default` de `vite.config.ts` (dev).
  */
 import { describe, expect, it } from 'vitest';
 import { creerDebit, lireMaxRpm, reponseRefus } from '../../scripts/lib/debit.cjs';

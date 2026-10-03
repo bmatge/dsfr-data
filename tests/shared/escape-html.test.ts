@@ -218,7 +218,6 @@ describe('jsStringLiteral — contexte JavaScript, pas HTML', () => {
 
 describe('aucun generateur n’echappe a la main pour un attribut simple', () => {
   const GENERATEURS = [
-    'apps/builder-ia/src/ui/code-generator.ts',
     'apps/builder/src/ui/code-generator.ts',
     'apps/builder-carto/src/ui/code-generator.ts',
     'packages/shared/src/dashboard/export-html.ts',

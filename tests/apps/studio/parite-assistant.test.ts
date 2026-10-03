@@ -10,7 +10,7 @@
  * redirection et paramètre d'échappement) est vérifiée sur les sources ; son
  * rendu réel l'est par `tests/builder-e2e/studio-navigation-recette.spec.ts`.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -347,14 +347,15 @@ describe('Actions reprises de l’Assistant : favoris, Playground', () => {
     expect(naviguer).toHaveBeenCalledWith('playground', { from: 'studio' });
   });
 
-  it('le Playground accepte le code du Studio et y renvoie ; l’ancien Assistant par ?ancien=1', async () => {
+  it('le Playground accepte le code du Studio et y renvoie', async () => {
     // Liste unique des origines (apps/playground/src/origines.ts) : le Studio
     // y est, avec son lien de retour.
     const { estOrigineCode, ORIGINES_CODE } = await import('../../../apps/playground/src/origines');
     expect(estOrigineCode('studio')).toBe(true);
     expect(ORIGINES_CODE.studio).toBe('au Studio IA');
-    const src = lire('apps/playground/src/main.ts');
-    expect(src).toContain("fromApp === 'builder-ia' ? { ancien: '1' } : {}");
+    // L'ancien Assistant est retire (#1081, etape 2) : il n'est plus une origine.
+    expect(estOrigineCode('builder-ia')).toBe(false);
+    expect(lire('apps/playground/src/main.ts')).not.toContain('ancien');
   });
 });
 
@@ -412,26 +413,24 @@ describe('Navigation : le Studio IA remplace l’Assistant IA (#1081)', () => {
     expect(html.match(/href="apps\/studio\/index\.html"/g)).toHaveLength(2);
   });
 
-  it('apps/builder-ia redirige vers le Studio, sauf ?ancien=1', () => {
-    const html = lire('apps/builder-ia/index.html');
-    const redirection = html.indexOf("window.location.replace('../studio/index.html'");
-    expect(redirection).toBeGreaterThan(-1);
-    expect(html).toContain("params.get('ancien') === '1'");
-    expect(html).toContain('window.location.search + window.location.hash');
-    // Avant toute feuille de style ou script : rien ne se charge pour rien.
-    expect(redirection).toBeLessThan(html.indexOf('<link'));
+  it('l’app builder-ia est retirée ; son adresse déployée redirige vers le Studio', () => {
+    expect(existsSync(join(ROOT, 'apps/builder-ia'))).toBe(false);
+    // Page de redirection statique posee dans app-dist a l'assemblage.
+    const assemblage = lire('scripts/build-app.js');
+    expect(assemblage).toContain("'apps/builder-ia/index.html': '../studio/index.html'");
+    expect(assemblage).not.toContain("'builder-ia',");
   });
 
   it('l’ancienne URL builderIA.html mène au Studio', () => {
     expect(lire('scripts/build-app.js')).toContain("'builderIA.html': 'apps/studio/index.html'");
   });
 
-  it('les recettes bloquantes de l’ancien Assistant passent par ?ancien=1', () => {
-    expect(lire('tests/builder-e2e/builder-ia-recette.spec.ts')).toContain(
-      "apps/builder-ia/?ancien=1'"
-    );
-    expect(lire('tests/builder-e2e/layout-diagnostic-recette.spec.ts')).toContain(
-      "url: '/apps/builder-ia/?ancien=1'"
+  it('plus aucune recette bloquante ne vise l’ancien Assistant', () => {
+    const flux = lire('.github/workflows/builder-e2e.yml');
+    expect(flux).not.toContain('builder-ia-recette.spec.ts');
+    expect(flux).toContain('studio-parite-recette.spec.ts');
+    expect(lire('tests/builder-e2e/layout-diagnostic-recette.spec.ts')).not.toContain(
+      'apps/builder-ia'
     );
   });
 });

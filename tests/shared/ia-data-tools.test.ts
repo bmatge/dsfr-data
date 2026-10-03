@@ -5,8 +5,8 @@ import {
   distinctValues,
   countWhere,
   diagnoseConfig,
-} from '../../../apps/builder-ia/src/ia/data-tools';
-import type { Field } from '../../../apps/builder-ia/src/state';
+} from '../../packages/shared/src/ia/data-tools';
+import type { Field } from '../../packages/shared/src/ia/data-tools';
 
 const DATA = [
   { region: 'Ile-de-France', population: 12000, code: '75' },

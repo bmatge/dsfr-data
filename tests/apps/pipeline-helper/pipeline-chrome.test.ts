@@ -60,8 +60,8 @@ describe('les replis d’avant hydratation annoncent la hauteur reelle', () => {
       .sort();
   }
 
-  it('onze apps en posent un', () => {
-    expect(appsAvecRepli()).toHaveLength(11);
+  it('dix apps en posent un', () => {
+    expect(appsAvecRepli()).toHaveLength(10);
   });
 
   it.each(appsAvecRepli())('%s reserve 141 px, puis 175 px au-dessus de 62em', (app) => {

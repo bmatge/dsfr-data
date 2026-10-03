@@ -127,20 +127,6 @@ describe('l’etat vide grandit au lieu de flotter', () => {
 });
 
 describe('rien ne squatte la place de l’etat vide', () => {
-  it('l’iframe de l’Assistant IA respecte son attribut hidden', () => {
-    // T5 — mutation : retirer `.preview-frame[hidden]`. Le `display: block`
-    // de la regle de base bat l'attribut `hidden` : l'iframe vide reprend ses
-    // 420 px et ecrase le message d'accueil a sa hauteur minimale (#629).
-    const css = sansCommentaires(lire('apps/builder-ia/src/styles/builder-ia.css')).replace(
-      /\s+/g,
-      ' '
-    );
-
-    expect(css, 'display: block bat hidden sans garde').toContain(
-      '.preview-frame[hidden] { display: none; }'
-    );
-  });
-
   it('l’etat vide respecte son propre attribut hidden', () => {
     // T6 — mutation : retirer `.empty-state[hidden]`. Le `display: flex` de la
     // regle de base est une regle d'AUTEUR : il bat le `[hidden] { display:
@@ -158,25 +144,22 @@ describe('rien ne squatte la place de l’etat vide', () => {
     );
   });
 
-  it.each(['studio', 'builder-ia'])(
-    '%s masque l’etat vide par l’attribut, pas par un style en ligne',
-    (app) => {
-      // C'est CE choix qui rend la garde CSS indispensable : `el.hidden = true`
-      // ne pose aucun style en ligne, il ne peut donc pas battre la feuille du
-      // panneau. Le Builder, lui, ecrit `style.display` et masquait par
-      // accident — ce qui avait laissé le bug invisible de son cote.
-      const source = lire(`apps/${app}/src/ui/preview.ts`);
-      expect(source).toMatch(/empty\w*\.hidden\s*=/i);
-    }
-  );
+  it.each(['studio'])('%s masque l’etat vide par l’attribut, pas par un style en ligne', (app) => {
+    // C'est CE choix qui rend la garde CSS indispensable : `el.hidden = true`
+    // ne pose aucun style en ligne, il ne peut donc pas battre la feuille du
+    // panneau. Le Builder, lui, ecrit `style.display` et masquait par
+    // accident — ce qui avait laissé le bug invisible de son cote.
+    const source = lire(`apps/${app}/src/ui/preview.ts`);
+    expect(source).toMatch(/empty\w*\.hidden\s*=/i);
+  });
 });
 
 describe('les apps ne stylent plus les classes internes du panneau', () => {
   const apps = appsAvecPanneau();
 
-  it('trois apps montent le panneau', () => {
+  it('deux apps montent le panneau', () => {
     // Si une app s'ajoute, elle entre d'office dans le test suivant.
-    expect(apps.sort()).toEqual(['builder', 'builder-ia', 'studio']);
+    expect(apps.sort()).toEqual(['builder', 'studio']);
   });
 
   it.each(appsAvecPanneau())('%s ne surcharge aucune classe interne', (app) => {
