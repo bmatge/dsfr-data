@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-03) : **268 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 548 observations déterministes et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt (mesuré le 2026-10-03) : **269 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 552 observations déterministes et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
-**16 reproductions** du banc d'essai ; avec le canari, **49 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 423 des attentes déterministes
+**16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
+cités. Une troisième voix, en Python standard, recalcule 425 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -814,6 +814,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | query | `computeEquals` réduit à `looseEquals` (`shared/utils/compute.ts`) | `compute-vide-nest-pas-zero` | 6 au lieu de 3 : la chaîne vide est comptée comme un zéro |
 | query | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
 | adaptateurs | `break` après la première page (`opendatasoft-adapter.ts`) | `ods-records-pagination` | affiché 100, recalculé 137 — écart −37 |
+| adaptateurs | `_warnUnrelayedProxy` rend toujours la main avant le `console.warn` (`dsfr-data-source.ts`) | `ods-proxy-url-hote-non-relaye` | « diagnostic:s-prx:warning — 0 message(s) console » : `proxy-url` posé sur un portail Opendatasoft redevient muet, les deux KPI restent justes à 137 (AM-114) |
 | adaptateurs | `max-records` ignoré, plafond fixe à 1 000 (`opendatasoft-adapter.ts`) | `ods-plafond-max-records` | affiché 137, recalculé 120 — écart 17 |
 | transformations | `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
 | transformations | repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |

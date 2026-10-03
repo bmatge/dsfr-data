@@ -178,6 +178,15 @@ Les endpoints `/tabular-proxy` et `/insee-proxy` existent pour d'autres raisons 
 le CORS — un cache ou un quota tenus par l'operateur du proxy — et ne sont jamais une
 necessite pour lire ces deux APIs depuis un navigateur.
 
+**`proxy-url` ne relaie QUE ces hotes.** Sur tout autre hote — un portail
+Opendatasoft en mode adaptateur (`api-type="opendatasoft"`), ou une URL quelconque
+sans `use-proxy` — l'attribut est sans effet : la requete part en direct, et la source
+l'ecrit une fois en console (« proxy-url est sans effet »), repris par le volet
+Diagnostic. `use-proxy` (relais generique `/cors-proxy`, cible passee dans l'en-tete
+`X-Target-URL`) ne vaut qu'en mode URL. Il n'existe pas aujourd'hui de relais dont
+l'URL identifie la donnee : un cache de page ou un CDN du site hote ne peut pas servir
+les donnees d'un portail a la place du portail.
+
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (`*.opendatasoft.com` et portails publics)
 - Tabular data.gouv.fr (`tabular-api.data.gouv.fr`)

@@ -20495,7 +20495,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)",
+              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.",
               "attribute": "use-proxy"
             },
             {
@@ -20505,7 +20505,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture des hotes connus (ceux que la configuration d'un fournisseur\ndeclare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.",
               "attribute": "proxy-url"
             },
             {
@@ -20811,6 +20811,16 @@
             },
             {
               "kind": "field",
+              "name": "_unrelayedProxyWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "L'avertissement « proxy sans effet » n'est émis qu'une fois par source (AM-114, #1232)."
+            },
+            {
+              "kind": "field",
               "name": "_lazyObserver",
               "type": {
                 "text": "IntersectionObserver | null"
@@ -21085,6 +21095,56 @@
                 }
               },
               "description": "Prealables d'un fetch par adaptateur : identite de la source, adaptateur\nconnu, parametres valides, et les deux diagnostics NON bloquants\n(fetch-mode/server-side #689, passe-plat `params` fautif #726).\n\n`null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et\ndiffusee a l'aval."
+            },
+            {
+              "kind": "method",
+              "name": "_adapterTargetUrl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "params",
+                  "type": {
+                    "text": "AdapterParams"
+                  }
+                }
+              ],
+              "description": "URL que l'adaptateur appellerait, AVANT tout proxy ; `''` s'il ne sait pas la construire."
+            },
+            {
+              "kind": "method",
+              "name": "_warnUnrelayedProxy",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "rawUrl",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "adapterMode",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "`proxy-url` / `use-proxy` posés sur un hôte que le proxy ne relaie pas\n(AM-114 du banc d'essai, #1232) : la requête part en direct, et rien ne\nle disait. Deux cas, un seul avertissement par source :\n- mode adaptateur : `getProxiedUrl` ne réécrit que les hôtes connus, et\n  `use-proxy` n'y est pas lu du tout — un portail Opendatasoft est donc\n  appelé en direct quel que soit l'attribut ;\n- mode URL : `proxy-url` SANS `use-proxy` ne réécrit que ces mêmes hôtes.\n\nUne URL relative ou de même origine n'a rien à relayer : pas un mot.\n`console.warn` seul, comme les autres avertissements non bloquants de la\nsource — le journal console (#994) le porte au volet Diagnostic."
             },
             {
               "kind": "method",
@@ -21409,7 +21469,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)",
+              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.",
               "fieldName": "useProxy"
             },
             {
@@ -21418,7 +21478,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture des hotes connus (ceux que la configuration d'un fournisseur\ndeclare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.",
               "fieldName": "proxyUrl"
             },
             {

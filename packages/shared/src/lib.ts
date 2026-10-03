@@ -158,6 +158,8 @@ export {
   getProxiedUrl,
   buildCorsProxyRequest,
   buildProxiedRequest,
+  isRelayedHost,
+  RELAYED_HOSTS,
 } from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
 export { appendQuery } from './api/url.js';

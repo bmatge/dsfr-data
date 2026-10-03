@@ -6,6 +6,8 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   getProxiedUrl,
   buildCorsProxyRequest,
+  isRelayedHost,
+  RELAYED_HOSTS,
   normalizeProviderAuthHeaders,
   detectProvider,
   flattenProviderRecords,
@@ -193,16 +195,27 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number, attribute: 'cache-ttl' })
   cacheTtl = 3600;
 
-  /** Force le passage par le proxy CORS generique (pour les APIs externes sans CORS) */
+  /**
+   * Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).
+   * Ne vaut qu'en mode URL (`url="…"`) : avec un `api-type`, l'attribut est sans effet
+   * sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail
+   * Opendatasoft, par exemple) — la requête part en direct, et la source le signale
+   * une fois en console.
+   */
   @property({ type: Boolean, attribute: 'use-proxy' })
   useProxy = false;
 
   /**
    * Domaine du proxy CORS pour CETTE source (#340), prioritaire sur
-   * `window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la
-   * reecriture des hotes connus (ceux que la configuration d'un fournisseur
-   * declare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.
-   * Ex: `proxy-url="https://mon-proxy.fr"`.
+   * `window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la
+   * réécriture des hôtes connus et le `use-proxy` générique. Vide = résolution
+   * proxy globale habituelle. Ex: `proxy-url="https://mon-proxy.fr"`.
+   *
+   * Seuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,
+   * INSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode
+   * adaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS
+   * EFFET : la requête part en direct vers l'API. La source l'écrit alors une fois
+   * en console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.
    */
   @property({ type: String, attribute: 'proxy-url' })
   proxyUrl = '';
@@ -488,6 +501,8 @@ export class DsfrDataSource extends LitElement {
   private _urlModeCommandWarned = false;
   /** Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690) */
   private _requireWhereModeWarned = false;
+  /** L'avertissement « proxy sans effet » n'est émis qu'une fois par source (AM-114, #1232). */
+  private _unrelayedProxyWarned = false;
 
   // --- lazy (#931) ---
   /** Observateur de visibilité des consommateurs ; détruit dès la première vue. */
@@ -1047,6 +1062,7 @@ export class DsfrDataSource extends LitElement {
 
     try {
       const rawUrl = this._buildUrl();
+      this._warnUnrelayedProxy(rawUrl, false);
       let url = getProxiedUrl(rawUrl, this.proxyUrl);
       const options = this._buildFetchOptions(provider);
 
@@ -1268,7 +1284,60 @@ export class DsfrDataSource extends LitElement {
       reportConfigError(this, `dsfr-data-source[${this.id}]`, extraParamsError);
     }
 
+    this._warnUnrelayedProxy(this._adapterTargetUrl(adapter, params), true);
+
     return { adapter, params };
+  }
+
+  /** URL que l'adaptateur appellerait, AVANT tout proxy ; `''` s'il ne sait pas la construire. */
+  private _adapterTargetUrl(adapter: ApiAdapter, params: AdapterParams): string {
+    try {
+      return adapter.buildUrl(params);
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * `proxy-url` / `use-proxy` posés sur un hôte que le proxy ne relaie pas
+   * (AM-114 du banc d'essai, #1232) : la requête part en direct, et rien ne
+   * le disait. Deux cas, un seul avertissement par source :
+   * - mode adaptateur : `getProxiedUrl` ne réécrit que les hôtes connus, et
+   *   `use-proxy` n'y est pas lu du tout — un portail Opendatasoft est donc
+   *   appelé en direct quel que soit l'attribut ;
+   * - mode URL : `proxy-url` SANS `use-proxy` ne réécrit que ces mêmes hôtes.
+   *
+   * Une URL relative ou de même origine n'a rien à relayer : pas un mot.
+   * `console.warn` seul, comme les autres avertissements non bloquants de la
+   * source — le journal console (#994) le porte au volet Diagnostic.
+   */
+  private _warnUnrelayedProxy(rawUrl: string, adapterMode: boolean): void {
+    if (this._unrelayedProxyWarned) return;
+    const viaProxyUrl = !!this.proxyUrl;
+    // En mode URL, `use-proxy` passe par le relais générique : tout hôte est relayé.
+    if (adapterMode ? !(viaProxyUrl || this.useProxy) : !viaProxyUrl || this.useProxy) return;
+
+    let target: URL;
+    try {
+      target = new URL(rawUrl);
+    } catch {
+      return;
+    }
+    if (!/^https?:$/.test(target.protocol)) return;
+    if (typeof window !== 'undefined' && target.origin === window.location.origin) return;
+    if (isRelayedHost(target.href)) return;
+
+    this._unrelayedProxyWarned = true;
+    const attribut = viaProxyUrl ? `proxy-url="${this.proxyUrl}"` : 'use-proxy';
+    const suite = adapterMode
+      ? `En mode adaptateur (api-type="${this.apiType}"), la requête part en direct vers cet hôte.`
+      : `Sans use-proxy, la requête part en direct vers cet hôte ; use-proxy la fait passer par le ` +
+        `relais générique (/cors-proxy).`;
+    console.warn(
+      `dsfr-data-source[${this.id}]: ${attribut} est sans effet — l'hôte "${target.hostname}" ` +
+        `n'est pas relayé par le proxy. Seuls ${RELAYED_HOSTS.join(', ')} passent par un ` +
+        `endpoint dédié. ${suite} (#1232)`
+    );
   }
 
   /**
