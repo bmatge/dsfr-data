@@ -256,10 +256,28 @@ export function aggregate(rows: Row[], agg: Agg, field?: string, weight?: string
     case 'avg':
       return nums.reduce((a, b) => a + b, 0) / nums.length;
     case 'min':
-      return Math.min(...nums);
+      return plusPetit(nums);
     case 'max':
-      return Math.max(...nums);
+      return plusGrand(nums);
   }
+}
+
+/**
+ * Minimum et maximum en BOUCLE : `Math.min(...nums)` passe chaque valeur en
+ * argument, et lève une `RangeError` au-delà d'environ 125 000 valeurs — le
+ * défaut que BUG-038 a payé dans la bibliothèque. Un oracle qui tomberait au
+ * même endroit qu'elle ne pourrait pas la contredire.
+ */
+function plusPetit(nums: number[]): number {
+  let min = Infinity;
+  for (const n of nums) if (n < min) min = n;
+  return min;
+}
+
+function plusGrand(nums: number[]): number {
+  let max = -Infinity;
+  for (const n of nums) if (n > max) max = n;
+  return max;
 }
 
 function appliquer(rows: Row[], spec: AggSpec): number | null {
@@ -375,12 +393,35 @@ export function diff(rows: Row[], from: string, as: string): Row[] {
  * Part du total (`share`, #926) : valeur de la ligne divisée par la somme de
  * la colonne sur toutes les lignes reçues. `scale` vaut 100 pour une part en
  * points de pourcentage. Total nul, ou valeur non numérique : `null`.
+ *
+ * `by` (AM-110, `share-by`) restreint le dénominateur aux lignes de la MÊME
+ * partition : celles qui portent les mêmes valeurs de ces champs. Écrit en
+ * deux temps — d'abord ranger les lignes par partition, puis diviser chaque
+ * ligne par la somme de la sienne. Une valeur absente (`null`, `undefined`,
+ * chaîne vide) forme une partition à elle seule, comme elle forme un groupe.
  */
-export function shareColumn(rows: Row[], from: string, as: string, scale = 1): Row[] {
-  const valeurs = rows.map((r) => toNum(r[from]));
-  const total = valeurs.reduce<number>((acc, v) => acc + (v ?? 0), 0);
-  return rows.map((r, i) => {
-    const v = valeurs[i];
+export function shareColumn(
+  rows: Row[],
+  from: string,
+  as: string,
+  scale = 1,
+  by: string | string[] = []
+): Row[] {
+  const champs = Array.isArray(by) ? by : [by];
+  const partitionDe = (r: Row): string =>
+    champs
+      .map((f) => (r[f] === null || r[f] === undefined ? '' : String(r[f])))
+      .join(SEPARATEUR_CLE);
+  const sommes = new Map<string, number>();
+  for (const r of rows) {
+    const v = toNum(r[from]);
+    if (v === null) continue;
+    const cle = partitionDe(r);
+    sommes.set(cle, (sommes.get(cle) ?? 0) + v);
+  }
+  return rows.map((r) => {
+    const v = toNum(r[from]);
+    const total = sommes.get(partitionDe(r)) ?? 0;
     return { ...r, [as]: v === null || total === 0 ? null : (v / total) * scale };
   });
 }
@@ -423,6 +464,61 @@ export function symbolRadius(
       etendue > 0 ? rMin + ((v - plusPetite) / etendue) * (rMax - rMin) : (rMin + rMax) / 2;
     return { ...r, [as]: trace(rayon) };
   });
+}
+
+/**
+ * Sous-chaîne d'une valeur (AM-103), sur le contrat ÉCRIT de `left` et de
+ * `substr` : la valeur est lue par sa forme TEXTE, les positions se comptent
+ * À PARTIR DE 1, et le résultat est du texte. Valeur absente (`null`,
+ * `undefined`) : `null`. Début ou longueur non numérique : `null`. Début
+ * inférieur à 1 : `null`. Longueur nulle ou négative, début au-delà de la
+ * fin : chaîne vide. Sans longueur : jusqu'au bout.
+ *
+ * Écrite caractère par caractère, sans rien emprunter à la bibliothèque.
+ */
+export function sousChaine(v: unknown, debut: unknown, longueur?: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const d = toNum(debut);
+  if (d === null) return null;
+  const premier = Math.trunc(d);
+  if (premier < 1) return null;
+  const texte = String(v);
+  let dernier = texte.length;
+  if (longueur !== undefined) {
+    const n = toNum(longueur);
+    if (n === null) return null;
+    dernier = Math.min(texte.length, premier - 1 + Math.trunc(n));
+  }
+  let out = '';
+  for (let rang = premier; rang <= dernier; rang++) out += texte.charAt(rang - 1);
+  return out;
+}
+
+/**
+ * Racine carrée d'une valeur, sur le contrat ÉCRIT de `sqrt` : non numérique
+ * ou absente → `null` ; NÉGATIVE → `null`, jamais `NaN` ; zéro → zéro.
+ * Calculée par la puissance un demi, pas par la fonction de la bibliothèque.
+ */
+export function racine(v: unknown): number | null {
+  const n = toNum(v);
+  if (n === null || n < 0) return null;
+  return n ** 0.5;
+}
+
+/** La colonne `as` reçoit la racine carrée de `from` (voir `racine`). */
+export function sqrtColumn(rows: Row[], from: string, as: string): Row[] {
+  return rows.map((r) => ({ ...r, [as]: racine(r[from]) }));
+}
+
+/** La colonne `as` reçoit la sous-chaîne de `from` (voir `sousChaine`). */
+export function substringColumn(
+  rows: Row[],
+  from: string,
+  as: string,
+  start: number,
+  length?: number
+): Row[] {
+  return rows.map((r) => ({ ...r, [as]: sousChaine(r[from], start, length) }));
 }
 
 /**
@@ -589,7 +685,7 @@ function reduireCellule(valeurs: unknown[], agg: PivotAgg): unknown {
   if (agg === 'avg') {
     return nombres.length > 0 ? nombres.reduce((a, b) => a + b, 0) / nombres.length : null;
   }
-  if (nombres.length > 0) return agg === 'min' ? Math.min(...nombres) : Math.max(...nombres);
+  if (nombres.length > 0) return agg === 'min' ? plusPetit(nombres) : plusGrand(nombres);
   const textes = valeurs.filter((v) => !celluleVide(v)).map((v) => String(v));
   if (textes.length === 0) return null;
   return textes.reduce((acc, s) => (agg === 'min' ? (s < acc ? s : acc) : s > acc ? s : acc));
@@ -703,13 +799,27 @@ export function unpivotRows(rows: Row[], options: OptionsUnpivot): Row[] {
  * tableau vide, n'en produit aucune — c'est ce qu'une facette fait d'un
  * champ tableau (BUG-006), et ce qu'un regroupement client ne fait PAS (il
  * compte les combinaisons).
+ *
+ * `distinct` : un élément RÉPÉTÉ dans la cellule ne donne qu'une ligne. Une
+ * facette compte des lignes — une ligne, une fois par valeur distincte
+ * (BUG-037) ; l'attribut `explode` d'une query compte des éléments, et se
+ * recalcule sans l'option. La comparaison porte sur la forme texte, comme
+ * les modalités d'une facette.
  */
-export function explodeRows(rows: Row[], field: string): Row[] {
+export function explodeRows(rows: Row[], field: string, distinct = false): Row[] {
   const out: Row[] = [];
   for (const r of rows) {
     const v = r[field];
     if (!Array.isArray(v)) continue;
-    for (const valeur of v) out.push({ ...r, [field]: valeur });
+    const vues = new Set<string>();
+    for (const valeur of v) {
+      if (distinct) {
+        const forme = String(valeur);
+        if (vues.has(forme)) continue;
+        vues.add(forme);
+      }
+      out.push({ ...r, [field]: valeur });
+    }
   }
   return out;
 }
@@ -781,8 +891,8 @@ export function concatRows(
  */
 export function equalIntervalBreaks(values: number[], steps: number): number[] {
   if (values.length === 0 || steps < 2) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = plusPetit(values);
+  const max = plusGrand(values);
   const largeur = (max - min) / steps;
   const bornes: number[] = [];
   for (let i = 1; i < steps; i++) bornes.push(min + largeur * i);
@@ -831,8 +941,8 @@ export function legendClasses(
 ): Array<{ from: number | null; to: number | null }> {
   const bornes = discretiser(values, steps, method, manuelles);
   if (bornes.length === 0 || values.length === 0) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = plusPetit(values);
+  const max = plusGrand(values);
   const classes: Array<{ from: number | null; to: number | null }> = [];
   const n = bornes.length + 1;
   for (let i = 0; i < n; i++) {
@@ -872,7 +982,7 @@ export function runPipeline(
         rows = deriver(rows, step.expr);
         break;
       case 'explode':
-        rows = explodeRows(rows, step.field);
+        rows = explodeRows(rows, step.field, step.distinct === true);
         break;
       case 'pivot':
         rows = pivotRows(rows, step);
@@ -896,13 +1006,19 @@ export function runPipeline(
             : diff(rows, step.from, step.as);
         break;
       case 'share':
-        rows = shareColumn(rows, step.from, step.as, step.scale ?? 1);
+        rows = shareColumn(rows, step.from, step.as, step.scale ?? 1, step.by ?? []);
         break;
       case 'ratio':
         rows = ratioColumn(rows, step.numerator, step.denominator, step.as);
         break;
       case 'radius':
         rows = symbolRadius(rows, step.from, step.as, step);
+        break;
+      case 'substring':
+        rows = substringColumn(rows, step.from, step.as, step.start, step.length);
+        break;
+      case 'sqrt':
+        rows = sqrtColumn(rows, step.from, step.as);
         break;
       case 'join': {
         const droite = datasets[step.right];

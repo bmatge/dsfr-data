@@ -6,6 +6,8 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   getProxiedUrl,
   buildCorsProxyRequest,
+  isRelayedHost,
+  RELAYED_HOSTS,
   normalizeProviderAuthHeaders,
   detectProvider,
   flattenProviderRecords,
@@ -193,16 +195,27 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number, attribute: 'cache-ttl' })
   cacheTtl = 3600;
 
-  /** Force le passage par le proxy CORS generique (pour les APIs externes sans CORS) */
+  /**
+   * Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).
+   * Ne vaut qu'en mode URL (`url="…"`) : avec un `api-type`, l'attribut est sans effet
+   * sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail
+   * Opendatasoft, par exemple) — la requête part en direct, et la source le signale
+   * une fois en console.
+   */
   @property({ type: Boolean, attribute: 'use-proxy' })
   useProxy = false;
 
   /**
    * Domaine du proxy CORS pour CETTE source (#340), prioritaire sur
-   * `window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la
-   * reecriture des hotes connus (ceux que la configuration d'un fournisseur
-   * declare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.
-   * Ex: `proxy-url="https://mon-proxy.fr"`.
+   * `window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la
+   * réécriture des hôtes connus et le `use-proxy` générique. Vide = résolution
+   * proxy globale habituelle. Ex: `proxy-url="https://mon-proxy.fr"`.
+   *
+   * Seuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,
+   * INSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode
+   * adaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS
+   * EFFET : la requête part en direct vers l'API. La source l'écrit alors une fois
+   * en console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.
    */
   @property({ type: String, attribute: 'proxy-url' })
   proxyUrl = '';
@@ -240,7 +253,21 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   resource = '';
 
-  /** Clause WHERE statique */
+  /**
+   * Clause WHERE statique, déléguée à l'API de l'adaptateur.
+   *
+   * Une clause que l'API n'applique pas fidèlement n'est pas déléguée :
+   * l'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,
+   * sur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une
+   * parenthèse ou une virgule — l'API écarte cette valeur sans erreur
+   * (#1233). Les autres clauses restent déléguées ; celle-ci demande de
+   * charger toutes les lignes qu'elles gardent (une requête par page, sous
+   * `max-records`) au lieu des seules lignes filtrées, et un `group-by` posé
+   * à côté n'est plus délégué : les lignes filtrées sont rendues brutes, une
+   * `dsfr-data-query` en aval regroupe. En pagination serveur
+   * (`server-side`), où ce calcul n'est pas possible, la clause part telle
+   * quelle : le résultat est incomplet, et le volet Diagnostic le signale.
+   */
   @property({ type: String })
   where = '';
 
@@ -298,7 +325,26 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   aggregate = '';
 
-  /** Order-by */
+  /**
+   * Tri (`champ:asc, champ2:desc`), délégué aux adaptateurs déclarant
+   * `serverOrderBy`.
+   *
+   * Une API qui pagine par décalage et ne trie que sur une clé (Tabular) rend
+   * un ordre instable d'une page à l'autre dès que la clé n'est pas unique :
+   * des lignes reviennent deux fois, d'autres jamais, pour un compte juste.
+   * Un tri délégué qui s'étend sur plusieurs pages est donc rendu sûr par
+   * l'adaptateur (#1202, #1233), lignes brutes comme groupes d'un
+   * `group-by` :
+   * - tout le jeu est chargé : il est relu sans tri et trié sur place (une
+   *   requête de plus), dans l'ordre du pipeline — vides, puis nombres, puis
+   *   textes —, le même que celui d'une `dsfr-data-query` ;
+   * - `limit` ou `max-records` coupe le chargement : le tri reste au serveur,
+   *   complété d'une clé de départage (l'identifiant de ligne, ou les autres
+   *   colonnes du `group-by`) qui le rend total.
+   *
+   * Un chargement d'une seule page, et un regroupement trié sur sa seule
+   * colonne de regroupement, gardent le tri du serveur tel quel.
+   */
   @property({ type: String, attribute: 'order-by' })
   orderBy = '';
 
@@ -330,6 +376,13 @@ export class DsfrDataSource extends LitElement {
    * par page de l'API) et au poids mémoire. Un `limit` plus petit reste
    * prioritaire. Quand le plafond coupe le jeu, la source signale la
    * troncature (`truncated`) et un avertissement console cite `max-records`.
+   *
+   * Un chargement coupé par le plafond et trié (`order-by`) rend les
+   * premières lignes du tri, chacune une fois : sur Tabular, le tri délégué
+   * est complété d'une clé de départage (#1233). Si l'API la refuse, le tri
+   * du serveur est gardé tel quel et le volet Diagnostic signale un tri
+   * instable — des lignes à valeurs égales peuvent alors manquer ou être
+   * doublées aux limites de page.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
@@ -488,6 +541,8 @@ export class DsfrDataSource extends LitElement {
   private _urlModeCommandWarned = false;
   /** Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690) */
   private _requireWhereModeWarned = false;
+  /** L'avertissement « proxy sans effet » n'est émis qu'une fois par source (AM-114, #1232). */
+  private _unrelayedProxyWarned = false;
 
   // --- lazy (#931) ---
   /** Observateur de visibilité des consommateurs ; détruit dès la première vue. */
@@ -1047,6 +1102,7 @@ export class DsfrDataSource extends LitElement {
 
     try {
       const rawUrl = this._buildUrl();
+      this._warnUnrelayedProxy(rawUrl, false);
       let url = getProxiedUrl(rawUrl, this.proxyUrl);
       const options = this._buildFetchOptions(provider);
 
@@ -1268,7 +1324,60 @@ export class DsfrDataSource extends LitElement {
       reportConfigError(this, `dsfr-data-source[${this.id}]`, extraParamsError);
     }
 
+    this._warnUnrelayedProxy(this._adapterTargetUrl(adapter, params), true);
+
     return { adapter, params };
+  }
+
+  /** URL que l'adaptateur appellerait, AVANT tout proxy ; `''` s'il ne sait pas la construire. */
+  private _adapterTargetUrl(adapter: ApiAdapter, params: AdapterParams): string {
+    try {
+      return adapter.buildUrl(params);
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * `proxy-url` / `use-proxy` posés sur un hôte que le proxy ne relaie pas
+   * (AM-114 du banc d'essai, #1232) : la requête part en direct, et rien ne
+   * le disait. Deux cas, un seul avertissement par source :
+   * - mode adaptateur : `getProxiedUrl` ne réécrit que les hôtes connus, et
+   *   `use-proxy` n'y est pas lu du tout — un portail Opendatasoft est donc
+   *   appelé en direct quel que soit l'attribut ;
+   * - mode URL : `proxy-url` SANS `use-proxy` ne réécrit que ces mêmes hôtes.
+   *
+   * Une URL relative ou de même origine n'a rien à relayer : pas un mot.
+   * `console.warn` seul, comme les autres avertissements non bloquants de la
+   * source — le journal console (#994) le porte au volet Diagnostic.
+   */
+  private _warnUnrelayedProxy(rawUrl: string, adapterMode: boolean): void {
+    if (this._unrelayedProxyWarned) return;
+    const viaProxyUrl = !!this.proxyUrl;
+    // En mode URL, `use-proxy` passe par le relais générique : tout hôte est relayé.
+    if (adapterMode ? !(viaProxyUrl || this.useProxy) : !viaProxyUrl || this.useProxy) return;
+
+    let target: URL;
+    try {
+      target = new URL(rawUrl);
+    } catch {
+      return;
+    }
+    if (!/^https?:$/.test(target.protocol)) return;
+    if (typeof window !== 'undefined' && target.origin === window.location.origin) return;
+    if (isRelayedHost(target.href)) return;
+
+    this._unrelayedProxyWarned = true;
+    const attribut = viaProxyUrl ? `proxy-url="${this.proxyUrl}"` : 'use-proxy';
+    const suite = adapterMode
+      ? `En mode adaptateur (api-type="${this.apiType}"), la requête part en direct vers cet hôte.`
+      : `Sans use-proxy, la requête part en direct vers cet hôte ; use-proxy la fait passer par le ` +
+        `relais générique (/cors-proxy).`;
+    console.warn(
+      `dsfr-data-source[${this.id}]: ${attribut} est sans effet — l'hôte "${target.hostname}" ` +
+        `n'est pas relayé par le proxy. Seuls ${RELAYED_HOSTS.join(', ')} passent par un ` +
+        `endpoint dédié. ${suite} (#1232)`
+    );
   }
 
   /**
@@ -1282,6 +1391,7 @@ export class DsfrDataSource extends LitElement {
       total: result.totalCount,
       serverSide: true,
       needsClientProcessing: result.needsClientProcessing,
+      ...(result.caveats?.length ? { caveats: result.caveats } : {}),
     });
   }
 
@@ -1308,6 +1418,8 @@ export class DsfrDataSource extends LitElement {
       serverSide: false,
       needsClientProcessing: result.needsClientProcessing,
       ...(truncated ? { truncated: true } : {}),
+      // Reserves de l'adapter (#1233) : lues par le volet Diagnostic
+      ...(result.caveats?.length ? { caveats: result.caveats } : {}),
     });
   }
 

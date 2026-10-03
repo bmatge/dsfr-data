@@ -1,6 +1,11 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
+import {
+  buildCsv,
+  formatNumberFr,
+  parseAliasedColumn,
+  type AliasedColumn,
+} from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
@@ -62,15 +67,33 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   description = '';
 
   /**
-   * Colonne utilisée pour les labels du tableau.
-   * @champ nom
+   * Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`
+   * (#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :
+   * `label-field="dep_nom:Département"` lit la colonne `dep_nom` et affiche
+   * « Département » en en-tête du tableau et du CSV. Sans deux-points,
+   * l'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de
+   * colonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne
+   * qui existe telle quelle dans les données, deux-points compris, est lue
+   * telle quelle.
+   * @champ liste-alias
    */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
 
   /**
-   * Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).
-   * @champ liste
+   * Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des
+   * virgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du
+   * banc), la grammaire de `value-field` / `value-fields` de
+   * `dsfr-data-chart` (#668) : `value-field="v_fede:Fédération sélectionnée,
+   * v_all:Ensemble"` lit `v_fede` et `v_all`, et les en-têtes du tableau et
+   * du CSV portent les libellés — ceux que la légende du graphique affiche
+   * déjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule
+   * ou un deux-points littéral s'échappe en `%2C` ou `%3A`.
+   *
+   * Une colonne absente des données reçues est signalée en console : le
+   * tableau garde ses lignes mais la colonne est vide, et un tableau vide
+   * passe toutes les recettes qui comptent des lignes.
+   * @champ liste-alias
    */
   @property({ type: String, attribute: 'value-field' })
   valueField = '';
@@ -150,6 +173,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   /** Vrai quand l'erreur de configuration posée vient de `series-field`. */
   private _seriesConfigError = false;
 
+  /** Dernier jeu de colonnes introuvables signalé (un avertissement par situation). */
+  private _missingColumnsWarned = '';
+
   private _previousForTarget: Element | null = null;
   private _injectedSkipLink: HTMLAnchorElement | null = null;
 
@@ -199,6 +225,41 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       this._setupTarget();
     }
     this._checkSeriesConfig();
+    this._checkColumnsExist();
+  }
+
+  /**
+   * Une colonne nommée par `label-field`, `value-field` ou `series-field` qui
+   * n'existe dans AUCUNE ligne reçue rend une colonne vide (#1230, PG-032 du
+   * banc) : le tableau a le bon nombre de lignes et ne contient rien. On le
+   * dit, une fois par situation, en nommant l'attribut, la colonne cherchée
+   * et les colonnes disponibles.
+   */
+  private _checkColumnsExist() {
+    const data = this._sourceData;
+    if (!Array.isArray(data) || data.length === 0) return;
+    const rows = data as Record<string, unknown>[];
+    const named: Array<{ attr: string; key: string }> = [];
+    if (this.labelField) named.push({ attr: 'label-field', key: this._labelSpec(rows)!.key });
+    for (const spec of this._valueSpecs(rows)) named.push({ attr: 'value-field', key: spec.key });
+    if (this.seriesField) named.push({ attr: 'series-field', key: this.seriesField });
+
+    const missing = named.filter(
+      ({ key }) => !rows.some((row) => row !== null && typeof row === 'object' && key in row)
+    );
+    const signature = missing.map((m) => `${m.attr}=${m.key}`).join('|');
+    if (signature === this._missingColumnsWarned) return;
+    this._missingColumnsWarned = signature;
+    if (missing.length === 0) return;
+
+    const available = Object.keys(rows[0] ?? {}).join(', ');
+    for (const { attr, key } of missing) {
+      console.warn(
+        `dsfr-data-a11y[${this.id}]: ${attr} — colonne « ${key} » introuvable dans les données ` +
+          `reçues : sa colonne du tableau sera vide. Colonnes disponibles : ${available}. ` +
+          `Un libellé d'en-tête s'écrit « colonne:Libellé ».`
+      );
+    }
   }
 
   /**
@@ -376,10 +437,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     }
 
     // Memes colonnes que le tableau rendu (label-field/value-field si definis),
-    // champs techniques `_*` exclus dans tous les cas.
-    const columns = this._getColumns(data)
-      .filter((key) => !key.startsWith('_'))
-      .map((key) => ({ key }));
+    // champs techniques `_*` exclus dans tous les cas. L'en-tete porte le
+    // libelle de l'alias `champ:Libellé` quand il est ecrit (#1230).
+    const columns = this._columnSpecs(data).filter((spec) => !spec.key.startsWith('_'));
 
     // `empty-label` (#933) : le CSV nomme le groupe null comme le tableau.
     if (this.emptyLabel) {
@@ -409,19 +469,55 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   // Table columns
   // ---------------------------------------------------------------------------
 
-  private _getColumns(data: Record<string, unknown>[]): string[] {
+  /**
+   * Une entrée de `label-field` / `value-field` : `colonne` ou
+   * `colonne:Libellé` (#1230, PG-032 du banc) — l'analyseur est celui de
+   * `dsfr-data-chart` (`parseAliasedColumn`, #668), pas un second.
+   *
+   * Seule précaution : une colonne qui existe TELLE QUELLE dans les données,
+   * deux-points compris, est lue telle quelle. Avant l'alias, l'entrée entière
+   * était le nom de colonne ; un jeu dont une colonne s'appelle réellement
+   * `a:b` ne doit pas voir son tableau se vider.
+   */
+  private _parseColumn(entry: string, data: Record<string, unknown>[]): AliasedColumn {
+    const literal = entry.trim();
+    if (literal.includes(':') && data.length > 0 && literal in data[0]) {
+      return { key: literal, label: literal };
+    }
+    return parseAliasedColumn(literal);
+  }
+
+  /** Colonne de libellé déclarée par `label-field`, ou `null`. */
+  private _labelSpec(data: Record<string, unknown>[]): AliasedColumn | null {
+    return this.labelField ? this._parseColumn(this.labelField, data) : null;
+  }
+
+  /** Colonnes de valeur déclarées par `value-field`, dans l'ordre écrit. */
+  private _valueSpecs(data: Record<string, unknown>[]): AliasedColumn[] {
+    return this.valueField
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => this._parseColumn(entry, data));
+  }
+
+  /**
+   * Colonnes du tableau à plat, avec leur en-tête : celles de `label-field`
+   * et `value-field` s'ils sont posés, sinon toutes les colonnes de la
+   * première ligne, sous leur nom.
+   */
+  private _columnSpecs(data: Record<string, unknown>[]): AliasedColumn[] {
     if (this.labelField || this.valueField) {
-      const cols: string[] = [];
-      if (this.labelField) cols.push(this.labelField);
-      if (this.valueField) {
-        for (const vf of this.valueField.split(',').map((f) => f.trim())) {
-          if (vf) cols.push(vf);
-        }
-      }
-      return cols;
+      const label = this._labelSpec(data);
+      return [...(label ? [label] : []), ...this._valueSpecs(data)];
     }
     if (data.length === 0) return [];
-    return Object.keys(data[0]);
+    return Object.keys(data[0]).map((key) => ({ key, label: key }));
+  }
+
+  /** Noms des colonnes LUES dans les données (sans leur libellé d'en-tête). */
+  private _getColumns(data: Record<string, unknown>[]): string[] {
+    return this._columnSpecs(data).map((spec) => spec.key);
   }
 
   /**
@@ -430,7 +526,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    * s'applique (#933).
    */
   private _labelColumnKey(data: Record<string, unknown>[]): string {
-    return this.labelField || this._getColumns(data)[0] || '';
+    return this._getColumns(data)[0] || '';
   }
 
   // ---------------------------------------------------------------------------
@@ -453,26 +549,27 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     headers: string[];
     rows: unknown[][];
   } {
-    const valueKey = this.valueField.split(',')[0].trim();
+    const label = this._labelSpec(data)!;
+    const valueKey = this._valueSpecs(data)[0]?.key ?? '';
     const labelKeys: string[] = [];
     const labelValues: unknown[] = [];
     const seriesNames: string[] = [];
     const cells = new Map<string, Map<string, unknown>>();
 
     for (const record of data) {
-      const labelKey = this._headerText(record[this.labelField]);
+      const labelKey = this._headerText(record[label.key]);
       const seriesName = this._headerText(record[this.seriesField]);
       if (!cells.has(labelKey)) {
         cells.set(labelKey, new Map());
         labelKeys.push(labelKey);
-        labelValues.push(record[this.labelField]);
+        labelValues.push(record[label.key]);
       }
       if (!seriesNames.includes(seriesName)) seriesNames.push(seriesName);
       cells.get(labelKey)!.set(seriesName, record[valueKey]);
     }
 
     return {
-      headers: [this.labelField, ...seriesNames],
+      headers: [label.label, ...seriesNames],
       rows: labelKeys.map((key, i) => [
         labelValues[i],
         ...seriesNames.map((s) => cells.get(key)!.get(s)),
@@ -494,10 +591,10 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       const { headers, rows } = this._pivotSeries(data);
       return { headers, rows, seriesCount: headers.length - 1 };
     }
-    const headers = this._getColumns(data);
+    const specs = this._columnSpecs(data);
     return {
-      headers,
-      rows: data.map((row) => headers.map((col) => row[col])),
+      headers: specs.map((spec) => spec.label),
+      rows: data.map((row) => specs.map((spec) => row[spec.key])),
       seriesCount: 0,
     };
   }
@@ -661,10 +758,10 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                         isTruncated
                           ? html`
                               <p class="fr-text--xs fr-mt-1w">
-                                Affichage limite aux ${MAX_TABLE_ROWS} premieres lignes.
+                                Affichage limité aux ${MAX_TABLE_ROWS} premières lignes.
                                 ${
                                   this._showDownload
-                                    ? 'Telechargez le CSV pour les données completes.'
+                                    ? 'Téléchargez le CSV pour les données complètes.'
                                     : ''
                                 }
                               </p>

@@ -902,6 +902,131 @@ describe('DsfrDataA11y', () => {
     });
   });
 
+  // =========================================================================
+  // Grammaire champ:Libellé du graphique (#1230, PG-032 du banc)
+  // =========================================================================
+
+  describe('label-field / value-field — alias champ:Libellé (#1230, PG-032)', () => {
+    async function mount(rows: Record<string, unknown>[], attrs: Record<string, string> = {}) {
+      comp.source = SOURCE_ID;
+      comp.table = true;
+      comp.noAutoAria = true;
+      for (const [name, value] of Object.entries(attrs)) comp.setAttribute(name, value);
+      document.body.appendChild(comp);
+      dispatchDataLoaded(SOURCE_ID, rows);
+      await comp.updateComplete;
+    }
+
+    const entetes = (): string[] =>
+      Array.from(comp.querySelectorAll('thead th')).map((th) => (th.textContent ?? '').trim());
+    const corps = (): string[][] =>
+      Array.from(comp.querySelectorAll('tbody tr')).map((tr) =>
+        Array.from(tr.children).map((c) => (c.textContent ?? '').trim())
+      );
+
+    const ROWS = [
+      { dep_nom: 'Nièvre', v_fede: 9.98, v_all: 11 },
+      { dep_nom: 'Seine-Saint-Denis', v_fede: 10.41, v_all: 11.2 },
+    ];
+
+    it('grammaire du graphique recopiée : en-têtes = libellés, et le corps N’EST PAS vide', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await mount(ROWS, {
+        'label-field': 'dep_nom:Département',
+        'value-field': 'v_fede:Fédération sélectionnée, v_all:Ensemble des fédérations',
+      });
+
+      expect(entetes()).toEqual([
+        'Département',
+        'Fédération sélectionnée',
+        'Ensemble des fédérations',
+      ]);
+      expect(corps()).toEqual([
+        ['Nièvre', '9,98', '11'],
+        ['Seine-Saint-Denis', '10,41', '11,2'],
+      ]);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+      comp.remove();
+    });
+
+    it('sans deux-points : l’en-tête reste le nom de colonne (rendu historique inchangé)', async () => {
+      await mount(ROWS, { 'label-field': 'dep_nom', 'value-field': 'v_fede, v_all' });
+      expect(entetes()).toEqual(['dep_nom', 'v_fede', 'v_all']);
+      expect(corps()[0]).toEqual(['Nièvre', '9,98', '11']);
+      comp.remove();
+    });
+
+    it('le CSV porte les libellés en en-tête et lit les bonnes colonnes', () => {
+      comp.labelField = 'dep_nom:Département';
+      comp.valueField = 'v_fede:Fédération sélectionnée';
+      expect(comp._buildCsv(ROWS)).toBe(
+        `${CSV_BOM}Département;Fédération sélectionnée\nNièvre;9.98\nSeine-Saint-Denis;10.41`
+      );
+    });
+
+    it('un deux-points littéral s’échappe en %3A, dans le libellé comme ailleurs', async () => {
+      await mount(ROWS, { 'label-field': 'dep_nom', 'value-field': 'v_fede:Ratio 1%3A2' });
+      expect(entetes()).toEqual(['dep_nom', 'Ratio 1:2']);
+      comp.remove();
+    });
+
+    it('une colonne nommée « a:b » dans les données est lue telle quelle', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await mount([{ nom: 'A', 'pop:sum': 12 }], {
+        'label-field': 'nom',
+        'value-field': 'pop:sum',
+      });
+      expect(entetes()).toEqual(['nom', 'pop:sum']);
+      expect(corps()).toEqual([['A', '12']]);
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+      comp.remove();
+    });
+
+    it('series-field : la colonne de libellé porte son alias, la mesure est lue sur le champ', async () => {
+      await mount(
+        [
+          { mois: 'Janvier', groupe: 'Cadres', v: 120 },
+          { mois: 'Janvier', groupe: 'Agents', v: 310 },
+        ],
+        { 'label-field': 'mois:Mois', 'value-field': 'v:Effectif', 'series-field': 'groupe' }
+      );
+      expect(entetes()).toEqual(['Mois', 'Cadres', 'Agents']);
+      expect(corps()).toEqual([['Janvier', '120', '310']]);
+      comp.remove();
+    });
+
+    it('colonne introuvable : avertissement nommant l’attribut, la colonne et les colonnes disponibles', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await mount(ROWS, {
+        'label-field': 'departement:Département',
+        'value-field': 'v_fede, taux',
+      });
+
+      const messages = warn.mock.calls.map((c) => String(c[0]));
+      expect(messages).toHaveLength(2);
+      expect(messages[0]).toContain('label-field — colonne « departement » introuvable');
+      expect(messages[1]).toContain('value-field — colonne « taux » introuvable');
+      expect(messages[1]).toContain('Colonnes disponibles : dep_nom, v_fede, v_all');
+
+      // Un nouveau rendu sur la même situation ne répète pas l'avertissement.
+      comp.requestUpdate();
+      await comp.updateComplete;
+      expect(warn).toHaveBeenCalledTimes(2);
+      warn.mockRestore();
+      comp.remove();
+    });
+
+    it('une colonne présente sur une ligne seulement n’est pas « introuvable »', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      await mount([{ nom: 'A' }, { nom: 'B', v: 2 }], { 'label-field': 'nom', 'value-field': 'v' });
+      expect(warn).not.toHaveBeenCalled();
+      warn.mockRestore();
+      comp.remove();
+    });
+  });
+
   describe('DataBox cohabitation', () => {
     it('keeps table and download active even when DataBox is present', () => {
       // DataBox table view does not work with async data,

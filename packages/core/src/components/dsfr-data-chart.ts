@@ -49,9 +49,12 @@ import {
   isValidDeptCode,
   normalizeDeptCode,
   formatDate,
+  formatNumberFr,
   parseAliasedColumn,
   parseAliasedColumns,
   type AliasedColumn,
+  maxOf,
+  minOf,
 } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
@@ -76,6 +79,13 @@ type DSFRChartType =
   | 'map-monde';
 
 let databoxAutoId = 0;
+
+/**
+ * Plafond de lignes du tableau de la DataBox — le même que celui du tableau de
+ * `dsfr-data-a11y` (`MAX_TABLE_ROWS`). Au-delà, la coupe est annoncée sous le
+ * tableau (BUG-035 du banc, #1230).
+ */
+const DATABOX_TABLE_MAX_ROWS = 100;
 
 /**
  * Map chart types -> attribut `level` de <map-chart> (API cartes unifiée
@@ -1295,11 +1305,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const finite = data.filter((v): v is number => v !== null && Number.isFinite(v));
       if (!finite.length || !targetVals.length) return;
       if (kind === 'max') {
-        const t = Math.max(...targetVals);
-        if (t > Math.max(...finite)) attrs[attr] = String(t);
+        // `finite` est une série de DONNÉES : jamais étalée en arguments (BUG-038)
+        const t = maxOf(targetVals);
+        if (t > maxOf(finite)) attrs[attr] = String(t);
       } else {
-        const t = Math.min(...targetVals);
-        if (t < Math.min(...finite)) attrs[attr] = String(t);
+        const t = minOf(targetVals);
+        if (t < minOf(finite)) attrs[attr] = String(t);
       }
     };
     if (this.type === 'bar-line') {
@@ -2124,34 +2135,68 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
+   * Modèle du tableau de la DataBox : en-têtes, lignes de cellules brutes.
+   *
+   * Format LARGE : une ligne par enregistrement, une colonne par champ
+   * (`_databoxColumns`).
+   *
+   * Format LONG (`series-field`, BUG-035 du banc, #1230) : le tableau PIVOTE
+   * comme le graphique — une ligne par libellé, une colonne par série — et
+   * reprend la matrice que le graphique trace (`_processTidyData`). Rendu à
+   * plat, il alignait « libellé, valeur » sans dire à quelle série la valeur
+   * appartenait : deux lignes « Janvier » indiscernables. C'est aussi ce que
+   * fait `dsfr-data-a11y series-field` (#930) ; une cellule (libellé, série)
+   * sans observation reste vide, jamais 0 (#1198).
+   */
+  private _databoxTableModel(): { headers: string[]; rows: unknown[][] } {
+    if (this.seriesField && this.labelField && this.valueField) {
+      const { labels, allSeries } = this._processTidyData();
+      const seriesHeaders = this._getSeriesNames().map((s) => s || this.emptyLabel);
+      return {
+        headers: [this.labelField, ...seriesHeaders],
+        rows: labels.map((label, li) => [label, ...allSeries.map((serie) => serie[li])]),
+      };
+    }
+    const columns = this._databoxColumns();
+    return {
+      headers: columns.map((c) => c.label),
+      rows: this._data.map((row) => columns.map((col) => getByPath(row, col.key))),
+    };
+  }
+
+  /**
    * HTML du tableau injecté dans la DataBox (même approche que
-   * dsfr-data-a11y) : cellules lues sur le chemin, 100 lignes au plus.
-   * Chaîne vide sans colonne.
+   * dsfr-data-a11y). Chaîne vide sans colonne.
+   *
+   * Le tableau montre au plus `DATABOX_TABLE_MAX_ROWS` lignes, comme celui de
+   * `dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une
+   * coupe muette laissait croire à un jeu de 100 lignes. La mention donne le
+   * total, pour que l'écart se lise sans compter.
    */
   private _databoxTableHtml(): string {
-    const columns = this._databoxColumns();
-    if (columns.length === 0) return '';
-    const rows = this._data.slice(0, 100);
+    const { headers, rows: allRows } = this._databoxTableModel();
+    if (headers.length === 0) return '';
+    const rows = allRows.slice(0, DATABOX_TABLE_MAX_ROWS);
 
-    const headerCells = columns.map((c) => `<th scope="col">${escapeHtml(c.label)}</th>`).join('');
+    const headerCells = headers.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join('');
     const bodyRows = rows
       .map((row) => {
-        const cells = columns
-          .map((col) => {
-            const val = getByPath(row, col.key);
-            return `<td>${escapeHtml(String(val ?? ''))}</td>`;
-          })
-          .join('');
+        const cells = row.map((val) => `<td>${escapeHtml(String(val ?? ''))}</td>`).join('');
         return `<tr>${cells}</tr>`;
       })
       .join('');
+    const truncation =
+      allRows.length > DATABOX_TABLE_MAX_ROWS
+        ? `
+          <p class="fr-text--xs fr-mt-1w dsfr-data-chart__databox-truncation">Affichage limité aux ${DATABOX_TABLE_MAX_ROWS} premières lignes sur ${formatNumberFr(allRows.length)}.</p>`
+        : '';
 
     return `
         <div class="fr-table fr-m-2w">
           <table>
             <thead><tr>${headerCells}</tr></thead>
             <tbody>${bodyRows}</tbody>
-          </table>
+          </table>${truncation}
         </div>`;
   }
 

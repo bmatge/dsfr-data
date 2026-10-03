@@ -30,6 +30,31 @@
     <dsfr-data-chart id="camembert" source="rows" type="pie" label-field="nom" value-field="v"
       color-map="Paris:#ff0000,Lyon:#0000ff" databox databox-title="Parts">
     </dsfr-data-chart>
+
+    <!--
+      BUG-033 du banc (#1230) : sur une courbe, color-map recolorait le trait
+      et la légende, pas les POINTS. Quatre types dessinent des points : la
+      courbe, le radar, le nuage et la courbe d'un bar-line.
+    -->
+    <dsfr-data-source id="series" data='[
+      {"m":"1","a":10,"b":30},
+      {"m":"2","a":20,"b":25},
+      {"m":"3","a":15,"b":40},
+      {"m":"4","a":30,"b":35}
+    ]'></dsfr-data-source>
+
+    <dsfr-data-chart id="courbe" source="series" type="line" label-field="m"
+      value-field="a:Alpha" value-fields="b:Beta" color-map="Alpha:#ff0000,Beta:#00aa00">
+    </dsfr-data-chart>
+    <dsfr-data-chart id="radar" source="series" type="radar" label-field="m"
+      value-field="a:Alpha" value-fields="b:Beta" color-map="Alpha:#ff0000,Beta:#00aa00">
+    </dsfr-data-chart>
+    <dsfr-data-chart id="nuage" source="series" type="scatter" label-field="m"
+      value-field="a:Alpha" value-fields="b:Beta" color-map="Alpha:#ff0000,Beta:#00aa00">
+    </dsfr-data-chart>
+    <dsfr-data-chart id="barres-courbe" source="series" type="bar-line" label-field="m"
+      value-field="a:Alpha" value-field-2="b:Beta" color-map="Alpha:#ff0000,Beta:#00aa00">
+    </dsfr-data-chart>
   </main>
 </body>
 </html>

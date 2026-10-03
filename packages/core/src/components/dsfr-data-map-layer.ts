@@ -26,6 +26,7 @@ import {
   choroplethLegendEntries,
   escapeHtml,
 } from '@dsfr-data/shared/lib';
+import { appendAll, maxOf, minOf } from '@dsfr-data/shared/lib';
 import type { LegendEntry } from '@dsfr-data/shared/lib';
 import type { DsfrDataMap } from './dsfr-data-map.js';
 import { defaultGroupFields, groupListHtml, groupTableHtml } from '../utils/map-group.js';
@@ -897,7 +898,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       const result: Record<string, unknown>[] = [];
       for (let i = 0; i <= frameIndex; i++) {
         const key = this._timeSteps[i];
-        result.push(...(this._timeFrames.get(key) || []));
+        // Lignes de données : ajout en boucle, jamais étalé (BUG-038)
+        appendAll(result, this._timeFrames.get(key) || []);
       }
       return result;
     }
@@ -1244,21 +1246,21 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
     // Rayon variable d'une couche de cercles (radius-field) : échelle linéaire
     // entre radius-min et radius-max (défaut), ou en aire ancrée à zéro
-    // (radius-scale="sqrt", AM-107). Bornes relevées en boucle : l'étalement
-    // d'un grand tableau en arguments déborde la pile.
+    // (radius-scale="sqrt", AM-107).
     this._radiusScale = null;
     if (this.radiusField && this.type === 'circle') {
-      let min = Infinity;
-      let max = -Infinity;
+      // Une valeur par ligne : jamais étalée en arguments (BUG-038)
+      const values: number[] = [];
       let negatives = 0;
       for (const record of items) {
         const v = Number(getByPath(record, this.radiusField));
         if (isNaN(v) || !isFinite(v)) continue;
-        if (v < min) min = v;
-        if (v > max) max = v;
+        values.push(v);
         if (v < 0) negatives++;
       }
-      if (max >= min) {
+      if (values.length > 0) {
+        const min = minOf(values);
+        const max = maxOf(values);
         const rMin = this.radiusMin;
         const rMax = this.radiusMax;
         if (this._areaScale()) {

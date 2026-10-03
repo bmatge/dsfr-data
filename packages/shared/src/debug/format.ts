@@ -236,6 +236,15 @@ function formatMeta(node: StageNode, state: StageState): string[] {
       `     ⚠ tronqué à ${delivered}${outOf} lignes (${truncationCause(node)}) — l'aval ne voit qu'un sous-ensemble du jeu.`
     );
   }
+  for (const code of meta.caveats ?? []) {
+    lines.push(
+      code === 'unstable-sort'
+        ? "     ⚠ tri laissé à l'API sur plusieurs pages sans clé de départage : des lignes à valeurs égales peuvent manquer ou être doublées."
+        : code === 'in-values-dropped'
+          ? "     ⚠ une valeur à parenthèse ou à virgule d'un filtre in/notin est écartée par l'API : il manque des lignes."
+          : `     ⚠ réserve de l'adaptateur : ${code}.`
+    );
+  }
   if (meta.needsClientProcessing) {
     lines.push(
       "     ⚠ la source n'a pas pu traiter group-by/aggregate côté serveur.",

@@ -187,6 +187,14 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
             state.meta.serverSide ? 'oui' : 'non'
           }${state.meta.needsClientProcessing ? ', REPLI CLIENT' : ''}${
             state.meta.truncated ? ', TRONQUÉ (max-records ou limit)' : ''
+          }${
+            state.meta.caveats?.includes('unstable-sort')
+              ? ', TRI SERVEUR INSTABLE (lignes possiblement doublées ou manquantes)'
+              : ''
+          }${
+            state.meta.caveats?.includes('in-values-dropped')
+              ? ', VALEUR DE in ÉCARTÉE PAR LE SERVEUR (lignes manquantes)'
+              : ''
           }`
         );
         const join = state.meta.join;

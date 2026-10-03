@@ -619,6 +619,7 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
   const groupes: string[] = [];
   const agregats: Array<{ champ: string; fonction: string }> = [];
   const tris: Array<{ champ: string; descendant: boolean }> = [];
+  let triLu = false;
   let filtrees: Ligne[] = jeu;
 
   for (const [cle, valeur] of p.entries()) {
@@ -638,11 +639,31 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
       continue;
     }
     if (cle.endsWith('__sort')) {
-      tris.push({ champ: cle.slice(0, -'__sort'.length), descendant: valeur === 'desc' });
+      // Comme l'API (mesure du 2026-10-03, #1233) : UNE cle de tri — de
+      // plusieurs `__sort`, seul le premier compte, les autres sont ignores
+      // sans erreur (`Code_region__sort=asc&__id__sort=asc` : memes 550
+      // lignes distinctes sur 600 que `Code_region__sort=asc` seul). Mais la
+      // VALEUR part telle quelle au `order=` de PostgREST, qui trie sur
+      // plusieurs colonnes : `Code_region__sort=asc,"__id".asc` → 600
+      // distinctes sur 600. Le faux serveur lit donc la valeur composee.
+      if (!triLu) {
+        triLu = true;
+        const [direction, ...suite] = valeur.split(',');
+        tris.push({ champ: cle.slice(0, -'__sort'.length), descendant: direction === 'desc' });
+        for (const element of suite) {
+          const lu = /^"?(.+?)"?\.(asc|desc)$/.exec(element);
+          if (!lu) {
+            return erreurTabular(page, taille, `"failed to parse order (${valeur})"`);
+          }
+          tris.push({ champ: lu[1], descendant: lu[2] === 'desc' });
+        }
+      }
       continue;
     }
     const filtre =
-      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|in)$/.exec(cle);
+      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|in|notin)$/.exec(
+        cle
+      );
     if (filtre) {
       const [, champ, operateur] = filtre;
       filtrees = filtrerTabular(filtrees, champ, operateur, valeur);
@@ -674,7 +695,8 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
   // Le faux serveur acceptait tout : les controles qui deleguaient un tri sur
   // agregat passaient au vert, l'API reelle repondait 400.
   if (tris.length > 0) {
-    const connues = new Set(jeu.flatMap((ligne) => Object.keys(ligne)));
+    // `__id` : l'identifiant de ligne que l'API ajoute a toute ressource
+    const connues = new Set([...jeu.flatMap((ligne) => Object.keys(ligne)), '__id']);
     for (const { champ } of tris) {
       if (!connues.has(champ)) {
         return erreurTabular(page, taille, `column ${champ} does not exist`);
@@ -711,11 +733,24 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
     // pagine par offset, un tri sur un champ non unique fait passer des
     // lignes d'une page a l'autre (101 lues, 99 distinctes). Le faux serveur
     // l'imite : sur une page paire, les ex-aequo sortent dans l'ordre inverse.
+    //
+    // Un ordre TOTAL (valeur composee jusqu'a une cle unique, #1233) y
+    // resiste de lui-meme : il n'y a plus d'ex-aequo a inverser. `__id` est
+    // le rang de la ligne dans le jeu, l'ordre par defaut de l'API.
     if (page % 2 === 0) lignes = [...lignes].reverse();
-    lignes = trierOds(
-      lignes,
-      tris.map((t) => `${t.champ} ${t.descendant ? 'DESC' : 'ASC'}`).join(', ')
-    );
+    const rang = new Map(jeu.map((ligne, i) => [ligne, i] as const));
+    lignes = [...lignes].sort((a, b) => {
+      for (const { champ, descendant } of tris) {
+        const ga = champ === '__id' ? rang.get(a) : a[champ];
+        const gb = champ === '__id' ? rang.get(b) : b[champ];
+        const comparaison =
+          typeof ga === 'number' && typeof gb === 'number'
+            ? ga - gb
+            : String(ga).localeCompare(String(gb), 'fr');
+        if (comparaison !== 0) return descendant ? -comparaison : comparaison;
+      }
+      return 0;
+    });
   }
 
   const debut = (page - 1) * taille;
@@ -833,6 +868,14 @@ function filtrerTabular(
         // ecarte EN SILENCE toute valeur a parenthese — `__exact` trouve
         // « Usage de stupefiants (AFD) », `__in` la meme valeur rend 0.
         return valeur
+          .split(',')
+          .filter((v) => !/[()]/.test(v))
+          .includes(String(gauche));
+      case 'notin':
+        // Meme parseur de liste (mesure du 2026-10-03, #1233) : la valeur a
+        // parenthese est ecartee, donc plus rien n'est exclu — 1 818 lignes
+        // avec `indicateur__notin=Usage de stupefiants (AFD)`, 1 717 attendues.
+        return !valeur
           .split(',')
           .filter((v) => !/[()]/.test(v))
           .includes(String(gauche));

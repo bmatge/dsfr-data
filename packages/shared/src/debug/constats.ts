@@ -569,6 +569,63 @@ const tronque: RegleConstat = {
     }),
 };
 
+/**
+ * Réserves d'un adaptateur (#1233) : ce qu'il sait de faux, ou de possiblement
+ * faux, dans un chargement qui a pourtant abouti. Une réserve inconnue de
+ * cette table (bibliothèque plus récente que l'app) reste dite, sous son code.
+ */
+const RESERVES: Record<string, { titre: string; explication: string; action: string }> = {
+  'unstable-sort': {
+    titre: 'tri serveur instable d’une page à l’autre',
+    explication:
+      "Le tri est laissé à l'API sur un chargement tronqué, sans clé de départage : elle pagine par offset, et des lignes à valeurs égales peuvent manquer ou revenir deux fois aux limites de page. Le nombre de lignes, lui, reste juste.",
+    action: 'Relever max-records pour charger tout le jeu : le tri se fait alors sur place',
+  },
+  'in-values-dropped': {
+    titre: 'valeur d’un filtre « in » écartée par le serveur',
+    explication:
+      "Une liste in ou notin porte une valeur à parenthèse ou à virgule : l'API Tabular l'écarte sans erreur, et la pagination serveur ne permet pas de calculer la clause sur place. Il manque les lignes de cette valeur.",
+    action:
+      'Retirer server-side de la source : la clause est alors calculée sur les lignes chargées',
+  },
+};
+
+const reserveServeur: RegleConstat = {
+  id: 'pipeline/reserve-serveur',
+  appliesTo: TOUTES,
+  evaluer: (trace) =>
+    parEtape(trace, (node, state) => {
+      const codes = state?.meta?.caveats ?? [];
+      if (codes.length === 0) return [];
+      // Un constat par étape : la première réserve le titre, toutes sont expliquées
+      const connues = codes.map((code) => RESERVES[code]);
+      const premiere = connues[0];
+      const demande = [
+        codes.includes('unstable-sort') && node.attrs['order-by']
+          ? `order-by="${node.attrs['order-by']}"`
+          : '',
+        codes.includes('in-values-dropped') && node.attrs.where
+          ? `where="${node.attrs.where}"`
+          : '',
+      ].filter(Boolean);
+      return [
+        constat('pipeline/reserve-serveur', 'avertissement', {
+          titre: `${node.id} : ${premiere?.titre ?? `réserve « ${codes[0]} » de l'adaptateur`}`,
+          explication: connues
+            .map(
+              (r) =>
+                r?.explication ??
+                "L'adaptateur signale que le résultat de ce chargement peut être faux."
+            )
+            .join(' '),
+          ...(premiere ? { action: premiere.action } : {}),
+          preuve: demande.length > 0 ? demande.join(' ; ') : codes.join(', '),
+          etape: node.id,
+        }),
+      ];
+    }),
+};
+
 const jointureFaible: RegleConstat = {
   id: 'pipeline/jointure-faible',
   appliesTo: TOUTES,
@@ -719,6 +776,7 @@ export const REGLES_GENERIQUES: readonly RegleConstat[] = [
   delegationClient,
   emissionsRepetees,
   tronque,
+  reserveServeur,
   jointureFaible,
   httpErreur,
   corsDeduit,

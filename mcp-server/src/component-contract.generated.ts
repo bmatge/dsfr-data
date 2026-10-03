@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 29 balises, 382 attributs, 17 enumerations, 65 attributs-champs.
+ * 29 balises, 388 attributs, 17 enumerations, 66 attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -26,9 +26,9 @@ export const COMPONENT_CONTRACT = {
       "value-field"
     ],
     "fields": {
-      "label-field": "nom",
+      "label-field": "liste-alias",
       "series-field": "nom",
-      "value-field": "liste"
+      "value-field": "liste-alias"
     }
   },
   "dsfr-data-beacon": {
@@ -604,6 +604,8 @@ export const COMPONENT_CONTRACT = {
       "bar-max",
       "bar-position",
       "border",
+      "decimals",
+      "format",
       "icon",
       "icon-field",
       "idle-message",
@@ -623,7 +625,10 @@ export const COMPONENT_CONTRACT = {
       "source",
       "square",
       "subtitle",
+      "subtitle-decimals",
       "subtitle-field",
+      "subtitle-format",
+      "subtitle-unit",
       "value-field",
       "value-unit"
     ],
@@ -645,12 +650,14 @@ export const COMPONENT_CONTRACT = {
       "limit",
       "order-by",
       "require-where",
+      "share-by",
       "source",
       "where"
     ],
     "fields": {
       "filter": "clauses",
       "group-by": "liste",
+      "share-by": "liste",
       "where": "clauses"
     }
   },

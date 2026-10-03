@@ -71,11 +71,11 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | base-url | String | \`""\` | non | URL de base de l'API (mode adapter). Ex: \`"https://data.iledefrance.fr"\` |
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
-| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). |
+| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). Tabular : une liste \`in\`/\`notin\` dont une valeur porte une parenthese ou une virgule n'est pas deleguee (l'API l'ecarterait sans erreur) — elle est calculee sur les lignes chargees (#1233). |
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
-| order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
+| order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\`. Tabular : au-dela d'une page, le jeu est relu sans tri et trie sur place, ou le tri est complete d'une cle de departage si \`limit\`/\`max-records\` coupe le chargement (#1202, #1233). |
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter, honore par ODS (#233) et Tabular (#1027). 0 = plafond par defaut de l'adapter (ODS : 1000, Tabular : 25000). A relever pour charger un jeu plus long (ex. les ~35 000 communes sur Tabular : \`max-records="40000"\`) ou pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
@@ -146,6 +146,15 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > y mettre TOUTES les colonnes lues en aval (graphique, liste, facettes, filtres), aucune n'est ajoutee d'office ;
 > un nom inconnu fait repondre l'API en erreur. Sans effet avec \`group-by\`/\`aggregate\`. Les noms a espaces et
 > accents se deleguent tels quels (group-by, agregat, filtre, tri) ; seuls \`,\` \`:\` \`|\` restent reserves.
+> Tabular, \`order-by\` sur plusieurs pages (#1202, #1233) : l'API pagine par decalage et ne trie que sur une cle, donc un tri
+> sur une cle non unique perd des lignes d'une page a l'autre (compte juste, lignes doublees ou absentes). La source le
+> corrige seule, lignes brutes comme \`group-by\` : jeu complet → relu sans tri et trie sur place (une requete de plus,
+> ordre du pipeline : vides, nombres, textes) ; \`limit\` ou \`max-records\` atteint → tri serveur complete d'une cle de
+> departage. Une seule page : tri serveur inchange. Rien de tel en \`server-side\` : y trier sur une cle unique.
+> Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause n'est pas envoyee
+> (l'API ecarterait la valeur sans erreur), la source charge les lignes des autres clauses et filtre sur place — le jeu
+> entier au lieu des seules lignes gardees ; un \`group-by\` sur la meme source est alors rendu a une dsfr-data-query.
+> En \`server-side\` la clause part quand meme et le resultat est incomplet (le volet Diagnostic le signale).
 > Le mode adapter ecoute aussi les commandes \`dsfr-data-source-command\` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 
@@ -294,6 +303,7 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
 | explode | String | \`""\` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans \`group-by\`. Force le regroupement côté client. |
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
+| share-by | String | \`""\` | non | Partition de \`share\` / \`share_percent\` (AM-110) : champs, séparés par virgule, AU SEIN DESQUELS la part est calculée (\`share-by="annee, question"\` → les parts de chaque couple somment à 100 %). Avec un \`group-by\`, chaque champ doit y figurer. Sans l'attribut, la part reste celle du total. Jamais délégué. |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
 | require-where | Boolean | \`false\` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état \`idle\` descend jusqu'aux afficheurs. Compte comme filtre le \`where\`/\`filter\` de cette requête, ou toute clause reçue par commande. |
@@ -396,6 +406,12 @@ compte dans N groupes, et les modalités sont exactement celles de la facette du
 Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vide, \`null\`)
 ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
 modalité vide.
+
+Le compte est par ÉLÉMENT : une cellule qui répète un élément (\`["Patrimoine", "Patrimoine"]\`)
+produit deux lignes, donc \`count\` 2 pour une seule ligne d'origine. C'est le seul écart avec
+la facette du même champ, dont le compteur annonce des LIGNES (une ligne compte une fois par
+valeur distincte). Sur un champ où le doublon est possible, \`count\` ne se lit pas « nombre de
+lignes portant la valeur » : compter les identifiants distincts (\`aggregate="id:distinct"\`).
 
 Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
 champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
@@ -503,6 +519,26 @@ division. \`share\` la donne en un attribut :
 - **Une part suppose une partition** : chaque unité comptée une fois. Après \`explode\`, une
   ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
   des licences portant ce label », pas « répartition ».
+- **Part AU SEIN D'UN GROUPE : \`share-by\`** (AM-110). « Part de chaque réponse parmi les
+  répondants d'une question, une année donnée » : sans partition, la part se rapporte à toutes
+  les lignes de sortie, les deux années et toutes les questions confondues. Poser
+  \`share-by="annee, question"\` — le dénominateur devient la somme des lignes qui portent la
+  même année ET la même question, et les parts de chaque couple somment à 100 % :
+
+  \`\`\`html
+  <dsfr-data-query id="parts" source="enquete"
+    group-by="annee, question, reponse"
+    aggregate="n:sum, n__sum:share_percent:part"
+    share-by="annee, question">
+  </dsfr-data-query>
+  \`\`\`
+
+  Ne PAS reconstruire la part par un second \`group-by\`, un \`dsfr-data-join\` et un
+  \`compute\`. Règles : avec un \`group-by\`, chaque champ de \`share-by\` doit y figurer
+  (sinon erreur de configuration, et la requête passe en erreur plutôt que d'émettre la part
+  du total général) ; une valeur absente forme sa propre partition ; le dénominateur reste
+  pris avant \`limit\` ; \`share-by\` s'applique à toutes les parts de \`aggregate\`, pas aux
+  cumuls ; sans part dans \`aggregate\`, il est signalé et sans effet.
 - Total nul ou valeur non numérique : \`null\`, jamais l'infini ni un zéro de complaisance.
 - **Jamais délégué**, comme les cumuls : un \`group-by\` qui porte une part redescend
   entièrement côté client — relever \`max-records\` avant, sinon le dénominateur est tronqué
@@ -670,7 +706,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
 | fold | String | \`""\` | non | Replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité) en UN champ tableau : \`"handicap_*:handicaps"\` (entrees separees par virgule, \`motif:cible\`, joker \`*\` en debut ou en fin de motif seulement, ou nom exact ; plusieurs motifs peuvent viser la meme cible). Le tableau contient les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide via \`toBoolean\`), etiquetees par la partie variable du motif (\`handicap_moteur\` → « moteur ») ou le nom complet pour un motif exact. Colonnes sources conservees. |
 | fold-drop | Boolean | \`false\` | non | Avec \`fold\` : retire les colonnes sources repliees du resultat. |
-| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
+| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil sqrt lower upper trim len left substr concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
@@ -709,10 +745,17 @@ configuration, jamais une colonne vide :
 | Famille | Fonctions | Notes |
 |---------|-----------|-------|
 | Dates | \`year(d)\`, \`month(d)\`, \`day(d)\` | Date ISO (\`2024-03-15\`, \`2024-03-15T10:00:00Z\`, \`2024-03\`) ou objet Date → nombre ; sinon \`null\` (une date \`15/03/2024\` n'est pas reconnue) |
-| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` |
+| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\`, \`sqrt(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` ; \`sqrt\` d'un negatif → \`null\` (jamais NaN), \`sqrt(0)\` = 0 — pour un rayon de symbole proportionnel, dont l'AIRE doit suivre la valeur |
 | Texte | \`lower(s)\`, \`upper(s)\`, \`trim(s)\`, \`len(s)\`, \`concat(a, b, …)\`, \`replace(s, 'de', 'vers')\` | \`replace\` est litteral (toutes les occurrences, pas de regex) ; \`null\` reste \`null\` sauf \`len\` (0) et \`concat\` (vide) |
+| Sous-chaines | \`left(s, n)\`, \`substr(s, debut, n)\` | Positions comptees A PARTIR DE 1, comme SQL et ODSQL : \`left(siret, 9)\` = SIREN, \`substr(code_insee, 1, 2)\` = departement (outre-mer : trois caracteres, \`971\`…\`976\`). \`n\` facultatif dans \`substr\` (jusqu'au bout). Resultat toujours TEXTE ; un nombre est lu par sa forme texte, mais un code stocke en nombre a deja perdu ses zeros de tete. Valeur, position ou longueur absente → \`null\` ; longueur ≤ 0 ou debut au-dela de la fin → chaine vide ; \`substr(s, 0, 2)\` = erreur de configuration |
 | Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
 | Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
+
+**Apostrophe dans un litteral** : elle s'ecrit DOUBLEE, comme en SQL et en ODSQL —
+\`when libelle = 'J''en ai' then 1 else 0\`, \`region = 'Provence-Alpes-Côte d''Azur'\`. Pas
+d'echappement par barre oblique (\`\\'\` ferme le litteral : erreur de configuration). Seule
+l'apostrophe droite delimite ; une apostrophe typographique (’) des donnees s'ecrit telle quelle.
+Ne PAS contourner par \`contains(champ, 'en ai')\`, qui matche aussi « Je n'en ai pas ».
 
 **Conditions** : \`when COND then EXPR [when COND then EXPR]… else EXPR\`. La premiere
 condition vraie gagne ; le \`else\` est **obligatoire**. Une condition combine des
@@ -774,6 +817,12 @@ de valeur).
   compute="part_pct = round(part * 100, 1);
            libelle = concat(upper(code), ' - ', trim(nom));
            actif = when statut = 'A' and not is_empty(siret) then true else false">
+</dsfr-data-normalize>
+
+<!-- Sous-chaines : SIREN depuis un SIRET, departement depuis un code commune (outre-mer : 3 caracteres) -->
+<dsfr-data-normalize id="calc" source="raw"
+  compute="siren = left(siret, 9);
+           dep = when left(code_insee, 2) = '97' then left(code_insee, 3) else left(code_insee, 2)">
 </dsfr-data-normalize>
 
 <!-- Recodage d'une liste (split) puis reconstitution -->
@@ -1003,6 +1052,11 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   fields="region, type" url-params url-sync
   url-param-map="r:region | t:type">
 </dsfr-data-facets>
+
+<!-- Plusieurs valeurs d'un champ : separees par des virgules (?region=IDF,PACA).
+     Une virgule DANS une valeur s'ecrit %2C, un pourcent %25 — soit %252C et %2525 dans
+     un lien ecrit a la main : ?tranche=1%252C5 designe la seule valeur « 1,5 ».
+     url-sync ecrit cet echappement lui-meme. -->
 
 <!-- Colonnage DSFR des facettes -->
 <dsfr-data-facets id="filtered" source="clean"
@@ -1706,6 +1760,11 @@ téléchargement CSV, plein écran, tendance.
 
 Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`download\`
 (DataBox les fournit déjà). Conserver uniquement \`description\` sur dsfr-data-a11y.
+
+La vue tableau de la DataBox reprend ce que le graphique trace : une colonne par champ de valeur
+(\`value-field\`, \`value-field-2\`, \`value-fields\`, en-tête = libellé de légende) ; au format long
+(\`series-field\`), une ligne par libellé et une colonne par série. Elle montre 100 lignes au plus
+et l'annonce sous le tableau (« Affichage limité aux 100 premières lignes sur N. »).
 
 \`\`\`html
 <!-- Graphique avec habillage DataBox -->
@@ -2917,10 +2976,15 @@ preflight CORS) : un en-tête \`apikey\` nu échoue. Le composant réécrit \`ap
 en \`Authorization: Apikey\` (#655), mais écrire directement la forme \`Authorization\`.
 
 ### Proxy CORS
-Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS
+Certaines APIs externes (Grist gouv/SaaS) ne supportent pas le CORS
 navigateur : il faut un proxy CORS. La voie recommandee est l'attribut
 **\`proxy-url\` par source** : on declare l'URL reelle de l'API + le domaine du
 proxy, l'integrateur peut remplacer ce domaine par le sien.
+
+Tabular n'en fait PAS partie : \`tabular-api.data.gouv.fr\` repond
+\`access-control-allow-origin: *\` a la requete comme a la preflight \`OPTIONS\`
+(verifie le 2026-10-03). Une page statique lit data.gouv.fr avec une balise et un
+CDN, sans proxy, sans cle : ne pas poser \`proxy-url\` sur une source Tabular.
 
 \`\`\`html
 <!-- Grist gouv via proxy declaratif : URL reelle + proxy-url -->
@@ -2935,10 +2999,24 @@ proxy, l'integrateur peut remplacer ce domaine par le sien.
 (\`/grist-gouv-proxy\`, \`/grist-proxy\`, \`/tabular-proxy\`, \`/insee-proxy\`). Il est
 prioritaire sur le global \`window.DSFR_DATA_PROXY\` et la config build. Sans
 \`proxy-url\` ni global, l'URL est fetchee en direct (echec CORS attendu sur les
-instances gouv).
+instances Grist gouv).
+
+Les endpoints \`/tabular-proxy\` et \`/insee-proxy\` existent pour d'autres raisons que
+le CORS — un cache ou un quota tenus par l'operateur du proxy — et ne sont jamais une
+necessite pour lire ces deux APIs depuis un navigateur.
+
+**\`proxy-url\` ne relaie QUE ces hotes.** Sur tout autre hote — un portail
+Opendatasoft en mode adaptateur (\`api-type="opendatasoft"\`), ou une URL quelconque
+sans \`use-proxy\` — l'attribut est sans effet : la requete part en direct, et la source
+l'ecrit une fois en console (« proxy-url est sans effet »), repris par le volet
+Diagnostic. \`use-proxy\` (relais generique \`/cors-proxy\`, cible passee dans l'en-tete
+\`X-Target-URL\`) ne vaut qu'en mode URL. Il n'existe pas aujourd'hui de relais dont
+l'URL identifie la donnee : un cache de page ou un CDN du site hote ne peut pas servir
+les donnees d'un portail a la place du portail.
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (\`*.opendatasoft.com\` et portails publics)
+- Tabular data.gouv.fr (\`tabular-api.data.gouv.fr\`)
 - INSEE Melodi (\`api.insee.fr\`)`,
   },
 
@@ -3027,6 +3105,26 @@ Quand \`for="mon-graph"\` est défini :
   filename="export-regions.csv">
 </dsfr-data-a11y>
 \`\`\`
+
+### En-têtes lisibles : la même grammaire que le graphique
+\`label-field\` et \`value-field\` acceptent l'alias inline \`champ:Libellé\` de
+\`dsfr-data-chart\` : la colonne lue est \`champ\`, le libellé va en en-tête du tableau
+et du CSV. On recopie donc les champs du graphique tels quels (\`value-field\` et
+\`value-fields\` du graphique se réunissent, séparés par des virgules, dans le
+\`value-field\` de dsfr-data-a11y).
+\`\`\`html
+<dsfr-data-chart id="g" source="data" type="line" label-field="annee"
+  value-field="v_fede:Fédération sélectionnée"
+  value-fields="v_all:Ensemble des fédérations">
+</dsfr-data-chart>
+<dsfr-data-a11y for="g" source="data" table download
+  label-field="annee:Année"
+  value-field="v_fede:Fédération sélectionnée, v_all:Ensemble des fédérations">
+</dsfr-data-a11y>
+\`\`\`
+Sans deux-points, l'en-tête reste le nom de la colonne. Une colonne nommée qui
+n'existe pas dans les données est signalée en console (« colonne … introuvable ») :
+sa colonne du tableau serait vide.
 
 ### Mode manuel (sans ARIA automatique)
 \`\`\`html
@@ -4543,6 +4641,11 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 | subtitle | String | \`""\` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | \`""\` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
 | value-unit | String | \`""\` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| format | String | \`""\` | non | Format de la valeur, vocabulaire du KPI : nombre, pourcentage, euro, decimal, compact. Absent : entier arrondi à l'unité (rendu historique) |
+| decimals | Number | - | non | Décimales de la valeur (0 à 20). Seul, vaut format="nombre" : \`decimals="2"\` distingue 9,98 de 10,41 |
+| subtitle-format | String | \`""\` | non | Format du sous-titre lu dans subtitle-field : nombre, pourcentage, euro, decimal, compact, date. Absent : valeur brute |
+| subtitle-decimals | Number | - | non | Décimales du sous-titre formaté. Seul, vaut subtitle-format="nombre" |
+| subtitle-unit | String | \`""\` | non | Unité accolée au sous-titre lu dans subtitle-field (ex: "aides") |
 | selected-palette | String | \`"sequentialDescending"\` | non | Palette de couleurs : sequentialDescending, sequentialAscending, categorical, neutral |
 | max-items | Number | \`5\` | non | Nombre maximum d'items affiches |
 | no-sort | Boolean | \`false\` | non | Desactive le tri automatique (desc par valeur) |
@@ -4553,6 +4656,11 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 - **Barres proportionnelles** : largeur relative au max des valeurs (ou \`bar-max\` si défini)
 - **Couleurs** : chaque item recoit une couleur de la palette choisie (bordure gauche + barre)
 - **Accessibilité** : \`<ol>\` semantique avec aria-label descriptif du classement complet
+- **Format** : par défaut la valeur est un entier arrondi à l'unité — deux taux proches (9,98 et 10,41)
+  s'affichent alors tous deux « 10 », ce que le composant signale en console. Poser \`decimals\` (ou
+  \`format\`) dès que les valeurs ne sont pas des entiers. Le sous-titre lu dans \`subtitle-field\` est
+  brut par défaut : \`subtitle-format="nombre" subtitle-unit="aides"\` rend « 5 164 aides ».
+  Les décimales ne passent jamais par le format (\`euro:2\` est refusé) : même règle que le KPI.
 
 ### Exemples
 \`\`\`html
@@ -4588,6 +4696,14 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
   value-field="score"
   subtitle-field="catégorie"
   bar-max="100"
+  max-items="3">
+</dsfr-data-podium>
+
+<!-- Taux proches : décimales sur la valeur, sous-titre chiffré avec son unité -->
+<dsfr-data-podium source="data"
+  label-field="departement"
+  value-field="taux" decimals="2" value-unit="%"
+  subtitle-field="nb" subtitle-format="nombre" subtitle-unit="aides"
   max-items="3">
 </dsfr-data-podium>
 
@@ -4926,8 +5042,8 @@ Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
 
 \`dsfr-data-normalize compute\` : \`"cible = expression; cible2 = expression2"\`, par ligne,
 en dernier. Arithmetique, concatenation, fonctions en liste blanche (\`year month day
-round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
-contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
+round abs floor ceil sqrt lower upper trim len left substr concat replace coalesce
+is_null is_empty join contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
 comparaisons \`= != < <= > >=\`, \`and or not\`). Meme egalite lache que \`where\` : la
 condition \`when dept = 75\` garde les memes lignes que \`where="dept:eq:75"\`.
 

@@ -458,18 +458,61 @@ def diff(rows: list[Row], champ: str, alias: str) -> list[Row]:
     return out
 
 
-def share(rows: list[Row], champ: str, alias: str, echelle: Fraction) -> list[Row]:
+def share(rows: list[Row], champ: str, alias: str, echelle: Fraction, par: Any = None) -> list[Row]:
     """Part du total (#926) : valeur / somme de la colonne sur toutes les lignes reçues.
 
     ``echelle`` vaut 100 pour une part en points de pourcentage
     (``share_percent``). Total nul, ou valeur non numérique : ``None``.
+
+    ``par`` (AM-110, attribut ``share-by``) est la PARTITION : le dénominateur
+    devient la somme de la colonne sur les lignes qui portent les mêmes valeurs
+    de ces champs. Une valeur absente (``null``, chaîne vide) forme sa propre
+    partition, comme elle forme son propre groupe. Sans ``par`` : un seul total.
     """
+    champs = [] if not par else (par if isinstance(par, list) else [par])
+    partitions = [tuple(cle_groupe(r.get(f)) for f in champs) for r in rows]
     valeurs = [to_num(r.get(champ)) for r in rows]
-    total = sum((v for v in valeurs if v is not None), Fraction(0))
+    totaux: dict[tuple[str, ...], Fraction] = {}
+    for p, v in zip(partitions, valeurs):
+        if v is not None:
+            totaux[p] = totaux.get(p, Fraction(0)) + v
     out = []
-    for r, v in zip(rows, valeurs):
+    for r, p, v in zip(rows, partitions, valeurs):
+        total = totaux.get(p, Fraction(0))
         out.append({**r, alias: None if v is None or total == 0 else (v / total) * echelle})
     return out
+
+
+def sous_chaine(v: Any, debut: int, longueur: int | None) -> str | None:
+    """Sous-chaîne (AM-103) : ``longueur`` caractères à partir de la position ``debut``.
+
+    Les positions se comptent À PARTIR DE 1, comme en SQL. La valeur est lue par
+    sa forme texte (``str_js``) et le résultat est du texte. Valeur absente
+    (``null``) : ``None`` — la chaîne vide, elle, est une valeur. Début inférieur
+    à 1 : ``None``. Longueur nulle ou négative, début au-delà de la fin : chaîne
+    vide. Sans longueur : jusqu'au bout.
+    """
+    if v is None or debut < 1:
+        return None
+    texte = str_js(v)
+    if longueur is None:
+        return texte[debut - 1 :]
+    if longueur <= 0:
+        return ""
+    return texte[debut - 1 : debut - 1 + longueur]
+
+
+def racine(v: Any) -> Fraction | None:
+    """Racine carrée : ``None`` pour une valeur absente, non numérique ou NÉGATIVE.
+
+    Jamais ``NaN``, jamais un zéro de complaisance ; zéro rend zéro. Calculée en
+    ``Decimal`` (28 chiffres significatifs), bien au-delà des six décimales de
+    la rencontre.
+    """
+    n = to_num(v)
+    if n is None or n < 0:
+        return None
+    return Fraction((Decimal(n.numerator) / Decimal(n.denominator)).sqrt())
 
 
 def ratio(rows: list[Row], num: str, den: str, alias: str) -> list[Row]:
@@ -715,6 +758,23 @@ def rayon_symbole(rows: list[Row], champ: str, alias: str, s: dict[str, Any]) ->
     return out
 
 
+def eclater(rows: list[Row], champ: str, distinct: bool) -> list[Row]:
+    out: list[Row] = []
+    for r in rows:
+        cellule = r.get(champ)
+        if not isinstance(cellule, list):
+            continue
+        vues: set[str] = set()
+        for valeur in cellule:
+            if distinct:
+                forme = str_js(valeur)
+                if forme in vues:
+                    continue
+                vues.add(forme)
+            out.append({**r, champ: valeur})
+    return out
+
+
 def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart: str = "main") -> list[Row]:
     rows = list(datasets.get(depart, []))
     for s in steps:
@@ -736,11 +796,15 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
         elif op == "running":
             rows = running_sum(rows, s["from"], s["as"]) if s["kind"] == "running_sum" else diff(rows, s["from"], s["as"])
         elif op == "share":
-            rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1))
+            rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1), s.get("by"))
         elif op == "ratio":
             rows = ratio(rows, s["numerator"], s["denominator"], s["as"])
         elif op == "radius":
             rows = rayon_symbole(rows, s["from"], s["as"], s)
+        elif op == "sqrt":
+            rows = [{**r, s["as"]: racine(r.get(s["from"]))} for r in rows]
+        elif op == "substring":
+            rows = [{**r, s["as"]: sous_chaine(r.get(s["from"]), int(s["start"]), s.get("length"))} for r in rows]
         elif op == "join":
             if s["right"] not in datasets:
                 raise ErreurConfiguration(f"jointure : jeu « {s['right']} » absent du feed")
@@ -753,7 +817,9 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = concat_rows(datasets, s["sources"], s.get("originField"), s.get("originLabels") or {})
         elif op == "explode":
             # Une ligne par valeur du tableau ; rien pour une ligne sans tableau.
-            rows = [{**r, s["field"]: valeur} for r in rows if isinstance(r.get(s["field"]), list) for valeur in r[s["field"]]]
+            # `distinct` : une seule ligne par valeur DISTINCTE de la cellule —
+            # le compte d'une facette, qui annonce des lignes (BUG-037).
+            rows = eclater(rows, s["field"], s.get("distinct") is True)
         elif op == "derive":
             raise NonCouvert(RAISONS["derive"])
         else:

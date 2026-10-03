@@ -230,6 +230,23 @@ const CAS: CasRegle[] = [
     attendu: { gravite: 'avertissement', etape: 'src', preuve: '1 000 / 34 955 lignes' },
   },
   {
+    regle: 'pipeline/reserve-serveur',
+    fautive: trace({
+      nodes: [{ ...SOURCE, attrs: { 'order-by': 'region:asc', 'max-records': '600' } }, CARTE],
+      states: {
+        src: charge(600, {
+          meta: { page: 1, pageSize: 0, total: 1818, truncated: true, caveats: ['unstable-sort'] },
+        }),
+      },
+    }),
+    attendu: {
+      id: 'pipeline/reserve-serveur@src',
+      gravite: 'avertissement',
+      etape: 'src',
+      preuve: 'order-by="region:asc"',
+    },
+  },
+  {
     regle: 'pipeline/jointure-faible',
     fautive: trace({
       nodes: [

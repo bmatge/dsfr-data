@@ -20,11 +20,14 @@
  *
  * Les lignes : `jeux/canari.json` (40, chacune décrite dans `jeux/README.md`),
  * `jeux/canari-ref.json` (la droite, avec deux fois le code `02`),
- * `jeux/canari-volume.json` (1 001 lignes engendrées, graine 42).
+ * `jeux/canari-volume.json` (1 001 lignes engendrées, graine 42),
+ * `jeux/canari-facettes.json` (dix lignes : valeurs à virgule, cellules
+ * tableau à élément répété).
  */
 import type { Check, Manifest, Step } from '../../tools/oracle/manifest.js';
 import {
   CANARI as LIGNES,
+  CANARI_FACETTES,
   CANARI_REF,
   CANARI_VOLUME,
   DATASET_CANARI,
@@ -33,6 +36,12 @@ import {
   urlCanari,
 } from './fixtures-canari.js';
 import { ABSENCES, urlAffichage } from './fixtures-affichages.js';
+import { EX_AEQUO, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
+
+/** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
+const TETE_CHART = `
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>`;
 
 const JEUX = { main: LIGNES, ref: CANARI_REF };
 
@@ -55,6 +64,27 @@ function kpi(id: string, source: string, valeur: string, attrs = ''): string {
 }
 
 const JOINTURE_GAUCHE: Step = { op: 'join', right: 'ref', on: 'code', type: 'left' };
+
+/** Les dix lignes des pièges de facette, en tableau nu. */
+const SRC_FACETTES = `
+  <dsfr-data-source id="s-fac" url="${urlCanari('facettes')}"></dsfr-data-source>`;
+
+/**
+ * Cent cinquante fois le jeu de volume, empilées : 150 150 lignes sans qu'aucun
+ * fichier n'en porte plus de 1 001. C'est au-delà du plafond d'arguments d'un
+ * appel (entre 120 000 et 125 000 sous V8) que BUG-038 a payé.
+ */
+const COPIES_VOLUME = 150;
+const IDS_VOLUME = Array.from(
+  { length: COPIES_VOLUME },
+  (_, i) => `s-v${String(i + 1).padStart(3, '0')}`
+);
+const SRC_VOLUME_EMPILE = `${IDS_VOLUME.map(
+  (id) => `
+  <dsfr-data-source id="${id}" url="${urlCanari('volume')}"></dsfr-data-source>`
+).join('')}
+  <dsfr-data-concat id="c-vol" sources="${IDS_VOLUME.join(', ')}"></dsfr-data-concat>`;
+const EMPILER_VOLUME: Step = { op: 'concat', sources: IDS_VOLUME.map(() => 'main') };
 
 const CHECKS: Check[] = [
   // -------------------------------------------------------------------------
@@ -493,6 +523,40 @@ const CHECKS: Check[] = [
     ],
   },
 
+  {
+    id: 'canari-tableau-databox-coupe',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      'Canari — #1230, BUG-035 : le tableau de la DataBox montre 100 lignes au plus. 1 001 lignes en entrée, 100 au tableau, et rien ne le disait : un lecteur comptait cent lignes et concluait à un jeu de cent. Le tableau reste coupé (même plafond que `dsfr-data-a11y`), mais il le DIT, avec le total — et les cent lignes montrées sont bien les cent premières.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_VOLUME } },
+    head: TETE_CHART,
+    markup: `
+  <dsfr-data-source id="s-box-vol" url="${urlCanari('volume')}"></dsfr-data-source>
+  <dsfr-data-chart id="g-box-vol" source="s-box-vol" type="bar"
+    label-field="n" value-field="valeur" databox databox-title="Volume"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-box-vol',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'valeur',
+        numeric: true,
+        pipeline: [{ op: 'limit', n: 100 }],
+      },
+      // « Affichage limité aux 100 premières lignes sur 1 001. » : le SECOND
+      // nombre est le total, recalculé — pas recopié dans le manifeste.
+      {
+        kind: 'text',
+        id: 'g-box-vol',
+        selector: '.dsfr-data-chart__databox-truncation',
+        numeric: true,
+        number: 1,
+        agg: 'count',
+      },
+    ],
+  },
+
   // -------------------------------------------------------------------------
   // dates partielles
   // -------------------------------------------------------------------------
@@ -658,6 +722,246 @@ const CHECKS: Check[] = [
     expects: [
       { kind: 'kpi', id: 'k-regions', agg: 'distinct', field: 'region' },
       { kind: 'kpi', id: 'k-codes', agg: 'distinct', field: 'code' },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // la virgule DANS une valeur de facette
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-facette-virgule-aller-retour',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — BUG-031, #1227 : une valeur de facette qui CONTIENT une virgule. `note` porte « 1,5 » à côté de « 1 » et de « 5 » — la décimale française, et le piège entier : écrite `?note=1,5` puis relue en « 1 » et « 5 », la sélection rendait SIX lignes au lieu de trois, un chiffre faux et plausible ; sur `intensite` (« 1,5 à 2 parcours »), deux cases fantômes et zéro ligne. Le contrôle se joue en DEUX navigations, comme `ctx-url-deux-navigations` : on coche, la synchro écrit, on recharge l’URL écrite. La virgule d’une valeur part échappée (`%2C`), et l’aller-retour est exact.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+  <dsfr-data-facets id="f-note" source="s-fac" fields="note" labels="note:Note"
+    url-params url-sync></dsfr-data-facets>
+  <dsfr-data-facets id="f-int" source="s-fac" fields="intensite" labels="intensite:Intensité"
+    url-params url-sync></dsfr-data-facets>
+  ${kpi('k-note', 'f-note', 'count')}${kpi('k-int', 'f-int', 'count')}`,
+    actions: [
+      { kind: 'click', selector: '#f-note label:has-text("1,5")' },
+      { kind: 'click', selector: '#f-int label:has-text("1,5 à 2 parcours")' },
+      // Sans valeur : on recharge l'URL que la synchro vient d'écrire.
+      { kind: 'goto' },
+    ],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-note',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'note', op: 'eq-strict', value: '1,5' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-int',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'intensite', op: 'eq-strict', value: '1,5 à 2 parcours' }],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-facette-virgule-lien-ancien',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — BUG-031, #1227 : le lien DÉJÀ partagé. Avant l’échappement, la facette écrivait la virgule nue (`?intensite=1%2C5+à+2+parcours`, une fois décodé « 1,5 à 2 parcours ») ; ces liens circulent. Relu morceau par morceau, il donne « 1 » et « 5 à 2 parcours », qu’aucune ligne ne porte. La facette client recolle un morceau INCONNU des données avec les suivants jusqu’à former une valeur connue : quatre lignes, et non zéro. Le témoin `?note=1,5` reste, lui, deux valeurs — « 1 » et « 5 » existent, un lien ancien les désignait bien toutes les deux.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+  <dsfr-data-facets id="f-int" source="s-fac" fields="intensite" labels="intensite:Intensité"
+    url-params></dsfr-data-facets>
+  <dsfr-data-facets id="f-note" source="s-fac" fields="note" labels="note:Note"
+    disjunctive="note" url-params></dsfr-data-facets>
+  ${kpi('k-int', 'f-int', 'count')}${kpi('k-note', 'f-note', 'count')}`,
+    actions: [{ kind: 'goto', value: '?intensite=1%2C5+%C3%A0+2+parcours&note=1,5' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-int',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'intensite', op: 'eq-strict', value: '1,5 à 2 parcours' }],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-note',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'note', op: 'in', values: ['1', '5'] }] }],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // l'élément répété dans une cellule tableau
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-facette-element-repete',
+    mode: 'deterministic',
+    constats: ['BUG-037'],
+    origin:
+      'Canari — BUG-037, #1227 : `domaines` répète un élément dans la cellule (`["Patrimoine","Patrimoine"]`, tableaux recollés de PG-073). Le compteur d’une facette annonce des LIGNES : une ligne compte une fois par valeur distincte — Patrimoine 4, Musée 3, Archives 2, Spectacle vivant 1 — et cocher « Patrimoine » rend bien quatre lignes. Compté par élément, la facette annonçait 5, 5, 2 et 3, dans un autre ordre, pour une sélection qui en rendait 4. `explode` de `dsfr-data-query` garde, lui, son compte par ÉLÉMENT (arbitrage du 2026-10-03) : Patrimoine 5 sur le même champ, et c’est écrit dans son JSDoc. Les deux chiffres sont tenus ici côte à côte, pour qu’aucun des deux ne glisse vers l’autre.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+  <dsfr-data-facets id="f-dom" source="s-fac" fields="domaines" labels="domaines:Domaines"></dsfr-data-facets>
+  ${kpi('k-dom', 'f-dom', 'count')}
+  <dsfr-data-query id="q-dom" source="s-fac" explode="domaines" group-by="domaines"
+    aggregate="id:count:nb"></dsfr-data-query>`,
+    actions: [{ kind: 'click', selector: '#f-dom label:has-text("Patrimoine")' }],
+    expects: [
+      {
+        kind: 'facets',
+        id: 'f-dom',
+        group: 'Domaines',
+        valueColumn: 'domaines',
+        countColumn: 'n',
+        pipeline: [
+          { op: 'explode', field: 'domaines', distinct: true },
+          { op: 'group-by', by: 'domaines', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+        ],
+      },
+      // Le compteur est une promesse : cocher rend ce nombre de lignes.
+      {
+        kind: 'kpi',
+        id: 'k-dom',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'domaines', op: 'eq', value: 'Patrimoine' }] },
+        ],
+      },
+      // L'éclatement d'une query compte les ÉLÉMENTS : pas de `distinct`.
+      {
+        kind: 'rows',
+        id: 'q-dom',
+        key: 'domaines',
+        columns: ['nb'],
+        pipeline: [
+          { op: 'explode', field: 'domaines' },
+          { op: 'group-by', by: 'domaines', columns: { nb: { agg: 'count', field: 'id' } } },
+        ],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // le volume : un minimum sur plus de valeurs qu'un appel n'a d'arguments
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-volume-min-max',
+    mode: 'deterministic',
+    constats: ['BUG-038'],
+    origin:
+      'Canari — BUG-038, #1228 : `min` et `max` sur 150 150 valeurs (le jeu de volume empilé cent cinquante fois par `dsfr-data-concat`). `Math.min(...values)` passe chaque valeur en ARGUMENT : au-delà de 120 000 à 125 000 sous V8, l’appel lève « RangeError: Maximum call stack size exceeded », le KPI reste vide et la query garde son ancien résultat, sans un mot à l’écran. Les deux chemins sont tenus — le KPI direct et l’agrégat global d’une query, relu par un KPI —, avec le compte, qui dit que les 150 150 lignes sont bien arrivées.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_VOLUME } },
+    markup: `${SRC_VOLUME_EMPILE}
+  ${kpi('k-n', 'c-vol', 'count')}${kpi('k-min', 'c-vol', 'valeur:min')}${kpi('k-max', 'c-vol', 'valeur:max')}
+  <dsfr-data-query id="q-ext" source="c-vol" aggregate="valeur:min:mini, valeur:max:maxi"></dsfr-data-query>
+  ${kpi('k-q-min', 'q-ext', 'mini:min')}${kpi('k-q-max', 'q-ext', 'maxi:max')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-n', agg: 'count', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-min', agg: 'min', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-max', agg: 'max', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-q-min', agg: 'min', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+      { kind: 'kpi', id: 'k-q-max', agg: 'max', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // Le compte est juste, les lignes non : ce que l'API Tabular perd en silence
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-tabular-tri-pagine',
+    mode: 'deterministic',
+    constats: ['PG-033'],
+    origin:
+      "Canari — #1202, #1233, PG-033 : l'API Tabular pagine par offset et ne trie que sur UNE clé ; sur une clé non unique, des lignes reviennent deux fois et d'autres jamais, avec un compte juste. Le piège est payé trois fois : lignes brutes (1 818 rendues, 1 718 distinctes), groupes (1 818 / 1 805), chargement tronqué (600 / 550). Ici les trois sur une même page, par un chiffre que seul l'ENSEMBLE exact des lignes rend juste : la somme des identifiants. `delegation/tabular-tri-pagine-sans-perte`, `tabular-tri-groupe-pagine-sans-perte` et `tabular-tri-tronque-ordre-total` tiennent chaque cas ligne à ligne.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-canari-tri" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    order-by="nombre:asc"></dsfr-data-source>
+  ${kpi('k-canari-tri', 's-canari-tri', 'id:sum')}
+  <dsfr-data-source id="s-canari-tri-groupe" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    group-by="nombre, id" aggregate="id:max" order-by="nombre:asc"></dsfr-data-source>
+  ${kpi('k-canari-tri-groupe', 's-canari-tri-groupe', 'id__max:sum')}
+  <dsfr-data-source id="s-canari-tri-tronque" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    order-by="categorie:asc" max-records="400"></dsfr-data-source>
+  ${kpi('k-canari-tri-tronque', 's-canari-tri-tronque', 'id:sum')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-canari-tri', agg: 'sum', field: 'id' },
+      { kind: 'kpi', id: 'k-canari-tri-groupe', agg: 'sum', field: 'id' },
+      {
+        kind: 'kpi',
+        id: 'k-canari-tri-tronque',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'categorie', dir: 'asc' },
+              { column: 'id', dir: 'asc' },
+            ],
+          },
+          { op: 'limit', n: 400 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-tabular-in-parenthese',
+    mode: 'deterministic',
+    constats: ['PG-034'],
+    origin:
+      "Canari — #1202, #1233, PG-034 : `__in` de l'API Tabular écarte sans erreur toute valeur à parenthèse (`__exact` la trouve : 101 ; `__in` : 0), et les libellés à parenthèse sont banals en open data. La clause ne part jamais : sur une query comme sur la source, elle se calcule sur les lignes chargées. `delegation/tabular-in-a-parenthese-reste-client` et `tabular-in-a-parenthese-sur-la-source` tiennent les deux poses, URL comprises.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-canari-in" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    where="categorie:in:Vols (avec violence)|Cambriolages"></dsfr-data-source>
+  ${kpi('k-canari-in', 's-canari-in', 'count')}
+  <dsfr-data-source id="s-canari-in-q" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"></dsfr-data-source>
+  <dsfr-data-query id="q-canari-in" source="s-canari-in-q"
+    where="categorie:in:Vols (avec violence)|Cambriolages"></dsfr-data-query>
+  ${kpi('k-canari-in-q', 'q-canari-in', 'count')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-canari-in',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              { field: 'categorie', op: 'in', values: ['Vols (avec violence)', 'Cambriolages'] },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-canari-in-q',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              { field: 'categorie', op: 'in', values: ['Vols (avec violence)', 'Cambriolages'] },
+            ],
+          },
+        ],
+      },
     ],
   },
 ];
