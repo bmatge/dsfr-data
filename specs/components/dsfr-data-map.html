@@ -96,7 +96,7 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-map fields="center,zoom,min-zoom,max-zoom,height,tiles,tiles-attribution,tiles-style,sovereign-only,no-controls,locked,insets,fit-bounds,max-bounds,fit-zone,fit-max-zoom,name" -->
+              <!-- ATTRS:dsfr-data-map fields="center,zoom,min-zoom,max-zoom,height,tiles,tiles-attribution,tiles-style,sovereign-only,no-controls,locked,insets,fit-bounds,max-bounds,fit-zone,fit-max-zoom,name,idle-message" -->
                 <tr><td><code>center</code></td><td>String</td><td><code>46.603,2.888</code></td><td>Centre initial de la carte, au format <code>"lat,lon"</code>.</td></tr>
                 <tr><td><code>zoom</code></td><td>Number</td><td><code>6</code></td><td>Niveau de zoom initial (1-18).</td></tr>
                 <tr><td><code>min-zoom</code></td><td>Number</td><td><code>2</code></td><td>Zoom minimum autorise.</td></tr>
@@ -114,6 +114,7 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
                 <tr><td><code>fit-zone</code></td><td>String</td><td><code>""</code></td><td>Zone sur laquelle <code>fit-bounds</code> est clippé, au format <code>"latSW,lonSW,latNE,lonNE"</code> — le pan reste libre. Défaut : <code>max-bounds</code> s'il est renseigné ; sinon la métropole (<code>41,-5.5,51.5,10</code>) dès que la carte porte un encart ultramarin (<code>insets="drom"</code>…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. <code>fit-zone="none"</code> désactive le clip (#687).</td></tr>
                 <tr><td><code>fit-max-zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom maximal atteint par <code>fit-bounds</code> (ex. <code>12</code>) : évite le zoom 18 sur un point isolé quand les données se réduisent à un marqueur. <code>0</code> (défaut) = pas de plafond, <code>max-zoom</code> s'applique.</td></tr>
                 <tr><td><code>name</code></td><td>String</td><td><code>""</code></td><td>Titre de la carte, utilise comme nom accessible (aria-label).</td></tr>
+                <tr><td><code>idle-message</code></td><td>String</td><td><code>IDLE_MESSAGE_DEFAULT</code></td><td>Message rendu sur la carte tant qu'une de ses couches attend un filtre (<code>require-where</code> sur la source ou la requête amont, #690) : la couche est alors vidée, et le fond de carte seul ne dirait pas pourquoi. Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. Le message est aussi ajouté à la description lue par les lecteurs d'écran ; les encarts (<code>dsfr-data-map-inset</code>) ne le répètent pas.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -215,6 +216,31 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
         <!-- ============================================================ -->
         <!-- Événements / API -->
         <!-- ============================================================ -->
+
+        <h3 class="fr-mt-3w">En attente d'un filtre</h3>
+        <p>
+          Sur une page d'exploration, l'amont d'une couche peut porter <code>require-where</code>
+          (<code>&lt;dsfr-data-source&gt;</code> ou <code>&lt;dsfr-data-query&gt;</code>) et ne rien émettre tant
+          qu'aucun filtre n'est posé. La couche est alors <strong>vide</strong> &mdash; formes, grappes et entrées de
+          légende &mdash; y compris quand le dernier filtre vient d'être retiré : elle ne garde pas les points de la
+          sélection précédente. La carte pose sur son fond le texte de <code>idle-message</code>
+          (« Choisissez un filtre pour afficher les données » par défaut), le même bloc que les autres afficheurs,
+          et l'ajoute à la description lue par les lecteurs d'écran. Le fond reste manipulable sous le message.
+        </p>
+        <p>
+          Le message s'affiche dès qu'<strong>une</strong> couche directe de la carte attend un filtre, même si une
+          autre (des contours décoratifs, par exemple) est déjà tracée. Les encarts
+          (<code>&lt;dsfr-data-map-inset&gt;</code>) vident leurs couches de la même façon mais ne répètent pas le message.
+          Le mécanisme est décrit sur <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-source id="ecoles" api-type="opendatasoft" dataset-id="..." require-where&gt;&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-facets source="ecoles" fields="departement"&gt;&lt;/dsfr-data-facets&gt;
+
+&lt;dsfr-data-map height="400px" idle-message="Choisissez un département pour afficher ses écoles"&gt;
+  &lt;dsfr-data-map-layer source="ecoles" type="marker" geo-field="position"&gt;&lt;/dsfr-data-map-layer&gt;
+&lt;/dsfr-data-map&gt;</pre>
+        </div>
 
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
         <p>

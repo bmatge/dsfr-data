@@ -1,0 +1,7 @@
+[
+  { "nom": "Lille", "zone": "Nord", "lat": 50.63, "lon": 3.06 },
+  { "nom": "Rouen", "zone": "Nord", "lat": 49.44, "lon": 1.1 },
+  { "nom": "Lyon", "zone": "Sud", "lat": 45.76, "lon": 4.84 },
+  { "nom": "Toulouse", "zone": "Sud", "lat": 43.6, "lon": 1.44 },
+  { "nom": "Brest", "zone": "Ouest", "lat": 48.39, "lon": -4.49 }
+]

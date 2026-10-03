@@ -42,6 +42,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | max-bounds | String | `""` | Limites du deplacement `"latSW,lonSW,latNE,lonNE"` (clippe aussi le fit si fit-zone est vide) |
 | fit-zone | String | `""` | Zone de clip du fit `"latSW,lonSW,latNE,lonNE"`, pan libre. Défaut : max-bounds, sinon la metropole (`41,-5.5,51.5,10`) des qu'un encart ultramarin est present (`insets="drom"`), sinon rien. `none` desactive |
 | name | String | `""` | Titre (aria-label) |
+| idle-message | String | `"Choisissez un filtre pour afficher les données"` | Message pose sur le fond de carte tant qu'une couche attend un filtre (`require-where` sur la source ou la query amont, #690). La couche est alors VIDE (formes, grappes, legende) : elle ne garde pas les points du dernier filtre retire. Les encarts ne repetent pas le message |
 
 ### Attributs dsfr-data-map-layer (couche)
 
@@ -483,6 +484,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `fit-zone` | `string` | `""` (vide) | Zone sur laquelle `fit-bounds` est clippé, au format `"latSW,lonSW,latNE,lonNE"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets="drom"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone="none"` désactive le clip (#687). |
 | `fullscreen` | `boolean` | `false` | Bouton de plein écran (#780), posé à droite des boutons de zoom : la carte (couches, légende, encarts et sélecteur de fond compris) occupe tout l'écran, et en revient par le même bouton ou la touche Échap. Utilisable au clavier, état porté par `aria-pressed` et par le libellé, et annoncé. Absent si le navigateur n'offre pas le plein écran d'un élément (Safari sur iPhone), et sans effet avec `locked` ou `no-controls`. |
 | `height` | `string` | `'500px'` | Hauteur CSS (px, vh, rem). Un `%` est un ratio de la LARGEUR (ex: `"60%"` = 60 % de la largeur). |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu sur la carte tant qu'une de ses couches attend un filtre (`require-where` sur la source ou la requête amont, #690) : la couche est alors vidée, et le fond de carte seul ne dirait pas pourquoi. Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. Le message est aussi ajouté à la description lue par les lecteurs d'écran ; les encarts (`dsfr-data-map-inset`) ne le répètent pas. |
 | `insets` | `string` | `""` (vide) | Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommés séparés par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") |
 | `locked` | `boolean` | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | `max-bounds` | `string` | `""` (vide) | Limites du déplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. |
@@ -505,6 +507,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `announceToScreenReader(message: string)` | `void` | Annonce un message aux screen readers via la live region |
 | `getLeafletLib()` | `typeof import('leaflet') \| null` | Retourne le module Leaflet charge (pour les layers) |
 | `getLeafletMap()` | `LeafletMap \| null` | Retourne l'instance Leaflet L.Map (ou null si pas encore prête) |
+| `isIdle()` | `boolean` | Une couche directe de la carte attend-elle un filtre ? |
 | `registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds)` | `void` | Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds). Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais retrecir sa vue quand les données diminuaient, et le tableau grossissait a chaque refresh / frame de timeline / pan en bbox client. |
 | `resolveFitZone()` | `string` | Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune), sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) — le clip ne touche que le fit, jamais le pan. Expose pour les tests. |
 | `unregisterLayerBounds(layerKey: string)` | `void` | Libere les bounds d'un layer retire (#294) |
@@ -580,6 +583,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `getSkippedCount()` | `number` | — |
 | `getStackedPositions()` | `{ positions: number; items: number } \| null` | Points EMPILES au dernier rendu (#770) : au plus deux positions distinctes pour au moins dix points par position. C'est le mode d'echec d'une colonne de geolocalisation constante ou mal jointe : 43 479 coordonnees valides identiques ne sont ignorees nulle part, le compteur d'exclusions vaut 0 et la couche se declare complete en montrant un point. Le seuil laisse passer les adresses partagees, legitimes. `null` quand la couche n'est pas dans ce cas. |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
+| `isIdle()` | `boolean` | La source de cette couche attend-elle un filtre (`require-where`) ? |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
 | `setTimelineFrame(index: number)` | `void` | Called by dsfr-data-map-timeline to set current frame |
 
@@ -591,8 +595,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
-| `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
 | `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020 ; le nombre de groupes avec `group-field`, #1108), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
+| `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
 | `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). Avec `group-field` (#1108), `record` est le premier enregistrement du groupe et le détail porte en plus `group` (valeur du groupe) et `records` (toutes ses lignes). |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 

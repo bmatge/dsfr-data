@@ -14,9 +14,10 @@
  * @fires dsfr-data-map-tiles-change - `{ tiles }` sur la carte (bubbles, composed) — le lecteur a changé de fond avec le sélecteur `tiles-switcher`. Jamais émis quand `tiles` est changé par la page.
  * @fires dsfr-data-map-fullscreen-change - `{ fullscreen }` sur la carte (bubbles, composed) — la carte entre en plein écran ou en sort (bouton `fullscreen`, touche Échap ou geste du navigateur) (#780).
  */
-import { LitElement, nothing } from 'lit';
+import { LitElement, nothing, render as renderTemplate } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { IDLE_MESSAGE_DEFAULT, renderSourceIdle } from '../utils/status-templates.js';
 import { METROPOLE_FIT_ZONE, expandInsets, hasOverseasTerritory } from '../utils/territories.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
@@ -326,6 +327,7 @@ async function loadLeaflet(): Promise<typeof import('leaflet')> {
 type MapChildElement = Element & {
   _onMapReady?: () => void;
   _onViewportChange?: () => void;
+  isIdle?: () => boolean;
 };
 
 @customElement('dsfr-data-map')
@@ -416,6 +418,17 @@ export class DsfrDataMap extends LitElement {
   @property({ type: String })
   name = '';
 
+  /**
+   * Message rendu sur la carte tant qu'une de ses couches attend un filtre
+   * (`require-where` sur la source ou la requête amont, #690) : la couche est
+   * alors vidée, et le fond de carte seul ne dirait pas pourquoi. Distinct de
+   * « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par
+   * défaut est utilisé. Le message est aussi ajouté à la description lue par
+   * les lecteurs d'écran ; les encarts (`dsfr-data-map-inset`) ne le répètent pas.
+   */
+  @property({ type: String, attribute: 'idle-message' })
+  idleMessage = IDLE_MESSAGE_DEFAULT;
+
   // --- État interne ---
 
   private _leafletMap: LeafletMap | null = null;
@@ -427,6 +440,10 @@ export class DsfrDataMap extends LitElement {
   private _srDescription: HTMLParagraphElement | null = null;
   private _liveRegion: HTMLDivElement | null = null;
   private _afterMapAnchor: HTMLDivElement | null = null;
+  /** Bloc du message d'attente (`idle-message`), posé dans le conteneur Leaflet. */
+  private _idleRoot: HTMLDivElement | null = null;
+  /** Dernier résumé des couches reçu : la description se recompose quand l'attente change. */
+  private _layerSummaries: string[] = [];
   /** Sélecteur de fond (#744) : bloc conteneur et menu déroulant. */
   private _tilesSwitcherRoot: HTMLDivElement | null = null;
   private _tilesSelect: HTMLSelectElement | null = null;
@@ -526,6 +543,8 @@ export class DsfrDataMap extends LitElement {
     this._liveRegion = null;
     this._afterMapAnchor?.remove();
     this._afterMapAnchor = null;
+    this._idleRoot?.remove();
+    this._idleRoot = null;
     this._tilesSwitcherRoot?.remove();
     this._tilesSwitcherRoot = null;
     this._tilesSelect = null;
@@ -580,6 +599,10 @@ export class DsfrDataMap extends LitElement {
         changedProperties.has('locked'))
     ) {
       this._renderFullscreenButton();
+    }
+
+    if (this._container && changedProperties.has('idleMessage')) {
+      this._syncIdle();
     }
   }
 
@@ -706,10 +729,67 @@ export class DsfrDataMap extends LitElement {
 
   /** Met a jour la description de la carte (appele par les layers quand les données changent) */
   updateDescription(layerSummaries: string[]): void {
+    this._layerSummaries = layerSummaries;
     if (!this._srDescription) return;
     const parts = [this._buildMapDescription()];
     parts.push(...layerSummaries);
+    // Carte en attente d'un filtre : la description le dit aussi, le bloc
+    // visuel est posé dans un conteneur role="application".
+    if (this._showsIdle()) parts.push(`${this._idleText()}.`);
     this._srDescription.textContent = parts.join(' ');
+  }
+
+  // --- État d'attente (`require-where`, #690) ---
+
+  /** Une couche directe de la carte attend-elle un filtre ? */
+  isIdle(): boolean {
+    for (const layer of this.querySelectorAll(':scope > dsfr-data-map-layer')) {
+      if ((layer as MapChildElement).isIdle?.()) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Le message d'attente s'affiche-t-il ? Jamais dans un encart : sa carte
+   * clone les couches de la carte hôte, qui porte déjà le message — 160 px de
+   * haut n'ont pas la place d'une phrase répétée par territoire.
+   */
+  private _showsIdle(): boolean {
+    return this.isIdle() && !this.closest('dsfr-data-map-inset');
+  }
+
+  private _idleText(): string {
+    return this.idleMessage || IDLE_MESSAGE_DEFAULT;
+  }
+
+  /** Appelé par une couche dont l'état d'attente vient de changer (BUG-039). */
+  _onLayerIdleChange(): void {
+    this._syncIdle();
+  }
+
+  /**
+   * Pose ou retire le bloc d'attente — le même gabarit que les autres
+   * afficheurs (`renderSourceIdle`), centré SUR le fond de carte : celui-ci
+   * reste visible et manipulable, le bloc ne capte pas le pointeur.
+   */
+  private _syncIdle(): void {
+    if (!this._container) return;
+    if (!this._showsIdle()) {
+      if (this._idleRoot) {
+        this._idleRoot.remove();
+        this._idleRoot = null;
+        this.updateDescription(this._layerSummaries);
+      }
+      return;
+    }
+    if (!this._idleRoot || this._idleRoot.parentNode !== this._container) {
+      this._idleRoot?.remove();
+      this._idleRoot = document.createElement('div');
+      this._idleRoot.className = 'dsfr-data-map__idle-host';
+      this._container.appendChild(this._idleRoot);
+    }
+    renderTemplate(renderSourceIdle('dsfr-data-map', this.idleMessage), this._idleRoot);
+    this.updateDescription(this._layerSummaries);
   }
 
   private _buildMapDescription(): string {
@@ -864,6 +944,9 @@ export class DsfrDataMap extends LitElement {
 
     // Notify already-present layers
     this._notifyExistingLayers();
+
+    // Une couche peut attendre un filtre depuis avant l'init (#690)
+    this._syncIdle();
 
     // Init terminee : libere le verrou (#298) — au cycle disconnect/
     // reconnect, disconnectedCallback detruit la carte et la reconnexion
@@ -1380,6 +1463,34 @@ export class DsfrDataMap extends LitElement {
         margin: -1px;
         padding: 0;
         border: 0;
+      }
+      /* Message d'attente (idle-message) : centre sur le fond de carte, dans
+         le conteneur Leaflet (il suit sa hauteur, plein ecran compris). Il ne
+         capte pas le pointeur : la carte reste manipulable dessous. */
+      .dsfr-data-map__idle-host {
+        position: absolute;
+        inset: 0;
+        z-index: 1000; /* mobilier flottant — voir tiles-switcher */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 1rem;
+        pointer-events: none;
+      }
+      .dsfr-data-map__idle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 0.75rem 1rem;
+        color: var(--text-mention-grey, #666);
+        background: var(--background-alt-grey, #f5f5f5);
+        border-radius: 4px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        font-size: 0.875rem;
+        line-height: 1.4;
       }
       .dsfr-data-map__max-items-banner {
         position: absolute;

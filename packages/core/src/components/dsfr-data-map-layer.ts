@@ -684,6 +684,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
+    // L'attente se lit après chaque cycle du mixin (événement, registre au
+    // montage) — avant même que la carte soit prête (BUG-039)
+    this._syncIdleWithMap();
     // Avant _onMapReady (cycle de montage inclus), rien a redessiner
     if (!this._leafletMap || !this._layerGroup) return;
     let needsRender = false;
@@ -705,7 +708,81 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     void this._renderLayer();
   }
 
-  // --- SourceSubscriberMixin hook ---
+  // --- SourceSubscriberMixin hooks ---
+
+  /**
+   * Retour en attente de l'amont (`require-where`, dernier filtre retiré) ou
+   * changement de `source` (BUG-039) : la couche rend ce qu'elle avait tracé.
+   * Sans ce hook, les marqueurs du dernier filtre restaient sur la carte, sous
+   * une page dont les autres afficheurs disent « choisissez un filtre ».
+   * Appelé aussi à chaque (ré)abonnement, avant la lecture du cache : sans
+   * carte prête, il n'y a rien à vider.
+   */
+  onSourceReset(): void {
+    this._data = [];
+    if (this._timeSteps.length > 0) {
+      // Les pas de temps suivent les données : le compagnon timeline est prévenu
+      this._currentFrameIndex = -1;
+      this._buildTimeFrames();
+    }
+    this._clearRendered();
+  }
+
+  /**
+   * Vide la couche : formes, grappes, carte de chaleur, emprise, bandeau et
+   * entrées de légende. Un rendu encore en vol (import différé des grappes ou
+   * de la carte de chaleur) est abandonné par le jeton de génération.
+   */
+  private _clearRendered(): void {
+    this._renderGeneration++;
+    const hadContent = this._renderedCount > 0 || this._legendEntries.length > 0;
+    this._renderedCount = 0;
+    this._skippedGeoCount = 0;
+    this._totalCount = 0;
+    this._upstreamTruncated = false;
+    this._positionKeys = new Set();
+    this._groups = null;
+    this._colorFallbackUsed = false;
+    this._legendEntries = [];
+    this._removeBanner();
+    if (!this._leafletMap || !this._layerGroup) return;
+    this._layerGroup.clearLayers();
+    this._clusterGroup?.clearLayers();
+    if (this._heatLayer) {
+      this._heatLayer.remove();
+      this._heatLayer = null;
+    }
+    this._mapParent?.unregisterLayerBounds?.(this._boundsKey);
+    this._updateMapDescription();
+    // Rien n'était tracé (montage, réabonnement à vide) : pas d'événement,
+    // la légende n'a rien à relire.
+    if (!hadContent) return;
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-layer-render', {
+        bubbles: true,
+        detail: { rendered: 0, skipped: 0, total: 0, legend: [] },
+      })
+    );
+  }
+
+  /**
+   * Dernier état d'attente signalé à la carte : elle n'est prévenue que d'un
+   * changement, pas à chaque cycle de rendu.
+   */
+  private _idleNotified = false;
+
+  /** Signale à la carte hôte que l'attente de cette couche a changé (BUG-039). */
+  private _syncIdleWithMap(): void {
+    if (this._sourceIdle === this._idleNotified) return;
+    this._idleNotified = this._sourceIdle;
+    const map = this.closest('dsfr-data-map') as DsfrDataMap | null;
+    map?._onLayerIdleChange?.();
+  }
+
+  /** La source de cette couche attend-elle un filtre (`require-where`) ? */
+  isIdle(): boolean {
+    return this._sourceIdle;
+  }
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
@@ -879,6 +956,13 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       dispatchSourceCommand(this.source, { where: '', whereKey: 'map-bbox', origin: this.id });
     }
     if (this._bboxTimer) clearTimeout(this._bboxTimer);
+    // Une couche retirée n'attend plus rien : la carte rejuge son message (BUG-039)
+    if (this._idleNotified) {
+      this._idleNotified = false;
+      (
+        this._mapParent ?? (this.closest('dsfr-data-map') as DsfrDataMap | null)
+      )?._onLayerIdleChange?.();
+    }
     if (this._layerGroup && this._leafletMap) {
       this._layerGroup.removeFrom(this._leafletMap);
     }
@@ -1267,30 +1351,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     this._updateBanner(truncated, items.length);
 
     // A11y: update map description with layer data summary
-    if (this._mapParent) {
-      const summaries: string[] = [];
-      const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
-      for (const l of allLayers) {
-        const layerEl = l as DsfrDataMapLayer;
-        const count = layerEl._groupingActive()
-          ? layerEl.getRenderedCount()
-          : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
-        if (count > 0) {
-          const typeLabel =
-            layerEl.type === 'marker'
-              ? 'marqueurs'
-              : layerEl.type === 'geoshape'
-                ? 'zones'
-                : layerEl.type === 'circle'
-                  ? 'cercles'
-                  : 'points';
-          summaries.push(`${count} ${typeLabel}`);
-        }
-      }
-      if (summaries.length > 0) {
-        this._mapParent.updateDescription([`Couches : ${summaries.join(', ')}.`]);
-      }
-    }
+    this._updateMapDescription();
 
     // Legende (#685) : entrees figees a ce rendu, puis notification des
     // compagnons (dsfr-data-map-legend) et des diagnostics
@@ -1305,6 +1366,37 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
           legend: this.getLegendEntries(),
         },
       })
+    );
+  }
+
+  /**
+   * Résumé des couches dans la description de la carte lue par les lecteurs
+   * d'écran. Une carte dont plus aucune couche ne trace rien retrouve sa
+   * description nue : l'ancien « 30 marqueurs » n'y reste pas (BUG-039).
+   */
+  private _updateMapDescription(): void {
+    if (!this._mapParent) return;
+    const summaries: string[] = [];
+    const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
+    for (const l of allLayers) {
+      const layerEl = l as DsfrDataMapLayer;
+      const count = layerEl._groupingActive()
+        ? layerEl.getRenderedCount()
+        : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
+      if (count > 0) {
+        const typeLabel =
+          layerEl.type === 'marker'
+            ? 'marqueurs'
+            : layerEl.type === 'geoshape'
+              ? 'zones'
+              : layerEl.type === 'circle'
+                ? 'cercles'
+                : 'points';
+        summaries.push(`${count} ${typeLabel}`);
+      }
+    }
+    this._mapParent.updateDescription(
+      summaries.length > 0 ? [`Couches : ${summaries.join(', ')}.`] : []
     );
   }
 
