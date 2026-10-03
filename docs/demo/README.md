@@ -8,7 +8,7 @@ Scripts de démonstration vidéo de **3 minutes maximum** chacun, couvrant les p
 |---|-------|---------|-------------|
 | 1 | Créer des sources de données | [demo-01-sources.md](demo-01-sources.md) | ≤ 3 min |
 | 2 | Utiliser le Builder | [demo-02-builder.md](demo-02-builder.md) | ≤ 3 min |
-| 3 | Utiliser le Builder IA | [demo-03-builder-ia.md](demo-03-builder-ia.md) | ≤ 3 min |
+| 3 | Utiliser le Builder IA — **script historique** : l'app est retirée (#1081), le Studio IA la remplace | [demo-03-builder-ia.md](demo-03-builder-ia.md) | ≤ 3 min |
 | 4 | Utiliser le Playground | [demo-04-playground.md](demo-04-playground.md) | ≤ 3 min |
 | 5 | Créer un compte et utiliser les favoris | [demo-05-compte-favoris.md](demo-05-compte-favoris.md) | ≤ 3 min |
 

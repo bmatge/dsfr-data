@@ -21,9 +21,9 @@ Le projet est organise en workspaces npm :
 packages/core/       Bibliotheque de Web Components, publiee sur npm sous le nom `dsfr-data`
 packages/shared/     Utilitaires partages (`@dsfr-data/shared`)
 packages/app-ui/     Chrome applicatif (`@dsfr-data/app-ui` : header, footer, layouts) — builde en premier par `build:apps`
-apps/                Les 11 applications web (admin, builder, builder-carto, builder-ia,
+apps/                Les 11 applications web (admin, builder, builder-carto,
                      dashboard, favorites, grist-widgets, monitoring, pipeline-helper,
-                     playground, sources)
+                     playground, sources, studio)
 server/              Backend Express (API, auth, MariaDB)
 mcp-server/          Serveur MCP (hors workspace, installation separee)
 ```
@@ -54,7 +54,7 @@ Chaque app peut etre developpee independamment :
 ```bash
 npm run dev --workspace=@dsfr-data/app-builder
 npm run dev --workspace=@dsfr-data/app-builder-carto
-npm run dev --workspace=@dsfr-data/app-builder-ia
+npm run dev --workspace=@dsfr-data/app-studio
 npm run dev --workspace=@dsfr-data/app-dashboard
 npm run dev --workspace=@dsfr-data/app-sources
 npm run dev --workspace=@dsfr-data/app-playground
@@ -135,7 +135,6 @@ tests/
     toast.test.ts
   apps/                        Tests des applications
     builder/
-    builder-ia/
     dashboard/
     favorites/
     playground/

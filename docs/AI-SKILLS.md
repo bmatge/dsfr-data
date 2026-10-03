@@ -66,7 +66,7 @@ comme index ; les références se lisent ensuite au besoin.
 
 ### Repères neutres dans les exemples
 
-Les skills du builder-IA citent l'instance qui les sert (proxy, URL de la bibliothèque). L'export
+Les skills du guide citent l'instance qui les sert (proxy, URL de la bibliothèque). L'export
 est **indépendant du poste** : `https://VOTRE_INSTANCE/dist` désigne l'URL de la bibliothèque
 (CDN `https://cdn.jsdelivr.net/npm/dsfr-data@0/dist`, ou `/dist` de votre instance) et les chemins
 `/…-proxy/` sont relatifs à votre instance Charts builder.
@@ -122,9 +122,9 @@ get_skill("datavizMetier", section: "tout")          # la fiche entière
 
 **Côté IA des usagers**, c'est le **Studio IA** (et l'assistant contextuel) qui consomme les
 skills : il lit `skills.json` par le client partagé (`packages/shared/src/ia/skills-client.ts`),
-dont l'outil `get_skill` accepte les mêmes `niveau` / `reference`. L'ancien Assistant IA
-(`apps/builder-ia`, en retrait, #1081) lit toujours `SKILLS` directement et ne voit pas les
-skills markdown : on ne l'y branche pas, il disparaîtra (ADR-136, § Révision).
+dont l'outil `get_skill` accepte les mêmes `niveau` / `reference`. L'ancien Assistant IA,
+qui lisait `SKILLS` directement et ne voyait pas les skills markdown, est retiré (#1081 ;
+ADR-136, § Révision), avec ses deux skills d'action JSON (`createChartAction`, `reloadDataAction`).
 
 Garde : `tests/skills-markdown.test.ts` vérifie la forme (même frontmatter que la skill générée,
 références citées ⇔ présentes, id sans collision) et que la skill remonte par le moteur de
@@ -162,7 +162,7 @@ Le `--skills-file` local exige un `npm run build` à la racine (il produit `pack
 
 ## 3. `skills.json`
 
-Tableau JSON des 37 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
+Tableau JSON des 35 skills : `id`, `name`, `description`, `trigger[]`, `content` (markdown complet),
 `sections` (`guide` / `reference` / `exemples` / `pieges`) et `availableSections` ; pour une skill à
 niveaux, en plus `index`, `levels` et `references` (§ 1 bis). Servi par toute
 instance déployée sur `/dist/skills.json`.

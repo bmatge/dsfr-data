@@ -209,8 +209,8 @@ un nom inconnu fait repondre 400. L'API refuse `columns` a cote d'un agregateur 
 `aggregate` (pose ou delegue par une query via l'overlay) desactive la projection. Le garde-fou
 `isTabularServerFieldSafe` (#244, #289) est supprime : `supportsServerFields` ne refuse plus que les
 separateurs `,` `:` `|`. `fetchProfile()` lit `/profile/` (format et type par colonne), memorise par
-ressource, annulable ; jamais appele par `fetchAll`/`fetchPage`. Les builders (Carto, Builder,
-Assistant IA) emettent `select` depuis les champs configures, seulement quand chaque nom est une
+ressource, annulable ; jamais appele par `fetchAll`/`fetchPage`. Les builders (Carto, Builder)
+emettent `select` depuis les champs configures, seulement quand chaque nom est une
 colonne detectee — sinon rien, toutes les colonnes. Faux serveur (`repondreTabular`) : honore
 `columns`, et le refuse a cote d'un agregateur ou sur une colonne inconnue, comme le vrai.
 
@@ -299,9 +299,9 @@ Utilitaires partages : `escapeHtml()` · `buildCsv()`/`CSV_BOM` (quoting RFC 418
 
 ### Skills IA (alignement composants)
 
-Les skills sont des blocs de connaissances sur les composants, servis par `dist/skills.json` au Studio IA (outils `get_relevant_skills` / `get_skill` via `packages/shared/src/ia/skills-client.ts`) et au serveur MCP, et exportes en skill Claude Code (`skills/dsfr-data/`). L'ancien Assistant IA (`apps/builder-ia/`) les injecte encore directement dans son prompt, jusqu'a son retrait (#1081).
+Les skills sont des blocs de connaissances sur les composants, servis par `dist/skills.json` au Studio IA (outils `get_relevant_skills` / `get_skill` via `packages/shared/src/ia/skills-client.ts`) et au serveur MCP, et exportes en skill Claude Code (`skills/dsfr-data/`). L'ancien Assistant IA, qui les injectait directement dans son prompt, est retire (#1081).
 
-**Emplacement (#1081, etape 1)** : le guide et ses modules vivent dans `packages/shared/src/skills/` — `skills.ts` (guide redige a la main), `skills-reference.generated.ts` (reference generee), `skills-sections.ts` (decoupage). Ils ont quitte `apps/builder-ia/src/` pour survivre au retrait de l'app. C'est le **cote app** de `@dsfr-data/shared` : expose par le sous-chemin `@dsfr-data/shared/skills/*`, jamais par les barrels (1,3 Mo de texte n'a rien a faire dans chaque bundle d'app) ni, surtout, par l'entree lib-safe `@dsfr-data/shared/lib` (#319). Les scripts `build:skills*` et les tests l'importent en chemin relatif vers `src/` : la chaine ne depend plus de `packages/shared/dist` (voir le piege « version estampillee a deux endroits » au §12). Le serveur MCP, hors workspace, ne l'importe pas : il recoit `skills.json` et des copies generees.
+**Emplacement (#1081)** : le guide et ses modules vivent dans `packages/shared/src/skills/` — `skills.ts` (guide redige a la main), `skills-reference.generated.ts` (reference generee), `skills-sections.ts` (decoupage). Ils ont quitte l'ancien Assistant IA avant son retrait. C'est le **cote app** de `@dsfr-data/shared` : expose par le sous-chemin `@dsfr-data/shared/skills/*`, jamais par les barrels (1,3 Mo de texte n'a rien a faire dans chaque bundle d'app) ni, surtout, par l'entree lib-safe `@dsfr-data/shared/lib` (#319). Les scripts `build:skills*` et les tests l'importent en chemin relatif vers `src/` : la chaine ne depend plus de `packages/shared/dist` (voir le piege « version estampillee a deux endroits » au §12). Le serveur MCP, hors workspace, ne l'importe pas : il recoit `skills.json` et des copies generees.
 
 Chaque skill de composant est en **deux moities** depuis #512 :
 
@@ -321,7 +321,7 @@ packages/core/custom-elements.json  (commite ; publie aussi dans le package npm
 packages/shared/src/skills/skills-reference.generated.ts   (commite, NE PAS EDITER)
         |  concatene par skills.ts (`+ reference('dsfr-data-x')`)
         v
-SKILLS -> dist/skills.json (Studio IA, serveur MCP) + skills/dsfr-data/ (+ prompt de l'ancien builder-IA)
+SKILLS -> dist/skills.json (Studio IA, serveur MCP) + skills/dsfr-data/
 ```
 
 `npm run build:skills` enchaine les trois etapes. Les deux artefacts generes sont **commites** : le build de la lib et de la release ne rejoue pas l'analyse CEM (pas de nouveau maillon fragile dans le chemin de publication).
@@ -338,14 +338,14 @@ Le vocabulaire est **volontairement ferme et petit** : une enumeration de cinq v
 
 Les deux consommateurs partagent le vocabulaire mais pas le meme chemin :
 
-- **builder-IA** : `get_skill(skill_id, section)` dans `SKILL_LOOKUP_TOOLS`, decoupage calcule a la volee dans `agent-loop.ts` ;
+- **Studio IA** : `get_skill(skill_id, section)` par le client partage `packages/shared/src/ia/skills-client.ts`, qui lit `dist/skills.json` ;
 - **serveur MCP** : le decoupage est transporte par `dist/skills.json` (champ `sections`, `content` conserve pour compat), le serveur ne le rejoue pas. Comme le MCP est distribue separement de l'instance dont il telecharge `skills.json`, `selectSection()` retombe sur la fiche entiere — en le disant — face a une instance anterieure a #513.
 
 Un test croise verifie que `SKILL_SECTION_IDS` est identique des deux cotes.
 
 #### Moteur de matching unifie (#514)
 
-Il n'y a plus qu'UN moteur de selection des skills : `packages/shared/src/ia/skill-matching.ts` (promu depuis le builder-IA en #515, re-exporte par `apps/builder-ia/src/skill-matching.ts`). Il etait auparavant ecrit deux fois — un `includes` sur les triggers cote MCP, une boucle equivalente plus des enrichissements contextuels cote builder-IA — donc toute amelioration devait etre faite deux fois, et le MCP restait structurellement moins pertinent.
+Il n'y a plus qu'UN moteur de selection des skills : `packages/shared/src/ia/skill-matching.ts` (promu depuis l'ancien Assistant IA en #515). Il etait auparavant ecrit deux fois — un `includes` sur les triggers cote MCP, une boucle equivalente plus des enrichissements contextuels cote ancien Assistant IA — donc toute amelioration devait etre faite deux fois, et le MCP restait structurellement moins pertinent.
 
 **Scoring pondere**, avec les raisons exposees (`reasons`) pour rester debuggable :
 
@@ -363,9 +363,9 @@ Le seuil de retenue est 6 : un trigger, exact ou disperse, le franchit seul. La 
 
 Meme chemin pour **l'adressage par niveau / reference** d'une skill ecrite a la main et multiniveau (`dataviz-metier`, #1035) : `packages/shared/src/ia/skill-levels.ts` (aucun import) est copie dans `mcp-server/src/skill-levels.generated.ts` par le meme script, garde par `tests/mcp/skill-levels.test.ts`. Les donnees (`index`, `levels`, `references` dans `skills.json`) sont calculees au build depuis le dossier de la skill (`scripts/lib/markdown-skills.ts`, table « Choisir le niveau » du `SKILL.md`). Designation par un second parametre, `get_skill(id, niveau | reference)` ; sans niveau, l'intermediaire est servi et annonce. Detail : `docs/AI-SKILLS.md` § 1 bis.
 
-Le builder-IA garde **par-dessus** ses enrichissements contextuels (type de source ODS/Grist, intentions metier) : il connait la source chargee, le MCP non.
+`getRelevantSkills` (`packages/shared/src/skills/skills.ts`) pose **par-dessus** des enrichissements contextuels (type de source ODS/Grist, intentions metier). Plus aucune app ne l'appelle depuis le retrait de l'ancien Assistant IA (#1081) : elle reste exportee pour le banc de connaissance `tests/skills/skills-knowledge-bench.test.ts`.
 
-**Option souveraine — rerank Albert** (`packages/shared/src/ia/skill-rerank.ts`, promu du builder-IA en #1081 ; le Studio IA le passe a `executerOutilSkill` comme `reclasser`) : reclasse les candidates via `/v1/rerank`. Il ne fait que REORDONNER ce que le moteur local a deja retenu, jamais produire des candidates. Trois garde-fous : capacite **desactivee par defaut** tant que `scripts/probe-albert.ts` ne l'a pas confirmee (meme doctrine que `jsonSchema`/`toolCalling`, mais sans activation par defaut — un echec y couterait un aller-retour reseau a chaque recherche) ; repli sur l'ordre local a la moindre anomalie (HTTP, JSON, index hors bornes, score manquant, timeout) ; et charge utile bornee a 10 candidates, nom + description seulement. Le serveur MCP ne l'embarque pas : il doit rester fonctionnel hors-ligne avec `--skills-file`.
+**Option souveraine — rerank Albert** (`packages/shared/src/ia/skill-rerank.ts`, promu de l'ancien Assistant IA en #1081 ; le Studio IA le passe a `executerOutilSkill` comme `reclasser`) : reclasse les candidates via `/v1/rerank`. Il ne fait que REORDONNER ce que le moteur local a deja retenu, jamais produire des candidates. Trois garde-fous : capacite **desactivee par defaut** tant que `scripts/probe-albert.ts` ne l'a pas confirmee (meme doctrine que `jsonSchema`/`toolCalling`, mais sans activation par defaut — un echec y couterait un aller-retour reseau a chaque recherche) ; repli sur l'ordre local a la moindre anomalie (HTTP, JSON, index hors bornes, score manquant, timeout) ; et charge utile bornee a 10 candidates, nom + description seulement. Le serveur MCP ne l'embarque pas : il doit rester fonctionnel hors-ligne avec `--skills-file`.
 
 **Règle** : apres avoir ajoute/modifie un attribut, un evenement, un slot ou une variable CSS d'un composant `dsfr-data-*`, ecrire le JSDoc puis lancer **`npm run build:skills`**. Pour un type de graphique, un operateur de filtre ou une fonction d'agregation, c'est le guide redige a la main de `packages/shared/src/skills/skills.ts` qu'il faut mettre a jour.
 
@@ -462,8 +462,6 @@ Toutes les dependances internes sont resolues via les workspaces npm declares da
     admin/                      @dsfr-data/app-admin -- Administration (mode serveur)
     builder/                    @dsfr-data/app-builder -- Generateur visuel de graphiques
     builder-carto/              @dsfr-data/app-builder-carto -- Generateur de cartes Leaflet
-    builder-ia/                 @dsfr-data/app-builder-ia -- ANCIEN Assistant IA : redirige vers le
-                                Studio IA, sauf `?ancien=1` (#1081) ; garde les skills (skills.ts)
     studio/                     @dsfr-data/app-studio -- Studio IA, ENTREE USAGER de l'IA (#1081) :
                                 graphique ou dashboard multi-blocs par actions incrementales (#515) ;
                                 apercu = export (iframe srcdoc) ; porte la configuration IA
@@ -519,7 +517,7 @@ localStorage
     |
     |-- loadFromStorage(STORAGE_KEYS.SOURCES, ...)
     v
-Builder / Builder-IA
+Builder / Studio IA
 ```
 
 L'application Sources permet de configurer et tester des connexions a des APIs externes (Grist, ODS, tabular-api). Les sources configurees sont stockees dans `localStorage` sous les cles `dsfr-data-sources` et `dsfr-data-connections`, puis consommees par les builders.
@@ -527,7 +525,7 @@ L'application Sources permet de configurer et tester des connexions a des APIs e
 ### 3.2 Generation de code
 
 ```
-Builder / Builder-IA
+Builder / Studio IA
     |
     |-- sessionStorage (code genere)
     v
@@ -539,7 +537,7 @@ Lorsqu'un utilisateur exporte du code depuis un builder, celui-ci est place dans
 ### 3.3 Favoris
 
 ```
-Builder / Builder-IA
+Builder / Studio IA
     |
     |-- saveToStorage(STORAGE_KEYS.FAVORITES, ...)
     v
@@ -604,16 +602,13 @@ apps surcharger ses classes internes :
 
 **Pourquoi** : trois apps stylaient `.builder-layout-container/-left/-right`,
 des classes NON contractuelles. Le Playground avait du empiler des
-`!important` pour inverser le sticky ; Builder et Assistant IA maintenaient
+`!important` pour inverser le sticky ; Builder et l'ancien Assistant IA maintenaient
 deux fois la meme surcharge. Un changement du composant les cassait en
 silence.
 
 - `fullscreen` exige cote app un `body` de hauteur fixe en `overflow: hidden`.
 - La hauteur de la colonne gauche en pile verticale se regle par la propriete
   PUBLIQUE `--app-layout-left-stacked-height` (le Playground y met `50vh`).
-- **Assistant IA** garde ses surcharges a dessein : #609 remplace son apercu
-  (hauteur intrinseque) par une iframe (hauteur extrinseque), migrer avant
-  reviendrait a calibrer sur un contenu voue a disparaitre.
 - **Carto** et **Dashboard** n'utilisent pas ce layout : canevas plein ecran a
   rail + volet unique pour l'une (#1088 : un rail ouvre UN des trois volets
   Carte / Couches / Elements, pose a cote de la carte et non plus par-dessus ;
@@ -798,12 +793,12 @@ le compte-rendu de l'outil le dit au modele (`notesPagination`).
 
 ### 3.8 Le volet Diagnostic (app-ui)
 
-`app-diagnostic-panel` a **deux formes**. C'est un **tiroir bas** dans les apps sans assistant contextuel (Studio, ancien Assistant IA). Dans les cinq apps qui ont les deux (Builder, Carto, Tableau de bord, Pipeline, Playground), c'est un **onglet « Diagnostic » du panneau de l'assistant** (2026-09-23) : `mountAssistant({ diagnostic: monte.panel })` appelle `integrerDiagnostic()`, qui pose l'attribut `integre` et deplace le volet dans l'onglet. Le rail disparait, `--app-diagnostic-h` est publie a `0px` (des feuilles d'app le lisent avec un repli de 2.25rem), les regles `body:has(app-diagnostic-panel:not([integre]))` ne reservent plus rien, et la languette de l'assistant porte le seul compteur de constats. `toggle()` garde son sens : l'assistant ecoute `diagnostic-toggle` et ouvre, ou referme, son onglet ; le bouton `#diagnostic-btn` et « Voir le detail » passent donc par le meme chemin. Le panneau masque peut taire une region `aria-live` : integre, le volet emet `diagnostic-annonce` et l'assistant rend l'annonce hors du panneau. Le choix initial du tiroir plutot que d'un onglet d'apercu tient toujours : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».
+`app-diagnostic-panel` a **deux formes**. C'est un **tiroir bas** dans l'app sans assistant contextuel (Studio). Dans les cinq apps qui ont les deux (Builder, Carto, Tableau de bord, Pipeline, Playground), c'est un **onglet « Diagnostic » du panneau de l'assistant** (2026-09-23) : `mountAssistant({ diagnostic: monte.panel })` appelle `integrerDiagnostic()`, qui pose l'attribut `integre` et deplace le volet dans l'onglet. Le rail disparait, `--app-diagnostic-h` est publie a `0px` (des feuilles d'app le lisent avec un repli de 2.25rem), les regles `body:has(app-diagnostic-panel:not([integre]))` ne reservent plus rien, et la languette de l'assistant porte le seul compteur de constats. `toggle()` garde son sens : l'assistant ecoute `diagnostic-toggle` et ouvre, ou referme, son onglet ; le bouton `#diagnostic-btn` et « Voir le detail » passent donc par le meme chemin. Le panneau masque peut taire une region `aria-live` : integre, le volet emet `diagnostic-annonce` et l'assistant rend l'annonce hors du panneau. Le choix initial du tiroir plutot que d'un onglet d'apercu tient toujours : `app-preview-panel` n'existe que dans 3 apps quand `app-action-bar` en couvre 7, et `docs/ux/actions.md` §1 pose qu'« un onglet n'est pas une action ».
 
 - **Le rail replie porte le resume** (`3 etapes · 100 → 8 lignes · 1 alerte`). Un etat ferme qui n'informe pas ne serait jamais ouvert.
 - **Quatre onglets** : Constats (#1001 ; onglet ouvert quand un constat non-info existe, sinon Flux — jamais une page blanche), Flux (delta par arete), Champs (matrice champ × etape), Journal (chronologie, commandes remontantes, URL effective).
 - **Une seule source de pannes (#1001)** : la propriete `constats`, posee par `mountDiagnosticPanel` a chaque trace (`evaluerConstats(trace, contexte, regles)`, option `constats` ; defaut : regles generiques). Pastille du rail (constats non-info), compte d'alertes, marqueurs des cartes d'etape et onglet Constats la lisent toutes ; le volet ne recalcule plus rien. « Me montrer » emet `constat-montrer { repere, constat }` (premier repere) ; l'app le resout (`onMontrer`, #1005). Arrivee d'une erreur : annonce `aria-live="polite"`, jamais d'ouverture spontanee ni de deplacement du focus (ADR-143 §7). `MountedDiagnostic.constats()` rend la derniere evaluation sans la refaire.
-- **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existe parce que **builder-IA ne produit aucun trafic sur le bus** — `chart-renderer.ts` dessine avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data.
+- **Deux modes** : `live` (observe une iframe) et `rapporte` (affiche une trace transmise). Le second existait pour l'ancien Assistant IA, qui dessinait avec `@gouvfr/dsfr-chart` en direct, sans composant dsfr-data, donc sans trafic sur le bus ; passe en mode live avec #609, il est retire depuis (#1081).
 - **Piege de superposition** : sous 768 px, c'est `.app-action-bar__actions` — et non l'hote `app-action-bar`, qui reste dans le flux — qui passe en `position:fixed; bottom:0; z-index:800`. La description inverse figurait ici depuis #539 et explique vraisemblablement pourquoi l'epinglage sans garde de l'hote a survecu si longtemps : on croyait la barre deja fixee en bas. Le volet s'ancre a `bottom: var(--app-action-bar-fixed-h)` et reste en `z-index:780`. Il publie sa hauteur dans `--app-diagnostic-h`, et sa regle de `padding-bottom` sur `body` utilise une double `:has` pour depasser en specificite celle de la barre d'actions — sinon le gagnant dependrait de l'ordre d'injection des feuilles.
 - **Empilement du mobilier bas** (du plus haut au plus bas) : raison de desactivation > rail du volet > barre d'actions fixe. Depuis que l'hote n'est plus un contexte d'empilement en mobile, `.app-action-bar__reason` (fixe, z-800, meme bande que le rail) le RECOUVRAIT et rendait son bouton inatteignable ; elle est reempilee au-dessus dans le bloc mobile de `app-diagnostic-panel`.
 #### Le panneau Assistant qui cohabite avec le volet (#1011, ADR-143)
@@ -822,17 +817,10 @@ le compte-rendu de l'outil le dit au modele (`notesPagination`).
 | Playground, Builder, Studio, Dashboard | live / iframe | `iframe srcdoc` |
 | Carto | live / meme document | `#map-canvas` |
 | Pipeline | live / meme document | conteneur d'execution (`document.body`) |
-| Assistant IA | **rapporte** | aucune — voir ci-dessous |
 | Sources, Favoris, Suivi | **non monte** | aucun pipeline dsfr-data |
 
-Deux ecarts assumes :
+Un ecart assume :
 
-- **Assistant IA** n'emet RIEN sur le bus : `apps/builder-ia/src/ui/chart-renderer.ts`
-  dessine avec `@gouvfr/dsfr-chart` en direct, sans aucun composant dsfr-data.
-  Le volet y est donc en mode rapporte — il LIT un diagnostic produit
-  ailleurs, transmis par `sessionStorage` (§10.1). **#609** propose d'aligner
-  cet apercu sur le code genere, ce qui ferait passer le volet en mode live et
-  supprimerait 580 lignes de rendu parallele.
 - **Sources** ne rend aucun pipeline (apercu en table HTML) : y monter un
   volet live afficherait toujours « aucun composant », ce qui est pire que
   rien. Il n'en a pas.
@@ -938,7 +926,7 @@ La source du JS dans le code genere est configurable via `VITE_LIB_URL` :
 
 Chaque application dans `apps/` possede son propre `vite.config.ts`. Le build produit un dossier `apps/{app}/dist/` contenant du HTML/JS/CSS statique.
 
-L'ordre de build dans `build:apps` est : app-ui (chrome applicatif, en premier), puis favorites, playground, sources, builder-ia, builder, builder-carto, dashboard, monitoring, admin, pipeline-helper, grist-widgets.
+L'ordre de build dans `build:apps` est : app-ui (chrome applicatif, en premier), puis favorites, playground, sources, builder, builder-carto, dashboard, monitoring, admin, pipeline-helper, grist-widgets.
 
 ### 5.4 Assemblage de app-dist/ (`scripts/build-app.js`)
 
@@ -952,12 +940,13 @@ app-dist/
     app-ui.esm.js         Chrome applicatif (depuis packages/app-ui/dist/, hors lib npm)
   specs/                  Specifications des composants
   guide/                  Guide utilisateur et exemples
-  apps/                   Builds des apps : favorites, playground, sources, builder-ia,
+  apps/                   Builds des apps : favorites, playground, sources,
                           builder, builder-carto, dashboard, monitoring, admin,
                           pipeline-helper (grist-widgets n'est pas copie dans app-dist/)
   favoris.html            Redirection -> apps/favorites/index.html
   builder.html            Redirection -> apps/builder/index.html
   builderIA.html          Redirection -> apps/studio/index.html (#1081)
+  apps/builder-ia/index.html  Redirection -> apps/studio/index.html (app retiree, #1081)
   playground.html         Redirection -> apps/playground/index.html
   sources.html            Redirection -> apps/sources/index.html
   dashboard.html          Redirection -> apps/dashboard/index.html
@@ -1161,7 +1150,7 @@ tests/                       Vitest (happy-dom, fuseau Europe/Paris)
   debug/                       Le collecteur de trace et le volet Diagnostic (§3.6)
   server/  mcp/                Express + MariaDB, et le serveur MCP
   types/                       Types de test
-  apps/                        Les applications (builder, builder-ia, builder-carto, studio,
+  apps/                        Les applications (builder, builder-carto, studio,
                                dashboard, sources, playground, favorites, pipeline-helper, app-ui)
   oracle/                      Le MOTEUR de la verification des donnees : guard (independance),
                                compute, expression, observe, compare-urls, raw, stabilite
@@ -1195,15 +1184,14 @@ e2e/                         Playwright (config e2e/playwright.config.ts, serveu
 - Les dependances `lit` et `@lit` sont inlinees par le serveur de test pour eviter les problemes de resolution ESM dans jsdom.
 - La couverture inclut `packages/core/src/**/*.ts` et `packages/shared/src/**/*.ts` (sauf les barrels et `components/layout/**`), seuils 85 / 77 / 82 / 85 (#829).
 
-### 7.1 `tests/builder-e2e/` — six specs bloquantes, le reste en recette MANUELLE
+### 7.1 `tests/builder-e2e/` — cinq specs bloquantes, le reste en recette MANUELLE
 
-> **Six specs seulement tournent en CI** (`builder-e2e.yml`, #869, #1081) : `export-html-api-recette`
-> (61 cas, vert depuis #866), `builder-ia-recette` et `layout-diagnostic-recette` (43 cas ; l'ancien
-> Assistant y est ouvert par `?ancien=1`), `studio-recette` (les 16 types rendus comme blocs du
-> Studio IA), `studio-navigation-recette` (nav → Studio IA, redirection, echappement) et
-> `studio-parite-recette` (remplacant de `builder-ia-recette`, #1081 etape 1 : le parcours d'une
-> reponse du modele simule jusqu'a l'apercu, par l'interface, pour les 16 types).
-> 142 cas, moins d'une minute, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
+> **Cinq specs seulement tournent en CI** (`builder-e2e.yml`, #869, #1081) : `export-html-api-recette`
+> (61 cas, vert depuis #866), `layout-diagnostic-recette`, `studio-recette` (les 16 types rendus
+> comme blocs du Studio IA), `studio-navigation-recette` (nav → Studio IA) et
+> `studio-parite-recette` (remplacant de la recette de l'ancien Assistant IA, retire en #1081 : le
+> parcours d'une reponse du modele simule jusqu'a l'apercu, par l'interface, pour les 16 types).
+> Moins d'une minute, aucune API tierce. **Tout le reste du dossier n'est pas vert** et ne tourne
 > dans aucun workflow : 56 cas rouges par dérive de sélecteurs (#868). État mesuré par spec :
 > `tests/builder-e2e/README.md`. Ne pas se fier au dossier entier comme à un garde-fou.
 
@@ -1273,7 +1261,7 @@ Les composants DSFR Chart (`map-chart`, `map-chart-reg`) sont des Web Components
 
 ### 10.1 Communication inter-apps (sessionStorage)
 
-Les builders et favoris envoient du code au playground via `sessionStorage` : (1) l'app source stocke `sessionStorage.setItem('playground-code', code)`, (2) navigue vers le playground avec `?from=builder` (ou `studio`, `builder-ia`, `favorites`), (3) le playground lit `from`, charge le code et le supprime. `from` ∈ { `builder`, `studio`, `builder-ia`, `favorites`, `pipeline-helper` }. Le lien de retour vers l'ancien Assistant porte `ancien=1`, sans quoi `apps/builder-ia/` redirigerait vers le Studio (#1081).
+Les builders et favoris envoient du code au playground via `sessionStorage` : (1) l'app source stocke `sessionStorage.setItem('playground-code', code)`, (2) navigue vers le playground avec `?from=builder` (ou `studio`, `favorites`), (3) le playground lit `from`, charge le code et le supprime. `from` ∈ { `builder`, `studio`, `favorites`, `pipeline-helper` }.
 
 Vers le Studio IA, deux clés, lues et consommées par `recupererDiagnosticTransmis()` (`apps/studio/src/main.ts`) : `dsfr-data-diagnostic-handoff` (`transmettreDiagnostic`, #1016, toutes les apps à assistant) et, depuis le Playground seul, `dsfr-data-studio-passation` (`transmettrePassationStudio`, #1132 : le code, et l'**adresse publique** de sa source — jamais d'en-tête ni de clé). Le Studio valide la passation (entrée externe), charge la source par le chemin de `charger_source_url` (`chargerSourceDepuisUrl`), pose la consigne de reconstruction dans son champ sans l'envoyer, et garde le code (`studio-retour-playground`) pour son lien « Retour au Playground » (`?from=playground` → `playground-code` + `?from=studio`).
 
@@ -1360,7 +1348,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 - **Deux chemins d'import, un seul aplatissement** — `packages/shared/src/providers/flatten.ts`. Un jeu de donnees entre dans l'app par deux routes independantes : le **chemin composant** (adapters de `packages/core`, ex. `insee-adapter.ts:234`) et le **chemin connexion** (`apps/sources/src/connections/api-explorer.ts:267`). Les providers dont les enregistrements sont imbriques (INSEE en `attributes`/`dimensions`/`measures`, Grist sous `fields`) doivent produire **exactement les memes noms de colonnes** par les deux routes, sinon un graphique construit depuis une connexion casse quand la meme source est rechargee par un composant. La strategie est donc declaree une fois dans `ProviderConfig.response` (`flattenRecord`, sinon `nestedDataKey`) et appliquee par `flattenProviderRecords()`, partage par les deux. **Piege historique** : `requiresFlatten` et `nestedDataKey` ont existe pendant des mois **sans aucun consommateur** — les observations INSEE arrivaient en `[object Object]` dans les tables du chemin connexion (#586). Ajouter un provider imbrique sans renseigner l'un des deux champs reproduit le bug en silence.
   **Troisieme route, le mode URL de `dsfr-data-source` (#1136)** : `detectProvider(url)` une fois en tete de `_fetchViaUrl`, puis `flattenProviderRecords(lignes, provider.response)` — le fournisseur est reconnu au CHEMIN (`/api/docs/…/tables/…` pour Grist, `melodi/data/…` pour INSEE), donc aussi derriere un proxy. L'ancien `flattenGristEnvelope` (test de forme dans le composant, #482) est supprime. L'`id` Grist : `GristAdapter._flattenRecords` et le mode URL (`stripEnvelopeKeys` dans la source) le retirent — une liste sans `fields` n'affiche pas d'`id` technique (arbitrage #1136) ; seul le chemin connexion de l'app Sources (`flattenNestedKey`) le garde. La convention `paginate` du mode URL (`page`/`page_size` en requete, `data` + `meta.{page,page_size,total}` en reponse) est declaree dans `GENERIC_CONFIG.pagination` (`params`, `serverMeta`) et lue par la source.
 
-- **La version est estampillee a deux endroits, un seul etait synchronise** — `scripts/sync-versions.ts` propage la version de `packages/core/package.json` vers `packages/core/src/version.ts`, mais la skill Claude Code `skills/dsfr-data/SKILL.md` l'estampille **aussi**, depuis `scripts/build-skills-claude.ts:20-26`. Son test-garde `tests/skills-export.test.ts:50` compare le fichier commite a une generation fraiche : apres le bump de `changeset version`, le SKILL.md commite portait encore l'ancienne version et **toute PR de release echouait sur ce test** (vecu sur la 0.19.0, PR #528 — 4070 tests verts, 1 rouge). `version-packages` enchaine donc `build:skills-claude` apres `sync-versions`. **Tout nouvel artefact commite qui embarque la version doit etre ajoute a cette chaine**, pas seulement a `sync-versions.ts`. Second etage du piege : `build:skills-claude` chargeait `apps/builder-ia/src/skills.ts`, qui importait `@dsfr-data/shared` — donc `packages/shared/dist` (voir le point precedent sur tsc vs alias Vite). Depuis #1081 le guide vit dans `packages/shared/src/skills/` et n'importe plus qu'en relatif : la chaine ne lit plus `dist/`, mais la regle ci-apres reste. Le workflow Release ne fait que `npm ci`, sans `build:shared` : la chaine a echoue en CI sur `Cannot find package '@dsfr-data/shared'` alors qu'elle passait en local, ou le `dist/` trainait d'un build precedent. `version-packages` lance donc `build:shared` lui-meme, comme le fait deja `release-publish`. **Un script de release doit etre autosuffisant : ne jamais supposer qu'un `dist/` existe.**
+- **La version est estampillee a deux endroits, un seul etait synchronise** — `scripts/sync-versions.ts` propage la version de `packages/core/package.json` vers `packages/core/src/version.ts`, mais la skill Claude Code `skills/dsfr-data/SKILL.md` l'estampille **aussi**, depuis `scripts/build-skills-claude.ts:20-26`. Son test-garde `tests/skills-export.test.ts:50` compare le fichier commite a une generation fraiche : apres le bump de `changeset version`, le SKILL.md commite portait encore l'ancienne version et **toute PR de release echouait sur ce test** (vecu sur la 0.19.0, PR #528 — 4070 tests verts, 1 rouge). `version-packages` enchaine donc `build:skills-claude` apres `sync-versions`. **Tout nouvel artefact commite qui embarque la version doit etre ajoute a cette chaine**, pas seulement a `sync-versions.ts`. Second etage du piege : `build:skills-claude` chargeait le guide depuis l'ancien Assistant IA, qui importait `@dsfr-data/shared` — donc `packages/shared/dist` (voir le point precedent sur tsc vs alias Vite). Depuis #1081 le guide vit dans `packages/shared/src/skills/` et n'importe plus qu'en relatif : la chaine ne lit plus `dist/`, mais la regle ci-apres reste. Le workflow Release ne fait que `npm ci`, sans `build:shared` : la chaine a echoue en CI sur `Cannot find package '@dsfr-data/shared'` alors qu'elle passait en local, ou le `dist/` trainait d'un build precedent. `version-packages` lance donc `build:shared` lui-meme, comme le fait deja `release-publish`. **Un script de release doit etre autosuffisant : ne jamais supposer qu'un `dist/` existe.**
 
 - **INSEE Melodi : les donnees et leurs libelles sont deux ressources** — `packages/shared/src/providers/insee-labels.ts`. `/melodi/data/{id}` ne renvoie que des codes SDMX (`AGE: "Y65T74"`, `GEO: "2025-DEP-01"`) ; les libelles vivent sur `/melodi/range/{idDataset}`, qui liste **les seules modalites presentes dans le jeu**. Ne pas confondre avec `/datastructure/{id}` : il renvoie `GEO` **vide** (referentiel geographique servi ailleurs) et les listes de codes completes — 281 modalites d'age contre les 7 utilisees. Cle de jointure selon `type` : `code` pour les modalites, **`id`** pour le geo (les observations portent `2025-DEP-01`, pas `01`). Comme pour l'aplatissement, la resolution est appliquee **par les deux chemins d'import** (adapter `packages/core` et `apps/sources/src/connections/api-explorer.ts`) via le meme index, sinon les colonnes divergent (#586). Le cache est **en memoire seule** et memorise la promesse, pas le resultat, pour mutualiser les chargements concurrents ; `/range` annonce `cache-control: max-age=600` et le cache HTTP prend le relais. **Jamais de `localStorage` ici** : son quota est ce que le volet A de #592 vient de desaturer.
 

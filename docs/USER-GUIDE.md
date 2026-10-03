@@ -18,7 +18,7 @@ Les outils disponibles sont :
 - **Sources** : connecter et gerer les sources de donnees (Grist, API, manuelles)
 - **Builder** : generateur visuel de graphiques pas-a-pas
 - **Builder carto** : generateur visuel de cartes interactives Leaflet
-- **Builder IA** : generateur de graphiques par conversation avec l'IA Albert
+- **Studio IA** : generateur de graphiques et de tableaux de bord par conversation avec l'IA Albert
 - **Playground** : editeur de code interactif avec apercu temps reel
 - **Dashboard** : editeur visuel de tableaux de bord multi-widgets
 - **Favoris** : sauvegarde et reutilisation des creations
@@ -133,20 +133,20 @@ Apres avoir configure et genere le graphique, le code genere contient les Web Co
 
 ---
 
-## Parcours C : Generer un graphique avec l'IA (Builder IA)
+## Parcours C : Generer un graphique avec l'IA (Studio IA)
 
-> **Pour** generer rapidement un graphique en decrivant ce que je veux en langage naturel,
+> **Pour** generer rapidement un graphique ou un tableau de bord en decrivant ce que je veux en langage naturel,
 > **je dois** selectionner une source de donnees puis discuter avec l'assistant Albert IA,
 > **afin d'** obtenir un graphique et son code sans ecrire de configuration manuelle.
 
 ### Etape 1 — Charger une source et ouvrir le chat
 
-Dans le **Builder IA**, selectionnez une source de donnees et cliquez sur **Charger**. L'interface se compose de deux zones :
+Dans le **Studio IA** (menu « Studio IA »), selectionnez une source de donnees : elle se charge aussitot, et **Voir les donnees** en montre les champs et les premieres lignes. L'interface se compose de deux zones :
 
-1. Le panneau de configuration et le **chat IA** a gauche
-2. Le panneau d'**apercu**, **code** et **donnees** a droite
+1. La source, la **configuration IA** et le **chat** a gauche
+2. Le panneau d'**apercu**, de **code** et du document (**JSON**) a droite
 
-![Builder IA — vue d'ensemble](images/guide-C1-builder-ia-overview.png)
+![Studio IA — vue d'ensemble](../guide/images/guide-C1-studio-overview.png)
 
 ### Etape 2 — Decrire le graphique souhaite
 
@@ -154,20 +154,18 @@ Ecrivez dans le chat ce que vous souhaitez, en langage naturel. Par exemple :
 
 > "Fais-moi un graphique en barres des beneficiaires par region"
 
-L'IA analyse les champs disponibles dans vos donnees et genere la configuration correspondante. Elle propose ensuite des **suggestions** pour affiner le resultat.
+L'IA analyse les champs disponibles dans vos donnees et compose le document bloc par bloc : graphiques, indicateurs, tableau, filtres partages, texte editorial. Elle propose ensuite des **suggestions** pour affiner le resultat.
 
 ### Etape 3 — Iterer et exporter
 
 L'IA repond avec :
-- Le graphique genere dans l'**apercu**
-- L'action executee (en JSON)
-- Des **suggestions** pour modifier le graphique ("Passe en camembert", "Filtre sur IDF", etc.)
+- Le document mis a jour dans l'**apercu**
+- Le **raisonnement** suivi, replie sous la reponse
+- Des **suggestions** pour poursuivre ("Ajouter des filtres partages", "Ajouter un indicateur cle", etc.)
 
-Vous pouvez continuer la conversation pour ajuster le graphique, puis copier le code depuis l'onglet **Code genere**.
+Vous pouvez continuer la conversation pour ajuster un bloc ("passe ce graphique en barres"), puis **copier le code**, l'**enregistrer** comme tableau de bord, l'**ajouter aux favoris**, l'**ouvrir dans le Playground** ou l'**exporter** en image.
 
-![Builder IA — resultat](images/guide-C3-builder-ia-result.png)
-
-> **Note** : le Builder IA utilise l'API Albert (IA souveraine de l'Etat). Un token API Albert est necessaire, configurable dans la section "Configuration Albert IA".
+> **Note** : le Studio IA utilise l'API Albert (IA souveraine de l'Etat). Sans jeton serveur, renseignez votre jeton dans la section "Configuration IA".
 
 ---
 

@@ -75,7 +75,7 @@ La specification exhaustive de chaque composant (attributs, valeurs, exemples in
 
 ## Heberger votre instance
 
-Le repo embarque une webapp d'edition (Builder, Builder carto, Builder IA, Sources, Playground, Dashboard, Favoris, Pipeline helper, Grist widgets, Monitoring, Admin) deployable via Docker en deux modes :
+Le repo embarque une webapp d'edition (Builder, Builder carto, Studio IA, Sources, Playground, Dashboard, Favoris, Pipeline helper, Grist widgets, Monitoring, Admin) deployable via Docker en deux modes :
 
 - **Statique** (nginx + localStorage) — usage individuel.
 - **Serveur** (nginx + Express + MariaDB) — multi-utilisateurs, auth JWT, partages, audit.

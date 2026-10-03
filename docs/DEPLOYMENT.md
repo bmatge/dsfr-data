@@ -1,6 +1,6 @@
 # Deploiement en production
 
-Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder carto, Builder IA, Sources, Playground, Favoris, Dashboard, Grist widgets, Monitoring, Pipeline Helper, Admin) sur un serveur Docker. Pour une integration cote consommateur (utilisation des Web Components dans une page tierce), voir le [README](../README.md#installation).
+Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder carto, Studio IA, Sources, Playground, Favoris, Dashboard, Grist widgets, Monitoring, Pipeline Helper, Admin) sur un serveur Docker. Pour une integration cote consommateur (utilisation des Web Components dans une page tierce), voir le [README](../README.md#installation).
 
 > **Mode de deploiement canonique** : la production de reference (VibeLab, `chartsbuilder.miweb.run`) utilise le `compose.yml` et le `deploy.sh` situes a la **racine** du repo, pilotes par `spawn up chartsbuilder ...` (cf. [ARCHITECTURE §10.6](ARCHITECTURE.md#106-déploiement-vibelab-production-miwebrun)). Les scripts `docker/deploy.sh` / `docker/deploy-server.sh` decrits dans la suite de ce guide sont le flux **legacy**, conserve pour le self-hosting sur infrastructure arbitraire.
 
@@ -48,7 +48,7 @@ Le conteneur **n'expose pas de port public** : la terminaison TLS et le HTTPS do
 | Authentification | Aucune | JWT + bcrypt + sessions revocables |
 | Partage de favoris/sources | Non | Oui (utilisateurs, groupes, lien public anonyme) |
 | Cle API stockage | localStorage chiffre par cle pinned | AES-256-GCM cote serveur |
-| Builder IA | Token client | Token serveur partage (`IA_DEFAULT_TOKEN`) |
+| Studio IA | Token client | Token serveur partage (`IA_DEFAULT_TOKEN`) |
 | Conteneurs | 1 (nginx + MCP) | 3 (nginx, Express, MariaDB) |
 | Script | `docker/deploy.sh` | `docker/deploy-server.sh` |
 
@@ -81,7 +81,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 | `CSRF_SECRET` | serveur | HMAC pour les tokens CSRF | fallback `ENCRYPTION_KEY` |
 | `APP_URL` | serveur **[REQUISE en mode serveur]** | URL publique de l'app, utilisee dans les emails de verification / reset (ex. `https://mondomaine.gouv.fr`). Sans cette variable, le serveur leve une erreur au demarrage si l'envoi d'email est tente. | throw si absent et SMTP configure |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | serveur | Configuration SMTP pour l'envoi d'emails de verification / reset | non configure |
-| `IA_DEFAULT_TOKEN`, `IA_DEFAULT_API_URL`, `IA_DEFAULT_MODEL` | les 2 | Cle Albert partagee cote serveur (Builder IA fonctionne sans config utilisateur) | `albert-large` |
+| `IA_DEFAULT_TOKEN`, `IA_DEFAULT_API_URL`, `IA_DEFAULT_MODEL` | les 2 | Cle Albert partagee cote serveur (le Studio IA fonctionne sans config utilisateur) | `albert-large` |
 | `IA_MAX_RPM` | les 2 | Plafond global d'appels a `/ia-proxy-default` par minute glissante, **tous utilisateurs confondus** (#999). Au-dela, le proxy repond `429` avec un en-tete `Retry-After` en secondes entieres, **sans appeler Albert** : la cle partagee ne s'epuise pas sur la limite amont. Entier >= 1 ; toute autre valeur retombe sur le defaut. Le compteur vit en memoire du process (`scripts/ia-default-server.js` en production, middlewares Vite en dev) : il repart a zero au redemarrage. Voir ci-dessous. | `10` |
 
 **Securite** : `JWT_SECRET`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `ENCRYPTION_KEY` sont **generes automatiquement** par `deploy-server.sh` s'ils manquent dans `.env`. Une fois generes, ne JAMAIS les changer en place : `JWT_SECRET` invalide les sessions actives, `ENCRYPTION_KEY` rend les cles API stockees illisibles. Les sauvegarder hors du serveur.
@@ -329,7 +329,7 @@ Resolution :
 | Variable | Utilisee par |
 |---|---|
 | `PROXY_BASE_URL` (runtime) | `apps/grist-widgets`, `apps/monitoring`, `apps/sources`, `getProxyConfig()` de l'app |
-| `PROXY_BASE_URL_EMBED` (embed) | Code genere par `apps/builder`, `apps/builder-ia`, `apps/builder-carto` (attribut `base-url`/`url=` des widgets) |
+| `PROXY_BASE_URL_EMBED` (embed) | Code genere par `apps/builder`, `apps/builder-carto`, `apps/studio` (attribut `base-url`/`url=` des widgets) |
 | `BEACON_BASE_URL` (beacon) | URL de telemetrie bakee dans le bundle lib `packages/core/dist/dsfr-data.*.js` |
 
 **Validation** : pour verifier qu'aucune URL n'a fui dans le mauvais sens apres build, `grep` les bundles produits :
@@ -638,7 +638,7 @@ Verifier qu'aucun bundle servi n'embarque en dur l'URL d'une ancienne instance (
 curl -sf "https://${APP_DOMAIN}/dist/dsfr-data.core.esm.js" | grep -c "<ancien-domaine>" || echo "(0 fuites)"
 
 # Bundles des apps de creation
-for app in builder builder-ia builder-carto dashboard playground; do
+for app in builder builder-carto studio dashboard playground; do
   echo "=== ${app} ==="
   curl -sf "https://${APP_DOMAIN}/${app}/" \
     | grep -oE 'src="/[^"]+\.js"' | head -1 \
@@ -675,8 +675,8 @@ appels (defaut `10`) sur les 60 dernieres secondes, pour toute l'instance. L'app
 `{ "error": { "type": "rate_limit_exceeded", "message": "... réessayez dans N s" } }`, sans
 qu'aucune requete ne parte vers Albert ; un refus ne consomme pas de place. Seul
 `/ia-proxy-default` (cle partagee) est plafonne : `/ia-proxy`, qui porte la cle de l'usager, ne
-l'est pas. Le module est commun a la production et aux deux middlewares de dev (`vite.config.ts`
-racine et `apps/builder-ia/vite.config.ts`) : `scripts/lib/debit.cjs`, a copier dans l'image a cote
+l'est pas. Le module est commun a la production et au middleware de dev (`vite.config.ts`
+racine) : `scripts/lib/debit.cjs`, a copier dans l'image a cote
 de `ia-default-server.js` (les deux Dockerfiles le font). Au demarrage, le log l'annonce :
 
 ```bash

@@ -20,9 +20,10 @@ La bibliotheque npm publiee `dsfr-data` se trouve dans `packages/core/`.
 - **Charts** : `@gouvfr/dsfr-chart`. Carte : Leaflet (lazy).
 - **Serveur** : Express + MariaDB 11 (`mysql2/promise`).
 - **Versioning** : Changesets.
-- **Mono** : 12 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
-- **Entrée IA des usagers : le Studio IA** (`apps/studio/`, #1081). `apps/builder-ia/` (ancien Assistant IA)
-  redirige vers lui, sauf avec `?ancien=1` ; il garde le guide des skills (`skills.ts`).
+- **Mono** : 11 apps dans `apps/`, lib dans `packages/core/`, partagé dans `packages/shared/`, chrome applicatif dans `packages/app-ui/`.
+- **Entrée IA des usagers : le Studio IA** (`apps/studio/`, #1081). L'ancien Assistant IA (`apps/builder-ia/`)
+  est retiré ; en déploiement son adresse redirige vers le Studio (`scripts/build-app.js`). Le guide des
+  skills vit dans `packages/shared/src/skills/skills.ts`.
 
 ## Commandes essentielles
 
@@ -50,12 +51,11 @@ npm run test:coverage # Couverture
 npm run test:e2e      # Playwright E2E
 npm run typecheck:tests  # Typage de la suite de tests (tsconfig.tests.json)
 npx playwright test --config tests/builder-e2e/playwright.config.ts <un-spec>.spec.ts
-                      # SIX specs bloquantes sur PR (builder-e2e.yml, #869, #1081) :
-                      #   export-html-api-recette, builder-ia-recette, layout-diagnostic-recette,
+                      # CINQ specs bloquantes sur PR (builder-e2e.yml, #869, #1081) :
+                      #   export-html-api-recette, layout-diagnostic-recette,
                       #   studio-recette, studio-navigation-recette, studio-parite-recette
-                      #   (remplacant de builder-ia-recette, qui part a l'etape 2 de #1081,
-                      #   avec apps/builder-ia). L'ancien Assistant IA ne
-                      #   s'ouvre plus que par `apps/builder-ia/?ancien=1` (sinon : Studio IA).
+                      #   (remplacant de la recette de l'ancien Assistant IA, retire avec
+                      #   son app a l'etape 2 de #1081).
                       #   Le RESTE du dossier est une recette manuelle, hors CI et pas verte
                       #   (#868) : etat mesure par spec dans tests/builder-e2e/README.md.
                       #   Playwright demarre `npm run dev` lui-meme (et reutilise le tien).
@@ -102,7 +102,7 @@ npm run check:studio-couverture  # BLOQUANT en CI (etape quality, #1109) : chaqu
                       #   apps/studio/src/couverture-exclusions.ts. Un attribut ajoute a la lib
                       #   doit y etre tranche. Lancer `npm run build:shared` avant.
 
-# Skills (connaissance IA : builder-IA + serveur MCP)
+# Skills (connaissance IA : Studio IA + serveur MCP)
 npm run build:skills  # Chaine complete : analyse CEM -> reference generee -> dist/skills.json
 npm run build:cem     # Etape 1 seule : packages/core/custom-elements.json
 npm run build:skills-ref  # Etape 2 seule : packages/shared/src/skills/skills-reference.generated.ts

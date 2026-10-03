@@ -20,7 +20,7 @@
         children: [
           { id: 'parcours-a', label: 'Donnees locales', href: 'guide-parcours.html#parcours-a' },
           { id: 'parcours-b', label: 'Graphique Grist', href: 'guide-parcours.html#parcours-b' },
-          { id: 'parcours-c', label: 'Builder IA', href: 'guide-parcours.html#parcours-c' },
+          { id: 'parcours-c', label: 'Studio IA', href: 'guide-parcours.html#parcours-c' },
           { id: 'parcours-d', label: 'Playground', href: 'guide-parcours.html#parcours-d' },
           { id: 'parcours-e', label: 'Tableau de bord', href: 'guide-parcours.html#parcours-e' },
           { id: 'parcours-f', label: 'API REST externe', href: 'guide-parcours.html#parcours-f' },
