@@ -186,6 +186,28 @@ describe('compute v2 — fonctions nombres', () => {
     expect(run('ceil(x)', { x: '4.1' })).toBe(5);
   });
 
+  it('sqrt : racine carrée, chaîne numérique FR acceptée, zéro rend zéro', () => {
+    expect(run('sqrt(x)', { x: 16 })).toBe(4);
+    expect(run('sqrt(x)', { x: 2.25 })).toBe(1.5);
+    expect(run('sqrt(x)', { x: '6,25' })).toBe(2.5);
+    expect(run('sqrt(x)', { x: 0 })).toBe(0);
+    expect(run('round(sqrt(x), 2)', { x: 2 })).toBe(1.41);
+    // Le rayon d'un symbole proportionnel : l'aire suit la valeur.
+    expect(run('sqrt(population / 3.14159)', { population: 314159 })).toBeCloseTo(316.2278, 4);
+  });
+
+  it('sqrt : un négatif n’a pas de racine — null, jamais NaN ; absent et non numérique → null', () => {
+    expect(run('sqrt(x)', { x: -4 })).toBeNull();
+    expect(run('sqrt(x)', { x: null })).toBeNull();
+    expect(run('sqrt(x)', {})).toBeNull();
+    expect(run('sqrt(x)', { x: '' })).toBeNull();
+    expect(run('sqrt(x)', { x: 'NC' })).toBeNull();
+    // Le null se propage dans l'arithmétique, il ne devient pas un zéro.
+    expect(run('sqrt(x) * 2', { x: -4 })).toBeNull();
+    expect(compileError('out = sqrt()')).toContain('"sqrt" attend 1 argument, 0 reçu');
+    expect(compileError('out = sqrt(a, b)')).toContain('"sqrt" attend 1 argument, 2 reçus');
+  });
+
   it('non numérique → null (jamais un 0 plausible)', () => {
     expect(run('round(x)', { x: 'abc' })).toBeNull();
     expect(run('abs(x)', { x: null })).toBeNull();
@@ -364,6 +386,7 @@ describe('compute v2 — liste blanche', () => {
       'abs',
       'floor',
       'ceil',
+      'sqrt',
       'lower',
       'upper',
       'trim',

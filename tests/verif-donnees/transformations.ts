@@ -1225,6 +1225,33 @@ ${kpi('k-apo', 'q-apo')}
   },
 
   {
+    id: 'compute-racine-carree',
+    mode: 'deterministic',
+    origin:
+      'sqrt(x), relevée par AM-107 (#1229) : le rayon d’un symbole proportionnel est la racine de la valeur, pour que l’AIRE la suive. Un nombre négatif n’a pas de racine — la colonne vaut null, jamais NaN ni la racine de sa valeur absolue, qui serait un rayon plausible ; une cellule vide, un texte et un null restent absents ; zéro rend zéro. Recalculée deux fois : par la grammaire réécrite (`derive`), puis par l’étape `sqrt`, que la troisième voix sait lire.',
+    feed: { kind: 'fixture', datasets: JEU_CODE },
+    markup: `${CODE}
+  <dsfr-data-normalize id="n-rac" source="s-code"
+    compute="rayon = sqrt(surface); diametre = 2 * sqrt(surface)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-rac" source="n-rac" columns="cle:Clé, rayon:Rayon"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'n-rac',
+        key: 'cle',
+        columns: ['rayon', 'diametre'],
+        pipeline: [{ op: 'derive', expr: 'rayon = sqrt(surface); diametre = 2 * sqrt(surface)' }],
+      },
+      {
+        kind: 'list',
+        id: 'l-rac',
+        columns: [{ column: 'cle' }, { column: 'rayon', numeric: true }],
+        pipeline: [{ op: 'sqrt', from: 'surface', as: 'rayon' }],
+      },
+    ],
+  },
+
+  {
     id: 'compute-absence-coalesce-is-null-is-empty',
     mode: 'deterministic',
     origin:

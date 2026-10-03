@@ -26,7 +26,7 @@ describe('oracle / expressions', () => {
   });
 
   it('refuse une fonction hors liste blanche', () => {
-    expect(() => deriver([{ a: 1 }], 'x = sqrt(a)')).toThrow(/liste blanche/);
+    expect(() => deriver([{ a: 1 }], 'x = cbrt(a)')).toThrow(/liste blanche/);
   });
 
   it('rend null pour une division par zéro, jamais l’infini', () => {
@@ -101,6 +101,14 @@ describe('oracle / expressions', () => {
     expect(r.seule).toBe("'");
     expect(r.bord).toBe("'ab'");
     expect(() => deriver([{}], "x = 'J''en ai")).toThrow('texte non terminé');
+  });
+
+  it('prend la racine carrée, et rend null pour un négatif', () => {
+    const r = deriver(
+      [{ a: 16, b: -4, c: '6,25', d: null, z: 0 }],
+      'ra = sqrt(a); rb = sqrt(b); rc = sqrt(c); rd = sqrt(d); rz = sqrt(z)'
+    )[0];
+    expect([r.ra, r.rb, r.rc, r.rd, r.rz]).toEqual([4, null, 2.5, null, 0]);
   });
 
   it('distingue l’absence (is_null) du vide (is_empty)', () => {

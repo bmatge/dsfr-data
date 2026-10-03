@@ -413,6 +413,22 @@ export function sousChaine(v: unknown, debut: unknown, longueur?: unknown): stri
   return out;
 }
 
+/**
+ * Racine carrée d'une valeur, sur le contrat ÉCRIT de `sqrt` : non numérique
+ * ou absente → `null` ; NÉGATIVE → `null`, jamais `NaN` ; zéro → zéro.
+ * Calculée par la puissance un demi, pas par la fonction de la bibliothèque.
+ */
+export function racine(v: unknown): number | null {
+  const n = toNum(v);
+  if (n === null || n < 0) return null;
+  return n ** 0.5;
+}
+
+/** La colonne `as` reçoit la racine carrée de `from` (voir `racine`). */
+export function sqrtColumn(rows: Row[], from: string, as: string): Row[] {
+  return rows.map((r) => ({ ...r, [as]: racine(r[from]) }));
+}
+
 /** La colonne `as` reçoit la sous-chaîne de `from` (voir `sousChaine`). */
 export function substringColumn(
   rows: Row[],
@@ -902,6 +918,9 @@ export function runPipeline(
         break;
       case 'substring':
         rows = substringColumn(rows, step.from, step.as, step.start, step.length);
+        break;
+      case 'sqrt':
+        rows = sqrtColumn(rows, step.from, step.as);
         break;
       case 'join': {
         const droite = datasets[step.right];

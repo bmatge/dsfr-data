@@ -487,6 +487,19 @@ def sous_chaine(v: Any, debut: int, longueur: int | None) -> str | None:
     return texte[debut - 1 : debut - 1 + longueur]
 
 
+def racine(v: Any) -> Fraction | None:
+    """Racine carrée : ``None`` pour une valeur absente, non numérique ou NÉGATIVE.
+
+    Jamais ``NaN``, jamais un zéro de complaisance ; zéro rend zéro. Calculée en
+    ``Decimal`` (28 chiffres significatifs), bien au-delà des six décimales de
+    la rencontre.
+    """
+    n = to_num(v)
+    if n is None or n < 0:
+        return None
+    return Fraction((Decimal(n.numerator) / Decimal(n.denominator)).sqrt())
+
+
 def ratio(rows: list[Row], num: str, den: str, alias: str) -> list[Row]:
     out = []
     for r in rows:
@@ -711,6 +724,8 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1))
         elif op == "ratio":
             rows = ratio(rows, s["numerator"], s["denominator"], s["as"])
+        elif op == "sqrt":
+            rows = [{**r, s["as"]: racine(r.get(s["from"]))} for r in rows]
         elif op == "substring":
             rows = [{**r, s["as"]: sous_chaine(r.get(s["from"]), int(s["start"]), s.get("length"))} for r in rows]
         elif op == "join":

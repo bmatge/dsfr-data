@@ -32,7 +32,7 @@
  *     `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai.
  */
 import type { Row } from './manifest.js';
-import { absent, egal, sousChaine, toNum } from './compute.js';
+import { absent, egal, racine, sousChaine, toNum } from './compute.js';
 
 // ---------------------------------------------------------------------------
 // Lexique
@@ -404,6 +404,9 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
       return nombreOuNull(args[0], Math.floor);
     case 'ceil':
       return nombreOuNull(args[0], Math.ceil);
+    case 'sqrt':
+      // Un négatif n'a pas de racine : null, jamais NaN.
+      return racine(args[0]);
     case 'lower':
       return texteDe(args[0]).toLowerCase();
     case 'upper':

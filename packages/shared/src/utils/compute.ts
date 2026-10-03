@@ -223,6 +223,15 @@ const FUNCTIONS: Record<string, FunctionSpec> = {
   abs: { min: 1, max: 1, impl: numericFn(Math.abs) },
   floor: { min: 1, max: 1, impl: numericFn(Math.floor) },
   ceil: { min: 1, max: 1, impl: numericFn(Math.ceil) },
+  // Square root: a negative number has none — null, never NaN.
+  sqrt: {
+    min: 1,
+    max: 1,
+    impl: (a) => {
+      const n = numberish(a[0]);
+      return n === null || n < 0 ? null : Math.sqrt(n);
+    },
+  },
 
   // Text — null stays null; a number is converted to its text form.
   lower: { min: 1, max: 1, impl: textFn((s) => s.toLowerCase()) },

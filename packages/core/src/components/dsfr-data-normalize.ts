@@ -243,7 +243,8 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    * - littéraux `null`, `true`, `false` ;
    * - fonctions en liste blanche, appel `f(a, b)` :
    *   dates `year(d)`, `month(d)`, `day(d)` (ISO ou Date, sinon null) ;
-   *   nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)` (non numérique → null) ;
+   *   nombres `round(x, n)`, `abs(x)`, `floor(x)`, `ceil(x)`, `sqrt(x)` (non numérique
+   *   → null ; `sqrt` d'un nombre négatif → null, jamais NaN ; `sqrt(0)` vaut 0) ;
    *   texte `lower(s)`, `upper(s)`, `trim(s)`, `len(s)`, `concat(a, b, …)`,
    *   `replace(s, 'de', 'vers')` (littéral, toutes les occurrences, pas de regex),
    *   sous-chaînes `left(s, n)` (les n premiers caractères) et

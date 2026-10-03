@@ -21,7 +21,9 @@ import {
   quantileBreaks,
   ratioColumn,
   roundTo,
+  racine,
   sousChaine,
+  sqrtColumn,
   substringColumn,
   runPipeline,
   runningSum,
@@ -307,6 +309,20 @@ describe('oracle — recalcul indépendant', () => {
     expect(substringColumn([{ c: '01004' }, { c: null }], 'c', 'dep', 1, 2)).toEqual([
       { c: '01004', dep: '01' },
       { c: null, dep: null },
+    ]);
+  });
+
+  it('racine carrée : null pour un négatif, un absent, un texte ; zéro rend zéro', () => {
+    expect(racine(16)).toBe(4);
+    expect(racine('2,25')).toBe(1.5);
+    expect(racine(0)).toBe(0);
+    expect(racine(-4)).toBeNull();
+    expect(racine(null)).toBeNull();
+    expect(racine('')).toBeNull();
+    expect(racine('NC')).toBeNull();
+    expect(sqrtColumn([{ s: 9 }, { s: -9 }], 's', 'r')).toEqual([
+      { s: 9, r: 3 },
+      { s: -9, r: null },
     ]);
   });
 

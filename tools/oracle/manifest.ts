@@ -236,6 +236,17 @@ export type Step =
       start: number;
       length?: number;
     }
+  | {
+      /**
+       * RACINE CARRÉE : la colonne `as` reçoit la racine de `from` — `null`
+       * pour une valeur absente, non numérique ou NÉGATIVE (jamais `NaN`).
+       * C'est ce que `sqrt(x)` de `compute` doit montrer, énoncé sans la
+       * grammaire d'expressions, donc recalculable par la troisième voix.
+       */
+      op: 'sqrt';
+      from: string;
+      as: string;
+    }
   /**
    * Éclate un champ MULTIVALUÉ (tableau) : une ligne par valeur, le champ
    * portant cette valeur ; une ligne sans tableau (absent, vide) n'en produit
