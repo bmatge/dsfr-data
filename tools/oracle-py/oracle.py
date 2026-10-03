@@ -454,16 +454,27 @@ def diff(rows: list[Row], champ: str, alias: str) -> list[Row]:
     return out
 
 
-def share(rows: list[Row], champ: str, alias: str, echelle: Fraction) -> list[Row]:
+def share(rows: list[Row], champ: str, alias: str, echelle: Fraction, par: Any = None) -> list[Row]:
     """Part du total (#926) : valeur / somme de la colonne sur toutes les lignes reçues.
 
     ``echelle`` vaut 100 pour une part en points de pourcentage
     (``share_percent``). Total nul, ou valeur non numérique : ``None``.
+
+    ``par`` (AM-110, attribut ``share-by``) est la PARTITION : le dénominateur
+    devient la somme de la colonne sur les lignes qui portent les mêmes valeurs
+    de ces champs. Une valeur absente (``null``, chaîne vide) forme sa propre
+    partition, comme elle forme son propre groupe. Sans ``par`` : un seul total.
     """
+    champs = [] if not par else (par if isinstance(par, list) else [par])
+    partitions = [tuple(cle_groupe(r.get(f)) for f in champs) for r in rows]
     valeurs = [to_num(r.get(champ)) for r in rows]
-    total = sum((v for v in valeurs if v is not None), Fraction(0))
+    totaux: dict[tuple[str, ...], Fraction] = {}
+    for p, v in zip(partitions, valeurs):
+        if v is not None:
+            totaux[p] = totaux.get(p, Fraction(0)) + v
     out = []
-    for r, v in zip(rows, valeurs):
+    for r, p, v in zip(rows, partitions, valeurs):
+        total = totaux.get(p, Fraction(0))
         out.append({**r, alias: None if v is None or total == 0 else (v / total) * echelle})
     return out
 
@@ -721,7 +732,7 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
         elif op == "running":
             rows = running_sum(rows, s["from"], s["as"]) if s["kind"] == "running_sum" else diff(rows, s["from"], s["as"])
         elif op == "share":
-            rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1))
+            rows = share(rows, s["from"], s["as"], Fraction(s.get("scale") or 1), s.get("by"))
         elif op == "ratio":
             rows = ratio(rows, s["numerator"], s["denominator"], s["as"])
         elif op == "sqrt":

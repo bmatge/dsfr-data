@@ -154,6 +154,46 @@
           multivalué : sur une source volumineuse, penser au plafond de lignes rapatriées.
         </p>
 
+        <h3 class="fr-mt-3w">Part au sein d'un groupe : <code>share-by</code></h3>
+        <p>
+          <code>share</code> et <code>share_percent</code> rapportent chaque ligne au total de
+          <strong>toutes</strong> les lignes de sortie. C'est la bonne lecture d'une répartition, pas
+          celle d'une enquête : la part d'une réponse parmi les répondants d'une question, une année
+          donnée, se rapporte au total de <em>cette</em> question et de <em>cette</em> année.
+          <code>share-by</code> nomme cette partition — sans second regroupement, ni jointure, ni
+          <code>compute</code>.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-query fields="share-by" -->
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-query id="parts"
+  source="enquete"
+  group-by="annee, question, reponse"
+  aggregate="n:sum, n__sum:share_percent:part"
+  share-by="annee, question"&gt;
+&lt;/dsfr-data-query&gt;</pre>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          Les parts de chaque couple (année, question) somment à 100 %. Avec un <code>group-by</code>,
+          chaque champ de <code>share-by</code> doit y figurer : après le regroupement, les lignes ne
+          portent plus les autres colonnes, et la part retomberait sur le total général — la
+          configuration est refusée et la requête passe en erreur, plutôt que d'émettre un chiffre
+          plausible. Une valeur absente forme sa propre partition, comme elle forme son propre groupe.
+          Le dénominateur reste pris avant <code>limit</code> : un top N par groupe ne somme pas à
+          100 %. Comme toute part, <code>share-by</code> garde le regroupement
+          <strong>côté client</strong>, quel que soit le type de source (Opendatasoft, Tabular,
+          Grist) : sur un jeu volumineux, relever <code>max-records</code>, et ne pas le poser sur une
+          source en <code>server-side</code>, qui ne charge qu'une page. Sans l'attribut, rien ne
+          change.
+        </p>
+
         <h3 class="fr-mt-3w">En attente d'un filtre : <code>require-where</code></h3>
         <p>
           Sur une page d'exploration, afficher le jeu entier avant tout choix de l'utilisateur est au mieux

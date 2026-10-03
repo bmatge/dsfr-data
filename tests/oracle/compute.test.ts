@@ -27,6 +27,7 @@ import {
   substringColumn,
   runPipeline,
   runningSum,
+  shareColumn,
   toNum,
   toRgb,
   weightedAverage,
@@ -324,6 +325,40 @@ describe('oracle — recalcul indépendant', () => {
       { s: 9, r: 3 },
       { s: -9, r: null },
     ]);
+  });
+
+  it('part par groupe : le dénominateur est la somme de la partition (AM-110)', () => {
+    const lignes = [
+      { an: 2014, q: 'a', n: 30 },
+      { an: 2014, q: 'a', n: 70 },
+      { an: 2021, q: 'a', n: 50 },
+      { an: 2021, q: 'b', n: 'NC' },
+      { an: null, q: 'a', n: 4 },
+      { an: '', q: 'a', n: 12 },
+    ];
+    // Sans partition : un seul total (166).
+    expect(shareColumn(lignes, 'n', 'p', 100).map((r) => r.p)[0]).toBeCloseTo(18.072289, 5);
+    // Par année : 2014 somme à 100, 2021 n'a qu'une valeur numérique, l'absence
+    // (null et chaîne vide) fait une partition à elle seule.
+    expect(shareColumn(lignes, 'n', 'p', 100, 'an').map((r) => r.p)).toEqual([
+      30,
+      70,
+      100,
+      null,
+      25,
+      75,
+    ]);
+    // Par année ET question : la clé composite ne confond pas deux partitions.
+    expect(shareColumn(lignes, 'n', 'p', 1, ['an', 'q']).map((r) => r.p)).toEqual([
+      0.3,
+      0.7,
+      1,
+      null,
+      0.25,
+      0.75,
+    ]);
+    // Total de partition nul : null, jamais l'infini.
+    expect(shareColumn([{ g: 'x', n: 0 }], 'n', 'p', 100, 'g')[0].p).toBeNull();
   });
 
   it('page : la tranche affichée, pas les premières lignes', () => {

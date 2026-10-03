@@ -294,6 +294,7 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
 | explode | String | \`""\` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans \`group-by\`. Force le regroupement côté client. |
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
+| share-by | String | \`""\` | non | Partition de \`share\` / \`share_percent\` (AM-110) : champs, séparés par virgule, AU SEIN DESQUELS la part est calculée (\`share-by="annee, question"\` → les parts de chaque couple somment à 100 %). Avec un \`group-by\`, chaque champ doit y figurer. Sans l'attribut, la part reste celle du total. Jamais délégué. |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
 | require-where | Boolean | \`false\` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état \`idle\` descend jusqu'aux afficheurs. Compte comme filtre le \`where\`/\`filter\` de cette requête, ou toute clause reçue par commande. |
@@ -503,6 +504,26 @@ division. \`share\` la donne en un attribut :
 - **Une part suppose une partition** : chaque unité comptée une fois. Après \`explode\`, une
   ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
   des licences portant ce label », pas « répartition ».
+- **Part AU SEIN D'UN GROUPE : \`share-by\`** (AM-110). « Part de chaque réponse parmi les
+  répondants d'une question, une année donnée » : sans partition, la part se rapporte à toutes
+  les lignes de sortie, les deux années et toutes les questions confondues. Poser
+  \`share-by="annee, question"\` — le dénominateur devient la somme des lignes qui portent la
+  même année ET la même question, et les parts de chaque couple somment à 100 % :
+
+  \`\`\`html
+  <dsfr-data-query id="parts" source="enquete"
+    group-by="annee, question, reponse"
+    aggregate="n:sum, n__sum:share_percent:part"
+    share-by="annee, question">
+  </dsfr-data-query>
+  \`\`\`
+
+  Ne PAS reconstruire la part par un second \`group-by\`, un \`dsfr-data-join\` et un
+  \`compute\`. Règles : avec un \`group-by\`, chaque champ de \`share-by\` doit y figurer
+  (sinon erreur de configuration, et la requête passe en erreur plutôt que d'émettre la part
+  du total général) ; une valeur absente forme sa propre partition ; le dénominateur reste
+  pris avant \`limit\` ; \`share-by\` s'applique à toutes les parts de \`aggregate\`, pas aux
+  cumuls ; sans part dans \`aggregate\`, il est signalé et sans effet.
 - Total nul ou valeur non numérique : \`null\`, jamais l'infini ni un zéro de complaisance.
 - **Jamais délégué**, comme les cumuls : un \`group-by\` qui porte une part redescend
   entièrement côté client — relever \`max-records\` avant, sinon le dénominateur est tronqué

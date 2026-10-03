@@ -190,11 +190,17 @@ export type Step =
        * `limit`, comme la lib. `scale: 100` rend la part en points de
        * pourcentage (`share_percent`). Total nul ou valeur non numérique :
        * `null`, jamais 0 ni l'infini.
+       *
+       * `by` (AM-110, attribut `share-by`) : la PARTITION. Le dénominateur
+       * est alors la somme de la colonne sur les seules lignes qui portent
+       * les mêmes valeurs de ces champs — une part au sein d'un groupe. Une
+       * valeur absente (`null`, chaîne vide) forme sa propre partition.
        */
       op: 'share';
       from: string;
       as: string;
       scale?: number;
+      by?: string | string[];
     }
   | {
       /**

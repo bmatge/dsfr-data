@@ -47,6 +47,7 @@ import {
   COMPOSITE_GAUCHE,
   DROITE,
   EDITIONS,
+  ENQUETE,
   GAUCHE,
   GAUCHE_GRAPHIE,
   LARGE,
@@ -355,6 +356,16 @@ ${kpi('k-mixte-bas', 'q-mixte-bas')}`,
 // aggregate, group-by, order-by, limit
 // ---------------------------------------------------------------------------
 
+/** L'enquête regroupée par réponse : le départ des recalculs de part (AM-110). */
+const ENQUETE_PAR_REPONSE: Step[] = [
+  {
+    op: 'group-by',
+    by: ['annee', 'question', 'reponse'],
+    columns: { effectif: { agg: 'sum', field: 'n' } },
+  },
+  { op: 'order-by', column: 'annee', dir: 'asc' },
+];
+
 const AGREGATS: Check[] = [
   {
     id: 'agregat-sum-count-avg',
@@ -574,6 +585,63 @@ const AGREGATS: Check[] = [
           { op: 'order-by', column: 'pop', dir: 'desc' },
           { op: 'share', from: 'pop', as: 'part', scale: 100 },
           { op: 'limit', n: 2 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'agregat-part-par-groupe-share-by',
+    mode: 'deterministic',
+    origin:
+      'AM-110 (#1228) — `share-by="annee, question"` : la part d’une réponse parmi les répondants de SA question, SON année, et non parmi toutes les lignes de sortie. Les deux chiffres sont plausibles — « Souvent » en 2014 vaut 30 % de sa question et 6,5 % du tout — et sans partition il fallait un second regroupement, une jointure et un compute. La seconde query, sans l’attribut, garde la part du total : rien ne change pour qui ne le pose pas.',
+    constats: ['AM-110'],
+    feed: { kind: 'fixture', datasets: { main: ENQUETE } },
+    markup: `${source('s-enq', ENQUETE)}
+  <dsfr-data-query id="q-part-groupe" source="s-enq" group-by="annee, question, reponse"
+    aggregate="n:sum:effectif, effectif:share_percent:part, effectif:share:fraction"
+    share-by="annee, question" order-by="annee:asc"></dsfr-data-query>
+  <dsfr-data-query id="q-part-tout" source="s-enq" group-by="annee, question, reponse"
+    aggregate="n:sum:effectif, effectif:share_percent:part" order-by="annee:asc"></dsfr-data-query>
+  <dsfr-data-query id="q-part-annee" source="s-enq" group-by="annee, reponse"
+    aggregate="n:sum:effectif, effectif:share_percent:part"
+    share-by="annee" order-by="effectif:desc" limit="3"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-groupe',
+        key: ['annee', 'question', 'reponse'],
+        columns: ['effectif', 'part', 'fraction'],
+        pipeline: [
+          ...ENQUETE_PAR_REPONSE,
+          { op: 'share', from: 'effectif', as: 'part', scale: 100, by: ['annee', 'question'] },
+          { op: 'share', from: 'effectif', as: 'fraction', by: ['annee', 'question'] },
+        ],
+      },
+      {
+        kind: 'rows',
+        id: 'q-part-tout',
+        key: ['annee', 'question', 'reponse'],
+        columns: ['effectif', 'part'],
+        pipeline: [
+          ...ENQUETE_PAR_REPONSE,
+          { op: 'share', from: 'effectif', as: 'part', scale: 100 },
+        ],
+      },
+      {
+        kind: 'rows',
+        id: 'q-part-annee',
+        key: ['annee', 'reponse'],
+        columns: ['effectif', 'part'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: ['annee', 'reponse'],
+            columns: { effectif: { agg: 'sum', field: 'n' } },
+          },
+          { op: 'order-by', column: 'effectif', dir: 'desc' },
+          { op: 'share', from: 'effectif', as: 'part', scale: 100, by: 'annee' },
+          { op: 'limit', n: 3 },
         ],
       },
     ],

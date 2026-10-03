@@ -375,12 +375,35 @@ export function diff(rows: Row[], from: string, as: string): Row[] {
  * Part du total (`share`, #926) : valeur de la ligne divisée par la somme de
  * la colonne sur toutes les lignes reçues. `scale` vaut 100 pour une part en
  * points de pourcentage. Total nul, ou valeur non numérique : `null`.
+ *
+ * `by` (AM-110, `share-by`) restreint le dénominateur aux lignes de la MÊME
+ * partition : celles qui portent les mêmes valeurs de ces champs. Écrit en
+ * deux temps — d'abord ranger les lignes par partition, puis diviser chaque
+ * ligne par la somme de la sienne. Une valeur absente (`null`, `undefined`,
+ * chaîne vide) forme une partition à elle seule, comme elle forme un groupe.
  */
-export function shareColumn(rows: Row[], from: string, as: string, scale = 1): Row[] {
-  const valeurs = rows.map((r) => toNum(r[from]));
-  const total = valeurs.reduce<number>((acc, v) => acc + (v ?? 0), 0);
-  return rows.map((r, i) => {
-    const v = valeurs[i];
+export function shareColumn(
+  rows: Row[],
+  from: string,
+  as: string,
+  scale = 1,
+  by: string | string[] = []
+): Row[] {
+  const champs = Array.isArray(by) ? by : [by];
+  const partitionDe = (r: Row): string =>
+    champs
+      .map((f) => (r[f] === null || r[f] === undefined ? '' : String(r[f])))
+      .join(SEPARATEUR_CLE);
+  const sommes = new Map<string, number>();
+  for (const r of rows) {
+    const v = toNum(r[from]);
+    if (v === null) continue;
+    const cle = partitionDe(r);
+    sommes.set(cle, (sommes.get(cle) ?? 0) + v);
+  }
+  return rows.map((r) => {
+    const v = toNum(r[from]);
+    const total = sommes.get(partitionDe(r)) ?? 0;
     return { ...r, [as]: v === null || total === 0 ? null : (v / total) * scale };
   });
 }
@@ -911,7 +934,7 @@ export function runPipeline(
             : diff(rows, step.from, step.as);
         break;
       case 'share':
-        rows = shareColumn(rows, step.from, step.as, step.scale ?? 1);
+        rows = shareColumn(rows, step.from, step.as, step.scale ?? 1, step.by ?? []);
         break;
       case 'ratio':
         rows = ratioColumn(rows, step.numerator, step.denominator, step.as);
