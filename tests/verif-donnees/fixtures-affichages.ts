@@ -31,6 +31,7 @@ import horsDecoupage from './jeux/affichages-hors-decoupage.json' with { type: '
 import contoursDepartements from './jeux/affichages-contours-departements.json' with { type: 'json' };
 import zones from './jeux/affichages-zones.json' with { type: 'json' };
 import aides from './jeux/affichages-aides.json' with { type: 'json' };
+import symboles from './jeux/affichages-symboles.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
@@ -98,7 +99,17 @@ export const ZONES: Row[] = zones;
  */
 export const AIDES: Row[] = aides;
 
-/** Les huit jeux, sous le nom que les manifestes leur donnent. */
+/**
+ * Neuf villes et un nombre d'entrées (AM-107) pour les symboles proportionnels
+ * d'une couche `circle` : un zéro (l'ancrage), 1, 4 et 100 (le rapport des
+ * rayons en aire doit valoir 2 et 10), des carrés parfaits et trois valeurs
+ * qui n'en sont pas (2, 7, 50 — l'arrondi au pixel s'y voit). L'ordre du
+ * fichier n'est pas celui des valeurs : un rayon rendu sur la mauvaise ligne
+ * se verrait.
+ */
+export const SYMBOLES: Row[] = symboles;
+
+/** Les neuf jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
@@ -108,6 +119,7 @@ export const JEUX_AFFICHAGES = {
   'hors-decoupage': HORS_DECOUPAGE,
   zones: ZONES,
   aides: AIDES,
+  symboles: SYMBOLES,
 } as const;
 
 /**

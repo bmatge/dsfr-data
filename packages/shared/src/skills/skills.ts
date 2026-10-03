@@ -1611,7 +1611,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |
 | series-field | String | \`""\` | non | Champ clé de série pour données LONG/tidy : ses valeurs distinctes deviennent autant de séries. Ex: données \`{mois, groupe, valeur}\` avec \`series-field="groupe"\`. S'applique a bar/line/radar. Prioritaire sur value-fields. Consommateur naturel de \`dsfr-data-unpivot\`. |
 | name | String | \`""\` | non | Nom(s) de série. Chaîne simple recommandée : \`name="Taux"\` (enveloppée automatiquement). JSON pour le multi-séries : \`'["Réalisé","Objectif"]'\`. Sur les cartes, un seul nom (le premier d'un JSON est retenu). Priorité : \`name\` explicite, sinon l'alias inline \`champ:Libellé\` de value-field(s), sinon le nom du champ ou les valeurs de series-field |
-| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium et a11y. |
+| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium, a11y et map (sur la carte, le message se pose sur le fond et la couche se vide). |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
@@ -3267,6 +3267,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | max-bounds | String | \`""\` | Limites du deplacement \`"latSW,lonSW,latNE,lonNE"\` (clippe aussi le fit si fit-zone est vide) |
 | fit-zone | String | \`""\` | Zone de clip du fit \`"latSW,lonSW,latNE,lonNE"\`, pan libre. Défaut : max-bounds, sinon la metropole (\`41,-5.5,51.5,10\`) des qu'un encart ultramarin est present (\`insets="drom"\`), sinon rien. \`none\` desactive |
 | name | String | \`""\` | Titre (aria-label) |
+| idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | Message pose sur le fond de carte tant qu'une couche attend un filtre (\`require-where\` sur la source ou la query amont, #690). La couche est alors VIDE (formes, grappes, legende) : elle ne garde pas les points du dernier filtre retire. Les encarts ne repetent pas le message |
 
 ### Attributs dsfr-data-map-layer (couche)
 
@@ -3289,6 +3290,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\`. Virgule ou deux-points dans une valeur : \`%2C\` / \`%3A\` (\`"Commerce%2C transport:#000091"\`). Meme grammaire sur dsfr-data-chart |
+| color-other-label | String | \`"Autres valeurs"\` | Libelle, dans la legende, des valeurs de color-field ABSENTES de color-map (elles prennent la couleur de repli \`color\`). Ex: \`"Etat inconnu"\`. Ce n'est pas un \`empty-label\` : une valeur hors color-map peut etre renseignee — ne pas ecrire « Non renseigne » sur un champ ouvert |
 | fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape ET circle : cercles colorés par classes). Avec color-field, fill-field donne le remplissage et color-field le contour |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
 | selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |
@@ -3296,10 +3298,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | method | String | \`"quantile"\` | Discretisation : \`quantile\` (effectifs egaux), \`equal\` (intervalles egaux), \`manual\` (bornes de breaks) |
 | breaks | String | \`""\` | Bornes superieures manuelles \`"10,50,100"\` (= 4 classes) ; implique \`method="manual"\` |
 | radius | Number | \`8\` | Rayon fixe (circle) |
-| radius-field | String | \`""\` | Champ rayon variable |
+| radius-field | String | \`""\` | Champ rayon variable (circle). Echelle : voir \`radius-scale\` |
+| radius-scale | String | \`"linear"\` | Echelle du rayon variable. \`linear\` (defaut) : le RAYON suit la valeur, de radius-min (plus petite valeur) a radius-max (plus grande). \`sqrt\` : l'AIRE suit la valeur, ancree a zero — rayon = radius-max × √(valeur / max) ; valeur ×4 = rayon ×2 ; 0, negatif ou absent = rayon nul (point d'1 px) ; radius-min sans effet. **Symboles proportionnels : toujours \`sqrt\`.** Sans effet avec radius-unit="m" |
 | radius-unit | String | \`"px"\` | \`px\` ou \`m\` |
-| radius-min | Number | \`4\` | Rayon min auto-scaling (px) |
-| radius-max | Number | \`30\` | Rayon max auto-scaling (px) |
+| radius-min | Number | \`4\` | Rayon de la plus petite valeur en echelle lineaire (px). Sans effet en \`sqrt\` |
+| radius-max | Number | \`30\` | Rayon de la plus grande valeur (px), les deux echelles |
 | heat-radius | Number | \`25\` | Rayon heatmap (px) |
 | heat-blur | Number | \`15\` | Flou heatmap (px) |
 | heat-field | String | \`""\` | Champ ponderation heatmap |
@@ -3402,13 +3405,20 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 <dsfr-data-map center="46.6,2.3" zoom="6">
   <dsfr-data-map-layer source="villes" type="circle"
     lat-field="latitude" lon-field="longitude"
-    radius-field="population" radius-unit="px"
+    radius-field="population" radius-scale="sqrt" radius-max="30"
     color="#000091" fill-opacity="0.4"
     popup-fields="nom,population"
     tooltip-field="nom">
   </dsfr-data-map-layer>
 </dsfr-data-map>
 \`\`\`
+
+**Toujours \`radius-scale="sqrt"\` pour des symboles proportionnels.** L'œil compare des AIRES :
+avec l'echelle par defaut (\`linear\`), c'est le rayon qui suit la valeur, et une valeur dix fois
+plus grande occupe jusqu'a cent fois plus de surface. En \`sqrt\`, l'aire est proportionnelle a la
+valeur et l'echelle part de zero : une valeur nulle n'a pas de cercle (un point d'un pixel), la
+plus grande prend \`radius-max\`. L'echelle lineaire reste le defaut pour ne pas deplacer les
+cartes existantes ; elle convient a un indice ou un rang, pas a une quantite.
 
 ### Exemple : couleurs catégorielles (color-map)
 
@@ -3596,7 +3606,7 @@ liste dans \`sources\` — c'est \`sources\` du contexte qui regle les cibles, p
 Composant compagnon place comme enfant de \`dsfr-data-map\` (ou n'importe ou dans la page avec \`for\`).
 Rend sous la carte une liste DSFR « pastille + texte » (pastille \`aria-hidden\`, le texte porte le sens — RGAA) :
 - choroplethe (\`fill-field\`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
-- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche ;
+- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche — libelle modifiable par \`color-other-label\` sur la couche ;
 - couche monochrome : une entree, libellee par \`label\`.
 Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose \`getLegendEntries()\` et emet \`dsfr-data-map-layer-render\`.
 Hors perimetre : \`dsfr-data-chart type="map"\` (echelle continue DSFR Chart, pas de classes).

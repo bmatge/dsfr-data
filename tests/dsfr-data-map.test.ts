@@ -2140,22 +2140,23 @@ describe('DsfrDataMapTimeline', () => {
       layer1.setAttribute('time-field', 'date');
       layer1.timeBucket = 'none';
       layer1.id = 'layer1';
-      (layer1 as any)._data = [{ date: '2023' }, { date: '2021' }];
-      (layer1 as any)._buildTimeFrames();
 
       const layer2 = new DsfrDataMapLayer();
       layer2.timeField = 'date';
       layer2.setAttribute('time-field', 'date');
       layer2.timeBucket = 'none';
       layer2.id = 'layer2';
-      (layer2 as any)._data = [{ date: '2022' }, { date: '2023' }];
-      (layer2 as any)._buildTimeFrames();
 
       map.appendChild(layer1);
       map.appendChild(layer2);
       map.appendChild(timeline);
 
       document.body.appendChild(container);
+      // Données posées APRÈS le montage : l'abonnement purge l'état de la couche
+      (layer1 as any)._data = [{ date: '2023' }, { date: '2021' }];
+      (layer1 as any)._buildTimeFrames();
+      (layer2 as any)._data = [{ date: '2022' }, { date: '2023' }];
+      (layer2 as any)._buildTimeFrames();
       (timeline as any)._collectSteps();
 
       expect((timeline as any)._steps).toEqual(['2021', '2022', '2023']);
@@ -2269,8 +2270,6 @@ describe('DsfrDataMapTimeline', () => {
       layer1.timeBucket = 'none';
       layer1.timeMode = 'cumulative';
       layer1.id = 'cum';
-      (layer1 as any)._data = [{ date: '2021' }, { date: '2023' }];
-      (layer1 as any)._buildTimeFrames();
 
       // Spy on setTimelineFrame
       const spy = vi.spyOn(layer1, 'setTimelineFrame');
@@ -2281,14 +2280,17 @@ describe('DsfrDataMapTimeline', () => {
       layer2.timeBucket = 'none';
       layer2.timeMode = 'snapshot';
       layer2.id = 'snap';
-      (layer2 as any)._data = [{ date: '2021' }, { date: '2022' }, { date: '2023' }];
-      (layer2 as any)._buildTimeFrames();
 
       map.appendChild(layer1);
       map.appendChild(layer2);
       map.appendChild(timeline);
 
       document.body.appendChild(container);
+      // Données posées APRÈS le montage : l'abonnement purge l'état de la couche
+      (layer1 as any)._data = [{ date: '2021' }, { date: '2023' }];
+      (layer1 as any)._buildTimeFrames();
+      (layer2 as any)._data = [{ date: '2021' }, { date: '2022' }, { date: '2023' }];
+      (layer2 as any)._buildTimeFrames();
       (timeline as any)._collectSteps();
       // Steps: ['2021', '2022', '2023']
 

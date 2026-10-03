@@ -98,6 +98,9 @@ const CHAMPS_FORME_DEVINES = ['geo_shape', 'geometry', 'geom'] as const;
 /** Lignes examinees pour detecter la colonne geometrique (#1053). */
 const LIGNES_DETECTION_FORME = 20;
 
+/** Libellé par défaut de l'entrée de légende du repli `color` (AM-113). */
+const COLOR_OTHER_LABEL_DEFAULT = 'Autres valeurs';
+
 /** Chiffre du bandeau de troncature, balise pour etre relu seul (#1020). */
 interface BannerCount {
   count: 'shown' | 'total';
@@ -260,6 +263,20 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   colorMap = '';
 
   /**
+   * Libellé, dans la légende, des valeurs de `color-field` ABSENTES de
+   * `color-map` — celles qui prennent la couleur de repli `color`. L'entrée
+   * n'apparaît que si le repli a servi au dernier rendu. Ex. :
+   * `color-other-label="Autres secteurs"`. Vide, le libellé par défaut est
+   * utilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui
+   * nomme une valeur VIDE : une valeur hors `color-map` peut être renseignée,
+   * et l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle
+   * apparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner
+   * une paire dans `color-map` après un recodage amont (`dsfr-data-normalize`).
+   */
+  @property({ type: String, attribute: 'color-other-label' })
+  colorOtherLabel = COLOR_OTHER_LABEL_DEFAULT;
+
+  /**
    * Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche
    * `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et
    * `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ;
@@ -295,21 +312,39 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   radius = 8;
 
   /**
-   * Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`).
+   * Champ numérique pilotant un rayon variable (`type="circle"`). L'échelle est celle de
+   * `radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`.
    * @champ nom
    */
   @property({ type: String, attribute: 'radius-field' })
   radiusField = '';
 
+  /**
+   * Échelle du rayon variable (`radius-field`, `radius-unit="px"`).
+   * `linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus
+   * petite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est
+   * proportionnelle à la valeur — c'est l'échelle des symboles proportionnels,
+   * à préférer dès que le lecteur compare des tailles. Elle est ancrée à
+   * zéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur
+   * quatre fois plus grande a un rayon double, la plus grande prend
+   * `radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le
+   * cercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs
+   * négatives sont signalées en console. `radius-min` est sans effet en
+   * `sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet
+   * avec `radius-unit="m"`, où le champ donne le rayon en mètres.
+   */
+  @property({ type: String, attribute: 'radius-scale' })
+  radiusScale: 'linear' | 'sqrt' = 'linear';
+
   /** Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). */
   @property({ type: String, attribute: 'radius-unit' })
   radiusUnit: 'px' | 'm' = 'px';
 
-  /** Rayon minimum de l'auto-scaling, en pixels. */
+  /** Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale="sqrt"`. */
   @property({ type: Number, attribute: 'radius-min' })
   radiusMin = 4;
 
-  /** Rayon maximum de l'auto-scaling, en pixels. */
+  /** Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`). */
   @property({ type: Number, attribute: 'radius-max' })
   radiusMax = 30;
 
@@ -571,7 +606,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   /**
    * Entrées de légende du dernier rendu (#685) : les classes de `fill-field`
    * avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le
-   * repli `color` s'il a servi, sinon la seule couleur de la couche (libellé
+   * repli `color` s'il a servi (libellé `color-other-label`), sinon la seule couleur de la couche (libellé
    * vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui
    * se rafraîchit sur `dsfr-data-map-layer-render`.
    */
@@ -595,7 +630,12 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     if (this._colorMapParsed?.size) {
       const entries: LegendEntry[] = [];
       for (const [value, color] of this._colorMapParsed) entries.push({ color, label: value });
-      if (this._colorFallbackUsed) entries.push({ color: this.color, label: 'Autres valeurs' });
+      if (this._colorFallbackUsed) {
+        entries.push({
+          color: this.color,
+          label: this.colorOtherLabel || COLOR_OTHER_LABEL_DEFAULT,
+        });
+      }
       this._legendEntries = entries;
       return;
     }
@@ -660,6 +700,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     'color',
     'colorField',
     'colorMap',
+    'colorOtherLabel',
     'fillField',
     'fillOpacity',
     'selectedPalette',
@@ -668,6 +709,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     'breaks',
     'radius',
     'radiusField',
+    'radiusScale',
     'radiusUnit',
     'radiusMin',
     'radiusMax',
@@ -685,6 +727,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   updated(changedProperties: Map<string, unknown>) {
     super.updated(changedProperties);
+    // L'attente se lit après chaque cycle du mixin (événement, registre au
+    // montage) — avant même que la carte soit prête (BUG-039)
+    this._syncIdleWithMap();
     // Avant _onMapReady (cycle de montage inclus), rien a redessiner
     if (!this._leafletMap || !this._layerGroup) return;
     let needsRender = false;
@@ -706,7 +751,81 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     void this._renderLayer();
   }
 
-  // --- SourceSubscriberMixin hook ---
+  // --- SourceSubscriberMixin hooks ---
+
+  /**
+   * Retour en attente de l'amont (`require-where`, dernier filtre retiré) ou
+   * changement de `source` (BUG-039) : la couche rend ce qu'elle avait tracé.
+   * Sans ce hook, les marqueurs du dernier filtre restaient sur la carte, sous
+   * une page dont les autres afficheurs disent « choisissez un filtre ».
+   * Appelé aussi à chaque (ré)abonnement, avant la lecture du cache : sans
+   * carte prête, il n'y a rien à vider.
+   */
+  onSourceReset(): void {
+    this._data = [];
+    if (this._timeSteps.length > 0) {
+      // Les pas de temps suivent les données : le compagnon timeline est prévenu
+      this._currentFrameIndex = -1;
+      this._buildTimeFrames();
+    }
+    this._clearRendered();
+  }
+
+  /**
+   * Vide la couche : formes, grappes, carte de chaleur, emprise, bandeau et
+   * entrées de légende. Un rendu encore en vol (import différé des grappes ou
+   * de la carte de chaleur) est abandonné par le jeton de génération.
+   */
+  private _clearRendered(): void {
+    this._renderGeneration++;
+    const hadContent = this._renderedCount > 0 || this._legendEntries.length > 0;
+    this._renderedCount = 0;
+    this._skippedGeoCount = 0;
+    this._totalCount = 0;
+    this._upstreamTruncated = false;
+    this._positionKeys = new Set();
+    this._groups = null;
+    this._colorFallbackUsed = false;
+    this._legendEntries = [];
+    this._removeBanner();
+    if (!this._leafletMap || !this._layerGroup) return;
+    this._layerGroup.clearLayers();
+    this._clusterGroup?.clearLayers();
+    if (this._heatLayer) {
+      this._heatLayer.remove();
+      this._heatLayer = null;
+    }
+    this._mapParent?.unregisterLayerBounds?.(this._boundsKey);
+    this._updateMapDescription();
+    // Rien n'était tracé (montage, réabonnement à vide) : pas d'événement,
+    // la légende n'a rien à relire.
+    if (!hadContent) return;
+    this.dispatchEvent(
+      new CustomEvent('dsfr-data-map-layer-render', {
+        bubbles: true,
+        detail: { rendered: 0, skipped: 0, total: 0, legend: [] },
+      })
+    );
+  }
+
+  /**
+   * Dernier état d'attente signalé à la carte : elle n'est prévenue que d'un
+   * changement, pas à chaque cycle de rendu.
+   */
+  private _idleNotified = false;
+
+  /** Signale à la carte hôte que l'attente de cette couche a changé (BUG-039). */
+  private _syncIdleWithMap(): void {
+    if (this._sourceIdle === this._idleNotified) return;
+    this._idleNotified = this._sourceIdle;
+    const map = this.closest('dsfr-data-map') as DsfrDataMap | null;
+    map?._onLayerIdleChange?.();
+  }
+
+  /** La source de cette couche attend-elle un filtre (`require-where`) ? */
+  isIdle(): boolean {
+    return this._sourceIdle;
+  }
 
   onSourceData(data: unknown): void {
     this._data = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
@@ -881,6 +1000,13 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       dispatchSourceCommand(this.source, { where: '', whereKey: 'map-bbox', origin: this.id });
     }
     if (this._bboxTimer) clearTimeout(this._bboxTimer);
+    // Une couche retirée n'attend plus rien : la carte rejuge son message (BUG-039)
+    if (this._idleNotified) {
+      this._idleNotified = false;
+      (
+        this._mapParent ?? (this.closest('dsfr-data-map') as DsfrDataMap | null)
+      )?._onLayerIdleChange?.();
+    }
     if (this._layerGroup && this._leafletMap) {
       this._layerGroup.removeFrom(this._leafletMap);
     }
@@ -1118,24 +1244,42 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       }));
     }
 
-    // Auto-scaling for circle radius-field
+    // Rayon variable d'une couche de cercles (radius-field) : échelle linéaire
+    // entre radius-min et radius-max (défaut), ou en aire ancrée à zéro
+    // (radius-scale="sqrt", AM-107).
     this._radiusScale = null;
     if (this.radiusField && this.type === 'circle') {
-      const values = items
-        .map((r) => Number(getByPath(r, this.radiusField)))
-        .filter((v) => !isNaN(v) && isFinite(v));
+      // Une valeur par ligne : jamais étalée en arguments (BUG-038)
+      const values: number[] = [];
+      let negatives = 0;
+      for (const record of items) {
+        const v = Number(getByPath(record, this.radiusField));
+        if (isNaN(v) || !isFinite(v)) continue;
+        values.push(v);
+        if (v < 0) negatives++;
+      }
       if (values.length > 0) {
-        // Une valeur par ligne : jamais étalée en arguments (BUG-038)
         const min = minOf(values);
         const max = maxOf(values);
-        const range = max - min;
-        if (range > 0) {
-          const rMin = this.radiusMin;
-          const rMax = this.radiusMax;
-          this._radiusScale = (val: number) => rMin + ((val - min) / range) * (rMax - rMin);
+        const rMin = this.radiusMin;
+        const rMax = this.radiusMax;
+        if (this._areaScale()) {
+          // L'AIRE du cercle est proportionnelle à la valeur : rayon nul à
+          // zéro, radius-max à la plus grande valeur. radius-min ne joue pas
+          // — un plancher fausserait le rapport des petites valeurs.
+          this._radiusScale =
+            max > 0
+              ? (val: number) => (val > 0 ? rMax * Math.sqrt(Math.min(val / max, 1)) : 0)
+              : () => 0;
+          this._warnNegativeRadius(negatives);
         } else {
-          const mid = (this.radiusMin + this.radiusMax) / 2;
-          this._radiusScale = () => mid;
+          const range = max - min;
+          if (range > 0) {
+            this._radiusScale = (val: number) => rMin + ((val - min) / range) * (rMax - rMin);
+          } else {
+            const mid = (rMin + rMax) / 2;
+            this._radiusScale = () => mid;
+          }
         }
       }
     }
@@ -1270,30 +1414,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     this._updateBanner(truncated, items.length);
 
     // A11y: update map description with layer data summary
-    if (this._mapParent) {
-      const summaries: string[] = [];
-      const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
-      for (const l of allLayers) {
-        const layerEl = l as DsfrDataMapLayer;
-        const count = layerEl._groupingActive()
-          ? layerEl.getRenderedCount()
-          : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
-        if (count > 0) {
-          const typeLabel =
-            layerEl.type === 'marker'
-              ? 'marqueurs'
-              : layerEl.type === 'geoshape'
-                ? 'zones'
-                : layerEl.type === 'circle'
-                  ? 'cercles'
-                  : 'points';
-          summaries.push(`${count} ${typeLabel}`);
-        }
-      }
-      if (summaries.length > 0) {
-        this._mapParent.updateDescription([`Couches : ${summaries.join(', ')}.`]);
-      }
-    }
+    this._updateMapDescription();
 
     // Legende (#685) : entrees figees a ce rendu, puis notification des
     // compagnons (dsfr-data-map-legend) et des diagnostics
@@ -1308,6 +1429,73 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
           legend: this.getLegendEntries(),
         },
       })
+    );
+  }
+
+  /**
+   * Résumé des couches dans la description de la carte lue par les lecteurs
+   * d'écran. Une carte dont plus aucune couche ne trace rien retrouve sa
+   * description nue : l'ancien « 30 marqueurs » n'y reste pas (BUG-039).
+   */
+  private _updateMapDescription(): void {
+    if (!this._mapParent) return;
+    const summaries: string[] = [];
+    const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
+    for (const l of allLayers) {
+      const layerEl = l as DsfrDataMapLayer;
+      const count = layerEl._groupingActive()
+        ? layerEl.getRenderedCount()
+        : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
+      if (count > 0) {
+        const typeLabel =
+          layerEl.type === 'marker'
+            ? 'marqueurs'
+            : layerEl.type === 'geoshape'
+              ? 'zones'
+              : layerEl.type === 'circle'
+                ? 'cercles'
+                : 'points';
+        summaries.push(`${count} ${typeLabel}`);
+      }
+    }
+    this._mapParent.updateDescription(
+      summaries.length > 0 ? [`Couches : ${summaries.join(', ')}.`] : []
+    );
+  }
+
+  /** Valeur de `radius-scale` déjà signalée comme inconnue (un avertissement par valeur). */
+  private _radiusScaleWarned = '';
+
+  /** Dernier compte de valeurs négatives signalé en `radius-scale="sqrt"`. */
+  private _negativeRadiusWarned = 0;
+
+  /**
+   * L'échelle du rayon est-elle en aire (`radius-scale="sqrt"`) ? Une valeur
+   * inconnue est dite en console et retombe sur l'échelle linéaire : une
+   * faute de frappe ne change pas la carte en silence.
+   */
+  private _areaScale(): boolean {
+    const scale = (this.radiusScale || 'linear').trim().toLowerCase();
+    if (scale === 'sqrt') return true;
+    if (scale !== 'linear' && scale !== this._radiusScaleWarned) {
+      this._radiusScaleWarned = scale;
+      console.warn(
+        `dsfr-data-map-layer[${this.id || this.source}]: radius-scale="${this.radiusScale}" inconnu — ` +
+          `valeurs admises : linear (défaut), sqrt. Échelle linéaire appliquée.`
+      );
+    }
+    return false;
+  }
+
+  /** Une aire ne peut pas être négative : ces valeurs ont un rayon nul, et on le dit une fois. */
+  private _warnNegativeRadius(count: number): void {
+    if (count === this._negativeRadiusWarned) return;
+    this._negativeRadiusWarned = count;
+    if (count === 0) return;
+    console.warn(
+      `dsfr-data-map-layer[${this.id || this.source}]: radius-scale="sqrt" — ${count} valeur(s) ` +
+        `négative(s) de "${this.radiusField}" tracée(s) avec un rayon nul : une aire ne représente ` +
+        `pas une valeur négative.`
     );
   }
 

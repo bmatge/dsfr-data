@@ -1,0 +1,11 @@
+[
+  {"ville":"Lyon","lat":45.76,"lon":4.84,"entrees":25},
+  {"ville":"Brest","lat":48.39,"lon":-4.49,"entrees":0},
+  {"ville":"Paris","lat":48.86,"lon":2.35,"entrees":100},
+  {"ville":"Lille","lat":50.63,"lon":3.06,"entrees":1},
+  {"ville":"Marseille","lat":43.3,"lon":5.37,"entrees":64},
+  {"ville":"Bordeaux","lat":44.84,"lon":-0.58,"entrees":4},
+  {"ville":"Toulouse","lat":43.6,"lon":1.44,"entrees":50},
+  {"ville":"Nantes","lat":47.22,"lon":-1.55,"entrees":7},
+  {"ville":"Strasbourg","lat":48.58,"lon":7.75,"entrees":2}
+]

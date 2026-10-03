@@ -42,6 +42,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | max-bounds | String | `""` | Limites du deplacement `"latSW,lonSW,latNE,lonNE"` (clippe aussi le fit si fit-zone est vide) |
 | fit-zone | String | `""` | Zone de clip du fit `"latSW,lonSW,latNE,lonNE"`, pan libre. Défaut : max-bounds, sinon la metropole (`41,-5.5,51.5,10`) des qu'un encart ultramarin est present (`insets="drom"`), sinon rien. `none` desactive |
 | name | String | `""` | Titre (aria-label) |
+| idle-message | String | `"Choisissez un filtre pour afficher les données"` | Message pose sur le fond de carte tant qu'une couche attend un filtre (`require-where` sur la source ou la query amont, #690). La couche est alors VIDE (formes, grappes, legende) : elle ne garde pas les points du dernier filtre retire. Les encarts ne repetent pas le message |
 
 ### Attributs dsfr-data-map-layer (couche)
 
@@ -64,6 +65,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | `"#000091"` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | `""` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | `""` | Paires `valeur:#couleur` separees par virgule. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Virgule ou deux-points dans une valeur : `%2C` / `%3A` (`"Commerce%2C transport:#000091"`). Meme grammaire sur dsfr-data-chart |
+| color-other-label | String | `"Autres valeurs"` | Libelle, dans la legende, des valeurs de color-field ABSENTES de color-map (elles prennent la couleur de repli `color`). Ex: `"Etat inconnu"`. Ce n'est pas un `empty-label` : une valeur hors color-map peut etre renseignee — ne pas ecrire « Non renseigne » sur un champ ouvert |
 | fill-field | String | `""` | Champ numérique pour choropleth (geoshape ET circle : cercles colorés par classes). Avec color-field, fill-field donne le remplissage et color-field le contour |
 | fill-opacity | Number | `0.6` | Opacite remplissage |
 | selected-palette | String | `""` | Palette choropleth : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical` |
@@ -71,10 +73,11 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | method | String | `"quantile"` | Discretisation : `quantile` (effectifs egaux), `equal` (intervalles egaux), `manual` (bornes de breaks) |
 | breaks | String | `""` | Bornes superieures manuelles `"10,50,100"` (= 4 classes) ; implique `method="manual"` |
 | radius | Number | `8` | Rayon fixe (circle) |
-| radius-field | String | `""` | Champ rayon variable |
+| radius-field | String | `""` | Champ rayon variable (circle). Echelle : voir `radius-scale` |
+| radius-scale | String | `"linear"` | Echelle du rayon variable. `linear` (defaut) : le RAYON suit la valeur, de radius-min (plus petite valeur) a radius-max (plus grande). `sqrt` : l'AIRE suit la valeur, ancree a zero — rayon = radius-max × √(valeur / max) ; valeur ×4 = rayon ×2 ; 0, negatif ou absent = rayon nul (point d'1 px) ; radius-min sans effet. **Symboles proportionnels : toujours `sqrt`.** Sans effet avec radius-unit="m" |
 | radius-unit | String | `"px"` | `px` ou `m` |
-| radius-min | Number | `4` | Rayon min auto-scaling (px) |
-| radius-max | Number | `30` | Rayon max auto-scaling (px) |
+| radius-min | Number | `4` | Rayon de la plus petite valeur en echelle lineaire (px). Sans effet en `sqrt` |
+| radius-max | Number | `30` | Rayon de la plus grande valeur (px), les deux echelles |
 | heat-radius | Number | `25` | Rayon heatmap (px) |
 | heat-blur | Number | `15` | Flou heatmap (px) |
 | heat-field | String | `""` | Champ ponderation heatmap |
@@ -177,13 +180,20 @@ La clé appartient a l'integrateur (domaine et quota nominatifs) : la bibliotheq
 <dsfr-data-map center="46.6,2.3" zoom="6">
   <dsfr-data-map-layer source="villes" type="circle"
     lat-field="latitude" lon-field="longitude"
-    radius-field="population" radius-unit="px"
+    radius-field="population" radius-scale="sqrt" radius-max="30"
     color="#000091" fill-opacity="0.4"
     popup-fields="nom,population"
     tooltip-field="nom">
   </dsfr-data-map-layer>
 </dsfr-data-map>
 ```
+
+**Toujours `radius-scale="sqrt"` pour des symboles proportionnels.** L'œil compare des AIRES :
+avec l'echelle par defaut (`linear`), c'est le rayon qui suit la valeur, et une valeur dix fois
+plus grande occupe jusqu'a cent fois plus de surface. En `sqrt`, l'aire est proportionnelle a la
+valeur et l'echelle part de zero : une valeur nulle n'a pas de cercle (un point d'un pixel), la
+plus grande prend `radius-max`. L'echelle lineaire reste le defaut pour ne pas deplacer les
+cartes existantes ; elle convient a un indice ou un rang, pas a une quantite.
 
 ### Exemple : couleurs catégorielles (color-map)
 
@@ -371,7 +381,7 @@ liste dans `sources` — c'est `sources` du contexte qui regle les cibles, pas l
 Composant compagnon place comme enfant de `dsfr-data-map` (ou n'importe ou dans la page avec `for`).
 Rend sous la carte une liste DSFR « pastille + texte » (pastille `aria-hidden`, le texte porte le sens — RGAA) :
 - choroplethe (`fill-field`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
-- couche categorielle (`color-field` + `color-map`) : une entree par paire, plus « Autres valeurs » (repli `color`) si des valeurs n'ont pas matche ;
+- couche categorielle (`color-field` + `color-map`) : une entree par paire, plus « Autres valeurs » (repli `color`) si des valeurs n'ont pas matche — libelle modifiable par `color-other-label` sur la couche ;
 - couche monochrome : une entree, libellee par `label`.
 Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose `getLegendEntries()` et emet `dsfr-data-map-layer-render`.
 Hors perimetre : `dsfr-data-chart type="map"` (echelle continue DSFR Chart, pas de classes).
@@ -483,6 +493,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `fit-zone` | `string` | `""` (vide) | Zone sur laquelle `fit-bounds` est clippé, au format `"latSW,lonSW,latNE,lonNE"` — le pan reste libre. Défaut : `max-bounds` s'il est renseigné ; sinon la métropole (`41,-5.5,51.5,10`) dès que la carte porte un encart ultramarin (`insets="drom"`…), pour que les DROM ne dézooment pas la vue ; sinon aucune zone. `fit-zone="none"` désactive le clip (#687). |
 | `fullscreen` | `boolean` | `false` | Bouton de plein écran (#780), posé à droite des boutons de zoom : la carte (couches, légende, encarts et sélecteur de fond compris) occupe tout l'écran, et en revient par le même bouton ou la touche Échap. Utilisable au clavier, état porté par `aria-pressed` et par le libellé, et annoncé. Absent si le navigateur n'offre pas le plein écran d'un élément (Safari sur iPhone), et sans effet avec `locked` ou `no-controls`. |
 | `height` | `string` | `'500px'` | Hauteur CSS (px, vh, rem). Un `%` est un ratio de la LARGEUR (ex: `"60%"` = 60 % de la largeur). |
+| `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu sur la carte tant qu'une de ses couches attend un filtre (`require-where` sur la source ou la requête amont, #690) : la couche est alors vidée, et le fond de carte seul ne dirait pas pourquoi. Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. Le message est aussi ajouté à la description lue par les lecteurs d'écran ; les encarts (`dsfr-data-map-inset`) ne le répètent pas. |
 | `insets` | `string` | `""` (vide) | Raccourci encarts territoriaux : groupe ("drom") et/ou territoires nommés séparés par des virgules ("drom,corse", "guadeloupe,saint-pierre-et-miquelon") |
 | `locked` | `boolean` | `false` | Carte verrouillee : aucune interaction (pan/zoom/clavier) — encarts, vignettes |
 | `max-bounds` | `string` | `""` (vide) | Limites du déplacement, au format `"latSW,lonSW,latNE,lonNE"`. Clippe aussi le fit de `fit-bounds` quand `fit-zone` est vide. |
@@ -505,6 +516,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `announceToScreenReader(message: string)` | `void` | Annonce un message aux screen readers via la live region |
 | `getLeafletLib()` | `typeof import('leaflet') \| null` | Retourne le module Leaflet charge (pour les layers) |
 | `getLeafletMap()` | `LeafletMap \| null` | Retourne l'instance Leaflet L.Map (ou null si pas encore prête) |
+| `isIdle()` | `boolean` | Une couche directe de la carte attend-elle un filtre ? |
 | `registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds)` | `void` | Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds). Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais retrecir sa vue quand les données diminuaient, et le tableau grossissait a chaque refresh / frame de timeline / pan en bbox client. |
 | `resolveFitZone()` | `string` | Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune), sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) — le clip ne touche que le fit, jamais le pan. Expose pour les tests. |
 | `unregisterLayerBounds(layerKey: string)` | `void` | Libere les bounds d'un layer retire (#294) |
@@ -537,6 +549,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `color` | `string` | `'#000091'` | Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. |
 | `color-field` | `string` | `""` (vide) | Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). |
 | `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. |
+| `color-other-label` | `string` | `COLOR_OTHER_LABEL_DEFAULT` | Libellé, dans la légende, des valeurs de `color-field` ABSENTES de `color-map` — celles qui prennent la couleur de repli `color`. L'entrée n'apparaît que si le repli a servi au dernier rendu. Ex. : `color-other-label="Autres secteurs"`. Vide, le libellé par défaut est utilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui nomme une valeur VIDE : une valeur hors `color-map` peut être renseignée, et l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle apparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner une paire dans `color-map` après un recodage amont (`dsfr-data-normalize`). |
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ; `color-field` / `color` donnent alors le contour, et la légende décrit les classes. Sans effet sur `marker` et `heatmap`. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
@@ -556,9 +569,10 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `popup-fields` | `string` | `""` (vide) | Champs a presenter en tableau automatique dans la popup. Ex: `"nom,adresse"`. |
 | `popup-template` | `string` | `""` (vide) | Template du contenu de la popup, avec substitution de champs. Ex: `"{nom} — {val} kW"`. |
 | `radius` | `number` | `8` | Rayon fixe des cercles (`type="circle"`). |
-| `radius-field` | `string` | `""` (vide) | Champ numérique pilotant un rayon variable (auto-scaling entre `radius-min` et `radius-max`). |
-| `radius-max` | `number` | `30` | Rayon maximum de l'auto-scaling, en pixels. |
-| `radius-min` | `number` | `4` | Rayon minimum de l'auto-scaling, en pixels. |
+| `radius-field` | `string` | `""` (vide) | Champ numérique pilotant un rayon variable (`type="circle"`). L'échelle est celle de `radius-scale` : linéaire entre `radius-min` et `radius-max` par défaut, en aire avec `sqrt`. |
+| `radius-max` | `number` | `30` | Rayon de la plus grande valeur, en pixels (les deux échelles de `radius-scale`). |
+| `radius-min` | `number` | `4` | Rayon de la plus petite valeur en échelle linéaire, en pixels. Sans effet avec `radius-scale="sqrt"`. |
+| `radius-scale` | `'linear' \| 'sqrt'` | `'linear'` | Échelle du rayon variable (`radius-field`, `radius-unit="px"`). `linear` (défaut) : le RAYON suit la valeur, de `radius-min` pour la plus petite à `radius-max` pour la plus grande. `sqrt` : l'AIRE du cercle est proportionnelle à la valeur — c'est l'échelle des symboles proportionnels, à préférer dès que le lecteur compare des tailles. Elle est ancrée à zéro : rayon = `radius-max` × √(valeur / plus grande valeur), une valeur quatre fois plus grande a un rayon double, la plus grande prend `radius-max`. Une valeur nulle, négative ou absente a un rayon nul (le cercle se réduit à un point d'un pixel, qui reste cliquable) ; les valeurs négatives sont signalées en console. `radius-min` est sans effet en `sqrt` : un plancher fausserait le rapport des petites valeurs. Sans effet avec `radius-unit="m"`, où le champ donne le rayon en mètres. |
 | `radius-unit` | `'px' \| 'm'` | `'px'` | Unité du rayon : `px` (constant à l'écran) ou `m` (mètres, suit le zoom). |
 | `refine-on-click` | `string` | `""` (vide) | Champ dont la valeur de l'objet cliqué devient un filtre `eq` (#681). Premier clic = filtre, second clic sur le même objet = retrait, clic sur un autre objet = remplacement. Avec `context="id"` (recommandé), la couche s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la clause part directement à `source` (whereKey `map-select-ID`) — sans tag ni URL. Attention : si `source` est aussi une cible du contexte, la carte se filtre elle-même (seul l'objet cliqué reste, jusqu'au second clic) ; pour garder tous les points, ne pas lister cette source dans `sources` du contexte (ou donner à la carte sa propre source). |
 | `selected-palette` | `string` | `""` (vide) | Palette DSFR utilisée pour le dégradé choroplèthe (`fill-field`) : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical`. |
@@ -575,11 +589,12 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
+| `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi (libellé `color-other-label`), sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
 | `getRenderedCount()` | `number` | Nombre d'éléments effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
 | `getSkippedCount()` | `number` | — |
 | `getStackedPositions()` | `{ positions: number; items: number } \| null` | Points EMPILES au dernier rendu (#770) : au plus deux positions distinctes pour au moins dix points par position. C'est le mode d'echec d'une colonne de geolocalisation constante ou mal jointe : 43 479 coordonnees valides identiques ne sont ignorees nulle part, le compteur d'exclusions vaut 0 et la couche se declare complete en montrant un point. Le seuil laisse passer les adresses partagees, legitimes. `null` quand la couche n'est pas dans ce cas. |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
+| `isIdle()` | `boolean` | La source de cette couche attend-elle un filtre (`require-where`) ? |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
 | `setTimelineFrame(index: number)` | `void` | Called by dsfr-data-map-timeline to set current frame |
 
@@ -591,8 +606,8 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `dsfr-data-loaded` | `{ sourceId, data }` | écoute | Nouvelles données publiées par la source désignée par `source`. |
 | `dsfr-data-error` | `{ sourceId, error }` | écoute | Erreur amont. |
 | `dsfr-data-loading` | `{ sourceId }` | écoute | Chargement amont démarré. |
-| `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
 | `dsfr-data-map-layer-render` | — | émis | `{ rendered, skipped, total, legend }` sur la couche (bubbles) après chaque rendu : éléments dessinés, lignes ignorées, total avant plafond (celui de la source quand elle n'a chargé qu'une partie du jeu, #1020 ; le nombre de groupes avec `group-field`, #1108), entrées de légende (`getLegendEntries()`). dsfr-data-map-legend s'en sert pour se rafraîchir (#685). |
+| `dsfr-data-map-layer-time-ready` | — | émis | `{ steps }` sur `document` — les pas de temps de la couche sont calcules ; dsfr-data-map-timeline s'en sert pour construire son curseur. |
 | `dsfr-data-map-select` | — | émis | `{ record, layerId, selected }` sur la couche (bubbles, composed) — au clic sur un marqueur, un cercle ou une forme (#681), en plus de la popup ; jamais en `no-interactive`. `selected` vaut `true` à la sélection, `false` quand le clic retire la sélection courante (second clic sur le même objet, ou `clear()` du filtre de contexte). Avec `group-field` (#1108), `record` est le premier enregistrement du groupe et le détail porte en plus `group` (valeur du groupe) et `records` (toutes ses lignes). |
 | `dsfr-data-source-command` | — | émis | `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `map-select-ID`. Avec `context`, c'est le contexte qui diffuse. |
 

@@ -247,6 +247,24 @@ export function lireTextes({ id, selecteur }: { id: string; selecteur: string })
 }
 
 /**
+ * RAYON TRACÉ, en pixels, de chaque cercle que `selecteur` désigne dans la
+ * carte (`path.<shape-class>` d'une couche `circle`, AM-107), dans l'ordre du
+ * document — celui des lignes. Un cercle Leaflet est tracé par deux arcs
+ * « a r,r 0 1,0 … » : le rayon se lit dans l'attribut `d`, c'est-à-dire sur
+ * la forme dessinée, pas dans l'état de la couche. Un chemin sans arc (cercle
+ * hors de la vue, tracé « M0 0 ») rend une chaîne vide : la comparaison le
+ * dira, il n'est pas pris pour un rayon nul.
+ */
+export function lireRayons({ id, selecteur }: { id: string; selecteur: string }): string[] | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  return Array.from(hote.querySelectorAll(selecteur)).map((el) => {
+    const arc = /a\s*([\d.]+)[ ,]/i.exec(el.getAttribute('d') ?? '');
+    return arc ? arc[1] : '';
+  });
+}
+
+/**
  * NOMBRE d'éléments TRACÉS que `selecteur` désigne dans le composant (#1059) :
  * les formes SVG d'une couche `geoshape` ou `circle` (`path.<shape-class>`),
  * les marqueurs d'une couche `marker` (`.dsfr-data-map__marker`). Un tracé n'a

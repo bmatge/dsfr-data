@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-03) : **269 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 552 observations déterministes et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt (mesuré le 2026-10-03) : **270 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 556 observations déterministes et **26 invariants**. Un contrôle et cinq invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 425 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 428 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -156,6 +156,8 @@ hors v1), `urls` (31) et `diagnostic` (1) qui ne sont pas des chiffres,
   paire donnée serait un constat, et il n'y en a aucune sur le corpus.
 - *Chaîne d'une valeur* (clés de groupe, de jointure, de pivot) : la forme
   que `String(v)` donnerait en JavaScript.
+- *Rayon tracé* (étape `radius`) : des pixels entiers, arrondi à la demi-unité
+  supérieure, jamais sous 1 px — un cercle de rayon nul reste un point.
 
 **Les deux hypothèses de l'issue, éprouvées.** (1) `roundTo` de l'oracle TS
 utilise `Math.round`, qui arrondit −2,5 à −2 quand `ROUND_HALF_UP` dit −3 :
@@ -362,6 +364,7 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`, ligne de statut d'une app), avec le nombre qu'on y lit — ou le N-ième (`number`) quand il en porte plusieurs |
 | `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
 | `lireCompte` | le NOMBRE d'éléments tracés sous un sélecteur — formes d'une couche de carte (voir « Les éléments tracés ») |
+| `lireRayons` | le RAYON tracé, en pixels, de chaque cercle d'une couche `circle` — lu dans les arcs du chemin SVG, dans l'ordre des lignes (attente `texts` avec `measure: 'radius'`, voir « Les éléments tracés ») |
 | `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
 | `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, bornes d'axes) ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
 | `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
@@ -406,6 +409,14 @@ formes posées, contre le nombre de lignes que le recalcul laisse — une forme 
 - **Zéro ne s'observe pas** : c'est l'état d'avant le rendu. Une couche qui ne trace rien tombe sur
   « n'a rien affiché » (le défaut de #1053) ; une absence voulue se constate par un `diagnostic`.
 - **Troisième voix** : `oracle.py` le couvre (`valeur` = nombre de lignes recalculées).
+- **La taille d'un symbole** (`radius-field`, AM-107) : un rayon est un chiffre affiché comme un
+  autre. `lireRayons` relit celui de chaque cercle sur la forme TRACÉE — les deux arcs
+  « a r,r 0 1,0 … » de l'attribut `d` —, jamais dans l'état de la couche ; un cercle hors de la vue
+  (« M0 0 ») rend une chaîne vide, pas un rayon nul : la carte du contrôle doit donc montrer tous ses
+  points. L'attendu vient de l'étape `radius` du recalcul (`symbolRadius` en TS, `rayon_symbole` en
+  Python), qui rend le rayon **tracé** : arrondi au pixel, jamais sous 1 px. Les deux voix n'y
+  arrivent pas par le même chemin — `Math.sqrt` d'un côté, de l'autre le plus grand entier `n` tel
+  que `(2n − 1)² ≤ 4·r²`, en fractions exactes, sans racine.
 - **Un élément par groupe** (`group-field`, #1108) : le recalcul regroupe (`group-by` sur le champ),
   une ligne par valeur distincte — c'est le nombre de marqueurs attendu. Le même lecteur compte les
   lignes du volet ouvert par un clic (`.dsfr-data-map-popup__panel-body tbody tr`), contre les
@@ -912,6 +923,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_addGeoshape` n'ajoute pas la première forme au groupe, sans rien compter d'ignoré (`if (this._renderedCount > 0) group.addLayer(layer)`) | `carte-geoshape-sans-geo-field-1053` (le silence reste vert) | « 9 élément(s) tracé(s) sous « path.verif-zone », 10 ligne(s) recalculée(s) » : une ligne tue, et la bibliothèque n'en dit rien (#1059) |
 | affichages | `_addMarker` n'ajoute que les marqueurs de longitude positive (`if (coords.lon >= 0) group.addLayer(marker)`) | `carte-marqueurs-et-cercles-comptes-1059` (les cercles restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `.dsfr-data-map__marker` (#1059) |
 | affichages | même défaut dans `_addCircle` | `carte-marqueurs-et-cercles-comptes-1059` (les marqueurs restent verts) | « lib 8 élément(s), oracle 12 élément(s) » sous `path.verif-cercle` : le compte suit la couche que la `shape-class` désigne (#1059) |
+| affichages | `radius-scale="sqrt"` rend un rayon proportionnel à la VALEUR (`rMax * Math.min(val / max, 1)`, `dsfr-data-map-layer.ts`) | `carte-rayons-symboles-proportionnels-am-107` (la couche linéaire reste verte) | « élément 0 : affiché « 8 » (8), recalculé 15 » : Lyon, 25 entrées sur 100 (AM-107) |
+| affichages | `_areaScale()` ignore `sqrt` — l'état d'avant AM-107, où l'attribut était inconnu | `carte-rayons-symboles-proportionnels-am-107` (la couche linéaire reste verte) | « élément 0 : affiché « 11 » (11), recalculé 15 » : l'échelle linéaire par défaut à la place de l'aire |
+| affichages | l'échelle linéaire part de 0 au lieu de `radius-min` (`((val - min) / range) * rMax`) | `carte-rayons-symboles-proportionnels-am-107` (la couche en aire reste verte) | « élément 0 : affiché « 6 » (6), recalculé 7 » : le DÉFAUT a bougé, et le contrôle le voit |
 | affichages | `_buildGroups` suffixe la clé de groupe par le nombre de groupes déjà vus (`String(raw) + byValue.size`, `dsfr-data-map-layer.ts`) — chaque ligne devient son groupe | `carte-group-field-volet-1108` | « 17 élément(s) tracé(s) sous « .dsfr-data-map__marker », 6 ligne(s) recalculée(s) » ; le volet de Lille n'a plus qu'1 ligne sur 4 (#1108) |
 | affichages | `_renderGroup` ne passe que le premier enregistrement au tableau (`group.records.slice(0, 1)`, `dsfr-data-map-popup.ts`) | `carte-group-field-volet-1108` (les marqueurs restent verts) | « lib 1 élément(s), oracle 4 élément(s) » sous `.dsfr-data-map-popup__panel-body tbody tr` (#1108) |
 | affichages | `groupTableHtml` inverse l'ordre des lignes (`.reverse()`, `utils/map-group.ts`) | `carte-group-field-volet-1108` (les deux comptes restent verts) | « élément 0 : affiché « Fonds vert », recalculé « Action cœur de ville » » : seul `texts` voit l'ordre (#1108) |

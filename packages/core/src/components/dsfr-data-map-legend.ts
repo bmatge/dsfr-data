@@ -6,7 +6,8 @@
  * carte, une liste DSFR d'entrées « pastille + texte » décrivant la couche
  * visée par `for` :
  * - couche catégorielle (`color-field` + `color-map`) : une entrée par paire
- *   de `color-map`, plus le repli `color` s'il a servi (« Autres valeurs ») ;
+ *   de `color-map`, plus le repli `color` s'il a servi (« Autres valeurs », ou
+ *   le `color-other-label` de la couche) ;
  * - choroplèthe (`type="geoshape"` + `fill-field`) : une entrée par classe,
  *   avec ses bornes chiffrées au format fr-FR (`classes`, `method`, `breaks`
  *   de la couche) ;
