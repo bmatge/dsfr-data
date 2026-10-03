@@ -240,7 +240,21 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   resource = '';
 
-  /** Clause WHERE statique */
+  /**
+   * Clause WHERE statique, déléguée à l'API de l'adaptateur.
+   *
+   * Une clause que l'API n'applique pas fidèlement n'est pas déléguée :
+   * l'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,
+   * sur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une
+   * parenthèse ou une virgule — l'API écarte cette valeur sans erreur
+   * (#1233). Les autres clauses restent déléguées ; celle-ci demande de
+   * charger toutes les lignes qu'elles gardent (une requête par page, sous
+   * `max-records`) au lieu des seules lignes filtrées, et un `group-by` posé
+   * à côté n'est plus délégué : les lignes filtrées sont rendues brutes, une
+   * `dsfr-data-query` en aval regroupe. En pagination serveur
+   * (`server-side`), où ce calcul n'est pas possible, la clause part telle
+   * quelle : le résultat est incomplet, et le volet Diagnostic le signale.
+   */
   @property({ type: String })
   where = '';
 
@@ -298,7 +312,26 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String })
   aggregate = '';
 
-  /** Order-by */
+  /**
+   * Tri (`champ:asc, champ2:desc`), délégué aux adaptateurs déclarant
+   * `serverOrderBy`.
+   *
+   * Une API qui pagine par décalage et ne trie que sur une clé (Tabular) rend
+   * un ordre instable d'une page à l'autre dès que la clé n'est pas unique :
+   * des lignes reviennent deux fois, d'autres jamais, pour un compte juste.
+   * Un tri délégué qui s'étend sur plusieurs pages est donc rendu sûr par
+   * l'adaptateur (#1202, #1233), lignes brutes comme groupes d'un
+   * `group-by` :
+   * - tout le jeu est chargé : il est relu sans tri et trié sur place (une
+   *   requête de plus), dans l'ordre du pipeline — vides, puis nombres, puis
+   *   textes —, le même que celui d'une `dsfr-data-query` ;
+   * - `limit` ou `max-records` coupe le chargement : le tri reste au serveur,
+   *   complété d'une clé de départage (l'identifiant de ligne, ou les autres
+   *   colonnes du `group-by`) qui le rend total.
+   *
+   * Un chargement d'une seule page, et un regroupement trié sur sa seule
+   * colonne de regroupement, gardent le tri du serveur tel quel.
+   */
   @property({ type: String, attribute: 'order-by' })
   orderBy = '';
 
@@ -330,6 +363,13 @@ export class DsfrDataSource extends LitElement {
    * par page de l'API) et au poids mémoire. Un `limit` plus petit reste
    * prioritaire. Quand le plafond coupe le jeu, la source signale la
    * troncature (`truncated`) et un avertissement console cite `max-records`.
+   *
+   * Un chargement coupé par le plafond et trié (`order-by`) rend les
+   * premières lignes du tri, chacune une fois : sur Tabular, le tri délégué
+   * est complété d'une clé de départage (#1233). Si l'API la refuse, le tri
+   * du serveur est gardé tel quel et le volet Diagnostic signale un tri
+   * instable — des lignes à valeurs égales peuvent alors manquer ou être
+   * doublées aux limites de page.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
@@ -1282,6 +1322,7 @@ export class DsfrDataSource extends LitElement {
       total: result.totalCount,
       serverSide: true,
       needsClientProcessing: result.needsClientProcessing,
+      ...(result.caveats?.length ? { caveats: result.caveats } : {}),
     });
   }
 
@@ -1308,6 +1349,8 @@ export class DsfrDataSource extends LitElement {
       serverSide: false,
       needsClientProcessing: result.needsClientProcessing,
       ...(truncated ? { truncated: true } : {}),
+      // Reserves de l'adapter (#1233) : lues par le volet Diagnostic
+      ...(result.caveats?.length ? { caveats: result.caveats } : {}),
     });
   }
 

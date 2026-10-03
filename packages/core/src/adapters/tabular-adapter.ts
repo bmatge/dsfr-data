@@ -9,11 +9,13 @@ import type {
   ApiAdapter,
   AdapterCapabilities,
   AdapterParams,
+  FetchCaveat,
   FetchResult,
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { getProxiedUrl, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
+import { getProxiedUrl, looseEquals, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
+import { getByPath } from '../utils/json-path.js';
 import { parseAggregates } from '../utils/aggregates.js';
 import {
   buildColonFacetWhere,
@@ -203,22 +205,58 @@ interface SortPlan {
   local: OrderByPart[];
 }
 
+/** Une clause `champ:in|notin:a|b` du `where` colon, decoupee. */
+interface InClause {
+  /** La clause telle qu'ecrite (messages). */
+  clause: string;
+  field: string;
+  negate: boolean;
+  values: string[];
+}
+
+/** Decoupe une clause `champ:in|notin:a|b` ; null pour toute autre clause. */
+function parseInClause(clause: string): InClause | null {
+  const parts = clause.split(':');
+  if (parts.length < 3 || isMultiFieldClause(clause)) return null;
+  const op = parts[1].trim();
+  if (op !== 'in' && op !== 'notin') return null;
+  return {
+    clause,
+    field: parts[0].trim(),
+    negate: op === 'notin',
+    values: parts.slice(2).join(':').split('|').map(unescapeColonValue),
+  };
+}
+
 /**
  * Clause `champ:in|notin:a|b` dont une valeur porte `(`, `)` ou `,` (#1202,
  * PG-034) : le parseur de liste de l'API Tabular l'ecarte sans erreur.
  */
 function inValueUnsafe(clause: string): boolean {
-  const parts = clause.split(':');
-  if (parts.length < 3 || isMultiFieldClause(clause)) return false;
-  const op = parts[1].trim();
-  if (op !== 'in' && op !== 'notin') return false;
-  return parts
-    .slice(2)
-    .join(':')
-    .split('|')
-    .map(unescapeColonValue)
-    .some((v) => /[(),]/.test(v));
+  return parseInClause(clause)?.values.some((v) => /[(),]/.test(v)) ?? false;
 }
+
+/**
+ * Une clause `in` / `notin` appliquee ICI a une ligne (#1233), avec la
+ * semantique du filtre client de `dsfr-data-query` : egalite lache sur chaque
+ * valeur (`dept:in:75` trouve `"75"`), une valeur absente n'est dans aucune
+ * liste — `in` l'ecarte, `notin` la garde.
+ */
+function matchesInClause(row: unknown, clause: InClause): boolean {
+  const value = getByPath(row, clause.field);
+  if (value === null || value === undefined) return clause.negate;
+  const found = clause.values.some((v) =>
+    looseEquals(value, v !== '' && !isNaN(Number(v)) ? Number(v) : v, clause.field)
+  );
+  return clause.negate ? !found : found;
+}
+
+/**
+ * La premiere requete portant un ordre total compose (#1233) a echoue : l'API
+ * ne l'accepte pas (ou plus). Distincte d'une panne en cours de pagination,
+ * qui remonte telle quelle.
+ */
+class TotalOrderRefused extends Error {}
 
 export class TabularAdapter implements ApiAdapter {
   readonly type = 'tabular';
@@ -678,6 +716,11 @@ export class TabularAdapter implements ApiAdapter {
    * pagination ci-dessous (voir `_fetchViaParquet`).
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
+    // `in` / `notin` a parenthese (#1233, PG-034) : jamais au serveur, qui
+    // ecarterait la valeur en silence — la clause se calcule ici.
+    const where = this._splitWhere(params.filter || params.where || '');
+    if (where.local.length > 0) return this._fetchAllFilteredLocally(params, where, signal);
+
     if (params.fetchMode === 'export') {
       const exported = await this._fetchViaParquet(params, signal);
       if (exported) return exported;
@@ -685,12 +728,28 @@ export class TabularAdapter implements ApiAdapter {
 
     // Tri sur une colonne d'agregat (#1045) : groupes complets, puis tri ici
     const sortPlan = this._sortPlan(params, params.orderBy);
-    const localSort = sortPlan.local;
-    if (localSort.length > 0) return this._fetchAllSortedLocally(params, localSort, signal);
-    // Lignes BRUTES triees par le serveur (PG-033) : voir apres la 1re page.
-    const rawServerSort =
-      sortPlan.server.length > 0 && !(params.groupBy?.trim() || params.aggregate?.trim());
+    if (sortPlan.local.length > 0) {
+      return this._fetchAllSortedLocally(params, sortPlan.local, signal);
+    }
+    return this._fetchAllPaged(params, signal, sortPlan.server, null);
+  }
 
+  /**
+   * La pagination elle-meme (voir `fetchAll`).
+   *
+   * `serverSort` : les parties du tri laissees a l'API. Sur plus d'une page,
+   * ce tri n'est sur que s'il est TOTAL (PG-033, #1202, #1233) — voir
+   * `_settlePagedSort`, appele apres la premiere page, qui sert de sonde.
+   *
+   * `totalOrder` : l'ordre total compose par `_totalOrder`, quand cet appel
+   * est la relecture qui le porte ; `null` pour un chargement ordinaire.
+   */
+  private async _fetchAllPaged(
+    params: AdapterParams,
+    signal: AbortSignal,
+    serverSort: OrderByPart[],
+    totalOrder: string | null
+  ): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
     const maxRecords = this._maxRecords(params);
     const maxPages = Math.ceil(maxRecords / TABULAR_PAGE_SIZE);
@@ -708,6 +767,8 @@ export class TabularAdapter implements ApiAdapter {
     let currentPage = 1;
     // Il restait une page (links.next) quand la boucle s'est arretee
     let moreAvailable = false;
+    // Tri serveur garde sur plusieurs pages sans ordre total (#1233)
+    let unstableSort = false;
 
     for (let i = 0; i < maxPages; i++) {
       const remaining = requestedLimit - allResults.length;
@@ -721,10 +782,22 @@ export class TabularAdapter implements ApiAdapter {
       // (moins d'une page) est retranche apres la boucle.
       const pageSize =
         currentPage === 1 ? Math.min(TABULAR_PAGE_SIZE, remaining) : TABULAR_PAGE_SIZE;
-      const url = getProxiedUrl(this.buildUrl(params, pageSize, currentPage), params.proxyUrl);
+      const url = getProxiedUrl(
+        this.buildUrl(params, pageSize, currentPage, totalOrder ?? undefined),
+        params.proxyUrl
+      );
 
-      const response = await fetch(url, buildFetchOptions(params, signal));
+      let response: Response;
+      try {
+        response = await fetch(url, buildFetchOptions(params, signal));
+      } catch (err) {
+        // Un 400 de l'API part sans en-tete CORS : le navigateur n'en voit
+        // qu'une erreur reseau (#598)
+        if (i === 0 && totalOrder !== null && !isAbort(err, signal)) throw new TotalOrderRefused();
+        throw err;
+      }
       if (!response.ok) {
+        if (i === 0 && totalOrder !== null) throw new TotalOrderRefused();
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -734,21 +807,6 @@ export class TabularAdapter implements ApiAdapter {
 
       if (json.meta && typeof json.meta.total === 'number') {
         totalCount = json.meta.total;
-      }
-
-      // Tri serveur d'un chargement PAGINE (#1202, PG-033 du banc) : l'API
-      // pagine par offset et n'applique qu'UNE cle de tri — sur un champ non
-      // unique, des lignes a valeurs egales passent d'une page a l'autre, en
-      // double ou jamais (101 lignes lues, 99 distinctes). Quand tout le jeu
-      // tient sous le plafond, on relit sans `__sort` et on trie ici : meme
-      // nombre de pages, plus aucune perte. Tronque par le plafond, le tri
-      // serveur reste le seul moyen d'avoir les PREMIERES lignes : on le
-      // garde, et on le dit.
-      if (i === 0 && rawServerSort && totalCount > pageResults.length) {
-        if (totalCount <= requestedLimit) {
-          return this._fetchAllSortedLocally(params, sortPlan.server, signal);
-        }
-        this._warnTruncatedServerSort(params.orderBy || '');
       }
 
       // Page suivante via links.next
@@ -763,6 +821,27 @@ export class TabularAdapter implements ApiAdapter {
           }
         } catch {
           // URL invalide, arreter la pagination
+        }
+      }
+
+      // Tri serveur d'un chargement PAGINE (#1202, #1233, PG-033 du banc) :
+      // la premiere page, triee, sert de sonde. Une seule page attendue (ou
+      // voulue : un `limit` qu'elle couvre) → le tri serveur est sur, rien ne
+      // change. Sinon `_settlePagedSort` rend le chargement juste, ou `null`
+      // quand il faut continuer ici (ordre deja total, ou aucun recours).
+      if (i === 0 && totalOrder === null && serverSort.length > 0) {
+        const morePages = serverHandled
+          ? hasNext && pageResults.length >= pageSize
+          : totalCount > pageResults.length;
+        if (morePages && requestedLimit > allResults.length) {
+          const settled = await this._settlePagedSort(params, signal, serverSort, {
+            grouped: serverHandled,
+            // Tout le jeu est voulu, et il tient sous le plafond (le nombre de
+            // groupes, lui, n'est connu qu'apres lecture)
+            fits: serverHandled ? fetchAllRecords : totalCount <= requestedLimit,
+          });
+          if (settled === 'unstable') unstableSort = true;
+          else if (settled !== 'total') return settled;
         }
       }
 
@@ -833,6 +912,225 @@ export class TabularAdapter implements ApiAdapter {
       totalCount: totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: !serverHandled,
       ...(cappedWithMore ? { truncated: true } : {}),
+      ...(unstableSort ? { caveats: ['unstable-sort'] as FetchCaveat[] } : {}),
+    };
+  }
+
+  /**
+   * Rend SUR un tri serveur qui s'etend sur plusieurs pages (#1202, #1233,
+   * PG-033 du banc).
+   *
+   * L'API pagine par offset et n'applique qu'UNE cle de tri (mesure du
+   * 2026-10-03 : un second `__sort` est ignore). Sur une cle non unique, les
+   * lignes a valeurs egales changent d'ordre d'une page a l'autre : certaines
+   * reviennent deux fois, d'autres jamais, et le compte reste juste —
+   * 1 818 lignes lues pour 1 718 distinctes en lignes brutes, 1 818 groupes
+   * pour 1 805 distincts (`group-by` de deux colonnes trie sur une seule).
+   *
+   * Trois issues, dans l'ordre :
+   * 1. le tri est deja TOTAL (regroupement sur la seule colonne triee, tri
+   *    sur `__id`) : rien a faire, la pagination continue (`'total'`) ;
+   * 2. tout le jeu est voulu et tient sous `max-records` : il est relu SANS
+   *    `__sort` puis trie ici — une requete de plus (la sonde), plus aucune
+   *    perte, et rien qui depende d'une forme non documentee de l'API ;
+   * 3. sinon (`limit`, ou plafond `max-records` atteint) seul le serveur peut
+   *    donner les PREMIERES lignes : la lecture repart avec un ordre total
+   *    (`_totalOrder`), stable d'une page a l'autre.
+   *
+   * Sans ordre total (nom de colonne non transmissible, forme refusee par
+   * l'API) : des groupes sont relus sans tri et tries ici, quitte a tous les
+   * lire ; des lignes brutes gardent le tri serveur, et c'est DIT — en
+   * console et, par la reserve `unstable-sort`, au volet Diagnostic.
+   */
+  private async _settlePagedSort(
+    params: AdapterParams,
+    signal: AbortSignal,
+    parts: OrderByPart[],
+    load: { grouped: boolean; fits: boolean }
+  ): Promise<FetchResult | 'total' | 'unstable'> {
+    const order = this._totalOrder(params, parts, load.grouped);
+    if (order === '') return 'total';
+
+    let complete: FetchResult | null = null;
+    if (load.fits) {
+      complete = await this._fetchAllUnsorted(params, signal);
+      if (!complete.truncated) return this._sortedLocally(params, parts, complete);
+    }
+
+    if (order !== null && !this._totalOrderRefused) {
+      try {
+        return await this._fetchAllPaged(params, signal, parts, order);
+      } catch (err) {
+        if (!(err instanceof TotalOrderRefused)) throw err;
+        this._totalOrderRefused = true;
+      }
+    }
+
+    if (load.grouped) {
+      complete ??= await this._fetchAllUnsorted(params, signal);
+      this._warnPartialSort(params, complete);
+      return this._sortedLocally(params, parts, complete);
+    }
+    this._warnUnstableServerSort(params.orderBy || '');
+    return 'unstable';
+  }
+
+  /** L'API a refuse un ordre total compose : on ne le redemande plus (#1233). */
+  private _totalOrderRefused = false;
+
+  /**
+   * Valeur de `champ__sort` qui rend le tri TOTAL (#1233), `''` quand il
+   * l'est deja, `null` quand elle ne peut pas s'ecrire.
+   *
+   * L'API n'a qu'une cle de tri : de plusieurs `__sort`, seul le premier
+   * compte (mesure du 2026-10-03 — `Code_region__sort=asc&__id__sort=asc`
+   * rend les memes 550 lignes distinctes sur 600 que `Code_region__sort=asc`
+   * seul). Mais elle passe la VALEUR telle quelle au `order=` de PostgREST
+   * (`api_tabular/core/query.py` : `order={colonne}.{valeur}`), qui sait
+   * trier sur plusieurs colonnes : `Code_region__sort=asc,"__id".asc` rend
+   * 600 lignes distinctes, les 600 premieres du jeu trie. Cette forme n'est
+   * PAS documentee par l'API — d'ou le repli de `_settlePagedSort` si elle
+   * est un jour refusee, et le controle vivant qui la garde.
+   *
+   * Cles ajoutees a la suite du tri demande :
+   * - lignes brutes : `__id`, l'identifiant de ligne que l'API ajoute a toute
+   *   ressource (et son ordre par defaut) ;
+   * - groupes : les colonnes de regroupement que le tri ne nomme pas — la
+   *   cle de groupe est unique.
+   *
+   * Un nom portant `"`, `&` ou `=` ne s'ecrit pas dans la valeur (la query
+   * string est decoupee sur `&` et `=` apres decodage, et `"` ferme le nom).
+   */
+  private _totalOrder(
+    params: AdapterParams,
+    parts: OrderByPart[],
+    grouped: boolean
+  ): string | null {
+    const sorted = new Set(parts.map((p) => p.field));
+    const tie = grouped
+      ? (params.groupBy || '')
+          .split(',')
+          .map((f) => f.trim())
+          .filter((f) => f && !sorted.has(f))
+      : sorted.has('__id')
+        ? []
+        : ['__id'];
+    const rest: OrderByPart[] = [
+      ...parts.slice(1),
+      ...tie.map((field) => ({ field, direction: 'asc' as const })),
+    ];
+    if (rest.length === 0) return '';
+    if (rest.some((k) => /["&=]/.test(k.field))) return null;
+    return [parts[0].direction, ...rest.map((k) => `"${k.field}".${k.direction}`)].join(',');
+  }
+
+  /**
+   * Partage un `where` colon entre l'API et l'adaptateur (#1233, PG-034).
+   *
+   * Une clause `in` / `notin` dont une valeur porte `(`, `)` ou `,` ne part
+   * pas : le parseur de liste de l'API ecarte la valeur en silence (mesure du
+   * 2026-10-03, `annee__exact=2025` : `indicateur__exact=Usage de stupéfiants
+   * (AFD)` → 101 ; `indicateur__in=` la meme → 0 ; avec `Homicides` → 101 au
+   * lieu de 202). Les autres clauses restent deleguees.
+   */
+  private _splitWhere(expr: string): { server: string; local: InClause[] } {
+    const server: string[] = [];
+    const local: InClause[] = [];
+    for (const clause of expr.split(',').map((c) => c.trim())) {
+      if (!clause) continue;
+      const parsed = parseInClause(clause);
+      if (parsed && inValueUnsafe(clause)) local.push(parsed);
+      else server.push(clause);
+    }
+    return { server: server.join(', '), local };
+  }
+
+  /**
+   * Fetch complet dont une clause `in` / `notin` est calculee ICI (#1233,
+   * PG-034) : le `where` est pose sur la source (ou delegue par une query
+   * avec un autre filtre), et l'API ecarterait une de ses valeurs.
+   *
+   * Le filtre passe AVANT tout le reste. Sont donc lues toutes les lignes que
+   * gardent les clauses restees deleguees, sans `limit` ni tri ; puis la
+   * clause est appliquee, puis `order-by` et `limit`. Un `group-by` ou un
+   * `aggregate` ne peut plus etre delegue (le serveur regrouperait des lignes
+   * non filtrees) : lignes brutes filtrees et `needsClientProcessing`, comme
+   * pour tout regroupement non delegable (#289) — la query en aval regroupe.
+   *
+   * Cout : le jeu entier au lieu des seules lignes gardees (10 requetes au
+   * lieu d'une pour 1 818 lignes dont 202 gardees). Si `max-records` coupe la
+   * lecture, le filtre ne porte que sur les lignes lues : `truncated`, et dit.
+   */
+  private async _fetchAllFilteredLocally(
+    params: AdapterParams,
+    where: { server: string; local: InClause[] },
+    signal: AbortSignal
+  ): Promise<FetchResult> {
+    const grouped = !!(params.groupBy?.trim() || params.aggregate?.trim());
+    // La colonne filtree doit etre lue, meme absente du `select` (#985)
+    const columns = grouped ? null : this._selectColumns(params);
+    const added = columns
+      ? [...new Set(where.local.map((c) => c.field))].filter((f) => !columns.includes(f))
+      : [];
+    const complete = await this.fetchAll(
+      {
+        ...params,
+        where: where.server,
+        filter: '',
+        groupBy: '',
+        aggregate: '',
+        orderBy: '',
+        limit: 0,
+        ...(grouped ? { select: '' } : {}),
+        ...(columns && added.length > 0 ? { select: [...columns, ...added].join(', ') } : {}),
+      },
+      signal
+    );
+
+    let data = complete.data.filter((row) => where.local.every((c) => matchesInClause(row, c)));
+    if (added.length > 0) {
+      data = data.map((row) => {
+        const kept = { ...(row as Record<string, unknown>) };
+        for (const field of added) delete kept[field];
+        return kept;
+      });
+    }
+    const clauses = where.local.map((c) => c.clause).join(', ');
+    if (complete.truncated) {
+      this._warnInOnce(
+        `partial:${clauses}`,
+        `[dsfr-data] tabular: la clause "${clauses}" est calculée côté client (l'API Tabular ` +
+          `écarte en silence une valeur à parenthèse ou à virgule de \`__in\`, PG-034), sur les ` +
+          `${complete.data.length} premières lignes seulement — le plafond max-records a coupé ` +
+          `la lecture ; relevez max-records de dsfr-data-source pour filtrer tout le jeu`
+      );
+    }
+    if (grouped) {
+      this._warnInOnce(
+        `grouped:${clauses}`,
+        `[dsfr-data] tabular: group-by/aggregate non délégables avec la clause "${clauses}" — ` +
+          `l'API Tabular écarte en silence une valeur à parenthèse ou à virgule de \`__in\` ` +
+          `(PG-034), la clause est calculée côté client ; lignes brutes filtrées renvoyées, ` +
+          `regroupement calculé côté client`
+      );
+      return {
+        data,
+        totalCount: complete.truncated ? undefined : data.length,
+        needsClientProcessing: true,
+        ...(complete.truncated ? { truncated: true } : {}),
+      };
+    }
+
+    const matched = data.length;
+    data = sortRows(data, parseOrderBy(params.orderBy || ''));
+    if (params.limit > 0) data = data.slice(0, params.limit);
+    return {
+      data,
+      // Lignes gardees par le filtre, avant `limit` — comme un total serveur.
+      // Lecture coupee par le plafond : le total n'est pas connu.
+      totalCount: complete.truncated ? undefined : matched,
+      needsClientProcessing: complete.needsClientProcessing,
+      ...(complete.truncated ? { truncated: true } : {}),
     };
   }
 
@@ -986,8 +1284,22 @@ export class TabularAdapter implements ApiAdapter {
     parts: OrderByPart[],
     signal: AbortSignal
   ): Promise<FetchResult> {
-    const complete = await this.fetchAll({ ...params, orderBy: '', limit: 0 }, signal);
+    const complete = await this._fetchAllUnsorted(params, signal);
     this._warnPartialSort(params, complete);
+    return this._sortedLocally(params, parts, complete);
+  }
+
+  /** Tout le jeu (ou tous les groupes), sans tri ni `limit`, sous `max-records`. */
+  private _fetchAllUnsorted(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
+    return this.fetchAll({ ...params, orderBy: '', limit: 0 }, signal);
+  }
+
+  /** Trie ICI un chargement complet, puis le coupe au `limit` demande. */
+  private _sortedLocally(
+    params: AdapterParams,
+    parts: OrderByPart[],
+    complete: FetchResult
+  ): FetchResult {
     let data = sortRows(complete.data, parts);
     if (params.limit > 0) data = data.slice(0, params.limit);
     return { ...complete, data };
@@ -1089,18 +1401,33 @@ export class TabularAdapter implements ApiAdapter {
     const totalCount: number | undefined =
       typeof json.meta?.total === 'number' ? json.meta.total : undefined;
 
+    // `in` / `notin` a parenthese en pagination serveur (#1233, PG-034) : la
+    // clause ne peut pas se calculer sur une page — elle part, et c'est dit.
+    const inDropped =
+      this._splitWhere(overlay.effectiveWhere || params.filter || params.where || '').local.length >
+      0;
+
     return {
       data,
       totalCount,
       needsClientProcessing: asked && !serverHandled,
       rawJson: json,
+      ...(inDropped ? { caveats: ['in-values-dropped'] as FetchCaveat[] } : {}),
     };
   }
 
   /**
    * Construit une URL Tabular pour le fetch complet.
+   *
+   * `totalOrder` : valeur composee par `_totalOrder` (#1233), posee sur la
+   * premiere cle de tri a la place de sa seule direction.
    */
-  buildUrl(params: AdapterParams, pageSizeOverride?: number, pageOverride?: number): string {
+  buildUrl(
+    params: AdapterParams,
+    pageSizeOverride?: number,
+    pageOverride?: number,
+    totalOrder?: string
+  ): string {
     const base = this._getBaseUrl(params);
     const origin =
       typeof window !== 'undefined' && window.location.origin !== 'null'
@@ -1124,8 +1451,14 @@ export class TabularAdapter implements ApiAdapter {
     // Tri — grammaire commune "field:dir, field2:dir2" (#273). Seules les
     // parties que l'API sait trier partent (#1045) : jamais une colonne
     // d'agregat, que `fetchAll` trie lui-meme.
-    for (const part of this._sortPlan(params, params.orderBy).server) {
-      url.searchParams.set(`${part.field}__sort`, part.direction);
+    const serverSort = this._sortPlan(params, params.orderBy).server;
+    if (totalOrder && serverSort.length > 0) {
+      // Ordre total (#1233) : l'API ne lit qu'un `__sort`, tout tient dans sa valeur
+      url.searchParams.set(`${serverSort[0].field}__sort`, totalOrder);
+    } else {
+      for (const part of serverSort) {
+        url.searchParams.set(`${part.field}__sort`, part.direction);
+      }
     }
 
     // Pagination
@@ -1234,8 +1567,9 @@ export class TabularAdapter implements ApiAdapter {
           op === 'in' || op === 'notin'
             ? raw.split('|').map(unescapeColonValue).join(',')
             : unescapeColonValue(raw);
-        // Un `where` pose sur la SOURCE (sans query en aval pour le reprendre)
-        // part tel quel : on dit qu'une valeur a parenthese sera ignoree (PG-034).
+        // `fetchAll` retire cette clause avant d'arriver ici et la calcule
+        // lui-meme (#1233). Reste la pagination serveur, ou elle part telle
+        // quelle : on dit qu'une valeur a parenthese sera ignoree (PG-034).
         if (inValueUnsafe(filter)) this._warnInRefused(filter);
         // append : deux filtres meme champ+op sont AND-es comme Grist/ODS (#289)
         url.searchParams.append(`${field}__${op}`, value);
@@ -1303,30 +1637,41 @@ export class TabularAdapter implements ApiAdapter {
     return this._orGroup(multi[0].split(':')) !== null;
   }
 
-  /** Tri serveur sur un chargement tronque deja signale (une fois par adaptateur). */
-  private _truncatedSortWarned = false;
+  /** Tri serveur instable deja signale (une fois par adaptateur). */
+  private _unstableSortWarned = false;
 
-  private _warnTruncatedServerSort(orderBy: string): void {
-    if (this._truncatedSortWarned) return;
-    this._truncatedSortWarned = true;
+  /**
+   * Dernier recours de `_settlePagedSort` (#1233) : lignes brutes tronquees,
+   * triees par l'API, sans ordre total possible.
+   */
+  private _warnUnstableServerSort(orderBy: string): void {
+    if (this._unstableSortWarned) return;
+    this._unstableSortWarned = true;
     console.warn(
-      `[dsfr-data] tabular: tri "${orderBy}" laisse a l'API sur un chargement TRONQUE par ` +
-        `max-records — l'API pagine par offset et ne trie que sur une cle : des lignes a ` +
-        `valeurs egales peuvent manquer ou etre doublees aux limites de page (PG-033). ` +
-        `Relever max-records pour que le tri se fasse sur le jeu complet.`
+      `[dsfr-data] tabular: tri "${orderBy}" laissé à l'API sur un chargement tronqué (limit ` +
+        `ou max-records), sans clé de départage — l'API pagine par offset et ne trie que sur ` +
+        `une clé : des lignes à valeurs égales peuvent manquer ou être doublées aux limites de ` +
+        `page (PG-033). Relevez max-records de dsfr-data-source pour que le tri se fasse sur ` +
+        `le jeu complet.`
     );
   }
 
-  /** Clauses in/notin a parenthese deja signalees (#1202, PG-034). */
-  private readonly _inRefusedWarned = new Set<string>();
+  /** Avertissements `in` / `notin` a parenthese deja emis (#1202, #1233, PG-034). */
+  private readonly _inWarned = new Set<string>();
+
+  private _warnInOnce(key: string, message: string): void {
+    if (this._inWarned.has(key)) return;
+    this._inWarned.add(key);
+    console.warn(message);
+  }
 
   private _warnInRefused(clause: string): void {
-    if (this._inRefusedWarned.has(clause)) return;
-    this._inRefusedWarned.add(clause);
-    console.warn(
-      `dsfr-data: la clause "${clause}" liste une valeur a parenthese ou a virgule — l'API ` +
-        `Tabular l'ecarte EN SILENCE de \`__in\` (PG-034). Posez ce filtre sur une ` +
-        `dsfr-data-query, qui l'applique alors sur les lignes chargees.`
+    this._warnInOnce(
+      `sent:${clause}`,
+      `dsfr-data: la clause "${clause}" liste une valeur à parenthèse ou à virgule — l'API ` +
+        `Tabular l'écarte EN SILENCE de \`__in\` (PG-034), et la pagination serveur ` +
+        `(server-side) ne permet pas de la calculer sur les lignes chargées. Retirez ` +
+        `server-side de dsfr-data-source : la clause est alors calculée côté client.`
     );
   }
 

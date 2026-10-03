@@ -20556,7 +20556,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE statique",
+              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne clause que l'API n'applique pas fidèlement n'est pas déléguée :\nl'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,\nsur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une\nparenthèse ou une virgule — l'API écarte cette valeur sans erreur\n(#1233). Les autres clauses restent déléguées ; celle-ci demande de\ncharger toutes les lignes qu'elles gardent (une requête par page, sous\n`max-records`) au lieu des seules lignes filtrées, et un `group-by` posé\nà côté n'est plus délégué : les lignes filtrées sont rendues brutes, une\n`dsfr-data-query` en aval regroupe. En pagination serveur\n(`server-side`), où ce calcul n'est pas possible, la clause part telle\nquelle : le résultat est incomplet, et le volet Diagnostic le signale.",
               "attribute": "where"
             },
             {
@@ -20596,7 +20596,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Order-by",
+              "description": "Tri (`champ:asc, champ2:desc`), délégué aux adaptateurs déclarant\n`serverOrderBy`.\n\nUne API qui pagine par décalage et ne trie que sur une clé (Tabular) rend\nun ordre instable d'une page à l'autre dès que la clé n'est pas unique :\ndes lignes reviennent deux fois, d'autres jamais, pour un compte juste.\nUn tri délégué qui s'étend sur plusieurs pages est donc rendu sûr par\nl'adaptateur (#1202, #1233), lignes brutes comme groupes d'un\n`group-by` :\n- tout le jeu est chargé : il est relu sans tri et trié sur place (une\n  requête de plus), dans l'ordre du pipeline — vides, puis nombres, puis\n  textes —, le même que celui d'une `dsfr-data-query` ;\n- `limit` ou `max-records` coupe le chargement : le tri reste au serveur,\n  complété d'une clé de départage (l'identifiant de ligne, ou les autres\n  colonnes du `group-by`) qui le rend total.\n\nUn chargement d'une seule page, et un regroupement trié sur sa seule\ncolonne de regroupement, gardent le tri du serveur tel quel.",
               "attribute": "order-by"
             },
             {
@@ -20626,7 +20626,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.\n\nUn chargement coupé par le plafond et trié (`order-by`) rend les\npremières lignes du tri, chacune une fois : sur Tabular, le tri délégué\nest complété d'une clé de départage (#1233). Si l'API la refuse, le tri\ndu serveur est gardé tel quel et le volet Diagnostic signale un tri\ninstable — des lignes à valeurs égales peuvent alors manquer ou être\ndoublées aux limites de page.",
               "attribute": "max-records"
             },
             {
@@ -21462,7 +21462,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE statique",
+              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne clause que l'API n'applique pas fidèlement n'est pas déléguée :\nl'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,\nsur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une\nparenthèse ou une virgule — l'API écarte cette valeur sans erreur\n(#1233). Les autres clauses restent déléguées ; celle-ci demande de\ncharger toutes les lignes qu'elles gardent (une requête par page, sous\n`max-records`) au lieu des seules lignes filtrées, et un `group-by` posé\nà côté n'est plus délégué : les lignes filtrées sont rendues brutes, une\n`dsfr-data-query` en aval regroupe. En pagination serveur\n(`server-side`), où ce calcul n'est pas possible, la clause part telle\nquelle : le résultat est incomplet, et le volet Diagnostic le signale.",
               "fieldName": "where"
             },
             {
@@ -21498,7 +21498,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Order-by",
+              "description": "Tri (`champ:asc, champ2:desc`), délégué aux adaptateurs déclarant\n`serverOrderBy`.\n\nUne API qui pagine par décalage et ne trie que sur une clé (Tabular) rend\nun ordre instable d'une page à l'autre dès que la clé n'est pas unique :\ndes lignes reviennent deux fois, d'autres jamais, pour un compte juste.\nUn tri délégué qui s'étend sur plusieurs pages est donc rendu sûr par\nl'adaptateur (#1202, #1233), lignes brutes comme groupes d'un\n`group-by` :\n- tout le jeu est chargé : il est relu sans tri et trié sur place (une\n  requête de plus), dans l'ordre du pipeline — vides, puis nombres, puis\n  textes —, le même que celui d'une `dsfr-data-query` ;\n- `limit` ou `max-records` coupe le chargement : le tri reste au serveur,\n  complété d'une clé de départage (l'identifiant de ligne, ou les autres\n  colonnes du `group-by`) qui le rend total.\n\nUn chargement d'une seule page, et un regroupement trié sur sa seule\ncolonne de regroupement, gardent le tri du serveur tel quel.",
               "fieldName": "orderBy"
             },
             {
@@ -21525,7 +21525,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.\n\nUn chargement coupé par le plafond et trié (`order-by`) rend les\npremières lignes du tri, chacune une fois : sur Tabular, le tri délégué\nest complété d'une clé de départage (#1233). Si l'API la refuse, le tri\ndu serveur est gardé tel quel et le volet Diagnostic signale un tri\ninstable — des lignes à valeurs égales peuvent alors manquer ou être\ndoublées aux limites de page.",
               "fieldName": "maxRecords"
             },
             {

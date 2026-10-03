@@ -5,6 +5,7 @@
 
 import type { JoinStats, PivotStats } from '@dsfr-data/shared/lib';
 import { classifySourceError, type SourceErrorCause } from './source-errors.js';
+import type { FetchCaveat } from '../adapters/api-adapter.js';
 
 export interface DataLoadedEvent {
   sourceId: string;
@@ -69,6 +70,10 @@ export interface DataIdleEvent {
  *   (`total > data.length`, ou page pleine au plafond quand le total est
  *   inconnu, cas `group_by` ODS #641), ou `limit` d'un dsfr-data-query.
  *   Purement diagnostique : aucun consommateur n'en change de comportement.
+ * - `caveats` (#1233) : reserves de l'adapter sur un chargement abouti dont
+ *   le resultat peut etre faux sans que rien d'autre ne le dise (tri serveur
+ *   instable d'une page a l'autre, valeur de `in` ecartee par le serveur).
+ *   Purement diagnostique, comme `truncated`.
  * - `join` (#660) : taux d'appariement pose par dsfr-data-join.
  * - Un dsfr-data-query hors pagination serveur republie `total` = nombre de
  *   lignes AVANT son `limit` (#659) ; en pagination serveur il conserve le
@@ -85,6 +90,8 @@ export interface PaginationMeta {
   needsClientProcessing?: boolean;
   /** True si les lignes livrees sont tronquees (max-records, limit) — #658 */
   truncated?: boolean;
+  /** Reserves de l'adapter sur les lignes livrees — #1233 */
+  caveats?: FetchCaveat[];
   /** Taux d'appariement d'une jointure — #660 */
   join?: JoinStats;
   /** Colonnes generees et cellules vides d'un pivot long → wide — #255 */
