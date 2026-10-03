@@ -36,7 +36,7 @@ describe('couverture du Studio — etat versionne', () => {
   it('chaque composant et attribut du manifeste est ecrit ou exclu avec sa raison', () => {
     const bilan = verifierCouverture(MANIFESTE, ECRITS, EXCLUSIONS);
     expect(bilan.erreurs).toEqual([]);
-    expect(bilan.composants.total).toBe(28);
+    expect(bilan.composants.total).toBe(29);
   });
 
   it('mesure ce que #1109 a ajoute : volet, gabarit, regroupement', () => {
@@ -70,7 +70,7 @@ describe('couverture du Studio — etat versionne', () => {
     expect(ECRITS.get('dsfr-data-kpi')?.has('valeur')).toBe(false);
     expect(ECRITS.get('dsfr-data-source')?.has('headers')).toBe(false);
     const bilan = verifierCouverture(MANIFESTE, ECRITS, EXCLUSIONS);
-    expect(bilan.composants).toEqual({ total: 28, ecrits: 27 });
+    expect(bilan.composants).toEqual({ total: 29, ecrits: 28 });
   });
 
   it('chaque exclusion porte une raison', () => {

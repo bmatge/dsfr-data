@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 28 balises, 377 attributs, 16 enumerations, 65 attributs-champs.
+ * 29 balises, 379 attributs, 16 enumerations, 65 attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -700,6 +700,7 @@ export const COMPONENT_CONTRACT = {
       "cache-ttl",
       "data",
       "dataset-id",
+      "error-message",
       "fetch-mode",
       "group-by",
       "headers",
@@ -733,6 +734,11 @@ export const COMPONENT_CONTRACT = {
         "POST"
       ]
     }
+  },
+  "dsfr-data-source-status": {
+    "attributes": [
+      "source"
+    ]
   },
   "dsfr-data-unpivot": {
     "attributes": [

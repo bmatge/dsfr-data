@@ -83,6 +83,11 @@ export const EXCLUSIONS: readonly ExclusionDeclaree[] = [
     attributs: ['group-by', 'aggregate', 'order-by', 'limit'],
     raison: `Regroupement, tri et limite portés par dsfr-data-query (bloc chart, ou bloc « composant libre ») ; une source Opendatasoft dédiée à un KPI ne reçoit que select et where (#810). ${SOURCE_DU_STUDIO}`,
   },
+  {
+    composant: 'dsfr-data-source',
+    attributs: ['error-message'],
+    raison: `Phrase de panne propre à un site (#1203) : sans elle, l'export garde le message du barème de la lib, lisible tel quel ; un intégrateur la pose à la main sur la page publiée. ${SOURCE_DU_STUDIO}`,
+  },
 
   // --- Attributs retires --------------------------------------------------
   {

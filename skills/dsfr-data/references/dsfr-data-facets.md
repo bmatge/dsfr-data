@@ -179,7 +179,7 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `emitTransformerError(error: Error)` | `void` | Erreur amont en mode serveur AVANT toute decouverte (#676) : une selection annuelle issue de l'URL a pu être emise en egalite sur un champ date (400) — la source n'emet alors aucune donnee, donc le cycle de facettes (et sa decouverte) n'aurait jamais lieu. On lance la decouverte ici et, si un champ date est concerne, on re-emet la commande en intervalle. Une seule tentative par jeu (decouverte memorisee). |
+| `emitTransformerError(error: Error, relayedFrom?: string)` | `void` | Erreur amont en mode serveur AVANT toute decouverte (#676) : une selection annuelle issue de l'URL a pu être emise en egalite sur un champ date (400) — la source n'emet alors aucune donnee, donc le cycle de facettes (et sa decouverte) n'aurait jamais lieu. On lance la decouverte ici et, si un champ date est concerne, on re-emet la commande en intervalle. Une seule tentative par jeu (decouverte memorisee). |
 | `getAdapter()` | `ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente). Permet aux composants en aval d'acceder a l'adapter sans connaitre la structure du pipeline. |
 | `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 

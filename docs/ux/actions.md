@@ -87,6 +87,7 @@ sont les seules admises en plus du cœur.
 | Studio IA · ancien Assistant IA | **Sonder les capacités** | tertiaire | interroger le gateway Albert (section « Configuration IA ») |
 | Studio IA | **Voir les données** | tertiaire | ouvrir l'aperçu de la source chargée : champs typés et 20 premières lignes (#1081) |
 | Playground | **Ajouter des dépendances** | tertiaire | injecter les balises CSS/JS nécessaires |
+| Bibliothèque (blocs `dsfr-data-*`, bandeau `dsfr-data-source-status`) | **Réessayer** | secondaire | relancer un chargement de données qui a ÉCHOUÉ (#1203). Distinct d'**Actualiser**, qui recharge des données déjà affichées : *Réessayer* n'apparaît qu'après une panne, et seulement quand un nouvel essai a un sens |
 | Pipeline | **Ajouter une étape ▾** | secondaire (menu) | insérer un nœud (voir §7 pour les entrées) |
 | Pipeline | **Réorganiser** · **Recentrer** | tertiaire | actions de canevas |
 | Pipeline | **Revenir au Builder** | tertiaire sans contour (lien de navigation, zone `slot="context"`), `fr-icon-arrow-left-line` | revenir au Builder qui a ouvert le Pipeline (`?from=builder`) ; absent sinon. Le Builder rouvre son instantané de configuration et avertit avant de jeter un pipeline modifié (#1095) |
