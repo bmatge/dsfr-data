@@ -1,5 +1,27 @@
 # dsfr-data
 
+## 0.44.0
+
+### Minor Changes
+
+- [#1219](https://github.com/bmatge/dsfr-data/pull/1219) [`c841d4e`](https://github.com/bmatge/dsfr-data/commit/c841d4e1e7f7f902d33bf5f5d4d4ce9a4d0ad1d6) Thanks [@bmatge](https://github.com/bmatge)! - Erreurs de données lisibles par l'usager, et dites une fois ([#1203](https://github.com/bmatge/dsfr-data/issues/1203)).
+  
+  Quand une source échoue, les blocs branchés dessus n'affichent plus `Erreur de chargement: HTTP 503: Service Unavailable` en rouge. Chacun garde sa place et montre un encart neutre, avec une phrase choisie selon la cause : service indisponible, hors connexion, service très sollicité, données introuvables, accès restreint, page mal réglée. Le code HTTP, l'adresse appelée et l'heure sont repliés dans « Détails techniques ».
+  
+  - Nouveau composant `dsfr-data-source-status` : posé en haut du contenu, il dit la panne une fois par source, avec le seul bouton « Réessayer ». Les blocs de cette source gardent leur message, sans bouton ; ceux d'une autre source ne sont pas touchés. `source="id"` suit une source, sans attribut il suit toutes celles de la page.
+  - Sans bandeau, chaque bloc en erreur porte son propre « Réessayer », quand un nouvel essai a un sens (pas sur un 404, un 401/403 ni une page mal réglée).
+  - Nouvel attribut `error-message` sur `dsfr-data-source` : votre phrase à la place de celle de la bibliothèque.
+  - « Réessayer » relance la source à l'identique (commande `{ reload: true }`, servie dans tous les modes). Après un échec hors connexion, la source se relance d'elle-même, une fois, au retour du réseau. Jamais de nouvel essai automatique sur un 429.
+  - Accessibilité : les blocs en erreur passent de `role="alert"` (assertif, une interruption par bloc) à `role="status"` ; avec un bandeau, seul le bandeau annonce.
+  
+  Ce qui ne change pas : l'événement `dsfr-data-error` (même détail, code HTTP dans `error.message`), la trace console, et l'erreur de configuration d'un composant, qui reste une alerte écrite pour l'intégrateur.
+  
+  Changement de rendu par défaut à connaître : une page qui ciblait `[role="alert"]` ou le texte « Erreur de chargement » dans un bloc doit cibler `.dsfr-data-status--source-error`.
+
+### Patch Changes
+
+- [#1217](https://github.com/bmatge/dsfr-data/pull/1217) [`dcbd913`](https://github.com/bmatge/dsfr-data/commit/dcbd913401c5bfa7a071656fad66145435bec41e) Thanks [@bmatge](https://github.com/bmatge)! - Retrait de l'ancien Assistant IA (`apps/builder-ia`), remplacé par le Studio IA ([#1081](https://github.com/bmatge/dsfr-data/issues/1081), étape 2). Le guide des skills ne sert plus ses deux actions JSON `createChartAction` et `reloadDataAction`, que seul cet Assistant interprétait : `dist/skills.json` passe de 37 à 35 skills et la skill Claude Code de 36 à 34 références. Aucun composant `dsfr-data-*` ne change. En déploiement, l'adresse `apps/builder-ia/` redirige vers le Studio IA.
+
 ## 0.43.1
 
 ### Patch Changes
