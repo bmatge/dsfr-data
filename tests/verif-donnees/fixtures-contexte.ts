@@ -155,6 +155,20 @@ const COMPARAISON = new RegExp(
   `^${IDENT}\\s*(=|!=|>=|<=|>|<)\\s*(?:"((?:[^"\\\\]|\\\\.)*)"|([-\\d.]+))$`
 );
 
+/**
+ * Les littéraux d'une liste `in (…)`. Une virgule DANS un littéral entre
+ * guillemets n'est pas un séparateur (#1243) : `in ("1,5", "2")` porte deux
+ * valeurs, pas trois — découpée sur toutes ses virgules, la liste aurait fait
+ * rendre au faux serveur le chiffre faux que le canari doit refuser.
+ */
+function litterauxDeListe(liste: string): string[] {
+  const valeurs: string[] = [];
+  for (const m of liste.matchAll(/"((?:[^"\\]|\\.)*)"|([^",\s][^",]*)/g)) {
+    valeurs.push(m[1] !== undefined ? litteral(m[1]) : m[2].trim());
+  }
+  return valeurs;
+}
+
 function comparer(gauche: unknown, operateur: string, droite: string, numerique: boolean): boolean {
   // Logique SQL à TROIS VALEURS (#958) : une valeur ABSENTE ne satisfait ni
   // `=` ni `!=` — mesuré sur le portail (`!= "Elèves"` rend 31, la négation
@@ -215,11 +229,7 @@ export function filtrerOdsqlContexte(lignes: Row[], where: string): Row[] {
       }
       const dans = DANS.exec(clause);
       if (dans) {
-        const attendues = dans[2]
-          .split(',')
-          .map((v) => v.trim())
-          .filter(Boolean)
-          .map((v) => litteral(v.replace(/^"|"$/g, '')));
+        const attendues = litterauxDeListe(dans[2]);
         return attendues.includes(String(ligne[denuder(dans[1])] ?? ''));
       }
       const comparaison = COMPARAISON.exec(clause);

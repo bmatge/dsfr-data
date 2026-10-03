@@ -24,6 +24,9 @@ export interface ContextHost extends HTMLElement {
   _registerFilter(filter: ContextFilterLike): string;
   _unregisterFilter(filter: ContextFilterLike): void;
   _applyFilter(filter: ContextFilterLike, colonWhere: string): void;
+  /** Paramètre d'URL du champ, tel qu'écrit : au filtre de le décoder (#1243) */
+  _urlRawFor(field: string): string | null;
+  /** Le même, lu comme une liste de valeurs décodées */
   _urlValuesFor(field: string): string[] | null;
 }
 

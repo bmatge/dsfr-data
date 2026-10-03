@@ -3875,6 +3875,11 @@ Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
 en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
 <dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
 diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
+Dans l'URL, les valeurs d'un filtre a plusieurs valeurs (\`in\`, facette) sont jointes par des
+virgules (?region=IDF,PACA) ; une virgule DANS une valeur s'ecrit %2C, un pourcent %25 (soit
+%252C et %2525 dans un lien ecrit a la main). url-sync ecrit cet echappement lui-meme, pour tous
+les filtres du contexte. Un filtre a valeur unique (eq, contains, recherche, clic) lit son
+parametre en entier.
 Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
 connexion. whereKey stable indexe sur \`uid + champ\` (insertion tardive sans decalage).
 ` + reference('dsfr-data-context'),
