@@ -31,6 +31,8 @@ const CHART_TYPE_LABELS: Record<string, string> = {
   kpi: 'Indicateur KPI',
   map: 'Carte',
   datalist: 'Tableau',
+  podium: 'Podium',
+  'bar-line': 'Barres + ligne',
 };
 
 /** One entry per section header — value is a short text summary (may be ''). */
@@ -81,6 +83,12 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
           break;
         case 'map':
           configText = `${s.codeField} → ${s.valueField}`;
+          break;
+        case 'bar-line':
+          configText = `${s.labelField} × ${s.valueField} + ${s.lineField}`;
+          break;
+        case 'podium':
+          configText = `${s.labelField} × ${s.valueField}`;
           break;
         default: {
           const extra = s.extraSeries?.length || 0;

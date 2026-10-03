@@ -140,6 +140,14 @@
             <i class="ri-table-line" aria-hidden="true"></i>
             <span>Tableau</span>
           </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="bar-line" data-repere="builder.type.bar-line" data-attribut="dsfr-data-chart:type" title="Barres et ligne sur deux axes">
+            <i class="ri-bar-chart-2-fill" aria-hidden="true"></i>
+            <span>Barres + ligne</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="podium" data-repere="builder.type.podium" data-attribut="dsfr-data-podium:source" title="Podium : classement des premières valeurs">
+            <i class="ri-trophy-fill" aria-hidden="true"></i>
+            <span>Podium</span>
+          </button>
         </div>
         </div>
       </div>
@@ -190,6 +198,35 @@
             </label>
             <input type="text" class="fr-input fr-input--sm" id="value-field-label" data-repere="builder.donnees.champ-y-libelle" data-repere-libelle="Nom affiché de la série 1" placeholder="Nom de la série">
           </div>
+        </div>
+
+        <!-- Barres + ligne : la seconde mesure, tracée en ligne (#1204) -->
+        <div id="line-field-group" style="display: none; gap: 0.5rem; align-items: flex-end;" class="fr-mt-1w">
+          <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
+            <label class="fr-label" for="line-field">
+              Valeur de la ligne
+              <span class="fr-hint-text">Le second champ numérique, tracé en ligne sur son propre axe</span>
+            </label>
+            <select class="fr-select" id="line-field" data-repere="builder.donnees.champ-ligne" data-attribut="dsfr-data-chart:value-field-2" data-prerequis="source-chargee">
+              <option value="">— Charger les champs —</option>
+            </select>
+          </div>
+          <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
+            <label class="fr-label" for="line-field-label">
+              Libellé
+              <span class="fr-hint-text">Nom affiché (vide = nom du champ)</span>
+            </label>
+            <input type="text" class="fr-input fr-input--sm" id="line-field-label" data-repere="builder.donnees.champ-ligne-libelle" data-repere-libelle="Nom affiché de la ligne" placeholder="Nom de la ligne">
+          </div>
+        </div>
+
+        <!-- Podium : nombre de places (#1204) -->
+        <div class="fr-input-group fr-input-group--sm fr-mt-1w" id="podium-config" style="display: none;">
+          <label class="fr-label" for="podium-max-items">
+            Nombre de places
+            <span class="fr-hint-text">Combien de valeurs classer, de la plus grande à la plus petite (1 à 20)</span>
+          </label>
+          <input class="fr-input" type="number" id="podium-max-items" min="1" max="20" step="1" value="5" data-repere="builder.donnees.podium-places" data-attribut="dsfr-data-podium:max-items">
         </div>
 
         <!-- Séries supplementaires (affiches conditionnellement) -->

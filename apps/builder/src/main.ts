@@ -44,6 +44,7 @@ import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normaliz
 import { setupFacetsListeners } from './ui/facets-config.js';
 import { setupUrlSyncListeners } from './ui/url-sync-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
+import { setupFormesListeners } from './ui/formes.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
 import { startTourIfFirstVisit, injectTourStyles, resetTour, startTour } from '@dsfr-data/shared';
@@ -354,6 +355,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Extra séries "add" button
+  // Barres + ligne, podium (#1204)
+  setupFormesListeners();
+
   const addSeriesBtn = document.getElementById('add-series-btn');
   if (addSeriesBtn) addSeriesBtn.addEventListener('click', addExtraSeries);
 

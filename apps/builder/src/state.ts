@@ -21,7 +21,10 @@ export type ChartType =
   | 'gauge'
   | 'kpi'
   | 'map'
-  | 'datalist';
+  | 'datalist'
+  // Formes ajoutées par #1204 : la bibliothèque les rendait, le Builder non.
+  | 'podium'
+  | 'bar-line';
 
 /**
  * Types qui acceptent plusieurs séries (bouton « Ajouter une série »). Source
@@ -34,6 +37,35 @@ export const MULTI_SERIES_TYPES: readonly ChartType[] = ['bar', 'horizontalBar',
 export function supportsMultiSeries(type: ChartType): boolean {
   return MULTI_SERIES_TYPES.includes(type);
 }
+
+/**
+ * Types rendus par un composant de la bibliothèque dans TOUS les modes de
+ * génération, données intégrées comprises (#1204). Les types historiques
+ * écrivent, en données intégrées, la balise DSFR Chart nue (`<bar-chart>`) ;
+ * ceux-ci écrivent `<dsfr-data-source data='…'>` suivi du composant, qui porte
+ * la mise en forme (podium, deux axes du barres + ligne).
+ */
+export const LIB_RENDERED_TYPES: readonly ChartType[] = ['podium', 'bar-line'];
+
+/**
+ * Séries tracées en plus de la première, selon le type (source unique, lue par
+ * le générateur de code et l'agrégation locale) :
+ * - barres + ligne : exactement une, la mesure de la ligne ;
+ * - types multi-séries : celles du formulaire ;
+ * - les autres : aucune.
+ */
+export function tracedExtraSeries(
+  s: Pick<BuilderState, 'chartType' | 'extraSeries' | 'lineField' | 'lineFieldLabel'>
+): ExtraSeries[] {
+  if (s.chartType === 'bar-line') {
+    return s.lineField ? [{ field: s.lineField, label: s.lineFieldLabel }] : [];
+  }
+  if (!supportsMultiSeries(s.chartType)) return [];
+  return s.extraSeries.filter((x) => x.field);
+}
+
+/** Podium : nombre de places par défaut (celui de `dsfr-data-podium`). */
+export const PODIUM_PLACES_DEFAUT = 5;
 
 /** Source types */
 export type SourceType = 'saved';
@@ -144,6 +176,14 @@ export interface BuilderState {
   valueFieldLabel: string;
   valueField2: string;
   extraSeries: ExtraSeries[];
+  /**
+   * Barres + ligne (#1204) : champ de la seconde mesure, tracée en ligne
+   * (`value-field-2` de `dsfr-data-chart`), et son nom affiché.
+   */
+  lineField: string;
+  lineFieldLabel: string;
+  /** Podium (#1204) : nombre de places affichées (`max-items`). */
+  podiumMaxItems: number;
   codeField: string;
   aggregation: AggregationType;
   /**
@@ -265,6 +305,12 @@ export function getCompleteness(s: BuilderState, generated: boolean = false): Co
         if (!s.codeField) missing.push('le champ code (département/région)');
         if (!s.valueField) missing.push('le champ numérique (valeur)');
         break;
+      case 'bar-line':
+        config = !!s.labelField && !!s.valueField && !!s.lineField;
+        if (!s.labelField) missing.push('le champ Étiquettes');
+        if (!s.valueField) missing.push('le champ des barres');
+        if (!s.lineField) missing.push('le champ de la ligne');
+        break;
       default:
         config = !!s.labelField && !!s.valueField;
         if (!s.labelField) missing.push('le champ Étiquettes');
@@ -296,6 +342,9 @@ export const state: BuilderState = {
   valueFieldLabel: '',
   valueField2: '',
   extraSeries: [],
+  lineField: '',
+  lineFieldLabel: '',
+  podiumMaxItems: PODIUM_PLACES_DEFAUT,
   codeField: '',
   aggregation: 'avg',
   aggregationUserModified: false,

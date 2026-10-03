@@ -63,6 +63,10 @@ const config: ReperesConfig = {
     'builder.donnees.champ-x': ['axe x', 'abscisse', 'catégories', 'étiquettes'],
     'builder.donnees.champ-y': ['axe y', 'ordonnée', 'valeur', 'mesure'],
     'builder.apparence.palette': ['couleurs', 'palette'],
+    'builder.type.podium': ['classement', 'top', 'palmarès'],
+    'builder.type.bar-line': ['barres et ligne', 'deux axes', 'graphique combiné', 'mixte'],
+    'builder.donnees.champ-ligne': ['seconde mesure', 'courbe', 'deuxième axe'],
+    'builder.donnees.podium-places': ['nombre de places', 'top n', 'combien de rangs'],
   },
 };
 

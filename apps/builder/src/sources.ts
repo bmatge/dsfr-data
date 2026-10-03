@@ -49,6 +49,7 @@ import { syncA11yWithDatabox } from './ui/ui-helpers.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
 import { updateUrlSyncSection, syncUrlSyncControls } from './ui/url-sync-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
+import { syncFormesControls } from './ui/formes.js';
 import { updatePreviewSteps } from './ui/help-tooltips.js';
 import { markGenerated } from './ui/smart-guard.js';
 
@@ -741,6 +742,8 @@ export async function loadFavoriteState(): Promise<void> {
 
         // Restore extra séries (migrates old valueField2 if needed)
         restoreExtraSeriesFromState();
+        // Barres + ligne, podium (#1204)
+        syncFormesControls();
       }, 0);
     }
 

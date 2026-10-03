@@ -120,6 +120,8 @@ const TYPES: ChartType[] = [
   'kpi',
   'map',
   'datalist',
+  'podium',
+  'bar-line',
 ];
 
 function cliquer(selecteur: string): void {
