@@ -194,6 +194,11 @@ téléchargement CSV, plein écran, tendance.
 Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `download`
 (DataBox les fournit déjà). Conserver uniquement `description` sur dsfr-data-a11y.
 
+La vue tableau de la DataBox reprend ce que le graphique trace : une colonne par champ de valeur
+(`value-field`, `value-field-2`, `value-fields`, en-tête = libellé de légende) ; au format long
+(`series-field`), une ligne par libellé et une colonne par série. Elle montre 100 lignes au plus
+et l'annonce sous le tableau (« Affichage limité aux 100 premières lignes sur N. »).
+
 ```html
 <!-- Graphique avec habillage DataBox -->
 <dsfr-data-chart source="data" type="bar"

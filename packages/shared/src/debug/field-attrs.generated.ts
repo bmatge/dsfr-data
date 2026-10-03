@@ -9,9 +9,9 @@
 
 export const CHAMPS_DES_COMPOSANTS = {
   "dsfr-data-a11y": {
-    "label-field": "nom",
+    "label-field": "liste-alias",
     "series-field": "nom",
-    "value-field": "liste"
+    "value-field": "liste-alias"
   },
   "dsfr-data-chart": {
     "code-field": "nom",
