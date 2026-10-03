@@ -397,6 +397,12 @@ Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vi
 ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
 modalité vide.
 
+Le compte est par ÉLÉMENT : une cellule qui répète un élément (\`["Patrimoine", "Patrimoine"]\`)
+produit deux lignes, donc \`count\` 2 pour une seule ligne d'origine. C'est le seul écart avec
+la facette du même champ, dont le compteur annonce des LIGNES (une ligne compte une fois par
+valeur distincte). Sur un champ où le doublon est possible, \`count\` ne se lit pas « nombre de
+lignes portant la valeur » : compter les identifiants distincts (\`aggregate="id:distinct"\`).
+
 Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
 champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
 et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ
@@ -1003,6 +1009,11 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   fields="region, type" url-params url-sync
   url-param-map="r:region | t:type">
 </dsfr-data-facets>
+
+<!-- Plusieurs valeurs d'un champ : separees par des virgules (?region=IDF,PACA).
+     Une virgule DANS une valeur s'ecrit %2C, un pourcent %25 — soit %252C et %2525 dans
+     un lien ecrit a la main : ?tranche=1%252C5 designe la seule valeur « 1,5 ».
+     url-sync ecrit cet echappement lui-meme. -->
 
 <!-- Colonnage DSFR des facettes -->
 <dsfr-data-facets id="filtered" source="clean"
@@ -2917,10 +2928,15 @@ preflight CORS) : un en-tête \`apikey\` nu échoue. Le composant réécrit \`ap
 en \`Authorization: Apikey\` (#655), mais écrire directement la forme \`Authorization\`.
 
 ### Proxy CORS
-Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS
+Certaines APIs externes (Grist gouv/SaaS) ne supportent pas le CORS
 navigateur : il faut un proxy CORS. La voie recommandee est l'attribut
 **\`proxy-url\` par source** : on declare l'URL reelle de l'API + le domaine du
 proxy, l'integrateur peut remplacer ce domaine par le sien.
+
+Tabular n'en fait PAS partie : \`tabular-api.data.gouv.fr\` repond
+\`access-control-allow-origin: *\` a la requete comme a la preflight \`OPTIONS\`
+(verifie le 2026-10-03). Une page statique lit data.gouv.fr avec une balise et un
+CDN, sans proxy, sans cle : ne pas poser \`proxy-url\` sur une source Tabular.
 
 \`\`\`html
 <!-- Grist gouv via proxy declaratif : URL reelle + proxy-url -->
@@ -2935,10 +2951,24 @@ proxy, l'integrateur peut remplacer ce domaine par le sien.
 (\`/grist-gouv-proxy\`, \`/grist-proxy\`, \`/tabular-proxy\`, \`/insee-proxy\`). Il est
 prioritaire sur le global \`window.DSFR_DATA_PROXY\` et la config build. Sans
 \`proxy-url\` ni global, l'URL est fetchee en direct (echec CORS attendu sur les
-instances gouv).
+instances Grist gouv).
+
+Les endpoints \`/tabular-proxy\` et \`/insee-proxy\` existent pour d'autres raisons que
+le CORS — un cache ou un quota tenus par l'operateur du proxy — et ne sont jamais une
+necessite pour lire ces deux APIs depuis un navigateur.
+
+**\`proxy-url\` ne relaie QUE ces hotes.** Sur tout autre hote — un portail
+Opendatasoft en mode adaptateur (\`api-type="opendatasoft"\`), ou une URL quelconque
+sans \`use-proxy\` — l'attribut est sans effet : la requete part en direct, et la source
+l'ecrit une fois en console (« proxy-url est sans effet »), repris par le volet
+Diagnostic. \`use-proxy\` (relais generique \`/cors-proxy\`, cible passee dans l'en-tete
+\`X-Target-URL\`) ne vaut qu'en mode URL. Il n'existe pas aujourd'hui de relais dont
+l'URL identifie la donnee : un cache de page ou un CDN du site hote ne peut pas servir
+les donnees d'un portail a la place du portail.
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (\`*.opendatasoft.com\` et portails publics)
+- Tabular data.gouv.fr (\`tabular-api.data.gouv.fr\`)
 - INSEE Melodi (\`api.insee.fr\`)`,
   },
 

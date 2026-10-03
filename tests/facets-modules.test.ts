@@ -105,6 +105,38 @@ describe('facets-client — poids et compteurs (#739)', () => {
     ]);
   });
 
+  it('une ligne compte une fois par valeur distincte (BUG-037, #1227)', () => {
+    // Le cas du banc : « Patrimoine 3 » pour 2 lignes, et la sélection en rend 2.
+    const rows = [{ d: ['Patrimoine', 'Patrimoine'] }, { d: ['Patrimoine'] }];
+    expect(countFacetValues(rows, 'd', '').values).toEqual([{ value: 'Patrimoine', count: 2 }]);
+    // Le compteur est une promesse : c'est le nombre de lignes que la sélection rend.
+    expect(filterRowsBySelections(rows, { d: new Set(['Patrimoine']) })).toHaveLength(2);
+    // Les autres éléments de la cellule comptent chacun une fois.
+    expect(
+      countFacetValues([{ d: ['Musée', 'Patrimoine', 'Musée'] }, { d: ['Musée'] }], 'd', '').values
+    ).toEqual([
+      { value: 'Musée', count: 2 },
+      { value: 'Patrimoine', count: 1 },
+    ]);
+    // `1` et `'1'` sont la même modalité : une seule fois aussi.
+    expect(countFacetValues([{ d: [1, '1'] }], 'd', '').values).toEqual([{ value: '1', count: 1 }]);
+  });
+
+  it('un élément répété ne double pas le poids de la ligne (BUG-037, weight-field)', () => {
+    const rows = [
+      { d: ['A', 'A'], n: 10 },
+      { d: ['A', 'B'], n: 5 },
+    ];
+    expect(countFacetValues(rows, 'd', 'n').values).toEqual([
+      { value: 'A', count: 15 },
+      { value: 'B', count: 5 },
+    ]);
+  });
+
+  it('facetValuesOf garde les répétitions : les libellés compagnons s’apparient par position', () => {
+    expect(facetValuesOf(['A', 'A', 'B'])).toEqual(['A', 'A', 'B']);
+  });
+
   it('arrondit les artefacts flottants des sommes', () => {
     const rows = [
       { r: 'A', n: 0.1 },

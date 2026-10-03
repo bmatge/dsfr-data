@@ -65,6 +65,33 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'ods-proxy-url-hote-non-relaye',
+    mode: 'deterministic',
+    constats: ['AM-114'],
+    origin:
+      'AM-114, #1232 — `proxy-url` sur un portail Opendatasoft en mode adaptateur est SANS EFFET : la réécriture ne connaît qu’une liste fixe d’hôtes (Tabular, Grist, Albert, INSEE), la requête part en direct, et le chiffre affiché est le bon. Ce qui manquait est le MOT : un intégrateur croyait ses données servies par son relais. La source l’écrit désormais une fois en console ; la source voisine, sans l’attribut, reste muette. Le relais cachable lui-même n’est pas dans ce contrôle (ADR à venir) : il ne garde que l’avertissement.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
+    markup: `
+  <dsfr-data-source id="s-prx" ${SOURCE_ODS} max-records="500"
+    proxy-url="https://relais.verif.invalid"></dsfr-data-source>
+  <dsfr-data-source id="s-dir" ${SOURCE_ODS} max-records="500"></dsfr-data-source>
+  <dsfr-data-kpi id="k-prx-n" source="s-prx" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-dir-n" source="s-dir" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-prx-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-dir-n', agg: 'count' },
+      {
+        kind: 'diagnostic',
+        id: 's-prx',
+        expect: 'warning',
+        contains:
+          'dsfr-data-source[s-prx]: proxy-url="https://relais.verif.invalid" est sans effet',
+      },
+      { kind: 'diagnostic', id: 's-dir', expect: 'silence', contains: 'dsfr-data-source[s-dir]' },
+    ],
+  },
+
+  {
     id: 'ods-plafond-max-records',
     mode: 'deterministic',
     origin:

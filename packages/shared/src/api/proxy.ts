@@ -44,6 +44,38 @@ export function getProxyUrl(
 }
 
 /**
+ * Les hôtes que le proxy RELAIE par un endpoint dédié — et eux seuls. Tout
+ * autre hôte (un portail Opendatasoft, une API quelconque) est appelé en
+ * direct par `getProxiedUrl`, qu'un proxy soit configuré ou non : c'est ce que
+ * `dsfr-data-source` signale quand `proxy-url` est posé sur un tel hôte
+ * (AM-114 du banc d'essai, #1232).
+ */
+const RELAYED_HOST_ENDPOINTS: ReadonlyArray<[string, keyof ProxyConfig['endpoints']]> = [
+  ['tabular-api.data.gouv.fr', 'tabular'],
+  ['docs.getgrist.com', 'grist'],
+  ['grist.numerique.gouv.fr', 'gristGouv'],
+  ['albert.api.etalab.gouv.fr', 'albert'],
+  ['api.insee.fr', 'insee'],
+];
+
+/** Noms des hôtes relayés par un endpoint dédié, dans l'ordre de la table. */
+export const RELAYED_HOSTS: readonly string[] = RELAYED_HOST_ENDPOINTS.map(([host]) => host);
+
+/**
+ * L'hôte de `url` est-il relayé par un endpoint dédié ? Indépendant de la
+ * configuration : la question est « le proxy SAIT-il relayer cet hôte », pas
+ * « un proxy est-il configuré ». Une URL relative ou illisible n'a pas d'hôte
+ * à relayer : `false`.
+ */
+export function isRelayedHost(url: string): boolean {
+  try {
+    return RELAYED_HOSTS.includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * If `parsed` matches a known API host, return the URL rewritten to its
  * dedicated (CORS-enabled) proxy endpoint. Otherwise return `null`.
  */
@@ -51,17 +83,9 @@ function rewriteKnownHost(parsed: URL, config: ProxyConfig): string | null {
   // Mode direct (aucun proxy configuré) : jamais de réécriture
   if (config.mode === 'direct') return null;
 
-  const rewrites: Array<[string, string]> = [
-    ['tabular-api.data.gouv.fr', config.endpoints.tabular],
-    ['docs.getgrist.com', config.endpoints.grist],
-    ['grist.numerique.gouv.fr', config.endpoints.gristGouv],
-    ['albert.api.etalab.gouv.fr', config.endpoints.albert],
-    ['api.insee.fr', config.endpoints.insee],
-  ];
-
-  for (const [host, endpoint] of rewrites) {
+  for (const [host, endpoint] of RELAYED_HOST_ENDPOINTS) {
     if (parsed.hostname === host) {
-      return `${config.baseUrl}${endpoint}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      return `${config.baseUrl}${config.endpoints[endpoint]}${parsed.pathname}${parsed.search}${parsed.hash}`;
     }
   }
 
