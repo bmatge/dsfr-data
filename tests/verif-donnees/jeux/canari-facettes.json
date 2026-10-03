@@ -1,0 +1,12 @@
+[
+  {"id":"f01","intensite":"1,5 à 2 parcours","note":"1,5","domaines":["Patrimoine","Patrimoine"]},
+  {"id":"f02","intensite":"1,5 à 2 parcours","note":"1","domaines":["Patrimoine"]},
+  {"id":"f03","intensite":"1,5 à 2 parcours","note":"5","domaines":["Musée","Patrimoine","Musée"]},
+  {"id":"f04","intensite":"2 à 3 parcours","note":"1,5","domaines":["Musée"]},
+  {"id":"f05","intensite":"2 à 3 parcours","note":"2,5","domaines":["Spectacle vivant","Spectacle vivant","Spectacle vivant"]},
+  {"id":"f06","intensite":"Moins de 1 parcours","note":"1","domaines":[]},
+  {"id":"f07","intensite":"Moins de 1 parcours","note":"5","domaines":null},
+  {"id":"f08","intensite":"2 à 3 parcours","note":"1","domaines":["Archives","Patrimoine"]},
+  {"id":"f09","intensite":"1,5 à 2 parcours","note":"1,5","domaines":["Archives"]},
+  {"id":"f10","intensite":"Plus de 3 parcours","note":"5","domaines":["Musée","Musée"]}
+]

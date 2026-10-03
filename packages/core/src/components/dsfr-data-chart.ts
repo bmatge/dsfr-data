@@ -52,6 +52,8 @@ import {
   parseAliasedColumn,
   parseAliasedColumns,
   type AliasedColumn,
+  maxOf,
+  minOf,
 } from '@dsfr-data/shared/lib';
 import { toIsoA2 } from '../data/continent-lookup.js';
 import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
@@ -1295,11 +1297,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const finite = data.filter((v): v is number => v !== null && Number.isFinite(v));
       if (!finite.length || !targetVals.length) return;
       if (kind === 'max') {
-        const t = Math.max(...targetVals);
-        if (t > Math.max(...finite)) attrs[attr] = String(t);
+        // `finite` est une série de DONNÉES : jamais étalée en arguments (BUG-038)
+        const t = maxOf(targetVals);
+        if (t > maxOf(finite)) attrs[attr] = String(t);
       } else {
-        const t = Math.min(...targetVals);
-        if (t < Math.min(...finite)) attrs[attr] = String(t);
+        const t = minOf(targetVals);
+        if (t < minOf(finite)) attrs[attr] = String(t);
       }
     };
     if (this.type === 'bar-line') {

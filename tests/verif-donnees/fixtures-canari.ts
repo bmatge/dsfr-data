@@ -9,7 +9,9 @@
  * chacune décrite dans `jeux/README.md`), `jeux/canari-ref.json` (la table
  * de droite, avec un DOUBLON de clé volontaire) et `jeux/canari-volume.json`
  * (1 001 lignes engendrées par un générateur congruentiel linéaire de graine
- * 42, pour le plafond de 1 000).
+ * 42, pour le plafond de 1 000), et `jeux/canari-facettes.json` (dix lignes
+ * pour les deux pièges d'une facette : la valeur à virgule, BUG-031, et
+ * l'élément répété dans une cellule tableau, BUG-037).
  *
  * CE MODULE NE SAIT RIEN DE PLAYWRIGHT : il prend une URL, il rend une
  * réponse — ou `null`. Le test-garde d'indépendance parcourt son graphe
@@ -25,6 +27,7 @@ import type { Row } from '../../tools/oracle/manifest.js';
 import canari from './jeux/canari.json' with { type: 'json' };
 import canariRef from './jeux/canari-ref.json' with { type: 'json' };
 import canariVolume from './jeux/canari-volume.json' with { type: 'json' };
+import canariFacettes from './jeux/canari-facettes.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_CANARI = 'https://canari.verif.invalid';
@@ -35,6 +38,8 @@ export const CANARI: Row[] = canari;
 export const CANARI_REF: Row[] = canariRef;
 /** Mille et une lignes, pour un plafond de mille. */
 export const CANARI_VOLUME: Row[] = canariVolume;
+/** Dix lignes : des valeurs à virgule, des cellules tableau à élément répété. */
+export const CANARI_FACETTES: Row[] = canariFacettes;
 
 /** Les jeux ODS du canari. */
 export const DATASET_CANARI = 'canari';
@@ -45,6 +50,7 @@ export const JEUX_CANARI = {
   canari: CANARI,
   ref: CANARI_REF,
   volume: CANARI_VOLUME,
+  facettes: CANARI_FACETTES,
 } as const;
 
 /** URL d'un jeu servi en tableau nu. */

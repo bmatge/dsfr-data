@@ -68,6 +68,7 @@ export {
   splitColonFields,
   isMultiFieldClause,
 } from './utils/colon-escape.js';
+export { minOf, maxOf, appendAll } from './utils/extremum.js';
 export { toBoolean } from './utils/to-boolean.js';
 export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
@@ -129,6 +130,8 @@ export {
   getProxiedUrl,
   buildCorsProxyRequest,
   buildProxiedRequest,
+  isRelayedHost,
+  RELAYED_HOSTS,
 } from './api/proxy.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
 export { appendQuery } from './api/url.js';
