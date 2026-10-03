@@ -14,6 +14,7 @@
  */
 
 import { state, type AggregationType } from '../state.js';
+import { isSampleComplete, labelCardinality, sampleMention } from './smart-guard.js';
 
 /**
  * Strip diacritics + lowercase. Used for fuzzy name matching.
@@ -121,21 +122,57 @@ export function applyAggregationDefault(): void {
   if (aggSelect) aggSelect.value = next;
 }
 
+/** Ce que l'on sait du regroupement du jeu par le champ d'étiquettes. */
+export type GroupedVerdict =
+  /** Une ligne par catégorie sur le JEU : l'agrégation n'aura pas d'effet. */
+  | 'groupe'
+  /** Une ligne par catégorie sur l'échantillon seulement : indice, pas certitude. */
+  | 'groupe-echantillon'
+  /** Plusieurs lignes par catégorie, ou impossible à dire. */
+  | 'non';
+
 /**
- * Show or hide the "données déjà groupees" badge next to the aggregation label.
+ * Le jeu a-t-il une ligne par valeur du champ d'étiquettes (#1172) ? Jugé sur
+ * la cardinalité RÉELLE comparée au nombre de lignes annoncé par la source ;
+ * sur l'échantillon seulement quand il est complet, ou en repli annoncé.
+ */
+export function groupedVerdict(): GroupedVerdict {
+  if (!state.labelField) return 'non';
+  if (isSampleComplete()) return isLabelFieldUniqueInSample() ? 'groupe' : 'non';
+
+  const card = labelCardinality(state.labelField);
+  if (card.origin === 'reel') {
+    const total = state.savedSource?.recordCount;
+    // Plafond atteint : le nombre de groupes est un minimum, on ne conclut pas.
+    if (card.atLeast || typeof total !== 'number') return 'non';
+    return (card.groups ?? card.n) === total ? 'groupe' : 'non';
+  }
+  return isLabelFieldUniqueInSample() ? 'groupe-echantillon' : 'non';
+}
+
+/**
+ * Show or hide the "données déjà groupées" badge next to the aggregation label.
  */
 export function updateAggregationBadge(): void {
   const badge = document.getElementById('aggregation-badge') as HTMLElement | null;
   if (!badge) return;
 
-  const unique = isLabelFieldUniqueInSample();
-  if (unique) {
+  const verdict = groupedVerdict();
+  if (verdict === 'groupe') {
     badge.hidden = false;
     badge.textContent = 'Données déjà groupées (1 ligne par catégorie)';
     badge.title =
-      "Détecté sur l'échantillon chargé : chaque valeur de '" +
+      "Chaque valeur de '" +
       state.labelField +
-      "' n'apparaît qu'une fois. L'agrégation n'a pas d'effet visible (sauf 'count' qui renverra 1).";
+      "' n'apparaît qu'une fois dans le jeu. L'agrégation n'a pas d'effet visible (sauf 'count' qui renverra 1).";
+  } else if (verdict === 'groupe-echantillon') {
+    const mention = sampleMention(state.localData?.length ?? 0);
+    badge.hidden = false;
+    badge.textContent = `Données peut-être déjà groupées (${mention})`;
+    badge.title =
+      "Chaque valeur de '" +
+      state.labelField +
+      "' n'apparaît qu'une fois dans l'échantillon chargé ; le jeu entier peut en compter plusieurs.";
   } else {
     badge.hidden = true;
     badge.textContent = '';
