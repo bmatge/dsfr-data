@@ -3667,6 +3667,12 @@ sur un element de l'encart ouvre le volet/la modale de la carte principale (un s
 <!-- Raccourci equivalent pour les 5 DROM : <dsfr-data-map insets="drom"> -->
 \`\`\`
 
+Un preset \`territory\` cadre le territoire ENTIER dans l'encart par defaut (10rem x 160px) : ne
+pas poser de \`zoom\` pour le voir en entier (un \`zoom\` pose prime, pour un cadrage resserre ou un
+encart plus petit). Exception voulue : \`polynesie-francaise\` cadre Tahiti et Moorea (l'essentiel de
+la population, des iles lisibles dans 160 px) — le territoire entier demanderait le zoom 3 ; pour
+un autre archipel, poser \`center\` et \`zoom\`.
+
 ### dsfr-data-map-timeline — Animation temporelle
 
 Composant compagnon place comme enfant de \`dsfr-data-map\`. Decouvre automatiquement les layers ayant \`time-field\` et pilote leur affichage frame par frame.

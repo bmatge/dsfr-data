@@ -10,6 +10,11 @@ import { TERRITORY_PRESETS } from '@/utils/territories.js';
  * Saint-Pierre hors cadre —, `wallis-et-futuna` (zoom 7) laissait Wallis ET
  * Futuna hors cadre, dans un encart de 160 px.
  *
+ * #1245 a étendu le contrôle aux neuf autres préréglages, qui débordaient
+ * tous d'un niveau de zoom, et les a recalés par la même méthode : centre au
+ * milieu de l'emprise en Mercator, plus grand zoom entier où elle tient.
+ * `polynesie-francaise` est l'exception voulue (arbitrage du 2026-10-04).
+ *
  * Le calcul est refait ici en Web Mercator (tuiles de 256 px), sans Leaflet :
  * position en pixels de l'emprise et du centre au zoom du préréglage, marge
  * à chaque bord du cadre.
@@ -20,7 +25,8 @@ const CADRE = { largeur: 152, hauteur: 160 };
 
 /**
  * Emprise des communes de chaque territoire — `[latSud, latNord, lonOuest, lonEst]`,
- * relevée sur geo.api.gouv.fr (`/communes?codeDepartement=…&fields=bbox`) le 2026-10-03.
+ * relevée sur geo.api.gouv.fr (`/communes?codeDepartement=…&fields=bbox`) le 2026-10-03,
+ * relevée à nouveau à l'identique le 2026-10-04 (#1245).
  */
 const EMPRISES: Record<string, [number, number, number, number]> = {
   guadeloupe: [15.832, 16.514, -61.81, -61.002],
@@ -58,18 +64,48 @@ function dansLeCadre(territoire: string, lat: number, lon: number): { x: number;
   };
 }
 
-/** Plus petite marge, en pixels, entre l'emprise du territoire et un bord du cadre. */
-function margeMinimale(territoire: string): number {
+/** Marges, en pixels, entre l'emprise du territoire et chaque bord du cadre. */
+function marges(
+  territoire: string,
+  zoom = TERRITORY_PRESETS[territoire].zoom
+): { gauche: number; droite: number; haut: number; bas: number } {
   const [sud, nord, ouest, est] = EMPRISES[territoire];
-  const hautGauche = dansLeCadre(territoire, nord, ouest);
-  const basDroite = dansLeCadre(territoire, sud, est);
-  return Math.min(
-    hautGauche.x,
-    hautGauche.y,
-    CADRE.largeur - basDroite.x,
-    CADRE.hauteur - basDroite.y
-  );
+  const [clat, clon] = TERRITORY_PRESETS[territoire].center.split(',').map(Number);
+  const centre = versPixels(clat, clon, zoom);
+  const hautGauche = versPixels(nord, ouest, zoom);
+  const basDroite = versPixels(sud, est, zoom);
+  return {
+    gauche: hautGauche.x - centre.x + CADRE.largeur / 2,
+    droite: CADRE.largeur / 2 - (basDroite.x - centre.x),
+    haut: hautGauche.y - centre.y + CADRE.hauteur / 2,
+    bas: CADRE.hauteur / 2 - (basDroite.y - centre.y),
+  };
 }
+
+/** Plus petite marge, en pixels, entre l'emprise du territoire et un bord du cadre. */
+function margeMinimale(territoire: string, zoom?: number): number {
+  const m = marges(territoire, zoom);
+  return Math.min(m.gauche, m.droite, m.haut, m.bas);
+}
+
+/**
+ * L'exception VOULUE (arbitrage du 2026-10-04, #1245) : la Polynésie française
+ * cadre Tahiti et Moorea, pas le territoire.
+ */
+const EXCEPTION_VOULUE = 'polynesie-francaise';
+
+/** Les neuf préréglages recalés par #1245. */
+const RECALES_1245 = [
+  'corse',
+  'guadeloupe',
+  'guyane',
+  'martinique',
+  'mayotte',
+  'nouvelle-caledonie',
+  'saint-barthelemy',
+  'saint-martin',
+  'saint-pierre-et-miquelon',
+];
 
 describe('AM-102 — préréglages d’encart : le territoire tient dans 160 px', () => {
   it('chaque préréglage a une emprise de référence', () => {
@@ -102,30 +138,78 @@ describe('AM-102 — préréglages d’encart : le territoire tient dans 160 px'
     expect(p.y).toBeLessThan(CADRE.hauteur);
   });
 
+  it.each(RECALES_1245)('%s : toute l’emprise est dans le cadre (#1245)', (territoire) => {
+    expect(margeMinimale(territoire)).toBeGreaterThanOrEqual(0);
+  });
+
   /**
-   * État MESURÉ des dix autres préréglages, le 2026-10-03 : tous débordent du
-   * cadre par défaut, d'un niveau de zoom (douze pour la Polynésie, centrée
-   * sur Tahiti). Ils ne sont pas recalés ici — AM-102 ne nomme que deux
-   * territoires, et changer les autres déplace les encarts de pages
-   * existantes : la décision est rendue à #1229. La liste se tient à jour
-   * toute seule : recaler un préréglage fait tomber ce test, qui demande
-   * alors de l'en retirer.
+   * Le zoom est le PLUS GRAND qui cadre : un cran de plus, et l'emprise
+   * déborde. Sans cette moitié, un préréglage dézoomé de trois crans — un
+   * territoire réduit à un point — passerait le contrôle précédent.
    */
-  it('les préréglages qui débordent encore sont connus et nommés', () => {
+  it.each([...RECALES_1245, 'la-reunion', 'wallis-et-futuna'])(
+    '%s : au zoom supérieur, l’emprise déborde',
+    (territoire) => {
+      expect(margeMinimale(territoire, TERRITORY_PRESETS[territoire].zoom + 1)).toBeLessThan(0);
+    }
+  );
+
+  /** Le centre est le milieu de l'emprise : les marges opposées sont égales, à l'arrondi du centre près. */
+  it.each(RECALES_1245)('%s : l’emprise est centrée dans le cadre', (territoire) => {
+    const m = marges(territoire);
+    expect(Math.abs(m.gauche - m.droite)).toBeLessThanOrEqual(4);
+    expect(Math.abs(m.haut - m.bas)).toBeLessThanOrEqual(4);
+  });
+
+  /**
+   * Deux préréglages tiennent de JUSTESSE, mesuré : la Guadeloupe (Basse-Terre
+   * à l'ouest, La Désirade à l'est) à 2 px des bords latéraux, Saint-Martin à
+   * 8 px. Le zoom inférieur diviserait le territoire par deux pour quelques
+   * pixels de marge : la méthode garde le plus grand zoom qui cadre. Les sept
+   * autres ont au moins 10 px.
+   */
+  it('les préréglages à marge mince sont connus et nommés', () => {
+    const minces = RECALES_1245.filter((t) => margeMinimale(t) < 10).sort();
+    expect(minces).toEqual(['guadeloupe', 'saint-martin']);
+  });
+
+  /**
+   * Un seul préréglage déborde, et c'est un CHOIX (arbitrage du 2026-10-04,
+   * #1245) : `polynesie-francaise` cadre Tahiti et Moorea. Le territoire
+   * s'étend sur vingt degrés de latitude et de longitude ; entier, il demande
+   * le zoom 3, où aucune île n'est lisible dans 160 px, alors que Tahiti et
+   * Moorea portent l'essentiel de la population. La liste se tient à jour
+   * toute seule : un préréglage ajouté ou recalé de travers la fait tomber.
+   */
+  it('le seul préréglage qui déborde est l’exception voulue', () => {
     const debordent = Object.keys(TERRITORY_PRESETS)
       .filter((t) => margeMinimale(t) < 0)
       .sort();
-    expect(debordent).toEqual([
-      'corse',
-      'guadeloupe',
-      'guyane',
-      'martinique',
-      'mayotte',
-      'nouvelle-caledonie',
-      'polynesie-francaise',
-      'saint-barthelemy',
-      'saint-martin',
-      'saint-pierre-et-miquelon',
-    ]);
+    expect(debordent).toEqual([EXCEPTION_VOULUE]);
+  });
+
+  it('Polynésie française : Tahiti et Moorea sont dans le cadre, le territoire entier demanderait le zoom 3', () => {
+    // Papeete, Taravao (isthme), Teahupoo (presqu'île), Moorea (Haapiti, à l'ouest)
+    for (const [lat, lon] of [
+      [-17.535, -149.5696],
+      [-17.733, -149.303],
+      [-17.847, -149.267],
+      [-17.56, -149.87],
+    ]) {
+      const p = dansLeCadre(EXCEPTION_VOULUE, lat, lon);
+      expect(p.x).toBeGreaterThan(0);
+      expect(p.x).toBeLessThan(CADRE.largeur);
+      expect(p.y).toBeGreaterThan(0);
+      expect(p.y).toBeLessThan(CADRE.hauteur);
+    }
+    // Le territoire entier : plus grand zoom où son emprise tient, autour de son milieu.
+    const [sud, nord, ouest, est] = EMPRISES[EXCEPTION_VOULUE];
+    const tient = (zoom: number): boolean => {
+      const hg = versPixels(nord, ouest, zoom);
+      const bd = versPixels(sud, est, zoom);
+      return bd.x - hg.x <= CADRE.largeur && bd.y - hg.y <= CADRE.hauteur;
+    };
+    expect(tient(3)).toBe(true);
+    expect(tient(4)).toBe(false);
   });
 });

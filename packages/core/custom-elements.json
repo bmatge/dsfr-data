@@ -10824,7 +10824,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label",
+              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`\net `zoom`.",
               "attribute": "territory"
             },
             {
@@ -10844,7 +10844,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Zoom fixe de l'encart (prioritaire sur le preset)",
+              "description": "Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier)",
               "attribute": "zoom"
             },
             {
@@ -10924,7 +10924,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label",
+              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`\net `zoom`.",
               "fieldName": "territory"
             },
             {
@@ -10942,7 +10942,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Zoom fixe de l'encart (prioritaire sur le preset)",
+              "description": "Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier)",
               "fieldName": "zoom"
             },
             {

@@ -14,8 +14,8 @@
  *   <dsfr-data-map-popup mode="panel-right" title-field="nom">
  *     <template>...</template>
  *   </dsfr-data-map-popup>
- *   <dsfr-data-map-inset center="16.20,-61.45" zoom="9" label="Guadeloupe"></dsfr-data-map-inset>
- *   <dsfr-data-map-inset center="14.63,-61.00" zoom="9" label="Martinique"></dsfr-data-map-inset>
+ *   <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+ *   <dsfr-data-map-inset territory="martinique"></dsfr-data-map-inset>
  * </dsfr-data-map>
  */
 import { LitElement } from 'lit';
@@ -74,9 +74,18 @@ export function parseLengthScale(text: string): {
 
 @customElement('dsfr-data-map-inset')
 export class DsfrDataMapInset extends LitElement {
-  /** Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,
-   *  saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,
-   *  polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label */
+  /**
+   * Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,
+   * saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,
+   * polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.
+   * Le cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de
+   * large, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un
+   * encart plus petit en demande un plus faible. Seule exception, voulue :
+   * `polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la
+   * population, des îles lisibles dans 160 px ; le territoire entier demanderait
+   * le zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`
+   * et `zoom`.
+   */
   @property({ type: String })
   territory = '';
 
@@ -84,7 +93,7 @@ export class DsfrDataMapInset extends LitElement {
   @property({ type: String })
   center = '';
 
-  /** Zoom fixe de l'encart (prioritaire sur le preset) */
+  /** Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier) */
   @property({ type: Number })
   zoom = 0;
 
