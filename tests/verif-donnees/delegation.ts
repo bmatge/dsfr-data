@@ -1601,6 +1601,99 @@ const TABULAR_OU: Check[] = [
   ),
 ];
 
+// ---------------------------------------------------------------------------
+// 8. La part par groupe (`share-by`, AM-110) ne se délègue pas
+// ---------------------------------------------------------------------------
+
+/**
+ * La part de chaque académie DANS SON PAYS. Une part est une fonction de
+ * fenêtre : aucune API du pipeline n'en a l'équivalent, et la query garde
+ * alors tout le regroupement côté client — sur les lignes que la source a
+ * chargées. Les deux contrôles tiennent les deux moitiés du contrat : aucune
+ * URL ne porte de regroupement, et le chiffre est celui des lignes brutes.
+ */
+const PART_PAR_PAYS: Step[] = [
+  {
+    op: 'group-by',
+    by: ['pays_iso2', 'academie'],
+    columns: { pop: { agg: 'sum', field: 'population' } },
+  },
+  { op: 'order-by', column: 'pop', dir: 'desc' },
+  { op: 'share', from: 'pop', as: 'part', scale: 100, by: 'pays_iso2' },
+];
+
+const BALISAGE_PART_PAR_PAYS = (id: string, sourceId: string): string => `
+  <dsfr-data-query id="${id}" source="${sourceId}" group-by="pays_iso2, academie"
+    aggregate="population:sum:pop, pop:share_percent:part" share-by="pays_iso2"
+    order-by="pop:desc"></dsfr-data-query>`;
+
+const PART_PAR_GROUPE: Check[] = [
+  {
+    id: 'part-par-groupe-ods-reste-client',
+    mode: 'deterministic',
+    origin:
+      'AM-110 (#1228) — `share-by` sur une source Opendatasoft dont la query est SEULE lectrice : sans la part, ce regroupement partirait au serveur (`seule-lectrice-delegue`). Avec elle, aucune URL ne porte `group_by` — ODSQL n’a pas de part par partition — et la part de chaque académie dans son pays est calculée sur les 137 lignes rapatriées.',
+    constats: ['AM-110'],
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-part-ods')}${BALISAGE_PART_PAR_PAYS('q-part-ods', 's-part-ods')}`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-ods',
+        key: ['pays_iso2', 'academie'],
+        columns: ['pop', 'part'],
+        pipeline: PART_PAR_PAYS,
+      },
+      urlsDe('part-ods-aucun-group-by', 'ods', 'group_by=', 'none'),
+      urlsDe('part-ods-aucune-fonction-de-part', 'ods', 'share', 'none'),
+    ],
+  },
+
+  {
+    id: 'part-par-groupe-tabular-reste-client',
+    mode: 'deterministic',
+    origin:
+      'AM-110 (#1228) — `share-by` sur une source Tabular. L’adaptateur se dit capable de toute fonction sauf `distinct` : c’est la query qui retient la part avant de l’interroger, sans quoi l’API recevrait `population__share_percent` et répondrait en erreur à tous les abonnés. Aucune URL ne porte `__groupby`, et le chiffre est celui des lignes brutes.',
+    constats: ['AM-110'],
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-part-tab')}${BALISAGE_PART_PAR_PAYS('q-part-tab', 's-part-tab')}`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-tab',
+        key: ['pays_iso2', 'academie'],
+        columns: ['pop', 'part'],
+        pipeline: PART_PAR_PAYS,
+      },
+      urlsDe('part-tabular-aucun-groupby', 'tabular', '__groupby', 'none'),
+      urlsDe('part-tabular-aucune-fonction-de-part', 'tabular', 'share', 'none'),
+    ],
+  },
+
+  {
+    id: 'part-par-groupe-ods-server-side',
+    mode: 'deterministic',
+    origin:
+      'AM-110 (#1228) — le même balisage sur une source en `server-side` (pagination serveur, pages de 40 lignes) : la part par groupe doit rester celle du jeu entier, ou la page doit dire qu’elle ne l’est pas.',
+    constats: ['AM-110'],
+    skip: 'DÉFAUT, antérieur à `share-by` et commun à tout regroupement que la query garde côté client (part #926, cumul #738, `explode` #736) — une part retient le regroupement dans le navigateur, « sur les lignes chargées » dit la doc de `aggregate` ; or une source en `server-side` ne charge qu’UNE page. Mesuré le 2026-10-03 : lib 40 lignes (les 40 couples pays × académie de la première page, parts rapportées aux seuls territoires de cette page) / oracle 56 lignes sur les 137 territoires ; aucun marqueur, aucun message console. Attendu : les 56 lignes et leurs parts — ou un refus dit (erreur de configuration nommant `server-side`). Sans `server-side`, le chiffre est juste (`part-par-groupe-ods-reste-client`). Issue à ouvrir par la supervision.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-part-page', { serverSide: true })}${BALISAGE_PART_PAR_PAYS('q-part-page', 's-part-page')}`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-part-page',
+        key: ['pays_iso2', 'academie'],
+        columns: ['pop', 'part'],
+        pipeline: PART_PAR_PAYS,
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -1616,5 +1709,6 @@ export const DELEGATION: Manifest = {
     ...TABULAR_TRI_AGREGAT,
     ...TABULAR_VOLUME,
     ...TABULAR_OU,
+    ...PART_PAR_GROUPE,
   ],
 };

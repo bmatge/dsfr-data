@@ -820,10 +820,16 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | transformations | repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |
 | transformations | `countDistinct` compte la chaîne vide (`core/utils/aggregations.ts`) | `agregat-distinct-exclut-les-vides` | 2 modalités au lieu de 1 : une absence devient une modalité |
 | transformations | `a / b` rend l'infini au lieu de `null` (`shared/utils/compute.ts`) | `compute-arithmetique-absence-et-division-par-zero` | « valeur » affiché là où l'oracle dit « sans valeur » |
+| transformations | `substr` compté à partir de 0 — `s.slice(start, start + n)` (`shared/utils/compute.ts`) | `compute-sous-chaine-left-et-substr` | département de Paris affiché « 50 » au lieu de « 75 » : un décalage d'un caractère rend un code plausible (AM-103) |
+| transformations | `left` trop long — `s.slice(0, n + 5)` (`shared/utils/compute.ts`) | `compute-sous-chaine-left-et-substr` | 6 entreprises au lieu de 4 : le SIREN redevient le SIRET, et trois établissements d'une même entreprise comptent pour trois |
+| transformations | la quote doublée d'un littéral avalée sans être rendue — `str += "'"` retiré du tokenizer (`shared/utils/compute.ts`) | `compute-apostrophe-doublee-dans-un-litteral` | KPI à 0 au lieu de 2 : `'J''en ai'` se lit « Jen ai », aucune ligne ne lui est égale, et rien ne le signale (AM-090) |
+| transformations | `sqrt` d'un négatif rendu par la racine de sa valeur absolue — `Math.sqrt(Math.abs(n))`, garde `n < 0` retirée (`shared/utils/compute.ts`) | `compute-racine-carree` | rayon 2 affiché pour une surface de −4, là où l'oracle dit « sans valeur » : un rayon plausible pour une valeur qui n'en a pas |
 | transformations | `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
 | transformations | `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
 | transformations | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |
 | transformations | les agrégats de fenêtre appliqués APRÈS `limit` (`dsfr-data-query.ts`, déplacer le bloc « 3 bis » sous le `slice`) | `agregat-part-du-total-avant-limit` (`agregat-part-du-total-926` reste vert) | part de la zone « sud » : lib 50,197 %, oracle 38,873 % — le top 2 se redistribue à 100 %, et les deux chiffres sont plausibles (#926) |
+| transformations | la clé de partition réduite à son PREMIER champ — `fields.slice(0, 1)` dans `_sharePartitionKey` (`dsfr-data-query.ts`) | `agregat-part-par-groupe-share-by` | « Souvent » en 2014 : lib 18,75 %, oracle 30 % — la part par (année, question) redevient une part par année, et les deux sont plausibles (AM-110) |
+| transformations | `share-by` ignoré — `partition = []` dans `_applyShareAggregate` (`dsfr-data-query.ts`) | `agregat-part-par-groupe-share-by` (la query SANS l'attribut, `q-part-tout`, reste verte) | lib 6,52 %, oracle 30 % : la part retombe sur le total général, et le top 3 par année donne 26,09 % au lieu de 40 % |
 | transformations | `received` empilé à l'envers (`dsfr-data-concat.ts`) | `concat-schemas-identiques` | premier montant à 15 au lieu de 10 : l'ordre d'empilement n'est pas tenu |
 | contexte | whereKey réduit à `this._uid` (`dsfr-data-context.ts`) | `ctx-deux-filtres-and` | 8 au lieu de 3 : deux filtres partagent une clé, le dernier gagne (ADR-031) |
 | contexte | `localIsoDate` → `isoDate` dans `current-month` (`dsfr-data-context-filter.ts`) | `ctx-current-month` | 5 au lieu de 4 : à 00 h 30 à Paris le 1er juin, l'UTC filtre encore mai |
@@ -975,11 +981,12 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**En attente à ce jour** — un contrôle et deux invariants :
+**En attente à ce jour** — deux contrôles et deux invariants :
 
 | Contrôle ou invariant en attente | Domaine | Défaut ou amélioration |
 |---|---|---|
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
+| `part-par-groupe-ods-server-side` | delegation | **défaut**, antérieur à `share-by` (AM-110) : un regroupement que la query garde côté client (part, cumul, `explode`) est calculé sur les lignes CHARGÉES, et une source en `server-side` n'en charge qu'une page. Mesuré : lib 40 lignes / oracle 56, aucun message. Issue à ouvrir par la supervision. |
 | `canari-jointure-doublon#count-preserved`, `#sum-preserved:montant` | canari | **violés par les données**, pas par la bibliothèque (PG-001) : 42 lignes pour 40, somme +20 — rendus en attente pour être LUS, c'est le point du canari. Aucune issue à ouvrir. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une

@@ -21,8 +21,13 @@ import {
   quantileBreaks,
   ratioColumn,
   roundTo,
+  racine,
+  sousChaine,
+  sqrtColumn,
+  substringColumn,
   runPipeline,
   runningSum,
+  shareColumn,
   toNum,
   toRgb,
   weightedAverage,
@@ -285,6 +290,75 @@ describe('oracle — recalcul indépendant', () => {
     expect(ratioColumn([{ a: 3, b: 0 }], 'a', 'b', 'r')[0].r).toBeNull();
     expect(ratioColumn([{ a: 3, b: 'NC' }], 'a', 'b', 'r')[0].r).toBeNull();
     expect(ratioColumn([{ a: 3, b: 4 }], 'a', 'b', 'r')[0].r).toBe(0.75);
+  });
+
+  it('sous-chaîne : positions à partir de 1, texte en sortie, absence tenue (AM-103)', () => {
+    expect(sousChaine('13002526500013', 1, 9)).toBe('130025265');
+    expect(sousChaine('abcdef', 3, 2)).toBe('cd');
+    expect(sousChaine('abcdef', 3)).toBe('cdef');
+    expect(sousChaine(75056, 1, 2)).toBe('75');
+    expect(sousChaine('abc', 2, 20)).toBe('bc');
+    expect(sousChaine('abc', 9, 2)).toBe('');
+    expect(sousChaine('abc', 1, 0)).toBe('');
+    expect(sousChaine('abc', 1, -2)).toBe('');
+    expect(sousChaine('', 1, 2)).toBe('');
+    expect(sousChaine(null, 1, 2)).toBeNull();
+    expect(sousChaine(undefined, 1, 2)).toBeNull();
+    expect(sousChaine('abc', 0, 2)).toBeNull();
+    expect(sousChaine('abc', 'x', 2)).toBeNull();
+    expect(sousChaine('abc', 1, null)).toBeNull();
+    expect(substringColumn([{ c: '01004' }, { c: null }], 'c', 'dep', 1, 2)).toEqual([
+      { c: '01004', dep: '01' },
+      { c: null, dep: null },
+    ]);
+  });
+
+  it('racine carrée : null pour un négatif, un absent, un texte ; zéro rend zéro', () => {
+    expect(racine(16)).toBe(4);
+    expect(racine('2,25')).toBe(1.5);
+    expect(racine(0)).toBe(0);
+    expect(racine(-4)).toBeNull();
+    expect(racine(null)).toBeNull();
+    expect(racine('')).toBeNull();
+    expect(racine('NC')).toBeNull();
+    expect(sqrtColumn([{ s: 9 }, { s: -9 }], 's', 'r')).toEqual([
+      { s: 9, r: 3 },
+      { s: -9, r: null },
+    ]);
+  });
+
+  it('part par groupe : le dénominateur est la somme de la partition (AM-110)', () => {
+    const lignes = [
+      { an: 2014, q: 'a', n: 30 },
+      { an: 2014, q: 'a', n: 70 },
+      { an: 2021, q: 'a', n: 50 },
+      { an: 2021, q: 'b', n: 'NC' },
+      { an: null, q: 'a', n: 4 },
+      { an: '', q: 'a', n: 12 },
+    ];
+    // Sans partition : un seul total (166).
+    expect(shareColumn(lignes, 'n', 'p', 100).map((r) => r.p)[0]).toBeCloseTo(18.072289, 5);
+    // Par année : 2014 somme à 100, 2021 n'a qu'une valeur numérique, l'absence
+    // (null et chaîne vide) fait une partition à elle seule.
+    expect(shareColumn(lignes, 'n', 'p', 100, 'an').map((r) => r.p)).toEqual([
+      30,
+      70,
+      100,
+      null,
+      25,
+      75,
+    ]);
+    // Par année ET question : la clé composite ne confond pas deux partitions.
+    expect(shareColumn(lignes, 'n', 'p', 1, ['an', 'q']).map((r) => r.p)).toEqual([
+      0.3,
+      0.7,
+      1,
+      null,
+      0.25,
+      0.75,
+    ]);
+    // Total de partition nul : null, jamais l'infini.
+    expect(shareColumn([{ g: 'x', n: 0 }], 'n', 'p', 100, 'g')[0].p).toBeNull();
   });
 
   it('page : la tranche affichée, pas les premières lignes', () => {

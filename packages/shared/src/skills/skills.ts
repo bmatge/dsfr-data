@@ -303,6 +303,7 @@ Apres agrégation, les champs sont nommes automatiquement : \`champ__fonction\`
 | group-by | String | \`""\` | non | Champs de groupement (separes par virgule) |
 | explode | String | \`""\` | non | Champs multivalués (tableaux) à éclater avant le regroupement (#736). Doivent figurer dans \`group-by\`. Force le regroupement côté client. |
 | aggregate | String | \`""\` | non | Agrégations : \`"champ:fonction"\` ou \`"champ:fonction:alias"\` |
+| share-by | String | \`""\` | non | Partition de \`share\` / \`share_percent\` (AM-110) : champs, séparés par virgule, AU SEIN DESQUELS la part est calculée (\`share-by="annee, question"\` → les parts de chaque couple somment à 100 %). Avec un \`group-by\`, chaque champ doit y figurer. Sans l'attribut, la part reste celle du total. Jamais délégué. |
 | order-by | String | \`""\` | non | Tri : \`"champ:asc"\` ou \`"champ:desc"\`. **Omettre cet attribut preserve l'ordre source** (ordre de premiere apparition apres group-by) — utile pour les mois en lettres, jours de la semaine, ou toute série déjà ordonnee en amont. |
 | limit | Number | \`0\` | non | Limite de resultats (0 = illimite) |
 | require-where | Boolean | \`false\` | non | N'émettre aucune ligne tant qu'aucun filtre n'est posé (#690) : l'état \`idle\` descend jusqu'aux afficheurs. Compte comme filtre le \`where\`/\`filter\` de cette requête, ou toute clause reçue par commande. |
@@ -518,6 +519,26 @@ division. \`share\` la donne en un attribut :
 - **Une part suppose une partition** : chaque unité comptée une fois. Après \`explode\`, une
   ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
   des licences portant ce label », pas « répartition ».
+- **Part AU SEIN D'UN GROUPE : \`share-by\`** (AM-110). « Part de chaque réponse parmi les
+  répondants d'une question, une année donnée » : sans partition, la part se rapporte à toutes
+  les lignes de sortie, les deux années et toutes les questions confondues. Poser
+  \`share-by="annee, question"\` — le dénominateur devient la somme des lignes qui portent la
+  même année ET la même question, et les parts de chaque couple somment à 100 % :
+
+  \`\`\`html
+  <dsfr-data-query id="parts" source="enquete"
+    group-by="annee, question, reponse"
+    aggregate="n:sum, n__sum:share_percent:part"
+    share-by="annee, question">
+  </dsfr-data-query>
+  \`\`\`
+
+  Ne PAS reconstruire la part par un second \`group-by\`, un \`dsfr-data-join\` et un
+  \`compute\`. Règles : avec un \`group-by\`, chaque champ de \`share-by\` doit y figurer
+  (sinon erreur de configuration, et la requête passe en erreur plutôt que d'émettre la part
+  du total général) ; une valeur absente forme sa propre partition ; le dénominateur reste
+  pris avant \`limit\` ; \`share-by\` s'applique à toutes les parts de \`aggregate\`, pas aux
+  cumuls ; sans part dans \`aggregate\`, il est signalé et sans effet.
 - Total nul ou valeur non numérique : \`null\`, jamais l'infini ni un zéro de complaisance.
 - **Jamais délégué**, comme les cumuls : un \`group-by\` qui porte une part redescend
   entièrement côté client — relever \`max-records\` avant, sinon le dénominateur est tronqué
@@ -685,7 +706,7 @@ Sortie : même tableau avec valeurs nettoyees/renommees.
 | lowercase-keys | Boolean | \`false\` | non | Met toutes les clés en minuscules |
 | fold | String | \`""\` | non | Replie des colonnes booléennes parallèles (une colonne Oui/Non par modalité) en UN champ tableau : \`"handicap_*:handicaps"\` (entrees separees par virgule, \`motif:cible\`, joker \`*\` en debut ou en fin de motif seulement, ou nom exact ; plusieurs motifs peuvent viser la meme cible). Le tableau contient les noms des colonnes vraies (Oui/Non, 1/0, true/false, X/vide via \`toBoolean\`), etiquetees par la partie variable du motif (\`handicap_moteur\` → « moteur ») ou le nom complet pour un motif exact. Colonnes sources conservees. |
 | fold-drop | Boolean | \`false\` | non | Avec \`fold\` : retire les colonnes sources repliees du resultat. |
-| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
+| compute | String | \`""\` | non | Colonnes calculees (ligne a ligne, en dernier). Format \`"cible = expression; cible2 = expr2"\`. Arithmetique \`+ - * /\`, concatenation texte (\`+\` avec litteraux 'entre quotes'), parentheses, fonctions en liste blanche (\`year month day round abs floor ceil sqrt lower upper trim len left substr concat replace coalesce is_null is_empty join contains\`), conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire), comparaisons \`= != < <= > >=\`, \`and or not\`, litteraux \`null true false\`. Ex: \`"solde = actif - passif; tranche = when montant >= 1000000 then 'Grand' else 'Petit'; type = coalesce(type_entreprise, 'Non renseigné'); annee = year(date_notification)"\`. Fonction inconnue ou \`when\` sans \`else\` = erreur de configuration (console + \`data-dsfr-config-error\`). Grammaire complete : section « Colonnes calculees » ci-dessous. Hors perimetre : valeurs agregees (query / kpi), ligne precedente, cumul. |
 
 ### Ordre d'execution des transformations
 1. **flatten** — aplatit le sous-objet designe
@@ -724,10 +745,17 @@ configuration, jamais une colonne vide :
 | Famille | Fonctions | Notes |
 |---------|-----------|-------|
 | Dates | \`year(d)\`, \`month(d)\`, \`day(d)\` | Date ISO (\`2024-03-15\`, \`2024-03-15T10:00:00Z\`, \`2024-03\`) ou objet Date → nombre ; sinon \`null\` (une date \`15/03/2024\` n'est pas reconnue) |
-| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` |
+| Nombres | \`round(x, n)\`, \`abs(x)\`, \`floor(x)\`, \`ceil(x)\`, \`sqrt(x)\` | \`n\` facultatif (0 par defaut) ; chaine numerique FR acceptee (\`"12,5"\`) ; non numerique → \`null\` ; \`sqrt\` d'un negatif → \`null\` (jamais NaN), \`sqrt(0)\` = 0 — pour un rayon de symbole proportionnel, dont l'AIRE doit suivre la valeur |
 | Texte | \`lower(s)\`, \`upper(s)\`, \`trim(s)\`, \`len(s)\`, \`concat(a, b, …)\`, \`replace(s, 'de', 'vers')\` | \`replace\` est litteral (toutes les occurrences, pas de regex) ; \`null\` reste \`null\` sauf \`len\` (0) et \`concat\` (vide) |
+| Sous-chaines | \`left(s, n)\`, \`substr(s, debut, n)\` | Positions comptees A PARTIR DE 1, comme SQL et ODSQL : \`left(siret, 9)\` = SIREN, \`substr(code_insee, 1, 2)\` = departement (outre-mer : trois caracteres, \`971\`…\`976\`). \`n\` facultatif dans \`substr\` (jusqu'au bout). Resultat toujours TEXTE ; un nombre est lu par sa forme texte, mais un code stocke en nombre a deja perdu ses zeros de tete. Valeur, position ou longueur absente → \`null\` ; longueur ≤ 0 ou debut au-dela de la fin → chaine vide ; \`substr(s, 0, 2)\` = erreur de configuration |
 | Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
 | Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
+
+**Apostrophe dans un litteral** : elle s'ecrit DOUBLEE, comme en SQL et en ODSQL —
+\`when libelle = 'J''en ai' then 1 else 0\`, \`region = 'Provence-Alpes-Côte d''Azur'\`. Pas
+d'echappement par barre oblique (\`\\'\` ferme le litteral : erreur de configuration). Seule
+l'apostrophe droite delimite ; une apostrophe typographique (’) des donnees s'ecrit telle quelle.
+Ne PAS contourner par \`contains(champ, 'en ai')\`, qui matche aussi « Je n'en ai pas ».
 
 **Conditions** : \`when COND then EXPR [when COND then EXPR]… else EXPR\`. La premiere
 condition vraie gagne ; le \`else\` est **obligatoire**. Une condition combine des
@@ -789,6 +817,12 @@ de valeur).
   compute="part_pct = round(part * 100, 1);
            libelle = concat(upper(code), ' - ', trim(nom));
            actif = when statut = 'A' and not is_empty(siret) then true else false">
+</dsfr-data-normalize>
+
+<!-- Sous-chaines : SIREN depuis un SIRET, departement depuis un code commune (outre-mer : 3 caracteres) -->
+<dsfr-data-normalize id="calc" source="raw"
+  compute="siren = left(siret, 9);
+           dep = when left(code_insee, 2) = '97' then left(code_insee, 3) else left(code_insee, 2)">
 </dsfr-data-normalize>
 
 <!-- Recodage d'une liste (split) puis reconstitution -->
@@ -4955,8 +4989,8 @@ Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
 
 \`dsfr-data-normalize compute\` : \`"cible = expression; cible2 = expression2"\`, par ligne,
 en dernier. Arithmetique, concatenation, fonctions en liste blanche (\`year month day
-round abs floor ceil lower upper trim len concat replace coalesce is_null is_empty join
-contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
+round abs floor ceil sqrt lower upper trim len left substr concat replace coalesce
+is_null is_empty join contains\`) et conditions \`when COND then EXPR … else EXPR\` (\`else\` obligatoire ;
 comparaisons \`= != < <= > >=\`, \`and or not\`). Meme egalite lache que \`where\` : la
 condition \`when dept = 75\` garde les memes lignes que \`where="dept:eq:75"\`.
 

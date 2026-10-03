@@ -410,6 +410,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * (`dsfr-data-kpi format="pourcentage"`, qui met une fraction à l'échelle,
    * comme le ratio de #673).
    *
+   * Pour une part **au sein d'un groupe** (la part de chaque réponse parmi
+   * les répondants d'une année), poser en plus `share-by` : le dénominateur
+   * devient la somme de la colonne sur les lignes qui partagent les mêmes
+   * valeurs de ces champs.
+   *
    * **Le dénominateur, et ce qu'il signifie.** C'est la somme de la colonne
    * sur les lignes de sortie **avant `limit`** — pas sur le jeu entier. Trois
    * conséquences, qui sont le piège de cette fonction bien plus que sa
@@ -446,6 +451,49 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   @property({ type: String })
   aggregate = '';
+
+  /**
+   * Partition de `share` et `share_percent` (AM-110) : champs, séparés par
+   * virgule, **au sein desquels** la part est calculée.
+   *
+   * Sans cet attribut, une part rapporte chaque ligne au total de TOUTES les
+   * lignes de sortie. Avec `share-by="annee, question"`, elle la rapporte au
+   * total des lignes qui portent la même année ET la même question : les
+   * parts de chaque couple (année, question) somment à 100 %, sans second
+   * regroupement, ni jointure, ni `compute`.
+   * Ex. `group-by="annee, question, reponse"
+   * aggregate="n:sum, n__sum:share_percent" share-by="annee, question"`.
+   *
+   * Le nom suit `group-by` et `order-by` : un attribut qui dit PAR QUOI.
+   * Il s'applique à toutes les parts de `aggregate`, et à elles seules — les
+   * cumulées (`running_sum`, `diff`) ne sont pas partitionnées.
+   *
+   * Règles :
+   * - avec un `group-by` (ou un agrégat global), chaque champ listé doit
+   *   figurer dans `group-by` : après le regroupement, les lignes de sortie ne
+   *   portent plus les autres colonnes, et la part retomberait en silence sur
+   *   le total général. C'est une erreur de configuration, et la requête
+   *   passe en erreur au lieu d'émettre un chiffre plausible. Sans
+   *   regroupement, tout champ des lignes convient ;
+   * - `share-by` sans aucune part dans `aggregate` est signalé (erreur de
+   *   configuration) et reste sans effet ;
+   * - une valeur absente (null, chaîne vide) forme sa propre partition,
+   *   comme elle forme son propre groupe ;
+   * - le reste est inchangé : dénominateur pris AVANT `limit` (un top N par
+   *   groupe ne somme pas à 100 %), valeur non numérique → `null` et hors
+   *   dénominateur, total de partition nul → `null` ;
+   * - jamais délégué : comme toute part, il garde le regroupement CÔTÉ
+   *   CLIENT, sur les lignes chargées, quel que soit l'adaptateur
+   *   (Opendatasoft, Tabular, Grist). Sur un jeu volumineux, relever
+   *   `max-records` — un dénominateur tronqué ne se voit pas. Ne pas le poser
+   *   sur une source en `server-side` : elle ne charge qu'une page, et la
+   *   part ne porterait que sur elle.
+   *
+   * Par défaut vide : une part reste une part du total.
+   * @champ liste
+   */
+  @property({ type: String, attribute: 'share-by' })
+  shareBy = '';
 
   /**
    * Champs multivalués à éclater avant le regroupement (séparés par virgule).
@@ -562,6 +610,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * blanche, #649), posé à la (re)négociation ; null si l'expression est valide.
    */
   private _aggregateError: string | null = null;
+
+  /**
+   * Message d'erreur de configuration de `share-by` (champ hors `group-by`,
+   * AM-110), posé à la (re)négociation ; null si la partition est cohérente.
+   * Comme `_aggregateError` : la requête passe en erreur plutôt que d'émettre
+   * une part rapportée au mauvais total.
+   */
+  private _shareByError: string | null = null;
 
   /**
    * Dernière commande de délégation dispatchee (cible + contenu) : une
@@ -685,6 +741,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       'groupBy',
       'explode',
       'aggregate',
+      'shareBy',
       'orderBy',
       'limit',
       'requireWhere',
@@ -731,6 +788,15 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const explodeError = this._validateExplode();
     if (explodeError) {
       reportConfigError(this, `dsfr-data-query[${this.id}]`, explodeError);
+    }
+
+    // Partition d'une part (AM-110) : un champ hors group-by n'existe plus
+    // sur les lignes de sortie — la part retomberait sur le total général,
+    // un chiffre plausible et faux. Erreur aval, comme une fonction inconnue.
+    const shareBy = this._validateShareBy();
+    this._shareByError = shareBy?.blocking ? shareBy.message : null;
+    if (shareBy) {
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, shareBy.message);
     }
 
     // Negotiate server-side delegation BEFORE subscribing to data.
@@ -1469,6 +1535,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       this.emitTransformerError(new Error(this._aggregateError));
       return;
     }
+    // Partition incohérente (AM-110) : même doctrine.
+    if (this._shareByError) {
+      this.emitTransformerError(new Error(this._shareByError));
+      return;
+    }
     try {
       this.emitTransformerLoading();
       this._processClientSide();
@@ -1940,9 +2011,71 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     });
   }
 
+  /** Champs listés dans `share-by`, trimés (AM-110). */
+  private _shareByFields(): string[] {
+    return this.shareBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Vérifie la cohérence de `share-by` (AM-110). Retourne le message à
+   * signaler et s'il est BLOQUANT, ou null.
+   *
+   * - sans part dans `aggregate`, l'attribut est sans effet : signalé, non
+   *   bloquant (les chiffres émis sont justes) ;
+   * - quand la requête replie ses lignes (group-by ou agrégat global), un
+   *   champ hors `group-by` n'existe plus en sortie : toutes les lignes
+   *   tomberaient dans la même partition, et la part serait celle du total
+   *   général — bloquant, pour ne jamais l'émettre.
+   */
+  private _validateShareBy(): { message: string; blocking: boolean } | null {
+    const fields = this._shareByFields();
+    if (fields.length === 0) return null;
+
+    const hasShare = this._windowAggregates().some((a) => isShareAggregate(a.function));
+    if (!hasShare) {
+      return {
+        blocking: false,
+        message:
+          `share-by="${this.shareBy}" : aucune part dans aggregate — l'attribut partitionne ` +
+          `"champ:share" et "champ:share_percent", et reste sans effet sans eux`,
+      };
+    }
+
+    const reduces = Boolean(this.groupBy) || this._groupAggregates().length > 0;
+    if (!reduces) return null;
+    const groupFields = this.groupBy
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const orphans = fields.filter((f) => !groupFields.includes(f));
+    if (orphans.length === 0) return null;
+    return {
+      blocking: true,
+      message:
+        `share-by="${this.shareBy}" : ${orphans.map((f) => `"${f}"`).join(', ')} ` +
+        `${orphans.length > 1 ? 'ne sont pas des champs' : "n'est pas un champ"} de group-by — ` +
+        `après le regroupement, les lignes ne portent plus ` +
+        `${orphans.length > 1 ? 'ces colonnes' : 'cette colonne'} et la part serait celle du ` +
+        `total général (ajoutez ${orphans.length > 1 ? 'ces champs' : 'ce champ'} à group-by)`,
+    };
+  }
+
+  /**
+   * Clé de partition d'une ligne pour `share-by` (AM-110). Même lecture que
+   * la clé de groupe : null, undefined et chaîne vide forment UNE partition.
+   * Sérialisée en JSON : aucune valeur ne peut imiter le séparateur.
+   */
+  private _sharePartitionKey(row: Record<string, unknown>, fields: string[]): string {
+    return JSON.stringify(fields.map((f) => String(getByPath(row, f) ?? '')));
+  }
+
   /**
    * Part du total (#926) : valeur de la ligne / somme de la colonne sur
-   * TOUTES les lignes de sortie (avant `limit`). `share` rend une fraction,
+   * TOUTES les lignes de sortie (avant `limit`) — ou, avec `share-by`
+   * (AM-110), sur les lignes de la MÊME partition. `share` rend une fraction,
    * `share_percent` la meme part en points de pourcentage.
    *
    * Total nul, absent ou non numerique : `null`, jamais l'infini ni un zero de
@@ -1955,10 +2088,18 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     agg: ParsedAggregate
   ): Record<string, unknown>[] {
     const values = data.map((row) => toNumber(getByPath(row, agg.field), true));
-    const total = values.reduce<number>((acc, v) => acc + (v ?? 0), 0);
+    // Un total par partition ; sans `share-by`, une seule partition : le
+    // total de toutes les lignes, comme avant (AM-110).
+    const partition = this._shareByFields();
+    const keys = data.map((row) =>
+      partition.length > 0 ? this._sharePartitionKey(row, partition) : ''
+    );
+    const totals = new Map<string, number>();
+    values.forEach((v, i) => totals.set(keys[i], (totals.get(keys[i]) ?? 0) + (v ?? 0)));
     const scale = agg.function === 'share_percent' ? 100 : 1;
     return data.map((row, i) => {
       const value = values[i];
+      const total = totals.get(keys[i]) ?? 0;
       const share = value === null || total === 0 ? null : (value / total) * scale;
       return this._rowWithFieldValue(row, agg.alias, share);
     });

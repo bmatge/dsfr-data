@@ -22,6 +22,8 @@ import territoires from './jeux/transformations-territoires.json' with { type: '
 import brutes from './jeux/transformations-brutes.json' with { type: 'json' };
 import prefixes from './jeux/transformations-prefixes.json' with { type: 'json' };
 import calculs from './jeux/transformations-calculs.json' with { type: 'json' };
+import codes from './jeux/transformations-codes.json' with { type: 'json' };
+import enquete from './jeux/transformations-enquete.json' with { type: 'json' };
 import long from './jeux/transformations-long.json' with { type: 'json' };
 import editions from './jeux/transformations-editions.json' with { type: 'json' };
 import large from './jeux/transformations-large.json' with { type: 'json' };
@@ -50,6 +52,20 @@ export const PREFIXES: Row[] = prefixes;
 
 /** Six lignes taillées pour la grammaire des colonnes calculées. */
 export const CALCULS: Row[] = calculs;
+
+/**
+ * Huit établissements pour les sous-chaînes, l'apostrophe d'un littéral et la
+ * racine (AM-103, AM-090) : SIRET et codes commune en texte ET en nombre,
+ * libellés à apostrophe, surfaces nulle, négative, absente, en décimale
+ * française.
+ */
+export const CODES: Row[] = codes;
+
+/**
+ * Deux éditions d'une enquête (2014, 2021), plusieurs questions : la part
+ * d'une réponse parmi les répondants d'une question, une année donnée (AM-110).
+ */
+export const ENQUETE: Row[] = enquete;
 
 /** Format LONG pour le pivot : communes × années, cellules absentes, décimale française. */
 export const LONG: Row[] = long;

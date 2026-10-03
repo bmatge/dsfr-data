@@ -4,7 +4,7 @@
  * Source : packages/core/custom-elements.json (lui-meme genere depuis le code).
  * Regeneration : npm run build:component-contract
  *
- * 29 balises, 379 attributs, 16 enumerations, 65 attributs-champs.
+ * 29 balises, 380 attributs, 16 enumerations, 66 attributs-champs.
  */
 
 export const COMPONENT_CONTRACT = {
@@ -638,12 +638,14 @@ export const COMPONENT_CONTRACT = {
       "limit",
       "order-by",
       "require-where",
+      "share-by",
       "source",
       "where"
     ],
     "fields": {
       "filter": "clauses",
       "group-by": "liste",
+      "share-by": "liste",
       "where": "clauses"
     }
   },

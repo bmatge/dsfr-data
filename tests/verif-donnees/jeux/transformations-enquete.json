@@ -1,0 +1,16 @@
+[
+  {"annee":2014,"question":"frequence","reponse":"Souvent","n":30},
+  {"annee":2014,"question":"frequence","reponse":"Parfois","n":50},
+  {"annee":2014,"question":"frequence","reponse":"Jamais","n":20},
+  {"annee":2014,"question":"satisfaction","reponse":"Satisfait","n":45},
+  {"annee":2014,"question":"satisfaction","reponse":"Insatisfait","n":15},
+  {"annee":2021,"question":"frequence","reponse":"Souvent","n":80},
+  {"annee":2021,"question":"frequence","reponse":"Parfois","n":60},
+  {"annee":2021,"question":"frequence","reponse":"Souvent","n":40},
+  {"annee":2021,"question":"frequence","reponse":"Jamais","n":20},
+  {"annee":2021,"question":"satisfaction","reponse":"Satisfait","n":90},
+  {"annee":2021,"question":"satisfaction","reponse":"Insatisfait","n":10},
+  {"annee":2021,"question":"satisfaction","reponse":"Sans avis","n":"NC"},
+  {"annee":2021,"question":"accueil","reponse":"Oui","n":0},
+  {"annee":2021,"question":"accueil","reponse":"Non","n":0}
+]

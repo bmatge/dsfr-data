@@ -13,8 +13,10 @@
  * Ce qui est couvert, et rien de plus (une construction non gérée lève, elle
  * ne rend jamais un `null` plausible) :
  *   - arithmétique `+ - * /`, parenthèses, moins unaire ;
- *   - littéraux : nombres, texte entre quotes simples, `null`, `true`, `false` ;
- *   - fonctions en liste blanche (dates, nombres, texte, absence, tableaux) ;
+ *   - littéraux : nombres, texte entre quotes simples (une apostrophe du
+ *     texte s'y écrit doublée), `null`, `true`, `false` ;
+ *   - fonctions en liste blanche (dates, nombres, texte, sous-chaînes à
+ *     positions comptées à partir de 1, absence, tableaux) ;
  *   - `when COND then EXPR … else EXPR` ;
  *   - comparaisons `= != < <= > >=`, `and`, `or`, `not`.
  *
@@ -30,7 +32,7 @@
  *     `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai.
  */
 import type { Row } from './manifest.js';
-import { absent, egal, toNum } from './compute.js';
+import { absent, egal, racine, sousChaine, toNum } from './compute.js';
 
 // ---------------------------------------------------------------------------
 // Lexique
@@ -48,6 +50,17 @@ interface Jeton {
 
 const SYMBOLES = ['!=', '<=', '>=', '=', '<', '>', '+', '-', '*', '/', '(', ')', ',', ';'];
 
+/**
+ * Position de la quote qui FERME un littéral ouvert juste avant `depuis`, ou
+ * -1 s'il ne se ferme pas. Une paire de quotes est sautée d'un bloc : c'est
+ * une apostrophe du texte, pas une fermeture.
+ */
+function quoteFermante(source: string, depuis: number): number {
+  let j = source.indexOf("'", depuis);
+  while (j !== -1 && source[j + 1] === "'") j = source.indexOf("'", j + 2);
+  return j;
+}
+
 /** Découpe une source en jetons. Un caractère inattendu est une erreur, pas un silence. */
 export function decouper(source: string): Jeton[] {
   const jetons: Jeton[] = [];
@@ -59,15 +72,17 @@ export function decouper(source: string): Jeton[] {
       continue;
     }
     if (c === "'") {
-      let j = i + 1;
-      let texte = '';
-      while (j < source.length && source[j] !== "'") {
-        texte += source[j];
-        j++;
-      }
-      if (j >= source.length) throw new Error(`texte non terminé à la position ${i}`);
+      // Un littéral va jusqu'à la quote FERMANTE : la première quote qui n'est
+      // pas suivie d'une autre. Deux quotes à la suite, dans un littéral
+      // ouvert, sont UNE apostrophe du texte (AM-090, comme SQL et ODSQL).
+      const fermante = quoteFermante(source, i + 1);
+      if (fermante === -1) throw new Error(`texte non terminé à la position ${i}`);
+      const texte = source
+        .slice(i + 1, fermante)
+        .split("''")
+        .join("'");
       jetons.push({ genre: 'texte', texte, valeur: texte, position: i });
-      i = j + 1;
+      i = fermante + 1;
       continue;
     }
     if (/[0-9]/.test(c)) {
@@ -389,6 +404,9 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
       return nombreOuNull(args[0], Math.floor);
     case 'ceil':
       return nombreOuNull(args[0], Math.ceil);
+    case 'sqrt':
+      // Un négatif n'a pas de racine : null, jamais NaN.
+      return racine(args[0]);
     case 'lower':
       return texteDe(args[0]).toLowerCase();
     case 'upper':
@@ -397,6 +415,14 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
       return texteDe(args[0]).trim();
     case 'len':
       return Array.isArray(args[0]) ? args[0].length : texteDe(args[0]).length;
+    case 'left':
+      // Les n premiers caractères : une sous-chaîne qui part de la position 1.
+      return sousChaine(args[0], 1, args[1] ?? null);
+    case 'substr':
+      // Positions comptées à partir de 1 (AM-103) ; sans longueur, jusqu'au bout.
+      return args.length > 2
+        ? sousChaine(args[0], args[1], args[2] ?? null)
+        : sousChaine(args[0], args[1]);
     case 'concat':
       return args.map(texteDe).join('');
     case 'replace':
