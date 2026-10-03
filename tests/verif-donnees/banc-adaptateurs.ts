@@ -57,6 +57,18 @@ const ELUS_URL =
   `&columns=Libell%C3%A9%20du%20d%C3%A9partement,Code%20sexe&page_size=200`;
 
 /**
+ * Tabular — base départementale de la délinquance (SSMSI), année 2025 : le
+ * jeu sur lequel le banc a payé PG-033 et PG-034 (#1202, #1233). 1 818 lignes
+ * au 2026-10-03 (101 départements × 18 indicateurs), dix pages de 200. L'URL
+ * de l'oracle ne porte NI tri NI `__in` : l'ordre par défaut de l'API
+ * (`__id`) est stable, et c'est l'oracle qui trie et filtre.
+ */
+const SSMSI_RESSOURCE = '2b27a675-e3bf-41ef-a852-5fb9ab483967';
+const SSMSI_URL =
+  `https://tabular-api.data.gouv.fr/api/resources/${SSMSI_RESSOURCE}/data/` +
+  `?annee__exact=2025&page_size=200`;
+
+/**
  * Tabular — la recherche serveur multi-colonnes (#1026) sur les mêmes élus,
  * relevés par nom et prénom. L'oracle ne délègue RIEN : il relève les lignes
  * brutes des trois départements et applique lui-même le OU entre les deux
@@ -375,6 +387,91 @@ const CHECKS: Check[] = [
         id: 'elus-top-tri-non-delegue',
         among: `/api/resources/${ELUS_RESSOURCE}/data/`,
         contains: '__sort',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-ssmsi-pertes-silencieuses-vivant',
+    mode: 'live',
+    constats: ['PG-033', 'PG-034'],
+    origin:
+      'data.gouv / base départementale de la délinquance (SSMSI) — #1202, #1233, PG-033 et PG-034 du banc, contre la vraie API. Trois chargements, chacun avec un chiffre que seul l’ENSEMBLE exact des lignes rend juste. (1) Groupé et trié sur une colonne de regroupement non unique : 1 818 groupes, que l’API rend en 1 805 distincts quand le tri la suit de page en page — l’adaptateur les relit sans tri. (2) Tronqué à 600 et trié : l’API rend 550 lignes distinctes sur 600, et ignore un second `__sort` ; l’adaptateur compose un ordre total dans la VALEUR du tri (`Code_region__sort=asc,"__id".asc`), forme que l’API passe à PostgREST sans la documenter (mesuré le 2026-10-03 : 600 distinctes, les 600 premières). CE CONTRÔLE GARDE CETTE FORME : s’il rougit ici, l’API a cessé de l’honorer. (3) `in` à parenthèse posé sur la source : 202 lignes, 101 si la clause part au serveur.',
+    feed: {
+      kind: 'raw',
+      source: { url: SSMSI_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-ssmsi-groupe" api-type="tabular" resource="${SSMSI_RESSOURCE}"
+    where="annee:eq:2025" group-by="Code_departement, indicateur" aggregate="nombre:sum"
+    order-by="Code_departement:asc"></dsfr-data-source>
+  <dsfr-data-kpi id="k-ssmsi-groupes" source="s-ssmsi-groupe" value="count" format="nombre"
+    label="Groupes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-ssmsi-groupe-somme" source="s-ssmsi-groupe" value="nombre__sum:sum"
+    format="nombre" label="Faits"></dsfr-data-kpi>
+  <dsfr-data-source id="s-ssmsi-tronque" api-type="tabular" resource="${SSMSI_RESSOURCE}"
+    where="annee:eq:2025" order-by="Code_region:asc" max-records="600"></dsfr-data-source>
+  <dsfr-data-kpi id="k-ssmsi-tronque" source="s-ssmsi-tronque" value="__id:sum" format="nombre"
+    label="Somme des identifiants de ligne"></dsfr-data-kpi>
+  <dsfr-data-source id="s-ssmsi-in" api-type="tabular" resource="${SSMSI_RESSOURCE}"
+    where="annee:eq:2025, indicateur:in:Homicides|Usage de stupéfiants (AFD)"></dsfr-data-source>
+  <dsfr-data-kpi id="k-ssmsi-in" source="s-ssmsi-in" value="count" format="nombre"
+    label="Lignes"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-ssmsi-groupes',
+        agg: 'count',
+        pipeline: [{ op: 'group-by', by: ['Code_departement', 'indicateur'], columns: {} }],
+      },
+      { kind: 'kpi', id: 'k-ssmsi-groupe-somme', agg: 'sum', field: 'nombre' },
+      {
+        kind: 'kpi',
+        id: 'k-ssmsi-tronque',
+        agg: 'sum',
+        field: '__id',
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'Code_region', dir: 'asc' },
+              { column: '__id', dir: 'asc' },
+            ],
+          },
+          { op: 'limit', n: 600 },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-ssmsi-in',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'indicateur',
+                op: 'in',
+                values: ['Homicides', 'Usage de stupéfiants (AFD)'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'ssmsi-ordre-total-dans-la-valeur-du-tri',
+        among: `/api/resources/${SSMSI_RESSOURCE}/data/`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: 'Code_region__sort=asc,"__id".asc',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'ssmsi-in-jamais-au-serveur',
+        among: `/api/resources/${SSMSI_RESSOURCE}/data/`,
+        contains: 'indicateur__in',
         verdict: 'none',
       },
     ],

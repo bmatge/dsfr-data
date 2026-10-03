@@ -152,7 +152,25 @@ export interface FetchResult {
    * deduit elle-meme la troncature de `totalCount > data.length`.
    */
   truncated?: boolean;
+  /**
+   * Reserves sur les lignes livrees (#1233) : le chargement a abouti, mais
+   * l'adapter SAIT que le resultat peut etre faux, sans erreur ni troncature
+   * pour le dire. Relayees par la source dans la meta, lues par le volet
+   * Diagnostic — un avertissement console seul ne se voit pas a l'ecran.
+   */
+  caveats?: FetchCaveat[];
 }
+
+/**
+ * Reserve d'un chargement (#1233), posee par un adapter :
+ * - `unstable-sort` : tri laisse au serveur sur plusieurs pages sans ordre
+ *   total — des lignes a valeurs egales peuvent manquer ou etre doublees aux
+ *   limites de page (PG-033 du banc, API Tabular) ;
+ * - `in-values-dropped` : une liste `in` / `notin` est partie au serveur avec
+ *   une valeur qu'il ecarte en silence (PG-034, valeur a parenthese sur
+ *   l'API Tabular, en pagination serveur).
+ */
+export type FetchCaveat = 'unstable-sort' | 'in-values-dropped';
 
 /**
  * Resultat d'une requête de facettes serveur.

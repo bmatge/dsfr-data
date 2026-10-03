@@ -36,6 +36,7 @@ import {
   urlCanari,
 } from './fixtures-canari.js';
 import { ABSENCES, urlAffichage } from './fixtures-affichages.js';
+import { EX_AEQUO, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
 
 const JEUX = { main: LIGNES, ref: CANARI_REF };
 
@@ -835,6 +836,93 @@ const CHECKS: Check[] = [
       { kind: 'kpi', id: 'k-max', agg: 'max', field: 'valeur', pipeline: [EMPILER_VOLUME] },
       { kind: 'kpi', id: 'k-q-min', agg: 'min', field: 'valeur', pipeline: [EMPILER_VOLUME] },
       { kind: 'kpi', id: 'k-q-max', agg: 'max', field: 'valeur', pipeline: [EMPILER_VOLUME] },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // Le compte est juste, les lignes non : ce que l'API Tabular perd en silence
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-tabular-tri-pagine',
+    mode: 'deterministic',
+    constats: ['PG-033'],
+    origin:
+      "Canari — #1202, #1233, PG-033 : l'API Tabular pagine par offset et ne trie que sur UNE clé ; sur une clé non unique, des lignes reviennent deux fois et d'autres jamais, avec un compte juste. Le piège est payé trois fois : lignes brutes (1 818 rendues, 1 718 distinctes), groupes (1 818 / 1 805), chargement tronqué (600 / 550). Ici les trois sur une même page, par un chiffre que seul l'ENSEMBLE exact des lignes rend juste : la somme des identifiants. `delegation/tabular-tri-pagine-sans-perte`, `tabular-tri-groupe-pagine-sans-perte` et `tabular-tri-tronque-ordre-total` tiennent chaque cas ligne à ligne.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-canari-tri" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    order-by="nombre:asc"></dsfr-data-source>
+  ${kpi('k-canari-tri', 's-canari-tri', 'id:sum')}
+  <dsfr-data-source id="s-canari-tri-groupe" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    group-by="nombre, id" aggregate="id:max" order-by="nombre:asc"></dsfr-data-source>
+  ${kpi('k-canari-tri-groupe', 's-canari-tri-groupe', 'id__max:sum')}
+  <dsfr-data-source id="s-canari-tri-tronque" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    order-by="categorie:asc" max-records="400"></dsfr-data-source>
+  ${kpi('k-canari-tri-tronque', 's-canari-tri-tronque', 'id:sum')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-canari-tri', agg: 'sum', field: 'id' },
+      { kind: 'kpi', id: 'k-canari-tri-groupe', agg: 'sum', field: 'id' },
+      {
+        kind: 'kpi',
+        id: 'k-canari-tri-tronque',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'categorie', dir: 'asc' },
+              { column: 'id', dir: 'asc' },
+            ],
+          },
+          { op: 'limit', n: 400 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-tabular-in-parenthese',
+    mode: 'deterministic',
+    constats: ['PG-034'],
+    origin:
+      "Canari — #1202, #1233, PG-034 : `__in` de l'API Tabular écarte sans erreur toute valeur à parenthèse (`__exact` la trouve : 101 ; `__in` : 0), et les libellés à parenthèse sont banals en open data. La clause ne part jamais : sur une query comme sur la source, elle se calcule sur les lignes chargées. `delegation/tabular-in-a-parenthese-reste-client` et `tabular-in-a-parenthese-sur-la-source` tiennent les deux poses, URL comprises.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-canari-in" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    where="categorie:in:Vols (avec violence)|Cambriolages"></dsfr-data-source>
+  ${kpi('k-canari-in', 's-canari-in', 'count')}
+  <dsfr-data-source id="s-canari-in-q" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"></dsfr-data-source>
+  <dsfr-data-query id="q-canari-in" source="s-canari-in-q"
+    where="categorie:in:Vols (avec violence)|Cambriolages"></dsfr-data-query>
+  ${kpi('k-canari-in-q', 'q-canari-in', 'count')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-canari-in',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              { field: 'categorie', op: 'in', values: ['Vols (avec violence)', 'Cambriolages'] },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-canari-in-q',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              { field: 'categorie', op: 'in', values: ['Vols (avec violence)', 'Cambriolages'] },
+            ],
+          },
+        ],
+      },
     ],
   },
 ];

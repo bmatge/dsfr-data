@@ -957,6 +957,191 @@ const TABULAR_PERTES: Check[] = [
       },
     ],
   },
+
+  {
+    id: 'tabular-tri-groupe-pagine-sans-perte',
+    mode: 'deterministic',
+    constats: ['PG-033'],
+    origin:
+      "#1233, PG-033 du banc, suite de #1202 — un chargement GROUPÉ trié au serveur sur une colonne de regroupement non unique (`group-by` de deux colonnes, `order-by` sur une seule) perdait des groupes sans un mot dès la deuxième page : 1 818 groupes rendus, 1 805 distincts, rejoué le 2026-10-03 en 0.44.0. La clé de groupe est unique, pas la clé de tri. Ici 450 groupes (`categorie` × `id`), trois pages, triés sur `categorie` qui n'a que quatre valeurs ; le faux serveur ordonne les ex-æquo autrement d'une page à l'autre, comme l'API. L'adaptateur relit les groupes sans `__sort` et trie lui-même : chaque groupe une fois.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-groupe-trie" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    group-by="categorie, id" aggregate="nombre:sum" order-by="categorie:asc"></dsfr-data-source>
+  <dsfr-data-kpi id="k-groupe-trie" source="s-groupe-trie" value="nombre__sum:sum{id:lte:150}" format="nombre"
+    label="Faits des 150 premiers identifiants"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-groupe-trie',
+        key: ['categorie', 'id'],
+        columns: ['nombre__sum'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: ['categorie', 'id'],
+            columns: { nombre__sum: { agg: 'sum', field: 'nombre' } },
+          },
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'categorie', dir: 'asc' },
+              { column: 'id', dir: 'asc' },
+            ],
+          },
+        ],
+      },
+      // Le compte de groupes reste juste quand des groupes sont perdus : c'est
+      // un chiffre calculé sur une PARTIE des groupes qui trahit ceux qui
+      // manquent et ceux qui reviennent deux fois.
+      {
+        kind: 'kpi',
+        id: 'k-groupe-trie',
+        agg: 'sum',
+        field: 'nombre',
+        filter: [{ field: 'id', op: 'lte', value: 150 }],
+      },
+      {
+        kind: 'urls',
+        id: 'tri-des-groupes-final-local',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__sort',
+        verdict: 'notLast',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-tri-tronque-ordre-total',
+    mode: 'deterministic',
+    constats: ['PG-033'],
+    origin:
+      "#1233, PG-033 du banc — un chargement TRONQUÉ par `max-records` ne peut pas être relu en entier : le tri reste au serveur, seul à pouvoir donner les PREMIÈRES lignes. Sans clé de départage, 600 lignes rendues pour 550 distinctes (rejoué le 2026-10-03). Mesuré le même jour : un second `__sort` est ignoré par l'API (mêmes 550), mais la valeur du premier part telle quelle à PostgREST — `Code_region__sort=asc,\"__id\".asc` rend 600 lignes distinctes, les 600 premières du jeu trié. Ici 450 lignes, plafond à 400, tri sur `nombre` (cinq valeurs) : les 400 premières dans l'ordre (`nombre` décroissant, puis rang de la ligne), chacune une fois. Le faux serveur ne lit qu'un `__sort`, et sa valeur composée.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-tronque-trie" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    order-by="nombre:desc" max-records="400"></dsfr-data-source>
+  <dsfr-data-kpi id="k-tronque-trie" source="s-tronque-trie" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-tronque-trie',
+        key: 'id',
+        columns: ['nombre'],
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'nombre', dir: 'desc' },
+              { column: 'id', dir: 'asc' },
+            ],
+          },
+          { op: 'limit', n: 400 },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-tronque-trie',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'nombre', dir: 'desc' },
+              { column: 'id', dir: 'asc' },
+            ],
+          },
+          { op: 'limit', n: 400 },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'tri-tronque-avec-cle-de-departage',
+        among: DATA_EX_AEQUO,
+        contains: '__id',
+        verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-in-a-parenthese-sur-la-source',
+    mode: 'deterministic',
+    constats: ['PG-034'],
+    origin:
+      "#1233, PG-034 du banc, suite de #1202 — le même `in` à parenthèse posé sur la SOURCE, sans query en aval pour le reprendre : `__in` partait au serveur avec un simple avertissement console, 101 lignes au lieu de 202 (rejoué le 2026-10-03 en 0.44.0). La clause ne part plus : l'adaptateur charge les lignes et la calcule, comme une query. `notin` suit la même règle. Une clause ordinaire du même `where` reste déléguée.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-in-source" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    where="nombre:gte:1, categorie:in:Homicides|Usage de stupéfiants (AFD)"></dsfr-data-source>
+  <dsfr-data-kpi id="k-in-source" source="s-in-source" value="count" format="nombre"
+    label="Faits"></dsfr-data-kpi>
+  <dsfr-data-source id="s-notin-source" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    where="categorie:notin:Vols (avec violence)|Cambriolages"></dsfr-data-source>
+  <dsfr-data-kpi id="k-notin-source" source="s-notin-source" value="nombre:sum" format="nombre"
+    label="Faits"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-in-source',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              { field: 'nombre', op: 'gte', value: 1 },
+              {
+                field: 'categorie',
+                op: 'in',
+                values: ['Homicides', 'Usage de stupéfiants (AFD)'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-notin-source',
+        agg: 'sum',
+        field: 'nombre',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'categorie',
+                op: 'notin',
+                values: ['Vols (avec violence)', 'Cambriolages'],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'in-de-la-source-jamais-au-serveur',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__in',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'notin-de-la-source-jamais-au-serveur',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__notin',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'clause-ordinaire-toujours-deleguee',
+        among: DATA_EX_AEQUO,
+        contains: 'nombre__greater=1',
+        verdict: 'some',
+      },
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------

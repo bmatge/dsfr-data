@@ -439,7 +439,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       const primary = this.transformerSources()[0];
       const upstreamMeta = primary ? getDataMeta(primary) : undefined;
       const meta = upstreamMeta ? this.transformMeta(upstreamMeta) : this.transformerOwnMeta();
-      if (meta) setDataMeta(this.id, meta);
+      if (meta) {
+        // Les reserves de l'adapter (#1233) decrivent le chargement de la
+        // SOURCE : relayees, le volet Diagnostic les redirait a chaque etape.
+        const { caveats: _sourceCaveats, ...own } = meta;
+        setDataMeta(this.id, own);
+      }
 
       dispatchDataLoaded(this.id, data);
       this.requestUpdate();
