@@ -47,37 +47,6 @@ export const SOURCES_TOUR: TourConfig = {
   ],
 };
 
-// ─── Builder IA ────────────────────────────────────────────────────────
-
-export const BUILDER_IA_TOUR: TourConfig = {
-  id: 'builder-ia',
-  label: 'Builder IA',
-  version: 1,
-  steps: [
-    {
-      selector: '#saved-source',
-      title: 'Choisissez une source',
-      description:
-        "Sélectionnez une source de données dans la liste. Vous pouvez aussi choisir un jeu de données d'exemple pour essayer tout de suite.",
-      position: 'bottom',
-    },
-    {
-      selector: '#chat-input',
-      title: 'Décrivez votre graphique',
-      description:
-        'Écrivez en français ce que vous voulez : "un graphique en barres de la population par région", "un camembert du budget"... L\'IA génère le code.',
-      position: 'top',
-    },
-    {
-      selector: 'app-preview-panel',
-      title: 'Résultat et code',
-      description:
-        'Le graphique généré s\'affiche ici. Basculez sur l\'onglet "Code" pour copier le HTML prêt à intégrer.',
-      position: 'left',
-    },
-  ],
-};
-
 // ─── Builder Carto ─────────────────────────────────────────────────────
 
 export const BUILDER_CARTO_TOUR: TourConfig = {
@@ -299,7 +268,6 @@ export interface TourRegistryEntry {
 
 export const TOURS_REGISTRY: TourRegistryEntry[] = [
   { id: 'builder', label: 'Builder', version: 1, appPath: '/apps/builder/' },
-  { id: 'builder-ia', label: 'Builder IA', version: 1, appPath: '/apps/builder-ia/' },
   { id: 'builder-carto', label: 'Builder Carto', version: 1, appPath: '/apps/builder-carto/' },
   { id: 'sources', label: 'Sources', version: 1, appPath: '/apps/sources/' },
   { id: 'playground', label: 'Playground', version: 1, appPath: '/apps/playground/' },
