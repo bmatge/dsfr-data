@@ -38,6 +38,11 @@ import {
 import { ABSENCES, urlAffichage } from './fixtures-affichages.js';
 import { EX_AEQUO, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
 
+/** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
+const TETE_CHART = `
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>`;
+
 const JEUX = { main: LIGNES, ref: CANARI_REF };
 
 /** Le canari en tableau nu (API générique) : ce que filtre et regroupe le CLIENT. */
@@ -514,6 +519,40 @@ const CHECKS: Check[] = [
         agg: 'sum',
         field: 'valeur',
         pipeline: [{ op: 'limit', n: 1000 }],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-tableau-databox-coupe',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      'Canari — #1230, BUG-035 : le tableau de la DataBox montre 100 lignes au plus. 1 001 lignes en entrée, 100 au tableau, et rien ne le disait : un lecteur comptait cent lignes et concluait à un jeu de cent. Le tableau reste coupé (même plafond que `dsfr-data-a11y`), mais il le DIT, avec le total — et les cent lignes montrées sont bien les cent premières.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_VOLUME } },
+    head: TETE_CHART,
+    markup: `
+  <dsfr-data-source id="s-box-vol" url="${urlCanari('volume')}"></dsfr-data-source>
+  <dsfr-data-chart id="g-box-vol" source="s-box-vol" type="bar"
+    label-field="n" value-field="valeur" databox databox-title="Volume"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-box-vol',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'valeur',
+        numeric: true,
+        pipeline: [{ op: 'limit', n: 100 }],
+      },
+      // « Affichage limité aux 100 premières lignes sur 1 001. » : le SECOND
+      // nombre est le total, recalculé — pas recopié dans le manifeste.
+      {
+        kind: 'text',
+        id: 'g-box-vol',
+        selector: '.dsfr-data-chart__databox-truncation',
+        numeric: true,
+        number: 1,
+        agg: 'count',
       },
     ],
   },

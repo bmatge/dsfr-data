@@ -78,7 +78,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne utilisée pour les labels du tableau.",
+              "description": "Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`\n(#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom` et affiche\n« Département » en en-tête du tableau et du CSV. Sans deux-points,\nl'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de\ncolonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne\nqui existe telle quelle dans les données, deux-points compris, est lue\ntelle quelle.",
               "attribute": "label-field"
             },
             {
@@ -88,7 +88,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).",
+              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des\nvirgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du\nbanc), la grammaire de `value-field` / `value-fields` de\n`dsfr-data-chart` (#668) : `value-field=\"v_fede:Fédération sélectionnée,\nv_all:Ensemble\"` lit `v_fede` et `v_all`, et les en-têtes du tableau et\ndu CSV portent les libellés — ceux que la légende du graphique affiche\ndéjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule\nou un deux-points littéral s'échappe en `%2C` ou `%3A`.\n\nUne colonne absente des données reçues est signalée en console : le\ntableau garde ses lignes mais la colonne est vide, et un tableau vide\npasse toutes les recettes qui comptent des lignes.",
               "attribute": "value-field"
             },
             {
@@ -160,6 +160,16 @@
             },
             {
               "kind": "field",
+              "name": "_missingColumnsWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Dernier jeu de colonnes introuvables signalé (un avertissement par situation)."
+            },
+            {
+              "kind": "field",
               "name": "_previousForTarget",
               "type": {
                 "text": "Element | null"
@@ -222,6 +232,12 @@
               },
               "privacy": "private",
               "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_checkColumnsExist",
+              "privacy": "private",
+              "description": "Une colonne nommée par `label-field`, `value-field` ou `series-field` qui\nn'existe dans AUCUNE ligne reçue rend une colonne vide (#1230, PG-032 du\nbanc) : le tableau a le bon nombre de lignes et ne contient rien. On le\ndit, une fois par situation, en nommant l'attribut, la colonne cherchée\net les colonnes disponibles."
             },
             {
               "kind": "method",
@@ -302,6 +318,88 @@
             },
             {
               "kind": "method",
+              "name": "_parseColumn",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "entry",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Une entrée de `label-field` / `value-field` : `colonne` ou\n`colonne:Libellé` (#1230, PG-032 du banc) — l'analyseur est celui de\n`dsfr-data-chart` (`parseAliasedColumn`, #668), pas un second.\n\nSeule précaution : une colonne qui existe TELLE QUELLE dans les données,\ndeux-points compris, est lue telle quelle. Avant l'alias, l'entrée entière\nétait le nom de colonne ; un jeu dont une colonne s'appelle réellement\n`a:b` ne doit pas voir son tableau se vider."
+            },
+            {
+              "kind": "method",
+              "name": "_labelSpec",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Colonne de libellé déclarée par `label-field`, ou `null`."
+            },
+            {
+              "kind": "method",
+              "name": "_valueSpecs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Colonnes de valeur déclarées par `value-field`, dans l'ordre écrit."
+            },
+            {
+              "kind": "method",
+              "name": "_columnSpecs",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "data",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Colonnes du tableau à plat, avec leur en-tête : celles de `label-field`\net `value-field` s'ils sont posés, sinon toutes les colonnes de la\npremière ligne, sous leur nom."
+            },
+            {
+              "kind": "method",
               "name": "_getColumns",
               "privacy": "private",
               "return": {
@@ -316,7 +414,8 @@
                     "text": "Record<string, unknown>[]"
                   }
                 }
-              ]
+              ],
+              "description": "Noms des colonnes LUES dans les données (sans leur libellé d'en-tête)."
             },
             {
               "kind": "method",
@@ -559,9 +658,9 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne utilisée pour les labels du tableau.",
+              "description": "Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`\n(#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom` et affiche\n« Département » en en-tête du tableau et du CSV. Sans deux-points,\nl'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de\ncolonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne\nqui existe telle quelle dans les données, deux-points compris, est lue\ntelle quelle.",
               "fieldName": "labelField",
-              "champ": "nom"
+              "champ": "liste-alias"
             },
             {
               "name": "value-field",
@@ -569,9 +668,9 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des virgules).",
+              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des\nvirgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du\nbanc), la grammaire de `value-field` / `value-fields` de\n`dsfr-data-chart` (#668) : `value-field=\"v_fede:Fédération sélectionnée,\nv_all:Ensemble\"` lit `v_fede` et `v_all`, et les en-têtes du tableau et\ndu CSV portent les libellés — ceux que la légende du graphique affiche\ndéjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule\nou un deux-points littéral s'échappe en `%2C` ou `%3A`.\n\nUne colonne absente des données reçues est signalée en console : le\ntableau garde ses lignes mais la colonne est vide, et un tableau vide\npasse toutes les recettes qui comptent des lignes.",
               "fieldName": "valueField",
-              "champ": "liste"
+              "champ": "liste-alias"
             },
             {
               "name": "empty-label",
@@ -2353,6 +2452,17 @@
             },
             {
               "kind": "method",
+              "name": "_databoxTableModel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ headers: string[]; rows: unknown[][] }"
+                }
+              },
+              "description": "Modèle du tableau de la DataBox : en-têtes, lignes de cellules brutes.\n\nFormat LARGE : une ligne par enregistrement, une colonne par champ\n(`_databoxColumns`).\n\nFormat LONG (`series-field`, BUG-035 du banc, #1230) : le tableau PIVOTE\ncomme le graphique — une ligne par libellé, une colonne par série — et\nreprend la matrice que le graphique trace (`_processTidyData`). Rendu à\nplat, il alignait « libellé, valeur » sans dire à quelle série la valeur\nappartenait : deux lignes « Janvier » indiscernables. C'est aussi ce que\nfait `dsfr-data-a11y series-field` (#930) ; une cellule (libellé, série)\nsans observation reste vide, jamais 0 (#1198)."
+            },
+            {
+              "kind": "method",
               "name": "_databoxTableHtml",
               "privacy": "private",
               "return": {
@@ -2360,7 +2470,7 @@
                   "text": "string"
                 }
               },
-              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y) : cellules lues sur le chemin, 100 lignes au plus.\nChaîne vide sans colonne."
+              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y). Chaîne vide sans colonne.\n\nLe tableau montre au plus `DATABOX_TABLE_MAX_ROWS` lignes, comme celui de\n`dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une\ncoupe muette laissait croire à un jeu de 100 lignes. La mention donne le\ntotal, pour que l'écart se lise sans compter."
             },
             {
               "kind": "method",
@@ -16397,6 +16507,54 @@
             },
             {
               "kind": "field",
+              "name": "format",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Format d'affichage de la valeur, même vocabulaire que `dsfr-data-kpi` :\n`nombre`, `pourcentage`, `euro`, `decimal`, `compact` (14 785 684 →\n« 14,8 M »). Absent (défaut), le rendu historique est conservé : un entier\narrondi à l'unité, séparateurs de milliers fr-FR (#1230, AM-088 du banc).\n\nLes décimales passent par `decimals`, jamais par le format (`euro:2` est\nrefusé, comme sur le KPI). `pourcentage` et `euro` portent déjà leur\nsymbole : ne pas le répéter dans `value-unit`. `date` n'a pas de sens pour\nune valeur classée et est refusé. Un format inconnu est signalé\n(`data-dsfr-config-error`) et le rendu historique s'applique.",
+              "attribute": "format"
+            },
+            {
+              "kind": "field",
+              "name": "decimals",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "Nombre de décimales de la valeur (entier 0 à 20), comme `decimals` de\n`dsfr-data-kpi` : `decimals=\"2\"` rend 9,98 et 10,41 là où le rendu par\ndéfaut affiche deux fois « 10 » (#1230, AM-088 du banc). Seul, il vaut\n`format=\"nombre\"` ; avec `format`, il en fixe les décimales. Absent\n(défaut) : le rendu historique, arrondi à l'unité — qui est signalé en\nconsole quand il fait afficher le même texte à deux valeurs différentes\ndu classement.",
+              "attribute": "decimals"
+            },
+            {
+              "kind": "field",
+              "name": "subtitleFormat",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Format du sous-titre lu dans `subtitle-field`, même vocabulaire que\n`format` : `nombre` (5164 → « 5 164 »), `pourcentage`, `euro`,\n`decimal`, `compact`, et `date` (chaîne ISO → JJ/MM/AAAA). Absent\n(défaut), la valeur du champ est affichée telle quelle (#1230, AM-088 du\nbanc). Une valeur qui n'est pas un nombre reste affichée telle quelle.\nSans effet sur le texte fixe de `subtitle`.",
+              "attribute": "subtitle-format"
+            },
+            {
+              "kind": "field",
+              "name": "subtitleDecimals",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "Nombre de décimales du sous-titre formaté (entier 0 à 20). Seul, il vaut\n`subtitle-format=\"nombre\"`. Absent : le défaut du format.",
+              "attribute": "subtitle-decimals"
+            },
+            {
+              "kind": "field",
+              "name": "subtitleUnit",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Unité accolée après le sous-titre lu dans `subtitle-field` (espace\ninsécable) : `subtitle-format=\"nombre\" subtitle-unit=\"aides\"` rend\n« 5 164 aides ». S'applique aussi sans format. Sans effet sur le texte\nfixe de `subtitle`, ni sur un sous-titre vide.",
+              "attribute": "subtitle-unit"
+            },
+            {
+              "kind": "field",
               "name": "selectedPalette",
               "type": {
                 "text": "string"
@@ -16601,6 +16759,52 @@
               "default": "[]"
             },
             {
+              "kind": "field",
+              "name": "_formatConfigError",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Vrai quand l'erreur de configuration posée vient d'un format inconnu."
+            },
+            {
+              "kind": "method",
+              "name": "_checkFormatConfig",
+              "privacy": "private",
+              "description": "`format` / `subtitle-format` inconnus : signalés, jamais ignorés en\nsilence (le rendu retombe sur l'historique). `date` est refusé pour la\nvaleur : on ne classe pas des dates par longueur de barre."
+            },
+            {
+              "kind": "method",
+              "name": "_valueFormat",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Exclude<FormatType, 'date'> | null"
+                }
+              },
+              "description": "Format de la valeur : un FormatType numérique, ou `null` (absent ou refusé)."
+            },
+            {
+              "kind": "method",
+              "name": "_decimalsOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number | undefined"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "number | undefined"
+                  }
+                }
+              ],
+              "description": "`decimals` exploitable : entier de 0 à 20, sinon `undefined`."
+            },
+            {
               "kind": "method",
               "name": "onSourceReset",
               "return": {
@@ -16716,7 +16920,56 @@
                     "text": "number"
                   }
                 }
-              ]
+              ],
+              "description": "Texte de la valeur. Sans `format` ni `decimals` : le rendu historique,\nentier arrondi à l'unité. Avec l'un ou l'autre : la famille de formatage\ncommune (`formatValue`), celle de `dsfr-data-kpi`."
+            },
+            {
+              "kind": "method",
+              "name": "_formatSubtitle",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "unknown"
+                  }
+                }
+              ],
+              "description": "Texte du sous-titre lu dans `subtitle-field` (#1230, AM-088 du banc).\nSans `subtitle-format` ni `subtitle-decimals` : la valeur telle quelle,\ncomme avant. Une valeur vide reste vide (ni tiret, ni unité seule) ; une\nvaleur que le format ne sait pas lire reste affichée telle quelle."
+            },
+            {
+              "kind": "field",
+              "name": "_roundingWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Dernière collision d'arrondi signalée (un avertissement par situation)."
+            },
+            {
+              "kind": "method",
+              "name": "_warnRoundingCollision",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "items",
+                  "type": {
+                    "text": "PodiumItem[]"
+                  }
+                }
+              ],
+              "description": "L'arrondi à l'unité du rendu par défaut peut faire afficher LE MÊME texte\nà deux valeurs différentes du classement (9,98 et 10,41 → « 10 », #1230,\nAM-088 du banc) : deux rangs, un seul chiffre. Le défaut ne change pas —\nles pages existantes gardent leur rendu — mais on le dit, en nommant\nl'attribut qui le lève."
             },
             {
               "kind": "method",
@@ -16947,6 +17200,49 @@
               "default": "''",
               "description": "Unité affichée après la valeur",
               "fieldName": "valueUnit"
+            },
+            {
+              "name": "format",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Format d'affichage de la valeur, même vocabulaire que `dsfr-data-kpi` :\n`nombre`, `pourcentage`, `euro`, `decimal`, `compact` (14 785 684 →\n« 14,8 M »). Absent (défaut), le rendu historique est conservé : un entier\narrondi à l'unité, séparateurs de milliers fr-FR (#1230, AM-088 du banc).\n\nLes décimales passent par `decimals`, jamais par le format (`euro:2` est\nrefusé, comme sur le KPI). `pourcentage` et `euro` portent déjà leur\nsymbole : ne pas le répéter dans `value-unit`. `date` n'a pas de sens pour\nune valeur classée et est refusé. Un format inconnu est signalé\n(`data-dsfr-config-error`) et le rendu historique s'applique.",
+              "fieldName": "format"
+            },
+            {
+              "name": "decimals",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "Nombre de décimales de la valeur (entier 0 à 20), comme `decimals` de\n`dsfr-data-kpi` : `decimals=\"2\"` rend 9,98 et 10,41 là où le rendu par\ndéfaut affiche deux fois « 10 » (#1230, AM-088 du banc). Seul, il vaut\n`format=\"nombre\"` ; avec `format`, il en fixe les décimales. Absent\n(défaut) : le rendu historique, arrondi à l'unité — qui est signalé en\nconsole quand il fait afficher le même texte à deux valeurs différentes\ndu classement.",
+              "fieldName": "decimals"
+            },
+            {
+              "name": "subtitle-format",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Format du sous-titre lu dans `subtitle-field`, même vocabulaire que\n`format` : `nombre` (5164 → « 5 164 »), `pourcentage`, `euro`,\n`decimal`, `compact`, et `date` (chaîne ISO → JJ/MM/AAAA). Absent\n(défaut), la valeur du champ est affichée telle quelle (#1230, AM-088 du\nbanc). Une valeur qui n'est pas un nombre reste affichée telle quelle.\nSans effet sur le texte fixe de `subtitle`.",
+              "fieldName": "subtitleFormat"
+            },
+            {
+              "name": "subtitle-decimals",
+              "type": {
+                "text": "number | undefined"
+              },
+              "description": "Nombre de décimales du sous-titre formaté (entier 0 à 20). Seul, il vaut\n`subtitle-format=\"nombre\"`. Absent : le défaut du format.",
+              "fieldName": "subtitleDecimals"
+            },
+            {
+              "name": "subtitle-unit",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Unité accolée après le sous-titre lu dans `subtitle-field` (espace\ninsécable) : `subtitle-format=\"nombre\" subtitle-unit=\"aides\"` rend\n« 5 164 aides ». S'applique aussi sans format. Sans effet sur le texte\nfixe de `subtitle`, ni sur un sous-titre vide.",
+              "fieldName": "subtitleUnit"
             },
             {
               "name": "selected-palette",

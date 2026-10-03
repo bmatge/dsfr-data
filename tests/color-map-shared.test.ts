@@ -140,6 +140,92 @@ describe('applyColorMap — pose des couleurs sur une instance Chart.js', () => 
   });
 });
 
+describe('applyColorMap — les points suivent la série (BUG-033 du banc, #1230)', () => {
+  /** Jeu de données tel que DSFR Chart le pose sur une courbe : points à part du trait. */
+  const courbe = (couleur: string, survol: string): Record<string, unknown> => ({
+    data: [1, 2, 3],
+    borderColor: couleur,
+    backgroundColor: couleur,
+    hoverBorderColor: survol,
+    hoverBackgroundColor: survol,
+    pointBorderColor: couleur,
+    pointBackgroundColor: couleur,
+    pointHoverBorderColor: survol,
+    pointHoverBackgroundColor: survol,
+  });
+
+  it('pose la couleur sur les points et leurs variantes de survol', () => {
+    const datasets = [courbe('#5C68E5', '#787eff'), courbe('#82B5F2', '#9cceff')];
+    const chart: ColorableChart = { data: { labels: ['a', 'b', 'c'], datasets }, update: vi.fn() };
+
+    applyColorMap(chart, parseColorMap('Beta:#00aa00'), ['Alpha', 'Beta']);
+
+    expect(datasets[1]).toMatchObject({
+      borderColor: '#00aa00',
+      pointBackgroundColor: '#00aa00',
+      pointBorderColor: '#00aa00',
+      pointHoverBackgroundColor: '#00aa00',
+      pointHoverBorderColor: '#00aa00',
+    });
+    // La série non citée garde la palette, points compris.
+    expect(datasets[0].pointBackgroundColor).toBe('#5C68E5');
+    expect(datasets[0].pointHoverBorderColor).toBe('#787eff');
+  });
+
+  it('n’invente pas de couleurs de point sur un jeu qui n’en porte pas (barres)', () => {
+    const datasets: Record<string, unknown>[] = [{ backgroundColor: '#aaa' }];
+    applyColorMap({ data: { datasets }, update: vi.fn() }, parseColorMap('A:#111111'), ['A']);
+
+    expect(datasets[0]).not.toHaveProperty('pointBackgroundColor');
+    expect(datasets[0]).not.toHaveProperty('pointHoverBorderColor');
+  });
+
+  it('redessine par une transition de durée nulle, pas par update("none")', () => {
+    // update('none') laisse en place les options PARTAGÉES des points d'une
+    // courbe : le trait changeait de couleur, pas les points.
+    const update = vi.fn<(mode?: string) => void>();
+    const transitions: Record<string, unknown> = {};
+    const chart: ColorableChart = {
+      data: { datasets: [courbe('#5C68E5', '#787eff')] },
+      options: { transitions },
+      update,
+    };
+
+    applyColorMap(chart, parseColorMap('Alpha:#ff0000'), ['Alpha']);
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const mode = update.mock.calls[0][0];
+    expect(mode).not.toBe('none');
+    expect(transitions[mode as string]).toEqual({ animation: { duration: 0 } });
+  });
+
+  it('radar : le fond garde la transparence qu’il avait', () => {
+    const datasets: Record<string, unknown>[] = [
+      { ...courbe('#5C68E5', '#2846bc'), backgroundColor: '#5C68E54D' },
+      { ...courbe('#82B5F2', '#598fc9'), backgroundColor: '#82B5F24D' },
+    ];
+    applyColorMap(
+      { data: { datasets }, update: vi.fn() },
+      parseColorMap('Alpha:#ff0000,Beta:#0a0'),
+      ['Alpha', 'Beta']
+    );
+
+    expect(datasets[0].backgroundColor).toBe('#ff00004D');
+    expect(datasets[0].borderColor).toBe('#ff0000');
+    // Écriture courte #rgb : dépliée avant de recevoir l'alpha.
+    expect(datasets[1].backgroundColor).toBe('#00aa004D');
+  });
+
+  it('radar : une couleur nommée, sans alpha calculable, est posée telle quelle', () => {
+    const datasets: Record<string, unknown>[] = [
+      { ...courbe('#5C68E5', '#2846bc'), backgroundColor: '#5C68E54D' },
+    ];
+    applyColorMap({ data: { datasets }, update: vi.fn() }, parseColorMap('Alpha:red'), ['Alpha']);
+
+    expect(datasets[0].backgroundColor).toBe('red');
+  });
+});
+
 describe('dsfr-data-chart — color-map (AM-060)', () => {
   /** Graphique rendu factice : wrapper + custom element DSFR + canvas + légende. */
   function renderedChart(

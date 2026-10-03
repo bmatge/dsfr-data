@@ -1068,6 +1068,127 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'databox-tableau-format-long',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1230, BUG-035 du banc — au format long (`series-field`), le tableau de la DataBox doit PIVOTER comme le graphique : une ligne par libellé, une colonne par série. Rendu à plat, il alignait six lignes « mois, valeur » sans dire à quelle série chaque valeur appartient — deux « Janvier » indiscernables, et un tableau qui ne contient pas ce que montre le graphique à côté.',
+    feed: { kind: 'fixture', datasets: { main: LONG } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-box-long', 'long')}
+  <dsfr-data-chart id="g-box-long" source="s-box-long" type="line"
+    label-field="mois" value-field="valeur" series-field="groupe"
+    databox databox-title="Effectifs par groupe"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-box-long',
+        selector: '.fr-table tbody td:nth-child(1)',
+        column: 'mois',
+        pipeline: [{ op: 'pivot', row: 'mois', column: 'groupe', value: 'valeur' }],
+      },
+      {
+        kind: 'texts',
+        id: 'g-box-long',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'Cadres',
+        numeric: true,
+        pipeline: [{ op: 'pivot', row: 'mois', column: 'groupe', value: 'valeur' }],
+      },
+      {
+        kind: 'texts',
+        id: 'g-box-long',
+        selector: '.fr-table tbody td:nth-child(3)',
+        column: 'Agents',
+        numeric: true,
+        pipeline: [{ op: 'pivot', row: 'mois', column: 'groupe', value: 'valeur' }],
+      },
+    ],
+  },
+
+  // ------------------------------------------ Tableau équivalent (a11y) ----
+  {
+    id: 'a11y-tableau-libelles-en-tete',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1230, PG-032 du banc — `dsfr-data-a11y` accepte la grammaire `champ:Libellé` de `dsfr-data-chart` : la colonne lue est `champ`, le libellé va en en-tête du tableau et du CSV. Avant, l’entrée entière était cherchée comme nom de colonne : le tableau avait ses 48 lignes et AUCUNE valeur, sans un mot. Le contrôle relit donc les cellules (elles ne sont pas vides, et ce sont les bonnes), le fichier exporté (en-têtes = libellés) et exige le silence.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-a11y-libelles', 'communes')}
+  <dsfr-data-a11y id="a-libelles" source="s-a11y-libelles" table download
+    label-field="nom:Commune" value-field="budget:Budget en euros, taux:Taux"></dsfr-data-a11y>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'a-libelles',
+        selector: 'tbody td:nth-child(1)',
+        column: 'nom',
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-libelles',
+        selector: 'tbody td:nth-child(2)',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-libelles',
+        selector: 'tbody td:nth-child(3)',
+        column: 'taux',
+        numeric: true,
+        decimals: 2,
+        pipeline: [],
+      },
+      {
+        kind: 'csv',
+        id: 'a-libelles',
+        pipeline: [],
+        columns: [
+          { column: 'nom', label: 'Commune' },
+          { column: 'budget', label: 'Budget en euros' },
+          { column: 'taux', label: 'Taux' },
+        ],
+      },
+      { kind: 'diagnostic', id: 'a-libelles', expect: 'silence', contains: 'introuvable' },
+    ],
+  },
+
+  {
+    id: 'a11y-colonne-introuvable-dite',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1230, PG-032 du banc — une entrée de `value-field` qui ne désigne aucune colonne des données rend une colonne VIDE : le tableau a le bon nombre de lignes, et une recette qui compte des lignes passe. La bibliothèque doit le DIRE (la colonne cherchée, les colonnes disponibles), et la colonne voisine, elle, garde ses valeurs.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-a11y-introuvable', 'communes')}
+  <dsfr-data-a11y id="a-introuvable" source="s-a11y-introuvable" table
+    label-field="nom" value-field="population, effectif"></dsfr-data-a11y>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'a-introuvable',
+        selector: 'tbody td:nth-child(2)',
+        column: 'population',
+        numeric: true,
+        pipeline: [],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'a-introuvable',
+        expect: 'warning',
+        contains: 'colonne « effectif » introuvable',
+      },
+    ],
+  },
+
+  {
     id: 'carte-resume-non-pondere-763',
     mode: 'deterministic',
     origin:
@@ -1951,6 +2072,49 @@ const CHECKS: Check[] = [
         numeric: true,
         pipeline: [{ op: 'limit', n: 4 }],
       },
+    ],
+  },
+
+  {
+    id: 'podium-decimales-et-sous-titre',
+    mode: 'deterministic',
+    constats: ['AM-088'],
+    origin:
+      '#1230, AM-088 du banc — le podium arrondissait sa valeur à l’unité (9,98 et 10,41 affichés « 10 ») et rendait `subtitle-field` brut (« 5164 »). `decimals` fixe les décimales de la valeur, `subtitle-format` et `subtitle-unit` mettent le sous-titre au format fr-FR avec son unité. Le budget porte des centimes (,25 et ,75) : un arrondi à l’unité qui subsisterait se voit sur chaque ligne.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-podium-format', 'communes')}
+  <dsfr-data-podium id="p-format" source="s-podium-format"
+    label-field="nom" value-field="budget" decimals="2" max-items="5"
+    subtitle-field="population" subtitle-format="nombre" subtitle-unit="hab."></dsfr-data-podium>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'p-format',
+        selector: '.dsfr-data-podium__value',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pattern: decimales(2),
+        pipeline: [
+          { op: 'order-by', column: 'budget', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      {
+        kind: 'texts',
+        id: 'p-format',
+        selector: '.dsfr-data-podium__subtitle',
+        column: 'population',
+        numeric: true,
+        pattern: `^\\d{1,3}(?:${ESP}\\d{3})*${ESP}hab\\.$`,
+        pipeline: [
+          { op: 'order-by', column: 'budget', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      // Avec des décimales écrites, plus aucune collision d'arrondi à signaler.
+      { kind: 'diagnostic', id: 'p-format', expect: 'silence' },
     ],
   },
 

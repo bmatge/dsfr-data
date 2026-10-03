@@ -18,6 +18,11 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 | subtitle | String | `""` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | `""` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
 | value-unit | String | `""` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| format | String | `""` | non | Format de la valeur, vocabulaire du KPI : nombre, pourcentage, euro, decimal, compact. Absent : entier arrondi à l'unité (rendu historique) |
+| decimals | Number | - | non | Décimales de la valeur (0 à 20). Seul, vaut format="nombre" : `decimals="2"` distingue 9,98 de 10,41 |
+| subtitle-format | String | `""` | non | Format du sous-titre lu dans subtitle-field : nombre, pourcentage, euro, decimal, compact, date. Absent : valeur brute |
+| subtitle-decimals | Number | - | non | Décimales du sous-titre formaté. Seul, vaut subtitle-format="nombre" |
+| subtitle-unit | String | `""` | non | Unité accolée au sous-titre lu dans subtitle-field (ex: "aides") |
 | selected-palette | String | `"sequentialDescending"` | non | Palette de couleurs : sequentialDescending, sequentialAscending, categorical, neutral |
 | max-items | Number | `5` | non | Nombre maximum d'items affiches |
 | no-sort | Boolean | `false` | non | Desactive le tri automatique (desc par valeur) |
@@ -28,6 +33,11 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 - **Barres proportionnelles** : largeur relative au max des valeurs (ou `bar-max` si défini)
 - **Couleurs** : chaque item recoit une couleur de la palette choisie (bordure gauche + barre)
 - **Accessibilité** : `<ol>` semantique avec aria-label descriptif du classement complet
+- **Format** : par défaut la valeur est un entier arrondi à l'unité — deux taux proches (9,98 et 10,41)
+  s'affichent alors tous deux « 10 », ce que le composant signale en console. Poser `decimals` (ou
+  `format`) dès que les valeurs ne sont pas des entiers. Le sous-titre lu dans `subtitle-field` est
+  brut par défaut : `subtitle-format="nombre" subtitle-unit="aides"` rend « 5 164 aides ».
+  Les décimales ne passent jamais par le format (`euro:2` est refusé) : même règle que le KPI.
 
 ### Exemples
 ```html
@@ -66,6 +76,14 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
   max-items="3">
 </dsfr-data-podium>
 
+<!-- Taux proches : décimales sur la valeur, sous-titre chiffré avec son unité -->
+<dsfr-data-podium source="data"
+  label-field="departement"
+  value-field="taux" decimals="2" value-unit="%"
+  subtitle-field="nb" subtitle-format="nombre" subtitle-unit="aides"
+  max-items="3">
+</dsfr-data-podium>
+
 <!-- Podium sans tri (ordre de la source) -->
 <dsfr-data-podium source="data"
   label-field="etape"
@@ -88,6 +106,8 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 | `bar-max` | `number \| undefined` | — | Valeur max forcee pour le calcul des barres (ex: 100 pour des %) |
 | `bar-position` | `string` | `'inline'` | Où la barre se place : `inline` (6 px sous le libellé, défaut), `between` (16 px entre un libellé de 130 px et la valeur, façon graphique en barres horizontal), `top` ou `bottom` (trait de 4 px en haut ou en bas de l'item, façon liseré mais proportionnel). Indépendant de `bar` et de `border`. |
 | `border` | `string` | `'left'` | Liseré gauche purement décoratif, à la couleur de l'item : `left` (défaut) ou `none`. Indépendant de `bar` et de `bar-position` — la barre porte la donnée, le liseré ne porte que la couleur. |
+| `decimals` | `number \| undefined` | — | Nombre de décimales de la valeur (entier 0 à 20), comme `decimals` de `dsfr-data-kpi` : `decimals="2"` rend 9,98 et 10,41 là où le rendu par défaut affiche deux fois « 10 » (#1230, AM-088 du banc). Seul, il vaut `format="nombre"` ; avec `format`, il en fixe les décimales. Absent (défaut) : le rendu historique, arrondi à l'unité — qui est signalé en console quand il fait afficher le même texte à deux valeurs différentes du classement. |
+| `format` | `string` | `""` (vide) | Format d'affichage de la valeur, même vocabulaire que `dsfr-data-kpi` : `nombre`, `pourcentage`, `euro`, `decimal`, `compact` (14 785 684 → « 14,8 M »). Absent (défaut), le rendu historique est conservé : un entier arrondi à l'unité, séparateurs de milliers fr-FR (#1230, AM-088 du banc). Les décimales passent par `decimals`, jamais par le format (`euro:2` est refusé, comme sur le KPI). `pourcentage` et `euro` portent déjà leur symbole : ne pas le répéter dans `value-unit`. `date` n'a pas de sens pour une valeur classée et est refusé. Un format inconnu est signalé (`data-dsfr-config-error`) et le rendu historique s'applique. |
 | `icon` | `string` | `""` (vide) | Même classe d'icône pour tous les items. Même liste blanche qu'`icon-field`. |
 | `icon-field` | `string` | `""` (vide) | Chemin vers un champ contenant une classe d'icône DSFR ou Remix (`fr-icon-building-line`, `ri-map-pin-line`), rendue 40 px en Bleu France. Liste blanche stricte `^(fr-icon\|ri)-[a-z0-9-]+$` : ce qui vient de la donnée ne pose qu'une classe CSS, jamais du balisage. Une valeur hors motif est ignorée avec un avertissement nommant le champ et la valeur (dédupliqué : une fois par valeur refusée). ⚠️ 40 px sort de l'échelle documentée du DSFR, qui s'arrête à `fr-icon--lg` = 32 px ; au-delà le DSFR parle de pictogramme. Le rendu marche (le masque d'une `fr-icon-*` est en `1em`, donc pilotable par `font-size`), mais c'est un usage hors échelle : `picto` est la voie conforme pour une illustration de cette taille. |
 | `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
@@ -107,7 +127,10 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 | `source` | `string` | `""` (vide) | Id de la source (ou du transformateur) dont ce composant consomme les données. |
 | `square` | `boolean` | `false` | Supprime les arrondis (0 px), conforme DSFR strict. **C'est le rendu par défaut depuis la 0.34** : l'attribut n'existe que pour l'écrire explicitement. L'échappatoire est `rounded`, qui rétablit les anciens arrondis (4 px sur l'item, 3 px sur la barre) ; si les deux sont posés, `square` l'emporte. |
 | `subtitle` | `string` | `""` (vide) | Texte fixe affiché sous chaque label |
+| `subtitle-decimals` | `number \| undefined` | — | Nombre de décimales du sous-titre formaté (entier 0 à 20). Seul, il vaut `subtitle-format="nombre"`. Absent : le défaut du format. |
 | `subtitle-field` | `string` | `""` (vide) | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
+| `subtitle-format` | `string` | `""` (vide) | Format du sous-titre lu dans `subtitle-field`, même vocabulaire que `format` : `nombre` (5164 → « 5 164 »), `pourcentage`, `euro`, `decimal`, `compact`, et `date` (chaîne ISO → JJ/MM/AAAA). Absent (défaut), la valeur du champ est affichée telle quelle (#1230, AM-088 du banc). Une valeur qui n'est pas un nombre reste affichée telle quelle. Sans effet sur le texte fixe de `subtitle`. |
+| `subtitle-unit` | `string` | `""` (vide) | Unité accolée après le sous-titre lu dans `subtitle-field` (espace insécable) : `subtitle-format="nombre" subtitle-unit="aides"` rend « 5 164 aides ». S'applique aussi sans format. Sans effet sur le texte fixe de `subtitle`, ni sur un sous-titre vide. |
 | `value-field` | `string` | `""` (vide) | Chemin vers le champ valeur (numérique) |
 | `value-unit` | `string` | `""` (vide) | Unité affichée après la valeur |
 
