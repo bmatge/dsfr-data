@@ -663,13 +663,27 @@ export function unpivotRows(rows: Row[], options: OptionsUnpivot): Row[] {
  * tableau vide, n'en produit aucune — c'est ce qu'une facette fait d'un
  * champ tableau (BUG-006), et ce qu'un regroupement client ne fait PAS (il
  * compte les combinaisons).
+ *
+ * `distinct` : un élément RÉPÉTÉ dans la cellule ne donne qu'une ligne. Une
+ * facette compte des lignes — une ligne, une fois par valeur distincte
+ * (BUG-037) ; l'attribut `explode` d'une query compte des éléments, et se
+ * recalcule sans l'option. La comparaison porte sur la forme texte, comme
+ * les modalités d'une facette.
  */
-export function explodeRows(rows: Row[], field: string): Row[] {
+export function explodeRows(rows: Row[], field: string, distinct = false): Row[] {
   const out: Row[] = [];
   for (const r of rows) {
     const v = r[field];
     if (!Array.isArray(v)) continue;
-    for (const valeur of v) out.push({ ...r, [field]: valeur });
+    const vues = new Set<string>();
+    for (const valeur of v) {
+      if (distinct) {
+        const forme = String(valeur);
+        if (vues.has(forme)) continue;
+        vues.add(forme);
+      }
+      out.push({ ...r, [field]: valeur });
+    }
   }
   return out;
 }
@@ -832,7 +846,7 @@ export function runPipeline(
         rows = deriver(rows, step.expr);
         break;
       case 'explode':
-        rows = explodeRows(rows, step.field);
+        rows = explodeRows(rows, step.field, step.distinct === true);
         break;
       case 'pivot':
         rows = pivotRows(rows, step);

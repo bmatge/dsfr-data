@@ -397,6 +397,12 @@ Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vi
 ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
 modalité vide.
 
+Le compte est par ÉLÉMENT : une cellule qui répète un élément (\`["Patrimoine", "Patrimoine"]\`)
+produit deux lignes, donc \`count\` 2 pour une seule ligne d'origine. C'est le seul écart avec
+la facette du même champ, dont le compteur annonce des LIGNES (une ligne compte une fois par
+valeur distincte). Sur un champ où le doublon est possible, \`count\` ne se lit pas « nombre de
+lignes portant la valeur » : compter les identifiants distincts (\`aggregate="id:distinct"\`).
+
 Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
 champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
 et l'éclatement force le regroupement **côté client** : aucune API ne sait éclater un champ

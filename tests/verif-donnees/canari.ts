@@ -745,6 +745,58 @@ const CHECKS: Check[] = [
       },
     ],
   },
+
+  // -------------------------------------------------------------------------
+  // l'élément répété dans une cellule tableau
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-facette-element-repete',
+    mode: 'deterministic',
+    constats: ['BUG-037'],
+    origin:
+      'Canari — BUG-037, #1227 : `domaines` répète un élément dans la cellule (`["Patrimoine","Patrimoine"]`, tableaux recollés de PG-073). Le compteur d’une facette annonce des LIGNES : une ligne compte une fois par valeur distincte — Patrimoine 4, Musée 3, Archives 2, Spectacle vivant 1 — et cocher « Patrimoine » rend bien quatre lignes. Compté par élément, la facette annonçait 5, 5, 2 et 3, dans un autre ordre, pour une sélection qui en rendait 4. `explode` de `dsfr-data-query` garde, lui, son compte par ÉLÉMENT (arbitrage du 2026-10-03) : Patrimoine 5 sur le même champ, et c’est écrit dans son JSDoc. Les deux chiffres sont tenus ici côte à côte, pour qu’aucun des deux ne glisse vers l’autre.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+  <dsfr-data-facets id="f-dom" source="s-fac" fields="domaines" labels="domaines:Domaines"></dsfr-data-facets>
+  ${kpi('k-dom', 'f-dom', 'count')}
+  <dsfr-data-query id="q-dom" source="s-fac" explode="domaines" group-by="domaines"
+    aggregate="id:count:nb"></dsfr-data-query>`,
+    actions: [{ kind: 'click', selector: '#f-dom label:has-text("Patrimoine")' }],
+    expects: [
+      {
+        kind: 'facets',
+        id: 'f-dom',
+        group: 'Domaines',
+        valueColumn: 'domaines',
+        countColumn: 'n',
+        pipeline: [
+          { op: 'explode', field: 'domaines', distinct: true },
+          { op: 'group-by', by: 'domaines', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+        ],
+      },
+      // Le compteur est une promesse : cocher rend ce nombre de lignes.
+      {
+        kind: 'kpi',
+        id: 'k-dom',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'domaines', op: 'eq', value: 'Patrimoine' }] },
+        ],
+      },
+      // L'éclatement d'une query compte les ÉLÉMENTS : pas de `distinct`.
+      {
+        kind: 'rows',
+        id: 'q-dom',
+        key: 'domaines',
+        columns: ['nb'],
+        pipeline: [
+          { op: 'explode', field: 'domaines' },
+          { op: 'group-by', by: 'domaines', columns: { nb: { agg: 'count', field: 'id' } } },
+        ],
+      },
+    ],
+  },
 ];
 
 export const CANARI: Manifest = { domain: 'canari', checks: CHECKS };

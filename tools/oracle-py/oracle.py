@@ -668,6 +668,23 @@ def concat_rows(datasets: dict[str, list[Row]], sources: list[str], origin_field
     return out
 
 
+def eclater(rows: list[Row], champ: str, distinct: bool) -> list[Row]:
+    out: list[Row] = []
+    for r in rows:
+        cellule = r.get(champ)
+        if not isinstance(cellule, list):
+            continue
+        vues: set[str] = set()
+        for valeur in cellule:
+            if distinct:
+                forme = str_js(valeur)
+                if forme in vues:
+                    continue
+                vues.add(forme)
+            out.append({**r, champ: valeur})
+    return out
+
+
 def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart: str = "main") -> list[Row]:
     rows = list(datasets.get(depart, []))
     for s in steps:
@@ -704,7 +721,9 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = concat_rows(datasets, s["sources"], s.get("originField"), s.get("originLabels") or {})
         elif op == "explode":
             # Une ligne par valeur du tableau ; rien pour une ligne sans tableau.
-            rows = [{**r, s["field"]: valeur} for r in rows if isinstance(r.get(s["field"]), list) for valeur in r[s["field"]]]
+            # `distinct` : une seule ligne par valeur DISTINCTE de la cellule —
+            # le compte d'une facette, qui annonce des lignes (BUG-037).
+            rows = eclater(rows, s["field"], s.get("distinct") is True)
         elif op == "derive":
             raise NonCouvert(RAISONS["derive"])
         else:
