@@ -1,5 +1,17 @@
 # dsfr-data
 
+## 0.43.1
+
+### Patch Changes
+
+- [#1212](https://github.com/bmatge/dsfr-data/pull/1212) [`17d2fc4`](https://github.com/bmatge/dsfr-data/commit/17d2fc43d6b051598cdf3e76558424faf4934d3e) Thanks [@bmatge](https://github.com/bmatge)! - Assistant contextuel (`mountAssistant`, apps de travail) : les suggestions de l'état vide sont relues à l'ouverture du panneau et avec les constats, au lieu d'être figées au montage — une source chargée après coup laissait « Choisir la source » à l'écran ([#1177](https://github.com/bmatge/dsfr-data/issues/1177)). Nouvelle méthode `rafraichirSuggestions()` sur l'assistant monté.
+
+- [#1213](https://github.com/bmatge/dsfr-data/pull/1213) [`403184a`](https://github.com/bmatge/dsfr-data/commit/403184a29f1455e6940e9bfd0d14f1ddd0dc6307) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-chart` :
+  
+  - Camembert : un `name` en chaîne simple est un nom de série, pas celui d'une part. Enveloppé en `["Bénéficiaires"]`, il ne nommait que la première part et DSFR Chart complétait la légende en « Série 2 … Série 18 ». La légende porte désormais les libellés des parts ; seul un tableau JSON écrit à la main (une entrée par part) est conservé ([#1174](https://github.com/bmatge/dsfr-data/issues/1174)).
+  - Tableau du cadre officiel (`databox`) : l'en-tête d'une colonne de valeur est ce que la légende affiche — l'alias inline `champ:Libellé` s'il est écrit, sinon le nom de série de `name`, sinon le chemin — et chaque champ de valeur (`value-field-2`, `value-fields`) a sa colonne. Le tableau disait `nombre_beneficiaires__sum` quand la légende disait « Bénéficiaires » ([#1179](https://github.com/bmatge/dsfr-data/issues/1179)).
+  - `databox-fullscreen` : la description dit ce que fait DSFR Chart 2.1.1 — le bouton n'apparaît qu'avec `databox-modal-title`, et il ouvre cette modale ; le graphique n'est pas agrandi.
+
 ## 0.43.0
 
 ### Minor Changes
