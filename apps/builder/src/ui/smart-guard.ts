@@ -9,11 +9,16 @@
  *    « Générer » et l'affiche dans la barre d'action (« Modifications non
  *    générées » / « Graphique à jour »).
  *
- * Les cardinalités sont calculées sur l'échantillon chargé (state.data).
+ * La cardinalité du champ d'étiquettes est celle du JEU quand on peut la
+ * connaître (#1172) : l'échantillon chargé s'il est complet, sinon une requête
+ * de regroupement à l'API (`real-cardinality.ts`). À défaut — fournisseur sans
+ * regroupement serveur, requête en attente ou en échec — elle retombe sur
+ * l'échantillon, et le bandeau le DIT.
  */
 
 import { state } from '../state.js';
 import { selectChartType } from './chart-type-selector.js';
+import { lookupRealCardinality } from './real-cardinality.js';
 
 /** Seuil au-delà duquel l'axe X est considéré illisible. */
 const CARDINALITY_THRESHOLD = 50;
@@ -51,6 +56,62 @@ export function fieldCardinality(fieldName: string): number {
   return uniques.size;
 }
 
+/** D'où vient une cardinalité affichée. */
+export type CardinalityOrigin =
+  /** L'échantillon chargé est le jeu entier : le compte est exact. */
+  | 'complet'
+  /** Compte demandé à l'API (regroupement serveur). */
+  | 'reel'
+  /** Compte fait sur un échantillon partiel : un minimum, à annoncer comme tel. */
+  | 'echantillon';
+
+export interface LabelCardinality {
+  /** Nombre de valeurs distinctes non vides. */
+  n: number;
+  /** `n` est un minimum (plafond de la requête atteint, ou échantillon partiel). */
+  atLeast: boolean;
+  origin: CardinalityOrigin;
+  /** Lignes de l'échantillon chargé. */
+  sampleRows: number;
+  /** Nombre de groupes rendus par l'API, valeur vide comprise (`reel` seulement). */
+  groups?: number;
+}
+
+/** L'échantillon chargé couvre-t-il tout le jeu annoncé par la source ? */
+export function isSampleComplete(): boolean {
+  const total = state.savedSource?.recordCount;
+  return !(typeof total === 'number' && total > rowsOfCurrentSource().length);
+}
+
+/**
+ * Cardinalité du champ pour le jeu, avec sa provenance (#1172). Peut lancer la
+ * requête de regroupement (une seule par source et par champ) : l'évènement
+ * `builder:cardinality-updated` signale l'arrivée de la réponse.
+ */
+export function labelCardinality(fieldName: string): LabelCardinality {
+  const sampleRows = rowsOfCurrentSource().length;
+  const sampleN = fieldCardinality(fieldName);
+  if (isSampleComplete()) {
+    return { n: sampleN, atLeast: false, origin: 'complet', sampleRows };
+  }
+  const real = lookupRealCardinality(state.savedSource, fieldName);
+  if (real.status === 'ok') {
+    return {
+      n: real.distinct,
+      atLeast: real.capped,
+      origin: 'reel',
+      sampleRows,
+      groups: real.groups,
+    };
+  }
+  return { n: sampleN, atLeast: true, origin: 'echantillon', sampleRows };
+}
+
+/** Mention de repli, quand un compte ne porte que sur l'échantillon chargé. */
+export function sampleMention(sampleRows: number): string {
+  return `calculé sur un échantillon de ${sampleRows.toLocaleString('fr-FR')} ligne${sampleRows > 1 ? 's' : ''}`;
+}
+
 /** Meilleur champ catégoriel de remplacement (2..30 valeurs, le plus petit). */
 function bestCategoricalField(excluding: string): string | null {
   let best: { name: string; n: number } | null = null;
@@ -80,16 +141,23 @@ export function updateCardinalityGuard(): void {
     return;
   }
 
-  const n = fieldCardinality(state.labelField);
+  const card = labelCardinality(state.labelField);
+  const n = card.n;
   // Regroupement personnalisé actif : l'utilisateur pilote déjà l'axe.
   if (n <= CARDINALITY_THRESHOLD || state.queryGroupBy) {
     guard.hidden = true;
     return;
   }
 
-  const total =
-    state.savedSource?.recordCount && state.savedSource.recordCount > rows.length ? '+' : '';
-  textEl.innerHTML = `<strong>${n.toLocaleString('fr-FR')}${total} catégories détectées</strong> sur « ${state.labelField} » — l'axe sera illisible. Suggestions :`;
+  const count = `${card.atLeast ? 'Au moins ' : ''}${n.toLocaleString('fr-FR')} catégories détectées`;
+  const mention = card.origin === 'echantillon' ? ` (${sampleMention(card.sampleRows)})` : '';
+  textEl.textContent = '';
+  const strong = document.createElement('strong');
+  strong.textContent = count;
+  textEl.append(
+    strong,
+    ` sur « ${state.labelField} »${mention} — l'axe sera illisible. Suggestions :`
+  );
 
   actionsEl.innerHTML = '';
   const alt = bestCategoricalField(state.labelField);

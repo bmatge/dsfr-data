@@ -48,6 +48,7 @@ import { addExtraSeries } from './ui/extra-series.js';
 import { setupFormesListeners } from './ui/formes.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
+import { CARDINALITY_EVENT } from './ui/real-cardinality.js';
 import { startTourIfFirstVisit, injectTourStyles, resetTour, startTour } from '@dsfr-data/shared';
 import { BUILDER_TOUR } from './ui/tour.js';
 import { initFilterBuilder, refreshFilterBuilder } from './ui/filter-builder.js';
@@ -99,6 +100,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Une source chargée change les suggestions de l'état vide (#1177) : le
   // panneau, s'il est déjà ouvert, les relit sans attendre une génération.
   document.addEventListener('builder:fields-updated', () => assistant?.rafraichirSuggestions());
+  // Cardinalité réelle reçue de l'API (#1172) : le garde-fou et le badge
+  // « déjà groupées » se recalculent sur le chiffre du jeu.
+  document.addEventListener(CARDINALITY_EVENT, () => {
+    updateCardinalityGuard();
+    updateAggregationBadge();
+  });
   await initAuth();
 
   // Tabs
