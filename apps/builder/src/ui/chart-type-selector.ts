@@ -3,7 +3,15 @@
  * Updates state.chartType and toggles visibility of type-specific config options.
  */
 
-import { state, supportsMultiSeries, isMapType, type ChartType } from '../state.js';
+import {
+  state,
+  supportsMultiSeries,
+  isMapType,
+  SERIES_FIELD_TYPES,
+  STACKED_TYPES,
+  type ChartType,
+} from '../state.js';
+import { syncSeriesExclusivity } from './formes.js';
 import { REFERENTIELS } from '../geo-codes.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
@@ -128,6 +136,15 @@ export function selectChartType(type: ChartType): void {
     const container = document.getElementById('extra-series-container');
     if (container) container.innerHTML = '';
   }
+
+  // Format long et empilement (#1204) : selon ce que le type sait lire. Le
+  // groupe « Ajouter une série » s'efface quand un champ de séries est choisi.
+  const seriesFieldGroup = document.getElementById('series-field-group') as HTMLElement | null;
+  if (seriesFieldGroup)
+    seriesFieldGroup.style.display = SERIES_FIELD_TYPES.includes(type) ? 'block' : 'none';
+  const stackedGroup = document.getElementById('stacked-group') as HTMLElement | null;
+  if (stackedGroup) stackedGroup.style.display = STACKED_TYPES.includes(type) ? 'block' : 'none';
+  syncSeriesExclusivity();
 
   // Barres + ligne : la seconde mesure et son libellé (#1204)
   const lineFieldGroup = document.getElementById('line-field-group') as HTMLElement | null;

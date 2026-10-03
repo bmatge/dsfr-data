@@ -34,6 +34,8 @@ import {
 import {
   state,
   tracedExtraSeries,
+  activeSeriesField,
+  stackedActive,
   isMapType,
   LIB_RENDERED_TYPES,
   PODIUM_PLACES_DEFAUT,
@@ -237,6 +239,7 @@ function dsfrChartAttrs(): string {
   if (state.chartType === 'doughnut') {
     /* no fill = donut */
   }
+  if (stackedActive(state)) extra.push('stacked');
   return extra.map((a) => `\n    ${a}`).join('');
 }
 
@@ -271,6 +274,29 @@ function aliased(path: string, label: string): string {
   return `${path}:${l}`;
 }
 
+/**
+ * Regroupement d'une requête en format long (#1204) : le champ de séries
+ * s'ajoute au regroupement, sauf s'il y figure déjà (requête avancée).
+ */
+function withSeriesGroup(groupBy: string, seriesFieldPath: string): string {
+  if (!seriesFieldPath || !groupBy) return groupBy;
+  const fields = groupBy.split(',').map((f) => f.trim());
+  return fields.includes(seriesFieldPath) ? groupBy : `${groupBy}, ${seriesFieldPath}`;
+}
+
+/**
+ * Chemin du champ de séries dans les lignes de la source, ou chaîne vide hors
+ * format long. `prefix` : préfixe des champs quand la source ne décrit pas de
+ * chemin (`fields.` pour une table Grist non aplatie).
+ */
+function seriesPath(prefix: string = ''): string {
+  const name = activeSeriesField(state);
+  if (!name) return '';
+  const info = state.fields.find((f) => f.name === name);
+  if (state.normalizeConfig.enabled && state.normalizeConfig.flatten) return name;
+  return info?.fullPath || `${prefix}${name}`;
+}
+
 /** Colonnes lues par le composant d'affichage, telles que produites en amont. */
 interface VisualSpec {
   source: string;
@@ -278,6 +304,8 @@ interface VisualSpec {
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  /** Colonne qui nomme la série de chaque ligne (format long), ou chaîne vide. */
+  seriesField: string;
   /** Attribut `code-field` déjà mis en forme (cartes), ou chaîne vide. */
   codeFieldAttr: string;
 }
@@ -314,6 +342,10 @@ function visualElement(v: VisualSpec): string {
       extraFieldsAttr = `\n    value-field-2="${fromForm ? aliased(second, state.lineFieldLabel) : second}"`;
     }
     nameAttr = `name='${jsonAttr(seriesNames().slice(0, 2))}'`;
+  } else if (v.seriesField) {
+    // Format long : les séries et leurs noms viennent des valeurs du champ ;
+    // la bibliothèque ignore `name` dans ce mode.
+    nameAttr = `series-field="${escapeHtml(v.seriesField)}"`;
   } else if (v.extraValueFields.length > 0) {
     extraFieldsAttr = `\n    value-fields="${v.extraValueFields.join(',')}"`;
     // Build séries names from labels
@@ -866,8 +898,10 @@ export async function generateChart(): Promise<void> {
     // FORMULAIRE, pas celle du code exporté. Même regroupement et mêmes
     // agrégats que l'export, sous les noms que lit l'aperçu (value, value2…).
     const advanced = advancedAggregates();
-    const groupBy =
-      state.advancedMode && state.queryGroupBy ? state.queryGroupBy : state.labelField;
+    const groupBy = withSeriesGroup(
+      state.advancedMode && state.queryGroupBy ? state.queryGroupBy : state.labelField,
+      activeSeriesField(state)
+    );
     const aggSelect =
       advanced.length > 0
         ? advanced.map((a, i) => `${a.func}(${a.field}) as value${i === 0 ? '' : i + 1}`).join(', ')
@@ -963,6 +997,9 @@ export function generateChartFromLocalData(): void {
   const isMap = isMapType(state.chartType);
   const groupField = isMap ? state.codeField : state.labelField;
   const activeExtraSeries = tracedExtraSeries(state);
+  // Format long (#1204) : un groupe par étiquette ET par série.
+  const seriesField = activeSeriesField(state);
+  const groupParts: Record<string, { label: string; serie: string }> = {};
 
   // Apply advanced mode filter to local data
   let filteredLocal = state.localData || [];
@@ -977,7 +1014,10 @@ export function generateChartFromLocalData(): void {
       if (isMap && (rawGroupKey === null || rawGroupKey === undefined || rawGroupKey === '')) {
         return; // Skip this record
       }
-      const groupKey = String(rawGroupKey || 'N/A');
+      const groupLabel = String(rawGroupKey || 'N/A');
+      const serie = seriesField ? String(record[seriesField] ?? 'N/A') : '';
+      const groupKey = seriesField ? JSON.stringify([groupLabel, serie]) : groupLabel;
+      groupParts[groupKey] = { label: groupLabel, serie };
       const value = toNumber(record[state.valueField]);
 
       if (!aggregated[groupKey]) {
@@ -1020,7 +1060,8 @@ export function generateChartFromLocalData(): void {
     if (isMap) {
       result[state.codeField] = groupKey;
     } else {
-      result[state.labelField] = groupKey;
+      result[state.labelField] = groupParts[groupKey].label;
+      if (seriesField) result[seriesField] = groupParts[groupKey].serie;
     }
 
     // Extra séries
@@ -1073,7 +1114,8 @@ export function generateChartFromLocalData(): void {
 
 /** Le type courant passe-t-il par la bibliothèque même en données intégrées ? (#1204) */
 export function usesLibEmbedded(): boolean {
-  return LIB_RENDERED_TYPES.includes(state.chartType);
+  // Format long : c'est la bibliothèque qui pivote les lignes en séries.
+  return LIB_RENDERED_TYPES.includes(state.chartType) || !!activeSeriesField(state);
 }
 
 /**
@@ -1123,6 +1165,7 @@ ${visualElement({
   valueField: 'value',
   valueField2: '',
   extraValueFields: traced.map((_, i) => `value${i + 2}`),
+  seriesField: activeSeriesField(state),
   codeFieldAttr: isMap ? `\n    code-field="${escapeHtml(state.codeField)}"` : '',
 }).replace(/^\n/, '')}
 </div>`;
@@ -1350,6 +1393,7 @@ datalist.onSourceData(data);
   const extraAttrs: string[] = [];
   if (state.chartType === 'horizontalBar') extraAttrs.push('horizontal');
   if (state.chartType === 'pie') extraAttrs.push('fill');
+  if (stackedActive(state)) extraAttrs.push('stacked');
   const extraStr = extraAttrs.map((a) => `\n    ${a}`).join('');
 
   const code = `<!-- Graphique généré avec dsfr-data Builder -->
@@ -1387,7 +1431,8 @@ datalist.onSourceData(data);
 export function generateOdsQueryCode(
   odsInfo: { baseUrl: string; datasetId: string },
   labelFieldPath: string,
-  valueFieldPath: string
+  valueFieldPath: string,
+  seriesFieldPath: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1395,6 +1440,7 @@ export function generateOdsQueryCode(
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  seriesField: string;
 } {
   // --- dsfr-data-source attributes (fetch + server-side processing) ---
   const srcAttrs: string[] = [];
@@ -1405,15 +1451,16 @@ export function generateOdsQueryCode(
   // Group by
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
-  if (groupByField) {
-    srcAttrs.push(`group-by="${groupByField}"`);
+  const groupByAll = withSeriesGroup(groupByField, seriesFieldPath);
+  if (groupByAll) {
+    srcAttrs.push(`group-by="${groupByAll}"`);
   }
 
   // Build ODSQL select clause with aggregation
   let resultValueField: string;
   let resultValueField2 = '';
   const selectParts: string[] = [];
-  if (groupByField) selectParts.push(groupByField);
+  if (groupByAll) selectParts.push(groupByAll);
 
   const activeExtraSeries = tracedExtraSeries(state);
   const extraValueFields: string[] = [];
@@ -1478,6 +1525,7 @@ export function generateOdsQueryCode(
     valueField: resultValueField,
     valueField2: resultValueField2,
     extraValueFields,
+    seriesField: seriesFieldPath,
   };
 }
 
@@ -1488,7 +1536,8 @@ export function generateOdsQueryCode(
 export function generateTabularQueryCode(
   tabularInfo: { baseUrl: string; resourceId: string },
   labelFieldPath: string,
-  valueFieldPath: string
+  valueFieldPath: string,
+  seriesFieldPath: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1496,6 +1545,7 @@ export function generateTabularQueryCode(
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  seriesField: string;
 } {
   // --- dsfr-data-source attributes (fetch + auto-pagination) ---
   const srcAttrs: string[] = [];
@@ -1511,7 +1561,7 @@ export function generateTabularQueryCode(
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
-    qAttrs.push(`group-by="${groupByField}"`);
+    qAttrs.push(`group-by="${withSeriesGroup(groupByField, seriesFieldPath)}"`);
   }
 
   // Aggregation (colon syntax for client-side processing)
@@ -1573,6 +1623,7 @@ export function generateTabularQueryCode(
     valueField: resultValueField,
     valueField2: resultValueField2,
     extraValueFields,
+    seriesField: seriesFieldPath,
   };
 }
 
@@ -1584,7 +1635,8 @@ export function generateTabularQueryCode(
 export function generateDsfrDataQueryCode(
   sourceId: string,
   labelFieldPath: string,
-  valueFieldPath: string
+  valueFieldPath: string,
+  seriesFieldPath: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1592,6 +1644,7 @@ export function generateDsfrDataQueryCode(
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  seriesField: string;
 } {
   const attrs: string[] = [];
   attrs.push(`source="${sourceId}"`);
@@ -1600,7 +1653,7 @@ export function generateDsfrDataQueryCode(
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
-    attrs.push(`group-by="${groupByField}"`);
+    attrs.push(`group-by="${withSeriesGroup(groupByField, seriesFieldPath)}"`);
   }
 
   // Filters (advanced mode only)
@@ -1664,6 +1717,7 @@ export function generateDsfrDataQueryCode(
     valueField: resultValueField,
     valueField2: resultValueField2,
     extraValueFields,
+    seriesField: seriesFieldPath,
   };
 }
 
@@ -1788,7 +1842,13 @@ ${middlewareHtml}
     valueField: queryValueField,
     valueField2: queryValueField2,
     extraValueFields: queryExtraVFs,
-  } = generateDsfrDataQueryCode(querySourceId, groupByPath, valueFieldPath);
+    seriesField: querySeriesField,
+  } = generateDsfrDataQueryCode(
+    querySourceId,
+    groupByPath,
+    valueFieldPath,
+    seriesPath(isFlattened ? '' : 'fields.')
+  );
 
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
@@ -1823,6 +1883,7 @@ ${middlewareHtml}${queryElement}${visualElement({
     valueField: queryValueField,
     valueField2: queryValueField2,
     extraValueFields: queryExtraVFs,
+    seriesField: querySeriesField,
     codeFieldAttr,
   })}
 </div>`;
@@ -2062,13 +2123,15 @@ ${middlewareHtml}
   let queryValueField: string;
   let queryValueField2: string;
   let queryExtraVFs: string[];
+  let querySeriesField: string;
   let sourceElement: string;
   let middlewareHtml = '';
   let facetsHtml = '';
 
   if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
     const odsInfo = { baseUrl: apiBaseUrl, datasetId: resourceIds.datasetId };
-    const result = generateOdsQueryCode(odsInfo, groupByPath, valueFieldPath);
+    const result = generateOdsQueryCode(odsInfo, groupByPath, valueFieldPath, seriesPath());
+    querySeriesField = result.seriesField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -2087,7 +2150,8 @@ ${middlewareHtml}
     }
   } else if (provider.id === 'tabular' && resourceIds?.resourceId) {
     const tabularInfo = { baseUrl: apiBaseUrl, resourceId: resourceIds.resourceId };
-    const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath);
+    const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath, seriesPath());
+    querySeriesField = result.seriesField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -2110,7 +2174,13 @@ ${middlewareHtml}
   } else {
     const mw = generateMiddlewareElements('chart-data');
     middlewareHtml = mw.elements;
-    const result = generateDsfrDataQueryCode(mw.finalSourceId, groupByPath, valueFieldPath);
+    const result = generateDsfrDataQueryCode(
+      mw.finalSourceId,
+      groupByPath,
+      valueFieldPath,
+      seriesPath()
+    );
+    querySeriesField = result.seriesField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -2138,6 +2208,7 @@ ${middlewareHtml}
       queryValueField = cleanedFieldName(queryValueField);
       queryValueField2 = cleanedFieldName(queryValueField2);
       queryExtraVFs = queryExtraVFs.map(cleanedFieldName);
+      querySeriesField = cleanedFieldName(querySeriesField);
     }
   }
 
@@ -2167,6 +2238,7 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}${visualElement({
     valueField: queryValueField,
     valueField2: queryValueField2,
     extraValueFields: queryExtraVFs,
+    seriesField: querySeriesField,
     codeFieldAttr,
   })}
 </div>`;
@@ -2518,6 +2590,11 @@ async function loadChart() {
     state.chartType === 'pie'
       ? `
   el.setAttribute('fill', '');`
+      : ''
+  }${
+    stackedActive(state)
+      ? `
+  el.setAttribute('stacked', '');`
       : ''
   }
   document.getElementById('chart-container').appendChild(el);

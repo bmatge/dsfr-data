@@ -68,6 +68,12 @@ const config: ReperesConfig = {
     'builder.type.map-aca': ['carte des académies', 'rectorats'],
     'builder.type.map-monde': ['carte du monde', 'carte des pays', 'planisphère'],
     'builder.donnees.code-departement': ['code géographique', 'code région', 'académie', 'pays'],
+    'builder.donnees.champ-series': [
+      'format long',
+      'série par champ',
+      'données empilées en lignes',
+    ],
+    'builder.donnees.empiler': ['empiler', 'barres empilées', 'cumulé', 'stacked'],
     'builder.type.podium': ['classement', 'top', 'palmarès'],
     'builder.type.bar-line': ['barres et ligne', 'deux axes', 'graphique combiné', 'mixte'],
     'builder.donnees.champ-ligne': ['seconde mesure', 'courbe', 'deuxième axe'],

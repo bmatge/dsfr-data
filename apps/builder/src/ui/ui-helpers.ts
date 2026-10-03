@@ -39,6 +39,8 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     lineField: state.lineField,
     lineFieldLabel: state.lineFieldLabel,
     podiumMaxItems: state.podiumMaxItems,
+    seriesField: state.seriesField,
+    stacked: state.stacked,
     codeField: state.codeField,
     aggregation: state.aggregation,
     sortOrder: state.sortOrder,

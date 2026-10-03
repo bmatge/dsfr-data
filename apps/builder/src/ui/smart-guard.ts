@@ -149,6 +149,8 @@ function configSnapshot(): string {
     'lineField',
     'lineFieldLabel',
     'podiumMaxItems',
+    'seriesField',
+    'stacked',
     'codeField',
     'sortField',
     'sortOrder',

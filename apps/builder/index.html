@@ -249,6 +249,26 @@
           </button>
         </div>
 
+        <!-- Format long : les séries viennent d'un champ, pas de colonnes (#1204) -->
+        <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="series-field-group" style="display: none;">
+          <label class="fr-label" for="series-field">
+            Champ des séries (format long)
+            <span class="fr-hint-text">Quand chaque ligne porte une étiquette, une série et une valeur : le champ qui nomme la série. Remplace « Ajouter une série ».</span>
+          </label>
+          <select class="fr-select" id="series-field" data-repere="builder.donnees.champ-series" data-attribut="dsfr-data-chart:series-field" data-prerequis="type-multi-series source-chargee">
+            <option value="">— Aucun (une colonne par série) —</option>
+          </select>
+        </div>
+
+        <!-- Barres empilées : seulement pour les types en barres (#1204) -->
+        <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w" id="stacked-group" style="display: none;">
+          <input type="checkbox" id="stacked-toggle" data-repere="builder.donnees.empiler" data-attribut="dsfr-data-chart:stacked">
+          <label class="fr-label" for="stacked-toggle">
+            Barres empilées
+            <span class="fr-hint-text">Empile les séries au lieu de les juxtaposer (utile à partir de deux séries)</span>
+          </label>
+        </div>
+
         <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="code-field-group" style="display: none;">
           <label class="fr-label" for="code-field">
             Code département

@@ -12,7 +12,13 @@
 
 import { PALETTE_DISPLAY_NAMES } from '@dsfr-data/shared';
 
-import { state, getCompleteness, type BuilderState, type Completeness } from '../state.js';
+import {
+  state,
+  getCompleteness,
+  activeSeriesField,
+  type BuilderState,
+  type Completeness,
+} from '../state.js';
 
 type StepKey = 'source' | 'type' | 'config' | 'generate';
 
@@ -99,7 +105,12 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
         default: {
           const extra = s.extraSeries?.length || 0;
           const main = `${s.labelField} × ${s.valueField}`;
-          configText = extra > 0 ? `${main} (+${extra} série${extra > 1 ? 's' : ''})` : main;
+          const parChamp = activeSeriesField(s);
+          configText = parChamp
+            ? `${main} (séries : ${parChamp})`
+            : extra > 0
+              ? `${main} (+${extra} série${extra > 1 ? 's' : ''})`
+              : main;
         }
       }
     } else {
