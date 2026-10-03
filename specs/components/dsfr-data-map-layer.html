@@ -83,13 +83,14 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-map-layer fields="popup-template,popup-fields,tooltip-field,color,color-field,color-map,fill-field,fill-opacity,selected-palette,method,classes,breaks,radius,radius-field,radius-unit,radius-min,radius-max" -->
+              <!-- ATTRS:dsfr-data-map-layer fields="popup-template,popup-fields,tooltip-field,color,color-field,color-map,color-other-label,fill-field,fill-opacity,selected-palette,method,classes,breaks,radius,radius-field,radius-unit,radius-min,radius-max" -->
                 <tr><td><code>popup-template</code></td><td>String</td><td><code>""</code></td><td>Template du contenu de la popup, avec substitution de champs. Ex: <code>"{nom} — {val} kW"</code>.</td></tr>
                 <tr><td><code>popup-fields</code></td><td>String</td><td><code>""</code></td><td>Champs a presenter en tableau automatique dans la popup. Ex: <code>"nom,adresse"</code>.</td></tr>
                 <tr><td><code>tooltip-field</code></td><td>String</td><td><code>""</code></td><td>Champ affiché au survol de l'élément.</td></tr>
                 <tr><td><code>color</code></td><td>String</td><td><code>#000091</code></td><td>Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand <code>color-map</code> ne matche pas.</td></tr>
                 <tr><td><code>color-field</code></td><td>String</td><td><code>""</code></td><td>Champ dont la valeur détermine la couleur (mapping catégoriel via <code>color-map</code>).</td></tr>
                 <tr><td><code>color-map</code></td><td>String</td><td><code>""</code></td><td>Paires <code>valeur:#couleur</code> séparées par des virgules. Ex: <code>"1:#00A95F,2:#FF9940,3:#E1000F"</code>. Une virgule ou un deux-points dans une valeur s'écrit <code>%2C</code> ou <code>%3A</code>.</td></tr>
+                <tr><td><code>color-other-label</code></td><td>String</td><td><code>COLOR_OTHER_LABEL_DEFAULT</code></td><td>Libellé, dans la légende, des valeurs de <code>color-field</code> ABSENTES de <code>color-map</code> — celles qui prennent la couleur de repli <code>color</code>. L'entrée n'apparaît que si le repli a servi au dernier rendu. Ex. : <code>color-other-label="Autres secteurs"</code>. Vide, le libellé par défaut est utilisé. À ne pas confondre avec l'<code>empty-label</code> d'autres composants, qui nomme une valeur VIDE : une valeur hors <code>color-map</code> peut être renseignée, et l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle apparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner une paire dans <code>color-map</code> après un recodage amont (<code>dsfr-data-normalize</code>).</td></tr>
                 <tr><td><code>fill-field</code></td><td>String</td><td><code>""</code></td><td>Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche <code>geoshape</code> ou <code>circle</code> (#768) — avec <code>classes</code>, <code>method</code>, <code>breaks</code> et <code>selected-palette</code>. Posé avec <code>color-field</code>, il gagne pour le REMPLISSAGE ; <code>color-field</code> / <code>color</code> donnent alors le contour, et la légende décrit les classes. Sans effet sur <code>marker</code> et <code>heatmap</code>.</td></tr>
                 <tr><td><code>fill-opacity</code></td><td>Number</td><td><code>0.6</code></td><td>Opacite du remplissage (0-1).</td></tr>
                 <tr><td><code>selected-palette</code></td><td>String</td><td><code>""</code></td><td>Palette DSFR utilisée pour le dégradé choroplèthe (<code>fill-field</code>) : <code>sequentialAscending</code> (défaut), <code>sequentialDescending</code>, <code>divergentAscending</code>, <code>divergentDescending</code>, <code>neutral</code>, <code>categorical</code>.</td></tr>
@@ -105,6 +106,28 @@
             </tbody>
           </table>
         </div>
+
+        <h4 id="valeurs-hors-color-map">Valeurs absentes de <code>color-map</code></h4>
+        <p>
+          Une valeur de <code>color-field</code> qui n'a pas de paire dans <code>color-map</code> prend la couleur de
+          repli <code>color</code>, et la légende (<a href="dsfr-data-map.html#legende"><code>dsfr-data-map-legend</code></a>)
+          lui ajoute une entrée dès que le repli a servi. Son libellé est celui de <code>color-other-label</code>,
+          « Autres valeurs » par défaut :
+        </p>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-map-layer id="reseau" source="communes" type="circle" geo-field="position"
+  color-field="etat" color-map="Fermé:#00A95F,En cours:#FF9940" color="#929292"
+  color-other-label="État inconnu"&gt;&lt;/dsfr-data-map-layer&gt;
+&lt;dsfr-data-map-legend for="reseau" label="Fermeture du réseau"&gt;&lt;/dsfr-data-map-legend&gt;</pre>
+        </div>
+        <p>
+          Ce libellé nomme des valeurs <strong>hors de la table des couleurs</strong>, pas des valeurs vides : c'est
+          pourquoi l'attribut ne s'appelle pas <code>empty-label</code>, qui sur
+          <code>dsfr-data-chart</code>, <code>dsfr-data-facets</code> et <code>dsfr-data-a11y</code> nomme une valeur
+          absente. Sur un champ ouvert, une modalité nouvelle du jeu tombe elle aussi dans le repli : l'appeler
+          « Non renseigné » serait faux. Pour distinguer les valeurs vides, les recoder en amont
+          (<code>dsfr-data-normalize</code>) et leur donner leur propre paire dans <code>color-map</code>.
+        </p>
 
         <h3>Filtrage au clic</h3>
         <div class="fr-table">

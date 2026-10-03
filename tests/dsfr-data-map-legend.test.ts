@@ -496,6 +496,47 @@ describe('dsfr-data-map-legend', () => {
     expect(items(legend).map((i) => i.text)).toEqual(['a', 'b', 'Autres valeurs']);
   });
 
+  it('AM-113 : color-other-label nomme le repli, sans recodage amont', async () => {
+    const { layer, internals, legend } = mount(
+      { colorField: 's', colorMap: 'a:#111,b:#222', color: '#999' },
+      { for: 'couche' }
+    );
+    layer.colorOtherLabel = 'Non renseigné';
+    internals._data = [
+      { geo: POLY, s: 'a' },
+      { geo: POLY, s: 'zzz' },
+    ];
+    await internals._renderLayer();
+    await nextFrame();
+    expect(items(legend).map((i) => i.text)).toEqual(['a', 'b', 'Non renseigné']);
+    expect(layer.getLegendEntries().at(-1)).toEqual({ color: '#999', label: 'Non renseigné' });
+  });
+
+  it('AM-113 : sans attribut ou avec un attribut vide, la légende est inchangée', async () => {
+    const { layer, internals, legend } = mount(
+      { colorField: 's', colorMap: 'a:#111', color: '#999' },
+      { for: 'couche' }
+    );
+    expect(layer.colorOtherLabel).toBe('Autres valeurs');
+    layer.colorOtherLabel = '';
+    internals._data = [{ geo: POLY, s: 'zzz' }];
+    await internals._renderLayer();
+    await nextFrame();
+    expect(items(legend).map((i) => i.text)).toEqual(['a', 'Autres valeurs']);
+  });
+
+  it('AM-113 : le libellé du repli n’apparaît pas tant que le repli n’a pas servi', async () => {
+    const { layer, internals, legend } = mount(
+      { colorField: 's', colorMap: 'a:#111', color: '#999' },
+      { for: 'couche' }
+    );
+    layer.colorOtherLabel = 'Autres secteurs';
+    internals._data = [{ geo: POLY, s: 'a' }];
+    await internals._renderLayer();
+    await nextFrame();
+    expect(items(legend).map((i) => i.text)).toEqual(['a']);
+  });
+
   it('couche monochrome : le libelle de la legende sert d entree', async () => {
     const { internals, legend } = mount({ color: '#000091' }, { for: 'couche', label: 'Bornes' });
     internals._data = [{ geo: POLY }];

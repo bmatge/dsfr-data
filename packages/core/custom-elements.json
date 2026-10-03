@@ -11024,6 +11024,16 @@
             },
             {
               "kind": "field",
+              "name": "colorOtherLabel",
+              "default": "'Autres valeurs'",
+              "description": "Libellé, dans la légende, des valeurs de `color-field` ABSENTES de\n`color-map` — celles qui prennent la couleur de repli `color`. L'entrée\nn'apparaît que si le repli a servi au dernier rendu. Ex. :\n`color-other-label=\"Autres secteurs\"`. Vide, le libellé par défaut est\nutilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui\nnomme une valeur VIDE : une valeur hors `color-map` peut être renseignée,\net l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle\napparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner\nune paire dans `color-map` après un recodage amont (`dsfr-data-normalize`).",
+              "attribute": "color-other-label",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "kind": "field",
               "name": "fillField",
               "type": {
                 "text": "string"
@@ -11751,7 +11761,7 @@
                   "text": "LegendEntry[]"
                 }
               },
-              "description": "Entrées de légende du dernier rendu (#685) : les classes de `fill-field`\navec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le\nrepli `color` s'il a servi, sinon la seule couleur de la couche (libellé\nvide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui\nse rafraîchit sur `dsfr-data-map-layer-render`."
+              "description": "Entrées de légende du dernier rendu (#685) : les classes de `fill-field`\navec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le\nrepli `color` s'il a servi (libellé `color-other-label`), sinon la seule couleur de la couche (libellé\nvide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui\nse rafraîchit sur `dsfr-data-map-layer-render`."
             },
             {
               "kind": "method",
@@ -11833,7 +11843,7 @@
               "privacy": "private",
               "static": true,
               "readonly": true,
-              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
+              "default": "new Set<string>([ 'type', 'latField', 'lonField', 'geoField', 'shapeClass', 'noInteractive', 'popupTemplate', 'popupFields', 'tooltipField', 'color', 'colorField', 'colorMap', 'colorOtherLabel', 'fillField', 'fillOpacity', 'selectedPalette', 'classes', 'method', 'breaks', 'radius', 'radiusField', 'radiusUnit', 'radiusMin', 'radiusMax', 'heatRadius', 'heatBlur', 'heatField', 'cluster', 'clusterRadius', 'maxItems', 'groupField', 'timeField', 'timeBucket', 'timeMode', ])",
               "description": "Proprietes dont le changement doit redessiner la couche (#482 bug 6) :\nsans ce hook, modifier un attribut en place (type, cluster, couleur…)\nne produisait aucun effet avant la prochaine emission de la source."
             },
             {
@@ -12761,6 +12771,12 @@
               "default": "''",
               "description": "Paires `valeur:#couleur` séparées par des virgules. Ex: `\"1:#00A95F,2:#FF9940,3:#E1000F\"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`.",
               "fieldName": "colorMap"
+            },
+            {
+              "name": "color-other-label",
+              "default": "COLOR_OTHER_LABEL_DEFAULT",
+              "description": "Libellé, dans la légende, des valeurs de `color-field` ABSENTES de\n`color-map` — celles qui prennent la couleur de repli `color`. L'entrée\nn'apparaît que si le repli a servi au dernier rendu. Ex. :\n`color-other-label=\"Autres secteurs\"`. Vide, le libellé par défaut est\nutilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui\nnomme une valeur VIDE : une valeur hors `color-map` peut être renseignée,\net l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle\napparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner\nune paire dans `color-map` après un recodage amont (`dsfr-data-normalize`).",
+              "fieldName": "colorOtherLabel"
             },
             {
               "name": "fill-field",

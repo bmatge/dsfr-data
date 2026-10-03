@@ -327,7 +327,9 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
         <p>
           Compagnon déclaratif placé dans la carte : il rend la légende des couches
           (classes d'une choroplèthe, paires de <code>color-map</code>, ou entrée unique
-          d'une couche monochrome) et se met à jour avec elles.
+          d'une couche monochrome) et se met à jour avec elles. Quand des valeurs de <code>color-field</code>
+          sont absentes de <code>color-map</code>, une entrée de repli s'ajoute : « Autres valeurs », ou le
+          <a href="dsfr-data-map-layer.html#valeurs-hors-color-map"><code>color-other-label</code></a> de la couche.
         </p>
         <div class="fr-table">
           <table class="attr-table">

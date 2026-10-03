@@ -3192,6 +3192,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | \`"#000091"\` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | \`""\` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | \`""\` | Paires \`valeur:#couleur\` separees par virgule. Ex: \`"1:#00A95F,2:#FF9940,3:#E1000F"\`. Virgule ou deux-points dans une valeur : \`%2C\` / \`%3A\` (\`"Commerce%2C transport:#000091"\`). Meme grammaire sur dsfr-data-chart |
+| color-other-label | String | \`"Autres valeurs"\` | Libelle, dans la legende, des valeurs de color-field ABSENTES de color-map (elles prennent la couleur de repli \`color\`). Ex: \`"Etat inconnu"\`. Ce n'est pas un \`empty-label\` : une valeur hors color-map peut etre renseignee — ne pas ecrire « Non renseigne » sur un champ ouvert |
 | fill-field | String | \`""\` | Champ numérique pour choropleth (geoshape ET circle : cercles colorés par classes). Avec color-field, fill-field donne le remplissage et color-field le contour |
 | fill-opacity | Number | \`0.6\` | Opacite remplissage |
 | selected-palette | String | \`""\` | Palette choropleth : \`sequentialAscending\` (défaut), \`sequentialDescending\`, \`divergentAscending\`, \`divergentDescending\`, \`neutral\`, \`categorical\` |
@@ -3499,7 +3500,7 @@ liste dans \`sources\` — c'est \`sources\` du contexte qui regle les cibles, p
 Composant compagnon place comme enfant de \`dsfr-data-map\` (ou n'importe ou dans la page avec \`for\`).
 Rend sous la carte une liste DSFR « pastille + texte » (pastille \`aria-hidden\`, le texte porte le sens — RGAA) :
 - choroplethe (\`fill-field\`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
-- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche ;
+- couche categorielle (\`color-field\` + \`color-map\`) : une entree par paire, plus « Autres valeurs » (repli \`color\`) si des valeurs n'ont pas matche — libelle modifiable par \`color-other-label\` sur la couche ;
 - couche monochrome : une entree, libellee par \`label\`.
 Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose \`getLegendEntries()\` et emet \`dsfr-data-map-layer-render\`.
 Hors perimetre : \`dsfr-data-chart type="map"\` (echelle continue DSFR Chart, pas de classes).

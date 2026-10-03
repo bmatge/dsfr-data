@@ -65,6 +65,7 @@ Leaflet est charge dynamiquement (pas inclus dans le bundle).
 | color | String | `"#000091"` | Couleur (DSFR blue-france). Fallback si color-map ne matche pas |
 | color-field | String | `""` | Champ dont la valeur determine la couleur (mapping catégoriel) |
 | color-map | String | `""` | Paires `valeur:#couleur` separees par virgule. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Virgule ou deux-points dans une valeur : `%2C` / `%3A` (`"Commerce%2C transport:#000091"`). Meme grammaire sur dsfr-data-chart |
+| color-other-label | String | `"Autres valeurs"` | Libelle, dans la legende, des valeurs de color-field ABSENTES de color-map (elles prennent la couleur de repli `color`). Ex: `"Etat inconnu"`. Ce n'est pas un `empty-label` : une valeur hors color-map peut etre renseignee — ne pas ecrire « Non renseigne » sur un champ ouvert |
 | fill-field | String | `""` | Champ numérique pour choropleth (geoshape ET circle : cercles colorés par classes). Avec color-field, fill-field donne le remplissage et color-field le contour |
 | fill-opacity | Number | `0.6` | Opacite remplissage |
 | selected-palette | String | `""` | Palette choropleth : `sequentialAscending` (défaut), `sequentialDescending`, `divergentAscending`, `divergentDescending`, `neutral`, `categorical` |
@@ -372,7 +373,7 @@ liste dans `sources` — c'est `sources` du contexte qui regle les cibles, pas l
 Composant compagnon place comme enfant de `dsfr-data-map` (ou n'importe ou dans la page avec `for`).
 Rend sous la carte une liste DSFR « pastille + texte » (pastille `aria-hidden`, le texte porte le sens — RGAA) :
 - choroplethe (`fill-field`) : une entree par classe, bornes chiffrees fr-FR (« De 1 000 à 5 000 ») ;
-- couche categorielle (`color-field` + `color-map`) : une entree par paire, plus « Autres valeurs » (repli `color`) si des valeurs n'ont pas matche ;
+- couche categorielle (`color-field` + `color-map`) : une entree par paire, plus « Autres valeurs » (repli `color`) si des valeurs n'ont pas matche — libelle modifiable par `color-other-label` sur la couche ;
 - couche monochrome : une entree, libellee par `label`.
 Se rafraichit a chaque rendu de la couche (filtre amont, timeline, bbox) : la couche expose `getLegendEntries()` et emet `dsfr-data-map-layer-render`.
 Hors perimetre : `dsfr-data-chart type="map"` (echelle continue DSFR Chart, pas de classes).
@@ -540,6 +541,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `color` | `string` | `'#000091'` | Couleur de la couche (défaut : blue-france DSFR). Sert aussi de repli quand `color-map` ne matche pas. |
 | `color-field` | `string` | `""` (vide) | Champ dont la valeur détermine la couleur (mapping catégoriel via `color-map`). |
 | `color-map` | `string` | `""` (vide) | Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. |
+| `color-other-label` | `string` | `COLOR_OTHER_LABEL_DEFAULT` | Libellé, dans la légende, des valeurs de `color-field` ABSENTES de `color-map` — celles qui prennent la couleur de repli `color`. L'entrée n'apparaît que si le repli a servi au dernier rendu. Ex. : `color-other-label="Autres secteurs"`. Vide, le libellé par défaut est utilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui nomme une valeur VIDE : une valeur hors `color-map` peut être renseignée, et l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle apparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner une paire dans `color-map` après un recodage amont (`dsfr-data-normalize`). |
 | `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer en `refine-on-click` (#681, ADR-104). Le contexte peut être déclaré après la couche dans la page. Vide = commande directe à `source` (chemin dégradé). |
 | `fill-field` | `string` | `""` (vide) | Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche `geoshape` ou `circle` (#768) — avec `classes`, `method`, `breaks` et `selected-palette`. Posé avec `color-field`, il gagne pour le REMPLISSAGE ; `color-field` / `color` donnent alors le contour, et la légende décrit les classes. Sans effet sur `marker` et `heatmap`. |
 | `fill-opacity` | `number` | `0.6` | Opacite du remplissage (0-1). |
@@ -578,7 +580,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi, sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
+| `getLegendEntries()` | `LegendEntry[]` | Entrées de légende du dernier rendu (#685) : les classes de `fill-field` avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le repli `color` s'il a servi (libellé `color-other-label`), sinon la seule couleur de la couche (libellé vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui se rafraîchit sur `dsfr-data-map-layer-render`. |
 | `getRenderedCount()` | `number` | Nombre d'éléments effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
 | `getSkippedCount()` | `number` | — |
 | `getStackedPositions()` | `{ positions: number; items: number } \| null` | Points EMPILES au dernier rendu (#770) : au plus deux positions distinctes pour au moins dix points par position. C'est le mode d'echec d'une colonne de geolocalisation constante ou mal jointe : 43 479 coordonnees valides identiques ne sont ignorees nulle part, le compteur d'exclusions vaut 0 et la couche se declare complete en montrant un point. Le seuil laisse passer les adresses partagees, legitimes. `null` quand la couche n'est pas dans ce cas. |

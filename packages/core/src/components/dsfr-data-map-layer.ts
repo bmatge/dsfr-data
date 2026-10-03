@@ -97,6 +97,9 @@ const CHAMPS_FORME_DEVINES = ['geo_shape', 'geometry', 'geom'] as const;
 /** Lignes examinees pour detecter la colonne geometrique (#1053). */
 const LIGNES_DETECTION_FORME = 20;
 
+/** Libellé par défaut de l'entrée de légende du repli `color` (AM-113). */
+const COLOR_OTHER_LABEL_DEFAULT = 'Autres valeurs';
+
 /** Chiffre du bandeau de troncature, balise pour etre relu seul (#1020). */
 interface BannerCount {
   count: 'shown' | 'total';
@@ -257,6 +260,20 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   /** Paires `valeur:#couleur` séparées par des virgules. Ex: `"1:#00A95F,2:#FF9940,3:#E1000F"`. Une virgule ou un deux-points dans une valeur s'écrit `%2C` ou `%3A`. */
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
+
+  /**
+   * Libellé, dans la légende, des valeurs de `color-field` ABSENTES de
+   * `color-map` — celles qui prennent la couleur de repli `color`. L'entrée
+   * n'apparaît que si le repli a servi au dernier rendu. Ex. :
+   * `color-other-label="Autres secteurs"`. Vide, le libellé par défaut est
+   * utilisé. À ne pas confondre avec l'`empty-label` d'autres composants, qui
+   * nomme une valeur VIDE : une valeur hors `color-map` peut être renseignée,
+   * et l'appeler « Non renseigné » mentirait dès qu'une modalité nouvelle
+   * apparaît dans le jeu. Pour nommer les valeurs vides seulement, leur donner
+   * une paire dans `color-map` après un recodage amont (`dsfr-data-normalize`).
+   */
+  @property({ type: String, attribute: 'color-other-label' })
+  colorOtherLabel = COLOR_OTHER_LABEL_DEFAULT;
 
   /**
    * Champ numérique utilisé pour le remplissage en choroplèthe, sur une couche
@@ -570,7 +587,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   /**
    * Entrées de légende du dernier rendu (#685) : les classes de `fill-field`
    * avec leurs bornes (choroplèthe), sinon les paires de `color-map` plus le
-   * repli `color` s'il a servi, sinon la seule couleur de la couche (libellé
+   * repli `color` s'il a servi (libellé `color-other-label`), sinon la seule couleur de la couche (libellé
    * vide, à fournir par la légende). Consommé par dsfr-data-map-legend, qui
    * se rafraîchit sur `dsfr-data-map-layer-render`.
    */
@@ -594,7 +611,12 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     if (this._colorMapParsed?.size) {
       const entries: LegendEntry[] = [];
       for (const [value, color] of this._colorMapParsed) entries.push({ color, label: value });
-      if (this._colorFallbackUsed) entries.push({ color: this.color, label: 'Autres valeurs' });
+      if (this._colorFallbackUsed) {
+        entries.push({
+          color: this.color,
+          label: this.colorOtherLabel || COLOR_OTHER_LABEL_DEFAULT,
+        });
+      }
       this._legendEntries = entries;
       return;
     }
@@ -659,6 +681,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     'color',
     'colorField',
     'colorMap',
+    'colorOtherLabel',
     'fillField',
     'fillOpacity',
     'selectedPalette',
