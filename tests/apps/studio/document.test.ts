@@ -211,6 +211,53 @@ describe('studio/document — update / remove / move / set_page', () => {
   });
 });
 
+describe('studio/document — bloc text nettoyé à l’écriture (#1081)', () => {
+  const contenu = (doc: ReturnType<typeof createEmptyDashboard>, i = 0) => {
+    const w = doc.widgets[i];
+    return w.type === 'text' ? w.config.content : '';
+  };
+
+  it('le HTML simple est gardé tel quel, sans note', () => {
+    const doc = createEmptyDashboard();
+    const html =
+      '<p>Un <strong>gras</strong>, un <em>italique</em>, un <a href="https://www.insee.fr">lien</a>.</p><ul><li>un</li></ul>';
+    const outcome = addBlocks(doc, [{ kind: 'text', content: html }], ctx);
+    expect(contenu(doc)).toBe(html);
+    expect(outcome.summary).not.toContain('nettoyé');
+  });
+
+  it('script, on*, javascript:, iframe sont retirés, et le modèle en est averti', () => {
+    const doc = createEmptyDashboard();
+    const outcome = addBlocks(
+      doc,
+      [
+        {
+          kind: 'text',
+          content:
+            '<p onclick="x()">Texte <a href="javascript:alert(1)">lien</a></p><script>alert(1)</script><iframe src="https://x"></iframe><img src=x onerror=alert(1)>',
+        },
+      ],
+      ctx
+    );
+    expect(contenu(doc)).toBe('<p>Texte <a>lien</a></p><img src=x>');
+    expect(outcome.ok).toBe(true);
+    expect(outcome.summary).toContain('attention : contenu nettoyé');
+  });
+
+  it('update_block nettoie aussi, et le dit', () => {
+    const doc = createEmptyDashboard();
+    addBlocks(doc, [{ kind: 'text', content: 'Sain' }], ctx);
+    const outcome = updateBlock(
+      doc,
+      'b1',
+      { kind: 'text', content: '<p>Neuf</p><script>alert(1)</script>' },
+      ctx
+    );
+    expect(contenu(doc)).toBe('<p>Neuf</p>');
+    expect(outcome.summary).toContain('attention : contenu nettoyé');
+  });
+});
+
 describe('studio/document — helpers', () => {
   it('defaultWidth : kpi=third, datalist=full, chart=half, text/filters=full', () => {
     expect(defaultWidth({ kind: 'chart', config: { type: 'kpi', valueField: 'x' } })).toBe('third');

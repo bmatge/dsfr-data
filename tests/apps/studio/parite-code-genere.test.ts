@@ -24,8 +24,8 @@
  * Tout se lit APRÈS parsage du HTML : c'est ce que le composant recevra. Une
  * assertion sur le texte brut passe au vert avec un attribut disloqué.
  *
- * Trois comportements attendus sont rouges aujourd'hui : ils restent en
- * `it.skip`, avec la raison et les deux faits (ce que le Studio écrit, ce
+ * Deux comportements attendus sont rouges aujourd'hui (multi-séries avec
+ * agrégation) : ils restent en `it.skip`, avec la raison et les deux faits (ce que le Studio écrit, ce
  * qu'il devrait écrire). Le rendu, lui, est l'affaire de
  * `tests/builder-e2e/studio-recette.spec.ts` et `studio-parite-recette.spec.ts`.
  */
@@ -356,7 +356,10 @@ describe('un titre malveillant n’atteint pas la page', () => {
     expect(attributLu(page, 'dsfr-data-podium', 'value-unit')).toBe(RUPTURE);
   });
 
-  // DÉFAUT DU STUDIO — laissé en `skip`, non corrigé ici (#1081, parité des tests).
+  // DÉFAUT DU STUDIO, CORRIGÉ (#1081) : le contenu est NETTOYÉ à l'écriture dans
+  // le document (`buildTextWidget` → `nettoyerGabarit`), pas échappé — le HTML
+  // simple reste. L'export partagé n'est pas touché : l'app Tableau de bord y
+  // passe un HTML saisi par l'usager. Le défaut, tel qu'il était :
   //
   // Le contenu d'un bloc `text` est écrit TEL QUEL dans la page dès qu'il
   // contient une balise (`buildTextWidget`, apps/studio/src/document.ts : « HTML
@@ -375,7 +378,7 @@ describe('un titre malveillant n’atteint pas la page', () => {
   // bloc `text` est le seul à ne pas l'être. La page sert de code copié, et
   // d'aperçu dans une iframe `srcdoc` dont le bac à sable laisse passer scripts
   // et même origine (`sandbox="allow-scripts allow-same-origin"`).
-  it.skip('le contenu d’un bloc text ne porte ni script ni gestionnaire d’événement', () => {
+  it('le contenu d’un bloc text ne porte ni script ni gestionnaire d’événement', () => {
     const { page } = composer(SOURCES['embarquée (données saisies)'](), [
       { kind: 'text', style: 'title', content: SCRIPT },
       { kind: 'text', content: '<img src=x onerror=alert(1)>' },

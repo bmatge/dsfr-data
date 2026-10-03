@@ -19,6 +19,7 @@ import {
   MAP_LAYER_TYPES,
   MAP_POPUP_MODES,
   diagnoseConfig,
+  nettoyerGabarit,
   serverPaginatedSources,
 } from '@dsfr-data/shared';
 import {
@@ -200,11 +201,25 @@ function distinctOptions(data: Row[], field: string, limit = 30): string[] {
   return Array.from(seen).slice(0, limit).sort();
 }
 
-function buildTextWidget(id: string, spec: BlockSpec): Widget {
+/** Dit au modele, quand le nettoyage d'un bloc text a retire quelque chose. */
+const NOTE_TEXTE_NETTOYE =
+  'contenu nettoyé : scripts, gestionnaires on*, URL javascript: et éléments actifs (iframe, object, embed, style…) ne sont pas permis dans un bloc text et ont été retirés. Le HTML simple (p, strong, em, a, ul, li) est gardé.';
+
+/**
+ * Bloc de texte. Le contenu est ecrit par le MODELE, qui peut le tenir d'une
+ * valeur du jeu de donnees : il est NETTOYE ici, a l'ecriture dans le document
+ * (`nettoyerGabarit`, le filtre des gabarits de carte et des blocs libres) —
+ * le HTML simple reste, ce qui execute du code ou charge un contenu actif est
+ * retire. Pas a l'export : `generateWidgetHTML` est partage avec l'app Tableau
+ * de bord, ou le bloc de texte est saisi par l'usager lui-meme (« Contenu
+ * HTML ») et ne doit rien perdre.
+ */
+function buildTextWidget(id: string, spec: BlockSpec): { widget: Widget; notes: string[] } {
   const style: TextStyle = TEXT_STYLES.includes((spec.style ?? '') as TextStyle)
     ? (spec.style as TextStyle)
     : 'paragraph';
-  const raw = spec.content ?? '';
+  const brut = spec.content ?? '';
+  const raw = nettoyerGabarit(brut);
   // Texte brut sans balise -> paragraphe(s) ; HTML simple laisse tel quel.
   const content = /<[a-z][\s\S]*>/i.test(raw)
     ? raw
@@ -213,11 +228,14 @@ function buildTextWidget(id: string, spec: BlockSpec): Widget {
         .map((p) => `<p>${p.trim()}</p>`)
         .join('\n');
   return {
-    id,
-    type: 'text',
-    title: spec.title ?? 'Texte',
-    position: { row: 0, col: 0 },
-    config: { content, style },
+    widget: {
+      id,
+      type: 'text',
+      title: spec.title ?? 'Texte',
+      position: { row: 0, col: 0 },
+      config: { content, style },
+    },
+    notes: raw === brut ? [] : [NOTE_TEXTE_NETTOYE],
   };
 }
 
@@ -600,7 +618,7 @@ export function addBlocks(
     let built: { widget?: Widget; error?: string; notes?: string[] };
     switch (spec.kind) {
       case 'text':
-        built = { widget: buildTextWidget(id, spec) };
+        built = buildTextWidget(id, spec);
         break;
       case 'chart':
         built = buildChartWidget(id, spec, ctx);
@@ -654,7 +672,8 @@ export function updateBlock(
         content: patch.content ?? widget.config.content,
         style: patch.style ?? widget.config.style,
       });
-      widget.config = rebuilt.type === 'text' ? rebuilt.config : widget.config;
+      widget.config = rebuilt.widget.type === 'text' ? rebuilt.widget.config : widget.config;
+      for (const note of rebuilt.notes) notes.push(`  attention : ${note}`);
       break;
     }
     case 'chart': {
