@@ -5496,7 +5496,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.\n\nUn paramètre porte les valeurs d'un champ, séparées par des virgules\n(`?region=IDF,PACA`). Une virgule DANS une valeur s'écrit `%2C` et un\npourcent `%25` — soit `%252C` et `%2525` une fois dans la barre\nd'adresse : `?intensite=1%252C5 à 2 parcours` désigne la seule valeur\n« 1,5 à 2 parcours ». Un lien antérieur à cet échappement, où la virgule\nd'une valeur est restée nue, est recollé contre les valeurs présentes\ndans les données quand la facette filtre côté client ; en mode\n`server-facets`, `static-values` ou `context`, il est lu morceau par\nmorceau, comme avant.",
               "attribute": "url-params"
             },
             {
@@ -5516,7 +5516,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic)",
+              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic).\nLes valeurs d'un champ sont jointes par des virgules ; une virgule dans une valeur est écrite `%2C`\n(voir `url-params`), si bien que le lien se relit à l'identique, quelle que soit la valeur.",
               "attribute": "url-sync"
             },
             {
@@ -7277,6 +7277,25 @@
             },
             {
               "kind": "method",
+              "name": "_knownClientValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Set<string> | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Valeurs qu'un champ porte dans les lignes reçues — consultées pour\nrecoller un lien d'avant l'échappement des virgules (BUG-031, #1227).\n`null` quand les valeurs ne se lisent pas dans les lignes : avant le\npremier lot, ou en mode serveur / statique (la sélection part au serveur\navant toute donnée). Le lien y est alors lu morceau par morceau."
+            },
+            {
+              "kind": "method",
               "name": "_applyUrlParams",
               "description": "Read URL search params and apply as facet pré-sélections"
             },
@@ -7487,7 +7506,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.\n\nUn paramètre porte les valeurs d'un champ, séparées par des virgules\n(`?region=IDF,PACA`). Une virgule DANS une valeur s'écrit `%2C` et un\npourcent `%25` — soit `%252C` et `%2525` une fois dans la barre\nd'adresse : `?intensite=1%252C5 à 2 parcours` désigne la seule valeur\n« 1,5 à 2 parcours ». Un lien antérieur à cet échappement, où la virgule\nd'une valeur est restée nue, est recollé contre les valeurs présentes\ndans les données quand la facette filtre côté client ; en mode\n`server-facets`, `static-values` ou `context`, il est lu morceau par\nmorceau, comme avant.",
               "fieldName": "urlParams"
             },
             {
@@ -7505,7 +7524,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic)",
+              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic).\nLes valeurs d'un champ sont jointes par des virgules ; une virgule dans une valeur est écrite `%2C`\n(voir `url-params`), si bien que le lien se relit à l'identique, quelle que soit la valeur.",
               "fieldName": "urlSync"
             },
             {

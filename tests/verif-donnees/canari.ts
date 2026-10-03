@@ -20,11 +20,14 @@
  *
  * Les lignes : `jeux/canari.json` (40, chacune décrite dans `jeux/README.md`),
  * `jeux/canari-ref.json` (la droite, avec deux fois le code `02`),
- * `jeux/canari-volume.json` (1 001 lignes engendrées, graine 42).
+ * `jeux/canari-volume.json` (1 001 lignes engendrées, graine 42),
+ * `jeux/canari-facettes.json` (dix lignes : valeurs à virgule, cellules
+ * tableau à élément répété).
  */
 import type { Check, Manifest, Step } from '../../tools/oracle/manifest.js';
 import {
   CANARI as LIGNES,
+  CANARI_FACETTES,
   CANARI_REF,
   CANARI_VOLUME,
   DATASET_CANARI,
@@ -55,6 +58,10 @@ function kpi(id: string, source: string, valeur: string, attrs = ''): string {
 }
 
 const JOINTURE_GAUCHE: Step = { op: 'join', right: 'ref', on: 'code', type: 'left' };
+
+/** Les dix lignes des pièges de facette, en tableau nu. */
+const SRC_FACETTES = `
+  <dsfr-data-source id="s-fac" url="${urlCanari('facettes')}"></dsfr-data-source>`;
 
 const CHECKS: Check[] = [
   // -------------------------------------------------------------------------
@@ -658,6 +665,84 @@ const CHECKS: Check[] = [
     expects: [
       { kind: 'kpi', id: 'k-regions', agg: 'distinct', field: 'region' },
       { kind: 'kpi', id: 'k-codes', agg: 'distinct', field: 'code' },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // la virgule DANS une valeur de facette
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-facette-virgule-aller-retour',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — BUG-031, #1227 : une valeur de facette qui CONTIENT une virgule. `note` porte « 1,5 » à côté de « 1 » et de « 5 » — la décimale française, et le piège entier : écrite `?note=1,5` puis relue en « 1 » et « 5 », la sélection rendait SIX lignes au lieu de trois, un chiffre faux et plausible ; sur `intensite` (« 1,5 à 2 parcours »), deux cases fantômes et zéro ligne. Le contrôle se joue en DEUX navigations, comme `ctx-url-deux-navigations` : on coche, la synchro écrit, on recharge l’URL écrite. La virgule d’une valeur part échappée (`%2C`), et l’aller-retour est exact.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+  <dsfr-data-facets id="f-note" source="s-fac" fields="note" labels="note:Note"
+    url-params url-sync></dsfr-data-facets>
+  <dsfr-data-facets id="f-int" source="s-fac" fields="intensite" labels="intensite:Intensité"
+    url-params url-sync></dsfr-data-facets>
+  ${kpi('k-note', 'f-note', 'count')}${kpi('k-int', 'f-int', 'count')}`,
+    actions: [
+      { kind: 'click', selector: '#f-note label:has-text("1,5")' },
+      { kind: 'click', selector: '#f-int label:has-text("1,5 à 2 parcours")' },
+      // Sans valeur : on recharge l'URL que la synchro vient d'écrire.
+      { kind: 'goto' },
+    ],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-note',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'note', op: 'eq-strict', value: '1,5' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-int',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'intensite', op: 'eq-strict', value: '1,5 à 2 parcours' }],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-facette-virgule-lien-ancien',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — BUG-031, #1227 : le lien DÉJÀ partagé. Avant l’échappement, la facette écrivait la virgule nue (`?intensite=1%2C5+à+2+parcours`, une fois décodé « 1,5 à 2 parcours ») ; ces liens circulent. Relu morceau par morceau, il donne « 1 » et « 5 à 2 parcours », qu’aucune ligne ne porte. La facette client recolle un morceau INCONNU des données avec les suivants jusqu’à former une valeur connue : quatre lignes, et non zéro. Le témoin `?note=1,5` reste, lui, deux valeurs — « 1 » et « 5 » existent, un lien ancien les désignait bien toutes les deux.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+  <dsfr-data-facets id="f-int" source="s-fac" fields="intensite" labels="intensite:Intensité"
+    url-params></dsfr-data-facets>
+  <dsfr-data-facets id="f-note" source="s-fac" fields="note" labels="note:Note"
+    disjunctive="note" url-params></dsfr-data-facets>
+  ${kpi('k-int', 'f-int', 'count')}${kpi('k-note', 'f-note', 'count')}`,
+    actions: [{ kind: 'goto', value: '?intensite=1%2C5+%C3%A0+2+parcours&note=1,5' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-int',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'intensite', op: 'eq-strict', value: '1,5 à 2 parcours' }],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-note',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'note', op: 'in', values: ['1', '5'] }] }],
+      },
     ],
   },
 ];

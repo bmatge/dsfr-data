@@ -1004,6 +1004,11 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   url-param-map="r:region | t:type">
 </dsfr-data-facets>
 
+<!-- Plusieurs valeurs d'un champ : separees par des virgules (?region=IDF,PACA).
+     Une virgule DANS une valeur s'ecrit %2C, un pourcent %25 — soit %252C et %2525 dans
+     un lien ecrit a la main : ?tranche=1%252C5 designe la seule valeur « 1,5 ».
+     url-sync ecrit cet echappement lui-meme. -->
+
 <!-- Colonnage DSFR des facettes -->
 <dsfr-data-facets id="filtered" source="clean"
   fields="region, departement, statut"
