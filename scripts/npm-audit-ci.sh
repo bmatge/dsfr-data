@@ -10,13 +10,21 @@
 # tentatives echouent sur le registre, on ne bloque pas : l'annotation le
 # signale, et le filet de securite reste tendu par Trivy, le job « SCA advisory »
 # et Dependabot. Une vraie vulnerabilite, elle, fait echouer des la 1re passe.
+#
+# Usage : npm-audit-ci.sh [niveau] [options npm audit...]
+# Les arguments apres le niveau sont passes tels quels a `npm audit` — le job
+# `quality` y met `--omit=dev` : seul ce qui est LIVRE bloque. Un avis sans
+# correctif sur un outil de dev (braces, GHSA-vfj7-8cjw-p6xm, 2026-10-03) avait
+# rougi main et toutes les PR sans qu'aucune action soit possible ; l'audit
+# complet, dev compris, reste fait par le job non bloquant « SCA advisory ».
 set -uo pipefail
 
 LEVEL="${1:-high}"
+[ "$#" -gt 0 ] && shift
 ATTEMPTS=3
 
 for i in $(seq 1 "$ATTEMPTS"); do
-  out="$(npm audit --audit-level="$LEVEL" 2>&1)"
+  out="$(npm audit --audit-level="$LEVEL" "$@" 2>&1)"
   code=$?
   echo "$out"
 
