@@ -5,18 +5,25 @@
 
 import { state } from './state.js';
 import { updateMapCodeFieldWarning } from './ui/ui-helpers.js';
-import { fieldCardinality } from './ui/smart-guard.js';
+import { fieldCardinality, isSampleComplete } from './ui/smart-guard.js';
 
 /**
  * Libellé enrichi d'un champ : « nom (type · N valeurs) » (refonte v2).
  * La cardinalité est calculée sur l'échantillon chargé ; on ne l'affiche que
- * pour les champs texte (c'est là qu'elle guide le choix de l'axe X).
+ * pour les champs texte (c'est là qu'elle guide le choix de l'axe X). Quand
+ * l'échantillon ne couvre pas tout le jeu, le compte est un minimum et le
+ * libellé le dit (#1172) : « 10 valeurs » d'un jeu de 101 lignes trompait.
  */
 function fieldDisplayText(field: { name: string; displayName?: string; type: string }): string {
   const base = field.displayName || field.name;
   if (field.type === 'string') {
     const n = fieldCardinality(field.name);
-    if (n > 0) return `${base} (texte · ${n.toLocaleString('fr-FR')} valeur${n > 1 ? 's' : ''})`;
+    if (n > 0) {
+      const count = `${n.toLocaleString('fr-FR')} valeur${n > 1 ? 's' : ''}`;
+      return isSampleComplete()
+        ? `${base} (texte · ${count})`
+        : `${base} (texte · au moins ${count})`;
+    }
   }
   return `${base} (${field.type})`;
 }
