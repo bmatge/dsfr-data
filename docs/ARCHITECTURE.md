@@ -861,7 +861,7 @@ Un ecart assume :
 
 ## 4. Architecture proxy
 
-Les APIs externes (Grist, Albert, tabular-api) n'autorisent pas les requetes cross-origin depuis le navigateur. Un proxy est necessaire. Le systeme supporte deux modes de **détection runtime** (dev / prod), determines automatiquement par `getProxyConfig()` dans `packages/shared/src/api/proxy-config.ts`.
+Les APIs externes Grist (gouv et SaaS) et Albert n'autorisent pas les requetes cross-origin depuis le navigateur : un proxy est necessaire. `tabular-api.data.gouv.fr` et `api.insee.fr`, eux, repondent `access-control-allow-origin: *` (requete et preflight, verifie le 2026-10-03, AM-087) — leurs endpoints `/tabular-proxy` et `/insee-proxy` servent le cache et le quota de l'operateur, pas le CORS. Le systeme supporte deux modes de **détection runtime** (dev / prod), determines automatiquement par `getProxyConfig()` dans `packages/shared/src/api/proxy-config.ts`.
 
 > ⚠️ Ne pas confondre les **3 modes runtime** (ci-dessous) avec les **3 dimensions d'URL** au build
 > (app / embed / beacon), décrites en §4.3 et §12. Feature vault transverse :

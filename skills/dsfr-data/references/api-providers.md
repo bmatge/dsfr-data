@@ -149,10 +149,15 @@ preflight CORS) : un en-tête `apikey` nu échoue. Le composant réécrit `apike
 en `Authorization: Apikey` (#655), mais écrire directement la forme `Authorization`.
 
 ### Proxy CORS
-Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS
+Certaines APIs externes (Grist gouv/SaaS) ne supportent pas le CORS
 navigateur : il faut un proxy CORS. La voie recommandee est l'attribut
 **`proxy-url` par source** : on declare l'URL reelle de l'API + le domaine du
 proxy, l'integrateur peut remplacer ce domaine par le sien.
+
+Tabular n'en fait PAS partie : `tabular-api.data.gouv.fr` repond
+`access-control-allow-origin: *` a la requete comme a la preflight `OPTIONS`
+(verifie le 2026-10-03). Une page statique lit data.gouv.fr avec une balise et un
+CDN, sans proxy, sans cle : ne pas poser `proxy-url` sur une source Tabular.
 
 ```html
 <!-- Grist gouv via proxy declaratif : URL reelle + proxy-url -->
@@ -167,8 +172,13 @@ proxy, l'integrateur peut remplacer ce domaine par le sien.
 (`/grist-gouv-proxy`, `/grist-proxy`, `/tabular-proxy`, `/insee-proxy`). Il est
 prioritaire sur le global `window.DSFR_DATA_PROXY` et la config build. Sans
 `proxy-url` ni global, l'URL est fetchee en direct (echec CORS attendu sur les
-instances gouv).
+instances Grist gouv).
+
+Les endpoints `/tabular-proxy` et `/insee-proxy` existent pour d'autres raisons que
+le CORS — un cache ou un quota tenus par l'operateur du proxy — et ne sont jamais une
+necessite pour lire ces deux APIs depuis un navigateur.
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (`*.opendatasoft.com` et portails publics)
+- Tabular data.gouv.fr (`tabular-api.data.gouv.fr`)
 - INSEE Melodi (`api.insee.fr`)
