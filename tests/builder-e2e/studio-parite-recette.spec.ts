@@ -605,3 +605,190 @@ test.describe('Playground → Studio IA (#1132)', () => {
     expect(codeRendu).toBe(CODE_PLAYGROUND);
   });
 });
+
+/**
+ * Les trois défauts de parité corrigés (#1081), d'un bout à l'autre et dans UN
+ * tour de conversation : le modèle (simulé) envoie d'abord un argument mal
+ * formé, lit le refus, puis compose un bloc de texte piégé, un graphique à
+ * deux séries agrégées et un « barres + ligne » agrégé.
+ *
+ *   - l'argument mal formé ne fait pas échouer le tour : le refus revient au
+ *     modèle, qui se corrige ;
+ *   - le bloc de texte garde son HTML simple, et rien de son script ne
+ *     s'exécute dans l'aperçu ;
+ *   - les DEUX séries sont tracées avec leurs totaux — mesurés sur l'élément
+ *     DSFR Chart rendu, pas sur le code.
+ */
+test.describe('trois défauts de parité corrigés (#1081)', () => {
+  // Deux lignes par région : une somme et une moyenne qui ne valent aucune ligne.
+  const MESURES = [
+    { region: 'Bretagne', population: 100, pop2025: 1000 },
+    { region: 'Bretagne', population: 50, pop2025: 3000 },
+    { region: "Val-d'Oise", population: 30, pop2025: 200 },
+    { region: "Val-d'Oise", population: 10, pop2025: 600 },
+  ];
+  const SOURCE_SERIES = {
+    id: 'recette-series',
+    name: 'Recette séries',
+    type: 'manual',
+    data: MESURES,
+    recordCount: MESURES.length,
+  };
+  const FIN = 'Texte, deux séries et barres + ligne composés.';
+
+  test('refus rendu au modèle, texte nettoyé, deux séries agrégées tracées', async ({ page }) => {
+    const erreurs: string[] = [];
+    page.on('console', (msg: ConsoleMessage) => {
+      if (msg.type() !== 'error') return;
+      const texte = msg.text();
+      if (!TOLEREES.some((r) => r.test(texte))) erreurs.push(texte);
+    });
+    page.on('pageerror', (err) => erreurs.push(`pageerror: ${err.message}`));
+
+    await page.addInitScript((source) => {
+      localStorage.setItem('dsfr-data-tours', JSON.stringify({ disabled: true, tours: {} }));
+      localStorage.setItem('dsfr-data-sources', JSON.stringify([source]));
+      localStorage.setItem(
+        'dsfr-data-ia-config',
+        JSON.stringify({
+          apiUrl: 'https://llm.recette.invalid/v1/chat/completions',
+          model: 'modele-recette',
+          token: 'jeton-recette',
+        })
+      );
+    }, SOURCE_SERIES);
+    await page.route(
+      (url) => url.pathname === '/ia-server-config',
+      (route: Route) => route.fulfill({ json: { available: false } })
+    );
+    const retours: string[] = [];
+    await page.route(
+      (url) => url.pathname === '/ia-proxy',
+      async (route: Route) => {
+        const corps = route.request().postDataJSON() as CorpsModele;
+        const outils = (corps.messages ?? []).filter((m) => m.role === 'tool');
+        const dernier = outils.at(-1);
+        if (dernier) retours.push(dernier.content ?? '');
+        const reponse =
+          outils.length === 0
+            ? // Forme fautive : `fields` en chaîne, `layers` en objet, un bloc null.
+              reponseOutil(
+                'add_blocks',
+                {
+                  blocks: [
+                    null,
+                    { kind: 'filters', fields: 'region' },
+                    { kind: 'map', layers: { type: 'marker' } },
+                  ],
+                },
+                'appel-1'
+              )
+            : outils.length === 1
+              ? reponseOutil(
+                  'add_blocks',
+                  {
+                    blocks: [
+                      {
+                        kind: 'text',
+                        content:
+                          '<p>Texte <strong>légitime</strong></p><script>window.__piege = 1</script><img src="x" onerror="window.__piege = 2">',
+                      },
+                      {
+                        kind: 'chart',
+                        title: 'Deux séries',
+                        config: {
+                          type: 'bar',
+                          labelField: 'region',
+                          valueField: 'population',
+                          valueFields: ['pop2025'],
+                          aggregation: 'sum',
+                        },
+                      },
+                      {
+                        kind: 'chart',
+                        title: 'Barres et ligne',
+                        config: {
+                          type: 'bar-line',
+                          labelField: 'region',
+                          valueField: 'population',
+                          valueField2: 'pop2025',
+                          aggregation: 'avg',
+                        },
+                      },
+                    ],
+                  },
+                  'appel-2'
+                )
+              : reponseOutil('finish', { message: FIN }, 'appel-3');
+        await route.fulfill({ json: reponse });
+      }
+    );
+
+    await page.goto('/apps/studio/', { waitUntil: 'domcontentloaded' });
+    await page.locator('#saved-source').selectOption(SOURCE_SERIES.id);
+    await page.locator('#chat-input').fill('Un texte, deux séries par région, et barres + ligne');
+    await page.locator('#chat-send-btn').click();
+
+    const chat = page.locator('#chat-messages');
+    await expect(chat.locator('.chat-message--assistant', { hasText: FIN })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(chat.getByText('Erreur', { exact: false })).toHaveCount(0);
+
+    // 1. Le refus de forme est revenu au modèle, argument et forme attendue nommés.
+    expect(retours[0]).toContain('✗ bloc n°1 refusé : un bloc doit être un objet');
+    expect(retours[0]).toContain(
+      '✗ bloc filters refusé : "fields" doit être un tableau de chaînes'
+    );
+    expect(retours[0]).toContain('✗ bloc map refusé : "layers" doit être un tableau d\'objets');
+    expect(retours[1], 'blocs refusés par le Studio').not.toContain('refusé');
+    expect(retours[1]).toContain('attention : contenu nettoyé');
+
+    // 2. Le texte : HTML simple rendu, ni script ni gestionnaire dans l'aperçu.
+    const apercu = page.frameLocator('#preview-frame');
+    await expect(apercu.locator('strong', { hasText: 'légitime' })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(apercu.locator('img[onerror]')).toHaveCount(0);
+    const piege = await page
+      .frame({ url: /^about:srcdoc$/ })
+      ?.evaluate(() => (window as unknown as { __piege?: number }).__piege ?? null);
+    expect(piege, 'le script du bloc de texte s’est exécuté').toBeNull();
+
+    // 3. Le code : chaque mesure agrégée, colonnes agrégées désignées.
+    const code = page.locator('#generated-code');
+    await expect(code).toContainText('aggregate="population:sum, pop2025:sum"');
+    await expect(code).toContainText('value-fields="pop2025__sum:pop2025"');
+    await expect(code).toContainText('value-field-2="pop2025__avg:pop2025"');
+
+    // 4. Le rendu RÉEL : ce que l'élément DSFR Chart a reçu.
+    const lire = async (selecteur: string, attribut: string): Promise<unknown> => {
+      const element = apercu.locator(selecteur).first();
+      await expect(element).toHaveAttribute(attribut, /^\[/, { timeout: 20_000 });
+      return JSON.parse((await element.getAttribute(attribut)) ?? 'null');
+    };
+    const parRegion = (labels: unknown, valeurs: unknown) =>
+      Object.fromEntries(
+        (labels as string[]).map((label, i) => [label, (valeurs as number[])[i]] as const)
+      );
+
+    const x = ((await lire('dsfr-data-chart bar-chart', 'x')) as string[][])[0];
+    const y = (await lire('dsfr-data-chart bar-chart', 'y')) as number[][];
+    expect(y, 'deux séries attendues').toHaveLength(2);
+    expect(parRegion(x, y[0])).toEqual({ Bretagne: 150, "Val-d'Oise": 40 });
+    expect(parRegion(x, y[1])).toEqual({ Bretagne: 4000, "Val-d'Oise": 800 });
+    expect(await lire('dsfr-data-chart bar-chart', 'name')).toEqual(['population', 'pop2025']);
+
+    const xLigne = await lire('dsfr-data-chart bar-line-chart', 'x');
+    expect(parRegion(xLigne, await lire('dsfr-data-chart bar-line-chart', 'y-bar'))).toEqual({
+      Bretagne: 75,
+      "Val-d'Oise": 20,
+    });
+    expect(parRegion(xLigne, await lire('dsfr-data-chart bar-line-chart', 'y-line'))).toEqual({
+      Bretagne: 2000,
+      "Val-d'Oise": 400,
+    });
+
+    expect(erreurs, 'erreurs console').toEqual([]);
+  });
+});

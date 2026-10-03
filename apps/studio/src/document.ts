@@ -239,6 +239,106 @@ function buildTextWidget(id: string, spec: BlockSpec): { widget: Widget; notes: 
   };
 }
 
+// ---------------------------------------------------------------------------
+// Forme des arguments (#1081)
+// ---------------------------------------------------------------------------
+
+/** Fragment de schema JSON tel que ce module en ecrit (forme plate). */
+interface SchemaForme {
+  readonly type?: string;
+  readonly properties?: Readonly<Record<string, SchemaForme>>;
+  readonly items?: SchemaForme;
+}
+
+const estObjet = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Ce que le modele a envoye, dit en un mot et un extrait. */
+function decrireRecu(v: unknown): string {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'un tableau';
+  if (typeof v === 'object') return 'un objet';
+  const extrait = JSON.stringify(v) ?? String(v);
+  const nature =
+    typeof v === 'string' ? 'une chaîne' : typeof v === 'number' ? 'un nombre' : 'un booléen';
+  return `${nature} ${extrait.length > 40 ? `${extrait.slice(0, 40)}…` : extrait}`;
+}
+
+/** Forme attendue d'un fragment, en clair et avec un exemple quand il aide. */
+function decrireAttendu(schema: SchemaForme): string {
+  switch (schema.type) {
+    case 'array':
+      return schema.items?.type === 'string'
+        ? 'un tableau de chaînes, ex. ["champ1", "champ2"] (même pour un seul élément)'
+        : "un tableau d'objets, ex. [{…}] (même pour un seul élément)";
+    case 'object':
+      return 'un objet {…}';
+    case 'string':
+      return 'une chaîne';
+    case 'boolean':
+      return 'un booléen';
+    default:
+      return 'un nombre';
+  }
+}
+
+/**
+ * Premiere erreur de FORME d'une valeur face a son schema, ou `null`.
+ *
+ * Ne juge que ce qui ferait lever le code en aval : un tableau la ou un objet
+ * est attendu, une chaine a la place d'un tableau, un objet a la place d'une
+ * chaine. Les valeurs hors vocabulaire (`kind`, `type`, `popupMode`…) et les
+ * champs requis gardent leurs messages propres, plus precis. `null` vaut
+ * absence, comme partout dans ce module (`??`) ; un nombre ecrit en chaine
+ * reste tolere.
+ */
+function erreurDeForme(valeur: unknown, schema: SchemaForme, chemin: string): string | null {
+  if (valeur === undefined || valeur === null) return null;
+  const refus = () =>
+    `"${chemin}" doit être ${decrireAttendu(schema)} ; reçu : ${decrireRecu(valeur)}.`;
+  switch (schema.type) {
+    case 'array': {
+      if (!Array.isArray(valeur)) return refus();
+      const items = schema.items;
+      if (!items) return null;
+      for (let i = 0; i < valeur.length; i++) {
+        const erreur = erreurDeForme(valeur[i], items, `${chemin}[${i}]`);
+        if (erreur) return erreur;
+      }
+      return null;
+    }
+    case 'object': {
+      if (!estObjet(valeur)) return refus();
+      for (const [nom, sous] of Object.entries(schema.properties ?? {})) {
+        const erreur = erreurDeForme(valeur[nom], sous, `${chemin}.${nom}`);
+        if (erreur) return erreur;
+      }
+      return null;
+    }
+    case 'string':
+      return typeof valeur === 'string' ? null : refus();
+    default:
+      return typeof valeur === 'object' ? refus() : null;
+  }
+}
+
+/**
+ * Erreur de forme d'un bloc recu du modele (`add_blocks`, `update_block`), ou
+ * `null`. `components` n'est controle qu'en surface : `validerComposantsLibres`
+ * lit une forme brute et porte ses propres messages.
+ */
+function erreurDeFormeDuBloc(spec: unknown): string | null {
+  if (!estObjet(spec)) {
+    return `un bloc doit être un objet {"kind": …} ; reçu : ${decrireRecu(spec)}.`;
+  }
+  const schemas: Readonly<Record<string, SchemaForme>> = BLOCK_SPEC_SCHEMA.properties;
+  for (const [nom, schema] of Object.entries(schemas)) {
+    const erreur = erreurDeForme(spec[nom], nom === 'components' ? { type: 'array' } : schema, nom);
+    if (erreur) return erreur;
+  }
+  return null;
+}
+
 /**
  * Champs qu'un type de graphique EXIGE vraiment (#1123) — source unique de la
  * validation, de la description de `valueField` dans le schema des outils et
@@ -618,12 +718,28 @@ export function addBlocks(
   specs: BlockSpec[],
   ctx: DocumentContext
 ): ActionOutcome {
+  const recus: unknown = specs;
+  if (recus !== undefined && recus !== null && !Array.isArray(recus)) {
+    // Un bloc seul, ou une chaine, a la place du tableau : la forme est dite.
+    const forme = erreurDeForme(recus, { type: 'array', items: { type: 'object' } }, 'blocks');
+    return { ok: false, summary: `✗ add_blocks refusé : ${forme}` };
+  }
   if (!Array.isArray(specs) || specs.length === 0) {
     return { ok: false, summary: 'add_blocks : aucun bloc fourni.' };
   }
   const lines: string[] = [];
   let ok = false;
-  for (const spec of specs) {
+  for (const [rang, spec] of specs.entries()) {
+    // Forme d'abord (#1081) : un argument mal forme est REFUSE et rendu au
+    // modele, comme un type inconnu — jamais une exception qui ferait echouer
+    // le tour.
+    const forme = erreurDeFormeDuBloc(spec);
+    if (forme) {
+      const brut: unknown = spec;
+      const nom = estObjet(brut) && typeof brut.kind === 'string' ? brut.kind : `n°${rang + 1}`;
+      lines.push(`✗ bloc ${nom} refusé : ${forme}`);
+      continue;
+    }
     const id = nextBlockId(doc);
     let built: { widget?: Widget; error?: string; notes?: string[] };
     switch (spec.kind) {
@@ -670,6 +786,8 @@ export function updateBlock(
   if (idx === -1) {
     return { ok: false, summary: `Bloc "${blockId}" introuvable.\n${describeDocument(doc)}` };
   }
+  const forme = erreurDeFormeDuBloc(patch);
+  if (forme) return { ok: false, summary: `✗ update refusé : ${forme}` };
   const widget = doc.widgets[idx];
   if (patch.title) widget.title = patch.title;
   const notes: string[] = [];
