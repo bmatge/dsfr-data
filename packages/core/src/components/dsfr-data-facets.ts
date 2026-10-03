@@ -30,6 +30,7 @@ import {
   appendOrphanSelections,
   autoDetectFacetFields,
   countFacetValues,
+  facetValuesOf,
   filterRowsBySelections,
   resolveFacetValue,
 } from './facets/facets-client.js';
@@ -56,7 +57,9 @@ import {
 import {
   findUrlParamConflicts,
   parseUrlParamMap,
+  joinUrlFacetValues,
   readUrlSelections,
+  unescapeUrlFacetValue,
   writeUrlSelections,
 } from './facets/facets-url.js';
 import {
@@ -133,8 +136,12 @@ class FacetFieldFilter implements ContextFilterLike {
     this.host._removeFieldValue(this.field, this.host._valueForText(this.field, value));
   }
 
+  /**
+   * Valeurs jointes par virgule, une virgule DANS une valeur échappée en
+   * `%2C` (BUG-031, #1227) — même grammaire que la facette autonome.
+   */
   urlValue(): string {
-    return this._values().join(',');
+    return joinUrlFacetValues(this._values());
   }
 }
 
@@ -297,6 +304,16 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * le contexte porte alors l'URL, un paramètre par champ, et `url-params`
    * est ignoré. Un paramètre lu à la fois par une facette autonome et par un
    * contexte à `url-sync` est une erreur de configuration.
+   *
+   * Un paramètre porte les valeurs d'un champ, séparées par des virgules
+   * (`?region=IDF,PACA`). Une virgule DANS une valeur s'écrit `%2C` et un
+   * pourcent `%25` — soit `%252C` et `%2525` une fois dans la barre
+   * d'adresse : `?intensite=1%252C5 à 2 parcours` désigne la seule valeur
+   * « 1,5 à 2 parcours ». Un lien antérieur à cet échappement, où la virgule
+   * d'une valeur est restée nue, est recollé contre les valeurs présentes
+   * dans les données quand la facette filtre côté client ; en mode
+   * `server-facets`, `static-values` ou `context`, il est lu morceau par
+   * morceau, comme avant.
    */
   @property({ type: Boolean, attribute: 'url-params' })
   urlParams = false;
@@ -305,7 +322,11 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: String, attribute: 'url-param-map' })
   urlParamMap = '';
 
-  /** Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic) */
+  /**
+   * Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic).
+   * Les valeurs d'un champ sont jointes par des virgules ; une virgule dans une valeur est écrite `%2C`
+   * (voir `url-params`), si bien que le lien se relit à l'identique, quelle que soit la valeur.
+   */
   @property({ type: Boolean, attribute: 'url-sync' })
   urlSync = false;
 
@@ -1252,7 +1273,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     for (const field of this._contextFilters.keys()) {
       const values = context._urlValuesFor(field);
       if (values && values.length > 0) {
-        selections[field] = new Set(values);
+        // Le contexte découpe sur les virgules ; la virgule d'une valeur lui
+        // arrive échappée (`%2C`, BUG-031) et se décode ici, morceau par morceau.
+        selections[field] = new Set(values.map(unescapeUrlFacetValue).filter(Boolean));
         prefilled = true;
       }
     }
@@ -1991,12 +2014,30 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     }
   }
 
+  /**
+   * Valeurs qu'un champ porte dans les lignes reçues — consultées pour
+   * recoller un lien d'avant l'échappement des virgules (BUG-031, #1227).
+   * `null` quand les valeurs ne se lisent pas dans les lignes : avant le
+   * premier lot, ou en mode serveur / statique (la sélection part au serveur
+   * avant toute donnée). Le lien y est alors lu morceau par morceau.
+   */
+  private _knownClientValues(field: string): Set<string> | null {
+    if (this.staticValues || (this.serverFacets && this._serverFacetsSupported())) return null;
+    if (this._rawData.length === 0) return null;
+    const known = new Set<string>();
+    for (const row of this._rawData) {
+      for (const value of facetValuesOf(resolveFacetValue(row, field))) known.add(value);
+    }
+    return known;
+  }
+
   /** Read URL search params and apply as facet pré-sélections */
   _applyUrlParams() {
     const selections = readUrlSelections(
       new URLSearchParams(window.location.search),
       this._parseUrlParamMap(),
-      this._urlReadableFields()
+      this._urlReadableFields(),
+      (field) => this._knownClientValues(field)
     );
     if (Object.keys(selections).length > 0) {
       this._activeSelections = selections;

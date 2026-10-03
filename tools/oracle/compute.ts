@@ -256,10 +256,28 @@ export function aggregate(rows: Row[], agg: Agg, field?: string, weight?: string
     case 'avg':
       return nums.reduce((a, b) => a + b, 0) / nums.length;
     case 'min':
-      return Math.min(...nums);
+      return plusPetit(nums);
     case 'max':
-      return Math.max(...nums);
+      return plusGrand(nums);
   }
+}
+
+/**
+ * Minimum et maximum en BOUCLE : `Math.min(...nums)` passe chaque valeur en
+ * argument, et lève une `RangeError` au-delà d'environ 125 000 valeurs — le
+ * défaut que BUG-038 a payé dans la bibliothèque. Un oracle qui tomberait au
+ * même endroit qu'elle ne pourrait pas la contredire.
+ */
+function plusPetit(nums: number[]): number {
+  let min = Infinity;
+  for (const n of nums) if (n < min) min = n;
+  return min;
+}
+
+function plusGrand(nums: number[]): number {
+  let max = -Infinity;
+  for (const n of nums) if (n > max) max = n;
+  return max;
 }
 
 function appliquer(rows: Row[], spec: AggSpec): number | null {
@@ -627,7 +645,7 @@ function reduireCellule(valeurs: unknown[], agg: PivotAgg): unknown {
   if (agg === 'avg') {
     return nombres.length > 0 ? nombres.reduce((a, b) => a + b, 0) / nombres.length : null;
   }
-  if (nombres.length > 0) return agg === 'min' ? Math.min(...nombres) : Math.max(...nombres);
+  if (nombres.length > 0) return agg === 'min' ? plusPetit(nombres) : plusGrand(nombres);
   const textes = valeurs.filter((v) => !celluleVide(v)).map((v) => String(v));
   if (textes.length === 0) return null;
   return textes.reduce((acc, s) => (agg === 'min' ? (s < acc ? s : acc) : s > acc ? s : acc));
@@ -741,13 +759,27 @@ export function unpivotRows(rows: Row[], options: OptionsUnpivot): Row[] {
  * tableau vide, n'en produit aucune — c'est ce qu'une facette fait d'un
  * champ tableau (BUG-006), et ce qu'un regroupement client ne fait PAS (il
  * compte les combinaisons).
+ *
+ * `distinct` : un élément RÉPÉTÉ dans la cellule ne donne qu'une ligne. Une
+ * facette compte des lignes — une ligne, une fois par valeur distincte
+ * (BUG-037) ; l'attribut `explode` d'une query compte des éléments, et se
+ * recalcule sans l'option. La comparaison porte sur la forme texte, comme
+ * les modalités d'une facette.
  */
-export function explodeRows(rows: Row[], field: string): Row[] {
+export function explodeRows(rows: Row[], field: string, distinct = false): Row[] {
   const out: Row[] = [];
   for (const r of rows) {
     const v = r[field];
     if (!Array.isArray(v)) continue;
-    for (const valeur of v) out.push({ ...r, [field]: valeur });
+    const vues = new Set<string>();
+    for (const valeur of v) {
+      if (distinct) {
+        const forme = String(valeur);
+        if (vues.has(forme)) continue;
+        vues.add(forme);
+      }
+      out.push({ ...r, [field]: valeur });
+    }
   }
   return out;
 }
@@ -819,8 +851,8 @@ export function concatRows(
  */
 export function equalIntervalBreaks(values: number[], steps: number): number[] {
   if (values.length === 0 || steps < 2) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = plusPetit(values);
+  const max = plusGrand(values);
   const largeur = (max - min) / steps;
   const bornes: number[] = [];
   for (let i = 1; i < steps; i++) bornes.push(min + largeur * i);
@@ -869,8 +901,8 @@ export function legendClasses(
 ): Array<{ from: number | null; to: number | null }> {
   const bornes = discretiser(values, steps, method, manuelles);
   if (bornes.length === 0 || values.length === 0) return [];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = plusPetit(values);
+  const max = plusGrand(values);
   const classes: Array<{ from: number | null; to: number | null }> = [];
   const n = bornes.length + 1;
   for (let i = 0; i < n; i++) {
@@ -910,7 +942,7 @@ export function runPipeline(
         rows = deriver(rows, step.expr);
         break;
       case 'explode':
-        rows = explodeRows(rows, step.field);
+        rows = explodeRows(rows, step.field, step.distinct === true);
         break;
       case 'pivot':
         rows = pivotRows(rows, step);

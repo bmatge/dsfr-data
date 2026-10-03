@@ -257,8 +257,13 @@ export type Step =
    * Éclate un champ MULTIVALUÉ (tableau) : une ligne par valeur, le champ
    * portant cette valeur ; une ligne sans tableau (absent, vide) n'en produit
    * aucune. C'est ce qu'une facette fait d'un champ tableau (BUG-006).
+   *
+   * `distinct` : une ligne par valeur DISTINCTE de la cellule — un élément
+   * répété (`["Patrimoine", "Patrimoine"]`) ne donne qu'une ligne. C'est le
+   * compte d'une FACETTE, qui annonce des lignes (BUG-037) ; sans l'option,
+   * c'est celui de l'attribut `explode` d'une query, qui compte les éléments.
    */
-  | { op: 'explode'; field: string }
+  | { op: 'explode'; field: string; distinct?: boolean }
   /** Repli long → large, symétrique de `unpivot` (`dsfr-data-pivot`). */
   | {
       op: 'pivot';

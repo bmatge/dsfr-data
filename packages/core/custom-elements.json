@@ -5496,7 +5496,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.\n\nUn paramètre porte les valeurs d'un champ, séparées par des virgules\n(`?region=IDF,PACA`). Une virgule DANS une valeur s'écrit `%2C` et un\npourcent `%25` — soit `%252C` et `%2525` une fois dans la barre\nd'adresse : `?intensite=1%252C5 à 2 parcours` désigne la seule valeur\n« 1,5 à 2 parcours ». Un lien antérieur à cet échappement, où la virgule\nd'une valeur est restée nue, est recollé contre les valeurs présentes\ndans les données quand la facette filtre côté client ; en mode\n`server-facets`, `static-values` ou `context`, il est lu morceau par\nmorceau, comme avant.",
               "attribute": "url-params"
             },
             {
@@ -5516,7 +5516,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic)",
+              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic).\nLes valeurs d'un champ sont jointes par des virgules ; une virgule dans une valeur est écrite `%2C`\n(voir `url-params`), si bien que le lien se relit à l'identique, quelle que soit la valeur.",
               "attribute": "url-sync"
             },
             {
@@ -7277,6 +7277,25 @@
             },
             {
               "kind": "method",
+              "name": "_knownClientValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Set<string> | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Valeurs qu'un champ porte dans les lignes reçues — consultées pour\nrecoller un lien d'avant l'échappement des virgules (BUG-031, #1227).\n`null` quand les valeurs ne se lisent pas dans les lignes : avant le\npremier lot, ou en mode serveur / statique (la sélection part au serveur\navant toute donnée). Le lien y est alors lu morceau par morceau."
+            },
+            {
+              "kind": "method",
               "name": "_applyUrlParams",
               "description": "Read URL search params and apply as facet pré-sélections"
             },
@@ -7487,7 +7506,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.",
+              "description": "Active la lecture des paramètres d'URL comme pré-sélections de facettes.\nSans `url-param-map`, seuls les paramètres qui portent le nom d'une\nfacette EFFECTIVE sont lus (champs de `fields`, ou facettes détectées) —\njamais n'importe quelle colonne des données (#773).\nDès qu'un `dsfr-data-context` est présent, préférer `context=\"id\"` :\nle contexte porte alors l'URL, un paramètre par champ, et `url-params`\nest ignoré. Un paramètre lu à la fois par une facette autonome et par un\ncontexte à `url-sync` est une erreur de configuration.\n\nUn paramètre porte les valeurs d'un champ, séparées par des virgules\n(`?region=IDF,PACA`). Une virgule DANS une valeur s'écrit `%2C` et un\npourcent `%25` — soit `%252C` et `%2525` une fois dans la barre\nd'adresse : `?intensite=1%252C5 à 2 parcours` désigne la seule valeur\n« 1,5 à 2 parcours ». Un lien antérieur à cet échappement, où la virgule\nd'une valeur est restée nue, est recollé contre les valeurs présentes\ndans les données quand la facette filtre côté client ; en mode\n`server-facets`, `static-values` ou `context`, il est lu morceau par\nmorceau, comme avant.",
               "fieldName": "urlParams"
             },
             {
@@ -7505,7 +7524,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic)",
+              "description": "Synchronise l'URL quand l'utilisateur change les facettes (replaceState — pas d'entrée d'historique par clic).\nLes valeurs d'un champ sont jointes par des virgules ; une virgule dans une valeur est écrite `%2C`\n(voir `url-params`), si bien que le lien se relit à l'identique, quelle que soit la valeur.",
               "fieldName": "urlSync"
             },
             {
@@ -17261,7 +17280,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs multivalués à éclater avant le regroupement (séparés par virgule).\n\nSans cet attribut, une cellule tableau est ramenée en chaîne pour la clé\nde groupe : `[\"a\", \"b\"]` devient la modalité `\"a,b\"`, une COMBINAISON\ncomptée comme une valeur — là où `dsfr-data-facets` éclate le même champ\n(#421). Les deux composants branchés sur le même champ donnaient donc des\nchiffres différents, sans rien signaler (#736).\n\nAvec `explode=\"tags\"`, chaque élément de la cellule produit sa propre\nligne : les modalités du regroupement sont exactement celles de la\nfacette du même champ, et une ligne portant N valeurs compte dans N\ngroupes (les agrégats la comptent donc N fois).\n\nRègles, alignées sur les facettes : les éléments vides sont ignorés, et\nune cellule sans aucune valeur (tableau vide, `null`, chaîne vide)\nne produit AUCUNE ligne — pas de groupe « non renseigné », comme la\nfacette n'a pas de modalité vide. Une cellule scalaire est inchangée.\n\nChaque champ listé doit figurer dans `group-by` (sinon erreur de\nconfiguration et champ ignoré : éclater un champ hors regroupement\ndupliquerait les lignes et gonflerait les sommes).\n\nL'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline\nne sait éclater un champ multivalué, déléguer produirait à nouveau des\ncombinaisons. Sur une source volumineuse, penser au plafond de lignes\nrapatriées.\n\nPar défaut vide : le comportement historique est conservé.",
+              "description": "Champs multivalués à éclater avant le regroupement (séparés par virgule).\n\nSans cet attribut, une cellule tableau est ramenée en chaîne pour la clé\nde groupe : `[\"a\", \"b\"]` devient la modalité `\"a,b\"`, une COMBINAISON\ncomptée comme une valeur — là où `dsfr-data-facets` éclate le même champ\n(#421). Les deux composants branchés sur le même champ donnaient donc des\nchiffres différents, sans rien signaler (#736).\n\nAvec `explode=\"tags\"`, chaque élément de la cellule produit sa propre\nligne : les modalités du regroupement sont exactement celles de la\nfacette du même champ, et une ligne portant N valeurs compte dans N\ngroupes (les agrégats la comptent donc N fois).\n\n**Le compte est par ÉLÉMENT, pas par valeur distincte.** Une cellule qui\nrépète un élément, `[\"Patrimoine\", \"Patrimoine\"]`, produit DEUX lignes\n« Patrimoine » : `count` vaut 2 pour cette seule ligne d'origine, et\n`sum` ajoute deux fois sa mesure. C'est voulu — un éclatement rend ce\nque la cellule contient — et c'est le SEUL écart avec la facette du même\nchamp, qui compte une ligne une fois par valeur distincte (son compteur\nannonce des lignes, #1227). Sur un champ où le doublon est possible\n(tableaux recollés, saisie libre), `count` ne se lit donc pas « nombre\nde lignes portant la valeur » : dédoublonner la cellule en amont, ou\ncompter les identifiants distincts (`aggregate=\"id:distinct\"`).\n\nRègles, alignées sur les facettes : les éléments vides sont ignorés, et\nune cellule sans aucune valeur (tableau vide, `null`, chaîne vide)\nne produit AUCUNE ligne — pas de groupe « non renseigné », comme la\nfacette n'a pas de modalité vide. Une cellule scalaire est inchangée.\n\nChaque champ listé doit figurer dans `group-by` (sinon erreur de\nconfiguration et champ ignoré : éclater un champ hors regroupement\ndupliquerait les lignes et gonflerait les sommes).\n\nL'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline\nne sait éclater un champ multivalué, déléguer produirait à nouveau des\ncombinaisons. Sur une source volumineuse, penser au plafond de lignes\nrapatriées.\n\nPar défaut vide : le comportement historique est conservé.",
               "attribute": "explode"
             },
             {
@@ -18169,7 +18188,7 @@
                   }
                 }
               ],
-              "description": "Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes\n(`_facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non\nvides, une cellule vide n'en fournit aucune, un scalaire fournit sa\nvaleur."
+              "description": "Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes\n(`facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non\nvides, une cellule vide n'en fournit aucune, un scalaire fournit sa\nvaleur. Un élément RÉPÉTÉ est rendu autant de fois qu'il apparaît : le\ncompte est par élément, là où le compteur d'une facette dédoublonne\n(arbitrage du 2026-10-03, #1227)."
             },
             {
               "kind": "method",
@@ -18637,7 +18656,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Champs multivalués à éclater avant le regroupement (séparés par virgule).\n\nSans cet attribut, une cellule tableau est ramenée en chaîne pour la clé\nde groupe : `[\"a\", \"b\"]` devient la modalité `\"a,b\"`, une COMBINAISON\ncomptée comme une valeur — là où `dsfr-data-facets` éclate le même champ\n(#421). Les deux composants branchés sur le même champ donnaient donc des\nchiffres différents, sans rien signaler (#736).\n\nAvec `explode=\"tags\"`, chaque élément de la cellule produit sa propre\nligne : les modalités du regroupement sont exactement celles de la\nfacette du même champ, et une ligne portant N valeurs compte dans N\ngroupes (les agrégats la comptent donc N fois).\n\nRègles, alignées sur les facettes : les éléments vides sont ignorés, et\nune cellule sans aucune valeur (tableau vide, `null`, chaîne vide)\nne produit AUCUNE ligne — pas de groupe « non renseigné », comme la\nfacette n'a pas de modalité vide. Une cellule scalaire est inchangée.\n\nChaque champ listé doit figurer dans `group-by` (sinon erreur de\nconfiguration et champ ignoré : éclater un champ hors regroupement\ndupliquerait les lignes et gonflerait les sommes).\n\nL'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline\nne sait éclater un champ multivalué, déléguer produirait à nouveau des\ncombinaisons. Sur une source volumineuse, penser au plafond de lignes\nrapatriées.\n\nPar défaut vide : le comportement historique est conservé.",
+              "description": "Champs multivalués à éclater avant le regroupement (séparés par virgule).\n\nSans cet attribut, une cellule tableau est ramenée en chaîne pour la clé\nde groupe : `[\"a\", \"b\"]` devient la modalité `\"a,b\"`, une COMBINAISON\ncomptée comme une valeur — là où `dsfr-data-facets` éclate le même champ\n(#421). Les deux composants branchés sur le même champ donnaient donc des\nchiffres différents, sans rien signaler (#736).\n\nAvec `explode=\"tags\"`, chaque élément de la cellule produit sa propre\nligne : les modalités du regroupement sont exactement celles de la\nfacette du même champ, et une ligne portant N valeurs compte dans N\ngroupes (les agrégats la comptent donc N fois).\n\n**Le compte est par ÉLÉMENT, pas par valeur distincte.** Une cellule qui\nrépète un élément, `[\"Patrimoine\", \"Patrimoine\"]`, produit DEUX lignes\n« Patrimoine » : `count` vaut 2 pour cette seule ligne d'origine, et\n`sum` ajoute deux fois sa mesure. C'est voulu — un éclatement rend ce\nque la cellule contient — et c'est le SEUL écart avec la facette du même\nchamp, qui compte une ligne une fois par valeur distincte (son compteur\nannonce des lignes, #1227). Sur un champ où le doublon est possible\n(tableaux recollés, saisie libre), `count` ne se lit donc pas « nombre\nde lignes portant la valeur » : dédoublonner la cellule en amont, ou\ncompter les identifiants distincts (`aggregate=\"id:distinct\"`).\n\nRègles, alignées sur les facettes : les éléments vides sont ignorés, et\nune cellule sans aucune valeur (tableau vide, `null`, chaîne vide)\nne produit AUCUNE ligne — pas de groupe « non renseigné », comme la\nfacette n'a pas de modalité vide. Une cellule scalaire est inchangée.\n\nChaque champ listé doit figurer dans `group-by` (sinon erreur de\nconfiguration et champ ignoré : éclater un champ hors regroupement\ndupliquerait les lignes et gonflerait les sommes).\n\nL'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline\nne sait éclater un champ multivalué, déléguer produirait à nouveau des\ncombinaisons. Sur une source volumineuse, penser au plafond de lignes\nrapatriées.\n\nPar défaut vide : le comportement historique est conservé.",
               "fieldName": "explode"
             },
             {
@@ -20553,7 +20572,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)",
+              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.",
               "attribute": "use-proxy"
             },
             {
@@ -20563,7 +20582,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture des hotes connus (ceux que la configuration d'un fournisseur\ndeclare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.",
               "attribute": "proxy-url"
             },
             {
@@ -20633,7 +20652,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE statique",
+              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne clause que l'API n'applique pas fidèlement n'est pas déléguée :\nl'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,\nsur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une\nparenthèse ou une virgule — l'API écarte cette valeur sans erreur\n(#1233). Les autres clauses restent déléguées ; celle-ci demande de\ncharger toutes les lignes qu'elles gardent (une requête par page, sous\n`max-records`) au lieu des seules lignes filtrées, et un `group-by` posé\nà côté n'est plus délégué : les lignes filtrées sont rendues brutes, une\n`dsfr-data-query` en aval regroupe. En pagination serveur\n(`server-side`), où ce calcul n'est pas possible, la clause part telle\nquelle : le résultat est incomplet, et le volet Diagnostic le signale.",
               "attribute": "where"
             },
             {
@@ -20673,7 +20692,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Order-by",
+              "description": "Tri (`champ:asc, champ2:desc`), délégué aux adaptateurs déclarant\n`serverOrderBy`.\n\nUne API qui pagine par décalage et ne trie que sur une clé (Tabular) rend\nun ordre instable d'une page à l'autre dès que la clé n'est pas unique :\ndes lignes reviennent deux fois, d'autres jamais, pour un compte juste.\nUn tri délégué qui s'étend sur plusieurs pages est donc rendu sûr par\nl'adaptateur (#1202, #1233), lignes brutes comme groupes d'un\n`group-by` :\n- tout le jeu est chargé : il est relu sans tri et trié sur place (une\n  requête de plus), dans l'ordre du pipeline — vides, puis nombres, puis\n  textes —, le même que celui d'une `dsfr-data-query` ;\n- `limit` ou `max-records` coupe le chargement : le tri reste au serveur,\n  complété d'une clé de départage (l'identifiant de ligne, ou les autres\n  colonnes du `group-by`) qui le rend total.\n\nUn chargement d'une seule page, et un regroupement trié sur sa seule\ncolonne de regroupement, gardent le tri du serveur tel quel.",
               "attribute": "order-by"
             },
             {
@@ -20703,7 +20722,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.\n\nUn chargement coupé par le plafond et trié (`order-by`) rend les\npremières lignes du tri, chacune une fois : sur Tabular, le tri délégué\nest complété d'une clé de départage (#1233). Si l'API la refuse, le tri\ndu serveur est gardé tel quel et le volet Diagnostic signale un tri\ninstable — des lignes à valeurs égales peuvent alors manquer ou être\ndoublées aux limites de page.",
               "attribute": "max-records"
             },
             {
@@ -20866,6 +20885,16 @@
               "privacy": "private",
               "default": "false",
               "description": "Warn-once : require-where pose sur une source qui ne peut rien recevoir (#690)"
+            },
+            {
+              "kind": "field",
+              "name": "_unrelayedProxyWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "L'avertissement « proxy sans effet » n'est émis qu'une fois par source (AM-114, #1232)."
             },
             {
               "kind": "field",
@@ -21143,6 +21172,56 @@
                 }
               },
               "description": "Prealables d'un fetch par adaptateur : identite de la source, adaptateur\nconnu, parametres valides, et les deux diagnostics NON bloquants\n(fetch-mode/server-side #689, passe-plat `params` fautif #726).\n\n`null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et\ndiffusee a l'aval."
+            },
+            {
+              "kind": "method",
+              "name": "_adapterTargetUrl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "params",
+                  "type": {
+                    "text": "AdapterParams"
+                  }
+                }
+              ],
+              "description": "URL que l'adaptateur appellerait, AVANT tout proxy ; `''` s'il ne sait pas la construire."
+            },
+            {
+              "kind": "method",
+              "name": "_warnUnrelayedProxy",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "rawUrl",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "adapterMode",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "`proxy-url` / `use-proxy` posés sur un hôte que le proxy ne relaie pas\n(AM-114 du banc d'essai, #1232) : la requête part en direct, et rien ne\nle disait. Deux cas, un seul avertissement par source :\n- mode adaptateur : `getProxiedUrl` ne réécrit que les hôtes connus, et\n  `use-proxy` n'y est pas lu du tout — un portail Opendatasoft est donc\n  appelé en direct quel que soit l'attribut ;\n- mode URL : `proxy-url` SANS `use-proxy` ne réécrit que ces mêmes hôtes.\n\nUne URL relative ou de même origine n'a rien à relayer : pas un mot.\n`console.warn` seul, comme les autres avertissements non bloquants de la\nsource — le journal console (#994) le porte au volet Diagnostic."
             },
             {
               "kind": "method",
@@ -21467,7 +21546,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Force le passage par le proxy CORS generique (pour les APIs externes sans CORS)",
+              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.",
               "fieldName": "useProxy"
             },
             {
@@ -21476,7 +21555,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert a la fois la\nreecriture des hotes connus (ceux que la configuration d'un fournisseur\ndeclare sans CORS) et le `use-proxy` generique. Vide = resolution proxy globale habituelle.\nEx: `proxy-url=\"https://mon-proxy.fr\"`.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.",
               "fieldName": "proxyUrl"
             },
             {
@@ -21539,7 +21618,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE statique",
+              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne clause que l'API n'applique pas fidèlement n'est pas déléguée :\nl'adaptateur la calcule lui-même, sur les lignes chargées. C'est le cas,\nsur l'API Tabular, d'une liste `in` ou `notin` dont une valeur porte une\nparenthèse ou une virgule — l'API écarte cette valeur sans erreur\n(#1233). Les autres clauses restent déléguées ; celle-ci demande de\ncharger toutes les lignes qu'elles gardent (une requête par page, sous\n`max-records`) au lieu des seules lignes filtrées, et un `group-by` posé\nà côté n'est plus délégué : les lignes filtrées sont rendues brutes, une\n`dsfr-data-query` en aval regroupe. En pagination serveur\n(`server-side`), où ce calcul n'est pas possible, la clause part telle\nquelle : le résultat est incomplet, et le volet Diagnostic le signale.",
               "fieldName": "where"
             },
             {
@@ -21575,7 +21654,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Order-by",
+              "description": "Tri (`champ:asc, champ2:desc`), délégué aux adaptateurs déclarant\n`serverOrderBy`.\n\nUne API qui pagine par décalage et ne trie que sur une clé (Tabular) rend\nun ordre instable d'une page à l'autre dès que la clé n'est pas unique :\ndes lignes reviennent deux fois, d'autres jamais, pour un compte juste.\nUn tri délégué qui s'étend sur plusieurs pages est donc rendu sûr par\nl'adaptateur (#1202, #1233), lignes brutes comme groupes d'un\n`group-by` :\n- tout le jeu est chargé : il est relu sans tri et trié sur place (une\n  requête de plus), dans l'ordre du pipeline — vides, puis nombres, puis\n  textes —, le même que celui d'une `dsfr-data-query` ;\n- `limit` ou `max-records` coupe le chargement : le tri reste au serveur,\n  complété d'une clé de départage (l'identifiant de ligne, ou les autres\n  colonnes du `group-by`) qui le rend total.\n\nUn chargement d'une seule page, et un regroupement trié sur sa seule\ncolonne de regroupement, gardent le tri du serveur tel quel.",
               "fieldName": "orderBy"
             },
             {
@@ -21602,7 +21681,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.",
+              "description": "Plafond de lignes du chargement complet en mode adaptateur (#233,\n#1027), honoré par les adaptateurs qui paginent eux-mêmes leur\nchargement complet. 0 = plafond par défaut de l'adaptateur (valeurs par\nadaptateur : table des capacités d'ARCHITECTURE, ligne « plafond\nfetchAll »). À relever explicitement pour charger un jeu plus long par la\npagination — par exemple une carte des ≈ 35 000 communes\n(`max-records=\"40000\"`) — ou pour les tableaux de bord « un fetch, N\nagrégations client » : attention au nombre de requêtes en boucle (une\npar page de l'API) et au poids mémoire. Un `limit` plus petit reste\nprioritaire. Quand le plafond coupe le jeu, la source signale la\ntroncature (`truncated`) et un avertissement console cite `max-records`.\n\nUn chargement coupé par le plafond et trié (`order-by`) rend les\npremières lignes du tri, chacune une fois : sur Tabular, le tri délégué\nest complété d'une clé de départage (#1233). Si l'API la refuse, le tri\ndu serveur est gardé tel quel et le volet Diagnostic signale un tri\ninstable — des lignes à valeurs égales peuvent alors manquer ou être\ndoublées aux limites de page.",
               "fieldName": "maxRecords"
             },
             {

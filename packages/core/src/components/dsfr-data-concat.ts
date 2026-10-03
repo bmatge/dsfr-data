@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { appendAll } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { getDataMeta, type PaginationMeta } from '../utils/data-bridge.js';
@@ -260,7 +261,8 @@ export class DsfrDataConcat extends TransformerMixin(LitElement) {
     const rows: Row[] = [];
     received.forEach((sourceRows, i) => {
       if (!originField) {
-        rows.push(...sourceRows);
+        // Lignes d'une source entière : ajout en boucle, jamais étalé (BUG-038)
+        appendAll(rows, sourceRows);
         return;
       }
       const origin = labels?.get(ids[i]) ?? ids[i];

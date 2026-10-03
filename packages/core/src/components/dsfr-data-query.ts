@@ -509,6 +509,17 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * facette du même champ, et une ligne portant N valeurs compte dans N
    * groupes (les agrégats la comptent donc N fois).
    *
+   * **Le compte est par ÉLÉMENT, pas par valeur distincte.** Une cellule qui
+   * répète un élément, `["Patrimoine", "Patrimoine"]`, produit DEUX lignes
+   * « Patrimoine » : `count` vaut 2 pour cette seule ligne d'origine, et
+   * `sum` ajoute deux fois sa mesure. C'est voulu — un éclatement rend ce
+   * que la cellule contient — et c'est le SEUL écart avec la facette du même
+   * champ, qui compte une ligne une fois par valeur distincte (son compteur
+   * annonce des lignes, #1227). Sur un champ où le doublon est possible
+   * (tableaux recollés, saisie libre), `count` ne se lit donc pas « nombre
+   * de lignes portant la valeur » : dédoublonner la cellule en amont, ou
+   * compter les identifiants distincts (`aggregate="id:distinct"`).
+   *
    * Règles, alignées sur les facettes : les éléments vides sont ignorés, et
    * une cellule sans aucune valeur (tableau vide, `null`, chaîne vide)
    * ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la
@@ -1796,9 +1807,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /**
    * Valeurs d'éclatement d'une cellule (#736) — même règle que les facettes
-   * (`_facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non
+   * (`facetValuesOf`, #421) : un tableau fournit chacun de ses éléments non
    * vides, une cellule vide n'en fournit aucune, un scalaire fournit sa
-   * valeur.
+   * valeur. Un élément RÉPÉTÉ est rendu autant de fois qu'il apparaît : le
+   * compte est par élément, là où le compteur d'une facette dédoublonne
+   * (arbitrage du 2026-10-03, #1227).
    */
   private _explodedValuesOf(val: unknown): unknown[] {
     if (val === null || val === undefined || val === '') return [];

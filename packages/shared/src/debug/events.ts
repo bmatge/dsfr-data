@@ -37,6 +37,13 @@ export interface BusPaginationMeta {
    * `max-records` d'une source, attribut `limit` d'un query.
    */
   truncated?: boolean;
+  /**
+   * Réserves de l'adaptateur sur un chargement abouti (#1233) :
+   * `unstable-sort` (tri serveur paginé sans ordre total, des lignes peuvent
+   * manquer ou être doublées), `in-values-dropped` (valeur d'un `in` écartée
+   * par le serveur).
+   */
+  caveats?: string[];
   /** Taux d'appariement posé par un dsfr-data-join (#660). */
   join?: JoinStats;
   /** Colonnes générées et cellules vides posées par un dsfr-data-pivot (#255). */

@@ -71,11 +71,11 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | base-url | String | \`""\` | non | URL de base de l'API (mode adapter). Ex: \`"https://data.iledefrance.fr"\` |
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
-| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). |
+| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). Tabular : une liste \`in\`/\`notin\` dont une valeur porte une parenthese ou une virgule n'est pas deleguee (l'API l'ecarterait sans erreur) — elle est calculee sur les lignes chargees (#1233). |
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
-| order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\` |
+| order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\`. Tabular : au-dela d'une page, le jeu est relu sans tri et trie sur place, ou le tri est complete d'une cle de departage si \`limit\`/\`max-records\` coupe le chargement (#1202, #1233). |
 | server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter, honore par ODS (#233) et Tabular (#1027). 0 = plafond par defaut de l'adapter (ODS : 1000, Tabular : 25000). A relever pour charger un jeu plus long (ex. les ~35 000 communes sur Tabular : \`max-records="40000"\`) ou pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
@@ -146,6 +146,15 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > y mettre TOUTES les colonnes lues en aval (graphique, liste, facettes, filtres), aucune n'est ajoutee d'office ;
 > un nom inconnu fait repondre l'API en erreur. Sans effet avec \`group-by\`/\`aggregate\`. Les noms a espaces et
 > accents se deleguent tels quels (group-by, agregat, filtre, tri) ; seuls \`,\` \`:\` \`|\` restent reserves.
+> Tabular, \`order-by\` sur plusieurs pages (#1202, #1233) : l'API pagine par decalage et ne trie que sur une cle, donc un tri
+> sur une cle non unique perd des lignes d'une page a l'autre (compte juste, lignes doublees ou absentes). La source le
+> corrige seule, lignes brutes comme \`group-by\` : jeu complet → relu sans tri et trie sur place (une requete de plus,
+> ordre du pipeline : vides, nombres, textes) ; \`limit\` ou \`max-records\` atteint → tri serveur complete d'une cle de
+> departage. Une seule page : tri serveur inchange. Rien de tel en \`server-side\` : y trier sur une cle unique.
+> Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause n'est pas envoyee
+> (l'API ecarterait la valeur sans erreur), la source charge les lignes des autres clauses et filtre sur place — le jeu
+> entier au lieu des seules lignes gardees ; un \`group-by\` sur la meme source est alors rendu a une dsfr-data-query.
+> En \`server-side\` la clause part quand meme et le resultat est incomplet (le volet Diagnostic le signale).
 > Le mode adapter ecoute aussi les commandes \`dsfr-data-source-command\` (page, where, orderBy)
 > emises par dsfr-data-facets, dsfr-data-search et dsfr-data-list.
 
@@ -397,6 +406,12 @@ compte dans N groupes, et les modalités sont exactement celles de la facette du
 Les éléments vides sont ignorés et une cellule sans aucune valeur (tableau vide, \`null\`)
 ne produit AUCUNE ligne — pas de groupe « non renseigné », comme la facette n'a pas de
 modalité vide.
+
+Le compte est par ÉLÉMENT : une cellule qui répète un élément (\`["Patrimoine", "Patrimoine"]\`)
+produit deux lignes, donc \`count\` 2 pour une seule ligne d'origine. C'est le seul écart avec
+la facette du même champ, dont le compteur annonce des LIGNES (une ligne compte une fois par
+valeur distincte). Sur un champ où le doublon est possible, \`count\` ne se lit pas « nombre de
+lignes portant la valeur » : compter les identifiants distincts (\`aggregate="id:distinct"\`).
 
 Le défaut reste l'ancien comportement (des chiffres publiés s'appuient dessus). Chaque
 champ listé doit figurer dans \`group-by\` (sinon \`data-dsfr-config-error\` et champ ignoré),
@@ -1037,6 +1052,11 @@ champs de type string avec 2 a 50 valeurs uniques (exclut les champs ID-like).
   fields="region, type" url-params url-sync
   url-param-map="r:region | t:type">
 </dsfr-data-facets>
+
+<!-- Plusieurs valeurs d'un champ : separees par des virgules (?region=IDF,PACA).
+     Une virgule DANS une valeur s'ecrit %2C, un pourcent %25 — soit %252C et %2525 dans
+     un lien ecrit a la main : ?tranche=1%252C5 designe la seule valeur « 1,5 ».
+     url-sync ecrit cet echappement lui-meme. -->
 
 <!-- Colonnage DSFR des facettes -->
 <dsfr-data-facets id="filtered" source="clean"
@@ -2951,10 +2971,15 @@ preflight CORS) : un en-tête \`apikey\` nu échoue. Le composant réécrit \`ap
 en \`Authorization: Apikey\` (#655), mais écrire directement la forme \`Authorization\`.
 
 ### Proxy CORS
-Certaines APIs externes (Grist gouv/SaaS, Tabular) ne supportent pas le CORS
+Certaines APIs externes (Grist gouv/SaaS) ne supportent pas le CORS
 navigateur : il faut un proxy CORS. La voie recommandee est l'attribut
 **\`proxy-url\` par source** : on declare l'URL reelle de l'API + le domaine du
 proxy, l'integrateur peut remplacer ce domaine par le sien.
+
+Tabular n'en fait PAS partie : \`tabular-api.data.gouv.fr\` repond
+\`access-control-allow-origin: *\` a la requete comme a la preflight \`OPTIONS\`
+(verifie le 2026-10-03). Une page statique lit data.gouv.fr avec une balise et un
+CDN, sans proxy, sans cle : ne pas poser \`proxy-url\` sur une source Tabular.
 
 \`\`\`html
 <!-- Grist gouv via proxy declaratif : URL reelle + proxy-url -->
@@ -2969,10 +2994,24 @@ proxy, l'integrateur peut remplacer ce domaine par le sien.
 (\`/grist-gouv-proxy\`, \`/grist-proxy\`, \`/tabular-proxy\`, \`/insee-proxy\`). Il est
 prioritaire sur le global \`window.DSFR_DATA_PROXY\` et la config build. Sans
 \`proxy-url\` ni global, l'URL est fetchee en direct (echec CORS attendu sur les
-instances gouv).
+instances Grist gouv).
+
+Les endpoints \`/tabular-proxy\` et \`/insee-proxy\` existent pour d'autres raisons que
+le CORS — un cache ou un quota tenus par l'operateur du proxy — et ne sont jamais une
+necessite pour lire ces deux APIs depuis un navigateur.
+
+**\`proxy-url\` ne relaie QUE ces hotes.** Sur tout autre hote — un portail
+Opendatasoft en mode adaptateur (\`api-type="opendatasoft"\`), ou une URL quelconque
+sans \`use-proxy\` — l'attribut est sans effet : la requete part en direct, et la source
+l'ecrit une fois en console (« proxy-url est sans effet »), repris par le volet
+Diagnostic. \`use-proxy\` (relais generique \`/cors-proxy\`, cible passee dans l'en-tete
+\`X-Target-URL\`) ne vaut qu'en mode URL. Il n'existe pas aujourd'hui de relais dont
+l'URL identifie la donnee : un cache de page ou un CDN du site hote ne peut pas servir
+les donnees d'un portail a la place du portail.
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (\`*.opendatasoft.com\` et portails publics)
+- Tabular data.gouv.fr (\`tabular-api.data.gouv.fr\`)
 - INSEE Melodi (\`api.insee.fr\`)`,
   },
 
