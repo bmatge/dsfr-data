@@ -1068,6 +1068,46 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'databox-tableau-format-long',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1230, BUG-035 du banc — au format long (`series-field`), le tableau de la DataBox doit PIVOTER comme le graphique : une ligne par libellé, une colonne par série. Rendu à plat, il alignait six lignes « mois, valeur » sans dire à quelle série chaque valeur appartient — deux « Janvier » indiscernables, et un tableau qui ne contient pas ce que montre le graphique à côté.',
+    feed: { kind: 'fixture', datasets: { main: LONG } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-box-long', 'long')}
+  <dsfr-data-chart id="g-box-long" source="s-box-long" type="line"
+    label-field="mois" value-field="valeur" series-field="groupe"
+    databox databox-title="Effectifs par groupe"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-box-long',
+        selector: '.fr-table tbody td:nth-child(1)',
+        column: 'mois',
+        pipeline: [{ op: 'pivot', row: 'mois', column: 'groupe', value: 'valeur' }],
+      },
+      {
+        kind: 'texts',
+        id: 'g-box-long',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'Cadres',
+        numeric: true,
+        pipeline: [{ op: 'pivot', row: 'mois', column: 'groupe', value: 'valeur' }],
+      },
+      {
+        kind: 'texts',
+        id: 'g-box-long',
+        selector: '.fr-table tbody td:nth-child(3)',
+        column: 'Agents',
+        numeric: true,
+        pipeline: [{ op: 'pivot', row: 'mois', column: 'groupe', value: 'valeur' }],
+      },
+    ],
+  },
+
+  {
     id: 'carte-resume-non-pondere-763',
     mode: 'deterministic',
     origin:
