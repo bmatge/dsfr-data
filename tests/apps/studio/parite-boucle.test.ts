@@ -246,7 +246,7 @@ describe('la documentation consultée dans la boucle revient au modèle', () => 
     const { post, recus } = modele([
       appels(
         { name: 'get_skill', args: { skill_id: 'dsfrDataChart', section: 'reference' } },
-        { name: 'get_skill', args: { skill_id: 'dsfrDataChart', section: 'tout' } }
+        { name: 'get_skill', args: { skill_id: 'dsfrDataChart' } }
       ),
       fin('ok'),
     ]);
