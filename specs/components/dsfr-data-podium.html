@@ -50,6 +50,49 @@
           </table>
         </div>
 
+        <h2 class="fr-mt-4w">Format de la valeur et du sous-titre</h2>
+        <p>
+          Par défaut, la valeur est rendue en entier, arrondie à l'unité, avec les séparateurs de
+          milliers français : c'est le rendu historique, et il ne change pas. Il convient à des
+          effectifs, pas à des taux : 9,98 et 10,41 s'affichent tous deux « 10 », et le classement
+          montre deux rangs pour un même chiffre. Le composant le signale en console quand cela se
+          produit ; <code>decimals</code> le corrige. Les attributs reprennent le vocabulaire de
+          <a href="dsfr-data-kpi.html">dsfr-data-kpi</a> : <code>format</code> choisit la forme
+          (<code>nombre</code>, <code>pourcentage</code>, <code>euro</code>, <code>decimal</code>,
+          <code>compact</code>), <code>decimals</code> fixe les décimales — jamais dans le format,
+          <code>euro:2</code> est refusé. <code>value-unit</code> reste l'unité de la valeur ;
+          <code>pourcentage</code> et <code>euro</code> portent déjà leur symbole.
+        </p>
+        <p>
+          Le sous-titre lu dans <code>subtitle-field</code> est affiché tel quel par défaut
+          (« 5164 »). <code>subtitle-format</code> le met en forme avec le même vocabulaire, plus
+          <code>date</code> pour une date ISO ; <code>subtitle-unit</code> lui accole une unité :
+          <code>subtitle-format="nombre" subtitle-unit="aides"</code> rend « 5 164 aides ». Le texte
+          fixe de <code>subtitle</code> n'est ni formaté ni suffixé. Un format inconnu est signalé
+          (<code>data-dsfr-config-error</code>) et le rendu par défaut s'applique.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-podium fields="format,decimals,subtitle-format,subtitle-decimals,subtitle-unit" -->
+                <tr><td><code>format</code></td><td>String</td><td><code>""</code></td><td>Format d'affichage de la valeur, même vocabulaire que <code>dsfr-data-kpi</code> : <code>nombre</code>, <code>pourcentage</code>, <code>euro</code>, <code>decimal</code>, <code>compact</code> (14 785 684 → « 14,8 M »). Absent (défaut), le rendu historique est conservé : un entier arrondi à l'unité, séparateurs de milliers fr-FR (#1230, AM-088 du banc). Les décimales passent par <code>decimals</code>, jamais par le format (<code>euro:2</code> est refusé, comme sur le KPI). <code>pourcentage</code> et <code>euro</code> portent déjà leur symbole : ne pas le répéter dans <code>value-unit</code>. <code>date</code> n'a pas de sens pour une valeur classée et est refusé. Un format inconnu est signalé (<code>data-dsfr-config-error</code>) et le rendu historique s'applique.</td></tr>
+                <tr><td><code>decimals</code></td><td>Number</td><td>—</td><td>Nombre de décimales de la valeur (entier 0 à 20), comme <code>decimals</code> de <code>dsfr-data-kpi</code> : <code>decimals="2"</code> rend 9,98 et 10,41 là où le rendu par défaut affiche deux fois « 10 » (#1230, AM-088 du banc). Seul, il vaut <code>format="nombre"</code> ; avec <code>format</code>, il en fixe les décimales. Absent (défaut) : le rendu historique, arrondi à l'unité — qui est signalé en console quand il fait afficher le même texte à deux valeurs différentes du classement.</td></tr>
+                <tr><td><code>subtitle-format</code></td><td>String</td><td><code>""</code></td><td>Format du sous-titre lu dans <code>subtitle-field</code>, même vocabulaire que <code>format</code> : <code>nombre</code> (5164 → « 5 164 »), <code>pourcentage</code>, <code>euro</code>, <code>decimal</code>, <code>compact</code>, et <code>date</code> (chaîne ISO → JJ/MM/AAAA). Absent (défaut), la valeur du champ est affichée telle quelle (#1230, AM-088 du banc). Une valeur qui n'est pas un nombre reste affichée telle quelle. Sans effet sur le texte fixe de <code>subtitle</code>.</td></tr>
+                <tr><td><code>subtitle-decimals</code></td><td>Number</td><td>—</td><td>Nombre de décimales du sous-titre formaté (entier 0 à 20). Seul, il vaut <code>subtitle-format="nombre"</code>. Absent : le défaut du format.</td></tr>
+                <tr><td><code>subtitle-unit</code></td><td>String</td><td><code>""</code></td><td>Unité accolée après le sous-titre lu dans <code>subtitle-field</code> (espace insécable) : <code>subtitle-format="nombre" subtitle-unit="aides"</code> rend « 5 164 aides ». S'applique aussi sans format. Sans effet sur le texte fixe de <code>subtitle</code>, ni sur un sous-titre vide.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre><code>&lt;dsfr-data-podium source="departements"
+  label-field="nom"
+  value-field="taux" decimals="2" value-unit="%"
+  subtitle-field="nb" subtitle-format="nombre" subtitle-unit="aides"&gt;
+&lt;/dsfr-data-podium&gt;</code></pre>
+        </div>
+
         <h2 class="fr-mt-4w">Vignette : image, pictogramme ou icône</h2>
         <p>
           Une vignette de 40 px se pose entre le rang et le libellé. Les trois voies sont

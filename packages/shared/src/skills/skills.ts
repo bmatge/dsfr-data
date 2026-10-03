@@ -4558,6 +4558,11 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 | subtitle | String | \`""\` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | \`""\` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
 | value-unit | String | \`""\` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| format | String | \`""\` | non | Format de la valeur, vocabulaire du KPI : nombre, pourcentage, euro, decimal, compact. Absent : entier arrondi à l'unité (rendu historique) |
+| decimals | Number | - | non | Décimales de la valeur (0 à 20). Seul, vaut format="nombre" : \`decimals="2"\` distingue 9,98 de 10,41 |
+| subtitle-format | String | \`""\` | non | Format du sous-titre lu dans subtitle-field : nombre, pourcentage, euro, decimal, compact, date. Absent : valeur brute |
+| subtitle-decimals | Number | - | non | Décimales du sous-titre formaté. Seul, vaut subtitle-format="nombre" |
+| subtitle-unit | String | \`""\` | non | Unité accolée au sous-titre lu dans subtitle-field (ex: "aides") |
 | selected-palette | String | \`"sequentialDescending"\` | non | Palette de couleurs : sequentialDescending, sequentialAscending, categorical, neutral |
 | max-items | Number | \`5\` | non | Nombre maximum d'items affiches |
 | no-sort | Boolean | \`false\` | non | Desactive le tri automatique (desc par valeur) |
@@ -4568,6 +4573,11 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 - **Barres proportionnelles** : largeur relative au max des valeurs (ou \`bar-max\` si défini)
 - **Couleurs** : chaque item recoit une couleur de la palette choisie (bordure gauche + barre)
 - **Accessibilité** : \`<ol>\` semantique avec aria-label descriptif du classement complet
+- **Format** : par défaut la valeur est un entier arrondi à l'unité — deux taux proches (9,98 et 10,41)
+  s'affichent alors tous deux « 10 », ce que le composant signale en console. Poser \`decimals\` (ou
+  \`format\`) dès que les valeurs ne sont pas des entiers. Le sous-titre lu dans \`subtitle-field\` est
+  brut par défaut : \`subtitle-format="nombre" subtitle-unit="aides"\` rend « 5 164 aides ».
+  Les décimales ne passent jamais par le format (\`euro:2\` est refusé) : même règle que le KPI.
 
 ### Exemples
 \`\`\`html
@@ -4603,6 +4613,14 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
   value-field="score"
   subtitle-field="catégorie"
   bar-max="100"
+  max-items="3">
+</dsfr-data-podium>
+
+<!-- Taux proches : décimales sur la valeur, sous-titre chiffré avec son unité -->
+<dsfr-data-podium source="data"
+  label-field="departement"
+  value-field="taux" decimals="2" value-unit="%"
+  subtitle-field="nb" subtitle-format="nombre" subtitle-unit="aides"
   max-items="3">
 </dsfr-data-podium>
 

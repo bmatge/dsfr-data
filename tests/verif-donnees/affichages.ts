@@ -2076,6 +2076,49 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'podium-decimales-et-sous-titre',
+    mode: 'deterministic',
+    constats: ['AM-088'],
+    origin:
+      '#1230, AM-088 du banc — le podium arrondissait sa valeur à l’unité (9,98 et 10,41 affichés « 10 ») et rendait `subtitle-field` brut (« 5164 »). `decimals` fixe les décimales de la valeur, `subtitle-format` et `subtitle-unit` mettent le sous-titre au format fr-FR avec son unité. Le budget porte des centimes (,25 et ,75) : un arrondi à l’unité qui subsisterait se voit sur chaque ligne.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-podium-format', 'communes')}
+  <dsfr-data-podium id="p-format" source="s-podium-format"
+    label-field="nom" value-field="budget" decimals="2" max-items="5"
+    subtitle-field="population" subtitle-format="nombre" subtitle-unit="hab."></dsfr-data-podium>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'p-format',
+        selector: '.dsfr-data-podium__value',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pattern: decimales(2),
+        pipeline: [
+          { op: 'order-by', column: 'budget', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      {
+        kind: 'texts',
+        id: 'p-format',
+        selector: '.dsfr-data-podium__subtitle',
+        column: 'population',
+        numeric: true,
+        pattern: `^\\d{1,3}(?:${ESP}\\d{3})*${ESP}hab\\.$`,
+        pipeline: [
+          { op: 'order-by', column: 'budget', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      // Avec des décimales écrites, plus aucune collision d'arrondi à signaler.
+      { kind: 'diagnostic', id: 'p-format', expect: 'silence' },
+    ],
+  },
+
+  {
     id: 'display-gabarit-et-format',
     mode: 'deterministic',
     origin:

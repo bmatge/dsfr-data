@@ -3,7 +3,14 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { toNumber, CHOROPLETH_SCALES } from '@dsfr-data/shared/lib';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { getByPath } from '../utils/json-path.js';
-import { formatNumber } from '../utils/formatters.js';
+import {
+  formatNumber,
+  formatValue,
+  isFormatType,
+  FORMAT_TYPES,
+  type FormatType,
+} from '../utils/formatters.js';
+import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sanitizeTemplateUrl } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
@@ -86,6 +93,14 @@ function warnRejected(kind: string, field: string, value: string, why: string): 
  *   selected-palette="sequentialDescending"
  *   max-items="5">
  * </dsfr-data-podium>
+ *
+ * @example Taux proches et sous-titre chiffré (#1230)
+ * <dsfr-data-podium
+ *   source="departements"
+ *   label-field="nom"
+ *   value-field="taux" decimals="2" value-unit="%"
+ *   subtitle-field="nb" subtitle-format="nombre" subtitle-unit="aides">
+ * </dsfr-data-podium>
  */
 @customElement('dsfr-data-podium')
 export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
@@ -121,6 +136,60 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   /** Unité affichée après la valeur */
   @property({ type: String, attribute: 'value-unit' })
   valueUnit = '';
+
+  /**
+   * Format d'affichage de la valeur, même vocabulaire que `dsfr-data-kpi` :
+   * `nombre`, `pourcentage`, `euro`, `decimal`, `compact` (14 785 684 →
+   * « 14,8 M »). Absent (défaut), le rendu historique est conservé : un entier
+   * arrondi à l'unité, séparateurs de milliers fr-FR (#1230, AM-088 du banc).
+   *
+   * Les décimales passent par `decimals`, jamais par le format (`euro:2` est
+   * refusé, comme sur le KPI). `pourcentage` et `euro` portent déjà leur
+   * symbole : ne pas le répéter dans `value-unit`. `date` n'a pas de sens pour
+   * une valeur classée et est refusé. Un format inconnu est signalé
+   * (`data-dsfr-config-error`) et le rendu historique s'applique.
+   */
+  @property({ type: String })
+  format = '';
+
+  /**
+   * Nombre de décimales de la valeur (entier 0 à 20), comme `decimals` de
+   * `dsfr-data-kpi` : `decimals="2"` rend 9,98 et 10,41 là où le rendu par
+   * défaut affiche deux fois « 10 » (#1230, AM-088 du banc). Seul, il vaut
+   * `format="nombre"` ; avec `format`, il en fixe les décimales. Absent
+   * (défaut) : le rendu historique, arrondi à l'unité — qui est signalé en
+   * console quand il fait afficher le même texte à deux valeurs différentes
+   * du classement.
+   */
+  @property({ type: Number })
+  decimals?: number;
+
+  /**
+   * Format du sous-titre lu dans `subtitle-field`, même vocabulaire que
+   * `format` : `nombre` (5164 → « 5 164 »), `pourcentage`, `euro`,
+   * `decimal`, `compact`, et `date` (chaîne ISO → JJ/MM/AAAA). Absent
+   * (défaut), la valeur du champ est affichée telle quelle (#1230, AM-088 du
+   * banc). Une valeur qui n'est pas un nombre reste affichée telle quelle.
+   * Sans effet sur le texte fixe de `subtitle`.
+   */
+  @property({ type: String, attribute: 'subtitle-format' })
+  subtitleFormat = '';
+
+  /**
+   * Nombre de décimales du sous-titre formaté (entier 0 à 20). Seul, il vaut
+   * `subtitle-format="nombre"`. Absent : le défaut du format.
+   */
+  @property({ type: Number, attribute: 'subtitle-decimals' })
+  subtitleDecimals?: number;
+
+  /**
+   * Unité accolée après le sous-titre lu dans `subtitle-field` (espace
+   * insécable) : `subtitle-format="nombre" subtitle-unit="aides"` rend
+   * « 5 164 aides ». S'applique aussi sans format. Sans effet sur le texte
+   * fixe de `subtitle`, ni sur un sous-titre vide.
+   */
+  @property({ type: String, attribute: 'subtitle-unit' })
+  subtitleUnit = '';
 
   /** Palette de couleurs pour la bordure gauche */
   @property({ type: String, attribute: 'selected-palette' })
@@ -320,6 +389,62 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
 
   static styles = [];
 
+  /** Vrai quand l'erreur de configuration posée vient d'un format inconnu. */
+  private _formatConfigError = false;
+
+  updated(changedProperties: Map<string, unknown>) {
+    super.updated(changedProperties);
+    this._checkFormatConfig();
+  }
+
+  /**
+   * `format` / `subtitle-format` inconnus : signalés, jamais ignorés en
+   * silence (le rendu retombe sur l'historique). `date` est refusé pour la
+   * valeur : on ne classe pas des dates par longueur de barre.
+   */
+  private _checkFormatConfig() {
+    const problems: string[] = [];
+    if (this.format && this._valueFormat() === null && this.format !== '') {
+      const hint = this.format.includes(':') ? ' — les décimales passent par decimals="N"' : '';
+      problems.push(
+        `format="${this.format}" inconnu${hint} ; formats acceptés : ` +
+          FORMAT_TYPES.filter((t) => t !== 'date').join(', ')
+      );
+    }
+    if (this.subtitleFormat && !isFormatType(this.subtitleFormat)) {
+      const hint = this.subtitleFormat.includes(':')
+        ? ' — les décimales passent par subtitle-decimals="N"'
+        : '';
+      problems.push(
+        `subtitle-format="${this.subtitleFormat}" inconnu${hint} ; formats acceptés : ` +
+          FORMAT_TYPES.join(', ')
+      );
+    }
+    if (problems.length === 0) {
+      if (this._formatConfigError) {
+        this._formatConfigError = false;
+        clearConfigError(this);
+      }
+      return;
+    }
+    const message = problems.join(' ; ');
+    if (this._formatConfigError && this.getAttribute('data-dsfr-config-error') === message) return;
+    this._formatConfigError = true;
+    reportConfigError(this, `dsfr-data-podium[${this.id}]`, message);
+  }
+
+  /** Format de la valeur : un FormatType numérique, ou `null` (absent ou refusé). */
+  private _valueFormat(): Exclude<FormatType, 'date'> | null {
+    return isFormatType(this.format) && this.format !== 'date' ? this.format : null;
+  }
+
+  /** `decimals` exploitable : entier de 0 à 20, sinon `undefined`. */
+  private _decimalsOf(raw: number | undefined): number | undefined {
+    return typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 20
+      ? raw
+      : undefined;
+  }
+
   onSourceReset(): void {
     this._data = [];
   }
@@ -387,7 +512,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     let items = this._data.map((record) => ({
       label: String(getByPath(record, this.labelField) ?? ''),
       subtitle: this.subtitleField
-        ? String(getByPath(record, this.subtitleField) ?? '')
+        ? this._formatSubtitle(getByPath(record, this.subtitleField))
         : this.subtitle,
       value: toNumber(getByPath(record, this.valueField)),
       ratio: 0,
@@ -433,9 +558,75 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     return items.map(({ record: _record, ...item }) => item);
   }
 
+  /**
+   * Texte de la valeur. Sans `format` ni `decimals` : le rendu historique,
+   * entier arrondi à l'unité. Avec l'un ou l'autre : la famille de formatage
+   * commune (`formatValue`), celle de `dsfr-data-kpi`.
+   */
   private _formatValue(value: number): string {
-    const formatted = formatNumber(value);
+    const format = this._valueFormat();
+    const decimals = this._decimalsOf(this.decimals);
+    const formatted =
+      format === null && decimals === undefined
+        ? formatNumber(value)
+        : formatValue(value, format ?? 'nombre', { decimals });
     return this.valueUnit ? `${formatted} ${this.valueUnit}` : formatted;
+  }
+
+  /**
+   * Texte du sous-titre lu dans `subtitle-field` (#1230, AM-088 du banc).
+   * Sans `subtitle-format` ni `subtitle-decimals` : la valeur telle quelle,
+   * comme avant. Une valeur vide reste vide (ni tiret, ni unité seule) ; une
+   * valeur que le format ne sait pas lire reste affichée telle quelle.
+   */
+  private _formatSubtitle(raw: unknown): string {
+    if (raw === null || raw === undefined || raw === '') return '';
+    const format: FormatType | null = isFormatType(this.subtitleFormat)
+      ? this.subtitleFormat
+      : null;
+    const decimals = this._decimalsOf(this.subtitleDecimals);
+    let text = String(raw);
+    if (format === 'date') {
+      const date = formatValue(typeof raw === 'number' ? raw : String(raw), 'date');
+      if (date !== '—') text = date;
+    } else if (format !== null || decimals !== undefined) {
+      const value = typeof raw === 'number' ? raw : toNumber(raw, true);
+      if (value !== null && Number.isFinite(value)) {
+        text = formatValue(value, format ?? 'nombre', { decimals });
+      }
+    }
+    const unit = this.subtitleUnit.trim();
+    return unit ? `${text}\u00a0${unit}` : text;
+  }
+
+  /** Dernière collision d'arrondi signalée (un avertissement par situation). */
+  private _roundingWarned = '';
+
+  /**
+   * L'arrondi à l'unité du rendu par défaut peut faire afficher LE MÊME texte
+   * à deux valeurs différentes du classement (9,98 et 10,41 → « 10 », #1230,
+   * AM-088 du banc) : deux rangs, un seul chiffre. Le défaut ne change pas —
+   * les pages existantes gardent leur rendu — mais on le dit, en nommant
+   * l'attribut qui le lève.
+   */
+  private _warnRoundingCollision(items: PodiumItem[]): void {
+    if (this._valueFormat() !== null || this._decimalsOf(this.decimals) !== undefined) return;
+    const seen = new Map<string, number>();
+    for (const item of items) {
+      const text = formatNumber(item.value);
+      const previous = seen.get(text);
+      if (previous !== undefined && previous !== item.value) {
+        const key = `${previous}|${item.value}`;
+        if (key === this._roundingWarned) return;
+        this._roundingWarned = key;
+        console.warn(
+          `dsfr-data-podium[${this.id}]: les valeurs ${previous} et ${item.value} s'affichent toutes ` +
+            `deux « ${text} » (arrondi à l'unité par défaut) — poser decimals="N" pour les distinguer.`
+        );
+        return;
+      }
+      seen.set(text, item.value);
+    }
   }
 
   private _getAriaLabel(): string {
@@ -482,6 +673,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     }
 
     this._warnExclusiveMedia();
+    this._warnRoundingCollision(items);
 
     return html`
       <ol class="${this._listClasses()}" role="list" aria-label="${this._getAriaLabel()}">
