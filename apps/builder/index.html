@@ -136,9 +136,29 @@
             <i class="ri-map-fill" aria-hidden="true"></i>
             <span>Carte</span>
           </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map-reg" data-repere="builder.type.map-reg" data-attribut="dsfr-data-chart:type" title="Carte des régions">
+            <i class="ri-map-2-fill" aria-hidden="true"></i>
+            <span>Carte régions</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map-aca" data-repere="builder.type.map-aca" data-attribut="dsfr-data-chart:type" title="Carte des académies">
+            <i class="ri-graduation-cap-fill" aria-hidden="true"></i>
+            <span>Carte académies</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="map-monde" data-repere="builder.type.map-monde" data-attribut="dsfr-data-chart:type" title="Carte du monde">
+            <i class="ri-earth-fill" aria-hidden="true"></i>
+            <span>Carte monde</span>
+          </button>
           <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="datalist" data-repere="builder.type.datalist" title="Tableau de données">
             <i class="ri-table-line" aria-hidden="true"></i>
             <span>Tableau</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="bar-line" data-repere="builder.type.bar-line" data-attribut="dsfr-data-chart:type" title="Barres et ligne sur deux axes">
+            <i class="ri-bar-chart-2-fill" aria-hidden="true"></i>
+            <span>Barres + ligne</span>
+          </button>
+          <button type="button" class="chart-type-btn app-card-choice app-card-choice--compact" aria-pressed="false" data-type="podium" data-repere="builder.type.podium" data-attribut="dsfr-data-podium:source" title="Podium : classement des premières valeurs">
+            <i class="ri-trophy-fill" aria-hidden="true"></i>
+            <span>Podium</span>
           </button>
         </div>
         </div>
@@ -192,12 +212,61 @@
           </div>
         </div>
 
+        <!-- Barres + ligne : la seconde mesure, tracée en ligne (#1204) -->
+        <div id="line-field-group" style="display: none; gap: 0.5rem; align-items: flex-end;" class="fr-mt-1w">
+          <div class="fr-select-group fr-select-group--sm" style="flex: 1; margin-bottom: 0;">
+            <label class="fr-label" for="line-field">
+              Valeur de la ligne
+              <span class="fr-hint-text">Le second champ numérique, tracé en ligne sur son propre axe</span>
+            </label>
+            <select class="fr-select" id="line-field" data-repere="builder.donnees.champ-ligne" data-attribut="dsfr-data-chart:value-field-2" data-prerequis="source-chargee">
+              <option value="">— Charger les champs —</option>
+            </select>
+          </div>
+          <div class="fr-input-group fr-input-group--sm" style="flex: 1; margin-bottom: 0;">
+            <label class="fr-label" for="line-field-label">
+              Libellé
+              <span class="fr-hint-text">Nom affiché (vide = nom du champ)</span>
+            </label>
+            <input type="text" class="fr-input fr-input--sm" id="line-field-label" data-repere="builder.donnees.champ-ligne-libelle" data-repere-libelle="Nom affiché de la ligne" placeholder="Nom de la ligne">
+          </div>
+        </div>
+
+        <!-- Podium : nombre de places (#1204) -->
+        <div class="fr-input-group fr-input-group--sm fr-mt-1w" id="podium-config" style="display: none;">
+          <label class="fr-label" for="podium-max-items">
+            Nombre de places
+            <span class="fr-hint-text">Combien de valeurs classer, de la plus grande à la plus petite (1 à 20)</span>
+          </label>
+          <input class="fr-input" type="number" id="podium-max-items" min="1" max="20" step="1" value="5" data-repere="builder.donnees.podium-places" data-attribut="dsfr-data-podium:max-items">
+        </div>
+
         <!-- Séries supplementaires (affiches conditionnellement) -->
         <div id="extra-series-group" data-zone="builder.donnees.series" data-repere-libelle="Séries supplémentaires" style="display: none;">
           <div id="extra-series-container"></div>
           <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-series-btn" data-fc="ajouter-serie" data-repere="builder.donnees.series.ajouter" data-attribut="dsfr-data-chart:value-fields" data-prerequis="type-multi-series source-chargee champs-choisis">
             <i class="ri-add-line"></i> Ajouter une série
           </button>
+        </div>
+
+        <!-- Format long : les séries viennent d'un champ, pas de colonnes (#1204) -->
+        <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="series-field-group" style="display: none;">
+          <label class="fr-label" for="series-field">
+            Champ des séries (format long)
+            <span class="fr-hint-text">Quand chaque ligne porte une étiquette, une série et une valeur : le champ qui nomme la série. Remplace « Ajouter une série ».</span>
+          </label>
+          <select class="fr-select" id="series-field" data-repere="builder.donnees.champ-series" data-attribut="dsfr-data-chart:series-field" data-prerequis="type-multi-series source-chargee">
+            <option value="">— Aucun (une colonne par série) —</option>
+          </select>
+        </div>
+
+        <!-- Barres empilées : seulement pour les types en barres (#1204) -->
+        <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w" id="stacked-group" style="display: none;">
+          <input type="checkbox" id="stacked-toggle" data-repere="builder.donnees.empiler" data-attribut="dsfr-data-chart:stacked">
+          <label class="fr-label" for="stacked-toggle">
+            Barres empilées
+            <span class="fr-hint-text">Empile les séries au lieu de les juxtaposer (utile à partir de deux séries)</span>
+          </label>
         </div>
 
         <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="code-field-group" style="display: none;">
@@ -209,12 +278,13 @@
             <option value="">— Charger les champs —</option>
           </select>
           <!-- Avertissement affiché par updateMapCodeFieldWarning() quand aucun champ
-               de la source ne ressemble à un code INSEE valide (audit UX §m-B-6). -->
+               de la source ne porte le référentiel du découpage choisi (audit UX §m-B-6) ;
+               le texte suit le type de carte (#1204). -->
           <div id="code-field-warning" class="field-warning" hidden>
             <strong>Aucun code département détecté.</strong>
             Cette carte est <em>départementale</em> : elle attend des codes INSEE
-            (01-95, 2A, 2B, 971-976). Si vos données sont régionales, utilisez la
-            carte des régions — exemple « Carte régions » dans le Playground.
+            (01-95, 2A, 2B, 971-976). Si vos données sont régionales, choisissez le
+            type « Carte régions ».
             Sinon, convertissez vos noms de départements en codes.
           </div>
         </div>

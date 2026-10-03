@@ -14,7 +14,7 @@ import {
   REGLES_GENERIQUES,
   type MountedAssistant,
 } from '@dsfr-data/shared';
-import { state } from './state.js';
+import { state, isMapType } from './state.js';
 import { creerAdaptateurBuilder } from './assistant/adaptateur.js';
 import { REGLES_BUILDER } from './assistant/constats.js';
 import { monterAssistantBuilder, montrerRepereBuilder } from './assistant/index.js';
@@ -37,6 +37,7 @@ import {
   syncFavoriteIcon,
   renderPaletteSwatches,
   syncA11yWithDatabox,
+  suggestGeoCodeField,
 } from './ui/ui-helpers.js';
 import type { ChartType } from './state.js';
 import { setupDatalistListeners } from './ui/datalist-config.js';
@@ -44,6 +45,7 @@ import { setupNormalizeListeners, updateMiddlewareSections } from './ui/normaliz
 import { setupFacetsListeners } from './ui/facets-config.js';
 import { setupUrlSyncListeners } from './ui/url-sync-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
+import { setupFormesListeners } from './ui/formes.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
 import { CARDINALITY_EVENT } from './ui/real-cardinality.js';
@@ -129,6 +131,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const type = (btn as HTMLElement).dataset.type as ChartType | undefined;
       if (type) {
         selectChartType(type);
+        // Carte : proposer le champ qui porte le référentiel du découpage (#1204)
+        if (isMapType(type)) suggestGeoCodeField(type);
         updatePreviewSteps();
       }
     });
@@ -361,6 +365,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Extra séries "add" button
+  // Barres + ligne, podium (#1204)
+  setupFormesListeners();
+
   const addSeriesBtn = document.getElementById('add-series-btn');
   if (addSeriesBtn) addSeriesBtn.addEventListener('click', addExtraSeries);
 

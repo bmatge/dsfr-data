@@ -59,7 +59,7 @@ Naviguez vers le **Builder**. Dans la section "Source de donnees", selectionnez 
 
 ### Etape 4 — Choisir le type de graphique
 
-La section "Type de graphique" propose une grille de types de graphiques : barres, lignes, camembert, radar, carte, jauge, nuage de points, KPI, tableau, etc. Cliquez sur le type souhaite (ici **Barres**).
+La section "Type de graphique" propose une grille de types de graphiques : barres, lignes, camembert, radar, jauge, nuage de points, KPI, tableau, barres + ligne, podium, et quatre cartes (departements, regions, academies, monde). Cliquez sur le type souhaite (ici **Barres**).
 
 ### Etape 5 — Configurer et generer
 

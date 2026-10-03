@@ -31,7 +31,20 @@ import {
   extraTraced,
   seriesNames,
 } from './series-aggregates.js';
-import { state, type DataRecord, PROXY_BASE_URL_EMBED, LIB_URL } from '../state.js';
+import {
+  state,
+  tracedExtraSeries,
+  activeSeriesField,
+  stackedActive,
+  isMapType,
+  LIB_RENDERED_TYPES,
+  PODIUM_PLACES_DEFAUT,
+  type MapType,
+  type DataRecord,
+  PROXY_BASE_URL_EMBED,
+  LIB_URL,
+} from '../state.js';
+import { REFERENTIELS } from '../geo-codes.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
@@ -226,6 +239,7 @@ function dsfrChartAttrs(): string {
   if (state.chartType === 'doughnut') {
     /* no fill = donut */
   }
+  if (stackedActive(state)) extra.push('stacked');
   return extra.map((a) => `\n    ${a}`).join('');
 }
 
@@ -237,13 +251,126 @@ function dsfrChartAttrs(): string {
  * le code exporté quand l'état vient d'ailleurs (favori, instantané déposé).
  */
 export function effectivePalette(): string {
-  if (state.chartType === 'map') {
+  if (isMapType(state.chartType)) {
     return state.palette.includes('sequential') || state.palette.includes('divergent')
       ? state.palette
       : 'sequentialAscending';
   }
   if (state.chartType === 'pie' || state.chartType === 'doughnut') return 'categorical';
+  // Un podium se colore par rang : `dsfr-data-podium` ne lit que les échelles
+  // (dégradés, bicolores) et retombe sur son défaut pour toute autre palette.
+  if (state.chartType === 'podium') {
+    return state.palette.includes('sequential') || state.palette.includes('divergent')
+      ? state.palette
+      : 'sequentialDescending';
+  }
   return state.palette;
+}
+
+/** `champ:Libellé` (alias inline, #668), ou le champ seul si le libellé ne s'y prête pas. */
+function aliased(path: string, label: string): string {
+  const l = label.trim();
+  if (!l || l === path || l.includes(':') || path.includes(':')) return path;
+  return `${path}:${l}`;
+}
+
+/**
+ * Regroupement d'une requête en format long (#1204) : le champ de séries
+ * s'ajoute au regroupement, sauf s'il y figure déjà (requête avancée).
+ */
+function withSeriesGroup(groupBy: string, seriesFieldPath: string): string {
+  if (!seriesFieldPath || !groupBy) return groupBy;
+  const fields = groupBy.split(',').map((f) => f.trim());
+  return fields.includes(seriesFieldPath) ? groupBy : `${groupBy}, ${seriesFieldPath}`;
+}
+
+/**
+ * Chemin du champ de séries dans les lignes de la source, ou chaîne vide hors
+ * format long. `prefix` : préfixe des champs quand la source ne décrit pas de
+ * chemin (`fields.` pour une table Grist non aplatie).
+ */
+function seriesPath(prefix: string = ''): string {
+  const name = activeSeriesField(state);
+  if (!name) return '';
+  const info = state.fields.find((f) => f.name === name);
+  if (state.normalizeConfig.enabled && state.normalizeConfig.flatten) return name;
+  return info?.fullPath || `${prefix}${name}`;
+}
+
+/** Colonnes lues par le composant d'affichage, telles que produites en amont. */
+interface VisualSpec {
+  source: string;
+  labelField: string;
+  valueField: string;
+  valueField2: string;
+  extraValueFields: string[];
+  /** Colonne qui nomme la série de chaque ligne (format long), ou chaîne vide. */
+  seriesField: string;
+  /** Attribut `code-field` déjà mis en forme (cartes), ou chaîne vide. */
+  codeFieldAttr: string;
+}
+
+/**
+ * Le composant d'affichage et son compagnon accessible, pour tout code qui
+ * passe par la bibliothèque : chargement dynamique (Grist, API) et données
+ * intégrées des formes de #1204. Un seul endroit décide de la balise
+ * (`dsfr-data-podium` ou `dsfr-data-chart`) et de ses attributs.
+ */
+function visualElement(v: VisualSpec): string {
+  if (state.chartType === 'podium') {
+    return `
+  <!-- Podium : les premières valeurs, classées (tri décroissant par le composant) -->
+  <dsfr-data-podium
+    id="chart"
+    source="${v.source}"
+    label-field="${v.labelField}"
+    value-field="${v.valueField}"
+    max-items="${podiumPlaces()}"
+    selected-palette="${effectivePalette()}">
+  </dsfr-data-podium>${generateA11yElement(v.source, 'chart')}`;
+  }
+
+  let extraFieldsAttr = '';
+  let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
+  if (state.chartType === 'bar-line') {
+    // Deux mesures, deux axes : la seconde va dans `value-field-2`, et `name`
+    // nomme les barres puis la ligne. En requête avancée, la seconde colonne
+    // est le deuxième agrégat écrit : le libellé du formulaire ne la décrit pas.
+    const second = v.extraValueFields[0] || v.valueField2;
+    if (second) {
+      const fromForm = advancedAggregates().length === 0;
+      extraFieldsAttr = `\n    value-field-2="${fromForm ? aliased(second, state.lineFieldLabel) : second}"`;
+    }
+    nameAttr = `name='${jsonAttr(seriesNames().slice(0, 2))}'`;
+  } else if (v.seriesField) {
+    // Format long : les séries et leurs noms viennent des valeurs du champ ;
+    // la bibliothèque ignore `name` dans ce mode.
+    nameAttr = `series-field="${escapeHtml(v.seriesField)}"`;
+  } else if (v.extraValueFields.length > 0) {
+    extraFieldsAttr = `\n    value-fields="${v.extraValueFields.join(',')}"`;
+    // Build séries names from labels
+    nameAttr = `name='${jsonAttr(seriesNames())}'`;
+  } else if (v.valueField2) {
+    extraFieldsAttr = `\n    value-field-2="${v.valueField2}"`;
+  }
+
+  return `
+  <!-- Graphique DSFR (se met à jour automatiquement) -->
+  <dsfr-data-chart
+    id="chart"
+    source="${v.source}"
+    type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${v.codeFieldAttr}
+    label-field="${v.labelField}"
+    value-field="${valueFieldAttr(v.valueField)}"${extraFieldsAttr}
+    ${nameAttr}
+    selected-palette="${effectivePalette()}"${generateDataboxAttrs()}>
+  </dsfr-data-chart>${generateA11yElement(v.source, 'chart')}`;
+}
+
+/** Nombre de places du podium : entier entre 1 et 20, sinon le défaut de la bibliothèque. */
+export function podiumPlaces(): number {
+  const n = Math.round(Number(state.podiumMaxItems));
+  return Number.isFinite(n) && n >= 1 && n <= 20 ? n : PODIUM_PLACES_DEFAUT;
 }
 
 /**
@@ -646,6 +773,8 @@ export async function generateChart(): Promise<void> {
   // Sync valueField2 from extraSeries for backward compat
   state.valueField2 = state.extraSeries.length > 0 ? state.extraSeries[0].field : '';
   state.codeField = codeField?.value || '';
+  const lineField = document.getElementById('line-field') as HTMLSelectElement | null;
+  if (lineField) state.lineField = lineField.value;
   if (aggregation) state.aggregation = aggregation.value as typeof state.aggregation;
   if (sortOrder) state.sortOrder = sortOrder.value as typeof state.sortOrder;
   if (sortField) state.sortField = sortField.value;
@@ -653,7 +782,7 @@ export async function generateChart(): Promise<void> {
   const isKPI = state.chartType === 'kpi';
   const isGauge = state.chartType === 'gauge';
   const isDatalist = state.chartType === 'datalist';
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const isSingleValue = isKPI || isGauge;
 
   // Validation: datalist only needs labelField, KPI/Gauge need valueField, charts need both
@@ -663,7 +792,15 @@ export async function generateChart(): Promise<void> {
     );
     return;
   }
-  if (!isSingleValue && !isDatalist && (!state.labelField || !state.valueField)) {
+  if (isMap && (!state.codeField || !state.valueField)) {
+    // Une carte se lit par son champ géographique ; le nom affiché est optionnel.
+    const missing = !state.codeField
+      ? REFERENTIELS[state.chartType as MapType].manque
+      : 'le champ numérique à représenter';
+    toastWarning(`Il manque ${missing}. Ouvrez la section "Configuration des donn\u00e9es".`);
+    return;
+  }
+  if (!isSingleValue && !isDatalist && !isMap && (!state.labelField || !state.valueField)) {
     const missing =
       !state.labelField && !state.valueField
         ? "les champs pour l'axe X (cat\u00e9gories) et l'axe Y (valeurs num\u00e9riques)"
@@ -671,6 +808,12 @@ export async function generateChart(): Promise<void> {
           ? "le champ pour l'axe X (ex\u00a0: r\u00e9gion, ann\u00e9e)"
           : "le champ pour l'axe Y (ex\u00a0: population, budget)";
     toastWarning(`Il manque ${missing}. Ouvrez la section "Configuration des donn\u00e9es".`);
+    return;
+  }
+  if (state.chartType === 'bar-line' && !state.lineField) {
+    toastWarning(
+      'Il manque le champ de la ligne. Un graphique « barres + ligne » trace deux mesures : choisissez la seconde dans "Configuration des données".'
+    );
     return;
   }
   if (isSingleValue && !state.valueField && state.aggregation !== 'count') {
@@ -729,9 +872,7 @@ export async function generateChart(): Promise<void> {
       : `${state.aggregation}(${state.valueField}) as value`;
 
   // Handle extra séries if defined
-  const activeExtraSeries = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeries = tracedExtraSeries(state);
   let extraValueExpressions = '';
   activeExtraSeries.forEach((s, i) => {
     extraValueExpressions += `, ${state.aggregation}(${s.field}) as value${i + 2}`;
@@ -757,8 +898,10 @@ export async function generateChart(): Promise<void> {
     // FORMULAIRE, pas celle du code exporté. Même regroupement et mêmes
     // agrégats que l'export, sous les noms que lit l'aperçu (value, value2…).
     const advanced = advancedAggregates();
-    const groupBy =
-      state.advancedMode && state.queryGroupBy ? state.queryGroupBy : state.labelField;
+    const groupBy = withSeriesGroup(
+      state.advancedMode && state.queryGroupBy ? state.queryGroupBy : state.labelField,
+      activeSeriesField(state)
+    );
     const aggSelect =
       advanced.length > 0
         ? advanced.map((a, i) => `${a.func}(${a.field}) as value${i === 0 ? '' : i + 1}`).join(', ')
@@ -851,11 +994,12 @@ export function generateChartFromLocalData(): void {
     {};
 
   // For maps, aggregate by codeField; for other charts, by labelField
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const groupField = isMap ? state.codeField : state.labelField;
-  const activeExtraSeries = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeries = tracedExtraSeries(state);
+  // Format long (#1204) : un groupe par étiquette ET par série.
+  const seriesField = activeSeriesField(state);
+  const groupParts: Record<string, { label: string; serie: string }> = {};
 
   // Apply advanced mode filter to local data
   let filteredLocal = state.localData || [];
@@ -870,7 +1014,10 @@ export function generateChartFromLocalData(): void {
       if (isMap && (rawGroupKey === null || rawGroupKey === undefined || rawGroupKey === '')) {
         return; // Skip this record
       }
-      const groupKey = String(rawGroupKey || 'N/A');
+      const groupLabel = String(rawGroupKey || 'N/A');
+      const serie = seriesField ? String(record[seriesField] ?? 'N/A') : '';
+      const groupKey = seriesField ? JSON.stringify([groupLabel, serie]) : groupLabel;
+      groupParts[groupKey] = { label: groupLabel, serie };
       const value = toNumber(record[state.valueField]);
 
       if (!aggregated[groupKey]) {
@@ -913,7 +1060,8 @@ export function generateChartFromLocalData(): void {
     if (isMap) {
       result[state.codeField] = groupKey;
     } else {
-      result[state.labelField] = groupKey;
+      result[state.labelField] = groupParts[groupKey].label;
+      if (seriesField) result[seriesField] = groupParts[groupKey].serie;
     }
 
     // Extra séries
@@ -964,10 +1112,76 @@ export function generateChartFromLocalData(): void {
   updateAccessibleTable();
 }
 
+/** Le type courant passe-t-il par la bibliothèque même en données intégrées ? (#1204) */
+export function usesLibEmbedded(): boolean {
+  // Format long : c'est la bibliothèque qui pivote les lignes en séries.
+  return LIB_RENDERED_TYPES.includes(state.chartType) || !!activeSeriesField(state);
+}
+
+/**
+ * Données intégrées, rendues par la bibliothèque (#1204) : les lignes agrégées
+ * sont écrites dans `<dsfr-data-source data='…'>`, et le composant
+ * (`dsfr-data-podium`, `dsfr-data-chart type="bar-line"`…) les lit comme il
+ * lirait une source distante. Même balisage que le chargement dynamique : la
+ * forme ne dépend plus du mode de génération.
+ */
+export function generateEmbeddedLibCode(): void {
+  const traced = tracedExtraSeries(state);
+  const round = (v: unknown): number => Math.round((Number(v) || 0) * 100) / 100;
+  const rows = state.data.map((d) => {
+    const row: Record<string, unknown> = { ...d, value: round(d.value) };
+    traced.forEach((_, i) => {
+      row[`value${i + 2}`] = round(d[`value${i + 2}`]);
+    });
+    return row;
+  });
+  const isPodium = state.chartType === 'podium';
+  const isMap = isMapType(state.chartType);
+  const objet = isPodium ? 'Podium généré' : isMap ? 'Carte générée' : 'Graphique généré';
+  const chartDeps = isPodium ? '' : `\n<link rel="stylesheet" href="${CDN_URLS.dsfrChartCss}">`;
+  const chartJs = isPodium ? '' : `\n<script type="module" src="${CDN_URLS.dsfrChartJs}"></script>`;
+
+  const code = `<!-- ${objet} avec dsfr-data Builder -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
+<!-- Source : ${escapeHtml(state.savedSource?.name || 'Données locales')} (données intégrées) -->
+
+<!-- Dépendances CSS (DSFR) -->
+<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
+<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">${chartDeps}
+
+<!-- Dépendances JS -->${chartJs}
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
+
+<div class="fr-container fr-my-4w">
+  ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
+  ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
+
+  <!-- Données intégrées (déjà regroupées et agrégées) -->
+  <dsfr-data-source id="chart-data" data='${jsonAttr(rows)}'></dsfr-data-source>
+${visualElement({
+  source: 'chart-data',
+  // Une carte regroupe par son champ géographique : c'est lui que portent les lignes.
+  labelField: isMap ? state.codeField : state.labelField,
+  valueField: 'value',
+  valueField2: '',
+  extraValueFields: traced.map((_, i) => `value${i + 2}`),
+  seriesField: activeSeriesField(state),
+  codeFieldAttr: isMap ? `\n    code-field="${escapeHtml(state.codeField)}"` : '',
+}).replace(/^\n/, '')}
+</div>`;
+  displayGeneratedCode(code);
+}
+
 /**
  * Generate embedded HTML+JS code for local data.
  */
 export function generateCodeForLocalData(): void {
+  // Formes rendues par la bibliothèque dans tous les modes (#1204)
+  if (usesLibEmbedded()) {
+    generateEmbeddedLibCode();
+    return;
+  }
+
   // Handle KPI type
   if (state.chartType === 'kpi') {
     const value = state.data[0]?.value || 0;
@@ -1156,9 +1370,7 @@ datalist.onSourceData(data);
   const labels = state.data.map((d) => (d[state.labelField] as string) || 'N/A');
   const values = state.data.map((d) => Math.round(((d.value as number) || 0) * 100) / 100);
 
-  const activeExtraSeries = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeries = tracedExtraSeries(state);
   const allSeriesValues: number[][] = [values];
   const allSeriesNames: string[] = [state.valueFieldLabel || state.valueField];
 
@@ -1181,6 +1393,7 @@ datalist.onSourceData(data);
   const extraAttrs: string[] = [];
   if (state.chartType === 'horizontalBar') extraAttrs.push('horizontal');
   if (state.chartType === 'pie') extraAttrs.push('fill');
+  if (stackedActive(state)) extraAttrs.push('stacked');
   const extraStr = extraAttrs.map((a) => `\n    ${a}`).join('');
 
   const code = `<!-- Graphique généré avec dsfr-data Builder -->
@@ -1218,7 +1431,8 @@ datalist.onSourceData(data);
 export function generateOdsQueryCode(
   odsInfo: { baseUrl: string; datasetId: string },
   labelFieldPath: string,
-  valueFieldPath: string
+  valueFieldPath: string,
+  seriesFieldPath: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1226,6 +1440,7 @@ export function generateOdsQueryCode(
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  seriesField: string;
 } {
   // --- dsfr-data-source attributes (fetch + server-side processing) ---
   const srcAttrs: string[] = [];
@@ -1236,19 +1451,18 @@ export function generateOdsQueryCode(
   // Group by
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
-  if (groupByField) {
-    srcAttrs.push(`group-by="${groupByField}"`);
+  const groupByAll = withSeriesGroup(groupByField, seriesFieldPath);
+  if (groupByAll) {
+    srcAttrs.push(`group-by="${groupByAll}"`);
   }
 
   // Build ODSQL select clause with aggregation
   let resultValueField: string;
   let resultValueField2 = '';
   const selectParts: string[] = [];
-  if (groupByField) selectParts.push(groupByField);
+  if (groupByAll) selectParts.push(groupByAll);
 
-  const activeExtraSeries = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeries = tracedExtraSeries(state);
   const extraValueFields: string[] = [];
 
   const advanced = advancedAggregates();
@@ -1311,6 +1525,7 @@ export function generateOdsQueryCode(
     valueField: resultValueField,
     valueField2: resultValueField2,
     extraValueFields,
+    seriesField: seriesFieldPath,
   };
 }
 
@@ -1321,7 +1536,8 @@ export function generateOdsQueryCode(
 export function generateTabularQueryCode(
   tabularInfo: { baseUrl: string; resourceId: string },
   labelFieldPath: string,
-  valueFieldPath: string
+  valueFieldPath: string,
+  seriesFieldPath: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1329,6 +1545,7 @@ export function generateTabularQueryCode(
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  seriesField: string;
 } {
   // --- dsfr-data-source attributes (fetch + auto-pagination) ---
   const srcAttrs: string[] = [];
@@ -1344,7 +1561,7 @@ export function generateTabularQueryCode(
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
-    qAttrs.push(`group-by="${groupByField}"`);
+    qAttrs.push(`group-by="${withSeriesGroup(groupByField, seriesFieldPath)}"`);
   }
 
   // Aggregation (colon syntax for client-side processing)
@@ -1352,9 +1569,7 @@ export function generateTabularQueryCode(
   let resultValueField2 = '';
   let aggregateExpr: string;
 
-  const activeExtraSeries = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeries = tracedExtraSeries(state);
   const extraValueFields: string[] = [];
 
   const advanced = advancedAggregates();
@@ -1408,6 +1623,7 @@ export function generateTabularQueryCode(
     valueField: resultValueField,
     valueField2: resultValueField2,
     extraValueFields,
+    seriesField: seriesFieldPath,
   };
 }
 
@@ -1419,7 +1635,8 @@ export function generateTabularQueryCode(
 export function generateDsfrDataQueryCode(
   sourceId: string,
   labelFieldPath: string,
-  valueFieldPath: string
+  valueFieldPath: string,
+  seriesFieldPath: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1427,6 +1644,7 @@ export function generateDsfrDataQueryCode(
   valueField: string;
   valueField2: string;
   extraValueFields: string[];
+  seriesField: string;
 } {
   const attrs: string[] = [];
   attrs.push(`source="${sourceId}"`);
@@ -1435,7 +1653,7 @@ export function generateDsfrDataQueryCode(
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
   if (groupByField) {
-    attrs.push(`group-by="${groupByField}"`);
+    attrs.push(`group-by="${withSeriesGroup(groupByField, seriesFieldPath)}"`);
   }
 
   // Filters (advanced mode only)
@@ -1449,9 +1667,7 @@ export function generateDsfrDataQueryCode(
   let resultValueField: string;
   let resultValueField2 = '';
 
-  const activeExtraSeries = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeries = tracedExtraSeries(state);
   const extraValueFields: string[] = [];
 
   const advanced = advancedAggregates();
@@ -1501,6 +1717,7 @@ export function generateDsfrDataQueryCode(
     valueField: resultValueField,
     valueField2: resultValueField2,
     extraValueFields,
+    seriesField: seriesFieldPath,
   };
 }
 
@@ -1609,7 +1826,7 @@ ${middlewareHtml}
   );
 
   // For maps, group by codeField (not labelField)
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const groupByPath =
     isMap && state.codeField
       ? isFlattened
@@ -1625,25 +1842,16 @@ ${middlewareHtml}
     valueField: queryValueField,
     valueField2: queryValueField2,
     extraValueFields: queryExtraVFs,
-  } = generateDsfrDataQueryCode(querySourceId, groupByPath, valueFieldPath);
-
-  const palette = effectivePalette();
+    seriesField: querySeriesField,
+  } = generateDsfrDataQueryCode(
+    querySourceId,
+    groupByPath,
+    valueFieldPath,
+    seriesPath(isFlattened ? '' : 'fields.')
+  );
 
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
-
-  // Extra séries attributes
-  const extraVFs = queryExtraVFs;
-  let extraFieldsAttr = '';
-  let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
-
-  if (extraVFs && extraVFs.length > 0) {
-    extraFieldsAttr = `\n    value-fields="${extraVFs.join(',')}"`;
-    // Build séries names from labels
-    nameAttr = `name='${jsonAttr(seriesNames())}'`;
-  } else if (queryValueField2) {
-    extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
-  }
 
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
@@ -1669,17 +1877,15 @@ ${proxyComment}  <dsfr-data-source
     url="${realUrl}"${proxyAttr}
     transform="records"${refreshAttr}>
   </dsfr-data-source>
-${middlewareHtml}${queryElement}
-  <!-- Graphique DSFR (se met à jour automatiquement) -->
-  <dsfr-data-chart
-    id="chart"
-    source="${chartSource}"
-    type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${codeFieldAttr}
-    label-field="${queryLabelField}"
-    value-field="${valueFieldAttr(queryValueField)}"${extraFieldsAttr}
-    ${nameAttr}
-    selected-palette="${palette}"${generateDataboxAttrs()}>
-  </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
+${middlewareHtml}${queryElement}${visualElement({
+    source: chartSource,
+    labelField: queryLabelField,
+    valueField: queryValueField,
+    valueField2: queryValueField2,
+    extraValueFields: queryExtraVFs,
+    seriesField: querySeriesField,
+    codeFieldAttr,
+  })}
 </div>`;
 
   displayGeneratedCode(code);
@@ -1908,7 +2114,7 @@ ${middlewareHtml}
   }
 
   // For maps, group by codeField (not labelField)
-  const isMap = state.chartType === 'map';
+  const isMap = isMapType(state.chartType);
   const groupByPath = isMap && state.codeField ? state.codeField : labelFieldPath;
 
   let queryElement: string;
@@ -1917,13 +2123,15 @@ ${middlewareHtml}
   let queryValueField: string;
   let queryValueField2: string;
   let queryExtraVFs: string[];
+  let querySeriesField: string;
   let sourceElement: string;
   let middlewareHtml = '';
   let facetsHtml = '';
 
   if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
     const odsInfo = { baseUrl: apiBaseUrl, datasetId: resourceIds.datasetId };
-    const result = generateOdsQueryCode(odsInfo, groupByPath, valueFieldPath);
+    const result = generateOdsQueryCode(odsInfo, groupByPath, valueFieldPath, seriesPath());
+    querySeriesField = result.seriesField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -1942,7 +2150,8 @@ ${middlewareHtml}
     }
   } else if (provider.id === 'tabular' && resourceIds?.resourceId) {
     const tabularInfo = { baseUrl: apiBaseUrl, resourceId: resourceIds.resourceId };
-    const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath);
+    const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath, seriesPath());
+    querySeriesField = result.seriesField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -1965,7 +2174,13 @@ ${middlewareHtml}
   } else {
     const mw = generateMiddlewareElements('chart-data');
     middlewareHtml = mw.elements;
-    const result = generateDsfrDataQueryCode(mw.finalSourceId, groupByPath, valueFieldPath);
+    const result = generateDsfrDataQueryCode(
+      mw.finalSourceId,
+      groupByPath,
+      valueFieldPath,
+      seriesPath()
+    );
+    querySeriesField = result.seriesField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -1993,24 +2208,12 @@ ${middlewareHtml}
       queryValueField = cleanedFieldName(queryValueField);
       queryValueField2 = cleanedFieldName(queryValueField2);
       queryExtraVFs = queryExtraVFs.map(cleanedFieldName);
+      querySeriesField = cleanedFieldName(querySeriesField);
     }
   }
 
-  const palette = effectivePalette();
-
   // Map-specific attributes
   const codeFieldAttr = isMap && state.codeField ? `\n    code-field="${state.codeField}"` : '';
-
-  // Extra séries attributes
-  let extraFieldsAttr = '';
-  let nameAttr = `name="${escapeHtml(state.title || state.valueField)}"`;
-
-  if (queryExtraVFs.length > 0) {
-    extraFieldsAttr = `\n    value-fields="${queryExtraVFs.join(',')}"`;
-    nameAttr = `name='${jsonAttr(seriesNames())}'`;
-  } else if (queryValueField2) {
-    extraFieldsAttr = `\n    value-field-2="${queryValueField2}"`;
-  }
 
   const code = `<!-- Graphique dynamique généré avec dsfr-data Builder -->
 <!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
@@ -2029,17 +2232,15 @@ ${state.advancedMode ? '<!-- Mode avancé activé : filtrage et agrégation via 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
-${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}
-  <!-- Graphique DSFR (se met à jour automatiquement) -->
-  <dsfr-data-chart
-    id="chart"
-    source="${chartSource}"
-    type="${state.chartType === 'horizontalBar' ? 'bar' : state.chartType === 'doughnut' ? 'pie' : state.chartType}"${dsfrChartAttrs()}${codeFieldAttr}
-    label-field="${queryLabelField}"
-    value-field="${valueFieldAttr(queryValueField)}"${extraFieldsAttr}
-    ${nameAttr}
-    selected-palette="${palette}"${generateDataboxAttrs()}>
-  </dsfr-data-chart>${generateA11yElement(chartSource, 'chart')}
+${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}${visualElement({
+    source: chartSource,
+    labelField: queryLabelField,
+    valueField: queryValueField,
+    valueField2: queryValueField2,
+    extraValueFields: queryExtraVFs,
+    seriesField: querySeriesField,
+    codeFieldAttr,
+  })}
 </div>`;
 
   displayGeneratedCode(code);
@@ -2049,6 +2250,13 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}
  * Generate HTML+JS code for API-fetched data.
  */
 export function generateCode(apiUrl: string): void {
+  // Formes rendues par la bibliothèque dans tous les modes (#1204) : les
+  // lignes agrégées, déjà chargées pour l'aperçu, sont intégrées telles quelles.
+  if (usesLibEmbedded()) {
+    generateEmbeddedLibCode();
+    return;
+  }
+
   // Handle KPI type
   if (state.chartType === 'kpi') {
     const variantSelect = document.getElementById('kpi-variant') as HTMLSelectElement | null;
@@ -2313,9 +2521,7 @@ loadMap();
   }
 
   // Build DSFR Chart type and extra attributes
-  const activeExtraSeriesCode = state.extraSeries.filter(
-    (s) => s.field && ['bar', 'horizontalBar', 'line', 'radar'].includes(state.chartType)
-  );
+  const activeExtraSeriesCode = tracedExtraSeries(state);
   const dsfrTag = DSFR_TAG_MAP[state.chartType] || 'bar-chart';
 
   const extraAttrs: string[] = [];
@@ -2384,6 +2590,11 @@ async function loadChart() {
     state.chartType === 'pie'
       ? `
   el.setAttribute('fill', '');`
+      : ''
+  }${
+    stackedActive(state)
+      ? `
+  el.setAttribute('stacked', '');`
       : ''
   }
   document.getElementById('chart-container').appendChild(el);

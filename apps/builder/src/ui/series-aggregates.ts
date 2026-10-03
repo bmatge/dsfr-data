@@ -11,7 +11,7 @@
  * perdues.
  */
 
-import { state } from '../state.js';
+import { state, tracedExtraSeries } from '../state.js';
 
 /** Types qui tracent plusieurs séries. */
 export const MULTI_SERIES_TYPES = ['bar', 'horizontalBar', 'line', 'radar'];
@@ -31,9 +31,12 @@ function fieldPath(name: string): string {
   return state.fields.find((f) => f.name === name)?.fullPath || name;
 }
 
-/** Séries supplémentaires du formulaire, pour les types qui en tracent plusieurs. */
+/**
+ * Séries supplémentaires du formulaire : celles des types multi-séries, ou la
+ * mesure de la ligne d'un « barres + ligne » (#1204).
+ */
 export function formExtraSeries(): typeof state.extraSeries {
-  return state.extraSeries.filter((s) => s.field && MULTI_SERIES_TYPES.includes(state.chartType));
+  return tracedExtraSeries(state);
 }
 
 /**
@@ -80,9 +83,12 @@ export function colonAggregate(a: SeriesAggregate): string {
 
 /**
  * Colonnes tracées en plus de la première : toutes les suivantes pour un type
- * multi-séries, aucune sinon (un camembert n'a qu'une série).
+ * multi-séries, la seconde seule pour un barres + ligne, aucune sinon (un
+ * camembert n'a qu'une série).
  */
 export function extraTraced(aggs: SeriesAggregate[]): string[] {
+  // Barres + ligne : deux mesures, pas une de plus (#1204).
+  if (state.chartType === 'bar-line') return aggs.slice(1, 2).map((a) => a.alias);
   if (!MULTI_SERIES_TYPES.includes(state.chartType)) return [];
   return aggs.slice(1).map((a) => a.alias);
 }

@@ -3,7 +3,16 @@
  * Updates state.chartType and toggles visibility of type-specific config options.
  */
 
-import { state, supportsMultiSeries, type ChartType } from '../state.js';
+import {
+  state,
+  supportsMultiSeries,
+  isMapType,
+  SERIES_FIELD_TYPES,
+  STACKED_TYPES,
+  type ChartType,
+} from '../state.js';
+import { syncSeriesExclusivity } from './formes.js';
+import { REFERENTIELS } from '../geo-codes.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
 import { updateUrlSyncSection } from './url-sync-config.js';
@@ -28,10 +37,13 @@ export function selectChartType(type: ChartType): void {
   const isKPI = type === 'kpi';
   const isGauge = type === 'gauge';
   const isScatter = type === 'scatter';
-  const isMap = type === 'map';
+  const isMap = isMapType(type);
+  const referentiel = isMapType(type) ? REFERENTIELS[type] : null;
   const isDatalist = type === 'datalist';
   const isPieOrDoughnut = ['pie', 'doughnut'].includes(type);
   const isRadar = type === 'radar';
+  const isPodium = type === 'podium';
+  const isBarLine = type === 'bar-line';
   const isSingleValue = isKPI || isGauge; // Types with a single aggregated value
 
   // Toggle KPI-specific options (variant selector)
@@ -63,6 +75,14 @@ export function selectChartType(type: ChartType): void {
     renderPaletteSwatches(state.palette);
   }
 
+  // Un podium se colore par rang : seules les échelles s'appliquent (#1204)
+  if (isPodium && !state.palette.includes('sequential') && !state.palette.includes('divergent')) {
+    state.palette = 'sequentialDescending';
+    const paletteSelect = document.getElementById('chart-palette') as HTMLSelectElement | null;
+    if (paletteSelect) paletteSelect.value = 'sequentialDescending';
+    renderPaletteSwatches(state.palette);
+  }
+
   // Un camembert se colore par part (#1174)
   applyPiePalette(isPieOrDoughnut);
 
@@ -81,8 +101,9 @@ export function selectChartType(type: ChartType): void {
   const valueFieldGroup = valueField?.closest('.fr-select-group') as HTMLElement | null;
   if (valueFieldGroup) valueFieldGroup.style.display = isDatalist ? 'none' : 'block';
 
-  // Sort order: hide for single value types, map, radar, and scatter
-  const hideSort = isSingleValue || isMap || isRadar || isScatter;
+  // Sort order: hide for single value types, map, radar, and scatter — et pour
+  // le podium, que le composant classe lui-même (tri décroissant).
+  const hideSort = isSingleValue || isMap || isRadar || isScatter || isPodium;
   const sortSelect = document.getElementById('sort-order');
   const sortGroup = sortSelect?.closest('.fr-select-group') as HTMLElement | null;
   if (sortGroup) sortGroup.style.display = hideSort ? 'none' : 'block';
@@ -99,7 +120,7 @@ export function selectChartType(type: ChartType): void {
     if (isSingleValue) {
       aggHint.textContent = "Calcul sur l'ensemble des données";
     } else if (isMap) {
-      aggHint.textContent = 'Si plusieurs valeurs par département';
+      aggHint.textContent = `Si plusieurs valeurs par ${referentiel?.unite ?? 'département'}`;
     } else {
       aggHint.textContent = 'Comment combiner les valeurs partageant la même catégorie';
     }
@@ -116,13 +137,36 @@ export function selectChartType(type: ChartType): void {
     if (container) container.innerHTML = '';
   }
 
-  // DataBox section: hide for non-chart types (KPI, gauge, datalist)
+  // Format long et empilement (#1204) : selon ce que le type sait lire. Le
+  // groupe « Ajouter une série » s'efface quand un champ de séries est choisi.
+  const seriesFieldGroup = document.getElementById('series-field-group') as HTMLElement | null;
+  if (seriesFieldGroup)
+    seriesFieldGroup.style.display = SERIES_FIELD_TYPES.includes(type) ? 'block' : 'none';
+  const stackedGroup = document.getElementById('stacked-group') as HTMLElement | null;
+  if (stackedGroup) stackedGroup.style.display = STACKED_TYPES.includes(type) ? 'block' : 'none';
+  syncSeriesExclusivity();
+
+  // Barres + ligne : la seconde mesure et son libellé (#1204)
+  const lineFieldGroup = document.getElementById('line-field-group') as HTMLElement | null;
+  if (lineFieldGroup) lineFieldGroup.style.display = isBarLine ? 'flex' : 'none';
+
+  // Podium : nombre de places (#1204)
+  const podiumConfig = document.getElementById('podium-config') as HTMLElement | null;
+  if (podiumConfig) podiumConfig.style.display = isPodium ? 'block' : 'none';
+
+  // DataBox section: hide for non-chart types (KPI, gauge, datalist, podium)
   const databoxSection = document.getElementById('section-databox') as HTMLElement | null;
-  if (databoxSection) databoxSection.style.display = isSingleValue || isDatalist ? 'none' : '';
+  if (databoxSection)
+    databoxSection.style.display = isSingleValue || isDatalist || isPodium ? 'none' : '';
 
   // Map chart needs code field for department codes
   const codeFieldGroup = document.getElementById('code-field-group') as HTMLElement | null;
   if (codeFieldGroup) codeFieldGroup.style.display = isMap ? 'block' : 'none';
+  // Libellé et aide du champ géographique : ils suivent le découpage (#1204).
+  const codeFieldLabel = document.querySelector('label[for="code-field"]');
+  if (codeFieldLabel && referentiel) {
+    codeFieldLabel.innerHTML = `${referentiel.libelle}<span class="fr-hint-text">${referentiel.aide}</span>`;
+  }
   if (!isMap) {
     state.codeField = '';
     const codeSelect = document.getElementById('code-field') as HTMLSelectElement | null;
@@ -146,9 +190,19 @@ export function selectChartType(type: ChartType): void {
         'Axe Y (num\u00e9rique)<span class="fr-hint-text">Valeurs verticales</span>';
     } else if (isMap) {
       labelFieldLabel.innerHTML =
-        'Nom (optionnel)<span class="fr-hint-text">Nom du d\u00e9partement pour l\'affichage</span>';
+        'Nom (optionnel)<span class="fr-hint-text">Nom affiché à la place du code</span>';
       valueFieldLabel.innerHTML =
         'Valeur<span class="fr-hint-text">Le champ num\u00e9rique \u00e0 visualiser</span>';
+    } else if (isPodium) {
+      labelFieldLabel.innerHTML =
+        'Libellé<span class="fr-hint-text">Ce qui est classé (ex\u00a0: région, établissement)</span>';
+      valueFieldLabel.innerHTML =
+        'Valeur<span class="fr-hint-text">Le champ numérique qui décide du rang</span>';
+    } else if (isBarLine) {
+      labelFieldLabel.innerHTML =
+        'Étiquettes (axe horizontal)<span class="fr-hint-text">Dates ou catégories communes aux deux mesures</span>';
+      valueFieldLabel.innerHTML =
+        'Valeur des barres<span class="fr-hint-text">Le premier champ numérique, tracé en barres</span>';
     } else if (isPieOrDoughnut) {
       labelFieldLabel.innerHTML =
         'Segments<span class="fr-hint-text">Cat\u00e9gories du camembert (max 7 recommand\u00e9)</span>';

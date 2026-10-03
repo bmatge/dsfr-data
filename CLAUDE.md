@@ -255,6 +255,10 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
   `npm run check:specs-tables` est bloquant en CI (#757).
 - Apres modif d'un **type de graphique / operateur / agregation** : mettre a jour le guide redige a la main
   dans `packages/shared/src/skills/skills.ts` (sinon `tests/skills/skills.test.ts` casse).
+- Apres AJOUT d'un type de graphique (`DSFRChartType`), d'un composant d'affichage ou d'un attribut
+  de `dsfr-data-chart` : le **trancher pour le Builder** — lui donner une tuile ou un controle
+  (`data-type` / `data-attribut` dans `apps/builder/index.html`), ou l'exclure avec sa raison dans
+  `apps/builder/src/couverture-exclusions.ts`. `tests/apps/builder/couverture.test.ts` echoue sinon (#1204).
 - **Tout chiffre affiche a un controle** (ADR-122). Tout nouvel attribut, operateur, agregation,
   format ou composant qui **produit ou transforme un nombre** entre dans un manifeste de
   `tests/verif-donnees/` (l'un des dix domaines : `query`, `adaptateurs`, `transformations`,

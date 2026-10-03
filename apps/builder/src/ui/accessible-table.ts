@@ -3,7 +3,7 @@
  * Uses the actual library component instead of manual DOM manipulation.
  */
 
-import { state } from '../state.js';
+import { state, isMapType } from '../state.js';
 
 const PREVIEW_SOURCE_ID = 'builder-preview';
 
@@ -55,8 +55,10 @@ export function updateAccessibleTable(): void {
   }
 
   // Sync label-field for table column headers
-  if (state.labelField) {
-    el.setAttribute('label-field', state.labelField);
+  // Une carte regroupe par son champ géographique : c'est lui que portent les lignes.
+  const labelField = isMapType(state.chartType) ? state.codeField : state.labelField;
+  if (labelField) {
+    el.setAttribute('label-field', labelField);
   } else {
     el.removeAttribute('label-field');
   }

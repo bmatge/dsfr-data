@@ -38,6 +38,8 @@ function modules(dir = SRC, prefixe = ''): string[] {
 const SANS_APPELANT_DECLARES: Record<string, string> = {
   'assistant/reperes.config.ts':
     'lu par scripts/build-reperes.ts (check:reperes), jamais importé par l’app (#1006)',
+  'couverture-exclusions.ts':
+    'lu par tests/apps/builder/couverture.test.ts (garde-fou de couverture, #1204), jamais importé par l’app',
   // assistant/adaptateur.ts sort de la liste : la visite guidée l'appelle (#1013).
   // assistant/reperes.generated.ts aussi : l'assistant contextuel le lit (#1017).
 };

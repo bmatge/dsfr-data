@@ -12,7 +12,13 @@
 
 import { PALETTE_DISPLAY_NAMES } from '@dsfr-data/shared';
 
-import { state, getCompleteness, type BuilderState, type Completeness } from '../state.js';
+import {
+  state,
+  getCompleteness,
+  activeSeriesField,
+  type BuilderState,
+  type Completeness,
+} from '../state.js';
 
 type StepKey = 'source' | 'type' | 'config' | 'generate';
 
@@ -31,6 +37,11 @@ const CHART_TYPE_LABELS: Record<string, string> = {
   kpi: 'Indicateur KPI',
   map: 'Carte',
   datalist: 'Tableau',
+  podium: 'Podium',
+  'bar-line': 'Barres + ligne',
+  'map-reg': 'Carte régions',
+  'map-aca': 'Carte académies',
+  'map-monde': 'Carte monde',
 };
 
 /** One entry per section header — value is a short text summary (may be ''). */
@@ -80,12 +91,26 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
           configText = s.valueField;
           break;
         case 'map':
+        case 'map-reg':
+        case 'map-aca':
+        case 'map-monde':
           configText = `${s.codeField} → ${s.valueField}`;
+          break;
+        case 'bar-line':
+          configText = `${s.labelField} × ${s.valueField} + ${s.lineField}`;
+          break;
+        case 'podium':
+          configText = `${s.labelField} × ${s.valueField}`;
           break;
         default: {
           const extra = s.extraSeries?.length || 0;
           const main = `${s.labelField} × ${s.valueField}`;
-          configText = extra > 0 ? `${main} (+${extra} série${extra > 1 ? 's' : ''})` : main;
+          const parChamp = activeSeriesField(s);
+          configText = parChamp
+            ? `${main} (séries : ${parChamp})`
+            : extra > 0
+              ? `${main} (+${extra} série${extra > 1 ? 's' : ''})`
+              : main;
         }
       }
     } else {

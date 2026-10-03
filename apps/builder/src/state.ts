@@ -4,6 +4,8 @@
  */
 
 import type { Source } from '@dsfr-data/shared';
+import { REFERENTIELS } from './geo-codes.js';
+export { isMapType, MAP_TYPES, type MapType } from './geo-codes.js';
 export { PROXY_BASE_URL, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
 /** Favorites localStorage key */
@@ -21,7 +23,13 @@ export type ChartType =
   | 'gauge'
   | 'kpi'
   | 'map'
-  | 'datalist';
+  | 'datalist'
+  // Formes ajoutées par #1204 : la bibliothèque les rendait, le Builder non.
+  | 'podium'
+  | 'bar-line'
+  | 'map-reg'
+  | 'map-aca'
+  | 'map-monde';
 
 /**
  * Types qui acceptent plusieurs séries (bouton « Ajouter une série »). Source
@@ -34,6 +42,69 @@ export const MULTI_SERIES_TYPES: readonly ChartType[] = ['bar', 'horizontalBar',
 export function supportsMultiSeries(type: ChartType): boolean {
   return MULTI_SERIES_TYPES.includes(type);
 }
+
+/**
+ * Types qui lisent un format LONG (`series-field` de `dsfr-data-chart`) : une
+ * ligne par étiquette et par série, la série étant nommée par un champ. Mêmes
+ * types que les séries multiples, dont c'est l'autre écriture (#1204).
+ */
+export const SERIES_FIELD_TYPES: readonly ChartType[] = MULTI_SERIES_TYPES;
+
+/** Types dont les séries peuvent s'empiler (`stacked` : barres seulement, côté lib). */
+export const STACKED_TYPES: readonly ChartType[] = ['bar', 'horizontalBar'];
+
+/** Champ de séries pris en compte : celui de l'état, si le type lit un format long. */
+export function activeSeriesField(s: Pick<BuilderState, 'chartType' | 'seriesField'>): string {
+  return SERIES_FIELD_TYPES.includes(s.chartType) ? s.seriesField || '' : '';
+}
+
+/** L'empilement s'applique-t-il ? (réglage coché ET type en barres) */
+export function stackedActive(s: Pick<BuilderState, 'chartType' | 'stacked'>): boolean {
+  return !!s.stacked && STACKED_TYPES.includes(s.chartType);
+}
+
+/**
+ * Types rendus par un composant de la bibliothèque dans TOUS les modes de
+ * génération, données intégrées comprises (#1204). Les types historiques
+ * écrivent, en données intégrées, la balise DSFR Chart nue (`<bar-chart>`) ;
+ * ceux-ci écrivent `<dsfr-data-source data='…'>` suivi du composant, qui porte
+ * la mise en forme (podium, deux axes du barres + ligne).
+ */
+export const LIB_RENDERED_TYPES: readonly ChartType[] = [
+  'podium',
+  'bar-line',
+  // La carte départementale historique garde sa balise nue ; les trois
+  // découpages ajoutés laissent la bibliothèque traduire codes et noms vers
+  // les clés de DSFR Chart, et compter ce qu'elle ignore.
+  'map-reg',
+  'map-aca',
+  'map-monde',
+];
+
+/**
+ * Séries tracées en plus de la première, selon le type (source unique, lue par
+ * le générateur de code et l'agrégation locale) :
+ * - barres + ligne : exactement une, la mesure de la ligne ;
+ * - types multi-séries : celles du formulaire — sauf en format long, où les
+ *   séries viennent d'un champ (`series-field`) : les deux écritures s'excluent ;
+ * - les autres : aucune.
+ */
+export function tracedExtraSeries(
+  s: Pick<
+    BuilderState,
+    'chartType' | 'extraSeries' | 'lineField' | 'lineFieldLabel' | 'seriesField'
+  >
+): ExtraSeries[] {
+  if (s.chartType === 'bar-line') {
+    return s.lineField ? [{ field: s.lineField, label: s.lineFieldLabel }] : [];
+  }
+  if (!supportsMultiSeries(s.chartType)) return [];
+  if (activeSeriesField(s)) return [];
+  return s.extraSeries.filter((x) => x.field);
+}
+
+/** Podium : nombre de places par défaut (celui de `dsfr-data-podium`). */
+export const PODIUM_PLACES_DEFAUT = 5;
 
 /** Source types */
 export type SourceType = 'saved';
@@ -144,6 +215,21 @@ export interface BuilderState {
   valueFieldLabel: string;
   valueField2: string;
   extraSeries: ExtraSeries[];
+  /**
+   * Barres + ligne (#1204) : champ de la seconde mesure, tracée en ligne
+   * (`value-field-2` de `dsfr-data-chart`), et son nom affiché.
+   */
+  lineField: string;
+  lineFieldLabel: string;
+  /** Podium (#1204) : nombre de places affichées (`max-items`). */
+  podiumMaxItems: number;
+  /**
+   * Format long (#1204) : champ qui nomme la série de chaque ligne
+   * (`series-field`). Exclusif avec `extraSeries` ; vide = format large.
+   */
+  seriesField: string;
+  /** Barres empilées (#1204) : `stacked` de `dsfr-data-chart`. */
+  stacked: boolean;
   codeField: string;
   aggregation: AggregationType;
   /**
@@ -265,6 +351,19 @@ export function getCompleteness(s: BuilderState, generated: boolean = false): Co
         if (!s.codeField) missing.push('le champ code (département/région)');
         if (!s.valueField) missing.push('le champ numérique (valeur)');
         break;
+      case 'map-reg':
+      case 'map-aca':
+      case 'map-monde':
+        config = !!s.valueField && !!s.codeField;
+        if (!s.codeField) missing.push(REFERENTIELS[s.chartType].manque);
+        if (!s.valueField) missing.push('le champ numérique (valeur)');
+        break;
+      case 'bar-line':
+        config = !!s.labelField && !!s.valueField && !!s.lineField;
+        if (!s.labelField) missing.push('le champ Étiquettes');
+        if (!s.valueField) missing.push('le champ des barres');
+        if (!s.lineField) missing.push('le champ de la ligne');
+        break;
       default:
         config = !!s.labelField && !!s.valueField;
         if (!s.labelField) missing.push('le champ Étiquettes');
@@ -296,6 +395,11 @@ export const state: BuilderState = {
   valueFieldLabel: '',
   valueField2: '',
   extraSeries: [],
+  lineField: '',
+  lineFieldLabel: '',
+  podiumMaxItems: PODIUM_PLACES_DEFAUT,
+  seriesField: '',
+  stacked: false,
   codeField: '',
   aggregation: 'avg',
   aggregationUserModified: false,
