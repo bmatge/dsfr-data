@@ -81,7 +81,11 @@ Les exclusions de chemin sont lues depuis `.semgrepignore`. Pour forcer l'échec
 ## npm audit
 
 ```bash
-# Workspace root
+# Workspace root — ce que la CI bloque : les dépendances livrées seulement
+npm audit --audit-level=high --omit=dev
+
+# Workspace root — audit complet, outils de dev compris (non bloquant en CI,
+# job sca-advisory) : un avis sans correctif sur un outil de dev ne bloque pas
 npm audit --audit-level=high
 
 # mcp-server (hors workspace)

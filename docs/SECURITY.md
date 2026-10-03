@@ -34,8 +34,8 @@ La CI exécute **10 jobs de sécurité** sur chaque pull request, et plusieurs w
 
 | Brique | Outil | Job / Workflow | Sévérité bloquante |
 |---|---|---|---|
-| **SCA — dépendances (bloquant)** | `npm audit` | `quality` (root) + `sca` (mcp-server) | HIGH/CRITICAL |
-| **SCA — advisory (non-bloquant)** | `npm audit --audit-level=moderate` | `sca-advisory` | aucune (information) |
+| **SCA — dépendances (bloquant)** | `npm audit --omit=dev` (root, ce qui est livré) · `npm audit` (mcp-server) | `quality` (root) + `sca` (mcp-server) | HIGH/CRITICAL |
+| **SCA — advisory (non-bloquant)** | `npm audit --audit-level=moderate`, dépendances de développement comprises | `sca-advisory` | aucune (information) |
 | **SCA — lockfiles** | `trivy fs` | `sca` (root + mcp-server + Cargo) | HIGH/CRITICAL (fixable) |
 | **Misconfig — Dockerfiles** | `trivy config` | `sca` | HIGH/CRITICAL |
 | **Secrets** | `gitleaks` | `secrets` + Husky pre-commit | toute détection |

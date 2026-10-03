@@ -56,8 +56,10 @@ jobs:
 
       - run: npm ci
 
-      - name: Security audit
-        run: ./scripts/npm-audit-ci.sh high
+      # Bloquant sur ce qui est LIVRE seulement (--omit=dev). L'audit complet,
+      # dependances de dev comprises, tourne dans le job non bloquant sca-advisory.
+      - name: Security audit (production)
+        run: ./scripts/npm-audit-ci.sh high --omit=dev
 
       - name: Check SRI hashes on CDN refs
         run: npm run check:sri
