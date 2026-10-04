@@ -23,6 +23,16 @@ import { createTlsConnector, defaultResolve, fetchUpstream } from './upstream.mj
 const ALLOWED_METHODS = 'GET, HEAD, OPTIONS';
 
 /**
+ * Requêtes servies sur une même connexion avant de la fermer. Le plafond de
+ * Node (`maxRequestsPerSocket`) répond lui-même, par une 503 sans aucun des
+ * en-têtes du contrat : le relais compte donc lui-même, et ferme proprement.
+ */
+const MAX_REQUESTS_PER_SOCKET = 1000;
+
+/** Statuts après lesquels la connexion est fermée : la requête n'a pas forcément été lue. */
+const CLOSING_STATUSES = new Set([400, 405, 408, 417, 431]);
+
+/**
  * En-têtes posés sur TOUTE réponse, erreurs comprises (C-NAV-2, C-NAV-4).
  * Sans l'en-tête CORS, le navigateur ne voit d'une erreur qu'un `TypeError`.
  */
@@ -42,6 +52,9 @@ const MESSAGES = Object.freeze({
   'host-not-allowed': "Cet hôte n'est pas dans la liste blanche du relais.",
   'path-not-allowed': "Ce chemin n'est pas autorisé pour cet hôte.",
   'method-not-allowed': 'Le relais est en lecture seule : GET, HEAD ou OPTIONS.',
+  'expectation-failed': "Le relais n'honore aucun en-tête Expect.",
+  'request-timeout': "La requête n'a pas été reçue en entier dans le délai.",
+  'headers-too-large': 'Les en-têtes de la requête dépassent la taille acceptée.',
   'body-not-allowed': "Le relais n'accepte aucun corps de requête.",
   'rate-limited': 'Trop de requêtes depuis cette adresse.',
   'relay-busy': 'Le relais est momentanément saturé.',
@@ -247,6 +260,16 @@ export function createRelay(config, deps = {}) {
     return isIP(last) !== 0 ? last : peer;
   }
 
+  /**
+   * Connexions sur lesquelles une réponse `Connection: close` est partie (ou va
+   * partir). Plus rien n'y est traité ni écrit : ni la requête collée derrière
+   * un refus, ni une seconde réponse à une requête déjà refusée.
+   * @type {WeakSet<import('node:net').Socket>}
+   */
+  const closingSockets = new WeakSet();
+  /** @type {WeakMap<import('node:net').Socket, number>} */
+  const requestsBySocket = new WeakMap();
+
   function sendError(req, res, error) {
     const known = error instanceof RelayError && Object.hasOwn(MESSAGES, error.code);
     const status = known ? error.status : 500;
@@ -263,7 +286,10 @@ export function createRelay(config, deps = {}) {
     if (status === 405) headers.Allow = ALLOWED_METHODS;
     if (known && error.retryAfter !== undefined) headers['Retry-After'] = String(error.retryAfter);
     // La requête n'a pas forcément été lue jusqu'au bout (corps refusé) : on ferme.
-    if (status === 400 || status === 405) headers.Connection = 'close';
+    if (CLOSING_STATUSES.has(status)) {
+      headers.Connection = 'close';
+      closingSockets.add(req.socket);
+    }
     res.writeHead(status, headers);
     res.end(req.method === 'HEAD' ? undefined : body);
     return { status, code, bytes: body.length };
@@ -351,7 +377,17 @@ export function createRelay(config, deps = {}) {
     }
   }
 
-  async function handle(req, res) {
+  async function handle(req, res, { expectation = false } = {}) {
+    // Une connexion en cours de fermeture ne traite plus rien : la requête
+    // collée derrière un refus n'atteint ni l'amont ni le journal. On ne détruit
+    // pas le socket, la réponse au refus est peut-être encore en route.
+    if (closingSockets.has(req.socket)) return;
+    const served = (requestsBySocket.get(req.socket) ?? 0) + 1;
+    requestsBySocket.set(req.socket, served);
+    if (served >= MAX_REQUESTS_PER_SOCKET) {
+      res.setHeader('Connection', 'close');
+      closingSockets.add(req.socket);
+    }
     const startedAt = now();
     /** @type {Record<string, unknown>} */
     const record = { time: new Date(startedAt).toISOString(), method: req.method };
@@ -382,9 +418,17 @@ export function createRelay(config, deps = {}) {
         throw new RelayError(429, 'rate-limited', { retryAfter: limit.retryAfter });
       }
 
+      // `Expect` : le relais n'envoie jamais `100 Continue` (il refuse tout corps)
+      // et ne connaît aucune autre attente.
+      if (expectation) throw new RelayError(417, 'expectation-failed');
+
       if (req.method === 'OPTIONS') {
         // Pré-vérification CORS : répondue ici, l'amont n'est jamais contacté.
         // Aucun en-tête de requête n'est autorisé : le relais n'en lit aucun.
+        // Hors du préfixe du relais, ce n'est pas une route : 404 comme pour un GET.
+        if (!String(req.url).startsWith(`${config.prefix}/`)) {
+          throw new RelayError(404, 'not-found');
+        }
         res.writeHead(204, {
           ...COMMON_HEADERS,
           'Access-Control-Allow-Methods': ALLOWED_METHODS,
@@ -463,19 +507,42 @@ export function createRelay(config, deps = {}) {
   // Un visiteur qui ne lit pas sa réponse ne garde pas sa connexion : sans
   // activité au-delà du délai de l'amont plus une marge, le socket est fermé.
   server.setTimeout(config.limits.timeoutMs + 20000);
-  server.maxRequestsPerSocket = 1000;
+  // Pas de plafond de Node par connexion : il répondrait seul (voir MAX_REQUESTS_PER_SOCKET).
+  server.maxRequestsPerSocket = 0;
+
+  // `Expect` : sans ces écouteurs, Node répond seul — `100 Continue` pour l'un,
+  // une 417 sans en-têtes du contrat pour l'autre.
+  server.on('checkContinue', (req, res) => {
+    handle(req, res).catch(() => res.destroy());
+  });
+  server.on('checkExpectation', (req, res) => {
+    handle(req, res, { expectation: true }).catch(() => res.destroy());
+  });
 
   // Requête que l'analyseur HTTP refuse (CR ou LF nu dans la cible, en-têtes
-  // trop longs…) : réponse minimale, avec l'en-tête CORS, puis fermeture.
+  // trop longs, requête jamais terminée…) : réponse minimale, avec les en-têtes
+  // communs, puis fermeture.
   server.on('clientError', (error, socket) => {
     if (!socket.writable) {
       socket.destroy();
       return;
     }
-    const tooLarge = error?.code === 'HPE_HEADER_OVERFLOW';
-    const body = JSON.stringify({ error: 'invalid-url', message: MESSAGES['invalid-url'] });
+    // Une réponse qui ferme est déjà partie sur cette connexion (corps refusé,
+    // puis corps illisible) : on n'en écrit pas une seconde.
+    if (closingSockets.has(socket)) {
+      socket.end();
+      return;
+    }
+    closingSockets.add(socket);
+    const [statusLine, code] =
+      error?.code === 'HPE_HEADER_OVERFLOW'
+        ? ['431 Request Header Fields Too Large', 'headers-too-large']
+        : error?.code === 'ERR_HTTP_REQUEST_TIMEOUT'
+          ? ['408 Request Timeout', 'request-timeout']
+          : ['400 Bad Request', 'invalid-url'];
+    const body = JSON.stringify({ error: code, message: MESSAGES[code] });
     socket.end(
-      `HTTP/1.1 ${tooLarge ? '431 Request Header Fields Too Large' : '400 Bad Request'}\r\n` +
+      `HTTP/1.1 ${statusLine}\r\n` +
         'Access-Control-Allow-Origin: *\r\n' +
         'X-Content-Type-Options: nosniff\r\n' +
         "Content-Security-Policy: default-src 'none'; sandbox\r\n" +

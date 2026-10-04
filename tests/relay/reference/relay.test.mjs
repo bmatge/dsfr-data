@@ -366,6 +366,170 @@ describe('C-INJ-1 — refus stricts du relais de référence', () => {
 });
 
 // ---------------------------------------------------------------------------
+describe('C-NAV-2, C-NAV-4 — les réponses que Node écrirait seul portent aussi les en-têtes communs', () => {
+  /** Découpe ce qu'une connexion a reçu en réponses HTTP. */
+  const split = (reply) => reply.split(/(?=HTTP\/1\.1 \d{3} )/).filter((part) => part !== '');
+  const assertCommonHeaders = (response, label) => {
+    assert.match(response, /\r\naccess-control-allow-origin: \*\r\n/i, `${label} : CORS`);
+    assert.match(response, /\r\nx-content-type-options: nosniff\r\n/i, `${label} : nosniff`);
+    assert.match(
+      response,
+      /\r\ncontent-security-policy: default-src 'none'; sandbox\r\n/i,
+      `${label} : CSP`
+    );
+  };
+  const target = (reference, m) => `${reference.url.pathname}/${ALLOWED_HOST}/donnees.json?${m}`;
+
+  test('`Expect` inconnu : 417 du relais, pas la réponse nue de Node', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nExpect: bidon\r\n\r\n`
+      );
+      const responses = split(reply);
+      assert.equal(responses.length, 1);
+      assert.match(responses[0], /^HTTP\/1\.1 417 /);
+      assertCommonHeaders(responses[0], 'Expect');
+      assert.match(responses[0], /\r\ncache-control: no-store\r\n/i);
+      assert.match(responses[0], /"error":"expectation-failed"/);
+      assert.equal(upstream.seen(m).length, 0);
+      assert.equal(reference.logs.at(-1).status, 417);
+    });
+  });
+
+  test('`Expect: 100-continue` avec un corps : 400, jamais de `100 Continue`', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n`
+      );
+      assert.doesNotMatch(reply, /100 Continue/);
+      const responses = split(reply);
+      assert.equal(responses.length, 1);
+      assert.match(responses[0], /^HTTP\/1\.1 400 /);
+      assertCommonHeaders(responses[0], 'Expect: 100-continue');
+      assert.equal(upstream.seen(m).length, 0);
+    });
+  });
+
+  test('`Transfer-Encoding` illisible : UNE réponse 400, pas deux sur la même connexion', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nTransfer-Encoding: xchunked\r\n\r\ncorps`
+      );
+      const responses = split(reply);
+      assert.equal(responses.length, 1, `réponses reçues : ${responses.length}`);
+      assert.match(responses[0], /^HTTP\/1\.1 400 /);
+      assertCommonHeaders(responses[0], 'Transfer-Encoding');
+      assert.equal(upstream.seen(m).length, 0);
+    });
+  });
+
+  test('après un refus qui ferme la connexion, la requête collée derrière n’est pas exécutée chez l’amont', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const m2 = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nContent-Length: 5\r\n\r\ncorps` +
+          `GET ${target(reference, m2)} HTTP/1.1\r\nHost: relais\r\n\r\n`
+      );
+      await sleep(100);
+      const responses = split(reply);
+      assert.equal(responses.length, 1);
+      assert.match(responses[0], /^HTTP\/1\.1 400 /);
+      assert.match(responses[0], /"error":"body-not-allowed"/);
+      assert.equal(upstream.seen(m).length, 0);
+      assert.equal(upstream.seen(m2).length, 0, 'la requête collée a atteint l’amont');
+    });
+  });
+
+  test('plus de mille requêtes sur une connexion : la millième la ferme, aucune 503 nue de Node', async () => {
+    const config = withLimits({ rateLimitRequests: 100000 });
+    await withRelay({ config }, async (reference, client) => {
+      const m = mark();
+      const request = `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\n\r\n`;
+      const responses = split(await client.raw(request.repeat(1005)));
+      assert.equal(responses.length, 1000);
+      for (const [index, response] of responses.entries()) {
+        assert.match(response, /^HTTP\/1\.1 200 /, `réponse ${index + 1}`);
+        assertCommonHeaders(response, `réponse ${index + 1}`);
+      }
+      assert.doesNotMatch(responses[998], /\r\nconnection: close\r\n/i);
+      assert.match(responses[999], /\r\nconnection: close\r\n/i);
+      assert.equal(upstream.seen(m).length, 1);
+    });
+  });
+
+  test('en-têtes de requête jamais terminés : 408 avec les en-têtes communs, pas un 400 `invalid-url`', async () => {
+    await withRelay({}, async (reference) => {
+      // Le délai réel (dix secondes) n'est pas attendu : l'erreur que Node lève à
+      // son terme est remise au serveur, sur une vraie connexion.
+      const accepted = new Promise((resolve) => reference.relay.server.once('connection', resolve));
+      const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+      let reply = '';
+      socket.on('data', (chunk) => {
+        reply += chunk.toString('latin1');
+      });
+      const closed = new Promise((resolve) => socket.on('close', resolve));
+      socket.write('GET /donnees-relais/ouvert.conformance.test/x HTTP/1.1\r\nHost: rel');
+      const serverSocket = await accepted;
+      await sleep(20);
+      const timeout = Object.assign(new Error('Request timeout'), {
+        code: 'ERR_HTTP_REQUEST_TIMEOUT',
+      });
+      reference.relay.server.emit('clientError', timeout, serverSocket);
+      await closed;
+      assert.match(reply, /^HTTP\/1\.1 408 /);
+      assertCommonHeaders(reply, '408');
+      assert.match(reply, /"error":"request-timeout"/);
+    });
+  });
+
+  test('en-têtes trop longs : 431 avec les en-têtes communs', async () => {
+    await withRelay({}, async (reference, client) => {
+      const reply = await client.raw(
+        `GET ${target(reference, mark())} HTTP/1.1\r\nHost: relais\r\nX-Long: ${'a'.repeat(20000)}\r\n\r\n`
+      );
+      assert.match(reply, /^HTTP\/1\.1 431 /);
+      assertCommonHeaders(reply, '431');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-MET-3 — OPTIONS et HEAD sur le relais de référence', () => {
+  test('OPTIONS hors du préfixe du relais : 404, comme toute autre méthode', async () => {
+    await withRelay({}, async (reference, client) => {
+      for (const path of ['/', '/autre/chose', '/health', '*']) {
+        const response = await client.call(path, { method: 'OPTIONS', absolute: true });
+        assert.equal(response.status, 404, `OPTIONS ${path}`);
+        assert.equal(response.headers['access-control-allow-origin'], '*');
+        assert.equal(response.headers['access-control-allow-methods'], undefined);
+      }
+      const inside = await client.call(`/${ALLOWED_HOST}/donnees.json`, { method: 'OPTIONS' });
+      assert.equal(inside.status, 204);
+      assert.equal(inside.headers['access-control-allow-headers'], undefined);
+    });
+  });
+
+  test('HEAD sur une URL absente du cache : un GET complet chez l’amont, mis en cache pour le GET qui suit', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const path = `/${ALLOWED_HOST}/compteur?${m}`;
+      const head = await client.call(path, { method: 'HEAD' });
+      assert.equal(head.status, 200);
+      assert.equal(head.body.length, 0);
+      assert.equal(upstream.seen(m)[0].method, 'GET');
+      const get = await client.call(path);
+      assert.equal(get.headers['x-relay-cache'], 'HIT');
+      assert.equal(get.headers['content-length'], head.headers['content-length']);
+      assert.equal(upstream.seen(m).length, 1);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
 describe('Cache du relais de référence', () => {
   test('C-CACHE-2 — N visiteurs simultanés sur la même URL : une seule requête vers l’amont', async () => {
     await withRelay({}, async (reference, client) => {
