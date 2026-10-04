@@ -11,6 +11,7 @@ import type { SourceElement } from '../utils/source-element.js';
 import { ContextBindingMixin } from '../utils/context-binding.js';
 import type { ContextHost } from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
+import { escapeUrlValue, readUrlScalar } from '../utils/url-values.js';
 import { countNoun } from '../utils/count-label.js';
 
 type SearchOperator = 'contains' | 'starts' | 'words';
@@ -66,8 +67,12 @@ class SearchContextFilter implements ContextFilterLike {
     this.host.clear();
   }
 
+  /**
+   * Le terme est UNE valeur : sa virgule part échappée (`%2C`), comme celle
+   * d'une valeur de facette (#1243, famille de BUG-031).
+   */
   urlValue(): string {
-    return this.host._effectiveTerm();
+    return escapeUrlValue(this.host._effectiveTerm());
   }
 }
 
@@ -332,10 +337,12 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
     // Terme initial depuis l'URL du contexte (#231, ADR-031) : il remplit le
     // champ et repasse par le MEME chemin qu'une frappe
-    const urlValues = context._urlValuesFor(this._contextFilter.field);
-    if (urlValues && urlValues.length > 0) {
-      this._term = urlValues.join(',');
-    }
+    // Le paramètre entier est LE terme (#1243) : découpé sur les virgules puis
+    // recollé, « Paris, France » revenait en « Paris,France » et ne trouvait
+    // plus rien.
+    const raw = context._urlRawFor(this._contextFilter.field);
+    const term = raw === null ? '' : readUrlScalar(raw);
+    if (term) this._term = term;
     this._applyFilter();
   }
 

@@ -6,7 +6,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import type { AdapterCapabilities, ApiAdapter } from '../adapters/api-adapter.js';
+import type { AdapterCapabilities, ApiAdapter, FetchCaveat } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
 import {
   AGGREGATE_FUNCTIONS,
@@ -24,7 +24,7 @@ import {
   parseOrderBy,
   splitColonFields,
 } from '../utils/where.js';
-import { reportConfigError } from '../utils/config-error.js';
+import { clearConfigError, reportConfigError } from '../utils/config-error.js';
 import { isNumericValue, sortRows } from '../utils/sort.js';
 import { dsfrDataInstances, onDsfrDataInstance } from '../utils/instance-registry.js';
 
@@ -235,6 +235,15 @@ function sourceAliases(el: Element | null): Set<string> {
  * dsfr-data-query reprend le traitement client-side même pour les operations
  * initialement deleguees.
  *
+ * **Jamais sur une seule page** (#1242) : un regroupement ou un agrégat gardé
+ * côté client porte sur les lignes REÇUES. Derrière une source en pagination
+ * serveur (`server-side`), qui n'en livre qu'une page, la requête passe en
+ * erreur de configuration (`data-dsfr-config-error`, état d'erreur en aval)
+ * au lieu d'émettre un chiffre partiel ; le message nomme la source et la
+ * correction. Derrière une source en mode URL avec `paginate`, qu'aucun
+ * attribut ne fait charger en entier, le calcul a lieu sur la page reçue,
+ * avec un avertissement en console et au volet Diagnostic.
+ *
  * @example Server-side automatique (ODS supporte group-by server-side)
  * <dsfr-data-source id="src" api-type="opendatasoft"
  *   base-url="https://data.opendatasoft.com" dataset-id="communes-france">
@@ -286,6 +295,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * navigateur quand la chaîne est partagée (#765), quand un transformateur
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
+   *
+   * LISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au
+   * serveur comme toute liste — l'adaptateur Tabular écrit entre guillemets
+   * la valeur que l'API écarterait nue, et calcule la clause lui-même si
+   * l'API refuse cette forme (détail : `where` de dsfr-data-source).
    *
    * CHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME
    * opérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la
@@ -368,6 +382,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * abonnés. Source partagée (un KPI, un autre graphique…) : calcul côté
    * client sur les lignes chargées, avec un avertissement. Pour garder
    * l'agrégation serveur, donner à la query sa propre `dsfr-data-source`.
+   *
+   * Un regroupement resté côté client ne se calcule pas sur une source en
+   * pagination serveur (`server-side`), qui ne livre qu'une page : la requête
+   * passe en erreur de configuration (#1242). Retirer `server-side` de la
+   * source, ou donner à la requête sa propre source sans `server-side`.
    * @champ liste
    */
   @property({ type: String, attribute: 'group-by' })
@@ -448,6 +467,23 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * lignes chargées, donc relever `max-records` avant de poser l'attribut sur
    * un jeu volumineux. L'ordre des lignes, lui, est indifférent : pas
    * d'`order-by` requis, pas d'avertissement.
+   *
+   * ## Jamais sur une seule page (#1242)
+   *
+   * Un agrégat calculé côté client — part, cumul, agrégat sans `group-by`
+   * (jamais délégué), ou regroupement que la source n'a pas pu prendre —
+   * porte sur les lignes reçues. Derrière une source en pagination serveur
+   * (`server-side`), la requête n'en reçoit qu'une page : elle passe en
+   * **erreur de configuration** et n'émet aucun chiffre. Le message nomme la
+   * source et dit la correction : retirer `server-side` (le jeu est chargé
+   * en entier, dans la limite de `max-records`) ; ou, si le jeu dépasse ce
+   * plafond ou si un tableau paginé lit la même source, donner à la requête
+   * sa propre source sans `server-side`, qui porte le regroupement délégable
+   * (`group-by="region" aggregate="population:sum"` sur la source, puis
+   * `aggregate="population__sum:share_percent"` ici, sur les groupes).
+   * Derrière une source en mode URL avec `paginate`, qu'aucun attribut ne
+   * fait charger en entier, le calcul a lieu sur la page reçue : un
+   * avertissement en console et le volet Diagnostic le disent.
    */
   @property({ type: String })
   aggregate = '';
@@ -485,9 +521,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * - jamais délégué : comme toute part, il garde le regroupement CÔTÉ
    *   CLIENT, sur les lignes chargées, quel que soit l'adaptateur
    *   (Opendatasoft, Tabular, Grist). Sur un jeu volumineux, relever
-   *   `max-records` — un dénominateur tronqué ne se voit pas. Ne pas le poser
-   *   sur une source en `server-side` : elle ne charge qu'une page, et la
-   *   part ne porterait que sur elle.
+   *   `max-records` — un dénominateur tronqué ne se voit pas. Sur une source
+   *   en `server-side`, qui ne charge qu'une page, la requête passe en
+   *   erreur de configuration (#1242) : retirer `server-side`, ou porter le
+   *   regroupement sur une source sans `server-side` et garder ici la part.
    *
    * Par défaut vide : une part reste une part du total.
    * @champ liste
@@ -532,7 +569,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * L'éclatement force le regroupement CÔTÉ CLIENT : aucune API du pipeline
    * ne sait éclater un champ multivalué, déléguer produirait à nouveau des
    * combinaisons. Sur une source volumineuse, penser au plafond de lignes
-   * rapatriées.
+   * rapatriées ; sur une source en pagination serveur (`server-side`), qui
+   * ne livre qu'une page, la requête passe en erreur de configuration
+   * (#1242) — retirer `server-side` de la source.
    *
    * Par défaut vide : le comportement historique est conservé.
    */
@@ -618,6 +657,20 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * une part rapportée au mauvais total.
    */
   private _shareByError: string | null = null;
+
+  /**
+   * Erreur de configuration « regroupement calculé sur une page » (#1242),
+   * posée au TRAITEMENT (elle dépend de la meta de la source, pas des seuls
+   * attributs) ; null quand le montage est sain. Gardée pour ne la redire
+   * qu'une fois, et pour retirer le marqueur quand la source cesse de paginer.
+   */
+  private _pagedAggregateError: string | null = null;
+
+  /** Avertissement #1242 déjà émis (le message, pour ne le dire qu'une fois). */
+  private _pagedAggregateWarned: string | null = null;
+
+  /** Réserve `aggregate-on-page` (#1242) à poser sur la meta de cette requête. */
+  private _pagedAggregateCaveat = false;
 
   /**
    * Dernière commande de délégation dispatchee (cible + contenu) : une
@@ -799,6 +852,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       reportConfigError(this, `dsfr-data-query[${this.id}]`, shareBy.message);
     }
 
+    // Le marqueur #1242 se juge au traitement : la reinitialisation l'a
+    // retire avec les autres, il sera repose si le montage est encore fautif.
+    this._pagedAggregateError = null;
+    this._pagedAggregateCaveat = false;
+
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
     this._negotiateServerSide();
@@ -835,6 +893,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       ...rest,
       ...(meta.serverSide ? {} : { total: this._rowsBeforeLimit }),
       ...(truncated ? { truncated: true } : {}),
+      ...(this._pagedAggregateCaveat ? { caveats: ['aggregate-on-page'] as FetchCaveat[] } : {}),
     };
   }
 
@@ -1540,6 +1599,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       this.emitTransformerError(new Error(this._shareByError));
       return;
     }
+    // Regroupement gardé côté client sur UNE page de la source (#1242).
+    if (this._refusePagedAggregate()) return;
     try {
       this.emitTransformerLoading();
       this._processClientSide();
@@ -1547,6 +1608,126 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
       this.emitTransformerError(error as Error);
       console.error(`dsfr-data-query[${this.id}]: Erreur de traitement`, error);
     }
+  }
+
+  // --- Regroupement sur une page (#1242) ---
+
+  /**
+   * Ce que cette requête calcule CÔTÉ CLIENT et qui replie ou rapporte des
+   * lignes entre elles — regroupement, agrégat global, part, cumul,
+   * éclatement —, écrit comme ses attributs ; vide quand tout est délégué.
+   *
+   * `forceClientSide` : l'adaptateur a rendu des lignes brutes là où le
+   * regroupement lui avait été délégué (`needsClientProcessing`).
+   */
+  private _clientAggregationAttrs(forceClientSide: boolean): string[] {
+    const attrs: string[] = [];
+    if (this.groupBy && (!this._serverDelegated.groupBy || forceClientSide)) {
+      attrs.push(`group-by="${this.groupBy}"`);
+      if (this.explode) attrs.push(`explode="${this.explode}"`);
+    }
+    if (this.aggregate && (!this._serverDelegated.aggregate || forceClientSide)) {
+      attrs.push(`aggregate="${this.aggregate}"`);
+    }
+    return attrs;
+  }
+
+  /** Pourquoi le regroupement est resté côté client, en une proposition (#1242). */
+  private _clientAggregationCause(forceClientSide: boolean): string {
+    if (this.groupBy && this.explode) return "explode n'est jamais délégué";
+    if (this._windowAggregates().length > 0) return "une part ou un cumul n'est jamais délégué";
+    if (!this.groupBy) return "un agrégat sans group-by n'est jamais délégué";
+    if (this._chainShared) return "d'autres composants lisent la même source";
+    if (forceClientSide) return "l'API n'a pas su le traiter";
+    return "il n'a pas pu être délégué au serveur";
+  }
+
+  /**
+   * Un regroupement gardé côté client ne porte que sur les lignes REÇUES ;
+   * or une source qui pagine au serveur n'en livre qu'UNE page (#1242).
+   * Mesuré sur 137 lignes en pages de 40 : part de la France 15,03 % au lieu
+   * de 14,62 %, somme 39 220 000 au lieu de 127 684 000 — sans un mot.
+   *
+   * La règle est CONDITIONNELLE (arbitrage du 2026-10-04) :
+   * - la source qui charge porte `server-side` (mode adaptateur) : le montage
+   *   se corrige par des attributs — sans `server-side`, la même source
+   *   charge le jeu entier, et le regroupement délégable peut être porté par
+   *   elle. La requête passe en ERREUR DE CONFIGURATION (marqueur
+   *   `data-dsfr-config-error`, état d'erreur en aval) et n'émet aucun
+   *   chiffre : retourne `true` ;
+   * - sinon (mode URL `paginate`, émetteur tiers) : aucun attribut ne fait
+   *   charger le jeu entier — sans `paginate`, l'API rend sa page par défaut.
+   *   Statu quo : le calcul a lieu sur la page, avec un avertissement en
+   *   console et la réserve `aggregate-on-page` pour le volet Diagnostic.
+   *
+   * Jugé sur le MONTAGE, pas sur le nombre de lignes : une page qui contient
+   * par chance tout le jeu donne un chiffre juste aujourd'hui et faux au
+   * premier ajout de lignes, et le `total` d'une réponse regroupée n'est pas
+   * fiable (#641). Une requête qui délègue réellement son regroupement, ou
+   * qui ne regroupe pas, n'est pas concernée.
+   */
+  private _refusePagedAggregate(): boolean {
+    const meta = getDataMeta(this.source);
+    const attrs = meta?.serverSide
+      ? this._clientAggregationAttrs(meta.needsClientProcessing === true)
+      : [];
+
+    if (attrs.length === 0) {
+      if (this._pagedAggregateError !== null) {
+        if (this.getAttribute('data-dsfr-config-error') === this._pagedAggregateError) {
+          clearConfigError(this);
+        }
+        this._pagedAggregateError = null;
+      }
+      this._pagedAggregateCaveat = false;
+      return false;
+    }
+
+    const fetching = fetchingSourceOf(this.source) as
+      (Element & { serverSide?: boolean; paginate?: boolean }) | null;
+    const sourceId = fetching?.id || this.source;
+    const cause = this._clientAggregationCause(meta?.needsClientProcessing === true);
+    const quoi = `${attrs.join(' ')} ${attrs.length > 1 ? 'sont calculés' : 'est calculé'} côté client (${cause})`;
+
+    if (fetching?.serverSide === true) {
+      // Seconde correction : la source dédiée. Elle ne porte le regroupement
+      // que s'il y en a un — un `aggregate` SANS `group-by` posé sur une
+      // source n'est pas un agrégat global (mesuré : lignes brutes).
+      const dediee = this.groupBy
+        ? `Si le jeu dépasse ce plafond, ou si une liste paginée lit la même source, donnez à ` +
+          `cette requête sa propre dsfr-data-source sans server-side, qui porte le regroupement ` +
+          `délégable (group-by, aggregate) ; la part ou le cumul se calcule alors ici, sur les ` +
+          `groupes.`
+        : `Si une liste paginée lit la même source, donnez à cette requête sa propre ` +
+          `dsfr-data-source sans server-side.`;
+      const message =
+        `${quoi}, sur les seules lignes reçues — or dsfr-data-source "${sourceId}" est en ` +
+        `pagination serveur (server-side) et ne livre qu'une page : le résultat serait partiel. ` +
+        `Retirez server-side de dsfr-data-source "${sourceId}" : le jeu est alors chargé en ` +
+        `entier, dans la limite de max-records (à relever si le jeu est plus long). ${dediee}`;
+      if (this._pagedAggregateError !== message) {
+        this._pagedAggregateError = message;
+        reportConfigError(this, `dsfr-data-query[${this.id}]`, message);
+      }
+      this._pagedAggregateCaveat = false;
+      this.emitTransformerError(new Error(message));
+      return true;
+    }
+
+    const recues = this._rawData.length;
+    const total = meta?.total !== undefined && meta.total > recues ? ` sur ${meta.total}` : '';
+    const message =
+      `dsfr-data-query[${this.id}]: ${quoi}, sur la seule page reçue (${recues} lignes${total}) — ` +
+      `la source "${sourceId}" pagine côté serveur${fetching?.paginate ? ' (paginate)' : ''} et ` +
+      `ne livre qu'une page : le résultat est partiel. Aucun attribut ne fait charger le jeu ` +
+      `entier à une source en mode URL ; passez par un api-type qui sait le charger, ou par ` +
+      `une URL qui rend déjà l'agrégat.`;
+    if (this._pagedAggregateWarned !== message) {
+      this._pagedAggregateWarned = message;
+      console.warn(message);
+    }
+    this._pagedAggregateCaveat = true;
+    return false;
   }
 
   // --- Client-side processing ---

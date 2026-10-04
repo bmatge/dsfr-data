@@ -24,6 +24,7 @@ import {
   repondreOdsRecords,
 } from '../builder-e2e/api-fixtures.js';
 import type { Row } from '../../tools/oracle/manifest.js';
+import { filtrerOdsqlContexte } from './fixtures-contexte.js';
 import canari from './jeux/canari.json' with { type: 'json' };
 import canariRef from './jeux/canari-ref.json' with { type: 'json' };
 import canariVolume from './jeux/canari-volume.json' with { type: 'json' };
@@ -44,6 +45,7 @@ export const CANARI_FACETTES: Row[] = canariFacettes;
 /** Les jeux ODS du canari. */
 export const DATASET_CANARI = 'canari';
 export const DATASET_VOLUME = 'canari-volume';
+export const DATASET_FACETTES = 'canari-facettes';
 
 /** Les trois jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_CANARI = {
@@ -60,16 +62,39 @@ export function urlCanari(nom: keyof typeof JEUX_CANARI): string {
 
 const PREFIXE_ODS = '/api/explore/v2.1/catalog/datasets/';
 
+/**
+ * Le jeu des facettes en source Opendatasoft (#1243) : ce qu'un CONTEXTE
+ * filtre. Ses filtres émettent `in (…)` et `like "%…%"`, que le harnais de
+ * recette ne lit pas : c'est le lecteur du lot « contexte » qui sert ici, et
+ * qui REFUSE comme lui une clause qu'il n'a pas su lire.
+ */
+function repondreFacettes(url: URL, fin: string): unknown | null {
+  if (fin === '') return repondreOdsMetadonnees();
+  const p = url.searchParams;
+  const filtrees = filtrerOdsqlContexte(CANARI_FACETTES, p.get('where') ?? '');
+  if (fin === 'records') {
+    const limite = Number(p.get('limit') ?? '100');
+    const decalage = Number(p.get('offset') ?? '0');
+    return { total_count: filtrees.length, results: filtrees.slice(decalage, decalage + limite) };
+  }
+  if (fin === 'exports/json') {
+    const limite = Number(p.get('limit') ?? '0');
+    return limite > 0 ? filtrees.slice(0, limite) : filtrees;
+  }
+  return null;
+}
+
 /** Le faux serveur du canari : une URL, une réponse — ou `null` si imprévue. */
 export function repondreCanari(url: URL): unknown | null {
   if (url.origin !== HOTE_CANARI) return null;
   if (url.pathname.startsWith(PREFIXE_ODS)) {
     const reste = url.pathname.slice(PREFIXE_ODS.length);
     const [dataset, ...chemin] = reste.split('/');
+    const fin = chemin.join('/');
+    if (dataset === DATASET_FACETTES) return repondreFacettes(url, fin);
     const jeu =
       dataset === DATASET_CANARI ? CANARI : dataset === DATASET_VOLUME ? CANARI_VOLUME : null;
     if (jeu === null) return null;
-    const fin = chemin.join('/');
     if (fin === 'records') return repondreOdsRecords(url, jeu);
     if (fin === 'exports/json') return repondreOdsExport(url, jeu);
     if (fin === 'facets') return repondreOdsFacets(url, jeu);

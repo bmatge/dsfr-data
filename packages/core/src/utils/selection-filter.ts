@@ -31,6 +31,7 @@
 import type { LitElement } from 'lit';
 import { getByPath } from './json-path.js';
 import { escapeColonValue, translateWhere } from './where.js';
+import { escapeUrlValue, readUrlScalar } from './url-values.js';
 import { dispatchSourceCommand } from './data-bridge.js';
 import { ContextBindingMixin } from './context-binding.js';
 import type { ContextHost } from './context-registry.js';
@@ -93,8 +94,12 @@ export class SelectionContextFilter implements ContextFilterLike {
     this.host._clearSelection();
   }
 
+  /**
+   * La sélection est UNE valeur : sa virgule part échappée (`%2C`), comme
+   * celle d'une valeur de facette (#1243, famille de BUG-031).
+   */
   urlValue(): string {
-    return this.host._selectedValue();
+    return escapeUrlValue(this.host._selectedValue());
   }
 }
 
@@ -328,9 +333,12 @@ export function SelectionFilterMixin<T extends Constructor<LitElement>>(superCla
       // Valeur initiale depuis l'URL du contexte (#231, ADR-031) : elle devient
       // la sélection courante (sans élément : la donnée n'est pas encore là) et
       // repasse par le MÊME chemin qu'un clic — jamais injectée dans un where.
-      const urlValues = context._urlValuesFor(this._contextFilter.field);
-      if (urlValues && urlValues.length > 0 && !this._selectedFieldValue) {
-        this._setSelection(null, urlValues[0]);
+      // Le paramètre entier est LA valeur (#1243) : découpé sur les virgules,
+      // « 1,5 à 2 parcours » revenait en « 1 », un filtre sur rien.
+      const raw = context._urlRawFor(this._contextFilter.field);
+      const value = raw === null ? '' : readUrlScalar(raw);
+      if (value && !this._selectedFieldValue) {
+        this._setSelection(null, value);
       }
       this._pushSelection();
       this.onSelectionChange();

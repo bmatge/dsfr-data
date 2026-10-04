@@ -5,6 +5,14 @@ import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextById } from './dsfr-data-context.js';
 import type { DsfrDataContext } from './dsfr-data-context.js';
 import { warnStaleSiblingFilter } from '../utils/context-url-conflicts.js';
+import {
+  escapeUrlValue,
+  joinUrlValues,
+  readUrlScalar,
+  splitUrlPositions,
+  splitUrlValues,
+  unescapeUrlValue,
+} from '../utils/url-values.js';
 
 /** YYYY-MM-DD en UTC (#230) */
 function isoDate(d: Date): string {
@@ -289,7 +297,8 @@ export class DsfrDataContextFilter extends LitElement {
    * adaptée au contrôle (input type="month" → AAAA-MM, `year-of` → AAAA)
    * puis écrite dans l'UI et émise par le chemin normal, jamais injectée
    * dans un where. Pour `between` et `in`, plusieurs valeurs séparées par
-   * une virgule (ex. `first-of-year,today`).
+   * une virgule (ex. `first-of-year,today`) ; une virgule DANS une valeur
+   * s'écrit `%2C`, comme dans l'URL.
    */
   @property({ type: String, attribute: 'default' })
   defaultValue = '';
@@ -468,11 +477,11 @@ export class DsfrDataContextFilter extends LitElement {
     // Pré-remplissage depuis l'URL (#231, ADR-031) : les valeurs passent
     // par l'UI puis par le MÊME chemin d'émission qu'un clic utilisateur —
     // jamais injectées directement dans un where
-    const urlValues = this._context._urlValuesFor(this.field);
+    const urlRaw = this._context._urlRawFor(this.field);
     const before = this._currentValues();
     let origin: 'URL' | 'default' | null = null;
-    if (urlValues) {
-      this._prefillUi(urlValues);
+    if (urlRaw !== null) {
+      this._prefillUi(this._valuesFromUrl(urlRaw));
       origin = 'URL';
     } else if (this.defaultValue) {
       // Valeur initiale (#682) : APRES l'URL, qui gagne — meme chemin
@@ -498,7 +507,13 @@ export class DsfrDataContextFilter extends LitElement {
    */
   private _resolvedDefault(): string[] {
     const multi = this.operator === 'between' || this.operator === 'in';
-    const raw = multi ? this.defaultValue.split(',') : [this.defaultValue];
+    // Sur une liste à choix multiple, `default` parle la grammaire de l'URL
+    // (#1243) : une virgule DANS une valeur s'écrit `%2C`.
+    const raw = this._multiSelect()
+      ? splitUrlValues(this.defaultValue, this._optionValues())
+      : multi
+        ? this.defaultValue.split(',')
+        : [this.defaultValue];
     return raw.map((v, i) => {
       const el = this._uiEls[this.operator === 'between' ? i : 0];
       const inputType = el instanceof HTMLInputElement ? el.type : '';
@@ -532,6 +547,62 @@ export class DsfrDataContextFilter extends LitElement {
     }
   }
 
+  /** Le contrôle d'un filtre `in` est-il une liste à choix multiple ? */
+  private _multiSelect(): HTMLSelectElement | null {
+    if (this.operator !== 'in') return null;
+    const el = this._uiEls[0];
+    return el instanceof HTMLSelectElement && el.multiple ? el : null;
+  }
+
+  /** Valeurs que la liste à choix multiple propose (bords nettoyés, comme la clause) */
+  private _optionValues(): Set<string> {
+    const el = this._multiSelect();
+    return new Set(el ? Array.from(el.options, (o) => o.value.trim()).filter(Boolean) : []);
+  }
+
+  /**
+   * Valeurs d'un filtre `in`, une par une (#1243).
+   *
+   * - Liste à choix multiple : chaque option cochée est UNE valeur, virgule
+   *   comprise. Les options étaient jointes par `|` puis redécoupées sur `|`
+   *   ET sur `,` : « 1,5 à 2 parcours » filtrait sur « 1 » et « 5 à 2
+   *   parcours » avant même d'atteindre l'URL.
+   * - Tout autre contrôle (champ texte, liste simple) : la valeur du contrôle
+   *   est une liste LISIBLE, `|` et `,` séparent (ADR-031). Une virgule dans
+   *   une valeur s'y écrit `%2C`, comme dans l'URL.
+   */
+  private _inValues(): string[] {
+    const multi = this._multiSelect();
+    if (multi) {
+      return Array.from(multi.options)
+        .filter((o) => o.selected)
+        .map((o) => o.value.trim())
+        .filter(Boolean);
+    }
+    const raw = this._currentValues()[0] ?? '';
+    return raw
+      .split(/[|,]/)
+      .map((v) => unescapeUrlValue(v.trim()))
+      .filter(Boolean);
+  }
+
+  /**
+   * Paramètre d'URL → valeurs à écrire dans les contrôles, selon ce que le
+   * filtre porte (#1243, grammaire de `utils/url-values.ts`) :
+   * - `between` : deux positions, vides gardés ;
+   * - `in` sur une liste à choix multiple : une liste, où un lien ancien à
+   *   virgule nue est recollé contre les options proposées ;
+   * - `in` sur un autre contrôle : la liste lisible, rendue au contrôle telle
+   *   qu'elle est écrite (c'est `_inValues` qui la décode) ;
+   * - tout le reste : UNE valeur, jamais découpée.
+   */
+  private _valuesFromUrl(raw: string): string[] {
+    if (this.operator === 'between') return splitUrlPositions(raw);
+    if (this._multiSelect()) return splitUrlValues(raw, this._optionValues());
+    if (this.operator === 'in') return raw.split(',').map((v) => v.trim());
+    return [readUrlScalar(raw)];
+  }
+
   /** Écrit des valeurs (issues de l'URL ou de `default`) dans les contrôles d'UI liés */
   private _prefillUi(values: string[]): void {
     if (this.operator === 'between') {
@@ -549,7 +620,7 @@ export class DsfrDataContextFilter extends LitElement {
     if (el instanceof HTMLSelectElement && el.multiple) {
       const wanted = new Set(values);
       for (const option of Array.from(el.options)) {
-        option.selected = wanted.has(option.value);
+        option.selected = wanted.has(option.value) || wanted.has(option.value.trim());
       }
       return;
     }
@@ -590,7 +661,9 @@ export class DsfrDataContextFilter extends LitElement {
       // Le tag montre la precision reellement filtree (#646)
       return truncateToOperator(raw, this.operator);
     }
-    return raw.split(/[|,]/).filter(Boolean).join(', ');
+    // Seul `in` porte une liste : la virgule d'une valeur unique (« 1,5 à 2
+    // parcours » sous `eq`) n'est pas un séparateur (#1243).
+    return this.operator === 'in' ? this._inValues().join(', ') : raw;
   }
 
   /**
@@ -614,18 +687,25 @@ export class DsfrDataContextFilter extends LitElement {
   /**
    * Valeur de ce filtre pour l'URL (#231) — encodage lisible ADR-031 :
    * valeurs jointes par virgule ('' = filtre inactif, paramètre retiré).
+   *
+   * Une virgule DANS une valeur part échappée en `%2C`, un pourcent en `%25`
+   * (#1243, grammaire de `utils/url-values.ts`, celle des facettes) : le
+   * paramètre se relit exactement. Un lien sans virgule dans ses valeurs garde
+   * sa forme.
    */
   urlValue(): string {
     const values = this._currentValues();
     if (this.operator === 'between') {
       const [min, max] = values;
-      return min || max ? `${min ?? ''},${max ?? ''}` : '';
+      return min || max ? `${escapeUrlValue(min ?? '')},${escapeUrlValue(max ?? '')}` : '';
     }
+    if (this._multiSelect()) return joinUrlValues(this._inValues());
     const raw = values[0] ?? '';
     if (this.operator === 'in') {
+      // Liste lisible d'un champ texte : déjà dans la grammaire de l'URL
       return raw.split(/[|,]/).filter(Boolean).join(',');
     }
-    return raw;
+    return escapeUrlValue(raw);
   }
 
   private _unbindUi(): void {
@@ -732,13 +812,11 @@ export class DsfrDataContextFilter extends LitElement {
     }
 
     if (this.operator === 'in') {
-      // | (multi-select) et , (saisie texte / URL lisible ADR-031)
-      const escaped = raw
-        .split(/[|,]/)
-        .filter(Boolean)
-        .map((v) => escapeColonValue(v.trim()))
-        .join('|');
-      return `${this.field}:in:${escaped}`;
+      // Une option cochée = une valeur ; ailleurs, | et , séparent (saisie
+      // texte / URL lisible ADR-031) — voir `_inValues` (#1243)
+      const inValues = this._inValues();
+      if (inValues.length === 0) return '';
+      return `${this.field}:in:${inValues.map(escapeColonValue).join('|')}`;
     }
 
     return `${this.field}:${this.operator}:${escapeColonValue(raw)}`;

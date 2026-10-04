@@ -59,7 +59,6 @@ import {
   parseUrlParamMap,
   joinUrlFacetValues,
   readUrlSelections,
-  unescapeUrlFacetValue,
   writeUrlSelections,
 } from './facets/facets-url.js';
 import {
@@ -1273,9 +1272,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     for (const field of this._contextFilters.keys()) {
       const values = context._urlValuesFor(field);
       if (values && values.length > 0) {
-        // Le contexte découpe sur les virgules ; la virgule d'une valeur lui
-        // arrive échappée (`%2C`, BUG-031) et se décode ici, morceau par morceau.
-        selections[field] = new Set(values.map(unescapeUrlFacetValue).filter(Boolean));
+        // Le contexte rend la liste DÉCODÉE (#1243) : la virgule d'une valeur,
+        // écrite `%2C` (BUG-031), est déjà revenue.
+        selections[field] = new Set(values);
         prefilled = true;
       }
     }

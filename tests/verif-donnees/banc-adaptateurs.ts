@@ -397,7 +397,7 @@ const CHECKS: Check[] = [
     mode: 'live',
     constats: ['PG-033', 'PG-034'],
     origin:
-      'data.gouv / base départementale de la délinquance (SSMSI) — #1202, #1233, PG-033 et PG-034 du banc, contre la vraie API. Trois chargements, chacun avec un chiffre que seul l’ENSEMBLE exact des lignes rend juste. (1) Groupé et trié sur une colonne de regroupement non unique : 1 818 groupes, que l’API rend en 1 805 distincts quand le tri la suit de page en page — l’adaptateur les relit sans tri. (2) Tronqué à 600 et trié : l’API rend 550 lignes distinctes sur 600, et ignore un second `__sort` ; l’adaptateur compose un ordre total dans la VALEUR du tri (`Code_region__sort=asc,"__id".asc`), forme que l’API passe à PostgREST sans la documenter (mesuré le 2026-10-03 : 600 distinctes, les 600 premières). CE CONTRÔLE GARDE CETTE FORME : s’il rougit ici, l’API a cessé de l’honorer. (3) `in` à parenthèse posé sur la source : 202 lignes, 101 si la clause part au serveur.',
+      'data.gouv / base départementale de la délinquance (SSMSI) — #1202, #1233, PG-033 et PG-034 du banc, contre la vraie API. Trois chargements, chacun avec un chiffre que seul l’ENSEMBLE exact des lignes rend juste. (1) Groupé et trié sur une colonne de regroupement non unique : 1 818 groupes, que l’API rend en 1 805 distincts quand le tri la suit de page en page — l’adaptateur les relit sans tri. (2) Tronqué à 600 et trié : l’API rend 550 lignes distinctes sur 600, et ignore un second `__sort` ; l’adaptateur compose un ordre total dans la VALEUR du tri (`Code_region__sort=asc,"__id".asc`), forme que l’API passe à PostgREST sans la documenter (mesuré le 2026-10-03 : 600 distinctes, les 600 premières). CE CONTRÔLE GARDE CETTE FORME : s’il rougit ici, l’API a cessé de l’honorer. (3) `in` / `notin` à parenthèse posés sur la source : la valeur part ENTRE GUILLEMETS (`indicateur__in=Homicides,"Usage de stupéfiants (AFD)"`), autre forme que l’API passe à PostgREST sans la documenter — 202 lignes en une requête, 101 quand la valeur part nue ; 1 717 pour `notin`, 1 818 quand plus rien n’est exclu (mesuré le 2026-10-04). CE CONTRÔLE GARDE AUSSI CETTE FORME : si l’API venait à l’ignorer sans erreur, rien d’autre ne rougirait (refusée, l’adaptateur replie sur le calcul côté client et le dit).',
     feed: {
       kind: 'raw',
       source: { url: SSMSI_URL, rowsPath: 'data', nextPath: 'links.next' },
@@ -417,6 +417,10 @@ const CHECKS: Check[] = [
   <dsfr-data-source id="s-ssmsi-in" api-type="tabular" resource="${SSMSI_RESSOURCE}"
     where="annee:eq:2025, indicateur:in:Homicides|Usage de stupéfiants (AFD)"></dsfr-data-source>
   <dsfr-data-kpi id="k-ssmsi-in" source="s-ssmsi-in" value="count" format="nombre"
+    label="Lignes"></dsfr-data-kpi>
+  <dsfr-data-source id="s-ssmsi-notin" api-type="tabular" resource="${SSMSI_RESSOURCE}"
+    where="annee:eq:2025, indicateur:notin:Usage de stupéfiants (AFD)"></dsfr-data-source>
+  <dsfr-data-kpi id="k-ssmsi-notin" source="s-ssmsi-notin" value="count" format="nombre"
     label="Lignes"></dsfr-data-kpi>`,
     expects: [
       {
@@ -468,12 +472,32 @@ const CHECKS: Check[] = [
         verdict: 'some',
       },
       {
-        kind: 'urls',
-        id: 'ssmsi-in-jamais-au-serveur',
-        among: `/api/resources/${SSMSI_RESSOURCE}/data/`,
-        contains: 'indicateur__in',
-        verdict: 'none',
+        kind: 'kpi',
+        id: 'k-ssmsi-notin',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'indicateur', op: 'notin', values: ['Usage de stupéfiants (AFD)'] }],
+          },
+        ],
       },
+      {
+        kind: 'urls',
+        id: 'ssmsi-in-entre-guillemets',
+        among: `/api/resources/${SSMSI_RESSOURCE}/data/`,
+        contains: 'indicateur__in=Homicides,"Usage de stupéfiants (AFD)"',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'ssmsi-notin-entre-guillemets',
+        among: `/api/resources/${SSMSI_RESSOURCE}/data/`,
+        contains: 'indicateur__notin="Usage de stupéfiants (AFD)"',
+        verdict: 'some',
+      },
+      // Acceptée, la forme n'appelle aucun repli : la bibliothèque se tait.
+      { kind: 'diagnostic', id: 's-ssmsi-in', expect: 'silence', contains: 'guillemets' },
     ],
   },
 

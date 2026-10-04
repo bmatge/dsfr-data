@@ -839,3 +839,77 @@ describe('constats.ts reste lib-safe', () => {
     }
   });
 });
+
+describe('pipeline/reserve-serveur — les réserves de #1242 et de la suite de #1233', () => {
+  it('aggregate-on-page : la requête qui regroupe une page le dit, avec ses attributs', () => {
+    const fautive = trace({
+      nodes: [
+        { ...SOURCE, attrs: { url: 'https://exemple.invalid/api', paginate: '' } },
+        noeud('agg', 'dsfr-data-query', 'transform', {
+          upstream: ['src'],
+          attrs: { 'group-by': 'region', aggregate: 'population:sum' },
+        }),
+      ],
+      states: {
+        src: charge(3, { meta: { page: 1, pageSize: 3, serverSide: true } }),
+        agg: charge(2, {
+          meta: { page: 1, pageSize: 3, serverSide: true, caveats: ['aggregate-on-page'] },
+        }),
+      },
+    });
+    const trouves = deLaRegle(evaluerConstats(fautive, CTX), 'pipeline/reserve-serveur');
+    expect(trouves).toHaveLength(1);
+    expect(trouves[0]).toMatchObject({
+      id: 'pipeline/reserve-serveur@agg',
+      gravite: 'avertissement',
+      etape: 'agg',
+      preuve: 'group-by="region" ; aggregate="population:sum"',
+    });
+    expect(trouves[0].titre).toContain('regroupement calculé sur une seule page');
+    expect(formatTrace(fautive)).toContain('sur la seule page reçue');
+  });
+
+  it('in-quoted-refused : le refus des guillemets est dit, avec le where en cause', () => {
+    const fautive = trace({
+      nodes: [{ ...SOURCE, attrs: { where: 'indicateur:in:Homicides|Usage (AFD)' } }, CARTE],
+      states: {
+        src: charge(3, { meta: { page: 1, pageSize: 0, caveats: ['in-quoted-refused'] } }),
+      },
+    });
+    const trouves = deLaRegle(evaluerConstats(fautive, CTX), 'pipeline/reserve-serveur');
+    expect(trouves).toHaveLength(1);
+    expect(trouves[0]).toMatchObject({
+      id: 'pipeline/reserve-serveur@src',
+      gravite: 'avertissement',
+      preuve: 'where="indicateur:in:Homicides|Usage (AFD)"',
+    });
+    expect(trouves[0].titre).toContain('entre guillemets refusée');
+    expect(formatTrace(fautive)).toContain('écrit entre guillemets');
+  });
+
+  it('pagination serveur refusée : les deux réserves sur une étape, un seul constat', () => {
+    const fautive = trace({
+      nodes: [
+        {
+          ...SOURCE,
+          attrs: { where: 'indicateur:in:Homicides|Usage (AFD)', 'server-side': '' },
+        },
+        CARTE,
+      ],
+      states: {
+        src: charge(3, {
+          meta: {
+            page: 1,
+            pageSize: 3,
+            serverSide: true,
+            caveats: ['in-quoted-refused', 'in-values-dropped'],
+          },
+        }),
+      },
+    });
+    const trouves = deLaRegle(evaluerConstats(fautive, CTX), 'pipeline/reserve-serveur');
+    expect(trouves).toHaveLength(1);
+    expect(trouves[0].explication).toContain('Il manque les lignes de cette valeur');
+    expect(trouves[0].preuve).toBe('where="indicateur:in:Homicides|Usage (AFD)"');
+  });
+});

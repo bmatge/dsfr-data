@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-03) : **270 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 556 observations déterministes et **26 invariants**. Un contrôle et cinq invariants sont en
+État du dépôt (mesuré le 2026-10-04) : **291 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 619 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 428 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 465 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -881,14 +881,18 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | delegation | la libération au départ ignore l'homonyme (`if (kept[op]) …` retiré, `dsfr-data-query.ts`) | `where-garde-quand-seule-la-query-renait` | KPI affiché 50, recalculé 20 : seule la query renaît, l'ancienne efface la clé `query-<id>` reprise par la nouvelle (#1164) |
 | delegation | `_sendInitialServerSort` neutralisé (`dsfr-data-list.ts`) | `liste-tri-initial-serveur` | 0/1 URL porte `order_by=population ASC`, et la page 1 montre les 40 territoires les PLUS peuplés : la flèche annonce un tri que l'API n'a pas reçu (#1178) |
 | delegation | relecture locale retirée de `fetchAll` (`tabular-adapter.ts`) : le tri d'un chargement paginé reste au serveur | `tabular-tri-pagine-sans-perte` | des `id` manquent et d'autres sont doublés sur 450 lignes, et la dernière URL porte encore `nombre__sort` — le faux serveur ordonne les ex-æquo autrement d'une page à l'autre, comme l'API (#1202, PG-033) |
-| delegation | `inValueUnsafe` retiré de `supportsServerWhere` (`tabular-adapter.ts`) | `tabular-in-a-parenthese-reste-client` | KPI 113 au lieu de 226 : « Usage de stupéfiants (AFD) » écarté en silence par `__in` (#1202, PG-034) |
+| delegation | `quoteInValue` rend la valeur nue (`tabular-adapter.ts`) : la liste `in` / `notin` repart sans guillemets | `tabular-in-a-parenthese-sur-la-query` (ex-`…-reste-client` : la clause est déléguée depuis #1233) | KPI 113 au lieu de 226 : « Usage de stupéfiants (AFD) » écarté en silence par `__in` ; 0/1 URL porte `categorie__in=Homicides,"Usage de stupéfiants (AFD)"` (#1202, #1233, PG-034) |
 | delegation | la sonde de `_fetchAllPaged` ne regarde plus les groupes (`&& !serverHandled`, état d'avant #1233, `tabular-adapter.ts`) | `tabular-tri-groupe-pagine-sans-perte` | « ligne 200 : clé « Homicides \| 97 » rendue, « Homicides \| 353 » recalculée » ; KPI 274 au lieu de 300 ; 3/3 URL portent `categorie__sort` — 450 groupes rendus, le compte est juste, des groupes sont doublés et d'autres perdus (#1233, PG-033) |
 | delegation | l'ordre total n'est plus demandé (`_settlePagedSort`, branche `_totalOrder` neutralisée) | `tabular-tri-tronque-ordre-total` | « ligne 200 : clé « 347 » rendue, « 102 » recalculée » ; somme des identifiants 88 300 au lieu de 85 300 ; 0/2 URL portent `__id` (#1233, PG-033) |
 | delegation | la clé de départage part en SECOND `__sort` (`__id__sort=asc`) au lieu d'entrer dans la valeur du premier (`buildUrl`) | `tabular-tri-tronque-ordre-total` | mêmes lignes fausses (88 300 au lieu de 85 300) alors que l'URL porte bien `__id` : le faux serveur, comme l'API, ne lit qu'un `__sort` (mesuré le 2026-10-03) |
-| delegation | `_splitWhere` ne retient plus la clause (`in` à parenthèse reparti au serveur) | `tabular-in-a-parenthese-sur-la-source` | KPI 90 au lieu de 180 (`in`), 900 au lieu de 449 (`notin` : plus rien n'est exclu) ; `categorie__in` et `categorie__notin` dans les URL (#1233, PG-034) |
+| delegation | `quoteInValue` rend la valeur nue | `tabular-in-a-parenthese-sur-la-source` | KPI 90 au lieu de 180 (`in`), 675 au lieu de 449 (`notin` : seule « Cambriolages » est exclue) ; 0/3 URL portent la valeur entre guillemets, et la liste nue est dans les URL (#1233, PG-034) |
+| delegation | `quoteInValue` rend la valeur nue | `tabular-in-a-parenthese-server-side` | pagination serveur : total annoncé 113 au lieu de 226, somme des identifiants de la page 3 160 au lieu de 1 580 (les 40 premières lignes d'une seule catégorie), `notin` 338 au lieu de 226 (#1233, PG-034) |
+| delegation | `_refusePagedAggregate` neutralisé (`dsfr-data-query.ts`, état d'avant #1242) | `part-par-groupe-ods-server-side`, `agregat-client-tabular-server-side-refuse`, `agregat-client-url-paginate-averti` | « aucun marqueur data-dsfr-config-error sur l'élément — la bibliothèque n'a rien dit » (deux fois : part ODS, agrégat global Tabular) ; « aucun message console de la bibliothèque » pour le mode URL `paginate` — la query agrège une page de 40 lignes sur 137 sans un mot |
+| delegation | le refus de #1242 étendu au chargement complet (`meta?.serverSide` et `fetching?.serverSide` forcés à vrai) | `part-par-groupe-regroupement-sur-la-source`, `part-par-groupe-ods-reste-client` | « #q-part-src (rows) n'a rien affiché » : la correction que nomme le message d'erreur — regroupement porté par une source sans `server-side`, part en aval — serait refusée elle aussi |
 | canari | la sonde de `_fetchAllPaged` neutralisée (état d'avant #1202) | `canari-tabular-tri-pagine`, et `delegation/tabular-tri-pagine-sans-perte` | somme des identifiants 104 475 au lieu de 101 475 (brut et groupé), 87 625 au lieu de 84 025 (tronqué) : le compte est juste, l'ensemble des lignes ne l'est pas |
-| canari | `_splitWhere` ne retient plus la clause | `canari-tabular-in-parenthese` | 112 au lieu de 224 sur la source ; la query, elle, reste à 224 (`supportsServerWhere`, #1202) |
+| canari | `quoteInValue` rend la valeur nue | `canari-tabular-in-parenthese` | 112 au lieu de 224, sur la source comme sur la query — les deux délèguent la clause depuis #1233 |
 | banc-adaptateurs | la sonde de `_fetchAllPaged` neutralisée, contre la VRAIE API (2026-10-03) | `tabular-ssmsi-pertes-silencieuses-vivant` (vivant) | 1 818 groupes comptés, et pourtant somme 3 605 665 au lieu de 3 616 155 ; tronqué : 5 617 079 au lieu de 5 575 928 ; 0/23 URL portent `Code_region__sort=asc,"__id".asc` — ce contrôle garde la forme de tri composée, que l'API ne documente pas |
+| banc-adaptateurs | `quoteInValue` rend la valeur nue, contre la VRAIE API (2026-10-04) | `tabular-ssmsi-pertes-silencieuses-vivant` (vivant) | `in` : 101 lignes au lieu de 202 ; `notin` : 1 818 au lieu de 1 717 ; 0/26 URL portent `indicateur__in=Homicides,"Usage de stupéfiants (AFD)"` — ce contrôle garde AUSSI la liste entre guillemets, seconde forme que l'API ne documente pas (#1233) |
 | delegation | `sourceIsGrouped` rend toujours `false` (`dsfr-data-query.ts`) | `source-groupee-garde-son-regroupement` | KPI 0 au lieu de 137, et aucune URL ne porte plus `group_by=academie` : la query a remplacé le regroupement de la source à travers le normalize (#1199, BUG-026) |
 | delegation | garde des alias de la source retirée de `_delegateWhereOnly` | `where-sur-alias-reste-client` | `where=n >= 18` part au portail, KPI 0 au lieu de 1 (#1199, BUG-027) |
 | delegation | `transformsSchema()` de la query rend `false` | `query-qui-renomme-bloque-la-delegation` | `Academie__groupby` part à l'API Tabular, KPI 0 au lieu de 8 (#1199, BUG-036) |
@@ -1004,12 +1008,11 @@ Un rapport de vérification qui listerait comme défaut ce que la doc ne promet
 pas coûte exactement ce que #746 a mesuré. Dans les deux cas, la supervision
 ouvre ce qu'il faut ouvrir : le lot qui trouve ne corrige pas.
 
-**En attente à ce jour** — deux contrôles et deux invariants :
+**En attente à ce jour** — un contrôle et deux invariants :
 
 | Contrôle ou invariant en attente | Domaine | Défaut ou amélioration |
 |---|---|---|
 | `ctx-sources-separateur-virgule` | contexte | **défaut** (#878, cas 1) : `sources="s-etab,s-budg"` est accepté sans un mot — `_validate()` ne vérifie que la non-vacuité, `sourceIds` découpe sur les espaces, la commande part vers un id que personne n'écoute. Mesuré : k-pop lib 38 350 / oracle 13 550, k-montant 14 000 / 5 000, aucun marqueur, aucun message. Piste : étendre l'utilitaire de #772 à `sources`. Issue à ouvrir par la supervision. |
-| `part-par-groupe-ods-server-side` | delegation | **défaut**, antérieur à `share-by` (AM-110) : un regroupement que la query garde côté client (part, cumul, `explode`) est calculé sur les lignes CHARGÉES, et une source en `server-side` n'en charge qu'une page. Mesuré : lib 40 lignes / oracle 56, aucun message. Issue à ouvrir par la supervision. |
 | `canari-jointure-doublon#count-preserved`, `#sum-preserved:montant` | canari | **violés par les données**, pas par la bibliothèque (PG-001) : 42 lignes pour 40, somme +20 — rendus en attente pour être LUS, c'est le point du canari. Aucune issue à ouvrir. |
 
 **Ce que la catégorie a rapporté.** Les sept premiers contrôles mis en attente ont tous eu une
@@ -1024,8 +1027,9 @@ vérification, et la raison pour laquelle un `skip` n'est pas un contrôle perdu
 | `relais-normalize-devrait-deleguer` | delegation | [#855](https://github.com/bmatge/dsfr-data/issues/855) — la délégation ne franchit pas `dsfr-data-normalize` : overlay posé, jamais appliqué |
 | `where-seul-devrait-etre-delegue` | delegation | [#856](https://github.com/bmatge/dsfr-data/issues/856) — **amélioration**, non promise par la doc : déléguer un `where` seul |
 | `qualite-tourisme-group-by-delegue-garde-son-alias` | banc-pages | [#859](https://github.com/bmatge/dsfr-data/issues/859) — sur une source ODS à `select` explicite, l'adaptateur garde le `select` et perd les colonnes d'`aggregate` (KPI à 0) |
+| `part-par-groupe-ods-server-side` | delegation | [#1242](https://github.com/bmatge/dsfr-data/issues/1242) — un regroupement gardé côté client (part, cumul, `explode`, agrégat sans `group-by`) était calculé sur la seule page d'une source en `server-side` : 40 lignes pour 56, sans un mot. Reverdi en constatant le refus : la requête passe en erreur de configuration, qui nomme `server-side` et la correction |
 
-Six issues, dont cinq défauts et une amélioration : aucune n'aurait été vue par un test unitaire,
+Sept issues, dont six défauts et une amélioration : aucune n'aurait été vue par un test unitaire,
 puisque chacune porte sur ce que la page **affiche** au bout d'une chaîne, pas sur une fonction.
 
 ## Le rapport
