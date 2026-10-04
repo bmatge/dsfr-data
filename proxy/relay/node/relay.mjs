@@ -6,13 +6,14 @@
 // lecture seule, hôtes de la liste blanche uniquement, clé détenue ici.
 //
 // `createRelay(config, deps)` : `deps` permet au banc de tests de substituer la
-// résolution DNS, la connexion, l'horloge et le journal. `server.mjs`, le point
+// résolution DNS, la connexion, l'horloge et le journal, et de déclarer
+// l'adresse de documentation que rend son faux DNS. `server.mjs`, le point
 // d'entrée de production, n'en passe AUCUN : aucune variable d'environnement,
 // aucun champ de configuration ne peut désactiver une défense.
 
 import http from 'node:http';
 import process from 'node:process';
-import { isIP } from 'node:net';
+import { BlockList, isIP } from 'node:net';
 import { Buffer } from 'node:buffer';
 import { rateLimitKey } from './addresses.mjs';
 import { MemoryCache } from './cache.mjs';
@@ -21,6 +22,16 @@ import { RelayError, isUnderPrefix, parseTarget } from './target.mjs';
 import { createTlsConnector, defaultResolve, fetchUpstream } from './upstream.mjs';
 
 const ALLOWED_METHODS = 'GET, HEAD, OPTIONS';
+
+/**
+ * Requêtes servies sur une même connexion avant de la fermer. Le plafond de
+ * Node (`maxRequestsPerSocket`) répond lui-même, par une 503 sans aucun des
+ * en-têtes du contrat : le relais compte donc lui-même, et ferme proprement.
+ */
+const MAX_REQUESTS_PER_SOCKET = 1000;
+
+/** Statuts après lesquels la connexion est fermée : la requête n'a pas forcément été lue. */
+const CLOSING_STATUSES = new Set([400, 405, 408, 417, 431]);
 
 /**
  * En-têtes posés sur TOUTE réponse, erreurs comprises (C-NAV-2, C-NAV-4).
@@ -42,6 +53,9 @@ const MESSAGES = Object.freeze({
   'host-not-allowed': "Cet hôte n'est pas dans la liste blanche du relais.",
   'path-not-allowed': "Ce chemin n'est pas autorisé pour cet hôte.",
   'method-not-allowed': 'Le relais est en lecture seule : GET, HEAD ou OPTIONS.',
+  'expectation-failed': "Le relais n'honore aucun en-tête Expect.",
+  'request-timeout': "La requête n'a pas été reçue en entier dans le délai.",
+  'headers-too-large': 'Les en-têtes de la requête dépassent la taille acceptée.',
   'body-not-allowed': "Le relais n'accepte aucun corps de requête.",
   'rate-limited': 'Trop de requêtes depuis cette adresse.',
   'relay-busy': 'Le relais est momentanément saturé.',
@@ -53,6 +67,8 @@ const MESSAGES = Object.freeze({
   'upstream-too-large': 'La réponse du service amont dépasse la taille acceptée.',
   'upstream-content-type': 'Le service amont a répondu un type de contenu non autorisé.',
   'upstream-encoding': 'Le service amont a répondu un encodage non demandé.',
+  'upstream-unframed':
+    'Le service amont a répondu sans longueur ni découpage : la fin de la réponse ne se prouve pas.',
   'upstream-redirect-refused': 'Le service amont a répondu une redirection non autorisée.',
   'upstream-leak': "La réponse du service amont a été retenue : elle contenait la clé d'accès.",
   'upstream-rate-limited': 'Le service amont limite le débit.',
@@ -61,10 +77,51 @@ const MESSAGES = Object.freeze({
   'upstream-rejected': 'Le service amont a refusé la requête.',
 });
 
+/**
+ * Réponses par lesquelles l'amont dit que la donnée n'est plus là, ou plus pour
+ * nous (401, 403, 404, 410). L'entrée en cache est alors PURGÉE : sans cela, la
+ * première panne de l'amont resservirait en « périmé » une donnée dépubliée.
+ */
+function isWithdrawal(error) {
+  return (
+    error instanceof RelayError &&
+    (error.code === 'upstream-forbidden' || error.code === 'upstream-not-found')
+  );
+}
+
+/**
+ * Vrai si la clé d'un hôte figure dans ce que le relais s'apprête à servir :
+ * le corps, mais aussi les trois en-têtes repris de l'amont. Le type de contenu
+ * est reconstruit en minuscules : la comparaison des en-têtes ignore la casse.
+ */
+function leaksKey(response, hosts) {
+  const headers = [response.contentType, response.etag, response.lastModified]
+    .filter((value) => typeof value === 'string')
+    .join('\n')
+    .toLowerCase();
+  for (const hostEntry of hosts.values()) {
+    if (!hostEntry.key) continue;
+    if (response.body.includes(hostEntry.key.secret)) return true;
+    if (headers.includes(hostEntry.key.secret.toLowerCase())) return true;
+  }
+  return false;
+}
+
 /** Échecs de l'amont pour lesquels une réponse périmée vaut mieux qu'une erreur. */
 function isUpstreamFailure(error) {
   if (!(error instanceof RelayError)) return false;
   return error.status >= 502 || error.code === 'upstream-rate-limited';
+}
+
+/**
+ * Durée pendant laquelle `X-Forwarded-For` n'est plus cru d'un mandataire pris
+ * à ne pas le poser. Chaque nouvelle requête sans en-tête la prolonge.
+ */
+const PROXY_DISTRUST_MS = 15 * 60 * 1000;
+
+/** Avertissement par défaut : la sortie d'erreur, comme les messages de démarrage. */
+function defaultWarn(message) {
+  process.stderr.write(`[relais] ${message}\n`);
 }
 
 /** Journal par défaut : une ligne JSON par requête sur la sortie standard. */
@@ -79,14 +136,19 @@ function defaultLog(record) {
  *   connect?: (target: { address: string, family: number, hostname: string }) => import('node:net').Socket,
  *   now?: () => number,
  *   log?: (record: Record<string, unknown>) => void,
+ *   warn?: (message: string) => void,
+ *   benchAddresses?: Iterable<string>,
  * }} [deps]
  */
 export function createRelay(config, deps = {}) {
   const now = deps.now ?? Date.now;
   const log = deps.log ?? defaultLog;
+  const warn = deps.warn ?? defaultWarn;
   const upstreamDeps = {
     resolve: deps.resolve ?? defaultResolve,
     connect: deps.connect ?? createTlsConnector(),
+    // Banc de tests seulement : adresses exactes admises en plus des adresses publiques.
+    benchAddresses: deps.benchAddresses ? new Set(deps.benchAddresses) : undefined,
   };
 
   const cache = new MemoryCache({
@@ -97,24 +159,148 @@ export function createRelay(config, deps = {}) {
     requests: config.limits.rateLimitRequests,
     windowSeconds: config.limits.rateLimitWindowSeconds,
   });
-  const trustedProxies = new Set(config.trustedProxies);
+  // `BlockList` compare des ADRESSES, pas des chaînes : `::1` et `0:0:0:0:0:0:0:1`
+  // désignent le même mandataire.
+  const trustedProxies = new BlockList();
+  for (const address of config.trustedProxies) {
+    trustedProxies.addAddress(address, isIP(address) === 6 ? 'ipv6' : 'ipv4');
+  }
+  /**
+   * Mandataires de confiance pris à NE PAS poser `X-Forwarded-For`, et jusqu'à quand.
+   * Bornée par construction : une entrée par adresse de `trustedProxies`.
+   * @type {Map<string, number>}
+   */
+  const distrustedUntil = new Map();
+  /** @type {Set<string>} */
+  const warnedProxies = new Set();
   /** Requêtes vers l'amont en cours, par clé de cache : N visiteurs, une seule requête. */
   const inFlight = new Map();
+  /**
+   * Places amont tenues par client (clé de limite de débit). Sans cette part,
+   * un seul client qui demande N URL lentes occupe toutes les places et prive
+   * les autres visiteurs de toute URL absente du cache.
+   * @type {Map<string, number>}
+   */
+  const upstreamByClient = new Map();
+  /**
+   * Corps remis à un socket et pas encore écrits (visiteur qui lit lentement,
+   * ou pas du tout). Un même `Buffer` servi à N visiteurs ne compte qu'une fois
+   * dans le total ; il compte pour chacun dans sa part.
+   * @type {Map<Buffer, number>}
+   */
+  const pendingBodies = new Map();
+  /** @type {Map<string, number>} */
+  const pendingByClient = new Map();
+  let pendingBytes = 0;
+  /**
+   * Places à rendre quand une connexion tombe. Une réponse en file derrière une
+   * autre (requêtes collées) n'émet jamais `close` si la connexion meurt avant
+   * son tour : c'est donc la connexion, pas la réponse, qui fait foi.
+   * @type {WeakMap<import('node:net').Socket, Set<() => void>>}
+   */
+  const releasesBySocket = new WeakMap();
 
   /**
-   * Adresse du visiteur, pour la SEULE limite de débit. Elle n'est ni transmise
-   * à l'amont, ni écrite dans une réponse, ni journalisée.
-   * `X-Forwarded-For` n'est lu que si la connexion vient d'un mandataire de
-   * confiance déclaré ; on en prend alors la dernière valeur, celle qu'il a posée.
+   * Réserve la place d'un corps en attente d'écriture. Faux si le total, ou la
+   * part de ce client (la moitié), est atteint : la réponse est alors une 503.
    */
-  function clientAddress(req) {
+  function holdBody(req, res, body, clientKey) {
+    const socket = req.socket;
+    // Visiteur déjà parti : rien ne sera écrit, rien n'est retenu, rien à compter
+    // (et plus aucun événement ne viendrait rendre la place).
+    if (socket.destroyed || res.destroyed) return true;
+    const readers = pendingBodies.get(body) ?? 0;
+    const added = readers === 0 ? body.length : 0;
+    const mine = pendingByClient.get(clientKey) ?? 0;
+    const max = config.limits.maxPendingBytes;
+    if (pendingBytes + added > max || mine + body.length > max / 2) return false;
+    pendingBodies.set(body, readers + 1);
+    pendingBytes += added;
+    pendingByClient.set(clientKey, mine + body.length);
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      releasesBySocket.get(socket)?.delete(release);
+      const left = (pendingBodies.get(body) ?? 1) - 1;
+      if (left === 0) {
+        pendingBodies.delete(body);
+        pendingBytes -= body.length;
+      } else {
+        pendingBodies.set(body, left);
+      }
+      const rest = (pendingByClient.get(clientKey) ?? body.length) - body.length;
+      if (rest <= 0) pendingByClient.delete(clientKey);
+      else pendingByClient.set(clientKey, rest);
+    };
+    // La place est rendue à la fin de l'écriture (`close` de la réponse), ou à
+    // la mort de la connexion — un seul écouteur par connexion, quel que soit le
+    // nombre de réponses qui y attendent.
+    res.once('close', release);
+    let releases = releasesBySocket.get(socket);
+    if (!releases) {
+      const created = new Set();
+      releases = created;
+      releasesBySocket.set(socket, created);
+      socket.once('close', () => {
+        for (const entry of [...created]) entry();
+      });
+    }
+    releases.add(release);
+    return true;
+  }
+
+  /**
+   * Adresse du visiteur, pour la SEULE limite de débit (et la part de ce client
+   * dans les places du relais). Elle n'est ni transmise à l'amont, ni écrite
+   * dans une réponse, ni journalisée.
+   *
+   * `X-Forwarded-For` n'est lu que si la connexion vient d'un mandataire de
+   * confiance déclaré ; on en prend alors la DERNIÈRE valeur, celle qu'il a
+   * ajoutée — tout ce qui précède vient du client et se forge.
+   *
+   * Cela suppose que le mandataire POSE l'en-tête (C-DOS-5). S'il se contente de
+   * transmettre celui du client (`proxy_pass` nu), chaque requête forge son
+   * adresse et la limite ne limite plus rien. Le relais ne peut pas le voir sur
+   * une requête forgée ; il le voit sur toutes les autres, car un navigateur
+   * n'envoie pas cet en-tête : une requête SANS en-tête venue du mandataire
+   * prouve qu'il ne le pose pas. L'en-tête cesse alors d'être cru pour ce
+   * mandataire — la limite devient globale, ce qui est sûr —, et un
+   * avertissement le dit une fois.
+   */
+  function clientAddress(req, at) {
     const peer = (req.socket.remoteAddress ?? '').replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
-    if (!trustedProxies.has(peer)) return peer;
+    const family = isIP(peer);
+    if (family === 0 || !trustedProxies.check(peer, family === 6 ? 'ipv6' : 'ipv4')) return peer;
     const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded !== 'string') return peer;
+    if (typeof forwarded !== 'string') {
+      distrustedUntil.set(peer, at + PROXY_DISTRUST_MS);
+      if (!warnedProxies.has(peer)) {
+        warnedProxies.add(peer);
+        try {
+          warn(
+            'Un mandataire de confiance (trustedProxies) a transmis une requête sans X-Forwarded-For : il ne pose pas cet en-tête. Tant que c’est le cas, l’en-tête n’est plus cru et la limite de débit vaut pour ce mandataire entier. Voir docs/RELAY.md, règle C-DOS-5.'
+          );
+        } catch {
+          // Un avertissement qui échoue ne fait pas tomber une requête.
+        }
+      }
+      return peer;
+    }
+    if (at < (distrustedUntil.get(peer) ?? 0)) return peer;
     const last = forwarded.split(',').pop()?.trim() ?? '';
     return isIP(last) !== 0 ? last : peer;
   }
+
+  /**
+   * Connexions sur lesquelles une réponse `Connection: close` est partie (ou va
+   * partir). Plus rien n'y est traité ni écrit : ni la requête collée derrière
+   * un refus, ni une seconde réponse à une requête déjà refusée.
+   * @type {WeakSet<import('node:net').Socket>}
+   */
+  const closingSockets = new WeakSet();
+  /** @type {WeakMap<import('node:net').Socket, number>} */
+  const requestsBySocket = new WeakMap();
 
   function sendError(req, res, error) {
     const known = error instanceof RelayError && Object.hasOwn(MESSAGES, error.code);
@@ -132,13 +318,21 @@ export function createRelay(config, deps = {}) {
     if (status === 405) headers.Allow = ALLOWED_METHODS;
     if (known && error.retryAfter !== undefined) headers['Retry-After'] = String(error.retryAfter);
     // La requête n'a pas forcément été lue jusqu'au bout (corps refusé) : on ferme.
-    if (status === 400 || status === 405) headers.Connection = 'close';
+    if (CLOSING_STATUSES.has(status)) {
+      headers.Connection = 'close';
+      closingSockets.add(req.socket);
+    }
     res.writeHead(status, headers);
     res.end(req.method === 'HEAD' ? undefined : body);
     return { status, code, bytes: body.length };
   }
 
-  function sendEntry(req, res, entry, state, hostConfig) {
+  function sendEntry(req, res, entry, state, hostConfig, clientKey) {
+    const withBody = req.method !== 'HEAD';
+    // Avant d'écrire le moindre octet : au-delà de la borne, c'est une 503 entière.
+    if (withBody && !holdBody(req, res, entry.body, clientKey)) {
+      throw new RelayError(503, 'relay-busy', { retryAfter: 1 });
+    }
     /** @type {Record<string, string | number>} */
     const headers = {
       ...COMMON_HEADERS,
@@ -154,26 +348,29 @@ export function createRelay(config, deps = {}) {
     if (entry.lastModified) headers['Last-Modified'] = entry.lastModified;
     if (state !== 'MISS') headers.Age = Math.max(0, Math.floor((now() - entry.storedAt) / 1000));
     res.writeHead(200, headers);
-    res.end(req.method === 'HEAD' ? undefined : entry.body);
+    res.end(withBody ? entry.body : undefined);
     return { status: 200, code: undefined, bytes: entry.body.length };
   }
 
   /** Va chercher la cible chez l'amont et range la réponse. Seule une 200 arrive jusqu'ici. */
-  function fetchShared(cacheKey, target, hostConfig) {
+  function fetchShared(cacheKey, target, hostConfig, clientKey) {
+    // Rejoindre une requête déjà partie ne prend aucune place.
     const pending = inFlight.get(cacheKey);
     if (pending) return pending;
-    if (inFlight.size >= config.limits.maxUpstreamRequests) {
+    const mine = upstreamByClient.get(clientKey) ?? 0;
+    if (
+      inFlight.size >= config.limits.maxUpstreamRequests ||
+      mine >= config.limits.maxUpstreamRequestsPerClient
+    ) {
       throw new RelayError(503, 'relay-busy', { retryAfter: 1 });
     }
+    upstreamByClient.set(clientKey, mine + 1);
     const started = fetchUpstream(target, config, upstreamDeps)
       .then((response) => {
         // Défense en profondeur : un amont qui renverrait la clé dans sa réponse
-        // (page de débogage, écho des en-têtes) ne la fait pas sortir.
-        for (const hostEntry of config.hosts.values()) {
-          if (hostEntry.key && response.body.includes(hostEntry.key.secret)) {
-            throw new RelayError(502, 'upstream-leak');
-          }
-        }
+        // (page de débogage, écho des en-têtes) ne la fait pas sortir — ni par le
+        // corps, ni par `ETag`, `Last-Modified` ou `Content-Type`.
+        if (leaksKey(response, config.hosts)) throw new RelayError(502, 'upstream-leak');
         const storedAt = now();
         const entry = {
           body: response.body,
@@ -187,26 +384,42 @@ export function createRelay(config, deps = {}) {
         cache.set(cacheKey, entry);
         return entry;
       })
-      .finally(() => inFlight.delete(cacheKey));
+      .finally(() => {
+        inFlight.delete(cacheKey);
+        const left = (upstreamByClient.get(clientKey) ?? 1) - 1;
+        if (left <= 0) upstreamByClient.delete(clientKey);
+        else upstreamByClient.set(clientKey, left);
+      });
     inFlight.set(cacheKey, started);
     return started;
   }
 
-  async function obtain(target, hostConfig) {
+  async function obtain(target, hostConfig, clientKey) {
     // La clé de cache est l'URL seule : hôte (en minuscules par construction),
     // chemin et requête tels que reçus. Aucun en-tête de requête n'y entre.
     const cacheKey = `${target.host}${target.path}${target.search}`;
     const cached = cache.get(cacheKey, now());
     if (cached && now() < cached.freshUntil) return { entry: cached, state: 'HIT' };
     try {
-      return { entry: await fetchShared(cacheKey, target, hostConfig), state: 'MISS' };
+      return { entry: await fetchShared(cacheKey, target, hostConfig, clientKey), state: 'MISS' };
     } catch (error) {
+      if (isWithdrawal(error)) cache.delete(cacheKey);
       if (cached && isUpstreamFailure(error)) return { entry: cached, state: 'STALE' };
       throw error;
     }
   }
 
-  async function handle(req, res) {
+  async function handle(req, res, { expectation = false } = {}) {
+    // Une connexion en cours de fermeture ne traite plus rien : la requête
+    // collée derrière un refus n'atteint ni l'amont ni le journal. On ne détruit
+    // pas le socket, la réponse au refus est peut-être encore en route.
+    if (closingSockets.has(req.socket)) return;
+    const served = (requestsBySocket.get(req.socket) ?? 0) + 1;
+    requestsBySocket.set(req.socket, served);
+    if (served >= MAX_REQUESTS_PER_SOCKET) {
+      res.setHeader('Connection', 'close');
+      closingSockets.add(req.socket);
+    }
     const startedAt = now();
     /** @type {Record<string, unknown>} */
     const record = { time: new Date(startedAt).toISOString(), method: req.method };
@@ -229,14 +442,25 @@ export function createRelay(config, deps = {}) {
         return;
       }
 
-      const limit = limiter.take(rateLimitKey(clientAddress(req)), now());
+      // La clé du client sert à la limite de débit et à sa part des places du
+      // relais (requêtes amont, octets en attente). À rien d'autre.
+      const clientKey = rateLimitKey(clientAddress(req, startedAt));
+      const limit = limiter.take(clientKey, startedAt);
       if (!limit.allowed) {
         throw new RelayError(429, 'rate-limited', { retryAfter: limit.retryAfter });
       }
 
+      // `Expect` : le relais n'envoie jamais `100 Continue` (il refuse tout corps)
+      // et ne connaît aucune autre attente.
+      if (expectation) throw new RelayError(417, 'expectation-failed');
+
       if (req.method === 'OPTIONS') {
         // Pré-vérification CORS : répondue ici, l'amont n'est jamais contacté.
         // Aucun en-tête de requête n'est autorisé : le relais n'en lit aucun.
+        // Hors du préfixe du relais, ce n'est pas une route : 404 comme pour un GET.
+        if (!String(req.url).startsWith(`${config.prefix}/`)) {
+          throw new RelayError(404, 'not-found');
+        }
         res.writeHead(204, {
           ...COMMON_HEADERS,
           'Access-Control-Allow-Methods': ALLOWED_METHODS,
@@ -268,14 +492,14 @@ export function createRelay(config, deps = {}) {
       if (!isUnderPrefix(target.path, hostConfig.pathPrefixes)) {
         throw new RelayError(403, 'path-not-allowed');
       }
-      record.path = target.path;
+      if (config.logPath) record.path = target.path;
       // La requête porte ce que l'usager a tapé dans une recherche déléguée :
       // elle n'est journalisée que sur demande explicite (`logQuery`).
       if (config.logQuery) record.query = target.search;
 
-      const { entry, state } = await obtain(target, hostConfig);
+      const { entry, state } = await obtain(target, hostConfig, clientKey);
       record.cache = state;
-      outcome = sendEntry(req, res, entry, state, hostConfig);
+      outcome = sendEntry(req, res, entry, state, hostConfig, clientKey);
     } catch (error) {
       if (res.headersSent) {
         res.destroy();
@@ -314,20 +538,45 @@ export function createRelay(config, deps = {}) {
   server.maxConnections = config.limits.maxConnections;
   // Un visiteur qui ne lit pas sa réponse ne garde pas sa connexion : sans
   // activité au-delà du délai de l'amont plus une marge, le socket est fermé.
+  // En pratique à la DEUXIÈME échéance : à la première, Node constate qu'une
+  // écriture est en attente et réarme le délai (mesuré : 42 s pour 21 s réglées).
   server.setTimeout(config.limits.timeoutMs + 20000);
-  server.maxRequestsPerSocket = 1000;
+  // Pas de plafond de Node par connexion : il répondrait seul (voir MAX_REQUESTS_PER_SOCKET).
+  server.maxRequestsPerSocket = 0;
+
+  // `Expect` : sans ces écouteurs, Node répond seul — `100 Continue` pour l'un,
+  // une 417 sans en-têtes du contrat pour l'autre.
+  server.on('checkContinue', (req, res) => {
+    handle(req, res).catch(() => res.destroy());
+  });
+  server.on('checkExpectation', (req, res) => {
+    handle(req, res, { expectation: true }).catch(() => res.destroy());
+  });
 
   // Requête que l'analyseur HTTP refuse (CR ou LF nu dans la cible, en-têtes
-  // trop longs…) : réponse minimale, avec l'en-tête CORS, puis fermeture.
+  // trop longs, requête jamais terminée…) : réponse minimale, avec les en-têtes
+  // communs, puis fermeture.
   server.on('clientError', (error, socket) => {
     if (!socket.writable) {
       socket.destroy();
       return;
     }
-    const tooLarge = error?.code === 'HPE_HEADER_OVERFLOW';
-    const body = JSON.stringify({ error: 'invalid-url', message: MESSAGES['invalid-url'] });
+    // Une réponse qui ferme est déjà partie sur cette connexion (corps refusé,
+    // puis corps illisible) : on n'en écrit pas une seconde.
+    if (closingSockets.has(socket)) {
+      socket.end();
+      return;
+    }
+    closingSockets.add(socket);
+    const [statusLine, code] =
+      error?.code === 'HPE_HEADER_OVERFLOW'
+        ? ['431 Request Header Fields Too Large', 'headers-too-large']
+        : error?.code === 'ERR_HTTP_REQUEST_TIMEOUT'
+          ? ['408 Request Timeout', 'request-timeout']
+          : ['400 Bad Request', 'invalid-url'];
+    const body = JSON.stringify({ error: code, message: MESSAGES[code] });
     socket.end(
-      `HTTP/1.1 ${tooLarge ? '431 Request Header Fields Too Large' : '400 Bad Request'}\r\n` +
+      `HTTP/1.1 ${statusLine}\r\n` +
         'Access-Control-Allow-Origin: *\r\n' +
         'X-Content-Type-Options: nosniff\r\n' +
         "Content-Security-Policy: default-src 'none'; sandbox\r\n" +
@@ -342,6 +591,10 @@ export function createRelay(config, deps = {}) {
   return {
     server,
     cache,
+    /** État des bornes, pour le banc de tests. Rien de la configuration ni des visiteurs. */
+    stats() {
+      return { upstreamRequests: inFlight.size, pendingBytes };
+    },
     /** @returns {Promise<{ address: string, port: number }>} */
     listen() {
       return new Promise((resolve, reject) => {

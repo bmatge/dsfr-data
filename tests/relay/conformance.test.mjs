@@ -47,6 +47,8 @@ const KEYED_PREFIX = profile.hosts[KEYED_HOST].pathPrefixes[0];
 
 /** Délai de réponse du faux amont sur `/lent` : nettement au-delà du délai du relais. */
 const SLOW_MS = TIMEOUT_MS + 3000;
+/** Attente avant chaque saut de `/redirection/lente` : sous le délai, mais trois sauts le dépassent. */
+const HOP_MS = Math.round(TIMEOUT_MS * 0.6);
 /** Taille du flux `/gros` : très au-delà du plafond, pour que la coupure se voie. */
 const BIG_BYTES = MAX_BYTES + 32 * 1024 * 1024;
 
@@ -203,7 +205,7 @@ function assertPathContained(response, marker, prefix, rule) {
     );
     assert.doesNotMatch(
       path,
-      /%(2e|2f|5c|25|0[0-9a-f]|1[0-9a-f])/i,
+      /%(2e|2f|5c|25|3b|c0|c1|e0%[89][0-9a-f]|0[0-9a-f]|1[0-9a-f])/i,
       `${rule} : encodage piégé transmis (${path})`
     );
     assert.ok(
@@ -218,6 +220,7 @@ before(async () => {
     port: thirdParty ? envNumber('CONFORMANCE_UPSTREAM_PORT', 18155) : 0,
     delayMs: SLOW_MS,
     bigBytes: BIG_BYTES,
+    hopDelayMs: HOP_MS,
   });
   if (thirdParty) {
     client = createClient(new URL(process.env.RELAY_URL));
@@ -367,6 +370,10 @@ describe('SSRF — la cible', () => {
     ['segment `.`', './donnees.json'],
     ['remontée finale `..`', 'jeu/..'],
     ['octet nul encodé `%00`', 'donnees.json%00.html'],
+    ['point-virgule encodé `..%3b`', '..%3b/prive/secret.json'],
+    ['point surlong `%c0%ae%c0%ae`', '%c0%ae%c0%ae/prive/secret.json'],
+    ['barre surlongue `..%c0%af`', '..%c0%afprive/secret.json'],
+    ['point surlong sur trois octets `%e0%80%ae`', '%e0%80%ae%e0%80%ae/prive/secret.json'],
   ];
   for (const [label, tail] of traversals) {
     test(`C-SSRF-4 — chemin piégé, ${label} : refusé ou contenu sous le préfixe autorisé`, async () => {
@@ -416,10 +423,22 @@ describe('SSRF — les redirections de l’amont', () => {
     ['vers http', ALLOWED_HOST, '/redirection/http'],
     ['vers un autre port', ALLOWED_HOST, '/redirection/port'],
     ['vers une adresse de boucle locale', ALLOWED_HOST, '/redirection/ip'],
+    [
+      'vers une adresse de boucle locale où un service écoute',
+      ALLOWED_HOST,
+      '/redirection/ip-joignable',
+    ],
     ['vers l’adresse des métadonnées', ALLOWED_HOST, '/redirection/metadonnees'],
     ['avec identifiants', ALLOWED_HOST, '/redirection/identifiants'],
     ['hors du préfixe autorisé', KEYED_HOST, `${KEYED_PREFIX}redirection/hors-prefixe`],
     ['avec remontée de chemin', ALLOWED_HOST, '/redirection/remontee'],
+    [
+      'vers un chemin à barre encodée `..%2f`',
+      KEYED_HOST,
+      `${KEYED_PREFIX}redirection/chemin-encode`,
+    ],
+    ['vers un chemin à paramètre `..;`', KEYED_HOST, `${KEYED_PREFIX}redirection/chemin-parametre`],
+    ['vers un chemin à barre double', KEYED_HOST, `${KEYED_PREFIX}redirection/chemin-double`],
   ];
   for (const [label, host, path] of refusedRedirects) {
     test(`C-SSRF-7 — redirection ${label} : non suivie (502), jamais renvoyée au navigateur`, async () => {
@@ -434,6 +453,13 @@ describe('SSRF — les redirections de l’amont', () => {
       assert.equal(
         upstream.requests.filter((request) => request.url.includes('/secret')).length,
         0
+      );
+      // 502 ne prouve pas le refus : un relais qui suit la redirection vers une
+      // adresse morte répond 502 aussi. Les cibles refusées portent `/suivie-`.
+      assert.equal(
+        upstream.requests.filter((request) => request.url.includes('/suivie-')).length,
+        0,
+        'C-SSRF-7 : la redirection refusée a été suivie'
       );
     });
   }
@@ -522,10 +548,12 @@ describe('Méthodes — lecture seule', () => {
       String(response.headers['access-control-allow-methods']),
       /POST|PUT|PATCH|DELETE/
     );
-    // Le relais n'attend aucun en-tête du visiteur : il n'autorise pas `Authorization`.
-    assert.doesNotMatch(
-      String(response.headers['access-control-allow-headers'] ?? ''),
-      /authorization|cookie/i
+    // Le relais n'attend AUCUN en-tête du visiteur : il n'en autorise aucun, ni
+    // par leur nom, ni par `*`.
+    assert.equal(
+      String(response.headers['access-control-allow-headers'] ?? '').trim(),
+      '',
+      'C-MET-3 : Access-Control-Allow-Headers doit être absent ou vide'
     );
     assert.equal(upstream.seen(m).length, 0);
   });
@@ -684,6 +712,23 @@ describe('En-têtes vers le navigateur', () => {
       const response = await call(`/${ALLOWED_HOST}${path}?${mark()}`);
       assert.equal(response.status, 502);
       assert.ok(!response.text.includes('<script'), 'le corps de l’amont a été servi');
+    });
+  }
+
+  for (const [label, path] of [
+    ['`application/json+xml`', '/type/json-xml'],
+    ['`application/jsonx`', '/type/json-prolonge'],
+    ['`application/jsonp`', '/type/jsonp'],
+    ['`application/xhtml+xml`', '/type/xhtml'],
+    ['`text/xml`', '/type/xml'],
+    ['`text/csvx`', '/type/csv-prolonge'],
+    ['une liste de types', '/type/liste'],
+    ['`application/octet-stream`', '/type/octets'],
+  ]) {
+    test(`C-NAV-3 — ${label} : le type est comparé EN ENTIER à la liste blanche (502)`, async () => {
+      const response = await call(`/${ALLOWED_HOST}${path}?${mark()}`);
+      assert.equal(response.status, 502);
+      assert.ok(!response.text.includes('hors liste blanche'), 'le corps de l’amont a été servi');
     });
   }
 
@@ -883,6 +928,20 @@ describe('Déni de service', () => {
     assert.ok(
       elapsed < SLOW_MS,
       `le relais a attendu ${elapsed} ms, l’amont répondait en ${SLOW_MS} ms`
+    );
+  });
+
+  test('C-DOS-1 — le délai est GLOBAL : trois redirections lentes, chacune dans le délai, ne le rallongent pas', async () => {
+    const m = mark();
+    const started = Date.now();
+    const response = await call(`/${ALLOWED_HOST}/redirection/lente/3?${m}`);
+    const elapsed = Date.now() - started;
+    // 504 au terme du délai ; 502 si le relais ne suit aucune redirection. Jamais
+    // 200 : il aurait fallu attendre trois sauts, soit 1,8 fois le délai.
+    assert.ok([502, 504].includes(response.status), `statut ${response.status}`);
+    assert.ok(
+      elapsed < TIMEOUT_MS * 1.5,
+      `le relais a attendu ${elapsed} ms pour un délai de ${TIMEOUT_MS} ms`
     );
   });
 

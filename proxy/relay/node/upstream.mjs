@@ -133,10 +133,15 @@ export function resolveRedirect(from, location, config) {
  * est privée, tout est refusé : un nom qui mélange adresses publiques et
  * privées est le montage type d'un rebond DNS.
  *
+ * `benchAddresses` : adresses EXACTES que le banc de tests déclare joignables
+ * (son faux DNS rend une adresse de documentation). Le point d'entrée de
+ * production n'en passe aucune.
+ *
  * @param {string} hostname
  * @param {(hostname: string) => Promise<{ address: string, family: number }[]>} resolve
+ * @param {ReadonlySet<string>} [benchAddresses]
  */
-async function resolvePublicAddress(hostname, resolve) {
+async function resolvePublicAddress(hostname, resolve, benchAddresses) {
   let addresses;
   try {
     addresses = await resolve(hostname);
@@ -147,11 +152,58 @@ async function resolvePublicAddress(hostname, resolve) {
     throw new RelayError(502, 'upstream-unreachable');
   }
   for (const entry of addresses) {
-    if (!isPublicAddress(entry?.address)) {
+    if (!isPublicAddress(entry?.address) && !benchAddresses?.has(entry?.address)) {
       throw new RelayError(502, 'upstream-address-forbidden');
     }
   }
   return addresses[0];
+}
+
+/** Taille d'un bloc de réception quand l'amont n'annonce pas de longueur. */
+const BLOCK_BYTES = 64 * 1024;
+
+/**
+ * Corps de réponse en cours de réception.
+ *
+ * Garder les fragments tels que l'amont les découpe (`chunks.push(chunk)`)
+ * laisse l'AMONT choisir le coût en mémoire : 1 Mo envoyé en fragments d'un
+ * octet, c'est un million d'objets `Buffer`, soit plus de 200 Mo de tas. Ici
+ * les octets sont recopiés dans des blocs de 64 Kio (ou un bloc unique à la
+ * longueur déclarée) : le fragment reçu n'est jamais retenu.
+ */
+export class BodyCollector {
+  /** @param {number} [declared] longueur annoncée par l'amont, déjà vérifiée sous le plafond */
+  constructor(declared) {
+    this.received = 0;
+    this.blockSize = declared !== undefined && declared > 0 ? declared : BLOCK_BYTES;
+    /** @type {Buffer[]} */
+    this.blocks = [];
+    this.fill = 0;
+  }
+
+  /** @param {Buffer} chunk */
+  append(chunk) {
+    let offset = 0;
+    while (offset < chunk.length) {
+      let block = this.blocks[this.blocks.length - 1];
+      if (block === undefined || this.fill === block.length) {
+        // Au-delà de la longueur déclarée (l'amont ment), on retombe sur des blocs fixes.
+        block = Buffer.allocUnsafe(this.blocks.length === 0 ? this.blockSize : BLOCK_BYTES);
+        this.blocks.push(block);
+        this.fill = 0;
+      }
+      const copied = chunk.copy(block, this.fill, offset);
+      this.fill += copied;
+      offset += copied;
+    }
+    this.received += chunk.length;
+  }
+
+  /** @returns {Buffer} le corps, à sa taille exacte */
+  toBuffer() {
+    if (this.blocks.length === 1 && this.blocks[0].length === this.received) return this.blocks[0];
+    return Buffer.concat(this.blocks, this.received);
+  }
 }
 
 /**
@@ -166,7 +218,11 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
   // Le nom résolu, joint et envoyé en `Host` est celui de la liste blanche : la
   // requête du visiteur a servi à le CHOISIR dans la configuration, pas à l'écrire.
   const hostname = hostConfig.name;
-  const { address, family } = await resolvePublicAddress(hostname, deps.resolve);
+  const { address, family } = await resolvePublicAddress(
+    hostname,
+    deps.resolve,
+    deps.benchAddresses
+  );
 
   /** @type {Record<string, string>} */
   const headers = {
@@ -236,8 +292,26 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
         return;
       }
 
+      // La fin de la réponse doit se PROUVER : une longueur déclarée, ou un
+      // découpage (`chunked`) qui se termine. Une réponse délimitée par la seule
+      // fermeture de la connexion est indiscernable d'une réponse tronquée — et
+      // une réponse tronquée mise en cache serait servie à tout le monde.
+      const transferEncoding = response.headers['transfer-encoding'];
+      if (transferEncoding !== undefined && transferEncoding.trim().toLowerCase() !== 'chunked') {
+        // `gzip, chunked` : Node retire le découpage, pas la compression.
+        response.destroy();
+        reject(new RelayError(502, 'upstream-encoding'));
+        return;
+      }
+      const rawLength = response.headers['content-length'];
+      if (transferEncoding === undefined && rawLength === undefined) {
+        response.destroy();
+        reject(new RelayError(502, 'upstream-unframed'));
+        return;
+      }
+
       const maxBytes = config.limits.maxBytes;
-      const declared = Number(response.headers['content-length']);
+      const declared = Number(rawLength);
       if (Number.isFinite(declared) && declared > maxBytes) {
         response.destroy();
         reject(new RelayError(502, 'upstream-too-large'));
@@ -245,18 +319,17 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
       }
 
       // Plafond compté EN FLUX : la connexion est coupée au premier octet de
-      // trop, on n'attend pas la fin d'un téléchargement sans fin.
-      /** @type {Buffer[]} */
-      const chunks = [];
-      let received = 0;
+      // trop, on n'attend pas la fin d'un téléchargement sans fin. Les octets
+      // sont RECOPIÉS dans des blocs de taille fixe : la mémoire tenue dépend du
+      // nombre d'octets, jamais du nombre de fragments (voir `BodyCollector`).
+      const collector = new BodyCollector(Number.isFinite(declared) ? declared : undefined);
       response.on('data', (chunk) => {
-        received += chunk.length;
-        if (received > maxBytes) {
+        if (collector.received + chunk.length > maxBytes) {
           response.destroy();
           reject(new RelayError(502, 'upstream-too-large'));
           return;
         }
-        chunks.push(chunk);
+        collector.append(chunk);
       });
       response.on('error', () => reject(new RelayError(502, 'upstream-unreachable')));
       response.on('close', () => {
@@ -267,7 +340,7 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
         const lastModified = response.headers['last-modified'];
         resolve({
           kind: 'response',
-          body: Buffer.concat(chunks),
+          body: collector.toBuffer(),
           contentType,
           etag: typeof etag === 'string' && ETAG_RE.test(etag) ? etag : undefined,
           lastModified:
@@ -288,7 +361,7 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
  *
  * @param {{ host: string, path: string, search: string }} target cible déjà validée
  * @param {object} config configuration validée (config.mjs)
- * @param {{ resolve: Function, connect: Function }} deps
+ * @param {{ resolve: Function, connect: Function, benchAddresses?: ReadonlySet<string> }} deps
  */
 export async function fetchUpstream(target, config, deps) {
   const controller = new globalThis.AbortController();

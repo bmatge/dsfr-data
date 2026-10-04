@@ -8,6 +8,11 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import process from 'node:process';
+import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { isPublicAddress } from '../../../proxy/relay/node/addresses.mjs';
 import { defaultResolve } from '../../../proxy/relay/node/upstream.mjs';
@@ -23,6 +28,12 @@ import { CONFORMANCE_KEY } from '../support/profile.mjs';
 import { PUBLIC_TEST_ADDRESS, startReference } from '../support/reference.mjs';
 
 const SLOW_MS = 400;
+
+// Ramasse-miettes à la demande, pour mesurer ce que le relais RETIENT (et non ce
+// qui attend d'être ramassé). Aucune option de ligne de commande à passer.
+v8.setFlagsFromString('--expose-gc');
+/** @type {() => void} */
+const collectGarbage = vm.runInNewContext('gc');
 
 /** @type {Awaited<ReturnType<typeof startFakeUpstream>>} */
 let upstream;
@@ -83,6 +94,43 @@ describe('C-SSRF-6 — l’adresse, après résolution DNS', () => {
       });
     });
   }
+
+  test('sans l’injection du banc, une adresse de documentation (TEST-NET) est refusée comme une adresse privée', async () => {
+    // Le banc déclare SON adresse « publique » par injection dans `createRelay`.
+    // Le relais de production n'en reçoit aucune : les plages de documentation
+    // y sont réservées, comme le dit C-SSRF-6.
+    for (const address of [PUBLIC_TEST_ADDRESS, '198.51.100.7', '203.0.113.9']) {
+      await withRelay(
+        { benchAddresses: [], resolve: async () => [{ address, family: 4 }] },
+        async (reference, client) => {
+          const response = await client.call(`/${ALLOWED_HOST}/donnees.json?${mark()}`);
+          assert.equal(response.status, 502);
+          assert.equal(errorCode(response), 'upstream-address-forbidden');
+          assert.equal(reference.connections.length, 0);
+        }
+      );
+    }
+    // L'injection désigne des adresses EXACTES : la voisine reste refusée.
+    await withRelay(
+      { resolve: async () => [{ address: '192.0.2.11', family: 4 }] },
+      async (reference, client) => {
+        assert.equal((await client.call(`/${ALLOWED_HOST}/donnees.json?${mark()}`)).status, 502);
+        assert.equal(reference.connections.length, 0);
+      }
+    );
+  });
+
+  test('aucune défense ne se débranche par l’environnement : `server.mjs` ne passe rien à `createRelay`', () => {
+    const source = (name) =>
+      readFileSync(new URL(`../../../proxy/relay/node/${name}`, import.meta.url), 'utf8');
+    const server = source('server.mjs');
+    assert.match(server, /createRelay\(config\)/);
+    assert.doesNotMatch(server, /benchAddresses|resolve:|connect:/);
+    // Seuls le point d'entrée et la lecture de configuration lisent l'environnement.
+    for (const name of ['relay.mjs', 'upstream.mjs', 'addresses.mjs', 'target.mjs', 'cache.mjs']) {
+      assert.doesNotMatch(source(name), /process\.env|\benv\b\./, `${name} lit l’environnement`);
+    }
+  });
 
   test('la résolution de production (`defaultResolve`) rend toutes les adresses du nom ; celles de `localhost` sont refusées', async () => {
     // Seul test qui passe par le résolveur du système : `localhost` ne quitte pas la machine.
@@ -145,6 +193,19 @@ describe('C-SSRF-6 — l’adresse, après résolution DNS', () => {
     });
   });
 
+  test('C-DOS-1 — le délai couvre les redirections : trois sauts lents ne le rallongent pas', async () => {
+    // `/redirection/lente` attend 400 ms par saut ; délai du relais : 800 ms. Trois
+    // sauts font 1 200 ms : un délai compté par saut les laisserait passer (200).
+    await withRelay({ config: withLimits({ timeoutMs: 800 }) }, async (reference, client) => {
+      const response = await client.call(`/${ALLOWED_HOST}/redirection/lente/3?${mark()}`);
+      assert.equal(response.status, 504, 'le délai a été compté par saut');
+      assert.equal(errorCode(response), 'upstream-timeout');
+      // Un seul saut tient dans le délai : il est suivi.
+      const single = await client.call(`/${ALLOWED_HOST}/redirection/lente/1?${mark()}`);
+      assert.equal(single.status, 200);
+    });
+  });
+
   test('une résolution qui ne répond pas : 504 au terme du délai', async () => {
     const hanging = () => new Promise(() => {});
     await withRelay(
@@ -200,6 +261,58 @@ describe('C-SSRF-7 — redirections sur le relais de référence', () => {
       const four = await client.call(`/${ALLOWED_HOST}/redirection/chaine/4`);
       assert.equal(four.status, 502);
       assert.equal(errorCode(four), 'upstream-redirect-refused');
+    });
+  });
+
+  for (const [name, host, prefix] of [
+    ['interdit', ALLOWED_HOST, ''],
+    ['http', ALLOWED_HOST, ''],
+    ['port', ALLOWED_HOST, ''],
+    ['ip', ALLOWED_HOST, ''],
+    ['ip-joignable', ALLOWED_HOST, ''],
+    ['metadonnees', ALLOWED_HOST, ''],
+    ['identifiants', ALLOWED_HOST, ''],
+    ['remontee', ALLOWED_HOST, ''],
+    ['hors-prefixe', KEYED_HOST, '/api/public'],
+    ['chemin-encode', KEYED_HOST, '/api/public'],
+    ['chemin-parametre', KEYED_HOST, '/api/public'],
+    ['chemin-double', KEYED_HOST, '/api/public'],
+  ]) {
+    test(`redirection refusée (${name}) : refusée AVANT toute résolution et toute connexion`, async () => {
+      await withRelay({}, async (reference, client) => {
+        const response = await client.call(`/${host}${prefix}/redirection/${name}?${mark()}`);
+        assert.equal(response.status, 502);
+        assert.equal(errorCode(response), 'upstream-redirect-refused');
+        // Une seule résolution, une seule connexion : celles de la requête de départ.
+        assert.deepEqual(reference.resolutions, [host]);
+        assert.deepEqual(reference.connections, [{ address: PUBLIC_TEST_ADDRESS, hostname: host }]);
+      });
+    });
+  }
+
+  test('`Location` vers un hôte autorisé en majuscules, ou avec `:443` : suivie, sous le nom de la liste blanche', async () => {
+    // La cible d'une redirection est lue par un analyseur d'URL, qui met l'hôte
+    // en minuscules et retire le port par défaut. Ce n'est pas l'URL de relais
+    // (C-URL-2), que la bibliothèque produit déjà canonique.
+    await withRelay({}, async (reference, client) => {
+      for (const name of ['majuscules', 'port-explicite']) {
+        const response = await client.call(`/${ALLOWED_HOST}/redirection/${name}?${mark()}`);
+        assert.equal(response.status, 200);
+        assert.equal(JSON.parse(response.text).hote, SECOND_HOST);
+      }
+      assert.deepEqual(reference.resolutions, [
+        ALLOWED_HOST,
+        SECOND_HOST,
+        ALLOWED_HOST,
+        SECOND_HOST,
+      ]);
+      const arrivals = upstream.requests.filter((request) =>
+        /depuis=(majuscules|port-explicite)/.test(request.url)
+      );
+      assert.deepEqual(
+        arrivals.map((request) => request.host),
+        [SECOND_HOST, SECOND_HOST]
+      );
     });
   });
 
@@ -265,11 +378,69 @@ describe('C-FUITE-1 — la clé ne sort pas, même si l’amont la renvoie', () 
     });
   });
 
+  for (const [label, name] of [
+    ['`ETag`', 'cle-etag.json'],
+    ['le jeu de caractères de `Content-Type`', 'cle-charset.json'],
+  ]) {
+    test(`un amont qui renvoie la clé dans ${label} : 502, la clé ne sort pas par un en-tête`, async () => {
+      await withRelay({}, async (reference, client) => {
+        const response = await client.call(`/${KEYED_HOST}/api/public/${name}?${mark()}`);
+        const dump = `${response.rawHeaders.join('\n')}\n${response.text}`.toLowerCase();
+        assert.ok(!dump.includes(CONFORMANCE_KEY.toLowerCase()), 'la clé figure dans la réponse');
+        assert.equal(response.status, 502);
+        assert.equal(errorCode(response), 'upstream-leak');
+        assert.equal(reference.relay.cache.size, 0);
+      });
+    });
+  }
+
   test('une réponse compressée que le relais n’a pas demandée : 502', async () => {
     await withRelay({}, async (reference, client) => {
       const response = await client.call(`/${ALLOWED_HOST}/compresse.json?${mark()}`);
       assert.equal(response.status, 502);
       assert.equal(errorCode(response), 'upstream-encoding');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-NAV-5 — en-têtes de l’amont assainis par le relais de référence', () => {
+  test('un `ETag` ou un `Last-Modified` mal formés sont omis, jamais recopiés', async () => {
+    await withRelay({}, async (reference, client) => {
+      const response = await client.call(`/${ALLOWED_HOST}/etag-hostile.json?${mark()}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.etag, undefined);
+      assert.equal(response.headers['last-modified'], undefined);
+      assert.ok(!response.rawHeaders.join('\n').includes('script'));
+    });
+  });
+
+  test('le type de contenu est RECONSTRUIT : un jeu de caractères piégé n’est pas recopié', async () => {
+    await withRelay({}, async (reference, client) => {
+      const response = await client.call(`/${ALLOWED_HOST}/charset-hostile.json?${mark()}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers['content-type'], 'application/json');
+      const plain = await client.call(`/${ALLOWED_HOST}/table.csv?${mark()}`);
+      assert.equal(plain.headers['content-type'], 'text/csv; charset=utf-8');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-MET-2 — le relais de référence refuse tout corps de requête', () => {
+  test('GET avec `Content-Length`, ou avec `Transfer-Encoding` : 400, l’amont n’est pas contacté', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const path = `/${ALLOWED_HOST}/donnees.json?${m}`;
+      const withLength = await client.call(path, { body: 'corps-du-visiteur' });
+      assert.equal(withLength.status, 400);
+      assert.equal(errorCode(withLength), 'body-not-allowed');
+      const chunked = await client.call(path, { headers: { 'Transfer-Encoding': 'chunked' } });
+      assert.equal(chunked.status, 400);
+      assert.equal(errorCode(chunked), 'body-not-allowed');
+      assert.equal(upstream.seen(m).length, 0);
+      // `Content-Length: 0` n'est pas un corps.
+      assert.equal((await client.call(path, { headers: { 'Content-Length': '0' } })).status, 200);
     });
   });
 });
@@ -313,6 +484,170 @@ describe('C-INJ-1 — refus stricts du relais de référence', () => {
         assert.equal((await client.call(`/${ALLOWED_HOST}${path}`)).status, 400);
       }
       assert.equal(upstream.seen(m).length, 0);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-NAV-2, C-NAV-4 — les réponses que Node écrirait seul portent aussi les en-têtes communs', () => {
+  /** Découpe ce qu'une connexion a reçu en réponses HTTP. */
+  const split = (reply) => reply.split(/(?=HTTP\/1\.1 \d{3} )/).filter((part) => part !== '');
+  const assertCommonHeaders = (response, label) => {
+    assert.match(response, /\r\naccess-control-allow-origin: \*\r\n/i, `${label} : CORS`);
+    assert.match(response, /\r\nx-content-type-options: nosniff\r\n/i, `${label} : nosniff`);
+    assert.match(
+      response,
+      /\r\ncontent-security-policy: default-src 'none'; sandbox\r\n/i,
+      `${label} : CSP`
+    );
+  };
+  const target = (reference, m) => `${reference.url.pathname}/${ALLOWED_HOST}/donnees.json?${m}`;
+
+  test('`Expect` inconnu : 417 du relais, pas la réponse nue de Node', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nExpect: bidon\r\n\r\n`
+      );
+      const responses = split(reply);
+      assert.equal(responses.length, 1);
+      assert.match(responses[0], /^HTTP\/1\.1 417 /);
+      assertCommonHeaders(responses[0], 'Expect');
+      assert.match(responses[0], /\r\ncache-control: no-store\r\n/i);
+      assert.match(responses[0], /"error":"expectation-failed"/);
+      assert.equal(upstream.seen(m).length, 0);
+      assert.equal(reference.logs.at(-1).status, 417);
+    });
+  });
+
+  test('`Expect: 100-continue` avec un corps : 400, jamais de `100 Continue`', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nExpect: 100-continue\r\nContent-Length: 5\r\n\r\n`
+      );
+      assert.doesNotMatch(reply, /100 Continue/);
+      const responses = split(reply);
+      assert.equal(responses.length, 1);
+      assert.match(responses[0], /^HTTP\/1\.1 400 /);
+      assertCommonHeaders(responses[0], 'Expect: 100-continue');
+      assert.equal(upstream.seen(m).length, 0);
+    });
+  });
+
+  test('`Transfer-Encoding` illisible : UNE réponse 400, pas deux sur la même connexion', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nTransfer-Encoding: xchunked\r\n\r\ncorps`
+      );
+      const responses = split(reply);
+      assert.equal(responses.length, 1, `réponses reçues : ${responses.length}`);
+      assert.match(responses[0], /^HTTP\/1\.1 400 /);
+      assertCommonHeaders(responses[0], 'Transfer-Encoding');
+      assert.equal(upstream.seen(m).length, 0);
+    });
+  });
+
+  test('après un refus qui ferme la connexion, la requête collée derrière n’est pas exécutée chez l’amont', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const m2 = mark();
+      const reply = await client.raw(
+        `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\nContent-Length: 5\r\n\r\ncorps` +
+          `GET ${target(reference, m2)} HTTP/1.1\r\nHost: relais\r\n\r\n`
+      );
+      await sleep(100);
+      const responses = split(reply);
+      assert.equal(responses.length, 1);
+      assert.match(responses[0], /^HTTP\/1\.1 400 /);
+      assert.match(responses[0], /"error":"body-not-allowed"/);
+      assert.equal(upstream.seen(m).length, 0);
+      assert.equal(upstream.seen(m2).length, 0, 'la requête collée a atteint l’amont');
+    });
+  });
+
+  test('plus de mille requêtes sur une connexion : la millième la ferme, aucune 503 nue de Node', async () => {
+    const config = withLimits({ rateLimitRequests: 100000 });
+    await withRelay({ config }, async (reference, client) => {
+      const m = mark();
+      const request = `GET ${target(reference, m)} HTTP/1.1\r\nHost: relais\r\n\r\n`;
+      const responses = split(await client.raw(request.repeat(1005)));
+      assert.equal(responses.length, 1000);
+      for (const [index, response] of responses.entries()) {
+        assert.match(response, /^HTTP\/1\.1 200 /, `réponse ${index + 1}`);
+        assertCommonHeaders(response, `réponse ${index + 1}`);
+      }
+      assert.doesNotMatch(responses[998], /\r\nconnection: close\r\n/i);
+      assert.match(responses[999], /\r\nconnection: close\r\n/i);
+      assert.equal(upstream.seen(m).length, 1);
+    });
+  });
+
+  test('en-têtes de requête jamais terminés : 408 avec les en-têtes communs, pas un 400 `invalid-url`', async () => {
+    await withRelay({}, async (reference) => {
+      // Le délai réel (dix secondes) n'est pas attendu : l'erreur que Node lève à
+      // son terme est remise au serveur, sur une vraie connexion.
+      const accepted = new Promise((resolve) => reference.relay.server.once('connection', resolve));
+      const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+      let reply = '';
+      socket.on('data', (chunk) => {
+        reply += chunk.toString('latin1');
+      });
+      const closed = new Promise((resolve) => socket.on('close', resolve));
+      socket.write('GET /donnees-relais/ouvert.conformance.test/x HTTP/1.1\r\nHost: rel');
+      const serverSocket = await accepted;
+      await sleep(20);
+      const timeout = Object.assign(new Error('Request timeout'), {
+        code: 'ERR_HTTP_REQUEST_TIMEOUT',
+      });
+      reference.relay.server.emit('clientError', timeout, serverSocket);
+      await closed;
+      assert.match(reply, /^HTTP\/1\.1 408 /);
+      assertCommonHeaders(reply, '408');
+      assert.match(reply, /"error":"request-timeout"/);
+    });
+  });
+
+  test('en-têtes trop longs : 431 avec les en-têtes communs', async () => {
+    await withRelay({}, async (reference, client) => {
+      const reply = await client.raw(
+        `GET ${target(reference, mark())} HTTP/1.1\r\nHost: relais\r\nX-Long: ${'a'.repeat(20000)}\r\n\r\n`
+      );
+      assert.match(reply, /^HTTP\/1\.1 431 /);
+      assertCommonHeaders(reply, '431');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-MET-3 — OPTIONS et HEAD sur le relais de référence', () => {
+  test('OPTIONS hors du préfixe du relais : 404, comme toute autre méthode', async () => {
+    await withRelay({}, async (reference, client) => {
+      for (const path of ['/', '/autre/chose', '/health', '*']) {
+        const response = await client.call(path, { method: 'OPTIONS', absolute: true });
+        assert.equal(response.status, 404, `OPTIONS ${path}`);
+        assert.equal(response.headers['access-control-allow-origin'], '*');
+        assert.equal(response.headers['access-control-allow-methods'], undefined);
+      }
+      const inside = await client.call(`/${ALLOWED_HOST}/donnees.json`, { method: 'OPTIONS' });
+      assert.equal(inside.status, 204);
+      assert.equal(inside.headers['access-control-allow-headers'], undefined);
+    });
+  });
+
+  test('HEAD sur une URL absente du cache : un GET complet chez l’amont, mis en cache pour le GET qui suit', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const path = `/${ALLOWED_HOST}/compteur?${m}`;
+      const head = await client.call(path, { method: 'HEAD' });
+      assert.equal(head.status, 200);
+      assert.equal(head.body.length, 0);
+      assert.equal(upstream.seen(m)[0].method, 'GET');
+      const get = await client.call(path);
+      assert.equal(get.headers['x-relay-cache'], 'HIT');
+      assert.equal(get.headers['content-length'], head.headers['content-length']);
+      assert.equal(upstream.seen(m).length, 1);
     });
   });
 });
@@ -417,6 +752,49 @@ describe('Cache du relais de référence', () => {
       assert.match(gone.headers['cache-control'], /no-store/);
     });
   });
+
+  for (const [fromUpstream, expected] of [
+    [401, 403],
+    [403, 403],
+    [404, 404],
+    [410, 410],
+  ]) {
+    test(`C-CACHE-5 — l’amont répond ${fromUpstream} : l’entrée est purgée, le périmé ne ressert pas une donnée retirée`, async () => {
+      let clock = 1_800_000_000_000;
+      await withRelay({ now: () => clock }, async (reference, client) => {
+        const host = reference.config.hosts.get(ALLOWED_HOST);
+        const m = mark();
+        // 200 (mise en cache), puis le retrait, puis une panne de l'amont.
+        const path = `/${ALLOWED_HOST}/suite/200-${fromUpstream}-500?${m}`;
+        assert.equal((await client.call(path)).status, 200);
+        assert.equal(reference.relay.cache.size, 1);
+
+        clock += (host.sharedTtl + 1) * 1000;
+        const withdrawn = await client.call(path);
+        assert.equal(withdrawn.status, expected);
+        assert.equal(reference.relay.cache.size, 0, 'l’entrée retirée chez l’amont reste en cache');
+
+        const failing = await client.call(path);
+        assert.equal(failing.status, 502, 'la donnée retirée a été resservie en périmé');
+        assert.equal(failing.headers['x-relay-cache'], undefined);
+        assert.equal(upstream.seen(m).length, 3);
+      });
+    });
+  }
+
+  test('C-CACHE-5 — le périmé est aussi servi sur une 429 de l’amont, jamais sur une autre 4xx', async () => {
+    let clock = 1_800_000_000_000;
+    await withRelay({ now: () => clock }, async (reference, client) => {
+      const host = reference.config.hosts.get(ALLOWED_HOST);
+      const limited = `/${ALLOWED_HOST}/suite/200-429?${mark()}`;
+      const rejected = `/${ALLOWED_HOST}/suite/200-400?${mark()}`;
+      assert.equal((await client.call(limited)).status, 200);
+      assert.equal((await client.call(rejected)).status, 200);
+      clock += (host.sharedTtl + 1) * 1000;
+      assert.equal((await client.call(limited)).headers['x-relay-cache'], 'STALE');
+      assert.equal((await client.call(rejected)).status, 400);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -438,6 +816,160 @@ describe('C-DOS — plafonds du relais de référence', () => {
         assert.equal((await client.call(`/${ALLOWED_HOST}/donnees.json?${m}`)).status, 200);
       }
     );
+  });
+
+  test('C-DOS-4 — un seul client ne prend pas toutes les places amont : un autre visiteur reste servi', async () => {
+    // Quatre places, donc deux par adresse. Un client en demande quatre de front.
+    const config = (profile) => ({
+      ...withLimits({ maxUpstreamRequests: 4 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    const from = (address) => ({ headers: { 'X-Forwarded-For': address } });
+    await withRelay({ config }, async (reference, client) => {
+      const greedy = [0, 1, 2, 3].map(() =>
+        client.call(`/${ALLOWED_HOST}/lent?${mark()}`, from('198.51.100.1'))
+      );
+      await sleep(50);
+      const m = mark();
+      const other = await client.call(`/${ALLOWED_HOST}/donnees.json?${m}`, from('198.51.100.2'));
+      assert.equal(other.status, 200, 'un autre visiteur est refusé : le premier a tout pris');
+      const answers = await Promise.all(greedy);
+      assert.deepEqual(answers.map((response) => response.status).sort(), [200, 200, 503, 503]);
+      for (const response of answers.filter((entry) => entry.status === 503)) {
+        assert.equal(errorCode(response), 'relay-busy');
+        assert.equal(response.headers['retry-after'], '1');
+      }
+    });
+  });
+
+  /** Requête d'un visiteur qui ne lira jamais sa réponse : 8 Mo demandés, socket en pause. */
+  const stalledReader = (reference, address) => {
+    const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+    socket.on('error', () => {});
+    socket.pause();
+    socket.write(
+      `GET ${reference.url.pathname}/${ALLOWED_HOST}/gros?${mark()} HTTP/1.1\r\nHost: relais\r\nX-Forwarded-For: ${address}\r\n\r\n`
+    );
+    return socket;
+  };
+  const MEGA = 1024 * 1024;
+  const slowReaders = (profile) => ({
+    ...withLimits({
+      maxBytes: 9 * MEGA,
+      maxPendingBytes: 18 * MEGA,
+      cacheMaxBytes: 0,
+      timeoutMs: 20000,
+    })(profile),
+    trustedProxies: ['127.0.0.1'],
+  });
+
+  test('C-DOS-4 — des visiteurs qui ne lisent pas leur réponse : les octets en attente d’écriture sont bornés', async (t) => {
+    // Douze connexions, douze URL de 8 Mo, douze adresses ; personne ne lit.
+    // Sans borne, le relais retient 12 × 8 Mo ; avec `maxPendingBytes` à 18 Mo, deux corps.
+    await withRelay({ config: slowReaders }, async (reference) => {
+      // Deux passes : la mémoire d'un tampon n'est rendue qu'au balayage qui suit.
+      const retained = async () => {
+        collectGarbage();
+        await sleep(100);
+        collectGarbage();
+        return process.memoryUsage().arrayBuffers;
+      };
+      const before = await retained();
+      const streamsBefore = upstream.bigStreams.length;
+      const sockets = Array.from({ length: 12 }, (_, index) =>
+        stalledReader(reference, `198.51.100.${index + 1}`)
+      );
+      try {
+        // Attendre que l'amont ait tout envoyé et que le relais ait tout reçu.
+        for (let waited = 0; waited < 15000; waited += 20) {
+          const streams = upstream.bigStreams.slice(streamsBefore);
+          const sent = streams.length === 12 && streams.every((s) => s.sent >= s.total);
+          if (sent && reference.relay.stats().upstreamRequests === 0) break;
+          await sleep(20);
+        }
+        await sleep(300);
+        const growth = Math.round(((await retained()) - before) / MEGA);
+        t.diagnostic(
+          `tampons retenus : +${growth} Mo pour douze lecteurs à l’arrêt (borne : 18 Mo)`
+        );
+        assert.ok(
+          growth < 40,
+          `le relais retient ${growth} Mo pour des visiteurs qui ne lisent pas`
+        );
+        assert.ok(reference.relay.stats().pendingBytes <= 18 * MEGA);
+      } finally {
+        for (const socket of sockets) socket.destroy();
+      }
+    });
+  });
+
+  test('C-DOS-4 — un seul visiteur lent ne prend que la moitié des octets en attente', async () => {
+    await withRelay({ config: slowReaders }, async (reference, client) => {
+      const slow = stalledReader(reference, '198.51.100.1');
+      try {
+        for (let waited = 0; waited < 15000; waited += 20) {
+          if (reference.relay.stats().pendingBytes > 0) break;
+          await sleep(20);
+        }
+        assert.ok(reference.relay.stats().pendingBytes >= 8 * MEGA);
+        // Le même visiteur redemande 8 Mo : il tient déjà sa part (9 Mo), 503.
+        const again = await client.call(`/${ALLOWED_HOST}/gros?${mark()}`, {
+          headers: { 'X-Forwarded-For': '198.51.100.1' },
+        });
+        assert.equal(again.status, 503);
+        assert.equal(errorCode(again), 'relay-busy');
+        // Un autre visiteur, lui, est servi.
+        const other = await client.call(`/${ALLOWED_HOST}/gros?${mark()}`, {
+          headers: { 'X-Forwarded-For': '198.51.100.2' },
+        });
+        assert.equal(other.status, 200);
+        assert.equal(other.body.length, 8 * MEGA);
+      } finally {
+        slow.destroy();
+      }
+      await sleep(50);
+      assert.equal(reference.relay.stats().pendingBytes, 0, 'la place est rendue à la fermeture');
+    });
+  });
+
+  test('C-DOS-4 — la place des octets en attente est rendue quand la connexion tombe, réponses en file comprises', async () => {
+    // Trois requêtes collées sur une connexion qui ne lit rien : la première
+    // réponse est en cours d'écriture, les deux autres attendent leur tour.
+    const config = (profile) => ({
+      ...withLimits({ maxBytes: 9 * MEGA, maxPendingBytes: 64 * MEGA, timeoutMs: 20000 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    await withRelay({ config }, async (reference) => {
+      const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+      socket.on('error', () => {});
+      socket.pause();
+      const request = () =>
+        `GET ${reference.url.pathname}/${ALLOWED_HOST}/gros?${mark()} HTTP/1.1\r\nHost: relais\r\nX-Forwarded-For: 198.51.100.1\r\n\r\n`;
+      socket.write(request() + request() + request());
+      for (let waited = 0; waited < 15000; waited += 20) {
+        if (reference.relay.stats().pendingBytes >= 24 * MEGA) break;
+        await sleep(20);
+      }
+      assert.equal(reference.relay.stats().pendingBytes, 24 * MEGA);
+      socket.destroy();
+      await sleep(100);
+      assert.equal(reference.relay.stats().pendingBytes, 0, 'des octets restent comptés à jamais');
+    });
+  });
+
+  test('C-DOS-4 — un visiteur parti avant sa réponse ne laisse aucun octet compté', async () => {
+    await withRelay({}, async (reference) => {
+      const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+      socket.on('error', () => {});
+      socket.write(
+        `GET ${reference.url.pathname}/${ALLOWED_HOST}/lent?${mark()} HTTP/1.1\r\nHost: relais\r\n\r\n`
+      );
+      await sleep(50);
+      socket.destroy(); // l'amont répondra dans 400 ms, à personne
+      await sleep(SLOW_MS + 200);
+      assert.equal(reference.relay.stats().pendingBytes, 0, 'des octets restent comptés à jamais');
+      assert.equal(reference.relay.stats().upstreamRequests, 0);
+    });
   });
 
   test('C-DOS-4 — connexions simultanées bornées : au-delà, la connexion est refusée', async () => {
@@ -501,6 +1033,63 @@ describe('C-DOS — plafonds du relais de référence', () => {
       assert.equal((await client.call(path, from('198.51.100.2'))).status, 200);
     });
   });
+
+  test('C-DOS-5 — un mandataire de confiance qui ne POSE pas `X-Forwarded-For` : l’en-tête n’est plus cru', async () => {
+    // Le montage fautif : `proxy_pass` nu. Le mandataire transmet l'en-tête du
+    // client tel quel ; un navigateur ordinaire n'en envoie pas, un attaquant en
+    // forge un par requête. La première requête sans en-tête trahit le montage.
+    let clock = 1_800_000_000_000;
+    const config = (profile) => ({
+      ...withLimits({ rateLimitRequests: 3, rateLimitWindowSeconds: 10 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    await withRelay({ now: () => clock, config }, async (reference, client) => {
+      const path = `/${ALLOWED_HOST}/donnees.json?${mark()}`;
+      const forged = (index) => ({ headers: { 'X-Forwarded-For': `198.51.100.${index}` } });
+      // Un visiteur ordinaire passe par le mandataire : aucun en-tête n'arrive.
+      assert.equal((await client.call(path)).status, 200);
+      const statuses = [];
+      for (let index = 1; index <= 12; index += 1) {
+        statuses.push((await client.call(path, forged(index))).status);
+      }
+      assert.deepEqual(
+        statuses,
+        [200, 200, ...new Array(10).fill(429)],
+        'douze adresses forgées ont eu douze quotas'
+      );
+      assert.equal(reference.warnings.length, 1, 'un seul avertissement par mandataire');
+      assert.match(reference.warnings[0], /X-Forwarded-For/);
+      assert.ok(!reference.warnings[0].includes('198.51.100.'), 'adresse forgée dans le message');
+
+      // Passé le quart d'heure sans requête dépourvue d'en-tête, il est cru de nouveau.
+      clock += 16 * 60 * 1000;
+      assert.equal((await client.call(path, forged(1))).status, 200);
+      assert.equal((await client.call(path, forged(1))).status, 200);
+      assert.equal((await client.call(path, forged(1))).status, 200);
+      assert.equal((await client.call(path, forged(1))).status, 429);
+      assert.equal((await client.call(path, forged(2))).status, 200);
+    });
+  });
+
+  test('C-DOS-5 — `X-Forwarded-For` : seule la DERNIÈRE valeur compte, et seulement si c’est une adresse', async () => {
+    const config = (profile) => ({
+      ...withLimits({ rateLimitRequests: 2 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    await withRelay({ config }, async (reference, client) => {
+      const path = `/${ALLOWED_HOST}/donnees.json?${mark()}`;
+      const from = (value) => ({ headers: { 'X-Forwarded-For': value } });
+      // Le client forge le début de la liste ; le mandataire ajoute la vraie adresse.
+      assert.equal((await client.call(path, from('203.0.113.1, 198.51.100.9'))).status, 200);
+      assert.equal((await client.call(path, from('203.0.113.2, 198.51.100.9'))).status, 200);
+      assert.equal((await client.call(path, from('203.0.113.3, 198.51.100.9'))).status, 429);
+      // Une dernière valeur qui n'est pas une adresse : c'est celle du mandataire qui compte.
+      assert.equal((await client.call(path, from('198.51.100.9, inconnu'))).status, 200);
+      assert.equal((await client.call(path, from('198.51.100.9, _cache'))).status, 200);
+      assert.equal((await client.call(path, from('198.51.100.9, 1.2.3'))).status, 429);
+      assert.equal(reference.warnings.length, 0);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -562,6 +1151,20 @@ describe('C-FUITE-2 — journaux', () => {
             [405, 'method-not-allowed', undefined, undefined],
           ]
         );
+      }
+    );
+  });
+
+  test('`logPath: false` : le chemin sort du journal (API qui porte une saisie dans le chemin)', async () => {
+    await withRelay(
+      { config: (profile) => ({ ...profile, logPath: false }) },
+      async (reference, client) => {
+        await client.call(`/${ALLOWED_HOST}/recherche/saisie-dans-le-chemin/dossier?q=1`);
+        assert.equal(reference.logs.length, 1);
+        assert.equal(reference.logs[0].status, 200);
+        assert.equal(reference.logs[0].host, ALLOWED_HOST);
+        assert.equal(reference.logs[0].path, undefined);
+        assert.ok(!JSON.stringify(reference.logs).includes('saisie-dans-le-chemin'));
       }
     );
   });

@@ -1,4 +1,10 @@
 {
+  "$comment": [
+    "trustedProxies : l'adresse du serveur web placé devant le relais. Elle n'a de sens que si",
+    "ce serveur POSE X-Forwarded-For (nginx : proxy_set_header X-Forwarded-For $remote_addr;).",
+    "Un proxy_pass nu transmet l'en-tête du client : chaque requête forge alors son adresse.",
+    "Sans mandataire qui pose l'en-tête, retirer trustedProxies. Voir docs/RELAY.md, règle C-DOS-5."
+  ],
   "listen": { "host": "127.0.0.1", "port": 8155 },
   "prefix": "/donnees-relais",
   "ttl": 300,

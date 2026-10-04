@@ -173,10 +173,124 @@ describe('C-CONF-1 — plafonds et champs', () => {
       refuses({ ...ok, contentTypes: [type] }, {}, /contentTypes/);
     }
   });
+  test('`contentTypes` est une liste FERMÉE : un type hors liste est refusé, même sans « script » dans son nom', () => {
+    for (const type of [
+      'text/jscript', // exécuté comme du JavaScript par un navigateur
+      'text/livescript',
+      'text/css',
+      'text/xsl',
+      'text/x-component',
+      'multipart/x-mixed-replace',
+      'application/pdf',
+      'application/octet-stream',
+      'application/jsonp',
+      'image/png',
+    ]) {
+      refuses({ ...ok, contentTypes: [type] }, {}, /contentTypes/);
+    }
+    const all = [
+      'application/json',
+      'application/geo+json',
+      'application/vnd.geo+json',
+      'application/ld+json',
+      'application/x-ndjson',
+      'text/csv',
+      'text/tab-separated-values',
+      'text/plain',
+    ];
+    assert.deepEqual([...validateConfig({ ...ok, contentTypes: all }, {}).contentTypes], all);
+  });
+  test('préfixe du relais qui masquerait `/health` : refus', () => {
+    for (const prefix of ['/health', '/health/relais']) {
+      refuses({ ...ok, prefix }, {}, /health/);
+      refuses(ok, { RELAY_PREFIX: prefix }, /health/);
+    }
+    assert.equal(validateConfig({ ...ok, prefix: '/healthcheck' }, {}).prefix, '/healthcheck');
+  });
+  test('un nom réservé aux réseaux internes n’entre pas dans la liste blanche', () => {
+    for (const host of [
+      'localhost.localdomain',
+      'metadata.google.internal',
+      'service.interne.internal',
+      'imprimante.local',
+      'relais.localhost',
+      'routeur.home.arpa',
+      'nas.lan',
+      'wiki.intranet',
+      'annuaire.corp',
+      'box.home',
+      'base.private',
+    ]) {
+      refuses({ hosts: { [host]: {} } }, {}, /réseau interne/);
+      refuses({}, { RELAY_HOSTS: host }, /réseau interne/);
+    }
+    // Un nom public qui contient ces mots sans les avoir pour suffixe reste accepté.
+    for (const host of ['internal.exemple.fr', 'local.gouv.example', 'lan.exemple.fr']) {
+      assert.ok(validateConfig({ hosts: { [host]: {} } }, {}).hosts.has(host));
+    }
+  });
+  test('écoute hors de la boucle locale : acceptée, avec un avertissement', () => {
+    assert.deepEqual([...validateConfig(ok, {}).warnings], []);
+    assert.deepEqual([...validateConfig({ ...ok, listen: { host: '::1' } }, {}).warnings], []);
+    for (const host of ['0.0.0.0', '::', '192.0.2.4']) {
+      const { warnings } = validateConfig({ ...ok, listen: { host } }, {});
+      assert.equal(warnings.length, 1);
+      assert.match(warnings[0], /boucle locale/);
+    }
+  });
+  test('`logPath: false` : le chemin sort du journal ; par défaut il y est', () => {
+    assert.equal(validateConfig(ok, {}).logPath, true);
+    assert.equal(validateConfig({ ...ok, logPath: false }, {}).logPath, false);
+    refuses({ ...ok, logPath: 'non' }, {}, /logPath/);
+  });
+  test('`$comment` : seul champ libre, pour annoter le fichier ; ignoré', () => {
+    const config = validateConfig({ ...ok, $comment: ['une note', 'une autre'] }, {});
+    assert.equal(config.$comment, undefined);
+    assert.ok(validateConfig({ ...ok, $comment: 'une note' }, {}));
+    refuses({ ...ok, $comment: { hosts: {} } }, {}, /\$comment/);
+    refuses({ hosts: { 'ouvert.conformance.test': { $comment: 'x' } } }, {}, /champ inconnu/);
+  });
   test('préfixe du relais invalide : refus', () => {
     for (const prefix of ['donnees-relais', '/donnees-relais/', '/a/../b', '/a b']) {
       refuses({ ...ok, prefix }, {}, /prefix/);
     }
+  });
+  test('`trustedProxies` : une adresse que le relais ne reconnaîtrait jamais est refusée, pas ignorée', () => {
+    for (const entry of [
+      '::ffff:127.0.0.1', // la connexion est vue comme 127.0.0.1 : jamais reconnue
+      'fe80::1%eth0',
+      '0.0.0.0',
+      '::',
+      '10.0.0.0/8',
+      'mandataire.exemple.fr',
+      42,
+    ]) {
+      refuses({ ...ok, trustedProxies: [entry] }, {}, /trustedProxies/);
+    }
+    refuses({ ...ok, trustedProxies: '127.0.0.1' }, {}, /trustedProxies/);
+    const config = validateConfig({ ...ok, trustedProxies: ['127.0.0.1', '::1', '10.0.0.5'] }, {});
+    assert.deepEqual([...config.trustedProxies], ['127.0.0.1', '::1', '10.0.0.5']);
+  });
+  test('part d’un client : la moitié des places amont par défaut, jamais plus que le total', () => {
+    assert.equal(validateConfig(ok, {}).limits.maxUpstreamRequestsPerClient, 8);
+    const one = validateConfig({ ...ok, limits: { maxUpstreamRequests: 1 } }, {});
+    assert.equal(one.limits.maxUpstreamRequestsPerClient, 1);
+    const five = validateConfig({ ...ok, limits: { maxUpstreamRequests: 5 } }, {});
+    assert.equal(five.limits.maxUpstreamRequestsPerClient, 3);
+    refuses(
+      { ...ok, limits: { maxUpstreamRequests: 4, maxUpstreamRequestsPerClient: 5 } },
+      {},
+      /maxUpstreamRequestsPerClient/
+    );
+    refuses({ ...ok, limits: { maxUpstreamRequestsPerClient: 0 } }, {}, /PerClient/);
+  });
+  test('octets en attente d’écriture : au moins deux réponses de taille maximale', () => {
+    assert.equal(validateConfig(ok, {}).limits.maxPendingBytes, 64 * 1024 * 1024);
+    refuses(
+      { ...ok, limits: { maxBytes: 10 * 1024 * 1024, maxPendingBytes: 15 * 1024 * 1024 } },
+      {},
+      /maxPendingBytes/
+    );
   });
   test('l’environnement prime sur le fichier', () => {
     const config = validateConfig(
@@ -264,6 +378,15 @@ describe('C-CONF-1 — le point d’entrée `server.mjs`', () => {
       stderr,
       /à l'écoute sur http:\/\/127\.0\.0\.1:\d+\/donnees-relais\/ — 1 hôte\(s\) autorisé\(s\), dont 0 avec clé/
     );
+    assert.doesNotMatch(stderr, /attention/);
+    assert.equal(code, 0);
+  });
+  test('écoute sur toutes les interfaces : le démarrage le dit sur la sortie d’erreur', async () => {
+    const { code, stderr } = await runServer(
+      { RELAY_HOSTS: 'ouvert.conformance.test', RELAY_PORT: '0', RELAY_LISTEN: '0.0.0.0' },
+      { stopWhen: /à l'écoute/ }
+    );
+    assert.match(stderr, /\[relais\] attention : .*boucle locale/);
     assert.equal(code, 0);
   });
 });
