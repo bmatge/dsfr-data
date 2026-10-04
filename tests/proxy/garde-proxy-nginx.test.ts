@@ -18,7 +18,7 @@
  * les deux cas la garde a laisse passer : c'est ce qu'on verifie.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, copyFileSync, writeFileSync, chmodSync, rmSync } from 'node:fs';
+import { mkdtempSync, copyFileSync, writeFileSync, chmodSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -147,7 +147,20 @@ describe.skipIf(!ACTIF)('bornage du proxy generique — nginx reel, sans reseau'
       beforeAll(() => {
         dossier = mkdtempSync(join(tmpdir(), 'garde-proxy-'));
         chmodSync(dossier, 0o755);
-        const volumes = cible.monter(dossier);
+        // Les routes a cible FIXE nomment leur amont : nginx le resout au
+        // chargement. Sans reseau, on lui donne une adresse de documentation
+        // (192.0.2.1, RFC 5737) qui ne sera jamais appelee.
+        const amontsFixes = new Set(
+          [
+            ...readFileSync(join(RACINE, cible.nom), 'utf-8').matchAll(
+              /proxy_pass https:\/\/([a-z0-9.-]+)\//g
+            ),
+          ].map((m) => m[1])
+        );
+        const volumes = [
+          ...cible.monter(dossier),
+          ...[...amontsFixes].flatMap((hote) => ['--add-host', `${hote}:192.0.2.1`]),
+        ];
         // Syntaxe : la configuration telle qu'elle sera chargee.
         docker(['run', '--rm', '--network', 'none', ...volumes, cible.image, 'nginx', '-t']);
         docker([
