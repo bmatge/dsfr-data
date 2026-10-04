@@ -198,6 +198,17 @@ describe.skipIf(!ACTIF)('relais cachable — extrait nginx, nginx réel', () => 
       { encoding: 'utf-8', timeout: 180_000 }
     );
     expect(sortie.status, `${sortie.stdout}\n${sortie.stderr}`).toBe(0);
+    const version = spawnSync(
+      'docker',
+      ['run', '--rm', '--network', 'none', IMAGE, 'nginx', '-v'],
+      {
+        encoding: 'utf-8',
+        timeout: 60_000,
+      }
+    );
+    console.log(
+      `Image ${IMAGE} : ${/nginx version: \S+/.exec(`${version.stdout}\n${version.stderr}`)?.[0]}`
+    );
     // Un avertissement de nginx sur l'extrait est une faute de l'extrait.
     expect(`${sortie.stdout}\n${sortie.stderr}`).not.toMatch(/\[(warn|emerg|error)\]/);
   }, 240_000);
@@ -343,6 +354,8 @@ describe.skipIf(!ACTIF)('relais cachable — extrait nginx, nginx réel', () => 
         // nginx ne charge son cache qu'une minute après son démarrage : une partie des
         // observations attend ce moment.
         OBS_DEMARRE_A: String(demarreA),
+        // Une observation REDÉMARRE ce conteneur : ce que devient le cache après.
+        OBS_CONTENEUR: conteneurs.observation,
       });
       resultats = run.resultats;
       sortie = run.sortie;

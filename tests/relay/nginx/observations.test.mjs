@@ -16,6 +16,7 @@
 
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 import { URL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
@@ -517,5 +518,40 @@ describe('extrait nginx — la purge (C-CACHE-6), cache chargé', () => {
     assert.equal(stale.status, 200);
     assert.equal(stale.headers['x-relay-cache'], 'STALE');
     assert.equal(stale.text, first.text);
+  });
+
+  test('C-CACHE-6 — LIMITE : après un REDÉMARRAGE de nginx, le fichier d’une donnée retirée redevient une entrée périmée, resservie à la panne suivante', async () => {
+    const container = process.env.OBS_CONTENEUR;
+    assert.ok(container, 'OBS_CONTENEUR : le nom du conteneur observé');
+    const m = mark();
+    const path = `/${ALLOWED_HOST}/${m}/suite/200-404-500`;
+    const first = await relais.call(path);
+    assert.equal(first.status, 200);
+    await sleep(PEREMPTION_MS);
+    assert.equal((await relais.call(path)).status, 404, 'la donnée a été retirée');
+
+    // Redémarrage, pas rechargement : l'index du cache est perdu, les fichiers restent.
+    execFileSync('docker', ['restart', container], { stdio: 'ignore', timeout: 60_000 });
+    const restartedAt = Date.now();
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        await relais.call(`/${FORBIDDEN_HOST}/x`);
+        break;
+      } catch {
+        await sleep(100);
+      }
+    }
+    // Au-delà de la première minute : nginx a relu son cache sur disque.
+    await sleep(Math.max(0, restartedAt + CACHE_LOADED_MS - Date.now()));
+
+    const afterOutage = await relais.call(path);
+    assert.equal(
+      afterOutage.status,
+      200,
+      'la limite est levée : la retirer du README de l’extrait et de docs/RELAY.md'
+    );
+    assert.equal(afterOutage.headers['x-relay-cache'], 'STALE');
+    assert.equal(afterOutage.text, first.text);
+    assert.equal(upstream.seen(m).length, 3);
   });
 });

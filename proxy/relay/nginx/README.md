@@ -210,7 +210,7 @@ connaît pas. Deux conséquences :
   resservie à la panne suivante — mesuré ;
 - après un **redémarrage**, l'ancien fichier d'une donnée retirée, s'il est encore sur disque
   (il le reste tant que l'URL est demandée au moins une fois par `inactive`), redevient une entrée
-  périmée comme une autre — lu dans le code de nginx, non mesuré.
+  périmée comme une autre, resservie à la panne suivante — mesuré aussi, passé la première minute.
 
 Un rechargement (`nginx -s reload`) n'est pas un démarrage : l'index est conservé. Pour fermer ce
 reste, **vider le cache du relais à chaque démarrage de nginx** (`rm -rf /var/cache/nginx/relais/*`
