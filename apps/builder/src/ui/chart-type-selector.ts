@@ -12,6 +12,7 @@ import {
   type ChartType,
 } from '../state.js';
 import { syncSeriesExclusivity } from './formes.js';
+import { updateLectureVisibility } from './lecture.js';
 import { REFERENTIELS } from '../geo-codes.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
@@ -153,6 +154,9 @@ export function selectChartType(type: ChartType): void {
   // Podium : nombre de places (#1204)
   const podiumConfig = document.getElementById('podium-config') as HTMLElement | null;
   if (podiumConfig) podiumConfig.style.display = isPodium ? 'block' : 'none';
+
+  // Réglages de lecture (#1218) : unité, bornes, repères, couleurs, synthèse de carte
+  updateLectureVisibility(type);
 
   // DataBox section: hide for non-chart types (KPI, gauge, datalist, podium)
   const databoxSection = document.getElementById('section-databox') as HTMLElement | null;

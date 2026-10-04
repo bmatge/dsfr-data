@@ -5,6 +5,7 @@
 
 import type { Source } from '@dsfr-data/shared';
 import { REFERENTIELS } from './geo-codes.js';
+import { lectureDefaults, type LectureSettings } from './lecture.js';
 export { isMapType, MAP_TYPES, type MapType } from './geo-codes.js';
 export { PROXY_BASE_URL, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
@@ -201,8 +202,13 @@ export interface Favorite {
   builderStateJson: Partial<BuilderState>;
 }
 
-/** The builder state object (serializable parts for favorites) */
-export interface BuilderState {
+/**
+ * The builder state object (serializable parts for favorites).
+ * Les réglages de lecture (#1218 : unité, bornes, lignes de référence, cibles,
+ * couleurs fixées, catégories vides, synthèse de carte) sont décrits dans
+ * `lecture.ts`.
+ */
+export interface BuilderState extends LectureSettings {
   sourceType: SourceType;
   apiUrl: string;
   savedSource: Source | null;
@@ -456,4 +462,5 @@ export const state: BuilderState = {
   databoxFullscreen: false,
   databoxTrend: '',
   chartInstance: null,
+  ...lectureDefaults(),
 };

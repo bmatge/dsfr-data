@@ -9,7 +9,7 @@
  * `index.html`, l'onglet Code, les deux modales de configuration (colonnes du
  * tableau, facettes) et leurs sous-zones. Les contrôles rendus par les
  * gabarits TS (`extra-series.ts`, `filter-builder.ts`, `datalist-config.ts`,
- * `facets-config.ts`, `sources.ts`) n'ont pas d'ancêtre lexical : c'est
+ * `facets-config.ts`, `sources.ts`, `lecture.ts`) n'ont pas d'ancêtre lexical : c'est
  * `tests/apps/builder/reperes-completude.test.ts`, qui REND chaque type de
  * graphique, qui les couvre.
  *
@@ -28,6 +28,7 @@ const config: ReperesConfig = {
     'src/ui/filter-builder.ts',
     'src/ui/datalist-config.ts',
     'src/ui/facets-config.ts',
+    'src/ui/lecture.ts',
   ],
   zonesDeReglage: [
     'builder.actions',
@@ -40,6 +41,10 @@ const config: ReperesConfig = {
     'builder.donnees.tableau',
     'builder.donnees.tableau.colonnes',
     'builder.apparence',
+    'builder.apparence.couleurs',
+    'builder.apparence.axes',
+    'builder.apparence.axes.reference',
+    'builder.apparence.axes.cibles',
     'builder.generation',
     'builder.nettoyage',
     'builder.cadre',
@@ -78,6 +83,31 @@ const config: ReperesConfig = {
     'builder.type.bar-line': ['barres et ligne', 'deux axes', 'graphique combiné', 'mixte'],
     'builder.donnees.champ-ligne': ['seconde mesure', 'courbe', 'deuxième axe'],
     'builder.donnees.podium-places': ['nombre de places', 'top n', 'combien de rangs'],
+    'builder.apparence.unite': ['unité', 'pourcentage', 'euros', 'infobulle', 'symbole'],
+    'builder.apparence.categories-vides': ['non renseigné', 'valeur manquante', 'catégorie vide'],
+    'builder.apparence.couleurs.ajouter': [
+      'couleur par catégorie',
+      'couleur d’une série',
+      'fixer une couleur',
+      'color-map',
+    ],
+    'builder.apparence.axes.minimum': ['borne', 'échelle', 'axe des valeurs', 'minimum', 'y-min'],
+    'builder.apparence.axes.maximum': ['borne', 'échelle', 'plafond de l’axe', 'maximum', 'y-max'],
+    'builder.apparence.axes.reference.ajouter': [
+      'ligne de référence',
+      'seuil',
+      'moyenne',
+      'repère',
+      'trait horizontal',
+    ],
+    'builder.apparence.axes.cibles.ajouter': ['cible', 'objectif', 'trajectoire', 'échéance'],
+    'builder.apparence.synthese-carte': [
+      'chiffre de la carte',
+      'moyenne de la carte',
+      'somme',
+      'total national',
+      'valeur nationale',
+    ],
   },
 };
 

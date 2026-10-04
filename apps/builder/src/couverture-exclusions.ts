@@ -28,8 +28,13 @@
  * bibliothèque. Sur le modèle de `apps/studio/src/couverture-exclusions.ts`.
  */
 
-/** Issue qui tient la liste des réglages à exposer plus tard. */
-export const ISSUE_DE_SUITE = '#1218';
+/**
+ * Issue qui tient la liste des réglages à exposer plus tard. #1218 a tenu ce
+ * rôle après #1204 ; son lot livré (unité, bornes, lignes de référence, cibles,
+ * couleurs fixées, catégories vides, synthèse de carte), le reste est passé à
+ * #1263.
+ */
+export const ISSUE_DE_SUITE = '#1263';
 
 export interface ExclusionBuilder {
   /** Ce que vise l'exclusion. */
@@ -96,43 +101,22 @@ export const EXCLUSIONS: readonly ExclusionBuilder[] = [
   // --- dsfr-data-chart : à exposer plus tard ------------------------------
   {
     genre: 'attribut',
-    noms: ['x-min', 'x-max', 'y-min', 'y-max'],
-    raison: 'Bornes des axes : pas de contrôle, la bibliothèque les calcule sur les données.',
+    noms: ['highlight-index'],
+    raison:
+      'Barre mise en avant : l’attribut désigne un rang, pas une catégorie, et le rang change avec le tri ou les données. « Couleurs par catégorie » (color-map) désigne la catégorie par son nom ; un contrôle par rang reste à arbitrer.',
     suite: ISSUE_DE_SUITE,
   },
   {
     genre: 'attribut',
-    noms: ['reference-lines', 'targets', 'targets-zone', 'targets-legend'],
-    raison:
-      'Lignes de référence et cibles : listes d’objets (valeur, libellé, échéance), qui demandent un éditeur de lignes comme celui des séries.',
+    noms: ['map-highlight'],
+    raison: 'Territoire mis en avant : pas de contrôle pour désigner le territoire.',
     suite: ISSUE_DE_SUITE,
   },
   {
     genre: 'attribut',
-    noms: ['highlight-index', 'map-highlight'],
+    noms: ['map-summary-weight', 'map-summary-field'],
     raison:
-      'Mise en avant d’une barre ou d’un territoire : pas de contrôle pour désigner l’élément.',
-    suite: ISSUE_DE_SUITE,
-  },
-  {
-    genre: 'attribut',
-    noms: ['color-map'],
-    raison:
-      'Couleur fixée par catégorie : demande un éditeur catégorie → couleur. Le Builder ne règle que la palette.',
-    suite: ISSUE_DE_SUITE,
-  },
-  {
-    genre: 'attribut',
-    noms: ['unit-tooltip', 'unit-tooltip-bar'],
-    raison:
-      'Unité des infobulles : pas de champ « unité » pour les graphiques (il existe pour le KPI).',
-    suite: ISSUE_DE_SUITE,
-  },
-  {
-    genre: 'attribut',
-    noms: ['map-summary', 'map-summary-value', 'map-summary-field', 'map-summary-weight'],
-    raison:
-      'Valeur de synthèse affichée sous le titre d’une carte (somme, moyenne pondérée, valeur publiée) : pas de contrôle, la bibliothèque applique son défaut.',
+      'Synthèse de carte pondérée par un effectif, ou calculée sur une autre colonne : la requête générée n’agrège que le champ de valeur, il lui faudrait une seconde colonne. « Chiffre affiché sous le titre » propose la moyenne, la somme, une valeur publiée ou aucun chiffre.',
     suite: ISSUE_DE_SUITE,
   },
   {
@@ -153,9 +137,9 @@ export const EXCLUSIONS: readonly ExclusionBuilder[] = [
   },
   {
     genre: 'attribut',
-    noms: ['empty-label', 'idle-message'],
+    noms: ['idle-message'],
     raison:
-      'Messages d’état (catégorie vide, source en attente d’un filtre) : pas de contrôle, les libellés par défaut de la bibliothèque s’appliquent.',
+      'Message affiché quand la source attend un filtre : le Builder ne génère aucun require-where, l’attribut serait sans effet. À exposer avec lui, ou à classer hors périmètre.',
     suite: ISSUE_DE_SUITE,
   },
 ];

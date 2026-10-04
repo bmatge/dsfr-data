@@ -17,6 +17,7 @@
  */
 
 import { state } from '../state.js';
+import { LECTURE_KEYS } from '../lecture.js';
 import { selectChartType } from './chart-type-selector.js';
 import { lookupRealCardinality } from './real-cardinality.js';
 
@@ -252,6 +253,8 @@ function configSnapshot(): string {
     'a11yTable',
     'a11yDownload',
     'a11yDescription',
+    // Réglages de lecture (#1218)
+    ...LECTURE_KEYS,
   ];
   const subset: Record<string, unknown> = {};
   for (const k of keys) subset[k] = s[k];
