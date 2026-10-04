@@ -512,7 +512,7 @@
         <div class="fr-input-group fr-input-group--sm fr-mt-2w" id="empty-label-group">
           <label class="fr-label" for="empty-label">
             Libellé des catégories vides
-            <span class="fr-hint-text">Nom affiché quand l’étiquette manque dans les données (par défaut&nbsp;: Non renseigné)</span>
+            <span class="fr-hint-text">Nom affiché quand l’étiquette manque dans les données</span>
           </label>
           <input class="fr-input" type="text" id="empty-label" data-repere="builder.apparence.categories-vides" data-attribut="dsfr-data-chart:empty-label" placeholder="Ex : Sans réponse">
         </div>
@@ -568,8 +568,8 @@
             <p class="fr-hint-text fr-mt-1v" id="axis-bounds-note">Les bornes sont arrondies à la graduation voisine.</p>
           </div>
 
-          <div id="reference-lines-group" class="fr-mt-2w" data-zone="builder.apparence.axes.reference" data-repere-libelle="Lignes de référence">
-            <p class="fr-label fr-mb-0">Lignes de référence</p>
+          <div id="reference-lines-group" class="fr-mt-2w" role="group" aria-labelledby="reference-lines-title" data-zone="builder.apparence.axes.reference" data-repere-libelle="Lignes de référence">
+            <p class="fr-label fr-mb-0" id="reference-lines-title">Lignes de référence</p>
             <p class="fr-hint-text">Un trait pointillé sur un seuil (une valeur) ou sur une étiquette (une date, une catégorie)</p>
             <div id="reference-lines-container"></div>
             <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-reference-line-btn" data-repere="builder.apparence.axes.reference.ajouter" data-attribut="dsfr-data-chart:reference-lines">
@@ -577,8 +577,8 @@
             </button>
           </div>
 
-          <div id="targets-group" class="fr-mt-2w" style="display: none;" data-zone="builder.apparence.axes.cibles" data-repere-libelle="Cibles">
-            <p class="fr-label fr-mb-0">Cibles</p>
+          <div id="targets-group" class="fr-mt-2w" style="display: none;" role="group" aria-labelledby="targets-title" data-zone="builder.apparence.axes.cibles" data-repere-libelle="Cibles">
+            <p class="fr-label fr-mb-0" id="targets-title">Cibles</p>
             <p class="fr-hint-text">Un objectif à une échéance, relié au dernier point connu par une trajectoire en pointillés</p>
             <div id="targets-container"></div>
             <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-target-btn" data-repere="builder.apparence.axes.cibles.ajouter" data-attribut="dsfr-data-chart:targets">

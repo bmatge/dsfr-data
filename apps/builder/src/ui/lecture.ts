@@ -11,7 +11,7 @@
  */
 
 import { escapeHtml } from '@dsfr-data/shared';
-import { state, activeSeriesField, type ChartType } from '../state.js';
+import { state, activeSeriesField, tracedExtraSeries, type ChartType } from '../state.js';
 import {
   COLOR_MAP_DEFAULT,
   LECTURE_KEYS,
@@ -20,7 +20,7 @@ import {
   type LectureSettings,
   type MapSummaryMode,
 } from '../lecture.js';
-import { seriesNames } from './series-aggregates.js';
+import { advancedAggregates, seriesNames } from './series-aggregates.js';
 
 // ---------------------------------------------------------------------------
 // Champs simples : identifiant du contrôle → clé d'état
@@ -162,17 +162,22 @@ function renderColorMap(): void {
 }
 
 /**
- * Noms proposés pour une couleur fixée : les séries du graphique, puis les
- * étiquettes des données déjà générées. Une simple aide à la saisie : tout
- * autre nom reste accepté.
+ * Noms proposés pour une couleur fixée : les séries du graphique telles que la
+ * légende les nomme, puis les étiquettes des données déjà générées. Une simple
+ * aide à la saisie : tout autre nom reste accepté.
  */
 export function colorSuggestions(): string[] {
   const noms = new Set<string>();
   const serie = activeSeriesField(state);
+  const camembert = state.chartType === 'pie' || state.chartType === 'doughnut';
   if (serie) {
+    // Format long : les séries sont les valeurs du champ de séries.
     for (const ligne of state.data) noms.add(String(ligne[serie] ?? ''));
-  } else {
+  } else if (tracedExtraSeries(state).length > 0 || advancedAggregates().length > 1) {
     for (const nom of seriesNames()) noms.add(nom);
+  } else if (!camembert) {
+    // Une seule série : le générateur la nomme par le titre (attribut `name`).
+    noms.add(state.title || state.valueField);
   }
   if (state.labelField) {
     for (const ligne of state.data.slice(0, 50)) noms.add(String(ligne[state.labelField] ?? ''));

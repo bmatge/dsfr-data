@@ -176,4 +176,122 @@ describe('retour du Playground : les champs choisis sont conservés (#1176)', ()
     expect((document.getElementById('stacked-toggle') as HTMLInputElement).checked).toBe(true);
     expect(toastError).not.toHaveBeenCalled();
   });
+
+  // #1218 : les réglages de lecture font le même aller-retour. Preuves de
+  // mutation : retirer `syncLectureControls()` de `loadFavoriteState` rend le
+  // premier cas rouge (état restauré, contrôles vides) ; retirer
+  // `restoreLecture(favoriteState)` rend le deuxième rouge (l'ancien favori
+  // hérite des réglages de la session) ; retirer `...LECTURE_KEYS` de
+  // `configSnapshot` (smart-guard.ts) rend le troisième rouge.
+  const CONTROLES_LECTURE = `
+    <input id="chart-unit"><input id="chart-unit-bar"><input id="empty-label">
+    <input id="axis-min"><input id="axis-max"><input id="x-axis-min"><input id="x-axis-max">
+    <details id="axes-details"><div id="reference-lines-container"></div>
+      <div id="targets-container"></div><div id="targets-options"></div>
+      <input type="checkbox" id="targets-zone" checked>
+      <input type="checkbox" id="targets-legend" checked></details>
+    <details id="color-map-details"><div id="color-map-container"></div>
+      <datalist id="color-map-suggestions"></datalist></details>
+    <select id="map-summary"><option value=""></option><option value="sum"></option>
+      <option value="value"></option><option value="none"></option></select>
+    <input id="map-summary-value">`;
+
+  const REGLAGES = {
+    unitTooltip: '%',
+    axisMax: '40',
+    referenceLines: [{ kind: 'value', value: '13', label: 'Seuil' }],
+    targets: [{ x: '2030', value: '26', label: 'Cible', series: 'line' }],
+    targetsZone: false,
+    colorMap: [{ key: 'Bretagne', color: '#e1000f' }],
+    emptyLabel: 'Sans région',
+  };
+
+  function deposerLecture(reglages: Record<string, unknown>): void {
+    sessionStorage.setItem(
+      'builder-state',
+      JSON.stringify({
+        chartType: 'line',
+        labelField: 'nom_region',
+        valueField: 'nombre_beneficiaires',
+        aggregation: 'sum',
+        fields: CHAMPS,
+        data: [{ nom_region: 'Bretagne', value: 10 }],
+        localData: [{ nom_departement: 'Ain', nom_region: 'Auvergne-Rhône-Alpes' }],
+        savedSource: { id: 'ods-1', name: 'industrie-du-futur', type: 'api', apiUrl: 'https://x' },
+        ...reglages,
+      })
+    );
+  }
+
+  it('réglages de lecture (#1218) : état et contrôles restaurés', async () => {
+    document.body.insertAdjacentHTML('beforeend', CONTROLES_LECTURE);
+    deposerLecture(REGLAGES);
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state).toMatchObject(REGLAGES);
+    // Les clés que le favori ne porte pas gardent leur défaut.
+    expect(state).toMatchObject({ targetsLegend: true, mapSummary: '', unitTooltipBar: '' });
+    const valeur = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+    expect(valeur('chart-unit')).toBe('%');
+    expect(valeur('axis-max')).toBe('40');
+    expect(valeur('empty-label')).toBe('Sans région');
+    expect(valeur('reference-value-0')).toBe('13');
+    expect(valeur('target-x-0')).toBe('2030');
+    expect(valeur('color-map-color-0')).toBe('#e1000f');
+    expect((document.getElementById('targets-zone') as HTMLInputElement).checked).toBe(false);
+    expect((document.getElementById('axes-details') as HTMLDetailsElement).open).toBe(true);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('favori enregistré avant #1218 : aucun réglage de lecture, même après une session qui en portait', async () => {
+    document.body.insertAdjacentHTML('beforeend', CONTROLES_LECTURE);
+    // La session en cours a posé des réglages…
+    Object.assign(state, REGLAGES, { mapSummary: 'sum', mapSummaryValue: '5,6' });
+    // … puis un favori ancien, sans aucune clé du lot, est rouvert.
+    deposerLecture({});
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state).toMatchObject({
+      unitTooltip: '',
+      unitTooltipBar: '',
+      axisMin: '',
+      axisMax: '',
+      xAxisMin: '',
+      xAxisMax: '',
+      referenceLines: [],
+      targets: [],
+      targetsZone: true,
+      targetsLegend: true,
+      colorMap: [],
+      emptyLabel: '',
+      mapSummary: '',
+      mapSummaryValue: '',
+    });
+    expect((document.getElementById('chart-unit') as HTMLInputElement).value).toBe('');
+    expect(document.querySelectorAll('.lecture-row')).toHaveLength(0);
+    expect((document.getElementById('axes-details') as HTMLDetailsElement).open).toBe(false);
+    // Le reste du favori est rouvert à l'identique.
+    expect(state).toMatchObject({ chartType: 'line', labelField: 'nom_region' });
+    expect(generateCodeForLocalData).toHaveBeenCalledTimes(1);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('un réglage de lecture modifié après génération : « Modifications non générées »', async () => {
+    document.body.insertAdjacentHTML('beforeend', CONTROLES_LECTURE);
+    deposerLecture(REGLAGES);
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+    const texte = () => document.getElementById('builder-dirty-status-text')!.textContent;
+    expect(texte()).toBe('Graphique à jour');
+
+    const { updateDirtyStatus } = await import('../../../apps/builder/src/ui/smart-guard');
+    state.referenceLines[0].value = '15';
+    updateDirtyStatus();
+    expect(texte()).toBe('Modifications non générées');
+    state.referenceLines[0].value = '13';
+    updateDirtyStatus();
+    expect(texte()).toBe('Graphique à jour');
+  });
 });

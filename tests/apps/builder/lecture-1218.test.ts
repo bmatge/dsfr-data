@@ -18,8 +18,8 @@
  *
  * Preuves de mutation (faites à la main le 2026-10-05, défaut retiré ensuite) :
  * - retirer `${lectureAttrsHtml()}` de `visualElement` (code-generator.ts) :
- *   les 22 cas « code généré » qui lisent un attribut rougissent ;
- * - retirer `hasLectureAttrs(…)` de `usesLibEmbedded` : les cas « données
+ *   les 29 cas « code généré » qui lisent un attribut rougissent ;
+ * - retirer `hasLectureAttrs(…)` de `usesLibEmbedded` : 8 cas « données
  *   intégrées » rougissent (la balise `<bar-chart>` nue revient, sans réglage) ;
  * - écrire `y-` au lieu de `${axe}-` dans `lectureAttrs` (lecture.ts) : le cas
  *   « barres horizontales » rougit ;
@@ -27,6 +27,8 @@
  *   cas « instantané » rougit ;
  * - retirer `emptyGroupLabel()` de l'agrégation locale : le cas « catégorie
  *   vide » rougit (« N/A » revient).
+ * Réouverture d'un favori par `loadFavoriteState` et statut « modifié » :
+ * `retour-playground-champs.test.ts`, avec leurs trois preuves.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -1066,5 +1068,11 @@ describe('formulaire : contrôles affichés par type, saisie, réouverture', () 
       ],
     });
     expect(colorSuggestions()).toEqual(['Réalisé', 'Objectif', 'Bretagne', 'Normandie']);
+    // Une seule série : la légende la nomme par le titre du graphique.
+    state.extraSeries = [];
+    expect(colorSuggestions()).toEqual(['Mon graphique', 'Bretagne', 'Normandie']);
+    // Camembert : seules les parts se colorent.
+    state.chartType = 'pie';
+    expect(colorSuggestions()).toEqual(['Bretagne', 'Normandie']);
   });
 });

@@ -5,8 +5,10 @@
 > `studio-recette` et `studio-navigation-recette` (19 cas, #1081 : le Studio IA a remplacé
 > l'Assistant comme entrée usager), `studio-parite-recette` (19 cas, #1081 : le remplaçant de la
 > recette de l'ancien Assistant IA, retirée avec son app à l'étape 2). **120 cas**,
-> aucune API tierce. Playwright ramasse en plus par défaut `assistant-carto.spec.ts` (3 cas,
-> recette manuelle de #1016, que la CI ne nomme pas) : **123 cas** au total.
+> aucune API tierce. Playwright ramasse en plus par défaut deux recettes manuelles que la CI ne
+> nomme pas : `assistant-carto.spec.ts` (3 cas, #1016) et `builder-lecture-recette.spec.ts`
+> (11 cas, #1218 : les réglages de lecture du Builder, lus dans l'aperçu). Relevé `--list` du
+> 2026-10-05 : **142 cas** dans 7 fichiers, dont 128 dans les cinq specs de la CI.
 >
 > **Quatre specs historiques du Builder ont été ARCHIVÉES** (#868, 2026-09-19) : elles portent
 > l'extension `.archive.ts`, sortent du `testMatch`, et se relancent avec
@@ -40,7 +42,8 @@ lance rien : le chiffre ne dépend ni du serveur de dev ni de l'état de l'UI). 
 | `studio-navigation-recette.spec.ts` | oui | 3 | **3 vert** (2026-10-03, #1081 étape 2) | Nav → « Studio IA », accueil à une entrée IA, entrée courante dans le Studio. La redirection de `apps/builder-ia/` et `?ancien=1` sont partis avec l'app. |
 | `studio-parite-recette.spec.ts` | oui | 19 | **19 vert** (2026-10-03, #1081, 12 s) | Remplaçant de la recette de l'ancien Assistant IA (retirée à l'étape 2 de #1081) : le parcours d'une réponse du modèle jusqu'à l'aperçu, par l'interface — source choisie et annoncée, demande envoyée, prompt système qui décrit la source, `add_blocks` validé par le Studio, code et aperçu des 16 types, `finish` affiché ; plus le cas « sans IA configurée ». Modèle simulé sur `/ia-proxy`. |
 | `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses cinq specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
-| | | **145** | | Le total que Playwright ramasse. La CI en exécute **142** (les six premiers specs). |
+| `builder-lecture-recette.spec.ts` | oui | 11 | **11 vert** (2026-10-05, #1218, 8 s) | **Recette manuelle, hors CI** : l'aperçu du Builder charge DSFR et DSFR Chart depuis leur CDN. Réglages de lecture du Builder « Créer un graphique » posés PAR L'INTERFACE sur un état déposé comme un favori, puis lus dans l'aperçu : échelles Chart.js, étiquettes, calques des lignes de référence et des cibles, chiffre de synthèse d'une carte. Plus un ancien favori rouvert sans réglage, le volet à 375 px et l'absence de défilement de page en bureau. |
+| | | **142** | | Le total que Playwright ramasse (`--list` du 2026-10-05 ; les comptes par ligne ci-dessus datent de leur relevé). La CI en exécute **128** (les cinq premiers specs). |
 
 ### Archivés — hors `testMatch` depuis #868 (2026-09-19)
 
@@ -165,6 +168,18 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   évidence, le spec n'attend donc plus `#source-scan-status` (sans ce rejeu, le cas « lat/lon
   inversées » échouait 3 fois sur 3 à froid). La page charge `packages/shared/dist` :
   `npm run build:shared` avant de lancer le spec après une modification du socle.
+
+- **`builder-lecture-recette.spec.ts`** (recette manuelle, hors CI) : les réglages de lecture du
+  Builder « Créer un graphique » (#1218) dans un vrai navigateur. Chaque cas dépose un état
+  comme le fait la page Favoris, pose les réglages dans la section « Apparence », clique
+  « Générer » et lit ce que DSFR Chart a dessiné dans l'iframe d'aperçu — échelles Chart.js
+  (bornes), étiquettes (catégorie vide nommée, échéance d'une cible ajoutée à l'axe), calques
+  SVG (lignes de référence, losanges des cibles), attribut `value` de la carte (somme, valeur
+  publiée). Il garde la table « quel réglage pour quel type » de `apps/builder/src/lecture.ts`,
+  mesurée et non déduite : sur des barres horizontales la borne agit sur l'axe X. La forme du
+  code est couverte en CI par `tests/apps/builder/lecture-1218.test.ts`. Preuve de mutation :
+  écrire `y-max` au lieu de `x-max` pour les barres horizontales rougit le cas correspondant.
+  Hors CI parce que l'aperçu charge DSFR et DSFR Chart depuis jsdelivr.
 
 ### Specs archivés (extension `.archive.ts`, hors `testMatch`)
 
