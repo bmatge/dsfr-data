@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { controlesDuMode } from '../tests/verif-donnees/index.js';
-import { repondre } from '../tests/verif-donnees/fixtures.js';
+import { cibleDuRelais, repondre } from '../tests/verif-donnees/fixtures.js';
 import { estReponseBinaire, trancheDemandee } from '../tests/verif-donnees/fixtures-adaptateurs.js';
 import type { Action, Check, Expect } from '../tools/oracle/manifest.js';
 import { computeExpectedFor, cleAttendu, type ExpectedCheck } from '../tools/oracle/expected.js';
@@ -173,6 +173,24 @@ async function installerReseau(page: Page, fuites: string[], app = false): Promi
     } catch {
       fuites.push(brut);
       await route.abort('blockedbyclient');
+      return;
+    }
+    // Le relais cachable du site hôte (ADR-155, #1232) : `relay-url="/donnees-relais"`
+    // garde la requête sur l'origine de la page. Le faux réseau joue le relais —
+    // réécriture inverse, puis les MÊMES fixtures qu'en direct — et en tient le
+    // contrat : GET seul, aucun en-tête d'authentification (`docs/RELAY.md` §3).
+    const cible = cibleDuRelais(brut);
+    if (cible !== null) {
+      const requete = route.request();
+      const entetes = requete.headers();
+      const simple = requete.method() === 'GET' && !entetes['authorization'] && !entetes['apikey'];
+      const charge = simple ? repondre(new URL(cible)) : null;
+      await route.fulfill({
+        status: !simple ? 400 : charge === null ? 404 : 200,
+        contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*', 'cache-control': 'no-store' },
+        body: JSON.stringify(charge ?? { error: simple ? 'upstream-not-found' : 'invalid-url' }),
+      });
       return;
     }
     // Le serveur de dev sert la page, la lib depuis la source et node_modules.

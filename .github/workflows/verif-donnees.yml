@@ -54,6 +54,16 @@ jobs:
       - name: Vérification (mode déterministe)
         run: npm run verif
 
+      # Relais cachable du site hote (ADR-155, #1232). Les controles
+      # `relais-ods-*` ci-dessus jouent le relais par une reecriture inverse
+      # dans `page.route` : le relais REEL n'y est pas exerce. Ce spec fait
+      # parler la bibliotheque, dans le navigateur, au relais Node de reference
+      # (`proxy/relay/node/`) branche sur un faux portail local — relais sur une
+      # autre origine, donc requete « simple » exigee (aucune pre-verification).
+      # Aucune API tierce : l'hote du portail est en `.test`.
+      - name: Relais cachable — la bibliothèque face au relais de référence
+        run: npx playwright test --config e2e/playwright.config.ts e2e/relay-url.spec.ts --project=chromium
+
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v7

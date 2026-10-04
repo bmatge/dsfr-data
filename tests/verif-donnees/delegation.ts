@@ -25,6 +25,7 @@ import {
   EX_AEQUO,
   HOTE_ODS,
   MESURES,
+  RELAIS,
   RESSOURCE_TABULAR,
   RESSOURCE_TABULAR_EX_AEQUO,
   TERRITOIRES,
@@ -33,6 +34,7 @@ import {
 } from './fixtures.js';
 import {
   pairePaginee,
+  RECORDS_ODS,
   sourceOds,
   sourceTabular,
   TAILLE_PAGE,
@@ -1920,6 +1922,111 @@ const REGROUPEMENT_SUR_UNE_PAGE: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 10. Le relais cachable du site hôte : relayé = direct (ADR-155, #1232)
+// ---------------------------------------------------------------------------
+
+/** Fragment d'URL que porte toute requête partie au relais vers le portail du lot. */
+const PAR_LE_RELAIS = `${RELAIS}/${new URL(HOTE_ODS).hostname}/`;
+
+/**
+ * Avec `relay-url`, la source n'appelle plus le portail : elle appelle
+ * `<relais>/<hôte>/<chemin>?<requête>` sur le site hôte, qui va chercher la
+ * donnée. La réécriture ne doit RIEN changer à la requête — ni un paramètre
+ * perdu, ni un ordre modifié, ni un réencodage : le relais transmet chemin et
+ * requête octet pour octet, et c'est donc la bibliothèque qui en répond.
+ *
+ * Deux contrôles existants sont REJOUÉS à travers le relais, et l'oracle exige
+ * les mêmes chiffres qu'en direct (il repart des mêmes lignes brutes) :
+ *
+ *   - `ods-groupe-somme` : regroupement, somme et tri DÉLÉGUÉS — la clause
+ *     vit dans l'URL cible, que le relais doit recevoir intacte ;
+ *   - `ods-records-pagination` : 137 lignes en deux pages (`offset=100`), la
+ *     source relayée à côté de sa jumelle en direct, sur la même page.
+ *
+ * Le faux réseau joue le relais par la réécriture inverse (`cibleDuRelais`),
+ * écrite à la main : un paramètre perdu par la bibliothèque change la réponse.
+ * Le relais RÉEL (`proxy/relay/node/`) est éprouvé à part, hors navigateur
+ * (`tests/relay/library-through-relay.test.ts`) et sous Playwright
+ * (`e2e/relay-url.spec.ts`).
+ *
+ * Preuve de mutation — le paramètre `offset` retiré à la réécriture
+ * (`resolveDataTransport`, `packages/shared/src/api/relay.ts`) :
+ * `relais-ods-pagination` tombe — « affiché 200, recalculé 137 — écart 63 » et
+ * « affiché 190 100 000, recalculé 127 684 000 » : la première page est servie
+ * deux fois. La jumelle en direct reste juste, à 137 et 127 684 000.
+ */
+const RELAIS_CACHABLE: Check[] = [
+  {
+    id: 'relais-ods-groupe-somme',
+    mode: 'deterministic',
+    constats: ['AM-114'],
+    origin:
+      'AM-114, ADR-155, #1232 — le controle `ods-groupe-somme` rejoue A TRAVERS LE RELAIS (`relay-url`) : regroupement, somme et tri delegues au portail, la requete partant sur le site hote sous la forme <relais>/<hote>/<chemin>?<requete>. Memes chiffres qu’en direct, la clause `group_by` toujours dans l’URL, et pas une requete de donnees hors du relais.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s', { relais: true })}
+  <dsfr-data-query id="q" source="s" ${FORMES_ODS[0].forme.query}></dsfr-data-query>
+  <dsfr-data-list id="l" source="q" columns="${FORMES_ODS[0].forme.colonnes}"></dsfr-data-list>`,
+    expects: [
+      ...FORMES_ODS[0].forme.expects,
+      urlsDe('group-by-delegue', 'ods', 'group_by=', 'last'),
+      {
+        kind: 'urls',
+        id: 'par-le-relais',
+        among: RECORDS_ODS,
+        contains: PAR_LE_RELAIS,
+        verdict: 'all',
+      },
+    ],
+  },
+  {
+    id: 'relais-ods-pagination',
+    mode: 'deterministic',
+    constats: ['AM-114'],
+    origin:
+      'AM-114, ADR-155, #1232 — le controle `ods-records-pagination` rejoue A TRAVERS LE RELAIS, a cote de sa jumelle en direct : 137 lignes en deux pages de 100 (`offset` cumule). Chaque page est reconstruite puis reecrite ; un parametre perdu a la reecriture (l’`offset`) ferait servir deux fois la premiere page — 200 lignes au lieu de 137, population fausse. Relaye = direct, au chiffre pres.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-rel', { relais: true, maxRecords: 500 })}
+  ${sourceOds('s-dir', { maxRecords: 500 })}
+  <dsfr-data-kpi id="k-rel-n" source="s-rel" value="count" format="nombre" label="Lignes (relais)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-rel-pop" source="s-rel" value="population:sum" format="nombre" label="Population (relais)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-rel-aca" source="s-rel" value="academie:distinct" format="nombre" label="Académies (relais)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-dir-n" source="s-dir" value="count" format="nombre" label="Lignes (direct)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-dir-pop" source="s-dir" value="population:sum" format="nombre" label="Population (direct)"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-rel-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-rel-pop', agg: 'sum', field: 'population' },
+      { kind: 'kpi', id: 'k-rel-aca', agg: 'distinct', field: 'academie' },
+      { kind: 'kpi', id: 'k-dir-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-dir-pop', agg: 'sum', field: 'population' },
+      // La source relayee a bien pagine A TRAVERS le relais, et sa jumelle en direct
+      {
+        kind: 'urls',
+        id: 'page-2-relayee',
+        among: PAR_LE_RELAIS,
+        contains: 'offset=100',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'jumelle-en-direct',
+        among: RECORDS_ODS,
+        contains: PAR_LE_RELAIS,
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'direct-inchange',
+        among: `${HOTE_ODS}/`,
+        contains: RELAIS,
+        verdict: 'none',
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -1937,5 +2044,6 @@ export const DELEGATION: Manifest = {
     ...TABULAR_OU,
     ...PART_PAR_GROUPE,
     ...REGROUPEMENT_SUR_UNE_PAGE,
+    ...RELAIS_CACHABLE,
   ],
 };
