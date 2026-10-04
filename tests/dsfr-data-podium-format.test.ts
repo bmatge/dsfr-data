@@ -60,8 +60,21 @@ describe('dsfr-data-podium — format de la valeur et du sous-titre (#1230, AM-0
     it('decimals="2" distingue 9,98 de 10,41', () => {
       podium.decimals = 2;
       podium.valueUnit = '%';
-      expect(internals._formatValue(10.41)).toBe('10,41 %');
-      expect(internals._formatValue(9.98)).toBe('9,98 %');
+      expect(lisible(internals._formatValue(10.41))).toBe('10,41 %');
+      expect(lisible(internals._formatValue(9.98))).toBe('9,98 %');
+    });
+
+    it('value-unit suit une espace INSÉCABLE, comme subtitle-unit et le KPI (#1244)', () => {
+      const INSECABLE = String.fromCharCode(0xa0);
+      podium.valueUnit = 'hab.';
+      expect(internals._formatValue(812)).toBe(`812${INSECABLE}hab.`);
+      // Même séparateur que le sous-titre du même podium.
+      podium.subtitleField = 'nb';
+      podium.subtitleUnit = 'hab.';
+      expect(internals._processItems()[0].subtitle).toBe(`5164${INSECABLE}hab.`);
+      // Une unité faite d'espaces n'est pas une unité : rien n'est ajouté.
+      podium.valueUnit = '   ';
+      expect(internals._formatValue(812)).toBe('812');
     });
 
     it('decimals="0" est un choix écrit, pas l’absence de l’attribut', () => {

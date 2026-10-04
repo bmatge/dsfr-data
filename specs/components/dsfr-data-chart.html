@@ -43,7 +43,7 @@
               <!-- ATTRS:dsfr-data-chart fields="source,type,label-field,value-field,empty-label,heading-level,selected-palette,unit-tooltip,horizontal,stacked,fill,code-field,map-highlight,gauge-value,value-field-2,value-fields,series-field,name,unit-tooltip-bar,highlight-index,x-min,x-max,y-min,y-max,reference-lines,targets,targets-zone,targets-legend,idle-message" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la <code>&lt;dsfr-data-source&gt;</code> (ou d'un transformateur) dont ce graphique consomme les données.</td></tr>
                 <tr><td><code>type</code></td><td>DSFRChartType</td><td>Type de graphique DSFR</td></tr>
-                <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label</td></tr>
+                <tr><td><code>label-field</code></td><td>String</td><td>Chemin vers le champ label. Alias inline <code>champ:Libellé</code> (#1244), la grammaire de <code>value-field</code> (#668) et de <code>dsfr-data-a11y</code> (#1230) : <code>label-field="dep_nom:Département"</code> lit la colonne <code>dep_nom</code>, et « Département » devient l'en-tête de la colonne de libellé du tableau de la DataBox (<code>databox</code>). Le libellé ne sert nulle part ailleurs : DSFR Chart n'a pas de titre d'axe, et les graduations portent les VALEURS de la colonne. Sans deux-points, rien ne change. Un <code>:</code> littéral dans un chemin ou un libellé s'échappe en <code>%3A</code> (escapeColonValue) ; une colonne qui existe telle quelle dans les données, deux-points compris, est lue telle quelle.</td></tr>
                 <tr><td><code>value-field</code></td><td>String</td><td>Chemin vers le champ valeur. Alias inline <code>champ:Libellé</code> (#668) : <code>value-field="Panier_moyen:Panier moyen"</code> affiche « Panier moyen » dans la légende à la place du nom technique. Un <code>name</code> explicite prime sur l'alias. Un <code>:</code> littéral dans un chemin ou un libellé s'échappe en <code>%3A</code> (escapeColonValue).</td></tr>
                 <tr><td><code>empty-label</code></td><td>String</td><td>Libellé affiché pour une catégorie vide (<code>null</code>, <code>undefined</code> ou <code>""</code> dans <code>label-field</code>) : légende du pie, axe X des cartésiens (#647). Sans lui, DSFR Chart substituerait « Série N » à un nom vide. Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont : <code>where="champ:isnotnull"</code> (query) ou <code>where="champ is not null"</code> (source ODS).</td></tr>
                 <tr><td><code>heading-level</code></td><td>Number</td><td>Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6, borné (défaut 3, rendu historique de DSFR Chart). <code>heading-level="2"</code> rend un h2.</td></tr>
@@ -97,7 +97,7 @@
           <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
           <tbody>
               <!-- ATTRS:dsfr-data-chart fields="color-map" -->
-                <tr><td><code>color-map</code></td><td>String</td><td>Couleur fixée par modalité (#732) : paires <code>modalité:#couleur</code> séparées par des virgules, même grammaire que <code>dsfr-data-map-layer</code>. Ex : <code>"Réalisé:#000091,Objectif:#E1000F"</code>. La modalité est un nom de série (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe (une couleur par part de camembert). Les modalités non citées gardent la couleur de la palette. Une virgule ou un deux-points dans une modalité s'écrit <code>%2C</code> ou <code>%3A</code>. Sans effet sur les cartes (<code>map*</code>).</td></tr>
+                <tr><td><code>color-map</code></td><td>String</td><td>Couleur fixée par modalité (#732) : paires <code>modalité:#couleur</code> séparées par des virgules, même grammaire que <code>dsfr-data-map-layer</code>. Ex : <code>"Réalisé:#000091,Objectif:#E1000F"</code>. La modalité est un nom de série (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe (une couleur par part de camembert, par barre, ou par point d'une courbe, d'un radar ou d'un nuage — le trait garde la couleur de sa série, #1244). Les modalités non citées gardent la couleur de la palette. Une virgule ou un deux-points dans une modalité s'écrit <code>%2C</code> ou <code>%3A</code>. Sans effet sur les cartes (<code>map*</code>).</td></tr>
               <!-- /ATTRS -->
             </tbody>
         </table>
@@ -258,7 +258,11 @@
         pivote comme le graphique : une ligne par libellé, une colonne par série, une cellule vide là où
         une série n'a pas d'observation. Le tableau montre 100 lignes au plus, comme celui de
         <code>dsfr-data-a11y</code>, et l'annonce sous le tableau : « Affichage limité aux 100 premières
-        lignes sur N. »
+        lignes sur N. » Les nombres y sont écrits en français, comme dans le tableau de
+        <code>dsfr-data-a11y</code> (« 2,27 », « 1 234,5 », au plus deux décimales) ; les valeurs
+        tracées, elles, ne changent pas. La colonne de libellé porte ce que l'axe affiche
+        (<code>empty-label</code> compris), sous l'alias de <code>label-field</code> quand il est écrit :
+        <code>label-field="dep_nom:Département"</code>.
       </p>
 
       <h2 class="fr-mt-4w">Types de graphiques</h2>

@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-04) : **291 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 619 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+État du dépôt (mesuré le 2026-10-04) : **311 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 685 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 465 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 508 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -365,7 +365,7 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireListe` | les lignes du tableau rendu par `dsfr-data-list` |
 | `lireFacettes` | les valeurs et compteurs affichés par `dsfr-data-facets`, dans leur ordre de rendu |
 | `lireTexte` | un texte affiché (`dsfr-data-context-value`, tag de `dsfr-data-context-tags`, compteur de `dsfr-data-search`, ligne de statut d'une app), avec le nombre qu'on y lit — ou le N-ième (`number`) quand il en porte plusieurs |
-| `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`) |
+| `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`). Les espaces sont repliées en espaces ordinaires ; avec `keepNbsp` sur l'attente `texts`, les INSÉCABLES (U+00A0, U+202F) sont gardées, pour qu'un motif puisse exiger le codet (#1244) |
 | `lireCompte` | le NOMBRE d'éléments tracés sous un sélecteur — formes d'une couche de carte (voir « Les éléments tracés ») |
 | `lireRayons` | le RAYON tracé, en pixels, de chaque cercle d'une couche `circle` — lu dans les arcs du chemin SVG, dans l'ordre des lignes (attente `texts` avec `measure: 'radius'`, voir « Les éléments tracés ») |
 | `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
@@ -903,6 +903,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | delegation | `quoteInValue` rend la valeur nue | `tabular-in-a-parenthese-server-side` | pagination serveur : total annoncé 113 au lieu de 226, somme des identifiants de la page 3 160 au lieu de 1 580 (les 40 premières lignes d'une seule catégorie), `notin` 338 au lieu de 226 (#1233, PG-034) |
 | delegation | `_refusePagedAggregate` neutralisé (`dsfr-data-query.ts`, état d'avant #1242) | `part-par-groupe-ods-server-side`, `agregat-client-tabular-server-side-refuse`, `agregat-client-url-paginate-averti` | « aucun marqueur data-dsfr-config-error sur l'élément — la bibliothèque n'a rien dit » (deux fois : part ODS, agrégat global Tabular) ; « aucun message console de la bibliothèque » pour le mode URL `paginate` — la query agrège une page de 40 lignes sur 137 sans un mot |
 | delegation | le refus de #1242 étendu au chargement complet (`meta?.serverSide` et `fetching?.serverSide` forcés à vrai) | `part-par-groupe-regroupement-sur-la-source`, `part-par-groupe-ods-reste-client` | « #q-part-src (rows) n'a rien affiché » : la correction que nomme le message d'erreur — regroupement porté par une source sans `server-side`, part en aval — serait refusée elle aussi |
+| delegation | garde `_orderByReadsWindowColumn()` retirée de `_delegateOrderBy` (`dsfr-data-query.ts`) | `tri-sur-part-jamais-delegue-ods`, `-tabular`, `-grist`, `tri-sur-cumul-et-ecart-jamais-delegue` (`tri-sur-part-apres-regroupement` et `tri-sur-colonne-de-compute-reste-client` restent verts) | « 2/2 URL portent « order_by » », « 1/1 URL portent « sort= » », et sur Tabular « #l-tri-part (list) n'a rien affiché » : le faux serveur refuse la colonne inconnue, comme l'API — #1244 |
+| delegation | le tri d'après fenêtre retiré de `_processClientSide` (bloc « 3 ter », `dsfr-data-query.ts`) | les cinq `tri-sur-part-*` et `tri-sur-cumul-*` (`tri-sur-colonne-de-compute-reste-client` reste vert) | « ligne 0 / region : affiché « Val-d'Oise », recalculé « Territoire 137 » » : sous un tri croissant, les cinq lignes rendues sont les cinq premières reçues, les plus grandes parts ; après regroupement, « FR » au lieu de « NL » — #1244 |
+| delegation | `transformsSchema()` ne tient plus compte de `compute` (`dsfr-data-normalize.ts`) | `tri-sur-colonne-de-compute-reste-client` | « 2/2 URL portent « order_by » » (`order_by=double` part à un portail qui n'a pas cette colonne) et la liste reste dans l'ordre reçu — #1244 |
 | canari | la sonde de `_fetchAllPaged` neutralisée (état d'avant #1202) | `canari-tabular-tri-pagine`, et `delegation/tabular-tri-pagine-sans-perte` | somme des identifiants 104 475 au lieu de 101 475 (brut et groupé), 87 625 au lieu de 84 025 (tronqué) : le compte est juste, l'ensemble des lignes ne l'est pas |
 | canari | `quoteInValue` rend la valeur nue | `canari-tabular-in-parenthese` | 112 au lieu de 224, sur la source comme sur la query — les deux délèguent la clause depuis #1233 |
 | banc-adaptateurs | la sonde de `_fetchAllPaged` neutralisée, contre la VRAIE API (2026-10-03) | `tabular-ssmsi-pertes-silencieuses-vivant` (vivant) | 1 818 groupes comptés, et pourtant somme 3 605 665 au lieu de 3 616 155 ; tronqué : 5 617 079 au lieu de 5 575 928 ; 0/23 URL portent `Code_region__sort=asc,"__id".asc` — ce contrôle garde la forme de tri composée, que l'API ne documente pas |
@@ -935,6 +938,12 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_checkColumnsExist` n'avertit plus (`dsfr-data-a11y.ts`) | `a11y-colonne-introuvable-dite` | « elle n'a rien dit » : la colonne vide redevient muette — PG-032, #1230 |
 | affichages | `_formatValue` ignore `decimals` (`dsfr-data-podium.ts`) | `podium-decimales-et-sous-titre` | affiché « 16 437 », recalculé 16 436,75 — AM-088, #1230 |
 | affichages | `subtitle-field` rendu brut, sans `_formatSubtitle` (`dsfr-data-podium.ts`) | `podium-decimales-et-sous-titre` | « 641915 » ne vérifie pas la forme « 641 915 hab. » — AM-088, #1230 |
+| affichages | `_labelOf` relit `this.labelField` entier, alias compris (`dsfr-data-chart.ts`) | `graphique-label-field-alias` | les 48 libellés passés à DSFR Chart valent « Non renseigné » : `label-field="nom:Commune"` cherche une colonne « nom:Commune » — #1244 |
+| affichages | `_databoxColumns` met l'attribut entier en en-tête de la colonne de libellé (`dsfr-data-chart.ts`) | `graphique-label-field-alias` | en-tête « nom:Commune » au lieu de « Commune » — #1244 |
+| affichages | les cellules du tableau de la DataBox rendues par `String(val)` au lieu de `formatTableCell` (`dsfr-data-chart.ts`) | `databox-tableau-nombres-fr` | « 1749.25 » ne vérifie pas la forme fr-FR à deux décimales ; les valeurs passées à DSFR Chart restent justes — #1244 |
+| affichages | `_tableModel` relit `row[spec.key]` au lieu de `readColumn` (`dsfr-data-a11y.ts`) | `a11y-chemin-pointe-comme-le-graphique` | les deux colonnes du tableau sont vides (`fields.nom`, `fields.budget` cherchés à plat) ; le graphique et le CSV restent justes — #1244 |
+| affichages | `_buildCsv` relit `row[spec.key]` (`dsfr-data-a11y.ts`) | `a11y-chemin-pointe-comme-le-graphique` | le fichier exporté a ses 48 lignes et aucune valeur ; le tableau affiché reste juste — #1244 |
+| affichages | `value-unit` de nouveau après une espace ordinaire (`_formatValue`, `dsfr-data-podium.ts`) | `podium-unite-insecable` | la valeur ne vérifie plus le motif qui exige U+00A0 avant « hab. » ; le sous-titre, lui, reste vert — #1244. Le contrôle lit en `keepNbsp` : sans cette option le filet ramène toute espace à l'espace ordinaire et ne peut pas voir ce défaut |
 | affichages | `attrs['x-min']` (ou `horizontal`) n'est plus relayé | `graphique-bornes-des-axes`, `graphique-barres-horizontales-empilees` | l'attribut manque sur l'élément rendu |
 | affichages | `_computeMapSummary` ignore `map-summary-weight` (`dsfr-data-chart.ts`) | `carte-resume-pondere-763` (le non pondéré reste vert) | résumé 41,02 au lieu de 43,07 — exactement #763 |
 | affichages | `classifyValues` discrétise toujours en intervalles égaux (`shared/constants/choropleth-scales.ts`) | `carte-classes-quantiles`, `carte-agregat-par-territoire` | première borne 27,5 au lieu de 26,5 |

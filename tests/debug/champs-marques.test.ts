@@ -132,7 +132,7 @@ describe('attributs-champs marqués @champ (#1141)', () => {
   });
 
   it('les attributs-champs connus sont marqués (échantillon de l’issue)', () => {
-    expect(FIELD_ATTRS['dsfr-data-chart']['label-field']).toBe('nom');
+    expect(FIELD_ATTRS['dsfr-data-chart']['label-field']).toBe('liste-alias');
     expect(FIELD_ATTRS['dsfr-data-chart']['value-field']).toBe('liste-alias');
     expect(FIELD_ATTRS['dsfr-data-query']['group-by']).toBe('liste');
     expect(FIELD_ATTRS['dsfr-data-list']['sort']).toBe('liste-alias');

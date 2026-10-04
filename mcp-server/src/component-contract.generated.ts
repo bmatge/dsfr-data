@@ -106,7 +106,7 @@ export const COMPONENT_CONTRACT = {
     "fields": {
       "code-field": "nom",
       "databox-date-field": "nom",
-      "label-field": "nom",
+      "label-field": "liste-alias",
       "map-summary-field": "nom",
       "series-field": "nom",
       "value-field": "liste-alias",

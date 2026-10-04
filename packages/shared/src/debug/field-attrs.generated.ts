@@ -16,7 +16,7 @@ export const CHAMPS_DES_COMPOSANTS = {
   "dsfr-data-chart": {
     "code-field": "nom",
     "databox-date-field": "nom",
-    "label-field": "nom",
+    "label-field": "liste-alias",
     "map-summary-field": "nom",
     "series-field": "nom",
     "value-field": "liste-alias",

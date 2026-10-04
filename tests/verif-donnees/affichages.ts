@@ -40,6 +40,7 @@ import {
   RESSOURCE_TABULAR_AFFICHAGES,
   SERIE,
   SYMBOLES,
+  URL_COMMUNES_IMBRIQUEES,
   ZONES,
   urlAffichage,
 } from './fixtures-affichages.js';
@@ -55,6 +56,13 @@ const TETE_CHART = `
 // normalisé rend les deux en espace ordinaire. Les trois sont donc acceptées :
 // ce qui est gardé, c'est la présence du séparateur, pas son codet.
 const ESP = '[\\s\\u202f\\u00a0]';
+/**
+ * L'espace INSÉCABLE qui tient une unité à son nombre, et l'entier dont les
+ * milliers sont séparés par une insécable (fine ou non) — pour les contrôles
+ * `keepNbsp`, qui lisent le texte sans ramener ces codets à l'espace (#1244).
+ */
+const INSECABLE = '\\u00a0';
+const MILLIERS_INSECABLES = '\\d{1,3}(?:[\\u202f\\u00a0]\\d{3})*';
 /** Entier avec séparateurs de milliers : « 15 909 531 ». */
 const MILLIERS = `^-?\\d{1,3}(?:${ESP}\\d{3})*$`;
 /** Décimal à N décimales, séparateurs de milliers compris : « 331 448,56 ». */
@@ -1123,6 +1131,80 @@ const CHECKS: Check[] = [
     ],
   },
 
+  {
+    id: 'graphique-label-field-alias',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1244, suite de PG-032 du banc — `dsfr-data-a11y` accepte `champ:Libellé` depuis #1239, et le graphique ne l’acceptait pas sur `label-field` : recopié du tableau équivalent, `label-field="nom:Commune"` cherchait une colonne « nom:Commune » et les 48 libellés de l’axe devenaient « Non renseigné », les valeurs restant justes. Le contrôle relit donc les LIBELLÉS passés à DSFR Chart, la première colonne du tableau de la DataBox, et son en-tête : le libellé de l’alias, seul endroit où il sert.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-alias-libelle', 'communes')}
+  <dsfr-data-chart id="g-alias-libelle" source="s-alias-libelle" type="bar"
+    label-field="nom:Commune" value-field="population:Population"
+    databox databox-title="Population par commune"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'chart',
+        id: 'g-alias-libelle',
+        labelColumn: 'nom',
+        valueColumns: ['population'],
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'g-alias-libelle',
+        selector: '.fr-table tbody td:nth-child(1)',
+        column: 'nom',
+        pipeline: [],
+      },
+      // L'en-tête n'est pas un résultat de calcul : c'est le libellé écrit
+      // dans l'attribut, que le contrôle énonce.
+      {
+        kind: 'text',
+        id: 'g-alias-libelle',
+        selector: '.fr-table thead th:nth-child(1)',
+        prefix: 'Commune',
+      },
+      { kind: 'diagnostic', id: 'g-alias-libelle', expect: 'silence' },
+    ],
+  },
+
+  {
+    id: 'databox-tableau-nombres-fr',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244, suite de BUG-035 du banc — le tableau de la DataBox écrivait ses nombres bruts (« 331448.25 ») quand celui de `dsfr-data-a11y` les rend en fr-FR (« 331 448,25 ») : deux tableaux équivalents du même graphique, deux écritures. Le motif exige la virgule et le séparateur de milliers ; les valeurs passées à DSFR Chart, elles, restent celles des lignes — c’est le TEXTE du tableau qui change, pas la donnée tracée.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-box-nombres', 'communes')}
+  <dsfr-data-chart id="g-box-nombres" source="s-box-nombres" type="bar"
+    label-field="nom" value-field="budget:Budget"
+    databox databox-title="Budget par commune"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-box-nombres',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pattern: decimales(2),
+        pipeline: [],
+      },
+      {
+        kind: 'chart',
+        id: 'g-box-nombres',
+        labelColumn: 'nom',
+        valueColumns: ['budget'],
+        pipeline: [],
+      },
+    ],
+  },
+
   // ------------------------------------------ Tableau équivalent (a11y) ----
   {
     id: 'a11y-tableau-libelles-en-tete',
@@ -1201,6 +1283,58 @@ const CHECKS: Check[] = [
         expect: 'warning',
         contains: 'colonne « effectif » introuvable',
       },
+    ],
+  },
+
+  {
+    id: 'a11y-chemin-pointe-comme-le-graphique',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1244, suite de PG-032 du banc — le graphique lit ses colonnes par chemin pointé (`fields.budget`), `dsfr-data-a11y` les lisait par clé à plat : les mêmes attributs recopiés rendaient un tableau de 48 lignes sans AUCUNE valeur, avec un avertissement en console. Les 48 communes sont servies imbriquées sous `fields` ; le graphique et son tableau équivalent portent les mêmes chemins, et doivent montrer les mêmes libellés et les mêmes budgets — fichier CSV compris, sans un mot.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  <dsfr-data-source id="s-imbrique" url="${URL_COMMUNES_IMBRIQUEES}"></dsfr-data-source>
+  <dsfr-data-chart id="g-imbrique" source="s-imbrique" type="bar"
+    label-field="fields.nom" value-field="fields.budget"></dsfr-data-chart>
+  <dsfr-data-a11y id="a-imbrique" for="g-imbrique" source="s-imbrique" table download
+    label-field="fields.nom:Commune" value-field="fields.budget:Budget"></dsfr-data-a11y>`,
+    expects: [
+      {
+        kind: 'chart',
+        id: 'g-imbrique',
+        labelColumn: 'nom',
+        valueColumns: ['budget'],
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-imbrique',
+        selector: 'tbody td:nth-child(1)',
+        column: 'nom',
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-imbrique',
+        selector: 'tbody td:nth-child(2)',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pattern: decimales(2),
+        pipeline: [],
+      },
+      {
+        kind: 'csv',
+        id: 'a-imbrique',
+        pipeline: [],
+        columns: [
+          { column: 'nom', label: 'Commune' },
+          { column: 'budget', label: 'Budget' },
+        ],
+      },
+      { kind: 'diagnostic', id: 'a-imbrique', expect: 'silence', contains: 'introuvable' },
     ],
   },
 
@@ -2146,6 +2280,47 @@ const CHECKS: Check[] = [
         column: 'population',
         numeric: true,
         pattern: `^\\d{1,3}(?:${ESP}\\d{3})*$`,
+        pipeline: [
+          { op: 'order-by', column: 'population', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'podium-unite-insecable',
+    mode: 'deterministic',
+    origin:
+      '#1244 — le podium écrivait `value-unit` après une espace ORDINAIRE et `subtitle-unit` après une insécable : sur une colonne étroite, « 987 601 » restait en fin de ligne et « hab. » passait à la suivante, alors que le sous-titre du même élément tenait. Les deux unités suivent désormais une insécable (U+00A0), comme celle du KPI. À l’œil les deux espaces se confondent : le contrôle lit le texte SANS normaliser les insécables, et le motif exige le codet.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-podium-unite', 'communes')}
+  <dsfr-data-podium id="p-unite" source="s-podium-unite"
+    label-field="nom" value-field="population" value-unit="hab." max-items="5"
+    subtitle-field="eleves" subtitle-format="nombre" subtitle-unit="élèves"></dsfr-data-podium>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'p-unite',
+        selector: '.dsfr-data-podium__value',
+        column: 'population',
+        numeric: true,
+        keepNbsp: true,
+        pattern: `^${MILLIERS_INSECABLES}${INSECABLE}hab\\.$`,
+        pipeline: [
+          { op: 'order-by', column: 'population', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      {
+        kind: 'texts',
+        id: 'p-unite',
+        selector: '.dsfr-data-podium__subtitle',
+        column: 'eleves',
+        numeric: true,
+        keepNbsp: true,
+        pattern: `^${MILLIERS_INSECABLES}${INSECABLE}élèves$`,
         pipeline: [
           { op: 'order-by', column: 'population', dir: 'desc' },
           { op: 'limit', n: 5 },

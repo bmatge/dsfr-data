@@ -526,6 +526,10 @@ division. \`share\` la donne en un attribut :
   déplacent le total — 33,4 % sans filtre, 16,3 % en Bretagne, et les deux sont justes ; le
   dire en page) ; et avec \`limit\`, **les parts ne somment pas à 100 %**, un top 10 montrant
   la part de chaque ligne dans le tout et non dans le top 10.
+- **Trier sur la part** : \`order-by="part:desc"\` (ou \`lics__sum__share_percent:desc\` sans
+  alias) trie les lignes de sortie sur la colonne calculée, avant \`limit\`. Ce tri-là reste
+  toujours côté client : aucun serveur ne connaît la colonne. Même règle pour un cumul ou un
+  écart (\`montant__running_sum\`, \`cumul__diff\`).
 - **Une part suppose une partition** : chaque unité comptée une fois. Après \`explode\`, une
   ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
   des licences portant ce label », pas « répartition ».
@@ -1645,7 +1649,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
 | type | String | \`"bar"\` | oui | Type de graphique (voir tableau ci-dessus) |
-| label-field | String | \`""\` | selon type | Chemin vers les labels dans les données |
+| label-field | String | \`""\` | selon type | Chemin vers les labels dans les données. Alias inline \`champ:Libellé\` accepté, comme sur dsfr-data-a11y : \`label-field="dep_nom:Département"\` lit \`dep_nom\` ; le libellé devient l'en-tête de la colonne de libellé du tableau de la DataBox (il ne sert nulle part ailleurs : pas de titre d'axe) |
 | value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs. Alias inline \`champ:Libellé\` pour la légende : \`value-field="Panier_moyen:Panier moyen"\` (un \`:\` littéral s'échappe en \`%3A\`) |
 | value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line). Alias inline \`champ:Libellé\` accepté |
 | value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |
@@ -1654,7 +1658,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | idle-message | String | \`"Choisissez un filtre pour afficher les données"\` | non | Message rendu quand l'amont attend un filtre (\`require-where\`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Existe aussi sur list, kpi, display, podium, a11y et map (sur la carte, le message se pose sur le fond et la couche se vide). |
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
-| color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
+| color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert, barre, ou point d'une courbe, d'un radar, d'un nuage : le trait garde la couleur de sa serie). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
 | unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
 | unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
 | horizontal | Boolean | \`false\` | non | Barres horizontales (type bar uniquement) |
@@ -1777,7 +1781,9 @@ Sur une somme l'ecart d'un arrondi amont reste marginal ; sur \`weighted\` il ne
 
 L'attribut \`databox\` active l'habillage DataBox DSFR autour du graphique :
 cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
-téléchargement CSV, plein écran, tendance.
+téléchargement CSV, plein écran, tendance. Le tableau intégré rend ses nombres en fr-FR
+(« 2,27 », au plus 2 décimales), comme celui de dsfr-data-a11y ; sa colonne de libellé porte
+ce que l'axe affiche (\`empty-label\` compris) et son en-tête l'alias de \`label-field\`.
 
 | Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|
@@ -3210,6 +3216,9 @@ et du CSV. On recopie donc les champs du graphique tels quels (\`value-field\` e
 Sans deux-points, l'en-tête reste le nom de la colonne. Une colonne nommée qui
 n'existe pas dans les données est signalée en console (« colonne … introuvable ») :
 sa colonne du tableau serait vide.
+Les colonnes se lisent par chemin pointé, comme sur le graphique : sur des lignes
+imbriquées, \`value-field="fields.total"\` se recopie tel quel (et \`fields.total:Total\`
+lui donne un en-tête).
 
 ### Mode manuel (sans ARIA automatique)
 \`\`\`html
@@ -4760,7 +4769,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 | value-field | String | \`""\` | oui | Chemin vers le champ valeur numérique |
 | subtitle | String | \`""\` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | \`""\` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
-| value-unit | String | \`""\` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| value-unit | String | \`""\` | non | Unité affichée après la valeur, séparée par une espace insécable comme subtitle-unit (ex: "hab.", "€", "%") |
 | format | String | \`""\` | non | Format de la valeur, vocabulaire du KPI : nombre, pourcentage, euro, decimal, compact. Absent : entier arrondi à l'unité (rendu historique) |
 | decimals | Number | - | non | Décimales de la valeur (0 à 20). Seul, vaut format="nombre" : \`decimals="2"\` distingue 9,98 de 10,41 |
 | subtitle-format | String | \`""\` | non | Format du sous-titre lu dans subtitle-field : nombre, pourcentage, euro, decimal, compact, date. Absent : valeur brute |

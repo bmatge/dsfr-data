@@ -64,7 +64,8 @@ describe('dsfr-data-chart — en-têtes du tableau de la DataBox (#1179)', () =>
     const html = internals._databoxTableHtml();
     expect(headers(html)).toEqual(['nom_region', 'Bénéficiaires', 'Montant']);
     // Les cellules lisent toujours le chemin
-    expect(html).toContain('<td>78</td><td>1200</td>');
+    // Nombres en fr-FR depuis #1244 : séparateur de milliers (U+202F).
+    expect(html).toContain('<td>78</td><td>1\u202f200</td>');
   });
 
   it('camembert : name nomme les parts, pas la colonne — le chemin reste', () => {
@@ -91,7 +92,7 @@ describe('dsfr-data-chart — en-têtes du tableau de la DataBox (#1179)', () =>
     chart.valueField2 = 'montant__sum:Montant';
     const html = internals._databoxTableHtml();
     expect(headers(html)).toEqual(['nom_region', 'Bénéficiaires', 'Montant']);
-    expect(html).toContain('<td>Bretagne</td><td>78</td><td>1200</td>');
+    expect(html).toContain('<td>Bretagne</td><td>78</td><td>1\u202f200</td>');
   });
 
   it('sans aucune colonne : chaîne vide, rien à injecter', () => {

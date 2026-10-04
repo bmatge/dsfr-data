@@ -18,7 +18,15 @@ import { clearDataCache, dispatchDataLoaded } from '@/utils/data-bridge.js';
  * La propriete demontree : sans aucun des attributs neufs, le rendu est
  * identique a l'ancien, a l'exception unique des arrondis (`square` devenu
  * le defaut).
+ *
+ * Seconde exception, declaree (#1244) : l'espace entre la valeur et
+ * `value-unit` est devenue INSECABLE, comme celle de `subtitle-unit` et du
+ * KPI. Le temoin de la 0.33 porte l'espace ordinaire ; la comparaison ramene
+ * donc l'insecable a l'espace, et un test a part exige l'insecable.
  */
+
+/** Espace insecable (U+00A0), ecrite sans echappement ni caractere invisible. */
+const INSECABLE = String.fromCharCode(0xa0);
 
 const FIXTURES = process.cwd() + '/tests/fixtures/';
 
@@ -100,7 +108,22 @@ describe('dsfr-data-podium — retrocompatibilite (0.33 -> 0.34)', () => {
     const apres = normalize(podium.querySelector('ol')!.outerHTML);
     podium.remove();
 
-    expect(apres).toBe(avantDom);
+    // #1244 : seule difference admise, l'espace avant l'unite (voir en-tete).
+    expect(apres.split(`${INSECABLE}hab.`).join(' hab.')).toBe(avantDom);
+  });
+
+  it('separe la valeur de son unite par une espace insecable (#1244)', async () => {
+    const podium = await renderDefaultPodium();
+    const valeurs = [...podium.querySelectorAll('.dsfr-data-podium__value')].map(
+      (el) => el.textContent ?? ''
+    );
+    const libelle = podium.querySelector('ol')!.getAttribute('aria-label') ?? '';
+    podium.remove();
+
+    expect(valeurs).toHaveLength(3);
+    for (const valeur of valeurs) expect(valeur.trim().endsWith(`${INSECABLE}hab.`)).toBe(true);
+    expect(libelle).toContain(`${INSECABLE}hab.`);
+    expect(libelle).not.toContain(' hab.');
   });
 
   it('ne pose aucune classe supplementaire sur la liste par defaut', async () => {
