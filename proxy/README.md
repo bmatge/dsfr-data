@@ -153,11 +153,26 @@ proxy/
   nginx/
     nginx.conf           <- Configuration Nginx autonome (proxy uniquement)
     docker-compose.yml   <- Deploiement Docker
+  relay/
+    node/                <- Relais cachable de reference (voir ci-dessous)
 ```
 
 Le fichier `nginx.conf` a la racine du projet est la configuration complete
 utilisee pour le deploiement du site (frontend + proxy). Les fichiers dans ce
 dossier ne concernent que le proxy seul.
+
+## Relais cachable (`relay/`)
+
+Le dossier `relay/` n'est **pas** un proxy CORS : c'est un autre contrat (ADR-155). Un site qui a
+du cache y fait passer les données d'une dataviz par son propre domaine, sous une URL
+`<relais>/<hôte>/<chemin>?<requête>` qui identifie la donnée. Lecture seule, hôtes d'une liste
+blanche exacte, clé d'API détenue par le relais, réponses cachables.
+
+- Contrat : [`docs/RELAY.md`](../docs/RELAY.md)
+- Relais Node de référence, sans dépendance : [`relay/node/`](relay/node/README.md)
+- Suite de conformance, exécutable contre n'importe quel relais : [`tests/relay/`](../tests/relay/README.md)
+
+Il ne remplace pas les routes ci-dessus, et ce n'est pas un proxy ouvert.
 
 ## Securite
 

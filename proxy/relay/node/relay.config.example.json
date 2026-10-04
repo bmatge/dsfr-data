@@ -1,0 +1,14 @@
+{
+  "listen": { "host": "127.0.0.1", "port": 8155 },
+  "prefix": "/donnees-relais",
+  "ttl": 300,
+  "hosts": {
+    "donnees.portail.example": {},
+    "portail-prive.example": {
+      "ttl": 600,
+      "pathPrefixes": ["/api/explore/v2.1/catalog/datasets/jeu-publiable/"],
+      "key": { "header": "Authorization", "prefix": "Apikey ", "env": "RELAY_KEY_PORTAIL_PRIVE" }
+    }
+  },
+  "trustedProxies": ["127.0.0.1"]
+}
