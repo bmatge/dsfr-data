@@ -1747,7 +1747,9 @@ Sur une somme l'ecart d'un arrondi amont reste marginal ; sur \`weighted\` il ne
 
 L'attribut \`databox\` active l'habillage DataBox DSFR autour du graphique :
 cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
-téléchargement CSV, plein écran, tendance.
+téléchargement CSV, plein écran, tendance. Le tableau intégré rend ses nombres en fr-FR
+(« 2,27 », au plus 2 décimales), comme celui de dsfr-data-a11y ; sa colonne de libellé porte
+ce que l'axe affiche (\`empty-label\` compris) et son en-tête l'alias de \`label-field\`.
 
 | Attribut | Type | Défaut | Description |
 |----------|------|--------|-------------|

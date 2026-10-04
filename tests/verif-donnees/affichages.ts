@@ -1163,6 +1163,40 @@ const CHECKS: Check[] = [
     ],
   },
 
+  {
+    id: 'databox-tableau-nombres-fr',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244, suite de BUG-035 du banc — le tableau de la DataBox écrivait ses nombres bruts (« 331448.25 ») quand celui de `dsfr-data-a11y` les rend en fr-FR (« 331 448,25 ») : deux tableaux équivalents du même graphique, deux écritures. Le motif exige la virgule et le séparateur de milliers ; les valeurs passées à DSFR Chart, elles, restent celles des lignes — c’est le TEXTE du tableau qui change, pas la donnée tracée.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-box-nombres', 'communes')}
+  <dsfr-data-chart id="g-box-nombres" source="s-box-nombres" type="bar"
+    label-field="nom" value-field="budget:Budget"
+    databox databox-title="Budget par commune"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-box-nombres',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pattern: decimales(2),
+        pipeline: [],
+      },
+      {
+        kind: 'chart',
+        id: 'g-box-nombres',
+        labelColumn: 'nom',
+        valueColumns: ['budget'],
+        pipeline: [],
+      },
+    ],
+  },
+
   // ------------------------------------------ Tableau équivalent (a11y) ----
   {
     id: 'a11y-tableau-libelles-en-tete',

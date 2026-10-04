@@ -57,6 +57,7 @@ import {
   minOf,
 } from '@dsfr-data/shared/lib';
 import { resolveAliasedColumn } from '../utils/aliased-field.js';
+import { formatTableCell } from '../utils/table-cell.js';
 import { toIsoA2 } from '../data/continent-lookup.js';
 import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
 import {
@@ -2187,10 +2188,17 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         rows: labels.map((label, li) => [label, ...allSeries.map((serie) => serie[li])]),
       };
     }
+    // La colonne de libellé porte ce que l'AXE affiche (`_labelOf`, #1244) :
+    // une année numérique reste « 2024 » au lieu d'être formatée comme une
+    // mesure, et une catégorie vide porte `empty-label` — ce que fait déjà le
+    // format long, dont les libellés viennent de la matrice tracée.
     const columns = this._databoxColumns();
+    const labelColumn = this.labelField ? 0 : -1;
     return {
       headers: columns.map((c) => c.label),
-      rows: this._data.map((row) => columns.map((col) => getByPath(row, col.key))),
+      rows: this._data.map((row) =>
+        columns.map((col, i) => (i === labelColumn ? this._labelOf(row) : getByPath(row, col.key)))
+      ),
     };
   }
 
@@ -2202,6 +2210,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * `dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une
    * coupe muette laissait croire à un jeu de 100 lignes. La mention donne le
    * total, pour que l'écart se lise sans compter.
+   *
+   * Les nombres sont rendus en fr-FR par la fonction du tableau de
+   * `dsfr-data-a11y` (`formatTableCell`, #1244) : « 2,27 », pas `2.27`, au
+   * plus 2 décimales. Seul le TEXTE des cellules change ; les valeurs passées
+   * à DSFR Chart (`_processData`) ne passent pas par ici.
    */
   private _databoxTableHtml(): string {
     const { headers, rows: allRows } = this._databoxTableModel();
@@ -2211,7 +2224,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const headerCells = headers.map((h) => `<th scope="col">${escapeHtml(h)}</th>`).join('');
     const bodyRows = rows
       .map((row) => {
-        const cells = row.map((val) => `<td>${escapeHtml(String(val ?? ''))}</td>`).join('');
+        const cells = row.map((val) => `<td>${escapeHtml(formatTableCell(val))}</td>`).join('');
         return `<tr>${cells}</tr>`;
       })
       .join('');

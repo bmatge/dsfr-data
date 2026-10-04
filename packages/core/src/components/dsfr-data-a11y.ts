@@ -1,7 +1,8 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { buildCsv, formatNumberFr, type AliasedColumn } from '@dsfr-data/shared/lib';
+import { buildCsv, type AliasedColumn } from '@dsfr-data/shared/lib';
 import { resolveAliasedColumn } from '../utils/aliased-field.js';
+import { formatTableCell } from '../utils/table-cell.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
@@ -627,14 +628,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    * ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut.
    */
   formatCellValue(value: unknown): string {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'number') {
-      return formatNumberFr(
-        value,
-        this.decimals === null ? undefined : { decimals: this.decimals }
-      );
-    }
-    return String(value);
+    return formatTableCell(value, this.decimals);
   }
 
   // ---------------------------------------------------------------------------
