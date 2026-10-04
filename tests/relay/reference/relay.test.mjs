@@ -617,6 +617,63 @@ describe('C-DOS — plafonds du relais de référence', () => {
       assert.equal((await client.call(path, from('198.51.100.2'))).status, 200);
     });
   });
+
+  test('C-DOS-5 — un mandataire de confiance qui ne POSE pas `X-Forwarded-For` : l’en-tête n’est plus cru', async () => {
+    // Le montage fautif : `proxy_pass` nu. Le mandataire transmet l'en-tête du
+    // client tel quel ; un navigateur ordinaire n'en envoie pas, un attaquant en
+    // forge un par requête. La première requête sans en-tête trahit le montage.
+    let clock = 1_800_000_000_000;
+    const config = (profile) => ({
+      ...withLimits({ rateLimitRequests: 3, rateLimitWindowSeconds: 10 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    await withRelay({ now: () => clock, config }, async (reference, client) => {
+      const path = `/${ALLOWED_HOST}/donnees.json?${mark()}`;
+      const forged = (index) => ({ headers: { 'X-Forwarded-For': `198.51.100.${index}` } });
+      // Un visiteur ordinaire passe par le mandataire : aucun en-tête n'arrive.
+      assert.equal((await client.call(path)).status, 200);
+      const statuses = [];
+      for (let index = 1; index <= 12; index += 1) {
+        statuses.push((await client.call(path, forged(index))).status);
+      }
+      assert.deepEqual(
+        statuses,
+        [200, 200, ...new Array(10).fill(429)],
+        'douze adresses forgées ont eu douze quotas'
+      );
+      assert.equal(reference.warnings.length, 1, 'un seul avertissement par mandataire');
+      assert.match(reference.warnings[0], /X-Forwarded-For/);
+      assert.ok(!reference.warnings[0].includes('198.51.100.'), 'adresse forgée dans le message');
+
+      // Passé le quart d'heure sans requête dépourvue d'en-tête, il est cru de nouveau.
+      clock += 16 * 60 * 1000;
+      assert.equal((await client.call(path, forged(1))).status, 200);
+      assert.equal((await client.call(path, forged(1))).status, 200);
+      assert.equal((await client.call(path, forged(1))).status, 200);
+      assert.equal((await client.call(path, forged(1))).status, 429);
+      assert.equal((await client.call(path, forged(2))).status, 200);
+    });
+  });
+
+  test('C-DOS-5 — `X-Forwarded-For` : seule la DERNIÈRE valeur compte, et seulement si c’est une adresse', async () => {
+    const config = (profile) => ({
+      ...withLimits({ rateLimitRequests: 2 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    await withRelay({ config }, async (reference, client) => {
+      const path = `/${ALLOWED_HOST}/donnees.json?${mark()}`;
+      const from = (value) => ({ headers: { 'X-Forwarded-For': value } });
+      // Le client forge le début de la liste ; le mandataire ajoute la vraie adresse.
+      assert.equal((await client.call(path, from('203.0.113.1, 198.51.100.9'))).status, 200);
+      assert.equal((await client.call(path, from('203.0.113.2, 198.51.100.9'))).status, 200);
+      assert.equal((await client.call(path, from('203.0.113.3, 198.51.100.9'))).status, 429);
+      // Une dernière valeur qui n'est pas une adresse : c'est celle du mandataire qui compte.
+      assert.equal((await client.call(path, from('198.51.100.9, inconnu'))).status, 200);
+      assert.equal((await client.call(path, from('198.51.100.9, _cache'))).status, 200);
+      assert.equal((await client.call(path, from('198.51.100.9, 1.2.3'))).status, 429);
+      assert.equal(reference.warnings.length, 0);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

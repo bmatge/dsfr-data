@@ -41,6 +41,8 @@ export async function startReference({ upstreamPort, config, env = {}, resolve, 
   const connections = [];
   /** @type {string[]} */
   const resolutions = [];
+  /** @type {string[]} */
+  const warnings = [];
 
   const relay = createRelay(validated, {
     resolve: async (hostname) => {
@@ -53,6 +55,7 @@ export async function startReference({ upstreamPort, config, env = {}, resolve, 
       return net.connect(upstreamPort, '127.0.0.1');
     },
     log: (record) => logs.push(record),
+    warn: (message) => warnings.push(message),
     now,
   });
   const { port } = await relay.listen();
@@ -64,6 +67,7 @@ export async function startReference({ upstreamPort, config, env = {}, resolve, 
     logs,
     connections,
     resolutions,
+    warnings,
     close: () => relay.close(),
   };
 }

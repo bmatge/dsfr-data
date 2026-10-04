@@ -348,7 +348,25 @@ export function validateConfig(raw, env = {}) {
     throw new ConfigError("trustedProxies : liste d'adresses IP attendue.");
   const trustedProxies = rawProxies.map((entry) => {
     if (typeof entry !== 'string' || isIP(entry) === 0) {
-      throw new ConfigError('trustedProxies : adresses IP attendues.');
+      throw new ConfigError(
+        'trustedProxies : adresses IP attendues, une par mandataire (ni nom, ni plage CIDR).'
+      );
+    }
+    // Une adresse que le relais ne verra jamais telle quelle serait acceptée en
+    // silence et jamais reconnue : la limite de débit deviendrait globale sans
+    // que rien ne le dise.
+    if (entry.includes('%')) {
+      throw new ConfigError('trustedProxies : pas d’identifiant de zone (« %eth0 »).');
+    }
+    if (isIP(entry) === 6 && entry.includes('.')) {
+      throw new ConfigError(
+        'trustedProxies : écrire une IPv4 mappée (« ::ffff:a.b.c.d ») sous sa forme IPv4 (« a.b.c.d »).'
+      );
+    }
+    if (entry === '0.0.0.0' || /^[0:]+$/.test(entry)) {
+      throw new ConfigError(
+        'trustedProxies : l’adresse nulle ne désigne aucun mandataire (elle ne vaut pas « tous »).'
+      );
     }
     return entry;
   });

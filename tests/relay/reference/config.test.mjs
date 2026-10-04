@@ -178,6 +178,43 @@ describe('C-CONF-1 — plafonds et champs', () => {
       refuses({ ...ok, prefix }, {}, /prefix/);
     }
   });
+  test('`trustedProxies` : une adresse que le relais ne reconnaîtrait jamais est refusée, pas ignorée', () => {
+    for (const entry of [
+      '::ffff:127.0.0.1', // la connexion est vue comme 127.0.0.1 : jamais reconnue
+      'fe80::1%eth0',
+      '0.0.0.0',
+      '::',
+      '10.0.0.0/8',
+      'mandataire.exemple.fr',
+      42,
+    ]) {
+      refuses({ ...ok, trustedProxies: [entry] }, {}, /trustedProxies/);
+    }
+    refuses({ ...ok, trustedProxies: '127.0.0.1' }, {}, /trustedProxies/);
+    const config = validateConfig({ ...ok, trustedProxies: ['127.0.0.1', '::1', '10.0.0.5'] }, {});
+    assert.deepEqual([...config.trustedProxies], ['127.0.0.1', '::1', '10.0.0.5']);
+  });
+  test('part d’un client : la moitié des places amont par défaut, jamais plus que le total', () => {
+    assert.equal(validateConfig(ok, {}).limits.maxUpstreamRequestsPerClient, 8);
+    const one = validateConfig({ ...ok, limits: { maxUpstreamRequests: 1 } }, {});
+    assert.equal(one.limits.maxUpstreamRequestsPerClient, 1);
+    const five = validateConfig({ ...ok, limits: { maxUpstreamRequests: 5 } }, {});
+    assert.equal(five.limits.maxUpstreamRequestsPerClient, 3);
+    refuses(
+      { ...ok, limits: { maxUpstreamRequests: 4, maxUpstreamRequestsPerClient: 5 } },
+      {},
+      /maxUpstreamRequestsPerClient/
+    );
+    refuses({ ...ok, limits: { maxUpstreamRequestsPerClient: 0 } }, {}, /PerClient/);
+  });
+  test('octets en attente d’écriture : au moins deux réponses de taille maximale', () => {
+    assert.equal(validateConfig(ok, {}).limits.maxPendingBytes, 64 * 1024 * 1024);
+    refuses(
+      { ...ok, limits: { maxBytes: 10 * 1024 * 1024, maxPendingBytes: 15 * 1024 * 1024 } },
+      {},
+      /maxPendingBytes/
+    );
+  });
   test('l’environnement prime sur le fichier', () => {
     const config = validateConfig(
       { ...ok, prefix: '/a', ttl: 60, listen: { port: 1 } },

@@ -12,7 +12,7 @@
 
 import http from 'node:http';
 import process from 'node:process';
-import { isIP } from 'node:net';
+import { BlockList, isIP } from 'node:net';
 import { Buffer } from 'node:buffer';
 import { rateLimitKey } from './addresses.mjs';
 import { MemoryCache } from './cache.mjs';
@@ -69,6 +69,17 @@ function isUpstreamFailure(error) {
   return error.status >= 502 || error.code === 'upstream-rate-limited';
 }
 
+/**
+ * Durée pendant laquelle `X-Forwarded-For` n'est plus cru d'un mandataire pris
+ * à ne pas le poser. Chaque nouvelle requête sans en-tête la prolonge.
+ */
+const PROXY_DISTRUST_MS = 15 * 60 * 1000;
+
+/** Avertissement par défaut : la sortie d'erreur, comme les messages de démarrage. */
+function defaultWarn(message) {
+  process.stderr.write(`[relais] ${message}\n`);
+}
+
 /** Journal par défaut : une ligne JSON par requête sur la sortie standard. */
 function defaultLog(record) {
   process.stdout.write(`${JSON.stringify(record)}\n`);
@@ -81,11 +92,13 @@ function defaultLog(record) {
  *   connect?: (target: { address: string, family: number, hostname: string }) => import('node:net').Socket,
  *   now?: () => number,
  *   log?: (record: Record<string, unknown>) => void,
+ *   warn?: (message: string) => void,
  * }} [deps]
  */
 export function createRelay(config, deps = {}) {
   const now = deps.now ?? Date.now;
   const log = deps.log ?? defaultLog;
+  const warn = deps.warn ?? defaultWarn;
   const upstreamDeps = {
     resolve: deps.resolve ?? defaultResolve,
     connect: deps.connect ?? createTlsConnector(),
@@ -99,7 +112,20 @@ export function createRelay(config, deps = {}) {
     requests: config.limits.rateLimitRequests,
     windowSeconds: config.limits.rateLimitWindowSeconds,
   });
-  const trustedProxies = new Set(config.trustedProxies);
+  // `BlockList` compare des ADRESSES, pas des chaînes : `::1` et `0:0:0:0:0:0:0:1`
+  // désignent le même mandataire.
+  const trustedProxies = new BlockList();
+  for (const address of config.trustedProxies) {
+    trustedProxies.addAddress(address, isIP(address) === 6 ? 'ipv6' : 'ipv4');
+  }
+  /**
+   * Mandataires de confiance pris à NE PAS poser `X-Forwarded-For`, et jusqu'à quand.
+   * Bornée par construction : une entrée par adresse de `trustedProxies`.
+   * @type {Map<string, number>}
+   */
+  const distrustedUntil = new Map();
+  /** @type {Set<string>} */
+  const warnedProxies = new Set();
   /** Requêtes vers l'amont en cours, par clé de cache : N visiteurs, une seule requête. */
   const inFlight = new Map();
   /**
@@ -150,16 +176,43 @@ export function createRelay(config, deps = {}) {
   }
 
   /**
-   * Adresse du visiteur, pour la SEULE limite de débit. Elle n'est ni transmise
-   * à l'amont, ni écrite dans une réponse, ni journalisée.
+   * Adresse du visiteur, pour la SEULE limite de débit (et la part de ce client
+   * dans les places du relais). Elle n'est ni transmise à l'amont, ni écrite
+   * dans une réponse, ni journalisée.
+   *
    * `X-Forwarded-For` n'est lu que si la connexion vient d'un mandataire de
-   * confiance déclaré ; on en prend alors la dernière valeur, celle qu'il a posée.
+   * confiance déclaré ; on en prend alors la DERNIÈRE valeur, celle qu'il a
+   * ajoutée — tout ce qui précède vient du client et se forge.
+   *
+   * Cela suppose que le mandataire POSE l'en-tête (C-DOS-5). S'il se contente de
+   * transmettre celui du client (`proxy_pass` nu), chaque requête forge son
+   * adresse et la limite ne limite plus rien. Le relais ne peut pas le voir sur
+   * une requête forgée ; il le voit sur toutes les autres, car un navigateur
+   * n'envoie pas cet en-tête : une requête SANS en-tête venue du mandataire
+   * prouve qu'il ne le pose pas. L'en-tête cesse alors d'être cru pour ce
+   * mandataire — la limite devient globale, ce qui est sûr —, et un
+   * avertissement le dit une fois.
    */
-  function clientAddress(req) {
+  function clientAddress(req, at) {
     const peer = (req.socket.remoteAddress ?? '').replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
-    if (!trustedProxies.has(peer)) return peer;
+    const family = isIP(peer);
+    if (family === 0 || !trustedProxies.check(peer, family === 6 ? 'ipv6' : 'ipv4')) return peer;
     const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded !== 'string') return peer;
+    if (typeof forwarded !== 'string') {
+      distrustedUntil.set(peer, at + PROXY_DISTRUST_MS);
+      if (!warnedProxies.has(peer)) {
+        warnedProxies.add(peer);
+        try {
+          warn(
+            'Un mandataire de confiance (trustedProxies) a transmis une requête sans X-Forwarded-For : il ne pose pas cet en-tête. Tant que c’est le cas, l’en-tête n’est plus cru et la limite de débit vaut pour ce mandataire entier. Voir docs/RELAY.md, règle C-DOS-5.'
+          );
+        } catch {
+          // Un avertissement qui échoue ne fait pas tomber une requête.
+        }
+      }
+      return peer;
+    }
+    if (at < (distrustedUntil.get(peer) ?? 0)) return peer;
     const last = forwarded.split(',').pop()?.trim() ?? '';
     return isIP(last) !== 0 ? last : peer;
   }
@@ -295,8 +348,8 @@ export function createRelay(config, deps = {}) {
 
       // La clé du client sert à la limite de débit et à sa part des places du
       // relais (requêtes amont, octets en attente). À rien d'autre.
-      const clientKey = rateLimitKey(clientAddress(req));
-      const limit = limiter.take(clientKey, now());
+      const clientKey = rateLimitKey(clientAddress(req, startedAt));
+      const limit = limiter.take(clientKey, startedAt);
       if (!limit.allowed) {
         throw new RelayError(429, 'rate-limited', { retryAfter: limit.retryAfter });
       }
