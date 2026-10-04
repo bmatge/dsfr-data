@@ -15,6 +15,7 @@
 
 import { toNumber, looksLikeNumber } from '../utils/number-parser.js';
 import { maxOf, minOf } from '../utils/extremum.js';
+import { isIsoDateString } from '../utils/iso-date.js';
 import type { ChartConfig, AggregatedResult } from '../dashboard/chart-config.js';
 
 export type Row = Record<string, unknown>;
@@ -27,10 +28,40 @@ export interface Field {
   sample: unknown;
 }
 
+/** Lignes lues pour typer un champ : assez pour depasser les trous, borne sur un gros jeu. */
+const LIGNES_LUES_POUR_LE_TYPE = 100;
+
+/**
+ * Le champ est-il une date ? Oui si TOUTES ses valeurs renseignees, sur les
+ * premieres lignes, ont la forme ISO (`AAAA-MM-JJ`, heure facultative) — la
+ * seule que le pipeline traite en date (`isIsoDateString` : min / max d'une
+ * agregation, pivot ; ordre lexicographique = ordre chronologique, #667).
+ *
+ * Surtout pas `Date.parse` (#1224) : sous V8 il lit « 75 », « 01004 » et
+ * « Zone 12 », et un code departement etait annonce au modele comme une date.
+ * Une annee seule (« 2024 ») et une date francaise (« 03/01/2024 »,
+ * « 4 décembre 1837 ») restent du texte : rien en aval ne les ordonne ni ne
+ * les formate comme des dates.
+ */
+function estChampDate(data: Row[], key: string): boolean {
+  let lues = 0;
+  for (let i = 0; i < Math.min(data.length, LIGNES_LUES_POUR_LE_TYPE); i++) {
+    const v = data[i][key];
+    if (v === null || v === undefined || v === '') continue;
+    if (!isIsoDateString(v)) return false;
+    lues += 1;
+  }
+  return lues > 0;
+}
+
 /**
  * Analyse les champs d'un jeu de donnees (type + echantillon), en scannant
  * au-dela du premier enregistrement pour depasser les nulls. Version PURE de
  * l'analyzeFields historique du builder-IA (qui ecrit dans son state).
+ *
+ * Trois types : `numérique` (l'exemple est un nombre natif), `date` (voir
+ * `estChampDate` : decide sur les 100 premieres lignes, forme ISO seule),
+ * `texte` pour tout le reste — codes, libelles, annee ecrite en chaine.
  */
 export function analyzeDataFields(data: Row[]): Field[] {
   if (data.length === 0) return [];
@@ -38,7 +69,7 @@ export function analyzeDataFields(data: Row[]): Field[] {
   return Object.keys(record).map((key) => {
     let value: unknown = record[key];
     if (value === null && data.length > 1) {
-      for (let i = 1; i < Math.min(data.length, 100); i++) {
+      for (let i = 1; i < Math.min(data.length, LIGNES_LUES_POUR_LE_TYPE); i++) {
         const val = data[i][key];
         if (val !== null && val !== undefined) {
           value = val;
@@ -47,12 +78,10 @@ export function analyzeDataFields(data: Row[]): Field[] {
       }
     }
     let fieldType: string;
-    if (value === null) {
-      fieldType = 'texte';
-    } else if (typeof value === 'number') {
+    if (typeof value === 'number') {
       fieldType = 'numérique';
     } else if (typeof value === 'string') {
-      fieldType = !isNaN(Date.parse(value)) ? 'date' : 'texte';
+      fieldType = estChampDate(data, key) ? 'date' : 'texte';
     } else {
       fieldType = 'texte';
     }
