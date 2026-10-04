@@ -8499,7 +8499,7 @@
         },
         {
           "kind": "class",
-          "description": "<dsfr-data-kpi> - Widget d'indicateur chiffré\n\nAffiche une valeur numérique mise en avant, style \"chiffre clé\".\nSe connecte à une source de données via son ID.",
+          "description": "<dsfr-data-kpi> - Widget d'indicateur chiffré\n\nAffiche une valeur numérique mise en avant, style \"chiffre clé\".\nSe connecte à une source de données via son ID.\n\nQuand la source est en panne, la tuile garde sa place et sa hauteur : « — » à\nla place du chiffre, le libellé (l'usager doit savoir QUEL chiffre manque) et\nune phrase courte selon la cause — « Chiffre momentanément indisponible »,\n« Vous semblez hors connexion », « Le service est très sollicité », « Ce\nchiffre n'est plus publié à cette adresse », « Ce chiffre n'est pas accessible\npubliquement », « Ce chiffre n'a pas pu être affiché » — ou celle de\nl'attribut `error-message` de la source. Jamais un nombre : ni 0, ni le\nchiffre du chargement précédent. Sans bandeau `dsfr-data-source-status`, la\ntuile porte « Réessayer » (quand un nouvel essai a un sens), « Détails »\n(replié) et, sur des données introuvables, le lien de `source-page` ; avec un\nbandeau, c'est lui qui les porte. Une valeur ABSENTE des données (null, champ\nmanquant) n'est pas une panne : la tuile affiche « — » et son libellé, sans\nphrase.",
           "name": "DsfrDataKpi",
           "members": [
             {
@@ -9198,6 +9198,39 @@
                 }
               ],
               "description": "Variable CSS du fond teinté, depuis les tokens DSFR — jamais un hexadécimal.\nIllustratif : alt (975) / contrast (950) / option 925-125.\nSémantique : option 975-75 / contrast (950) ; pas de 925 dans le DSFR."
+            },
+            {
+              "kind": "method",
+              "name": "_isUnavailable",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La source est en panne, et aucune erreur de configuration ne prime (#1222)."
+            },
+            {
+              "kind": "method",
+              "name": "_unavailablePhrase",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Phrase courte de la panne : celle de l'intégrateur, sinon celle du barème."
+            },
+            {
+              "kind": "method",
+              "name": "_renderUnavailable",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "TemplateResult"
+                }
+              },
+              "description": "Forme COMPACTE d'une panne de source (#1222) : la tuile garde sa place,\nson libellé et sa hauteur. Le gabarit commun (`renderSourceError`) est\nfait pour un bloc de graphique : dans une tuile de 140 px, il la doublait.\n\n- « — » tient la place du chiffre, en gris, et `aria-hidden` : un lecteur\n  d'écran ne lit pas un tiret comme une valeur, il lit la phrase ;\n- le libellé reste : sans lui, l'usager ne sait pas QUEL chiffre manque ;\n- la phrase suit la cause du barème, ou `error-message` de la source ;\n- sans bandeau : « Réessayer » sur la ligne du tiret (44 px, sans hausser\n  la ligne), « Détails » replié et, sur un 404, le lien de `source-page`\n  à la suite de la phrase. Avec un bandeau, il porte les trois : la tuile\n  n'a plus ni bouton, ni lien, ni détail, ni `role`.\n\nNi icône, ni tendance, ni lignes complémentaires : elles se calculent sur\nles lignes, et les seules disponibles sont celles du chargement précédent."
             },
             {
               "kind": "method",
@@ -21208,7 +21241,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-source-status> - Dire une panne de données UNE fois, en tête de page\n\nSans lui, chaque bloc branché sur une source en panne dit la panne à sa place et porte son\npropre « Réessayer » : huit blocs, huit messages. Avec lui, la panne est dite une fois par\nsource, ici, avec le seul bouton « Réessayer » ; les blocs concernés gardent leur place et un\nmessage court, sans bouton ni annonce répétée. Les blocs d'une AUTRE source ne sont pas touchés.\n\nComposant d'ÉTAT, à poser là où le message doit se lire (en général en haut du contenu). Il\nn'affiche rien tant qu'aucune source n'est en panne.\n\n- `source=\"id\"` : ne suit que cette source (et les étapes branchées dessus) ;\n- sans `source` : suit toutes les sources de la page, un message par source en panne.\n\nLa phrase lue par l'usager vient du barème de la bibliothèque (service indisponible, hors\nconnexion, service très sollicité, données introuvables, accès restreint, page mal réglée) ou de\nl'attribut `error-message` de la source. Le code HTTP, l'adresse appelée et l'heure restent\nrepliés dans « Détails techniques ».\n\n« Réessayer » relance la source à l'identique. Il n'apparaît que lorsque réessayer a un sens :\npas sur des données introuvables (404), un accès restreint (401, 403) ni une page mal réglée.\nHors connexion, la source se relance d'elle-même au retour du réseau ; sur un service très\nsollicité (429), jamais automatiquement.\n\nAccessibilité : le bandeau est une région `role=\"status\"` (annonce polie, non interruptive),\nprésente dès le montage pour que la panne y soit annoncée quand elle survient. Les blocs\ncouverts cessent d'être des régions live : la panne n'est annoncée qu'une fois. Le bouton fait\nau moins 44 px de haut et reste en place, donc garde le focus, pendant le nouvel essai.",
+          "description": "<dsfr-data-source-status> - Dire une panne de données UNE fois, en tête de page\n\nSans lui, chaque bloc branché sur une source en panne dit la panne à sa place et porte son\npropre « Réessayer » : huit blocs, huit messages. Avec lui, la panne est dite une fois par\nsource, ici, avec le seul bouton « Réessayer » ; les blocs concernés gardent leur place et un\nmessage court, sans bouton ni annonce répétée. Les blocs d'une AUTRE source ne sont pas touchés.\n\nComposant d'ÉTAT, à poser là où le message doit se lire (en général en haut du contenu). Il\nn'affiche rien tant qu'aucune source n'est en panne.\n\n- `source=\"id\"` : ne suit que cette source (et les étapes branchées dessus) ;\n- sans `source` : suit toutes les sources de la page, un message par source en panne.\n\nLa phrase lue par l'usager vient du barème de la bibliothèque (service indisponible, hors\nconnexion, service très sollicité, données introuvables, accès restreint, page mal réglée) ou de\nl'attribut `error-message` de la source. Le code HTTP, l'adresse appelée et l'heure restent\nrepliés dans « Détails techniques ».\n\n« Réessayer » relance la source à l'identique. Il n'apparaît que lorsque réessayer a un sens :\npas sur des données introuvables (404), un accès restreint (401, 403) ni une page mal réglée.\nHors connexion, la source se relance d'elle-même au retour du réseau ; sur un service très\nsollicité (429), jamais automatiquement.\n\nSur des données introuvables (404, 410), le bandeau propose le lien « Consulter la page de ces\ndonnées » quand la source porte `source-page` ; sans cet attribut, aucun lien.\n\nUn `dsfr-data-kpi` en panne garde une forme compacte : « — » à la place du chiffre, son libellé,\net une phrase courte. Avec le bandeau, la tuile ne porte ni bouton, ni lien, ni détail technique.\n\nAccessibilité : le bandeau est une région `role=\"status\"` (annonce polie, non interruptive),\nprésente dès le montage pour que la panne y soit annoncée quand elle survient. Les blocs\ncouverts cessent d'être des régions live : la panne n'est annoncée qu'une fois. Le bouton fait\nau moins 44 px de haut et reste en place, donc garde le focus, pendant le nouvel essai.",
           "name": "DsfrDataSourceStatus",
           "members": [
             {
@@ -21728,6 +21761,16 @@
             },
             {
               "kind": "field",
+              "name": "sourcePage",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le\nportail du producteur, celle qu'un usager peut lire — pas l'adresse d'API.\n\n`source-page=\"https://data.economie.gouv.fr/explore/dataset/prix-carburants/\"` :\nquand la source répond « introuvable » (404, 410), le bloc en erreur et le\nbandeau `dsfr-data-source-status` proposent le lien « Consulter la page de\nces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit\nl'adresse ni de `base-url`, ni de `dataset-id`, ni de `resource`, et ne\nmontre jamais l'adresse d'API ni celle du relais (`relay-url`).\n\nSans effet sur les autres pannes (service indisponible, hors connexion,\naccès restreint…) et sur le chargement : l'attribut ne déclenche aucune\nrequête. N'est admise qu'une adresse `http(s)` ou relative ; toute autre\n(`javascript:`, `data:`…) est ignorée, avec un avertissement en console.",
+              "attribute": "source-page"
+            },
+            {
+              "kind": "field",
               "name": "_loading",
               "type": {
                 "text": "boolean"
@@ -22018,10 +22061,31 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "{ userMessage?: string }"
+                  "text": "{ userMessage?: string; sourcePage?: string }"
                 }
               },
               "description": "Phrase de l'intégrateur jointe à un échec de chargement (#1203)."
+            },
+            {
+              "kind": "field",
+              "name": "_sourcePageWarned",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''",
+              "description": "Valeur de `source-page` déjà signalée comme refusée (warn-once par valeur)."
+            },
+            {
+              "kind": "method",
+              "name": "_safeSourcePage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | undefined"
+                }
+              },
+              "description": "`source-page` admise dans un lien (#1222), sinon rien — et un avertissement."
             },
             {
               "kind": "method",
@@ -22753,6 +22817,15 @@
               "default": "''",
               "description": "Phrase affichée à l'usager quand cette source est en panne (#1203), à la\nplace du message du barème — dans les blocs branchés sur la source comme\ndans le bandeau `dsfr-data-source-status`.\n\n`error-message=\"Les chiffres de la DGFiP sont en cours de mise à jour.\"` :\nà poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie\nles données et quoi faire. Ne remplace QUE la phrase usager d'un échec de\nchargement : le code HTTP, l'adresse appelée et l'heure restent dans\n« Détails techniques », l'`Error` de `dsfr-data-error` et la console ne\nchangent pas. Sans effet sur une erreur de configuration de la source.",
               "fieldName": "errorMessage"
+            },
+            {
+              "name": "source-page",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le\nportail du producteur, celle qu'un usager peut lire — pas l'adresse d'API.\n\n`source-page=\"https://data.economie.gouv.fr/explore/dataset/prix-carburants/\"` :\nquand la source répond « introuvable » (404, 410), le bloc en erreur et le\nbandeau `dsfr-data-source-status` proposent le lien « Consulter la page de\nces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit\nl'adresse ni de `base-url`, ni de `dataset-id`, ni de `resource`, et ne\nmontre jamais l'adresse d'API ni celle du relais (`relay-url`).\n\nSans effet sur les autres pannes (service indisponible, hors connexion,\naccès restreint…) et sur le chargement : l'attribut ne déclenche aucune\nrequête. N'est admise qu'une adresse `http(s)` ou relative ; toute autre\n(`javascript:`, `data:`…) est ignorée, avec un avertissement en console.",
+              "fieldName": "sourcePage"
             }
           ],
           "superclass": {

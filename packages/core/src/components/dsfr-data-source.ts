@@ -85,6 +85,7 @@ import {
 } from '../utils/data-bridge.js';
 import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
+import { safeSourcePage } from '../utils/source-errors.js';
 import { joinWhere } from '../utils/where.js';
 
 /**
@@ -609,6 +610,25 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'error-message' })
   errorMessage = '';
 
+  /**
+   * Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le
+   * portail du producteur, celle qu'un usager peut lire — pas l'adresse d'API.
+   *
+   * `source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/"` :
+   * quand la source répond « introuvable » (404, 410), le bloc en erreur et le
+   * bandeau `dsfr-data-source-status` proposent le lien « Consulter la page de
+   * ces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit
+   * l'adresse ni de `base-url`, ni de `dataset-id`, ni de `resource`, et ne
+   * montre jamais l'adresse d'API ni celle du relais (`relay-url`).
+   *
+   * Sans effet sur les autres pannes (service indisponible, hors connexion,
+   * accès restreint…) et sur le chargement : l'attribut ne déclenche aucune
+   * requête. N'est admise qu'une adresse `http(s)` ou relative ; toute autre
+   * (`javascript:`, `data:`…) est ignorée, avec un avertissement en console.
+   */
+  @property({ type: String, attribute: 'source-page' })
+  sourcePage = '';
+
   // --- Internal state ---
 
   @state()
@@ -848,8 +868,28 @@ export class DsfrDataSource extends LitElement {
   }
 
   /** Phrase de l'intégrateur jointe à un échec de chargement (#1203). */
-  private _errorOptions(): { userMessage?: string } {
-    return this.errorMessage ? { userMessage: this.errorMessage } : {};
+  private _errorOptions(): { userMessage?: string; sourcePage?: string } {
+    const sourcePage = this._safeSourcePage();
+    return {
+      ...(this.errorMessage ? { userMessage: this.errorMessage } : {}),
+      ...(sourcePage ? { sourcePage } : {}),
+    };
+  }
+
+  /** Valeur de `source-page` déjà signalée comme refusée (warn-once par valeur). */
+  private _sourcePageWarned = '';
+
+  /** `source-page` admise dans un lien (#1222), sinon rien — et un avertissement. */
+  private _safeSourcePage(): string | undefined {
+    const page = safeSourcePage(this.sourcePage);
+    if (!page && this.sourcePage.trim() && this._sourcePageWarned !== this.sourcePage) {
+      this._sourcePageWarned = this.sourcePage;
+      console.warn(
+        `dsfr-data-source[${this.id}]: source-page ignoré — seule une adresse http(s) ou relative ` +
+          `est admise (#1222)`
+      );
+    }
+    return page;
   }
 
   private _isAdapterMode(): boolean {

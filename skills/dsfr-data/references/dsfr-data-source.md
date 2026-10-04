@@ -190,17 +190,32 @@ La phrase dépend de la cause :
 | HTTP 400, source mal configurée | Cet affichage n'a pas pu être construit. | non |
 
 - `error-message="..."` sur la source remplace la phrase usager (le détail technique reste replié).
+- Un `dsfr-data-kpi` en panne garde une forme COMPACTE, à la hauteur de sa tuile (#1222) : « — » à la
+  place du chiffre, son libellé, et une phrase courte selon la cause (« Chiffre momentanément
+  indisponible », « Vous semblez hors connexion », « Le service est très sollicité », « Ce chiffre
+  n'est plus publié à cette adresse », « Ce chiffre n'est pas accessible publiquement », « Ce chiffre
+  n'a pas pu être affiché ») ou celle de `error-message`. Jamais un nombre : ni 0, ni l'ancien
+  chiffre. Les autres blocs (graphique, jauge, liste, podium, display) gardent l'encart complet.
+  Une valeur ABSENTE des données (null) n'est pas une panne : « — » et le libellé, sans phrase.
+- `source-page="https://…"` sur la source : adresse de la page PUBLIQUE des données (la page du
+  jeu sur le portail du producteur, pas l'adresse d'API). Sur des données introuvables (404, 410)
+  seulement, les blocs et le bandeau proposent le lien « Consulter la page de ces données ». Sans
+  l'attribut, aucun lien : rien n'est déduit de `base-url`, `dataset-id` ou `resource`. Seule une
+  adresse http(s) ou relative est admise.
 - `<dsfr-data-source-status source="id">` en haut du contenu dit la panne UNE fois par source, avec
   le seul bouton « Réessayer » : les blocs de cette source gardent leur message, sans bouton. Sans
   `source`, il suit toutes les sources de la page. Il n'affiche rien tant que tout va bien.
-- Sans bandeau, chaque bloc en erreur porte son propre « Réessayer ».
+- Sans bandeau, chaque bloc en erreur porte son propre « Réessayer » (dans une tuile de KPI : un
+  bouton compact, et « Détails » replié à la suite de la phrase). Avec le bandeau, la tuile de KPI
+  n'a ni bouton, ni lien, ni détail.
 - L'événement `dsfr-data-error` et la trace console ne changent pas : le code HTTP reste dans
   `error.message`.
 
 ```html
 <dsfr-data-source-status source="prix"></dsfr-data-source-status>
 <dsfr-data-source id="prix" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
-  dataset-id="prix-carburants" error-message="Les prix sont en cours de mise à jour.">
+  dataset-id="prix-carburants" error-message="Les prix sont en cours de mise à jour."
+  source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/">
 </dsfr-data-source>
 <dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"></dsfr-data-kpi>
 ```
@@ -240,6 +255,7 @@ La phrase dépend de la cause :
 | `resource` | `string` | `""` (vide) | Identifiant de la ressource (fichier d'un jeu), pour les adaptateurs qui désignent une ressource. |
 | `select` | `string` | `""` (vide) | Clause SELECT, liste séparée par des virgules. Sa grammaire dépend de l'adaptateur (table des capacités d'ARCHITECTURE, ligne « projection select ») : clause complète ou simple liste de noms de colonnes ; un adaptateur sans projection l'ignore. **Clause complète** : `select="count(*) as total, region"`. Une expression (fonction, alias `as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom de champ qui n'est pas un identifiant nu (espace, accent, chiffre initial comme `1_uai`) est échappé automatiquement (#767). Une virgule à l'intérieur d'une fonction ou d'une chaîne ne sépare pas. Un `select` fait UNIQUEMENT d'agrégats, sans `group-by` (`select="sum(montant) as total"`) se charge en une requête d'une ligne, la valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre ne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`. Quand une `dsfr-data-query` délègue son regroupement à cette source, le `select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes d'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon la colonne d'alias n'existerait pas dans la réponse et le chiffre affiché serait faux (#859). S'il définit une colonne par une expression aliasée (`year(date) as annee`) que le regroupement vise, la délégation est refusée — avertissement en console, regroupement calculé côté client. **Liste de noms de colonnes** (projection seule, #985) : `select="nom, Code sexe"`, espaces et accents admis — l'API ne rend que ces colonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne n'est ajoutée d'office : une colonne lue en aval (graphique, liste, facette, filtre client) doit y figurer, et un nom inconnu du jeu fait répondre l'API en erreur. Sans effet quand un `group-by` ou un `aggregate` est posé (sur la source ou délégué par une query), si l'API refuse la projection à côté d'un agrégateur. Une expression (fonction, alias, `*`) est ignorée avec un avertissement : toutes les colonnes sont chargées. |
 | `server-side` | `boolean` | `false` | Mode pagination serveur (datalist, tableaux). Ce qui est délégué ne change pas avec ce mode : une page porte les mêmes filtres, le même regroupement et les mêmes agrégats qu'un chargement complet — seule la façon dont les lignes arrivent change (#852). La source ne livre qu'UNE page : rien de ce qui se calcule côté client sur l'ensemble des lignes n'a de sens derrière elle. Une `dsfr-data-query` en aval dont le regroupement ou l'agrégat n'est pas délégué — part ou cumul, `explode`, agrégat sans `group-by`, fonction que l'adaptateur ne traduit pas, transformateur amont qui change les colonnes, source lue par d'autres composants, source déjà regroupée — passe en **erreur de configuration** au lieu d'émettre un chiffre partiel (#1242). Deux corrections : - retirer `server-side` : la source charge le jeu entier, dans la limite de `max-records` ; - si le jeu dépasse ce plafond, ou si une liste paginée lit la même source : donner à la requête sa propre source sans `server-side`, qui porte le regroupement délégable (`group-by`, `aggregate`) — le serveur regroupe alors le jeu entier, et la part ou le cumul se calcule en aval, sur les groupes. Une requête qui délègue réellement son regroupement, ou qui ne regroupe pas (filtre et tri d'un tableau paginé), n'est pas concernée. |
+| `source-page` | `string` | `""` (vide) | Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le portail du producteur, celle qu'un usager peut lire — pas l'adresse d'API. `source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/"` : quand la source répond « introuvable » (404, 410), le bloc en erreur et le bandeau `dsfr-data-source-status` proposent le lien « Consulter la page de ces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit l'adresse ni de `base-url`, ni de `dataset-id`, ni de `resource`, et ne montre jamais l'adresse d'API ni celle du relais (`relay-url`). Sans effet sur les autres pannes (service indisponible, hors connexion, accès restreint…) et sur le chargement : l'attribut ne déclenche aucune requête. N'est admise qu'une adresse `http(s)` ou relative ; toute autre (`javascript:`, `data:`…) est ignorée, avec un avertissement en console. |
 | `transform` | `string` | `""` (vide) | Chemin JSONPath vers le tableau de données dans la réponse. Ex: `"results"`, `"data.items"`. |
 | `url` | `string` | `""` (vide) | URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode `data` inline. |
 | `use-proxy` | `boolean` | `false` | Force le passage par le proxy CORS générique (pour les APIs externes sans CORS). Ne vaut qu'en mode URL (`url="…"`) : avec un `api-type`, l'attribut est sans effet sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail Opendatasoft, par exemple) — la requête part en direct, et la source le signale une fois en console. Sans effet sur une requête qui part au relais (`relay-url`) : le relais prend toutes les requêtes GET vers une autre origine, `use-proxy` ne garde que ce que le relais ne porte pas (requêtes POST, cible hors `https`). |

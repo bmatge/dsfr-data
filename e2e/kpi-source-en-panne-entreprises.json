@@ -1,0 +1,9 @@
+[
+  { "siren": "100000001", "secteur": "Métallurgie" },
+  { "siren": "100000002", "secteur": "Plasturgie" },
+  { "siren": "100000003", "secteur": "Textile" },
+  { "siren": "100000004", "secteur": "Agroalimentaire" },
+  { "siren": "100000005", "secteur": "Électronique" },
+  { "siren": "100000006", "secteur": "Métallurgie" },
+  { "siren": "100000007", "secteur": "Chimie" }
+]

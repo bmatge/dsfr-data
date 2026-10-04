@@ -14,8 +14,20 @@
  * (`dsfr-data-status--*`) permet un theming global.
  */
 import { html, nothing, type TemplateResult } from 'lit';
-import { getDataErrorState, isSourceCoveredByBanner, requestSourceRetry } from './data-bridge.js';
-import { describeSourceCause, describeSourceError, formatErrorTime } from './source-errors.js';
+import {
+  getDataErrorState,
+  isSourceCoveredByBanner,
+  requestSourceRetry,
+  type DataErrorState,
+} from './data-bridge.js';
+import {
+  SOURCE_PAGE_LABEL,
+  describeSourceCause,
+  describeSourceError,
+  formatErrorTime,
+  sourcePageFor,
+  type SourceErrorDescription,
+} from './source-errors.js';
 
 /** Bloc de chargement commun (libellé personnalisable par composant) */
 export function renderSourceLoading(
@@ -80,10 +92,88 @@ const SOURCE_ERROR_TEXT_STYLE = 'margin: 0; color: var(--text-default-grey, #3a3
 const SOURCE_ERROR_DETAILS_STYLE =
   'font-size: 0.75rem; color: var(--text-mention-grey, #666); text-align: left; max-width: 100%;';
 /** Cible tactile de 44 px minimum (RGAA / WCAG 2.5.5). */
-const RETRY_BUTTON_STYLE = 'min-height: 2.75rem; min-width: 2.75rem;';
+export const RETRY_BUTTON_STYLE = 'min-height: 2.75rem; min-width: 2.75rem;';
 
 /** Libellé de l'action de relance (lexique `docs/ux/actions.md`). */
 export const RETRY_LABEL = 'Réessayer';
+
+/**
+ * Ce qu'un bloc sait de la panne de sa source (#1203, #1222) — la même
+ * lecture pour le gabarit complet et pour la forme compacte du KPI : les deux
+ * ne peuvent pas diverger sur la cause, le bouton ou le lien.
+ */
+export interface SourceErrorView {
+  desc: SourceErrorDescription;
+  state: DataErrorState | undefined;
+  /** Source qui a réellement échoué (au bout de la chaîne). */
+  originId: string | undefined;
+  /** Un bandeau `dsfr-data-source-status` dit déjà cette panne. */
+  covered: boolean;
+  /** « Réessayer » dans le bloc : un essai a un sens, et aucun bandeau ne le porte. */
+  showRetry: boolean;
+  /** Phrase de l'intégrateur (`error-message`). */
+  userMessage: string | undefined;
+  /**
+   * Page publique des données à proposer DANS LE BLOC (#1222) : données
+   * introuvables seulement, `source-page` posé, et aucun bandeau — qui porte
+   * alors le lien, comme il porte « Réessayer ».
+   */
+  sourcePage: string | undefined;
+  /** Message technique de l'`Error`. */
+  technical: string | undefined;
+}
+
+/** Lit l'état d'erreur d'un bloc — voir `SourceErrorView`. */
+export function resolveSourceError(error: Error | null, sourceId?: string): SourceErrorView {
+  const state = sourceId ? getDataErrorState(sourceId) : undefined;
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  const desc = state
+    ? describeSourceCause(state.cause, state.error)
+    : describeSourceError(error, online);
+  const originId = state?.originId ?? sourceId;
+  const covered = originId ? isSourceCoveredByBanner(originId) : false;
+  return {
+    desc,
+    state,
+    originId,
+    covered,
+    showRetry: Boolean(sourceId) && desc.retry && !covered,
+    userMessage: state?.userMessage,
+    sourcePage: covered ? undefined : sourcePageFor(desc.cause, state?.sourcePage),
+    technical: (state?.error ?? error)?.message,
+  };
+}
+
+/**
+ * Lien vers la page publique des données (#1222). `rel="noopener"` : la page
+ * ouverte n'a aucune prise sur celle-ci. Pas de `target` : l'usager choisit
+ * lui-même d'ouvrir un onglet. L'adresse a déjà passé `safeSourcePage`.
+ */
+export function renderSourcePageLink(sourcePage: string): TemplateResult {
+  return html`<a
+    class="fr-link fr-link--sm dsfr-data-status__source-page"
+    href=${sourcePage}
+    rel="noopener"
+    >${SOURCE_PAGE_LABEL}</a
+  >`;
+}
+
+/** Lignes de « Détails techniques », communes au bloc complet et à la forme compacte. */
+export function renderSourceErrorDetailItems(view: SourceErrorView): TemplateResult {
+  const { desc, state, originId, technical } = view;
+  return html`
+    ${desc.status !== undefined ? html`<li>Code HTTP : ${desc.status}</li>` : nothing}
+    ${technical ? html`<li>Message : ${technical}</li>` : nothing}
+    ${originId ? html`<li>Source : ${originId}</li>` : nothing}
+    ${
+      state?.attemptedUrl
+        ? html`<li style="overflow-wrap: anywhere;">Adresse appelée : ${state.attemptedUrl}</li>`
+        : nothing
+    }
+    ${state ? html`<li>Heure : ${formatErrorTime(state.at)}</li>` : nothing}
+    <li>${desc.hint}</li>
+  `;
+}
 
 /**
  * Bloc d'erreur de SOURCE (#1203) : ce que l'usager peut comprendre, ce que
@@ -107,16 +197,8 @@ export function renderSourceError(
   error: Error | null,
   sourceId?: string
 ): TemplateResult {
-  const state = sourceId ? getDataErrorState(sourceId) : undefined;
-  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
-  const desc = state
-    ? describeSourceCause(state.cause, state.error)
-    : describeSourceError(error, online);
-  const originId = state?.originId ?? sourceId;
-  const covered = originId ? isSourceCoveredByBanner(originId) : false;
-  const showRetry = Boolean(sourceId) && desc.retry && !covered;
-  const technical = (state?.error ?? error)?.message;
-  const userMessage = state?.userMessage;
+  const view = resolveSourceError(error, sourceId);
+  const { desc, covered, showRetry, userMessage, sourcePage } = view;
 
   return html`
     <div
@@ -154,21 +236,17 @@ export function renderSourceError(
             </button>`
           : nothing
       }
+      ${
+        sourcePage
+          ? html`<p class="dsfr-data-status__link" style=${SOURCE_ERROR_TEXT_STYLE}>
+              ${renderSourcePageLink(sourcePage)}
+            </p>`
+          : nothing
+      }
       <details class="dsfr-data-status__details" style=${SOURCE_ERROR_DETAILS_STYLE}>
         <summary>Détails techniques</summary>
         <ul class="dsfr-data-status__details-list" style="margin: 0.25rem 0 0; padding-left: 1rem;">
-          ${desc.status !== undefined ? html`<li>Code HTTP : ${desc.status}</li>` : nothing}
-          ${technical ? html`<li>Message : ${technical}</li>` : nothing}
-          ${originId ? html`<li>Source : ${originId}</li>` : nothing}
-          ${
-            state?.attemptedUrl
-              ? html`<li style="overflow-wrap: anywhere;">
-                  Adresse appelée : ${state.attemptedUrl}
-                </li>`
-              : nothing
-          }
-          ${state ? html`<li>Heure : ${formatErrorTime(state.at)}</li>` : nothing}
-          <li>${desc.hint}</li>
+          ${renderSourceErrorDetailItems(view)}
         </ul>
       </details>
     </div>

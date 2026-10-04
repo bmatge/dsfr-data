@@ -230,17 +230,32 @@ La phrase dépend de la cause :
 | HTTP 400, source mal configurée | Cet affichage n'a pas pu être construit. | non |
 
 - \`error-message="..."\` sur la source remplace la phrase usager (le détail technique reste replié).
+- Un \`dsfr-data-kpi\` en panne garde une forme COMPACTE, à la hauteur de sa tuile (#1222) : « — » à la
+  place du chiffre, son libellé, et une phrase courte selon la cause (« Chiffre momentanément
+  indisponible », « Vous semblez hors connexion », « Le service est très sollicité », « Ce chiffre
+  n'est plus publié à cette adresse », « Ce chiffre n'est pas accessible publiquement », « Ce chiffre
+  n'a pas pu être affiché ») ou celle de \`error-message\`. Jamais un nombre : ni 0, ni l'ancien
+  chiffre. Les autres blocs (graphique, jauge, liste, podium, display) gardent l'encart complet.
+  Une valeur ABSENTE des données (null) n'est pas une panne : « — » et le libellé, sans phrase.
+- \`source-page="https://…"\` sur la source : adresse de la page PUBLIQUE des données (la page du
+  jeu sur le portail du producteur, pas l'adresse d'API). Sur des données introuvables (404, 410)
+  seulement, les blocs et le bandeau proposent le lien « Consulter la page de ces données ». Sans
+  l'attribut, aucun lien : rien n'est déduit de \`base-url\`, \`dataset-id\` ou \`resource\`. Seule une
+  adresse http(s) ou relative est admise.
 - \`<dsfr-data-source-status source="id">\` en haut du contenu dit la panne UNE fois par source, avec
   le seul bouton « Réessayer » : les blocs de cette source gardent leur message, sans bouton. Sans
   \`source\`, il suit toutes les sources de la page. Il n'affiche rien tant que tout va bien.
-- Sans bandeau, chaque bloc en erreur porte son propre « Réessayer ».
+- Sans bandeau, chaque bloc en erreur porte son propre « Réessayer » (dans une tuile de KPI : un
+  bouton compact, et « Détails » replié à la suite de la phrase). Avec le bandeau, la tuile de KPI
+  n'a ni bouton, ni lien, ni détail.
 - L'événement \`dsfr-data-error\` et la trace console ne changent pas : le code HTTP reste dans
   \`error.message\`.
 
 \`\`\`html
 <dsfr-data-source-status source="prix"></dsfr-data-source-status>
 <dsfr-data-source id="prix" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
-  dataset-id="prix-carburants" error-message="Les prix sont en cours de mise à jour.">
+  dataset-id="prix-carburants" error-message="Les prix sont en cours de mise à jour."
+  source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/">
 </dsfr-data-source>
 <dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"></dsfr-data-kpi>
 \`\`\`` +

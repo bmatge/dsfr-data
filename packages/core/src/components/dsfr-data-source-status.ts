@@ -13,9 +13,10 @@ import {
 import {
   describeSourceCause,
   formatErrorTime,
+  sourcePageFor,
   type SourceErrorDescription,
 } from '../utils/source-errors.js';
-import { RETRY_LABEL } from '../utils/status-templates.js';
+import { RETRY_LABEL, renderSourcePageLink } from '../utils/status-templates.js';
 
 /** Une panne affichée : l'état d'erreur de la source d'origine, et sa relance en cours. */
 interface Outage {
@@ -73,6 +74,12 @@ function bannerText(desc: SourceErrorDescription, userMessage?: string): string 
  * pas sur des données introuvables (404), un accès restreint (401, 403) ni une page mal réglée.
  * Hors connexion, la source se relance d'elle-même au retour du réseau ; sur un service très
  * sollicité (429), jamais automatiquement.
+ *
+ * Sur des données introuvables (404, 410), le bandeau propose le lien « Consulter la page de ces
+ * données » quand la source porte `source-page` ; sans cet attribut, aucun lien.
+ *
+ * Un `dsfr-data-kpi` en panne garde une forme compacte : « — » à la place du chiffre, son libellé,
+ * et une phrase courte. Avec le bandeau, la tuile ne porte ni bouton, ni lien, ni détail technique.
  *
  * Accessibilité : le bandeau est une région `role="status"` (annonce polie, non interruptive),
  * présente dès le montage pour que la panne y soit annoncée quand elle survient. Les blocs
@@ -192,6 +199,7 @@ export class DsfrDataSourceStatus extends LitElement {
   private _renderOutage(originId: string, outage: Outage): TemplateResult {
     const { state, retrying } = outage;
     const desc = describeSourceCause(state.cause, state.error);
+    const sourcePage = sourcePageFor(desc.cause, state.sourcePage);
     return html`
       <div
         class="fr-alert fr-alert--info fr-mb-2w dsfr-data-source-status__alert"
@@ -200,6 +208,13 @@ export class DsfrDataSourceStatus extends LitElement {
       >
         <h3 class="fr-alert__title">${bannerTitle(desc)}</h3>
         <p class="dsfr-data-source-status__text">${bannerText(desc, state.userMessage)}</p>
+        ${
+          sourcePage
+            ? html`<p class="dsfr-data-source-status__link fr-mt-1w">
+                ${renderSourcePageLink(sourcePage)}
+              </p>`
+            : nothing
+        }
         ${
           desc.retry
             ? html`<button
