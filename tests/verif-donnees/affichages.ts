@@ -2291,9 +2291,8 @@ const CHECKS: Check[] = [
   {
     id: 'podium-unite-insecable',
     mode: 'deterministic',
-    constats: ['AM-088'],
     origin:
-      '#1244, suite de AM-088 du banc — le podium écrivait `value-unit` après une espace ORDINAIRE et `subtitle-unit` après une insécable : sur une colonne étroite, « 987 601 » restait en fin de ligne et « hab. » passait à la suivante, alors que le sous-titre du même élément tenait. Les deux unités suivent désormais une insécable (U+00A0), comme celle du KPI. À l’œil les deux espaces se confondent : le contrôle lit le texte SANS normaliser les insécables, et le motif exige le codet.',
+      '#1244 — le podium écrivait `value-unit` après une espace ORDINAIRE et `subtitle-unit` après une insécable : sur une colonne étroite, « 987 601 » restait en fin de ligne et « hab. » passait à la suivante, alors que le sous-titre du même élément tenait. Les deux unités suivent désormais une insécable (U+00A0), comme celle du KPI. À l’œil les deux espaces se confondent : le contrôle lit le texte SANS normaliser les insécables, et le motif exige le codet.',
     feed: { kind: 'fixture', datasets: { main: COMMUNES } },
     markup: `
   ${source('s-podium-unite', 'communes')}

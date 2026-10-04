@@ -17,7 +17,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 | value-field | String | `""` | oui | Chemin vers le champ valeur numérique |
 | subtitle | String | `""` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | `""` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
-| value-unit | String | `""` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| value-unit | String | `""` | non | Unité affichée après la valeur, séparée par une espace insécable comme subtitle-unit (ex: "hab.", "€", "%") |
 | format | String | `""` | non | Format de la valeur, vocabulaire du KPI : nombre, pourcentage, euro, decimal, compact. Absent : entier arrondi à l'unité (rendu historique) |
 | decimals | Number | - | non | Décimales de la valeur (0 à 20). Seul, vaut format="nombre" : `decimals="2"` distingue 9,98 de 10,41 |
 | subtitle-format | String | `""` | non | Format du sous-titre lu dans subtitle-field : nombre, pourcentage, euro, decimal, compact, date. Absent : valeur brute |
@@ -132,7 +132,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut `sourc
 | `subtitle-format` | `string` | `""` (vide) | Format du sous-titre lu dans `subtitle-field`, même vocabulaire que `format` : `nombre` (5164 → « 5 164 »), `pourcentage`, `euro`, `decimal`, `compact`, et `date` (chaîne ISO → JJ/MM/AAAA). Absent (défaut), la valeur du champ est affichée telle quelle (#1230, AM-088 du banc). Une valeur qui n'est pas un nombre reste affichée telle quelle. Sans effet sur le texte fixe de `subtitle`. |
 | `subtitle-unit` | `string` | `""` (vide) | Unité accolée après le sous-titre lu dans `subtitle-field` (espace insécable) : `subtitle-format="nombre" subtitle-unit="aides"` rend « 5 164 aides ». S'applique aussi sans format. Sans effet sur le texte fixe de `subtitle`, ni sur un sous-titre vide. |
 | `value-field` | `string` | `""` (vide) | Chemin vers le champ valeur (numérique) |
-| `value-unit` | `string` | `""` (vide) | Unité affichée après la valeur |
+| `value-unit` | `string` | `""` (vide) | Unité affichée après la valeur, séparée d'elle par une espace insécable (comme `subtitle-unit` et l'unité de `dsfr-data-kpi`, #1244). |
 
 
 

@@ -111,7 +111,7 @@ describe('dsfr-data-a11y — colonnes lues par chemin pointé (#1244)', () => {
       ['Ain', ''],
       ['Aisne', ''],
     ]);
-    const messages = warn.mock.calls.map((c) => String(c[0]));
+    const messages = warn.mock.calls.map((c: unknown[]) => String(c[0]));
     expect(messages).toHaveLength(1);
     expect(messages[0]).toContain('value-field — colonne « fields.effectif » introuvable');
   });

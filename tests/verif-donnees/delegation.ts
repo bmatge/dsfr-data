@@ -2095,7 +2095,6 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   {
     id: 'tri-sur-part-jamais-delegue-ods',
     mode: 'deterministic',
-    constats: ['BUG-035'],
     origin:
       '#1244 — Opendatasoft : un tri sur la colonne de PART que la query calcule ne part pas en `order_by` (le portail ne connaît pas `population__share_percent`), et il est appliqué côté client APRÈS le calcul. Avant : `order_by=population__share_percent ASC` dans l’URL, et les cinq lignes rendues étaient les cinq premières reçues — les plus GRANDES parts sous un tri croissant.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -2109,7 +2108,6 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   {
     id: 'tri-sur-part-jamais-delegue-tabular',
     mode: 'deterministic',
-    constats: ['BUG-035'],
     origin:
       '#1244 — Tabular : `population__share_percent__sort=asc` faisait REFUSER la requête (colonne inconnue, comme l’API : 42703), et la query n’affichait plus aucune ligne. Le tri sur une colonne de part reste côté client : aucune clé `__sort` dans l’URL, cinq lignes rendues, dans l’ordre.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -2123,7 +2121,6 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   {
     id: 'tri-sur-part-jamais-delegue-grist',
     mode: 'deterministic',
-    constats: ['BUG-035'],
     origin:
       '#1244 — Grist : `sort=Population__share_percent` partait au serveur, qui ne porte pas cette colonne. Cinq villes, part décroissante : aucun paramètre `sort` dans l’URL, et Toulouse (35,9 %) en tête au lieu de Lille, première ligne reçue.',
     feed: { kind: 'fixture', datasets: { main: GRIST_LIGNES } },
@@ -2160,7 +2157,6 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   {
     id: 'tri-sur-part-apres-regroupement',
     mode: 'deterministic',
-    constats: ['BUG-035'],
     origin:
       '#1244 — après un `group-by`, rien n’était délégué (une part retient le regroupement côté client), mais le tri sur la part n’était pas appliqué non plus : sept pays rendus dans l’ordre du regroupement, la France (14,62 %) en tête d’un tri croissant. La part des groupes existe après le tri du pipeline ; le tri est rejoué après son calcul.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -2192,7 +2188,6 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   {
     id: 'tri-sur-cumul-et-ecart-jamais-delegue',
     mode: 'deterministic',
-    constats: ['BUG-035'],
     origin:
       '#1244 — même défaut sur les CUMULS : `order-by` sur `population__running_sum` ou `population__diff` partait au serveur et n’était pas appliqué. Un cumul trié sur lui-même est calculé dans l’ordre REÇU, puis trié : les cinq plus grands cumuls sont les cinq dernières lignes reçues, dans l’ordre inverse. La bibliothèque le dit (le cumul suit l’ordre des lignes reçues, faute d’une clé de tri qui le précède).',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
@@ -2257,7 +2252,6 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   {
     id: 'tri-sur-colonne-de-compute-reste-client',
     mode: 'deterministic',
-    constats: ['BUG-035'],
     origin:
       '#1244 — une colonne issue d’un `compute` (`dsfr-data-normalize` en amont) est, elle aussi, produite côté client. Ce cas n’était PAS en défaut : le relais déclare qu’il transforme le schéma (#394), la query ne délègue donc rien à travers lui et trie elle-même. Le contrôle le garde — un relais qui cesserait de le déclarer enverrait `order_by=double` à un portail qui n’a pas cette colonne.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
