@@ -452,7 +452,10 @@ Un preset `territory` cadre le territoire ENTIER dans l'encart par defaut (10rem
 pas poser de `zoom` pour le voir en entier (un `zoom` pose prime, pour un cadrage resserre ou un
 encart plus petit). Exception voulue : `polynesie-francaise` cadre Tahiti et Moorea (l'essentiel de
 la population, des iles lisibles dans 160 px) — le territoire entier demanderait le zoom 3 ; pour
-un autre archipel, poser `center` et `zoom`.
+un autre archipel, poser `center` et `zoom`. Il est au zoom 7, le plus grand que sert le fond par
+defaut : le Plan IGN (`ign-plan`) ne repond plus au-dela du zoom 7 sur la Polynesie, la
+Nouvelle-Caledonie et Wallis-et-Futuna — un encart de ces territoires avec `zoom="8"` ou plus sort
+GRIS, sauf a poser `tiles="ign-ortho"` ou `tiles="osm"` sur la carte.
 
 ### dsfr-data-map-timeline — Animation temporelle
 
@@ -676,7 +679,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `center` | `string` | `""` (vide) | Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset) |
 | `height` | `string` | `'160px'` | Hauteur de la mini-carte (px, rem, vh). Un `%` est un ratio de la LARGEUR de l'encart, comme sur `dsfr-data-map`. |
 | `label` | `string` | `""` (vide) | Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte) |
-| `territory` | `string` | `""` (vide) | Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label. Le cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de large, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un encart plus petit en demande un plus faible. Seule exception, voulue : `polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la population, des îles lisibles dans 160 px ; le territoire entier demanderait le zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center` et `zoom`. |
+| `territory` | `string` | `""` (vide) | Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label. Le cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de large, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un encart plus petit en demande un plus faible. Seule exception, voulue : `polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la population, des îles lisibles dans 160 px ; le territoire entier demanderait le zoom 3, où plus rien ne se lit. Il est au zoom 7, le plus grand que le fond par défaut (Plan IGN) sert sur la Polynésie. Pour un autre archipel, poser `center` et `zoom`. |
 | `width` | `string` | `""` (vide) | Largeur de l'encart (px, rem, %). Un `%` est relatif a la largeur de la carte hote : `width="20%"` repartit cinq encarts sur une ligne. Sans attribut, la feuille injectee par la carte pose `10rem` — une regle de page `dsfr-data-map-inset { width: … }` prime toujours dessus (#643). Echelle mobile-first (#818), comme `per-row` et `span` (#789) : `width="50% md:20%"` — le premier terme sous le premier point de rupture, puis un palier par point de rupture DSFR (sm 576, md 768, lg 992, xl 1248 px) ; un palier absent reprend le precedent. En echelle, une regle de page prime aussi, a toutes les largeurs. Un point de rupture inconnu ou une longueur illisible est une erreur de configuration. |
 | `zoom` | `number` | `0` | Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier) |
 

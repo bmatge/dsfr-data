@@ -3694,7 +3694,10 @@ Un preset \`territory\` cadre le territoire ENTIER dans l'encart par defaut (10r
 pas poser de \`zoom\` pour le voir en entier (un \`zoom\` pose prime, pour un cadrage resserre ou un
 encart plus petit). Exception voulue : \`polynesie-francaise\` cadre Tahiti et Moorea (l'essentiel de
 la population, des iles lisibles dans 160 px) — le territoire entier demanderait le zoom 3 ; pour
-un autre archipel, poser \`center\` et \`zoom\`.
+un autre archipel, poser \`center\` et \`zoom\`. Il est au zoom 7, le plus grand que sert le fond par
+defaut : le Plan IGN (\`ign-plan\`) ne repond plus au-dela du zoom 7 sur la Polynesie, la
+Nouvelle-Caledonie et Wallis-et-Futuna — un encart de ces territoires avec \`zoom="8"\` ou plus sort
+GRIS, sauf a poser \`tiles="ign-ortho"\` ou \`tiles="osm"\` sur la carte.
 
 ### dsfr-data-map-timeline — Animation temporelle
 
