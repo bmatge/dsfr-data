@@ -58,8 +58,27 @@
  * error when it is written as a literal (`substr(s, 0, 2)` is the off-by-one
  * of a 0-based habit), and null when it is computed.
  *
+ * ARRAY ELEMENTS (#1237, follow-up of AM-103): `element_at(arr, n)` reads ONE
+ * element of an array field, `array_min(arr)` / `array_max(arr)` its smallest
+ * / largest element. The names and the conventions are those of SQL engines
+ * that have arrays (Spark, Trino): ranks are 1-BASED like `substr`, and a
+ * NEGATIVE rank counts from the end (`element_at(arr, -1)` is the last
+ * element). The element is returned AS IT IS — no text conversion. Anything
+ * that is not a real array yields null, a scalar included: a « glued » cell
+ * (`'a;b'`) is ONE text, and answering it for rank 1 would be a plausible
+ * wrong value — `split` (same component, runs before `compute`) makes the
+ * array. Out of range, empty array, absent or non-numeric rank: null. A rank
+ * of 0 or a non-integer rank is a configuration error when written as a
+ * literal (`element_at(arr, 0)` is the off-by-one of a 0-based habit), null
+ * when computed. `array_min` / `array_max` ignore absent elements (null,
+ * undefined, ''), compare as NUMBERS when every remaining element is numeric
+ * (French decimals included: '950' is before '1050') and as TEXT otherwise
+ * (ISO dates sort correctly), and return the winning element unchanged
+ * ('01004' keeps its zero); the first one wins a tie.
+ *
  * Still out of scope: aggregated values (query / kpi), windowing (previous
- * row, cumulative sum), user-defined functions, the n-th element of an array.
+ * row, cumulative sum), user-defined functions, array literals, filtering or
+ * mapping the elements of an array.
  *
  * Safety: tokenizer + recursive-descent parser → AST → evaluator. NEVER uses
  * eval()/new Function() — public repo + miweb mirror, no injection. Only the
@@ -202,6 +221,40 @@ function literalNumber(node: Node | undefined): number | null {
   return null;
 }
 
+/**
+ * Smallest (`sign` = 1) or largest (`sign` = -1) element of an array
+ * (#1237). Not an array: null. Absent elements (null, undefined, '') are
+ * skipped. The comparison is numeric when EVERY remaining element is numeric,
+ * textual (code-unit order, like `<`) otherwise — decided once for the whole
+ * array, because a pairwise mix of the two is not an order. The element is
+ * returned unchanged; the first one wins a tie. Plain loop, no argument
+ * spreading (BUG-038).
+ */
+function arrayExtreme(v: unknown, sign: 1 | -1): unknown {
+  if (!Array.isArray(v)) return null;
+  const present: unknown[] = [];
+  let allNumeric = true;
+  for (let i = 0; i < v.length; i++) {
+    const el: unknown = v[i];
+    if (isNil(el) || el === '') continue;
+    present.push(el);
+    if (numberish(el) === null) allNumeric = false;
+  }
+  if (present.length === 0) return null;
+  const keyOf = (el: unknown): number | string =>
+    allNumeric ? (numberish(el) as number) : (textOf(el) ?? '');
+  let best = present[0];
+  let bestKey = keyOf(best);
+  for (let i = 1; i < present.length; i++) {
+    const key = keyOf(present[i]);
+    if (sign === 1 ? key < bestKey : key > bestKey) {
+      best = present[i];
+      bestKey = key;
+    }
+  }
+  return best;
+}
+
 const FUNCTIONS: Record<string, FunctionSpec> = {
   // Dates — ISO string or Date → number, null otherwise.
   year: { min: 1, max: 1, impl: (a) => dateParts(a[0])?.year ?? null },
@@ -334,6 +387,32 @@ const FUNCTIONS: Record<string, FunctionSpec> = {
       return String(haystack).toLowerCase().includes(String(a[1]).toLowerCase());
     },
   },
+  // Elements of an array (#1237) — 1-based ranks, see the header.
+  element_at: {
+    min: 2,
+    max: 2,
+    check: (args) => {
+      const rank = literalNumber(args[1]);
+      if (rank === null || (rank !== 0 && Number.isInteger(rank))) return null;
+      return (
+        `"element_at" compte les rangs à partir de 1, en nombres entiers, reçu ${rank} — ` +
+        "le premier élément s'écrit element_at(t, 1), le dernier element_at(t, -1)"
+      );
+    },
+    impl: (a) => {
+      const arr = a[0];
+      const rank = numberish(a[1]);
+      if (!Array.isArray(arr) || rank === null || rank === 0 || !Number.isInteger(rank)) {
+        return null;
+      }
+      const index = rank > 0 ? rank - 1 : arr.length + rank;
+      if (index < 0 || index >= arr.length) return null;
+      const element: unknown = arr[index];
+      return element === undefined ? null : element;
+    },
+  },
+  array_min: { min: 1, max: 1, impl: (a) => arrayExtreme(a[0], 1) },
+  array_max: { min: 1, max: 1, impl: (a) => arrayExtreme(a[0], -1) },
 };
 
 /** Whitelisted function names, in documentation order. */

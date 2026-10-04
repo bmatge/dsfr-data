@@ -252,7 +252,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   comptée À PARTIR DE 1 comme en SQL et en ODSQL ; sans `n`, jusqu'au bout) ;
    *   absence `coalesce(a, b, …)` (première valeur non nulle), `is_null(x)`,
    *   `is_empty(x)` (null, '' ou tableau vide) ;
-   *   tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)` ;
+   *   tableaux `join(arr, ', ')`, `contains(arr_ou_texte, v)`,
+   *   `element_at(arr, n)` (l'élément de rang `n`, compté À PARTIR DE 1 ; un rang
+   *   négatif compte depuis la fin), `array_min(arr)` et `array_max(arr)` (le plus
+   *   petit et le plus grand élément) ;
    * - conditions `when COND then EXPR [when … then …]… else EXPR` — le `else` est
    *   obligatoire (erreur de configuration sinon) ; comparaisons d'égalité `=` et `!=`
    *   et d'ordre (inférieur, inférieur ou égal, supérieur, supérieur ou égal, avec les
@@ -284,13 +287,36 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   par une sous-chaîne. Valeur absente : null. Position ou longueur absente ou non
    *   numérique : null. Longueur nulle ou négative, début au-delà de la fin : chaîne
    *   vide. Début inférieur à 1 : erreur de configuration s'il est écrit en dur
-   *   (`substr(s, 0, 2)`), null s'il est calculé. Le n-ième élément d'un TABLEAU n'est
-   *   pas couvert : `left` et `substr` lisent du texte.
+   *   (`substr(s, 0, 2)`), null s'il est calculé. `left` et `substr` lisent du TEXTE :
+   *   sur un tableau, ils portent sur sa forme texte (`a,b`), pas sur ses éléments.
+   * - éléments d'un tableau (#1237, suite de AM-103) : `element_at(denominations, 1)`
+   *   rend le PREMIER élément, `element_at(denominations, -1)` le dernier ; les rangs se
+   *   comptent à partir de 1, comme les positions de `substr` et comme `element_at` en
+   *   SQL (Spark, Trino). L'élément est rendu tel quel, sans conversion. Tout ce qui
+   *   n'est pas un vrai tableau rend null — y compris un scalaire, et une cellule
+   *   « collée » (`'maison ; immeuble'`), qui est UN texte : la découper d'abord avec
+   *   `split`, dans le même normalize (`split` s'exécute avant `compute`) :
+   *   `split="datation:;" compute="premiere = element_at(datation, 1)"`. Rang hors du
+   *   tableau, tableau vide, rang absent ou non numérique : null. Rang 0 ou non entier :
+   *   erreur de configuration s'il est écrit en dur (`element_at(arr, 0)`), null s'il
+   *   est calculé. `array_min(arr)` et `array_max(arr)` rendent le plus petit et le plus
+   *   grand élément — le plus ANCIEN poste d'une liste de dates n'est pas forcément le
+   *   premier listé : `plus_ancien = array_min(prises_de_poste)`,
+   *   `annee = year(array_min(prises_de_poste))`. Les éléments absents (null, '') sont
+   *   ignorés ; la comparaison est NUMÉRIQUE quand tous les éléments restants sont des
+   *   nombres (« 950 » avant « 1050 », décimale française comprise), TEXTUELLE sinon
+   *   (les dates ISO se rangent juste ; un seul élément non numérique, « vers 1970 »,
+   *   fait basculer tout le tableau en texte). L'élément gagnant est rendu tel quel
+   *   (`'01004'` garde son zéro), le premier en cas d'égalité ; pas un tableau, ou rien
+   *   à comparer : null. Ce ne sont pas les agrégations `min` / `max` de
+   *   `dsfr-data-query`, qui réduisent des LIGNES : celles-ci réduisent les éléments
+   *   d'UNE cellule.
    *
    * Exemples : `solde = actif - passif` (null si l'un des deux manque),
    * `tranche = when montant = 0 then 'Nul' when is_empty(montant) then 'Inconnu' else 'Renseigné'`,
    * `type = coalesce(type_entreprise, 'Non renseigné')`, `annee = year(date_notification)`,
-   * `pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme` ; une tranche
+   * `pct = round(part * 100, 1)`, `serie = Indicateurs + ' / ' + Sous_theme`,
+   * `principale = element_at(denominations, 1)` ; une tranche
    * par seuils s'écrit avec les opérateurs d'ordre (voir le guide).
    *
    * Fonction hors liste, arité fausse, `when` sans `else`, expression trop longue ou trop

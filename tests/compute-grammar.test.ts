@@ -28,7 +28,7 @@ import {
 } from '@dsfr-data/shared';
 import { DsfrDataNormalize } from '@/components/dsfr-data-normalize.js';
 import { DsfrDataQuery } from '@/components/dsfr-data-query.js';
-import { clearDataCache, clearDataMeta } from '@/utils/data-bridge.js';
+import { clearDataCache, clearDataMeta, getDataCache } from '@/utils/data-bridge.js';
 
 function run(expr: string, row: Record<string, unknown> = {}): unknown {
   return applyCompute(row, compileCompute(`out = ${expr}`)).out;
@@ -376,6 +376,137 @@ describe('compute v2 — fonctions tableaux', () => {
   });
 });
 
+describe('compute — élément d’un tableau : element_at (#1237, suite de AM-103)', () => {
+  const denominations = ['maison', 'immeuble', 'atelier'];
+
+  it('rend le premier élément, le n-ième, et compte à partir de 1', () => {
+    expect(run('element_at(d, 1)', { d: denominations })).toBe('maison');
+    expect(run('element_at(d, 2)', { d: denominations })).toBe('immeuble');
+    expect(run('element_at(d, 3)', { d: denominations })).toBe('atelier');
+  });
+
+  it('un rang négatif compte depuis la fin', () => {
+    expect(run('element_at(d, -1)', { d: denominations })).toBe('atelier');
+    expect(run('element_at(d, -3)', { d: denominations })).toBe('maison');
+    expect(run('element_at(d, 0 - 1)', { d: denominations })).toBe('atelier');
+  });
+
+  it('hors bornes, tableau vide : null, jamais un élément voisin', () => {
+    expect(run('element_at(d, 4)', { d: denominations })).toBeNull();
+    expect(run('element_at(d, -4)', { d: denominations })).toBeNull();
+    expect(run('element_at(d, 1)', { d: [] })).toBeNull();
+    expect(run('element_at(d, -1)', { d: [] })).toBeNull();
+  });
+
+  it('une valeur qui n’est pas un tableau rend null — un scalaire n’est pas un tableau d’un élément', () => {
+    expect(run('element_at(d, 1)', { d: null })).toBeNull();
+    expect(run('element_at(d, 1)', {})).toBeNull();
+    expect(run('element_at(d, 1)', { d: 'maison' })).toBeNull();
+    // Une cellule « collée » est UN texte : c’est `split` qui en fait un tableau.
+    expect(run('element_at(d, 1)', { d: 'maison;immeuble' })).toBeNull();
+    expect(run('element_at(d, 1)', { d: 1965 })).toBeNull();
+    expect(run('element_at(d, 1)', { d: { 0: 'a', length: 1 } })).toBeNull();
+  });
+
+  it('rend l’élément TEL QUEL, sans le convertir', () => {
+    expect(run('element_at(d, 1)', { d: [1965, 1972] })).toBe(1965);
+    expect(run('element_at(d, 1)', { d: ['01004'] })).toBe('01004');
+    expect(run('element_at(d, 2)', { d: ['a', null, 'c'] })).toBeNull();
+    expect(run('element_at(d, 2)', { d: ['a', undefined, 'c'] })).toBeNull();
+    expect(run('element_at(d, 1)', { d: [''] })).toBe('');
+    expect(run('element_at(d, 1)', { d: [false] })).toBe(false);
+  });
+
+  it('rang absent, non numérique, nul ou non entier quand il est CALCULÉ : null', () => {
+    expect(run('element_at(d, n)', { d: denominations, n: null })).toBeNull();
+    expect(run('element_at(d, n)', { d: denominations })).toBeNull();
+    expect(run('element_at(d, n)', { d: denominations, n: 'x' })).toBeNull();
+    expect(run('element_at(d, n)', { d: denominations, n: 0 })).toBeNull();
+    expect(run('element_at(d, n)', { d: denominations, n: 1.5 })).toBeNull();
+    // Un rang lu dans une colonne texte numérique est un rang.
+    expect(run('element_at(d, n)', { d: denominations, n: '2' })).toBe('immeuble');
+    expect(run('element_at(d, len(d))', { d: denominations })).toBe('atelier');
+  });
+
+  it('rang 0 ou non entier ÉCRIT EN DUR : erreur de configuration', () => {
+    expect(compileError('out = element_at(d, 0)')).toMatch(/à partir de 1.*reçu 0/);
+    expect(compileError('out = element_at(d, 1.5)')).toMatch(/nombres entiers.*reçu 1.5/);
+    expect(compileError('out = element_at(d, -0)')).toMatch(/à partir de 1/);
+    expect(() => compileCompute('out = element_at(d, -1)')).not.toThrow();
+    expect(compileError('out = element_at(d)')).toMatch(/attend 2 arguments/);
+    expect(compileError('out = element_at(d, 1, 2)')).toMatch(/attend 2 arguments/);
+  });
+
+  it('se compose : première année d’une datation, dénomination principale', () => {
+    expect(run('year(element_at(d, 1))', { d: ['1972-05-01', '1980-01-01'] })).toBe(1972);
+    expect(run('upper(left(element_at(d, 1), 3))', { d: denominations })).toBe('MAI');
+    expect(run("coalesce(element_at(d, 1), 'Non renseigné')", { d: [] })).toBe('Non renseigné');
+    expect(run('element_at(d, 1) + 0', { d: ['1965', '1972'] })).toBe(1965);
+  });
+
+  it('n’est ni `at` ni une syntaxe d’index : la liste des fonctions est dite', () => {
+    expect(compileError('out = at(d, 1)')).toMatch(/fonction inconnue "at".*element_at/);
+    expect(() => compileCompute('out = d[1]')).toThrow();
+  });
+});
+
+describe('compute — plus petit et plus grand élément : array_min / array_max (#1237)', () => {
+  it('compare en NOMBRE quand tous les éléments sont numériques', () => {
+    // L’ordre du texte dirait « 1050 » avant « 950 ».
+    expect(run('array_min(a)', { a: ['1050', '950', '1200'] })).toBe('950');
+    expect(run('array_max(a)', { a: ['1050', '950', '1200'] })).toBe('1200');
+    expect(run('array_min(a)', { a: [1972, 1965, 1980] })).toBe(1965);
+    expect(run('array_max(a)', { a: [1972, 1965, 1980] })).toBe(1980);
+    expect(run('array_min(a)', { a: ['12,5', '3', '-4'] })).toBe('-4');
+  });
+
+  it('compare en TEXTE sinon — les dates ISO se rangent juste', () => {
+    const postes = ['2019-03-01', '2012-07-15', '2016-01-04'];
+    expect(run('array_min(a)', { a: postes })).toBe('2012-07-15');
+    expect(run('array_max(a)', { a: postes })).toBe('2019-03-01');
+    expect(run('year(array_min(a))', { a: postes })).toBe(2012);
+    // Un seul élément non numérique fait basculer TOUT le tableau en texte.
+    expect(run('array_min(a)', { a: ['950', '1050', 'vers 1970'] })).toBe('1050');
+    expect(run('array_max(a)', { a: ['950', '1050', 'vers 1970'] })).toBe('vers 1970');
+  });
+
+  it('rend l’élément tel quel : un zéro de tête survit', () => {
+    expect(run('array_min(a)', { a: ['75056', '01004'] })).toBe('01004');
+    expect(run('array_max(a)', { a: ['75056', '01004'] })).toBe('75056');
+  });
+
+  it('ignore les éléments absents ; rien à comparer : null', () => {
+    expect(run('array_min(a)', { a: [null, '', 1972, undefined, 1965] })).toBe(1965);
+    expect(run('array_max(a)', { a: [null, '', 1972, undefined, 1965] })).toBe(1972);
+    expect(run('array_min(a)', { a: [] })).toBeNull();
+    expect(run('array_max(a)', { a: [null, ''] })).toBeNull();
+    expect(run('array_min(a)', { a: [0, 5] })).toBe(0);
+  });
+
+  it('une valeur qui n’est pas un tableau rend null', () => {
+    expect(run('array_min(a)', { a: null })).toBeNull();
+    expect(run('array_min(a)', {})).toBeNull();
+    expect(run('array_min(a)', { a: 1965 })).toBeNull();
+    expect(run('array_max(a)', { a: '1965;1972' })).toBeNull();
+  });
+
+  it('à égalité, le premier élément rencontré gagne', () => {
+    expect(run('array_min(a)', { a: ['1,0', '1', '2'] })).toBe('1,0');
+    expect(run('array_max(a)', { a: ['2', '2,0', '1'] })).toBe('2');
+  });
+
+  it('tient un tableau plus long que le plafond d’arguments d’un appel (BUG-038)', () => {
+    const grand = Array.from({ length: 200_000 }, (_, i) => i + 1);
+    expect(run('array_min(a)', { a: grand })).toBe(1);
+    expect(run('array_max(a)', { a: grand })).toBe(200_000);
+  });
+
+  it('arité : un seul argument', () => {
+    expect(compileError('out = array_min(a, b)')).toMatch(/attend 1 argument/);
+    expect(compileError('out = array_max()')).toMatch(/attend 1 argument/);
+  });
+});
+
 describe('compute v2 — liste blanche', () => {
   it('expose la liste des fonctions acceptées, dans l’ordre de la doc', () => {
     expect(COMPUTE_FUNCTIONS).toEqual([
@@ -400,6 +531,9 @@ describe('compute v2 — liste blanche', () => {
       'is_empty',
       'join',
       'contains',
+      'element_at',
+      'array_min',
+      'array_max',
     ]);
   });
 
@@ -409,6 +543,7 @@ describe('compute v2 — liste blanche', () => {
       contains: 2,
       left: 2,
       substr: 2,
+      element_at: 2,
     };
     for (const fn of COMPUTE_FUNCTIONS) {
       const args = Array.from({ length: minArity[fn] ?? 1 }, (_, i) => `a${i}`).join(', ');
@@ -823,6 +958,49 @@ describe('compute v2 — dsfr-data-normalize : erreur de configuration (#649)', 
     expect(normalize.hasAttribute('data-dsfr-config-error')).toBe(false);
     expect(normalize.getError()).toBeNull();
     expect(normalize.getComputedColumns()).toEqual([{ name: 'total', sample: 3 }]);
+  });
+});
+
+describe('compute — élément d’un tableau fabriqué par split, dans le même normalize (#1237)', () => {
+  afterEach(() => {
+    clearDataCache('elt-out');
+    clearDataMeta('elt-out');
+  });
+
+  it('split découpe AVANT compute : la cellule collée devient un tableau, puis se lit par rang', () => {
+    const normalize = new DsfrDataNormalize();
+    normalize.id = 'elt-out';
+    normalize.source = 'elt-src';
+    normalize.split = 'datation:;, denomination:;';
+    normalize.compute =
+      'principale = element_at(denomination, 1); premiere = array_min(datation); derniere = element_at(datation, -1)';
+    (normalize as unknown as NormalizeInternals)._processData([
+      { denomination: 'maison ; immeuble', datation: '1972 ; 950 ; 1980' },
+      { denomination: '', datation: null },
+    ]);
+    expect(getDataCache('elt-out')).toEqual([
+      {
+        denomination: ['maison', 'immeuble'],
+        datation: ['1972', '950', '1980'],
+        principale: 'maison',
+        premiere: '950',
+        derniere: '1980',
+      },
+      { denomination: [], datation: null, principale: null, premiere: null, derniere: null },
+    ]);
+  });
+
+  it('sans split, la cellule collée reste un texte : null, pas le texte entier', () => {
+    const normalize = new DsfrDataNormalize();
+    normalize.id = 'elt-out';
+    normalize.source = 'elt-src';
+    normalize.compute = 'principale = element_at(denomination, 1)';
+    (normalize as unknown as NormalizeInternals)._processData([
+      { denomination: 'maison ; immeuble' },
+    ]);
+    expect(getDataCache('elt-out')).toEqual([
+      { denomination: 'maison ; immeuble', principale: null },
+    ]);
   });
 });
 
