@@ -865,24 +865,77 @@ function filtrerTabular(
         return nombre(gauche) >= Number(valeur);
       case 'in':
         // Comme l'API (PG-034, rejoue le 2026-09-27) : le parseur de liste
-        // ecarte EN SILENCE toute valeur a parenthese — `__exact` trouve
-        // « Usage de stupefiants (AFD) », `__in` la meme valeur rend 0.
-        return valeur
-          .split(',')
-          .filter((v) => !/[()]/.test(v))
-          .includes(String(gauche));
+        // ecarte EN SILENCE toute valeur NUE a parenthese — `__exact` trouve
+        // « Usage de stupefiants (AFD) », `__in` la meme valeur rend 0 — et
+        // lit une valeur entre guillemets (`lireListeTabular`, #1233).
+        return lireListeTabular(valeur).includes(String(gauche));
       case 'notin':
-        // Meme parseur de liste (mesure du 2026-10-03, #1233) : la valeur a
-        // parenthese est ecartee, donc plus rien n'est exclu — 1 818 lignes
-        // avec `indicateur__notin=Usage de stupefiants (AFD)`, 1 717 attendues.
-        return !valeur
-          .split(',')
-          .filter((v) => !/[()]/.test(v))
-          .includes(String(gauche));
+        // Meme parseur de liste (mesure du 2026-10-03, #1233) : la valeur nue
+        // a parenthese est ecartee, donc plus rien n'est exclu — 1 818 lignes
+        // avec `indicateur__notin=Usage de stupefiants (AFD)`, 1 717 attendues
+        // et rendues quand la valeur est citee.
+        return !lireListeTabular(valeur).includes(String(gauche));
       default:
         return true;
     }
   });
+}
+
+/**
+ * La liste d'un `__in` / `__notin`, lue comme l'API la lit (#1233).
+ *
+ * L'API passe la valeur telle quelle a PostgREST (`in.(valeur)`). Mesures du
+ * 2026-10-04 (base SSMSI, `annee__exact=2025`, et ressource des elus pour la
+ * virgule) :
+ * - valeur NUE : decoupee sur la virgule ; une parenthese l'ecarte sans
+ *   erreur (`Usage de stupéfiants (AFD)` → 0, avec `Homicides` → 101) ;
+ * - valeur ENTRE GUILLEMETS : lue d'un seul tenant, parentheses et virgules
+ *   comprises (`Homicides,"Usage de stupéfiants (AFD)"` → 202 ;
+ *   `"Elève, étudiant","Contremaître, agent de maîtrise"` → 789 = 38 + 751,
+ *   0 quand elles sont nues) ; une liste peut meler les deux formes ;
+ * - dans les guillemets, `\` echappe le caractere suivant (`"Homi\cides"`
+ *   → 101) ;
+ * - guillemet jamais referme (`"Usage de stupéfiants (AFD)`) : 200, zero
+ *   ligne — la valeur n'est pas lue ;
+ * - valeur vide (`Homicides,""`, ou `Homicides,`) : rien de plus (101).
+ *
+ * Un faux serveur qui lirait la parenthese nue, ou qui ne lirait pas les
+ * guillemets, rendrait verts ou rouges des controles pour une raison que
+ * l'API reelle ne connait pas.
+ */
+export function lireListeTabular(valeur: string): string[] {
+  const lues: string[] = [];
+  let i = 0;
+  while (i < valeur.length) {
+    if (valeur[i] === '"') {
+      let j = i + 1;
+      let texte = '';
+      let fermee = false;
+      while (j < valeur.length) {
+        if (valeur[j] === '\\' && j + 1 < valeur.length) {
+          texte += valeur[j + 1];
+          j += 2;
+        } else if (valeur[j] === '"') {
+          fermee = true;
+          j++;
+          break;
+        } else {
+          texte += valeur[j];
+          j++;
+        }
+      }
+      // Jamais refermee, ou suivie d'autre chose qu'une virgule : pas lue
+      if (!fermee || (j < valeur.length && valeur[j] !== ',')) return lues;
+      lues.push(texte);
+      i = j + 1;
+    } else {
+      const fin = valeur.indexOf(',', i);
+      const nue = valeur.slice(i, fin === -1 ? valeur.length : fin);
+      if (!/[()]/.test(nue)) lues.push(nue);
+      i = fin === -1 ? valeur.length : fin + 1;
+    }
+  }
+  return lues;
 }
 
 /** API generique : tableau NU, sans enveloppe ni pagination. */

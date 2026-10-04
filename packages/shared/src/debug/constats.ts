@@ -570,9 +570,10 @@ const tronque: RegleConstat = {
 };
 
 /**
- * Réserves d'un adaptateur (#1233) : ce qu'il sait de faux, ou de possiblement
- * faux, dans un chargement qui a pourtant abouti. Une réserve inconnue de
- * cette table (bibliothèque plus récente que l'app) reste dite, sous son code.
+ * Réserves d'une étape (#1233, #1242) : ce qu'un adaptateur — ou une requête —
+ * sait de faux, de possiblement faux ou de coûteux dans un résultat qui a
+ * pourtant abouti. Une réserve inconnue de cette table (bibliothèque plus
+ * récente que l'app) reste dite, sous son code.
  */
 const RESERVES: Record<string, { titre: string; explication: string; action: string }> = {
   'unstable-sort': {
@@ -587,6 +588,20 @@ const RESERVES: Record<string, { titre: string; explication: string; action: str
       "Une liste in ou notin porte une valeur à parenthèse ou à virgule : l'API Tabular l'écarte sans erreur, et la pagination serveur ne permet pas de calculer la clause sur place. Il manque les lignes de cette valeur.",
     action:
       'Retirer server-side de la source : la clause est alors calculée sur les lignes chargées',
+  },
+  'in-quoted-refused': {
+    titre: 'liste « in » entre guillemets refusée par le serveur',
+    explication:
+      "Une liste in ou notin porte une valeur à parenthèse ou à virgule, que l'API Tabular ne lit qu'entre guillemets ; elle a refusé cette forme. En chargement complet, la clause est calculée sur place : le résultat est juste, mais toutes les lignes des autres clauses sont chargées. En pagination serveur, la liste part sans guillemets et la valeur est écartée.",
+    action:
+      "Signaler le refus : la bibliothèque s'appuie ici sur une forme que l'API ne documente pas",
+  },
+  'aggregate-on-page': {
+    titre: 'regroupement calculé sur une seule page',
+    explication:
+      "La requête regroupe ou agrège côté client, et sa source pagine au serveur : elle n'en a reçu qu'une page. Le chiffre ne porte que sur ces lignes, et aucun attribut ne fait charger le jeu entier à une source en mode URL.",
+    action:
+      'Agréger côté API (une URL qui rend déjà le résultat), ou passer par un api-type qui charge tout le jeu',
   },
 };
 
@@ -604,9 +619,15 @@ const reserveServeur: RegleConstat = {
         codes.includes('unstable-sort') && node.attrs['order-by']
           ? `order-by="${node.attrs['order-by']}"`
           : '',
-        codes.includes('in-values-dropped') && node.attrs.where
+        (codes.includes('in-values-dropped') || codes.includes('in-quoted-refused')) &&
+        node.attrs.where
           ? `where="${node.attrs.where}"`
           : '',
+        ...(codes.includes('aggregate-on-page')
+          ? ['group-by', 'aggregate'].map((attr) =>
+              node.attrs[attr] ? `${attr}="${node.attrs[attr]}"` : ''
+            )
+          : []),
       ].filter(Boolean);
       return [
         constat('pipeline/reserve-serveur', 'avertissement', {

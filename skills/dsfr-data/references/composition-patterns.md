@@ -107,6 +107,14 @@ HTML parfaitement bien forme. Pour un gros jeu partage, la reponse est `fetch-mo
 requete au lieu de trente, et le jeu entier. Les deux ne se combinent jamais — `server-side` ignore
 `fetch-mode` et le signale en console.
 
+Seule une `dsfr-data-query` se refuse d'elle-meme (#1242) : quand son regroupement ou son agregat
+reste cote client (part, cumul, `explode`, agregat sans `group-by`, source partagee…) derriere
+une source en `server-side`, elle passe en erreur de configuration (`data-dsfr-config-error`)
+au lieu d'emettre le chiffre d'une page. Un KPI ou un graphique branche DIRECTEMENT sur la source
+paginee, lui, calcule toujours sur la page recue. Pour un total a cote d'un tableau pagine :
+`value="meta:total"` pour un compte, ou une source dediee sans `server-side` qui porte
+l'agregat (`group-by` + `aggregate`, ou un `select` agrege).
+
 En pagination serveur, ne pas mettre `search` ni `filters` sur la liste : ils n'opereraient que sur
 la page chargee (compteurs faux), et le composant les desactive avec un avertissement. Utiliser
 `dsfr-data-search server-search` ou `dsfr-data-facets server-facets` en amont.

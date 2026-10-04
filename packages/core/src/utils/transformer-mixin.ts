@@ -438,13 +438,18 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
 
       const primary = this.transformerSources()[0];
       const upstreamMeta = primary ? getDataMeta(primary) : undefined;
-      const meta = upstreamMeta ? this.transformMeta(upstreamMeta) : this.transformerOwnMeta();
-      if (meta) {
-        // Les reserves de l'adapter (#1233) decrivent le chargement de la
-        // SOURCE : relayees, le volet Diagnostic les redirait a chaque etape.
-        const { caveats: _sourceCaveats, ...own } = meta;
-        setDataMeta(this.id, own);
+      let meta: PaginationMeta | null;
+      if (upstreamMeta) {
+        // Les reserves de l'amont (#1233) decrivent SON etape : relayees, le
+        // volet Diagnostic les redirait a chaque etape. Elles sont retirees
+        // AVANT `transformMeta`, pour que l'hote puisse poser les siennes
+        // (#1242 : `aggregate-on-page` de dsfr-data-query).
+        const { caveats: _upstreamCaveats, ...upstream } = upstreamMeta;
+        meta = this.transformMeta(upstream);
+      } else {
+        meta = this.transformerOwnMeta();
       }
+      if (meta) setDataMeta(this.id, meta);
 
       dispatchDataLoaded(this.id, data);
       this.requestUpdate();

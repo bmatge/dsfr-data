@@ -242,7 +242,11 @@ function formatMeta(node: StageNode, state: StageState): string[] {
         ? "     ⚠ tri laissé à l'API sur plusieurs pages sans clé de départage : des lignes à valeurs égales peuvent manquer ou être doublées."
         : code === 'in-values-dropped'
           ? "     ⚠ une valeur à parenthèse ou à virgule d'un filtre in/notin est écartée par l'API : il manque des lignes."
-          : `     ⚠ réserve de l'adaptateur : ${code}.`
+          : code === 'in-quoted-refused'
+            ? "     ⚠ l'API a refusé un filtre in/notin écrit entre guillemets : clause calculée sur place en chargement complet (jeu entier chargé), envoyée sans guillemets en pagination serveur."
+            : code === 'aggregate-on-page'
+              ? "     ⚠ regroupement ou agrégat calculé côté client sur la seule page reçue d'une source qui pagine au serveur : le chiffre est partiel."
+              : `     ⚠ réserve de l'adaptateur : ${code}.`
     );
   }
   if (meta.needsClientProcessing) {

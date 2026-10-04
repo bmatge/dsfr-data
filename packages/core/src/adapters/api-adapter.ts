@@ -168,9 +168,19 @@ export interface FetchResult {
  *   limites de page (PG-033 du banc, API Tabular) ;
  * - `in-values-dropped` : une liste `in` / `notin` est partie au serveur avec
  *   une valeur qu'il ecarte en silence (PG-034, valeur a parenthese sur
- *   l'API Tabular, en pagination serveur).
+ *   l'API Tabular, en pagination serveur, quand la liste entre guillemets
+ *   est refusee) ;
+ * - `in-quoted-refused` : l'API a refuse une liste `in` / `notin` ecrite
+ *   entre guillemets (#1233) — en chargement complet la clause est calculee
+ *   par l'adapter (resultat juste, jeu entier charge) ; en pagination serveur
+ *   elle part nue, avec `in-values-dropped` ;
+ * - `aggregate-on-page` (#1242) : posee par `dsfr-data-query`, pas par un
+ *   adapter — un regroupement ou un agregat est calcule cote client sur la
+ *   seule page d'une source qui pagine au serveur, sans correction possible
+ *   par attributs (mode URL `paginate`).
  */
-export type FetchCaveat = 'unstable-sort' | 'in-values-dropped';
+export type FetchCaveat =
+  'unstable-sort' | 'in-values-dropped' | 'in-quoted-refused' | 'aggregate-on-page';
 
 /**
  * Resultat d'une requête de facettes serveur.

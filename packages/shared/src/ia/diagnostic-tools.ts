@@ -195,6 +195,14 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
             state.meta.caveats?.includes('in-values-dropped')
               ? ', VALEUR DE in ÉCARTÉE PAR LE SERVEUR (lignes manquantes)'
               : ''
+          }${
+            state.meta.caveats?.includes('in-quoted-refused')
+              ? ', LISTE in ENTRE GUILLEMETS REFUSÉE PAR LE SERVEUR (clause calculée sur place, ou envoyée sans guillemets en pagination serveur)'
+              : ''
+          }${
+            state.meta.caveats?.includes('aggregate-on-page')
+              ? ', REGROUPEMENT CALCULÉ SUR UNE SEULE PAGE (chiffre partiel)'
+              : ''
           }`
         );
         const join = state.meta.join;

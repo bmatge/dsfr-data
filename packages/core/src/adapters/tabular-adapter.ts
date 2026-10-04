@@ -229,11 +229,44 @@ function parseInClause(clause: string): InClause | null {
 }
 
 /**
- * Clause `champ:in|notin:a|b` dont une valeur porte `(`, `)` ou `,` (#1202,
- * PG-034) : le parseur de liste de l'API Tabular l'ecarte sans erreur.
+ * Une valeur de liste `in` / `notin` que l'API ne lit qu'ENTRE GUILLEMETS
+ * (#1202, #1233, PG-034) : `(`, `)`, `,` et `"`.
+ *
+ * L'API passe la liste telle quelle a PostgREST (`in.(valeur)`), dont le
+ * parseur decoupe sur la virgule, ecarte en silence une valeur nue a
+ * parenthese, et lit une valeur citee comme une seule valeur. Mesures du
+ * 2026-10-04 (`annee__exact=2025`, sauf la virgule, mesuree sur la ressource
+ * des elus) :
+ * - `indicateur__in=Usage de stupéfiants (AFD)` → 0 ; la meme entre
+ *   guillemets → 101 ; `Homicides,"Usage de stupéfiants (AFD)"` → 202 ;
+ *   `__notin="Usage de stupéfiants (AFD)"` → 1 717 ;
+ * - `"Elève, étudiant","Contremaître, agent de maîtrise"` → 789 = 38 + 751 ;
+ *   les memes nues → 0 ;
+ * - `"Homi\cides"` → 101 : la barre oblique inverse echappe le caractere
+ *   suivant, donc `\"` et `\\` s'ecrivent dans une valeur citee ;
+ * - une apostrophe passe nue (`Tentatives d'homicide` → 101) comme citee.
+ */
+const IN_VALUE_NEEDS_QUOTES = /[(),"]/;
+
+/**
+ * Clause `champ:in|notin:a|b` dont une valeur doit etre citee : nue, le
+ * parseur de liste de l'API l'ecarterait sans erreur.
  */
 function inValueUnsafe(clause: string): boolean {
-  return parseInClause(clause)?.values.some((v) => /[(),]/.test(v)) ?? false;
+  return parseInClause(clause)?.values.some((v) => IN_VALUE_NEEDS_QUOTES.test(v)) ?? false;
+}
+
+/**
+ * Une valeur de liste, citee SEULEMENT si elle en a besoin (#1233).
+ *
+ * Tout citer marcherait aussi (`nombre__in="3","11"` rend les memes 18 lignes
+ * que `3,11`, y compris sur une colonne entiere), mais la forme citee n'est
+ * ecrite dans aucune documentation de l'API : ne l'employer que la ou la forme
+ * documentee est fausse laisse toutes les autres listes hors de cette
+ * dependance — et hors du repli qui la garde.
+ */
+function quoteInValue(value: string): string {
+  return IN_VALUE_NEEDS_QUOTES.test(value) ? `"${value.replace(/[\\"]/g, '\\$&')}"` : value;
 }
 
 /**
@@ -257,6 +290,9 @@ function matchesInClause(row: unknown, clause: InClause): boolean {
  * qui remonte telle quelle.
  */
 class TotalOrderRefused extends Error {}
+
+/** Ce que l'API a fait d'une liste `in` / `notin` entre guillemets (#1233). */
+type QuotedInState = 'accepted' | 'refused';
 
 export class TabularAdapter implements ApiAdapter {
   readonly type = 'tabular';
@@ -716,11 +752,43 @@ export class TabularAdapter implements ApiAdapter {
    * pagination ci-dessous (voir `_fetchViaParquet`).
    */
   async fetchAll(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    // `in` / `notin` a parenthese (#1233, PG-034) : jamais au serveur, qui
-    // ecarterait la valeur en silence — la clause se calcule ici.
+    // `in` / `notin` a parenthese ou a virgule (#1233, PG-034) : la valeur part
+    // ENTRE GUILLEMETS, seule forme que l'API lise. Cette forme n'est pas
+    // documentee : si l'API la refuse, la clause est calculee ici.
     const where = this._splitWhere(params.filter || params.where || '');
-    if (where.local.length > 0) return this._fetchAllFilteredLocally(params, where, signal);
+    if (where.local.length === 0) return this._fetchAllDelegated(params, signal);
 
+    const base = this._getBaseUrl(params);
+    if (this._quotedIn.get(base) !== 'refused') {
+      try {
+        return await this._fetchAllDelegated(params, signal);
+      } catch (err) {
+        // Une annulation n'est pas un refus ; une forme deja acceptee non plus :
+        // la panne est ailleurs (reseau, page suivante), elle remonte.
+        if (isAbort(err, signal) || this._quotedIn.get(base) === 'accepted') throw err;
+      }
+    }
+    // Repli. S'il echoue aussi, la panne ne venait pas des guillemets : elle
+    // remonte, et rien n'est retenu.
+    const local = await this._fetchAllFilteredLocally(params, where, signal);
+    this._quotedIn.set(base, 'refused');
+    return { ...local, caveats: [...(local.caveats ?? []), 'in-quoted-refused'] };
+  }
+
+  /**
+   * Ce que l'API a fait d'une liste entre guillemets, par hote (#1233) :
+   * `accepted` des qu'une reponse l'a lue, `refused` quand la premiere requete
+   * qui la portait a echoue ET que le repli, lui, a abouti. Un refus est
+   * retenu : la forme n'est plus redemandee (adaptateur singleton, comme
+   * `_totalOrderRefused`).
+   */
+  private readonly _quotedIn = new Map<string, QuotedInState>();
+
+  /** Le chargement complet, tout le `where` delegue (voir `fetchAll`). */
+  private async _fetchAllDelegated(
+    params: AdapterParams,
+    signal: AbortSignal
+  ): Promise<FetchResult> {
     if (params.fetchMode === 'export') {
       const exported = await this._fetchViaParquet(params, signal);
       if (exported) return exported;
@@ -800,6 +868,7 @@ export class TabularAdapter implements ApiAdapter {
         if (i === 0 && totalOrder !== null) throw new TotalOrderRefused();
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      this._noteQuotedInAccepted(params, params.filter || params.where || '');
 
       const json = await response.json();
       const pageResults = json.data || [];
@@ -1027,11 +1096,13 @@ export class TabularAdapter implements ApiAdapter {
   /**
    * Partage un `where` colon entre l'API et l'adaptateur (#1233, PG-034).
    *
-   * Une clause `in` / `notin` dont une valeur porte `(`, `)` ou `,` ne part
-   * pas : le parseur de liste de l'API ecarte la valeur en silence (mesure du
-   * 2026-10-03, `annee__exact=2025` : `indicateur__exact=Usage de stupéfiants
-   * (AFD)` → 101 ; `indicateur__in=` la meme → 0 ; avec `Homicides` → 101 au
-   * lieu de 202). Les autres clauses restent deleguees.
+   * `local` : les clauses `in` / `notin` dont une valeur doit etre citee
+   * (`(`, `)`, `,`, `"`) — nue, le parseur de liste de l'API l'ecarte en
+   * silence (mesure du 2026-10-03, `annee__exact=2025` : `indicateur__exact=
+   * Usage de stupéfiants (AFD)` → 101 ; `indicateur__in=` la meme → 0 ; avec
+   * `Homicides` → 101 au lieu de 202). Elles partent entre guillemets ; ce
+   * partage sert au REPLI, quand l'API refuse cette forme : `server` reste
+   * delegue, `local` est calcule ici.
    */
   private _splitWhere(expr: string): { server: string; local: InClause[] } {
     const server: string[] = [];
@@ -1046,9 +1117,10 @@ export class TabularAdapter implements ApiAdapter {
   }
 
   /**
-   * Fetch complet dont une clause `in` / `notin` est calculee ICI (#1233,
-   * PG-034) : le `where` est pose sur la source (ou delegue par une query
-   * avec un autre filtre), et l'API ecarterait une de ses valeurs.
+   * REPLI du fetch complet : une clause `in` / `notin` est calculee ICI
+   * (#1233, PG-034), parce que l'API a refuse la liste entre guillemets et
+   * qu'elle ecarterait la valeur nue. C'etait le chemin ordinaire de la
+   * 0.45.0 ; il ne sert plus qu'a une API qui ne lit pas la forme citee.
    *
    * Le filtre passe AVANT tout le reste. Sont donc lues toutes les lignes que
    * gardent les clauses restees deleguees, sans `limit` ni tri ; puis la
@@ -1100,18 +1172,25 @@ export class TabularAdapter implements ApiAdapter {
       this._warnInOnce(
         `partial:${clauses}`,
         `[dsfr-data] tabular: la clause "${clauses}" est calculée côté client (l'API Tabular ` +
-          `écarte en silence une valeur à parenthèse ou à virgule de \`__in\`, PG-034), sur les ` +
-          `${complete.data.length} premières lignes seulement — le plafond max-records a coupé ` +
-          `la lecture ; relevez max-records de dsfr-data-source pour filtrer tout le jeu`
+          `a refusé la liste entre guillemets, et écarte en silence une valeur nue à parenthèse ` +
+          `ou à virgule de \`__in\`, PG-034), sur les ${complete.data.length} premières lignes ` +
+          `seulement — le plafond max-records a coupé la lecture ; relevez max-records de ` +
+          `dsfr-data-source pour filtrer tout le jeu`
       );
     }
+    this._warnInOnce(
+      `fallback:${clauses}`,
+      `[dsfr-data] tabular: l'API a refusé la clause "${clauses}" écrite entre guillemets ` +
+        `(seule forme qui garde une valeur à parenthèse ou à virgule dans \`__in\`, PG-034) — ` +
+        `la clause est calculée côté client : toutes les lignes des autres clauses sont ` +
+        `chargées (${complete.data.length} lues, ${data.length} gardées)`
+    );
     if (grouped) {
       this._warnInOnce(
         `grouped:${clauses}`,
         `[dsfr-data] tabular: group-by/aggregate non délégables avec la clause "${clauses}" — ` +
-          `l'API Tabular écarte en silence une valeur à parenthèse ou à virgule de \`__in\` ` +
-          `(PG-034), la clause est calculée côté client ; lignes brutes filtrées renvoyées, ` +
-          `regroupement calculé côté client`
+          `l'API Tabular a refusé la liste entre guillemets, la clause est calculée côté ` +
+          `client ; lignes brutes filtrées renvoyées, regroupement calculé côté client`
       );
       return {
         data,
@@ -1383,14 +1462,10 @@ export class TabularAdapter implements ApiAdapter {
       return this._fetchPageSortedLocally(params, overlay, localSort, signal);
     }
 
-    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
     const asked = !!(params.groupBy || params.aggregate);
     const serverHandled = this._warnUndelegable(params, this._canServerProcessGroupBy(params));
-
-    const response = await fetch(url, buildFetchOptions(params, signal));
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    const where = overlay.effectiveWhere || params.filter || params.where || '';
+    const response = await this._fetchPageResponse(params, overlay, where, signal);
 
     const json = await response.json();
     const data = json.data || [];
@@ -1402,18 +1477,69 @@ export class TabularAdapter implements ApiAdapter {
       typeof json.meta?.total === 'number' ? json.meta.total : undefined;
 
     // `in` / `notin` a parenthese en pagination serveur (#1233, PG-034) : la
-    // clause ne peut pas se calculer sur une page — elle part, et c'est dit.
+    // liste est partie entre guillemets. Refusee par l'API, elle part NUE — la
+    // clause ne peut pas se calculer sur une page —, et c'est dit.
     const inDropped =
-      this._splitWhere(overlay.effectiveWhere || params.filter || params.where || '').local.length >
-      0;
+      this._splitWhere(where).local.length > 0 &&
+      this._quotedIn.get(this._getBaseUrl(params)) === 'refused';
 
     return {
       data,
       totalCount,
       needsClientProcessing: asked && !serverHandled,
       rawJson: json,
-      ...(inDropped ? { caveats: ['in-values-dropped'] as FetchCaveat[] } : {}),
+      ...(inDropped
+        ? { caveats: ['in-quoted-refused', 'in-values-dropped'] as FetchCaveat[] }
+        : {}),
     };
+  }
+
+  /**
+   * La requete d'une page (#1233) : si la liste `in` / `notin` entre
+   * guillemets est refusee — 400, ou erreur reseau faute d'en-tete CORS sur
+   * les erreurs de l'API —, la page est redemandee avec la liste NUE. Il n'y a
+   * pas de repli cote client en pagination serveur : la valeur a parenthese
+   * est alors ecartee par l'API, comme avant, avec l'avertissement et la
+   * reserve `in-values-dropped`. Si la seconde requete echoue aussi, la panne
+   * ne venait pas des guillemets : elle remonte, et rien n'est retenu.
+   */
+  private async _fetchPageResponse(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    where: string,
+    signal: AbortSignal
+  ): Promise<Response> {
+    const base = this._getBaseUrl(params);
+    const quoted =
+      this._splitWhere(where).local.length > 0 && this._quotedIn.get(base) !== 'refused';
+    const request = async (): Promise<Response> => {
+      const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
+      const response = await fetch(url, buildFetchOptions(params, signal));
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      return response;
+    };
+
+    try {
+      const response = await request();
+      this._noteQuotedInAccepted(params, where);
+      return response;
+    } catch (err) {
+      if (!quoted || isAbort(err, signal) || this._quotedIn.get(base) === 'accepted') throw err;
+    }
+    this._quotedIn.set(base, 'refused');
+    try {
+      return await request();
+    } catch (err) {
+      this._quotedIn.delete(base);
+      throw err;
+    }
+  }
+
+  /** Une reponse a lu une liste entre guillemets : la forme est acceptee (#1233). */
+  private _noteQuotedInAccepted(params: AdapterParams, where: string): void {
+    const base = this._getBaseUrl(params);
+    if (this._quotedIn.has(base) || this._splitWhere(where).local.length === 0) return;
+    this._quotedIn.set(base, 'accepted');
   }
 
   /**
@@ -1438,7 +1564,7 @@ export class TabularAdapter implements ApiAdapter {
     // Filtres (format: "field:operator:value")
     const filterExpr = params.filter || params.where;
     if (filterExpr) {
-      this._applyColonFilters(url, filterExpr);
+      this._applyColonFilters(url, filterExpr, this._quotedIn.get(base) !== 'refused');
     }
 
     // Flags nus : emis hors de `url.searchParams`, qui ajouterait un `=` que
@@ -1511,7 +1637,7 @@ export class TabularAdapter implements ApiAdapter {
     // Filtres : effectiveWhere (statique + dynamique fusionne) ou fallback statique
     const filterExpr = overlay.effectiveWhere || params.filter || params.where;
     if (filterExpr) {
-      this._applyColonFilters(url, filterExpr);
+      this._applyColonFilters(url, filterExpr, this._quotedIn.get(base) !== 'refused');
     }
 
     // Flags nus de delegation (group-by + agregations), comme en fetch
@@ -1539,8 +1665,12 @@ export class TabularAdapter implements ApiAdapter {
 
   /**
    * Applique des filtres colon-syntax (field:op:value, ...) comme query params.
+   *
+   * `quoteIn` : les valeurs d'une liste `in` / `notin` qui en ont besoin
+   * partent entre guillemets (#1233) ; `false` quand l'API a refuse cette
+   * forme — la liste part alors nue, et la valeur sera ecartee.
    */
-  private _applyColonFilters(url: URL, filterExpr: string): void {
+  private _applyColonFilters(url: URL, filterExpr: string, quoteIn: boolean): void {
     const filters = filterExpr.split(',').map((f) => f.trim());
     let orEmitted = false;
     for (const filter of filters) {
@@ -1565,12 +1695,17 @@ export class TabularAdapter implements ApiAdapter {
         // traduire vers la liste a virgules attendue par l'API Tabular (#273)
         const value =
           op === 'in' || op === 'notin'
-            ? raw.split('|').map(unescapeColonValue).join(',')
+            ? raw
+                .split('|')
+                .map(unescapeColonValue)
+                .map((v) => (quoteIn ? quoteInValue(v) : v))
+                .join(',')
             : unescapeColonValue(raw);
-        // `fetchAll` retire cette clause avant d'arriver ici et la calcule
-        // lui-meme (#1233). Reste la pagination serveur, ou elle part telle
-        // quelle : on dit qu'une valeur a parenthese sera ignoree (PG-034).
-        if (inValueUnsafe(filter)) this._warnInRefused(filter);
+        // Liste nue alors qu'une valeur devait etre citee (#1233) : l'API a
+        // refuse les guillemets. `fetchAll` ne passe plus ici avec cette
+        // clause (il la calcule) ; reste la pagination serveur, ou elle part
+        // telle quelle — on dit que la valeur sera ignoree (PG-034).
+        if (!quoteIn && inValueUnsafe(filter)) this._warnInRefused(filter);
         // append : deux filtres meme champ+op sont AND-es comme Grist/ODS (#289)
         url.searchParams.append(`${field}__${op}`, value);
       }
@@ -1624,10 +1759,9 @@ export class TabularAdapter implements ApiAdapter {
    * mesures, la seconde clause retombe donc sur le filtre client.
    */
   supportsServerWhere(where: string): boolean {
-    // PG-034 : le parseur de liste de `__in` ecarte EN SILENCE (HTTP 200) une
-    // valeur a parenthese — `__exact` la trouve (101), `__in` rend 0 — et
-    // la virgule y separe les valeurs. La clause reste cote client.
-    if (where.split(',').some((c) => inValueUnsafe(c.trim()))) return false;
+    // PG-034 : une liste `in` / `notin` a parenthese ou a virgule est
+    // traduisible — elle part entre guillemets (#1233), et `fetchAll` la
+    // calcule lui-meme si l'API refuse cette forme.
     const multi = where
       .split(',')
       .map((c) => c.trim())
@@ -1668,9 +1802,10 @@ export class TabularAdapter implements ApiAdapter {
   private _warnInRefused(clause: string): void {
     this._warnInOnce(
       `sent:${clause}`,
-      `dsfr-data: la clause "${clause}" liste une valeur à parenthèse ou à virgule — l'API ` +
-        `Tabular l'écarte EN SILENCE de \`__in\` (PG-034), et la pagination serveur ` +
-        `(server-side) ne permet pas de la calculer sur les lignes chargées. Retirez ` +
+      `dsfr-data: la clause "${clause}" liste une valeur à parenthèse ou à virgule, que ` +
+        `l'API Tabular a refusée entre guillemets — elle part nue, et l'API l'écarte EN ` +
+        `SILENCE de \`__in\` (PG-034) : il manque des lignes. La pagination serveur ` +
+        `(server-side) ne permet pas de calculer la clause sur les lignes chargées. Retirez ` +
         `server-side de dsfr-data-source : la clause est alors calculée côté client.`
     );
   }
