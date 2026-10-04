@@ -52,7 +52,14 @@ function confDocker(fichier: string) {
     copyFileSync(join(RACINE, 'docker/garde-proxy.conf'), join(dossier, '00-garde-proxy.conf'));
     writeFileSync(join(dossier, 'beacon-log.conf'), BEACON_LOG);
     writeFileSync(join(dossier, 'cache.conf'), CACHE);
-    return ['-v', `${dossier}:/etc/nginx/conf.d:ro`];
+    // L'image de base n'ouvre pas /var/log/nginx a l'utilisateur nginx (uid 101) :
+    // docker/Dockerfile le fait par un chown, ici un tmpfs en tient lieu.
+    return [
+      '-v',
+      `${dossier}:/etc/nginx/conf.d:ro`,
+      '--tmpfs',
+      '/var/log/nginx:rw,uid=101,gid=101,mode=0755',
+    ];
   };
 }
 
@@ -108,9 +115,9 @@ interface Appel {
  */
 function rejouer(conteneur: string, port: number, appels: Appel[]): Map<string, string> {
   const script = [
-    appels.some((a) => a.corpsOctets)
-      ? `head -c ${Math.max(...appels.map((a) => a.corpsOctets ?? 0))} /dev/zero > /tmp/corps`
-      : ':',
+    ...[...new Set(appels.map((a) => a.corpsOctets ?? 0))]
+      .filter((octets) => octets > 0)
+      .map((octets) => `head -c ${octets} /dev/zero > /tmp/corps-${octets}`),
     ...appels.map((a) => {
       const args = [
         'curl -s -o /dev/null --max-time 4',
@@ -118,7 +125,7 @@ function rejouer(conteneur: string, port: number, appels: Appel[]): Map<string, 
         `-X ${a.methode ?? 'GET'}`,
         `-H ${apostrophes(`Host: ${HOTE_INSTANCE}`)}`,
         a.cible === undefined ? '' : `-H ${apostrophes(`X-Target-URL: ${a.cible}`)}`,
-        a.corpsOctets ? '--data-binary @/tmp/corps' : '',
+        a.corpsOctets ? `--data-binary @/tmp/corps-${a.corpsOctets}` : '',
         `http://127.0.0.1:${port}${a.route}`,
       ];
       return `${args.filter(Boolean).join(' ')} &`;
