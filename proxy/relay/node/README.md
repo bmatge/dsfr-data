@@ -66,7 +66,12 @@ location /donnees-relais/ {
 > faite au mandataire : [`docs/RELAY.md`](../../../docs/RELAY.md), règle C-DOS-5.
 
 Sans rien déclarer, toutes les requêtes viennent de la même adresse et la limite de débit devient
-globale. L'extrait nginx complet arrive au lot 3 de l'ADR-155.
+globale.
+
+La configuration nginx complète de ce montage (cache placé devant, tampons, compression) est
+livrée : [`../nginx/mandataire-node.http.conf`](../nginx/mandataire-node.http.conf) et
+[`../nginx/mandataire-node.server.conf`](../nginx/mandataire-node.server.conf). Un relais fait avec
+nginx seul, sans ce processus Node, et ce qu'il ne garantit pas : [`../nginx/`](../nginx/README.md).
 
 ## Régler
 

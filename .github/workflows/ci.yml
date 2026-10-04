@@ -163,6 +163,28 @@ jobs:
       - name: nginx -t + table de cas (conteneur sans réseau)
         run: PROXY_NGINX_REEL=1 npx vitest run tests/proxy/garde-proxy-nginx.test.ts
 
+  # Relais cachable (ADR-155), extrait nginx de proxy/relay/nginx/, par un VRAI nginx :
+  # `nginx -t` sur l'extrait de production, puis la suite de conformance du contrat
+  # (tests/relay/conformance.test.mjs) contre sa variante de banc — memes fichiers, amont
+  # remplace par le faux amont local de la suite. Les tests rouges doivent etre
+  # EXACTEMENT les limites documentees (tests/relay/nginx/limites.mjs). Aucune requete
+  # ne sort de la machine. Detail : docs/RELAY.md §10, proxy/relay/nginx/README.md.
+  relais-nginx:
+    name: Relais cachable — extrait nginx, nginx réel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: nginx -t + suite de conformance + observations
+        run: RELAIS_NGINX_REEL=1 npx vitest run tests/relay/nginx/relais-nginx.test.ts
+
   sca:
     name: Security — SCA & config
     runs-on: ubuntu-latest
