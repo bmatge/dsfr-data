@@ -13,7 +13,8 @@ import { TERRITORY_PRESETS } from '@/utils/territories.js';
  * #1245 a étendu le contrôle aux neuf autres préréglages, qui débordaient
  * tous d'un niveau de zoom, et les a recalés par la même méthode : centre au
  * milieu de l'emprise en Mercator, plus grand zoom entier où elle tient.
- * `polynesie-francaise` est l'exception voulue (arbitrage du 2026-10-04).
+ * `polynesie-francaise` est l'exception voulue (arbitrages du 2026-10-04) :
+ * Tahiti et Moorea, au zoom 7 — le plus grand que sert le fond par défaut.
  *
  * Le calcul est refait ici en Web Mercator (tuiles de 256 px), sans Leaflet :
  * position en pixels de l'emprise et du centre au zoom du préréglage, marge
@@ -89,10 +90,43 @@ function margeMinimale(territoire: string, zoom?: number): number {
 }
 
 /**
- * L'exception VOULUE (arbitrage du 2026-10-04, #1245) : la Polynésie française
+ * L'exception VOULUE (arbitrages du 2026-10-04, #1245) : la Polynésie française
  * cadre Tahiti et Moorea, pas le territoire.
  */
 const EXCEPTION_VOULUE = 'polynesie-francaise';
+
+/**
+ * Emprise de Tahiti et Moorea — `[latSud, latNord, lonOuest, lonEst]`, relevée
+ * le 2026-10-04 sur les contours des treize communes des deux îles
+ * (geo.api.gouv.fr, `/communes?codeDepartement=987&fields=contour`), motu
+ * compris. Les polygones de Maiao (commune de Moorea-Maiao), de Mehetia
+ * (Taiarapu-Est) et de Tetiaroa (Arue) sont écartés : ce sont d'autres îles,
+ * à plus de quarante kilomètres. L'emprise `bbox` des communes ne convient
+ * pas, elle les englobe.
+ */
+const TAHITI_ET_MOOREA: [number, number, number, number] = [-17.88, -17.473, -149.921, -149.121];
+
+/**
+ * Le fond par défaut, le Plan IGN, répond 404 au-delà de ce zoom sur la
+ * Polynésie française (mesuré le 2026-10-04, tuiles de Tahiti : 200 au zoom 7,
+ * 404 au zoom 8) : un préréglage plus serré sort gris.
+ */
+const ZOOM_MAX_DU_FOND_PAR_DEFAUT = 7;
+
+/** Marges, en pixels, entre une emprise quelconque et chaque bord du cadre du préréglage. */
+function margesDeLEmprise(
+  territoire: string,
+  [sud, nord, ouest, est]: [number, number, number, number]
+): { gauche: number; droite: number; haut: number; bas: number } {
+  const hautGauche = dansLeCadre(territoire, nord, ouest);
+  const basDroite = dansLeCadre(territoire, sud, est);
+  return {
+    gauche: hautGauche.x,
+    droite: CADRE.largeur - basDroite.x,
+    haut: hautGauche.y,
+    bas: CADRE.hauteur - basDroite.y,
+  };
+}
 
 /** Les neuf préréglages recalés par #1245. */
 const RECALES_1245 = [
@@ -174,7 +208,7 @@ describe('AM-102 — préréglages d’encart : le territoire tient dans 160 px'
   });
 
   /**
-   * Un seul préréglage déborde, et c'est un CHOIX (arbitrage du 2026-10-04,
+   * Un seul préréglage déborde, et c'est un CHOIX (arbitrages du 2026-10-04,
    * #1245) : `polynesie-francaise` cadre Tahiti et Moorea. Le territoire
    * s'étend sur vingt degrés de latitude et de longitude ; entier, il demande
    * le zoom 3, où aucune île n'est lisible dans 160 px, alors que Tahiti et
@@ -188,12 +222,31 @@ describe('AM-102 — préréglages d’encart : le territoire tient dans 160 px'
     expect(debordent).toEqual([EXCEPTION_VOULUE]);
   });
 
-  it('Polynésie française : Tahiti et Moorea sont dans le cadre, le territoire entier demanderait le zoom 3', () => {
-    // Papeete, Taravao (isthme), Teahupoo (presqu'île), Moorea (Haapiti, à l'ouest)
+  /**
+   * Le zoom de l'exception n'est pas « le plus grand qui cadre » — les deux
+   * îles tiennent encore au zoom 8 — mais le plus grand que SERT le fond par
+   * défaut : au zoom 8, l'encart sortait gris (second arbitrage du 2026-10-04).
+   */
+  it('Polynésie française : le préréglage est au zoom que sert le fond par défaut', () => {
+    expect(TERRITORY_PRESETS[EXCEPTION_VOULUE].zoom).toBe(ZOOM_MAX_DU_FOND_PAR_DEFAUT);
+  });
+
+  it('Polynésie française : Tahiti et Moorea sont entières dans le cadre au zoom 7, et centrées', () => {
+    const m = margesDeLEmprise(EXCEPTION_VOULUE, TAHITI_ET_MOOREA);
+    // Mesuré à l'écran : 40 px à gauche et à droite, 60 px en haut et en bas.
+    expect(Math.min(m.gauche, m.droite, m.haut, m.bas)).toBeGreaterThanOrEqual(30);
+    expect(Math.abs(m.gauche - m.droite)).toBeLessThanOrEqual(4);
+    expect(Math.abs(m.haut - m.bas)).toBeLessThanOrEqual(4);
+  });
+
+  it('Polynésie française : les lieux de Tahiti et Moorea sont dans le cadre, le territoire entier demanderait le zoom 3', () => {
+    // Papeete, Taravao (isthme), Teahupoo (presqu'île), Tautira (pointe est),
+    // Moorea (Haapiti, à l'ouest)
     for (const [lat, lon] of [
       [-17.535, -149.5696],
       [-17.733, -149.303],
       [-17.847, -149.267],
+      [-17.747, -149.161],
       [-17.56, -149.87],
     ]) {
       const p = dansLeCadre(EXCEPTION_VOULUE, lat, lon);

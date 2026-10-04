@@ -99,8 +99,9 @@ export class DsfrDataMapInset extends LitElement {
    * encart plus petit en demande un plus faible. Seule exception, voulue :
    * `polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la
    * population, des îles lisibles dans 160 px ; le territoire entier demanderait
-   * le zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`
-   * et `zoom`.
+   * le zoom 3, où plus rien ne se lit. Il est au zoom 7, le plus grand que le
+   * fond par défaut (Plan IGN) sert sur la Polynésie. Pour un autre archipel,
+   * poser `center` et `zoom`.
    */
   @property({ type: String })
   territory = '';

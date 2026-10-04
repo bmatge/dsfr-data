@@ -10824,7 +10824,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`\net `zoom`.",
+              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Il est au zoom 7, le plus grand que le\nfond par défaut (Plan IGN) sert sur la Polynésie. Pour un autre archipel,\nposer `center` et `zoom`.",
               "attribute": "territory"
             },
             {
@@ -10924,7 +10924,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`\net `zoom`.",
+              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Il est au zoom 7, le plus grand que le\nfond par défaut (Plan IGN) sert sur la Polynésie. Pour un autre archipel,\nposer `center` et `zoom`.",
               "fieldName": "territory"
             },
             {

@@ -47,7 +47,7 @@
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
               <!-- ATTRS:dsfr-data-map-inset fields="territory,center,zoom,label,width,height" -->
-                <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label. Le cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de large, 160px de haut) : aucun <code>zoom</code> à poser pour le voir en entier ; un encart plus petit en demande un plus faible. Seule exception, voulue : <code>polynesie-francaise</code> cadre Tahiti et Moorea — l'essentiel de la population, des îles lisibles dans 160 px ; le territoire entier demanderait le zoom 3, où plus rien ne se lit. Pour un autre archipel, poser <code>center</code> et <code>zoom</code>.</td></tr>
+                <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label. Le cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de large, 160px de haut) : aucun <code>zoom</code> à poser pour le voir en entier ; un encart plus petit en demande un plus faible. Seule exception, voulue : <code>polynesie-francaise</code> cadre Tahiti et Moorea — l'essentiel de la population, des îles lisibles dans 160 px ; le territoire entier demanderait le zoom 3, où plus rien ne se lit. Il est au zoom 7, le plus grand que le fond par défaut (Plan IGN) sert sur la Polynésie. Pour un autre archipel, poser <code>center</code> et <code>zoom</code>.</td></tr>
                 <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset)</td></tr>
                 <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier)</td></tr>
                 <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte)</td></tr>
@@ -74,6 +74,17 @@
           160 px. Tahiti et Moorea portent l'essentiel de la population. Pour un autre archipel
           (Marquises, Tuamotu, Australes…), poser <code>center</code> et <code>zoom</code> sur
           l'encart.
+        </p>
+        <p>
+          Ce préréglage est au <strong>zoom 7</strong>, centré sur le milieu des deux îles
+          (<code>-17.68,-149.52</code>). Ce n'est pas le plus grand zoom qui les cadre — le 8 les
+          tient encore — mais le plus grand que sert le fond par défaut : le Plan IGN
+          (<code>tiles="ign-plan"</code>) ne répond plus au-delà du zoom 7 sur la Polynésie
+          française, la Nouvelle-Calédonie et Wallis-et-Futuna, et l'encart y sortirait gris. Les
+          préréglages <code>nouvelle-caledonie</code> (zoom 5) et <code>wallis-et-futuna</code>
+          (zoom 6) restent sous cette limite. Avec <code>tiles="ign-ortho"</code> ou
+          <code>tiles="osm"</code> sur la carte, qui servent ces territoires aux zooms supérieurs,
+          <code>zoom="8"</code> sur l'encart resserre le cadrage sur Tahiti et Moorea.
         </p>
 
         <h2 id="raccourci" class="fr-mt-4w">Raccourci <code>insets</code> côté carte</h2>
