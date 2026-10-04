@@ -111,6 +111,21 @@ describe('oracle / expressions', () => {
     expect([r.ra, r.rb, r.rc, r.rd, r.rz]).toEqual([4, null, 2.5, null, 0]);
   });
 
+  it('lit un élément d’un tableau et ses extrêmes (#1237)', () => {
+    const r = deriver(
+      [{ d: ['maison', 'immeuble'], a: ['1050', '950'], colle: 'x;y', rien: null }],
+      'un = element_at(d, 1); der = element_at(d, -1); loin = element_at(d, 3); c = element_at(colle, 1); n = element_at(rien, 1); mi = array_min(a); ma = array_max(a); mc = array_min(colle)'
+    )[0];
+    expect(r.un).toBe('maison');
+    expect(r.der).toBe('immeuble');
+    expect(r.loin).toBeNull();
+    expect(r.c).toBeNull();
+    expect(r.n).toBeNull();
+    expect(r.mi).toBe('950');
+    expect(r.ma).toBe('1050');
+    expect(r.mc).toBeNull();
+  });
+
   it('distingue l’absence (is_null) du vide (is_empty)', () => {
     const r = deriver(
       [{ a: null, v: '', l: [] }],

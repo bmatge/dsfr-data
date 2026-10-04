@@ -23,6 +23,7 @@ import brutes from './jeux/transformations-brutes.json' with { type: 'json' };
 import prefixes from './jeux/transformations-prefixes.json' with { type: 'json' };
 import calculs from './jeux/transformations-calculs.json' with { type: 'json' };
 import codes from './jeux/transformations-codes.json' with { type: 'json' };
+import tableaux from './jeux/transformations-tableaux.json' with { type: 'json' };
 import enquete from './jeux/transformations-enquete.json' with { type: 'json' };
 import long from './jeux/transformations-long.json' with { type: 'json' };
 import editions from './jeux/transformations-editions.json' with { type: 'json' };
@@ -60,6 +61,14 @@ export const CALCULS: Row[] = calculs;
  * française.
  */
 export const CODES: Row[] = codes;
+
+/**
+ * Huit notices pour l'élément d'un tableau et son plus petit / plus grand
+ * élément (#1237, suite de AM-103) : dénominations en VRAI tableau, datation
+ * en cellule « collée » (à découper), prises de poste en dates ISO — dont un
+ * premier poste listé qui n'est pas le plus ancien.
+ */
+export const TABLEAUX: Row[] = tableaux;
 
 /**
  * Deux éditions d'une enquête (2014, 2021), plusieurs questions : la part

@@ -502,6 +502,55 @@ def sous_chaine(v: Any, debut: int, longueur: int | None) -> str | None:
     return texte[debut - 1 : debut - 1 + longueur]
 
 
+def element_de(v: Any, rang: int) -> Any:
+    """Élément d'un tableau (#1237) : rangs comptés À PARTIR DE 1, négatifs depuis la fin.
+
+    Tout ce qui n'est pas une vraie liste (texte « collé », nombre, absence)
+    rend ``None`` : un scalaire n'est pas un tableau d'un élément. Rang nul ou
+    hors du tableau : ``None``. L'élément est rendu tel quel.
+    """
+    if not isinstance(v, list) or rang == 0:
+        return None
+    if abs(rang) > len(v):
+        return None
+    # Python compte déjà depuis la fin pour un indice négatif ; pour un rang
+    # positif, la position 1 est l'indice 0.
+    return v[rang] if rang < 0 else v[rang - 1]
+
+
+def extreme_de(v: Any, lequel: str) -> Any:
+    """Plus petit (``min``) ou plus grand (``max``) élément d'un tableau (#1237).
+
+    Les éléments absents (``null``, chaîne vide) ne comptent pas. Comparaison
+    NUMÉRIQUE, exacte, quand tous les éléments restants sont des nombres ;
+    TEXTUELLE sinon, sur la forme texte — décidée pour le tableau entier.
+    L'élément gagnant est rendu tel quel ; à égalité, le premier rencontré
+    (``min`` et ``max`` de Python rendent le premier extrême). Pas une liste,
+    ou rien à comparer : ``None``.
+    """
+    if not isinstance(v, list):
+        return None
+    presents = [el for el in v if el is not None and el != ""]
+    if not presents:
+        return None
+    nombres = [to_num(el) for el in presents]
+    cles: list[Any] = nombres if all(n is not None for n in nombres) else [str_js(el) for el in presents]
+    rangs = range(len(presents))
+    gagnant = min(rangs, key=lambda i: cles[i]) if lequel == "min" else max(rangs, key=lambda i: cles[i])
+    return presents[gagnant]
+
+
+def decouper_cellule(v: Any, separateur: str) -> Any:
+    """``split`` de ``dsfr-data-normalize`` : un texte « collé » devient une liste.
+
+    Éléments rognés, vides écartés ; chaîne vide : liste vide ; une valeur qui
+    n'est pas un texte (liste déjà formée, ``null``, nombre) reste telle quelle.
+    """
+    if not isinstance(v, str):
+        return v
+    return [morceau.strip() for morceau in v.split(separateur) if morceau.strip() != ""]
+
+
 def racine(v: Any) -> Fraction | None:
     """Racine carrée : ``None`` pour une valeur absente, non numérique ou NÉGATIVE.
 
@@ -805,6 +854,12 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = [{**r, s["as"]: racine(r.get(s["from"]))} for r in rows]
         elif op == "substring":
             rows = [{**r, s["as"]: sous_chaine(r.get(s["from"]), int(s["start"]), s.get("length"))} for r in rows]
+        elif op == "element":
+            rows = [{**r, s["as"]: element_de(r.get(s["from"]), int(s["rank"]))} for r in rows]
+        elif op == "array-extreme":
+            rows = [{**r, s["as"]: extreme_de(r.get(s["from"]), s["which"])} for r in rows]
+        elif op == "split":
+            rows = [{**r, s["field"]: decouper_cellule(r[s["field"]], s["separator"])} if s["field"] in r else r for r in rows]
         elif op == "join":
             if s["right"] not in datasets:
                 raise ErreurConfiguration(f"jointure : jeu « {s['right']} » absent du feed")

@@ -16,7 +16,8 @@
  *   - littéraux : nombres, texte entre quotes simples (une apostrophe du
  *     texte s'y écrit doublée), `null`, `true`, `false` ;
  *   - fonctions en liste blanche (dates, nombres, texte, sous-chaînes à
- *     positions comptées à partir de 1, absence, tableaux) ;
+ *     positions comptées à partir de 1, absence, tableaux — dont l'élément de
+ *     rang n, compté à partir de 1, et le plus petit / plus grand élément) ;
  *   - `when COND then EXPR … else EXPR` ;
  *   - comparaisons `= != < <= > >=`, `and`, `or`, `not`.
  *
@@ -32,7 +33,7 @@
  *     `undefined`, `''`, `0` et `NaN` sont faux, tout le reste est vrai.
  */
 import type { Row } from './manifest.js';
-import { absent, egal, racine, sousChaine, toNum } from './compute.js';
+import { absent, egal, elementDe, extremeDe, racine, sousChaine, toNum } from './compute.js';
 
 // ---------------------------------------------------------------------------
 // Lexique
@@ -464,6 +465,13 @@ function appliquerFonction(nom: string, args: unknown[]): unknown {
       return Array.isArray(args[0])
         ? args[0].some((el) => egal(el, args[1]))
         : texteDe(args[0]).includes(texteDe(args[1]));
+    case 'element_at':
+      // Rangs comptés à partir de 1, négatifs depuis la fin (#1237).
+      return elementDe(args[0], args[1] ?? null);
+    case 'array_min':
+      return extremeDe(args[0], 'min');
+    case 'array_max':
+      return extremeDe(args[0], 'max');
     default:
       throw new Error(`fonction « ${nom} » hors liste blanche`);
   }

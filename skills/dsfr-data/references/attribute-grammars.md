@@ -207,7 +207,7 @@ Pour **remplacer** la valeur nulle par un libelle plutot que l'exclure :
 `dsfr-data-normalize compute` : `"cible = expression; cible2 = expression2"`, par ligne,
 en dernier. Arithmetique, concatenation, fonctions en liste blanche (`year month day
 round abs floor ceil sqrt lower upper trim len left substr concat replace coalesce
-is_null is_empty join contains`) et conditions `when COND then EXPR … else EXPR` (`else` obligatoire ;
+is_null is_empty join contains element_at array_min array_max`) et conditions `when COND then EXPR … else EXPR` (`else` obligatoire ;
 comparaisons `= != < <= > >=`, `and or not`). Meme egalite lache que `where` : la
 condition `when dept = 75` garde les memes lignes que `where="dept:eq:75"`.
 
