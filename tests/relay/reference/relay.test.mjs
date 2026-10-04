@@ -9,6 +9,7 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import process from 'node:process';
+import { readFileSync } from 'node:fs';
 import v8 from 'node:v8';
 import vm from 'node:vm';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -92,6 +93,43 @@ describe('C-SSRF-6 — l’adresse, après résolution DNS', () => {
       });
     });
   }
+
+  test('sans l’injection du banc, une adresse de documentation (TEST-NET) est refusée comme une adresse privée', async () => {
+    // Le banc déclare SON adresse « publique » par injection dans `createRelay`.
+    // Le relais de production n'en reçoit aucune : les plages de documentation
+    // y sont réservées, comme le dit C-SSRF-6.
+    for (const address of [PUBLIC_TEST_ADDRESS, '198.51.100.7', '203.0.113.9']) {
+      await withRelay(
+        { benchAddresses: [], resolve: async () => [{ address, family: 4 }] },
+        async (reference, client) => {
+          const response = await client.call(`/${ALLOWED_HOST}/donnees.json?${mark()}`);
+          assert.equal(response.status, 502);
+          assert.equal(errorCode(response), 'upstream-address-forbidden');
+          assert.equal(reference.connections.length, 0);
+        }
+      );
+    }
+    // L'injection désigne des adresses EXACTES : la voisine reste refusée.
+    await withRelay(
+      { resolve: async () => [{ address: '192.0.2.11', family: 4 }] },
+      async (reference, client) => {
+        assert.equal((await client.call(`/${ALLOWED_HOST}/donnees.json?${mark()}`)).status, 502);
+        assert.equal(reference.connections.length, 0);
+      }
+    );
+  });
+
+  test('aucune défense ne se débranche par l’environnement : `server.mjs` ne passe rien à `createRelay`', () => {
+    const source = (name) =>
+      readFileSync(new URL(`../../../proxy/relay/node/${name}`, import.meta.url), 'utf8');
+    const server = source('server.mjs');
+    assert.match(server, /createRelay\(config\)/);
+    assert.doesNotMatch(server, /benchAddresses|resolve:|connect:/);
+    // Seuls le point d'entrée et la lecture de configuration lisent l'environnement.
+    for (const name of ['relay.mjs', 'upstream.mjs', 'addresses.mjs', 'target.mjs', 'cache.mjs']) {
+      assert.doesNotMatch(source(name), /process\.env|\benv\b\./, `${name} lit l’environnement`);
+    }
+  });
 
   test('la résolution de production (`defaultResolve`) rend toutes les adresses du nom ; celles de `localhost` sont refusées', async () => {
     // Seul test qui passe par le résolveur du système : `localhost` ne quitte pas la machine.

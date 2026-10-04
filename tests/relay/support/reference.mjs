@@ -4,7 +4,8 @@
 // ne peut pas joindre un faux amont local. Le banc lui substitue donc DEUX
 // choses, par injection dans `createRelay` — jamais par configuration :
 //   - la résolution DNS : les hôtes `.conformance.test` reçoivent une adresse
-//     « publique » de documentation (TEST-NET-1, RFC 5737) ;
+//     de documentation (TEST-NET-1, RFC 5737), que le relais de production
+//     REFUSE et que le banc lui déclare joignable (`benchAddresses`) ;
 //   - la connexion : au lieu d'un TLS vers cette adresse, un TCP vers le faux amont.
 // Tout le reste — liste blanche, vérification des adresses, redirections,
 // plafonds, cache, en-têtes — est le code de production, inchangé.
@@ -15,7 +16,7 @@ import { validateConfig } from '../../../proxy/relay/node/config.mjs';
 import { createRelay } from '../../../proxy/relay/node/relay.mjs';
 import { CONFORMANCE_KEY, readProfile } from './profile.mjs';
 
-/** Adresse « publique » rendue par le faux DNS : TEST-NET-1, jamais routée. */
+/** Adresse rendue par le faux DNS : TEST-NET-1, jamais routée, admise par injection. */
 export const PUBLIC_TEST_ADDRESS = '192.0.2.10';
 
 /**
@@ -25,9 +26,17 @@ export const PUBLIC_TEST_ADDRESS = '192.0.2.10';
  *   env?: Record<string, string>,
  *   resolve?: (hostname: string) => Promise<{ address: string, family: number }[]>,
  *   now?: () => number,
+ *   benchAddresses?: string[],
  * }} options
  */
-export async function startReference({ upstreamPort, config, env = {}, resolve, now }) {
+export async function startReference({
+  upstreamPort,
+  config,
+  env = {},
+  resolve,
+  now,
+  benchAddresses = [PUBLIC_TEST_ADDRESS],
+}) {
   const profile = readProfile();
   const raw = { ...profile, listen: { host: '127.0.0.1', port: 0 } };
   const validated = validateConfig(config ? config(raw) : raw, {
@@ -56,6 +65,9 @@ export async function startReference({ upstreamPort, config, env = {}, resolve, 
     },
     log: (record) => logs.push(record),
     warn: (message) => warnings.push(message),
+    // Le relais de production refuse les plages de documentation : le banc lui
+    // déclare, par injection, la seule adresse que rend son faux DNS.
+    benchAddresses,
     now,
   });
   const { port } = await relay.listen();

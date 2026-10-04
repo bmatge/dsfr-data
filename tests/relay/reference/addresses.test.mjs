@@ -39,6 +39,14 @@ describe('C-SSRF-6 — adresses que le relais refuse de joindre', () => {
     ['6to4 embarquant la boucle locale', '2002:7f00:1::1'],
     ['Teredo', '2001:0:4136:e378:8000:63bf:3fff:fdd2'],
     ['documentation IPv6', '2001:db8::1'],
+    ['documentation IPv6, nouvelle plage', '3fff::1'],
+    ['documentation TEST-NET-1', '192.0.2.10'],
+    ['documentation TEST-NET-2', '198.51.100.7'],
+    ['documentation TEST-NET-3', '203.0.113.1'],
+    ['AS112', '192.31.196.1'],
+    ['AMT', '192.52.193.1'],
+    ['AS112, délégation directe', '192.175.48.1'],
+    ['AS112 IPv6', '2620:4f:8000::1'],
   ];
   for (const [label, address] of refused) {
     test(`${label} (${address}) : refusée`, () => {
@@ -46,7 +54,8 @@ describe('C-SSRF-6 — adresses que le relais refuse de joindre', () => {
     });
   }
 
-  for (const address of ['192.0.2.10', '198.51.100.7', '2606:4700:4700::1111', '2a01:e0a::1']) {
+  // Classement seul : ces adresses ne sont jamais jointes par le banc.
+  for (const address of ['192.0.3.1', '198.51.101.7', '203.0.114.1', '2606:4700:4700::1111', '2a01:e0a::1']) {
     test(`adresse publique (${address}) : acceptée`, () => {
       assert.equal(isPublicAddress(address), true);
     });

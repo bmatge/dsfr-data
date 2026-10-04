@@ -6,7 +6,8 @@
 // lecture seule, hôtes de la liste blanche uniquement, clé détenue ici.
 //
 // `createRelay(config, deps)` : `deps` permet au banc de tests de substituer la
-// résolution DNS, la connexion, l'horloge et le journal. `server.mjs`, le point
+// résolution DNS, la connexion, l'horloge et le journal, et de déclarer
+// l'adresse de documentation que rend son faux DNS. `server.mjs`, le point
 // d'entrée de production, n'en passe AUCUN : aucune variable d'environnement,
 // aucun champ de configuration ne peut désactiver une défense.
 
@@ -136,6 +137,7 @@ function defaultLog(record) {
  *   now?: () => number,
  *   log?: (record: Record<string, unknown>) => void,
  *   warn?: (message: string) => void,
+ *   benchAddresses?: Iterable<string>,
  * }} [deps]
  */
 export function createRelay(config, deps = {}) {
@@ -145,6 +147,8 @@ export function createRelay(config, deps = {}) {
   const upstreamDeps = {
     resolve: deps.resolve ?? defaultResolve,
     connect: deps.connect ?? createTlsConnector(),
+    // Banc de tests seulement : adresses exactes admises en plus des adresses publiques.
+    benchAddresses: deps.benchAddresses ? new Set(deps.benchAddresses) : undefined,
   };
 
   const cache = new MemoryCache({

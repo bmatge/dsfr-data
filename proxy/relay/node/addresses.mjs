@@ -17,9 +17,15 @@ const BLOCKED_V4 = [
   ['169.254.0.0', 16], // lien local, dont les métadonnées des hébergeurs
   ['172.16.0.0', 12], // privé
   ['192.0.0.0', 24], // affectations IETF
+  ['192.0.2.0', 24], // documentation, TEST-NET-1
+  ['192.31.196.0', 24], // AS112
+  ['192.52.193.0', 24], // AMT
+  ['192.175.48.0', 24], // AS112, délégation directe
   ['192.88.99.0', 24], // ancien relais 6to4
   ['192.168.0.0', 16], // privé
   ['198.18.0.0', 15], // bancs de mesure
+  ['198.51.100.0', 24], // documentation, TEST-NET-2
+  ['203.0.113.0', 24], // documentation, TEST-NET-3
   ['224.0.0.0', 4], // multidiffusion
   ['240.0.0.0', 4], // réservé, dont 255.255.255.255
 ];
@@ -34,12 +40,14 @@ const BLOCKED_V6_IN_GLOBAL = [
   ['2001::', 23], // affectations IETF, dont Teredo 2001::/32
   ['2001:db8::', 32], // documentation
   ['2002::', 16], // 6to4 : embarque une IPv4 arbitraire
+  ['2620:4f:8000::', 48], // AS112
+  ['3fff::', 20], // documentation
 ];
 
-// Les trois TEST-NET de la RFC 5737 (192.0.2.0/24, 198.51.100.0/24,
-// 203.0.113.0/24) ne sont PAS dans la liste : ils ne sont routés nulle part,
-// ne mènent donc à aucune ressource interne, et servent d'adresses « publiques »
-// au banc de tests (tests/relay/), qui ne doit joindre aucune adresse réelle.
+// Les plages de documentation (TEST-NET de la RFC 5737, `2001:db8::/32`,
+// `3fff::/20`) sont REFUSÉES comme toute plage réservée (C-SSRF-6). Le banc de
+// tests, qui ne doit joindre aucune adresse réelle, déclare la sienne par
+// injection dans `createRelay` (`benchAddresses`) — jamais par configuration.
 
 const blockedV4 = new BlockList();
 for (const [network, prefix] of BLOCKED_V4) blockedV4.addSubnet(network, prefix, 'ipv4');

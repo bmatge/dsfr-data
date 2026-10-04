@@ -133,10 +133,15 @@ export function resolveRedirect(from, location, config) {
  * est privée, tout est refusé : un nom qui mélange adresses publiques et
  * privées est le montage type d'un rebond DNS.
  *
+ * `benchAddresses` : adresses EXACTES que le banc de tests déclare joignables
+ * (son faux DNS rend une adresse de documentation). Le point d'entrée de
+ * production n'en passe aucune.
+ *
  * @param {string} hostname
  * @param {(hostname: string) => Promise<{ address: string, family: number }[]>} resolve
+ * @param {ReadonlySet<string>} [benchAddresses]
  */
-async function resolvePublicAddress(hostname, resolve) {
+async function resolvePublicAddress(hostname, resolve, benchAddresses) {
   let addresses;
   try {
     addresses = await resolve(hostname);
@@ -147,7 +152,7 @@ async function resolvePublicAddress(hostname, resolve) {
     throw new RelayError(502, 'upstream-unreachable');
   }
   for (const entry of addresses) {
-    if (!isPublicAddress(entry?.address)) {
+    if (!isPublicAddress(entry?.address) && !benchAddresses?.has(entry?.address)) {
       throw new RelayError(502, 'upstream-address-forbidden');
     }
   }
@@ -213,7 +218,11 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
   // Le nom résolu, joint et envoyé en `Host` est celui de la liste blanche : la
   // requête du visiteur a servi à le CHOISIR dans la configuration, pas à l'écrire.
   const hostname = hostConfig.name;
-  const { address, family } = await resolvePublicAddress(hostname, deps.resolve);
+  const { address, family } = await resolvePublicAddress(
+    hostname,
+    deps.resolve,
+    deps.benchAddresses
+  );
 
   /** @type {Record<string, string>} */
   const headers = {
@@ -352,7 +361,7 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
  *
  * @param {{ host: string, path: string, search: string }} target cible déjà validée
  * @param {object} config configuration validée (config.mjs)
- * @param {{ resolve: Function, connect: Function }} deps
+ * @param {{ resolve: Function, connect: Function, benchAddresses?: ReadonlySet<string> }} deps
  */
 export async function fetchUpstream(target, config, deps) {
   const controller = new globalThis.AbortController();
