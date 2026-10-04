@@ -1,11 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import {
-  buildCsv,
-  formatNumberFr,
-  parseAliasedColumn,
-  type AliasedColumn,
-} from '@dsfr-data/shared/lib';
+import { buildCsv, formatNumberFr, type AliasedColumn } from '@dsfr-data/shared/lib';
+import { resolveAliasedColumn } from '../utils/aliased-field.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
@@ -472,7 +468,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   /**
    * Une entrée de `label-field` / `value-field` : `colonne` ou
    * `colonne:Libellé` (#1230, PG-032 du banc) — l'analyseur est celui de
-   * `dsfr-data-chart` (`parseAliasedColumn`, #668), pas un second.
+   * `dsfr-data-chart` (`parseAliasedColumn`, #668), pas un second — et la
+   * lecture face aux données est partagée avec son `label-field`
+   * (`resolveAliasedColumn`, #1244).
    *
    * Seule précaution : une colonne qui existe TELLE QUELLE dans les données,
    * deux-points compris, est lue telle quelle. Avant l'alias, l'entrée entière
@@ -480,11 +478,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    * `a:b` ne doit pas voir son tableau se vider.
    */
   private _parseColumn(entry: string, data: Record<string, unknown>[]): AliasedColumn {
-    const literal = entry.trim();
-    if (literal.includes(':') && data.length > 0 && literal in data[0]) {
-      return { key: literal, label: literal };
-    }
-    return parseAliasedColumn(literal);
+    return resolveAliasedColumn(entry, data);
   }
 
   /** Colonne de libellé déclarée par `label-field`, ou `null`. */

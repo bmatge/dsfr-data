@@ -1615,7 +1615,7 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 |----------|------|--------|--------|-------------|
 | source | String | \`""\` | oui | ID de la source ou query |
 | type | String | \`"bar"\` | oui | Type de graphique (voir tableau ci-dessus) |
-| label-field | String | \`""\` | selon type | Chemin vers les labels dans les données |
+| label-field | String | \`""\` | selon type | Chemin vers les labels dans les données. Alias inline \`champ:Libellé\` accepté, comme sur dsfr-data-a11y : \`label-field="dep_nom:Département"\` lit \`dep_nom\` ; le libellé devient l'en-tête de la colonne de libellé du tableau de la DataBox (il ne sert nulle part ailleurs : pas de titre d'axe) |
 | value-field | String | \`""\` | oui (sauf gauge) | Chemin vers les valeurs. Alias inline \`champ:Libellé\` pour la légende : \`value-field="Panier_moyen:Panier moyen"\` (un \`:\` littéral s'échappe en \`%3A\`) |
 | value-field-2 | String | \`""\` | non | 2e série de valeurs (bar-line). Alias inline \`champ:Libellé\` accepté |
 | value-fields | String | \`""\` | non | Séries supplementaires separees par virgules — format LARGE, une colonne par série (ex: \`"budget,score"\`). Alias inline par série : \`"budget:Budget, score:Score"\` |

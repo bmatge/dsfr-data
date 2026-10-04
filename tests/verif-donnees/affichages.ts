@@ -1123,6 +1123,46 @@ const CHECKS: Check[] = [
     ],
   },
 
+  {
+    id: 'graphique-label-field-alias',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1244, suite de PG-032 du banc — `dsfr-data-a11y` accepte `champ:Libellé` depuis #1239, et le graphique ne l’acceptait pas sur `label-field` : recopié du tableau équivalent, `label-field="nom:Commune"` cherchait une colonne « nom:Commune » et les 48 libellés de l’axe devenaient « Non renseigné », les valeurs restant justes. Le contrôle relit donc les LIBELLÉS passés à DSFR Chart, la première colonne du tableau de la DataBox, et son en-tête : le libellé de l’alias, seul endroit où il sert.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-alias-libelle', 'communes')}
+  <dsfr-data-chart id="g-alias-libelle" source="s-alias-libelle" type="bar"
+    label-field="nom:Commune" value-field="population:Population"
+    databox databox-title="Population par commune"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'chart',
+        id: 'g-alias-libelle',
+        labelColumn: 'nom',
+        valueColumns: ['population'],
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'g-alias-libelle',
+        selector: '.fr-table tbody td:nth-child(1)',
+        column: 'nom',
+        pipeline: [],
+      },
+      // L'en-tête n'est pas un résultat de calcul : c'est le libellé écrit
+      // dans l'attribut, que le contrôle énonce.
+      {
+        kind: 'text',
+        id: 'g-alias-libelle',
+        selector: '.fr-table thead th:nth-child(1)',
+        prefix: 'Commune',
+      },
+      { kind: 'diagnostic', id: 'g-alias-libelle', expect: 'silence' },
+    ],
+  },
+
   // ------------------------------------------ Tableau équivalent (a11y) ----
   {
     id: 'a11y-tableau-libelles-en-tete',

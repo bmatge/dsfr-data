@@ -56,6 +56,7 @@ import {
   maxOf,
   minOf,
 } from '@dsfr-data/shared/lib';
+import { resolveAliasedColumn } from '../utils/aliased-field.js';
 import { toIsoA2 } from '../data/continent-lookup.js';
 import { toAcademyKey, toRegionKey } from '../utils/map-geo-keys.js';
 import {
@@ -154,8 +155,17 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   type: DSFRChartType = 'bar';
 
   /**
-   * Chemin vers le champ label
-   * @champ nom
+   * Chemin vers le champ label. Alias inline `champ:Libellé` (#1244), la
+   * grammaire de `value-field` (#668) et de `dsfr-data-a11y` (#1230) :
+   * `label-field="dep_nom:Département"` lit la colonne `dep_nom`, et
+   * « Département » devient l'en-tête de la colonne de libellé du tableau de
+   * la DataBox (`databox`). Le libellé ne sert nulle part ailleurs : DSFR Chart
+   * n'a pas de titre d'axe, et les graduations portent les VALEURS de la
+   * colonne. Sans deux-points, rien ne change. Un `:` littéral dans un chemin
+   * ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne qui
+   * existe telle quelle dans les données, deux-points compris, est lue telle
+   * quelle.
+   * @champ liste-alias
    */
   @property({ type: String, attribute: 'label-field' })
   labelField = '';
@@ -656,13 +666,33 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     return labels.length > 0 ? labels : [this._valueFieldKey()];
   }
 
+  /** Dernière lecture de `label-field` : l'analyse ne se refait pas à chaque ligne. */
+  private _labelSpecMemo: { expr: string; data: unknown[]; spec: AliasedColumn } | null = null;
+
+  /**
+   * `label-field` sans son alias inline (#1244) : `dep:Département` → colonne
+   * `dep`, libellé « Département ». Même analyseur que `dsfr-data-a11y`
+   * (`resolveAliasedColumn`) : une colonne qui existe telle quelle dans les
+   * données, deux-points compris, est lue telle quelle — c'était la seule
+   * lecture avant l'alias. Toute lecture du libellé passe par ici.
+   */
+  private _labelFieldSpec(): AliasedColumn {
+    const memo = this._labelSpecMemo;
+    if (memo && memo.expr === this.labelField && memo.data === this._data) return memo.spec;
+    const spec = this.labelField
+      ? resolveAliasedColumn(this.labelField, this._data ?? [])
+      : { key: '', label: '' };
+    this._labelSpecMemo = { expr: this.labelField, data: this._data, spec };
+    return spec;
+  }
+
   /**
    * Libellé d'une ligne : la valeur de `label-field`, ou `empty-label` si elle
    * est vide (`null` / `undefined` / `""`) — même rendu quel que soit le chemin
    * (group_by serveur → null, group-by client → null, saisie vide → "") (#647).
    */
   private _labelOf(record: unknown): string {
-    const v = getByPath(record, this.labelField);
+    const v = getByPath(record, this._labelFieldSpec().key);
     return v === null || v === undefined || v === '' ? this.emptyLabel : String(v);
   }
 
@@ -825,7 +855,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._mapRows = [];
     if (!this._data || this._data.length === 0) return '{}';
 
-    const field = this.codeField || this.labelField;
+    const field = this.codeField || this._labelFieldSpec().key;
     const mapData: Record<string, number> = {};
     for (const record of this._data) {
       let code = String(getByPath(record, field) ?? '').trim();
@@ -1010,7 +1040,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
             `ligne(s) pour ${this._mapRows.length - this._mapDuplicateCodes} territoire(s) ` +
             `dessiné(s) — ${this._mapDuplicateCodes} ligne(s) portent un code déjà vu et sont ` +
             `comptées en plus de celle que la carte affiche. Agréger en amont ` +
-            `(dsfr-data-query group-by="${this.codeField || this.labelField}").`
+            `(dsfr-data-query group-by="${this.codeField || this._labelFieldSpec().key}").`
         );
       }
       return { value: count > 0 ? total : null, error: null };
@@ -2107,7 +2137,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    */
   private _databoxColumns(): AliasedColumn[] {
     const columns: AliasedColumn[] = [];
-    if (this.labelField) columns.push({ key: this.labelField, label: this.labelField });
+    if (this.labelField) columns.push(this._labelFieldSpec());
     const names = this._databoxSeriesNames();
     this._getValueFieldSpecs().forEach((spec, i) => {
       const aliased = spec.label !== spec.key;
@@ -2153,7 +2183,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const { labels, allSeries } = this._processTidyData();
       const seriesHeaders = this._getSeriesNames().map((s) => s || this.emptyLabel);
       return {
-        headers: [this.labelField, ...seriesHeaders],
+        headers: [this._labelFieldSpec().label, ...seriesHeaders],
         rows: labels.map((label, li) => [label, ...allSeries.map((serie) => serie[li])]),
       };
     }
