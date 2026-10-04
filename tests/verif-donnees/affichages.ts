@@ -21,8 +21,8 @@
  * Chaque contrôle a été vérifié EN ÉCHEC sur un défaut injecté dans la lib
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
-import type { Check, Manifest, Row } from '../../tools/oracle/manifest.js';
-import { DATASET, HOTE_ODS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
+import type { Check, Manifest, Row, Step } from '../../tools/oracle/manifest.js';
+import { DATASET, HOTE_ODS, RELAIS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
 import { urlsDe } from './fixtures-delegation.js';
 import {
   AIDES,
@@ -83,6 +83,27 @@ const CLASSES_KPI = {
   rouge: 'dsfr-data-kpi--error',
   bleu: 'dsfr-data-kpi--info',
 };
+
+/**
+ * Un jeu que le producteur a RETIRÉ (#1222) : aucune fixture ne le sert. Appelé
+ * à travers le relais du site (`relay-url`), il revient en 404 — comme le rend
+ * un relais conforme pour une cible introuvable —, sans sortir du faux réseau.
+ */
+const URL_JEU_RETIRE = `${urlAffichage('communes')}-retire`;
+
+/**
+ * Ce que montre un chiffre dont la source n'a livré AUCUNE ligne (#1222) :
+ * rien à sommer, donc aucune valeur — pas 0, et pas le chiffre d'un chargement
+ * précédent. Le recalcul part des lignes reçues (aucune) et rend une cellule
+ * vide ; lue comme un nombre, la tuile doit être vide elle aussi.
+ */
+const AUCUNE_LIGNE_RECUE: Step[] = [
+  { op: 'limit', n: 0 },
+  { op: 'global', columns: { valeur: { agg: 'max', field: 'population' } } },
+];
+
+/** Le tiret qui tient la place d'un chiffre absent — la forme, pas une valeur. */
+const TIRET = '^—$';
 
 /** Une source qui sert un jeu du lot, en tableau nu. */
 const source = (
@@ -2468,6 +2489,104 @@ const CHECKS: Check[] = [
         selector: '[data-cellule-nom]',
         column: 'nom',
         pipeline: [{ op: 'page', size: 6, number: 2 }],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // #1222 — un KPI dont la source ÉCHOUE n'affiche pas un nombre. Ces états ne
+  // sont pas des chiffres ; mais un « 0 » ou l'ancien chiffre rendu à la place
+  // du tiret en serait un, faux, et sans aucune erreur visible.
+  // -------------------------------------------------------------------------
+  {
+    id: 'kpi-source-introuvable-pas-un-nombre',
+    mode: 'deterministic',
+    origin:
+      '#1222 — une source qui répond 404 dès le premier appel : ses KPI rendent « — », jamais un nombre. `count` est le cas qui trompe — compter des lignes jamais reçues donnerait « 0 », un chiffre plausible. Le témoin, sur le jeu servi, garde son chiffre : une panne ne touche que les blocs de SA source.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-retire" url="${URL_JEU_RETIRE}" relay-url="${RELAIS}"
+    source-page="/donnees/communes"></dsfr-data-source>
+  ${source('s-temoin', 'communes')}
+  <dsfr-data-kpi id="k-retire-compte" source="s-retire" value="count" format="nombre" label="Communes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-retire-somme" source="s-retire" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-temoin" source="s-temoin" value="population:sum" format="nombre" label="Population (témoin)"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'k-retire-compte',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      {
+        kind: 'texts',
+        id: 'k-retire-somme',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      { kind: 'kpi', id: 'k-temoin', agg: 'sum', field: 'population', pattern: MILLIERS },
+    ],
+  },
+  {
+    id: 'kpi-source-en-panne-apres-chargement',
+    mode: 'deterministic',
+    origin:
+      '#1222 — la source a d’abord LIVRÉ, puis le jeu est retiré et l’appel suivant répond 404. Les lignes du premier chargement sont toujours en mémoire : rendu sous une panne, l’ancien chiffre serait pris pour la valeur du jour. Deux tuiles : l’une montée dès le départ (elle a affiché sa somme, puis passe à « — »), l’autre montée APRÈS la panne (elle ne doit pas ressortir le chiffre resté en cache). La page retire le jeu elle-même, à la réception des données — sans geste : une réponse 404 dont le corps n’est pas lu laisse le réseau « occupé » pour Playwright, et un geste attendrait indéfiniment son retour au calme.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-bascule" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-bascule" source="s-bascule" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-bascule-compte" source="s-bascule" value="count" format="nombre" label="Communes"></dsfr-data-kpi>
+  <div id="apres-la-panne"></div>
+  <script>
+    (function () {
+      var retire = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (retire || !e.detail || e.detail.sourceId !== 's-bascule') return;
+        retire = true;
+        document.getElementById('s-bascule').setAttribute('url', '${URL_JEU_RETIRE}');
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!retire || !e.detail || e.detail.sourceId !== 's-bascule') return;
+        if (document.getElementById('k-tardif')) return;
+        document.getElementById('apres-la-panne').innerHTML =
+          '<dsfr-data-kpi id="k-tardif" source="s-bascule" value="population:sum" format="nombre" label="Population (tuile tardive)"></dsfr-data-kpi>';
+      });
+    })();
+  </script>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'k-tardif',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      {
+        kind: 'texts',
+        id: 'k-bascule',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      {
+        kind: 'texts',
+        id: 'k-bascule-compte',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
       },
     ],
   },

@@ -9,10 +9,14 @@
  *   SEULEMENT après un échec « hors connexion », jamais sur un 429 ;
  * - `error-message` remplace la phrase usager, pas le détail technique ;
  * - l'erreur de configuration et le contrat `dsfr-data-error` ne bougent pas.
+ *
+ * Le bloc témoin du gabarit complet est un `dsfr-data-podium` depuis #1222 :
+ * le KPI a pris une forme compacte, gardée par `tests/kpi-source-indisponible.test.ts`.
+ * Les assertions sont celles de #1203, inchangées.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'lit';
-import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
+import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 import { DsfrDataSource } from '@/components/dsfr-data-source.js';
 import { DsfrDataSourceStatus } from '@/components/dsfr-data-source-status.js';
 import {
@@ -35,7 +39,7 @@ import {
 } from '@/utils/source-errors.js';
 import { renderConfigError, renderSourceError } from '@/utils/status-templates.js';
 
-void DsfrDataKpi;
+void DsfrDataPodium;
 void DsfrDataSource;
 void DsfrDataSourceStatus;
 
@@ -45,8 +49,8 @@ const Q = 'err-query-a';
 
 type Updatable = HTMLElement & { updateComplete: Promise<boolean> };
 
-async function mountKpi(source: string): Promise<DsfrDataKpi> {
-  const el = new DsfrDataKpi();
+async function mountBloc(source: string): Promise<DsfrDataPodium> {
+  const el = new DsfrDataPodium();
   el.source = source;
   document.body.appendChild(el);
   await el.updateComplete;
@@ -152,11 +156,11 @@ describe('#1203 — barème : une cause par erreur', () => {
 
 describe('#1203 — bloc en erreur : neutre, poli, détail replié', () => {
   it('rend le message du barème, sans rouge, en role="status"', async () => {
-    const kpi = await mountKpi(A);
+    const kpi = await mountBloc(A);
     dispatchDataError(A, new Error('HTTP 503: Service Unavailable'), 'https://exemple.fr/api');
     await kpi.updateComplete;
 
-    const bloc = kpi.querySelector('.dsfr-data-kpi__error') as HTMLElement;
+    const bloc = kpi.querySelector('.dsfr-data-podium__error') as HTMLElement;
     expect(bloc).not.toBeNull();
     expect(bloc.getAttribute('role')).toBe('status');
     expect(bloc.hasAttribute('aria-live')).toBe(false);
@@ -173,7 +177,7 @@ describe('#1203 — bloc en erreur : neutre, poli, détail replié', () => {
   });
 
   it('replie le code, l’adresse et l’heure dans « Détails techniques »', async () => {
-    const kpi = await mountKpi(A);
+    const kpi = await mountBloc(A);
     dispatchDataError(A, new Error('HTTP 503: Service Unavailable'), 'https://exemple.fr/api');
     await kpi.updateComplete;
 
@@ -188,7 +192,7 @@ describe('#1203 — bloc en erreur : neutre, poli, détail replié', () => {
   });
 
   it('sans bandeau : le bloc porte « Réessayer », un vrai bouton de 44 px', async () => {
-    const kpi = await mountKpi(A);
+    const kpi = await mountBloc(A);
     dispatchDataError(A, new Error('HTTP 503'));
     await kpi.updateComplete;
 
@@ -201,11 +205,11 @@ describe('#1203 — bloc en erreur : neutre, poli, détail replié', () => {
   });
 
   it('pas de « Réessayer » quand réessayer n’a pas de sens (404)', async () => {
-    const kpi = await mountKpi(A);
+    const kpi = await mountBloc(A);
     dispatchDataError(A, new Error('HTTP 404: Not Found'));
     await kpi.updateComplete;
 
-    expect(kpi.querySelector('.dsfr-data-kpi__error')!.textContent).toContain(
+    expect(kpi.querySelector('.dsfr-data-podium__error')!.textContent).toContain(
       'Ces données ne sont plus publiées à cette adresse'
     );
     expect(kpi.querySelector('button.dsfr-data-status__retry')).toBeNull();
@@ -251,9 +255,9 @@ describe('#1203 — bandeau : la panne dite une fois par source', () => {
 
   it('un seul message pour la source, quel que soit le nombre de blocs et de relais', async () => {
     const bandeau = await mountBanner(A);
-    const k1 = await mountKpi(A);
-    const k2 = await mountKpi(A);
-    const k3 = await mountKpi(Q);
+    const k1 = await mountBloc(A);
+    const k2 = await mountBloc(A);
+    const k3 = await mountBloc(Q);
 
     dispatchDataError(A, new Error('HTTP 503: Service Unavailable'));
     // Une query branchée sur A relaie l'erreur sous son propre id.
@@ -274,14 +278,14 @@ describe('#1203 — bandeau : la panne dite une fois par source', () => {
 
   it('avec bandeau : les blocs de la source gardent le message, sans bouton ni annonce', async () => {
     const bandeau = await mountBanner(A);
-    const kA = await mountKpi(A);
-    const kQ = await mountKpi(Q);
+    const kA = await mountBloc(A);
+    const kQ = await mountBloc(Q);
     dispatchDataError(A, new Error('HTTP 503'));
     dispatchDataError(Q, new Error('HTTP 503'), undefined, { relayedFrom: A });
     await Promise.all([bandeau, kA, kQ].map((el) => (el as Updatable).updateComplete));
 
     for (const kpi of [kA, kQ]) {
-      const bloc = kpi.querySelector('.dsfr-data-kpi__error') as HTMLElement;
+      const bloc = kpi.querySelector('.dsfr-data-podium__error') as HTMLElement;
       expect(bloc.textContent).toContain('Données momentanément indisponibles');
       expect(bloc.hasAttribute('role')).toBe(false);
       expect(bloc.querySelector('button')).toBeNull();
@@ -293,12 +297,12 @@ describe('#1203 — bandeau : la panne dite une fois par source', () => {
 
   it('les blocs d’une AUTRE source ne sont pas touchés', async () => {
     const bandeau = await mountBanner(A);
-    const kB = await mountKpi(B);
+    const kB = await mountBloc(B);
     dispatchDataError(B, new Error('HTTP 503'));
     await Promise.all([bandeau, kB].map((el) => (el as Updatable).updateComplete));
 
     expect(bandeau.querySelectorAll('.fr-alert').length).toBe(0);
-    const bloc = kB.querySelector('.dsfr-data-kpi__error') as HTMLElement;
+    const bloc = kB.querySelector('.dsfr-data-podium__error') as HTMLElement;
     expect(bloc.getAttribute('role')).toBe('status');
     expect(bloc.querySelector('button.dsfr-data-status__retry')).not.toBeNull();
   });
@@ -317,7 +321,7 @@ describe('#1203 — bandeau : la panne dite une fois par source', () => {
   });
 
   it('monté APRÈS la panne, le bandeau la lit au registre et reprend le bouton du bloc', async () => {
-    const kpi = await mountKpi(A);
+    const kpi = await mountBloc(A);
     dispatchDataError(A, new Error('HTTP 503'));
     await kpi.updateComplete;
     expect(kpi.querySelector('button.dsfr-data-status__retry')).not.toBeNull();
@@ -353,7 +357,7 @@ describe('#1203 — bandeau : la panne dite une fois par source', () => {
 
 describe('#1203 — relance', () => {
   it('« Réessayer » du bloc relance la source d’ORIGINE, pas le relais', async () => {
-    const kQ = await mountKpi(Q);
+    const kQ = await mountBloc(Q);
     dispatchDataError(A, new Error('HTTP 503'));
     dispatchDataError(Q, new Error('HTTP 503'), undefined, { relayedFrom: A });
     await kQ.updateComplete;
@@ -488,12 +492,12 @@ describe('#1203 — error-message et contrat de l’erreur', () => {
   }
 
   it('remplace la phrase usager, dans le bloc comme dans le bandeau', async () => {
-    const kpi = await mountKpi(A);
-    const autre = await mountKpi(B);
+    const kpi = await mountBloc(A);
+    const autre = await mountBloc(B);
     await echec('Les chiffres de la DGFiP sont en cours de mise à jour.');
     await kpi.updateComplete;
 
-    const bloc = kpi.querySelector('.dsfr-data-kpi__error') as HTMLElement;
+    const bloc = kpi.querySelector('.dsfr-data-podium__error') as HTMLElement;
     expect(bloc.querySelector('.dsfr-data-status__title')!.textContent).toContain(
       'Les chiffres de la DGFiP sont en cours de mise à jour.'
     );
@@ -507,11 +511,11 @@ describe('#1203 — error-message et contrat de l’erreur', () => {
     expect(bandeau.querySelector('.dsfr-data-source-status__text')!.textContent).toContain(
       'Les chiffres de la DGFiP sont en cours de mise à jour.'
     );
-    expect(autre.querySelector('.dsfr-data-kpi__error')).toBeNull();
+    expect(autre.querySelector('.dsfr-data-podium__error')).toBeNull();
   });
 
   it('sans error-message, la phrase est celle du barème', async () => {
-    const kpi = await mountKpi(A);
+    const kpi = await mountBloc(A);
     await echec('');
     await kpi.updateComplete;
     expect(getDataErrorState(A)?.userMessage).toBeUndefined();

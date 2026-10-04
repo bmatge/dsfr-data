@@ -24,6 +24,11 @@ name: E2E layout
 # n'etait lance nulle part : une classe maison l'avait rougi sans bruit.
 
 #
+# `kpi-source-en-panne.spec.ts` (#1222) mesure la HAUTEUR d'une tuile de KPI
+# dont la source echoue (503, 404, reseau coupe) : la forme compacte existe
+# pour qu'elle garde les 140 px de ses voisines, en largeur bureau et a 375 px.
+# Panne posee par `page.route`, jeux en fichiers du depot.
+#
 # `map-idle.spec.ts` (BUG-039) et `map-insets.spec.ts` (BUG-034) comptent des
 # formes POSEES sur des cartes Leaflet reelles — la carte hote et ses encarts,
 # chacune initialisee a sa visibilite. Le doublon de BUG-034 venait de l'ORDRE
@@ -78,6 +83,7 @@ jobs:
           e2e/source-lazy.spec.ts
           e2e/buttons.spec.ts
           e2e/map-idle.spec.ts
+          e2e/kpi-source-en-panne.spec.ts
           e2e/map-insets.spec.ts
           --project=chromium
 

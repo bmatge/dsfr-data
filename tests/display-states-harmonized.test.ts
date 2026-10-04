@@ -49,7 +49,35 @@ describe('#284 — AC : même UX d’erreur sur les composants d’affichage', (
     clearDataMeta(SRC);
   });
 
+  // Le KPI a sa forme compacte (#1222) : même contrat — role="status", message
+  // lisible, détail replié, classe commune — sur un balisage à l'échelle d'une tuile.
+  it('dsfr-data-kpi : forme compacte, role="status", message lisible, détail replié (#1222)', async () => {
+    const el = new DsfrDataKpi();
+    el.source = SRC;
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    dispatchDataError(SRC, new Error('quota API dépassé'));
+    await el.updateComplete;
+
+    const bloc = el.querySelector('.dsfr-data-status--source-error');
+    expect(bloc).not.toBeNull();
+    expect(bloc!.classList.contains('dsfr-data-status--compact')).toBe(true);
+    expect(bloc!.getAttribute('role')).toBe('status');
+    expect(bloc!.hasAttribute('aria-live')).toBe(false);
+    const details = bloc!.querySelector('details');
+    expect(details).not.toBeNull();
+    expect(details!.hasAttribute('open')).toBe(false);
+    expect(details!.textContent).toContain('quota API dépassé');
+    expect(bloc!.querySelector('.dsfr-data-status__title')!.textContent).not.toContain(
+      'quota API dépassé'
+    );
+
+    el.remove();
+  });
+
   for (const [tag, build] of DISPLAY_COMPONENTS) {
+    if (tag === 'dsfr-data-kpi') continue;
     it(`${tag} : role="status", message lisible, détail technique replié (#1203)`, async () => {
       const el = build() as HTMLElement & { source: string; updateComplete: Promise<boolean> };
       el.source = SRC;
@@ -76,7 +104,9 @@ describe('#284 — AC : même UX d’erreur sur les composants d’affichage', (
 
       el.remove();
     });
+  }
 
+  for (const [tag, build] of DISPLAY_COMPONENTS) {
     it(`${tag} : état de chargement avec aria-busy`, async () => {
       const el = build() as HTMLElement & { source: string; updateComplete: Promise<boolean> };
       el.source = SRC;

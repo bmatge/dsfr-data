@@ -626,6 +626,21 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   `DATA_EVENTS` — ce dernier est aligné clé pour clé sur le collecteur de diagnostic), que
   `SourceSubscriberMixin` écoute pour redessiner les blocs en erreur. Le bandeau écoute le bus sur
   `document` (il suit TOUTES les sources) : pas de `subscribeToSource`, réservé aux mixins.
+- **Forme compacte du KPI** (#1222) — `dsfr-data-kpi` ne passe plus par `renderSourceError` : le
+  gabarit commun doublait la hauteur d'une tuile. `_renderUnavailable` rend « — » (`aria-hidden`) à la
+  place du chiffre, le libellé, et la phrase `compact` du barème (ou `error-message`). Les deux formes
+  lisent le registre par la MÊME fonction, `resolveSourceError` (`status-templates.ts`) : cause, bouton,
+  lien et couverture par un bandeau ne peuvent pas diverger. Couvert par un bandeau, le KPI n'a ni
+  bouton, ni lien, ni détail. Les autres afficheurs gardent le gabarit complet. La hauteur est mesurée
+  par `e2e/kpi-source-en-panne.spec.ts` (140 px, bureau et 375 px).
+- **Un bloc monté APRÈS la panne** (#1222) — `SourceSubscriberMixin` relit le registre d'erreur à
+  l'abonnement, comme il relit `isDataIdle`. `dispatchDataError` ne purge pas le cache des lignes : sans
+  ce relevé, le bloc tardif affichait l'ancien chiffre à côté de voisins en panne.
+- **Lien vers la page des données** (#1222) — attribut `source-page` de la source, porté par le registre
+  (`sourcePage`, relayé le long de la chaîne comme `userMessage`). Filtré par `safeSourcePage` : `http(s)`
+  ou relatif, schéma lu par l'analyseur d'URL. Rendu pour la SEULE cause `donnees-introuvables`
+  (`sourcePageFor`), dans le bandeau s'il couvre la source, sinon dans le bloc. Aucune dérivation depuis
+  `base-url` / `dataset-id` / `resource`, et jamais `attemptedUrl` (adresse d'API, ou du relais).
 - **Relance** — commande `{ reload: true }` adressée à `originId` (`requestSourceRetry`). La source
   l'écoute dans tous ses modes ; les autres commandes gardent leur garde (paginée, serveur ou
   adaptateur). Relance automatique : écouteur `online` sur `window`, une fois, seulement si la cause

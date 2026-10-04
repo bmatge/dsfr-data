@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — tuile de KPI dont la source est en panne (#1222)</title>
+  <!--
+    Ce que happy-dom ne peut pas prouver (#1222) : la HAUTEUR de la tuile en
+    panne, à côté d'une tuile normale, en largeur bureau et à 375 px — et ce
+    que fait un vrai navigateur d'une source qui répond 503, 404, ou d'un
+    réseau coupé.
+
+    Trois tuiles : deux sur la source « aides », dont le spec fait échouer la
+    requête, une sur « entreprises », qui répond toujours. Les variantes se
+    choisissent par l'URL, pour qu'une seule page serve tous les cas :
+      ?bandeau=1         pose un <dsfr-data-source-status> en tête ;
+      ?page=1            pose source-page sur la source « aides » ;
+      ?message=…         pose error-message sur la source « aides ».
+
+    DSFR chargé du CDN avec SRI, comme les pages specs : sans lui, ni bouton,
+    ni lien, ni bandeau n'ont leur forme, et la hauteur mesurée ne vaudrait rien.
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; background: var(--background-alt-grey, #f6f6f6); }
+    main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  </style>
+</head>
+<body>
+  <main id="page">
+    <h1 class="fr-h3">Aides à l'industrie du futur</h1>
+
+    <div id="tete"></div>
+
+    <dsfr-data-source id="aides" url="/e2e/kpi-source-en-panne-aides.json"></dsfr-data-source>
+    <dsfr-data-source id="entreprises" url="/e2e/kpi-source-en-panne-entreprises.json"></dsfr-data-source>
+
+    <dsfr-data-kpi-group id="tuiles" per-row="3">
+      <dsfr-data-kpi id="k-beneficiaires" source="aides" value="beneficiaires:sum"
+        format="nombre" label="Bénéficiaires"></dsfr-data-kpi>
+      <dsfr-data-kpi id="k-montant" source="aides" value="montant:sum"
+        format="euro" label="Montant investi"></dsfr-data-kpi>
+      <dsfr-data-kpi id="k-entreprises" source="entreprises" value="count"
+        format="nombre" label="Entreprises recensées (autre source)"></dsfr-data-kpi>
+    </dsfr-data-kpi-group>
+  </main>
+
+  <!-- Script classique : il s'exécute AVANT le module de la bibliothèque (différé),
+       donc avant que les éléments ne soient montés. -->
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var aides = document.getElementById('aides');
+      if (params.get('page')) aides.setAttribute('source-page', '/e2e/kpi-source-en-panne-page.html');
+      if (params.get('message')) aides.setAttribute('error-message', params.get('message'));
+      if (params.get('bandeau')) {
+        var bandeau = document.createElement('dsfr-data-source-status');
+        bandeau.id = 'bandeau';
+        document.getElementById('tete').appendChild(bandeau);
+      }
+    })();
+  </script>
+</body>
+</html>

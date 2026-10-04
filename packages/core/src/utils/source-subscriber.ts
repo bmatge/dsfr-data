@@ -8,6 +8,7 @@ import type { LitElement } from 'lit';
 import {
   subscribeToSource,
   getDataCache,
+  getDataErrorState,
   isDataIdle,
   STATUS_COVERAGE_EVENT,
 } from './data-bridge.js';
@@ -153,6 +154,13 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
         this._sourceData = cachedData;
         this.onSourceData(cachedData);
       }
+
+      // La source peut être tombée en panne AVANT ce montage (#1222) :
+      // l'événement est passé, et le cache garde les lignes du dernier
+      // chargement réussi. Sans ce relevé, un bloc monté après coup
+      // afficherait l'ancien chiffre à côté de voisins qui disent la panne.
+      const failed = getDataErrorState(source);
+      if (failed) this._sourceError = failed.error;
 
       this._unsubscribeSource = subscribeToSource(source, {
         onLoaded: (data) => {

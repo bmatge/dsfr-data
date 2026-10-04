@@ -36,6 +36,12 @@ export interface SourceErrorDescription {
   title: string;
   /** Phrase de cause, à la suite du titre (vide quand le titre suffit). */
   detail: string;
+  /**
+   * Phrase de la forme COMPACTE (#1222) : une tuile de KPI n'a la place que
+   * d'une ligne sous le « — » qui remplace son chiffre. Elle dit la même cause
+   * que `title`, à l'échelle d'un chiffre et non d'un jeu de données.
+   */
+  compact: string;
   /** « Réessayer » a-t-il un sens pour cette cause ? */
   retry: boolean;
   /** Nouvel essai automatique au retour de la connexion (hors connexion seul). */
@@ -94,6 +100,7 @@ export function classifySourceError(
 const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 'status'>> = {
   'service-indisponible': {
     title: 'Données momentanément indisponibles',
+    compact: 'Chiffre momentanément indisponible',
     detail: 'Le service qui publie ces chiffres ne répond pas pour l’instant.',
     retry: true,
     autoRetryOnline: false,
@@ -101,6 +108,7 @@ const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 's
   },
   'hors-connexion': {
     title: 'Vous semblez hors connexion',
+    compact: 'Vous semblez hors connexion',
     detail: 'Les chiffres s’afficheront quand la connexion reviendra.',
     retry: true,
     autoRetryOnline: true,
@@ -108,6 +116,7 @@ const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 's
   },
   'service-sollicite': {
     title: 'Le service est très sollicité',
+    compact: 'Le service est très sollicité',
     detail: 'Réessayez dans quelques instants.',
     retry: true,
     autoRetryOnline: false,
@@ -115,13 +124,15 @@ const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 's
   },
   'donnees-introuvables': {
     title: 'Ces données ne sont plus publiées à cette adresse',
+    compact: 'Ce chiffre n’est plus publié à cette adresse',
     detail: 'Le producteur les a peut-être déplacées ou retirées.',
     retry: false,
     autoRetryOnline: false,
-    hint: 'Vérifier dataset-id / resource.',
+    hint: 'Vérifier dataset-id / resource. Pour donner à l’usager la page publique de ces données : source-page.',
   },
   'acces-restreint': {
     title: 'Ces données ne sont pas accessibles publiquement',
+    compact: 'Ce chiffre n’est pas accessible publiquement',
     detail: '',
     retry: false,
     autoRetryOnline: false,
@@ -129,6 +140,7 @@ const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 's
   },
   'page-mal-reglee': {
     title: 'Cet affichage n’a pas pu être construit',
+    compact: 'Ce chiffre n’a pas pu être affiché',
     detail: 'Le problème vient de la page, pas de votre connexion.',
     retry: false,
     autoRetryOnline: false,
@@ -136,6 +148,7 @@ const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 's
   },
   'reponse-bloquee': {
     title: 'Données momentanément indisponibles',
+    compact: 'Chiffre momentanément indisponible',
     detail: 'Le service qui publie ces chiffres ne répond pas pour l’instant.',
     retry: true,
     autoRetryOnline: false,
@@ -165,4 +178,40 @@ export function formatErrorTime(at: number): string {
   const d = new Date(at);
   const two = (n: number): string => String(n).padStart(2, '0');
   return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
+}
+
+/** Texte du lien vers la page publique des données (#1222), sur des données introuvables. */
+export const SOURCE_PAGE_LABEL = 'Consulter la page de ces données';
+
+/**
+ * Adresse de `source-page` admise dans un lien (#1222), ou `undefined`.
+ *
+ * Seules passent une URL `http(s)` et une URL relative. Tout autre schéma
+ * (`javascript:`, `data:`, `vbscript:`, `file:`…) est refusé : la valeur vient
+ * d'un attribut, donc parfois d'un CMS ou d'un gabarit, et finit dans un `href`.
+ *
+ * Le schéma est lu par l'analyseur d'URL du navigateur — celui qui suivra le
+ * lien — et non par une expression régulière : il retire les tabulations et
+ * retours à la ligne qu'un schéma coupé en deux glisserait devant un test naïf.
+ * La base est fictive : elle ne sert qu'à faire d'une adresse relative une
+ * adresse analysable, sans dépendre de la page (`file://`, `about:srcdoc`).
+ * L'adresse rendue est celle de l'intégrateur, non réécrite.
+ */
+export function safeSourcePage(value: string | null | undefined): string | undefined {
+  const page = (value ?? '').trim();
+  if (!page) return undefined;
+  try {
+    const { protocol } = new URL(page, 'https://page.invalid/');
+    return protocol === 'https:' || protocol === 'http:' ? page : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Le lien vers la source ne vaut que pour des données introuvables (404, 410). */
+export function sourcePageFor(
+  cause: SourceErrorCause,
+  sourcePage: string | undefined
+): string | undefined {
+  return cause === 'donnees-introuvables' ? safeSourcePage(sourcePage) : undefined;
 }

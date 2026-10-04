@@ -829,7 +829,7 @@
               <tr><td>Service indisponible (HTTP 5xx, délai dépassé) ou réponse bloquée (pas d'en-tête CORS)</td><td><strong>Données momentanément indisponibles.</strong> Le service qui publie ces chiffres ne répond pas pour l'instant.</td><td>Réessayer</td></tr>
               <tr><td>Hors connexion</td><td><strong>Vous semblez hors connexion.</strong> Les chiffres s'afficheront quand la connexion reviendra.</td><td>Réessayer, et nouvel essai automatique au retour du réseau</td></tr>
               <tr><td>Service très sollicité (HTTP 429)</td><td><strong>Le service est très sollicité.</strong> Réessayez dans quelques instants.</td><td>Réessayer — jamais de nouvel essai automatique</td></tr>
-              <tr><td>Données introuvables (HTTP 404)</td><td><strong>Ces données ne sont plus publiées à cette adresse.</strong> Le producteur les a peut-être déplacées ou retirées.</td><td>Aucune</td></tr>
+              <tr><td>Données introuvables (HTTP 404)</td><td><strong>Ces données ne sont plus publiées à cette adresse.</strong> Le producteur les a peut-être déplacées ou retirées.</td><td>Lien « Consulter la page de ces données », si <code>source-page</code> est posé ; sinon aucune</td></tr>
               <tr><td>Accès restreint (HTTP 401, 403)</td><td><strong>Ces données ne sont pas accessibles publiquement.</strong></td><td>Aucune</td></tr>
               <tr><td>Page mal réglée (HTTP 400, source mal configurée)</td><td><strong>Cet affichage n'a pas pu être construit.</strong> Le problème vient de la page, pas de votre connexion.</td><td>Aucune</td></tr>
             </tbody>
@@ -849,12 +849,77 @@
           <table class="attr-table">
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
-              <!-- ATTRS:dsfr-data-source fields="error-message" -->
+              <!-- ATTRS:dsfr-data-source fields="error-message,source-page" -->
                 <tr><td><code>error-message</code></td><td>String</td><td><code>""</code></td><td>Phrase affichée à l'usager quand cette source est en panne (#1203), à la place du message du barème — dans les blocs branchés sur la source comme dans le bandeau <code>dsfr-data-source-status</code>. <code>error-message="Les chiffres de la DGFiP sont en cours de mise à jour."</code> : à poser quand l'intégrateur sait mieux que la bibliothèque dire qui publie les données et quoi faire. Ne remplace QUE la phrase usager d'un échec de chargement : le code HTTP, l'adresse appelée et l'heure restent dans « Détails techniques », l'<code>Error</code> de <code>dsfr-data-error</code> et la console ne changent pas. Sans effet sur une erreur de configuration de la source.</td></tr>
+                <tr><td><code>source-page</code></td><td>String</td><td><code>""</code></td><td>Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le portail du producteur, celle qu'un usager peut lire — pas l'adresse d'API. <code>source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/"</code> : quand la source répond « introuvable » (404, 410), le bloc en erreur et le bandeau <code>dsfr-data-source-status</code> proposent le lien « Consulter la page de ces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit l'adresse ni de <code>base-url</code>, ni de <code>dataset-id</code>, ni de <code>resource</code>, et ne montre jamais l'adresse d'API ni celle du relais (<code>relay-url</code>). Sans effet sur les autres pannes (service indisponible, hors connexion, accès restreint…) et sur le chargement : l'attribut ne déclenche aucune requête. N'est admise qu'une adresse <code>http(s)</code> ou relative ; toute autre (<code>javascript:</code>, <code>data:</code>…) est ignorée, avec un avertissement en console.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
         </div>
+
+        <h3 id="source-page" class="fr-mt-3w">Données introuvables : le lien vers la page des données</h3>
+        <p>
+          Quand la source répond « introuvable » (HTTP 404 ou 410), l'usager n'a rien à réessayer : le
+          producteur a déplacé ou retiré le jeu. Posez <code>source-page</code> sur la source avec l'adresse
+          de la <strong>page publique</strong> de ces données — la page du jeu sur le portail du producteur,
+          celle qu'un usager peut lire, pas l'adresse d'API. Les blocs en erreur et le bandeau proposent
+          alors le lien « Consulter la page de ces données ».
+        </p>
+        <ul>
+          <li>Le lien n'apparaît <strong>que</strong> sur des données introuvables : jamais sur un service
+            indisponible, une coupure de connexion, un accès restreint ou une page mal réglée.</li>
+          <li>Sans <code>source-page</code>, aucun lien. La bibliothèque ne déduit l'adresse ni de
+            <code>base-url</code>, ni de <code>dataset-id</code>, ni de <code>resource</code> : sur un portail
+            Opendatasoft, la page <code>/explore/dataset/&lt;id&gt;/</code> disparaît avec le jeu, donc le lien
+            déduit mènerait à une page introuvable ; sur l'API Tabular, l'identifiant de ressource ne donne
+            pas le jeu sans une requête de plus. L'adresse d'API n'est jamais proposée à l'usager, ni celle
+            du relais (<code>relay-url</code>).</li>
+          <li>N'est admise qu'une adresse <code>http(s)</code> ou relative. Toute autre
+            (<code>javascript:</code>, <code>data:</code>…) est ignorée, avec un avertissement en console.</li>
+          <li>Avec un bandeau, c'est lui qui porte le lien, une fois ; les blocs ne le répètent pas.</li>
+        </ul>
+        <div class="code-block">
+          <pre>&lt;dsfr-data-source id="prix" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="prix-carburants"
+  source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/"&gt;
+&lt;/dsfr-data-source&gt;</pre>
+        </div>
+
+        <h3 id="kpi-compact" class="fr-mt-3w">Dans une tuile de KPI : la forme compacte</h3>
+        <p>
+          L'encart complet est fait pour un bloc de graphique ; dans une tuile de KPI il doublerait sa
+          hauteur. Un <code>&lt;dsfr-data-kpi&gt;</code> dont la source est en panne garde donc sa place et sa
+          hauteur : « — » à la place du chiffre, son <strong>libellé</strong> (l'usager doit savoir quel chiffre
+          manque) et une phrase courte. Il n'affiche jamais un nombre : ni 0, ni le chiffre du chargement
+          précédent. Les autres afficheurs (graphique, jauge comprise, liste, podium, display) gardent
+          l'encart complet.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Cause</th><th>Phrase de la tuile</th><th>Sans bandeau, la tuile porte aussi</th></tr></thead>
+            <tbody>
+              <tr><td>Service indisponible, réponse bloquée</td><td>Chiffre momentanément indisponible</td><td>Réessayer · Détails</td></tr>
+              <tr><td>Hors connexion</td><td>Vous semblez hors connexion</td><td>Réessayer · Détails</td></tr>
+              <tr><td>Service très sollicité (HTTP 429)</td><td>Le service est très sollicité</td><td>Réessayer · Détails</td></tr>
+              <tr><td>Données introuvables (HTTP 404, 410)</td><td>Ce chiffre n'est plus publié à cette adresse</td><td>Lien de <code>source-page</code> · Détails</td></tr>
+              <tr><td>Accès restreint (HTTP 401, 403)</td><td>Ce chiffre n'est pas accessible publiquement</td><td>Détails</td></tr>
+              <tr><td>Page mal réglée (HTTP 400, source mal configurée)</td><td>Ce chiffre n'a pas pu être affiché</td><td>Détails</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>error-message</code> remplace la phrase, comme dans l'encart complet. « Détails » est replié, à
+          la suite de la phrase : il donne le code HTTP, l'adresse appelée et l'heure. Avec un bandeau
+          <code>dsfr-data-source-status</code>, la tuile ne garde que le tiret, le libellé et la phrase : le
+          bouton, le lien et le détail sont dans le bandeau. Dans une tuile étroite, le lien ou « Détails »
+          passent à la ligne, et la tuile gagne une ligne. Une valeur <strong>absente</strong> des données
+          (null, champ manquant) n'est pas une panne : la tuile affiche « — » et son libellé, sans phrase.
+        </p>
+        <p>
+          Accessibilité : le tiret est masqué aux lecteurs d'écran (<code>aria-hidden</code>), qui lisent
+          le libellé et la phrase ; la figure se nomme « libellé : phrase », sans chiffre. Le bouton
+          « Réessayer » garde 44 px de haut.
+        </p>
 
         <h3 id="source-status" class="fr-mt-3w">dsfr-data-source-status : le bandeau qui dit la panne une fois</h3>
         <p>
