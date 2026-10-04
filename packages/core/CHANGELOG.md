@@ -1,5 +1,114 @@
 # dsfr-data
 
+## 0.45.1
+
+### Patch Changes
+
+- [#1247](https://github.com/bmatge/dsfr-data/pull/1247) [`ef45e16`](https://github.com/bmatge/dsfr-data/commit/ef45e168dd92936a71a64a384974f7d50a926e9e) Thanks [@bmatge](https://github.com/bmatge)! - Carte : un encart (`dsfr-data-map-inset`) ne trace plus que les entités de son emprise, une seule fois, et les remplace à chaque nouvelle donnée — résout le constat BUG-034 du banc d'essai ([#1229](https://github.com/bmatge/dsfr-data/issues/1229)).
+  
+  **Le doublon.** Un encart porte sa propre `dsfr-data-map`, avec un clone de chaque couche de la carte hôte. La carte hôte cherchait ses couches par un `querySelectorAll` qui descendait dans ses encarts : à son initialisation, elle redisait « la carte est prête » aux couches clonées des encarts déjà initialisés, et la couche refaisait alors son groupe Leaflet sans retirer le précédent. Le groupe orphelin gardait ses entités, et plus aucun rendu ne le vidait : 8 cercles pour 4 lignes, puis 6 pour 2 après un filtre. L'ordre d'initialisation des cartes dépend de la reprise après le chargement de Leaflet — d'où un défaut intermittent, sur des encarts qui changeaient d'un essai à l'autre. La carte ne notifie plus que ses propres couches, et une couche rappelée sur une carte où elle est déjà branchée ne refait rien.
+  
+  **Le coût.** La couche d'un encart reçoit les mêmes lignes que celle de la carte hôte (aucune requête de plus : c'était déjà le cas, et c'est désormais contrôlé), mais ne trace que celles de son cadre, élargi de la taille des symboles pour qu'un cercle à cheval sur le bord reste dessiné. Classes de couleur, rayons proportionnels, intensités de chaleur et plafond `max-items` restent calculés sur le jeu entier : un même enregistrement a la même apparence dans l'encart et sur la carte principale. Un encart redimensionné (palier de `width`, plein écran) retrace sa nouvelle emprise.
+  
+  Mesures sur 7 250 points, Chromium sans tête, médiane de vingt rafraîchissements après un filtre (`e2e/map-insets-perf.html`) :
+  
+  | Encarts | Entités posées dans les encarts, avant | après | Cercles, avant | après | Marqueurs, avant | après |
+  |---|---|---|---|---|---|---|
+  | 0 | — | — | 44 ms | 57 ms | 227 ms | 228 ms |
+  | 5 (`insets="drom"`) | 36 250 (7 250 par encart) | 363 | 227 ms | 70 ms | 1 361 ms | 247 ms |
+  | 9 | 65 250 | 363 | 367 ms | 61 ms | 2 435 ms | 260 ms |
+  
+  Le temps de rafraîchissement ne croît plus avec le nombre d'encarts (l'écart restant est celui d'une mesure à l'autre). Une requête réseau pour la source dans les trois cas, avant comme après. Sur la page minimale du banc (4 points, cinq encarts), cinq essais : des encarts doublés à chaque essai avant, aucun après.
+  
+  Dans le même mouvement, trois défauts du même emboîtement de cartes :
+  
+  - la description de la carte lue par les lecteurs d'écran comptait les couches des encarts (« 4 cercles, 4 cercles, 4 cercles… ») : elle compte les couches de la carte, une fois ; celle d'un encart compte ce qu'il montre ;
+  - une couche en `bbox`, clonée dans un encart, poussait à la source la zone visible de l'encart sous la même clé que la couche d'origine : la carte principale se retrouvait filtrée sur le dernier encart prêt. Un encart ne commande plus la source — avec `bbox`, il ne montre donc que ce que la zone visible de la carte principale a chargé ;
+  - une `dsfr-data-map-timeline` désignant ses couches par `for` ne pilotait pas leurs clones, qui restaient sur le jeu entier ; et une couche prête après le premier pas (timeline prête avant la carte) traçait tout au lieu du pas courant. Les encarts suivent maintenant le pas de la carte principale.
+  
+  Méthode ajoutée sur `dsfr-data-map-layer` : `getTimelineFrame()` (indice du pas affiché, `-1` quand la couche montre tout).
+
+- [#1250](https://github.com/bmatge/dsfr-data/pull/1250) [`32f0b5c`](https://github.com/bmatge/dsfr-data/commit/32f0b5c947b71d144c49c2e86e324ca597627f38) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map-inset` : l'encart `territory="polynesie-francaise"` s'affiche désormais avec le fond par défaut — suite du constat AM-102 du banc d'essai ([#1245](https://github.com/bmatge/dsfr-data/issues/1245)).
+  
+  Le préréglage était au zoom 8, et le Plan IGN (`tiles="ign-plan"`, le fond par défaut) ne répond plus au-delà du zoom 7 sur la Polynésie française : l'encart sortait gris, sans fond. Il passe au **zoom 7**, le plus grand que ce fond sert.
+  
+  | Préréglage | Avant | Après |
+  |---|---|---|
+  | `polynesie-francaise` | `-17.55,-149.55`, zoom 8 | `-17.68,-149.52`, zoom 7 |
+  
+  Tahiti et Moorea restent au centre, par choix (arbitrage du 2026-10-04) : le nouveau centre est le milieu de l'emprise des deux îles en projection Mercator. Dans l'encart par défaut (152 × 160 px), elles sont entières, à 40 px des bords gauche et droit et 60 px du haut et du bas — à l'ancien centre, la pointe est de la presqu'île de Taiarapu débordait de 2 px.
+  
+  **Les pages existantes voient cet encart cadré un peu plus large** : un niveau de zoom plus bas, les deux îles deux fois plus petites. Un `center` ou un `zoom` posé sur l'encart prime toujours. Pour retrouver le cadrage resserré, poser `zoom="8"` sur l'encart **et** un fond qui sert ce zoom sur la carte (`tiles="ign-ortho"` ou `tiles="osm"`).
+  
+  La même limite du Plan IGN vaut pour la Nouvelle-Calédonie et Wallis-et-Futuna ; leurs préréglages (zooms 5 et 6) restent en dessous et ne changent pas.
+
+- [#1246](https://github.com/bmatge/dsfr-data/pull/1246) [`672a24e`](https://github.com/bmatge/dsfr-data/commit/672a24ee5e0eb7d7c33ebd49d97d8a3b62c1a451) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-map-inset` : neuf préréglages `territory` ne coupent plus leur territoire dans l'encart par défaut — suite du constat AM-102 du banc d'essai, qui avait recalé `la-reunion` et `wallis-et-futuna` en 0.45.0 ([#1245](https://github.com/bmatge/dsfr-data/issues/1245)).
+  
+  Même méthode : emprise des communes (geo.api.gouv.fr) contre la carte réelle de l'encart par défaut (152 × 160 px), centre au milieu de l'emprise en projection Mercator, plus grand zoom entier où elle tient. Chacun débordait d'un niveau de zoom.
+  
+  | Préréglage | Avant | Après |
+  |---|---|---|
+  | `guadeloupe` | `16.20,-61.45`, zoom 9 | `16.17,-61.41`, zoom 8 |
+  | `martinique` | `14.63,-61.00`, zoom 9 | `14.63,-61.02`, zoom 8 |
+  | `guyane` | `4.00,-53.10`, zoom 6 | `3.93,-53.11`, zoom 5 |
+  | `mayotte` | `-12.83,45.15`, zoom 10 | `-12.82,45.16`, zoom 9 |
+  | `saint-pierre-et-miquelon` | `46.95,-56.33`, zoom 9 | `46.95,-56.32`, zoom 8 |
+  | `saint-martin` | `18.08,-63.06`, zoom 11 | `18.086,-63.062`, zoom 10 |
+  | `saint-barthelemy` | `17.90,-62.83`, zoom 11 | `17.922,-62.858`, zoom 10 |
+  | `nouvelle-caledonie` | `-21.30,165.50`, zoom 6 | `-21.21,165.85`, zoom 5 |
+  | `corse` | `42.15,9.10`, zoom 7 | `42.19,9.05`, zoom 6 |
+  
+  **Les encarts de pages existantes changent de cadrage** : un encart posé par `territory="…"` (ou par `insets="drom"`) sans `zoom` montre désormais le territoire entier, un niveau de zoom plus bas. Un `center` ou un `zoom` posé sur l'encart prime toujours : ces encarts-là ne bougent pas, et un `zoom="8"` posé pour contourner l'ancien cadrage de la Guadeloupe ou de la Martinique est devenu inutile.
+  
+  `polynesie-francaise` garde son cadrage sur Tahiti et Moorea, par choix (arbitrage du 2026-10-04) : l'essentiel de la population, des îles lisibles dans 160 px — le territoire entier demanderait le zoom 3. C'est désormais écrit dans la documentation de `territory`.
+
+- [#1248](https://github.com/bmatge/dsfr-data/pull/1248) [`db58dbc`](https://github.com/bmatge/dsfr-data/commit/db58dbc90e99e73e264c187d6c13d096c8973699) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-query` ne calcule plus un regroupement sur une seule page d'une source en pagination serveur ([#1242](https://github.com/bmatge/dsfr-data/issues/1242)).
+  
+  Quand une `dsfr-data-source` est en `server-side`, elle ne livre qu'une page. Une `dsfr-data-query` en aval qui gardait son regroupement côté client — part (`share`, `share_percent`), cumul (`running_sum`, `diff`), `explode`, agrégat sans `group-by`, fonction que l'adaptateur ne traduit pas, transformateur amont qui change les colonnes, source lue par d'autres composants, source déjà regroupée — agrégeait cette seule page, sans un mot. Mesuré sur 137 lignes en pages de 40, à l'identique sur Opendatasoft, Tabular et Grist : une part de 15,03 % au lieu de 14,62 %, une somme de 39 220 000 au lieu de 127 684 000.
+  
+  **Ce qui change pour une page existante.** Une page dont le montage est fautif affiche désormais une **erreur de configuration** à la place du chiffre partiel : la requête porte `data-dsfr-config-error`, les blocs en aval (graphique, KPI, tableau) passent en état d'erreur, et la console le dit. C'est le cas même quand le jeu tenait par chance dans une page et que le chiffre était juste : le montage est jugé, pas le nombre de lignes. Le message nomme la source, les attributs en cause et la correction :
+  
+  - retirer `server-side` de la source : elle charge alors le jeu entier, dans la limite de `max-records` (à relever si le jeu est plus long) ;
+  - si le jeu dépasse ce plafond, ou si un tableau paginé lit la même source : donner à la requête sa propre source sans `server-side`, qui porte le regroupement délégable (`group-by`, `aggregate`) ; la part ou le cumul se calcule alors sur la requête, à partir des groupes.
+  
+  **Ce qui ne change pas.** Un tableau ou une liste paginés au serveur sans regroupement, et une requête qui délègue réellement son regroupement à la source.
+  
+  **Mode URL avec `paginate`.** Aucun attribut ne fait charger le jeu entier à une source en mode URL (sans `paginate`, c'est la page par défaut de l'API qui revient). La requête garde donc son comportement — calcul sur la page reçue — mais le dit : avertissement en console, et réserve « regroupement calculé sur une seule page » au volet Diagnostic.
+  
+  **Volet Diagnostic.** Les réserves (`meta.caveats`) décrivent désormais chaque étape : un transformateur ne relaie toujours pas celles de sa source, mais peut poser les siennes.
+  
+  Non couvert : un `dsfr-data-kpi` ou un `dsfr-data-chart` branché directement sur une source paginée agrège toujours la page reçue.
+
+- [#1248](https://github.com/bmatge/dsfr-data/pull/1248) [`19db1f2`](https://github.com/bmatge/dsfr-data/commit/19db1f2de2112befcc90cc61ffd0dd1fe4f6867a) Thanks [@bmatge](https://github.com/bmatge)! - Adaptateur Tabular : un `in` / `notin` dont une valeur porte une parenthèse ou une virgule est de nouveau délégué, la valeur entre guillemets ([#1233](https://github.com/bmatge/dsfr-data/issues/1233)). Complète la résolution du constat PG-034 du banc d'essai.
+  
+  Depuis la 0.45.0, une telle clause n'était plus envoyée à l'API, qui écarte sans erreur une valeur écrite nue : elle était calculée côté client, au prix du jeu entier (10 requêtes au lieu d'une pour 1 818 lignes dont 202 gardées) ; et en pagination serveur (`server-side`), où ce calcul n'est pas possible, elle partait quand même et le résultat était incomplet.
+  
+  L'API lit la même valeur quand elle est écrite entre guillemets (mesuré le 2026-10-04 : `indicateur__in=Homicides,"Usage de stupéfiants (AFD)"` rend 202 lignes en une requête, `__notin="…"` 1 717, une valeur à virgule citée est lue d'un seul tenant). La clause part donc ainsi :
+  
+  - sur la source comme sur une `dsfr-data-query`, qui la délègue de nouveau ;
+  - en chargement complet comme en pagination serveur — où le résultat est désormais complet ;
+  - un `group-by` posé à côté reste délégué, dans la même requête ;
+  - seules les valeurs qui en ont besoin sont citées (parenthèse, virgule, guillemet) : une liste ordinaire part comme avant.
+  
+  Cette forme n'est écrite dans aucune documentation de l'API. Si l'API la refuse, l'adaptateur se replie et le volet Diagnostic le signale (réserve « liste in entre guillemets refusée ») : en chargement complet, la clause est calculée côté client comme en 0.45.0, et le résultat reste juste ; en pagination serveur, la liste repart sans guillemets, avec l'avertissement console et la réserve « valeur écartée par le serveur ».
+  
+  **Ce qui reste.** Si l'API refuse la forme, la pagination serveur rend de nouveau un résultat incomplet, et il n'existe pas de correction côté bibliothèque. Si l'API venait à ignorer les guillemets sans erreur, rien ne le signalerait dans la page : seul le contrôle de nuit contre l'API réelle le verrait. Le tri d'une pagination serveur sur une clé non unique reste instable d'une page à l'autre (PG-033).
+
+- [#1246](https://github.com/bmatge/dsfr-data/pull/1246) [`42d508b`](https://github.com/bmatge/dsfr-data/commit/42d508bf7d93fa041af0a5048fa313ed189eadf5) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-context` : une valeur qui contient une virgule survit au rechargement de l'URL sur **toutes** les surfaces du contexte — suite du constat BUG-031 du banc d'essai, déjà résolu pour `dsfr-data-facets` en 0.45.0 ([#1243](https://github.com/bmatge/dsfr-data/issues/1243)).
+  
+  Le contexte découpait tout paramètre d'URL sur les virgules, quel que soit le filtre qui le lisait. La grammaire posée pour les facettes (virgule en `%2C`, pourcent en `%25`, blancs de tête et de queue en percent) est désormais la seule, partagée par les quatre surfaces ; c'est le filtre, et non plus le contexte, qui décode son paramètre.
+  
+  - **`dsfr-data-context-filter`, `in` sur une liste à choix multiple.** Une option cochée est une valeur, virgule comprise. « 1,5 » filtrait sur « 1 » et « 5 » dès la clause, avant même le rechargement — six lignes au lieu de trois. L'URL s'écrit `?note=1%252C5` ; un lien ancien à virgule nue est recollé contre les options de la liste (un morceau inconnu est prolongé jusqu'à former une option), et `?note=1,5` reste deux valeurs quand « 1 » et « 5 » sont des options. Changement de comportement : une option dont la `value` porte une virgule n'est plus lue comme plusieurs valeurs.
+  - **`dsfr-data-context-filter`, valeur unique** (`eq`, `contains`, comparaisons, dates). Le paramètre entier est la valeur. « Paris, France » revenait en « Paris,France », ne retrouvait plus son option, et le filtre disparaissait sans un mot. Le tag ne lit plus la virgule comme un séparateur (« 1, 5 à 2 parcours »).
+  - **`dsfr-data-context-filter`, `between`.** Chaque borne est échappée ; une borne vide reste vide (`?prix=,20`).
+  - **`dsfr-data-context-filter`, `in` sur un champ texte ou une liste simple.** Inchangé : `|` et `,` séparent. Une virgule dans une valeur s'y écrit `%2C`, comme dans l'URL — et dans `default`.
+  - **Sélection au clic** (`refine-on-click` avec `context`, sur `dsfr-data-list`, `dsfr-data-display` et `dsfr-data-map-layer`). Seul le premier morceau était gardé : « 1,5 à 2 parcours » revenait en « 1 », zéro ligne.
+  - **`dsfr-data-search` en mode `context`.** Le terme relu perdait le blanc qui suit une virgule : « Paris, France » revenait en « Paris,France ».
+  
+  **Liens déjà partagés.** Un lien sans virgule dans ses valeurs se relit à l'identique, et s'écrit sous la même forme. Un lien à virgule nue écrit par une version antérieure : pour une valeur unique (filtre, sélection, recherche), il se relit désormais tel qu'il a été écrit — il était cassé ; pour une liste, il reste lu morceau par morceau, sauf recollage contre les options d'une liste à choix multiple. Seule régression possible, la même que pour les facettes : un ancien lien dont une valeur porte littéralement une séquence percent valide (`%2C`, `%25`, `%20`) est désormais décodé.
+  
+  `dsfr-data-facets` ne change pas : sa grammaire a seulement été déplacée dans un module commun.
+
 ## 0.45.0
 
 ### Minor Changes
