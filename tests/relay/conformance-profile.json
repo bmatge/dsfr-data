@@ -1,0 +1,18 @@
+{
+  "prefix": "/donnees-relais",
+  "ttl": 300,
+  "hosts": {
+    "ouvert.conformance.test": {},
+    "second.conformance.test": { "ttl": 60 },
+    "cle.conformance.test": {
+      "pathPrefixes": ["/api/public/"],
+      "key": { "header": "Authorization", "prefix": "Apikey ", "env": "RELAY_KEY_CONFORMANCE" }
+    }
+  },
+  "limits": {
+    "timeoutMs": 2000,
+    "maxBytes": 1048576,
+    "rateLimitRequests": 500,
+    "rateLimitWindowSeconds": 60
+  }
+}
