@@ -210,6 +210,8 @@ describe('mode adaptateur — portail Opendatasoft avec relay-url', () => {
     // L'URL de diagnostic est celle de la première requête, sans surcharge de page (#598)
     expect(recus[0].attemptedUrl).toBe(RECORDS);
     expect(classifySourceError(recus[0].error)).toBe('acces-restreint');
+    // La piste de « Détails techniques » nomme le relais : un 403 y est une liste blanche
+    expect(describeSourceError(recus[0].error).hint).toContain('relais (relay-url)');
   });
 
   it('503 du relais (place prise) : réessayé, la source charge sans erreur', async () => {
