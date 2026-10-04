@@ -31,6 +31,18 @@ reponse au navigateur en y ajoutant les en-tetes CORS manquants.
 
 Un endpoint `/health` est egalement disponible pour les sondes de supervision.
 
+### `/cors-proxy` : le relais generique, borne
+
+`/cors-proxy` relaie vers la cible que le client designe dans l'en-tete
+`X-Target-URL` (sources `use-proxy`). Cette cible est bornee avant tout appel :
+`https` et nom DNS public seulement (ni adresse IP, ni `localhost`, ni nom local,
+ni identifiants, ni port), methodes `GET` et `POST`, corps de 1 Mo, debit
+plafonne, certificat de l'amont verifie. Le detail de la regle, ce qu'elle ne
+couvre pas et l'isolation reseau recommandee sont dans
+[`docs/SECURITY.md`](../docs/SECURITY.md#proxy-générique--bornage). Les `map` de
+`nginx.conf` sont la copie de celles de `docker/garde-proxy.conf` : ne pas en
+modifier une seule.
+
 ## Deploiement avec Docker (recommande)
 
 ### Prerequis
