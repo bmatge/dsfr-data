@@ -1174,22 +1174,29 @@ export class DsfrDataMap extends LitElement {
     this._tileLayer = L.tileLayer(url, options).addTo(this._leafletMap);
   }
 
-  private _notifyLayers() {
-    const layers = this.querySelectorAll('dsfr-data-map-layer');
-    for (const layer of layers) {
-      (layer as MapChildElement)._onViewportChange?.();
+  /**
+   * Les compagnons de CETTE carte, jamais ceux d'une carte imbriquée
+   * (BUG-034). Un encart (`dsfr-data-map-inset`) porte sa propre
+   * `dsfr-data-map`, avec des couches clonées : un `querySelectorAll` nu les
+   * atteignait depuis la carte hôte, qui leur redisait « la carte est prête »
+   * alors qu'elles l'étaient déjà — chaque couche d'encart refaisait son
+   * groupe Leaflet et laissait le précédent, plein, sur la carte.
+   */
+  private _ownChildren(tag: string): MapChildElement[] {
+    const own: MapChildElement[] = [];
+    for (const el of this.querySelectorAll(tag)) {
+      if (el.closest('dsfr-data-map') === this) own.push(el as MapChildElement);
     }
+    return own;
+  }
+
+  private _notifyLayers() {
+    for (const layer of this._ownChildren('dsfr-data-map-layer')) layer._onViewportChange?.();
   }
 
   private _notifyExistingLayers() {
-    const layers = this.querySelectorAll('dsfr-data-map-layer');
-    for (const layer of layers) {
-      (layer as MapChildElement)._onMapReady?.();
-    }
-    const timelines = this.querySelectorAll('dsfr-data-map-timeline');
-    for (const tl of timelines) {
-      (tl as MapChildElement)._onMapReady?.();
-    }
+    for (const layer of this._ownChildren('dsfr-data-map-layer')) layer._onMapReady?.();
+    for (const tl of this._ownChildren('dsfr-data-map-timeline')) tl._onMapReady?.();
   }
 
   /**

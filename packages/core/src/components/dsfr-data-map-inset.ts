@@ -7,6 +7,21 @@
  * (dsfr-data-map-popup) de la carte hote : un clic sur un élément de l'encart
  * ouvre le volet/la modale de la carte principale.
  *
+ * Chaque couche de la carte hôte est clonée par ses attributs dans l'encart.
+ * Le clone lit les MÊMES lignes que la couche d'origine — aucune requête de
+ * plus, elles viennent de la source déjà chargée — mais ne trace que les
+ * entités de son emprise (le cadre de l'encart, élargi de la taille des
+ * symboles). Couleurs de classes, rayons proportionnels et intensités de
+ * chaleur restent calculés sur le jeu entier : un même enregistrement a la
+ * même apparence dans l'encart et sur la carte principale. Le plafond
+ * `max-items` s'applique avant l'emprise : l'encart montre ce que la couche
+ * montre, restreint à son cadre. À chaque nouvelle donnée (filtre, pas de
+ * temps de dsfr-data-map-timeline), l'encart retrace son emprise.
+ *
+ * Limite : une couche en `bbox` ne charge que la zone visible de la carte
+ * principale ; ses encarts ne montrent donc que ce qui s'y trouve. Pour des
+ * encarts renseignés, charger le jeu entier (sans `bbox`).
+ *
  * @example
  * <dsfr-data-map center="46.5,2.6" zoom="6" tiles="ign-plan">
  *   <dsfr-data-map-layer source="territoires" type="geoshape" geo-field="geojson">
@@ -22,6 +37,7 @@ import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { BREAKPOINTS, syncLayoutError, type Breakpoint } from '../utils/grid-layout.js';
 import { TERRITORY_PRESETS } from '../utils/territories.js';
+import { INSET_CLONE_OF } from '../utils/map-inset-clone.js';
 
 export { TERRITORY_PRESETS, TERRITORY_GROUPS } from '../utils/territories.js';
 
@@ -250,7 +266,15 @@ export class DsfrDataMapInset extends LitElement {
       // Clone superficiel : attributs seulement (pas les popups/templates enfants).
       const clone = layer.cloneNode(false) as HTMLElement;
       // Jamais d'id duplique dans le document ; matchesLayer() retombe sur `source`.
+      // L'id d'origine reste lisible : dsfr-data-map-timeline s'en sert pour
+      // piloter aussi les clones des couches que son `for` désigne.
       clone.removeAttribute('id');
+      if (layer.id) clone.setAttribute(INSET_CLONE_OF, layer.id);
+      // Un encart ne commande jamais la source (BUG-034) : avec `bbox`, chaque
+      // clone poussait la clause de SA zone visible sous la même clé que la
+      // couche d'origine — le dernier encart prêt filtrait la source sur son
+      // territoire, pour toute la page. La couche d'origine garde la main.
+      clone.removeAttribute('bbox');
       inner.appendChild(clone);
     }
 

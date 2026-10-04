@@ -97,7 +97,25 @@
           <li><strong>Clonage superficiel des couches</strong> : les <code>dsfr-data-map-layer</code>
             directs de la carte hôte sont clonés dans la mini-carte (mêmes attributs, sans
             <code>id</code>). Les données arrivent par le data-bridge : une seule source alimente
-            la carte principale et tous ses encarts.</li>
+            la carte principale et tous ses encarts — <strong>aucune requête de plus</strong>,
+            quel que soit le nombre d'encarts.</li>
+          <li><strong>Tracé borné à l'emprise</strong> : la couche d'un encart reçoit les mêmes
+            lignes que celle de la carte principale, mais ne trace que les entités de son cadre
+            (élargi de la taille des symboles, pour qu'un cercle à cheval sur le bord reste
+            dessiné). Dix encarts sur 7 000 points ne tracent pas 70 000 cercles. Les classes de
+            couleur, les rayons proportionnels et les intensités de chaleur restent calculés sur
+            le <strong>jeu entier</strong> : un même enregistrement a la même apparence dans
+            l'encart et sur la carte principale, et la légende vaut pour les deux. Le plafond
+            <code>max-items</code> s'applique avant l'emprise : l'encart montre ce que la couche
+            montre, restreint à son cadre.</li>
+          <li><strong>À jour à chaque nouvelle donnée</strong> : un filtre amont, une facette ou
+            un pas de <code>dsfr-data-map-timeline</code> (y compris désignée par
+            <code>for</code>) remplacent les entités de l'encart. Un encart redimensionné
+            (palier de <code>width</code>, plein écran) retrace sa nouvelle emprise.</li>
+          <li><strong>Limite — couche en <code>bbox</code></strong> : la source ne charge alors
+            que la zone visible de la carte principale. Les encarts ne commandent jamais la
+            source ; ils ne montrent donc que ce qui s'y trouve déjà. Pour des encarts
+            renseignés, charger le jeu entier (sans <code>bbox</code>).</li>
           <li><strong>Délégation des clics</strong> : un clic sur un élément de l'encart ouvre le
             popup/volet/modale de la <strong>carte principale</strong> (cf.
             <a href="dsfr-data-map-popup.html#resolution">résolution du compagnon</a>).</li>

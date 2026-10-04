@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture de mesure — coût des encarts de carte (BUG-034)</title>
+  <!--
+    BUG-034 du banc d'essai open-data-viz (#1229) : chaque encart redessinait
+    TOUTES les entités de la couche. Cette page sert à le chronométrer, elle
+    n'est lue par aucun spec bloquant (une durée n'est pas déterministe).
+
+      ?n=7250        nombre de points (95 % en métropole, le reste dans les DROM)
+      ?insets=0|5|9  aucun encart, les cinq DROM, ou neuf territoires
+      ?type=circle   marker, circle, heatmap ; ?cluster=1 pour les grappes
+      ?url=1         la source lit /e2e/map-insets-perf-points.json (à servir
+                     par page.route) au lieu de données en ligne : c'est ce qui
+                     permet de COMPTER les requêtes réseau.
+
+    window.__perf.filtrer(valeur) pose un filtre sur le champ `t` (a, b ou c ;
+    chaîne vide = retrait) et rend la durée, en ms, jusqu'à la deuxième image
+    qui suit le dernier rendu de couche. window.__perf.compter() rend, par
+    carte (principale puis encarts), les lignes reçues, les entités tracées
+    (`getRenderedCount()`) et les objets Leaflet réellement posés.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main id="scene"><h1>Coût des encarts</h1></main>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var n = Number(params.get('n') || 7250);
+      var insets = params.get('insets') || '5';
+      var type = params.get('type') || 'circle';
+      var territoires = {
+        0: '',
+        5: 'drom',
+        9: 'drom,corse,nouvelle-caledonie,polynesie-francaise,saint-pierre-et-miquelon',
+      }[insets];
+
+      // Générateur déterministe (LCG) : la même page donne les mêmes points.
+      var graine = 20261004;
+      function alea() {
+        graine = (graine * 1664525 + 1013904223) % 4294967296;
+        return graine / 4294967296;
+      }
+      var drom = [
+        [16.2, -61.45],
+        [14.63, -61.0],
+        [4.0, -53.1],
+        [-21.13, 55.53],
+        [-12.83, 45.15],
+      ];
+      function points() {
+        var lignes = [];
+        for (var i = 0; i < n; i++) {
+          var lat, lon;
+          if (i % 20 === 0) {
+            var c = drom[(i / 20) % drom.length];
+            lat = c[0] + (alea() - 0.5) * 0.1;
+            lon = c[1] + (alea() - 0.5) * 0.1;
+          } else {
+            lat = 42.5 + alea() * 8.5;
+            lon = -4.5 + alea() * 12.5;
+          }
+          lignes.push({ nom: 'P' + i, t: 'abc'[i % 3], v: 1 + (i % 50), lat: lat, lon: lon });
+        }
+        return lignes;
+      }
+      window.__points = points;
+
+      var scene = document.getElementById('scene');
+      var source = document.createElement('dsfr-data-source');
+      source.id = 's';
+      if (params.get('url')) source.setAttribute('url', '/e2e/map-insets-perf-points.json');
+      else source.setAttribute('data', JSON.stringify(points()));
+      var filtre = document.createElement('dsfr-data-query');
+      filtre.id = 'q';
+      filtre.setAttribute('source', 's');
+      var carte = document.createElement('dsfr-data-map');
+      carte.id = 'm';
+      carte.setAttribute('center', '46.5,2.5');
+      carte.setAttribute('zoom', '5');
+      carte.setAttribute('height', '400px');
+      carte.setAttribute('tiles', '/e2e/tuiles-absentes/{z}/{x}/{y}.png');
+      carte.setAttribute('tiles-attribution', 'aucun fond');
+      if (territoires) carte.setAttribute('insets', territoires);
+      var couche = document.createElement('dsfr-data-map-layer');
+      couche.id = 'l';
+      couche.setAttribute('source', 'q');
+      couche.setAttribute('type', type);
+      couche.setAttribute('lat-field', 'lat');
+      couche.setAttribute('lon-field', 'lon');
+      couche.setAttribute('max-items', '20000');
+      if (type === 'circle') couche.setAttribute('radius', '4');
+      if (params.get('cluster')) couche.setAttribute('cluster', '');
+      carte.appendChild(couche);
+      scene.appendChild(source);
+      scene.appendChild(filtre);
+      scene.appendChild(carte);
+
+      function cartes() {
+        return [carte].concat(Array.prototype.slice.call(carte.querySelectorAll('dsfr-data-map')));
+      }
+      function couchesDe(c) {
+        return Array.prototype.filter.call(c.querySelectorAll('dsfr-data-map-layer'), function (l) {
+          return l.closest('dsfr-data-map') === c;
+        });
+      }
+      window.__perf = {
+        compter: function () {
+          return cartes().map(function (c) {
+            var poses = 0;
+            var leaflet = c.getLeafletMap && c.getLeafletMap();
+            if (leaflet) {
+              leaflet.eachLayer(function (l) {
+                if (l.getLatLng && !l.getAllChildMarkers) poses++;
+              });
+            }
+            var ls = couchesDe(c);
+            return {
+              carte: c.getAttribute('name') || c.id,
+              prete: !!leaflet,
+              lignes: ls.map(function (l) { return (l._data || []).length; }).join('+'),
+              tracees: ls.map(function (l) { return l.getRenderedCount(); }).join('+'),
+              posees: poses,
+            };
+          });
+        },
+        filtrer: function (valeur) {
+          var attendus = cartes().filter(function (c) {
+            return c.getLeafletMap && c.getLeafletMap();
+          }).length;
+          return new Promise(function (resolve) {
+            var recus = 0;
+            var debut = performance.now();
+            function surRendu() {
+              recus++;
+              if (recus < attendus) return;
+              document.removeEventListener('dsfr-data-map-layer-render', surRendu);
+              requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                  resolve(Math.round(performance.now() - debut));
+                });
+              });
+            }
+            document.addEventListener('dsfr-data-map-layer-render', surRendu);
+            if (valeur) filtre.setAttribute('where', 't:eq:' + valeur);
+            else filtre.removeAttribute('where');
+          });
+        },
+      };
+    })();
+  </script>
+</body>
+</html>

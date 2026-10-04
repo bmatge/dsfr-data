@@ -20,7 +20,7 @@
  * réponse. Le test-garde d'indépendance (`tests/oracle/guard.test.ts`)
  * parcourt son graphe d'imports et refuserait toute entrée par `packages/`.
  */
-import type { Row } from '../../tools/oracle/manifest.js';
+import type { Row, Step } from '../../tools/oracle/manifest.js';
 import { repondreTabular } from '../builder-e2e/api-fixtures.js';
 import communes from './jeux/affichages-communes.json' with { type: 'json' };
 import serie from './jeux/affichages-serie.json' with { type: 'json' };
@@ -32,6 +32,7 @@ import contoursDepartements from './jeux/affichages-contours-departements.json' 
 import zones from './jeux/affichages-zones.json' with { type: 'json' };
 import aides from './jeux/affichages-aides.json' with { type: 'json' };
 import symboles from './jeux/affichages-symboles.json' with { type: 'json' };
+import encarts from './jeux/affichages-encarts.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
@@ -109,7 +110,18 @@ export const AIDES: Row[] = aides;
  */
 export const SYMBOLES: Row[] = symboles;
 
-/** Les neuf jeux, sous le nom que les manifestes leur donnent. */
+/**
+ * Dix lieux pour une carte à encarts (BUG-034) : quatre en métropole, trois à
+ * La Réunion, deux en Guadeloupe, un en Guyane — aucun à Mayotte. Chacun est
+ * loin du bord de son encart, ou sur un autre continent : « dans l'emprise »
+ * ne dépend ni d'un pixel ni d'une marge. `type` (quatre musées, six
+ * théâtres) sert de filtre : un encart doit REMPLACER ses entités, pas les
+ * ajouter. Lignes entrelacées : l'ordre du fichier n'est pas celui des
+ * territoires.
+ */
+export const ENCARTS: Row[] = encarts;
+
+/** Les dix jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
@@ -120,6 +132,7 @@ export const JEUX_AFFICHAGES = {
   zones: ZONES,
   aides: AIDES,
   symboles: SYMBOLES,
+  encarts: ENCARTS,
 } as const;
 
 /**
@@ -136,6 +149,43 @@ export const URL_CONTOURS_DEPARTEMENTS =
 export function urlAffichage(nom: keyof typeof JEUX_AFFICHAGES): string {
   return `${HOTE_AFFICHAGES}/${nom}`;
 }
+
+/**
+ * Les emprises des encarts du contrôle BUG-034, en latitudes et longitudes
+ * écrites à la main : de larges rectangles autour de chaque territoire, sans
+ * rapport avec le cadre en pixels que la carte calcule. Aucun lieu du jeu
+ * n'est près d'un bord.
+ */
+const emprise = (sud: number, nord: number, ouest: number, est: number): Step => ({
+  op: 'filter',
+  filters: [
+    { field: 'lat', op: 'gte', value: sud },
+    { field: 'lat', op: 'lte', value: nord },
+    { field: 'lon', op: 'gte', value: ouest },
+    { field: 'lon', op: 'lte', value: est },
+  ],
+});
+export const DANS_LA_REUNION = emprise(-21.6, -20.6, 55, 56);
+export const DANS_LA_GUADELOUPE = emprise(15.8, 16.6, -61.9, -61);
+export const DANS_LA_GUYANE = emprise(2, 6, -55, -51);
+
+/**
+ * La carte à encarts du contrôle BUG-034 (et de son canari) : une couche de
+ * cercles derrière une facette, et quatre encarts posés par `center` et
+ * `zoom` — La Réunion, la Guadeloupe, la Guyane, et Mayotte qui n'a aucun
+ * lieu. Chaque encart porte un id : c'est LUI qu'on observe, pas la carte.
+ */
+export const MARKUP_ENCARTS = `
+  <dsfr-data-source id="s-encarts" url="${urlAffichage('encarts')}"></dsfr-data-source>
+  <dsfr-data-facets id="f-encarts" source="s-encarts" fields="type" labels="type:Type"></dsfr-data-facets>
+  <dsfr-data-map id="carte-encarts" center="46.6,2.3" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="couche-encarts" source="f-encarts" type="circle" radius="6"
+      lat-field="lat" lon-field="lon" shape-class="verif-encart"></dsfr-data-map-layer>
+    <dsfr-data-map-inset id="encart-reunion" center="-21.13,55.53" zoom="8" label="La Réunion"></dsfr-data-map-inset>
+    <dsfr-data-map-inset id="encart-guadeloupe" center="16.20,-61.45" zoom="9" label="Guadeloupe"></dsfr-data-map-inset>
+    <dsfr-data-map-inset id="encart-guyane" center="4.00,-53.10" zoom="6" label="Guyane"></dsfr-data-map-inset>
+    <dsfr-data-map-inset id="encart-mayotte" center="-12.83,45.15" zoom="10" label="Mayotte"></dsfr-data-map-inset>
+  </dsfr-data-map>`;
 
 /** Le faux serveur du lot : une URL, une réponse — ou `null` si imprévue. */
 export function repondreAffichages(url: URL): unknown | null {

@@ -23,6 +23,13 @@ name: E2E layout
 # sur 14 pages et sur les panneaux Assistant / Diagnostic ouverts. Il
 # n'etait lance nulle part : une classe maison l'avait rougi sans bruit.
 
+#
+# `map-idle.spec.ts` (BUG-039) et `map-insets.spec.ts` (BUG-034) comptent des
+# formes POSEES sur des cartes Leaflet reelles — la carte hote et ses encarts,
+# chacune initialisee a sa visibilite. Le doublon de BUG-034 venait de l'ORDRE
+# de ces initialisations : aucun DOM simule ne le rejoue. Tuiles coupees,
+# donnees locales, faux portail servi par `page.route`.
+
 on:
   pull_request:
     branches: [main]
@@ -70,6 +77,8 @@ jobs:
           e2e/mobile-chrome.spec.ts
           e2e/source-lazy.spec.ts
           e2e/buttons.spec.ts
+          e2e/map-idle.spec.ts
+          e2e/map-insets.spec.ts
           --project=chromium
 
       - name: Upload traces on failure

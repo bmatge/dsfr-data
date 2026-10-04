@@ -11677,6 +11677,16 @@
             },
             {
               "kind": "field",
+              "name": "_drawnFrame",
+              "type": {
+                "text": "LatLngBounds | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Cadre tracé au dernier rendu d'une couche d'ENCART (BUG-034) : l'emprise\nde la mini-carte, élargie de la portée des symboles. `null` hors encart —\nla couche d'une carte ordinaire trace tout ce qu'elle reçoit."
+            },
+            {
+              "kind": "field",
               "name": "_skippedGeoCount",
               "type": {
                 "text": "number"
@@ -12213,13 +12223,23 @@
             },
             {
               "kind": "method",
+              "name": "getTimelineFrame",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "description": "Indice du pas de temps affiché, ou `-1` quand la couche montre tout le jeu."
+            },
+            {
+              "kind": "method",
               "name": "_onMapReady",
               "return": {
                 "type": {
                   "text": "void"
                 }
               },
-              "description": "Called by dsfr-data-map when the Leaflet map is ready"
+              "description": "Called by dsfr-data-map when the Leaflet map is ready.\n\nIdempotent (BUG-034) : rappelée sur une carte déjà branchée, elle ne\nrefait rien. Elle recréait le groupe Leaflet à chaque appel sans retirer\nle précédent — un second appel laissait donc sur la carte un groupe\norphelin, plein des entités déjà tracées, que plus aucun rendu ne\nvidait : entités en double, puis anciennes entités gardées après un\nfiltre. Sur une AUTRE carte (hôte reconstruit, couche déplacée), les\ngroupes de l'ancienne sont retirés avant d'en créer."
             },
             {
               "kind": "method",
@@ -12233,6 +12253,104 @@
             },
             {
               "kind": "method",
+              "name": "_redraw",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Retrace ce que la couche montre : le pas de temps courant, sinon tout."
+            },
+            {
+              "kind": "method",
+              "name": "_inInsetOf",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "map",
+                  "type": {
+                    "text": "Element"
+                  }
+                }
+              ],
+              "description": "Cette couche est-elle un clone d'encart imbriqué SOUS la carte donnée ?"
+            },
+            {
+              "kind": "method",
+              "name": "_inInset",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Cette couche est-elle le clone posé dans un encart (`dsfr-data-map-inset`) ?"
+            },
+            {
+              "kind": "method",
+              "name": "_symbolReachPx",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "items",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Portée d'un symbole autour de son point, en pixels : ce dont il faut\nélargir l'emprise pour qu'un symbole À CHEVAL sur le bord de l'encart\nreste tracé (un cercle de 30 px centré 5 px hors cadre se voit), et\nqu'une grappe ou une tache de chaleur garde les voisins qui la composent."
+            },
+            {
+              "kind": "method",
+              "name": "_insetFrame",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "LatLngBounds | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "items",
+                  "type": {
+                    "text": "Record<string, unknown>[]"
+                  }
+                }
+              ],
+              "description": "Emprise à tracer quand la couche est celle d'un encart : le cadre de la\nmini-carte élargi de la portée des symboles. `null` sur une carte\nordinaire."
+            },
+            {
+              "kind": "method",
+              "name": "_frameTest",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "(record: Record<string, unknown>) => boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "frame",
+                  "type": {
+                    "text": "LatLngBounds"
+                  }
+                }
+              ],
+              "description": "Test d'appartenance d'un enregistrement au cadre d'un encart. Une forme\nest jugée sur le rectangle englobant de sa géométrie, un point sur ses\ncoordonnées ; ce qu'on ne sait pas situer est CONSERVÉ (et compté parmi\nles lignes ignorées par le tracé, comme sur la carte principale)."
+            },
+            {
+              "kind": "method",
               "name": "_scheduleBboxCommand",
               "privacy": "private",
               "return": {
@@ -12241,6 +12359,17 @@
                 }
               },
               "description": "Programme _sendBboxCommand avec anti-rebond (bbox actif et couche visible)."
+            },
+            {
+              "kind": "method",
+              "name": "_detachFromMap",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Retire de la carte tout ce que la couche y a posé et oublie la carte :\nune couche reconnectée (déplacée, tableau de bord qui réordonne) repart\nd'un groupe neuf au prochain `_onMapReady`, sans rien laisser derrière."
             },
             {
               "kind": "method",
@@ -12524,6 +12653,13 @@
                   "name": "_Leaf",
                   "type": {
                     "text": "LeafletModule"
+                  }
+                },
+                {
+                  "name": "inFrame",
+                  "default": "null",
+                  "type": {
+                    "text": "((record: Record<string, unknown>) => boolean) | null"
                   }
                 }
               ],
@@ -14018,7 +14154,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Target specific layer IDs (comma-separated). If empty, targets all layers with time-field.",
+              "description": "Ids des couches pilotées, séparés par des virgules. Vide : toutes les couches à `time-field`.\nLes clones de ces couches dans les encarts (`dsfr-data-map-inset`) suivent le même pas.",
               "attribute": "for"
             },
             {
@@ -14238,6 +14374,25 @@
             },
             {
               "kind": "method",
+              "name": "_applyStep",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "layer",
+                  "type": {
+                    "text": "DsfrDataMapLayer"
+                  }
+                }
+              ],
+              "description": "Pose le pas courant sur une couche."
+            },
+            {
+              "kind": "method",
               "name": "_onSliderInput",
               "privacy": "private",
               "return": {
@@ -14318,7 +14473,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Target specific layer IDs (comma-separated). If empty, targets all layers with time-field.",
+              "description": "Ids des couches pilotées, séparés par des virgules. Vide : toutes les couches à `time-field`.\nLes clones de ces couches dans les encarts (`dsfr-data-map-inset`) suivent le même pas.",
               "fieldName": "for"
             },
             {
@@ -15163,6 +15318,25 @@
               "kind": "method",
               "name": "_updateTiles",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_ownChildren",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "MapChildElement[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "tag",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Les compagnons de CETTE carte, jamais ceux d'une carte imbriquée\n(BUG-034). Un encart (`dsfr-data-map-inset`) porte sa propre\n`dsfr-data-map`, avec des couches clonées : un `querySelectorAll` nu les\natteignait depuis la carte hôte, qui leur redisait « la carte est prête »\nalors qu'elles l'étaient déjà — chaque couche d'encart refaisait son\ngroupe Leaflet et laissait le précédent, plein, sur la carte."
             },
             {
               "kind": "method",

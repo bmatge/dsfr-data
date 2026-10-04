@@ -9,6 +9,13 @@
  * `getLegendEntries()` expose les classes (ou les paires de `color-map`) pour le
  * compagnon dsfr-data-map-legend, qui se rafraîchit sur l'événement
  * `dsfr-data-map-layer-render` (#685).
+ *
+ * Dans un encart (`dsfr-data-map-inset`), la couche est un clone de celle de
+ * la carte hôte : elle lit les mêmes lignes, sans requête de plus, mais ne
+ * trace que les entités de l'emprise de l'encart — plafond `max-items`,
+ * classes de couleur, rayons et intensités calculés sur le jeu entier, comme
+ * sur la carte principale. `getRenderedCount()` y compte les entités de
+ * l'emprise, et l'événement de rendu les porte dans `rendered`.
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -478,6 +485,13 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   private _renderedCount = 0;
 
   /**
+   * Cadre tracé au dernier rendu d'une couche d'ENCART (BUG-034) : l'emprise
+   * de la mini-carte, élargie de la portée des symboles. `null` hors encart —
+   * la couche d'une carte ordinaire trace tout ce qu'elle reçoit.
+   */
+  private _drawnFrame: LatLngBounds | null = null;
+
+  /**
    * Records écartés du dernier rendu faute de position exploitable : geometrie
    * invalide (geoshape, #482), coordonnées absentes ou non numeriques (marker,
    * circle, heatmap — #648). Un seul compteur pour tous les types.
@@ -748,7 +762,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       this._currentFrameIndex = -1;
       if (this.timeField) this._buildTimeFrames();
     }
-    void this._renderLayer();
+    this._redraw();
   }
 
   // --- SourceSubscriberMixin hooks ---
@@ -787,6 +801,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     this._groups = null;
     this._colorFallbackUsed = false;
     this._legendEntries = [];
+    // Plus rien de tracé : un encart redimensionné n'a rien à retracer
+    this._drawnFrame = null;
     this._removeBanner();
     if (!this._leafletMap || !this._layerGroup) return;
     this._layerGroup.clearLayers();
@@ -929,15 +945,35 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     return this._timeSteps;
   }
 
+  /** Indice du pas de temps affiché, ou `-1` quand la couche montre tout le jeu. */
+  getTimelineFrame(): number {
+    return this._currentFrameIndex;
+  }
+
   // --- Map lifecycle ---
 
-  /** Called by dsfr-data-map when the Leaflet map is ready */
+  /**
+   * Called by dsfr-data-map when the Leaflet map is ready.
+   *
+   * Idempotent (BUG-034) : rappelée sur une carte déjà branchée, elle ne
+   * refait rien. Elle recréait le groupe Leaflet à chaque appel sans retirer
+   * le précédent — un second appel laissait donc sur la carte un groupe
+   * orphelin, plein des entités déjà tracées, que plus aucun rendu ne
+   * vidait : entités en double, puis anciennes entités gardées après un
+   * filtre. Sur une AUTRE carte (hôte reconstruit, couche déplacée), les
+   * groupes de l'ancienne sont retirés avant d'en créer.
+   */
   _onMapReady(): void {
-    this._mapParent = this.closest('dsfr-data-map') as DsfrDataMap | null;
-    if (!this._mapParent) return;
-    this._leafletMap = this._mapParent.getLeafletMap();
-    this._L = this._mapParent.getLeafletLib();
-    if (!this._leafletMap || !this._L) return;
+    const parent = this.closest('dsfr-data-map') as DsfrDataMap | null;
+    if (!parent) return;
+    const leafletMap = parent.getLeafletMap();
+    const leafletLib = parent.getLeafletLib();
+    if (!leafletMap || !leafletLib) return;
+    if (this._leafletMap === leafletMap && this._layerGroup) return;
+    this._detachFromMap();
+    this._mapParent = parent;
+    this._leafletMap = leafletMap;
+    this._L = leafletLib;
 
     // Create layer group (featureGroup → getBounds() disponible pour fit-bounds)
     this._layerGroup = this._L.featureGroup();
@@ -945,9 +981,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // Check initial zoom visibility
     this._updateVisibility();
 
-    // If data already available, render
+    // Données déjà là : tracer — le pas de temps courant si la timeline a
+    // déjà choisi le sien (elle peut être prête avant la carte), sinon tout.
     if (this._data.length > 0) {
-      this._renderLayer();
+      this._redraw();
     }
 
     // Mode bbox (#652) : emettre la commande du viewport initial. Leaflet
@@ -964,8 +1001,127 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // Update zoom-range visibility
     this._updateVisibility();
 
+    // Encart (BUG-034) : la mini-carte est verrouillée, mais son emprise
+    // change quand elle est redimensionnée (palier de `width`, plein écran) ou
+    // recadrée par un script. Tant qu'elle reste dans le cadre déjà tracé,
+    // rien à refaire ; au-delà, la couche retrace pour la nouvelle emprise —
+    // un encart ne se vide jamais d'avoir bougé.
+    if (this._drawnFrame && !this._drawnFrame.contains(this._leafletMap.getBounds())) {
+      this._redraw();
+    }
+
     // Viewport-driven fetch (bbox)
     this._scheduleBboxCommand();
+  }
+
+  /** Retrace ce que la couche montre : le pas de temps courant, sinon tout. */
+  private _redraw(): void {
+    if (this._currentFrameIndex >= 0) {
+      void this._renderLayer(undefined, this._getFrameData(this._currentFrameIndex));
+    } else {
+      void this._renderLayer();
+    }
+  }
+
+  // --- Encart : ne tracer que l'emprise (BUG-034) ---
+
+  /** Cette couche est-elle un clone d'encart imbriqué SOUS la carte donnée ? */
+  private _inInsetOf(map: Element): boolean {
+    const inset = this.closest('dsfr-data-map-inset');
+    return !!inset && map.contains(inset);
+  }
+
+  /** Cette couche est-elle le clone posé dans un encart (`dsfr-data-map-inset`) ? */
+  private _inInset(): boolean {
+    return !!this._mapParent?.closest?.('dsfr-data-map-inset');
+  }
+
+  /**
+   * Portée d'un symbole autour de son point, en pixels : ce dont il faut
+   * élargir l'emprise pour qu'un symbole À CHEVAL sur le bord de l'encart
+   * reste tracé (un cercle de 30 px centré 5 px hors cadre se voit), et
+   * qu'une grappe ou une tache de chaleur garde les voisins qui la composent.
+   */
+  private _symbolReachPx(items: Record<string, unknown>[]): number {
+    let reach = 0;
+    if (this.type === 'marker') {
+      reach = 24;
+    } else if (this.type === 'heatmap') {
+      reach = this.heatRadius + this.heatBlur;
+    } else if (this.type === 'circle') {
+      if (this.radiusUnit === 'm') {
+        // Rayon en mètres : le plus grand du jeu, ramené à l'échelle de la carte
+        let metres = this.radius;
+        if (this.radiusField) {
+          for (const record of items) {
+            const v = Number(getByPath(record, this.radiusField));
+            if (isFinite(v) && v > metres) metres = v;
+          }
+        }
+        const map = this._leafletMap;
+        const lat = map?.getCenter?.().lat ?? 0;
+        const metresPerPixel =
+          (40075016.686 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01)) /
+          (256 * Math.pow(2, map?.getZoom?.() ?? 0));
+        reach = Math.min(metres / metresPerPixel, 4096);
+      } else {
+        reach = Math.max(this.radius, this.radiusField ? this.radiusMax : 0);
+      }
+    }
+    // Une grappe se place au barycentre de ses points : ceux qui la tirent
+    // peuvent être à deux rayons de regroupement du bord.
+    if (this.cluster) reach = Math.max(reach, 2 * this.clusterRadius);
+    return Math.ceil(reach) + 8;
+  }
+
+  /**
+   * Emprise à tracer quand la couche est celle d'un encart : le cadre de la
+   * mini-carte élargi de la portée des symboles. `null` sur une carte
+   * ordinaire.
+   */
+  private _insetFrame(items: Record<string, unknown>[]): LatLngBounds | null {
+    const map = this._leafletMap;
+    const Leaf = this._L;
+    if (!map || !Leaf || !this._inInset()) return null;
+    if (typeof map.getSize !== 'function' || typeof map.containerPointToLatLng !== 'function') {
+      return null;
+    }
+    const size = map.getSize();
+    const margin = this._symbolReachPx(items);
+    return Leaf.latLngBounds(
+      map.containerPointToLatLng([-margin, size.y + margin]),
+      map.containerPointToLatLng([size.x + margin, -margin])
+    );
+  }
+
+  /**
+   * Test d'appartenance d'un enregistrement au cadre d'un encart. Une forme
+   * est jugée sur le rectangle englobant de sa géométrie, un point sur ses
+   * coordonnées ; ce qu'on ne sait pas situer est CONSERVÉ (et compté parmi
+   * les lignes ignorées par le tracé, comme sur la carte principale).
+   */
+  private _frameTest(frame: LatLngBounds): (record: Record<string, unknown>) => boolean {
+    const sw = frame.getSouthWest();
+    const ne = frame.getNorthEast();
+    const south = sw.lat;
+    const west = sw.lng;
+    const north = ne.lat;
+    const east = ne.lng;
+    if (this.type === 'geoshape') {
+      const field = this._shapeField || this.geoField;
+      return (record) => {
+        const box = field ? this._geometryBbox(parseGeoValue(getByPath(record, field))) : null;
+        if (!box) return true;
+        return (
+          box.maxLat >= south && box.minLat <= north && box.maxLon >= west && box.minLon <= east
+        );
+      };
+    }
+    return (record) => {
+      const coords = this._extractCoords(record);
+      if (!coords) return true;
+      return coords.lat >= south && coords.lat <= north && coords.lon >= west && coords.lon <= east;
+    };
   }
 
   /** Programme _sendBboxCommand avec anti-rebond (bbox actif et couche visible). */
@@ -1007,17 +1163,28 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
         this._mapParent ?? (this.closest('dsfr-data-map') as DsfrDataMap | null)
       )?._onLayerIdleChange?.();
     }
-    if (this._layerGroup && this._leafletMap) {
-      this._layerGroup.removeFrom(this._leafletMap);
-    }
-    if (this._clusterGroup && this._leafletMap) {
-      this._clusterGroup.removeFrom(this._leafletMap);
+    this._detachFromMap();
+    this._removeBanner();
+  }
+
+  /**
+   * Retire de la carte tout ce que la couche y a posé et oublie la carte :
+   * une couche reconnectée (déplacée, tableau de bord qui réordonne) repart
+   * d'un groupe neuf au prochain `_onMapReady`, sans rien laisser derrière.
+   */
+  private _detachFromMap(): void {
+    if (this._leafletMap) {
+      this._layerGroup?.removeFrom(this._leafletMap);
+      this._clusterGroup?.removeFrom(this._leafletMap);
     }
     if (this._heatLayer) {
       this._heatLayer.remove();
       this._heatLayer = null;
     }
-    this._removeBanner();
+    this._layerGroup = null;
+    this._clusterGroup = null;
+    this._leafletMap = null;
+    this._drawnFrame = null;
   }
 
   // --- Zoom-range visibility ---
@@ -1322,11 +1489,22 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
     const targetGroup = this._clusterGroup || this._layerGroup;
 
+    // Encart (BUG-034) : la couche clonée reçoit les mêmes lignes que celle
+    // de la carte hôte, mais n'en TRACE que celles de son emprise. Le filtre
+    // passe après le plafond, les classes de couleur et l'échelle des rayons,
+    // calculés sur le jeu entier : un cercle ou une zone a la même taille et
+    // la même couleur dans l'encart et sur la carte principale, et l'encart
+    // montre exactement ce que la couche montre, restreint à son cadre.
+    const frame = this._insetFrame(items);
+    this._drawnFrame = frame;
+    const inFrame = frame ? this._frameTest(frame) : null;
+    const drawn = inFrame ? items.filter(inFrame) : items;
+
     // Render each item
     this._skippedGeoCount = 0;
     this._renderedCount = 0;
     this._positionKeys = new Set();
-    for (const record of items) {
+    for (const record of drawn) {
       switch (this.type) {
         case 'marker':
           this._addMarker(record, Leaf, targetGroup);
@@ -1345,14 +1523,17 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
     // Heatmap: render all points at once via L.heatLayer
     if (this.type === 'heatmap') {
-      this._renderedCount = this._renderHeatmap(items, Leaf);
+      this._renderedCount = this._renderHeatmap(items, Leaf, inFrame);
     }
 
     // Lignes sans position exploitable : signaler au lieu d'echouer en
     // silence (#482 bug 3, generalise a tous les types #648). Un seul warn
     // par rendu, et pas de repetition tant que le compte ne change pas
     // (chaque pan en bbox client re-rend la couche).
-    if (this._skippedGeoCount !== this._skippedWarned) {
+    // Dans un encart, la couche d'origine a déjà dit ces deux avertissements
+    // sur les mêmes lignes : les répéter par territoire noierait la console,
+    // et « points empilés » y serait faux (un encart n'a que ses points).
+    if (!frame && this._skippedGeoCount !== this._skippedWarned) {
       this._skippedWarned = this._skippedGeoCount;
       if (this._skippedGeoCount > 0) {
         const who = `dsfr-data-map-layer[${this.id || this.source}]`;
@@ -1372,7 +1553,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
     // Points empiles (#770) : meme doctrine que les lignes ignorees, un warn
     // par situation, pas a chaque re-rendu.
-    const stacked = this.getStackedPositions();
+    const stacked = frame ? null : this.getStackedPositions();
     const stackedKey = stacked ? `${stacked.positions}/${stacked.items}` : '';
     if (stackedKey !== this._stackedWarned) {
       this._stackedWarned = stackedKey;
@@ -1443,9 +1624,14 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     const allLayers = this._mapParent.querySelectorAll('dsfr-data-map-layer');
     for (const l of allLayers) {
       const layerEl = l as DsfrDataMapLayer;
-      const count = layerEl._groupingActive()
-        ? layerEl.getRenderedCount()
-        : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
+      // Les couches de CETTE carte : celles d'un encart sont des clones, que
+      // la carte hôte comptait une fois de plus par territoire (BUG-034).
+      if (layerEl._inInsetOf(this._mapParent)) continue;
+      // Un encart ne trace que son emprise : sa description compte ce qu'il montre.
+      const count =
+        layerEl._groupingActive() || layerEl._drawnFrame
+          ? layerEl.getRenderedCount()
+          : ((layerEl as unknown as { _data?: unknown[] })._data?.length ?? 0);
       if (count > 0) {
         const typeLabel =
           layerEl.type === 'marker'
@@ -1740,7 +1926,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   // --- Heatmap ---
 
   /** Retourne le nombre de points effectivement projetes (#482). */
-  private _renderHeatmap(items: Record<string, unknown>[], _Leaf: LeafletModule): number {
+  private _renderHeatmap(
+    items: Record<string, unknown>[],
+    _Leaf: LeafletModule,
+    inFrame: ((record: Record<string, unknown>) => boolean) | null = null
+  ): number {
     if (!this._leafletMap) return 0;
 
     // Remove previous heat layer
@@ -1763,7 +1953,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
         const val = Number(getByPath(record, this.heatField));
         if (!isNaN(val)) intensity = val;
       }
+      // Le maximum se lit sur le jeu ENTIER : dans un encart (BUG-034),
+      // seuls les points de l'emprise sont projetés, mais une même intensité
+      // garde la même teinte que sur la carte principale.
       if (intensity > maxIntensity) maxIntensity = intensity;
+      if (inFrame && !inFrame(record)) continue;
       points.push([coords.lat, coords.lon, intensity]);
     }
 

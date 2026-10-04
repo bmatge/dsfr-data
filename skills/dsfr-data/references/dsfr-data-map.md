@@ -442,6 +442,12 @@ sur un element de l'encart ouvre le volet/la modale de la carte principale (un s
 <!-- Raccourci equivalent pour les 5 DROM : <dsfr-data-map insets="drom"> -->
 ```
 
+Chaque encart clone les couches de la carte hote : memes lignes, **aucune requete de plus**, mais il
+ne trace que les entites de **son emprise** (classes de couleur, rayons et plafond `max-items`
+calcules sur le jeu entier, comme sur la carte principale). Un filtre ou un pas de timeline
+remplace ses entites. Limite : avec `bbox` sur la couche, la source ne charge que la zone visible
+de la carte principale — les encarts restent vides ; pour des encarts renseignes, ne pas poser `bbox`.
+
 Un preset `territory` cadre le territoire ENTIER dans l'encart par defaut (10rem x 160px) : ne
 pas poser de `zoom` pour le voir en entier (un `zoom` pose prime, pour un cadrage resserre ou un
 encart plus petit). Exception voulue : `polynesie-francaise` cadre Tahiti et Moorea (l'essentiel de
@@ -599,6 +605,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `getRenderedCount()` | `number` | Nombre d'éléments effectivement dessines au dernier rendu (marqueurs, formes, cercles ou points de chaleur). Contrairement au comptage DOM, ce compte n'inclut pas les bulles de cluster et couvre la heatmap (un seul canvas pour N points) — expose pour les diagnostics (#482). |
 | `getSkippedCount()` | `number` | — |
 | `getStackedPositions()` | `{ positions: number; items: number } \| null` | Points EMPILES au dernier rendu (#770) : au plus deux positions distinctes pour au moins dix points par position. C'est le mode d'echec d'une colonne de geolocalisation constante ou mal jointe : 43 479 coordonnees valides identiques ne sont ignorees nulle part, le compteur d'exclusions vaut 0 et la couche se declare complete en montrant un point. Le seuil laisse passer les adresses partagees, legitimes. `null` quand la couche n'est pas dans ce cas. |
+| `getTimelineFrame()` | `number` | Indice du pas de temps affiché, ou `-1` quand la couche montre tout le jeu. |
 | `getTimeSteps()` | `string[]` | Returns sorted time step labels |
 | `isIdle()` | `boolean` | La source de cette couche attend-elle un filtre (`require-where`) ? |
 | `resetTimeline()` | `void` | Called by dsfr-data-map-timeline to reset (show all data) |
@@ -691,7 +698,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `for` | `string` | `""` (vide) | Target specific layer IDs (comma-separated). If empty, targets all layers with time-field. |
+| `for` | `string` | `""` (vide) | Ids des couches pilotées, séparés par des virgules. Vide : toutes les couches à `time-field`. Les clones de ces couches dans les encarts (`dsfr-data-map-inset`) suivent le même pas. |
 | `interval` | `number` | `1000` | Base interval in ms between frames |
 | `label` | `string` | `'auto'` | Label format for display. 'auto' uses the raw step value. |
 | `speed` | `number` | `1` | Playback speed multiplier |

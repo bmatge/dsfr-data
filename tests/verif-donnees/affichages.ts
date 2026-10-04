@@ -21,15 +21,20 @@
  * Chaque contrôle a été vérifié EN ÉCHEC sur un défaut injecté dans la lib
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
-import type { Check, Manifest } from '../../tools/oracle/manifest.js';
+import type { Check, Manifest, Row } from '../../tools/oracle/manifest.js';
 import { DATASET, HOTE_ODS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
 import { urlsDe } from './fixtures-delegation.js';
 import {
   AIDES,
   COMMUNES,
   CONTOURS_DEPARTEMENTS,
+  DANS_LA_GUADELOUPE,
+  DANS_LA_GUYANE,
+  DANS_LA_REUNION,
+  ENCARTS,
   LIBELLES,
   LONG,
+  MARKUP_ENCARTS,
   ABSENCES,
   HORS_DECOUPAGE,
   RESSOURCE_TABULAR_AFFICHAGES,
@@ -84,23 +89,25 @@ const source = (
     | 'zones'
     | 'aides'
     | 'symboles'
+    | 'encarts'
 ): string => `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 /**
  * L'état du builder carto (#1068) tel que l'app le relit au chargement
  * (`dsfr-data-builder-carto-state`) : deux couches, chacune avec SA source
- * manuelle portant les 48 communes du lot — une couche de marqueurs, une
- * couche de cercles. Une source manuelle porte ses lignes dans l'état : ce
- * sont exactement celles dont l'oracle repart, et aucune requête ne sort.
- * `dsfr-data-tours` coupe la visite guidée, qui masquerait l'aperçu.
+ * manuelle portant les lignes données (par défaut les 48 communes du lot) —
+ * une couche de marqueurs, une couche de cercles. Une source manuelle porte
+ * ses lignes dans l'état : ce sont exactement celles dont l'oracle repart, et
+ * aucune requête ne sort. `dsfr-data-tours` coupe la visite guidée, qui
+ * masquerait l'aperçu.
  */
-const etatCarto = (insets: string[]): Record<string, unknown> => {
+const etatCarto = (insets: string[], lignes: Row[] = COMMUNES): Record<string, unknown> => {
   const couche = (id: string, nom: string, type: 'marker' | 'circle') => ({
     id,
     name: nom,
     type,
     visible: true,
-    source: { id: `src-${id}`, name: nom, type: 'manual', data: COMMUNES },
+    source: { id: `src-${id}`, name: nom, type: 'manual', data: lignes },
     latField: 'lat',
     lonField: 'lon',
   });
@@ -1812,6 +1819,43 @@ const CHECKS: Check[] = [
     ],
   },
 
+  // ------------------------- Carte à encarts : entités par emprise (BUG-034) ----
+  {
+    id: 'carte-encarts-entites-par-emprise-bug-034',
+    mode: 'deterministic',
+    origin:
+      'BUG-034 du banc (#1229) — un encart (`dsfr-data-map-inset`) clone la couche de la carte hôte dans sa mini-carte. Le clone traçait TOUTES les lignes, et parfois deux fois : la carte hôte redisait « prête » aux couches des encarts déjà initialisés, qui refaisaient leur groupe Leaflet en laissant l’ancien, plein, sur la carte (8 cercles pour 4 lignes). Un nombre de formes est un chiffre affiché : dix lieux, quatre cartes. La carte principale trace les dix ; chaque encart, les seuls lieux de son emprise — trois à La Réunion, deux en Guadeloupe, un en Guyane. Les emprises sont écrites ici en latitudes et longitudes, à la main : l’oracle ne sait rien du cadre que Leaflet calcule. Les encarts sont posés par `center` et `zoom`, pas par `territory` : un préréglage recalé ne déplace pas le contrôle. Un encart vide (Mayotte) ne s’observe pas — zéro est l’état d’avant le rendu.',
+    constats: ['BUG-034'],
+    feed: { kind: 'fixture', datasets: { main: ENCARTS } },
+    markup: MARKUP_ENCARTS,
+    expects: [
+      {
+        // La carte principale : ses formes à elle, pas celles de ses encarts.
+        kind: 'count',
+        id: 'carte-encarts',
+        selector: ':scope > .dsfr-data-map__container path.verif-encart',
+      },
+      {
+        kind: 'count',
+        id: 'encart-reunion',
+        selector: 'path.verif-encart',
+        pipeline: [DANS_LA_REUNION],
+      },
+      {
+        kind: 'count',
+        id: 'encart-guadeloupe',
+        selector: 'path.verif-encart',
+        pipeline: [DANS_LA_GUADELOUPE],
+      },
+      {
+        kind: 'count',
+        id: 'encart-guyane',
+        selector: 'path.verif-encart',
+        pipeline: [DANS_LA_GUYANE],
+      },
+    ],
+  },
+
   // ------------------------- Builder carto : somme de la ligne de statut ----
   {
     id: 'statut-carto-somme-deux-couches-1068',
@@ -1851,12 +1895,12 @@ const CHECKS: Check[] = [
     id: 'statut-carto-encarts-clones-exclus-1068',
     mode: 'deterministic',
     origin:
-      '#1068, #482 bug 7 — la même carte avec deux ENCARTS (Guadeloupe, Martinique) : chaque encart clone les deux couches de la carte principale et les redessine en entier (quatre clones de 48). Les clones ne sont pas des éléments de plus : la somme reste 96 éléments pour 96 enregistrements — 288 si on les recomptait. La fenêtre est haute : un encart n’initialise sa carte qu’une fois visible, et un clone qui ne dessine rien ne garderait rien.',
-    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+      '#1068, #482 bug 7 — la même carte avec deux ENCARTS (Guadeloupe, La Réunion) : chaque encart clone les deux couches de la carte principale et trace les entités de son emprise. Les clones ne sont pas des éléments de plus : la somme reste 20 éléments pour 20 enregistrements — 30 si on les recomptait (deux lieux en Guadeloupe, trois à La Réunion, sur deux couches). Le jeu est celui des encarts, pas les 48 communes : depuis BUG-034 un clone ne trace que SON emprise, et des communes toutes métropolitaines laisseraient les quatre clones vides — un clone qui ne dessine rien ne garderait rien. La fenêtre est haute : un encart n’initialise sa carte qu’une fois visible.',
+    feed: { kind: 'fixture', datasets: { main: ENCARTS } },
     markup: '',
     app: {
       path: '/apps/builder-carto/',
-      storage: etatCarto(['guadeloupe', 'martinique']),
+      storage: etatCarto(['guadeloupe', 'la-reunion'], ENCARTS),
       stablePause: PAUSE_SONDES_CARTO,
       viewport: { width: 1280, height: 2000 },
     },

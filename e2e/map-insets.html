@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — encarts de carte : entités par carte (BUG-034)</title>
+  <!--
+    BUG-034 du banc d'essai open-data-viz (#1229) : un encart de carte clonait
+    la couche entière. Deux défauts, que cette page sépare :
+      - le DOUBLON : la carte hôte rappelait `_onMapReady` sur les couches
+        clonées des encarts déjà prêts, qui refaisaient leur groupe Leaflet en
+        laissant l'ancien, plein, sur la carte (8 cercles pour 4 lignes, puis
+        6 pour 2 après un filtre) ;
+      - le COÛT : chaque encart traçait toutes les lignes, quelle que soit
+        son emprise.
+
+    #cercles reprend la page minimale du banc (m44-BUG-034) : quatre points,
+    deux en métropole (t=a), un à La Réunion et un en Guadeloupe (t=b), les
+    cinq encarts de `insets="drom"`, un filtre par facette. Les autres blocs
+    posent le même jeu sous chaque type de couche, avec deux encarts.
+
+    Les tuiles pointent sur un gabarit local qui n'existe pas : la carte se
+    passe de fond, et la page ne touche aucun serveur tiers.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Encarts de carte : entités par carte</h1>
+
+    <section id="cercles">
+      <h2>Cercles et filtre (page du banc)</h2>
+      <dsfr-data-source id="s" data='[
+        {"nom":"Paris","t":"a","lat":48.85,"lon":2.35},
+        {"nom":"Lyon","t":"a","lat":45.76,"lon":4.83},
+        {"nom":"Saint-Denis","t":"b","lat":-20.88,"lon":55.45},
+        {"nom":"Pointe-à-Pitre","t":"b","lat":16.24,"lon":-61.53}]'></dsfr-data-source>
+      <dsfr-data-facets id="f" source="s" fields="t"></dsfr-data-facets>
+      <dsfr-data-map id="m" name="Points" center="46.5,2.5" zoom="5" height="320px" insets="drom"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="l" source="f" type="circle" radius="8" shape-class="encart-cercle"
+          lat-field="lat" lon-field="lon" tooltip-field="nom"></dsfr-data-map-layer>
+      </dsfr-data-map>
+    </section>
+
+    <!-- Le jeu des autres blocs (map-insets-points.json) : six lignes, valeur
+         `v`, année, et un carré de 0,1° autour de chaque point pour les
+         couches de formes. Une SEULE source par URL pour cinq cartes et dix
+         encarts : le spec compte les requêtes — les couches clonées lisent
+         les lignes déjà chargées, elles ne rechargent rien. -->
+    <dsfr-data-source id="jeu" url="/e2e/map-insets-points.json"></dsfr-data-source>
+
+    <section id="grappes">
+      <h2>Marqueurs en grappes</h2>
+      <dsfr-data-map id="m-grappes" name="Grappes" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer source="jeu" type="marker" cluster lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+        <dsfr-data-map-inset territory="la-reunion"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+
+    <section id="proportionnels">
+      <h2>Cercles proportionnels</h2>
+      <dsfr-data-map id="m-proportionnels" name="Proportionnels" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer source="jeu" type="circle" lat-field="lat" lon-field="lon"
+          radius-field="v" radius-scale="sqrt" radius-max="20" shape-class="encart-proportionnel"></dsfr-data-map-layer>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+        <dsfr-data-map-inset territory="la-reunion"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+
+    <section id="formes">
+      <h2>Formes en classes (choroplèthe)</h2>
+      <dsfr-data-map id="m-formes" name="Formes" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer source="jeu" type="geoshape" geo-field="geo" fill-field="v" classes="3"
+          method="equal" shape-class="encart-forme"></dsfr-data-map-layer>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+        <dsfr-data-map-inset territory="la-reunion"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+
+    <section id="chaleur">
+      <h2>Carte de chaleur</h2>
+      <dsfr-data-map id="m-chaleur" name="Chaleur" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer source="jeu" type="heatmap" lat-field="lat" lon-field="lon" heat-field="v"></dsfr-data-map-layer>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+        <dsfr-data-map-inset territory="la-reunion"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+
+    <section id="temps">
+      <h2>Pas de temps</h2>
+      <dsfr-data-map id="m-temps" name="Temps" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="l-temps" source="jeu" type="circle" radius="6" lat-field="lat" lon-field="lon"
+          time-field="an" shape-class="encart-temps"></dsfr-data-map-layer>
+        <dsfr-data-map-timeline for="l-temps"></dsfr-data-map-timeline>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+        <dsfr-data-map-inset territory="la-reunion"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+    <section id="recadrage">
+      <h2>Encart recadré</h2>
+      <!-- Zoom 10 sur Saint-Denis : Saint-Pierre, 50 km au sud, est hors du
+           cadre de 160 px. Le spec agrandit l'encart : la couche doit retracer
+           pour la nouvelle emprise, pas rester sur l'ancienne. -->
+      <dsfr-data-map id="m-recadrage" name="Recadrage" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer source="jeu" type="circle" radius="6" lat-field="lat" lon-field="lon"
+          shape-class="encart-recadre"></dsfr-data-map-layer>
+        <dsfr-data-map-inset id="encart-saint-denis" center="-20.88,55.45" zoom="10" label="Saint-Denis"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+  </main>
+</body>
+</html>

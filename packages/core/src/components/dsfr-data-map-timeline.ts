@@ -23,13 +23,17 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { INSET_CLONE_OF } from '../utils/map-inset-clone.js';
 import type { DsfrDataMapLayer } from './dsfr-data-map-layer.js';
 
 const SPEEDS = [0.5, 1, 2, 4];
 
 @customElement('dsfr-data-map-timeline')
 export class DsfrDataMapTimeline extends LitElement {
-  /** Target specific layer IDs (comma-separated). If empty, targets all layers with time-field. */
+  /**
+   * Ids des couches pilotées, séparés par des virgules. Vide : toutes les couches à `time-field`.
+   * Les clones de ces couches dans les encarts (`dsfr-data-map-inset`) suivent le même pas.
+   */
   @property({ type: String })
   for = '';
 
@@ -90,9 +94,19 @@ export class DsfrDataMapTimeline extends LitElement {
 
     if (this.for) {
       const ids = this.for.split(',').map((s) => s.trim());
-      return ids
+      const targets = ids
         .map((id) => map.querySelector(`#${id}`) as DsfrDataMapLayer | null)
         .filter((el): el is DsfrDataMapLayer => el !== null && el.timeField !== '');
+      // Les clones de ces couches dans les encarts (BUG-034) : sans id, ils
+      // échappaient au `for` et restaient sur le jeu entier pendant que la
+      // carte principale avançait d'un pas.
+      for (const clone of map.querySelectorAll(`dsfr-data-map-layer[${INSET_CLONE_OF}]`)) {
+        const origin = clone.getAttribute(INSET_CLONE_OF) ?? '';
+        if (ids.includes(origin) && (clone as DsfrDataMapLayer).timeField !== '') {
+          targets.push(clone as DsfrDataMapLayer);
+        }
+      }
+      return targets;
     }
 
     return Array.from(
@@ -105,7 +119,21 @@ export class DsfrDataMapTimeline extends LitElement {
   private _onTimeReady(e: Event): void {
     // A layer has computed its time steps — merge all layer steps
     e.stopPropagation();
+    const wasReady = this._ready;
     this._collectSteps();
+    // Une couche arrivée APRÈS le premier pas (encart ajouté ou devenu
+    // visible plus tard, BUG-034) n'a encore reçu aucun pas : elle montrerait
+    // le jeu entier à côté d'une carte principale arrêtée sur un pas.
+    const layer = e.target as DsfrDataMapLayer | null;
+    if (
+      wasReady &&
+      layer &&
+      typeof layer.getTimelineFrame === 'function' &&
+      layer.getTimelineFrame() < 0 &&
+      this._getTargetLayers().includes(layer)
+    ) {
+      this._applyStep(layer);
+    }
   }
 
   private _collectSteps(): void {
@@ -179,24 +207,26 @@ export class DsfrDataMapTimeline extends LitElement {
 
   private _seek(index: number): void {
     this._currentIndex = Math.max(0, Math.min(index, this._steps.length - 1));
-    const layers = this._getTargetLayers();
-    for (const layer of layers) {
-      // Find the closest frame index in this layer's own steps
-      const layerSteps = layer.getTimeSteps();
-      const targetStep = this._steps[this._currentIndex];
-      const layerIndex = layerSteps.indexOf(targetStep);
-      if (layerIndex >= 0) {
-        layer.setTimelineFrame(layerIndex);
-      } else if (layer.timeMode === 'cumulative') {
-        // For cumulative, find the last step <= current
-        let best = -1;
-        for (let i = 0; i < layerSteps.length; i++) {
-          if (layerSteps[i] <= targetStep) best = i;
-        }
-        if (best >= 0) layer.setTimelineFrame(best);
-      }
-    }
+    for (const layer of this._getTargetLayers()) this._applyStep(layer);
     this.requestUpdate();
+  }
+
+  /** Pose le pas courant sur une couche. */
+  private _applyStep(layer: DsfrDataMapLayer): void {
+    // Find the closest frame index in this layer's own steps
+    const layerSteps = layer.getTimeSteps();
+    const targetStep = this._steps[this._currentIndex];
+    const layerIndex = layerSteps.indexOf(targetStep);
+    if (layerIndex >= 0) {
+      layer.setTimelineFrame(layerIndex);
+    } else if (layer.timeMode === 'cumulative') {
+      // For cumulative, find the last step <= current
+      let best = -1;
+      for (let i = 0; i < layerSteps.length; i++) {
+        if (layerSteps[i] <= targetStep) best = i;
+      }
+      if (best >= 0) layer.setTimelineFrame(best);
+    }
   }
 
   private _onSliderInput(e: Event): void {
