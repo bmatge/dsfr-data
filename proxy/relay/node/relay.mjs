@@ -192,12 +192,23 @@ export function createRelay(config, deps = {}) {
   /** @type {Map<string, number>} */
   const pendingByClient = new Map();
   let pendingBytes = 0;
+  /**
+   * Places à rendre quand une connexion tombe. Une réponse en file derrière une
+   * autre (requêtes collées) n'émet jamais `close` si la connexion meurt avant
+   * son tour : c'est donc la connexion, pas la réponse, qui fait foi.
+   * @type {WeakMap<import('node:net').Socket, Set<() => void>>}
+   */
+  const releasesBySocket = new WeakMap();
 
   /**
    * Réserve la place d'un corps en attente d'écriture. Faux si le total, ou la
    * part de ce client (la moitié), est atteint : la réponse est alors une 503.
    */
-  function holdBody(res, body, clientKey) {
+  function holdBody(req, res, body, clientKey) {
+    const socket = req.socket;
+    // Visiteur déjà parti : rien ne sera écrit, rien n'est retenu, rien à compter
+    // (et plus aucun événement ne viendrait rendre la place).
+    if (socket.destroyed || res.destroyed) return true;
     const readers = pendingBodies.get(body) ?? 0;
     const added = readers === 0 ? body.length : 0;
     const mine = pendingByClient.get(clientKey) ?? 0;
@@ -206,8 +217,11 @@ export function createRelay(config, deps = {}) {
     pendingBodies.set(body, readers + 1);
     pendingBytes += added;
     pendingByClient.set(clientKey, mine + body.length);
-    // `close` suit la fin de l'écriture comme la coupure de la connexion.
-    res.once('close', () => {
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      releasesBySocket.get(socket)?.delete(release);
       const left = (pendingBodies.get(body) ?? 1) - 1;
       if (left === 0) {
         pendingBodies.delete(body);
@@ -218,7 +232,21 @@ export function createRelay(config, deps = {}) {
       const rest = (pendingByClient.get(clientKey) ?? body.length) - body.length;
       if (rest <= 0) pendingByClient.delete(clientKey);
       else pendingByClient.set(clientKey, rest);
-    });
+    };
+    // La place est rendue à la fin de l'écriture (`close` de la réponse), ou à
+    // la mort de la connexion — un seul écouteur par connexion, quel que soit le
+    // nombre de réponses qui y attendent.
+    res.once('close', release);
+    let releases = releasesBySocket.get(socket);
+    if (!releases) {
+      const created = new Set();
+      releases = created;
+      releasesBySocket.set(socket, created);
+      socket.once('close', () => {
+        for (const entry of [...created]) entry();
+      });
+    }
+    releases.add(release);
     return true;
   }
 
@@ -302,7 +330,7 @@ export function createRelay(config, deps = {}) {
   function sendEntry(req, res, entry, state, hostConfig, clientKey) {
     const withBody = req.method !== 'HEAD';
     // Avant d'écrire le moindre octet : au-delà de la borne, c'est une 503 entière.
-    if (withBody && !holdBody(res, entry.body, clientKey)) {
+    if (withBody && !holdBody(req, res, entry.body, clientKey)) {
       throw new RelayError(503, 'relay-busy', { retryAfter: 1 });
     }
     /** @type {Record<string, string | number>} */

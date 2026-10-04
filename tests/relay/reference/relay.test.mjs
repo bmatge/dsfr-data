@@ -932,6 +932,46 @@ describe('C-DOS — plafonds du relais de référence', () => {
     });
   });
 
+  test('C-DOS-4 — la place des octets en attente est rendue quand la connexion tombe, réponses en file comprises', async () => {
+    // Trois requêtes collées sur une connexion qui ne lit rien : la première
+    // réponse est en cours d'écriture, les deux autres attendent leur tour.
+    const config = (profile) => ({
+      ...withLimits({ maxBytes: 9 * MEGA, maxPendingBytes: 64 * MEGA, timeoutMs: 20000 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    await withRelay({ config }, async (reference) => {
+      const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+      socket.on('error', () => {});
+      socket.pause();
+      const request = () =>
+        `GET ${reference.url.pathname}/${ALLOWED_HOST}/gros?${mark()} HTTP/1.1\r\nHost: relais\r\nX-Forwarded-For: 198.51.100.1\r\n\r\n`;
+      socket.write(request() + request() + request());
+      for (let waited = 0; waited < 15000; waited += 20) {
+        if (reference.relay.stats().pendingBytes >= 24 * MEGA) break;
+        await sleep(20);
+      }
+      assert.equal(reference.relay.stats().pendingBytes, 24 * MEGA);
+      socket.destroy();
+      await sleep(100);
+      assert.equal(reference.relay.stats().pendingBytes, 0, 'des octets restent comptés à jamais');
+    });
+  });
+
+  test('C-DOS-4 — un visiteur parti avant sa réponse ne laisse aucun octet compté', async () => {
+    await withRelay({}, async (reference) => {
+      const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+      socket.on('error', () => {});
+      socket.write(
+        `GET ${reference.url.pathname}/${ALLOWED_HOST}/lent?${mark()} HTTP/1.1\r\nHost: relais\r\n\r\n`
+      );
+      await sleep(50);
+      socket.destroy(); // l'amont répondra dans 400 ms, à personne
+      await sleep(SLOW_MS + 200);
+      assert.equal(reference.relay.stats().pendingBytes, 0, 'des octets restent comptés à jamais');
+      assert.equal(reference.relay.stats().upstreamRequests, 0);
+    });
+  });
+
   test('C-DOS-4 — connexions simultanées bornées : au-delà, la connexion est refusée', async () => {
     await withRelay({ config: withLimits({ maxConnections: 2 }) }, async (reference, client) => {
       const port = Number(reference.url.port);
