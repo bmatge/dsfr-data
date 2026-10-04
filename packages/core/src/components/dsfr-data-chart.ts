@@ -255,7 +255,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * par des virgules, même grammaire que `dsfr-data-map-layer`. Ex :
    * `"Réalisé:#000091,Objectif:#E1000F"`. La modalité est un nom de série
    * (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe
-   * (une couleur par part de camembert). Les modalités non citées gardent la
+   * (une couleur par part de camembert, par barre, ou par point d'une courbe,
+   * d'un radar ou d'un nuage — le trait garde la couleur de sa série, #1244).
+   * Les modalités non citées gardent la
    * couleur de la palette. Une virgule ou un deux-points dans une modalité
    * s'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).
    */

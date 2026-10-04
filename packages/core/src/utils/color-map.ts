@@ -95,6 +95,11 @@ function paintPoints(dataset: ColorableDataset, color: string): void {
   }
 }
 
+/** Le jeu de données dessine-t-il des points (DSFR Chart leur donne leurs couleurs) ? */
+function drawsPoints(dataset: ColorableDataset): boolean {
+  return POINT_COLOR_KEYS.some((key) => dataset[key] !== undefined);
+}
+
 /** Nom de la transition Chart.js posée par `refreshSeriesColors`. */
 const COLOR_MAP_TRANSITION = 'dsfrDataColorMap';
 
@@ -164,8 +169,9 @@ function fillColor(previous: unknown, color: string): string {
  *
  * Deux lectures, dans cet ordre : la modalité est un **nom de série** (une
  * couleur par jeu de données), sinon un **libellé de l'axe** (une couleur par
- * part de camembert ou par barre). Les modalités absentes gardent la couleur
- * de la palette DSFR.
+ * part de camembert, par barre, ou par POINT d'une courbe, d'un radar ou d'un
+ * nuage — le trait, lui, garde la couleur de sa série, #1244). Les modalités
+ * absentes gardent la couleur de la palette DSFR.
  *
  * Par série, la couleur est posée sur TOUT ce que la série dessine : le trait,
  * le fond, leurs variantes de survol, et les points (`paintPoints`).
@@ -196,9 +202,23 @@ export function applyColorMap(
   const labels = (chart.data?.labels ?? []).map((label) => String(label));
   if (!labels.some((label) => colorMap.has(label))) return { applied: false, legendColors: [] };
 
+  let pointsPainted = false;
   for (const dataset of datasets) {
     const spread = (base: unknown) =>
       labels.map((label, j) => colorMap.get(label) ?? colorAt(base, j));
+    if (drawsPoints(dataset)) {
+      // Un jeu à POINTS (courbe, radar, nuage, courbe d'un `bar-line`, #1244) :
+      // la couleur d'un libellé va sur SON point. Le trait et l'aire n'ont
+      // qu'une couleur, celle de la série — y poser un tableau faisait lire à
+      // Chart.js son premier élément : le trait entier prenait la couleur de la
+      // première modalité, l'aire d'un radar devenait opaque, et les points,
+      // eux, gardaient la palette (mesuré au navigateur).
+      for (const key of POINT_COLOR_KEYS) {
+        if (dataset[key] !== undefined) dataset[key] = spread(dataset[key]);
+      }
+      pointsPainted = true;
+      continue;
+    }
     const background = spread(dataset.backgroundColor);
     const border = spread(dataset.borderColor);
     dataset.backgroundColor = background;
@@ -206,7 +226,17 @@ export function applyColorMap(
     dataset.hoverBackgroundColor = spread(dataset.hoverBackgroundColor);
     dataset.hoverBorderColor = spread(dataset.hoverBorderColor);
   }
+  // `update('none')` suffit ICI, à la différence de la branche « série »
+  // (`refreshSeriesColors`) : une couleur par point est un TABLEAU, donc une
+  // option propre à chaque point, que Chart.js ne partage pas d'un point à
+  // l'autre. Mesuré au navigateur sur courbe, radar et nuage (#1244).
   chart.update?.('none');
+  if (pointsPainted) {
+    // La légende de ces graphiques porte une pastille par SÉRIE, et la série
+    // garde sa couleur : rien à repeindre, et surtout pas une pastille par
+    // libellé — le décompte ne correspondrait à rien.
+    return { applied: true, legendColors: datasets.map(() => undefined) };
+  }
   return { applied: true, legendColors: labels.map((label) => colorMap.get(label)) };
 }
 
