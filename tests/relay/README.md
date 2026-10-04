@@ -11,6 +11,9 @@ Contrat : [`docs/RELAY.md`](../../docs/RELAY.md). Relais de référence : [`prox
 | `support/raw-upstream.mjs` | Un amont `net` brut, qui écrit lui-même ses octets : ce qu'un serveur HTTP ne sait pas mal faire. |
 | `support/reference.mjs` | Lance le relais de référence en substituant la résolution DNS et la connexion, et en lui déclarant l'adresse du faux DNS (par injection, jamais par configuration). |
 | `support/client.mjs` | Client HTTP qui n'altère pas la cible de requête, et socket nu pour CR et LF. |
+| `support/portal-upstream.mjs` | Un faux PORTAIL : 250 lignes servies à la façon d'Opendatasoft (`/records` paginé, `group_by`, `/exports/json`), qui note chaque requête reçue. Pour éprouver la bibliothèque à travers le relais. |
+| `library-through-relay.test.ts` | **La bibliothèque parle au vrai relais** (lot 2) : les adaptateurs chargent, paginent, délèguent un `group-by` et réessaient un 503 à travers le relais de référence, branché sur le faux portail. Garde aussi l'égalité des contrôles de chemin de la bibliothèque (`isRelaySafePath`) avec ceux de `target.mjs`. Vitest, environnement Node. |
+| `../../e2e/relay-url.spec.ts` | Le même parcours dans un navigateur (Playwright) : relais sur une autre origine, requête « simple » sans pré-vérification, critères d'acceptation de #1232. |
 | `relay-conformance.test.ts` | Le pont Vitest : fait tourner tout ce qui précède dans `npm run test:run`. |
 
 ```bash

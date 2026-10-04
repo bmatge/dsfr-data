@@ -4,7 +4,9 @@ import { getByPath } from '../utils/json-path.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
-  getProxiedUrl,
+  resolveDataTransport,
+  resolveRelayUrl,
+  transportFetch,
   buildCorsProxyRequest,
   isRelayedHost,
   RELAYED_HOSTS,
@@ -203,7 +205,12 @@ export class DsfrDataSource extends LitElement {
   @property({ type: Number, attribute: 'page-size' })
   pageSize = 20;
 
-  /** TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme. */
+  /**
+   * TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote
+   * enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme.
+   * C'est un repli hors ligne, côté navigateur : il n'a AUCUN rapport avec le relais
+   * (`relay-url`), ne lui est pas transmis et ne règle pas la durée de son cache.
+   */
   @property({ type: Number, attribute: 'cache-ttl' })
   cacheTtl = 3600;
 
@@ -213,6 +220,10 @@ export class DsfrDataSource extends LitElement {
    * sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail
    * Opendatasoft, par exemple) — la requête part en direct, et la source le signale
    * une fois en console.
+   *
+   * Sans effet sur une requête qui part au relais (`relay-url`) : le relais prend
+   * toutes les requêtes GET vers une autre origine, `use-proxy` ne garde que ce que
+   * le relais ne porte pas (requêtes POST, cible hors `https`).
    */
   @property({ type: Boolean, attribute: 'use-proxy' })
   useProxy = false;
@@ -228,9 +239,53 @@ export class DsfrDataSource extends LitElement {
    * adaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS
    * EFFET : la requête part en direct vers l'API. La source l'écrit alors une fois
    * en console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.
+   * Pour faire passer un portail Opendatasoft (ou tout autre hôte) par le domaine
+   * du site, c'est `relay-url` qu'il faut poser : `proxy-url` désigne un autre
+   * contrat (endpoints dédiés et `/cors-proxy`, toutes méthodes, en-têtes transmis).
+   * Avec un relais, `proxy-url` ne sert plus que les requêtes que le relais ne
+   * porte pas (POST du mode SQL de Grist).
    */
   @property({ type: String, attribute: 'proxy-url' })
   proxyUrl = '';
+
+  /**
+   * Préfixe du relais cachable du site hôte (ADR-155, #1232) : le chemin que
+   * le site a choisi pour sa route de relais (`relay-url="/relais"`), ou une
+   * URL absolue (`relay-url="https://site.example/relais"`). Vide : la valeur
+   * de `window.DSFR_DATA_RELAY`, sinon aucun relais — et alors rien ne change.
+   *
+   * Avec un relais, toute requête GET vers une autre origine part sous la forme
+   * `relais/hôte/chemin?requête` (le préfixe du relais, l'hôte de la cible, puis
+   * son chemin et sa requête), en mode adaptateur comme en mode URL :
+   * filtres, regroupements, tri et pagination délégués restent dans l'URL, que le
+   * relais transmet telle quelle. Deux cibles donnent deux URL, une même requête
+   * donne la même URL au caractère près : le site peut les mettre en cache.
+   *
+   * Le relais est une route que LE SITE HÔTE fournit, selon le contrat
+   * `docs/RELAY.md` (relais de référence : `proxy/relay/node/`). Aucune
+   * instance publique n'en expose.
+   *
+   * Sur une requête relayée, aucun en-tête n'est envoyé : ni `headers`, ni
+   * `api-key-ref` (la clé appartient au relais, qui l'ajoute par hôte), ni
+   * cookie. Si l'un de ces attributs est posé, la source l'écrit une fois en
+   * console.
+   *
+   * Ne passent PAS par le relais, et gardent le chemin habituel (direct ou
+   * `proxy-url`) : une URL relative ou de même origine ; une requête POST (mode
+   * SQL de Grist, `method="POST"`) ; une cible hors `https`, sur un port explicite
+   * ou avec identifiants ; un chemin que le relais refuserait (`%2f`, `%2e`, `//`…)
+   * — ces deux derniers cas avec un avertissement. `fetch-mode="export"` sur
+   * l'API Tabular (export Parquet) retombe sur la pagination, relayée. Une URL de
+   * relais de plus de 8 000 caractères part quand même au relais, qui répond 414.
+   *
+   * Si le relais répond 503 (place momentanément prise : il n'a pas de file
+   * d'attente), la requête est réessayée trois fois au plus, après le délai
+   * qu'il annonce ; jamais sur un 429.
+   *
+   * Sans rapport avec `cache-ttl` : la durée de cache se règle sur le relais.
+   */
+  @property({ type: String, attribute: 'relay-url' })
+  relayUrl = '';
 
   /** Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS */
   @property({ type: String, attribute: 'api-key-ref' })
@@ -579,6 +634,8 @@ export class DsfrDataSource extends LitElement {
   private _requireWhereModeWarned = false;
   /** L'avertissement « proxy sans effet » n'est émis qu'une fois par source (AM-114, #1232). */
   private _unrelayedProxyWarned = false;
+  /** `headers` / `api-key-ref` non envoyés au relais : dit une fois par source (ADR-155). */
+  private _relayHeadersWarned = false;
 
   // --- lazy (#931) ---
   /** Observateur de visibilité des consommateurs ; détruit dès la première vue. */
@@ -685,6 +742,7 @@ export class DsfrDataSource extends LitElement {
       changedProperties.has('serverSide') ||
       changedProperties.has('headers') ||
       changedProperties.has('proxyUrl') ||
+      changedProperties.has('relayUrl') ||
       changedProperties.has('requireWhere');
 
     if (urlModeChanged || adapterModeChanged || sharedChanged) {
@@ -1138,13 +1196,18 @@ export class DsfrDataSource extends LitElement {
 
     try {
       const rawUrl = this._buildUrl();
-      this._warnUnrelayedProxy(rawUrl, false);
-      let url = getProxiedUrl(rawUrl, this.proxyUrl);
+      // Relais (`relay-url`, ADR-155) si R1 à R5 tiennent, sinon le chemin
+      // actuel — exactement `getProxiedUrl(rawUrl, this.proxyUrl)`.
+      const transportOptions = { proxyUrl: this.proxyUrl, relayUrl: this.relayUrl };
+      const transport = resolveDataTransport(rawUrl, transportOptions, this.method);
+      this._warnUnrelayedProxy(rawUrl, false, transport.relayed);
+      this._warnRelayDropsHeaders(transport.relayed);
+      let url = transport.url;
       const options = this._buildFetchOptions(provider);
 
       // If use-proxy is set and URL was not already proxied by getProxiedUrl(),
       // route through the generic CORS proxy
-      if (this.useProxy && url === rawUrl) {
+      if (!transport.relayed && this.useProxy && url === rawUrl) {
         const proxy = buildCorsProxyRequest(
           url,
           options.headers as Record<string, string>,
@@ -1156,10 +1219,12 @@ export class DsfrDataSource extends LitElement {
 
       attemptedUrl = url;
 
-      const response = await fetch(url, {
-        ...options,
-        signal: this._abortController.signal,
-      });
+      // Hors relais : `fetch(url, init)` tel quel. Relayée : sans en-tête,
+      // `credentials: 'omit'`, et un 503 du relais est réessayé (borné).
+      const init: RequestInit = { ...options, signal: this._abortController.signal };
+      const response = transport.relayed
+        ? await transportFetch(url, init, transportOptions)
+        : await fetch(url, init);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1360,7 +1425,10 @@ export class DsfrDataSource extends LitElement {
       reportConfigError(this, `dsfr-data-source[${this.id}]`, extraParamsError);
     }
 
-    this._warnUnrelayedProxy(this._adapterTargetUrl(adapter, params), true);
+    const target = this._adapterTargetUrl(adapter, params);
+    const relayed = target !== '' && resolveDataTransport(target, params).relayed;
+    this._warnUnrelayedProxy(target, true, relayed);
+    this._warnRelayDropsHeaders(relayed);
 
     return { adapter, params };
   }
@@ -1386,9 +1454,14 @@ export class DsfrDataSource extends LitElement {
    * Une URL relative ou de même origine n'a rien à relayer : pas un mot.
    * `console.warn` seul, comme les autres avertissements non bloquants de la
    * source — le journal console (#994) le porte au volet Diagnostic.
+   *
+   * Depuis le relais cachable (ADR-155), l'avertissement nomme `relay-url` :
+   * c'est la voie pour faire passer un portail Opendatasoft par le domaine du
+   * site. Une requête qui part au relais (`relayed`) n'est pas « en direct » :
+   * pas d'avertissement.
    */
-  private _warnUnrelayedProxy(rawUrl: string, adapterMode: boolean): void {
-    if (this._unrelayedProxyWarned) return;
+  private _warnUnrelayedProxy(rawUrl: string, adapterMode: boolean, relayed = false): void {
+    if (this._unrelayedProxyWarned || relayed) return;
     const viaProxyUrl = !!this.proxyUrl;
     // En mode URL, `use-proxy` passe par le relais générique : tout hôte est relayé.
     if (adapterMode ? !(viaProxyUrl || this.useProxy) : !viaProxyUrl || this.useProxy) return;
@@ -1412,7 +1485,30 @@ export class DsfrDataSource extends LitElement {
     console.warn(
       `dsfr-data-source[${this.id}]: ${attribut} est sans effet — l'hôte "${target.hostname}" ` +
         `n'est pas relayé par le proxy. Seuls ${RELAYED_HOSTS.join(', ')} passent par un ` +
-        `endpoint dédié. ${suite} (#1232)`
+        `endpoint dédié. ${suite} Pour faire passer cet hôte par le domaine du site, poser ` +
+        `relay-url (relais cachable fourni par le site hôte, contrat docs/RELAY.md). (#1232)`
+    );
+  }
+
+  /**
+   * `headers` ou `api-key-ref` posés sur une source dont la requête part au
+   * relais (ADR-155 §4) : aucun en-tête n'est envoyé — la clé appartient au
+   * relais, qui l'ajoute par hôte depuis sa configuration, et une requête à
+   * en-tête ne serait ni « simple » au sens CORS ni cachable. Dit une fois
+   * par source ; hors relais, ces attributs restent actifs.
+   */
+  private _warnRelayDropsHeaders(relayed: boolean): void {
+    if (!relayed || this._relayHeadersWarned) return;
+    const poses = [this.headers ? 'headers' : '', this.apiKeyRef ? 'api-key-ref' : ''].filter(
+      Boolean
+    );
+    if (poses.length === 0) return;
+    this._relayHeadersWarned = true;
+    console.warn(
+      `dsfr-data-source[${this.id}]: ${poses.join(' et ')} ${poses.length > 1 ? 'ne sont pas envoyés' : "n'est pas envoyé"} ` +
+        `— la requête passe par le relais "${resolveRelayUrl(this.relayUrl)}", qui ne reçoit ` +
+        `aucun en-tête du navigateur. Si l'API exige une clé, c'est le relais qui l'ajoute, ` +
+        `depuis sa configuration (docs/RELAY.md). (#1232)`
     );
   }
 
@@ -1495,6 +1591,11 @@ export class DsfrDataSource extends LitElement {
    * (#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue
    * est celle de la première requête, sans les surcharges de page.
    *
+   * Avec un relais (`relay-url`, ADR-155), c'est l'URL DU RELAIS qui est
+   * rendue : « Détails techniques » montre l'adresse réellement appelée,
+   * celle que l'intégrateur retrouve dans les journaux de son site. Sans
+   * relais, l'URL cible, comme avant.
+   *
    * Purement informative — ne doit jamais faire echouer le log d'erreur.
    */
   private _diagnosticUrl(
@@ -1503,16 +1604,27 @@ export class DsfrDataSource extends LitElement {
     overlay?: ServerSideOverlay
   ): string | undefined {
     try {
-      if (overlay) return adapter.buildServerSideUrl(params, overlay);
-      // Mode export (#689) : l'URL reellement appelee n'est pas celle de
-      // l'endpoint pagine — un repli sur /records a deja son propre warn
-      const exportUrl =
-        params.fetchMode === 'export' ? adapter.buildExportUrl?.(params) : undefined;
-      if (exportUrl) return exportUrl;
-      return adapter.buildUrl(params);
+      const target = this._diagnosticTargetUrl(adapter, params, overlay);
+      if (!target) return target;
+      const transport = resolveDataTransport(target, params);
+      return transport.relayed ? transport.url : target;
     } catch {
       return undefined;
     }
+  }
+
+  /** L'URL cible du fetch, avant tout transport (voir `_diagnosticUrl`). */
+  private _diagnosticTargetUrl(
+    adapter: ApiAdapter,
+    params: AdapterParams,
+    overlay?: ServerSideOverlay
+  ): string | undefined {
+    if (overlay) return adapter.buildServerSideUrl(params, overlay);
+    // Mode export (#689) : l'URL reellement appelee n'est pas celle de
+    // l'endpoint pagine — un repli sur /records a deja son propre warn
+    const exportUrl = params.fetchMode === 'export' ? adapter.buildExportUrl?.(params) : undefined;
+    if (exportUrl) return exportUrl;
+    return adapter.buildUrl(params);
   }
 
   /**
@@ -1554,6 +1666,8 @@ export class DsfrDataSource extends LitElement {
       pageSize: this.pageSize,
       headers: parsedHeaders,
       proxyUrl: this.proxyUrl || undefined,
+      // Relais cachable (ADR-155) : la clé n'existe que si l'attribut est posé
+      ...(this.relayUrl ? { relayUrl: this.relayUrl } : {}),
       extraParams: this._parseExtraParams().extra,
     };
   }

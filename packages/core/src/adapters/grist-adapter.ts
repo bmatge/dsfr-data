@@ -39,7 +39,7 @@ import {
   isMultiFieldClause,
 } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { GRIST_CONFIG, getProxiedUrl } from '@dsfr-data/shared/lib';
+import { GRIST_CONFIG, resolveTransportUrl, transportFetch } from '@dsfr-data/shared/lib';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -126,8 +126,8 @@ export class GristAdapter implements ApiAdapter {
     }
 
     // Mode Records (enrichi avec filter/sort/limit)
-    const url = getProxiedUrl(this.buildUrl(params), params.proxyUrl);
-    const response = await fetch(url, buildFetchOptions(params, signal));
+    const url = resolveTransportUrl(this.buildUrl(params), params);
+    const response = await transportFetch(url, buildFetchOptions(params, signal), params);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
     const json = await response.json();
@@ -153,8 +153,8 @@ export class GristAdapter implements ApiAdapter {
     }
 
     // Mode Records pagine
-    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
-    const response = await fetch(url, buildFetchOptions(params, signal));
+    const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay), params);
+    const response = await transportFetch(url, buildFetchOptions(params, signal), params);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
     const json = await response.json();
@@ -231,7 +231,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   async fetchFacets(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     fields: string[],
     where: string,
     signal?: AbortSignal
@@ -255,7 +255,7 @@ export class GristAdapter implements ApiAdapter {
       }
       sql += ` GROUP BY ${col} ORDER BY cnt DESC LIMIT 200`;
 
-      const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(fullParams), fullParams.proxyUrl);
+      const sqlUrl = resolveTransportUrl(this._getSqlEndpointUrl(fullParams), fullParams, 'POST');
       try {
         const response = await fetch(sqlUrl, {
           method: 'POST',
@@ -292,7 +292,7 @@ export class GristAdapter implements ApiAdapter {
    * aucun marquage `isDate`.
    */
   async discoverFacets(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     signal?: AbortSignal
   ): Promise<FacetDescriptor[]> {
     const columns = await this.fetchColumns(params as AdapterParams, signal);
@@ -344,9 +344,9 @@ export class GristAdapter implements ApiAdapter {
    * GET /api/docs/{docId}/tables/{tableId}/columns
    */
   async fetchColumns(params: AdapterParams, signal?: AbortSignal): Promise<GristColumn[]> {
-    const url = getProxiedUrl(params.baseUrl.replace(/\/records.*$/, '/columns'), params.proxyUrl);
+    const url = resolveTransportUrl(params.baseUrl.replace(/\/records.*$/, '/columns'), params);
     try {
-      const response = await fetch(url, buildFetchOptions(params, signal));
+      const response = await transportFetch(url, buildFetchOptions(params, signal), params);
       if (!response.ok) return [];
 
       const json = await response.json();
@@ -370,12 +370,12 @@ export class GristAdapter implements ApiAdapter {
    * GET /api/docs/{docId}/tables
    */
   async fetchTables(params: AdapterParams, signal?: AbortSignal): Promise<GristTable[]> {
-    const url = getProxiedUrl(
+    const url = resolveTransportUrl(
       params.baseUrl.replace(/\/tables\/[^/]+\/records.*$/, '/tables'),
-      params.proxyUrl
+      params
     );
     try {
-      const response = await fetch(url, buildFetchOptions(params, signal));
+      const response = await transportFetch(url, buildFetchOptions(params, signal), params);
       if (!response.ok) return [];
 
       const json = await response.json();
@@ -513,7 +513,7 @@ export class GristAdapter implements ApiAdapter {
       .filter(Boolean)
       .join(' ');
 
-    const sqlUrl = getProxiedUrl(this._getSqlEndpointUrl(params), params.proxyUrl);
+    const sqlUrl = resolveTransportUrl(this._getSqlEndpointUrl(params), params, 'POST');
     const response = await fetch(sqlUrl, {
       method: 'POST',
       headers: {
@@ -551,8 +551,8 @@ export class GristAdapter implements ApiAdapter {
 
   /** Fetch Records mode (internal fallback) */
   private async _fetchAllRecords(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
-    const url = getProxiedUrl(this.buildUrl(params), params.proxyUrl);
-    const response = await fetch(url, buildFetchOptions(params, signal));
+    const url = resolveTransportUrl(this.buildUrl(params), params);
+    const response = await transportFetch(url, buildFetchOptions(params, signal), params);
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
     const json = await response.json();
@@ -807,7 +807,7 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   private async _checkSqlAvailability(
-    params: Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     signal?: AbortSignal
   ): Promise<boolean> {
     const endpoint = this._getSqlEndpointUrl(params);
@@ -823,7 +823,8 @@ export class GristAdapter implements ApiAdapter {
         : AbortSignal.timeout(2000);
 
     try {
-      const sqlUrl = getProxiedUrl(endpoint, params.proxyUrl);
+      // La sonde suit le chemin du POST qu'elle annonce (R5 : jamais au relais)
+      const sqlUrl = resolveTransportUrl(endpoint, params, 'POST');
       const response = await fetch(sqlUrl + '?q=SELECT%201', {
         method: 'GET',
         headers: (params.headers || {}) as Record<string, string>,
