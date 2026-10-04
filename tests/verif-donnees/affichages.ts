@@ -40,6 +40,7 @@ import {
   RESSOURCE_TABULAR_AFFICHAGES,
   SERIE,
   SYMBOLES,
+  URL_COMMUNES_IMBRIQUEES,
   ZONES,
   urlAffichage,
 } from './fixtures-affichages.js';
@@ -1275,6 +1276,58 @@ const CHECKS: Check[] = [
         expect: 'warning',
         contains: 'colonne « effectif » introuvable',
       },
+    ],
+  },
+
+  {
+    id: 'a11y-chemin-pointe-comme-le-graphique',
+    mode: 'deterministic',
+    constats: ['PG-032'],
+    origin:
+      '#1244, suite de PG-032 du banc — le graphique lit ses colonnes par chemin pointé (`fields.budget`), `dsfr-data-a11y` les lisait par clé à plat : les mêmes attributs recopiés rendaient un tableau de 48 lignes sans AUCUNE valeur, avec un avertissement en console. Les 48 communes sont servies imbriquées sous `fields` ; le graphique et son tableau équivalent portent les mêmes chemins, et doivent montrer les mêmes libellés et les mêmes budgets — fichier CSV compris, sans un mot.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  <dsfr-data-source id="s-imbrique" url="${URL_COMMUNES_IMBRIQUEES}"></dsfr-data-source>
+  <dsfr-data-chart id="g-imbrique" source="s-imbrique" type="bar"
+    label-field="fields.nom" value-field="fields.budget"></dsfr-data-chart>
+  <dsfr-data-a11y id="a-imbrique" for="g-imbrique" source="s-imbrique" table download
+    label-field="fields.nom:Commune" value-field="fields.budget:Budget"></dsfr-data-a11y>`,
+    expects: [
+      {
+        kind: 'chart',
+        id: 'g-imbrique',
+        labelColumn: 'nom',
+        valueColumns: ['budget'],
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-imbrique',
+        selector: 'tbody td:nth-child(1)',
+        column: 'nom',
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-imbrique',
+        selector: 'tbody td:nth-child(2)',
+        column: 'budget',
+        numeric: true,
+        decimals: 2,
+        pattern: decimales(2),
+        pipeline: [],
+      },
+      {
+        kind: 'csv',
+        id: 'a-imbrique',
+        pipeline: [],
+        columns: [
+          { column: 'nom', label: 'Commune' },
+          { column: 'budget', label: 'Budget' },
+        ],
+      },
+      { kind: 'diagnostic', id: 'a-imbrique', expect: 'silence', contains: 'introuvable' },
     ],
   },
 

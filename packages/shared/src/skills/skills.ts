@@ -3182,6 +3182,9 @@ et du CSV. On recopie donc les champs du graphique tels quels (\`value-field\` e
 Sans deux-points, l'en-tête reste le nom de la colonne. Une colonne nommée qui
 n'existe pas dans les données est signalée en console (« colonne … introuvable ») :
 sa colonne du tableau serait vide.
+Les colonnes se lisent par chemin pointé, comme sur le graphique : sur des lignes
+imbriquées, \`value-field="fields.total"\` se recopie tel quel (et \`fields.total:Total\`
+lui donne un en-tête).
 
 ### Mode manuel (sans ARIA automatique)
 \`\`\`html

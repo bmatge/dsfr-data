@@ -151,6 +151,15 @@ export function urlAffichage(nom: keyof typeof JEUX_AFFICHAGES): string {
 }
 
 /**
+ * Les 48 communes servies IMBRIQUÉES (#1244) : chaque ligne sous une clé
+ * `fields`, précédée d'un `id` — la forme d'un enregistrement Grist lu sans
+ * aplatissement. Un jeu reste un tableau d'objets plats (`jeux/README.md`) :
+ * c'est le faux serveur qui emballe, et l'oracle repart des lignes plates. Un
+ * afficheur doit donc lire `fields.budget` par CHEMIN pour montrer le budget.
+ */
+export const URL_COMMUNES_IMBRIQUEES = `${HOTE_AFFICHAGES}/communes-imbriquees`;
+
+/**
  * Les emprises des encarts du contrôle BUG-034, en latitudes et longitudes
  * écrites à la main : de larges rectangles autour de chaque territoire, sans
  * rapport avec le cadre en pixels que la carte calcule. Aucun lieu du jeu
@@ -198,6 +207,9 @@ export function repondreAffichages(url: URL): unknown | null {
         geometry,
       })),
     };
+  }
+  if (url.href === URL_COMMUNES_IMBRIQUEES) {
+    return COMMUNES.map((fields, i) => ({ id: i + 1, fields }));
   }
   if (url.origin !== HOTE_AFFICHAGES) return null;
   const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX_AFFICHAGES;

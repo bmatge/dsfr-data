@@ -1,7 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { buildCsv, type AliasedColumn } from '@dsfr-data/shared/lib';
-import { resolveAliasedColumn } from '../utils/aliased-field.js';
+import { hasOwnColumn, readColumn, resolveAliasedColumn } from '../utils/aliased-field.js';
 import { formatTableCell } from '../utils/table-cell.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
@@ -71,7 +71,8 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    * l'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de
    * colonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne
    * qui existe telle quelle dans les données, deux-points compris, est lue
-   * telle quelle.
+   * telle quelle. La colonne se lit par chemin pointé, comme sur
+   * `dsfr-data-chart` (#1244) : `label-field="fields.dep"`.
    * @champ liste-alias
    */
   @property({ type: String, attribute: 'label-field' })
@@ -86,6 +87,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    * du CSV portent les libellés — ceux que la légende du graphique affiche
    * déjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule
    * ou un deux-points littéral s'échappe en `%2C` ou `%3A`.
+   *
+   * Chaque colonne se lit par CHEMIN POINTÉ, comme sur `dsfr-data-chart`
+   * (#1244) : `value-field="fields.total"` lit `total` sous `fields`, et
+   * `fields.total:Total` lui donne un en-tête. Une colonne à plat dont le nom
+   * contient réellement un point (`taux.brut`) reste lue telle quelle.
    *
    * Une colonne absente des données reçues est signalée en console : le
    * tableau garde ses lignes mais la colonne est vide, et un tableau vide
@@ -241,8 +247,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     for (const spec of this._valueSpecs(rows)) named.push({ attr: 'value-field', key: spec.key });
     if (this.seriesField) named.push({ attr: 'series-field', key: this.seriesField });
 
+    // « Existe » se juge comme la colonne est LUE (`readColumn`, #1244) : une
+    // colonne à plat présente, même vide, ou un chemin pointé qui mène à une
+    // valeur — `fields.total` n'est pas une clé de la ligne.
     const missing = named.filter(
-      ({ key }) => !rows.some((row) => row !== null && typeof row === 'object' && key in row)
+      ({ key }) => !rows.some((row) => hasOwnColumn(row, key) || readColumn(row, key) !== undefined)
     );
     const signature = missing.map((m) => `${m.attr}=${m.key}`).join('|');
     if (signature === this._missingColumnsWarned) return;
@@ -438,18 +447,24 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     // libelle de l'alias `champ:Libellé` quand il est ecrit (#1230).
     const columns = this._columnSpecs(data).filter((spec) => !spec.key.startsWith('_'));
 
+    // Les cellules sont LUES comme celles du tableau (`readColumn`, #1244) :
+    // un chemin pointé (`fields.total`) n'est pas une clé à plat, et
+    // `buildCsv` ne lit que des clés. Chaque ligne est donc projetée sur ses
+    // colonnes avant l'écriture.
     // `empty-label` (#933) : le CSV nomme le groupe null comme le tableau.
-    if (this.emptyLabel) {
-      const labelKey = this._labelColumnKey(data);
-      if (labelKey) {
-        const rows = data.map((row) =>
-          this._isEmptyValue(row[labelKey]) ? { ...row, [labelKey]: this.emptyLabel } : row
-        );
-        return buildCsv(rows, { columns });
-      }
-    }
-
-    return buildCsv(data, { columns });
+    const labelKey = this.emptyLabel ? this._labelColumnKey(data) : '';
+    const records = data.map((row) =>
+      Object.fromEntries(
+        columns.map((spec, i) => {
+          const value = readColumn(row, spec.key);
+          const empty = spec.key === labelKey && this._isEmptyValue(value);
+          return [`c${i}`, empty ? this.emptyLabel : value];
+        })
+      )
+    );
+    return buildCsv(records, {
+      columns: columns.map((spec, i) => ({ key: `c${i}`, label: spec.label })),
+    });
   }
 
   private _triggerDownload(csv: string) {
@@ -552,15 +567,16 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     const cells = new Map<string, Map<string, unknown>>();
 
     for (const record of data) {
-      const labelKey = this._headerText(record[label.key]);
-      const seriesName = this._headerText(record[this.seriesField]);
+      const labelValue = readColumn(record, label.key);
+      const labelKey = this._headerText(labelValue);
+      const seriesName = this._headerText(readColumn(record, this.seriesField));
       if (!cells.has(labelKey)) {
         cells.set(labelKey, new Map());
         labelKeys.push(labelKey);
-        labelValues.push(record[label.key]);
+        labelValues.push(labelValue);
       }
       if (!seriesNames.includes(seriesName)) seriesNames.push(seriesName);
-      cells.get(labelKey)!.set(seriesName, record[valueKey]);
+      cells.get(labelKey)!.set(seriesName, readColumn(record, valueKey));
     }
 
     return {
@@ -589,7 +605,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     const specs = this._columnSpecs(data);
     return {
       headers: specs.map((spec) => spec.label),
-      rows: data.map((row) => specs.map((spec) => row[spec.key])),
+      rows: data.map((row) => specs.map((spec) => readColumn(row, spec.key))),
       seriesCount: 0,
     };
   }
