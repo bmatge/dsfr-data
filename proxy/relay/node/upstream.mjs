@@ -154,6 +154,53 @@ async function resolvePublicAddress(hostname, resolve) {
   return addresses[0];
 }
 
+/** Taille d'un bloc de réception quand l'amont n'annonce pas de longueur. */
+const BLOCK_BYTES = 64 * 1024;
+
+/**
+ * Corps de réponse en cours de réception.
+ *
+ * Garder les fragments tels que l'amont les découpe (`chunks.push(chunk)`)
+ * laisse l'AMONT choisir le coût en mémoire : 1 Mo envoyé en fragments d'un
+ * octet, c'est un million d'objets `Buffer`, soit plus de 200 Mo de tas. Ici
+ * les octets sont recopiés dans des blocs de 64 Kio (ou un bloc unique à la
+ * longueur déclarée) : le fragment reçu n'est jamais retenu.
+ */
+export class BodyCollector {
+  /** @param {number} [declared] longueur annoncée par l'amont, déjà vérifiée sous le plafond */
+  constructor(declared) {
+    this.received = 0;
+    this.blockSize = declared !== undefined && declared > 0 ? declared : BLOCK_BYTES;
+    /** @type {Buffer[]} */
+    this.blocks = [];
+    this.fill = 0;
+  }
+
+  /** @param {Buffer} chunk */
+  append(chunk) {
+    let offset = 0;
+    while (offset < chunk.length) {
+      let block = this.blocks[this.blocks.length - 1];
+      if (block === undefined || this.fill === block.length) {
+        // Au-delà de la longueur déclarée (l'amont ment), on retombe sur des blocs fixes.
+        block = Buffer.allocUnsafe(this.blocks.length === 0 ? this.blockSize : BLOCK_BYTES);
+        this.blocks.push(block);
+        this.fill = 0;
+      }
+      const copied = chunk.copy(block, this.fill, offset);
+      this.fill += copied;
+      offset += copied;
+    }
+    this.received += chunk.length;
+  }
+
+  /** @returns {Buffer} le corps, à sa taille exacte */
+  toBuffer() {
+    if (this.blocks.length === 1 && this.blocks[0].length === this.received) return this.blocks[0];
+    return Buffer.concat(this.blocks, this.received);
+  }
+}
+
 /**
  * Une requête GET vers l'amont, sans suivre de redirection.
  *
@@ -236,8 +283,26 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
         return;
       }
 
+      // La fin de la réponse doit se PROUVER : une longueur déclarée, ou un
+      // découpage (`chunked`) qui se termine. Une réponse délimitée par la seule
+      // fermeture de la connexion est indiscernable d'une réponse tronquée — et
+      // une réponse tronquée mise en cache serait servie à tout le monde.
+      const transferEncoding = response.headers['transfer-encoding'];
+      if (transferEncoding !== undefined && transferEncoding.trim().toLowerCase() !== 'chunked') {
+        // `gzip, chunked` : Node retire le découpage, pas la compression.
+        response.destroy();
+        reject(new RelayError(502, 'upstream-encoding'));
+        return;
+      }
+      const rawLength = response.headers['content-length'];
+      if (transferEncoding === undefined && rawLength === undefined) {
+        response.destroy();
+        reject(new RelayError(502, 'upstream-unframed'));
+        return;
+      }
+
       const maxBytes = config.limits.maxBytes;
-      const declared = Number(response.headers['content-length']);
+      const declared = Number(rawLength);
       if (Number.isFinite(declared) && declared > maxBytes) {
         response.destroy();
         reject(new RelayError(502, 'upstream-too-large'));
@@ -245,18 +310,17 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
       }
 
       // Plafond compté EN FLUX : la connexion est coupée au premier octet de
-      // trop, on n'attend pas la fin d'un téléchargement sans fin.
-      /** @type {Buffer[]} */
-      const chunks = [];
-      let received = 0;
+      // trop, on n'attend pas la fin d'un téléchargement sans fin. Les octets
+      // sont RECOPIÉS dans des blocs de taille fixe : la mémoire tenue dépend du
+      // nombre d'octets, jamais du nombre de fragments (voir `BodyCollector`).
+      const collector = new BodyCollector(Number.isFinite(declared) ? declared : undefined);
       response.on('data', (chunk) => {
-        received += chunk.length;
-        if (received > maxBytes) {
+        if (collector.received + chunk.length > maxBytes) {
           response.destroy();
           reject(new RelayError(502, 'upstream-too-large'));
           return;
         }
-        chunks.push(chunk);
+        collector.append(chunk);
       });
       response.on('error', () => reject(new RelayError(502, 'upstream-unreachable')));
       response.on('close', () => {
@@ -267,7 +331,7 @@ async function requestOnce(target, hostConfig, config, deps, signal) {
         const lastModified = response.headers['last-modified'];
         resolve({
           kind: 'response',
-          body: Buffer.concat(chunks),
+          body: collector.toBuffer(),
           contentType,
           etag: typeof etag === 'string' && ETAG_RE.test(etag) ? etag : undefined,
           lastModified:

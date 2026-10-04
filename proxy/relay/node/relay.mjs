@@ -53,6 +53,8 @@ const MESSAGES = Object.freeze({
   'upstream-too-large': 'La réponse du service amont dépasse la taille acceptée.',
   'upstream-content-type': 'Le service amont a répondu un type de contenu non autorisé.',
   'upstream-encoding': 'Le service amont a répondu un encodage non demandé.',
+  'upstream-unframed':
+    'Le service amont a répondu sans longueur ni découpage : la fin de la réponse ne se prouve pas.',
   'upstream-redirect-refused': 'Le service amont a répondu une redirection non autorisée.',
   'upstream-leak': "La réponse du service amont a été retenue : elle contenait la clé d'accès.",
   'upstream-rate-limited': 'Le service amont limite le débit.',
