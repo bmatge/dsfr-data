@@ -1080,6 +1080,14 @@ const EXTREMES: Step[] = [
   { op: 'array-extreme', from: 'prises_de_poste', as: 'plus_recent', which: 'max' },
 ];
 
+/** La recette de nettoyage d'un tableau mixte, énoncée SANS la grammaire (#1237). */
+const EXTREMES_NETTOYES: Step[] = [
+  { op: 'replace-text', field: 'datation', search: 'vers ', by: '', join: ';' },
+  { op: 'split', field: 'datation', separator: ';' },
+  { op: 'array-extreme', from: 'datation', as: 'premiere_annee', which: 'min' },
+  { op: 'array-extreme', from: 'datation', as: 'derniere_annee', which: 'max' },
+];
+
 const COMPUTE: Check[] = [
   {
     id: 'compute-arithmetique-absence-et-division-par-zero',
@@ -1383,6 +1391,13 @@ ${kpi('k-apo', 'q-apo')}
         ],
         pipeline: ELEMENTS,
       },
+      // Des tableaux sur une partie des lignes : la bibliothèque n'a rien à dire.
+      {
+        kind: 'diagnostic',
+        id: 'n-elt',
+        expect: 'silence',
+        contains: 'dsfr-data-normalize[n-elt]',
+      },
       {
         kind: 'rows',
         id: 'q-elt',
@@ -1407,7 +1422,7 @@ ${kpi('k-apo', 'q-apo')}
     id: 'compute-plus-petit-et-plus-grand-element-d-un-tableau',
     mode: 'deterministic',
     origin:
-      'AM-103, suite (#1237) — `array_min(prises_de_poste)` rend le plus ANCIEN poste, qui n’est pas le premier listé (cas Préfets : le premier poste pris pour le plus ancien, faux sur 3 lignes), et `array_min(datation)` la première année d’une datation multivaluée, sans `explode` ni jointure. La comparaison est numérique quand tous les éléments le sont (« 950 » avant « 1050 », que l’ordre du texte inverse), textuelle sinon (dates ISO). Trois chemins : `derive`, puis l’extrême énoncé sans la grammaire (`array-extreme`), que la troisième voix recalcule.',
+      'AM-103, suite (#1237) — `array_min(prises_de_poste)` rend le plus ANCIEN poste, qui n’est pas le premier listé (cas Préfets : le premier poste pris pour le plus ancien, faux sur 3 lignes), et `array_min(datation)` la première année d’une datation multivaluée, sans `explode` ni jointure. La comparaison est numérique quand tous les éléments le sont (« 950 » avant « 1050 », que l’ordre du texte inverse), textuelle quand aucun ne l’est (dates ISO). Un tableau MIXTE (`950 ; 1050 ; vers 1970`) rend une valeur VIDE et un avertissement — l’ordre du texte y répondait « 1050 » — et la recette par attributs le répare : un premier normalize retire « vers » (`replace(join(…))`), le suivant découpe, et la première année redevient 950. Trois chemins : `derive`, puis l’extrême énoncé sans la grammaire (`array-extreme`), que la troisième voix recalcule.',
     constats: ['AM-103'],
     feed: { kind: 'fixture', datasets: JEU_TAB },
     markup: `${TAB}
@@ -1416,7 +1431,13 @@ ${kpi('k-apo', 'q-apo')}
   <dsfr-data-list id="l-ext" source="n-ext"
     columns="cle:Clé, premiere_annee:Première année, derniere_annee:Dernière année, plus_ancien:Plus ancien poste, plus_recent:Plus récent poste"></dsfr-data-list>
   <dsfr-data-query id="q-ext" source="n-ext"
-    aggregate="cle:count:notices, plus_ancien:distinct:anciens, plus_recent:distinct:recents"></dsfr-data-query>`,
+    aggregate="cle:count:notices, plus_ancien:distinct:anciens, plus_recent:distinct:recents"></dsfr-data-query>
+  <dsfr-data-normalize id="n-net1" source="s-tab"
+    compute="datation = replace(join(datation, ';'), 'vers ', '')"></dsfr-data-normalize>
+  <dsfr-data-normalize id="n-net2" source="n-net1" split="datation:;"
+    compute="premiere_annee = array_min(datation); derniere_annee = array_max(datation)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-net" source="n-net2"
+    columns="cle:Clé, premiere_annee:Première année, derniere_annee:Dernière année"></dsfr-data-list>`,
     expects: [
       {
         kind: 'rows',
@@ -1443,6 +1464,25 @@ ${kpi('k-apo', 'q-apo')}
         ],
         pipeline: EXTREMES,
       },
+      // Le tableau mixte est vide ET dit : le message nomme la fonction et le champ.
+      { kind: 'diagnostic', id: 'n-ext', expect: 'warning', contains: 'array_min(datation)' },
+      // La recette : nettoyé en amont, le même jeu rend 950 — et plus un mot.
+      {
+        kind: 'list',
+        id: 'l-net',
+        columns: [
+          { column: 'cle' },
+          { column: 'premiere_annee', absent: '—' },
+          { column: 'derniere_annee', absent: '—' },
+        ],
+        pipeline: EXTREMES_NETTOYES,
+      },
+      {
+        kind: 'diagnostic',
+        id: 'n-net2',
+        expect: 'silence',
+        contains: 'dsfr-data-normalize[n-net2]',
+      },
       {
         kind: 'rows',
         id: 'q-ext',
@@ -1460,6 +1500,29 @@ ${kpi('k-apo', 'q-apo')}
           },
         ],
       },
+    ],
+  },
+
+  {
+    id: 'compute-element-sans-split-avertit',
+    mode: 'deterministic',
+    origin:
+      'AM-103, suite (#1237) — une cellule « collée » (`1972 ; 1965 ; 1980`) n’est pas un tableau : sans `split`, `element_at(datation, 1)` rend une colonne ENTIÈREMENT vide, sans erreur. La bibliothèque doit alors le dire, une fois, en nommant le champ et `split` — sinon c’est un échec muet de plus. La colonne vide est recalculée par les trois voix ; l’avertissement est exigé.',
+    constats: ['AM-103'],
+    feed: { kind: 'fixture', datasets: JEU_TAB },
+    markup: `${TAB}
+  <dsfr-data-normalize id="n-colle" source="s-tab"
+    compute="premiere_citee = element_at(datation, 1)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-colle" source="n-colle"
+    columns="cle:Clé, premiere_citee:Première citée"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-colle',
+        columns: [{ column: 'cle' }, { column: 'premiere_citee', absent: '—' }],
+        pipeline: [{ op: 'element', from: 'datation', as: 'premiere_citee', rank: 1 }],
+      },
+      { kind: 'diagnostic', id: 'n-colle', expect: 'warning', contains: 'split="datation:;"' },
     ],
   },
 

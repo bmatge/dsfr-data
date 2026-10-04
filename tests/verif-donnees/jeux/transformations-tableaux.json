@@ -4,7 +4,7 @@
   {"cle":"t3","denominations":[],"datation":"","prises_de_poste":[]},
   {"cle":"t4","denominations":null,"datation":null,"prises_de_poste":null},
   {"cle":"t5","denominations":"chapelle","datation":1930,"prises_de_poste":"2015-09-01"},
-  {"cle":"t6","denominations":[null,"hôtel de ville"],"datation":"vers 1970 ; 1965","prises_de_poste":["2021-11-22","","2021-02-01"]},
+  {"cle":"t6","denominations":[null,"hôtel de ville"],"datation":"950 ; 1050 ; vers 1970","prises_de_poste":["2021-11-22","","2021-02-01"]},
   {"cle":"t7","denominations":["usine","usine"],"datation":"2001","prises_de_poste":["2010-05-05","2010-05-05"]},
   {"cle":"t8","denominations":["gare","poste","halle","entrepôt"],"datation":"1880;1880,0;1900","prises_de_poste":["1999-12-31","2000-01-01"]}
 ]

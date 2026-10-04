@@ -77,11 +77,18 @@ export {
   PIVOT_AGGREGATES,
   PIVOT_DEFAULT_MAX_COLUMNS,
 } from './utils/pivot.js';
-export type { CompiledCompute, CompiledAssignment } from './utils/compute.js';
+export type {
+  CompiledCompute,
+  CompiledAssignment,
+  ComputeTracker,
+  ComputeWarning,
+} from './utils/compute.js';
 export {
   compileCompute,
   applyCompute,
   computeTargets,
+  createComputeTracker,
+  computeArrayWarnings,
   COMPUTE_FUNCTIONS,
   COMPUTE_MAX_DEPTH,
   COMPUTE_MAX_EXPRESSION_LENGTH,

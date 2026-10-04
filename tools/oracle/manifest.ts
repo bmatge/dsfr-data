@@ -283,7 +283,8 @@ export type Step =
        * PLUS PETIT / PLUS GRAND ÉLÉMENT d'un tableau (#1237) : la colonne `as`
        * reçoit l'élément extrême de `from`, rendu tel quel. Éléments absents
        * ignorés ; comparaison numérique quand tous les éléments restants sont
-       * numériques, textuelle sinon. Pas un tableau, rien à comparer : `null`.
+       * numériques, textuelle quand aucun ne l'est ; tableau MIXTE : `null`.
+       * Pas un tableau, rien à comparer : `null`.
        * C'est ce que `array_min(arr)` / `array_max(arr)` de `compute` doivent
        * montrer, énoncé sans la grammaire d'expressions.
        */
@@ -302,6 +303,22 @@ export type Step =
       op: 'split';
       field: string;
       separator: string;
+    }
+  | {
+      /**
+       * REMPLACEMENT LITTÉRAL dans le texte d'une cellule : toutes les
+       * occurrences de `search` deviennent `by`, sans motif. La valeur est lue
+       * par sa forme texte — un tableau : ses éléments joints par `join`
+       * (défaut `', '`) ; une valeur absente reste absente. C'est ce que
+       * `replace(join(champ, sep), 'de', 'vers')` de `compute` doit montrer —
+       * la recette qui nettoie un tableau mixte avant `split` (#1237) —,
+       * énoncé sans la grammaire d'expressions.
+       */
+      op: 'replace-text';
+      field: string;
+      search: string;
+      by: string;
+      join?: string;
     }
   | {
       /**

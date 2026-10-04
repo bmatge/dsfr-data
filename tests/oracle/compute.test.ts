@@ -28,6 +28,7 @@ import {
   elementDe,
   extremeDe,
   decouperCellule,
+  remplacerTexte,
   runPipeline,
   runningSum,
   symbolRadius,
@@ -391,7 +392,10 @@ describe('oracle — recalcul indépendant', () => {
   it('plus petit / plus grand élément : nombre si tous le sont, texte sinon (#1237)', () => {
     expect(extremeDe(['1050', '950'], 'min')).toBe('950');
     expect(extremeDe(['1050', '950'], 'max')).toBe('1050');
-    expect(extremeDe(['950', '1050', 'vers 1970'], 'min')).toBe('1050');
+    // Tableau mixte : ni l'ordre des nombres ni celui du texte — vide.
+    expect(extremeDe(['950', '1050', 'vers 1970'], 'min')).toBeNull();
+    expect(extremeDe(['950', '1050', 'vers 1970'], 'max')).toBeNull();
+    expect(extremeDe(['maison', 'atelier'], 'min')).toBe('atelier');
     expect(extremeDe(['2019-03-01', '2012-07-15'], 'min')).toBe('2012-07-15');
     expect(extremeDe(['2019-03-01', '', null, '2012-07-15'], 'max')).toBe('2019-03-01');
     expect(extremeDe(['75056', '01004'], 'min')).toBe('01004');
@@ -412,6 +416,18 @@ describe('oracle — recalcul indépendant', () => {
     expect(decouperCellule(1930, ';')).toBe(1930);
     expect(decouperCellule(null, ';')).toBeNull();
     expect(decouperCellule(['a'], ';')).toEqual(['a']);
+    expect(remplacerTexte('950 ; vers 1970 ; vers 1980', 'vers ', '')).toBe('950 ; 1970 ; 1980');
+    expect(remplacerTexte(['950', 'vers 1970', null], 'vers ', '', ';')).toBe('950;1970;');
+    expect(remplacerTexte(1930, 'vers ', '', ';')).toBe('1930');
+    expect(remplacerTexte(null, 'a', 'b')).toBeNull();
+    expect(remplacerTexte('abc', '', 'x')).toBe('abc');
+    expect(
+      runPipeline({ main: [{ d: '950 ; 1050 ; vers 1970' }] }, [
+        { op: 'replace-text', field: 'd', search: 'vers ', by: '', join: ';' },
+        { op: 'split', field: 'd', separator: ';' },
+        { op: 'array-extreme', from: 'd', as: 'min', which: 'min' },
+      ])[0].min
+    ).toBe('950');
     expect(
       runPipeline({ main: [{ d: '1050;950' }, { d: null }] }, [
         { op: 'split', field: 'd', separator: ';' },
