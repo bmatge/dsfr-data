@@ -33,6 +33,7 @@ import {
   appelsContenant,
   configListe,
   installerHarnais,
+  pageChargee,
   pagePartagee,
   pagePour,
   verifierBundleConstruit,
@@ -348,6 +349,49 @@ test.describe('pagination serveur emise par l’export (ADR-109, #717)', () => {
         timeout: 20_000,
       })
       .toBeGreaterThan(0);
+  });
+
+  test('Tabular — une source chargee ne demande que les colonnes du tableau (#1225)', async ({
+    page,
+  }) => {
+    const erreurs = collecterErreurs(page);
+    const lignesAffichees = async (): Promise<string[]> => {
+      await expect
+        .poll(() => lignesRecues(page, 'dsfr-data-list'), { timeout: 20_000 })
+        .toBe(TAILLE);
+      return page.locator('dsfr-data-list tbody tr').allInnerTexts();
+    };
+
+    // Temoin : la source sans lignes chargees (champs inconnus), sans `select`.
+    const temoin = pagePour(configPour('datalist'), 'tabular');
+    expect(temoin).not.toContain('select=');
+    await harnais.ouvrir(temoin);
+    const sansSelect = await lignesAffichees();
+    expect(sansSelect).toHaveLength(TAILLE);
+    expect(appelsContenant(harnais.journal, 'columns=')).toEqual([]);
+    const appelsDuTemoin = harnais.journal.api.length;
+
+    // La meme page sur la source chargee : colonnes du tableau, puis champ de
+    // tri. Le nom a apostrophe et espaces voyage tel quel jusqu'a l'API.
+    const colonnes = `region, ${CHAMP_PIEGE}, population`;
+    const chargee = pageChargee(configPour('datalist'), 'tabular');
+    expect(chargee).toContain(`select="${colonnes.replace(/'/g, '&#039;')}"`);
+    expect(chargee, 'la source reste declarative').not.toContain('data=');
+    await harnais.ouvrir(chargee);
+    const avecSelect = await lignesAffichees();
+
+    // Memes lignes, meme ordre : la projection retire des colonnes, pas des lignes.
+    expect(avecSelect).toEqual(sansSelect);
+    const appels = harnais.journal.api.slice(appelsDuTemoin);
+    expect(appels.length).toBeGreaterThan(0);
+    const projetes = appelsContenant(
+      { ...harnais.journal, api: appels },
+      `columns=region,${CHAMP_PIEGE},population`
+    );
+    expect(projetes, 'chaque requete porte la projection').toHaveLength(appels.length);
+
+    expect(harnais.journal.inattendues).toEqual([]);
+    expect(erreurs).toEqual([]);
   });
 });
 
