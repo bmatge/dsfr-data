@@ -63,6 +63,55 @@ Côté Express, trois couches empilées couvrent les surfaces auth + API :
 
 Chiffrement au repos : les `connections.api_key_encrypted` sont chiffrées en AES-256-GCM (clé `ENCRYPTION_KEY`, 64 hex). Le secret CSRF dérive de la même env var par défaut ou est spécifié séparément via `CSRF_SECRET`.
 
+## Proxy générique — bornage
+
+Deux routes relaient vers une cible que **le client** désigne, dans l'en-tête `X-Target-URL` : `/cors-proxy` (sources `use-proxy`, explorateur d'API de l'app Sources, Studio IA) et `/ia-proxy` (Studio IA, clé de l'usager). Toutes les autres routes de proxy ont une cible fixe, écrite dans la configuration. Une cible choisie par le client doit être bornée : sans cela le serveur relaie vers n'importe quelle adresse, y compris celles qu'il est seul à pouvoir joindre.
+
+### La règle
+
+Elle s'applique **avant tout appel amont**, à l'identique dans les quatre endroits qui portent ces routes : `docker/nginx.conf`, `docker/nginx-db.conf`, `proxy/nginx/nginx.conf` (proxy autonome) et le serveur de développement (`vite.config.ts`). La source de vérité est `scripts/lib/garde-proxy.cjs` ; les `map` nginx (`docker/garde-proxy.conf`) en recopient les motifs.
+
+| Borne | `/cors-proxy` | `/ia-proxy` |
+|---|---|---|
+| Cible | `https://` + nom DNS public, sans identifiants ni port | idem |
+| Méthodes | `GET`, `POST` (+ `OPTIONS` pour le preflight) | `GET`, `POST` |
+| Corps de requête | 1 Mo | 1 Mo |
+| Débit par client | 10 req/s, rafale de 40 | 5 req/s, rafale de 20 |
+| Débit global, partagé par les deux routes | 50 req/s, rafale de 200 | idem |
+| CORS | `Access-Control-Allow-Origin: *` | aucun en-tête CORS |
+| Certificat de l'amont | vérifié | vérifié |
+| Redirection de l'amont | rendue telle quelle, jamais suivie | idem |
+| Cookies de l'instance | jamais transmis à l'amont | idem |
+
+Sont refusés (`403`) : `http://` et tout autre schéma ; toute adresse IP littérale, quelle que soit sa notation (pointée, décimale, hexadécimale, octale, IPv6 entre crochets, IPv6 mappée) — donc la boucle locale, les plages privées, le lien local, le CGNAT ; `localhost` et tout nom sans point, ce qui couvre les noms de services Docker ; les suffixes réservés aux réseaux locaux (`.localhost`, `.local`, `.internal`, `.lan`, `.home`, `.corp`, `.arpa`, `.test`…) ; une URL portant `user:pass@` ; un port, même `:443` ; le domaine par lequel l'instance est appelée. Une méthode hors liste reçoit `405`, un en-tête absent `400`, un corps trop volumineux `413`, un dépassement de débit `429`.
+
+La forme admise est une liste positive : ce qui n'est pas `https://nom.public[/chemin]` est refusé, sans qu'il faille énumérer les notations d'adresse.
+
+### Ce que la règle ne couvre pas
+
+- **Un nom public qui résout vers une adresse interne.** nginx filtre le nom qu'il lit, pas l'adresse que le résolveur lui rend. Trois verrous réduisent ce reste sans le fermer : seul le port 443 est joignable ; l'échange est en TLS et le **certificat de l'amont est vérifié** contre les autorités publiques, pour le nom demandé — un service interne ne présente pas de certificat valide à ce nom ; le résolveur configuré est public, donc les noms internes (services Docker compris) ne résolvent pas. Reste qu'une tentative de connexion vers le port 443 d'une adresse interne a bien lieu, et que le relais atteint tout service qui présente un certificat publiquement valide — y compris les autres sites servis par le même hôte, vus alors depuis une adresse du serveur. **Ne jamais accorder de confiance à une adresse source interne.**
+- **Le relais reste ouvert à tout hôte public en `https`.** C'est son usage : l'explorateur d'API interroge des API quelconques, une liste blanche d'hôtes le rendrait inutilisable. Le débit est plafonné, pas la destination.
+- **`Access-Control-Allow-Origin: *` sur `/cors-proxy`.** Un widget embarqué sur un site tiers (`use-proxy` avec `proxy-url`, ou `VITE_PROXY_URL_EMBED`) appelle cette route depuis une autre origine : la restreindre à l'origine de l'instance casserait ces widgets.
+- **La taille de la réponse** de l'amont n'est pas plafonnée.
+- **La clé de débit par client** est `X-Forwarded-For` quand il existe. Sans reverse proxy devant nginx, un client peut forger cet en-tête ; le plafond global tient dans tous les cas.
+- **Le serveur de développement** applique la règle de cible, les méthodes et la taille, pas la limite de débit.
+
+### Mesure complémentaire recommandée
+
+Le filtrage par nom ne remplace pas une isolation réseau. Selon le déploiement, par ordre d'effet :
+
+1. **Sortir le relais générique du conteneur applicatif** : `proxy/nginx/` est un proxy autonome, à déployer sur un réseau qui ne voit ni la base ni les autres services, puis à router sur `/cors-proxy` par le reverse proxy ([Scénario C](DEPLOYMENT.md#scenario-c--reverse-externe-gerant-les-routes-de-proxying)).
+2. **Règles de sortie** sur l'hôte : interdire au conteneur web les destinations privées (RFC 1918, lien local `169.254.0.0/16`, CGNAT `100.64.0.0/10`) en dehors de sa base de données.
+3. **Résolveur dédié** qui écarte les réponses privées (`private-address` d'unbound, `stop-dns-rebind` de dnsmasq), désigné par la directive `resolver` des deux blocs.
+
+Aucune n'est imposée par le dépôt : elles dépassent la configuration nginx. La procédure de vérification pour un auto-hébergeur est dans [DEPLOYMENT.md](DEPLOYMENT.md#proxy-generique--ce-quil-accepte-ce-quil-refuse).
+
+### Comment c'est tenu
+
+- `tests/proxy/garde-proxy.test.ts` — le module et son middleware, sur un serveur local, émetteur amont injecté.
+- `tests/proxy/garde-proxy-coherence.test.ts` — test-garde : les motifs des `map` nginx sont ceux du module, les blocs `location` sont identiques d'un fichier à l'autre, et la table de cas (`tests/proxy/cas-garde-proxy.ts`) est évaluée sur les `map` relues.
+- `tests/proxy/garde-proxy-nginx.test.ts` — job CI `proxy-nginx` : `nginx -t` sur les trois configurations, puis la même table rejouée par un vrai nginx dans un conteneur sans réseau.
+
 ## Frontend — défenses navigateur
 
 Côté client, quatre couches protègent contre l'injection et le détournement de scripts :

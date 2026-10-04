@@ -4,6 +4,7 @@ import { request as httpsRequest } from 'https';
 import { request as httpRequest } from 'http';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { creerDebit, lireMaxRpm, reponseRefus } from './scripts/lib/debit.cjs';
+import { creerRelais, METHODES } from './scripts/lib/garde-proxy.cjs';
 import { DEPS_PRE_OPTIMISEES } from './scripts/lib/deps-pre-optimisees';
 
 // Load .env so IA_DEFAULT_* vars are available in server plugins
@@ -119,28 +120,6 @@ export default defineConfig({
             proxyReq.removeHeader('cookie');
             proxyReq.removeHeader('origin');
             proxyReq.removeHeader('referer');
-          });
-        },
-      },
-      // Proxy générique pour les APIs externes (legacy, prefer /cors-proxy middleware)
-      '/api-proxy': {
-        target: '',
-        changeOrigin: true,
-        secure: true,
-        configure: (proxy, options) => {
-          proxy.on('proxyReq', (proxyReq, req, _res) => {
-            // Lire l'URL cible depuis le header X-Target-URL
-            const targetUrl = req.headers['x-target-url'] as string;
-            if (targetUrl) {
-              try {
-                const url = new URL(targetUrl);
-                options.target = url.origin;
-                proxyReq.path = url.pathname + url.search;
-                proxyReq.setHeader('host', url.host);
-              } catch {
-                console.error('Invalid target URL:', targetUrl);
-              }
-            }
           });
         },
       },
@@ -280,93 +259,14 @@ export default defineConfig({
     {
       name: 'cors-proxy',
       configureServer(server) {
-        // Proxy CORS generique pour dsfr-data-source use-proxy :
-        // lit l'URL cible depuis le header X-Target-URL
-        // et forwarde la requete cote serveur (contourne CORS)
-        server.middlewares.use('/cors-proxy', (req, res) => {
-          if (req.method === 'OPTIONS') {
-            // Echo des en-tetes demandes : autorise tout en-tete custom
-            // (Apikey, x-api-key, etc.) afin que le preflight passe pour les
-            // connexions API a cle en en-tete (parite avec nginx prod).
-            const reqHeaders =
-              (req.headers['access-control-request-headers'] as string) ||
-              'Content-Type, Authorization, X-Target-URL';
-            res.writeHead(204, {
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-              'Access-Control-Allow-Headers': reqHeaders,
-            });
-            res.end();
-            return;
-          }
-
-          const targetUrl = req.headers['x-target-url'] as string;
-          if (!targetUrl) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Missing X-Target-URL header' }));
-            return;
-          }
-
-          let parsed: URL;
-          try {
-            parsed = new URL(targetUrl);
-          } catch {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid X-Target-URL' }));
-            return;
-          }
-
-          const chunks: Buffer[] = [];
-          req.on('data', (chunk: Buffer) => chunks.push(chunk));
-          req.on('end', () => {
-            const body = Buffer.concat(chunks);
-            const isHttps = parsed.protocol === 'https:';
-            const doRequest = isHttps ? httpsRequest : httpRequest;
-
-            const skipHeaders = new Set([
-              'host',
-              'connection',
-              'x-target-url',
-              'transfer-encoding',
-              'origin',
-              'referer',
-            ]);
-            const forwardHeaders: Record<string, string> = {};
-            for (const [key, val] of Object.entries(req.headers)) {
-              if (skipHeaders.has(key)) continue;
-              if (val) forwardHeaders[key] = Array.isArray(val) ? val[0] : val;
-            }
-            forwardHeaders['host'] = parsed.host;
-            if (body.length > 0) {
-              forwardHeaders['content-length'] = String(body.length);
-            }
-
-            const proxyReq = doRequest(
-              {
-                hostname: parsed.hostname,
-                port: parsed.port || (isHttps ? 443 : 80),
-                path: parsed.pathname + parsed.search,
-                method: req.method,
-                headers: forwardHeaders,
-              },
-              (proxyRes) => {
-                res.writeHead(proxyRes.statusCode || 500, {
-                  ...proxyRes.headers,
-                  'access-control-allow-origin': '*',
-                });
-                proxyRes.pipe(res);
-              }
-            );
-
-            proxyReq.on('error', (err) => {
-              res.writeHead(502, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: `CORS proxy error: ${err.message}` }));
-            });
-
-            if (body.length > 0) proxyReq.write(body);
-            proxyReq.end();
-          });
-        });
+        // Proxy CORS generique pour dsfr-data-source use-proxy : lit l'URL cible
+        // dans l'en-tete X-Target-URL et relaie la requete cote serveur.
+        // BORNE par scripts/lib/garde-proxy.cjs — memes regles que les blocs
+        // nginx du deploiement (docs/SECURITY.md §"Proxy générique").
+        server.middlewares.use(
+          '/cors-proxy',
+          creerRelais({ methodes: METHODES['/cors-proxy'], cors: true })
+        );
       },
     },
     {
@@ -498,87 +398,12 @@ export default defineConfig({
     {
       name: 'ia-proxy',
       configureServer(server) {
-        // Proxy IA generique : lit l'URL cible depuis le header X-Target-URL
-        // et forwarde la requete cote serveur (contourne CORS + CSP)
-        server.middlewares.use('/ia-proxy', (req, res) => {
-          if (req.method === 'OPTIONS') {
-            res.writeHead(204, {
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Methods': 'POST, OPTIONS',
-              'Access-Control-Allow-Headers':
-                'Content-Type, Authorization, X-Target-URL, x-api-key, anthropic-version',
-            });
-            res.end();
-            return;
-          }
-
-          const targetUrl = req.headers['x-target-url'] as string;
-          if (!targetUrl) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Missing X-Target-URL header' }));
-            return;
-          }
-
-          let parsed: URL;
-          try {
-            parsed = new URL(targetUrl);
-          } catch {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Invalid X-Target-URL' }));
-            return;
-          }
-
-          const chunks: Buffer[] = [];
-          req.on('data', (chunk: Buffer) => chunks.push(chunk));
-          req.on('end', () => {
-            const body = Buffer.concat(chunks);
-            const isHttps = parsed.protocol === 'https:';
-            const doRequest = isHttps ? httpsRequest : httpRequest;
-
-            const skipHeaders = new Set([
-              'host',
-              'connection',
-              'x-target-url',
-              'transfer-encoding',
-              'origin',
-              'referer',
-            ]);
-            const forwardHeaders: Record<string, string> = {};
-            for (const [key, val] of Object.entries(req.headers)) {
-              if (skipHeaders.has(key)) continue;
-              if (val) forwardHeaders[key] = Array.isArray(val) ? val[0] : val;
-            }
-            forwardHeaders['host'] = parsed.host;
-            if (body.length > 0) {
-              forwardHeaders['content-length'] = String(body.length);
-            }
-
-            const proxyReq = doRequest(
-              {
-                hostname: parsed.hostname,
-                port: parsed.port || (isHttps ? 443 : 80),
-                path: parsed.pathname + parsed.search,
-                method: req.method,
-                headers: forwardHeaders,
-              },
-              (proxyRes) => {
-                res.writeHead(proxyRes.statusCode || 500, {
-                  ...proxyRes.headers,
-                  'access-control-allow-origin': '*',
-                });
-                proxyRes.pipe(res);
-              }
-            );
-
-            proxyReq.on('error', (err) => {
-              res.writeHead(502, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: `Proxy error: ${err.message}` }));
-            });
-
-            if (body.length > 0) proxyReq.write(body);
-            proxyReq.end();
-          });
-        });
+        // Proxy IA generique : meme relais borne que /cors-proxy, SANS ouverture
+        // CORS — seules les apps de l'instance l'appellent, en meme origine.
+        server.middlewares.use(
+          '/ia-proxy',
+          creerRelais({ methodes: METHODES['/ia-proxy'], cors: false })
+        );
       },
     },
   ],

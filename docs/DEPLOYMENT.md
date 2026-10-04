@@ -22,6 +22,7 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
   - [Scenario D : app interne + widgets publics (separation runtime/embed)](#scenario-d--app-interne--widgets-publics-separation-runtimeembed)
   - [Scenario E : authentification derriere un reverse proxy externe](#scenario-e--authentification-derriere-un-reverse-proxy-externe-mode-serveur)
   - [Contrat des chemins de proxying](#contrat-des-chemins-de-proxying)
+  - [Proxy generique : ce qu'il accepte, ce qu'il refuse](#proxy-generique--ce-quil-accepte-ce-quil-refuse)
 - [Premier deploiement](#premier-deploiement)
   - [Mode statique](#mode-statique)
   - [Mode serveur](#mode-serveur)
@@ -457,20 +458,54 @@ Liste exhaustive des routes que les apps et widgets attendent au runtime. Si vou
 | `/grist-gouv-proxy/` | `https://grist.numerique.gouv.fr/` | GET, POST, OPTIONS | GET 60s | Strip Origin + Referer (Grist rejette le navigateur direct) |
 | `/grist-proxy/` | `https://docs.getgrist.com/` | GET, POST, OPTIONS | GET 60s | Strip Origin + Referer |
 | `/albert-proxy/` | `https://albert.api.etalab.gouv.fr/` | GET, POST, PUT, PATCH, DELETE, OPTIONS | non | Token Albert dans `Authorization` cote client |
-| `/ia-proxy` | **Dynamique** (`X-Target-URL` du client) | POST, OPTIONS | non | Strip `X-Target-URL` + `Origin` + `Referer` avant forward. Resolver DNS requis (8.8.8.8 par defaut) |
+| `/ia-proxy` | **Dynamique** (`X-Target-URL` du client), **bornee** | GET, POST | non | Aucun en-tete CORS (meme origine seulement). Strip `X-Target-URL` + `Origin` + `Referer` + `Cookie`. Resolver DNS requis (8.8.8.8 par defaut). Cf. [Proxy generique](#proxy-generique--ce-quil-accepte-ce-quil-refuse) |
 | `/ia-server-config` | `127.0.0.1:3003/ia-server-config` | GET | non | Endpoint local (`scripts/ia-default-server.js`) — disabler implique aussi de couper `/ia-proxy-default` |
 | `/ia-proxy-default` | `127.0.0.1:3003/ia-proxy-default` | POST, OPTIONS | non | Token Albert injecte cote serveur depuis `IA_DEFAULT_TOKEN` — disabler implique aussi de couper `/ia-server-config` |
 | `/insee-proxy/` | `https://api.insee.fr/` | GET, OPTIONS | GET 60s | Catalogue Melodi — strip Origin + Referer |
 | `/tabular-proxy/` | `https://tabular-api.data.gouv.fr/` | GET, POST, OPTIONS | GET 60s | Strip Origin + Referer |
-| `/cors-proxy` | **Dynamique** (`X-Target-URL` du client) | GET, POST, PUT, DELETE, PATCH, OPTIONS | non | Strip `X-Target-URL` + `Origin` + `Referer`. Resolver DNS requis. Utilise par `dsfr-data-source use-proxy` |
+| `/cors-proxy` | **Dynamique** (`X-Target-URL` du client), **bornee** | GET, POST, OPTIONS | non | Strip `X-Target-URL` + `Origin` + `Referer` + `Cookie`. Resolver DNS requis. Utilise par `dsfr-data-source use-proxy`, l'explorateur d'API et le Studio IA. Cf. [Proxy generique](#proxy-generique--ce-quil-accepte-ce-quil-refuse) |
 
 **Headers communs** attendus en reponse sur tous les chemins :
-- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Origin: *` — sauf `/ia-proxy`, qui n'en rend aucun : seules les apps de l'instance l'appellent, en meme origine
 - `Access-Control-Allow-Methods: <selon la table>`
-- `Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization` (a minima ; `X-Target-URL` en plus pour `/ia-proxy` et `/cors-proxy`)
+- `Access-Control-Allow-Headers: Origin, Content-Type, Accept, Authorization` (a minima ; `X-Target-URL` en plus pour `/cors-proxy`)
 - Pour OPTIONS preflight : `Access-Control-Max-Age: 86400`
 
 **Reference d'implementation** : voir `docker/nginx.conf` (mode statique) et `docker/nginx-db.conf` (mode serveur). Chaque bloc est annote `DESACTIVABLE` avec un renvoi vers cette section.
+
+### Proxy generique : ce qu'il accepte, ce qu'il refuse
+
+`/cors-proxy` et `/ia-proxy` sont les deux seules routes dont la cible vient du client (en-tete `X-Target-URL`). Elles sont bornees ; le detail de la regle, ses limites et la facon dont elle est testee sont dans [SECURITY.md](SECURITY.md#proxy-générique--bornage).
+
+| | Accepte | Refuse |
+|---|---|---|
+| Cible | `https://` + nom DNS public, avec chemin et requete | `http://`, adresse IP litterale (toute notation), `localhost`, nom sans point (services Docker), suffixes locaux (`.local`, `.internal`, `.lan`…), `user:pass@`, tout port ecrit (meme `:443`), le domaine de l'instance → `403` |
+| Methode | `GET`, `POST` | `PUT`, `PATCH`, `DELETE`, `HEAD` → `405` |
+| Corps | jusqu'a 1 Mo | au-dela → `413` |
+| Debit | 10 req/s par client sur `/cors-proxy` (rafale 40), 5 req/s sur `/ia-proxy` (rafale 20), 50 req/s au total (rafale 200) | au-dela → `429` |
+| Amont | certificat valide pour le nom demande | certificat invalide, auto-signe ou chaine incomplete → `502` |
+
+**Ce qui change pour une instance deja deployee.**
+
+- Une source `use-proxy`, une connexion de l'app Sources ou un fournisseur d'IA qui visait une adresse en `http://`, une adresse IP, un port particulier ou un nom interne ne passe plus par le proxy generique. Pour une API interne a relayer, declarer une route **a cible fixe** dans nginx (sur le modele de `/tabular-proxy/`) : la cible n'y depend plus du client.
+- Le certificat de l'amont est verifie. Une API dont le serveur n'envoie pas sa chaine complete repond desormais `502` ; la cause est ecrite dans le journal d'erreurs nginx (`upstream SSL certificate verify error`). Le correctif est cote API ; a defaut, lui donner une route a cible fixe.
+- `/ia-proxy` ne rend plus d'en-tete CORS : il ne s'appelle que depuis les apps de l'instance.
+- Les cookies de l'instance ne sont plus transmis aux API relayees, routes a cible fixe comprises.
+
+**Ce qu'un auto-hebergeur doit verifier.**
+
+1. **Le reverse proxy ecrase `X-Forwarded-For`** avec l'adresse du client (defaut de Traefik). C'est la cle de la limite de debit par client ; s'il laisse passer la valeur envoyee par le client, seul le plafond global protege.
+2. **Le resolveur reste public** (`resolver 8.8.8.8 1.1.1.1` dans les deux blocs). Le remplacer par un resolveur interne rend les noms internes resolvables : un nom d'intranet sous un suffixe public (`api.intra.exemple.fr`) passerait alors la regle. Dans ce cas, utiliser un resolveur qui ecarte les reponses privees (`private-address` d'unbound, `stop-dns-rebind` de dnsmasq).
+3. **L'isolation reseau** du conteneur web. Le filtrage porte sur le nom, pas sur l'adresse resolue : la mesure complementaire est de ne laisser au conteneur que les destinations dont il a besoin (sa base, Internet), par des regles de sortie sur l'hote, ou de deployer `proxy/nginx/` a part, sur un reseau sans service interne, et d'y router `/cors-proxy` ([Scenario C](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)).
+4. **Un reverse externe qui reprend ces routes** (scenario C) doit appliquer les memes bornes : elles ne le suivent pas.
+5. **Restreindre `/ia-proxy` a des fournisseurs choisis** est possible : la `map $ia_proxy_hors_liste` de `docker/garde-proxy.conf` est une liste blanche, inactive par defaut (passer `default` a `1`, lister les hotes admis).
+6. **Les refus repondent** sur votre instance :
+
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}\n" -H "X-Target-URL: http://127.0.0.1/" "https://${APP_DOMAIN}/cors-proxy"   # 403
+   curl -s -o /dev/null -w "%{http_code}\n" -X DELETE -H "X-Target-URL: https://data.gouv.fr/" "https://${APP_DOMAIN}/cors-proxy"   # 405
+   curl -s -o /dev/null -w "%{http_code}\n" "https://${APP_DOMAIN}/cors-proxy"   # 400
+   ```
 
 ## Premier deploiement
 
@@ -876,6 +911,7 @@ docker compose ... exec -T mariadb sh -c \
 - [ ] Reverse proxy a jour (CVEs reverse-proxy = critiques).
 - [ ] Conteneur nginx tourne **non-root** (uid 101) — verifie via `docker inspect`. C'est le defaut depuis [PR #113](https://github.com/bmatge/dsfr-data/pull/113).
 - [ ] CSP testee en pre-production avec un site qui embarque un widget genere (sources publiques).
+- [ ] Proxy generique borne : `/cors-proxy` et `/ia-proxy` refusent une cible interne (`403`), `X-Forwarded-For` est ecrase par le reverse proxy, le conteneur web n'a pas d'acces reseau au-dela de ce dont il a besoin. Cf. [Proxy generique](#proxy-generique--ce-quil-accepte-ce-quil-refuse).
 
 Voir aussi [docs/SECURITY.md](SECURITY.md) (modele de menace, signalement de vulnerabilites) et [docs/security-baseline.md](security-baseline.md) (DAST ZAP, SCA Trivy, SAST CodeQL/Semgrep).
 

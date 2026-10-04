@@ -83,6 +83,9 @@ RUN HTTP_PROXY=$HTTP_PROXY HTTPS_PROXY=$HTTPS_PROXY NO_PROXY=$NO_PROXY \
 # location block — cf. docker/security-headers.conf pour le pourquoi)
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/security-headers.conf /etc/nginx/conf.d/security-headers.conf
+# Bornage du proxy générique (/cors-proxy, /ia-proxy) : `map` et zones de débit
+# de niveau http, lues par les blocs location de default.conf.
+COPY docker/garde-proxy.conf /etc/nginx/conf.d/00-garde-proxy.conf
 # Ajouter le log_format beacon et le cache proxy (inclus dans le bloc http par nginx)
 RUN echo "log_format beacon '\$time_iso8601|\$http_referer|\$arg_c|\$arg_t|\$remote_addr|\$arg_r';" > /etc/nginx/conf.d/beacon-log.conf \
  && echo "proxy_cache_path /var/cache/nginx/api levels=1:2 keys_zone=api_cache:10m max_size=100m inactive=5m;" > /etc/nginx/conf.d/cache.conf \
