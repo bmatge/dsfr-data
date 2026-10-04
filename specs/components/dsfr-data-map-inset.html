@@ -47,9 +47,9 @@
             <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
             <tbody>
               <!-- ATTRS:dsfr-data-map-inset fields="territory,center,zoom,label,width,height" -->
-                <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label</td></tr>
+                <tr><td><code>territory</code></td><td>String</td><td><code>""</code></td><td>Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte, saint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie, polynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label. Le cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de large, 160px de haut) : aucun <code>zoom</code> à poser pour le voir en entier ; un encart plus petit en demande un plus faible. Seule exception, voulue : <code>polynesie-francaise</code> cadre Tahiti et Moorea — l'essentiel de la population, des îles lisibles dans 160 px ; le territoire entier demanderait le zoom 3, où plus rien ne se lit. Pour un autre archipel, poser <code>center</code> et <code>zoom</code>.</td></tr>
                 <tr><td><code>center</code></td><td>String</td><td><code>""</code></td><td>Centre "lat,lon" de l'encart (requis sans territory ; prioritaire sur le preset)</td></tr>
-                <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom fixe de l'encart (prioritaire sur le preset)</td></tr>
+                <tr><td><code>zoom</code></td><td>Number</td><td><code>0</code></td><td>Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier)</td></tr>
                 <tr><td><code>label</code></td><td>String</td><td><code>""</code></td><td>Libellé affiché au-dessus de l'encart (et nom accessible de la mini-carte)</td></tr>
                 <tr><td><code>width</code></td><td>String</td><td><code>""</code></td><td>Largeur de l'encart (px, rem, %). Un <code>%</code> est relatif a la largeur de la carte hote : <code>width="20%"</code> repartit cinq encarts sur une ligne. Sans attribut, la feuille injectee par la carte pose <code>10rem</code> — une regle de page <code>dsfr-data-map-inset { width: … }</code> prime toujours dessus (#643). Echelle mobile-first (#818), comme <code>per-row</code> et <code>span</code> (#789) : <code>width="50% md:20%"</code> — le premier terme sous le premier point de rupture, puis un palier par point de rupture DSFR (sm 576, md 768, lg 992, xl 1248 px) ; un palier absent reprend le precedent. En echelle, une regle de page prime aussi, a toutes les largeurs. Un point de rupture inconnu ou une longueur illisible est une erreur de configuration.</td></tr>
                 <tr><td><code>height</code></td><td>String</td><td><code>160px</code></td><td>Hauteur de la mini-carte (px, rem, vh). Un <code>%</code> est un ratio de la LARGEUR de l'encart, comme sur <code>dsfr-data-map</code>.</td></tr>
@@ -58,6 +58,23 @@
           </table>
         </div>
         <p class="fr-text--sm fr-text--light">Aucun événement, aucun slot, aucune méthode publique.</p>
+
+        <h2 id="prereglages" class="fr-mt-4w">Cadrage des préréglages</h2>
+        <p>
+          Un préréglage <code>territory</code> montre le territoire <strong>entier</strong> dans
+          l'encart par défaut (10rem de large, 160px de haut) : son centre est le milieu de
+          l'emprise des communes, son zoom le plus grand où elle tient. Aucun <code>zoom</code>
+          n'est à poser pour voir tout le territoire ; un <code>zoom</code> posé sur l'encart
+          prime toujours, pour un cadrage resserré ou pour un encart plus petit que le défaut.
+        </p>
+        <p>
+          <strong>Exception voulue : <code>polynesie-francaise</code></strong> cadre Tahiti et
+          Moorea, pas le territoire. La Polynésie française s'étend sur vingt degrés de latitude
+          et de longitude : entière, elle demande le zoom 3, où aucune île n'est lisible dans
+          160 px. Tahiti et Moorea portent l'essentiel de la population. Pour un autre archipel
+          (Marquises, Tuamotu, Australes…), poser <code>center</code> et <code>zoom</code> sur
+          l'encart.
+        </p>
 
         <h2 id="raccourci" class="fr-mt-4w">Raccourci <code>insets</code> côté carte</h2>
         <p>
@@ -114,11 +131,11 @@
   <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-popup</span><span class="tok-punct">&gt;</span>
 
   <span class="tok-comment">&lt;!-- Encarts DROM explicites (équivalent raccourci : insets="drom") --&gt;</span>
-  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"guadeloupe"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"8"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
-  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"martinique"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"8"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"guadeloupe"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"martinique"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
   <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"guyane"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
-  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"la-reunion"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"8"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
-  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"mayotte"</span> <span class="tok-attr">zoom</span><span class="tok-punct">=</span><span class="tok-string">"9"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"la-reunion"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
+  <span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-map-inset</span> <span class="tok-attr">territory</span><span class="tok-punct">=</span><span class="tok-string">"mayotte"</span><span class="tok-punct">&gt;</span><span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map-inset</span><span class="tok-punct">&gt;</span>
 <span class="tok-punct">&lt;/</span><span class="tok-tag">dsfr-data-map</span><span class="tok-punct">&gt;</span></pre></div>
         <p class="fr-text--sm fr-text--light">
           La mise en page des encarts (bandeau sous la carte, grille...) est laissée au CSS de la

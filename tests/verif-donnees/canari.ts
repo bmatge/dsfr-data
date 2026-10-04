@@ -31,6 +31,7 @@ import {
   CANARI_REF,
   CANARI_VOLUME,
   DATASET_CANARI,
+  DATASET_FACETTES,
   DATASET_VOLUME,
   HOTE_CANARI,
   urlCanari,
@@ -799,6 +800,120 @@ const CHECKS: Check[] = [
         id: 'k-note',
         agg: 'count',
         pipeline: [{ op: 'filter', filters: [{ field: 'note', op: 'in', values: ['1', '5'] }] }],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // la virgule DANS une valeur : les autres surfaces qui écrivent l'URL
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-contexte-virgule-aller-retour',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — #1243, famille de BUG-031 : le filtre de CONTEXTE. `dsfr-data-context` découpait tout paramètre d’URL sur les virgules, quel que soit le filtre qui le lisait. Un `in` sur une liste à choix multiple coupait « 1,5 » en « 1 » et « 5 » — dès la clause, avant même le rechargement : SIX lignes au lieu de trois, le chiffre faux et plausible de BUG-031. Un `eq` sur une liste simple recollait les morceaux nettoyés : « Paris, France » revenait en « Paris,France », ne retrouvait plus son option, et le filtre disparaissait sans un mot — dix lignes au lieu de trois. Deux navigations : on choisit, la synchro écrit (`?note=1%252C5&lieu=Paris%252C+France`), on recharge l’URL écrite.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `
+${sourceOds('s-in', DATASET_FACETTES)}
+${sourceOds('s-eq', DATASET_FACETTES)}
+  <dsfr-data-context id="ctx" sources="s-in s-eq" url-sync>
+    <dsfr-data-context-filter field="note" operator="in" ui="ui-note" apply-to="s-in" label="Note">
+    </dsfr-data-context-filter>
+    <dsfr-data-context-filter field="lieu" operator="eq" ui="ui-lieu" apply-to="s-eq" label="Lieu">
+    </dsfr-data-context-filter>
+  </dsfr-data-context>
+  <label for="ui-note">Note</label>
+  <select id="ui-note" multiple>
+    <option value="1">1</option><option value="5">5</option>
+    <option value="1,5">1,5</option><option value="2,5">2,5</option>
+  </select>
+  <label for="ui-lieu">Lieu</label>
+  <select id="ui-lieu">
+    <option value="">Tous</option><option value="Paris, France">Paris, France</option>
+    <option value="Lyon, France">Lyon, France</option><option value="Paris">Paris</option>
+  </select>
+  ${kpi('k-in', 's-in', 'count')}${kpi('k-eq', 's-eq', 'count')}`,
+    actions: [
+      { kind: 'select', selector: '#ui-note', values: ['1,5'] },
+      { kind: 'select', selector: '#ui-lieu', value: 'Paris, France' },
+      // Sans valeur : on recharge l'URL que la synchro vient d'écrire.
+      { kind: 'goto' },
+    ],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-in',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'note', op: 'eq-strict', value: '1,5' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-eq',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'lieu', op: 'eq-strict', value: 'Paris, France' }] },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-selection-virgule-aller-retour',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — #1243, famille de BUG-031 : la SÉLECTION AU CLIC (`refine-on-click`, liste, fiche et carte par le même mixin). La valeur cliquée part dans l’URL du contexte ; relue, elle était découpée sur les virgules et seul le premier morceau gardé : « 1,5 à 2 parcours » revenait en « 1 », un filtre sur une valeur qu’aucune ligne ne porte — zéro ligne au lieu de quatre, sans erreur. Deux navigations : on clique la ligne, la synchro écrit, on recharge.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${SRC_FACETTES}
+${sourceOds('s-cible', DATASET_FACETTES)}
+  <dsfr-data-context id="ctx" sources="s-cible" url-sync></dsfr-data-context>
+  <dsfr-data-list id="l-sel" source="s-fac" columns="id:Id, intensite:Intensité"
+    refine-on-click="intensite" context="ctx" label="Intensité"></dsfr-data-list>
+  ${kpi('k-sel', 's-cible', 'count')}`,
+    actions: [{ kind: 'click', selector: '#l-sel tbody tr:first-child button' }, { kind: 'goto' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-sel',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'intensite', op: 'eq-strict', value: '1,5 à 2 parcours' }],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'canari-recherche-virgule-aller-retour',
+    mode: 'deterministic',
+    constats: ['BUG-031'],
+    origin:
+      'Canari — #1243, famille de BUG-031 : la RECHERCHE en mode `context`. Le terme part dans l’URL du contexte ; relu, il était découpé sur les virgules, chaque morceau nettoyé, puis recollé : « Paris, France » revenait en « Paris,France ». `lieu` porte les deux écritures — trois lignes avec le blanc, une sans — : le terme relu trouvait UNE ligne au lieu de trois, un chiffre faux et plausible. Deux navigations : on saisit, la synchro écrit, on recharge.',
+    feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
+    markup: `${sourceOds('s-lieu', DATASET_FACETTES, 'fetch-mode="export" max-records="100"')}
+  <dsfr-data-context id="ctx" sources="s-lieu" url-sync></dsfr-data-context>
+  <dsfr-data-search id="r-lieu" source="s-lieu" context="ctx" fields="lieu" debounce="0"
+    min-length="0" label="Rechercher un lieu"></dsfr-data-search>
+  ${kpi('k-lieu', 's-lieu', 'count')}`,
+    actions: [
+      { kind: 'fill', selector: '#r-lieu input', value: 'Paris, France' },
+      // Le bouton applique le terme SANS attendre la temporisation de frappe :
+      // l'URL est écrite quand le clic rend la main, avant le rechargement.
+      { kind: 'click', selector: '#r-lieu button' },
+      { kind: 'goto' },
+    ],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-lieu',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'lieu', op: 'contains', value: 'Paris, France' }] },
+        ],
       },
     ],
   },

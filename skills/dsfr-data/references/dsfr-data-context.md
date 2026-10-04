@@ -43,6 +43,11 @@ Tout composant qui filtre peut etre un filtre du contexte via `context="id"` :
 en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
 <dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
 diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
+Dans l'URL, les valeurs d'un filtre a plusieurs valeurs (`in`, facette) sont jointes par des
+virgules (?region=IDF,PACA) ; une virgule DANS une valeur s'ecrit %2C, un pourcent %25 (soit
+%252C et %2525 dans un lien ecrit a la main). url-sync ecrit cet echappement lui-meme, pour tous
+les filtres du contexte. Un filtre a valeur unique (eq, contains, recherche, clic) lit son
+parametre en entier.
 Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
 connexion. whereKey stable indexe sur `uid + champ` (insertion tardive sans decalage).
 
@@ -57,7 +62,7 @@ connexion. whereKey stable indexe sur `uid + champ` (insertion tardive sans deca
 |---|---|---|---|
 | `sources` | `string` | `""` (vide) | Ids des sources cibles, séparés par des espaces |
 | `url-param-map` | `string` | `""` (vide) | Renommage des paramètres : "param:field \| param2:field2" (#231) |
-| `url-sync` | `boolean` | `false` | Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF (collision possible avec le routing query-string du site hôte). Lecture au chargement (pré-remplit les UI, qui repassent par le même chemin qu'un clic — aucune injection directe dans un where) ; écriture en history.replaceState à chaque changement. Un paramètre par champ, pour les filtres classiques comme pour les facettes et la recherche enregistrées par `context="id"` (#678) : l'URL-sync est unique. DEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923). 1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le MÊME paramètre : le dernier écrase les autres, et au rechargement ils relisent tous la même valeur — un comparateur se compare alors à lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour séparer les paramètres. 2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN PREMIER dans le document. |
+| `url-sync` | `boolean` | `false` | Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF (collision possible avec le routing query-string du site hôte). Lecture au chargement (pré-remplit les UI, qui repassent par le même chemin qu'un clic — aucune injection directe dans un where) ; écriture en history.replaceState à chaque changement. Un paramètre par champ, pour les filtres classiques comme pour les facettes et la recherche enregistrées par `context="id"` (#678) : l'URL-sync est unique. Les valeurs d'un filtre à plusieurs valeurs (`in`, facette) sont jointes par des virgules (`?region=IDF,PACA`). Une virgule DANS une valeur est écrite `%2C` et un pourcent `%25` (#1243) — pour un lien écrit à la main : `?intensite=1%252C5 à 2 parcours`. Un filtre à valeur unique (`eq`, `contains`, recherche, sélection au clic) lit son paramètre en entier, virgule nue comprise. DEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923). 1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le MÊME paramètre : le dernier écrase les autres, et au rechargement ils relisent tous la même valeur — un comparateur se compare alors à lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour séparer les paramètres. 2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN PREMIER dans le document. |
 
 
 **Méthodes publiques**

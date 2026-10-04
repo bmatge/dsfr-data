@@ -43,7 +43,10 @@ export interface ContextFilterLike {
    */
   clear(): void;
 
-  /** Valeur pour l'URL (valeurs jointes par virgule) — chaine vide = parametre retire */
+  /**
+   * Valeur pour l'URL (valeurs jointes par virgule, une virgule DANS une valeur
+   * echappee en `%2C`, #1243) — chaine vide = parametre retire
+   */
   urlValue(): string;
 
   /**

@@ -3404,7 +3404,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —\nun paramètre d'URL présent gagne toujours (ADR-031). Mots-clés\ndynamiques résolus dans le fuseau local : `today` (date du jour),\n`first-of-month` (1er du mois en cours), `first-of-year` (1er janvier\nde l'année en cours) ; toute autre valeur est un littéral. La date est\nadaptée au contrôle (input type=\"month\" → AAAA-MM, `year-of` → AAAA)\npuis écrite dans l'UI et émise par le chemin normal, jamais injectée\ndans un where. Pour `between` et `in`, plusieurs valeurs séparées par\nune virgule (ex. `first-of-year,today`).",
+              "description": "Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —\nun paramètre d'URL présent gagne toujours (ADR-031). Mots-clés\ndynamiques résolus dans le fuseau local : `today` (date du jour),\n`first-of-month` (1er du mois en cours), `first-of-year` (1er janvier\nde l'année en cours) ; toute autre valeur est un littéral. La date est\nadaptée au contrôle (input type=\"month\" → AAAA-MM, `year-of` → AAAA)\npuis écrite dans l'UI et émise par le chemin normal, jamais injectée\ndans un where. Pour `between` et `in`, plusieurs valeurs séparées par\nune virgule (ex. `first-of-year,today`) ; une virgule DANS une valeur\ns'écrit `%2C`, comme dans l'URL.",
               "attribute": "default"
             },
             {
@@ -3537,6 +3537,58 @@
             },
             {
               "kind": "method",
+              "name": "_multiSelect",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLSelectElement | null"
+                }
+              },
+              "description": "Le contrôle d'un filtre `in` est-il une liste à choix multiple ?"
+            },
+            {
+              "kind": "method",
+              "name": "_optionValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Set<string>"
+                }
+              },
+              "description": "Valeurs que la liste à choix multiple propose (bords nettoyés, comme la clause)"
+            },
+            {
+              "kind": "method",
+              "name": "_inValues",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "description": "Valeurs d'un filtre `in`, une par une (#1243).\n\n- Liste à choix multiple : chaque option cochée est UNE valeur, virgule\n  comprise. Les options étaient jointes par `|` puis redécoupées sur `|`\n  ET sur `,` : « 1,5 à 2 parcours » filtrait sur « 1 » et « 5 à 2\n  parcours » avant même d'atteindre l'URL.\n- Tout autre contrôle (champ texte, liste simple) : la valeur du contrôle\n  est une liste LISIBLE, `|` et `,` séparent (ADR-031). Une virgule dans\n  une valeur s'y écrit `%2C`, comme dans l'URL."
+            },
+            {
+              "kind": "method",
+              "name": "_valuesFromUrl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string[]"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "raw",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Paramètre d'URL → valeurs à écrire dans les contrôles, selon ce que le\nfiltre porte (#1243, grammaire de `utils/url-values.ts`) :\n- `between` : deux positions, vides gardés ;\n- `in` sur une liste à choix multiple : une liste, où un lien ancien à\n  virgule nue est recollé contre les options proposées ;\n- `in` sur un autre contrôle : la liste lisible, rendue au contrôle telle\n  qu'elle est écrite (c'est `_inValues` qui la décode) ;\n- tout le reste : UNE valeur, jamais découpée."
+            },
+            {
+              "kind": "method",
               "name": "_prefillUi",
               "privacy": "private",
               "return": {
@@ -3592,7 +3644,7 @@
                   "text": "string"
                 }
               },
-              "description": "Valeur de ce filtre pour l'URL (#231) — encodage lisible ADR-031 :\nvaleurs jointes par virgule ('' = filtre inactif, paramètre retiré)."
+              "description": "Valeur de ce filtre pour l'URL (#231) — encodage lisible ADR-031 :\nvaleurs jointes par virgule ('' = filtre inactif, paramètre retiré).\n\nUne virgule DANS une valeur part échappée en `%2C`, un pourcent en `%25`\n(#1243, grammaire de `utils/url-values.ts`, celle des facettes) : le\nparamètre se relit exactement. Un lien sans virgule dans ses valeurs garde\nsa forme."
             },
             {
               "kind": "method",
@@ -3723,7 +3775,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —\nun paramètre d'URL présent gagne toujours (ADR-031). Mots-clés\ndynamiques résolus dans le fuseau local : `today` (date du jour),\n`first-of-month` (1er du mois en cours), `first-of-year` (1er janvier\nde l'année en cours) ; toute autre valeur est un littéral. La date est\nadaptée au contrôle (input type=\"month\" → AAAA-MM, `year-of` → AAAA)\npuis écrite dans l'UI et émise par le chemin normal, jamais injectée\ndans un where. Pour `between` et `in`, plusieurs valeurs séparées par\nune virgule (ex. `first-of-year,today`).",
+              "description": "Valeur initiale du filtre (#682), appliquée au montage APRÈS l'URL —\nun paramètre d'URL présent gagne toujours (ADR-031). Mots-clés\ndynamiques résolus dans le fuseau local : `today` (date du jour),\n`first-of-month` (1er du mois en cours), `first-of-year` (1er janvier\nde l'année en cours) ; toute autre valeur est un littéral. La date est\nadaptée au contrôle (input type=\"month\" → AAAA-MM, `year-of` → AAAA)\npuis écrite dans l'UI et émise par le chemin normal, jamais injectée\ndans un where. Pour `between` et `in`, plusieurs valeurs séparées par\nune virgule (ex. `first-of-year,today`) ; une virgule DANS une valeur\ns'écrit `%2C`, comme dans l'URL.",
               "fieldName": "defaultValue"
             },
             {
@@ -4249,7 +4301,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.\n\nDEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).\n1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le\n   MÊME paramètre : le dernier écrase les autres, et au rechargement ils\n   relisent tous la même valeur — un comparateur se compare alors à\n   lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour\n   séparer les paramètres.\n2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre\n   d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle\n   reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN\n   PREMIER dans le document.",
+              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.\n\nLes valeurs d'un filtre à plusieurs valeurs (`in`, facette) sont jointes\npar des virgules (`?region=IDF,PACA`). Une virgule DANS une valeur est\nécrite `%2C` et un pourcent `%25` (#1243) — pour un lien écrit à la main :\n`?intensite=1%252C5 à 2 parcours`. Un filtre à valeur unique (`eq`,\n`contains`, recherche, sélection au clic) lit son paramètre en entier,\nvirgule nue comprise.\n\nDEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).\n1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le\n   MÊME paramètre : le dernier écrase les autres, et au rechargement ils\n   relisent tous la même valeur — un comparateur se compare alors à\n   lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour\n   séparer les paramètres.\n2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre\n   d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle\n   reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN\n   PREMIER dans le document.",
               "attribute": "url-sync"
             },
             {
@@ -4514,6 +4566,24 @@
             },
             {
               "kind": "method",
+              "name": "_urlRawFor",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "field",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Paramètre d'URL d'un champ, TEL QU'ÉCRIT (consulté par les filtres à leur\nbind) — null si absent, vide, ou si url-sync est OFF.\n\nLe contexte ne sait pas ce que le filtre porte : une liste (`in`,\nfacette), une valeur unique (`eq`, recherche, sélection au clic) ou deux\nbornes (`between`). C'est donc le FILTRE qui décode, avec la grammaire de\n`utils/url-values.ts` (#1243) : `splitUrlValues`, `readUrlScalar` ou\n`splitUrlPositions`. Découper ici sur les virgules, comme avant, coupait\nen deux la valeur unique qui en contient une."
+            },
+            {
+              "kind": "method",
               "name": "_urlValuesFor",
               "return": {
                 "type": {
@@ -4528,7 +4598,7 @@
                   }
                 }
               ],
-              "description": "Valeurs URL pour un champ (consultées par les filtres à leur bind) —\nencodage lisible ADR-031 : valeurs jointes par virgule. null si absent\nou si url-sync est OFF."
+              "description": "Valeurs URL d'un champ lu comme une LISTE — encodage lisible ADR-031 :\nvaleurs jointes par virgule, une virgule DANS une valeur échappée en `%2C`\n(BUG-031, #1243). Les valeurs rendues sont DÉCODÉES. null si absent ou si\nurl-sync est OFF."
             },
             {
               "kind": "method",
@@ -4638,7 +4708,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.\n\nDEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).\n1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le\n   MÊME paramètre : le dernier écrase les autres, et au rechargement ils\n   relisent tous la même valeur — un comparateur se compare alors à\n   lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour\n   séparer les paramètres.\n2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre\n   d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle\n   reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN\n   PREMIER dans le document.",
+              "description": "Sérialisation URL des filtres (#231, ADR-031) — OPT-IN, défaut OFF\n(collision possible avec le routing query-string du site hôte).\nLecture au chargement (pré-remplit les UI, qui repassent par le même\nchemin qu'un clic — aucune injection directe dans un where) ; écriture\nen history.replaceState à chaque changement. Un paramètre par champ,\npour les filtres classiques comme pour les facettes et la recherche\nenregistrées par `context=\"id\"` (#678) : l'URL-sync est unique.\n\nLes valeurs d'un filtre à plusieurs valeurs (`in`, facette) sont jointes\npar des virgules (`?region=IDF,PACA`). Une virgule DANS une valeur est\nécrite `%2C` et un pourcent `%25` (#1243) — pour un lien écrit à la main :\n`?intensite=1%252C5 à 2 parcours`. Un filtre à valeur unique (`eq`,\n`contains`, recherche, sélection au clic) lit son paramètre en entier,\nvirgule nue comprise.\n\nDEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).\n1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le\n   MÊME paramètre : le dernier écrase les autres, et au rechargement ils\n   relisent tous la même valeur — un comparateur se compare alors à\n   lui-même. Un seul contexte dans l'URL, ou `url-param-map` pour\n   séparer les paramètres.\n2. Le pré-remplissage depuis l'URL écrit `el.value` SANS émettre\n   d'événement : un filtre d'un AUTRE contexte déjà lié au même contrôle\n   reste sur la valeur d'avant. Déclarer le contexte à `url-sync` EN\n   PREMIER dans le document.",
               "fieldName": "urlSync"
             },
             {
@@ -10754,7 +10824,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label",
+              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`\net `zoom`.",
               "attribute": "territory"
             },
             {
@@ -10774,7 +10844,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Zoom fixe de l'encart (prioritaire sur le preset)",
+              "description": "Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier)",
               "attribute": "zoom"
             },
             {
@@ -10854,7 +10924,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Territoire predefini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-française, wallis-et-futuna, corse) — fournit center/zoom/label",
+              "description": "Territoire prédéfini (guadeloupe, martinique, guyane, la-reunion, mayotte,\nsaint-pierre-et-miquelon, saint-martin, saint-barthelemy, nouvelle-caledonie,\npolynesie-francaise, wallis-et-futuna, corse) — fournit center/zoom/label.\nLe cadrage montre le territoire ENTIER dans l'encart par défaut (10rem de\nlarge, 160px de haut) : aucun `zoom` à poser pour le voir en entier ; un\nencart plus petit en demande un plus faible. Seule exception, voulue :\n`polynesie-francaise` cadre Tahiti et Moorea — l'essentiel de la\npopulation, des îles lisibles dans 160 px ; le territoire entier demanderait\nle zoom 3, où plus rien ne se lit. Pour un autre archipel, poser `center`\net `zoom`.",
               "fieldName": "territory"
             },
             {
@@ -10872,7 +10942,7 @@
                 "text": "number"
               },
               "default": "0",
-              "description": "Zoom fixe de l'encart (prioritaire sur le preset)",
+              "description": "Zoom fixe de l'encart (prioritaire sur le préréglage, qui cadre déjà le territoire entier)",
               "fieldName": "zoom"
             },
             {

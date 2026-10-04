@@ -7,6 +7,7 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
+import { splitUrlValues } from '../utils/url-values.js';
 import { scheduleContextUrlParamConflictScan } from '../utils/context-url-conflicts.js';
 import { checkNumericFieldMismatch } from '../utils/numeric-field-mismatch.js';
 
@@ -81,6 +82,13 @@ export class DsfrDataContext extends LitElement {
    * en history.replaceState à chaque changement. Un paramètre par champ,
    * pour les filtres classiques comme pour les facettes et la recherche
    * enregistrées par `context="id"` (#678) : l'URL-sync est unique.
+   *
+   * Les valeurs d'un filtre à plusieurs valeurs (`in`, facette) sont jointes
+   * par des virgules (`?region=IDF,PACA`). Une virgule DANS une valeur est
+   * écrite `%2C` et un pourcent `%25` (#1243) — pour un lien écrit à la main :
+   * `?intensite=1%252C5 à 2 parcours`. Un filtre à valeur unique (`eq`,
+   * `contains`, recherche, sélection au clic) lit son paramètre en entier,
+   * virgule nue comprise.
    *
    * DEUX PIÈGES À DEUX CONTEXTES, tous deux signalés en console (#922, #923).
    * 1. Deux contextes à `url-sync` qui filtrent le MÊME champ écrivent le
@@ -413,16 +421,32 @@ export class DsfrDataContext extends LitElement {
   }
 
   /**
-   * Valeurs URL pour un champ (consultées par les filtres à leur bind) —
-   * encodage lisible ADR-031 : valeurs jointes par virgule. null si absent
-   * ou si url-sync est OFF.
+   * Paramètre d'URL d'un champ, TEL QU'ÉCRIT (consulté par les filtres à leur
+   * bind) — null si absent, vide, ou si url-sync est OFF.
+   *
+   * Le contexte ne sait pas ce que le filtre porte : une liste (`in`,
+   * facette), une valeur unique (`eq`, recherche, sélection au clic) ou deux
+   * bornes (`between`). C'est donc le FILTRE qui décode, avec la grammaire de
+   * `utils/url-values.ts` (#1243) : `splitUrlValues`, `readUrlScalar` ou
+   * `splitUrlPositions`. Découper ici sur les virgules, comme avant, coupait
+   * en deux la valeur unique qui en contient une.
    */
-  _urlValuesFor(field: string): string[] | null {
+  _urlRawFor(field: string): string | null {
     if (!this.urlSync) return null;
     const params = currentUrl().searchParams;
     const raw = params.get(this._paramNameFor(field));
-    if (raw === null || raw === '') return null;
-    return raw.split(',').map((v) => v.trim());
+    return raw === null || raw === '' ? null : raw;
+  }
+
+  /**
+   * Valeurs URL d'un champ lu comme une LISTE — encodage lisible ADR-031 :
+   * valeurs jointes par virgule, une virgule DANS une valeur échappée en `%2C`
+   * (BUG-031, #1243). Les valeurs rendues sont DÉCODÉES. null si absent ou si
+   * url-sync est OFF.
+   */
+  _urlValuesFor(field: string): string[] | null {
+    const raw = this._urlRawFor(field);
+    return raw === null ? null : splitUrlValues(raw);
   }
 
   /**
