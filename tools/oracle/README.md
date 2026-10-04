@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-04) : **311 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 685 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+État du dépôt (mesuré le 2026-10-04) : **314 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 697 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 508 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 514 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
