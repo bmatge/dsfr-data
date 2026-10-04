@@ -30,23 +30,49 @@ const HOSTILE_HEADERS = {
   'X-Powered-By': 'amont-factice',
 };
 
+// Les cibles REFUSÉES portent `/suivie-` ou `/secret` dans leur chemin : le banc
+// route tous les hôtes vers ce faux amont, si bien qu'un relais qui suivrait
+// l'une d'elles à l'aveugle y laisserait une requête reconnaissable. Exiger 502
+// ne suffit pas : un relais qui suit une redirection vers une adresse morte
+// répond 502 lui aussi.
 const REDIRECTIONS = {
   interdit: `https://${FORBIDDEN_HOST}/secret.json`,
-  http: `http://${ALLOWED_HOST}/donnees.json`,
-  port: `https://${ALLOWED_HOST}:8443/donnees.json`,
-  ip: 'https://127.0.0.1/donnees.json',
-  metadonnees: 'https://169.254.169.254/latest/meta-data/',
-  identifiants: `https://utilisateur:motdepasse@${ALLOWED_HOST}/donnees.json`,
+  http: `http://${ALLOWED_HOST}/suivie-http.json`,
+  port: `https://${ALLOWED_HOST}:8443/suivie-port.json`,
+  ip: 'https://127.0.0.1/suivie-ip.json',
+  metadonnees: 'https://169.254.169.254/latest/meta-data/suivie-metadonnees',
+  identifiants: `https://utilisateur:motdepasse@${ALLOWED_HOST}/suivie-identifiants.json`,
   'hors-prefixe': '/api/prive/secret.json',
   remontee: `https://${KEYED_HOST}/api/public/../prive/secret.json`,
+  // Chemins que l'analyse d'une URL ne normalise PAS : seul un contrôle du
+  // chemin de la redirection, le même que pour la requête, les arrête.
+  'chemin-encode': '/api/public/..%2fprive/secret.json',
+  'chemin-parametre': '/api/public/..;/prive/secret.json',
+  'chemin-double': '/api/public//prive/secret.json',
   second: `https://${SECOND_HOST}/donnees.json?depuis=redirection`,
   relative: '/donnees.json?depuis=redirection-relative',
+  // Formes que l'analyse d'une URL normalise : même hôte, même port.
+  majuscules: `https://${SECOND_HOST.toUpperCase()}/donnees.json?depuis=majuscules`,
+  'port-explicite': `https://${SECOND_HOST}:443/donnees.json?depuis=port-explicite`,
+};
+
+/** Types de contenu hors liste blanche, dont ceux qu'une comparaison par préfixe laisserait passer. */
+const FORBIDDEN_TYPES = {
+  'json-xml': 'application/json+xml',
+  'json-prolonge': 'application/jsonx',
+  jsonp: 'application/jsonp',
+  xhtml: 'application/xhtml+xml',
+  xml: 'text/xml',
+  'csv-prolonge': 'text/csvx',
+  liste: 'application/json, text/html',
+  octets: 'application/octet-stream',
 };
 
 /**
- * @param {{ port?: number, delayMs: number, bigBytes: number }} options
+ * @param {{ port?: number, delayMs: number, bigBytes: number, hopDelayMs?: number }} options
+ *   `hopDelayMs` : attente avant chaque saut de `/redirection/lente/<n>`
  */
-export async function startFakeUpstream({ port = 0, delayMs, bigBytes }) {
+export async function startFakeUpstream({ port = 0, delayMs, bigBytes, hopDelayMs = delayMs }) {
   /** @type {{ host: string | undefined, method: string | undefined, url: string, headers: import('node:http').IncomingHttpHeaders, bodyBytes: number }[]} */
   const requests = [];
   /** @type {Map<string, number>} */
@@ -118,6 +144,12 @@ export async function startFakeUpstream({ port = 0, delayMs, bigBytes }) {
     if (path === '/script.js') {
       res.writeHead(200, { ...HOSTILE_HEADERS, 'Content-Type': 'text/javascript' });
       res.end('globalThis.amont = 1;');
+      return;
+    }
+    const forbiddenType = /^\/type\/([a-z-]+)$/.exec(path);
+    if (forbiddenType && Object.hasOwn(FORBIDDEN_TYPES, forbiddenType[1])) {
+      res.writeHead(200, { ...HOSTILE_HEADERS, 'Content-Type': FORBIDDEN_TYPES[forbiddenType[1]] });
+      res.end('{"type":"hors liste blanche"}');
       return;
     }
     if (path === '/sans-type') {
@@ -275,6 +307,39 @@ export async function startFakeUpstream({ port = 0, delayMs, bigBytes }) {
         });
         res.end();
       }
+      return;
+    }
+    const slowChain = /\/redirection\/lente\/(\d)$/.exec(path);
+    if (slowChain) {
+      // Chaque saut répond dans le délai du relais ; leur SOMME le dépasse.
+      const remaining = Number(slowChain[1]);
+      if (remaining === 0) {
+        json(res, 200, { lente: 'arrivee' });
+        return;
+      }
+      const query = url.includes('?') ? url.slice(url.indexOf('?')) : '';
+      const timer = setTimeout(() => {
+        timers.delete(timer);
+        if (res.destroyed) return;
+        res.writeHead(302, {
+          ...HOSTILE_HEADERS,
+          Location: `/redirection/lente/${remaining - 1}${query}`,
+        });
+        res.end();
+      }, hopDelayMs);
+      timers.add(timer);
+      return;
+    }
+    if (path.endsWith('/redirection/ip-joignable')) {
+      // Une adresse de boucle locale où quelque chose ÉCOUTE (ce faux amont) :
+      // le relais qui suivrait y laisse une trace.
+      const local = server.address();
+      const localPort = typeof local === 'object' && local ? local.port : 0;
+      res.writeHead(302, {
+        ...HOSTILE_HEADERS,
+        Location: `http://127.0.0.1:${localPort}/suivie-ip-joignable.json`,
+      });
+      res.end();
       return;
     }
     if (path.endsWith('/redirection/boucle')) {

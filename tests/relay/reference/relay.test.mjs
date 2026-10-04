@@ -192,6 +192,20 @@ describe('C-SSRF-6 — l’adresse, après résolution DNS', () => {
     });
   });
 
+  test('C-DOS-1 — le délai couvre les redirections : trois sauts lents ne le rallongent pas', async () => {
+    // `/redirection/lente` attend 400 ms par saut ; délai du relais : 700 ms.
+    await withRelay({ config: withLimits({ timeoutMs: 700 }) }, async (reference, client) => {
+      const started = Date.now();
+      const response = await client.call(`/${ALLOWED_HOST}/redirection/lente/3?${mark()}`);
+      assert.equal(response.status, 504);
+      assert.equal(errorCode(response), 'upstream-timeout');
+      assert.ok(Date.now() - started < 1100, 'le délai a été compté par saut');
+      // Un seul saut tient dans le délai : il est suivi.
+      const single = await client.call(`/${ALLOWED_HOST}/redirection/lente/1?${mark()}`);
+      assert.equal(single.status, 200);
+    });
+  });
+
   test('une résolution qui ne répond pas : 504 au terme du délai', async () => {
     const hanging = () => new Promise(() => {});
     await withRelay(
@@ -247,6 +261,51 @@ describe('C-SSRF-7 — redirections sur le relais de référence', () => {
       const four = await client.call(`/${ALLOWED_HOST}/redirection/chaine/4`);
       assert.equal(four.status, 502);
       assert.equal(errorCode(four), 'upstream-redirect-refused');
+    });
+  });
+
+  for (const [name, host, prefix] of [
+    ['interdit', ALLOWED_HOST, ''],
+    ['http', ALLOWED_HOST, ''],
+    ['port', ALLOWED_HOST, ''],
+    ['ip', ALLOWED_HOST, ''],
+    ['ip-joignable', ALLOWED_HOST, ''],
+    ['metadonnees', ALLOWED_HOST, ''],
+    ['identifiants', ALLOWED_HOST, ''],
+    ['remontee', ALLOWED_HOST, ''],
+    ['hors-prefixe', KEYED_HOST, '/api/public'],
+    ['chemin-encode', KEYED_HOST, '/api/public'],
+    ['chemin-parametre', KEYED_HOST, '/api/public'],
+    ['chemin-double', KEYED_HOST, '/api/public'],
+  ]) {
+    test(`redirection refusée (${name}) : refusée AVANT toute résolution et toute connexion`, async () => {
+      await withRelay({}, async (reference, client) => {
+        const response = await client.call(`/${host}${prefix}/redirection/${name}?${mark()}`);
+        assert.equal(response.status, 502);
+        assert.equal(errorCode(response), 'upstream-redirect-refused');
+        // Une seule résolution, une seule connexion : celles de la requête de départ.
+        assert.deepEqual(reference.resolutions, [host]);
+        assert.deepEqual(reference.connections, [{ address: PUBLIC_TEST_ADDRESS, hostname: host }]);
+      });
+    });
+  }
+
+  test('`Location` vers un hôte autorisé en majuscules, ou avec `:443` : suivie, sous le nom de la liste blanche', async () => {
+    // La cible d'une redirection est lue par un analyseur d'URL, qui met l'hôte
+    // en minuscules et retire le port par défaut. Ce n'est pas l'URL de relais
+    // (C-URL-2), que la bibliothèque produit déjà canonique.
+    await withRelay({}, async (reference, client) => {
+      for (const name of ['majuscules', 'port-explicite']) {
+        const response = await client.call(`/${ALLOWED_HOST}/redirection/${name}?${mark()}`);
+        assert.equal(response.status, 200);
+        assert.equal(JSON.parse(response.text).hote, SECOND_HOST);
+      }
+      assert.deepEqual(reference.resolutions, [ALLOWED_HOST, SECOND_HOST, ALLOWED_HOST, SECOND_HOST]);
+      const arrivals = upstream.requests.filter((request) => /depuis=(majuscules|port-explicite)/.test(request.url));
+      assert.deepEqual(
+        arrivals.map((request) => request.host),
+        [SECOND_HOST, SECOND_HOST]
+      );
     });
   });
 
@@ -356,6 +415,25 @@ describe('C-NAV-5 — en-têtes de l’amont assainis par le relais de référen
       assert.equal(response.headers['content-type'], 'application/json');
       const plain = await client.call(`/${ALLOWED_HOST}/table.csv?${mark()}`);
       assert.equal(plain.headers['content-type'], 'text/csv; charset=utf-8');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-MET-2 — le relais de référence refuse tout corps de requête', () => {
+  test('GET avec `Content-Length`, ou avec `Transfer-Encoding` : 400, l’amont n’est pas contacté', async () => {
+    await withRelay({}, async (reference, client) => {
+      const m = mark();
+      const path = `/${ALLOWED_HOST}/donnees.json?${m}`;
+      const withLength = await client.call(path, { body: 'corps-du-visiteur' });
+      assert.equal(withLength.status, 400);
+      assert.equal(errorCode(withLength), 'body-not-allowed');
+      const chunked = await client.call(path, { headers: { 'Transfer-Encoding': 'chunked' } });
+      assert.equal(chunked.status, 400);
+      assert.equal(errorCode(chunked), 'body-not-allowed');
+      assert.equal(upstream.seen(m).length, 0);
+      // `Content-Length: 0` n'est pas un corps.
+      assert.equal((await client.call(path, { headers: { 'Content-Length': '0' } })).status, 200);
     });
   });
 });
