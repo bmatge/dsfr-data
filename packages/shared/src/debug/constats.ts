@@ -90,6 +90,8 @@ export interface ContexteConstats {
   etat?: unknown;
   /** `window.location.origin` : une requête de même origine n'est pas un CORS. */
   origine?: string;
+  /** `window.DSFR_DATA_RELAY` : relais du site quand aucune source ne porte `relay-url` (ADR-155). */
+  relais?: string;
 }
 
 /** Une règle du registre. */
@@ -478,6 +480,39 @@ const traitementClient: RegleConstat = {
 };
 
 /**
+ * Une source dont les requêtes passent par le relais cachable du site
+ * (ADR-155, #1232) : attribut `relay-url`, sinon `window.DSFR_DATA_RELAY` que
+ * l'appelant donne dans le contexte. Un fait utile, pas une panne : il explique
+ * l'adresse appelée (`<relais>/<hôte>/…`), l'absence d'en-têtes et l'âge des
+ * données. Une source inline ou d'URL relative n'a rien à relayer.
+ */
+const viaRelais: RegleConstat = {
+  id: 'pipeline/relais',
+  appliesTo: TOUTES,
+  evaluer: (trace, contexte) =>
+    parEtape(trace, (node) => {
+      if (node.tag !== 'dsfr-data-source') return [];
+      const attribut = node.attrs['relay-url'];
+      const relais = attribut || contexte.relais;
+      if (!relais) return [];
+      const apiType = node.attrs['api-type'];
+      const adaptateur = !!apiType && apiType !== 'generic';
+      if (!adaptateur && !/^https?:\/\//i.test(node.attrs.url ?? '')) return [];
+      return [
+        constat('pipeline/relais', 'info', {
+          titre: `${node.id} : requêtes servies par le relais du site`,
+          explication:
+            "Les requêtes GET de cette source vers une autre origine passent par le relais, sous la forme <relais>/<hôte>/<chemin> : aucun en-tête n'est envoyé (ni headers, ni api-key-ref), et l'âge des données est celui du cache du relais. Une requête POST ou une cible hors https garde le chemin habituel.",
+          preuve: attribut
+            ? `relay-url="${bornerTexte(attribut, 120)}"`
+            : `window.DSFR_DATA_RELAY = "${bornerTexte(relais, 120)}"`,
+          etape: node.id,
+        }),
+      ];
+    }),
+};
+
+/**
  * Une étape demande-t-elle un regroupement que le serveur n'a pas fait ?
  * MÊME garde que `formatDelegation` (`format.ts`) : sans `group-by` ni
  * `aggregate` sur l'étape, il n'y a rien à déléguer — un query qui ne fait que
@@ -794,6 +829,7 @@ export const REGLES_GENERIQUES: readonly RegleConstat[] = [
   lignesIgnorees,
   pointsEmpiles,
   traitementClient,
+  viaRelais,
   delegationClient,
   emissionsRepetees,
   tronque,

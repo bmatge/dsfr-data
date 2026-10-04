@@ -272,6 +272,9 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                                pour quoi chaque jeu a été taillé (#879)
   fixtures.ts                  le faux serveur commun (ODS, Tabular, tableau nu) sur les
                                jeux partagés (territoires, mesures, regions)
+                               — et `cibleDuRelais`, la réécriture INVERSE du relais cachable
+                               (ADR-155) : le faux réseau sert `/donnees-relais/<hôte>/…`
+                               depuis les mêmes fixtures qu'en direct
   fixtures-adaptateurs.ts      les faux serveurs du domaine `adaptateurs` (Melodi, Grist, JSON)
   fixtures-transformations.ts  les jeux servis en `data` inline (aucun faux serveur)
   fixtures-contexte.ts         le faux serveur ODS du domaine `contexte`
@@ -827,6 +830,7 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | query | `buildKey` réduit à `String(row[f] ?? '')` (`shared/utils/join.ts`) | `jointure-cles-vides` | 9 lignes appariées au lieu de 7 : deux clés vides s'apparient |
 | adaptateurs | `break` après la première page (`opendatasoft-adapter.ts`) | `ods-records-pagination` | affiché 100, recalculé 137 — écart −37 |
 | adaptateurs | `_warnUnrelayedProxy` rend toujours la main avant le `console.warn` (`dsfr-data-source.ts`) | `ods-proxy-url-hote-non-relaye` | « diagnostic:s-prx:warning — 0 message(s) console » : `proxy-url` posé sur un portail Opendatasoft redevient muet, les deux KPI restent justes à 137 (AM-114) |
+| delegation | paramètre `offset` retiré à la réécriture du relais (`resolveDataTransport`, `shared/api/relay.ts` : `rest = rest.replace(/&offset=\d+/, '')`) | `relais-ods-pagination` | « affiché 200, recalculé 137 — écart 63 » et « affiché 190 100 000, recalculé 127 684 000 » : la première page est servie deux fois par le relais ; la source jumelle, en direct sur la même page, reste à 137 (AM-114, ADR-155) |
 | adaptateurs | `max-records` ignoré, plafond fixe à 1 000 (`opendatasoft-adapter.ts`) | `ods-plafond-max-records` | affiché 137, recalculé 120 — écart 17 |
 | transformations | `gte` réduit à `gt` (`dsfr-data-query.ts`) | `where-gt-gte` | KPI à 4 au lieu de 5 : la borne elle-même tombe du filtre |
 | transformations | repli lexicographique retiré de `_compareForRange` (`dsfr-data-query.ts`) | `where-paire-mixte-nombre-et-texte` | KPI à 5 au lieu de 9 : les « NC » disparaissent du filtre au lieu d'être rangés en texte |

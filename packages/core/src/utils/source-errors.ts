@@ -125,7 +125,7 @@ const BAREME: Record<SourceErrorCause, Omit<SourceErrorDescription, 'cause' | 's
     detail: '',
     retry: false,
     autoRetryOnline: false,
-    hint: 'Clé API absente ou refusée.',
+    hint: 'Clé API absente ou refusée. Derrière un relais (relay-url) : hôte ou chemin absent de sa liste blanche, ou clé du relais refusée par le portail.',
   },
   'page-mal-reglee': {
     title: 'Cet affichage n’a pas pu être construit',

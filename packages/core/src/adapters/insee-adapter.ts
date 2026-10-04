@@ -18,7 +18,8 @@ import type {
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import {
   INSEE_CONFIG,
-  getProxiedUrl,
+  resolveTransportUrl,
+  transportFetch,
   flattenInseeObservation,
   fetchInseeLabelIndex,
   applyInseeLabels,
@@ -91,9 +92,9 @@ export class InseeAdapter implements ApiAdapter {
       if (remaining <= 0) break;
 
       const effectivePageSize = Math.min(pageSize, remaining);
-      const url = getProxiedUrl(this.buildUrl(params, effectivePageSize, page), params.proxyUrl);
+      const url = resolveTransportUrl(this.buildUrl(params, effectivePageSize, page), params);
 
-      const response = await fetch(url, buildFetchOptions(params, signal));
+      const response = await transportFetch(url, buildFetchOptions(params, signal), params);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -140,9 +141,9 @@ export class InseeAdapter implements ApiAdapter {
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
-    const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
+    const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay), params);
 
-    const response = await fetch(url, buildFetchOptions(params, signal));
+    const response = await transportFetch(url, buildFetchOptions(params, signal), params);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -277,7 +278,8 @@ export class InseeAdapter implements ApiAdapter {
 
     const index = await fetchInseeLabelIndex(params.datasetId, {
       baseUrl: params.baseUrl || INSEE_BASE_URL,
-      toProxiedUrl: (url) => getProxiedUrl(url, params.proxyUrl),
+      toProxiedUrl: (url) => resolveTransportUrl(url, params),
+      fetchImpl: (input, init) => transportFetch(String(input), init, params),
       signal,
     });
 

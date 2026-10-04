@@ -28,7 +28,12 @@ import type { QueryAggregate } from '../components/dsfr-data-query.js';
 import { parseAggregates } from '../utils/aggregates.js';
 import { parseOrderBy } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { ODS_CONFIG, getProxiedUrl, normalizeProviderAuthHeaders } from '@dsfr-data/shared/lib';
+import {
+  ODS_CONFIG,
+  resolveTransportUrl,
+  transportFetch,
+  normalizeProviderAuthHeaders,
+} from '@dsfr-data/shared/lib';
 
 /**
  * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).
@@ -415,9 +420,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       if (remaining <= 0) break;
 
       const apiUrl = this.buildUrl(params, Math.min(pageSize, remaining), offset);
-      const url = getProxiedUrl(apiUrl, params.proxyUrl);
+      const url = resolveTransportUrl(apiUrl, params);
 
-      const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
+      const response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -490,9 +495,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     signal: AbortSignal
   ): Promise<FetchResult> {
     const apiUrl = this.buildUrl(params, 1, 0);
-    const response = await fetch(
-      getProxiedUrl(apiUrl, params.proxyUrl),
-      buildFetchOptions(params, apiUrl, signal)
+    const response = await transportFetch(
+      resolveTransportUrl(apiUrl, params),
+      buildFetchOptions(params, apiUrl, signal),
+      params
     );
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const json = await response.json();
@@ -512,12 +518,12 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     signal: AbortSignal
   ): Promise<FetchResult> {
     const apiUrl = this.buildServerSideUrl(params, overlay);
-    const url = getProxiedUrl(apiUrl, params.proxyUrl);
+    const url = resolveTransportUrl(apiUrl, params);
     // Meme refus qu'en fetch complet (#859) : sans `group_by` dans l'URL, la
     // page est faite de lignes brutes et `total_count` redevient fiable.
     const delegationRefusee = this._warnSelectConflict(params);
 
-    const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
+    const response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
@@ -624,7 +630,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * Fetch les valeurs de facettes depuis l'endpoint ODS /facets.
    */
   async fetchFacets(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     fields: string[],
     where: string,
     signal?: AbortSignal
@@ -639,9 +645,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       url.searchParams.set('where', where);
     }
 
-    const response = await fetch(
-      getProxiedUrl(url.toString(), params.proxyUrl),
-      buildFetchOptions(params, url.toString(), signal)
+    const response = await transportFetch(
+      resolveTransportUrl(url.toString(), params),
+      buildFetchOptions(params, url.toString(), signal),
+      params
     );
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -673,15 +680,16 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * n'exposent aucune facette.
    */
   async discoverFacets(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     signal?: AbortSignal
   ): Promise<FacetDescriptor[]> {
     const base = params.baseUrl || 'https://data.opendatasoft.com';
     const datasetUrl = `${base}/api/explore/v2.1/catalog/datasets/${params.datasetId}`;
 
-    const metaResponse = await fetch(
-      getProxiedUrl(datasetUrl, params.proxyUrl),
-      buildFetchOptions(params, datasetUrl, signal)
+    const metaResponse = await transportFetch(
+      resolveTransportUrl(datasetUrl, params),
+      buildFetchOptions(params, datasetUrl, signal),
+      params
     );
     if (metaResponse.ok) {
       const meta = (await metaResponse.json()) as {
@@ -704,9 +712,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     // Repli : /facets sans parametre liste les facettes servies (noms seuls)
     const facetsUrl = `${datasetUrl}/facets`;
-    const response = await fetch(
-      getProxiedUrl(facetsUrl, params.proxyUrl),
-      buildFetchOptions(params, facetsUrl, signal)
+    const response = await transportFetch(
+      resolveTransportUrl(facetsUrl, params),
+      buildFetchOptions(params, facetsUrl, signal),
+      params
     );
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -726,7 +735,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * est memorise lui aussi, pour ne pas retenter a chaque geste.
    */
   describeFieldTypes(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>
   ): Promise<Record<string, FieldKind>> {
     const key = this._datasetKey(params);
     const known = this._fieldTypes.get(key);
@@ -734,9 +743,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     const datasetUrl = this._datasetUrl(params);
     const pending = (async (): Promise<Record<string, FieldKind>> => {
       try {
-        const response = await fetch(
-          getProxiedUrl(datasetUrl, params.proxyUrl),
-          buildFetchOptions(params, datasetUrl)
+        const response = await transportFetch(
+          resolveTransportUrl(datasetUrl, params),
+          buildFetchOptions(params, datasetUrl),
+          params
         );
         if (!response.ok) return {};
         const meta = (await response.json()) as {
@@ -917,9 +927,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   ): Promise<FetchResult | null> {
     const cap = this._effectiveCap(params);
     const apiUrl = this.buildExportUrl(params, cap + 1);
-    const url = getProxiedUrl(apiUrl, params.proxyUrl);
+    const url = resolveTransportUrl(apiUrl, params);
 
-    const response = await fetch(url, buildFetchOptions(params, apiUrl, signal));
+    const response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
     if (!response.ok) {
       // Seul un 404 dit que l'export n'existe pas pour ce JEU (#1199, BUG-027).
       // Un 400 vise la CLAUSE (un `where` sur un alias d'agrégat, refusé par

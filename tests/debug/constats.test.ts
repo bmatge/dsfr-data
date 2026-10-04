@@ -185,6 +185,25 @@ const CAS: CasRegle[] = [
     attendu: { gravite: 'info', etape: 'src' },
   },
   {
+    // ADR-155 (#1232) : une source dont les requêtes passent par le relais du site
+    regle: 'pipeline/relais',
+    fautive: trace({
+      nodes: [
+        noeud('src', 'dsfr-data-source', 'source', {
+          attrs: { 'api-type': 'opendatasoft', 'relay-url': '/donnees-relais' },
+        }),
+        CARTE,
+      ],
+      states: { src: charge(3) },
+    }),
+    attendu: {
+      id: 'pipeline/relais@src',
+      gravite: 'info',
+      etape: 'src',
+      preuve: 'relay-url="/donnees-relais"',
+    },
+  },
+  {
     regle: 'pipeline/delegation-client',
     fautive: trace({
       nodes: [

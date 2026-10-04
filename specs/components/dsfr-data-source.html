@@ -128,7 +128,7 @@
                 <tr><td><code>transform</code></td><td>String</td><td><code>"results"</code>, <code>"data.items"</code></td><td>Chemin JSONPath vers le tableau de données dans la réponse. Ex: <code>"results"</code>, <code>"data.items"</code>.</td></tr>
                 <tr><td><code>headers</code></td><td>String</td><td><code>'{"apikey":"abc123"}'</code></td><td>En-têtes HTTP en JSON. Ex: <code>'{"Authorization": "Bearer xxx"}'</code>. Quand le fournisseur attend sa clé sous un en-tête précis (déclaré par sa configuration), un <code>apikey</code> nu est réécrit automatiquement au bon format (#655) ; détail par fournisseur : table des capacités d'ARCHITECTURE.</td></tr>
                 <tr><td><code>api-key-ref</code></td><td>String</td><td><code>"tmdb"</code></td><td>Référence vers une clé API déclarée dans window.DSFR_DATA_KEYS</td></tr>
-                <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre <code>window.DSFR_DATA_CACHE_PROVIDER</code> (#307) — no-op en embed anonyme.</td></tr>
+                <tr><td><code>cache-ttl</code></td><td>Number</td><td>Entier en secondes. Défaut : <code>3600</code></td><td>TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre <code>window.DSFR_DATA_CACHE_PROVIDER</code> (#307) — no-op en embed anonyme. C'est un repli hors ligne, côté navigateur : il n'a AUCUN rapport avec le relais (<code>relay-url</code>), ne lui est pas transmis et ne règle pas la durée de son cache.</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -145,8 +145,8 @@
                 <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON. Mode URL : query string en GET, corps de la requête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à l'URL construite par l'adaptateur, ce qui sert les paramètres propres à l'API que la bibliothèque ne modélise pas — par exemple <code>params='{"timezone":"Europe/Paris"}'</code> pour lire des dates dans un fuseau donné, sans quitter le mode adaptateur. Les clés que l'adaptateur construit lui-même (il les déclare : clauses, pagination, projection, suffixes d'opérateur) sont réservées : elles sont refusées avec une erreur de configuration plutôt que d'écraser une clause (#1137). Seuls les adaptateurs qui acceptent des paramètres libres les transmettent (en chargement paginé comme en <code>fetch-mode="export"</code>) ; les autres les ignorent — voir la table des capacités d'ARCHITECTURE.</td></tr>
                 <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta. La source ne livre alors qu'UNE page. Une <code>dsfr-data-query</code> en aval qui regroupe ou agrège (<code>group-by</code>, <code>aggregate</code>, <code>explode</code>) calcule sur cette seule page : le chiffre est partiel. Le mode URL ne délègue rien et aucun attribut ne lui fait charger le jeu entier — sans <code>paginate</code>, c'est la page par défaut de l'API qui revient. La requête le dit donc sans se refuser (#1242) : avertissement en console, réserve au volet Diagnostic. Pour un chiffre sur tout le jeu, passer par un <code>api-type</code> qui sait le charger, ou par une URL qui rend déjà l'agrégat.</td></tr>
                 <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination serveur (nombre de records par page).</td></tr>
-                <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS générique (pour les APIs externes sans CORS). Ne vaut qu'en mode URL (<code>url="…"</code>) : avec un <code>api-type</code>, l'attribut est sans effet sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail Opendatasoft, par exemple) — la requête part en direct, et la source le signale une fois en console.</td></tr>
-                <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour CETTE source (#340), prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build-time. Sert à la fois la réécriture des hôtes connus et le <code>use-proxy</code> générique. Vide = résolution proxy globale habituelle. Ex: <code>proxy-url="https://mon-proxy.fr"</code>. Seuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert, INSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode adaptateur, ou une URL quelconque sans <code>use-proxy</code> — l'attribut est SANS EFFET : la requête part en direct vers l'API. La source l'écrit alors une fois en console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.</td></tr>
+                <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS générique (pour les APIs externes sans CORS). Ne vaut qu'en mode URL (<code>url="…"</code>) : avec un <code>api-type</code>, l'attribut est sans effet sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail Opendatasoft, par exemple) — la requête part en direct, et la source le signale une fois en console. Sans effet sur une requête qui part au relais (<code>relay-url</code>) : le relais prend toutes les requêtes GET vers une autre origine, <code>use-proxy</code> ne garde que ce que le relais ne porte pas (requêtes POST, cible hors <code>https</code>).</td></tr>
+                <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour CETTE source (#340), prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build-time. Sert à la fois la réécriture des hôtes connus et le <code>use-proxy</code> générique. Vide = résolution proxy globale habituelle. Ex: <code>proxy-url="https://mon-proxy.fr"</code>. Seuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert, INSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode adaptateur, ou une URL quelconque sans <code>use-proxy</code> — l'attribut est SANS EFFET : la requête part en direct vers l'API. La source l'écrit alors une fois en console (« proxy-url est sans effet »), et le volet Diagnostic le reprend. Pour faire passer un portail Opendatasoft (ou tout autre hôte) par le domaine du site, c'est <code>relay-url</code> qu'il faut poser : <code>proxy-url</code> désigne un autre contrat (endpoints dédiés et <code>/cors-proxy</code>, toutes méthodes, en-têtes transmis). Avec un relais, <code>proxy-url</code> ne sert plus que les requêtes que le relais ne porte pas (POST du mode SQL de Grist).</td></tr>
               <!-- /ATTRS -->
             </tbody>
           </table>
@@ -498,6 +498,81 @@
           tableau paginé), n'est pas concernée. En mode URL, <code>paginate</code> ne livre lui aussi
           qu'une page, mais aucun attribut ne lui fait charger le jeu entier : la requête calcule alors
           sur la page reçue et le dit, en console et au volet Diagnostic.
+        </p>
+
+        <h2 id="relais" class="fr-mt-4w">Relais cachable : servir les données depuis le cache du site</h2>
+        <p>
+          Un site qui a du cache (Varnish, CDN, cache de son CMS) veut que les données d'une dataviz
+          passent par <strong>son</strong> domaine, sous une URL qui identifie la donnée. Avec
+          <code>relay-url</code>, la source n'appelle plus le portail : elle appelle le site, sous la forme
+          <code>&lt;relais&gt;/&lt;hôte&gt;/&lt;chemin&gt;?&lt;requête&gt;</code>, et c'est le relais du site
+          qui va chercher la réponse et la met en cache. La source reste en mode adaptateur : filtres,
+          regroupements, tri et pagination délégués vivent dans l'URL, que le relais transmet telle quelle.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="relay-url" -->
+                <tr><td><code>relay-url</code></td><td>String</td><td><code>""</code></td><td>Préfixe du relais cachable du site hôte (ADR-155, #1232) : le chemin que le site a choisi pour sa route de relais (<code>relay-url="/relais"</code>), ou une URL absolue (<code>relay-url="https://site.example/relais"</code>). Vide : la valeur de <code>window.DSFR_DATA_RELAY</code>, sinon aucun relais — et alors rien ne change. Avec un relais, toute requête GET vers une autre origine part sous la forme <code>relais/hôte/chemin?requête</code> (le préfixe du relais, l'hôte de la cible, puis son chemin et sa requête), en mode adaptateur comme en mode URL : filtres, regroupements, tri et pagination délégués restent dans l'URL, que le relais transmet telle quelle. Deux cibles donnent deux URL, une même requête donne la même URL au caractère près : le site peut les mettre en cache. Le relais est une route que LE SITE HÔTE fournit, selon le contrat <code>docs/RELAY.md</code> (relais de référence : <code>proxy/relay/node/</code>). Aucune instance publique n'en expose. Sur une requête relayée, aucun en-tête n'est envoyé : ni <code>headers</code>, ni <code>api-key-ref</code> (la clé appartient au relais, qui l'ajoute par hôte), ni cookie. Si l'un de ces attributs est posé, la source l'écrit une fois en console. Ne passent PAS par le relais, et gardent le chemin habituel (direct ou <code>proxy-url</code>) : une URL relative ou de même origine ; une requête POST (mode SQL de Grist, <code>method="POST"</code>) ; une cible hors <code>https</code>, sur un port explicite ou avec identifiants ; un chemin que le relais refuserait (<code>%2f</code>, <code>%2e</code>, <code>//</code>…) — ces deux derniers cas avec un avertissement. <code>fetch-mode="export"</code> sur l'API Tabular (export Parquet) retombe sur la pagination, relayée. Une URL de relais de plus de 8 000 caractères part quand même au relais, qui répond 414. Si le relais répond 503 (place momentanément prise : il n'a pas de file d'attente), la requête est réessayée trois fois au plus, après le délai qu'il annonce ; jamais sur un 429. Sans rapport avec <code>cache-ttl</code> : la durée de cache se règle sur le relais.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;!-- La requête part vers
+     /donnees-relais/data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/rappelconso/records?… --&gt;
+&lt;dsfr-data-source id="rappels" api-type="opendatasoft" relay-url="/donnees-relais"
+  base-url="https://data.economie.gouv.fr" dataset-id="rappelconso"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;!-- Ou une fois pour toute la page, avant le chargement des composants --&gt;
+&lt;script&gt;window.DSFR_DATA_RELAY = '/donnees-relais';&lt;/script&gt;</pre>
+        </div>
+        <div class="fr-callout fr-callout--blue-ecume fr-mt-2w">
+          <p class="fr-callout__text">
+            <strong>Le relais est une route que le site hôte fournit</strong> : la bibliothèque n'en
+            embarque aucun, et aucune instance publique n'en expose. Son contrat (liste blanche d'hôtes,
+            lecture seule, en-têtes de cache, statuts d'erreur) est décrit dans <code>docs/RELAY.md</code>
+            du dépôt, avec un relais Node de référence (<code>proxy/relay/node/</code>) et une suite de
+            conformance à lancer contre son propre relais.
+          </p>
+        </div>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Deux cibles, deux URL ; une même requête, la même URL au caractère près</strong> : le
+          chemin et la requête sont repris tels que l'adaptateur les a écrits, sans réencodage ni tri des
+          paramètres. Deux visiteurs qui posent les mêmes filtres dans un ordre différent produisent deux
+          URL, donc deux entrées de cache.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Aucun en-tête ne part au relais</strong> : ni <code>headers</code>, ni
+          <code>api-key-ref</code>, ni cookie. Si le portail exige une clé, c'est le relais qui l'ajoute,
+          depuis sa configuration — la clé quitte le navigateur. La source l'écrit une fois en console
+          quand l'un de ces attributs est posé. Hors relais, ils restent actifs.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Ce qui ne passe pas par le relais</strong>, et garde le chemin habituel (direct, ou
+          <code>proxy-url</code>) : une URL relative ou de même origine ; une requête POST
+          (<code>method="POST"</code>, mode SQL de Grist) ; une cible hors <code>https</code>, sur un port
+          explicite ou avec identifiants, et un chemin que le relais refuserait (<code>%2f</code>,
+          <code>%2e</code>, <code>//</code>…) — ces deux derniers cas avec un avertissement en console.
+          <code>fetch-mode="export"</code> sur l'API Tabular (export Parquet) retombe sur la pagination,
+          qui est relayée. Une URL de relais de plus de 8 000 caractères part quand même au relais, qui
+          répond 414 : la bibliothèque ne le contourne jamais en silence.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Sans rapport avec <code>proxy-url</code> ni <code>cache-ttl</code></strong> :
+          <code>proxy-url</code> désigne le proxy CORS (endpoints dédiés et <code>/cors-proxy</code>, cible
+          dans un en-tête, donc non cachable) ; <code>cache-ttl</code> est un repli hors ligne côté
+          navigateur. La durée de cache d'une donnée relayée se règle sur le relais.
+        </p>
+        <p class="fr-text--sm fr-text--light">
+          <strong>Erreurs</strong> : les statuts du relais sont lus par le
+          <a href="#erreurs">barème d'erreurs</a> (hôte hors liste : 403 ; URL trop longue : 414 ; amont en
+          panne : 502 ou 504 ; débit dépassé : 429), et « Détails techniques » montre l'URL du relais
+          réellement appelée. Un relais sans file d'attente répond 503 quand un visiteur charge d'un coup
+          plus de dataviz qu'il n'a de places : la requête est alors réessayée trois fois au plus, après
+          le délai annoncé par <code>Retry-After</code> ; jamais sur un 429.
         </p>
 
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>

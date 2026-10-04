@@ -100,6 +100,14 @@ export interface AdapterParams {
    */
   proxyUrl?: string;
   /**
+   * Préfixe du relais cachable du site hôte (attribut `relay-url`, ADR-155,
+   * #1232), relatif ou absolu. Absent : `window.DSFR_DATA_RELAY`, sinon aucun
+   * relais. Avec un relais, les requêtes GET vers une autre origine partent
+   * sous la forme `<relais>/<hôte>/<chemin>?<requête>`, sans en-tête. Lu par
+   * `resolveTransportUrl` et `transportFetch` — jamais par l'adaptateur.
+   */
+  relayUrl?: string;
+  /**
    * Passe-plat des paramètres de requête non-clause (#726) : ce que l'attribut
    * `params` porte en mode adaptateur, une fois les clés réservées écartées
    * par la source. Sert les paramètres propres au portail que la bibliothèque
@@ -286,7 +294,7 @@ export interface ApiAdapter {
    * Retourne null si la capacite serverFacets est false.
    */
   fetchFacets?(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     fields: string[],
     where: string,
     signal?: AbortSignal
@@ -299,7 +307,7 @@ export interface ApiAdapter {
    * `fields` est fourni. Absent = pas de decouverte (fields obligatoire).
    */
   discoverFacets?(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>,
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>,
     signal?: AbortSignal
   ): Promise<FacetDescriptor[]>;
 
@@ -318,7 +326,7 @@ export interface ApiAdapter {
    * d'echec : objet vide, et l'on se tait. Absent = types inconnus.
    */
   describeFieldTypes?(
-    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'>
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>
   ): Promise<Record<string, FieldKind>>;
 
   /**

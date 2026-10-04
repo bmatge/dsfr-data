@@ -15,7 +15,7 @@ import type { FacetGroup, FacetSelections, FacetValue } from './facets-types.js'
 /** Paramètres serveur d'une source, tels que les facettes les consomment. */
 export type FacetServerParams = Pick<
   AdapterParams,
-  'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl'
+  'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'
 >;
 
 /**
@@ -129,12 +129,14 @@ export function resolveServerParams(
   let datasetId: string;
   let headers: Record<string, string> | undefined;
   let proxyUrl: string | undefined;
+  let relayUrl: string | undefined;
 
   if (resolvedParams) {
     baseUrl = resolvedParams.baseUrl || '';
     datasetId = resolvedParams.datasetId || '';
     headers = resolvedParams.headers;
     proxyUrl = resolvedParams.proxyUrl;
+    relayUrl = resolvedParams.relayUrl;
   } else {
     // Fallback legacy : remonter le pipeline et lire les attributs DOM
     // (sources tierces n'implementant pas getAdapterParams)
@@ -152,7 +154,7 @@ export function resolveServerParams(
   }
 
   if (!datasetId) return null;
-  return { baseUrl, datasetId, headers, proxyUrl };
+  return { baseUrl, datasetId, headers, proxyUrl, ...(relayUrl ? { relayUrl } : {}) };
 }
 
 /**

@@ -14,7 +14,13 @@ import type {
   ServerSideOverlay,
 } from './api-adapter.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { getProxiedUrl, looseEquals, TABULAR_CONFIG } from '@dsfr-data/shared/lib';
+import {
+  resolveTransportUrl,
+  resolveRelayUrl,
+  transportFetch,
+  looseEquals,
+  TABULAR_CONFIG,
+} from '@dsfr-data/shared/lib';
 import { getByPath } from '../utils/json-path.js';
 import { parseAggregates } from '../utils/aggregates.js';
 import {
@@ -131,7 +137,7 @@ export interface TabularProfile {
 
 /** Parametres de `fetchProfile` : la ressource et son acheminement. */
 export type TabularProfileParams = Pick<AdapterParams, 'resource'> &
-  Partial<Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl'>>;
+  Partial<Pick<AdapterParams, 'baseUrl' | 'headers' | 'proxyUrl' | 'relayUrl'>>;
 
 /**
  * Une lecture partagee entre ses demandeurs (memoisation) : le profil d'une
@@ -578,15 +584,15 @@ export class TabularAdapter implements ApiAdapter {
    */
   fetchProfile(params: TabularProfileParams, signal?: AbortSignal): Promise<TabularProfile> {
     const base = this._getBaseUrl(params);
-    const url = getProxiedUrl(
+    const url = resolveTransportUrl(
       `${base}/api/resources/${encodeURIComponent(params.resource)}/profile/`,
-      params.proxyUrl
+      params
     );
     return this._shared(
       this._profiles,
       `${base}|${params.resource}`,
       async (ownSignal) => {
-        const response = await fetch(url, buildFetchOptions(params, ownSignal));
+        const response = await transportFetch(url, buildFetchOptions(params, ownSignal), params);
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const json = (await response.json()) as { profile?: TabularProfile };
         return json.profile ?? {};
@@ -850,14 +856,14 @@ export class TabularAdapter implements ApiAdapter {
       // (moins d'une page) est retranche apres la boucle.
       const pageSize =
         currentPage === 1 ? Math.min(TABULAR_PAGE_SIZE, remaining) : TABULAR_PAGE_SIZE;
-      const url = getProxiedUrl(
+      const url = resolveTransportUrl(
         this.buildUrl(params, pageSize, currentPage, totalOrder ?? undefined),
-        params.proxyUrl
+        params
       );
 
       let response: Response;
       try {
-        response = await fetch(url, buildFetchOptions(params, signal));
+        response = await transportFetch(url, buildFetchOptions(params, signal), params);
       } catch (err) {
         // Un 400 de l'API part sans en-tete CORS : le navigateur n'en voit
         // qu'une erreur reseau (#598)
@@ -1217,6 +1223,8 @@ export class TabularAdapter implements ApiAdapter {
    * Charge le jeu par son export Parquet (#1055, etude #1022).
    *
    * Conditions :
+   * - aucun relais resolu (`relay-url`, ADR-155) : l'export n'est pas relaye
+   *   en premiere version, la pagination l'est ;
    * - aucun `where`, `group-by`, `aggregate` ni `order-by` delegue (pose sur
    *   la source ou transmis par une query) : le Parquet ne porte que les
    *   lignes BRUTES, dans l'ordre du fichier. Sinon la pagination les
@@ -1238,6 +1246,19 @@ export class TabularAdapter implements ApiAdapter {
     params: AdapterParams,
     signal: AbortSignal
   ): Promise<FetchResult | null> {
+    // Relais cachable (ADR-155, #1232) : l'export Parquet appelle
+    // www.data.gouv.fr puis le stockage objet, hors du point de passage des
+    // requetes — il contournerait le relais. Pagination, et on le dit.
+    if (resolveRelayUrl(params.relayUrl)) {
+      this._warnExportOnce(
+        'relay',
+        `[dsfr-data] tabular: fetch-mode="export" ignoré sur dsfr-data-source — avec un relais ` +
+          `(relay-url), l'export Parquet de data.gouv n'est pas relayé en première version : ` +
+          `le jeu est chargé par l'API paginée, à travers le relais (#1232)`
+      );
+      return null;
+    }
+
     const delegated = this._delegatedClauses(params);
     if (delegated.length > 0) {
       this._warnExportOnce(
@@ -1513,8 +1534,8 @@ export class TabularAdapter implements ApiAdapter {
     const quoted =
       this._splitWhere(where).local.length > 0 && this._quotedIn.get(base) !== 'refused';
     const request = async (): Promise<Response> => {
-      const url = getProxiedUrl(this.buildServerSideUrl(params, overlay), params.proxyUrl);
-      const response = await fetch(url, buildFetchOptions(params, signal));
+      const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay), params);
+      const response = await transportFetch(url, buildFetchOptions(params, signal), params);
       if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       return response;
     };
@@ -1846,7 +1867,7 @@ export class TabularAdapter implements ApiAdapter {
   /**
    * Base URL de l'API CIBLE — jamais celle du proxy.
    *
-   * Le proxy est applique au moment du fetch par `getProxiedUrl`, comme dans
+   * Le proxy est applique au moment du fetch par `resolveTransportUrl`, comme dans
    * les adapters grist / insee / ODS. Arbitrer le proxy ici rendait
    * `params.baseUrl` en priorite et court-circuitait toute reecriture : le
    * Builder emettant TOUJOURS `base-url`, les attributs `use-proxy` et

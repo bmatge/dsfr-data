@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — relais cachable du site hôte (relay-url, #1232)</title>
+  <!--
+    Page minimale des critères d'acceptation de #1232 (constat AM-114, ADR-155).
+
+    Trois sources Opendatasoft en mode adaptateur, sur le MÊME portail :
+      a : relayée, chargement complet — elle pagine (250 lignes, trois pages) ;
+      b : relayée, lue par une query qui DÉLÈGUE son group-by au portail ;
+      c : sans relais — la jumelle en direct, pour « sans relais, rien ne change ».
+
+    Le relais est le relais Node de référence (`proxy/relay/node/`), lancé par
+    le spec sur un port libre : son URL arrive par `?relais=…` et est posée dans
+    l'attribut `relay-url` AVANT que la bibliothèque ne charge (un module est
+    différé : le script classique de fin de page passe avant lui). Le relais est
+    sur une AUTRE origine que la page : la requête doit être « simple » au sens
+    CORS, le relais n'autorisant aucun en-tête de requête.
+
+    L'hôte du portail est en `.test` (domaine réservé) : rien ne joint le réseau.
+    La source c, elle, appelle le portail en direct : le spec la sert par
+    interception, ou la retire (`?direct=0`) quand il veut un réseau sans
+    interception — Playwright répond lui-même aux pré-vérifications CORS dès
+    qu'une route est posée, ce qui masquerait une requête non « simple ».
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Relais cachable</h1>
+
+    <section>
+      <h2>a — relayée, paginée</h2>
+      <dsfr-data-source id="a" data-relais api-type="opendatasoft"
+        base-url="https://ouvert.conformance.test" dataset-id="jeu" max-records="500"></dsfr-data-source>
+      <dsfr-data-kpi id="a-n" source="a" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+      <dsfr-data-kpi id="a-somme" source="a" value="montant:sum" format="nombre" label="Montant"></dsfr-data-kpi>
+    </section>
+
+    <section>
+      <h2>b — relayée, group-by délégué</h2>
+      <dsfr-data-source id="b" data-relais api-type="opendatasoft"
+        base-url="https://ouvert.conformance.test" dataset-id="jeu"></dsfr-data-source>
+      <dsfr-data-query id="b-q" source="b" group-by="region" aggregate="montant:sum:total"
+        order-by="total:desc"></dsfr-data-query>
+      <dsfr-data-list id="b-l" source="b-q" columns="region:Région, total:Total"></dsfr-data-list>
+    </section>
+
+    <section id="bloc-c">
+      <h2>c — sans relais</h2>
+      <dsfr-data-source id="c" api-type="opendatasoft"
+        base-url="https://ouvert.conformance.test" dataset-id="jeu" max-records="500"></dsfr-data-source>
+      <dsfr-data-kpi id="c-n" source="c" value="count" format="nombre" label="Lignes"></dsfr-data-kpi>
+      <dsfr-data-kpi id="c-somme" source="c" value="montant:sum" format="nombre" label="Montant"></dsfr-data-kpi>
+    </section>
+  </main>
+  <script>
+    (function () {
+      var requete = new URLSearchParams(location.search);
+      // `?direct=0` retire la source sans relais : la page n'appelle alors QUE le relais,
+      // et le spec peut se passer de toute interception du réseau.
+      if (requete.get('direct') === '0') document.getElementById('bloc-c').remove();
+      var relais = requete.get('relais') || '';
+      if (!relais) return;
+      document.querySelectorAll('[data-relais]').forEach(function (source) {
+        source.setAttribute('relay-url', relais);
+      });
+    })();
+  </script>
+</body>
+</html>

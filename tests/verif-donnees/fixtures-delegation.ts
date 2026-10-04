@@ -12,7 +12,7 @@
  * (test-garde `tests/oracle/guard.test.ts`).
  */
 import type { Check, Expect } from '../../tools/oracle/manifest.js';
-import { DATASET, HOTE_ODS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
+import { DATASET, HOTE_ODS, RELAIS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
 
 /** Chemin ODS `/records` : ce à quoi on restreint un contrôle d'URL. */
 export const RECORDS_ODS = `/datasets/${DATASET}/records`;
@@ -44,6 +44,8 @@ export function sourceOds(
     maxRecords?: number;
     select?: string;
     requireWhere?: boolean;
+    /** Pose `relay-url` : les requêtes partent au relais du site (ADR-155). */
+    relais?: boolean;
   } = {}
 ): string {
   const attrs = [
@@ -56,6 +58,7 @@ export function sourceOds(
   if (options.maxRecords) attrs.push(`max-records="${options.maxRecords}"`);
   if (options.select) attrs.push(`select="${options.select}"`);
   if (options.requireWhere) attrs.push('require-where');
+  if (options.relais) attrs.push(`relay-url="${RELAIS}"`);
   return `<dsfr-data-source ${attrs.join(' ')}></dsfr-data-source>`;
 }
 

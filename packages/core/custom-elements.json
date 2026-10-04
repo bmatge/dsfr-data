@@ -21414,7 +21414,7 @@
                 "text": "number"
               },
               "default": "3600",
-              "description": "TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme.",
+              "description": "TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote\nenregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme.\nC'est un repli hors ligne, côté navigateur : il n'a AUCUN rapport avec le relais\n(`relay-url`), ne lui est pas transmis et ne règle pas la durée de son cache.",
               "attribute": "cache-ttl"
             },
             {
@@ -21424,7 +21424,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.",
+              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.\n\nSans effet sur une requête qui part au relais (`relay-url`) : le relais prend\ntoutes les requêtes GET vers une autre origine, `use-proxy` ne garde que ce que\nle relais ne porte pas (requêtes POST, cible hors `https`).",
               "attribute": "use-proxy"
             },
             {
@@ -21434,8 +21434,18 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.\nPour faire passer un portail Opendatasoft (ou tout autre hôte) par le domaine\ndu site, c'est `relay-url` qu'il faut poser : `proxy-url` désigne un autre\ncontrat (endpoints dédiés et `/cors-proxy`, toutes méthodes, en-têtes transmis).\nAvec un relais, `proxy-url` ne sert plus que les requêtes que le relais ne\nporte pas (POST du mode SQL de Grist).",
               "attribute": "proxy-url"
+            },
+            {
+              "kind": "field",
+              "name": "relayUrl",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Préfixe du relais cachable du site hôte (ADR-155, #1232) : le chemin que\nle site a choisi pour sa route de relais (`relay-url=\"/relais\"`), ou une\nURL absolue (`relay-url=\"https://site.example/relais\"`). Vide : la valeur\nde `window.DSFR_DATA_RELAY`, sinon aucun relais — et alors rien ne change.\n\nAvec un relais, toute requête GET vers une autre origine part sous la forme\n`relais/hôte/chemin?requête` (le préfixe du relais, l'hôte de la cible, puis\nson chemin et sa requête), en mode adaptateur comme en mode URL :\nfiltres, regroupements, tri et pagination délégués restent dans l'URL, que le\nrelais transmet telle quelle. Deux cibles donnent deux URL, une même requête\ndonne la même URL au caractère près : le site peut les mettre en cache.\n\nLe relais est une route que LE SITE HÔTE fournit, selon le contrat\n`docs/RELAY.md` (relais de référence : `proxy/relay/node/`). Aucune\ninstance publique n'en expose.\n\nSur une requête relayée, aucun en-tête n'est envoyé : ni `headers`, ni\n`api-key-ref` (la clé appartient au relais, qui l'ajoute par hôte), ni\ncookie. Si l'un de ces attributs est posé, la source l'écrit une fois en\nconsole.\n\nNe passent PAS par le relais, et gardent le chemin habituel (direct ou\n`proxy-url`) : une URL relative ou de même origine ; une requête POST (mode\nSQL de Grist, `method=\"POST\"`) ; une cible hors `https`, sur un port explicite\nou avec identifiants ; un chemin que le relais refuserait (`%2f`, `%2e`, `//`…)\n— ces deux derniers cas avec un avertissement. `fetch-mode=\"export\"` sur\nl'API Tabular (export Parquet) retombe sur la pagination, relayée. Une URL de\nrelais de plus de 8 000 caractères part quand même au relais, qui répond 414.\n\nSi le relais répond 503 (place momentanément prise : il n'a pas de file\nd'attente), la requête est réessayée trois fois au plus, après le délai\nqu'il annonce ; jamais sur un 429.\n\nSans rapport avec `cache-ttl` : la durée de cache se règle sur le relais.",
+              "attribute": "relay-url"
             },
             {
               "kind": "field",
@@ -21747,6 +21757,16 @@
               "privacy": "private",
               "default": "false",
               "description": "L'avertissement « proxy sans effet » n'est émis qu'une fois par source (AM-114, #1232)."
+            },
+            {
+              "kind": "field",
+              "name": "_relayHeadersWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "`headers` / `api-key-ref` non envoyés au relais : dit une fois par source (ADR-155)."
             },
             {
               "kind": "field",
@@ -22071,9 +22091,32 @@
                   "type": {
                     "text": "boolean"
                   }
+                },
+                {
+                  "name": "relayed",
+                  "default": "false"
                 }
               ],
-              "description": "`proxy-url` / `use-proxy` posés sur un hôte que le proxy ne relaie pas\n(AM-114 du banc d'essai, #1232) : la requête part en direct, et rien ne\nle disait. Deux cas, un seul avertissement par source :\n- mode adaptateur : `getProxiedUrl` ne réécrit que les hôtes connus, et\n  `use-proxy` n'y est pas lu du tout — un portail Opendatasoft est donc\n  appelé en direct quel que soit l'attribut ;\n- mode URL : `proxy-url` SANS `use-proxy` ne réécrit que ces mêmes hôtes.\n\nUne URL relative ou de même origine n'a rien à relayer : pas un mot.\n`console.warn` seul, comme les autres avertissements non bloquants de la\nsource — le journal console (#994) le porte au volet Diagnostic."
+              "description": "`proxy-url` / `use-proxy` posés sur un hôte que le proxy ne relaie pas\n(AM-114 du banc d'essai, #1232) : la requête part en direct, et rien ne\nle disait. Deux cas, un seul avertissement par source :\n- mode adaptateur : `getProxiedUrl` ne réécrit que les hôtes connus, et\n  `use-proxy` n'y est pas lu du tout — un portail Opendatasoft est donc\n  appelé en direct quel que soit l'attribut ;\n- mode URL : `proxy-url` SANS `use-proxy` ne réécrit que ces mêmes hôtes.\n\nUne URL relative ou de même origine n'a rien à relayer : pas un mot.\n`console.warn` seul, comme les autres avertissements non bloquants de la\nsource — le journal console (#994) le porte au volet Diagnostic.\n\nDepuis le relais cachable (ADR-155), l'avertissement nomme `relay-url` :\nc'est la voie pour faire passer un portail Opendatasoft par le domaine du\nsite. Une requête qui part au relais (`relayed`) n'est pas « en direct » :\npas d'avertissement."
+            },
+            {
+              "kind": "method",
+              "name": "_warnRelayDropsHeaders",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "relayed",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "`headers` ou `api-key-ref` posés sur une source dont la requête part au\nrelais (ADR-155 §4) : aucun en-tête n'est envoyé — la clé appartient au\nrelais, qui l'ajoute par hôte depuis sa configuration, et une requête à\nen-tête ne serait ni « simple » au sens CORS ni cachable. Dit une fois\npar source ; hors relais, ces attributs restent actifs."
             },
             {
               "kind": "method",
@@ -22180,7 +22223,39 @@
                   }
                 }
               ],
-              "description": "URL construite par l'adapter pour ce fetch, a seule fin de diagnostic\n(#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue\nest celle de la première requête, sans les surcharges de page.\n\nPurement informative — ne doit jamais faire echouer le log d'erreur."
+              "description": "URL construite par l'adapter pour ce fetch, a seule fin de diagnostic\n(#598). En mode fetchAll l'adapter pagine ensuite lui-meme : l'URL rendue\nest celle de la première requête, sans les surcharges de page.\n\nAvec un relais (`relay-url`, ADR-155), c'est l'URL DU RELAIS qui est\nrendue : « Détails techniques » montre l'adresse réellement appelée,\ncelle que l'intégrateur retrouve dans les journaux de son site. Sans\nrelais, l'URL cible, comme avant.\n\nPurement informative — ne doit jamais faire echouer le log d'erreur."
+            },
+            {
+              "kind": "method",
+              "name": "_diagnosticTargetUrl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | undefined"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "params",
+                  "type": {
+                    "text": "AdapterParams"
+                  }
+                },
+                {
+                  "name": "overlay",
+                  "optional": true,
+                  "type": {
+                    "text": "ServerSideOverlay"
+                  }
+                }
+              ],
+              "description": "L'URL cible du fetch, avant tout transport (voir `_diagnosticUrl`)."
             },
             {
               "kind": "method",
@@ -22389,7 +22464,7 @@
                 "text": "number"
               },
               "default": "3600",
-              "description": "TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme.",
+              "description": "TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote\nenregistre `window.DSFR_DATA_CACHE_PROVIDER` (#307) — no-op en embed anonyme.\nC'est un repli hors ligne, côté navigateur : il n'a AUCUN rapport avec le relais\n(`relay-url`), ne lui est pas transmis et ne règle pas la durée de son cache.",
               "fieldName": "cacheTtl"
             },
             {
@@ -22398,7 +22473,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.",
+              "description": "Force le passage par le proxy CORS générique (pour les APIs externes sans CORS).\nNe vaut qu'en mode URL (`url=\"…\"`) : avec un `api-type`, l'attribut est sans effet\nsur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail\nOpendatasoft, par exemple) — la requête part en direct, et la source le signale\nune fois en console.\n\nSans effet sur une requête qui part au relais (`relay-url`) : le relais prend\ntoutes les requêtes GET vers une autre origine, `use-proxy` ne garde que ce que\nle relais ne porte pas (requêtes POST, cible hors `https`).",
               "fieldName": "useProxy"
             },
             {
@@ -22407,8 +22482,17 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.",
+              "description": "Domaine du proxy CORS pour CETTE source (#340), prioritaire sur\n`window.DSFR_DATA_PROXY` et la config build-time. Sert à la fois la\nréécriture des hôtes connus et le `use-proxy` générique. Vide = résolution\nproxy globale habituelle. Ex: `proxy-url=\"https://mon-proxy.fr\"`.\n\nSeuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert,\nINSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode\nadaptateur, ou une URL quelconque sans `use-proxy` — l'attribut est SANS\nEFFET : la requête part en direct vers l'API. La source l'écrit alors une fois\nen console (« proxy-url est sans effet »), et le volet Diagnostic le reprend.\nPour faire passer un portail Opendatasoft (ou tout autre hôte) par le domaine\ndu site, c'est `relay-url` qu'il faut poser : `proxy-url` désigne un autre\ncontrat (endpoints dédiés et `/cors-proxy`, toutes méthodes, en-têtes transmis).\nAvec un relais, `proxy-url` ne sert plus que les requêtes que le relais ne\nporte pas (POST du mode SQL de Grist).",
               "fieldName": "proxyUrl"
+            },
+            {
+              "name": "relay-url",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "description": "Préfixe du relais cachable du site hôte (ADR-155, #1232) : le chemin que\nle site a choisi pour sa route de relais (`relay-url=\"/relais\"`), ou une\nURL absolue (`relay-url=\"https://site.example/relais\"`). Vide : la valeur\nde `window.DSFR_DATA_RELAY`, sinon aucun relais — et alors rien ne change.\n\nAvec un relais, toute requête GET vers une autre origine part sous la forme\n`relais/hôte/chemin?requête` (le préfixe du relais, l'hôte de la cible, puis\nson chemin et sa requête), en mode adaptateur comme en mode URL :\nfiltres, regroupements, tri et pagination délégués restent dans l'URL, que le\nrelais transmet telle quelle. Deux cibles donnent deux URL, une même requête\ndonne la même URL au caractère près : le site peut les mettre en cache.\n\nLe relais est une route que LE SITE HÔTE fournit, selon le contrat\n`docs/RELAY.md` (relais de référence : `proxy/relay/node/`). Aucune\ninstance publique n'en expose.\n\nSur une requête relayée, aucun en-tête n'est envoyé : ni `headers`, ni\n`api-key-ref` (la clé appartient au relais, qui l'ajoute par hôte), ni\ncookie. Si l'un de ces attributs est posé, la source l'écrit une fois en\nconsole.\n\nNe passent PAS par le relais, et gardent le chemin habituel (direct ou\n`proxy-url`) : une URL relative ou de même origine ; une requête POST (mode\nSQL de Grist, `method=\"POST\"`) ; une cible hors `https`, sur un port explicite\nou avec identifiants ; un chemin que le relais refuserait (`%2f`, `%2e`, `//`…)\n— ces deux derniers cas avec un avertissement. `fetch-mode=\"export\"` sur\nl'API Tabular (export Parquet) retombe sur la pagination, relayée. Une URL de\nrelais de plus de 8 000 caractères part quand même au relais, qui répond 414.\n\nSi le relais répond 503 (place momentanément prise : il n'a pas de file\nd'attente), la requête est réessayée trois fois au plus, après le délai\nqu'il annonce ; jamais sur un 429.\n\nSans rapport avec `cache-ttl` : la durée de cache se règle sur le relais.",
+              "fieldName": "relayUrl"
             },
             {
               "name": "api-key-ref",

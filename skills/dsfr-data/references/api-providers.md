@@ -183,9 +183,46 @@ Opendatasoft en mode adaptateur (`api-type="opendatasoft"`), ou une URL quelconq
 sans `use-proxy` — l'attribut est sans effet : la requete part en direct, et la source
 l'ecrit une fois en console (« proxy-url est sans effet »), repris par le volet
 Diagnostic. `use-proxy` (relais generique `/cors-proxy`, cible passee dans l'en-tete
-`X-Target-URL`) ne vaut qu'en mode URL. Il n'existe pas aujourd'hui de relais dont
-l'URL identifie la donnee : un cache de page ou un CDN du site hote ne peut pas servir
-les donnees d'un portail a la place du portail.
+`X-Target-URL`) ne vaut qu'en mode URL : deux jeux y ont la meme URL, un cache ne
+peut pas les distinguer. Pour servir les donnees depuis le cache du site, c'est
+`relay-url` (ci-dessous).
+
+### Relais cachable du site hote (`relay-url`)
+Un site qui a du cache (Varnish, CDN, cache de son CMS) peut faire passer les donnees
+d'une dataviz par SON domaine, sous une URL qui identifie la donnee. Il monte une route
+de relais (contrat `docs/RELAY.md` du depot, relais Node de reference
+`proxy/relay/node/`) et la declare sur la source, ou une fois pour la page :
+
+```html
+<!-- La requete part vers
+     /donnees-relais/data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/rappelconso/records?... -->
+<dsfr-data-source id="src" api-type="opendatasoft" relay-url="/donnees-relais"
+  base-url="https://data.economie.gouv.fr" dataset-id="rappelconso">
+</dsfr-data-source>
+
+<script>
+  window.DSFR_DATA_RELAY = '/donnees-relais';
+</script>
+```
+
+- La source reste en mode adaptateur : `where`, `group-by`, `order-by`, pagination,
+  `server-side` et `fetch-mode="export"` (ODS) vivent dans l'URL, que le relais transmet
+  telle quelle. Deux cibles donnent deux URL ; une meme requete donne la meme URL au
+  caractere pres.
+- Tous les hotes y passent (Opendatasoft, Tabular, Grist en lecture, INSEE, URL quelconque),
+  pour les requetes GET vers une autre origine. Une URL relative ou de meme origine n'est
+  jamais reecrite.
+- AUCUN en-tete n'est envoye au relais : `headers` et `api-key-ref` sont ignores sur une
+  requete relayee (la source l'ecrit une fois en console). Si le portail exige une cle,
+  c'est le relais qui l'ajoute.
+- Hors relais, sur le chemin habituel (direct ou `proxy-url`) : les requetes POST (mode
+  SQL de Grist, `method="POST"`) ; une cible hors https, sur un port explicite ou avec
+  identifiants ; un chemin que le relais refuserait (`%2f`, `//`...). Sur Tabular,
+  `fetch-mode="export"` (Parquet) retombe sur la pagination, relayee.
+- `relay-url` n'est PAS `proxy-url` (proxy CORS, cible dans un en-tete, non cachable) et
+  n'a aucun rapport avec `cache-ttl` (repli hors ligne du navigateur).
+- Le relais est fourni par le site hote. Aucune instance publique n'en expose : ne jamais
+  ecrire `relay-url` dans un code genere sans que l'integrateur ait dit avoir un relais.
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (`*.opendatasoft.com` et portails publics)

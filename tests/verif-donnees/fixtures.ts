@@ -72,6 +72,33 @@ export const RESSOURCE_TABULAR = 'ea1b5c3d-0000-4000-8000-verifdonnees01';
 export const RESSOURCE_TABULAR_EX_AEQUO = 'ea1b5c3d-0000-4000-8000-verifexaequo02';
 export const EX_AEQUO: Row[] = exAequo;
 
+/**
+ * Préfixe du relais cachable du site hôte (ADR-155, #1232), tel qu'une page le
+ * pose dans `relay-url`. Relatif : la requête reste sur l'origine de la page.
+ */
+export const RELAIS = '/donnees-relais';
+
+/**
+ * La réécriture INVERSE du relais : `<origine>/donnees-relais/<hôte>/<chemin>?<requête>`
+ * → `https://<hôte>/<chemin>?<requête>`, ou `null` si l'URL n'est pas une URL de relais.
+ *
+ * Écrite à la main, sur la chaîne brute, sans rien emprunter à la bibliothèque
+ * (`resolveTransportUrl`) : c'est ce que fait un relais conforme au contrat
+ * `docs/RELAY.md` — chemin et requête repris octet pour octet. Le faux réseau
+ * sert alors la cible depuis les MÊMES fixtures qu'en direct : si la réécriture
+ * de la bibliothèque perd ou abîme un paramètre, la réponse change, et le
+ * chiffre avec elle.
+ */
+export function cibleDuRelais(brut: string): string | null {
+  const marque = `${RELAIS}/`;
+  const schema = brut.indexOf('://');
+  if (schema < 0) return null;
+  const chemin = brut.indexOf('/', schema + 3);
+  if (chemin < 0 || !brut.startsWith(marque, chemin)) return null;
+  const reste = brut.slice(chemin + marque.length).split('#', 1)[0];
+  return reste ? `https://${reste}` : null;
+}
+
 /** Jeu ODS de la vérification. */
 export const DATASET = 'jeu-de-verif';
 
