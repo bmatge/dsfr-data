@@ -143,6 +143,26 @@ jobs:
       - name: Build app-dist
         run: node scripts/build-app.js
 
+  # Bornage du proxy generique (/cors-proxy, /ia-proxy) par un VRAI nginx :
+  # `nginx -t` sur les trois configurations, puis la table de cas commune
+  # (tests/proxy/cas-garde-proxy.ts) rejouee dans un conteneur SANS RESEAU —
+  # aucune requete ne sort. Detail : docs/SECURITY.md §"Proxy générique".
+  proxy-nginx:
+    name: Proxy générique — nginx réel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: nginx -t + table de cas (conteneur sans réseau)
+        run: PROXY_NGINX_REEL=1 npx vitest run tests/proxy/garde-proxy-nginx.test.ts
+
   sca:
     name: Security — SCA & config
     runs-on: ubuntu-latest
