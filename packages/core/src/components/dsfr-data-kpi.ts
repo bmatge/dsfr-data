@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sanitizeTemplateUrl } from '../utils/template-expression.js';
@@ -21,11 +21,16 @@ import {
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
-  renderSourceError,
   renderConfigError,
   renderSourceIdle,
+  renderSourceErrorDetailItems,
+  renderSourcePageLink,
+  resolveSourceError,
   IDLE_MESSAGE_DEFAULT,
+  RETRY_BUTTON_STYLE,
+  RETRY_LABEL,
 } from '../utils/status-templates.js';
+import { requestSourceRetry } from '../utils/data-bridge.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
 import { getDataMeta } from '../utils/data-bridge.js';
@@ -137,6 +142,20 @@ function warnAffichage(cle: string, message: string): void {
  *
  * Affiche une valeur numérique mise en avant, style "chiffre clé".
  * Se connecte à une source de données via son ID.
+ *
+ * Quand la source est en panne, la tuile garde sa place et sa hauteur : « — » à
+ * la place du chiffre, le libellé (l'usager doit savoir QUEL chiffre manque) et
+ * une phrase courte selon la cause — « Chiffre momentanément indisponible »,
+ * « Vous semblez hors connexion », « Le service est très sollicité », « Ce
+ * chiffre n'est plus publié à cette adresse », « Ce chiffre n'est pas accessible
+ * publiquement », « Ce chiffre n'a pas pu être affiché » — ou celle de
+ * l'attribut `error-message` de la source. Jamais un nombre : ni 0, ni le
+ * chiffre du chargement précédent. Sans bandeau `dsfr-data-source-status`, la
+ * tuile porte « Réessayer » (quand un nouvel essai a un sens), « Détails »
+ * (replié) et, sur des données introuvables, le lien de `source-page` ; avec un
+ * bandeau, c'est lui qui les porte. Une valeur ABSENTE des données (null, champ
+ * manquant) n'est pas une panne : la tuile affiche « — » et son libellé, sans
+ * phrase.
  *
  * @example
  * <dsfr-data-kpi
@@ -795,6 +814,14 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   }
 
   private _getAriaLabel(): string {
+    // Source en panne (#1222) : la figure ne se nomme pas d'un chiffre — le
+    // dernier reçu resterait sinon lu comme la valeur courante.
+    if (this._isUnavailable()) {
+      const sujet = this.label || this.description;
+      const nom = this.heading && sujet ? `${this.heading} — ${sujet}` : this.heading || sujet;
+      const phrase = this._unavailablePhrase();
+      return nom ? `${nom}: ${phrase}` : phrase;
+    }
     if (this.description) return this.description;
 
     const value = this._computeValue();
@@ -981,6 +1008,80 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     return `var(--background-contrast-${nom})`;
   }
 
+  /** La source est en panne, et aucune erreur de configuration ne prime (#1222). */
+  private _isUnavailable(): boolean {
+    return !this._blockingConfigError && !this._sourceLoading && Boolean(this._sourceError);
+  }
+
+  /** Phrase courte de la panne : celle de l'intégrateur, sinon celle du barème. */
+  private _unavailablePhrase(): string {
+    const view = resolveSourceError(this._sourceError, this.source);
+    return view.userMessage || view.desc.compact;
+  }
+
+  /**
+   * Forme COMPACTE d'une panne de source (#1222) : la tuile garde sa place,
+   * son libellé et sa hauteur. Le gabarit commun (`renderSourceError`) est
+   * fait pour un bloc de graphique : dans une tuile de 140 px, il la doublait.
+   *
+   * - « — » tient la place du chiffre, en gris, et `aria-hidden` : un lecteur
+   *   d'écran ne lit pas un tiret comme une valeur, il lit la phrase ;
+   * - le libellé reste : sans lui, l'usager ne sait pas QUEL chiffre manque ;
+   * - la phrase suit la cause du barème, ou `error-message` de la source ;
+   * - sans bandeau : « Réessayer » sur la ligne du tiret (44 px, sans hausser
+   *   la ligne), « Détails » replié et, sur un 404, le lien de `source-page`
+   *   à la suite de la phrase. Avec un bandeau, il porte les trois : la tuile
+   *   n'a plus ni bouton, ni lien, ni détail, ni `role`.
+   *
+   * Ni icône, ni tendance, ni lignes complémentaires : elles se calculent sur
+   * les lignes, et les seules disponibles sont celles du chargement précédent.
+   */
+  private _renderUnavailable(): TemplateResult {
+    const view = resolveSourceError(this._sourceError, this.source);
+    const { desc, covered, showRetry, sourcePage } = view;
+    return html`
+      <div
+        class="dsfr-data-kpi__content dsfr-data-kpi__unavailable dsfr-data-status--source-error dsfr-data-status--compact"
+        role=${covered ? nothing : 'status'}
+        data-cause=${desc.cause}
+      >
+        ${this.heading ? html`<span class="dsfr-data-kpi__heading">${this.heading}</span>` : nothing}
+        <div class="dsfr-data-kpi__value-wrapper dsfr-data-kpi__unavailable-row">
+          <span class="dsfr-data-kpi__value dsfr-data-kpi__value--unavailable" aria-hidden="true"
+            >—</span
+          >
+          ${
+            showRetry
+              ? html`<button
+                  type="button"
+                  class="fr-btn fr-btn--tertiary fr-btn--sm dsfr-data-status__retry dsfr-data-kpi__retry"
+                  style=${RETRY_BUTTON_STYLE}
+                  @click=${() => requestSourceRetry(this.source)}
+                >
+                  ${RETRY_LABEL}
+                </button>`
+              : nothing
+          }
+        </div>
+        <span class="dsfr-data-kpi__label">${this.label}</span>
+        <div class="dsfr-data-kpi__cause">
+          <span class="dsfr-data-status__title">${view.userMessage || desc.compact}</span>
+          ${sourcePage ? renderSourcePageLink(sourcePage) : nothing}
+          ${
+            covered
+              ? nothing
+              : html`<details class="dsfr-data-status__details">
+                  <summary>Détails</summary>
+                  <ul class="dsfr-data-status__details-list">
+                    ${renderSourceErrorDetailItems(view)}
+                  </ul>
+                </details>`
+          }
+        </div>
+      </div>
+    `;
+  }
+
   /** Dans un `dsfr-data-kpi-group orientation="vertical"` (lu au rendu). */
   private _inStackedGroup(): boolean {
     return this.closest('dsfr-data-kpi-group[orientation="vertical"]') !== null;
@@ -1067,7 +1168,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
             : this._sourceLoading
               ? renderSourceLoading('dsfr-data-kpi')
               : this._sourceError
-                ? renderSourceError('dsfr-data-kpi', this._sourceError, this.source)
+                ? this._renderUnavailable()
                 : this._sourceIdle
                   ? renderSourceIdle('dsfr-data-kpi', this.idleMessage)
                   : html`
@@ -1422,6 +1523,52 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
           height: 2.5rem;
           font-size: 2.5rem;
           --icon-size: 2.5rem;
+        }
+
+        /* ------------------------------------------------------------------
+           Source en panne (issue 1222) : forme compacte. ADDITIF, comme l'habillage.
+           Hauteur visée : celle d'une tuile normale (140 px) — le bouton de
+           44 px déborde de la ligne du tiret par des marges négatives, la
+           phrase est en 0,75 rem et collée au libellé.
+           ------------------------------------------------------------------ */
+        .dsfr-data-kpi__value--unavailable {
+          color: var(--text-mention-grey);
+        }
+        .dsfr-data-kpi__unavailable-row {
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .dsfr-data-kpi__retry {
+          margin: -0.125rem 0 -0.125rem auto;
+        }
+        .dsfr-data-kpi__cause {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          column-gap: 0.75rem;
+          margin-top: -0.25rem;
+          font-size: 0.75rem;
+          line-height: 1.25rem;
+          color: var(--text-mention-grey);
+        }
+        .dsfr-data-kpi__cause .fr-link {
+          font-size: 0.75rem;
+          line-height: 1.25rem;
+        }
+        .dsfr-data-kpi__cause details[open] {
+          flex: 1 1 100%;
+        }
+        .dsfr-data-kpi__cause summary {
+          cursor: pointer;
+        }
+        .dsfr-data-kpi__cause ul {
+          margin: 0.25rem 0 0;
+          padding-left: 1rem;
+          overflow-wrap: anywhere;
+        }
+        .dsfr-data-kpi--tint .dsfr-data-kpi__value--unavailable,
+        .dsfr-data-kpi--tint .dsfr-data-kpi__cause {
+          color: var(--text-default-grey);
         }
       </style>
     `;

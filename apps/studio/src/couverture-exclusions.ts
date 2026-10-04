@@ -93,6 +93,11 @@ export const EXCLUSIONS: readonly ExclusionDeclaree[] = [
     attributs: ['error-message'],
     raison: `Phrase de panne propre à un site (#1203) : sans elle, l'export garde le message du barème de la lib, lisible tel quel ; un intégrateur la pose à la main sur la page publiée. ${SOURCE_DU_STUDIO}`,
   },
+  {
+    composant: 'dsfr-data-source',
+    attributs: ['source-page'],
+    raison: `Adresse de la page publique du jeu (#1222), lue seulement quand la source répond « introuvable » : le Studio ne la connaît pas — il tient une adresse d'API, et la lib refuse d'en déduire une page. Sans elle, l'export garde le message du barème, sans lien ; un intégrateur la pose à la main sur la page publiée. ${SOURCE_DU_STUDIO}`,
+  },
 
   // --- Attributs retires --------------------------------------------------
   {

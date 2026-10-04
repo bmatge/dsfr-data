@@ -4,7 +4,7 @@
  */
 
 import type { JoinStats, PivotStats } from '@dsfr-data/shared/lib';
-import { classifySourceError, type SourceErrorCause } from './source-errors.js';
+import { classifySourceError, safeSourcePage, type SourceErrorCause } from './source-errors.js';
 import type { FetchCaveat } from '../adapters/api-adapter.js';
 
 export interface DataLoadedEvent {
@@ -145,6 +145,11 @@ export interface DataErrorState {
   attemptedUrl?: string;
   /** Phrase de l'intégrateur (`error-message` de la source). */
   userMessage?: string;
+  /**
+   * Page publique des données (`source-page` de la source, #1222), déjà
+   * filtrée par `safeSourcePage`. Jamais l'adresse d'API, jamais le relais.
+   */
+  sourcePage?: string;
   /** Horodatage de l'échec (`Date.now()`). */
   at: number;
 }
@@ -155,6 +160,8 @@ export interface DataErrorOptions {
   relayedFrom?: string;
   /** Phrase de l'intégrateur, posée par la source (`error-message`). */
   userMessage?: string;
+  /** Page publique des données, posée par la source (`source-page`, #1222). */
+  sourcePage?: string;
 }
 
 // Noms des événements custom
@@ -348,12 +355,14 @@ export function dispatchDataError(
   const online = typeof navigator === 'undefined' || navigator.onLine !== false;
   const url = attemptedUrl ?? upstream?.attemptedUrl;
   const userMessage = options.userMessage ?? upstream?.userMessage;
+  const sourcePage = safeSourcePage(options.sourcePage) ?? upstream?.sourcePage;
   errorStates.set(sourceId, {
     error,
     originId: upstream?.originId ?? options.relayedFrom ?? sourceId,
     cause: upstream?.cause ?? classifySourceError(error, online),
     ...(url ? { attemptedUrl: url } : {}),
     ...(userMessage ? { userMessage } : {}),
+    ...(sourcePage ? { sourcePage } : {}),
     at: upstream?.at ?? Date.now(),
   });
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {
