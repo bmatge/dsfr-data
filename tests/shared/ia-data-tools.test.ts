@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  analyzeDataFields,
   applyWhereFilter,
   inspectData,
   distinctValues,
@@ -22,6 +23,59 @@ const FIELDS: Field[] = [
 ];
 
 describe('data-tools', () => {
+  // #1224 : `Date.parse` lit « 75 », « 01004 » ou « Zone 12 » comme des dates
+  // sous V8. Un code département annoncé « date » au modèle du Studio oriente
+  // vers une courbe temporelle au lieu d'une carte ou d'un classement.
+  describe('analyzeDataFields : type des champs', () => {
+    const typeDe = (valeurs: unknown[]): string =>
+      analyzeDataFields(valeurs.map((v) => ({ champ: v })))[0].type;
+
+    it.each([
+      ['un code département', '75'],
+      ['un code département corse', '2A'],
+      ['un libellé terminé par un nombre', 'Zone 12'],
+      ['un code postal écrit en chaîne', '01004'],
+      ['une année seule', '2024'],
+      ['une date française en chiffres (ordre des champs ambigu)', '03/01/2024'],
+      ['une date française en lettres', '4 décembre 1837'],
+    ])('%s (« %s ») est du texte, pas une date', (_cas, valeur) => {
+      expect(typeDe([valeur])).toBe('texte');
+    });
+
+    it.each([
+      ['une date ISO', '2024-03-01'],
+      ['une date ISO avec heure et fuseau', '2024-03-01T10:00:00Z'],
+      ['une date ISO avec heure, séparée par une espace', '2024-03-01 10:00'],
+    ])('%s (« %s ») est une date', (_cas, valeur) => {
+      expect(typeDe([valeur])).toBe('date');
+    });
+
+    it('décide sur plusieurs valeurs : une seule qui n’est pas une date suffit à faire du texte', () => {
+      expect(typeDe(['2024-03-01', '2024-03-02', 'inconnue'])).toBe('texte');
+      expect(typeDe(['2024-03-01', '2024-03-02', '2024-03-03'])).toBe('date');
+    });
+
+    it('les valeurs absentes ne comptent pas : ni pour, ni contre', () => {
+      expect(typeDe([null, '', '2024-03-01', undefined, '2024-03-02'])).toBe('date');
+      expect(typeDe([null, '', undefined])).toBe('texte');
+    });
+
+    it('ne lit que les 100 premières lignes', () => {
+      const dates = Array.from({ length: 100 }, () => '2024-03-01');
+      expect(typeDe([...dates, 'hors échantillon'])).toBe('date');
+    });
+
+    it('un nombre reste numérique, une année en nombre comprise', () => {
+      expect(typeDe([2024, 2025])).toBe('numérique');
+      expect(typeDe([null, 12.5])).toBe('numérique');
+    });
+
+    it('l’exemple reste la première valeur non nulle', () => {
+      const [champ] = analyzeDataFields([{ champ: null }, { champ: '75' }]);
+      expect(champ).toEqual({ name: 'champ', type: 'texte', sample: '75' });
+    });
+  });
+
   describe('applyWhereFilter', () => {
     it('filtre par egalite et combine en AND', () => {
       expect(applyWhereFilter(DATA, 'region:eq:Bretagne')).toHaveLength(2);
