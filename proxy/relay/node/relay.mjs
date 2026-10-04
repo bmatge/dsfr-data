@@ -63,6 +63,36 @@ const MESSAGES = Object.freeze({
   'upstream-rejected': 'Le service amont a refusé la requête.',
 });
 
+/**
+ * Réponses par lesquelles l'amont dit que la donnée n'est plus là, ou plus pour
+ * nous (401, 403, 404, 410). L'entrée en cache est alors PURGÉE : sans cela, la
+ * première panne de l'amont resservirait en « périmé » une donnée dépubliée.
+ */
+function isWithdrawal(error) {
+  return (
+    error instanceof RelayError &&
+    (error.code === 'upstream-forbidden' || error.code === 'upstream-not-found')
+  );
+}
+
+/**
+ * Vrai si la clé d'un hôte figure dans ce que le relais s'apprête à servir :
+ * le corps, mais aussi les trois en-têtes repris de l'amont. Le type de contenu
+ * est reconstruit en minuscules : la comparaison des en-têtes ignore la casse.
+ */
+function leaksKey(response, hosts) {
+  const headers = [response.contentType, response.etag, response.lastModified]
+    .filter((value) => typeof value === 'string')
+    .join('\n')
+    .toLowerCase();
+  for (const hostEntry of hosts.values()) {
+    if (!hostEntry.key) continue;
+    if (response.body.includes(hostEntry.key.secret)) return true;
+    if (headers.includes(hostEntry.key.secret.toLowerCase())) return true;
+  }
+  return false;
+}
+
 /** Échecs de l'amont pour lesquels une réponse périmée vaut mieux qu'une erreur. */
 function isUpstreamFailure(error) {
   if (!(error instanceof RelayError)) return false;
@@ -280,12 +310,9 @@ export function createRelay(config, deps = {}) {
     const started = fetchUpstream(target, config, upstreamDeps)
       .then((response) => {
         // Défense en profondeur : un amont qui renverrait la clé dans sa réponse
-        // (page de débogage, écho des en-têtes) ne la fait pas sortir.
-        for (const hostEntry of config.hosts.values()) {
-          if (hostEntry.key && response.body.includes(hostEntry.key.secret)) {
-            throw new RelayError(502, 'upstream-leak');
-          }
-        }
+        // (page de débogage, écho des en-têtes) ne la fait pas sortir — ni par le
+        // corps, ni par `ETag`, `Last-Modified` ou `Content-Type`.
+        if (leaksKey(response, config.hosts)) throw new RelayError(502, 'upstream-leak');
         const storedAt = now();
         const entry = {
           body: response.body,
@@ -318,6 +345,7 @@ export function createRelay(config, deps = {}) {
     try {
       return { entry: await fetchShared(cacheKey, target, hostConfig, clientKey), state: 'MISS' };
     } catch (error) {
+      if (isWithdrawal(error)) cache.delete(cacheKey);
       if (cached && isUpstreamFailure(error)) return { entry: cached, state: 'STALE' };
       throw error;
     }

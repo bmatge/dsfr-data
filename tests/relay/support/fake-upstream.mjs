@@ -154,6 +154,39 @@ export async function startFakeUpstream({ port = 0, delayMs, bigBytes }) {
       });
       return;
     }
+    if (path.endsWith('/cle-etag.json')) {
+      // La clé reçue, renvoyée dans un en-tête que le relais transmet au navigateur.
+      const key = String(req.headers.authorization ?? '')
+        .split(' ')
+        .pop();
+      json(res, 200, { fuite: 'etag' }, { ETag: `"${key}"` });
+      return;
+    }
+    if (path.endsWith('/cle-charset.json')) {
+      const key = String(req.headers.authorization ?? '')
+        .split(' ')
+        .pop();
+      json(res, 200, { fuite: 'charset' }, { 'Content-Type': `application/json; charset=${key}` });
+      return;
+    }
+    if (path === '/etag-hostile.json') {
+      json(
+        res,
+        200,
+        { etag: 'hostile' },
+        { ETag: 'sans-guillemets <script>alert(1)</script>', 'Last-Modified': 'demain matin' }
+      );
+      return;
+    }
+    if (path === '/charset-hostile.json') {
+      json(
+        res,
+        200,
+        { charset: 'hostile' },
+        { 'Content-Type': 'application/json; charset="><script>alert(1)</script>' }
+      );
+      return;
+    }
     if (path.endsWith('/reflet.json')) {
       // Un amont de débogage qui renvoie les en-têtes reçus, clé comprise.
       json(res, 200, { recu: req.headers });
@@ -214,6 +247,15 @@ export async function startFakeUpstream({ port = 0, delayMs, bigBytes }) {
     if (path.endsWith('/sollicite')) {
       if (hit(counterKey) === 1) json(res, 429, { erreur: 'quota' }, { 'Retry-After': '7' });
       else json(res, 200, { retabli: true });
+      return;
+    }
+    const sequence = /\/suite\/(\d{3}(?:-\d{3})*)$/.exec(path);
+    if (sequence) {
+      // Une suite de statuts, un par appel ; le dernier se répète.
+      const statuses = sequence[1].split('-').map(Number);
+      const index = hit(counterKey);
+      const current = statuses[Math.min(index, statuses.length) - 1];
+      json(res, current, { suite: index, statut: current });
       return;
     }
     const status = /\/statut\/(\d{3})$/.exec(path);

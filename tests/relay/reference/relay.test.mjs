@@ -274,11 +274,50 @@ describe('C-FUITE-1 — la clé ne sort pas, même si l’amont la renvoie', () 
     });
   });
 
+  for (const [label, name] of [
+    ['`ETag`', 'cle-etag.json'],
+    ['le jeu de caractères de `Content-Type`', 'cle-charset.json'],
+  ]) {
+    test(`un amont qui renvoie la clé dans ${label} : 502, la clé ne sort pas par un en-tête`, async () => {
+      await withRelay({}, async (reference, client) => {
+        const response = await client.call(`/${KEYED_HOST}/api/public/${name}?${mark()}`);
+        const dump = `${response.rawHeaders.join('\n')}\n${response.text}`.toLowerCase();
+        assert.ok(!dump.includes(CONFORMANCE_KEY.toLowerCase()), 'la clé figure dans la réponse');
+        assert.equal(response.status, 502);
+        assert.equal(errorCode(response), 'upstream-leak');
+        assert.equal(reference.relay.cache.size, 0);
+      });
+    });
+  }
+
   test('une réponse compressée que le relais n’a pas demandée : 502', async () => {
     await withRelay({}, async (reference, client) => {
       const response = await client.call(`/${ALLOWED_HOST}/compresse.json?${mark()}`);
       assert.equal(response.status, 502);
       assert.equal(errorCode(response), 'upstream-encoding');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+describe('C-NAV-5 — en-têtes de l’amont assainis par le relais de référence', () => {
+  test('un `ETag` ou un `Last-Modified` mal formés sont omis, jamais recopiés', async () => {
+    await withRelay({}, async (reference, client) => {
+      const response = await client.call(`/${ALLOWED_HOST}/etag-hostile.json?${mark()}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.etag, undefined);
+      assert.equal(response.headers['last-modified'], undefined);
+      assert.ok(!response.rawHeaders.join('\n').includes('script'));
+    });
+  });
+
+  test('le type de contenu est RECONSTRUIT : un jeu de caractères piégé n’est pas recopié', async () => {
+    await withRelay({}, async (reference, client) => {
+      const response = await client.call(`/${ALLOWED_HOST}/charset-hostile.json?${mark()}`);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers['content-type'], 'application/json');
+      const plain = await client.call(`/${ALLOWED_HOST}/table.csv?${mark()}`);
+      assert.equal(plain.headers['content-type'], 'text/csv; charset=utf-8');
     });
   });
 });
@@ -426,6 +465,49 @@ describe('Cache du relais de référence', () => {
       assert.match(gone.headers['cache-control'], /no-store/);
     });
   });
+
+  for (const [fromUpstream, expected] of [
+    [401, 403],
+    [403, 403],
+    [404, 404],
+    [410, 410],
+  ]) {
+    test(`C-CACHE-5 — l’amont répond ${fromUpstream} : l’entrée est purgée, le périmé ne ressert pas une donnée retirée`, async () => {
+      let clock = 1_800_000_000_000;
+      await withRelay({ now: () => clock }, async (reference, client) => {
+        const host = reference.config.hosts.get(ALLOWED_HOST);
+        const m = mark();
+        // 200 (mise en cache), puis le retrait, puis une panne de l'amont.
+        const path = `/${ALLOWED_HOST}/suite/200-${fromUpstream}-500?${m}`;
+        assert.equal((await client.call(path)).status, 200);
+        assert.equal(reference.relay.cache.size, 1);
+
+        clock += (host.sharedTtl + 1) * 1000;
+        const withdrawn = await client.call(path);
+        assert.equal(withdrawn.status, expected);
+        assert.equal(reference.relay.cache.size, 0, 'l’entrée retirée chez l’amont reste en cache');
+
+        const failing = await client.call(path);
+        assert.equal(failing.status, 502, 'la donnée retirée a été resservie en périmé');
+        assert.equal(failing.headers['x-relay-cache'], undefined);
+        assert.equal(upstream.seen(m).length, 3);
+      });
+    });
+  }
+
+  test('C-CACHE-5 — le périmé est aussi servi sur une 429 de l’amont, jamais sur une autre 4xx', async () => {
+    let clock = 1_800_000_000_000;
+    await withRelay({ now: () => clock }, async (reference, client) => {
+      const host = reference.config.hosts.get(ALLOWED_HOST);
+      const limited = `/${ALLOWED_HOST}/suite/200-429?${mark()}`;
+      const rejected = `/${ALLOWED_HOST}/suite/200-400?${mark()}`;
+      assert.equal((await client.call(limited)).status, 200);
+      assert.equal((await client.call(rejected)).status, 200);
+      clock += (host.sharedTtl + 1) * 1000;
+      assert.equal((await client.call(limited)).headers['x-relay-cache'], 'STALE');
+      assert.equal((await client.call(rejected)).status, 400);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -498,11 +580,14 @@ describe('C-DOS — plafonds du relais de référence', () => {
     // Douze connexions, douze URL de 8 Mo, douze adresses ; personne ne lit.
     // Sans borne, le relais retient 12 × 8 Mo ; avec `maxPendingBytes` à 18 Mo, deux corps.
     await withRelay({ config: slowReaders }, async (reference) => {
-      const retained = () => {
+      // Deux passes : la mémoire d'un tampon n'est rendue qu'au balayage qui suit.
+      const retained = async () => {
+        collectGarbage();
+        await sleep(100);
         collectGarbage();
         return process.memoryUsage().arrayBuffers;
       };
-      const before = retained();
+      const before = await retained();
       const streamsBefore = upstream.bigStreams.length;
       const sockets = Array.from({ length: 12 }, (_, index) =>
         stalledReader(reference, `198.51.100.${index + 1}`)
@@ -511,13 +596,12 @@ describe('C-DOS — plafonds du relais de référence', () => {
         // Attendre que l'amont ait tout envoyé et que le relais ait tout reçu.
         for (let waited = 0; waited < 15000; waited += 20) {
           const streams = upstream.bigStreams.slice(streamsBefore);
-          if (streams.length === 12 && streams.every((stream) => stream.sent >= stream.total)) {
-            break;
-          }
+          const sent = streams.length === 12 && streams.every((s) => s.sent >= s.total);
+          if (sent && reference.relay.stats().upstreamRequests === 0) break;
           await sleep(20);
         }
         await sleep(300);
-        const growth = Math.round((retained() - before) / MEGA);
+        const growth = Math.round(((await retained()) - before) / MEGA);
         t.diagnostic(`tampons retenus : +${growth} Mo pour douze lecteurs à l’arrêt (borne : 18 Mo)`);
         assert.ok(growth < 40, `le relais retient ${growth} Mo pour des visiteurs qui ne lisent pas`);
         assert.ok(reference.relay.stats().pendingBytes <= 18 * MEGA);
