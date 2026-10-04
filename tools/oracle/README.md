@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-04) : **311 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 685 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+État du dépôt (mesuré le 2026-10-04) : **314 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 697 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 508 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 514 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -846,6 +846,10 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | transformations | `array_min` toujours en ordre de texte — `allNumeric = false` (`shared/utils/compute.ts`) | `compute-plus-petit-et-plus-grand-element-d-un-tableau` | première année affichée « 1050 » au lieu de « 950 » : l'ordre du texte range 1050 avant 950 |
 | transformations | `array_min` / `array_max` rendent le premier élément — la comparaison neutralisée (`shared/utils/compute.ts`) | `compute-plus-petit-et-plus-grand-element-d-un-tableau` | première année affichée « 1972 » au lieu de « 1965 » : c'est l'erreur du banc, le premier listé pris pour le plus ancien |
 | transformations | les éléments vides comptés — `el === ''` retiré du saut (`shared/utils/compute.ts`) | `compute-plus-petit-et-plus-grand-element-d-un-tableau` | plus ancien poste affiché vide au lieu de « 2021-02-01 » : une chaîne vide passe avant toute date |
+| transformations | un tableau mixte comparé en texte au lieu de rendre `null` — `nature === 'mixed'` retiré du retour (`shared/utils/compute.ts`) | `compute-plus-petit-et-plus-grand-element-d-un-tableau` | première année affichée « 1050 » là où l'oracle dit « — » : sur `950 ; 1050 ; vers 1970`, l'ordre du texte rend une année plausible et fausse |
+| transformations | l'avertissement d'un tableau mixte retiré — `u.mixed > 0` neutralisé (`shared/utils/compute.ts`) | `compute-plus-petit-et-plus-grand-element-d-un-tableau` | `diagnostic:n-ext:warning` en échec : la colonne se vide sans un mot |
+| transformations | l'avertissement d'une colonne sans tableau retiré — `u.arrays === 0 && u.scalars > 0` neutralisé (`shared/utils/compute.ts`) | `compute-element-sans-split-avertit` | `diagnostic:n-colle:warning` en échec : une colonne entièrement vide faute de `split`, sans un mot |
+| transformations | l'avertissement dit même quand une partie des lignes porte un tableau — `u.arrays === 0` retiré (`shared/utils/compute.ts`) | `compute-element-de-tableau-element-at` | `diagnostic:n-elt:silence` en échec : la bibliothèque parle pour une ligne scalaire isolée |
 | transformations | `toBoolean` ignoré dans `_applyFold` (`dsfr-data-normalize.ts`) | `normalize-fold` | « moteur+visuel » affiché pour une ligne qui n'a que l'un des deux |
 | transformations | `last` rend la première observation (`shared/utils/pivot.ts`) | `pivot-first-et-last` | cellule à 12 au lieu de 8 : `first` et `last` se confondent |
 | transformations | `buildKey` retire les zéros de tête (`shared/utils/join.ts`) | `jointure-ecart-de-graphie-792` | 3 lignes appariées au lieu de 2 : « 1 » apparie « 01 » |

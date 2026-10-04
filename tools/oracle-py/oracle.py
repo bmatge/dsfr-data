@@ -523,10 +523,10 @@ def extreme_de(v: Any, lequel: str) -> Any:
 
     Les éléments absents (``null``, chaîne vide) ne comptent pas. Comparaison
     NUMÉRIQUE, exacte, quand tous les éléments restants sont des nombres ;
-    TEXTUELLE sinon, sur la forme texte — décidée pour le tableau entier.
-    L'élément gagnant est rendu tel quel ; à égalité, le premier rencontré
-    (``min`` et ``max`` de Python rendent le premier extrême). Pas une liste,
-    ou rien à comparer : ``None``.
+    TEXTUELLE, sur la forme texte, quand aucun ne l'est ; un tableau MIXTE rend
+    ``None`` — aucun des deux ordres n'y est juste. L'élément gagnant est rendu
+    tel quel ; à égalité, le premier rencontré (``min`` et ``max`` de Python
+    rendent le premier extrême). Pas une liste, ou rien à comparer : ``None``.
     """
     if not isinstance(v, list):
         return None
@@ -534,10 +534,25 @@ def extreme_de(v: Any, lequel: str) -> Any:
     if not presents:
         return None
     nombres = [to_num(el) for el in presents]
-    cles: list[Any] = nombres if all(n is not None for n in nombres) else [str_js(el) for el in presents]
+    lisibles = sum(1 for n in nombres if n is not None)
+    if 0 < lisibles < len(presents):
+        return None
+    cles: list[Any] = nombres if lisibles == len(presents) else [str_js(el) for el in presents]
     rangs = range(len(presents))
     gagnant = min(rangs, key=lambda i: cles[i]) if lequel == "min" else max(rangs, key=lambda i: cles[i])
     return presents[gagnant]
+
+
+def remplacer_texte(v: Any, cherche: str, par: str, joint: str) -> Any:
+    """Remplacement littéral dans le texte d'une cellule, toutes occurrences.
+
+    La valeur est lue par sa forme texte ; une liste par ses éléments joints
+    par ``joint`` (un élément absent compte pour vide). Valeur absente : ``None``.
+    """
+    if v is None:
+        return None
+    texte = joint.join(str_js(el) for el in v) if isinstance(v, list) else str_js(v)
+    return texte if cherche == "" else texte.replace(cherche, par)
 
 
 def decouper_cellule(v: Any, separateur: str) -> Any:
@@ -860,6 +875,11 @@ def derouler(datasets: dict[str, list[Row]], steps: list[dict[str, Any]], depart
             rows = [{**r, s["as"]: extreme_de(r.get(s["from"]), s["which"])} for r in rows]
         elif op == "split":
             rows = [{**r, s["field"]: decouper_cellule(r[s["field"]], s["separator"])} if s["field"] in r else r for r in rows]
+        elif op == "replace-text":
+            rows = [
+                {**r, s["field"]: remplacer_texte(r.get(s["field"]), s["search"], s["by"], s.get("join", ", "))}
+                for r in rows
+            ]
         elif op == "join":
             if s["right"] not in datasets:
                 raise ErreurConfiguration(f"jointure : jeu « {s['right']} » absent du feed")

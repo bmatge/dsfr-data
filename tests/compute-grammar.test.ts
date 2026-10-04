@@ -460,14 +460,23 @@ describe('compute — plus petit et plus grand élément : array_min / array_max
     expect(run('array_min(a)', { a: ['12,5', '3', '-4'] })).toBe('-4');
   });
 
-  it('compare en TEXTE sinon — les dates ISO se rangent juste', () => {
+  it('compare en TEXTE quand AUCUN élément n’est numérique — les dates ISO se rangent juste', () => {
     const postes = ['2019-03-01', '2012-07-15', '2016-01-04'];
     expect(run('array_min(a)', { a: postes })).toBe('2012-07-15');
     expect(run('array_max(a)', { a: postes })).toBe('2019-03-01');
     expect(run('year(array_min(a))', { a: postes })).toBe(2012);
-    // Un seul élément non numérique fait basculer TOUT le tableau en texte.
-    expect(run('array_min(a)', { a: ['950', '1050', 'vers 1970'] })).toBe('1050');
-    expect(run('array_max(a)', { a: ['950', '1050', 'vers 1970'] })).toBe('vers 1970');
+    expect(run('array_min(a)', { a: ['maison', 'atelier'] })).toBe('atelier');
+  });
+
+  it('tableau MIXTE (numérique et non numérique) : vide, jamais un ordre de texte plausible', () => {
+    // L’ordre du texte répondait « 1050 » — avant « 950 ».
+    expect(run('array_min(a)', { a: ['950', '1050', 'vers 1970'] })).toBeNull();
+    expect(run('array_max(a)', { a: ['950', '1050', 'vers 1970'] })).toBeNull();
+    expect(run('array_min(a)', { a: [1965, 'n.d.'] })).toBeNull();
+    // Les absents ne rendent pas un tableau mixte.
+    expect(run('array_min(a)', { a: ['950', null, '', '1050'] })).toBe('950');
+    // element_at, lui, lit un rang : la nature des éléments ne le regarde pas.
+    expect(run('element_at(a, 3)', { a: ['950', '1050', 'vers 1970'] })).toBe('vers 1970');
   });
 
   it('rend l’élément tel quel : un zéro de tête survit', () => {
@@ -1001,6 +1010,208 @@ describe('compute — élément d’un tableau fabriqué par split, dans le mêm
     expect(getDataCache('elt-out')).toEqual([
       { denomination: 'maison ; immeuble', principale: null },
     ]);
+  });
+});
+
+describe('compute — nettoyer un tableau mixte par attributs : la recette, sur le vrai composant (#1237)', () => {
+  const IDS = ['net-1', 'net-2'];
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    for (const id of IDS) {
+      clearDataCache(id);
+      clearDataMeta(id);
+    }
+  });
+
+  /** Un normalize réel, joué sur des lignes ; rend ce qu’il émet. */
+  function normaliser(
+    id: string,
+    props: Partial<Pick<DsfrDataNormalize, 'split' | 'compute' | 'replace' | 'replaceFields'>>,
+    rows: unknown[]
+  ): Array<Record<string, unknown>> {
+    const normalize = new DsfrDataNormalize();
+    normalize.id = id;
+    normalize.source = `${id}-src`;
+    Object.assign(normalize, props);
+    (normalize as unknown as NormalizeInternals)._processData(rows);
+    return getDataCache(id) as Array<Record<string, unknown>>;
+  }
+
+  const COLLEE = [{ datation: '950 ; 1050 ; vers 1970' }];
+  const TABLEAU = [{ datation: ['950', '1050', 'vers 1970'] }];
+  const MIN = 'premiere = array_min(datation)';
+
+  it('cellule collée, UN normalize : `replace` compare la cellule entière, il ne nettoie rien', () => {
+    const out = normaliser(
+      'net-1',
+      { replace: 'vers 1970:1970', split: 'datation:;', compute: MIN },
+      COLLEE
+    );
+    expect(out[0].datation).toEqual(['950', '1050', 'vers 1970']);
+    expect(out[0].premiere).toBeNull();
+  });
+
+  it('cellule collée, UN normalize : `replace()` de compute passe APRÈS split, et rend un texte', () => {
+    const out = normaliser(
+      'net-1',
+      { split: 'datation:;', compute: "datation = replace(datation, 'vers ', ''); " + MIN },
+      COLLEE
+    );
+    // Le tableau est relu par sa forme texte : ce n’est plus un tableau.
+    expect(out[0].datation).toBe('950,1050,1970');
+    expect(out[0].premiere).toBeNull();
+  });
+
+  it('cellule collée, DEUX normalize chaînés : nettoyer le texte, puis découper — 950', () => {
+    const net = normaliser(
+      'net-1',
+      { compute: "datation = replace(join(datation, ';'), 'vers ', '')" },
+      COLLEE
+    );
+    expect(net[0].datation).toBe('950 ; 1050 ; 1970');
+    const out = normaliser(
+      'net-2',
+      { split: 'datation:;', compute: MIN + '; derniere = array_max(datation)' },
+      net
+    );
+    expect(out[0].datation).toEqual(['950', '1050', '1970']);
+    expect(out[0].premiere).toBe('950');
+    expect(out[0].derniere).toBe('1970');
+  });
+
+  it('VRAI tableau, DEUX normalize chaînés : la même recette (join recolle, split redécoupe) — 950', () => {
+    const net = normaliser(
+      'net-1',
+      { compute: "datation = replace(join(datation, ';'), 'vers ', '')" },
+      TABLEAU
+    );
+    expect(net[0].datation).toBe('950;1050;1970');
+    const out = normaliser('net-2', { split: 'datation:;', compute: MIN }, net);
+    expect(out[0].premiere).toBe('950');
+  });
+
+  it('VRAI tableau, UN normalize : `replace-fields` remplace élément par élément (valeur exacte) — 950', () => {
+    const out = normaliser(
+      'net-1',
+      { replaceFields: 'datation:vers 1970:1970', compute: MIN },
+      TABLEAU
+    );
+    expect(out[0].datation).toEqual(['950', '1050', '1970']);
+    expect(out[0].premiere).toBe('950');
+  });
+
+  it('la recette répare aussi une année seule stockée en nombre', () => {
+    const net = normaliser(
+      'net-1',
+      { compute: "datation = replace(join(datation, ';'), 'vers ', '')" },
+      [{ datation: 1930 }]
+    );
+    const out = normaliser('net-2', { split: 'datation:;', compute: MIN }, net);
+    expect(out[0].premiere).toBe('1930');
+  });
+});
+
+describe('compute — avertissements des fonctions de tableau (#1237)', () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let normalize: DsfrDataNormalize;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    normalize = new DsfrDataNormalize();
+    normalize.id = 'avt';
+    normalize.source = 'avt-src';
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    clearDataCache('avt');
+    clearDataMeta('avt');
+  });
+
+  const traiter = (rows: unknown[]): void =>
+    (normalize as unknown as NormalizeInternals)._processData(rows);
+  const messages = (): string[] => warnSpy.mock.calls.map((c: unknown[]) => String(c[0]));
+
+  it('aucun tableau sur tout le lot, le champ porte du texte : UN avertissement, qui nomme le champ et split', () => {
+    normalize.compute = 'principale = element_at(denomination, 1)';
+    traiter([
+      { denomination: 'maison ; immeuble' },
+      { denomination: 'église' },
+      { denomination: null },
+    ]);
+    expect(messages()).toHaveLength(1);
+    expect(messages()[0]).toContain('dsfr-data-normalize[avt]');
+    expect(messages()[0]).toContain('element_at(denomination)');
+    expect(messages()[0]).toContain('AUCUN tableau sur 2 ligne(s)');
+    expect(messages()[0]).toContain('split="denomination:;"');
+    expect(messages()[0]).toContain('maison ; immeuble');
+  });
+
+  it('dit une seule fois par cause, lot après lot ; un attribut modifié relance le compte', () => {
+    normalize.compute = 'p = element_at(d, 1); q = element_at(d, 2); m = array_min(d)';
+    traiter([{ d: 'a;b' }, { d: 'e;f' }]);
+    traiter([{ d: 'c;d' }]);
+    // Une cause par fonction : element_at(d) une fois (deux appels), array_min(d) une fois.
+    expect(messages()).toHaveLength(2);
+    // Des LIGNES, pas des appels : deux `element_at(d, …)` ne comptent pas la ligne deux fois.
+    expect(messages()[0]).toContain('AUCUN tableau sur 2 ligne(s)');
+    normalize.split = 'd:;';
+    traiter([{ d: 'a;b' }]);
+    expect(messages()).toHaveLength(2);
+    normalize.split = '';
+    traiter([{ d: 'a;b' }]);
+    expect(messages()).toHaveLength(4);
+  });
+
+  it('colonne réellement vide : silence', () => {
+    normalize.compute = 'p = element_at(d, 1); m = array_min(d)';
+    traiter([{ d: null }, { d: '' }, {}, { d: [] }]);
+    traiter([{ d: null }, { d: '' }, {}]);
+    expect(messages()).toHaveLength(0);
+  });
+
+  it('une partie des lignes porte un tableau : silence', () => {
+    normalize.compute = 'p = element_at(d, 1)';
+    traiter([{ d: ['a', 'b'] }, { d: 'chapelle' }, { d: 1930 }]);
+    expect(messages()).toHaveLength(0);
+  });
+
+  it('avec split, la cellule collée est un tableau : silence', () => {
+    normalize.split = 'd:;';
+    normalize.compute = 'p = element_at(d, 1); m = array_min(d)';
+    traiter([{ d: '1972 ; 1965' }, { d: '2001' }]);
+    expect(messages()).toHaveLength(0);
+  });
+
+  it('tableau mixte : UN avertissement, qui nomme le champ et donne la recette', () => {
+    normalize.split = 'datation:;';
+    normalize.compute = 'premiere = array_min(datation); derniere = array_max(datation)';
+    traiter([{ datation: '950 ; 1050 ; vers 1970' }, { datation: '1972 ; 1965' }]);
+    expect(messages()).toHaveLength(2);
+    expect(messages()[0]).toContain('array_min(datation)');
+    expect(messages()[0]).toContain('VIDE sur 1 ligne(s)');
+    expect(messages()[0]).toContain('950, 1050, vers 1970');
+    expect(messages()[0]).toContain("replace(join(datation, ';'), 'texte à retirer', '')");
+    expect(messages()[0]).toContain('split="datation:;"');
+    expect(messages()[1]).toContain('array_max(datation)');
+  });
+
+  it('element_at ne s’avertit pas d’un tableau mixte ; un argument calculé n’est pas suivi', () => {
+    normalize.compute = "p = element_at(d, 1); m = array_min(coalesce(d, 'x'))";
+    traiter([{ d: ['950', 'vers 1970'] }]);
+    expect(messages()).toHaveLength(0);
+  });
+
+  it('sans traceur, applyCompute ne compte rien et ne dit rien', () => {
+    const out = applyCompute({ d: 'a;b' }, compileCompute('p = element_at(d, 1)'));
+    expect(out.p).toBeNull();
+    expect(messages()).toHaveLength(0);
   });
 });
 

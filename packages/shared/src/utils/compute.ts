@@ -72,9 +72,22 @@
  * literal (`element_at(arr, 0)` is the off-by-one of a 0-based habit), null
  * when computed. `array_min` / `array_max` ignore absent elements (null,
  * undefined, ''), compare as NUMBERS when every remaining element is numeric
- * (French decimals included: '950' is before '1050') and as TEXT otherwise
+ * (French decimals included: '950' is before '1050') and as TEXT when NONE is
  * (ISO dates sort correctly), and return the winning element unchanged
- * ('01004' keeps its zero); the first one wins a tie.
+ * ('01004' keeps its zero); the first one wins a tie. A MIXED array — some
+ * elements numeric, some not (`['950', '1050', 'vers 1970']`) — yields null:
+ * neither order is the right one (text puts '1050' first), and the data can
+ * be cleaned upstream with attributes alone, in a first normalize:
+ * `compute="d = replace(join(d, ';'), 'vers ', '')"`, then `split="d:;"` in
+ * the next one (owner's ruling on #1258).
+ *
+ * WARNINGS (#1237): two situations leave a computed column empty without any
+ * error. They are counted over a batch by a {@link ComputeTracker} and turned
+ * into messages by {@link computeArrayWarnings}; the component prints each
+ * one once. (1) an array function received NO array on the whole batch while
+ * the field does hold values — a glued cell that was not `split`; (2) some
+ * rows hold a mixed array. Nothing is said when the column is really empty,
+ * nor when part of the rows hold an array.
  *
  * Still out of scope: aggregated values (query / kpi), windowing (previous
  * row, cumulative sum), user-defined functions, array literals, filtering or
@@ -221,26 +234,45 @@ function literalNumber(node: Node | undefined): number | null {
   return null;
 }
 
-/**
- * Smallest (`sign` = 1) or largest (`sign` = -1) element of an array
- * (#1237). Not an array: null. Absent elements (null, undefined, '') are
- * skipped. The comparison is numeric when EVERY remaining element is numeric,
- * textual (code-unit order, like `<`) otherwise — decided once for the whole
- * array, because a pairwise mix of the two is not an order. The element is
- * returned unchanged; the first one wins a tie. Plain loop, no argument
- * spreading (BUG-038).
- */
-function arrayExtreme(v: unknown, sign: 1 | -1): unknown {
-  if (!Array.isArray(v)) return null;
+/** What the present elements of an array are made of (absent ones skipped). */
+type ArrayNature = 'empty' | 'numeric' | 'text' | 'mixed';
+
+/** Present elements of an array (null, undefined and '' skipped) and their nature. */
+function presentElements(v: unknown[]): { present: unknown[]; nature: ArrayNature } {
   const present: unknown[] = [];
-  let allNumeric = true;
+  let numeric = 0;
   for (let i = 0; i < v.length; i++) {
     const el: unknown = v[i];
     if (isNil(el) || el === '') continue;
     present.push(el);
-    if (numberish(el) === null) allNumeric = false;
+    if (numberish(el) !== null) numeric++;
   }
-  if (present.length === 0) return null;
+  const nature: ArrayNature =
+    present.length === 0
+      ? 'empty'
+      : numeric === present.length
+        ? 'numeric'
+        : numeric === 0
+          ? 'text'
+          : 'mixed';
+  return { present, nature };
+}
+
+/**
+ * Smallest (`sign` = 1) or largest (`sign` = -1) element of an array
+ * (#1237). Not an array: null. Absent elements (null, undefined, '') are
+ * skipped. The comparison is numeric when EVERY remaining element is numeric,
+ * textual (code-unit order, like `<`) when NONE is; a MIXED array yields null
+ * — a pairwise mix of the two is not an order, and falling back to text would
+ * answer '1050' for the minimum of `['950', '1050', 'vers 1970']`. The element
+ * is returned unchanged; the first one wins a tie. Plain loop, no argument
+ * spreading (BUG-038).
+ */
+function arrayExtreme(v: unknown, sign: 1 | -1): unknown {
+  if (!Array.isArray(v)) return null;
+  const { present, nature } = presentElements(v);
+  if (nature === 'empty' || nature === 'mixed') return null;
+  const allNumeric = nature === 'numeric';
   const keyOf = (el: unknown): number | string =>
     allNumeric ? (numberish(el) as number) : (textOf(el) ?? '');
   let best = present[0];
@@ -886,6 +918,128 @@ export function compileCompute(attr: string): CompiledCompute {
   return compiled;
 }
 
+// --- Silent emptiness of the array functions (#1237) ---
+
+/** The functions that need a real array as their first argument. */
+const ARRAY_FUNCTIONS = new Set(['element_at', 'array_min', 'array_max']);
+
+interface ArrayUsage {
+  fn: string;
+  field: string;
+  /** Rows where the field was an array. */
+  arrays: number;
+  /** Rows where the field held a value that is not an array (text, number…). */
+  scalars: number;
+  scalarSample: string | null;
+  /** Rows where `array_min` / `array_max` met a mixed array. */
+  mixed: number;
+  mixedSample: string | null;
+  /** Last row counted: the same call written twice counts a row once. */
+  lastRow: number;
+}
+
+/**
+ * What the array functions of `compute` received over one batch of rows —
+ * filled by {@link applyCompute} when it is given one, read by
+ * {@link computeArrayWarnings}. Only calls whose first argument is a FIELD
+ * are counted: the message must name it.
+ */
+export interface ComputeTracker {
+  usages: Map<string, ArrayUsage>;
+  /** Rows evaluated so far. */
+  rows: number;
+}
+
+export function createComputeTracker(): ComputeTracker {
+  return { usages: new Map(), rows: 0 };
+}
+
+/** A configuration that leaves a computed column empty without an error. */
+export interface ComputeWarning {
+  /** Stable key (cause, function, field) — to say each warning once. */
+  key: string;
+  message: string;
+}
+
+function sampleOf(v: unknown): string {
+  const text = Array.isArray(v)
+    ? v.map((el) => (isNil(el) ? '' : String(el))).join(', ')
+    : String(v);
+  return text.length > 60 ? `${text.slice(0, 60)}…` : text;
+}
+
+function trackArrayCall(tracker: ComputeTracker, fn: string, field: string, value: unknown): void {
+  const key = `${fn}(${field})`;
+  let usage = tracker.usages.get(key);
+  if (!usage) {
+    usage = {
+      fn,
+      field,
+      arrays: 0,
+      scalars: 0,
+      scalarSample: null,
+      mixed: 0,
+      mixedSample: null,
+      lastRow: 0,
+    };
+    tracker.usages.set(key, usage);
+  }
+  if (usage.lastRow === tracker.rows) return;
+  usage.lastRow = tracker.rows;
+  if (Array.isArray(value)) {
+    usage.arrays++;
+    if (fn !== 'element_at' && presentElements(value).nature === 'mixed') {
+      usage.mixed++;
+      usage.mixedSample ??= sampleOf(value);
+    }
+    return;
+  }
+  if (isNil(value) || value === '') return;
+  usage.scalars++;
+  usage.scalarSample ??= sampleOf(value);
+}
+
+/**
+ * The warnings a batch deserves (#1237):
+ *  - `sans-tableau`: an array function received NO array on the whole batch
+ *    while the field holds values — the computed column is entirely empty,
+ *    most often a glued cell that was not `split`;
+ *  - `mixte`: `array_min` / `array_max` met arrays mixing numeric and
+ *    non-numeric elements — empty on those rows, with the cleaning recipe.
+ * Nothing when the column is really empty, nor when part of the rows hold an
+ * array.
+ */
+export function computeArrayWarnings(tracker: ComputeTracker): ComputeWarning[] {
+  const warnings: ComputeWarning[] = [];
+  for (const u of tracker.usages.values()) {
+    const call = `${u.fn}(${u.field})`;
+    if (u.arrays === 0 && u.scalars > 0) {
+      warnings.push({
+        key: `sans-tableau:${call}`,
+        message:
+          `compute — ${call} n'a reçu AUCUN tableau sur ${u.scalars} ligne(s) : le champ ` +
+          `"${u.field}" porte un texte ou une valeur seule (« ${u.scalarSample} »), pas un ` +
+          `tableau, et la colonne calculée est vide. Une cellule « collée » se découpe d'abord : ` +
+          `split="${u.field}:;" sur ce dsfr-data-normalize (séparateur à adapter ; split ` +
+          `s'exécute avant compute).`,
+      });
+    }
+    if (u.mixed > 0) {
+      warnings.push({
+        key: `mixte:${call}`,
+        message:
+          `compute — ${call} rend une valeur VIDE sur ${u.mixed} ligne(s) dont le tableau mêle ` +
+          `des éléments numériques et non numériques (« ${u.mixedSample} ») : ni l'ordre des ` +
+          `nombres ni celui du texte n'y est juste. Nettoyer les éléments en amont, dans un ` +
+          `premier dsfr-data-normalize : compute="${u.field} = replace(join(${u.field}, ';'), ` +
+          `'texte à retirer', '')", puis split="${u.field}:;" dans le suivant, qui porte ` +
+          `${call}.`,
+      });
+    }
+  }
+  return warnings;
+}
+
 // --- Evaluate ---
 
 /**
@@ -964,7 +1118,7 @@ function evalCmp(op: CmpOp, l: unknown, r: unknown, field?: string): boolean {
   }
 }
 
-function evalNode(node: Node, row: Row): unknown {
+function evalNode(node: Node, row: Row, tracker?: ComputeTracker): unknown {
   switch (node.type) {
     case 'num':
       return node.value;
@@ -977,33 +1131,43 @@ function evalNode(node: Node, row: Row): unknown {
     case 'field':
       return Object.prototype.hasOwnProperty.call(row, node.name) ? row[node.name] : undefined;
     case 'neg': {
-      const n = numberish(evalNode(node.operand, row));
+      const n = numberish(evalNode(node.operand, row, tracker));
       return n === null ? null : -n;
     }
     case 'not':
-      return !truthy(evalNode(node.operand, row));
+      return !truthy(evalNode(node.operand, row, tracker));
     case 'and':
-      return truthy(evalNode(node.left, row)) && truthy(evalNode(node.right, row));
+      return (
+        truthy(evalNode(node.left, row, tracker)) && truthy(evalNode(node.right, row, tracker))
+      );
     case 'or':
-      return truthy(evalNode(node.left, row)) || truthy(evalNode(node.right, row));
+      return (
+        truthy(evalNode(node.left, row, tracker)) || truthy(evalNode(node.right, row, tracker))
+      );
     case 'cmp':
       return evalCmp(
         node.op,
-        evalNode(node.left, row),
-        evalNode(node.right, row),
+        evalNode(node.left, row, tracker),
+        evalNode(node.right, row, tracker),
         node.left.type === 'field' ? node.left.name : undefined
       );
-    case 'call':
-      return node.fn.impl(node.args.map((arg) => evalNode(arg, row)));
+    case 'call': {
+      const args = node.args.map((arg) => evalNode(arg, row, tracker));
+      if (tracker && ARRAY_FUNCTIONS.has(node.name) && node.args[0].type === 'field') {
+        trackArrayCall(tracker, node.name, node.args[0].name, args[0]);
+      }
+      return node.fn.impl(args);
+    }
     case 'when': {
       for (const branch of node.branches) {
-        if (truthy(evalNode(branch.cond, row))) return evalNode(branch.value, row);
+        if (truthy(evalNode(branch.cond, row, tracker)))
+          return evalNode(branch.value, row, tracker);
       }
-      return evalNode(node.otherwise, row);
+      return evalNode(node.otherwise, row, tracker);
     }
     case 'bin': {
-      const l = evalNode(node.left, row);
-      const r = evalNode(node.right, row);
+      const l = evalNode(node.left, row, tracker);
+      const r = evalNode(node.right, row, tracker);
       if (node.op === '+') {
         // `+` is overloaded: numeric add when both sides are numberish, else string concat.
         const ln = numberish(l);
@@ -1033,12 +1197,15 @@ function evalNode(node: Node, row: Row): unknown {
 /**
  * Apply compiled assignments to a row, mutating a shallow copy. Each target field
  * is computed in order, so a later assignment can reference an earlier one.
+ * With a `tracker`, what the array functions received is counted over the
+ * batch (see {@link computeArrayWarnings}).
  */
-export function applyCompute(row: Row, compiled: CompiledCompute): Row {
+export function applyCompute(row: Row, compiled: CompiledCompute, tracker?: ComputeTracker): Row {
   if (compiled.length === 0) return row;
   const result: Row = { ...row };
+  if (tracker) tracker.rows++;
   for (const { target, ast } of compiled) {
-    result[target] = evalNode(ast, result);
+    result[target] = evalNode(ast, result, tracker);
   }
   return result;
 }

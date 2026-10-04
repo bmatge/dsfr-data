@@ -764,7 +764,7 @@ configuration, jamais une colonne vide :
 | Sous-chaines | \`left(s, n)\`, \`substr(s, debut, n)\` | Positions comptees A PARTIR DE 1, comme SQL et ODSQL : \`left(siret, 9)\` = SIREN, \`substr(code_insee, 1, 2)\` = departement (outre-mer : trois caracteres, \`971\`…\`976\`). \`n\` facultatif dans \`substr\` (jusqu'au bout). Resultat toujours TEXTE ; un nombre est lu par sa forme texte, mais un code stocke en nombre a deja perdu ses zeros de tete. Valeur, position ou longueur absente → \`null\` ; longueur ≤ 0 ou debut au-dela de la fin → chaine vide ; \`substr(s, 0, 2)\` = erreur de configuration |
 | Absence | \`coalesce(a, b, …)\`, \`is_null(x)\`, \`is_empty(x)\` | \`coalesce\` = premiere valeur non nulle (\`''\` compte comme une valeur) ; \`is_empty\` = null, \`''\` ou tableau vide |
 | Tableaux | \`join(arr, ', ')\`, \`contains(arr_ou_texte, v)\` | \`contains\` sur tableau = egalite lache par element (comme \`in\`) ; sur texte = sous-chaine insensible a la casse (comme \`where contains\`) |
-| Elements d'un tableau | \`element_at(arr, n)\`, \`array_min(arr)\`, \`array_max(arr)\` | \`element_at\` : rang compte A PARTIR DE 1 (comme \`substr\`, et comme \`element_at\` en SQL Spark / Trino), rang NEGATIF = depuis la fin (\`element_at(arr, -1)\` = dernier) ; element rendu tel quel. \`array_min\` / \`array_max\` : plus petit / plus grand element, elements absents ignores, comparaison NUMERIQUE si tous les elements sont numeriques (\`'950'\` avant \`'1050'\`), TEXTUELLE sinon (dates ISO), element rendu tel quel. Valeur qui n'est PAS un tableau (scalaire, texte « colle » \`'a;b'\`, null), tableau vide, rang hors bornes → \`null\` ; \`element_at(arr, 0)\` ou rang non entier = erreur de configuration |
+| Elements d'un tableau | \`element_at(arr, n)\`, \`array_min(arr)\`, \`array_max(arr)\` | \`element_at\` : rang compte A PARTIR DE 1 (comme \`substr\`, et comme \`element_at\` en SQL Spark / Trino), rang NEGATIF = depuis la fin (\`element_at(arr, -1)\` = dernier) ; element rendu tel quel. \`array_min\` / \`array_max\` : plus petit / plus grand element, elements absents ignores, comparaison NUMERIQUE si tous les elements sont numeriques (\`'950'\` avant \`'1050'\`), TEXTUELLE si aucun ne l'est (dates ISO), tableau MIXTE → \`null\` + avertissement console ; element rendu tel quel. Valeur qui n'est PAS un tableau (scalaire, texte « colle » \`'a;b'\`, null), tableau vide, rang hors bornes → \`null\` ; \`element_at(arr, 0)\` ou rang non entier = erreur de configuration |
 
 **Lire UN element d'un champ tableau** (#1237) : \`principale = element_at(denominations, 1)\`
 rend la denomination principale, sans \`explode\` ni jointure. Une cellule « collee »
@@ -775,6 +775,25 @@ Le premier element liste n'est pas le plus ancien : pour « le plus ancien poste
 \`array_min(prises_de_poste)\` (et \`year(array_min(prises_de_poste))\` pour son annee), pas
 \`element_at(prises_de_poste, 1)\`. Ne PAS confondre avec les agregations \`min\` / \`max\` de
 \`dsfr-data-query\`, qui reduisent des lignes, pas les elements d'une cellule.
+
+**Tableau MIXTE** (\`"950 ; 1050 ; vers 1970"\`, des nombres ET du texte) : \`array_min\` /
+\`array_max\` rendent \`null\` sur la ligne, avec un avertissement console — l'ordre du texte
+repondrait « 1050 ». Nettoyer les elements en amont, en DEUX normalize chaines
+(\`replace\` / \`replace-fields\` comparent la cellule entiere ; le \`replace()\` de \`compute\`
+passe APRES \`split\` et rend un texte) :
+
+\`\`\`html
+<dsfr-data-normalize id="net" source="raw"
+  compute="datation = replace(join(datation, ';'), 'vers ', '')"></dsfr-data-normalize>
+<dsfr-data-normalize id="calc" source="net" split="datation:;"
+  compute="premiere = array_min(datation)"></dsfr-data-normalize>
+\`\`\`
+
+\`join\` recolle un vrai tableau et laisse un texte tel quel : la recette vaut pour les deux.
+Sur un VRAI tableau dont les valeurs fautives sont connues une a une,
+\`replace-fields="datation:vers 1970:1970"\` suffit dans un seul normalize (element par
+element, valeur exacte). **Colonne entierement vide** : si le champ ne porte aucun tableau
+(cellule collee sans \`split\`), un avertissement console nomme le champ et le \`split\` a poser.
 
 **Apostrophe dans un litteral** : elle s'ecrit DOUBLEE, comme en SQL et en ODSQL —
 \`when libelle = 'J''en ai' then 1 else 0\`, \`region = 'Provence-Alpes-Côte d''Azur'\`. Pas

@@ -540,7 +540,8 @@ export function elementDe(v: unknown, rang: unknown): unknown {
  * de `array_min` / `array_max` : les éléments absents (`null`, `undefined`,
  * chaîne vide) ne comptent pas ; la comparaison est NUMÉRIQUE quand tous les
  * éléments restants sont des nombres (décimale française comprise), TEXTUELLE
- * sinon — décidée une fois pour le tableau entier ; l'élément gagnant est
+ * quand aucun ne l'est ; un tableau MIXTE — des nombres et des textes — rend
+ * `null`, parce qu'aucun des deux ordres n'y est juste. L'élément gagnant est
  * rendu tel quel, le premier rencontré en cas d'égalité. Pas un tableau, ou
  * rien à comparer : `null`.
  *
@@ -551,7 +552,9 @@ export function extremeDe(v: unknown, lequel: 'min' | 'max'): unknown {
   if (!Array.isArray(v)) return null;
   const presents = (v as unknown[]).filter((el) => el !== null && el !== undefined && el !== '');
   if (presents.length === 0) return null;
-  const tousNumeriques = presents.every((el) => toNum(el) !== null);
+  const numeriques = presents.filter((el) => toNum(el) !== null).length;
+  if (numeriques !== 0 && numeriques !== presents.length) return null;
+  const tousNumeriques = numeriques === presents.length;
   const ecart = (a: unknown, b: unknown): number => {
     if (tousNumeriques) return (toNum(a) as number) - (toNum(b) as number);
     const ta = String(a);
@@ -562,6 +565,33 @@ export function extremeDe(v: unknown, lequel: 'min' | 'max'): unknown {
   // rencontré reste en tête — en ordre croissant comme en ordre décroissant.
   const ranges = [...presents].sort((a, b) => (lequel === 'min' ? ecart(a, b) : ecart(b, a)));
   return ranges[0];
+}
+
+/**
+ * Remplacement LITTÉRAL dans le texte d'une cellule — ce que
+ * `replace(join(champ, sep), 'de', 'vers')` de `compute` doit montrer, énoncé
+ * sans la grammaire : la valeur est lue par sa forme texte (un tableau : ses
+ * éléments joints par `joint`), toutes les occurrences de `cherche` sont
+ * remplacées, sans motif. Valeur absente : `null`. Lu position par position.
+ */
+export function remplacerTexte(v: unknown, cherche: string, par: string, joint = ', '): unknown {
+  if (v === null || v === undefined) return null;
+  const texte = Array.isArray(v)
+    ? (v as unknown[]).map((el) => (el === null || el === undefined ? '' : String(el))).join(joint)
+    : String(v);
+  if (cherche === '') return texte;
+  let out = '';
+  let i = 0;
+  while (i < texte.length) {
+    if (texte.startsWith(cherche, i)) {
+      out += par;
+      i += cherche.length;
+    } else {
+      out += texte[i];
+      i++;
+    }
+  }
+  return out;
 }
 
 /**
@@ -1131,6 +1161,12 @@ export function runPipeline(
         break;
       case 'split':
         rows = splitColumn(rows, step.field, step.separator);
+        break;
+      case 'replace-text':
+        rows = rows.map((r) => ({
+          ...r,
+          [step.field]: remplacerTexte(r[step.field], step.search, step.by, step.join),
+        }));
         break;
       case 'sqrt':
         rows = sqrtColumn(rows, step.from, step.as);

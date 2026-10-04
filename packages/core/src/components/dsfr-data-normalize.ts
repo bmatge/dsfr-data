@@ -10,8 +10,10 @@ import {
   unescapeColonValue,
   toBoolean,
   computeTargets,
+  createComputeTracker,
+  computeArrayWarnings,
 } from '@dsfr-data/shared/lib';
-import type { CompiledCompute, ComputedColumn } from '@dsfr-data/shared/lib';
+import type { CompiledCompute, ComputedColumn, ComputeWarning } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { getDataCache } from '../utils/data-bridge.js';
@@ -304,13 +306,29 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    *   premier listé : `plus_ancien = array_min(prises_de_poste)`,
    *   `annee = year(array_min(prises_de_poste))`. Les éléments absents (null, '') sont
    *   ignorés ; la comparaison est NUMÉRIQUE quand tous les éléments restants sont des
-   *   nombres (« 950 » avant « 1050 », décimale française comprise), TEXTUELLE sinon
-   *   (les dates ISO se rangent juste ; un seul élément non numérique, « vers 1970 »,
-   *   fait basculer tout le tableau en texte). L'élément gagnant est rendu tel quel
-   *   (`'01004'` garde son zéro), le premier en cas d'égalité ; pas un tableau, ou rien
-   *   à comparer : null. Ce ne sont pas les agrégations `min` / `max` de
+   *   nombres (« 950 » avant « 1050 », décimale française comprise), TEXTUELLE quand
+   *   aucun ne l'est (les dates ISO se rangent juste). L'élément gagnant est rendu tel
+   *   quel (`'01004'` garde son zéro), le premier en cas d'égalité ; pas un tableau, ou
+   *   rien à comparer : null. Ce ne sont pas les agrégations `min` / `max` de
    *   `dsfr-data-query`, qui réduisent des LIGNES : celles-ci réduisent les éléments
    *   d'UNE cellule.
+   *   TABLEAU MIXTE — des éléments numériques ET non numériques
+   *   (`950 ; 1050 ; vers 1970`, ou des codes `2A004` parmi des codes en chiffres) :
+   *   `array_min` et `array_max` rendent null sur cette ligne, avec un avertissement en
+   *   console, car aucun des deux ordres n'y est juste (celui du texte répondrait
+   *   « 1050 »). Les éléments se nettoient par attributs, en DEUX normalize chaînés —
+   *   `replace` et `replace-fields` comparent la cellule entière, et le `replace()` de
+   *   `compute` passe après `split` : le premier recolle et nettoie le texte,
+   *   `compute="datation = replace(join(datation, ';'), 'vers ', '')"`, le second
+   *   découpe et calcule, `split="datation:;" compute="premiere = array_min(datation)"`.
+   *   La recette vaut pour une cellule collée comme pour un vrai tableau (`join` le
+   *   recolle). Sur un vrai tableau, `replace-fields="datation:vers 1970:1970"` suffit
+   *   dans un seul normalize quand les valeurs à corriger sont connues une à une (il
+   *   remplace élément par élément, à valeur exacte).
+   *   AVERTISSEMENTS : une colonne calculée ENTIÈREMENT vide parce que le champ ne
+   *   porte aucun tableau (cellule collée non découpée, valeur seule) est signalée une
+   *   fois en console, avec le champ et le `split` à poser ; rien n'est dit si la
+   *   colonne est réellement vide, ni si une partie des lignes porte un tableau.
    *
    * Exemples : `solde = actif - passif` (null si l'un des deux manque),
    * `tranche = when montant = 0 then 'Nul' when is_empty(montant) then 'Inconnu' else 'Renseigné'`,
@@ -518,6 +536,10 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
         this._computeConfigError = false;
       }
 
+      // Ce que les fonctions de tableau reçoivent sur le lot (#1237) : une
+      // colonne calculée entièrement vide faute de `split`, ou vide sur les
+      // lignes d'un tableau mixte, ne lève aucune erreur — elle s'avertit.
+      const computeTracker = createComputeTracker();
       const result = rows.map((row) => {
         if (row === null || row === undefined || typeof row !== 'object') {
           return row;
@@ -536,8 +558,11 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
         if (foldRules.length > 0) {
           normalized = this._applyFold(normalized, foldRules);
         }
-        return compiledCompute.length > 0 ? applyCompute(normalized, compiledCompute) : normalized;
+        return compiledCompute.length > 0
+          ? applyCompute(normalized, compiledCompute, computeTracker)
+          : normalized;
       });
+      this._warnComputeArrays(computeArrayWarnings(computeTracker));
 
       // Colonnes dérivées pour la trace (#671) : noms + valeur de la première ligne.
       const firstRow = result.find((r) => r !== null && typeof r === 'object') as
@@ -712,6 +737,31 @@ export class DsfrDataNormalize extends TransformerMixin(LitElement) {
    */
   /** Séparateurs suspects déjà signalés, par attribut et valeur (#772). */
   private _separatorWarned = new Set<string>();
+
+  /** Avertissements `compute` déjà dits, pour la valeur d'attribut `_computeWarnedFor` (#1237). */
+  private _computeWarned = new Set<string>();
+  private _computeWarnedFor = '';
+
+  /**
+   * Dit UNE fois par composant et par cause (fonction, champ) ce qui laisse
+   * une colonne calculée vide sans erreur : aucun tableau reçu faute de
+   * `split`, ou tableau mixte pour `array_min` / `array_max`. Un lot suivant
+   * (pagination, rechargement) ne le redit pas ; un attribut `compute` ou
+   * `split` modifié remet le compte à zéro. En `console.warn`, que le journal
+   * du volet Diagnostic relaie déjà.
+   */
+  private _warnComputeArrays(warnings: ComputeWarning[]): void {
+    const signature = `${this.compute}\u0000${this.split}`;
+    if (this._computeWarnedFor !== signature) {
+      this._computeWarnedFor = signature;
+      this._computeWarned.clear();
+    }
+    for (const { key, message } of warnings) {
+      if (this._computeWarned.has(key)) continue;
+      this._computeWarned.add(key);
+      console.warn(`dsfr-data-normalize[${this.id}] : ${message}`);
+    }
+  }
 
   /** Valeur de `fold` dont les erreurs ont deja ete signalees, ou null. */
   private _foldErrorsReportedFor: string | null = null;
