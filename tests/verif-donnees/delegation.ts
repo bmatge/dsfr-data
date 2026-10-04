@@ -41,6 +41,7 @@ import {
   urlsDe,
   type Forme,
 } from './fixtures-delegation.js';
+import { GRIST_LIGNES, URL_GRIST } from './fixtures-adaptateurs.js';
 
 // ---------------------------------------------------------------------------
 // 1. L'invariant : la même forme de query, avec et sans `server-side`
@@ -2027,6 +2028,263 @@ const RELAIS_CACHABLE: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Tri sur une colonne PRODUITE CÔTÉ CLIENT (#1244)
+// ---------------------------------------------------------------------------
+
+/**
+ * `order-by` sur une colonne que la query fabrique elle-même (part, cumul,
+ * écart) ou qu'un `compute` en amont fabrique : aucun serveur ne la connaît.
+ *
+ * Mesuré contre les faux serveurs du dépôt avant correction (2026-10-04),
+ * `aggregate="population:share_percent" order-by="population__share_percent:asc"`
+ * sans `group-by` :
+ *   - Opendatasoft recevait `order_by=population__share_percent ASC` (le faux
+ *     serveur l'accepte, l'API réelle refuse un champ inconnu) ;
+ *   - Tabular recevait `population__share_percent__sort=asc` et refusait la
+ *     colonne, comme l'API (42703) : la query n'affichait plus aucune ligne ;
+ *   - Grist recevait `sort=Population__share_percent` ;
+ *   - et sur AUCUN des trois, ni sur une source sans adaptateur, ni après un
+ *     `group-by`, les lignes n'étaient triées : le tri client passait avant
+ *     le calcul de la colonne, et ne trouvait rien à trier.
+ *
+ * Chaque contrôle garde donc les deux moitiés : l'URL (aucun tri délégué) et
+ * l'ORDRE des lignes rendues, relu dans un tableau — `rows` compare par clé et
+ * ne verrait pas un tri sauté.
+ *
+ * Les 137 territoires arrivent par population DÉCROISSANTE : les tris demandés
+ * sont croissants, pour qu'un tri sauté ne ressemble pas à un tri fait.
+ */
+const PART_CROISSANTE: Step[] = [
+  { op: 'share', from: 'population', as: 'population__share_percent', scale: 100 },
+  { op: 'order-by', column: 'population__share_percent', dir: 'asc' },
+  { op: 'limit', n: 5 },
+];
+
+/** Les cinq plus petites parts, dans l'ordre : la liste, puis les chiffres. */
+const ATTENTES_PART_CROISSANTE = (query: string, liste: string): Expect[] => [
+  {
+    kind: 'list',
+    id: liste,
+    columns: [{ column: 'region' }, { column: 'population', numeric: true }],
+    pipeline: PART_CROISSANTE,
+  },
+  {
+    kind: 'rows',
+    id: query,
+    key: 'region',
+    columns: ['population__share_percent'],
+    pipeline: PART_CROISSANTE,
+  },
+  { kind: 'diagnostic', id: query, expect: 'silence' },
+];
+
+const BALISAGE_PART_CROISSANTE = (source: string): string => `
+  ${source}
+  <dsfr-data-query id="q-tri-part" source="s-tri-part" aggregate="population:share_percent"
+    order-by="population__share_percent:asc" limit="5"></dsfr-data-query>
+  <dsfr-data-list id="l-tri-part" source="q-tri-part"
+    columns="region:Région, population:Population"></dsfr-data-list>`;
+
+const GRIST_PART_DECROISSANTE: Step[] = [
+  { op: 'share', from: 'Population', as: 'Population__share_percent', scale: 100 },
+  { op: 'order-by', column: 'Population__share_percent', dir: 'desc' },
+];
+
+const TRI_SUR_COLONNE_CLIENT: Check[] = [
+  {
+    id: 'tri-sur-part-jamais-delegue-ods',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244 — Opendatasoft : un tri sur la colonne de PART que la query calcule ne part pas en `order_by` (le portail ne connaît pas `population__share_percent`), et il est appliqué côté client APRÈS le calcul. Avant : `order_by=population__share_percent ASC` dans l’URL, et les cinq lignes rendues étaient les cinq premières reçues — les plus GRANDES parts sous un tri croissant.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: BALISAGE_PART_CROISSANTE(sourceOds('s-tri-part')),
+    expects: [
+      ...ATTENTES_PART_CROISSANTE('q-tri-part', 'l-tri-part'),
+      urlsDe('tri-sur-part-non-delegue', 'ods', 'order_by', 'none'),
+    ],
+  },
+
+  {
+    id: 'tri-sur-part-jamais-delegue-tabular',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244 — Tabular : `population__share_percent__sort=asc` faisait REFUSER la requête (colonne inconnue, comme l’API : 42703), et la query n’affichait plus aucune ligne. Le tri sur une colonne de part reste côté client : aucune clé `__sort` dans l’URL, cinq lignes rendues, dans l’ordre.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: BALISAGE_PART_CROISSANTE(sourceTabular('s-tri-part')),
+    expects: [
+      ...ATTENTES_PART_CROISSANTE('q-tri-part', 'l-tri-part'),
+      urlsDe('tri-sur-part-non-delegue', 'tabular', '__sort', 'none'),
+    ],
+  },
+
+  {
+    id: 'tri-sur-part-jamais-delegue-grist',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244 — Grist : `sort=Population__share_percent` partait au serveur, qui ne porte pas cette colonne. Cinq villes, part décroissante : aucun paramètre `sort` dans l’URL, et Toulouse (35,9 %) en tête au lieu de Lille, première ligne reçue.',
+    feed: { kind: 'fixture', datasets: { main: GRIST_LIGNES } },
+    markup: `
+  <dsfr-data-source id="s-tri-grist" api-type="grist" base-url="${URL_GRIST}"></dsfr-data-source>
+  <dsfr-data-query id="q-tri-grist" source="s-tri-grist" aggregate="Population:share_percent"
+    order-by="Population__share_percent:desc"></dsfr-data-query>
+  <dsfr-data-list id="l-tri-grist" source="q-tri-grist"
+    columns="Nom de l'unité:Unité, Population:Population"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-tri-grist',
+        columns: [{ column: "Nom de l'unité" }, { column: 'Population', numeric: true }],
+        pipeline: GRIST_PART_DECROISSANTE,
+      },
+      {
+        kind: 'rows',
+        id: 'q-tri-grist',
+        key: "Nom de l'unité",
+        columns: ['Population__share_percent'],
+        pipeline: GRIST_PART_DECROISSANTE,
+      },
+      {
+        kind: 'urls',
+        id: 'tri-sur-part-non-delegue',
+        among: new URL(URL_GRIST).pathname,
+        contains: 'sort=',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'tri-sur-part-apres-regroupement',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244 — après un `group-by`, rien n’était délégué (une part retient le regroupement côté client), mais le tri sur la part n’était pas appliqué non plus : sept pays rendus dans l’ordre du regroupement, la France (14,62 %) en tête d’un tri croissant. La part des groupes existe après le tri du pipeline ; le tri est rejoué après son calcul.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-tri-groupe')}
+  <dsfr-data-query id="q-tri-groupe" source="s-tri-groupe" group-by="pays_iso2"
+    aggregate="population:sum:pop, pop:share_percent:part" order-by="part:asc"></dsfr-data-query>
+  <dsfr-data-list id="l-tri-groupe" source="q-tri-groupe"
+    columns="pays_iso2:Pays, pop:Population"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-tri-groupe',
+        columns: [{ column: 'pays_iso2' }, { column: 'pop', numeric: true }],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'pays_iso2',
+            columns: { pop: { agg: 'sum', field: 'population' } },
+          },
+          { op: 'share', from: 'pop', as: 'part', scale: 100 },
+          { op: 'order-by', column: 'part', dir: 'asc' },
+        ],
+      },
+      urlsDe('tri-sur-part-non-delegue', 'ods', 'order_by', 'none'),
+    ],
+  },
+
+  {
+    id: 'tri-sur-cumul-et-ecart-jamais-delegue',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244 — même défaut sur les CUMULS : `order-by` sur `population__running_sum` ou `population__diff` partait au serveur et n’était pas appliqué. Un cumul trié sur lui-même est calculé dans l’ordre REÇU, puis trié : les cinq plus grands cumuls sont les cinq dernières lignes reçues, dans l’ordre inverse. La bibliothèque le dit (le cumul suit l’ordre des lignes reçues, faute d’une clé de tri qui le précède).',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-tri-cumul')}
+  <dsfr-data-query id="q-tri-cumul" source="s-tri-cumul" aggregate="population:running_sum"
+    order-by="population__running_sum:desc" limit="5"></dsfr-data-query>
+  <dsfr-data-list id="l-tri-cumul" source="q-tri-cumul"
+    columns="region:Région, population__running_sum:Cumul"></dsfr-data-list>
+  ${sourceTabular('s-tri-ecart')}
+  <dsfr-data-query id="q-tri-ecart" source="s-tri-ecart" aggregate="population:running_sum, population__running_sum:diff:ecart"
+    order-by="ecart:desc" limit="5"></dsfr-data-query>
+  <dsfr-data-list id="l-tri-ecart" source="q-tri-ecart"
+    columns="region:Région, ecart:Écart"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-tri-cumul',
+        columns: [{ column: 'region' }, { column: 'population__running_sum', numeric: true }],
+        pipeline: [
+          {
+            op: 'running',
+            from: 'population',
+            as: 'population__running_sum',
+            kind: 'running_sum',
+          },
+          { op: 'order-by', column: 'population__running_sum', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'q-tri-cumul',
+        expect: 'warning',
+        contains: 'ne nomme que des colonnes calculées par aggregate',
+      },
+      // Deux fenêtres enchaînées, triées sur la seconde : l'écart du cumul
+      // redonne la population de la ligne, sauf pour la première reçue, qui
+      // n'a pas de précédente — elle n'a pas d'écart et sort du classement.
+      // Un tri sauté la laisserait en tête.
+      {
+        kind: 'list',
+        id: 'l-tri-ecart',
+        columns: [{ column: 'region' }, { column: 'ecart', numeric: true }],
+        pipeline: [
+          {
+            op: 'running',
+            from: 'population',
+            as: 'population__running_sum',
+            kind: 'running_sum',
+          },
+          { op: 'running', from: 'population__running_sum', as: 'ecart', kind: 'diff' },
+          { op: 'order-by', column: 'ecart', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      urlsDe('tri-sur-cumul-non-delegue', 'ods', 'order_by', 'none'),
+      urlsDe('tri-sur-ecart-non-delegue', 'tabular', '__sort', 'none'),
+    ],
+  },
+
+  {
+    id: 'tri-sur-colonne-de-compute-reste-client',
+    mode: 'deterministic',
+    constats: ['BUG-035'],
+    origin:
+      '#1244 — une colonne issue d’un `compute` (`dsfr-data-normalize` en amont) est, elle aussi, produite côté client. Ce cas n’était PAS en défaut : le relais déclare qu’il transforme le schéma (#394), la query ne délègue donc rien à travers lui et trie elle-même. Le contrôle le garde — un relais qui cesserait de le déclarer enverrait `order_by=double` à un portail qui n’a pas cette colonne.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-tri-compute')}
+  <dsfr-data-normalize id="n-tri-compute" source="s-tri-compute"
+    compute="double = population * 2"></dsfr-data-normalize>
+  <dsfr-data-query id="q-tri-compute" source="n-tri-compute" order-by="double:asc"
+    limit="5"></dsfr-data-query>
+  <dsfr-data-list id="l-tri-compute" source="q-tri-compute"
+    columns="region:Région, double:Double"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-tri-compute',
+        columns: [{ column: 'region' }, { column: 'double', numeric: true }],
+        pipeline: [
+          { op: 'derive', expr: 'double = population * 2' },
+          { op: 'order-by', column: 'double', dir: 'asc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      urlsDe('tri-sur-compute-non-delegue', 'ods', 'order_by', 'none'),
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -2045,5 +2303,6 @@ export const DELEGATION: Manifest = {
     ...PART_PAR_GROUPE,
     ...REGROUPEMENT_SUR_UNE_PAGE,
     ...RELAIS_CACHABLE,
+    ...TRI_SUR_COLONNE_CLIENT,
   ],
 };

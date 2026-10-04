@@ -526,6 +526,10 @@ division. \`share\` la donne en un attribut :
   déplacent le total — 33,4 % sans filtre, 16,3 % en Bretagne, et les deux sont justes ; le
   dire en page) ; et avec \`limit\`, **les parts ne somment pas à 100 %**, un top 10 montrant
   la part de chaque ligne dans le tout et non dans le top 10.
+- **Trier sur la part** : \`order-by="part:desc"\` (ou \`lics__sum__share_percent:desc\` sans
+  alias) trie les lignes de sortie sur la colonne calculée, avant \`limit\`. Ce tri-là reste
+  toujours côté client : aucun serveur ne connaît la colonne. Même règle pour un cumul ou un
+  écart (\`montant__running_sum\`, \`cumul__diff\`).
 - **Une part suppose une partition** : chaque unité comptée une fois. Après \`explode\`, une
   ligne multivaluée compte dans N groupes et les parts dépassent 100 % — écrire alors « part
   des licences portant ce label », pas « répartition ».
