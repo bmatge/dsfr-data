@@ -110,7 +110,11 @@ export function resolveRelayUrl(override?: string): string {
     raw = window.DSFR_DATA_RELAY.trim();
   }
   if (!raw) return '';
-  const prefix = raw.replace(/\/+$/, '');
+  // Barres finales retirées à la main : une expression rationnelle sur une
+  // valeur venue de la page serait quadratique sur une longue suite de « / ».
+  let end = raw.length;
+  while (end > 0 && raw.charCodeAt(end - 1) === 47) end -= 1;
+  const prefix = raw.slice(0, end);
   if (!prefix || /[?#\s]/.test(prefix)) {
     warnOnce(
       `relais-invalide|${raw}`,
