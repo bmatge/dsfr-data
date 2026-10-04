@@ -168,7 +168,13 @@ export function mountDiagnosticPanel(options: MountDiagnosticOptions = {}): Moun
     const c = options.constats?.contexte;
     if (typeof c === 'function') return c();
     if (c) return c;
-    return { app: '*', origine: typeof location !== 'undefined' ? location.origin : undefined };
+    const relais = typeof window !== 'undefined' ? window.DSFR_DATA_RELAY : undefined;
+    return {
+      app: '*',
+      origine: typeof location !== 'undefined' ? location.origin : undefined,
+      // Relais du site posé hors attribut (ADR-155) : la règle `pipeline/relais` le lit
+      ...(typeof relais === 'string' && relais ? { relais } : {}),
+    };
   };
   let derniers: readonly Constat[] = [];
   const poserTrace = (trace: Trace | null): void => {

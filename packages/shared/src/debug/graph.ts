@@ -87,6 +87,7 @@ export const SHAPE_ATTRS: Record<string, string[]> = {
     'max-records',
     'use-proxy',
     'proxy-url',
+    'relay-url',
     'transform',
   ],
   'dsfr-data-query': [
