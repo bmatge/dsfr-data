@@ -47,6 +47,17 @@ export function sourceDu(api: 'ods' | 'tabular'): DashboardSource {
 }
 
 /**
+ * La source APRÈS chargement dans le Studio : la connexion ET les lignes
+ * rapatriées (c'est le cas réel — une source venue de l'app Sources porte
+ * toujours les deux). L'export reste déclaratif ; les lignes ne lui servent
+ * qu'à connaître les champs de la source (#1225). Elles viennent d'un jeu de
+ * `jeux/`, jamais d'un littéral.
+ */
+export function sourceChargee(api: 'ods' | 'tabular', lignes: Row[]): DashboardSource {
+  return { ...sourceDu(api), data: lignes };
+}
+
+/**
  * Une source EMBARQUÉE : les lignes saisies ou importées voyagent dans la page
  * (attribut `data` de la balise de source), aucun réseau. Les lignes viennent
  * d'un jeu de `jeux/`, jamais d'un littéral.

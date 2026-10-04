@@ -269,6 +269,19 @@ pose legitimement `server-side`. Un document qui veut eprouver le chargement com
 porter un lecteur qu'AUCUNE regle ne dedie — un graphique non agrege, par exemple. Trois cas de
 la recette ont decrit ce comportement correct comme une regression avant d'etre requalifies.
 
+⚠️ **Meme couplage pour les COLONNES d'une source Tabular** (#1225, reprise de #985) :
+`tabularProjectedSources()` pose `select` sur la balise de source — l'adaptateur le traduit en
+`columns=` — et ce `select` vaut pour tous les consommateurs de la source. Une colonne absente du
+`select` est absente des lignes : le KPI d'a cote afficherait 0, sans erreur. Il n'est donc pose que
+si (1) CHAQUE consommateur effectif sait enumerer ses colonnes (un tableau a colonnes choisies : ses
+colonnes, son champ de tri, les champs de son filtre ; un bloc de filtres : ses champs — jamais un
+graphique, un KPI, une carte, un composant libre), (2) aucun tableau ne porte de recherche locale,
+qui lit TOUTES les valeurs de la ligne (elle n'est pas emise quand la source pagine cote serveur),
+(3) tous les noms sont des champs connus de la source (cles de `source.data` ; une colonne inconnue
+fait repondre 400 a l'API). Le `select` est l'union des colonnes. En pratique : le tableau seul
+lecteur de sa source, ou plusieurs tableaux sans recherche. Garde-fous : forme dans
+`tests/shared/dashboard-export-tabular-select.test.ts`, chiffres dans `tests/verif-donnees/export-studio.ts`.
+
 **Formats WHERE** :
 - **ODSQL** (OpenDataSoft) : SQL-like — `population > 5000 AND status = 'active'`, clauses jointes par ` AND `.
 - **Colon** (Tabular, Grist, INSEE, Generic) : `field:operator:value, field2:operator:value2`. Les caracteres structurels (`,` `:` `|`) dans une VALEUR sont percent-encodes (`escapeColonValue`/`unescapeColonValue` dans `packages/core/src/utils/where.ts`, #271) ; tous les parseurs colon decodent apres decoupage.

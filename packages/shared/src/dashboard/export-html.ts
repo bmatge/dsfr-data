@@ -19,7 +19,7 @@
  */
 
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
-import { escapeColonValue } from '../utils/colon-escape.js';
+import { escapeColonValue, splitColonFields } from '../utils/colon-escape.js';
 import { filterToOdsql } from '../query/filter-translator.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
@@ -67,7 +67,11 @@ export interface SourceEmitOptions {
    * Clauses ODSQL posees sur une source Opendatasoft (#810) : la source
    * dediee d'un KPI fait calculer son agregat par le serveur
    * (`select="sum(montant) as montant__sum"`) et porte son filtre propre.
-   * Ignorees par les autres branches.
+   *
+   * Sur une source Tabular (#1225), `select` est la liste des colonnes lues
+   * par ses consommateurs (`tabularProjectedSources()`), que l'adaptateur
+   * traduit en `columns=` ; `where` y est ignore. Ignorees par les autres
+   * branches.
    */
   select?: string;
   where?: string;
@@ -139,9 +143,10 @@ export function generateSourceHTML(
     );
   }
   if (provider === 'tabular' && typeof resourceIds.resourceId === 'string') {
+    const select = options.select ? `\n${indent}  select="${escapeHtml(options.select)}"` : '';
     return (
       `${indent}<dsfr-data-source id="${id}" api-type="tabular"\n` +
-      `${indent}  resource="${escapeHtml(resourceIds.resourceId)}"${serverAttrs}></dsfr-data-source>\n`
+      `${indent}  resource="${escapeHtml(resourceIds.resourceId)}"${serverAttrs}${select}></dsfr-data-source>\n`
     );
   }
   // URL nue : dynamique aussi, mais seulement si le document exporte peut
@@ -899,12 +904,14 @@ export function generateDashboardBodyHTML(dashboard: DashboardData): string {
     : '';
 
   const usedSourceIds = collectUsedSourceIds(dashboard);
+  const projected = tabularProjectedSources(dashboard, serverPaginated);
   const sourcesHTML = dashboard.sources
     .filter((s) => usedSourceIds.has(s.id))
     .map((s) =>
       generateSourceHTML(s, '    ', {
         serverSide: serverPaginated.has(s.id),
         pageSize: serverPaginated.get(s.id),
+        select: projected.get(s.id),
       })
     )
     .join('');
@@ -936,6 +943,60 @@ interface SourceConsumer {
   need: ConsumerNeed;
   /** Taille de page demandee, pour un consommateur `liste-paginee`. */
   pageSize: number;
+  /**
+   * Colonnes que ce consommateur lit, quand on sait les ENUMERER (#1225) : les
+   * colonnes d'un tableau, son champ de tri, les champs de son filtre, les
+   * champs d'un bloc de filtres. Absent = on ne sait pas, donc toutes — un
+   * graphique, un KPI, une carte, un composant libre.
+   */
+  columns?: string[];
+  /**
+   * Le tableau porte une recherche locale tant que sa source ne pagine pas
+   * cote serveur. Elle cherche dans TOUTES les valeurs de la ligne, colonnes
+   * non affichees comprises : elle a donc besoin de toutes les colonnes.
+   */
+  search?: boolean;
+}
+
+/** Champ d'une entree `champ:Libellé` de `columns`, telle que la liste la decoupe. */
+function columnKey(entry: string): string {
+  return entry.split(':')[0].trim();
+}
+
+/**
+ * Champs vises par un filtre en syntaxe colon (`champ:op:valeur, a|b:op:v`),
+ * ou null si une clause n'a pas cette forme — on ne sait alors pas ce que le
+ * filtre lit. Une virgule de VALEUR est echappee (`%2C`) : le decoupage sur la
+ * virgule nue est celui du parseur de la bibliotheque.
+ */
+function whereFields(where: string): string[] | null {
+  const fields: string[] = [];
+  for (const clause of where.split(',')) {
+    if (!clause.trim()) continue;
+    const segments = clause.split(':');
+    if (segments.length < 2) return null;
+    const names = splitColonFields(segments[0]);
+    if (names.length === 0) return null;
+    fields.push(...names);
+  }
+  return fields;
+}
+
+/**
+ * Colonnes lues par un tableau de l'assistant sans agregation ni limite : les
+ * colonnes affichees, le champ de tri (`valueField`, seulement s'il y a un
+ * tri) et les champs de son filtre. Undefined quand le tableau ne choisit pas
+ * ses colonnes (il les affiche toutes) ou que son filtre est illisible.
+ */
+function datalistColumns(c: ChartConfig): string[] | undefined {
+  if (!c.colonnes) return undefined;
+  const filtered = c.where ? whereFields(c.where) : [];
+  if (filtered === null) return undefined;
+  return [
+    ...c.colonnes.split(',').map(columnKey),
+    c.sortOrder ? c.valueField : '',
+    ...filtered,
+  ].filter(Boolean);
 }
 
 /**
@@ -962,7 +1023,11 @@ function collectSourceConsumers(
     if (w.type === 'text') continue;
     if (w.type === 'filters') {
       for (const id of filterTargetIds(w.config, dashboard)) {
-        add(id, { need: 'contexte', pageSize: 0 });
+        add(id, {
+          need: 'contexte',
+          pageSize: 0,
+          columns: w.config.filters.map((f) => f.field),
+        });
       }
       continue;
     }
@@ -995,7 +1060,12 @@ function collectSourceConsumers(
     if (w.type === 'table') {
       // La forme sans source ne branche aucune balise vivante.
       if (w.config.sourceId) {
-        add(w.config.sourceId, { need: 'liste-paginee', pageSize: DEFAULT_PAGE_SIZE });
+        add(w.config.sourceId, {
+          need: 'liste-paginee',
+          pageSize: DEFAULT_PAGE_SIZE,
+          ...(w.config.columns.length > 0 ? { columns: w.config.columns.map(columnKey) } : {}),
+          search: w.config.searchable,
+        });
       }
       continue;
     }
@@ -1054,9 +1124,15 @@ function freeListConsumer(c: FreeComponentSpec, upstream: string): SourceConsume
  */
 function builderChartConsumer(c: ChartConfig): SourceConsumer {
   const paginable = c.type === 'datalist' && !c.aggregation && !c.limit;
-  return paginable
-    ? { need: 'liste-paginee', pageSize: c.pagination ?? DEFAULT_PAGE_SIZE }
-    : { need: 'jeu-entier', pageSize: 0 };
+  if (!paginable) return { need: 'jeu-entier', pageSize: 0 };
+  const columns = datalistColumns(c);
+  return {
+    need: 'liste-paginee',
+    pageSize: c.pagination ?? DEFAULT_PAGE_SIZE,
+    ...(columns ? { columns } : {}),
+    // `search` est emis des que la source ne pagine pas cote serveur.
+    search: true,
+  };
 }
 
 /** Source dediee d'un widget (#765). */
@@ -1197,6 +1273,83 @@ export function serverPaginatedSources(dashboard: DashboardData): Map<string, nu
     paginated.set(id, only.pageSize);
   }
   return paginated;
+}
+
+/** Noms de champs connus d'une source : les cles de ses lignes chargees. */
+function knownSourceFields(source: DashboardSource): Set<string> {
+  const known = new Set<string>();
+  if (!Array.isArray(source.data)) return known;
+  for (const row of source.data.slice(0, 50)) {
+    if (row && typeof row === 'object') for (const key of Object.keys(row)) known.add(key);
+  }
+  return known;
+}
+
+/**
+ * Un nom que l'attribut `select` ne sait pas porter : la virgule le separe,
+ * et l'adaptateur Tabular ignore — avec un avertissement — tout `select` dont
+ * un element a la forme d'une expression ODSQL (`*`, backquote, alias `as`,
+ * parenthese collee au nom). Meme lecture que `isSelectExpression` de
+ * l'adaptateur : la frontiere #319 interdit de l'importer ici.
+ */
+function unselectable(name: string): boolean {
+  return (
+    name === '*' ||
+    name.includes(',') ||
+    name.includes('`') ||
+    /\sas\s/i.test(name) ||
+    /^[\p{L}_][\p{L}\p{N}_.]*\(/u.test(name)
+  );
+}
+
+/**
+ * Sources Tabular qui ne demandent que les colonnes lues, avec leur `select`
+ * (#1225, reprise de #985 depuis l'ancien Assistant IA).
+ *
+ * L'adaptateur Tabular traduit le `select` de la source en `columns=` : l'API
+ * ne rend que ces colonnes (366 892 → 22 383 octets pour 200 bornes IRVE a
+ * trois colonnes, mesure du 2026-09-22 sur #985). La projection retire des
+ * colonnes, jamais des lignes : le tableau affiche les memes lignes.
+ *
+ * LE PIEGE : une source n'est emise qu'UNE FOIS, et le `select` vaut pour tous
+ * ses consommateurs. Une colonne absente du `select` est absente des lignes —
+ * le graphique d'a cote se tracerait vide, sans erreur. D'ou la regle, sur le
+ * graphe des consommateurs EFFECTIFS (apres attribution des sources dediees,
+ * #765 : un graphique agrege qui partageait la source a deja la sienne, sans
+ * `select`) :
+ *
+ * 1. CHAQUE consommateur enumere ses colonnes (`SourceConsumer.columns`) : un
+ *    tableau a colonnes choisies, un bloc de filtres. Un seul consommateur
+ *    qui ne le sait pas — graphique, KPI, carte, podium, composant libre,
+ *    tableau qui affiche tout — et la source garde toutes ses colonnes.
+ * 2. Aucune recherche locale : elle cherche dans toutes les valeurs de la
+ *    ligne. Elle n'est pas emise quand la source pagine cote serveur (ADR-109).
+ * 3. Le `select` est l'UNION des colonnes de tous les consommateurs.
+ * 4. Tous les noms sont des champs connus de la source (cles des lignes
+ *    chargees) : une colonne inconnue — nom invente par le modele, faute de
+ *    frappe — ferait repondre 400 a l'API. Source sans lignes : pas de select.
+ */
+export function tabularProjectedSources(
+  dashboard: DashboardData,
+  serverPaginated: Map<string, number> = serverPaginatedSources(dashboard)
+): Map<string, string> {
+  const projected = new Map<string, string>();
+  const byId = new Map(dashboard.sources.map((s) => [s.id, s]));
+  for (const [id, consumers] of effectiveSourceConsumers(dashboard)) {
+    const source = byId.get(id);
+    const resourceIds = (source?.resourceIds ?? {}) as Record<string, unknown>;
+    if (!source || source.provider !== 'tabular' || typeof resourceIds.resourceId !== 'string') {
+      continue;
+    }
+    if (consumers.some((consumer) => !consumer.columns)) continue;
+    if (!serverPaginated.has(id) && consumers.some((consumer) => consumer.search)) continue;
+    const fields = [...new Set(consumers.flatMap((consumer) => consumer.columns ?? []))];
+    const known = knownSourceFields(source);
+    if (fields.length === 0 || known.size === 0) continue;
+    if (fields.some((field) => !known.has(field) || unselectable(field))) continue;
+    projected.set(id, fields.join(', '));
+  }
+  return projected;
 }
 
 /** Ids de sources effectivement references par au moins un widget. */

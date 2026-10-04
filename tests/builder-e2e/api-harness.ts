@@ -37,6 +37,7 @@ import type { DashboardData, DashboardSource } from '../../packages/shared/src/d
 import {
   CHAMP_PIEGE,
   HOTES,
+  JEU,
   RESSOURCES,
   URL_GENERIQUE,
   repondreGenerique,
@@ -345,6 +346,21 @@ export function documentPour(chart: ChartConfig, variante: Variante): DashboardD
  */
 export function pagePour(chart: ChartConfig, variante: Variante): string {
   return generateDashboardHTML(documentPour(chart, variante));
+}
+
+/**
+ * Le meme document, sur une source CHARGEE : la connexion ET les lignes
+ * rapatriees, comme toute source venue de l'app Sources. L'export reste
+ * declaratif (aucune ligne n'est figee dans la page), mais il connait alors
+ * les champs de la source — condition pour qu'un tableau Tabular ne demande
+ * que ses colonnes (`select`, #1225).
+ */
+export function pageChargee(chart: ChartConfig, variante: Variante): string {
+  const document = documentPour(chart, variante);
+  return generateDashboardHTML({
+    ...document,
+    sources: document.sources.map((source) => ({ ...source, data: JEU })),
+  });
 }
 
 /**

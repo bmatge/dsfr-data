@@ -23,6 +23,13 @@
  *          seconde série se traçait vide, sans erreur. Le remède : chaque
  *          mesure est agrégée, et le graphique désigne les colonnes agrégées.
  *
+ *   #1225 — un tableau sur une source Tabular ne demande que les colonnes
+ *          qu'il lit (`select` de la source, traduit en `columns=`). Rien ne
+ *          change à l'écran : c'est la REQUÊTE qui change. Le risque est donc
+ *          double, et chaque face a son contrôle — un `select` qui oublie une
+ *          colonne affichée (cellules vides), et un `select` posé sur une
+ *          source PARTAGÉE, qui priverait le voisin de sa colonne.
+ *
  * Chaque contrôle regarde les deux faces : le chiffre affiché, recalculé par
  * l'oracle depuis les lignes brutes, ET les URL appelées, qui disent si le
  * serveur a bien fait le calcul.
@@ -36,6 +43,7 @@ import {
   document_,
   nommer,
   preremplir,
+  sourceChargee,
   sourceEmbarquee,
   widget,
 } from './fixtures-export-studio.js';
@@ -295,6 +303,102 @@ const CHECKS: Check[] = [
         columns: [{ column: 'region' }, { column: 'population', numeric: true }],
         pipeline: LISTE,
       },
+    ],
+  },
+
+  {
+    id: 'tableau-tabular-colonnes-demandees',
+    mode: 'deterministic',
+    origin:
+      '#1225 (reprise de #985) — un tableau seul lecteur d’une source Tabular CHARGEE (le Studio connait ses champs) : l’export pose `select="region, population"`, l’adaptateur demande `columns=region,population` a CHAQUE requete, et le tableau affiche les memes lignes que sans `select` (controle suivant). La requete change, pas le chiffre.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup:
+      corpsExporte(
+        document_('Tableau (Tabular, colonnes demandees)', sourceChargee('tabular', TERRITOIRES), [
+          widget('w-liste', CONFIG_LISTE, 0),
+        ])
+      ) + nommer([[`dsfr-data-list[source="q-w-liste"]`, 'w-liste']]),
+    expects: [
+      {
+        kind: 'list',
+        id: 'w-liste',
+        columns: [{ column: 'region' }, { column: 'population', numeric: true }],
+        pipeline: LISTE,
+      },
+      urlsDe('colonnes-demandees', 'tabular', 'columns=region,population', 'all'),
+    ],
+  },
+
+  {
+    id: 'tableau-tabular-sans-select',
+    mode: 'deterministic',
+    origin:
+      '#1225 — le MEME tableau sur la meme source, dont le document ne connait pas les champs (aucune ligne chargee) : pas de `select`, aucune requete ne porte `columns=`, et les lignes affichees sont celles du controle precedent. Un nom de colonne que la source ne connait pas ferait repondre 400 a l’API : sans champs connus, l’export ne projette pas.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup:
+      corpsExporte(
+        document_('Tableau (Tabular, sans select)', 'tabular', [widget('w-liste', CONFIG_LISTE, 0)])
+      ) + nommer([[`dsfr-data-list[source="q-w-liste"]`, 'w-liste']]),
+    expects: [
+      {
+        kind: 'list',
+        id: 'w-liste',
+        columns: [{ column: 'region' }, { column: 'population', numeric: true }],
+        pipeline: LISTE,
+      },
+      urlsDe('aucune-projection', 'tabular', 'columns=', 'none'),
+    ],
+  },
+
+  {
+    id: 'tableau-tabular-source-partagee-sans-select',
+    mode: 'deterministic',
+    origin:
+      '#1225 — LE PIEGE : un tableau sans recherche (region, academie) et un KPI (somme de population) sur la MEME source Tabular. La source n’est emise qu’une fois : un `select` cale sur les colonnes du tableau retirerait `population` des lignes, et le KPI afficherait 0 sans erreur. Le KPI ne sait pas enumerer ses colonnes : la source garde tout, aucune requete ne porte `columns=`.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup:
+      corpsExporte(
+        document_(
+          'KPI et tableau (Tabular, source partagee)',
+          sourceChargee('tabular', TERRITOIRES),
+          [
+            widget(
+              'w-kpi-somme',
+              { type: 'kpi', valueField: 'population', aggregation: 'sum', title: 'Population' },
+              0
+            ),
+            // Le tableau du Tableau de bord, SANS recherche : c'est la forme
+            // que seule la regle « chaque consommateur enumere ses colonnes »
+            // protege (un tableau de l'assistant porte une recherche locale
+            // sur une source partagee, qui suffit deja a ecarter le `select`).
+            {
+              id: 'w-liste',
+              title: 'Territoires',
+              position: { row: 1, col: 0 },
+              type: 'table',
+              config: {
+                columns: ['region:Territoire', 'academie:Académie'],
+                searchable: false,
+                sortable: false,
+                sourceId: ID_SOURCE,
+              },
+            },
+          ]
+        )
+      ) +
+      nommer([
+        [`dsfr-data-kpi[source="${ID_SOURCE}"]`, 'w-kpi-somme'],
+        [`dsfr-data-list[source="${ID_SOURCE}"]`, 'w-liste'],
+      ]),
+    expects: [
+      { kind: 'kpi', id: 'w-kpi-somme', agg: 'sum', field: 'population' },
+      {
+        kind: 'list',
+        id: 'w-liste',
+        columns: [{ column: 'region' }, { column: 'academie' }],
+        pipeline: [{ op: 'limit', n: PAGE }],
+      },
+      urlsDe('source-partagee-non-projetee', 'tabular', 'columns=', 'none'),
     ],
   },
 
