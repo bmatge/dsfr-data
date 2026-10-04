@@ -823,6 +823,20 @@ describe('C-FUITE-2 — journaux', () => {
     );
   });
 
+  test('`logPath: false` : le chemin sort du journal (API qui porte une saisie dans le chemin)', async () => {
+    await withRelay(
+      { config: (profile) => ({ ...profile, logPath: false }) },
+      async (reference, client) => {
+        await client.call(`/${ALLOWED_HOST}/recherche/saisie-dans-le-chemin/dossier?q=1`);
+        assert.equal(reference.logs.length, 1);
+        assert.equal(reference.logs[0].status, 200);
+        assert.equal(reference.logs[0].host, ALLOWED_HOST);
+        assert.equal(reference.logs[0].path, undefined);
+        assert.ok(!JSON.stringify(reference.logs).includes('saisie-dans-le-chemin'));
+      }
+    );
+  });
+
   test('`logQuery: true` : la requête est journalisée, sur demande explicite seulement', async () => {
     await withRelay(
       { config: (profile) => ({ ...profile, logQuery: true }) },

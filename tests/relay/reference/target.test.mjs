@@ -26,6 +26,49 @@ const failure = (rest) => {
   throw new assert.AssertionError({ message: `cible acceptée : ${rest}` });
 };
 
+describe('C-SSRF-4 — point-virgule encodé, UTF-8 surlong, barres de pleine chasse', () => {
+  // Nul sur un serveur moderne ; sortie du préfixe sur un amont qui décode
+  // l'UTF-8 surlong, ou qui décode avant de retirer les paramètres de chemin.
+  const trapped = [
+    ['point-virgule encodé `%3b`', '/api/public/..%3b/prive'],
+    ['point-virgule encodé en majuscules `%3B`', '/api/public/..%3B/prive'],
+    ['point surlong sur deux octets `%c0%ae`', '/api/public/%c0%ae%c0%ae/prive'],
+    ['barre surlongue `%c0%af`', '/api/public/..%c0%afprive'],
+    ['barre inverse surlongue `%c1%9c`', '/api/public/..%C1%9Cprive'],
+    ['point surlong sur trois octets `%e0%80%ae`', '/api/public/%e0%80%ae%e0%80%ae/prive'],
+    ['barre surlongue sur trois octets `%e0%80%af`', '/api/public/..%E0%80%AFprive'],
+    ['point surlong sur quatre octets `%f0%80%80%ae`', '/api/public/%f0%80%80%ae/prive'],
+    ['forme sur cinq octets `%f8%80…`', '/api/public/..%f8%80%80%80%afprive'],
+    ['forme sur six octets `%fc%80…`', '/api/public/..%fc%80%80%80%80%afprive'],
+    ['barre de pleine chasse `%ef%bc%8f`', '/api/public/..%ef%bc%8fprive'],
+    ['point de pleine chasse `%ef%bc%8e`', '/api/public/%EF%BC%8E%ef%bc%8e/prive'],
+    ['barre inverse de pleine chasse `%ef%bc%bc`', '/api/public/..%ef%bc%bcprive'],
+  ];
+  for (const [label, path] of trapped) {
+    test(`${label} : refusé (400)`, () => {
+      assert.equal(isSafePath(path), false);
+      const error = failure(`/cle.conformance.test${path}`);
+      assert.equal(error.status, 400);
+      assert.equal(error.code, 'invalid-path');
+    });
+  }
+
+  test('ce qui reste un chemin ordinaire : accents, euro, point-virgule nu, Latin-1', () => {
+    for (const path of [
+      '/api/jeux/caf%c3%a9', // é
+      '/api/jeux/prix-en-%e2%82%ac', // €
+      '/api/jeux/%e0%a4%85', // अ : trois octets, forme la plus courte
+      '/api/jeux/%f0%9f%98%80', // quatre octets, forme la plus courte
+      '/api/jeux/%ef%bc%81', // point d'exclamation de pleine chasse
+      '/api/jeux/%e9t%e9', // Latin-1
+      '/api/jeux/a;version=2/lignes',
+      '/api/jeux/a%3d1',
+    ]) {
+      assert.equal(isSafePath(path), true, path);
+    }
+  });
+});
+
 describe('C-URL-1 — une cible acceptée est rendue telle quelle', () => {
   test('hôte, chemin et requête sont découpés sans décodage ni réécriture', () => {
     assert.deepEqual(

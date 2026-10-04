@@ -416,7 +416,7 @@ export function createRelay(config, deps = {}) {
       if (!isUnderPrefix(target.path, hostConfig.pathPrefixes)) {
         throw new RelayError(403, 'path-not-allowed');
       }
-      record.path = target.path;
+      if (config.logPath) record.path = target.path;
       // La requête porte ce que l'usager a tapé dans une recherche déléguée :
       // elle n'est journalisée que sur demande explicite (`logQuery`).
       if (config.logQuery) record.query = target.search;

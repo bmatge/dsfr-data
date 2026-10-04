@@ -55,7 +55,43 @@ const LIMIT_BOUNDS = Object.freeze({
   maxPendingBytes: [2048, 4 * 1024 * 1024 * 1024],
 });
 
+/**
+ * Types de contenu qu'un intégrateur peut autoriser : une liste FERMÉE de
+ * formats de données, inertes sur l'origine du site. Une liste noire (« ni
+ * html, ni script ») laissait passer `text/jscript`, `text/css` ou
+ * `multipart/x-mixed-replace`.
+ */
+export const ALLOWABLE_CONTENT_TYPES = Object.freeze([
+  'application/json',
+  'application/geo+json',
+  'application/vnd.geo+json',
+  'application/ld+json',
+  'application/x-ndjson',
+  'text/csv',
+  'text/tab-separated-values',
+  'text/plain',
+]);
+
+/**
+ * Suffixes de noms réservés aux réseaux internes : jamais un portail public.
+ * La vraie défense reste l'adresse après résolution (C-SSRF-6) ; ce refus évite
+ * de démarrer sur une liste blanche qui la met d'emblée à l'épreuve.
+ */
+const INTERNAL_SUFFIXES = Object.freeze([
+  '.localhost',
+  '.localdomain',
+  '.local',
+  '.internal',
+  '.home.arpa',
+  '.lan',
+  '.intranet',
+  '.corp',
+  '.home',
+  '.private',
+]);
+
 const TOP_LEVEL_KEYS = [
+  '$comment',
   'listen',
   'prefix',
   'hosts',
@@ -66,6 +102,7 @@ const TOP_LEVEL_KEYS = [
   'trustedProxies',
   'limits',
   'logQuery',
+  'logPath',
 ];
 const HOST_KEYS = [
   'ttl',
@@ -163,6 +200,18 @@ function envInteger(raw, name) {
 export function validateConfig(raw, env = {}) {
   if (!isPlainObject(raw)) throw new ConfigError('La configuration doit être un objet JSON.');
   rejectUnknownKeys(raw, TOP_LEVEL_KEYS, 'configuration');
+  /** Ce qui est accepté mais mérite d'être dit au démarrage. Jamais de valeur de clé. */
+  const warnings = [];
+
+  // `$comment` : le seul champ libre, pour annoter un fichier JSON (qui n'a pas
+  // de commentaires). Du texte, ignoré ; à la racine seulement.
+  const comment = raw.$comment;
+  const isText = (value) => typeof value === 'string';
+  if (comment !== undefined && !isText(comment)) {
+    if (!Array.isArray(comment) || !comment.every(isText)) {
+      throw new ConfigError('$comment : texte, ou liste de textes, attendu.');
+    }
+  }
 
   // --- Écoute ---
   const listen = raw.listen ?? {};
@@ -171,6 +220,11 @@ export function validateConfig(raw, env = {}) {
   const listenHost = env.RELAY_LISTEN || listen.host || DEFAULTS.listenHost;
   if (typeof listenHost !== 'string' || isIP(listenHost) === 0) {
     throw new ConfigError('listen.host : adresse IP attendue (127.0.0.1 par défaut).');
+  }
+  if (!/^(?:127\.|::1$)/.test(listenHost)) {
+    warnings.push(
+      `listen.host : ${listenHost} n'est pas la boucle locale. Le relais ne chiffre rien, ne compresse rien et ne borne pas les connexions par adresse : il doit rester derrière le serveur web du site, joignable de lui seul.`
+    );
   }
   const listenPort = integer(
     envInteger(env.RELAY_PORT, 'RELAY_PORT') ?? listen.port ?? DEFAULTS.listenPort,
@@ -184,6 +238,11 @@ export function validateConfig(raw, env = {}) {
   if (typeof prefix !== 'string' || !PREFIX_RE.test(prefix) || !isSafePath(prefix)) {
     throw new ConfigError(
       'prefix : chemin attendu, commençant par « / », sans barre finale (ex. /donnees-relais).'
+    );
+  }
+  if (prefix === '/health' || prefix.startsWith('/health/')) {
+    throw new ConfigError(
+      'prefix : « /health » est la route de santé du relais, elle ne peut pas servir de préfixe.'
     );
   }
 
@@ -231,6 +290,11 @@ export function validateConfig(raw, env = {}) {
     if (!isValidHostname(name)) {
       throw new ConfigError(
         `${where} : nom d'hôte attendu, en minuscules, sans port, sans schéma, sans point final, et pas une adresse IP.`
+      );
+    }
+    if (INTERNAL_SUFFIXES.some((suffix) => name.endsWith(suffix))) {
+      throw new ConfigError(
+        `${where} : nom réservé à un réseau interne. Le relais ne joint que des portails publics.`
       );
     }
     if (!isPlainObject(value)) throw new ConfigError(`${where} : objet attendu.`);
@@ -334,9 +398,10 @@ export function validateConfig(raw, env = {}) {
       );
     }
     // Le relais répond sur l'origine du site : rien d'exécutable ni d'affichable.
-    if (/html|xml|svg|javascript|ecmascript/.test(entry)) {
+    // Liste fermée, pas liste noire : ce qui n'est pas un format de données connu est refusé.
+    if (!ALLOWABLE_CONTENT_TYPES.includes(entry)) {
       throw new ConfigError(
-        `contentTypes : « ${entry} » est refusé (jamais de contenu actif sur l'origine du site).`
+        `contentTypes : « ${entry} » est refusé (jamais de contenu actif sur l'origine du site). Types autorisables : ${ALLOWABLE_CONTENT_TYPES.join(', ')}.`
       );
     }
     return entry;
@@ -403,6 +468,9 @@ export function validateConfig(raw, env = {}) {
   if (raw.logQuery !== undefined && typeof raw.logQuery !== 'boolean') {
     throw new ConfigError('logQuery : booléen attendu.');
   }
+  if (raw.logPath !== undefined && typeof raw.logPath !== 'boolean') {
+    throw new ConfigError('logPath : booléen attendu.');
+  }
 
   return Object.freeze({
     listenHost,
@@ -413,6 +481,10 @@ export function validateConfig(raw, env = {}) {
     trustedProxies: Object.freeze(trustedProxies),
     limits: Object.freeze(limits),
     logQuery: raw.logQuery === true,
+    // Le chemin est journalisé par défaut ; une API qui porte une saisie dans
+    // le chemin (`/recherche/<nom>/…`) le retire.
+    logPath: raw.logPath !== false,
+    warnings: Object.freeze(warnings),
   });
 }
 

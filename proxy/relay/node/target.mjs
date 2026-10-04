@@ -37,9 +37,18 @@ const BROKEN_ESCAPE_RE = /%(?![0-9A-Fa-f]{2})/;
  * - `%2e` : un point n'a jamais besoin d'être encodé, sauf à déguiser `..` ;
  * - `%2f` et `%5c` : une barre oblique encodée change de sens selon qui décode ;
  * - `%25` : double encodage (`%252e` redevient `%2e` au décodage suivant) ;
- * - `%00` à `%1f`, `%7f` : caractères de contrôle, dont CR et LF.
+ * - `%3b` : un `;` encodé redevient un paramètre de chemin (`..;`) chez un
+ *   amont qui décode avant de les retirer ;
+ * - `%00` à `%1f`, `%7f` : caractères de contrôle, dont CR et LF ;
+ * - UTF-8 SURLONG — `%c0`, `%c1`, `%e0%80`…`%e0%9f`, `%f0%80`…`%f0%8f`, et les
+ *   formes sur cinq et six octets `%f8%80`…, `%fc%80`… : un décodeur laxiste y
+ *   lit un point ou une barre (`%c0%ae` = `.`, `%c0%af` = `/`). Aucun de ces
+ *   octets n'apparaît dans de l'UTF-8 bien formé ;
+ * - point, barre et barre inverse de pleine chasse (`%ef%bc%8e`, `%ef%bc%8f`,
+ *   `%ef%bc%bc`) : un amont qui normalise l'Unicode en fait `.`, `/` et `\`.
  */
-const PATH_FORBIDDEN_ESCAPE_RE = /%(?:2e|2f|5c|25|[01][0-9a-f]|7f)/i;
+const PATH_FORBIDDEN_ESCAPE_RE =
+  /%(?:2e|2f|5c|25|3b|[01][0-9a-f]|7f|c0|c1|e0%[89][0-9a-f]|f0%8[0-9a-f]|f8%8[0-7]|fc%8[0-3]|ef%bc%(?:8e|8f|bc))/i;
 
 /** Échappements refusés dans une requête : NUL, LF, CR (C-INJ-1). */
 const QUERY_FORBIDDEN_ESCAPE_RE = /%(?:00|0a|0d)/i;

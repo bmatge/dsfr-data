@@ -203,7 +203,7 @@ function assertPathContained(response, marker, prefix, rule) {
     );
     assert.doesNotMatch(
       path,
-      /%(2e|2f|5c|25|0[0-9a-f]|1[0-9a-f])/i,
+      /%(2e|2f|5c|25|3b|c0|c1|e0%[89][0-9a-f]|0[0-9a-f]|1[0-9a-f])/i,
       `${rule} : encodage piégé transmis (${path})`
     );
     assert.ok(
@@ -367,6 +367,10 @@ describe('SSRF — la cible', () => {
     ['segment `.`', './donnees.json'],
     ['remontée finale `..`', 'jeu/..'],
     ['octet nul encodé `%00`', 'donnees.json%00.html'],
+    ['point-virgule encodé `..%3b`', '..%3b/prive/secret.json'],
+    ['point surlong `%c0%ae%c0%ae`', '%c0%ae%c0%ae/prive/secret.json'],
+    ['barre surlongue `..%c0%af`', '..%c0%afprive/secret.json'],
+    ['point surlong sur trois octets `%e0%80%ae`', '%e0%80%ae%e0%80%ae/prive/secret.json'],
   ];
   for (const [label, tail] of traversals) {
     test(`C-SSRF-4 — chemin piégé, ${label} : refusé ou contenu sous le préfixe autorisé`, async () => {

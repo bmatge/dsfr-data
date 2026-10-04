@@ -22,6 +22,8 @@ try {
   process.exit(1);
 }
 
+for (const warning of config.warnings) process.stderr.write(`[relais] attention : ${warning}\n`);
+
 const relay = createRelay(config);
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
