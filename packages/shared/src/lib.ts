@@ -161,6 +161,23 @@ export {
   isRelayedHost,
   RELAYED_HOSTS,
 } from './api/proxy.js';
+// Relais cachable par le site hôte (ADR-155, #1232) : attribut `relay-url`
+export {
+  resolveDataTransport,
+  resolveTransportUrl,
+  resolveRelayUrl,
+  isRelayRequestUrl,
+  isRelaySafePath,
+  isRelaySafeSearch,
+  transportFetch,
+  resetRelayWarnings,
+  RELAY_MAX_URL_LENGTH,
+  RELAY_BUSY_MAX_RETRIES,
+  RELAY_BUSY_DEFAULT_WAIT_MS,
+  RELAY_BUSY_MAX_WAIT_MS,
+  RELAY_BUSY_JITTER_MS,
+} from './api/relay.js';
+export type { TransportOptions, TransportResolution, RelaySkipReason } from './api/relay.js';
 export { fetchWithTimeout, httpErrorMessage } from './api/fetch-helpers.js';
 export { appendQuery } from './api/url.js';
 export { buildGristHeaders } from './api/grist.js';
