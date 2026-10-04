@@ -56,6 +56,13 @@ const TETE_CHART = `
 // normalisé rend les deux en espace ordinaire. Les trois sont donc acceptées :
 // ce qui est gardé, c'est la présence du séparateur, pas son codet.
 const ESP = '[\\s\\u202f\\u00a0]';
+/**
+ * L'espace INSÉCABLE qui tient une unité à son nombre, et l'entier dont les
+ * milliers sont séparés par une insécable (fine ou non) — pour les contrôles
+ * `keepNbsp`, qui lisent le texte sans ramener ces codets à l'espace (#1244).
+ */
+const INSECABLE = '\\u00a0';
+const MILLIERS_INSECABLES = '\\d{1,3}(?:[\\u202f\\u00a0]\\d{3})*';
 /** Entier avec séparateurs de milliers : « 15 909 531 ». */
 const MILLIERS = `^-?\\d{1,3}(?:${ESP}\\d{3})*$`;
 /** Décimal à N décimales, séparateurs de milliers compris : « 331 448,56 ». */
@@ -2273,6 +2280,48 @@ const CHECKS: Check[] = [
         column: 'population',
         numeric: true,
         pattern: `^\\d{1,3}(?:${ESP}\\d{3})*$`,
+        pipeline: [
+          { op: 'order-by', column: 'population', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'podium-unite-insecable',
+    mode: 'deterministic',
+    constats: ['AM-088'],
+    origin:
+      '#1244, suite de AM-088 du banc — le podium écrivait `value-unit` après une espace ORDINAIRE et `subtitle-unit` après une insécable : sur une colonne étroite, « 987 601 » restait en fin de ligne et « hab. » passait à la suivante, alors que le sous-titre du même élément tenait. Les deux unités suivent désormais une insécable (U+00A0), comme celle du KPI. À l’œil les deux espaces se confondent : le contrôle lit le texte SANS normaliser les insécables, et le motif exige le codet.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-podium-unite', 'communes')}
+  <dsfr-data-podium id="p-unite" source="s-podium-unite"
+    label-field="nom" value-field="population" value-unit="hab." max-items="5"
+    subtitle-field="eleves" subtitle-format="nombre" subtitle-unit="élèves"></dsfr-data-podium>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'p-unite',
+        selector: '.dsfr-data-podium__value',
+        column: 'population',
+        numeric: true,
+        keepNbsp: true,
+        pattern: `^${MILLIERS_INSECABLES}${INSECABLE}hab\\.$`,
+        pipeline: [
+          { op: 'order-by', column: 'population', dir: 'desc' },
+          { op: 'limit', n: 5 },
+        ],
+      },
+      {
+        kind: 'texts',
+        id: 'p-unite',
+        selector: '.dsfr-data-podium__subtitle',
+        column: 'eleves',
+        numeric: true,
+        keepNbsp: true,
+        pattern: `^${MILLIERS_INSECABLES}${INSECABLE}élèves$`,
         pipeline: [
           { op: 'order-by', column: 'population', dir: 'desc' },
           { op: 'limit', n: 5 },

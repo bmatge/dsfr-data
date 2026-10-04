@@ -265,6 +265,7 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         return await page.evaluate(e.measure === 'radius' ? lireRayons : lireTextes, {
           id: e.id,
           selecteur: e.selector,
+          insecables: e.keepNbsp === true,
         });
       case 'count':
         return await page.evaluate(lireCompte, { id: e.id, selecteur: e.selector });

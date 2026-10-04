@@ -4735,7 +4735,7 @@ Se connecte au pipeline dsfr-data-source / dsfr-data-query via l'attribut \`sour
 | value-field | String | \`""\` | oui | Chemin vers le champ valeur numérique |
 | subtitle | String | \`""\` | non | Texte fixe affiche sous chaque label |
 | subtitle-field | String | \`""\` | non | Chemin vers un champ pour le sous-titre (prioritaire sur subtitle) |
-| value-unit | String | \`""\` | non | Unite affichee apres la valeur (ex: "hab.", "€", "%") |
+| value-unit | String | \`""\` | non | Unité affichée après la valeur, séparée par une espace insécable comme subtitle-unit (ex: "hab.", "€", "%") |
 | format | String | \`""\` | non | Format de la valeur, vocabulaire du KPI : nombre, pourcentage, euro, decimal, compact. Absent : entier arrondi à l'unité (rendu historique) |
 | decimals | Number | - | non | Décimales de la valeur (0 à 20). Seul, vaut format="nombre" : \`decimals="2"\` distingue 9,98 de 10,41 |
 | subtitle-format | String | \`""\` | non | Format du sous-titre lu dans subtitle-field : nombre, pourcentage, euro, decimal, compact, date. Absent : valeur brute |
