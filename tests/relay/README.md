@@ -16,6 +16,20 @@ Contrat : [`docs/RELAY.md`](../../docs/RELAY.md). Relais de référence : [`prox
 | `../../e2e/relay-url.spec.ts` | Le même parcours dans un navigateur (Playwright) : relais sur une autre origine, requête « simple » sans pré-vérification, critères d'acceptation de #1232. |
 | `relay-conformance.test.ts` | Le pont Vitest : fait tourner tout ce qui précède dans `npm run test:run`. |
 
+## L'extrait nginx (`nginx/`, lot 3)
+
+La suite de conformance, jouée contre un relais tiers : [`proxy/relay/nginx/`](../../proxy/relay/nginx/README.md).
+
+| Fichier | Rôle |
+|---|---|
+| `nginx/banc.mjs` | Dérive la configuration de **banc** de l'extrait de production : hôtes renommés en ceux du profil, amont remplacé par le faux amont en clair — rien d'autre. Les fichiers communs de l'extrait sont montés tels quels. |
+| `nginx/banc/` | Les trois fichiers dérivés, versionnés (`node tests/relay/nginx/ecrire-banc.mjs` les réécrit). |
+| `nginx/extrait-nginx.test.ts` | **Sans nginx**, dans `npm run test:run` : le banc ne diffère de la production que par l'adresse de l'amont ; la grammaire de la cible écrite dans `relais-http.conf` est celle de `target.mjs` (corpus de 1 351 cibles) ; forme de l'extrait (une `location` par hôte, hôte jamais en variable, en-têtes `always`, tout statut de 300 à 599 intercepté). |
+| `nginx/relais-nginx.test.ts` | **Avec un vrai nginx** (Docker, Linux ; `RELAIS_NGINX_REEL=1`, job CI `relais-nginx`) : `nginx -t` sur l'extrait de production, la suite de conformance contre le banc, puis les observations. Exige que les tests rouges soient exactement les limites documentées. |
+| `nginx/limites.mjs` | Les limites de nginx face au contrat : les 18 tests de la suite qui restent rouges, et la raison attendue de chaque échec. |
+| `nginx/observations.test.mjs` | Ce que la suite ne dit pas : ce qui tient derrière chaque limite, le cache périmé (C-CACHE-5, C-CACHE-6), ce que `proxy_pass` transmet selon sa forme, et nginx placé devant le relais Node (`X-Forwarded-For` posé, 429 non retenu). |
+| `nginx/rapporteur.mjs` | Rapporteur `node:test` : une ligne JSON par test, lue par le pont. |
+
 ```bash
 node --test tests/relay/conformance.test.mjs
 RELAY_URL=http://127.0.0.1:8155/donnees-relais node --test tests/relay/conformance.test.mjs

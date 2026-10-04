@@ -23,6 +23,13 @@ Ce guide couvre le deploiement de la **webapp dsfr-data** (apps Builder, Builder
   - [Scenario E : authentification derriere un reverse proxy externe](#scenario-e--authentification-derriere-un-reverse-proxy-externe-mode-serveur)
   - [Contrat des chemins de proxying](#contrat-des-chemins-de-proxying)
   - [Proxy generique : ce qu'il accepte, ce qu'il refuse](#proxy-generique--ce-quil-accepte-ce-quil-refuse)
+- [Relais cachable](#relais-cachable)
+  - [Quand l'utiliser](#quand-lutiliser)
+  - [Deux montages](#deux-montages)
+  - [Le monter sur l'origine du site](#le-monter-sur-lorigine-du-site)
+  - [Ce qui ne passe pas par le relais](#ce-qui-ne-passe-pas-par-le-relais)
+  - [Le cache](#le-cache)
+  - [Vérifier](#vérifier)
 - [Premier deploiement](#premier-deploiement)
   - [Mode statique](#mode-statique)
   - [Mode serveur](#mode-serveur)
@@ -506,6 +513,154 @@ Liste exhaustive des routes que les apps et widgets attendent au runtime. Si vou
    curl -s -o /dev/null -w "%{http_code}\n" -X DELETE -H "X-Target-URL: https://data.gouv.fr/" "https://${APP_DOMAIN}/cors-proxy"   # 405
    curl -s -o /dev/null -w "%{http_code}\n" "https://${APP_DOMAIN}/cors-proxy"   # 400
    ```
+
+## Relais cachable
+
+Cette section ne concerne pas le déploiement de l'instance dsfr-data : elle s'adresse au **site
+qui intègre** des dataviz (`dsfr-data-source` dans ses pages) et veut que leurs données passent
+par son propre domaine. Le contrat est dans [`RELAY.md`](RELAY.md) ; ce qu'un relais rend public
+est dans [`SECURITY.md`](SECURITY.md#relais-cachable--ce-quil-rend-public). **Aucune instance
+publique de dsfr-data n'expose de route de relais** : le relais est fourni par le site hôte
+(ADR-155).
+
+Ce n'est pas le proxy CORS des sections précédentes. Les routes `/…-proxy/` et `/cors-proxy`
+restent ce qu'elles sont ; le relais est un autre contrat, activé par un autre attribut
+(`relay-url`, pas `proxy-url`).
+
+### Quand l'utiliser
+
+Quand le site a un cache — Varnish, CDN, cache de reverse proxy — et qu'on veut l'une de ces
+trois choses :
+
+- que les données d'une dataviz soient **servies par le cache du site**, sous une URL qui
+  identifie la donnée (`/donnees-relais/<hôte>/<chemin>?<requête>` : deux requêtes, deux URL ; la
+  même requête, la même URL au caractère près) ;
+- que le portail **ne voie plus l'adresse des visiteurs** ;
+- que la **clé d'API quitte le navigateur** : c'est le relais qui la détient.
+
+Sans cache et sans clé, un portail qui répond déjà avec les en-têtes CORS n'a pas besoin de
+relais : la source l'appelle en direct.
+
+### Deux montages
+
+| | Relais Node derrière le serveur web du site | nginx seul |
+|---|---|---|
+| Fichiers | [`proxy/relay/node/`](../proxy/relay/node/README.md), et pour nginx placé devant : `proxy/relay/nginx/mandataire-node.*.conf` | [`proxy/relay/nginx/`](../proxy/relay/nginx/README.md) |
+| À faire tourner | un processus Node 22 ou plus récent, sans dépendance, sur `127.0.0.1:8155` | rien de plus que nginx |
+| Contrat | tenu en entier | tenu pour l'essentiel ; quatre limites écrites |
+| Réponse trop grosse | coupée en flux (10 Mo par défaut) | **non plafonnée** |
+| Type de contenu hors liste (HTML, script…) | refusé (502) | servi sous `application/octet-stream`, avec `nosniff` et CSP |
+| Adresse de l'amont | vérifiée après résolution DNS (jamais une adresse privée) | non vérifiée ; certificat vérifié pour le nom |
+| Budget global vers un portail | non (limite par adresse) | oui (`limit_req` par hôte) |
+| Cache | en mémoire, par instance ; le cache partagé est celui du serveur web | `proxy_cache`, sur disque |
+
+Le tableau complet, exigence par exigence, est dans [`RELAY.md` §10](RELAY.md#10-lextrait-nginx-et-ce-que-garantit-chaque-relais).
+À choisir ainsi : **le relais Node dès qu'une clé est injectée ou qu'un portail peut répondre de
+gros volumes** (exports) ; nginx seul pour relayer des portails ouverts quand on ne veut pas d'un
+processus de plus.
+
+Dans le premier montage, le serveur web placé devant le relais doit **poser** `X-Forwarded-For`
+(règle C-DOS-5) : `proxy_set_header X-Forwarded-For $remote_addr;` avec nginx, et l'adresse de ce
+serveur dans `trustedProxies`. Un `proxy_pass` nu transmet l'en-tête du client, et chaque requête
+forge alors son adresse et son quota. La configuration nginx livrée le fait.
+
+### Le monter sur l'origine du site
+
+Le montage recommandé sert le relais **sur l'origine de la page**, sous un chemin :
+
+```html
+<dsfr-data-source
+  id="src"
+  api-type="opendatasoft"
+  base-url="https://donnees.portail.example"
+  dataset-id="mon-jeu"
+  relay-url="/donnees-relais">
+</dsfr-data-source>
+```
+
+ou, une fois pour toute la page, avant le chargement des composants :
+
+```html
+<script>
+  window.DSFR_DATA_RELAY = '/donnees-relais';
+</script>
+```
+
+Avec un `relay-url` relatif :
+
+- la requête est de **même origine** : aucun CORS, aucune pré-vérification ;
+- une politique de sécurité du contenu `connect-src 'self'` **suffit** pour les données ;
+- `Retry-After` est lisible par la bibliothèque, qui s'en sert pour réessayer un 503 du relais.
+
+Un relais servi sur un autre domaine (`relay-url="https://relais.exemple.fr/donnees-relais"`)
+fonctionne aussi — la requête reste « simple » au sens CORS — mais il faut l'ajouter à
+`connect-src`, et le relais doit rendre `Access-Control-Expose-Headers: Retry-After` (les deux
+relais livrés le font).
+
+Aucune variable de build n'est en jeu : le bundle publié ne contient ni URL de relais, ni domaine.
+
+### Ce qui ne passe pas par le relais
+
+> ⚠️ **Avec `connect-src 'self'`, une requête que la bibliothèque n'a pas réécrite est bloquée par
+> le navigateur.** Elle ne passe pas par le relais : elle part vers le portail, comme sans relais.
+
+La bibliothèque ne contourne jamais le relais en silence, mais elle ne lui envoie que ce que le
+contrat admet ([`RELAY.md` §9](RELAY.md#9-ce-que-fait-la-bibliothèque)) :
+
+| Requête | Ce qu'elle devient | Avec `connect-src 'self'` |
+|---|---|---|
+| GET vers `https://`, port par défaut | relayée | passe |
+| Cible en `http://`, avec un port ou des identifiants | chemin habituel (direct ou `proxy-url`), avertissement en console | **bloquée** |
+| Chemin ou requête que le relais refuserait (`%2f`, `//`, `..`…) : identifiant de jeu exotique, URL écrite à la main | chemin habituel, avertissement en console | **bloquée** |
+| POST : mode SQL de Grist, `method="POST"` en mode URL | chemin habituel (`proxy-url`), sans avertissement | **bloquée**, sauf si `proxy-url` est lui aussi sur l'origine du site |
+| Export Parquet de l'API Tabular (`fetch-mode="export"`) | non tenté : la source retombe sur la pagination, relayée, et le dit | passe (plus lent) |
+| URL relative ou de même origine | inchangée | passe |
+
+Pour une page sous `connect-src 'self'` : n'utiliser que des sources en `https`, garder Grist en
+lecture par API (pas en SQL), et lire la console au premier chargement — chaque requête restée
+hors relais y est nommée, une fois.
+
+### Le cache
+
+- **Le navigateur met déjà en cache.** Une 200 du relais porte `Cache-Control: public,
+  max-age=300, s-maxage=300, stale-while-revalidate=60, stale-if-error=3600` : un rechargement de
+  la page dans les cinq minutes ne refait aucune requête, relais ou pas de cache partagé. La durée
+  se règle **côté relais**, par hôte (300 s par défaut). L'attribut `cache-ttl` de la source n'a
+  aucun rapport : c'est un repli hors ligne.
+- **Le cache du site (Varnish, CDN) suit ces en-têtes** sans réglage particulier : `s-maxage` pour
+  sa durée, `Vary: Accept-Encoding`. La clé de cache est l'URL, requête comprise — ne pas la
+  retirer ni la trier : deux ordres de paramètres sont deux requêtes différentes pour le portail.
+- **Un cache placé devant ne doit retenir ni un 503 ni un 429.** Toute erreur du relais est
+  `Cache-Control: no-store` : un cache qui respecte cet en-tête ne la retient pas. Ne pas forcer
+  une durée sur les erreurs (`proxy_cache_valid any …` de nginx, `beresp.ttl` posé sans condition
+  dans Varnish, « cache everything » d'un CDN) : le bouton « Réessayer » de la dataviz rejoue la
+  même URL, et la bibliothèque réessaie d'elle-même un 503 — une erreur en cache rend les deux
+  inopérants.
+- **Fraîcheur.** Une donnée peut avoir l'âge de `s-maxage` plus la fenêtre `stale`, et les durées
+  de deux caches en série s'additionnent. Pour une donnée qui change vite, baisser la durée de
+  l'hôte sur le relais.
+- **Purger** : l'URL commence par `/donnees-relais/<hôte>/`, ce qui permet une purge par préfixe
+  sur le cache du site.
+
+### Vérifier
+
+```bash
+RELAIS=https://votre-site.example/donnees-relais
+
+# Une 200 cachable, sans rien de l'amont
+curl -si "$RELAIS/donnees.portail.example/api/explore/v2.1/catalog/datasets?limit=1" | grep -iE '^(HTTP|cache-control|vary|content-type|x-content-type-options|content-security-policy|set-cookie)'
+
+# Un hôte hors liste : 403, avec CORS, sans contacter personne
+curl -s -o /dev/null -w "%{http_code}\n" "$RELAIS/hote-inconnu.example/x"                       # 403
+# Lecture seule
+curl -s -o /dev/null -w "%{http_code}\n" -X POST "$RELAIS/donnees.portail.example/x"            # 405
+# Chemin piégé
+curl -s -o /dev/null -w "%{http_code}\n" --path-as-is "$RELAIS/donnees.portail.example/a/../b"  # 400
+```
+
+Pour aller au bout, jouer la **suite de conformance** du contrat contre votre relais, sur un banc
+(elle ne se lance pas contre la production : elle a besoin de son faux amont) :
+[`RELAY.md` §7](RELAY.md#7-la-suite-de-conformance).
 
 ## Premier deploiement
 

@@ -1,16 +1,21 @@
 # Relais cachable par le site hôte — le contrat
 
-> **Statut : lots 1 et 2 de l'ADR-155** ([#1232](https://github.com/bmatge/dsfr-data/issues/1232), constat AM-114 du banc d'essai).
-> Ce document est le **contrat** qu'un relais doit respecter. Il est livré avec un relais Node de
-> référence ([`proxy/relay/node/`](../proxy/relay/node/)) et une suite de conformance
-> ([`tests/relay/`](../tests/relay/)) qu'un intégrateur lance contre son propre relais.
+> **Statut : lots 1 à 3 de l'ADR-155** ([#1232](https://github.com/bmatge/dsfr-data/issues/1232), constat AM-114 du banc d'essai).
+> Ce document est le **contrat** qu'un relais doit respecter. Il est livré avec deux relais et une
+> suite de conformance ([`tests/relay/`](../tests/relay/)) qu'un intégrateur lance contre le sien :
 >
-> Côté bibliothèque (lot 2) : l'attribut `relay-url` de `dsfr-data-source` et
-> `window.DSFR_DATA_RELAY` — voir [§9](#9-ce-que-fait-la-bibliothèque). Une version de la
-> bibliothèque antérieure à ce lot n'appelle aucun relais.
+> - le **relais Node de référence** ([`proxy/relay/node/`](../proxy/relay/node/)), qui tient tout
+>   le contrat — [§6](#6-le-relais-node-de-référence) ;
+> - l'**extrait nginx** ([`proxy/relay/nginx/`](../proxy/relay/nginx/)), un relais fait avec nginx
+>   seul, qui en tient l'essentiel et dont les limites sont écrites —
+>   [§10](#10-lextrait-nginx-et-ce-que-garantit-chaque-relais).
 >
-> **Pas encore livré** : l'extrait nginx `proxy/relay/nginx/` et les renvois depuis
-> `DEPLOYMENT.md`, `SECURITY.md` et `ARCHITECTURE.md` (lot 3). **Aucune instance publique
+> Côté bibliothèque : l'attribut `relay-url` de `dsfr-data-source` et `window.DSFR_DATA_RELAY` —
+> voir [§9](#9-ce-que-fait-la-bibliothèque). Une version de la bibliothèque antérieure au lot 2
+> n'appelle aucun relais.
+>
+> Déployer un relais : [`DEPLOYMENT.md`](DEPLOYMENT.md#relais-cachable). Ce qu'il rend public :
+> [`SECURITY.md`](SECURITY.md#relais-cachable--ce-quil-rend-public). **Aucune instance publique
 > n'expose de route de relais** : le relais est fourni par le site hôte.
 
 ## 1. Ce que c'est, ce que ce n'est pas
@@ -35,8 +40,8 @@ différents, et ils le restent :
 | Clé d'API | détenue par le relais | envoyée par le navigateur |
 | Cache | oui, c'est sa raison d'être | non, ou 60 s sur les routes dédiées |
 
-Rien n'est livré ni documenté pour un CMS en particulier : le contrat, le relais Node et, au lot 3,
-l'extrait nginx suffisent à écrire un relais dans n'importe quel environnement.
+Rien n'est livré ni documenté pour un CMS en particulier : le contrat, le relais Node et l'extrait
+nginx suffisent à écrire un relais dans n'importe quel environnement.
 
 ## 2. Forme de l'URL
 
@@ -219,6 +224,10 @@ location /donnees-relais/ {
 }
 ```
 
+La configuration complète de ce montage (cache placé devant, tampons, compression) est dans
+[`proxy/relay/nginx/mandataire-node.server.conf`](../proxy/relay/nginx/mandataire-node.server.conf) ;
+elle est jouée en CI, adresses forgées comprises ([§10](#10-lextrait-nginx-et-ce-que-garantit-chaque-relais)).
+
 **Un `proxy_pass` nu ne suffit pas.** Sans `proxy_set_header`, nginx transmet l'en-tête du client
 tel quel : chaque requête forge son adresse et obtient son propre quota — douze adresses forgées,
 douze quotas. Le premier geste sans le second est donc **pire** que de ne rien déclarer.
@@ -370,6 +379,13 @@ configuration de banc — le profil [`tests/relay/conformance-profile.json`](../
 Le test de débit est le dernier et épuise le quota de l'adresse du banc : attendre la fin de la
 fenêtre avant de relancer la suite.
 
+Un exemple complet de ce montage est dans le dépôt : le banc de l'extrait nginx
+([`tests/relay/nginx/`](../tests/relay/nginx/)). `banc.mjs` y dérive la configuration de banc de la
+configuration de production — hôtes renommés en ceux du profil, amont remplacé par le faux amont,
+rien d'autre —, et un test garde les deux égales à cela près. Les plafonds, eux, restent ceux de la
+production : c'est la suite qui est réglée (`CONFORMANCE_TIMEOUT_MS=10000`,
+`CONFORMANCE_RATE_REQUESTS=600`…), pas le relais.
+
 ### Ce que la suite ne peut pas vérifier sur un relais tiers
 
 Ces exigences ne s'observent pas de l'extérieur, ou sont contredites par la configuration de banc
@@ -517,3 +533,75 @@ limite ; un relais d'une autre origine peut ajouter `Access-Control-Expose-Heade
 
 En cas d'erreur, « Détails techniques » montre l'URL du relais réellement appelée, et le volet
 Diagnostic signale qu'une source passe par le relais (constat `pipeline/relais`).
+
+## 10. L'extrait nginx, et ce que garantit chaque relais
+
+`proxy/relay/nginx/` — un relais fait avec nginx seul, sans module tiers : une `location` statique
+par hôte autorisé (l'hôte n'est jamais une variable passée à `proxy_pass`), `proxy_cache`. Mode
+d'emploi, réglages et limites : [`proxy/relay/nginx/README.md`](../proxy/relay/nginx/README.md).
+
+Il existe donc **deux montages**, décrits dans [`DEPLOYMENT.md`](DEPLOYMENT.md#relais-cachable) :
+
+1. le relais Node derrière le serveur web du site — tout le contrat ;
+2. nginx seul — l'essentiel du contrat, moins les limites ci-dessous.
+
+### La preuve
+
+La suite de conformance (§7) est jouée en CI contre un vrai nginx chargé de l'extrait (job
+`relais-nginx`, `tests/relay/nginx/relais-nginx.test.ts`). Sur ses 140 tests : **119 verts**,
+18 rouges, 3 sautés d'eux-mêmes (non observables de l'extérieur, comme pour tout relais tiers).
+Les 18 rouges sont des **limites de nginx**, pas des tests adoucis : la suite est inchangée, et le
+job exige que la liste des tests rouges soit exactement celle de `tests/relay/nginx/limites.mjs`,
+chacun pour la raison écrite. Un rouge de plus fait échouer la CI ; un rouge de moins aussi.
+
+| Limite | Tests rouges | Règle | Ce que fait nginx | Ce qui tient |
+|---|---|---|---|---|
+| `avant-routage` | 3 | C-NAV-2, C-NAV-4 | Répond lui-même à `TRACE` (405) et à `%00` (400), avant de choisir une `location` : sans les en-têtes du relais. | L'amont n'est pas contacté. |
+| `type-de-contenu` | 12 | C-NAV-3 | Ne sait pas refuser une réponse sur son type : au lieu de 502, il la sert sous `application/octet-stream`. | Jamais sous son type d'origine ; `nosniff` et CSP sur la réponse ; liste fermée, type comparé en entier. |
+| `memo-une-seconde` | 1 | C-CACHE-3 | Retient une seconde une 401, 403, 404 ou 410 de l'amont : c'est ce qui tient lieu de purge (C-CACHE-6). | `no-store` vers le navigateur ; jamais au-delà d'une seconde ; 429 et 5xx jamais retenus. |
+| `taille` | 2 | C-DOS-2 | N'a pas de plafond de taille de réponse. | Disque borné par `max_size`. |
+
+Ce qui tient derrière chaque limite, le comportement du cache périmé (C-CACHE-5, C-CACHE-6) et ce
+que `proxy_pass` transmet à l'amont sont vérifiés sur le même nginx par
+`tests/relay/nginx/observations.test.mjs`. Ce qui se vérifie sans nginx — le banc ne diffère de la
+production que par l'adresse de l'amont, la grammaire de la cible est celle de `target.mjs` — est
+dans `tests/relay/nginx/extrait-nginx.test.ts`, qui tourne avec `npm run test:run`.
+
+### Exigence par exigence
+
+**tenue** : un test de la suite de conformance ou des observations le montre sur un vrai nginx.
+**limite** : non tenue, écrite ci-dessus ou dans le README de l'extrait. **config.** : ne s'observe
+pas de l'extérieur, se lit dans la configuration.
+
+| Règle | Relais Node | Extrait nginx |
+|---|---|---|
+| C-URL-1 — cible octet pour octet, `Host` de l'amont | tenue | **tenue** — `proxy_pass` reçoit la fin de la requête brute |
+| C-URL-2 — hôte comparé octet pour octet | tenue | **tenue** |
+| C-URL-3 — 8 000 caractères, 414 au-delà | tenue | **tenue** jusqu'à 16 000 ; au-delà nginx répond lui-même (`avant-routage`) |
+| C-SSRF-1, 2, 3 — liste blanche exacte, ni adresse, ni port, ni identifiants | tenue | **tenue** — une `location` par hôte ; `%00` dans l'hôte : refusé, mais `avant-routage` |
+| C-SSRF-4 — chemins piégés | tenue (refus) | **tenue** — refus sur la forme brute, même grammaire ; `%00` : refusé, mais `avant-routage` |
+| C-SSRF-5 — préfixes de chemin | tenue | **tenue** |
+| C-SSRF-6 — https, 443, certificat ; adresse résolue publique | tenue | **config.** pour https, 443 et le certificat ; **limite** : l'adresse résolue n'est pas vérifiée |
+| C-SSRF-7 — redirections | tenue (suivies si elles repassent tout) | **tenue** — jamais suivies, toujours 502 |
+| C-MET-1 — GET, HEAD, OPTIONS | tenue | **tenue** ; `TRACE` : refusé, mais `avant-routage` |
+| C-MET-2, C-MET-3 — pas de corps, HEAD, OPTIONS | tenue | **tenue** (requête avec corps refusée, 400) |
+| C-INJ-1 — CR, LF, NUL | tenue | **tenue** |
+| C-AMONT-1, C-AMONT-2 — rien du visiteur, clé par hôte | tenue | **tenue** |
+| C-NAV-1 — en-têtes de l'amont retenus | tenue (liste blanche) | **tenue** pour ceux que la suite envoie ; **limite** : liste noire, un en-tête non nommé traverse |
+| C-NAV-2, C-NAV-4 — `nosniff`, CSP, CORS sur toute réponse | tenue | **tenue** sur toute réponse du relais ; **limite** `avant-routage` |
+| C-NAV-3 — types en liste fermée | tenue (502) | **limite** `type-de-contenu` |
+| C-NAV-5 — `ETag`, `Last-Modified` | tenue | **tenue** |
+| C-CACHE-1 — `Cache-Control`, durée par hôte | tenue | **tenue** |
+| C-CACHE-2 — clé = URL seule | tenue | **tenue** pour la clé ; écart : nginx répond 304 à une requête conditionnelle |
+| C-CACHE-3 — seules les 200 en cache | tenue | **tenue** pour 429 et 5xx ; **limite** `memo-une-seconde` ; **limite** : réponse délimitée par la fermeture |
+| C-CACHE-4 — cache borné | tenue | **config.** (`max_size`) |
+| C-CACHE-5 — périmé si l'amont tombe | tenue | **tenue** (observations) ; **limite** : fenêtre bornée par `inactive`, pas par l'âge |
+| C-CACHE-6 — purge sur 401, 403, 404, 410 | tenue | **tenue en régime établi** (observations), par le mémo d'une seconde ; **limite** : pas dans la minute qui suit un démarrage de nginx, ni après un redémarrage si le cache n'est pas vidé |
+| C-DOS-1 — délai | tenue (global) | **tenue** pour un amont muet ; **limite** : délai entre deux lectures, pas global |
+| C-DOS-2 — taille plafonnée | tenue | **limite** `taille` |
+| C-DOS-3 — débit par adresse | tenue (par /64 en IPv6) | **tenue** (par adresse entière en IPv6), plus un budget par hôte |
+| C-DOS-4 — simultanéité, part par client | tenue | **config.** (`limit_conn`, `max_conns`) |
+| C-DOS-5 — adresse du visiteur derrière un mandataire | tenue | **config.** (`set_real_ip_from`) ; nginx devant le relais Node : **tenue** (observations) |
+| C-FUITE-1 — ni clé ni saisie dans une réponse | tenue | **tenue** pour les réponses du relais ; **limite** : la clé renvoyée par l'amont n'est pas retenue |
+| C-FUITE-2 — journaux | tenue | **config.** (journal d'accès) ; **limite** : journal d'erreurs de nginx |
+| C-CONF-1 — refus de démarrer sans liste blanche | tenue | **limite** : nginx démarre, et répond 403 à tout |

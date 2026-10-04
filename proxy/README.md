@@ -167,6 +167,7 @@ proxy/
     docker-compose.yml   <- Deploiement Docker
   relay/
     node/                <- Relais cachable de reference (voir ci-dessous)
+    nginx/               <- Relais cachable fait avec nginx seul (voir ci-dessous)
 ```
 
 Le fichier `nginx.conf` a la racine du projet est la configuration complete
@@ -182,6 +183,9 @@ blanche exacte, clé d'API détenue par le relais, réponses cachables.
 
 - Contrat : [`docs/RELAY.md`](../docs/RELAY.md)
 - Relais Node de référence, sans dépendance : [`relay/node/`](relay/node/README.md)
+- Extrait nginx — un relais fait avec nginx seul : une `location` statique par hôte autorisé,
+  `proxy_cache` —, ce qu'il garantit et ce qu'il ne garantit pas, et la configuration de nginx
+  placé devant le relais Node : [`relay/nginx/`](relay/nginx/README.md)
 - Suite de conformance, exécutable contre n'importe quel relais : [`tests/relay/`](../tests/relay/README.md)
 
 Il ne remplace pas les routes ci-dessus, et ce n'est pas un proxy ouvert.
