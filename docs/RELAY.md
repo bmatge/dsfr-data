@@ -1,14 +1,17 @@
 # Relais cachable par le site hôte — le contrat
 
-> **Statut : lot 1 de l'ADR-155** ([#1232](https://github.com/bmatge/dsfr-data/issues/1232), constat AM-114 du banc d'essai).
+> **Statut : lots 1 et 2 de l'ADR-155** ([#1232](https://github.com/bmatge/dsfr-data/issues/1232), constat AM-114 du banc d'essai).
 > Ce document est le **contrat** qu'un relais doit respecter. Il est livré avec un relais Node de
 > référence ([`proxy/relay/node/`](../proxy/relay/node/)) et une suite de conformance
 > ([`tests/relay/`](../tests/relay/)) qu'un intégrateur lance contre son propre relais.
 >
-> **Pas encore livré** : l'attribut `relay-url` de `dsfr-data-source` et `window.DSFR_DATA_RELAY`
-> (lot 2, bibliothèque), l'extrait nginx `proxy/relay/nginx/` et les renvois depuis
-> `DEPLOYMENT.md`, `SECURITY.md` et `ARCHITECTURE.md` (lot 3). Tant que le lot 2 n'est pas publié,
-> aucune version de la bibliothèque n'appelle un relais.
+> Côté bibliothèque (lot 2) : l'attribut `relay-url` de `dsfr-data-source` et
+> `window.DSFR_DATA_RELAY` — voir [§9](#9-ce-que-fait-la-bibliothèque). Une version de la
+> bibliothèque antérieure à ce lot n'appelle aucun relais.
+>
+> **Pas encore livré** : l'extrait nginx `proxy/relay/nginx/` et les renvois depuis
+> `DEPLOYMENT.md`, `SECURITY.md` et `ARCHITECTURE.md` (lot 3). **Aucune instance publique
+> n'expose de route de relais** : le relais est fourni par le site hôte.
 
 ## 1. Ce que c'est, ce que ce n'est pas
 
@@ -49,7 +52,8 @@ Avec un relais monté sur `/donnees-relais` :
 
 est relayé vers `https://donnees.portail.example/api/explore/v2.1/catalog/datasets/x/records?where=…&limit=100`.
 
-Les règles de réécriture sont appliquées **par la bibliothèque** (lot 2). Le relais n'en répare
+Les règles de réécriture sont appliquées **par la bibliothèque** (`resolveTransportUrl`,
+`packages/shared/src/api/relay.ts`). Le relais n'en répare
 aucune : ce qui n'arrive pas sous cette forme est refusé.
 
 | Règle | Côté bibliothèque | Ce que le relais en déduit |
@@ -445,3 +449,71 @@ Suite de conformance : `tests/relay/conformance.test.mjs` (**C**). Tests du rela
 | C-FUITE-1 | **C** invariant sur chaque réponse · **R** amont qui renvoie la clé dans le corps, dans `ETag`, dans le jeu de caractères |
 | C-FUITE-2 | **R** journaux, `logPath: false` |
 | C-CONF-1 | **R** `config.test.mjs` (liste blanche, noms internes, clé, préfixes, `/health`, types, mandataires, plafonds, écoute hors boucle locale, `$comment`) |
+
+## 9. Ce que fait la bibliothèque
+
+Lot 2 de l'ADR-155. Le code : `packages/shared/src/api/relay.ts` (`resolveTransportUrl`,
+`transportFetch`), seul point de passage des adaptateurs (test-garde statique).
+
+### Résolution
+
+`relay-url` sur `dsfr-data-source` (préfixe relatif `/donnees-relais`, ou absolu), sinon
+`window.DSFR_DATA_RELAY`, sinon aucun relais. **Aucune variable de build** : le bundle publié ne
+contient ni URL de relais ni domaine. Sans relais résolu, la bibliothèque se comporte exactement
+comme avant : `proxy-url`, `use-proxy`, `X-Target-URL` et la liste des hôtes relayés par le proxy
+sont inchangés.
+
+### Ce qui part au relais, et ce qui n'y part pas
+
+| Requête | Transport |
+|---|---|
+| GET vers une autre origine, cible `https`, port par défaut, sans identifiants | **relais** : `<relais>/<hôte>/<chemin>?<requête>`, hôtes connus du proxy compris (Tabular, Grist en lecture, INSEE) |
+| URL relative ou de même origine (R4) | inchangée, sans un mot |
+| POST — mode SQL de Grist et sa sonde, `method="POST"` en mode URL (R5) | chemin actuel (direct ou `proxy-url`), en-têtes gardés, sans un mot |
+| Cible `http`, port explicite, identifiants dans l'URL (R1) | chemin actuel, **avertissement** en console, une fois |
+| Chemin ou requête que le relais refuserait (C-SSRF-4, C-INJ-1 : `%2e`, `%2f`, `%5c`, `%25`, `%3b`, `//`, `.`/`..`, UTF-8 surlong, pleine chasse, caractère hors alphabet ; `%00`, `%0a`, `%0d` dans la requête) | chemin actuel, **avertissement** en console, une fois : la requête ne part pas vers un 400 certain |
+| URL de relais de plus de 8 000 caractères | **relais quand même** (il répond 414), et c'est écrit une fois en console : le relais n'est jamais contourné en silence |
+| Export Parquet de l'API Tabular (`fetch-mode="export"`) | non relayé en première version : avec un relais, la source retombe sur la pagination, relayée, et le dit |
+
+Les contrôles de chemin et de requête sont ceux du relais de référence (`target.mjs`), recopiés ;
+`tests/relay/library-through-relay.test.ts` les garde égaux sur un corpus, et vérifie que toute
+URL produite par la bibliothèque est lue par `parseTarget` et rend la cible à l'octet. Aucun
+adaptateur de la bibliothèque ne produit de tels chemins avec des identifiants ordinaires ; le
+cas ne se présente qu'avec un identifiant de jeu exotique ou une URL écrite à la main.
+
+Un hôte écrit comme une adresse IP, ou absent de la liste blanche, **part** au relais : c'est le
+relais qui répond 403, et le visiteur lit « ces données ne sont pas accessibles publiquement ».
+
+### La requête
+
+Sur une requête relayée, la bibliothèque n'envoie **aucun en-tête** (ni `headers`, ni
+`api-key-ref`) et demande `credentials: 'omit'` : la requête est « simple » au sens CORS, sans
+pré-vérification — ce qu'exige C-MET-3, le relais n'autorisant aucun en-tête de requête. Si l'un
+de ces attributs est posé, la source l'écrit une fois en console. Elle n'émet jamais de `HEAD`.
+
+### Le 503 du relais
+
+Le relais de référence n'a pas de file d'attente : au-delà de sa part des places amont (huit par
+défaut), un client reçoit 503 avec `Retry-After: 1`. Une page qui charge d'un coup plus de
+dataviz absentes du cache que cela verrait les suivantes en erreur. La bibliothèque réessaie donc
+**ce cas, et lui seul** :
+
+- sur une requête relayée, statut **503** uniquement — jamais sur un 429 (aucun nouvel essai
+  automatique sur une limite de débit, #1203), ni sur un 502 ou un 504 ;
+- **trois** nouveaux essais au plus ;
+- attente de `Retry-After` (en secondes), plus un décalage aléatoire de 0 à 250 ms pour que les
+  sources refusées ensemble ne reviennent pas ensemble ;
+- aucun essai si `Retry-After` dépasse **3 s** ou est une date : c'est une panne annoncée, pas
+  une place prise ;
+- au terme, le 503 est rendu tel quel : le bloc affiche « Données momentanément indisponibles »
+  et son bouton « Réessayer ». Attente ajoutée, au pire : un peu moins de dix secondes.
+
+`Retry-After` n'est pas un en-tête exposé par défaut à une page d'une autre origine : si le
+relais est appelé par une URL absolue d'un autre domaine, la bibliothèque ne peut pas le lire et
+attend **une seconde**. Un relais servi sur l'origine de la page (le cas visé) n'a pas cette
+limite ; un relais d'une autre origine peut ajouter `Access-Control-Expose-Headers: Retry-After`.
+
+### Le diagnostic
+
+En cas d'erreur, « Détails techniques » montre l'URL du relais réellement appelée, et le volet
+Diagnostic signale qu'une source passe par le relais (constat `pipeline/relais`).

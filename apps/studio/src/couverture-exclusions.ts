@@ -66,6 +66,11 @@ export const EXCLUSIONS: readonly ExclusionDeclaree[] = [
   },
   {
     composant: 'dsfr-data-source',
+    attributs: ['relay-url'],
+    raison: `Déploiement : le relais cachable est une route du SITE qui héberge la page (contrat docs/RELAY.md, ADR-155), que le Studio ne connaît pas — aucune instance publique n'en expose, et un préfixe écrit dans l'export donnerait des 404 partout ailleurs. L'intégrateur le pose à la main, ou une fois pour la page par window.DSFR_DATA_RELAY. ${SOURCE_DU_STUDIO}`,
+  },
+  {
+    composant: 'dsfr-data-source',
     attributs: [
       'refresh',
       'cache-ttl',

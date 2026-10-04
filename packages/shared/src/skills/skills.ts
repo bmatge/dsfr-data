@@ -66,7 +66,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | refresh | Number | \`0\` | non | Rafraichissement auto en secondes (0 = desactive) |
 | paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta) |
 | page-size | Number | \`20\` | non | Taille de page pour la pagination serveur (nombre de records par page) |
-| cache-ttl | Number | \`3600\` | non | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre window.DSFR_DATA_CACHE_PROVIDER (#307) — no-op en embed anonyme. |
+| cache-ttl | Number | \`3600\` | non | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre window.DSFR_DATA_CACHE_PROVIDER (#307) — no-op en embed anonyme. Repli hors ligne cote navigateur : AUCUN rapport avec le relais (\`relay-url\`), dont la duree de cache se regle sur le relais. |
 | api-type | String | \`"generic"\` | non | Type de provider (opendatasoft, tabular, grist, insee, generic, ou un adaptateur ajoute par \`registerAdapter\`). Active le mode adapter. |
 | base-url | String | \`""\` | non | URL de base de l'API (mode adapter). Ex: \`"https://data.iledefrance.fr"\` |
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
@@ -83,7 +83,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | require-where | Boolean | \`false\` | non | Ne rien charger tant qu'aucun filtre n'a été reçu (#690) : la source reste en attente et émet \`dsfr-data-idle\`, les afficheurs rendent « Choisissez un filtre pour afficher les données ». Le \`where\` STATIQUE ne compte pas — seules les clauses reçues par commande (facettes, recherche, dsfr-data-context, délégation d'un dsfr-data-query). Retirer le dernier filtre repasse en attente : jamais de requête « tout ». Réservé au mode adapter (les commandes where sont refusées en mode URL). |
 | data | String | \`""\` | non | Données JSON inline (pas de fetch). Ex: \`data='[{"x":1},{"x":2}]'\` |
 | use-proxy | Boolean | \`false\` | non | Force le passage par le proxy CORS generique. N'a d'effet QUE si une base de proxy est configuree (\`proxy-url\`, \`window.DSFR_DATA_PROXY\`, ou build) : en embed nu sur un site tiers sans aucune de ces sources, c'est un no-op (URL renvoyee inchangee). |
-| proxy-url | String | \`""\` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur \`window.DSFR_DATA_PROXY\` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le \`use-proxy\` generique. Ex: \`proxy-url="https://mon-proxy.fr"\`. Vide = resolution proxy globale habituelle. |
+| proxy-url | String | \`""\` | non | Domaine du proxy CORS pour CETTE source, prioritaire sur \`window.DSFR_DATA_PROXY\` et la config build. Sert la reecriture d'hote connu (Grist gouv/SaaS, Tabular, INSEE) ET le \`use-proxy\` generique. Ex: \`proxy-url="https://mon-proxy.fr"\`. Vide = resolution proxy globale habituelle. Ne relaie PAS un portail Opendatasoft : pour cela, \`relay-url\`. |
+| relay-url | String | \`""\` | non | Prefixe du relais cachable du SITE HOTE (#1232), relatif (\`"/donnees-relais"\`) ou absolu. Vide = \`window.DSFR_DATA_RELAY\`, sinon aucun relais. Avec un relais, toute requete GET vers une autre origine part sous la forme \`<relais>/<hote>/<chemin>?<requete>\`, en mode adaptateur comme en mode URL, SANS en-tete (ni \`headers\`, ni \`api-key-ref\` : la cle appartient au relais). Le relais est une route que le site fournit (contrat docs/RELAY.md) : ne le poser que si l'integrateur dit en avoir un — aucune instance publique n'en expose. |
 | api-key-ref | String | \`""\` | non | Reference vers une clé API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
 
 ### Événements emis
@@ -3027,9 +3028,46 @@ Opendatasoft en mode adaptateur (\`api-type="opendatasoft"\`), ou une URL quelco
 sans \`use-proxy\` — l'attribut est sans effet : la requete part en direct, et la source
 l'ecrit une fois en console (« proxy-url est sans effet »), repris par le volet
 Diagnostic. \`use-proxy\` (relais generique \`/cors-proxy\`, cible passee dans l'en-tete
-\`X-Target-URL\`) ne vaut qu'en mode URL. Il n'existe pas aujourd'hui de relais dont
-l'URL identifie la donnee : un cache de page ou un CDN du site hote ne peut pas servir
-les donnees d'un portail a la place du portail.
+\`X-Target-URL\`) ne vaut qu'en mode URL : deux jeux y ont la meme URL, un cache ne
+peut pas les distinguer. Pour servir les donnees depuis le cache du site, c'est
+\`relay-url\` (ci-dessous).
+
+### Relais cachable du site hote (\`relay-url\`)
+Un site qui a du cache (Varnish, CDN, cache de son CMS) peut faire passer les donnees
+d'une dataviz par SON domaine, sous une URL qui identifie la donnee. Il monte une route
+de relais (contrat \`docs/RELAY.md\` du depot, relais Node de reference
+\`proxy/relay/node/\`) et la declare sur la source, ou une fois pour la page :
+
+\`\`\`html
+<!-- La requete part vers
+     /donnees-relais/data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/rappelconso/records?... -->
+<dsfr-data-source id="src" api-type="opendatasoft" relay-url="/donnees-relais"
+  base-url="https://data.economie.gouv.fr" dataset-id="rappelconso">
+</dsfr-data-source>
+
+<script>
+  window.DSFR_DATA_RELAY = '/donnees-relais';
+</script>
+\`\`\`
+
+- La source reste en mode adaptateur : \`where\`, \`group-by\`, \`order-by\`, pagination,
+  \`server-side\` et \`fetch-mode="export"\` (ODS) vivent dans l'URL, que le relais transmet
+  telle quelle. Deux cibles donnent deux URL ; une meme requete donne la meme URL au
+  caractere pres.
+- Tous les hotes y passent (Opendatasoft, Tabular, Grist en lecture, INSEE, URL quelconque),
+  pour les requetes GET vers une autre origine. Une URL relative ou de meme origine n'est
+  jamais reecrite.
+- AUCUN en-tete n'est envoye au relais : \`headers\` et \`api-key-ref\` sont ignores sur une
+  requete relayee (la source l'ecrit une fois en console). Si le portail exige une cle,
+  c'est le relais qui l'ajoute.
+- Hors relais, sur le chemin habituel (direct ou \`proxy-url\`) : les requetes POST (mode
+  SQL de Grist, \`method="POST"\`) ; une cible hors https, sur un port explicite ou avec
+  identifiants ; un chemin que le relais refuserait (\`%2f\`, \`//\`...). Sur Tabular,
+  \`fetch-mode="export"\` (Parquet) retombe sur la pagination, relayee.
+- \`relay-url\` n'est PAS \`proxy-url\` (proxy CORS, cible dans un en-tete, non cachable) et
+  n'a aucun rapport avec \`cache-ttl\` (repli hors ligne du navigateur).
+- Le relais est fourni par le site hote. Aucune instance publique n'en expose : ne jamais
+  ecrire \`relay-url\` dans un code genere sans que l'integrateur ait dit avoir un relais.
 
 APIs avec CORS natif (pas de proxy necessaire) :
 - OpenDataSoft (\`*.opendatasoft.com\` et portails publics)
