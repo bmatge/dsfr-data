@@ -102,6 +102,52 @@ export function createRelay(config, deps = {}) {
   const trustedProxies = new Set(config.trustedProxies);
   /** Requêtes vers l'amont en cours, par clé de cache : N visiteurs, une seule requête. */
   const inFlight = new Map();
+  /**
+   * Places amont tenues par client (clé de limite de débit). Sans cette part,
+   * un seul client qui demande N URL lentes occupe toutes les places et prive
+   * les autres visiteurs de toute URL absente du cache.
+   * @type {Map<string, number>}
+   */
+  const upstreamByClient = new Map();
+  /**
+   * Corps remis à un socket et pas encore écrits (visiteur qui lit lentement,
+   * ou pas du tout). Un même `Buffer` servi à N visiteurs ne compte qu'une fois
+   * dans le total ; il compte pour chacun dans sa part.
+   * @type {Map<Buffer, number>}
+   */
+  const pendingBodies = new Map();
+  /** @type {Map<string, number>} */
+  const pendingByClient = new Map();
+  let pendingBytes = 0;
+
+  /**
+   * Réserve la place d'un corps en attente d'écriture. Faux si le total, ou la
+   * part de ce client (la moitié), est atteint : la réponse est alors une 503.
+   */
+  function holdBody(res, body, clientKey) {
+    const readers = pendingBodies.get(body) ?? 0;
+    const added = readers === 0 ? body.length : 0;
+    const mine = pendingByClient.get(clientKey) ?? 0;
+    const max = config.limits.maxPendingBytes;
+    if (pendingBytes + added > max || mine + body.length > max / 2) return false;
+    pendingBodies.set(body, readers + 1);
+    pendingBytes += added;
+    pendingByClient.set(clientKey, mine + body.length);
+    // `close` suit la fin de l'écriture comme la coupure de la connexion.
+    res.once('close', () => {
+      const left = (pendingBodies.get(body) ?? 1) - 1;
+      if (left === 0) {
+        pendingBodies.delete(body);
+        pendingBytes -= body.length;
+      } else {
+        pendingBodies.set(body, left);
+      }
+      const rest = (pendingByClient.get(clientKey) ?? body.length) - body.length;
+      if (rest <= 0) pendingByClient.delete(clientKey);
+      else pendingByClient.set(clientKey, rest);
+    });
+    return true;
+  }
 
   /**
    * Adresse du visiteur, pour la SEULE limite de débit. Elle n'est ni transmise
@@ -140,7 +186,12 @@ export function createRelay(config, deps = {}) {
     return { status, code, bytes: body.length };
   }
 
-  function sendEntry(req, res, entry, state, hostConfig) {
+  function sendEntry(req, res, entry, state, hostConfig, clientKey) {
+    const withBody = req.method !== 'HEAD';
+    // Avant d'écrire le moindre octet : au-delà de la borne, c'est une 503 entière.
+    if (withBody && !holdBody(res, entry.body, clientKey)) {
+      throw new RelayError(503, 'relay-busy', { retryAfter: 1 });
+    }
     /** @type {Record<string, string | number>} */
     const headers = {
       ...COMMON_HEADERS,
@@ -156,17 +207,23 @@ export function createRelay(config, deps = {}) {
     if (entry.lastModified) headers['Last-Modified'] = entry.lastModified;
     if (state !== 'MISS') headers.Age = Math.max(0, Math.floor((now() - entry.storedAt) / 1000));
     res.writeHead(200, headers);
-    res.end(req.method === 'HEAD' ? undefined : entry.body);
+    res.end(withBody ? entry.body : undefined);
     return { status: 200, code: undefined, bytes: entry.body.length };
   }
 
   /** Va chercher la cible chez l'amont et range la réponse. Seule une 200 arrive jusqu'ici. */
-  function fetchShared(cacheKey, target, hostConfig) {
+  function fetchShared(cacheKey, target, hostConfig, clientKey) {
+    // Rejoindre une requête déjà partie ne prend aucune place.
     const pending = inFlight.get(cacheKey);
     if (pending) return pending;
-    if (inFlight.size >= config.limits.maxUpstreamRequests) {
+    const mine = upstreamByClient.get(clientKey) ?? 0;
+    if (
+      inFlight.size >= config.limits.maxUpstreamRequests ||
+      mine >= config.limits.maxUpstreamRequestsPerClient
+    ) {
       throw new RelayError(503, 'relay-busy', { retryAfter: 1 });
     }
+    upstreamByClient.set(clientKey, mine + 1);
     const started = fetchUpstream(target, config, upstreamDeps)
       .then((response) => {
         // Défense en profondeur : un amont qui renverrait la clé dans sa réponse
@@ -189,19 +246,24 @@ export function createRelay(config, deps = {}) {
         cache.set(cacheKey, entry);
         return entry;
       })
-      .finally(() => inFlight.delete(cacheKey));
+      .finally(() => {
+        inFlight.delete(cacheKey);
+        const left = (upstreamByClient.get(clientKey) ?? 1) - 1;
+        if (left <= 0) upstreamByClient.delete(clientKey);
+        else upstreamByClient.set(clientKey, left);
+      });
     inFlight.set(cacheKey, started);
     return started;
   }
 
-  async function obtain(target, hostConfig) {
+  async function obtain(target, hostConfig, clientKey) {
     // La clé de cache est l'URL seule : hôte (en minuscules par construction),
     // chemin et requête tels que reçus. Aucun en-tête de requête n'y entre.
     const cacheKey = `${target.host}${target.path}${target.search}`;
     const cached = cache.get(cacheKey, now());
     if (cached && now() < cached.freshUntil) return { entry: cached, state: 'HIT' };
     try {
-      return { entry: await fetchShared(cacheKey, target, hostConfig), state: 'MISS' };
+      return { entry: await fetchShared(cacheKey, target, hostConfig, clientKey), state: 'MISS' };
     } catch (error) {
       if (cached && isUpstreamFailure(error)) return { entry: cached, state: 'STALE' };
       throw error;
@@ -231,7 +293,10 @@ export function createRelay(config, deps = {}) {
         return;
       }
 
-      const limit = limiter.take(rateLimitKey(clientAddress(req)), now());
+      // La clé du client sert à la limite de débit et à sa part des places du
+      // relais (requêtes amont, octets en attente). À rien d'autre.
+      const clientKey = rateLimitKey(clientAddress(req));
+      const limit = limiter.take(clientKey, now());
       if (!limit.allowed) {
         throw new RelayError(429, 'rate-limited', { retryAfter: limit.retryAfter });
       }
@@ -275,9 +340,9 @@ export function createRelay(config, deps = {}) {
       // elle n'est journalisée que sur demande explicite (`logQuery`).
       if (config.logQuery) record.query = target.search;
 
-      const { entry, state } = await obtain(target, hostConfig);
+      const { entry, state } = await obtain(target, hostConfig, clientKey);
       record.cache = state;
-      outcome = sendEntry(req, res, entry, state, hostConfig);
+      outcome = sendEntry(req, res, entry, state, hostConfig, clientKey);
     } catch (error) {
       if (res.headersSent) {
         res.destroy();
@@ -344,6 +409,10 @@ export function createRelay(config, deps = {}) {
   return {
     server,
     cache,
+    /** État des bornes, pour le banc de tests. Rien de la configuration ni des visiteurs. */
+    stats() {
+      return { upstreamRequests: inFlight.size, pendingBytes };
+    },
     /** @returns {Promise<{ address: string, port: number }>} */
     listen() {
       return new Promise((resolve, reject) => {

@@ -8,6 +8,9 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import process from 'node:process';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { isPublicAddress } from '../../../proxy/relay/node/addresses.mjs';
 import { defaultResolve } from '../../../proxy/relay/node/upstream.mjs';
@@ -23,6 +26,12 @@ import { CONFORMANCE_KEY } from '../support/profile.mjs';
 import { PUBLIC_TEST_ADDRESS, startReference } from '../support/reference.mjs';
 
 const SLOW_MS = 400;
+
+// Ramasse-miettes à la demande, pour mesurer ce que le relais RETIENT (et non ce
+// qui attend d'être ramassé). Aucune option de ligne de commande à passer.
+v8.setFlagsFromString('--expose-gc');
+/** @type {() => void} */
+const collectGarbage = vm.runInNewContext('gc');
 
 /** @type {Awaited<ReturnType<typeof startFakeUpstream>>} */
 let upstream;
@@ -438,6 +447,113 @@ describe('C-DOS — plafonds du relais de référence', () => {
         assert.equal((await client.call(`/${ALLOWED_HOST}/donnees.json?${m}`)).status, 200);
       }
     );
+  });
+
+  test('C-DOS-4 — un seul client ne prend pas toutes les places amont : un autre visiteur reste servi', async () => {
+    // Quatre places, donc deux par adresse. Un client en demande quatre de front.
+    const config = (profile) => ({
+      ...withLimits({ maxUpstreamRequests: 4 })(profile),
+      trustedProxies: ['127.0.0.1'],
+    });
+    const from = (address) => ({ headers: { 'X-Forwarded-For': address } });
+    await withRelay({ config }, async (reference, client) => {
+      const greedy = [0, 1, 2, 3].map(() =>
+        client.call(`/${ALLOWED_HOST}/lent?${mark()}`, from('198.51.100.1'))
+      );
+      await sleep(50);
+      const m = mark();
+      const other = await client.call(`/${ALLOWED_HOST}/donnees.json?${m}`, from('198.51.100.2'));
+      assert.equal(other.status, 200, 'un autre visiteur est refusé : le premier a tout pris');
+      const answers = await Promise.all(greedy);
+      assert.deepEqual(answers.map((response) => response.status).sort(), [200, 200, 503, 503]);
+      for (const response of answers.filter((entry) => entry.status === 503)) {
+        assert.equal(errorCode(response), 'relay-busy');
+        assert.equal(response.headers['retry-after'], '1');
+      }
+    });
+  });
+
+  /** Requête d'un visiteur qui ne lira jamais sa réponse : 8 Mo demandés, socket en pause. */
+  const stalledReader = (reference, address) => {
+    const socket = net.connect(Number(reference.url.port), '127.0.0.1');
+    socket.on('error', () => {});
+    socket.pause();
+    socket.write(
+      `GET ${reference.url.pathname}/${ALLOWED_HOST}/gros?${mark()} HTTP/1.1\r\nHost: relais\r\nX-Forwarded-For: ${address}\r\n\r\n`
+    );
+    return socket;
+  };
+  const MEGA = 1024 * 1024;
+  const slowReaders = (profile) => ({
+    ...withLimits({
+      maxBytes: 9 * MEGA,
+      maxPendingBytes: 18 * MEGA,
+      cacheMaxBytes: 0,
+      timeoutMs: 20000,
+    })(profile),
+    trustedProxies: ['127.0.0.1'],
+  });
+
+  test('C-DOS-4 — des visiteurs qui ne lisent pas leur réponse : les octets en attente d’écriture sont bornés', async (t) => {
+    // Douze connexions, douze URL de 8 Mo, douze adresses ; personne ne lit.
+    // Sans borne, le relais retient 12 × 8 Mo ; avec `maxPendingBytes` à 18 Mo, deux corps.
+    await withRelay({ config: slowReaders }, async (reference) => {
+      const retained = () => {
+        collectGarbage();
+        return process.memoryUsage().arrayBuffers;
+      };
+      const before = retained();
+      const streamsBefore = upstream.bigStreams.length;
+      const sockets = Array.from({ length: 12 }, (_, index) =>
+        stalledReader(reference, `198.51.100.${index + 1}`)
+      );
+      try {
+        // Attendre que l'amont ait tout envoyé et que le relais ait tout reçu.
+        for (let waited = 0; waited < 15000; waited += 20) {
+          const streams = upstream.bigStreams.slice(streamsBefore);
+          if (streams.length === 12 && streams.every((stream) => stream.sent >= stream.total)) {
+            break;
+          }
+          await sleep(20);
+        }
+        await sleep(300);
+        const growth = Math.round((retained() - before) / MEGA);
+        t.diagnostic(`tampons retenus : +${growth} Mo pour douze lecteurs à l’arrêt (borne : 18 Mo)`);
+        assert.ok(growth < 40, `le relais retient ${growth} Mo pour des visiteurs qui ne lisent pas`);
+        assert.ok(reference.relay.stats().pendingBytes <= 18 * MEGA);
+      } finally {
+        for (const socket of sockets) socket.destroy();
+      }
+    });
+  });
+
+  test('C-DOS-4 — un seul visiteur lent ne prend que la moitié des octets en attente', async () => {
+    await withRelay({ config: slowReaders }, async (reference, client) => {
+      const slow = stalledReader(reference, '198.51.100.1');
+      try {
+        for (let waited = 0; waited < 15000; waited += 20) {
+          if (reference.relay.stats().pendingBytes > 0) break;
+          await sleep(20);
+        }
+        assert.ok(reference.relay.stats().pendingBytes >= 8 * MEGA);
+        // Le même visiteur redemande 8 Mo : il tient déjà sa part (9 Mo), 503.
+        const again = await client.call(`/${ALLOWED_HOST}/gros?${mark()}`, {
+          headers: { 'X-Forwarded-For': '198.51.100.1' },
+        });
+        assert.equal(again.status, 503);
+        assert.equal(errorCode(again), 'relay-busy');
+        // Un autre visiteur, lui, est servi.
+        const other = await client.call(`/${ALLOWED_HOST}/gros?${mark()}`, {
+          headers: { 'X-Forwarded-For': '198.51.100.2' },
+        });
+        assert.equal(other.status, 200);
+        assert.equal(other.body.length, 8 * MEGA);
+      } finally {
+        slow.destroy();
+      }
+      await sleep(50);
+      assert.equal(reference.relay.stats().pendingBytes, 0, 'la place est rendue à la fermeture');
+    });
   });
 
   test('C-DOS-4 — connexions simultanées bornées : au-delà, la connexion est refusée', async () => {

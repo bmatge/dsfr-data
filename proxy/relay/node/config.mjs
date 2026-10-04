@@ -36,6 +36,7 @@ export const DEFAULTS = Object.freeze({
     rateLimitWindowSeconds: 60,
     maxConnections: 256,
     maxUpstreamRequests: 16,
+    maxPendingBytes: 64 * 1024 * 1024,
   }),
 });
 
@@ -51,6 +52,7 @@ const LIMIT_BOUNDS = Object.freeze({
   rateLimitWindowSeconds: [1, 3600],
   maxConnections: [1, 65535],
   maxUpstreamRequests: [1, 1024],
+  maxPendingBytes: [2048, 4 * 1024 * 1024 * 1024],
 });
 
 const TOP_LEVEL_KEYS = [
@@ -354,11 +356,30 @@ export function validateConfig(raw, env = {}) {
   // --- Plafonds ---
   const rawLimits = raw.limits ?? {};
   if (!isPlainObject(rawLimits)) throw new ConfigError('limits : objet attendu.');
-  rejectUnknownKeys(rawLimits, Object.keys(LIMIT_BOUNDS), 'limits');
+  rejectUnknownKeys(
+    rawLimits,
+    [...Object.keys(LIMIT_BOUNDS), 'maxUpstreamRequestsPerClient'],
+    'limits'
+  );
   /** @type {Record<string, number>} */
   const limits = {};
   for (const [name, [min, max]] of Object.entries(LIMIT_BOUNDS)) {
     limits[name] = integer(rawLimits[name] ?? DEFAULTS.limits[name], min, max, `limits.${name}`);
+  }
+  // Part d'un seul client dans les places amont : la moitié par défaut. Sans
+  // part, une adresse qui demande N URL lentes prive tous les autres visiteurs.
+  limits.maxUpstreamRequestsPerClient = integer(
+    rawLimits.maxUpstreamRequestsPerClient ?? Math.ceil(limits.maxUpstreamRequests / 2),
+    1,
+    limits.maxUpstreamRequests,
+    'limits.maxUpstreamRequestsPerClient'
+  );
+  // Un client peut tenir la moitié des octets en attente d'écriture : il faut
+  // qu'une réponse de taille maximale y entre, sinon elle ne serait jamais servie.
+  if (limits.maxPendingBytes < 2 * limits.maxBytes) {
+    throw new ConfigError(
+      'limits.maxPendingBytes : au moins deux fois limits.maxBytes (un client en tient la moitié).'
+    );
   }
 
   if (raw.logQuery !== undefined && typeof raw.logQuery !== 'boolean') {
