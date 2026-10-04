@@ -423,12 +423,20 @@ describe('SSRF — les redirections de l’amont', () => {
     ['vers http', ALLOWED_HOST, '/redirection/http'],
     ['vers un autre port', ALLOWED_HOST, '/redirection/port'],
     ['vers une adresse de boucle locale', ALLOWED_HOST, '/redirection/ip'],
-    ['vers une adresse de boucle locale où un service écoute', ALLOWED_HOST, '/redirection/ip-joignable'],
+    [
+      'vers une adresse de boucle locale où un service écoute',
+      ALLOWED_HOST,
+      '/redirection/ip-joignable',
+    ],
     ['vers l’adresse des métadonnées', ALLOWED_HOST, '/redirection/metadonnees'],
     ['avec identifiants', ALLOWED_HOST, '/redirection/identifiants'],
     ['hors du préfixe autorisé', KEYED_HOST, `${KEYED_PREFIX}redirection/hors-prefixe`],
     ['avec remontée de chemin', ALLOWED_HOST, '/redirection/remontee'],
-    ['vers un chemin à barre encodée `..%2f`', KEYED_HOST, `${KEYED_PREFIX}redirection/chemin-encode`],
+    [
+      'vers un chemin à barre encodée `..%2f`',
+      KEYED_HOST,
+      `${KEYED_PREFIX}redirection/chemin-encode`,
+    ],
     ['vers un chemin à paramètre `..;`', KEYED_HOST, `${KEYED_PREFIX}redirection/chemin-parametre`],
     ['vers un chemin à barre double', KEYED_HOST, `${KEYED_PREFIX}redirection/chemin-double`],
   ];

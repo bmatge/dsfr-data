@@ -281,7 +281,7 @@ export async function startFakeUpstream({ port = 0, delayMs, bigBytes, hopDelayM
       else json(res, 200, { retabli: true });
       return;
     }
-    const sequence = /\/suite\/(\d{3}(?:-\d{3})*)$/.exec(path);
+    const sequence = /\/suite\/([\d-]+)$/.exec(path);
     if (sequence) {
       // Une suite de statuts, un par appel ; le dernier se répète.
       const statuses = sequence[1].split('-').map(Number);

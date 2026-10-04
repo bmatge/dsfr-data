@@ -55,7 +55,13 @@ describe('C-SSRF-6 — adresses que le relais refuse de joindre', () => {
   }
 
   // Classement seul : ces adresses ne sont jamais jointes par le banc.
-  for (const address of ['192.0.3.1', '198.51.101.7', '203.0.114.1', '2606:4700:4700::1111', '2a01:e0a::1']) {
+  for (const address of [
+    '192.0.3.1',
+    '198.51.101.7',
+    '203.0.114.1',
+    '2606:4700:4700::1111',
+    '2a01:e0a::1',
+  ]) {
     test(`adresse publique (${address}) : acceptée`, () => {
       assert.equal(isPublicAddress(address), true);
     });

@@ -510,6 +510,8 @@ export function createRelay(config, deps = {}) {
   server.maxConnections = config.limits.maxConnections;
   // Un visiteur qui ne lit pas sa réponse ne garde pas sa connexion : sans
   // activité au-delà du délai de l'amont plus une marge, le socket est fermé.
+  // En pratique à la DEUXIÈME échéance : à la première, Node constate qu'une
+  // écriture est en attente et réarme le délai (mesuré : 42 s pour 21 s réglées).
   server.setTimeout(config.limits.timeoutMs + 20000);
   // Pas de plafond de Node par connexion : il répondrait seul (voir MAX_REQUESTS_PER_SOCKET).
   server.maxRequestsPerSocket = 0;

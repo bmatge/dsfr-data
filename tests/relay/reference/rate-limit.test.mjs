@@ -49,7 +49,11 @@ describe('C-DOS-3 — la table des compteurs est bornée', () => {
 
   test('une adresse en cours de limitation n’est pas évincée : elle ne repart pas de zéro', () => {
     const limiter = new RateLimiter({ requests: 2, windowSeconds: 60, maxKeys: 100 });
-    const answers = [limiter.take('abusive', 0), limiter.take('abusive', 1), limiter.take('abusive', 2)];
+    const answers = [
+      limiter.take('abusive', 0),
+      limiter.take('abusive', 1),
+      limiter.take('abusive', 2),
+    ];
     assert.deepEqual(
       answers.map((answer) => answer.allowed),
       [true, true, false]

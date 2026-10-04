@@ -44,15 +44,36 @@ curl http://127.0.0.1:8155/health
 ## Devant le relais
 
 Le relais se place **derrière** le serveur web du site, qui lui transmet `/donnees-relais/`, porte
-le cache partagé, la compression et le TLS. Déclarer l'adresse de ce serveur dans
-`trustedProxies` : sinon toutes les requêtes viennent de la même adresse et la limite de débit
-devient globale. L'extrait nginx arrive au lot 3 de l'ADR-155.
+le cache partagé, la compression et le TLS. Il écoute sur la boucle locale ; hors d'elle, il le
+signale au démarrage.
+
+Pour que la limite de débit reste **par visiteur**, deux gestes qui vont ensemble :
+
+1. déclarer l'adresse de ce serveur dans `trustedProxies` (adresses exactes, pas de plage) ;
+2. lui faire **poser** `X-Forwarded-For` — pas seulement le transmettre :
+
+```nginx
+location /donnees-relais/ {
+    proxy_pass http://127.0.0.1:8155;
+    proxy_set_header X-Forwarded-For $remote_addr;   # ou $proxy_add_x_forwarded_for
+}
+```
+
+> ⚠️ **Un `proxy_pass` nu transmet l'en-tête du client tel quel** : chaque requête forge son
+> adresse et obtient son propre quota. Déclarer `trustedProxies` sans `proxy_set_header` est pire
+> que de ne rien déclarer. Le relais s'en protège en partie (il cesse de croire l'en-tête d'un
+> mandataire qu'il a vu ne pas le poser, et le dit sur la sortie d'erreur), mais l'exigence est
+> faite au mandataire : [`docs/RELAY.md`](../../../docs/RELAY.md), règle C-DOS-5.
+
+Sans rien déclarer, toutes les requêtes viennent de la même adresse et la limite de débit devient
+globale. L'extrait nginx complet arrive au lot 3 de l'ADR-155.
 
 ## Régler
 
 Tous les champs, leurs défauts et les variables d'environnement : [`docs/RELAY.md` §6](../../../docs/RELAY.md).
 Les défauts : 300 s de cache, 10 s de délai, 10 Mo par réponse, 600 requêtes par minute et par
-adresse, 64 Mo de cache en mémoire.
+adresse, 64 Mo de cache en mémoire, 16 requêtes simultanées vers l'amont dont 8 au plus pour un
+même client, 64 Mo de réponses en attente de lecture. Mémoire, au pire : 298 Mo.
 
 ## Fichiers
 
@@ -61,7 +82,7 @@ adresse, 64 Mo de cache en mémoire.
 | `server.mjs` | Point d'entrée. Charge la configuration, écoute, s'arrête sur `SIGTERM`. |
 | `relay.mjs` | Le serveur HTTP : méthodes, limite de débit, cache, en-têtes, erreurs, journal. |
 | `target.mjs` | Lecture de la cible dans l'URL ; refus des chemins et requêtes piégés. |
-| `upstream.mjs` | La requête vers l'amont : résolution DNS vérifiée, TLS vers l'adresse vérifiée, redirections, délai, taille. |
+| `upstream.mjs` | La requête vers l'amont : résolution DNS vérifiée, TLS vers l'adresse vérifiée, redirections, délai, taille, réception du corps en blocs. |
 | `addresses.mjs` | Adresses privées, de boucle locale, de lien local ; forme d'un nom d'hôte. |
 | `config.mjs` | Lecture et validation de la configuration. |
 | `cache.mjs`, `rate-limit.mjs` | Cache en mémoire borné, limite de débit par adresse. |
@@ -73,5 +94,8 @@ node --test tests/relay/conformance.test.mjs          # la suite de conformance 
 node --test "tests/relay/reference/*.test.mjs"        # ce qui ne s'observe pas de l'extérieur
 npx vitest run tests/relay                            # les deux, comme dans la CI
 ```
+
+Les tests du connecteur TLS fabriquent leur certificat avec `openssl` : sans lui, quatre tests
+sont sautés sur un poste de travail, et la suite échoue en CI.
 
 Pour éprouver **votre** relais avec la même suite : [`docs/RELAY.md` §7](../../../docs/RELAY.md).

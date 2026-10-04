@@ -86,7 +86,7 @@ exige une clé, c'est le relais qui l'ajoute, par hôte, depuis sa configuration
 
 ## 4. Ce que le relais doit faire, et ne jamais faire
 
-Chaque exigence porte un identifiant ; c'est celui que citent les tests (§10).
+Chaque exigence porte un identifiant ; c'est celui que citent les tests (§8).
 
 ### La cible
 
@@ -98,10 +98,10 @@ Chaque exigence porte un identifiant ; c'est celui que citent les tests (§10).
 | **C-SSRF-1** | Liste blanche d'hôtes en **correspondance exacte** : ni joker, ni suffixe, ni sous-domaine implicite. Hôte hors liste : 403, sans contacter personne. |
 | **C-SSRF-2** | Un hôte écrit comme une adresse IP est refusé, quelle que soit l'écriture : décimale pointée, entier décimal, hexadécimale, octale, IPv6 entre crochets, IPv4 mappée. Une adresse IP n'entre pas dans la liste blanche. |
 | **C-SSRF-3** | Le segment d'hôte ne porte ni identifiants (`user:pass@`), ni port (même `:443`), ni schéma, ni caractère encodé. |
-| **C-SSRF-4** | Le chemin ne contient ni `..`, ni `.`, ni `//`, ni barre oblique inverse, ni `%2e`, `%2f`, `%5c`, `%25` (double encodage), ni caractère de contrôle encodé. Le relais **refuse** (400). Un relais bâti sur un serveur qui normalise le chemin avant de router est conforme si la forme piégée n'atteint jamais l'amont et que le chemin normalisé reste sous un préfixe autorisé. |
+| **C-SSRF-4** | Le chemin ne contient ni `..`, ni `.`, ni `//`, ni barre oblique inverse, ni `%2e`, `%2f`, `%5c`, `%25` (double encodage), ni `%3b` (un `;` encodé redevient un paramètre de chemin, `..;`), ni caractère de contrôle encodé, ni UTF-8 surlong (`%c0`, `%c1`, `%e0%80`…`%e0%9f`, `%f0%80`…`%f0%8f`, formes sur cinq et six octets : un décodeur laxiste y lit un point ou une barre), ni point ou barre de pleine chasse (`%ef%bc%8e`, `%ef%bc%8f`, `%ef%bc%bc`). Le relais **refuse** (400). Un relais bâti sur un serveur qui normalise le chemin avant de router est conforme si la forme piégée n'atteint jamais l'amont et que le chemin normalisé reste sous un préfixe autorisé. |
 | **C-SSRF-5** | Un hôte peut être restreint à des **préfixes de chemin**. Hors préfixe : 403. Un préfixe s'arrête à une frontière de segment (`/api/public` n'autorise pas `/api/public-prive`). Obligatoire dès qu'une clé est injectée (§3). |
-| **C-SSRF-6** | Vers l'amont : `https`, port 443, certificat vérifié contre le nom. Le relais **résout lui-même** le nom, refuse si l'une des adresses est privée, de boucle locale, de lien local ou réservée — même pour un hôte autorisé —, puis se connecte **à l'adresse qu'il a vérifiée**, pas au nom (sinon un DNS qui change de réponse entre la vérification et la connexion fait passer une adresse privée). |
-| **C-SSRF-7** | Une redirection de l'amont n'est jamais renvoyée au navigateur. Elle est suivie seulement si sa cible repasse **toutes** les règles ci-dessus (https, 443, sans identifiants, hôte de la liste, chemin sain et sous un préfixe autorisé de cet hôte, adresse publique), **trois fois au plus**. Sinon : 502. |
+| **C-SSRF-6** | Vers l'amont : `https`, port 443, certificat vérifié contre le nom. Le relais **résout lui-même** le nom, refuse si l'une des adresses est privée, de boucle locale, de lien local ou réservée (plages de documentation et de mesure comprises : `192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32`, `3fff::/20`…) — même pour un hôte autorisé —, puis se connecte **à l'adresse qu'il a vérifiée**, pas au nom (sinon un DNS qui change de réponse entre la vérification et la connexion fait passer une adresse privée). |
+| **C-SSRF-7** | Une redirection de l'amont n'est jamais renvoyée au navigateur. Elle est suivie seulement si sa cible repasse **toutes** les règles ci-dessus (https, 443, sans identifiants, hôte de la liste, chemin sain et sous un préfixe autorisé de cet hôte, adresse publique), **trois fois au plus**. Sinon : 502. Une redirection refusée l'est **avant** toute résolution et toute connexion vers sa cible. La cible d'une redirection est lue par un analyseur d'URL : la casse de l'hôte et un `:443` explicite y sont normalisés avant la comparaison à la liste blanche — contrairement à l'URL de relais (C-URL-2), que la bibliothèque produit déjà canonique. |
 
 ### Les méthodes
 
@@ -109,7 +109,7 @@ Chaque exigence porte un identifiant ; c'est celui que citent les tests (§10).
 |---|---|
 | **C-MET-1** | GET, HEAD et OPTIONS. Tout le reste : 405 avec `Allow: GET, HEAD, OPTIONS`, sans contacter l'amont. |
 | **C-MET-2** | Aucun corps de requête n'est transmis à l'amont. Le relais de référence refuse une requête qui en porte un (400). |
-| **C-MET-3** | HEAD rend les en-têtes d'un GET, sans corps. OPTIONS est répondu par le relais (pré-vérification CORS), sans contacter l'amont, et n'autorise aucun en-tête de requête. |
+| **C-MET-3** | HEAD rend les en-têtes d'un GET, sans corps. **Il coûte un GET** : sur une URL absente du cache, le relais va chercher la réponse entière chez l'amont (et la garde pour le GET qui suit) ; il compte comme un GET dans la limite de débit. OPTIONS est répondu par le relais (pré-vérification CORS), sans contacter l'amont, et n'autorise **aucun** en-tête de requête : `Access-Control-Allow-Headers` est absent ou vide, jamais `*`. Hors du préfixe du relais, OPTIONS n'est pas une route (404). |
 | **C-INJ-1** | Aucun CR, LF ou NUL, nu ou encodé, ne produit d'en-tête ni de seconde requête chez l'amont. Le relais de référence refuse (400) : `%0d`, `%0a` et `%00` n'ont pas leur place dans une requête de données. |
 
 ### Les en-têtes
@@ -118,11 +118,11 @@ Chaque exigence porte un identifiant ; c'est celui que citent les tests (§10).
 |---|---|
 | **C-AMONT-1** | Vers l'amont : `Host`, un `Accept` **fixé par le relais**, et la clé de l'hôte s'il en a une. **Rien de ce qu'envoie le visiteur** : jamais `Cookie`, `Authorization`, `Origin`, `Referer`, `User-Agent`, `Accept`, `Accept-Language`, `Range`, `If-None-Match`, ni son adresse (`X-Forwarded-For`, `X-Real-IP`, `Forwarded`). |
 | **C-AMONT-2** | La clé d'un hôte n'est envoyée qu'à cet hôte. Une redirection vers un autre hôte ne l'emporte pas. |
-| **C-NAV-1** | Vers le navigateur : type de contenu, `ETag`, `Last-Modified`. **Jamais** `Set-Cookie`, ni le `Vary`, le `Cache-Control`, les en-têtes CORS, de quota (`X-RateLimit-*`) ou de signature (`Server`, `X-Powered-By`) de l'amont. |
-| **C-NAV-2** | Toute réponse, erreurs comprises, porte `X-Content-Type-Options: nosniff` et `Content-Security-Policy: default-src 'none'; sandbox`. |
-| **C-NAV-3** | Types de contenu en liste blanche : `application/json`, `application/geo+json`, `text/csv`. Le relais répond sur l'origine du site : il n'y sert **jamais** de HTML, de SVG, de XML ni de script. Autre type, ou type absent : 502. |
-| **C-NAV-4** | Toute réponse, erreurs comprises, porte `Access-Control-Allow-Origin: *`, et jamais `Access-Control-Allow-Credentials`. Sans l'en-tête CORS sur une erreur, le navigateur n'en voit qu'un `TypeError`, que la bibliothèque classe `reponse-bloquee` au lieu de la vraie cause. |
-| **C-NAV-5** | `ETag` et `Last-Modified` de l'amont sont transmis tels quels, ou omis. |
+| **C-NAV-1** | Vers le navigateur : type de contenu, `ETag`, `Last-Modified`. **Jamais** `Set-Cookie`, ni le `Vary`, le `Cache-Control`, les en-têtes CORS, de quota (`X-RateLimit-*`) ou de signature (`Server`, `X-Powered-By`) de l'amont. Conséquence à connaître : une réponse que l'amont dit **privée** (`Set-Cookie`, `Cache-Control: private` ou `no-store`, `Vary: *`) est mise en cache et servie `public` comme les autres — d'où le §3. |
+| **C-NAV-2** | Toute réponse, erreurs comprises, porte `X-Content-Type-Options: nosniff` et `Content-Security-Policy: default-src 'none'; sandbox`. **Toute** réponse : y compris celles qu'un serveur HTTP écrit de lui-même, sans passer par le code du relais — en-tête `Expect` (417, `100 Continue`), requête illisible (400), en-têtes trop longs (431), requête jamais terminée (408), plafond de requêtes par connexion. |
+| **C-NAV-3** | Types de contenu en liste blanche : `application/json`, `application/geo+json`, `text/csv`. Le type est comparé **en entier** (`application/json+xml` n'est pas `application/json`). Le relais répond sur l'origine du site : il n'y sert **jamais** de HTML, de SVG, de XML, de CSS ni de script. Autre type, ou type absent : 502. La liste se règle, dans une **liste fermée** de formats de données (§6), pas par exclusion. |
+| **C-NAV-4** | Toute réponse, erreurs comprises (les mêmes qu'en C-NAV-2), porte `Access-Control-Allow-Origin: *`, et jamais `Access-Control-Allow-Credentials`. Sans l'en-tête CORS sur une erreur, le navigateur n'en voit qu'un `TypeError`, que la bibliothèque classe `reponse-bloquee` au lieu de la vraie cause. |
+| **C-NAV-5** | `ETag` et `Last-Modified` de l'amont sont transmis tels quels, ou omis. Le relais de référence les omet s'ils sont mal formés, et reconstruit le type de contenu (type, puis jeu de caractères s'il est sain) au lieu de le recopier. |
 
 ### Le cache
 
@@ -130,9 +130,10 @@ Chaque exigence porte un identifiant ; c'est celui que citent les tests (§10).
 |---|---|
 | **C-CACHE-1** | Une 200 porte `Cache-Control: public, max-age=<N>, s-maxage=<M>, stale-while-revalidate=<S>, stale-if-error=<E>` et `Vary: Accept-Encoding`. **Durée par défaut : 300 s, réglable par hôte.** |
 | **C-CACHE-2** | La clé de cache est **l'URL seule** : hôte (en minuscules par C-URL-2), chemin et requête tels que reçus, sans fragment. **Aucun en-tête du visiteur n'influence la réponse** : ni `Range`, ni `If-None-Match`, ni `Accept`, ni `X-Forwarded-Host`, ni aucun autre. |
-| **C-CACHE-3** | **Seules les 200 sont mises en cache.** Jamais une 4xx, une 429 ni une 5xx : toute erreur porte `Cache-Control: no-store`. « Réessayer » rejoue la même URL ; une erreur en cache rendrait le bouton inopérant. |
+| **C-CACHE-3** | **Seules les 200 complètes sont mises en cache.** Jamais une 4xx, une 429 ni une 5xx : toute erreur porte `Cache-Control: no-store`. « Réessayer » rejoue la même URL ; une erreur en cache rendrait le bouton inopérant. Jamais non plus une 200 **dont la fin ne se prouve pas** : longueur déclarée non tenue, découpage interrompu, ou réponse sans `Content-Length` ni découpage (`chunked`), que seule la fermeture de la connexion délimite et que rien ne distingue d'une réponse tronquée. Le relais de référence refuse cette dernière (502). |
 | **C-CACHE-4** | Si le relais a son propre cache, il est **à taille bornée** : un `where` aléatoire fabrique autant d'URL qu'on veut. |
-| **C-CACHE-5** | Si l'amont tombe, le relais peut servir une réponse périmée pendant la fenêtre `stale-if-error`. Le relais de référence le fait. |
+| **C-CACHE-5** | Si l'amont tombe, le relais peut servir une réponse périmée pendant la fenêtre `stale-if-error`. Le relais de référence le fait : sur une 5xx, un amont injoignable, un délai dépassé, une 429 de l'amont, ou quand il est lui-même saturé. **Jamais sur une autre 4xx.** |
+| **C-CACHE-6** | Une 401, 403, 404 ou 410 de l'amont **purge** l'entrée du cache du relais. Sans cela, la première panne qui suit resservirait en « périmé », pendant toute la fenêtre `stale-if-error`, une donnée que le portail vient de dépublier ou dont il vient de retirer l'accès. |
 
 Fraîcheur : une donnée servie peut avoir l'âge de `s-maxage` plus la fenêtre `stale`. L'attribut
 `cache-ttl` de `dsfr-data-source` n'a **aucun rapport** avec le relais : c'est un repli hors ligne,
@@ -143,11 +144,12 @@ côté navigateur, et il n'est pas transmis.
 | Règle | Exigence |
 |---|---|
 | **C-DOS-1** | Délai global vers l'amont (résolution, connexion, redirections et corps compris) : 10 s par défaut. Au terme : 504. |
-| **C-DOS-2** | Taille de réponse plafonnée (10 Mo par défaut), **comptée en flux** : la connexion est coupée au premier octet de trop, pas après un téléchargement complet. Dépassement : 502. |
-| **C-DOS-3** | Limite de débit **par adresse** : 429 avec `Retry-After`. L'adresse du visiteur ne sert qu'à cela. |
-| **C-DOS-4** | Connexions entrantes et requêtes simultanées vers l'amont bornées. |
+| **C-DOS-2** | Taille de réponse plafonnée (10 Mo par défaut), **comptée en flux** : la connexion est coupée au premier octet de trop, pas après un téléchargement complet. Dépassement : 502. Le plafond borne la **mémoire**, pas seulement le nombre d'octets : elle ne dépend pas de la façon dont l'amont découpe sa réponse (un relais qui garde un objet par fragment reçu laisse l'amont lui faire tenir 200 fois la taille du corps, en fragments d'un octet). |
+| **C-DOS-3** | Limite de débit **par adresse** : 429 avec `Retry-After`. L'adresse du visiteur ne sert qu'à cela, et à la part de ce visiteur dans les places du relais (C-DOS-4). La table des compteurs est elle-même bornée. |
+| **C-DOS-4** | Connexions entrantes et requêtes simultanées vers l'amont bornées. **Un seul client ne prend pas toutes les places** : sa part des requêtes vers l'amont est plafonnée, sinon une adresse qui demande N URL lentes prive tous les autres visiteurs de toute URL absente du cache. Les octets remis à un visiteur qui ne les lit pas sont bornés eux aussi, au total et par client. Au-delà : 503 avec `Retry-After`, pour le client concerné. |
+| **C-DOS-5** | Derrière un mandataire, l'adresse du visiteur se lit dans un en-tête que le mandataire **pose** (il l'écrit lui-même, en écrasant ou en complétant celui du client), **jamais** dans un en-tête qu'il se contente de transmettre : celui-là, le client le forge, une adresse par requête, et ni la limite de débit ni les parts de C-DOS-4 ne limitent plus rien. Le relais n'en retient que la **dernière** valeur, celle que le mandataire a ajoutée, et seulement si la connexion vient d'un mandataire déclaré. |
 | **C-FUITE-1** | La clé ne figure dans aucune réponse, aucun message d'erreur. Rien de ce qu'envoie le visiteur n'y revient. |
-| **C-FUITE-2** | Journaux : ni la clé, ni l'adresse du visiteur, ni ses en-têtes. Les URL contiennent ce que l'usager a tapé dans une recherche déléguée : la requête n'est journalisée que sur décision explicite, et la **durée de conservation est à fixer par l'intégrateur**. |
+| **C-FUITE-2** | Journaux : ni la clé, ni l'adresse du visiteur, ni ses en-têtes. Les URL contiennent ce que l'usager a tapé dans une recherche déléguée : la requête n'est journalisée que sur décision explicite, et la **durée de conservation est à fixer par l'intégrateur**. Le **chemin**, lui, est journalisé par défaut : une API qui porte une saisie dans le chemin (`/recherche/<nom>/dossier`) le fait sortir du journal (`logPath: false` sur le relais de référence). |
 | **C-CONF-1** | Liste blanche vide : le relais **refuse de démarrer**. |
 
 ## 5. Les erreurs
@@ -161,14 +163,16 @@ au visiteur et de la présence du bouton « Réessayer ». Le statut HTTP est do
 | Hôte hors liste, adresse IP, port, identifiants | **403** | `acces-restreint` |
 | Chemin hors des préfixes autorisés | **403** | `acces-restreint` |
 | L'amont répond 401 ou 403 (clé du relais refusée) | **403** | `acces-restreint` |
-| Chemin ou requête piégés, corps présent | **400** | `page-mal-reglee` |
+| Chemin ou requête piégés, corps présent, requête illisible | **400** | `page-mal-reglee` |
 | Méthode autre que GET, HEAD, OPTIONS | **405** | `page-mal-reglee` |
 | URL de plus de 8 000 caractères | **414** | `page-mal-reglee` |
+| En-tête `Expect` (417), en-têtes trop longs (431) | **417**, **431** | `page-mal-reglee` |
+| Requête jamais reçue en entier | **408** | `service-indisponible` |
 | L'amont répond une autre 4xx (400, 422…) | le même statut | `page-mal-reglee` |
 | L'amont répond 404 ou 410 | **404** ou **410** | `donnees-introuvables` |
 | Limite de débit du relais, ou l'amont répond 429 | **429** + `Retry-After` | `service-sollicite` |
-| L'amont répond une 5xx, une redirection refusée, un type de contenu non autorisé, une réponse trop grosse, ou reste injoignable | **502** | `service-indisponible` |
-| Relais saturé | **503** + `Retry-After` | `service-indisponible` |
+| L'amont répond une 5xx, une redirection refusée, un type de contenu non autorisé, une réponse trop grosse, compressée ou sans longueur ni découpage, ou reste injoignable | **502** | `service-indisponible` |
+| Relais saturé, ou part de ce client atteinte (requêtes vers l'amont, octets en attente d'écriture) | **503** + `Retry-After` | `service-indisponible` |
 | L'amont ne répond pas dans le délai (ou répond 408, 504) | **504** | `service-indisponible` |
 | Réponse sans en-tête CORS | — | `reponse-bloquee` : **ne doit jamais arriver** (C-NAV-4) |
 
@@ -176,9 +180,10 @@ Le corps d'une erreur de l'amont n'est **pas** relayé par le relais de référe
 par le sien, `{"error": "<code>", "message": "<texte fixe>"}`, où rien de la requête ni de la
 réponse de l'amont n'entre. Les codes : `host-not-allowed`, `path-not-allowed`, `invalid-url`,
 `invalid-path`, `invalid-query`, `body-not-allowed`, `method-not-allowed`, `url-too-long`,
+`expectation-failed`, `request-timeout`, `headers-too-large`,
 `not-found`, `rate-limited`, `relay-busy`, `relay-error`, `upstream-unreachable`,
 `upstream-address-forbidden`, `upstream-timeout`, `upstream-error`, `upstream-too-large`,
-`upstream-content-type`, `upstream-encoding`, `upstream-redirect-refused`, `upstream-leak`,
+`upstream-content-type`, `upstream-encoding`, `upstream-unframed`, `upstream-redirect-refused`, `upstream-leak`,
 `upstream-rate-limited`, `upstream-forbidden`, `upstream-not-found`, `upstream-rejected`.
 
 ## 6. Le relais Node de référence
@@ -195,6 +200,36 @@ RELAY_CONFIG=./relay.config.json RELAY_KEY_PORTAIL_PRIVE=… node proxy/relay/no
 Il écoute sur `127.0.0.1:8155` et se place **derrière** le serveur web du site, qui lui transmet
 `/donnees-relais/` et porte le cache partagé, la compression et le TLS.
 
+### Derrière le serveur web du site : `X-Forwarded-For` (C-DOS-5)
+
+Derrière un mandataire, toutes les connexions viennent de la même adresse. Pour que la limite de
+débit et les parts par client restent **par visiteur**, deux gestes, qui vont ensemble :
+
+1. déclarer l'adresse du mandataire dans `trustedProxies` ;
+2. faire **poser** `X-Forwarded-For` par le mandataire. Avec nginx :
+
+```nginx
+location /donnees-relais/ {
+    proxy_pass http://127.0.0.1:8155;
+    proxy_set_header X-Forwarded-For $remote_addr;   # ou $proxy_add_x_forwarded_for
+}
+```
+
+**Un `proxy_pass` nu ne suffit pas.** Sans `proxy_set_header`, nginx transmet l'en-tête du client
+tel quel : chaque requête forge son adresse et obtient son propre quota — douze adresses forgées,
+douze quotas. Le premier geste sans le second est donc **pire** que de ne rien déclarer.
+
+Le relais de référence ne retient que la dernière valeur de l'en-tête (ce qui précède vient du
+client), et se protège comme il peut du montage fautif : un navigateur n'envoie pas
+`X-Forwarded-For`, donc une requête **sans** cet en-tête venue d'un mandataire déclaré prouve que
+celui-ci ne le pose pas. L'en-tête cesse alors d'être cru pour ce mandataire pendant un quart
+d'heure (prolongé à chaque nouvelle requête sans en-tête), la limite de débit vaut pour le
+mandataire entier, et un avertissement part une fois sur la sortie d'erreur. C'est un **filet, pas
+une garantie** : il ne se déclenche qu'au passage d'une requête ordinaire, et l'exigence reste
+celle faite au mandataire. Revers : interroger une URL de données du relais **directement** depuis
+l'adresse du mandataire (`curl` sur la même machine) déclenche ce filet pour un quart d'heure ;
+`/health` ne le déclenche pas.
+
 ### Configuration
 
 Fichier JSON désigné par `RELAY_CONFIG` (exemple :
@@ -204,20 +239,22 @@ l'environnement. Un champ inconnu fait échouer le démarrage : une faute de fra
 
 | Champ | Défaut | Rôle |
 |---|---|---|
-| `hosts` | — (obligatoire) | Liste blanche : un objet par hôte. |
+| `hosts` | — (obligatoire) | Liste blanche : un objet par hôte. Un nom réservé aux réseaux internes (`.internal`, `.local`, `.localhost`, `.localdomain`, `.lan`, `.home`, `.home.arpa`, `.corp`, `.intranet`, `.private`) est refusé au démarrage. |
 | `hosts.<hôte>.ttl` | `ttl` global | `max-age` servi au navigateur, en secondes. |
 | `hosts.<hôte>.sharedTtl` | `ttl` de l'hôte | `s-maxage`, et fraîcheur du cache du relais. |
-| `hosts.<hôte>.staleWhileRevalidate`, `.staleIfError` | valeurs globales | Fenêtres `stale` de l'hôte. |
+| `hosts.<hôte>.staleWhileRevalidate`, `.staleIfError` | valeurs globales | Fenêtres `stale` de l'hôte (un jour et sept jours au plus). |
 | `hosts.<hôte>.pathPrefixes` | `[]` (tout l'hôte) | Préfixes de chemin autorisés. **Obligatoire avec `key`.** |
 | `hosts.<hôte>.key` | aucune | `{ "header": "Authorization", "prefix": "Apikey ", "env": "NOM_DE_VARIABLE" }`. La clé se lit dans la variable d'environnement nommée : **elle ne s'écrit jamais dans le fichier**. |
-| `prefix` | `/donnees-relais` | Chemin sous lequel le relais répond. |
+| `prefix` | `/donnees-relais` | Chemin sous lequel le relais répond. `/health` est refusé : c'est la route de santé. |
 | `ttl` | `300` | Durée de cache par défaut. |
 | `staleWhileRevalidate` | `60` | |
-| `staleIfError` | `3600` | Durée pendant laquelle une réponse périmée est servie si l'amont tombe. |
-| `contentTypes` | JSON, GeoJSON, CSV | Liste blanche des types. HTML, XML, SVG et scripts y sont refusés. |
-| `trustedProxies` | `[]` | Adresses des mandataires dont `X-Forwarded-For` est cru, pour la limite de débit. |
-| `listen` | `127.0.0.1:8155` | Adresse et port d'écoute. |
+| `staleIfError` | `3600` | Durée pendant laquelle une réponse périmée est servie si l'amont tombe. Jusqu'à sept jours (`604800`) : c'est aussi l'âge que peut atteindre une donnée servie pendant une panne. |
+| `contentTypes` | JSON, GeoJSON, CSV | Liste blanche des types, à choisir dans une **liste fermée** : `application/json`, `application/geo+json`, `application/vnd.geo+json`, `application/ld+json`, `application/x-ndjson`, `text/csv`, `text/tab-separated-values`, `text/plain`. Tout autre type fait échouer le démarrage. |
+| `trustedProxies` | `[]` | Adresses des mandataires dont `X-Forwarded-For` est cru (voir ci-dessus). Des adresses **exactes** : ni nom, ni plage CIDR, ni identifiant de zone, ni IPv4 mappée (`::ffff:127.0.0.1` s'écrit `127.0.0.1`) — ce que le relais ne reconnaîtrait jamais est refusé au démarrage. |
+| `listen` | `127.0.0.1:8155` | Adresse et port d'écoute. Hors de la boucle locale (`0.0.0.0`, `::`, une adresse du réseau), le relais démarre et **le dit** sur la sortie d'erreur : il ne chiffre rien et ne borne pas les connexions par adresse, il doit rester joignable du seul serveur web du site. |
 | `logQuery` | `false` | Journaliser aussi la requête (ce que l'usager a tapé). |
+| `logPath` | `true` | Journaliser le chemin. `false` pour une API qui porte une saisie dans le chemin. |
+| `$comment` | — | Texte libre (ou liste de textes), ignoré : le seul moyen d'annoter le fichier. À la racine seulement. |
 | `limits.timeoutMs` | `10000` | Délai global vers l'amont. |
 | `limits.maxBytes` | `10485760` | Taille maximale d'une réponse. |
 | `limits.maxRedirects` | `3` | De 0 à 3 : le contrat interdit d'en suivre plus. |
@@ -226,19 +263,32 @@ l'environnement. Un champ inconnu fait échouer le démarrage : une faute de fra
 | `limits.rateLimitRequests`, `.rateLimitWindowSeconds` | 600 par 60 s | Limite de débit par adresse (par préfixe /64 en IPv6). |
 | `limits.maxConnections` | `256` | Connexions entrantes simultanées. |
 | `limits.maxUpstreamRequests` | `16` | Requêtes simultanées vers l'amont ; au-delà, 503. |
+| `limits.maxUpstreamRequestsPerClient` | la moitié de `maxUpstreamRequests` | Part d'un seul client (même clé que la limite de débit) dans ces requêtes ; au-delà, 503 pour lui seul. Rejoindre une requête déjà partie sur la même URL ne compte pas. |
+| `limits.maxPendingBytes` | `67108864` (64 Mo) | Octets remis à des visiteurs et pas encore écrits (lecteurs lents ou à l'arrêt). Un client en tient la moitié au plus ; au-delà, 503. Au moins deux fois `maxBytes`. |
 
 Variables d'environnement : `RELAY_CONFIG`, `RELAY_HOSTS` (hôtes sans clé, séparés par des
 virgules, ajoutés à ceux du fichier), `RELAY_PORT`, `RELAY_LISTEN`, `RELAY_PREFIX`, `RELAY_TTL`, et
 les variables de clé nommées par le fichier. L'environnement prime sur le fichier.
 
-Mémoire, au pire : `maxUpstreamRequests × maxBytes + cacheMaxBytes`, soit 224 Mo avec les défauts.
+Mémoire, au pire : `(maxUpstreamRequests + 1) × maxBytes + cacheMaxBytes + maxPendingBytes`, soit
+298 Mo avec les défauts — les réponses en cours de réception (plus une, le temps de l'assembler),
+le cache, et les réponses remises à des visiteurs qui ne les ont pas encore lues. Un visiteur qui
+ne lit rien perd sa connexion, et rend sa place, au bout de deux périodes d'inactivité de
+`timeoutMs` plus vingt secondes : une minute avec les défauts (mesuré : 42 s pour un délai d'une
+seconde).
 
 ### Ce qu'il fait au-delà du minimum
 
 - **Une seule requête vers l'amont par URL** : N visiteurs simultanés sur une URL absente du cache
   attendent la même réponse.
 - **La clé ne sort pas, même si l'amont la renvoie** : une réponse qui contient la clé (page de
-  débogage, écho des en-têtes) est retenue, 502.
+  débogage, écho des en-têtes) est retenue, 502 — qu'elle figure dans le corps, dans `ETag`, dans
+  `Last-Modified` ou dans le jeu de caractères de `Content-Type`. Limite : la clé est cherchée
+  telle quelle ; encodée (base64, échappée en JSON), elle n'est pas reconnue. C'est une défense en
+  profondeur, pas une garantie : la garantie est une clé en lecture seule et des préfixes (§3).
+- **Une réponse dont la fin ne se prouve pas est refusée** (502 `upstream-unframed`) : sans
+  `Content-Length` ni découpage, donc aussi toute réponse HTTP/1.0. Un `Transfer-Encoding` autre
+  que `chunked` (`gzip, chunked`) l'est aussi : le relais ne servirait pas ce qu'il a reçu.
 - **Pas de compression** : il demande `Accept-Encoding: identity` à l'amont et refuse (502) une
   réponse compressée qu'il n'a pas demandée. C'est le serveur web placé devant lui qui compresse,
   d'où le `Vary: Accept-Encoding` du contrat.
@@ -246,13 +296,31 @@ Mémoire, au pire : `maxUpstreamRequests × maxBytes + cacheMaxBytes`, soit 224 
   toujours une 200 complète. Le cache du site répond les 304.
 - Un en-tête `X-Relay-Cache: HIT | MISS | STALE` et, hors `MISS`, un `Age`.
 - `/health` répond `{"status":"ok"}`, sans rien dire de la configuration.
+- Une connexion est fermée après mille requêtes, et après tout refus dont la requête n'a pas
+  forcément été lue en entier (400, 405, 408, 417, 431) : ce qui est collé derrière un tel refus
+  n'est ni exécuté, ni répondu.
 
 ### Ce qu'il ne fait pas
 
 - Il ne limite pas le nombre de connexions **par adresse** (seulement au total) et ne termine pas
   le TLS : c'est le rôle du serveur web placé devant.
 - Derrière un mandataire, toutes les connexions viennent de la même adresse : déclarer celle-ci
-  dans `trustedProxies`, sinon la limite de débit devient globale.
+  dans `trustedProxies` **et** lui faire poser `X-Forwarded-For` (C-DOS-5), sinon la limite de
+  débit devient globale, et un seul « client » — le mandataire — n'a droit qu'à la moitié des
+  places amont et des octets en attente.
+- **Pas de file d'attente** : au-delà de sa part, un client reçoit une 503 avec `Retry-After: 1`,
+  il n'attend pas. Une page qui charge d'un coup plus de dataviz **absentes de tout cache** que
+  `maxUpstreamRequestsPerClient` (huit par défaut) verra les suivantes en erreur, avec leur bouton
+  « Réessayer » ; le cache du site, placé devant, rend ce cas rare. À relever si le site porte de
+  grands tableaux de bord.
+- **Pas de budget global vers un hôte** : la limite est par adresse. Des requêtes toutes
+  différentes venues de N adresses coûtent N × 600 appels par minute au portail, et consomment le
+  quota de la clé. Un plafond global se pose sur le serveur web (`limit_req` de nginx), ou en
+  abaissant `rateLimitRequests`.
+- **Limite de débit en IPv6 : par préfixe /64.** Qui dispose d'un /48 dispose de 65 536 quotas. La
+  table des compteurs garde 20 000 adresses par fenêtre ; au-delà, les plus anciennes sont évincées
+  par lots (les adresses en cours de limitation en dernier) et repartent de zéro. Une limite par
+  adresse n'arrête pas qui a vingt mille adresses.
 - Il refuse les adresses NAT64 (`64:ff9b::/96`) : sur un réseau IPv6 seul avec DNS64, il ne joint
   aucun amont.
 - Son cache vit en mémoire : il repart vide à chaque redémarrage, et n'est pas partagé entre
@@ -305,15 +373,22 @@ elle-même. Sur un relais tiers, elles se vérifient **en lisant sa configuratio
 de référence, elles ont leurs tests à part (`tests/relay/reference/`), où la résolution DNS, la
 connexion, l'horloge et le journal sont substitués par injection dans `createRelay` — jamais par
 configuration : aucune variable d'environnement ne débranche une défense du relais de production.
+De même pour l'adresse du faux DNS : le relais de production **refuse** les plages de documentation
+(C-SSRF-6) ; le banc lui déclare la sienne (`192.0.2.10`) par `createRelay(config, { benchAddresses })`,
+adresse exacte, que `server.mjs` ne passe jamais (un test le garde).
 
 | Règle | Pourquoi la suite ne la voit pas | Où elle est éprouvée |
 |---|---|---|
 | **C-SSRF-6** — https, port 443, adresse privée après résolution, connexion à l'adresse vérifiée, certificat | Le banc route justement vers une adresse locale, en clair. | `reference/relay.test.mjs`, `reference/addresses.test.mjs`, `reference/tls.test.mjs` |
 | **C-SSRF-7** — une redirection suivie est résolue et vérifiée à son tour | Même raison. La suite vérifie les redirections **refusées**, pas la revérification d'une redirection suivie. | `reference/relay.test.mjs` |
 | **C-CACHE-4** — cache borné | État interne. | `reference/relay.test.mjs` |
-| **C-CACHE-5** — réponse périmée si l'amont tombe | Demande d'avancer l'horloge du relais. | `reference/relay.test.mjs` |
+| **C-CACHE-5**, **C-CACHE-6** — réponse périmée si l'amont tombe, purge quand il retire la donnée | Demandent d'avancer l'horloge du relais. | `reference/relay.test.mjs` |
+| **C-CACHE-3** — réponse sans longueur ni découpage | Le faux amont de la suite passe par un serveur HTTP, qui encadre toujours ses réponses. | `reference/upstream.test.mjs` (amont `net` brut) |
+| **C-DOS-2** — mémoire bornée quel que soit le découpage | La suite ne voit pas la mémoire du relais. | `reference/upstream.test.mjs` |
 | **C-CACHE-2** — la seconde requête est servie par le cache | Un relais peut ne pas avoir de cache propre. Vérifié si `CONFORMANCE_HAS_CACHE=1`. | suite, et `reference/relay.test.mjs` |
-| **C-DOS-4** — connexions et requêtes simultanées bornées | État interne. | `reference/relay.test.mjs` |
+| **C-DOS-4** — connexions et requêtes simultanées bornées, part par client, octets en attente | État interne, et il faut plusieurs adresses. | `reference/relay.test.mjs` |
+| **C-DOS-5** — `X-Forwarded-For` posé par le mandataire | La suite parle au relais sans mandataire. Sur un relais tiers : lire la configuration du mandataire. | `reference/relay.test.mjs` |
+| **C-NAV-2**, **C-NAV-4** — réponses que le serveur HTTP écrit seul | La suite vérifie les erreurs d'analyse (CR, LF nus), pas `Expect`, le délai de lecture ni le plafond par connexion. | `reference/relay.test.mjs` |
 | **C-FUITE-1** — la clé renvoyée par l'amont ne sort pas | Défense en profondeur du relais de référence, qu'un relais sans lecture du corps ne peut pas offrir. | `reference/relay.test.mjs` |
 | **C-FUITE-2** — journaux | La suite ne lit pas les journaux du relais. | `reference/relay.test.mjs` |
 | **C-CONF-1** — refus de démarrer | La suite parle à un relais déjà démarré. | `reference/config.test.mjs` |
@@ -323,6 +398,12 @@ configuration : aucune variable d'environnement ne débranche une défense du re
 `tests/relay/relay-conformance.test.ts` est un test Vitest qui lance `node --test` sur la suite de
 conformance, puis sur les tests du relais de référence. Il tourne donc avec `npm run test:run`,
 sans étape de workflow ni dépendance ajoutée.
+
+Le connecteur TLS de production est éprouvé par `fetchUpstream` lui-même, contre un serveur local
+dont le certificat est fabriqué par `openssl` à chaque passe (aucune clé privée versionnée). **En
+CI, `openssl` est exigé** : son absence fait échouer la suite, et le pont exige zéro test sauté.
+Sur un poste sans `openssl`, les quatre tests qui ont besoin du certificat sont sautés — quatre
+exactement, chacun disant pourquoi ; tout autre décompte est un échec.
 
 ## 8. Exigence → test
 
@@ -337,28 +418,30 @@ Suite de conformance : `tests/relay/conformance.test.mjs` (**C**). Tests du rela
 | C-SSRF-1 | **C** hors liste, suffixe, préfixe, sous-domaine, domaine parent |
 | C-SSRF-2 | **C** décimale pointée, entier, hexadécimale, octale, abrégée, métadonnées, IPv6, IPv4 mappée, `localhost` · **R** `addresses.test.mjs`, `config.test.mjs` |
 | C-SSRF-3 | **C** identifiants, port, schéma, hôte encodé, octet nul, barre inverse, segment vide, cible en forme absolue |
-| C-SSRF-4 | **C** quatorze chemins piégés (`..`, `%2e%2e`, `.%2e`, `%252e%252e`, `..%2f`, `..%5c`, `..\`, `..;`, `//`, `.`, `%00`…) · **R** `target.test.mjs` (refus strict, 400) |
+| C-SSRF-4 | **C** dix-huit chemins piégés (`..`, `%2e%2e`, `.%2e`, `%252e%252e`, `..%2f`, `..%5c`, `..\`, `..;`, `//`, `.`, `%00`, `..%3b`, `%c0%ae%c0%ae`, `..%c0%af`, `%e0%80%ae`…) · **R** `target.test.mjs` (refus strict, 400 ; UTF-8 surlong sur deux à six octets, pleine chasse, et ce qui reste un chemin ordinaire) |
 | C-SSRF-5 | **C** chemin voisin, préfixe tronqué, préfixe prolongé, casse, racine, chemin autorisé · **R** `target.test.mjs`, `config.test.mjs` |
-| C-SSRF-6 | **R** `relay.test.mjs` (neuf adresses privées, nom mixte, rebond DNS, résolution impossible), `addresses.test.mjs`, `tls.test.mjs` |
-| C-SSRF-7 | **C** hôte hors liste, http, port, boucle locale, métadonnées, identifiants, hors préfixe, remontée, boucle, chaîne de quatre, jamais de 3xx · **R** redirection suivie et revérifiée, hôte autorisé résolvant en privé, `maxRedirects: 0` |
+| C-SSRF-6 | **R** `relay.test.mjs` (neuf adresses privées, plages de documentation sans l'injection du banc, nom mixte, rebond DNS, résolution impossible, `server.mjs` n'injecte rien), `addresses.test.mjs`, `tls.test.mjs` (connecteur éprouvé par `fetchUpstream` : nom, autorité, `NODE_TLS_REJECT_UNAUTHORIZED=0`, amont en clair, port 443) |
+| C-SSRF-7 | **C** hôte hors liste, http, port, boucle locale (morte, puis où un service écoute), métadonnées, identifiants, hors préfixe, remontée, chemin à `..%2f`, à `..;`, à `//`, boucle, chaîne de quatre, jamais de 3xx ; aucune cible refusée (`/suivie-…`, `/secret`) n'atteint l'amont · **R** redirection suivie et revérifiée, hôte autorisé résolvant en privé, `maxRedirects: 0`, douze refus prononcés avant toute résolution et toute connexion, hôte en majuscules et `:443` normalisés |
 | C-MET-1 | **C** POST, PUT, PATCH, DELETE, PURGE, TRACE |
-| C-MET-2 | **C** GET avec corps |
-| C-MET-3 | **C** HEAD, OPTIONS |
+| C-MET-2 | **C** GET avec corps · **R** `Content-Length`, `Transfer-Encoding` : 400, amont non contacté |
+| C-MET-3 | **C** HEAD, OPTIONS (`Access-Control-Allow-Headers` absent ou vide) · **R** OPTIONS hors préfixe (404), HEAD qui coûte un GET et remplit le cache |
 | C-INJ-1 | **C** CR LF encodés (chemin, requête), seconde requête encodée, CR et LF nus par socket · **R** refus stricts (400) |
 | C-AMONT-1 | **C** quatorze en-têtes du visiteur, aucun n'atteint l'amont · **R** liste exacte des en-têtes envoyés |
 | C-AMONT-2 | **C** clé sur l'hôte à clé seulement, jamais après redirection · **R** idem |
-| C-NAV-1 à C-NAV-4 | **C** invariants vérifiés sur **chacune** des quelque 500 réponses de la suite, plus un test nommé par règle |
-| C-NAV-5 | **C** `ETag`, `Last-Modified` |
+| C-NAV-1 à C-NAV-4 | **C** invariants vérifiés sur **chacune** des quelque 500 réponses de la suite, plus un test nommé par règle ; huit types voisins de la liste blanche (`application/json+xml`, `application/jsonx`, `text/csvx`, liste de types…) · **R** `Expect` inconnu (417), `Expect: 100-continue`, `Transfer-Encoding` illisible (une seule réponse), requête collée derrière un refus, plus de mille requêtes par connexion, requête jamais terminée (408), en-têtes trop longs (431) ; `config.test.mjs` (liste fermée de `contentTypes`) |
+| C-NAV-5 | **C** `ETag`, `Last-Modified` · **R** `ETag` et `Last-Modified` mal formés omis, jeu de caractères piégé non recopié |
 | C-CACHE-1 | **C** directives de `Cache-Control`, durée par hôte |
 | C-CACHE-2 | **C** en-têtes d'empoisonnement, requête et hôte dans la clé · **R** requêtes simultanées, `HIT` et `Age` |
-| C-CACHE-3 | **C** 5xx, 429 et 404 jamais en cache, `no-store` sur toute erreur |
+| C-CACHE-3 | **C** 5xx, 429 et 404 jamais en cache, `no-store` sur toute erreur · **R** `upstream.test.mjs` : réponse sans longueur ni découpage, `Transfer-Encoding: gzip, chunked`, longueur déclarée non tenue |
 | C-CACHE-4 | **R** borne en entrées, borne en octets, réponse plus grosse que le cache |
-| C-CACHE-5 | **R** `STALE` puis erreur passé la fenêtre |
+| C-CACHE-5 | **R** `STALE` puis erreur passé la fenêtre ; `STALE` sur une 429, jamais sur une autre 4xx |
+| C-CACHE-6 | **R** 401, 403, 404, 410 : entrée purgée, la panne suivante rend 502 et non l'ancienne donnée |
 | C-ERR-1, C-ERR-2 | **C** neuf statuts de l'amont, 403, 405, 414, corps d'erreur sans reprise · **R** forme du corps |
-| C-DOS-1 | **C** amont lent · **R** résolution qui ne répond pas |
-| C-DOS-2 | **C** flux sans fin coupé en flux, longueur déclarée |
-| C-DOS-3 | **C** 429 avec `Retry-After` · **R** fenêtre, `X-Forwarded-For` et mandataires de confiance |
-| C-DOS-4 | **R** 503 au-delà de `maxUpstreamRequests`, connexion refusée au-delà de `maxConnections` |
-| C-FUITE-1 | **C** invariant sur chaque réponse · **R** amont qui renvoie la clé |
-| C-FUITE-2 | **R** journaux |
-| C-CONF-1 | **R** `config.test.mjs` |
+| C-DOS-1 | **C** amont lent, trois redirections lentes (délai global, pas par saut) · **R** résolution qui ne répond pas, trois sauts lents |
+| C-DOS-2 | **C** flux sans fin coupé en flux, longueur déclarée · **R** `upstream.test.mjs` : 1 Mo en fragments d'un octet, quatre fois de front, tas mesuré |
+| C-DOS-3 | **C** 429 avec `Retry-After` · **R** fenêtre, `X-Forwarded-For` et mandataires de confiance ; `rate-limit.test.mjs` : table bornée, éviction par lot, adresse limitée épargnée ; `addresses.test.mjs` : clé par /64 |
+| C-DOS-4 | **R** 503 au-delà de `maxUpstreamRequests`, connexion refusée au-delà de `maxConnections`, part d'un client dans les places amont, douze lecteurs à l'arrêt (mémoire retenue mesurée), part d'un client dans les octets en attente |
+| C-DOS-5 | **R** mandataire qui ne pose pas l'en-tête (douze adresses forgées, un seul quota ; avertissement unique ; retour à la confiance), dernière valeur seule, valeur qui n'est pas une adresse ; `config.test.mjs` : `trustedProxies` mal formé |
+| C-FUITE-1 | **C** invariant sur chaque réponse · **R** amont qui renvoie la clé dans le corps, dans `ETag`, dans le jeu de caractères |
+| C-FUITE-2 | **R** journaux, `logPath: false` |
+| C-CONF-1 | **R** `config.test.mjs` (liste blanche, noms internes, clé, préfixes, `/health`, types, mandataires, plafonds, écoute hors boucle locale, `$comment`) |

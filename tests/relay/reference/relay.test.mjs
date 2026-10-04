@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import process from 'node:process';
 import { readFileSync } from 'node:fs';
+import { URL } from 'node:url';
 import v8 from 'node:v8';
 import vm from 'node:vm';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -300,8 +301,15 @@ describe('C-SSRF-7 — redirections sur le relais de référence', () => {
         assert.equal(response.status, 200);
         assert.equal(JSON.parse(response.text).hote, SECOND_HOST);
       }
-      assert.deepEqual(reference.resolutions, [ALLOWED_HOST, SECOND_HOST, ALLOWED_HOST, SECOND_HOST]);
-      const arrivals = upstream.requests.filter((request) => /depuis=(majuscules|port-explicite)/.test(request.url));
+      assert.deepEqual(reference.resolutions, [
+        ALLOWED_HOST,
+        SECOND_HOST,
+        ALLOWED_HOST,
+        SECOND_HOST,
+      ]);
+      const arrivals = upstream.requests.filter((request) =>
+        /depuis=(majuscules|port-explicite)/.test(request.url)
+      );
       assert.deepEqual(
         arrivals.map((request) => request.host),
         [SECOND_HOST, SECOND_HOST]
@@ -882,8 +890,13 @@ describe('C-DOS — plafonds du relais de référence', () => {
         }
         await sleep(300);
         const growth = Math.round(((await retained()) - before) / MEGA);
-        t.diagnostic(`tampons retenus : +${growth} Mo pour douze lecteurs à l’arrêt (borne : 18 Mo)`);
-        assert.ok(growth < 40, `le relais retient ${growth} Mo pour des visiteurs qui ne lisent pas`);
+        t.diagnostic(
+          `tampons retenus : +${growth} Mo pour douze lecteurs à l’arrêt (borne : 18 Mo)`
+        );
+        assert.ok(
+          growth < 40,
+          `le relais retient ${growth} Mo pour des visiteurs qui ne lisent pas`
+        );
         assert.ok(reference.relay.stats().pendingBytes <= 18 * MEGA);
       } finally {
         for (const socket of sockets) socket.destroy();
