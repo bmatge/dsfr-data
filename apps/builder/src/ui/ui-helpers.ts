@@ -23,6 +23,7 @@ import type { Favorite } from '../state.js';
 import { isMapType, type MapType } from '../state.js';
 import { REFERENTIELS, champConvient, trouverChampGeo } from '../geo-codes.js';
 import { getLastGeneratedCode } from './code-generator.js';
+import { LECTURE_KEYS } from '../lecture.js';
 
 /**
  * Build a serializable snapshot of the current builder state.
@@ -68,6 +69,8 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     a11yTable: state.a11yTable,
     a11yDownload: state.a11yDownload,
     a11yDescription: state.a11yDescription,
+    // Réglages de lecture (#1218)
+    ...Object.fromEntries(LECTURE_KEYS.map((cle) => [cle, state[cle]])),
   };
 }
 

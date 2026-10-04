@@ -24,6 +24,7 @@ import { join, resolve } from 'node:path';
 
 import type { Repere } from '@dsfr-data/shared';
 import config from '../../../apps/builder/src/assistant/reperes.config';
+import { lectureApplicability } from '../../../apps/builder/src/lecture';
 import { REPERES } from '../../../apps/builder/src/assistant/reperes.generated';
 import {
   MULTI_SERIES_TYPES,
@@ -204,6 +205,19 @@ describe('repères du builder : complétude par le rendu (#1006)', () => {
       expect(document.querySelector('.datalist-column-row')).not.toBeNull();
       cliquer('#facets-fields-btn');
       expect(document.querySelector('#facets-fields-list tr[data-field]')).not.toBeNull();
+      // Éditeurs de lignes des réglages de lecture (#1218) : rendus par
+      // `ui/lecture.ts`, une ligne de chaque pour les types qui les lisent.
+      const lecture = lectureApplicability(type);
+      const editeurs: [boolean, string, string][] = [
+        [lecture.referenceLines, '#add-reference-line-btn', '#reference-lines-container'],
+        [lecture.targets, '#add-target-btn', '#targets-container'],
+        [lecture.colorMap, '#add-color-map-btn', '#color-map-container'],
+      ];
+      for (const [actif, bouton, conteneur] of editeurs) {
+        if (!actif) continue;
+        cliquer(bouton);
+        expect(document.querySelector(`${conteneur} .lecture-row`), conteneur).not.toBeNull();
+      }
       releve(type);
       expect(constats).toEqual([]);
     });

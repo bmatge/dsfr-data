@@ -246,6 +246,24 @@ const REEL: Entree = {
   ecritsSansControle: ECRITS_SANS_CONTROLE,
 };
 
+/** Attributs de `dsfr-data-chart` auxquels #1218 a donné un contrôle. */
+const ATTRIBUTS_1218 = [
+  'unit-tooltip',
+  'unit-tooltip-bar',
+  'x-min',
+  'x-max',
+  'y-min',
+  'y-max',
+  'reference-lines',
+  'targets',
+  'targets-zone',
+  'targets-legend',
+  'color-map',
+  'empty-label',
+  'map-summary',
+  'map-summary-value',
+];
+
 /** Copie du manifeste, modifiable. */
 const copie = (): ManifesteCem => structuredClone(MANIFESTE);
 
@@ -280,6 +298,9 @@ describe('couverture du Builder — état versionné', () => {
       'dsfr-data-chart:stacked',
       'dsfr-data-chart:value-field-2',
       'dsfr-data-podium:max-items',
+      'dsfr-data-chart:unit-tooltip',
+      'dsfr-data-chart:reference-lines',
+      'dsfr-data-chart:color-map',
     ]) {
       expect(REEL.exposes.has(ref), ref).toBe(true);
     }
@@ -298,6 +319,15 @@ describe('couverture du Builder — état versionné', () => {
       'value-field-2',
     ]) {
       expect(exclus, nom).not.toContain(nom);
+    }
+  });
+
+  it('ce que #1218 a ajouté n’est plus exclu', () => {
+    const exclus = EXCLUSIONS.flatMap((x) => [...x.noms]);
+    for (const nom of ATTRIBUTS_1218) expect(exclus, nom).not.toContain(nom);
+    // … et chacun a bien son contrôle, pas une simple sortie de la liste.
+    for (const nom of ATTRIBUTS_1218) {
+      expect(REEL.exposes.has(`dsfr-data-chart:${nom}`), nom).toBe(true);
     }
   });
 
@@ -354,7 +384,7 @@ describe('attributs écrits sans contrôle : vérifiés sur du code généré', 
 
 describe('preuves de mutation : le garde-fou voit chaque écart', () => {
   it('retirer une exclusion rougit, pour chaque genre', () => {
-    for (const nom of ['dsfr-data-kpi-group', 'x-min', 'gauge-value', 'reference-lines']) {
+    for (const nom of ['dsfr-data-kpi-group', 'heading-level', 'gauge-value', 'map-highlight']) {
       const sans = EXCLUSIONS.map((x) => ({ ...x, noms: x.noms.filter((n) => n !== nom) })).filter(
         (x) => x.noms.length > 0
       );
@@ -440,12 +470,12 @@ describe('preuves de mutation : le garde-fou voit chaque écart', () => {
     const exclusions: ExclusionBuilder[] = [
       ...EXCLUSIONS,
       { genre: 'attribut', noms: ['n-existe-pas'], raison: 'Attribut inventé.' },
-      { genre: 'attribut', noms: ['x-min'], raison: '  ' },
+      { genre: 'attribut', noms: ['heading-level'], raison: '  ' },
     ];
     expect(verifierCouverture({ ...REEL, exclusions })).toEqual([
       'exclusion attribut:n-existe-pas : ne vise rien que la bibliothèque déclare',
-      'exclusion (x-min) : raison vide',
-      'exclusion attribut:x-min : déclarée deux fois',
+      'exclusion (heading-level) : raison vide',
+      'exclusion attribut:heading-level : déclarée deux fois',
     ]);
   });
 

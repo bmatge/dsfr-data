@@ -973,3 +973,38 @@ body.builder-v2 .builder-config-panel {
   border-color: var(--background-action-high-success, #18753c);
   color: #fff;
 }
+
+/* ---- Réglages de lecture (#1218) : lignes des éditeurs (références, cibles, couleurs) ---- */
+.lecture-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.5rem;
+}
+
+.lecture-row > .fr-input-group,
+.lecture-row > .fr-select-group {
+  flex: 1 1 7rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.lecture-row > .lecture-row__color {
+  flex: 0 0 auto;
+}
+
+.lecture-row__color input[type='color'] {
+  display: block;
+  width: 3rem;
+  height: 2rem;
+  padding: 0.125rem;
+  border: 1px solid var(--border-plain-grey, #3a3a3a);
+  border-radius: 0.25rem;
+  background: var(--background-default-grey, #fff);
+  cursor: pointer;
+}
+
+.lecture-row__remove {
+  flex: 0 0 auto;
+}

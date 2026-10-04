@@ -465,6 +465,18 @@
           </div>
         </div>
 
+        <!-- Unité des infobulles (#1218) : selon le type, voir ui/lecture.ts -->
+        <div class="config-grid-2col fr-mt-1w" id="unit-config">
+          <div class="fr-input-group fr-input-group--sm">
+            <label class="fr-label" for="chart-unit">Unité<span class="fr-hint-text">Affichée dans l’infobulle, après la valeur (ex&nbsp;: %, €, hab.)</span></label>
+            <input class="fr-input" type="text" id="chart-unit" data-repere="builder.apparence.unite" data-attribut="dsfr-data-chart:unit-tooltip" placeholder="Ex : %">
+          </div>
+          <div class="fr-input-group fr-input-group--sm" id="unit-bar-group" style="display: none;">
+            <label class="fr-label" for="chart-unit-bar">Unité des barres<span class="fr-hint-text">Les barres et la ligne ont chacune leur axe, donc leur unité</span></label>
+            <input class="fr-input" type="text" id="chart-unit-bar" data-repere="builder.apparence.unite-barres" data-attribut="dsfr-data-chart:unit-tooltip-bar" placeholder="Ex : €">
+          </div>
+        </div>
+
         <div class="fr-select-group fr-select-group--sm fr-mt-1w" id="palette-config">
           <label class="fr-label" for="chart-palette">
             Palette de couleurs
@@ -484,6 +496,106 @@
           <!-- Camembert : palette imposée par DSFR Chart, expliquée ici (#1174). Rendu par applyPiePalette(). -->
           <p class="fr-hint-text" id="palette-note" aria-live="polite" hidden></p>
         </div>
+
+        <!-- Couleur fixée par série ou par catégorie (#1218). Lignes rendues par ui/lecture.ts. -->
+        <details class="query-advanced fr-mt-2w" id="color-map-details" data-zone="builder.apparence.couleurs" data-repere-libelle="Couleurs par catégorie">
+          <summary>Couleurs par catégorie</summary>
+          <p class="fr-hint-text fr-mt-1w">Fixe la couleur d’une série ou d’une catégorie, quel que soit son rang. Les autres gardent la palette.</p>
+          <div id="color-map-container"></div>
+          <datalist id="color-map-suggestions"></datalist>
+          <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-color-map-btn" data-repere="builder.apparence.couleurs.ajouter" data-attribut="dsfr-data-chart:color-map">
+            <i class="ri-add-line" aria-hidden="true"></i> Ajouter une couleur
+          </button>
+        </details>
+
+        <!-- Libellé des catégories vides (#1218) -->
+        <div class="fr-input-group fr-input-group--sm fr-mt-2w" id="empty-label-group">
+          <label class="fr-label" for="empty-label">
+            Libellé des catégories vides
+            <span class="fr-hint-text">Nom affiché quand l’étiquette manque dans les données (par défaut&nbsp;: Non renseigné)</span>
+          </label>
+          <input class="fr-input" type="text" id="empty-label" data-repere="builder.apparence.categories-vides" data-attribut="dsfr-data-chart:empty-label" placeholder="Ex : Sans réponse">
+        </div>
+
+        <!-- Cartes : chiffre de synthèse affiché sous le titre (#1218) -->
+        <div id="map-summary-group" class="fr-mt-2w" style="display: none;">
+          <div class="fr-select-group fr-select-group--sm">
+            <label class="fr-label" for="map-summary">
+              Chiffre affiché sous le titre
+              <span class="fr-hint-text">Un volume s’additionne, un taux ne s’additionne pas&nbsp;: choisissez la synthèse qui a un sens</span>
+            </label>
+            <select class="fr-select" id="map-summary" data-repere="builder.apparence.synthese-carte" data-attribut="dsfr-data-chart:map-summary">
+              <option value="">Moyenne des territoires (par défaut)</option>
+              <option value="sum">Somme des territoires (carte de volumes)</option>
+              <option value="value">Valeur publiée, saisie ci-dessous</option>
+              <option value="none">Aucun chiffre</option>
+            </select>
+          </div>
+          <div class="fr-input-group fr-input-group--sm fr-mt-1w" id="map-summary-value-group" style="display: none;">
+            <label class="fr-label" for="map-summary-value">
+              Valeur publiée
+              <span class="fr-hint-text">Le chiffre national qui fait autorité (ex&nbsp;: 5,6)</span>
+            </label>
+            <input class="fr-input" type="text" inputmode="decimal" id="map-summary-value" data-repere="builder.apparence.synthese-carte-valeur" data-attribut="dsfr-data-chart:map-summary-value" placeholder="Ex : 5,6">
+          </div>
+        </div>
+
+        <!-- Axes et repères (#1218) : bornes, lignes de référence, cibles. Lignes rendues par ui/lecture.ts. -->
+        <details class="query-advanced fr-mt-2w" id="axes-details" data-zone="builder.apparence.axes" data-repere-libelle="Axes et repères">
+          <summary>Axes et repères (bornes, lignes de référence, cibles)</summary>
+
+          <div id="axis-bounds-group" class="fr-mt-1w">
+            <div class="config-grid-2col">
+              <div class="fr-input-group fr-input-group--sm">
+                <label class="fr-label" for="axis-min">Minimum de l’axe des valeurs<span class="fr-hint-text">Vide = automatique</span></label>
+                <input class="fr-input" type="text" inputmode="decimal" id="axis-min" data-repere="builder.apparence.axes.minimum" data-attribut="dsfr-data-chart:y-min dsfr-data-chart:x-min" placeholder="Ex : 0">
+              </div>
+              <div class="fr-input-group fr-input-group--sm">
+                <label class="fr-label" for="axis-max">Maximum de l’axe des valeurs<span class="fr-hint-text">Vide = automatique</span></label>
+                <input class="fr-input" type="text" inputmode="decimal" id="axis-max" data-repere="builder.apparence.axes.maximum" data-attribut="dsfr-data-chart:y-max dsfr-data-chart:x-max" placeholder="Ex : 100">
+              </div>
+            </div>
+            <div class="config-grid-2col fr-mt-1w" id="x-bounds-group" style="display: none;">
+              <div class="fr-input-group fr-input-group--sm">
+                <label class="fr-label" for="x-axis-min">Minimum de l’axe horizontal<span class="fr-hint-text">Vide = automatique</span></label>
+                <input class="fr-input" type="text" inputmode="decimal" id="x-axis-min" data-repere="builder.apparence.axes.minimum-horizontal" data-attribut="dsfr-data-chart:x-min" placeholder="Ex : 0">
+              </div>
+              <div class="fr-input-group fr-input-group--sm">
+                <label class="fr-label" for="x-axis-max">Maximum de l’axe horizontal<span class="fr-hint-text">Vide = automatique</span></label>
+                <input class="fr-input" type="text" inputmode="decimal" id="x-axis-max" data-repere="builder.apparence.axes.maximum-horizontal" data-attribut="dsfr-data-chart:x-max" placeholder="Ex : 100">
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-1v" id="axis-bounds-note">Les bornes sont arrondies à la graduation voisine.</p>
+          </div>
+
+          <div id="reference-lines-group" class="fr-mt-2w" data-zone="builder.apparence.axes.reference" data-repere-libelle="Lignes de référence">
+            <p class="fr-label fr-mb-0">Lignes de référence</p>
+            <p class="fr-hint-text">Un trait pointillé sur un seuil (une valeur) ou sur une étiquette (une date, une catégorie)</p>
+            <div id="reference-lines-container"></div>
+            <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-reference-line-btn" data-repere="builder.apparence.axes.reference.ajouter" data-attribut="dsfr-data-chart:reference-lines">
+              <i class="ri-add-line" aria-hidden="true"></i> Ajouter une ligne de référence
+            </button>
+          </div>
+
+          <div id="targets-group" class="fr-mt-2w" style="display: none;" data-zone="builder.apparence.axes.cibles" data-repere-libelle="Cibles">
+            <p class="fr-label fr-mb-0">Cibles</p>
+            <p class="fr-hint-text">Un objectif à une échéance, relié au dernier point connu par une trajectoire en pointillés</p>
+            <div id="targets-container"></div>
+            <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-target-btn" data-repere="builder.apparence.axes.cibles.ajouter" data-attribut="dsfr-data-chart:targets">
+              <i class="ri-add-line" aria-hidden="true"></i> Ajouter une cible
+            </button>
+            <div id="targets-options" class="fr-mt-1w" style="display: none;">
+              <div class="fr-checkbox-group fr-checkbox-group--sm">
+                <input type="checkbox" id="targets-zone" data-repere="builder.apparence.axes.cibles.zone" data-attribut="dsfr-data-chart:targets-zone" checked>
+                <label class="fr-label" for="targets-zone">Griser la période à venir</label>
+              </div>
+              <div class="fr-checkbox-group fr-checkbox-group--sm fr-mt-1w">
+                <input type="checkbox" id="targets-legend" data-repere="builder.apparence.axes.cibles.legende" data-attribut="dsfr-data-chart:targets-legend" checked>
+                <label class="fr-label" for="targets-legend">Afficher la légende « données historiques / trajectoire »</label>
+              </div>
+            </div>
+          </div>
+        </details>
 
 
         </div>

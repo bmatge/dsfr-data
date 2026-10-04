@@ -50,6 +50,7 @@ import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/norm
 import { updateUrlSyncSection, syncUrlSyncControls } from './ui/url-sync-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
 import { syncFormesControls } from './ui/formes.js';
+import { restoreLecture, syncLectureControls } from './ui/lecture.js';
 import { updatePreviewSteps } from './ui/help-tooltips.js';
 import { markGenerated } from './ui/smart-guard.js';
 
@@ -605,6 +606,9 @@ export async function loadFavoriteState(): Promise<void> {
       if (isUnsafeKey(key)) continue;
       stateRec[key] = favoriteState[key];
     }
+    // Réglages de lecture (#1218) : remis en forme ; un favori enregistré
+    // avant ce lot n'en porte aucun et se rouvre sans.
+    restoreLecture(favoriteState);
 
     // Restore source dropdown selection
     if (state.savedSource) {
@@ -711,6 +715,9 @@ export async function loadFavoriteState(): Promise<void> {
     ) as HTMLInputElement | null;
     if (databoxFullscreenEl) databoxFullscreenEl.checked = state.databoxFullscreen || false;
     syncA11yWithDatabox(!!state.databoxEnabled);
+
+    // Réglages de lecture (#1218)
+    syncLectureControls();
 
     // Update fields if available
     if (state.fields && state.fields.length > 0) {

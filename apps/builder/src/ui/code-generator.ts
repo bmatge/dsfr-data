@@ -45,6 +45,7 @@ import {
   LIB_URL,
 } from '../state.js';
 import { REFERENTIELS } from '../geo-codes.js';
+import { hasLectureAttrs, lectureApplicability, lectureAttrs } from '../lecture.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
@@ -297,6 +298,32 @@ function seriesPath(prefix: string = ''): string {
   return info?.fullPath || `${prefix}${name}`;
 }
 
+/**
+ * Attributs des réglages de lecture (#1218) : unité, bornes, lignes de
+ * référence, cibles, couleurs fixées, catégories vides, synthèse de carte.
+ * Chaîne vide tant qu'aucun n'est posé : le code d'un graphique enregistré
+ * avant #1218 sort inchangé. Un attribut JSON s'écrit entre guillemets simples.
+ */
+export function lectureAttrsHtml(): string {
+  return lectureAttrs(state.chartType, state)
+    .map((a) =>
+      a.json
+        ? `\n    ${a.name}='${singleQuoteAttr(a.value)}'`
+        : `\n    ${a.name}="${escapeHtml(a.value)}"`
+    )
+    .join('');
+}
+
+/**
+ * Étiquette d'une catégorie vide dans l'agrégation locale : le libellé choisi
+ * (« Libellé des catégories vides », #1218), sinon « N/A », le repli historique
+ * du Builder.
+ */
+export function emptyGroupLabel(): string {
+  const libelle = state.emptyLabel.trim();
+  return lectureApplicability(state.chartType).emptyLabel && libelle ? libelle : 'N/A';
+}
+
 /** Colonnes lues par le composant d'affichage, telles que produites en amont. */
 interface VisualSpec {
   source: string;
@@ -363,7 +390,7 @@ function visualElement(v: VisualSpec): string {
     label-field="${v.labelField}"
     value-field="${valueFieldAttr(v.valueField)}"${extraFieldsAttr}
     ${nameAttr}
-    selected-palette="${effectivePalette()}"${generateDataboxAttrs()}>
+    selected-palette="${effectivePalette()}"${lectureAttrsHtml()}${generateDataboxAttrs()}>
   </dsfr-data-chart>${generateA11yElement(v.source, 'chart')}`;
 }
 
@@ -1014,7 +1041,7 @@ export function generateChartFromLocalData(): void {
       if (isMap && (rawGroupKey === null || rawGroupKey === undefined || rawGroupKey === '')) {
         return; // Skip this record
       }
-      const groupLabel = String(rawGroupKey || 'N/A');
+      const groupLabel = String(rawGroupKey || emptyGroupLabel());
       const serie = seriesField ? String(record[seriesField] ?? 'N/A') : '';
       const groupKey = seriesField ? JSON.stringify([groupLabel, serie]) : groupLabel;
       groupParts[groupKey] = { label: groupLabel, serie };
@@ -1115,7 +1142,15 @@ export function generateChartFromLocalData(): void {
 /** Le type courant passe-t-il par la bibliothèque même en données intégrées ? (#1204) */
 export function usesLibEmbedded(): boolean {
   // Format long : c'est la bibliothèque qui pivote les lignes en séries.
-  return LIB_RENDERED_TYPES.includes(state.chartType) || !!activeSeriesField(state);
+  // Réglages de lecture (#1218) : lignes de référence, cibles, couleurs fixées
+  // et synthèse de carte sont dessinés ou calculés par `dsfr-data-chart` ; une
+  // balise DSFR Chart nue ne les connaît pas. Dès qu'un de ces réglages est
+  // posé, le graphique passe par la bibliothèque, quel que soit le mode.
+  return (
+    LIB_RENDERED_TYPES.includes(state.chartType) ||
+    !!activeSeriesField(state) ||
+    hasLectureAttrs(state.chartType, state)
+  );
 }
 
 /**
