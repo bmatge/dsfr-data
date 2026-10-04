@@ -59,8 +59,9 @@ curl -i https://votre-site.example/donnees-relais/donnees.portail.example/api/ex
 ```
 
 Requis : nginx 1.22 ou plus récent (construit avec PCRE2 et OpenSSL, modules `proxy`, `map`,
-`limit_req`, `limit_conn`, `gzip`, `upstream_zone` : c'est le cas des paquets officiels). Testé en
-CI sur l'image `nginx:alpine`.
+`limit_req`, `limit_conn`, `gzip`, `upstream_zone` : c'est le cas des paquets officiels). Joué en
+CI sur l'image `nginx:alpine` (nginx 1.31.6 à la livraison) ; les versions antérieures n'ont pas
+été essayées.
 
 Côté page, `relay-url="/donnees-relais"` sur `dsfr-data-source` (ou `window.DSFR_DATA_RELAY`) :
 [`docs/RELAY.md` §9](../../../docs/RELAY.md).
