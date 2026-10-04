@@ -9,6 +9,8 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { isPublicAddress } from '../../../proxy/relay/node/addresses.mjs';
+import { defaultResolve } from '../../../proxy/relay/node/upstream.mjs';
 import { createClient } from '../support/client.mjs';
 import {
   ALLOWED_HOST,
@@ -81,6 +83,16 @@ describe('C-SSRF-6 — l’adresse, après résolution DNS', () => {
       });
     });
   }
+
+  test('la résolution de production (`defaultResolve`) rend toutes les adresses du nom ; celles de `localhost` sont refusées', async () => {
+    // Seul test qui passe par le résolveur du système : `localhost` ne quitte pas la machine.
+    const addresses = await defaultResolve('localhost');
+    assert.ok(Array.isArray(addresses) && addresses.length > 0);
+    for (const entry of addresses) {
+      assert.ok(entry.family === 4 || entry.family === 6);
+      assert.equal(isPublicAddress(entry.address), false, `${entry.address} tenue pour publique`);
+    }
+  });
 
   test('un nom qui mêle adresse publique et adresse privée : refusé en bloc', async () => {
     const mixed = async () => [
