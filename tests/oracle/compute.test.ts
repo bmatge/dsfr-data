@@ -25,6 +25,9 @@ import {
   sousChaine,
   sqrtColumn,
   substringColumn,
+  elementDe,
+  extremeDe,
+  decouperCellule,
   runPipeline,
   runningSum,
   symbolRadius,
@@ -360,6 +363,65 @@ describe('oracle — recalcul indépendant', () => {
     ]);
     // Total de partition nul : null, jamais l'infini.
     expect(shareColumn([{ g: 'x', n: 0 }], 'n', 'p', 100, 'g')[0].p).toBeNull();
+  });
+
+  it('élément d’un tableau : rangs à partir de 1, négatifs depuis la fin, null hors tableau (#1237)', () => {
+    const t = ['maison', 'immeuble', 'atelier'];
+    expect(elementDe(t, 1)).toBe('maison');
+    expect(elementDe(t, 3)).toBe('atelier');
+    expect(elementDe(t, -1)).toBe('atelier');
+    expect(elementDe(t, -3)).toBe('maison');
+    expect(elementDe(t, 4)).toBeNull();
+    expect(elementDe(t, -4)).toBeNull();
+    expect(elementDe(t, 0)).toBeNull();
+    expect(elementDe(t, 1.5)).toBeNull();
+    expect(elementDe(t, null)).toBeNull();
+    expect(elementDe(t, '2')).toBe('immeuble');
+    expect(elementDe([], 1)).toBeNull();
+    expect(elementDe([null, 'b'], 1)).toBeNull();
+    expect(elementDe('maison;immeuble', 1)).toBeNull();
+    expect(elementDe('maison', 1)).toBeNull();
+    expect(elementDe(null, 1)).toBeNull();
+    expect(elementDe([1965], 1)).toBe(1965);
+    // Le tableau reçu n'est pas retourné par le parcours depuis la fin.
+    elementDe(t, -1);
+    expect(t).toEqual(['maison', 'immeuble', 'atelier']);
+  });
+
+  it('plus petit / plus grand élément : nombre si tous le sont, texte sinon (#1237)', () => {
+    expect(extremeDe(['1050', '950'], 'min')).toBe('950');
+    expect(extremeDe(['1050', '950'], 'max')).toBe('1050');
+    expect(extremeDe(['950', '1050', 'vers 1970'], 'min')).toBe('1050');
+    expect(extremeDe(['2019-03-01', '2012-07-15'], 'min')).toBe('2012-07-15');
+    expect(extremeDe(['2019-03-01', '', null, '2012-07-15'], 'max')).toBe('2019-03-01');
+    expect(extremeDe(['75056', '01004'], 'min')).toBe('01004');
+    expect(extremeDe(['1880', '1880,0', '1900'], 'min')).toBe('1880');
+    expect(extremeDe(['2', '2,0', '1'], 'max')).toBe('2');
+    expect(extremeDe([], 'min')).toBeNull();
+    expect(extremeDe([null, ''], 'max')).toBeNull();
+    expect(extremeDe('1965;1972', 'min')).toBeNull();
+    expect(extremeDe(1965, 'min')).toBeNull();
+    expect(extremeDe(null, 'max')).toBeNull();
+  });
+
+  it('découpe d’une cellule collée : éléments rognés, vides écartés, non-texte intact', () => {
+    expect(decouperCellule('1972 ; 1965 ; 1980', ';')).toEqual(['1972', '1965', '1980']);
+    expect(decouperCellule('a||b| |c', '|')).toEqual(['a', 'b', 'c']);
+    expect(decouperCellule('', ';')).toEqual([]);
+    expect(decouperCellule('seul', ';')).toEqual(['seul']);
+    expect(decouperCellule(1930, ';')).toBe(1930);
+    expect(decouperCellule(null, ';')).toBeNull();
+    expect(decouperCellule(['a'], ';')).toEqual(['a']);
+    expect(
+      runPipeline({ main: [{ d: '1050;950' }, { d: null }] }, [
+        { op: 'split', field: 'd', separator: ';' },
+        { op: 'element', from: 'd', as: 'premier', rank: 1 },
+        { op: 'array-extreme', from: 'd', as: 'min', which: 'min' },
+      ])
+    ).toEqual([
+      { d: ['1050', '950'], premier: '1050', min: '950' },
+      { d: null, premier: null, min: null },
+    ]);
   });
 
   it('page : la tranche affichée, pas les premières lignes', () => {

@@ -510,6 +510,112 @@ export function sqrtColumn(rows: Row[], from: string, as: string): Row[] {
   return rows.map((r) => ({ ...r, [as]: racine(r[from]) }));
 }
 
+/**
+ * Élément d'un tableau (#1237), sur le contrat ÉCRIT de `element_at` : les
+ * rangs se comptent À PARTIR DE 1, un rang NÉGATIF compte depuis la fin
+ * (−1 : le dernier), et l'élément est rendu tel quel. Tout ce qui n'est pas un
+ * vrai tableau — un texte « collé », un nombre, une absence — rend `null` :
+ * un scalaire n'est pas un tableau d'un élément. Rang absent, non numérique,
+ * nul ou non entier, rang hors du tableau, élément absent : `null`.
+ *
+ * Écrit en COMPTANT les éléments un à un, depuis le bout que le signe du rang
+ * désigne — sans calcul d'indice : c'est le calcul d'indice que l'on vérifie.
+ */
+export function elementDe(v: unknown, rang: unknown): unknown {
+  if (!Array.isArray(v)) return null;
+  const r = toNum(rang);
+  if (r === null || r === 0 || r !== Math.floor(r)) return null;
+  const depuisLaFin = r < 0;
+  let reste = depuisLaFin ? -r : r;
+  const parcours = depuisLaFin ? [...v].reverse() : v;
+  for (const element of parcours as unknown[]) {
+    reste--;
+    if (reste === 0) return element ?? null;
+  }
+  return null;
+}
+
+/**
+ * Plus petit ou plus grand élément d'un tableau (#1237), sur le contrat ÉCRIT
+ * de `array_min` / `array_max` : les éléments absents (`null`, `undefined`,
+ * chaîne vide) ne comptent pas ; la comparaison est NUMÉRIQUE quand tous les
+ * éléments restants sont des nombres (décimale française comprise), TEXTUELLE
+ * sinon — décidée une fois pour le tableau entier ; l'élément gagnant est
+ * rendu tel quel, le premier rencontré en cas d'égalité. Pas un tableau, ou
+ * rien à comparer : `null`.
+ *
+ * Écrit par un TRI stable, là où la bibliothèque parcourt en gardant le
+ * meilleur : deux chemins, un seul contrat.
+ */
+export function extremeDe(v: unknown, lequel: 'min' | 'max'): unknown {
+  if (!Array.isArray(v)) return null;
+  const presents = (v as unknown[]).filter((el) => el !== null && el !== undefined && el !== '');
+  if (presents.length === 0) return null;
+  const tousNumeriques = presents.every((el) => toNum(el) !== null);
+  const ecart = (a: unknown, b: unknown): number => {
+    if (tousNumeriques) return (toNum(a) as number) - (toNum(b) as number);
+    const ta = String(a);
+    const tb = String(b);
+    return ta < tb ? -1 : ta > tb ? 1 : 0;
+  };
+  // Tri stable : à égalité, l'ordre du tableau est gardé, donc le premier
+  // rencontré reste en tête — en ordre croissant comme en ordre décroissant.
+  const ranges = [...presents].sort((a, b) => (lequel === 'min' ? ecart(a, b) : ecart(b, a)));
+  return ranges[0];
+}
+
+/**
+ * Découpe d'une cellule « collée » (`split` de `dsfr-data-normalize`), sur son
+ * contrat écrit : un TEXTE est coupé sur le séparateur, chaque élément rogné,
+ * les éléments vides écartés ; une chaîne vide donne un tableau vide ; une
+ * valeur qui n'est pas un texte (tableau déjà formé, `null`, nombre) est
+ * laissée telle quelle. Lue caractère par caractère.
+ */
+export function decouperCellule(v: unknown, separateur: string): unknown {
+  if (typeof v !== 'string') return v;
+  const elements: string[] = [];
+  let courant = '';
+  const clore = (): void => {
+    const net = courant.trim();
+    if (net !== '') elements.push(net);
+    courant = '';
+  };
+  let i = 0;
+  while (i < v.length) {
+    if (separateur !== '' && v.startsWith(separateur, i)) {
+      clore();
+      i += separateur.length;
+    } else {
+      courant += v[i];
+      i++;
+    }
+  }
+  clore();
+  return elements;
+}
+
+/** La colonne `as` reçoit l'élément de rang `rank` du tableau `from` (voir `elementDe`). */
+export function elementColumn(rows: Row[], from: string, as: string, rank: number): Row[] {
+  return rows.map((r) => ({ ...r, [as]: elementDe(r[from], rank) }));
+}
+
+/** La colonne `as` reçoit le plus petit ou le plus grand élément de `from` (voir `extremeDe`). */
+export function arrayExtremeColumn(
+  rows: Row[],
+  from: string,
+  as: string,
+  which: 'min' | 'max'
+): Row[] {
+  return rows.map((r) => ({ ...r, [as]: extremeDe(r[from], which) }));
+}
+
+/** Le champ `field` est découpé en tableau (voir `decouperCellule`). */
+export function splitColumn(rows: Row[], field: string, separator: string): Row[] {
+  return rows.map((r) =>
+    field in r ? { ...r, [field]: decouperCellule(r[field], separator) } : r
+  );
+}
+
 /** La colonne `as` reçoit la sous-chaîne de `from` (voir `sousChaine`). */
 export function substringColumn(
   rows: Row[],
@@ -1016,6 +1122,15 @@ export function runPipeline(
         break;
       case 'substring':
         rows = substringColumn(rows, step.from, step.as, step.start, step.length);
+        break;
+      case 'element':
+        rows = elementColumn(rows, step.from, step.as, step.rank);
+        break;
+      case 'array-extreme':
+        rows = arrayExtremeColumn(rows, step.from, step.as, step.which);
+        break;
+      case 'split':
+        rows = splitColumn(rows, step.field, step.separator);
         break;
       case 'sqrt':
         rows = sqrtColumn(rows, step.from, step.as);

@@ -43,6 +43,7 @@ import {
   PREFIXES,
   CALCULS,
   CODES,
+  TABLEAUX,
   COMPOSITE_DROITE,
   COMPOSITE_GAUCHE,
   DROITE,
@@ -1057,6 +1058,28 @@ const SOUS_CHAINES: Step[] = [
   { op: 'substring', from: 'siret', as: 'nic', start: 10, length: 5 },
 ];
 
+const TAB = source('s-tab', TABLEAUX);
+const JEU_TAB = { main: TABLEAUX };
+
+/** Les cinq lectures par rang de la page, énoncées SANS la grammaire d'expressions (#1237). */
+const ELEMENTS: Step[] = [
+  { op: 'split', field: 'datation', separator: ';' },
+  { op: 'element', from: 'denominations', as: 'principale', rank: 1 },
+  { op: 'element', from: 'denominations', as: 'seconde', rank: 2 },
+  { op: 'element', from: 'denominations', as: 'derniere', rank: -1 },
+  { op: 'element', from: 'datation', as: 'premiere_citee', rank: 1 },
+  { op: 'element', from: 'prises_de_poste', as: 'premier_poste', rank: 1 },
+];
+
+/** Les quatre extrêmes de la page, énoncés SANS la grammaire d'expressions (#1237). */
+const EXTREMES: Step[] = [
+  { op: 'split', field: 'datation', separator: ';' },
+  { op: 'array-extreme', from: 'datation', as: 'premiere_annee', which: 'min' },
+  { op: 'array-extreme', from: 'datation', as: 'derniere_annee', which: 'max' },
+  { op: 'array-extreme', from: 'prises_de_poste', as: 'plus_ancien', which: 'min' },
+  { op: 'array-extreme', from: 'prises_de_poste', as: 'plus_recent', which: 'max' },
+];
+
 const COMPUTE: Check[] = [
   {
     id: 'compute-arithmetique-absence-et-division-par-zero',
@@ -1315,6 +1338,127 @@ ${kpi('k-apo', 'q-apo')}
         id: 'l-rac',
         columns: [{ column: 'cle' }, { column: 'rayon', numeric: true }],
         pipeline: [{ op: 'sqrt', from: 'surface', as: 'rayon' }],
+      },
+    ],
+  },
+
+  {
+    id: 'compute-element-de-tableau-element-at',
+    mode: 'deterministic',
+    origin:
+      'AM-103, suite (#1237) — `element_at(denominations, 1)` rend la dénomination principale, `element_at(arr, -1)` le dernier élément. Les rangs se comptent à partir de 1 : lu en base 0, le premier élément devient le deuxième, une valeur tout aussi plausible. Une cellule « collée » (`1972 ; 1965 ; 1980`) n’est un tableau qu’après `split`, dans le même normalize ; un scalaire n’est pas un tableau d’un élément. Trois chemins : la grammaire réécrite par l’oracle (`derive`), puis le rang énoncé sans elle (`element`), que la troisième voix recalcule.',
+    constats: ['AM-103'],
+    feed: { kind: 'fixture', datasets: JEU_TAB },
+    markup: `${TAB}
+  <dsfr-data-normalize id="n-elt" source="s-tab" split="datation:;"
+    compute="principale = element_at(denominations, 1); seconde = element_at(denominations, 2); derniere = element_at(denominations, -1); premiere_citee = element_at(datation, 1); premier_poste = element_at(prises_de_poste, 1)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-elt" source="n-elt"
+    columns="cle:Clé, principale:Principale, seconde:Seconde, derniere:Dernière, premiere_citee:Première citée, premier_poste:Premier poste"></dsfr-data-list>
+  <dsfr-data-query id="q-elt" source="n-elt"
+    aggregate="cle:count:notices, principale:distinct:principales, derniere:distinct:dernieres"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'n-elt',
+        key: 'cle',
+        columns: ['principale', 'seconde', 'derniere', 'premiere_citee', 'premier_poste'],
+        pipeline: [
+          { op: 'split', field: 'datation', separator: ';' },
+          {
+            op: 'derive',
+            expr: 'principale = element_at(denominations, 1); seconde = element_at(denominations, 2); derniere = element_at(denominations, -1); premiere_citee = element_at(datation, 1); premier_poste = element_at(prises_de_poste, 1)',
+          },
+        ],
+      },
+      {
+        kind: 'list',
+        id: 'l-elt',
+        columns: [
+          { column: 'cle' },
+          { column: 'principale', absent: '—' },
+          { column: 'seconde', absent: '—' },
+          { column: 'derniere', absent: '—' },
+          { column: 'premiere_citee', absent: '—' },
+          { column: 'premier_poste', absent: '—' },
+        ],
+        pipeline: ELEMENTS,
+      },
+      {
+        kind: 'rows',
+        id: 'q-elt',
+        key: 'notices',
+        columns: ['principales', 'dernieres'],
+        pipeline: [
+          ...ELEMENTS,
+          {
+            op: 'global',
+            columns: {
+              notices: { agg: 'count', field: 'cle' },
+              principales: { agg: 'distinct', field: 'principale' },
+              dernieres: { agg: 'distinct', field: 'derniere' },
+            },
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'compute-plus-petit-et-plus-grand-element-d-un-tableau',
+    mode: 'deterministic',
+    origin:
+      'AM-103, suite (#1237) — `array_min(prises_de_poste)` rend le plus ANCIEN poste, qui n’est pas le premier listé (cas Préfets : le premier poste pris pour le plus ancien, faux sur 3 lignes), et `array_min(datation)` la première année d’une datation multivaluée, sans `explode` ni jointure. La comparaison est numérique quand tous les éléments le sont (« 950 » avant « 1050 », que l’ordre du texte inverse), textuelle sinon (dates ISO). Trois chemins : `derive`, puis l’extrême énoncé sans la grammaire (`array-extreme`), que la troisième voix recalcule.',
+    constats: ['AM-103'],
+    feed: { kind: 'fixture', datasets: JEU_TAB },
+    markup: `${TAB}
+  <dsfr-data-normalize id="n-ext" source="s-tab" split="datation:;"
+    compute="premiere_annee = array_min(datation); derniere_annee = array_max(datation); plus_ancien = array_min(prises_de_poste); plus_recent = array_max(prises_de_poste)"></dsfr-data-normalize>
+  <dsfr-data-list id="l-ext" source="n-ext"
+    columns="cle:Clé, premiere_annee:Première année, derniere_annee:Dernière année, plus_ancien:Plus ancien poste, plus_recent:Plus récent poste"></dsfr-data-list>
+  <dsfr-data-query id="q-ext" source="n-ext"
+    aggregate="cle:count:notices, plus_ancien:distinct:anciens, plus_recent:distinct:recents"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'n-ext',
+        key: 'cle',
+        columns: ['premiere_annee', 'derniere_annee', 'plus_ancien', 'plus_recent'],
+        pipeline: [
+          { op: 'split', field: 'datation', separator: ';' },
+          {
+            op: 'derive',
+            expr: 'premiere_annee = array_min(datation); derniere_annee = array_max(datation); plus_ancien = array_min(prises_de_poste); plus_recent = array_max(prises_de_poste)',
+          },
+        ],
+      },
+      {
+        kind: 'list',
+        id: 'l-ext',
+        columns: [
+          { column: 'cle' },
+          { column: 'premiere_annee', absent: '—' },
+          { column: 'derniere_annee', absent: '—' },
+          { column: 'plus_ancien', absent: '—' },
+          { column: 'plus_recent', absent: '—' },
+        ],
+        pipeline: EXTREMES,
+      },
+      {
+        kind: 'rows',
+        id: 'q-ext',
+        key: 'notices',
+        columns: ['anciens', 'recents'],
+        pipeline: [
+          ...EXTREMES,
+          {
+            op: 'global',
+            columns: {
+              notices: { agg: 'count', field: 'cle' },
+              anciens: { agg: 'distinct', field: 'plus_ancien' },
+              recents: { agg: 'distinct', field: 'plus_recent' },
+            },
+          },
+        ],
       },
     ],
   },

@@ -266,6 +266,45 @@ export type Step =
     }
   | {
       /**
+       * ÉLÉMENT D'UN TABLEAU (#1237) : la colonne `as` reçoit l'élément de
+       * rang `rank` du tableau `from` — rangs comptés À PARTIR DE 1, un rang
+       * négatif comptant depuis la fin (−1 : le dernier). Pas un tableau, rang
+       * hors du tableau : `null`. C'est ce que `element_at(arr, n)` de
+       * `compute` doit montrer, énoncé sans la grammaire d'expressions, donc
+       * recalculable par la troisième voix.
+       */
+      op: 'element';
+      from: string;
+      as: string;
+      rank: number;
+    }
+  | {
+      /**
+       * PLUS PETIT / PLUS GRAND ÉLÉMENT d'un tableau (#1237) : la colonne `as`
+       * reçoit l'élément extrême de `from`, rendu tel quel. Éléments absents
+       * ignorés ; comparaison numérique quand tous les éléments restants sont
+       * numériques, textuelle sinon. Pas un tableau, rien à comparer : `null`.
+       * C'est ce que `array_min(arr)` / `array_max(arr)` de `compute` doivent
+       * montrer, énoncé sans la grammaire d'expressions.
+       */
+      op: 'array-extreme';
+      from: string;
+      as: string;
+      which: 'min' | 'max';
+    }
+  | {
+      /**
+       * DÉCOUPE d'une cellule « collée » en tableau — l'attribut `split` de
+       * `dsfr-data-normalize` : un texte est coupé sur `separator`, chaque
+       * élément rogné, les vides écartés ; une chaîne vide donne un tableau
+       * vide ; une valeur qui n'est pas un texte est laissée telle quelle.
+       */
+      op: 'split';
+      field: string;
+      separator: string;
+    }
+  | {
+      /**
        * RACINE CARRÉE : la colonne `as` reçoit la racine de `from` — `null`
        * pour une valeur absente, non numérique ou NÉGATIVE (jamais `NaN`).
        * C'est ce que `sqrt(x)` de `compute` doit montrer, énoncé sans la
