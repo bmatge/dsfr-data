@@ -226,17 +226,20 @@ export function applyColorMap(
     dataset.hoverBackgroundColor = spread(dataset.hoverBackgroundColor);
     dataset.hoverBorderColor = spread(dataset.hoverBorderColor);
   }
-  // `update('none')` suffit ICI, à la différence de la branche « série »
-  // (`refreshSeriesColors`) : une couleur par point est un TABLEAU, donc une
-  // option propre à chaque point, que Chart.js ne partage pas d'un point à
-  // l'autre. Mesuré au navigateur sur courbe, radar et nuage (#1244).
-  chart.update?.('none');
   if (pointsPainted) {
+    // Même redessin que par série (`refreshSeriesColors`, ARCHITECTURE.md
+    // §12) : toute écriture sur les couleurs d'un jeu à points passe par la
+    // transition de durée nulle. Mesuré au navigateur (#1244) : `update('none')`
+    // suffit AUJOURD'HUI ici, parce qu'une couleur par point est un tableau,
+    // que Chart.js ne partage pas d'un point à l'autre — la règle est tenue
+    // quand même, pour ne pas dépendre de ce détail.
+    refreshSeriesColors(chart);
     // La légende de ces graphiques porte une pastille par SÉRIE, et la série
     // garde sa couleur : rien à repeindre, et surtout pas une pastille par
     // libellé — le décompte ne correspondrait à rien.
     return { applied: true, legendColors: datasets.map(() => undefined) };
   }
+  chart.update?.('none');
   return { applied: true, legendColors: labels.map((label) => colorMap.get(label)) };
 }
 

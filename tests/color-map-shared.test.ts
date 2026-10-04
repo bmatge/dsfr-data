@@ -268,7 +268,7 @@ describe('applyColorMap — par libellé d’axe, sur un jeu à points (#1244)',
   });
 
   it('le trait et le fond restent ceux de la série : un trait n’a qu’une couleur', () => {
-    const datasets = [{ ...courbe(), backgroundColor: '#5C68E54D' }];
+    const datasets: Record<string, unknown>[] = [{ ...courbe(), backgroundColor: '#5C68E54D' }];
     applyColorMap(
       { data: { labels: LABELS, datasets }, update: vi.fn() },
       parseColorMap('1:#ff0000,3:#00aa00'),
@@ -291,9 +291,9 @@ describe('applyColorMap — par libellé d’axe, sur un jeu à points (#1244)',
     expect(application).toEqual({ applied: true, legendColors: [undefined] });
   });
 
-  it('redessine une fois, par update("none") : la transition de la branche « série » n’est pas requise', () => {
-    // Mesuré au navigateur (e2e/chart-legend.spec.ts) : une couleur par point
-    // est un tableau, donc une option que Chart.js ne partage pas entre points.
+  it('redessine une fois, par la transition de durée nulle, comme la branche « série »', () => {
+    // La règle d'ARCHITECTURE.md §12 : toute écriture sur les couleurs d'un
+    // jeu à points passe par la transition, pas par update('none').
     const update = vi.fn<(mode?: string) => void>();
     const transitions: Record<string, unknown> = {};
     applyColorMap(
@@ -303,8 +303,9 @@ describe('applyColorMap — par libellé d’axe, sur un jeu à points (#1244)',
     );
 
     expect(update).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith('none');
-    expect(transitions).toEqual({});
+    const mode = update.mock.calls[0][0];
+    expect(mode).not.toBe('none');
+    expect(transitions[mode as string]).toEqual({ animation: { duration: 0 } });
   });
 
   it('barres et courbe (bar-line) : une couleur par barre, une couleur par point', () => {
