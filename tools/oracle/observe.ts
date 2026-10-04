@@ -236,13 +236,32 @@ export function lireListe(id: string): ObservationListe | null {
  * Textes RENDUS par les éléments que `selecteur` désigne dans le composant :
  * lignes secondaires d'un KPI, tendance, valeurs d'un podium, cellules d'un
  * `dsfr-data-display`. Les espaces sont normalisés comme un lecteur les voit.
+ *
+ * `insecables` (#1244) : les espaces INSÉCABLES (U+00A0, U+202F) sont gardées
+ * telles quelles — seules les espaces ordinaires, tabulations et sauts de ligne
+ * du gabarit sont repliés. C'est ce qui permet à un contrôle d'exiger qu'une
+ * unité tienne à son nombre (« 812 hab. » ne se coupe pas en fin de ligne) :
+ * à l'œil, et une fois normalisées, les deux espaces se confondent.
  */
-export function lireTextes({ id, selecteur }: { id: string; selecteur: string }): string[] | null {
+export function lireTextes({
+  id,
+  selecteur,
+  insecables,
+}: {
+  id: string;
+  selecteur: string;
+  insecables?: boolean;
+}): string[] | null {
   const hote = document.getElementById(id);
   if (!hote) return null;
   const racine: ParentNode = hote.shadowRoot ?? hote;
   const trouves = Array.from(racine.querySelectorAll(selecteur));
   const elements = trouves.length > 0 ? trouves : Array.from(hote.querySelectorAll(selecteur));
+  if (insecables) {
+    return elements.map((el) =>
+      (el.textContent ?? '').replace(/[ \t\r\n]+/g, ' ').replace(/^ | $/g, '')
+    );
+  }
   return elements.map((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim());
 }
 

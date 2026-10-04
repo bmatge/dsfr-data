@@ -226,6 +226,124 @@ describe('applyColorMap — les points suivent la série (BUG-033 du banc, #1230
   });
 });
 
+/**
+ * #1244 — la branche « modalité » (couleur par LIBELLÉ D'AXE) sur un jeu qui
+ * dessine des POINTS. Mesuré au navigateur avant correction, sur une courbe à
+ * une série et `color-map="1:#ff0000,3:#00aa00"` : le TRAIT entier prenait la
+ * couleur de la première modalité (Chart.js lit le premier élément d'un
+ * tableau posé sur une option de trait), la pastille de légende aussi, l'aire
+ * d'un radar devenait opaque — et aucun point n'était recoloré.
+ */
+describe('applyColorMap — par libellé d’axe, sur un jeu à points (#1244)', () => {
+  const courbe = (): Record<string, unknown> => ({
+    data: [10, 20, 15, 30],
+    borderColor: '#5C68E5',
+    backgroundColor: '#5C68E5',
+    hoverBorderColor: '#787eff',
+    hoverBackgroundColor: '#787eff',
+    pointBorderColor: '#5C68E5',
+    pointBackgroundColor: '#5C68E5',
+    pointHoverBorderColor: '#787eff',
+    pointHoverBackgroundColor: '#787eff',
+  });
+  const LABELS = ['1', '2', '3', '4'];
+
+  it('chaque point nommé prend sa couleur, les autres gardent la palette', () => {
+    const datasets = [courbe()];
+    applyColorMap(
+      { data: { labels: LABELS, datasets }, update: vi.fn() },
+      parseColorMap('1:#ff0000,3:#00aa00'),
+      ['a']
+    );
+
+    expect(datasets[0].pointBackgroundColor).toEqual(['#ff0000', '#5C68E5', '#00aa00', '#5C68E5']);
+    expect(datasets[0].pointBorderColor).toEqual(['#ff0000', '#5C68E5', '#00aa00', '#5C68E5']);
+    expect(datasets[0].pointHoverBackgroundColor).toEqual([
+      '#ff0000',
+      '#787eff',
+      '#00aa00',
+      '#787eff',
+    ]);
+    expect(datasets[0].pointHoverBorderColor).toEqual(['#ff0000', '#787eff', '#00aa00', '#787eff']);
+  });
+
+  it('le trait et le fond restent ceux de la série : un trait n’a qu’une couleur', () => {
+    const datasets: Record<string, unknown>[] = [{ ...courbe(), backgroundColor: '#5C68E54D' }];
+    applyColorMap(
+      { data: { labels: LABELS, datasets }, update: vi.fn() },
+      parseColorMap('1:#ff0000,3:#00aa00'),
+      ['a']
+    );
+
+    expect(datasets[0].borderColor).toBe('#5C68E5');
+    expect(datasets[0].backgroundColor).toBe('#5C68E54D');
+    expect(datasets[0].hoverBorderColor).toBe('#787eff');
+    expect(datasets[0].hoverBackgroundColor).toBe('#787eff');
+  });
+
+  it('la légende, une pastille par SÉRIE, n’est pas recolorée', () => {
+    const application = applyColorMap(
+      { data: { labels: LABELS, datasets: [courbe()] }, update: vi.fn() },
+      parseColorMap('1:#ff0000,3:#00aa00'),
+      ['a']
+    );
+
+    expect(application).toEqual({ applied: true, legendColors: [undefined] });
+  });
+
+  it('redessine une fois, par la transition de durée nulle, comme la branche « série »', () => {
+    // La règle d'ARCHITECTURE.md §12 : toute écriture sur les couleurs d'un
+    // jeu à points passe par la transition, pas par update('none').
+    const update = vi.fn<(mode?: string) => void>();
+    const transitions: Record<string, unknown> = {};
+    applyColorMap(
+      { data: { labels: LABELS, datasets: [courbe()] }, options: { transitions }, update },
+      parseColorMap('1:#ff0000'),
+      ['a']
+    );
+
+    expect(update).toHaveBeenCalledTimes(1);
+    const mode = update.mock.calls[0][0];
+    expect(mode).not.toBe('none');
+    expect(transitions[mode as string]).toEqual({ animation: { duration: 0 } });
+  });
+
+  it('barres et courbe (bar-line) : une couleur par barre, une couleur par point', () => {
+    const barres: Record<string, unknown> = {
+      data: [1, 2, 3, 4],
+      backgroundColor: '#5C68E5',
+      borderColor: '#5C68E5',
+    };
+    const datasets = [barres, courbe()];
+    const application = applyColorMap(
+      { data: { labels: LABELS, datasets }, update: vi.fn() },
+      parseColorMap('3:#00aa00'),
+      ['x', 'y']
+    );
+
+    expect(barres.backgroundColor).toEqual(['#5C68E5', '#5C68E5', '#00aa00', '#5C68E5']);
+    expect(datasets[1].borderColor).toBe('#5C68E5');
+    expect(datasets[1].pointBackgroundColor).toEqual(['#5C68E5', '#5C68E5', '#00aa00', '#5C68E5']);
+    expect(application.legendColors).toEqual([undefined, undefined]);
+  });
+
+  it('sans aucun jeu à points (barres, camembert) : le rendu d’avant, une couleur par part', () => {
+    const update = vi.fn<(mode?: string) => void>();
+    const datasets: Record<string, unknown>[] = [
+      { data: [1, 2], backgroundColor: ['#aaa', '#bbb'], borderColor: ['#aaa', '#bbb'] },
+    ];
+    const application = applyColorMap(
+      { data: { labels: ['Paris', 'Lyon'], datasets }, update },
+      parseColorMap('Lyon:#0000ff'),
+      ['v']
+    );
+
+    expect(datasets[0].backgroundColor).toEqual(['#aaa', '#0000ff']);
+    expect(application.legendColors).toEqual([undefined, '#0000ff']);
+    expect(update).toHaveBeenCalledWith('none');
+  });
+});
+
 describe('dsfr-data-chart — color-map (AM-060)', () => {
   /** Graphique rendu factice : wrapper + custom element DSFR + canvas + légende. */
   function renderedChart(

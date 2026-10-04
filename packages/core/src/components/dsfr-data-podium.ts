@@ -133,7 +133,10 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'subtitle-field' })
   subtitleField = '';
 
-  /** Unité affichée après la valeur */
+  /**
+   * Unité affichée après la valeur, séparée d'elle par une espace insécable
+   * (comme `subtitle-unit` et l'unité de `dsfr-data-kpi`, #1244).
+   */
   @property({ type: String, attribute: 'value-unit' })
   valueUnit = '';
 
@@ -571,7 +574,11 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
       format === null && decimals === undefined
         ? formatNumber(value)
         : formatValue(value, format ?? 'nombre', { decimals });
-    return this.valueUnit ? `${formatted} ${this.valueUnit}` : formatted;
+    // Espace INSÉCABLE entre la valeur et son unité (#1244), comme le
+    // sous-titre (`subtitle-unit`) et `dsfr-data-kpi` : « 2 300 hab. » ne se
+    // coupe pas en fin de ligne entre le nombre et son unité.
+    const unit = this.valueUnit.trim();
+    return unit ? `${formatted}\u00a0${unit}` : formatted;
   }
 
   /**

@@ -589,6 +589,13 @@ export interface ExpectTexts extends ExpectBase {
    * `radius`.
    */
   measure?: 'radius';
+  /**
+   * Garder les espaces INSÉCABLES (U+00A0, U+202F) du texte lu au lieu de les
+   * ramener à l'espace ordinaire (#1244). Le `pattern` peut alors exiger le
+   * codet : une unité séparée de son nombre par une espace ordinaire se coupe
+   * en fin de ligne, et rien d'autre ne le montre.
+   */
+  keepNbsp?: boolean;
 }
 
 /**

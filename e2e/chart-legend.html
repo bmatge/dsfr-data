@@ -55,6 +55,21 @@
     <dsfr-data-chart id="barres-courbe" source="series" type="bar-line" label-field="m"
       value-field="a:Alpha" value-field-2="b:Beta" color-map="Alpha:#ff0000,Beta:#00aa00">
     </dsfr-data-chart>
+
+    <!--
+      #1244 : la même grammaire lue par LIBELLÉ D'AXE (branche « modalité »),
+      sur une seule série. Deux des quatre points sont nommés : ils prennent
+      leur couleur, les deux autres et le trait gardent la palette.
+    -->
+    <dsfr-data-chart id="courbe-modalites" source="series" type="line" label-field="m"
+      value-field="a" color-map="1:#ff0000,3:#00aa00">
+    </dsfr-data-chart>
+    <dsfr-data-chart id="radar-modalites" source="series" type="radar" label-field="m"
+      value-field="a" color-map="1:#ff0000,3:#00aa00">
+    </dsfr-data-chart>
+    <dsfr-data-chart id="nuage-modalites" source="series" type="scatter" label-field="m"
+      value-field="a" color-map="1:#ff0000,3:#00aa00">
+    </dsfr-data-chart>
   </main>
 </body>
 </html>

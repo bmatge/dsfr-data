@@ -245,6 +245,28 @@ describe('vérification des données — lecteurs d’observation', () => {
     expect(lireTextes({ id: 'ailleurs', selecteur: 'span' })).toBeNull();
   });
 
+  it('textes, insécables gardées (#1244) : seules les espaces du gabarit sont repliées', () => {
+    const INSECABLE = String.fromCharCode(0xa0);
+    const FINE = String.fromCharCode(0x202f);
+    const hote = document.createElement('div');
+    hote.id = 'p';
+    const valeur = document.createElement('span');
+    valeur.className = 'v';
+    valeur.textContent = `\n   12${FINE}345${INSECABLE}hab.\n  `;
+    const ordinaire = document.createElement('span');
+    ordinaire.className = 'v';
+    ordinaire.textContent = '  812   hab. ';
+    hote.append(valeur, ordinaire);
+    document.body.replaceChildren(hote);
+
+    expect(lireTextes({ id: 'p', selecteur: '.v', insecables: true })).toEqual([
+      `12${FINE}345${INSECABLE}hab.`,
+      '812 hab.',
+    ]);
+    // Sans l'option, la lecture historique : tout devient une espace ordinaire.
+    expect(lireTextes({ id: 'p', selecteur: '.v' })).toEqual(['12 345 hab.', '812 hab.']);
+  });
+
   it('classes : celles de l’élément désigné, et rien tant que l’affichage n’est pas prêt', () => {
     document.body.innerHTML = `
       <div id="k1"><div class="dsfr-data-kpi dsfr-data-kpi--success">

@@ -582,6 +582,16 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * Tri des résultats
    * Format: "field:direction" ou "field__function:direction"
    * Ex: "total_pop:desc" ou "population__sum:desc"
+   *
+   * Une clé peut nommer une colonne de FENÊTRE produite par `aggregate` — une
+   * part (`n__share_percent`), un cumul (`montant__running_sum`), un écart
+   * (`cumul__diff`), ou leur alias (#1244). Le tri porte alors sur les lignes
+   * de sortie : il est appliqué ici, après le calcul de la colonne et avant
+   * `limit` (« les cinq plus grandes parts »), et n'est jamais délégué au
+   * serveur, qui ne connaît pas cette colonne. Les autres clés du même
+   * `order-by` gardent leur rôle : ce sont elles qui ordonnent les lignes
+   * AVANT un cumul. Un cumul trié sur sa seule colonne est donc calculé dans
+   * l'ordre des lignes reçues — un avertissement console le signale.
    */
   @property({ type: String, attribute: 'order-by' })
   orderBy = '';
@@ -1186,6 +1196,13 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * brutes que le serveur trierait — Tabular repond 400 (42703 « column …
    * does not exist », mesure du 2026-09-23), sans en-tete CORS. Le tri reste
    * cote client, apres le regroupement, qui seul le rend juste.
+   *
+   * Jamais non plus quand une cle du tri nomme une colonne de FENETRE (part,
+   * cumul, ecart, #1244) : elle est fabriquee ici, apres reception, et aucun
+   * serveur ne la connait. `aggregate="n:share_percent"
+   * order-by="n__share_percent:desc"` partait en `order_by=n__share_percent`
+   * (Opendatasoft), `sort=…` (Grist) ou `n__share_percent__sort` (Tabular,
+   * qui refuse la colonne) — mesure contre les faux serveurs du depot.
    */
   private _delegateOrderBy(
     cmd: Record<string, string>,
@@ -1193,8 +1210,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     exclusive: boolean
   ): void {
     if (!this.orderBy || !exclusive || !caps.serverOrderBy || sourceEl.orderBy) return;
+    if (this._orderByReadsWindowColumn()) return;
     // Un agregat de fenetre seul (cumul, part) garde une ligne par ligne : le
-    // tri serveur des lignes brutes reste valable.
+    // tri serveur des lignes brutes reste valable — tant qu'il porte sur
+    // elles, ce que la garde ci-dessus vient d'etablir.
     const regroupe = !!this.groupBy || this._groupAggregates().length > 0;
     if (regroupe && !this._serverDelegated.groupBy) return;
     const orderField = this.orderBy.split(':')[0] || '';
@@ -1775,9 +1794,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
     // 3. Appliquer le tri
     // Skip si delegue server-side, SAUF si needsClientProcessing (fallback)
+    // Les cles qui nomment une colonne de fenetre sont ecartees de CE tri :
+    // la colonne n'existe pas encore (3 ter).
     const needsClientSort = this.orderBy && (!this._serverDelegated.orderBy || forceClientSide);
     if (needsClientSort) {
-      result = this._applySort(result);
+      result = sortRows(result, this._orderByPartsBeforeWindow());
     }
 
     // 3 bis. Agregats de FENETRE : cumules (#738) et parts du total (#926).
@@ -1789,6 +1810,17 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const windowAggregates = this._windowAggregates();
     if (windowAggregates.length > 0) {
       result = this._applyWindowAggregates(result, windowAggregates);
+    }
+
+    // 3 ter. Tri sur une colonne de fenetre (#1244) : `order-by` nomme une
+    // part, un cumul ou un ecart, qui n'existe qu'a partir d'ici. Le tri du
+    // point 3 la cherchait dans des lignes qui ne la portaient pas encore et
+    // ne triait rien, sans un mot — sur tous les adaptateurs, regroupement
+    // compris. Il est rejoue en entier, toutes cles confondues, et jamais
+    // delegue (`_delegateOrderBy`). Avant `limit` : « les cinq plus grandes
+    // parts » sont bien les cinq plus grandes.
+    if (this._orderByReadsWindowColumn()) {
+      result = this._applySort(result);
     }
 
     // 4. Appliquer la limite (toujours client-side)
@@ -2133,14 +2165,49 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * alors l'ordre des lignes reçues, qui n'est pas un contrat (pagination,
    * ordre d'insertion de l'API). Un `order-by` posé sur la source amont reste
    * légitime, d'où un avertissement et non une erreur de configuration.
+   *
+   * Même constat quand `order-by` ne nomme QUE des colonnes de fenêtre
+   * (`order-by="montant__running_sum:desc"`, #1244) : aucun tri ne précède le
+   * cumul, qui suit l'ordre reçu ; les lignes sont triées ensuite.
    */
   private _warnRunningWithoutOrder(): void {
-    if (this.orderBy || this._runningAggregates().length === 0) return;
+    if (this._runningAggregates().length === 0) return;
+    if (this._orderByPartsBeforeWindow().length > 0) return;
+    const cause = this.orderBy
+      ? `avec un "order-by" qui ne nomme que des colonnes calculées par aggregate (${this.orderBy})`
+      : `sans "order-by"`;
     console.warn(
       `dsfr-data-query[${this.id}]: aggregate="${this.aggregate}" cumule ou compare à la ligne ` +
-        `précédente sans "order-by" — le résultat suit l'ordre des lignes reçues, qui n'est pas garanti. ` +
+        `précédente ${cause} — le résultat suit l'ordre des lignes reçues, qui n'est pas garanti. ` +
         `Ajoutez order-by (ex. order-by="mois:asc") ou assurez-vous que la source amont est triée.`
     );
+  }
+
+  /** Noms des colonnes que les agrégats de fenêtre fabriquent (part, cumul, écart). */
+  private _windowColumns(): Set<string> {
+    return new Set(this._windowAggregates().map((a) => a.alias));
+  }
+
+  /**
+   * `order-by` nomme-t-il une colonne de fenêtre (#1244) ? Une telle colonne
+   * est produite ICI, après réception et après le tri : aucun serveur ne la
+   * connaît, et elle n'existe pas encore quand le tri du pipeline passe.
+   */
+  private _orderByReadsWindowColumn(): boolean {
+    if (!this.orderBy) return false;
+    const produced = this._windowColumns();
+    if (produced.size === 0) return false;
+    return parseOrderBy(this.orderBy).some((part) => produced.has(part.field));
+  }
+
+  /**
+   * Clés de `order-by` qui portent sur des colonnes déjà là AVANT le calcul
+   * des fenêtres — celles dont un cumul dépend. Les clés de fenêtre sont
+   * rejouées après (`_processClientSide`, 3 ter).
+   */
+  private _orderByPartsBeforeWindow(): ReturnType<typeof parseOrderBy> {
+    const produced = this._windowColumns();
+    return parseOrderBy(this.orderBy).filter((part) => !produced.has(part.field));
   }
 
   /**

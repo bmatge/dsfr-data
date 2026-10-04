@@ -78,7 +78,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`\n(#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom` et affiche\n« Département » en en-tête du tableau et du CSV. Sans deux-points,\nl'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de\ncolonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne\nqui existe telle quelle dans les données, deux-points compris, est lue\ntelle quelle.",
+              "description": "Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`\n(#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom` et affiche\n« Département » en en-tête du tableau et du CSV. Sans deux-points,\nl'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de\ncolonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne\nqui existe telle quelle dans les données, deux-points compris, est lue\ntelle quelle. La colonne se lit par chemin pointé, comme sur\n`dsfr-data-chart` (#1244) : `label-field=\"fields.dep\"`.",
               "attribute": "label-field"
             },
             {
@@ -88,7 +88,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des\nvirgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du\nbanc), la grammaire de `value-field` / `value-fields` de\n`dsfr-data-chart` (#668) : `value-field=\"v_fede:Fédération sélectionnée,\nv_all:Ensemble\"` lit `v_fede` et `v_all`, et les en-têtes du tableau et\ndu CSV portent les libellés — ceux que la légende du graphique affiche\ndéjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule\nou un deux-points littéral s'échappe en `%2C` ou `%3A`.\n\nUne colonne absente des données reçues est signalée en console : le\ntableau garde ses lignes mais la colonne est vide, et un tableau vide\npasse toutes les recettes qui comptent des lignes.",
+              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des\nvirgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du\nbanc), la grammaire de `value-field` / `value-fields` de\n`dsfr-data-chart` (#668) : `value-field=\"v_fede:Fédération sélectionnée,\nv_all:Ensemble\"` lit `v_fede` et `v_all`, et les en-têtes du tableau et\ndu CSV portent les libellés — ceux que la légende du graphique affiche\ndéjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule\nou un deux-points littéral s'échappe en `%2C` ou `%3A`.\n\nChaque colonne se lit par CHEMIN POINTÉ, comme sur `dsfr-data-chart`\n(#1244) : `value-field=\"fields.total\"` lit `total` sous `fields`, et\n`fields.total:Total` lui donne un en-tête. Une colonne à plat dont le nom\ncontient réellement un point (`taux.brut`) reste lue telle quelle.\n\nUne colonne absente des données reçues est signalée en console : le\ntableau garde ses lignes mais la colonne est vide, et un tableau vide\npasse toutes les recettes qui comptent des lignes.",
               "attribute": "value-field"
             },
             {
@@ -339,7 +339,7 @@
                   }
                 }
               ],
-              "description": "Une entrée de `label-field` / `value-field` : `colonne` ou\n`colonne:Libellé` (#1230, PG-032 du banc) — l'analyseur est celui de\n`dsfr-data-chart` (`parseAliasedColumn`, #668), pas un second.\n\nSeule précaution : une colonne qui existe TELLE QUELLE dans les données,\ndeux-points compris, est lue telle quelle. Avant l'alias, l'entrée entière\nétait le nom de colonne ; un jeu dont une colonne s'appelle réellement\n`a:b` ne doit pas voir son tableau se vider."
+              "description": "Une entrée de `label-field` / `value-field` : `colonne` ou\n`colonne:Libellé` (#1230, PG-032 du banc) — l'analyseur est celui de\n`dsfr-data-chart` (`parseAliasedColumn`, #668), pas un second — et la\nlecture face aux données est partagée avec son `label-field`\n(`resolveAliasedColumn`, #1244).\n\nSeule précaution : une colonne qui existe TELLE QUELLE dans les données,\ndeux-points compris, est lue telle quelle. Avant l'alias, l'entrée entière\nétait le nom de colonne ; un jeu dont une colonne s'appelle réellement\n`a:b` ne doit pas voir son tableau se vider."
             },
             {
               "kind": "method",
@@ -658,7 +658,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`\n(#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom` et affiche\n« Département » en en-tête du tableau et du CSV. Sans deux-points,\nl'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de\ncolonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne\nqui existe telle quelle dans les données, deux-points compris, est lue\ntelle quelle.",
+              "description": "Colonne utilisée pour les labels du tableau. Alias inline `champ:Libellé`\n(#1230, PG-032 du banc), la grammaire de `dsfr-data-chart` (#668) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom` et affiche\n« Département » en en-tête du tableau et du CSV. Sans deux-points,\nl'en-tête reste le nom de la colonne. Un `:` littéral dans un nom de\ncolonne ou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne\nqui existe telle quelle dans les données, deux-points compris, est lue\ntelle quelle. La colonne se lit par chemin pointé, comme sur\n`dsfr-data-chart` (#1244) : `label-field=\"fields.dep\"`.",
               "fieldName": "labelField",
               "champ": "liste-alias"
             },
@@ -668,7 +668,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des\nvirgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du\nbanc), la grammaire de `value-field` / `value-fields` de\n`dsfr-data-chart` (#668) : `value-field=\"v_fede:Fédération sélectionnée,\nv_all:Ensemble\"` lit `v_fede` et `v_all`, et les en-têtes du tableau et\ndu CSV portent les libellés — ceux que la légende du graphique affiche\ndéjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule\nou un deux-points littéral s'échappe en `%2C` ou `%3A`.\n\nUne colonne absente des données reçues est signalée en console : le\ntableau garde ses lignes mais la colonne est vide, et un tableau vide\npasse toutes les recettes qui comptent des lignes.",
+              "description": "Colonne(s) utilisée(s) pour les valeurs du tableau (séparées par des\nvirgules). Alias inline `champ:Libellé` par colonne (#1230, PG-032 du\nbanc), la grammaire de `value-field` / `value-fields` de\n`dsfr-data-chart` (#668) : `value-field=\"v_fede:Fédération sélectionnée,\nv_all:Ensemble\"` lit `v_fede` et `v_all`, et les en-têtes du tableau et\ndu CSV portent les libellés — ceux que la légende du graphique affiche\ndéjà. Sans deux-points, l'en-tête reste le nom de la colonne. Une virgule\nou un deux-points littéral s'échappe en `%2C` ou `%3A`.\n\nChaque colonne se lit par CHEMIN POINTÉ, comme sur `dsfr-data-chart`\n(#1244) : `value-field=\"fields.total\"` lit `total` sous `fields`, et\n`fields.total:Total` lui donne un en-tête. Une colonne à plat dont le nom\ncontient réellement un point (`taux.brut`) reste lue telle quelle.\n\nUne colonne absente des données reçues est signalée en console : le\ntableau garde ses lignes mais la colonne est vide, et un tableau vide\npasse toutes les recettes qui comptent des lignes.",
               "fieldName": "valueField",
               "champ": "liste-alias"
             },
@@ -861,7 +861,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ label",
+              "description": "Chemin vers le champ label. Alias inline `champ:Libellé` (#1244), la\ngrammaire de `value-field` (#668) et de `dsfr-data-a11y` (#1230) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom`, et\n« Département » devient l'en-tête de la colonne de libellé du tableau de\nla DataBox (`databox`). Le libellé ne sert nulle part ailleurs : DSFR Chart\nn'a pas de titre d'axe, et les graduations portent les VALEURS de la\ncolonne. Sans deux-points, rien ne change. Un `:` littéral dans un chemin\nou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne qui\nexiste telle quelle dans les données, deux-points compris, est lue telle\nquelle.",
               "attribute": "label-field"
             },
             {
@@ -958,7 +958,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées\npar des virgules, même grammaire que `dsfr-data-map-layer`. Ex :\n`\"Réalisé:#000091,Objectif:#E1000F\"`. La modalité est un nom de série\n(une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe\n(une couleur par part de camembert). Les modalités non citées gardent la\ncouleur de la palette. Une virgule ou un deux-points dans une modalité\ns'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).",
+              "description": "Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées\npar des virgules, même grammaire que `dsfr-data-map-layer`. Ex :\n`\"Réalisé:#000091,Objectif:#E1000F\"`. La modalité est un nom de série\n(une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe\n(une couleur par part de camembert, par barre, ou par point d'une courbe,\nd'un radar ou d'un nuage — le trait garde la couleur de sa série, #1244).\nLes modalités non citées gardent la\ncouleur de la palette. Une virgule ou un deux-points dans une modalité\ns'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).",
               "attribute": "color-map"
             },
             {
@@ -1463,6 +1463,27 @@
                 }
               },
               "description": "Series names, in render order.\n- tidy mode (series-field) : distinct values of seriesField, in first-seen order\n- wide mode : the value field labels (alias inline `champ:Libellé`, #668)\n  or paths (value-field, value-field-2, value-fields)"
+            },
+            {
+              "kind": "field",
+              "name": "_labelSpecMemo",
+              "type": {
+                "text": "{ expr: string; data: unknown[]; spec: AliasedColumn } | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Dernière lecture de `label-field` : l'analyse ne se refait pas à chaque ligne."
+            },
+            {
+              "kind": "method",
+              "name": "_labelFieldSpec",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "AliasedColumn"
+                }
+              },
+              "description": "`label-field` sans son alias inline (#1244) : `dep:Département` → colonne\n`dep`, libellé « Département ». Même analyseur que `dsfr-data-a11y`\n(`resolveAliasedColumn`) : une colonne qui existe telle quelle dans les\ndonnées, deux-points compris, est lue telle quelle — c'était la seule\nlecture avant l'alias. Toute lecture du libellé passe par ici."
             },
             {
               "kind": "method",
@@ -2470,7 +2491,7 @@
                   "text": "string"
                 }
               },
-              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y). Chaîne vide sans colonne.\n\nLe tableau montre au plus `DATABOX_TABLE_MAX_ROWS` lignes, comme celui de\n`dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une\ncoupe muette laissait croire à un jeu de 100 lignes. La mention donne le\ntotal, pour que l'écart se lise sans compter."
+              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y). Chaîne vide sans colonne.\n\nLe tableau montre au plus `DATABOX_TABLE_MAX_ROWS` lignes, comme celui de\n`dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une\ncoupe muette laissait croire à un jeu de 100 lignes. La mention donne le\ntotal, pour que l'écart se lise sans compter.\n\nLes nombres sont rendus en fr-FR par la fonction du tableau de\n`dsfr-data-a11y` (`formatTableCell`, #1244) : « 2,27 », pas `2.27`, au\nplus 2 décimales. Seul le TEXTE des cellules change ; les valeurs passées\nà DSFR Chart (`_processData`) ne passent pas par ici."
             },
             {
               "kind": "method",
@@ -2509,9 +2530,9 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Chemin vers le champ label",
+              "description": "Chemin vers le champ label. Alias inline `champ:Libellé` (#1244), la\ngrammaire de `value-field` (#668) et de `dsfr-data-a11y` (#1230) :\n`label-field=\"dep_nom:Département\"` lit la colonne `dep_nom`, et\n« Département » devient l'en-tête de la colonne de libellé du tableau de\nla DataBox (`databox`). Le libellé ne sert nulle part ailleurs : DSFR Chart\nn'a pas de titre d'axe, et les graduations portent les VALEURS de la\ncolonne. Sans deux-points, rien ne change. Un `:` littéral dans un chemin\nou un libellé s'échappe en `%3A` (escapeColonValue) ; une colonne qui\nexiste telle quelle dans les données, deux-points compris, est lue telle\nquelle.",
               "fieldName": "labelField",
-              "champ": "nom"
+              "champ": "liste-alias"
             },
             {
               "name": "empty-label",
@@ -2602,7 +2623,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées\npar des virgules, même grammaire que `dsfr-data-map-layer`. Ex :\n`\"Réalisé:#000091,Objectif:#E1000F\"`. La modalité est un nom de série\n(une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe\n(une couleur par part de camembert). Les modalités non citées gardent la\ncouleur de la palette. Une virgule ou un deux-points dans une modalité\ns'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).",
+              "description": "Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées\npar des virgules, même grammaire que `dsfr-data-map-layer`. Ex :\n`\"Réalisé:#000091,Objectif:#E1000F\"`. La modalité est un nom de série\n(une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe\n(une couleur par part de camembert, par barre, ou par point d'une courbe,\nd'un radar ou d'un nuage — le trait garde la couleur de sa série, #1244).\nLes modalités non citées gardent la\ncouleur de la palette. Une virgule ou un deux-points dans une modalité\ns'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`).",
               "fieldName": "colorMap"
             },
             {
@@ -16979,7 +17000,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unité affichée après la valeur",
+              "description": "Unité affichée après la valeur, séparée d'elle par une espace insécable\n(comme `subtitle-unit` et l'unité de `dsfr-data-kpi`, #1244).",
               "attribute": "value-unit"
             },
             {
@@ -17675,7 +17696,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unité affichée après la valeur",
+              "description": "Unité affichée après la valeur, séparée d'elle par une espace insécable\n(comme `subtitle-unit` et l'unité de `dsfr-data-kpi`, #1244).",
               "fieldName": "valueUnit"
             },
             {
@@ -18063,7 +18084,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Tri des résultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"",
+              "description": "Tri des résultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"\n\nUne clé peut nommer une colonne de FENÊTRE produite par `aggregate` — une\npart (`n__share_percent`), un cumul (`montant__running_sum`), un écart\n(`cumul__diff`), ou leur alias (#1244). Le tri porte alors sur les lignes\nde sortie : il est appliqué ici, après le calcul de la colonne et avant\n`limit` (« les cinq plus grandes parts »), et n'est jamais délégué au\nserveur, qui ne connaît pas cette colonne. Les autres clés du même\n`order-by` gardent leur rôle : ce sont elles qui ordonnent les lignes\nAVANT un cumul. Un cumul trié sur sa seule colonne est donc calculé dans\nl'ordre des lignes reçues — un avertissement console le signale.",
               "attribute": "order-by"
             },
             {
@@ -18558,7 +18579,7 @@
                   }
                 }
               ],
-              "description": "Delegate order-by.\n\nJamais quand un regroupement ou un agregat est demande SANS avoir ete\ndelegue (#1045) : le tri porte alors sur les lignes de SORTIE, calculees\nici, et son champ (`pop`, `population__sum`) n'existe pas dans les lignes\nbrutes que le serveur trierait — Tabular repond 400 (42703 « column …\ndoes not exist », mesure du 2026-09-23), sans en-tete CORS. Le tri reste\ncote client, apres le regroupement, qui seul le rend juste."
+              "description": "Delegate order-by.\n\nJamais quand un regroupement ou un agregat est demande SANS avoir ete\ndelegue (#1045) : le tri porte alors sur les lignes de SORTIE, calculees\nici, et son champ (`pop`, `population__sum`) n'existe pas dans les lignes\nbrutes que le serveur trierait — Tabular repond 400 (42703 « column …\ndoes not exist », mesure du 2026-09-23), sans en-tete CORS. Le tri reste\ncote client, apres le regroupement, qui seul le rend juste.\n\nJamais non plus quand une cle du tri nomme une colonne de FENETRE (part,\ncumul, ecart, #1244) : elle est fabriquee ici, apres reception, et aucun\nserveur ne la connait. `aggregate=\"n:share_percent\"\norder-by=\"n__share_percent:desc\"` partait en `order_by=n__share_percent`\n(Opendatasoft), `sort=…` (Grist) ou `n__share_percent__sort` (Tabular,\nqui refuse la colonne) — mesure contre les faux serveurs du depot."
             },
             {
               "kind": "method",
@@ -19177,7 +19198,40 @@
                   "text": "void"
                 }
               },
-              "description": "Avertit qu'un cumul est demandé sans `order-by` (#738) : le résultat suit\nalors l'ordre des lignes reçues, qui n'est pas un contrat (pagination,\nordre d'insertion de l'API). Un `order-by` posé sur la source amont reste\nlégitime, d'où un avertissement et non une erreur de configuration."
+              "description": "Avertit qu'un cumul est demandé sans `order-by` (#738) : le résultat suit\nalors l'ordre des lignes reçues, qui n'est pas un contrat (pagination,\nordre d'insertion de l'API). Un `order-by` posé sur la source amont reste\nlégitime, d'où un avertissement et non une erreur de configuration.\n\nMême constat quand `order-by` ne nomme QUE des colonnes de fenêtre\n(`order-by=\"montant__running_sum:desc\"`, #1244) : aucun tri ne précède le\ncumul, qui suit l'ordre reçu ; les lignes sont triées ensuite."
+            },
+            {
+              "kind": "method",
+              "name": "_windowColumns",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Set<string>"
+                }
+              },
+              "description": "Noms des colonnes que les agrégats de fenêtre fabriquent (part, cumul, écart)."
+            },
+            {
+              "kind": "method",
+              "name": "_orderByReadsWindowColumn",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "`order-by` nomme-t-il une colonne de fenêtre (#1244) ? Une telle colonne\nest produite ICI, après réception et après le tri : aucun serveur ne la\nconnaît, et elle n'existe pas encore quand le tri du pipeline passe."
+            },
+            {
+              "kind": "method",
+              "name": "_orderByPartsBeforeWindow",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "ReturnType<typeof parseOrderBy>"
+                }
+              },
+              "description": "Clés de `order-by` qui portent sur des colonnes déjà là AVANT le calcul\ndes fenêtres — celles dont un cumul dépend. Les clés de fenêtre sont\nrejouées après (`_processClientSide`, 3 ter)."
             },
             {
               "kind": "method",
@@ -19517,7 +19571,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Tri des résultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"",
+              "description": "Tri des résultats\nFormat: \"field:direction\" ou \"field__function:direction\"\nEx: \"total_pop:desc\" ou \"population__sum:desc\"\n\nUne clé peut nommer une colonne de FENÊTRE produite par `aggregate` — une\npart (`n__share_percent`), un cumul (`montant__running_sum`), un écart\n(`cumul__diff`), ou leur alias (#1244). Le tri porte alors sur les lignes\nde sortie : il est appliqué ici, après le calcul de la colonne et avant\n`limit` (« les cinq plus grandes parts »), et n'est jamais délégué au\nserveur, qui ne connaît pas cette colonne. Les autres clés du même\n`order-by` gardent leur rôle : ce sont elles qui ordonnent les lignes\nAVANT un cumul. Un cumul trié sur sa seule colonne est donc calculé dans\nl'ordre des lignes reçues — un avertissement console le signale.",
               "fieldName": "orderBy"
             },
             {
