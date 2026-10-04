@@ -23,11 +23,11 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-04) : **314 contrôles déterministes** et **36 contrôles vivants**,
-répartis en onze domaines, pour 697 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+État du dépôt (mesuré le 2026-10-05) : **316 contrôles déterministes** et **36 contrôles vivants**,
+répartis en onze domaines, pour 703 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 514 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 520 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -926,6 +926,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `formatDate` rend la chaîne ISO | `format-date` | affiché « 2026-12-15 », recalculé « 15/12/2026 » |
 | affichages | `evolution` divise par la dernière valeur | `kpi-evolution-en-pourcentage` | affiché 28,6 %, recalculé 40 |
 | affichages | `countDistinct` rend `size + 1` | `kpi-distinct-et-count-filtre` | affiché 5, recalculé 4 |
+| affichages | la tuile en panne rend `formatValue(0)` à la place du tiret (`_renderUnavailable`, `dsfr-data-kpi.ts`) | `kpi-source-introuvable-pas-un-nombre`, `kpi-source-en-panne-apres-chargement` | « affiché « 0 » (0), recalculé — » sur les cinq tuiles en panne ; le témoin, sur le jeu servi, reste à 15 909 531 (#1222) |
+| affichages | la tuile en panne rend la valeur calculée sur les lignes en mémoire (`_renderUnavailable`, `dsfr-data-kpi.ts`) | `kpi-source-en-panne-apres-chargement` | « affiché « 15 909 531 », recalculé — » et « affiché « 48 », recalculé — » : l'ancien chiffre sous une panne ; la source en 404 dès le départ, qui n'a jamais rien reçu, reste verte (#1222) |
+| affichages | l'état d'erreur n'est plus relu au montage (`_subscribeToSource`, `core/utils/source-subscriber.ts`) | `kpi-source-en-panne-apres-chargement` | « k-tardif : affiché « 15 909 531 », recalculé — » : la tuile montée après la panne ressort le chiffre resté en cache, à côté de deux voisines qui disent la panne (#1222) |
 | affichages | `last` lit la première ligne | `kpi-premiere-et-derniere-ligne` | affiché 120, recalculé 168 |
 | affichages | `evaluateParsed` ignore `rowFilter` | `kpi-filtre-entre-accolades-776` | affiché 100,00 %, recalculé 23,46 (#776) |
 | affichages | `meta:total` rend les lignes reçues | `kpi-meta-total-contre-count` | affiché 20, recalculé 137 — #659 |

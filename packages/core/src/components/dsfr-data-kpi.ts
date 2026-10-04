@@ -1527,9 +1527,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
         /* ------------------------------------------------------------------
            Source en panne (issue 1222) : forme compacte. ADDITIF, comme l'habillage.
-           Hauteur visée : celle d'une tuile normale (140 px) — le bouton de
-           44 px déborde de la ligne du tiret par des marges négatives, la
-           phrase est en 0,75 rem et collée au libellé.
+           Hauteur visée : celle d'une tuile normale (140 px, mesurée par
+           e2e/kpi-source-en-panne.spec.ts) — le bouton de 44 px déborde de la
+           ligne du tiret par des marges négatives, la phrase est en 0,75 rem
+           et reprend l'écart qui la séparerait du libellé.
            ------------------------------------------------------------------ */
         .dsfr-data-kpi__value--unavailable {
           color: var(--text-mention-grey);
@@ -1546,7 +1547,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
           flex-wrap: wrap;
           align-items: baseline;
           column-gap: 0.75rem;
-          margin-top: -0.25rem;
+          margin-top: -0.5rem;
           font-size: 0.75rem;
           line-height: 1.25rem;
           color: var(--text-mention-grey);
