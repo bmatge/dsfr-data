@@ -584,7 +584,7 @@ pas de l'extérieur, se lit dans la configuration.
 | C-SSRF-6 — https, 443, certificat ; adresse résolue publique | tenue | **config.** pour https, 443 et le certificat ; **limite** : l'adresse résolue n'est pas vérifiée |
 | C-SSRF-7 — redirections | tenue (suivies si elles repassent tout) | **tenue** — jamais suivies, toujours 502 |
 | C-MET-1 — GET, HEAD, OPTIONS | tenue | **tenue** ; `TRACE` : refusé, mais `avant-routage` |
-| C-MET-2, C-MET-3 — pas de corps, HEAD, OPTIONS | tenue | **tenue** |
+| C-MET-2, C-MET-3 — pas de corps, HEAD, OPTIONS | tenue | **tenue** (requête avec corps refusée, 400) |
 | C-INJ-1 — CR, LF, NUL | tenue | **tenue** |
 | C-AMONT-1, C-AMONT-2 — rien du visiteur, clé par hôte | tenue | **tenue** |
 | C-NAV-1 — en-têtes de l'amont retenus | tenue (liste blanche) | **tenue** pour ceux que la suite envoie ; **limite** : liste noire, un en-tête non nommé traverse |
@@ -596,7 +596,7 @@ pas de l'extérieur, se lit dans la configuration.
 | C-CACHE-3 — seules les 200 en cache | tenue | **tenue** pour 429 et 5xx ; **limite** `memo-une-seconde` ; **limite** : réponse délimitée par la fermeture |
 | C-CACHE-4 — cache borné | tenue | **config.** (`max_size`) |
 | C-CACHE-5 — périmé si l'amont tombe | tenue | **tenue** (observations) ; **limite** : fenêtre bornée par `inactive`, pas par l'âge |
-| C-CACHE-6 — purge sur 401, 403, 404, 410 | tenue | **tenue** (observations), par le mémo d'une seconde |
+| C-CACHE-6 — purge sur 401, 403, 404, 410 | tenue | **tenue en régime établi** (observations), par le mémo d'une seconde ; **limite** : pas dans la minute qui suit un démarrage de nginx, ni après un redémarrage si le cache n'est pas vidé |
 | C-DOS-1 — délai | tenue (global) | **tenue** pour un amont muet ; **limite** : délai entre deux lectures, pas global |
 | C-DOS-2 — taille plafonnée | tenue | **limite** `taille` |
 | C-DOS-3 — débit par adresse | tenue (par /64 en IPv6) | **tenue** (par adresse entière en IPv6), plus un budget par hôte |

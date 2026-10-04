@@ -313,6 +313,7 @@ describe.skipIf(!ACTIF)('relais cachable — extrait nginx, nginx réel', () => 
           server: ['relais/mandataire-node.server.conf'],
         }
       );
+      const demarreA = Date.now();
       docker([
         'run',
         '-d',
@@ -339,6 +340,9 @@ describe.skipIf(!ACTIF)('relais cachable — extrait nginx, nginx réel', () => 
       const run = lancerNodeTest('tests/relay/nginx/observations.test.mjs', {
         OBS_RELAIS_URL: `http://127.0.0.1:${banc.PORT_OBSERVATION}/donnees-relais`,
         OBS_MANDATAIRE_URL: `http://127.0.0.1:${banc.PORT_MANDATAIRE}/donnees-relais`,
+        // nginx ne charge son cache qu'une minute après son démarrage : une partie des
+        // observations attend ce moment.
+        OBS_DEMARRE_A: String(demarreA),
       });
       resultats = run.resultats;
       sortie = run.sortie;

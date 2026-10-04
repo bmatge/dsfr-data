@@ -154,9 +154,9 @@ ${extra}
 }
 
 /**
- * Trois `location` NAÏVES, pour le banc d'observation seulement : ce que `proxy_pass`
- * transmet à l'amont selon sa forme. Aucune n'est dans l'extrait ; elles sont là pour
- * montrer pourquoi.
+ * Quatre `location` NAÏVES, pour le banc d'observation seulement : ce que `proxy_pass`
+ * transmet à l'amont selon sa forme, et ce que `proxy_pass_request_body off` laisse
+ * passer. Aucune n'est dans l'extrait ; elles sont là pour montrer pourquoi.
  */
 export const LOCATIONS_NAIVES = `
         # proxy_pass AVEC URI : nginx remplace le préfixe et transmet le chemin NORMALISÉ.
@@ -170,5 +170,11 @@ export const LOCATIONS_NAIVES = `
         # proxy_pass avec une variable : exactement la valeur de la variable.
         location /naif-variable/ {
             proxy_pass http://${AMONT_BANC}$request_uri;
+        }
+        # proxy_pass_request_body off, sans rien d'autre : le corps n'est pas transmis,
+        # sa longueur si.
+        location /naif-corps/ {
+            proxy_pass_request_body off;
+            proxy_pass http://${AMONT_BANC};
         }
 `;

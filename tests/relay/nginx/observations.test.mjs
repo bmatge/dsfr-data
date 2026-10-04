@@ -37,6 +37,9 @@ const BIG_BYTES = 3 * 1024 * 1024;
  * compte en secondes entières.
  */
 const PEREMPTION_MS = 2300;
+/** Démarrage du nginx observé (posé par le pont) ; son cache est chargé une minute après. */
+const STARTED_AT = Number(process.env.OBS_DEMARRE_A ?? Date.now());
+const CACHE_LOADED_MS = 75_000;
 
 /** @type {Awaited<ReturnType<typeof startFakeUpstream>>} */
 let upstream;
@@ -195,6 +198,28 @@ describe('extrait nginx — le cache périmé (C-CACHE-5, C-CACHE-6)', () => {
     return first;
   }
 
+  test('C-CACHE-6 — LIMITE : dans la minute qui suit le démarrage de nginx, une donnée retirée est resservie à la panne suivante', async () => {
+    // nginx ne charge son cache qu'une minute après avoir démarré. D'ici là il va
+    // chercher sur disque l'entrée qu'il vient d'oublier, et y retrouve l'ancien fichier.
+    assert.ok(
+      Date.now() - STARTED_AT < 50_000,
+      'trop tard pour observer la fenêtre de démarrage : le banc a pris plus de 50 s'
+    );
+    const m = mark();
+    const path = `/${ALLOWED_HOST}/${m}/suite/200-404-500`;
+    const first = await primed(path);
+    assert.equal((await relais.call(path)).status, 404, 'la donnée a été retirée');
+    await sleep(PEREMPTION_MS);
+    const afterOutage = await relais.call(path);
+    assert.equal(
+      afterOutage.status,
+      200,
+      'la limite est levée : la retirer du README de l’extrait et de docs/RELAY.md'
+    );
+    assert.equal(afterOutage.headers['x-relay-cache'], 'STALE');
+    assert.equal(afterOutage.text, first.text);
+  });
+
   for (const failure of [500, 502, 503, 504, 429]) {
     test(`C-CACHE-5 — l’amont répond ${failure} : la réponse périmée est servie (STALE)`, async () => {
       const m = mark();
@@ -214,28 +239,6 @@ describe('extrait nginx — le cache périmé (C-CACHE-5, C-CACHE-6)', () => {
     await primed(path);
     assert.equal((await relais.call(path)).status, 400);
   });
-
-  for (const [gone, expected] of [
-    [401, 403],
-    [403, 403],
-    [404, 404],
-    [410, 410],
-  ]) {
-    test(`C-CACHE-6 — l’amont répond ${gone}, puis tombe : 502, pas l’ancienne donnée`, async () => {
-      const m = mark();
-      const path = `/${ALLOWED_HOST}/${m}/suite/200-${gone}-500`;
-      await primed(path);
-      assert.equal((await relais.call(path)).status, expected, 'la donnée a été retirée');
-      await sleep(PEREMPTION_MS);
-      const afterOutage = await relais.call(path);
-      assert.equal(
-        afterOutage.status,
-        502,
-        'C-CACHE-6 : la panne qui suit un retrait ressert la donnée retirée'
-      );
-      assert.equal(upstream.seen(m).length, 3);
-    });
-  }
 
   test('C-CACHE-1 — une réponse servie par le cache garde ses en-têtes de cache (HIT)', async () => {
     const path = `/${ALLOWED_HOST}/donnees.json?${mark()}`;
@@ -392,15 +395,55 @@ describe('ce que `proxy_pass` transmet à l’amont pour un chemin piégé', () 
     }
   });
 
-  test('ce que montrent les formes naïves (README de l’extrait)', () => {
-    // Avec URI : nginx résout la remontée et transmet un AUTRE chemin que celui demandé.
-    assert.equal(table['remontée']['/naif-uri/'], '/b');
-    assert.equal(table['remontée encodée']['/naif-uri/'], '/b');
-    // … et réencode : la cible n'arrive pas octet pour octet (C-URL-1).
-    assert.notEqual(table['octets encodés en minuscules']['/naif-uri/'], '/caf%c3%a9');
+  test('le tableau du README de l’extrait est ce que nginx fait', () => {
+    const row = (label) => [
+      table[label]['/naif-uri/'],
+      table[label]['/naif-brut/'],
+      table[label]['/naif-variable/'],
+    ];
+    // Avec URI : nginx résout la remontée, fusionne les barres, décode `%2f` en barre, et
+    // réencode à sa façon — la cible n'arrive pas octet pour octet (C-URL-1).
     // Sans URI et par variable : la forme brute arrive telle quelle, remontée comprise.
-    assert.equal(table['remontée encodée']['/naif-variable/'], '/naif-variable/a/%2e%2e/b');
-    assert.equal(table['remontée encodée']['/naif-brut/'], '/naif-brut/a/%2e%2e/b');
+    assert.deepEqual(row('remontée'), ['/b', '/naif-brut/a/../b', '/naif-variable/a/../b']);
+    assert.deepEqual(row('remontée encodée'), [
+      '/b',
+      '/naif-brut/a/%2e%2e/b',
+      '/naif-variable/a/%2e%2e/b',
+    ]);
+    assert.deepEqual(row('barre encodée'), ['/a/b', '/naif-brut/a%2fb', '/naif-variable/a%2fb']);
+    assert.deepEqual(row('barre double'), ['/a/b', '/naif-brut/a//b', '/naif-variable/a//b']);
+    assert.deepEqual(row('octets encodés en minuscules'), [
+      '/caf%C3%A9',
+      '/naif-brut/caf%c3%a9',
+      '/naif-variable/caf%c3%a9',
+    ]);
+    assert.deepEqual(row('caractère sûr encodé'), [
+      '/abc',
+      '/naif-brut/%61bc',
+      '/naif-variable/%61bc',
+    ]);
+  });
+
+  test('`proxy_pass_request_body off` retire le corps, pas sa longueur : l’amont reçoit un `Content-Length` sans corps', async () => {
+    const m = mark();
+    await relais.call(`/naif-corps/x?${m}`, { absolute: true, body: 'corps-du-visiteur' });
+    const [request] = upstream.seen(m);
+    assert.equal(request.headers['content-length'], '17');
+    assert.equal(request.bodyBytes, 0);
+  });
+
+  test('l’extrait : un GET avec corps est refusé (400), et la requête suivante n’en souffre pas', async () => {
+    const m = mark();
+    const path = `/${ALLOWED_HOST}/donnees.json?${m}`;
+    const refused = await relais.call(path, { body: 'corps-du-visiteur' });
+    assert.equal(refused.status, 400);
+    assert.equal(JSON.parse(refused.text).error, 'body-not-allowed');
+    assert.equal(upstream.seen(m).length, 0);
+    assertRelayHeaders(refused, 'corps');
+    for (let index = 0; index < 12; index += 1) {
+      const head = await relais.call(`/${ALLOWED_HOST}/donnees.json?${mark()}`, { method: 'HEAD' });
+      assert.equal(head.status, 200, 'la connexion vers l’amont a été désynchronisée');
+    }
   });
 });
 
@@ -430,5 +473,49 @@ describe('nginx placé devant le relais Node (mandataire-node.*.conf)', () => {
       'aucun 429 : chaque adresse forgée a eu son quota, nginx transmet l’en-tête du client'
     );
     assert.deepEqual(reference.warnings, [], 'le relais a vu une requête sans X-Forwarded-For');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// En DERNIER : il faut que nginx ait chargé son cache, une minute après son démarrage.
+describe('extrait nginx — la purge (C-CACHE-6), cache chargé', () => {
+  before(async () => {
+    const remaining = STARTED_AT + CACHE_LOADED_MS - Date.now();
+    if (remaining > 0) await sleep(remaining);
+  });
+
+  for (const [gone, expected] of [
+    [401, 403],
+    [403, 403],
+    [404, 404],
+    [410, 410],
+  ]) {
+    test(`C-CACHE-6 — l’amont répond ${gone}, puis tombe : 502, pas l’ancienne donnée`, async () => {
+      const m = mark();
+      const path = `/${ALLOWED_HOST}/${m}/suite/200-${gone}-500`;
+      const first = await relais.call(path);
+      assert.equal(first.status, 200);
+      await sleep(PEREMPTION_MS);
+      assert.equal((await relais.call(path)).status, expected, 'la donnée a été retirée');
+      await sleep(PEREMPTION_MS);
+      const afterOutage = await relais.call(path);
+      assert.equal(
+        afterOutage.status,
+        502,
+        'C-CACHE-6 : la panne qui suit un retrait ressert la donnée retirée'
+      );
+      assert.equal(upstream.seen(m).length, 3);
+    });
+  }
+
+  test('C-CACHE-5 tient toujours une fois le cache chargé : STALE sur une panne', async () => {
+    const m = mark();
+    const path = `/${ALLOWED_HOST}/${m}/suite/200-500`;
+    const first = await relais.call(path);
+    await sleep(PEREMPTION_MS);
+    const stale = await relais.call(path);
+    assert.equal(stale.status, 200);
+    assert.equal(stale.headers['x-relay-cache'], 'STALE');
+    assert.equal(stale.text, first.text);
   });
 });

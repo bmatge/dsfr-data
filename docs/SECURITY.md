@@ -112,6 +112,59 @@ Aucune n'est imposée par le dépôt : elles dépassent la configuration nginx. 
 - `tests/proxy/garde-proxy-coherence.test.ts` — test-garde : les motifs des `map` nginx sont ceux du module, les blocs `location` sont identiques d'un fichier à l'autre, et la table de cas (`tests/proxy/cas-garde-proxy.ts`) est évaluée sur les `map` relues.
 - `tests/proxy/garde-proxy-nginx.test.ts` — job CI `proxy-nginx` : `nginx -t` sur les trois configurations, puis la même table rejouée par un vrai nginx dans un conteneur sans réseau.
 
+## Relais cachable — ce qu'il rend public
+
+Le relais cachable (ADR-155) est une route qu'un **site intégrateur** fournit pour que les données de ses dataviz passent par son domaine : `<relais>/<hôte>/<chemin>?<requête>`. Il n'est pas déployé sur l'instance publique, et ce n'est pas le proxy générique ci-dessus. Son contrat, règle par règle, est dans [`RELAY.md`](RELAY.md) ; cette section dit ce qui le distingue et ce qu'il expose.
+
+### En quoi il diffère du proxy générique
+
+| | Proxy générique (`/cors-proxy`) | Relais cachable |
+|---|---|---|
+| Qui choisit la destination | le client, dans `X-Target-URL` — tout hôte public en `https` | l'opérateur du relais : **liste blanche exacte** d'hôtes, et de préfixes de chemin par hôte |
+| Ce qui borne | la forme de la cible (pas d'adresse, pas de port, pas de nom local) et le débit | l'appartenance à la liste ; un hôte hors liste est refusé sans contacter personne |
+| Méthodes | `GET`, `POST` | `GET`, `HEAD`, `OPTIONS` : **lecture seule**, aucun corps transmis |
+| En-têtes du visiteur | transmis à l'amont, `Authorization` compris (cookies de l'instance exceptés) | **aucun** n'est transmis |
+| Clé d'API | celle de l'usager, envoyée par son navigateur, pour lui seul | celle de l'opérateur, **détenue par le relais**, la même pour tout le monde |
+| Réponse | propre à l'appelant, jamais mise en cache | **publique et mise en cache**, sous l'URL seule |
+| Redirection de l'amont | rendue telle quelle | jamais rendue au navigateur |
+
+La conséquence va dans les deux sens. Le relais n'est pas un relais ouvert : la question du proxy générique — « vers où le serveur peut-il être envoyé ? » — y est fermée par la liste blanche. Mais il pose une question que le proxy générique ne pose pas : **qu'est-ce que la clé du relais donne à lire à n'importe qui ?**
+
+### La clé détenue par le relais
+
+Le relais répond sans authentification, à toute origine (`Access-Control-Allow-Origin: *`), et met ses réponses en cache. Il ne distingue pas la dataviz de la page d'un inconnu qui écrit l'URL à la main.
+
+> **Une clé confiée au relais rend public tout ce qu'elle sait lire sur l'hôte autorisé, dans les préfixes de chemin autorisés.** Y compris ce que l'amont dit privé : une réponse portant `Set-Cookie`, `Cache-Control: private` ou `no-store` est servie `public` comme les autres.
+
+Trois obligations en découlent, pour l'opérateur du relais :
+
+1. **Clé en lecture seule**, dédiée au relais, au périmètre le plus étroit que le portail délivre. Le relais ne transmet aucune écriture, mais une clé qui en a le droit reste une clé qui fuit plus cher.
+2. **Préfixes de chemin** pour tout hôte à clé : seuls les jeux destinés à être publics. Le relais Node refuse de démarrer sans ; avec l'extrait nginx, c'est une ligne de la `location` de l'hôte, qu'il faut écrire.
+3. **La clé hors du dépôt et hors des pages** : variable d'environnement pour le relais Node, fichier de configuration lisible par root seul pour nginx. Elle n'apparaît dans aucune réponse ni aucun journal du relais.
+
+Si une donnée ne doit pas être publique, elle ne passe pas par un relais.
+
+### Ce que le relais ne doit jamais faire sur l'origine du site
+
+Monté sur l'origine du site (le cas recommandé), le relais sert des réponses venues d'un tiers sous le domaine du site. D'où : jamais de `Set-Cookie` de l'amont ; types de contenu en liste fermée (JSON, GeoJSON, CSV), jamais de HTML, de SVG ni de script ; `X-Content-Type-Options: nosniff` et `Content-Security-Policy: default-src 'none'; sandbox` sur toute réponse ; aucune redirection de l'amont rendue au navigateur.
+
+### Ce que les deux relais livrés ne couvrent pas de la même façon
+
+Le relais Node de référence tient le contrat en entier, dont deux défenses que nginx seul n'a pas : il **vérifie l'adresse** vers laquelle résout un hôte autorisé (jamais une adresse privée, et il se connecte à l'adresse qu'il a vérifiée), et il **plafonne la taille** d'une réponse. L'extrait nginx a quatre limites face à la suite de conformance, et quelques autres que la suite ne voit pas (liste noire d'en-têtes de réponse, pas de délai global, journal d'erreurs de nginx) : elles sont écrites dans [`proxy/relay/nginx/README.md`](../proxy/relay/nginx/README.md) et dans [`RELAY.md` §10](RELAY.md#10-lextrait-nginx-et-ce-que-garantit-chaque-relais). Aucun des deux ne remplace l'isolation réseau : comme pour le proxy générique, ne jamais accorder de confiance à une adresse source interne.
+
+Deux règles viennent de la relecture de sécurité du relais (#1254) et concernent tout opérateur :
+
+- **C-DOS-5** — derrière un mandataire, l'adresse du visiteur se lit dans un en-tête que le mandataire **pose**, jamais dans un en-tête qu'il transmet. Avec nginx : `proxy_set_header X-Forwarded-For $remote_addr;`. Un `proxy_pass` nu laisse chaque requête forger son adresse, donc son quota.
+- **C-CACHE-6** — une 401, 403, 404 ou 410 de l'amont **purge** l'entrée du cache : sans cela, la panne suivante resservirait en « périmé » la donnée que le portail vient de dépublier.
+
+Les journaux du relais contiennent les URL, donc ce que l'usager a tapé dans une recherche déléguée : le relais Node ne journalise pas la requête par défaut ; la **durée de conservation est à fixer par l'opérateur**.
+
+### Comment c'est tenu
+
+- `tests/relay/conformance.test.mjs` — la suite de conformance du contrat (140 tests), jouée contre le relais Node par `npm run test:run`, et contre un vrai nginx chargé de l'extrait par le job CI `relais-nginx`.
+- `tests/relay/reference/` — ce qui ne s'observe pas de l'extérieur, sur le relais Node : adresse privée après résolution, rebond DNS, connecteur TLS, cache borné, purge, journaux, mandataire.
+- `tests/relay/nginx/` — le banc de l'extrait nginx ne diffère de la production que par l'adresse de l'amont ; la liste des tests rouges contre nginx doit être exactement celle des limites documentées.
+
 ## Frontend — défenses navigateur
 
 Côté client, quatre couches protègent contre l'injection et le détournement de scripts :

@@ -179,11 +179,11 @@ n'en diffère que par l'adresse de l'amont ([`tests/relay/nginx/`](../../../test
 | Préfixes de chemin (C-SSRF-5) | `if ($relais_cible !~ "^\Q…\E")` dans la `location` de l'hôte. |
 | https, 443, SNI, certificat vérifié (C-SSRF-6, en partie) | Bloc `upstream` sur `:443`, `proxy_ssl_server_name`, `proxy_ssl_verify`, autorités du système. |
 | Aucune redirection suivie ni rendue (C-SSRF-7) | Toute 3xx de l'amont devient 502. |
-| GET, HEAD, OPTIONS (C-MET-1 à 3) | 405 avec `Allow` ; OPTIONS répondu sans amont, sans `Access-Control-Allow-Headers` ; aucun corps transmis. |
+| GET, HEAD, OPTIONS (C-MET-1 à 3) | 405 avec `Allow` ; OPTIONS répondu sans amont, sans `Access-Control-Allow-Headers` ; une requête avec corps est refusée (400). |
 | Rien du visiteur vers l'amont (C-AMONT-1, C-AMONT-2) | `proxy_pass_request_headers off` : seuls partent `Host`, `Accept`, `Accept-Encoding`, `User-Agent` fixes et la clé de l'hôte. |
 | En-têtes vers le navigateur (C-NAV-1, 2, 4, 5) | En-têtes de l'amont retirés par leur nom ; `nosniff`, CSP, CORS et `Access-Control-Expose-Headers: Retry-After` sur toute réponse du relais, erreurs comprises. |
 | Cache (C-CACHE-1 à 5) | Clé = hôte et cible brute ; seules les 200 gardées ; `Cache-Control` du contrat ; périmé servi si l'amont tombe, répond 5xx ou 429. |
-| Purge (C-CACHE-6) | Par le mémo d'une seconde décrit plus bas. |
+| Purge (C-CACHE-6) | Par le mémo d'une seconde décrit plus bas — en régime établi seulement. |
 | Erreurs (§5 du contrat) | Statuts du barème, corps JSON fixe, `no-store`. |
 | Débit (C-DOS-3), simultanéité (C-DOS-4) | `limit_req` par adresse et par hôte, `limit_conn` par adresse, `max_conns` par hôte. |
 
@@ -198,8 +198,23 @@ la raison dite ici (`tests/relay/nginx/limites.mjs`). Ce qui tient malgré tout 
 |---|---|---|---|
 | `avant-routage` (3 tests) | C-NAV-2, C-NAV-4 | nginx répond **lui-même**, avant de choisir une `location`, à `TRACE` (405) et à un `%00` dans l'URL (400) — comme à une requête illisible, des en-têtes trop longs ou une URL de plus de 16 000 caractères. Ces réponses sont celles du site : page HTML de nginx, sans CORS, sans `nosniff`, sans la CSP du relais. | L'amont n'est pas contacté. La page est celle que nginx rend à toute URL du site, rien de la requête n'y figure. |
 | `type-de-contenu` (12 tests) | C-NAV-3 | nginx ne sait pas **refuser** une réponse sur son type. Un type hors liste (HTML, SVG, script, `application/json+xml`, type absent…) n'est pas répondu 502 : le corps est servi, sous `application/octet-stream`. | Jamais sous son type d'origine ; toujours avec `nosniff` et `Content-Security-Policy: default-src 'none'; sandbox`. Le type est comparé en entier à une liste fermée. |
-| `memo-une-seconde` (1 test) | C-CACHE-3 | Une 401, 403, 404 ou 410 de l'amont est retenue **une seconde** dans le cache de nginx. C'est le seul moyen qu'a nginx de remplacer l'entrée : sans cela, la panne suivante resservirait en « périmé » la donnée que le portail vient de retirer (C-CACHE-6). | La réponse reste `no-store` pour le navigateur et tout cache placé devant. Passé la seconde, la requête repart à l'amont. 429 et 5xx ne sont jamais retenus. |
+| `memo-une-seconde` (1 test) | C-CACHE-3 | Une 401, 403, 404 ou 410 de l'amont est retenue **une seconde** dans le cache de nginx. C'est le seul moyen qu'a nginx de faire oublier l'entrée : sans cela, la panne suivante resservirait en « périmé » la donnée que le portail vient de retirer (C-CACHE-6). | La réponse reste `no-store` pour le navigateur et tout cache placé devant. Passé la seconde, la requête repart à l'amont. 429 et 5xx ne sont jamais retenus. |
 | `taille` (2 tests) | C-DOS-2 | nginx n'a **pas de plafond de taille de réponse** : une réponse de plusieurs centaines de Mo est relayée et écrite dans le cache. | `max_size` borne le disque ; une réponse dont la longueur déclarée n'est pas tenue n'est pas mise en cache. |
+
+**La purge de C-CACHE-6 ne tient qu'en régime établi** *(observé)*. nginx n'efface pas le
+fichier de l'entrée oubliée : il cesse de le chercher. Or il ne charge l'index de son cache
+qu'**une minute après son démarrage**, et d'ici là il va lire sur disque toute entrée qu'il ne
+connaît pas. Deux conséquences :
+
+- dans la minute qui suit un démarrage, une donnée que le portail vient de retirer (404) est
+  resservie à la panne suivante — mesuré ;
+- après un **redémarrage**, l'ancien fichier d'une donnée retirée, s'il est encore sur disque
+  (il le reste tant que l'URL est demandée au moins une fois par `inactive`), redevient une entrée
+  périmée comme une autre — lu dans le code de nginx, non mesuré.
+
+Un rechargement (`nginx -s reload`) n'est pas un démarrage : l'index est conservé. Pour fermer ce
+reste, **vider le cache du relais à chaque démarrage de nginx** (`rm -rf /var/cache/nginx/relais/*`
+avant `nginx`, par exemple en `ExecStartPre`) — ou prendre la variante stricte ci-dessous.
 
 Pour être strict sur C-CACHE-3 au prix de C-CACHE-5 : retirer `proxy_cache_valid 401 403 404 410
 1s;` **et** les conditions `error timeout invalid_header http_500 http_502 http_503 http_504
@@ -251,11 +266,14 @@ dépend de l'écriture de `proxy_pass` *(observé)* :
 | `/p/a/../b` | `/b` | `/p/a/../b` | `/p/a/../b` | refus (400) |
 | `/p/a/%2e%2e/b` | `/b` | `/p/a/%2e%2e/b` | `/p/a/%2e%2e/b` | refus (400) |
 | `/p/a//b` | `/a/b` | `/p/a//b` | `/p/a//b` | refus (400) |
+| `/p/a%2fb` | `/a/b` | `/p/a%2fb` | `/p/a%2fb` | refus (400) |
 | `/p/caf%c3%a9` | `/caf%C3%A9` | `/p/caf%c3%a9` | `/p/caf%c3%a9` | `/caf%c3%a9` |
+| `/p/%61bc` | `/abc` | `/p/%61bc` | `/p/%61bc` | `/%61bc` |
 
 - **Avec URI**, nginx remplace le préfixe et envoie le chemin normalisé, réencodé à sa façon : une
-  remontée devient un autre chemin (resté sous le préfixe, mais ce n'est plus la requête), et
-  l'encodage change — la cible n'arrive pas octet pour octet, ce qu'exige R3.
+  remontée devient un autre chemin (resté sous le préfixe, mais ce n'est plus la requête), une
+  barre encodée devient une barre, et l'encodage change — la cible n'arrive pas octet pour octet,
+  ce qu'exige R3.
 - **Sans URI**, la cible part telle que reçue, préfixe du relais compris : inutilisable ici.
 - **Avec une variable**, nginx envoie exactement la valeur de la variable : la forme brute, donc
   aussi les remontées, qui atteignent l'amont.
@@ -265,6 +283,20 @@ brute est déjà canonique. Une cible admise arrive octet pour octet ; une cible
 Deux contrôles vont ensemble, parce que le routage et la transmission ne lisent pas la même
 chose : la `location` (chemin normalisé) et la comparaison de l'hôte brut. `/donnees-relais/x/../donnees.portail.example/…`
 atteint la `location` de l'hôte, et y est refusé : son segment d'hôte brut est `x`.
+
+### Quatre autres pièges de nginx, tenus par l'extrait
+
+- **`proxy_pass_request_body off` retire le corps, pas sa longueur** *(observé)*. nginx annonce
+  alors à l'amont un `Content-Length` sans rien envoyer derrière ; sur une connexion gardée
+  ouverte, l'amont lit la requête **suivante** comme le corps de celle-ci. La première passe de la
+  suite de conformance contre nginx l'a montré : la requête qui suivait un GET avec corps
+  recevait 400. L'extrait refuse toute requête avec corps et vide `Content-Length`.
+- **`X-Accel-Redirect`**. Par défaut, nginx obéit à cet en-tête d'une réponse relayée et sert à
+  sa place une `location` interne du site. L'extrait l'ignore (`proxy_ignore_headers`).
+- **La redirection 301 automatique**. Une `location` à barre finale qui porte un `proxy_pass`
+  répond d'elle-même 301 à l'URL sans la barre. D'où des noms de `location` sans barre finale.
+- **Les `location` à expression rationnelle du site** passent devant une `location` par préfixe.
+  D'où `^~`.
 
 ## L'autre montage : nginx devant le relais Node
 

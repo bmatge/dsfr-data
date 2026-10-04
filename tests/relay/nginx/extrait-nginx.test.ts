@@ -388,6 +388,8 @@ describe('extrait nginx — forme', () => {
       'proxy_pass_request_body    off;',
       'proxy_set_header Host            $relais_hote;',
       'proxy_set_header Authorization   $relais_cle;',
+      // Sans cette ligne, nginx annonce à l'amont la longueur d'un corps qu'il n'envoie pas.
+      'proxy_set_header Content-Length    "";',
       'proxy_ssl_server_name on;',
       'proxy_ssl_name        $relais_hote;',
       'proxy_ssl_verify      on;',
