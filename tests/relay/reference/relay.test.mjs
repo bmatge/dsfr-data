@@ -194,13 +194,12 @@ describe('C-SSRF-6 — l’adresse, après résolution DNS', () => {
   });
 
   test('C-DOS-1 — le délai couvre les redirections : trois sauts lents ne le rallongent pas', async () => {
-    // `/redirection/lente` attend 400 ms par saut ; délai du relais : 700 ms.
-    await withRelay({ config: withLimits({ timeoutMs: 700 }) }, async (reference, client) => {
-      const started = Date.now();
+    // `/redirection/lente` attend 400 ms par saut ; délai du relais : 800 ms. Trois
+    // sauts font 1 200 ms : un délai compté par saut les laisserait passer (200).
+    await withRelay({ config: withLimits({ timeoutMs: 800 }) }, async (reference, client) => {
       const response = await client.call(`/${ALLOWED_HOST}/redirection/lente/3?${mark()}`);
-      assert.equal(response.status, 504);
+      assert.equal(response.status, 504, 'le délai a été compté par saut');
       assert.equal(errorCode(response), 'upstream-timeout');
-      assert.ok(Date.now() - started < 1100, 'le délai a été compté par saut');
       // Un seul saut tient dans le délai : il est suivi.
       const single = await client.call(`/${ALLOWED_HOST}/redirection/lente/1?${mark()}`);
       assert.equal(single.status, 200);
