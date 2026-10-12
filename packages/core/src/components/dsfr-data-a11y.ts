@@ -25,8 +25,10 @@ const MAX_TABLE_ROWS = 100;
  * - `aria-details` vers le tableau (si active, progressive enhancement)
  *
  * Les cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,
- * au plus 2 décimales, #666) ; les chaînes (codes INSEE, SIREN…) restent
- * intactes et le CSV téléchargé reste brut. Avant #666, le contournement était
+ * au plus 2 décimales, #666 ; une valeur non nulle inférieure à 0,01 garde
+ * deux chiffres significatifs — 0,00123 → « 0,0012 », jamais « 0 », #1282) ;
+ * les chaînes (codes INSEE, SIREN…) restent intactes et le CSV téléchargé
+ * reste brut : il porte la donnée (`0.00123`), pas l'arrondi d'affichage. Avant #666, le contournement était
  * `normalize round="champ:2"`, qui arrondit mais ne localise pas.
  *
  * @example
@@ -160,7 +162,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Nombre de décimales des cellules numériques du tableau (#666). Absent :
-   * au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.
+   * au plus 2 décimales, format fr-FR — sauf pour une valeur non nulle
+   * inférieure à 0,01 en valeur absolue, qui garde deux chiffres significatifs
+   * (0,00123 → « 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce
+   * nombre de décimales est tenu tel quel : `decimals="2"` rend « 0,00 ».
+   * Le CSV n'est pas concerné : il porte la valeur brute.
    */
   @property({ type: Number })
   decimals: number | null = null;
@@ -641,7 +647,8 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
 
   /**
    * Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,
-   * ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut.
+   * deux chiffres significatifs sous 0,01 — #1282 —, ou `decimals`), tout le
+   * reste tel quel. Le CSV (`_buildCsv`) reste brut.
    */
   formatCellValue(value: unknown): string {
     return formatTableCell(value, this.decimals);

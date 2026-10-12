@@ -21,6 +21,7 @@ import {
   quantileBreaks,
   ratioColumn,
   roundTo,
+  texteCellule,
   racine,
   sousChaine,
   sqrtColumn,
@@ -234,6 +235,49 @@ describe('oracle — recalcul indépendant', () => {
     expect(
       applyFilter(rows, [{ field: 'l', op: 'eq', value: 'ecole de sete', fold: true }])
     ).toEqual([{ l: 'École de Sète' }]);
+  });
+
+  it('texte d’une cellule de tableau : deux décimales, deux chiffres significatifs sous 0,01 (#1282)', () => {
+    const cas: Array<[number | null, string]> = [
+      [0.00123, '0,0012'],
+      [-0.00123, '-0,0012'],
+      [0.0000456, '0,000046'],
+      [0.0149, '0,01'],
+      [0.005, '0,005'],
+      [0.0099, '0,0099'],
+      [0.00999, '0,01'],
+      [0.01, '0,01'],
+      [0, '0'],
+      [-0, '0'],
+      [1e-12, '0,000000000001'],
+      [null, ''],
+      [42, '42'],
+      [2.27, '2,27'],
+      [0.5, '0,5'],
+      [0.999, '1'],
+      [999.999, '1 000'],
+      [1234567.891, '1 234 567,89'],
+      [-1234.5, '-1 234,5'],
+      [1e21, '1 000 000 000 000 000 000 000'],
+    ];
+    for (const [entree, attendu] of cas) expect(texteCellule(entree)).toBe(attendu);
+    // L'oracle n'emprunte pas `Intl` — mais il doit dire la même chose que lui,
+    // sinon ce n'est pas la règle fr-FR qu'il recalcule.
+    const intl = (n: number): string =>
+      new Intl.NumberFormat(
+        'fr-FR',
+        Math.abs(n) < 0.01 ? { maximumSignificantDigits: 2 } : { maximumFractionDigits: 2 }
+      )
+        .format(n)
+        .replace(/[\u202f\u00a0]/g, ' ');
+    for (let e = -15; e <= 9; e++) {
+      for (const m of [1, 1.234, 1.5, 4.449, 4.994, 5.55, 9.949, 9.951, 9.996]) {
+        for (const s of [1, -1]) {
+          const n = Number(`${s * m}e${e}`);
+          expect(texteCellule(n), String(n)).toBe(intl(n));
+        }
+      }
+    }
   });
 
   it('égalité à la précision affichée', () => {
