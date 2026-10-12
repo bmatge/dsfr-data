@@ -329,6 +329,32 @@ describe('vérification des données — la rencontre TS ↔ Python', () => {
             }
             break;
           }
+          case 'scale': {
+            // Échelle d'un axe (#1273) : bornes déclarées et étiquettes à
+            // l'identique, étendue des valeurs à six décimales.
+            const py = e.valeur as {
+              min: number | null;
+              max: number | null;
+              labels: string[] | null;
+              etendue: { min: number; max: number } | null;
+            };
+            comparaisons++;
+            const enonce = (v: {
+              min: number | null;
+              max: number | null;
+              labels: string[] | null;
+            }) => JSON.stringify([v.min, v.max, v.labels]);
+            if (enonce(py) !== enonce(attendu)) {
+              ecarts.push(`${ou} : Python ${enonce(py)}, TS ${enonce(attendu)}`);
+            }
+            if ((py.etendue === null) !== (attendu.etendue === null)) {
+              ecarts.push(`${ou} : étendue présente d'un seul côté`);
+            } else if (py.etendue !== null && attendu.etendue !== null) {
+              noter(`${ou} étendue min`, ecart(py.etendue.min, attendu.etendue.min, ou));
+              noter(`${ou} étendue max`, ecart(py.etendue.max, attendu.etendue.max, ou));
+            }
+            break;
+          }
           default:
             ecarts.push(`${ou} : genre ${attendu.kind} couvert par Python mais pas comparé ici`);
         }

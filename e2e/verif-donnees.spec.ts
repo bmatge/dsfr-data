@@ -15,6 +15,7 @@ import {
   lireClasses,
   lireCompte,
   lireDiagnostics,
+  lireEchelle,
   lireExportCsv,
   lireFacettes,
   lireGraphique,
@@ -277,6 +278,8 @@ async function observer(page: Page, e: Expect): Promise<Observation> {
         });
       case 'attr':
         return await page.evaluate(lireAttribut, { id: e.id, attribut: e.attr });
+      case 'scale':
+        return await page.evaluate(lireEchelle, { id: e.id, axe: e.axis });
       case 'csv':
         return await page.evaluate(lireExportCsv, e.id);
       case 'dots':
@@ -327,6 +330,11 @@ function prete(e: Expect, obs: Observation): boolean {
       return (obs as { classes: string[] }).classes.length > 0;
     case 'attr':
       return typeof obs === 'string' && obs.trim() !== '';
+    // Une échelle se lit dès que le graphique a une aire tracée (`lireEchelle`
+    // rend `null` avant) ; la borne dure est posée à l'image suivante, et la
+    // lecture en deux temps de `stabilite.ts` attend qu'elle ne bouge plus.
+    case 'scale':
+      return true;
     case 'csv':
       // Un export lancé avant l'arrivée des données rend l'en-tête seule :
       // ce n'est pas un fichier vide à constater, c'est un fichier pas encore

@@ -9,18 +9,27 @@
  * en attributs de `dsfr-data-chart`. Le formulaire (`ui/lecture.ts`), le
  * générateur (`ui/code-generator.ts`) et les tests lisent la même table.
  *
- * La table d'applicabilité est MESURÉE dans le navigateur sur DSFR Chart 2.1.1
- * (échelles Chart.js lues après rendu, 2026-10-05), pas déduite du manifeste :
+ * La table d'applicabilité a été MESURÉE dans le navigateur sur DSFR Chart 2.1.1
+ * (échelles Chart.js lues après rendu, 2026-10-05), pas déduite du manifeste.
+ * Elle date de la 0.48.0, où la bibliothèque relayait les bornes telles quelles :
  * - `y-min` / `y-max` : barres, lignes, nuage, radar. Sur des barres
- *   HORIZONTALES l'axe des valeurs est l'axe X — ce sont `x-min` / `x-max` qui
- *   agissent, et `y-min` / `y-max` y ajoutent deux catégories fantômes. Sans
- *   effet sur un « barres + ligne » (DSFR Chart y lit `y-bar-*` / `y-line-*`).
+ *   HORIZONTALES l'axe des valeurs est l'axe X — le Builder écrit `x-min` /
+ *   `x-max`. Pas de bornes proposées pour un « barres + ligne ».
  * - `x-min` / `x-max` : nuage de points (et barres horizontales, ci-dessus).
- *   Sans effet sur l'axe des étiquettes d'une courbe.
- * - Les bornes sont des bornes SUGGÉRÉES : DSFR Chart les arrondit à la
- *   graduation voisine, et des barres partent toujours de zéro.
- * - `reference-lines` : sur des barres horizontales les axes sont inversés
- *   (un seuil est une ligne verticale, `axis:"x"`).
+ *
+ * Depuis #1273 la bibliothèque décide elle-même par type (`y-*` borne l'axe
+ * des valeurs, y compris sur des barres horizontales et sur l'axe des barres
+ * d'un « barres + ligne » ; les bornes sont posées exactement ; une borne qui
+ * masquerait une donnée est écartée ; des barres partent de zéro). La table
+ * n'a PAS été réalignée, à dessein :
+ * - `x-*` reste écrit pour des barres horizontales : il agit comme avant, et
+ *   un favori enregistré depuis la 0.48.0 régénère le même code ;
+ * - ouvrir les bornes au « barres + ligne » ferait écrire `y-*` à un favori
+ *   qui porte une borne saisie sous un autre type puis masquée (un réglage
+ *   masqué garde sa valeur) : son graphique changerait à la réouverture.
+ *
+ * `reference-lines` : sur des barres horizontales les axes sont inversés (un
+ * seuil est une ligne verticale, `axis:"x"`).
  */
 
 /** Types du Builder (recopié de `state.ts` pour rester sans import d'état). */

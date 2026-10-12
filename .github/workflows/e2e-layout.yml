@@ -34,6 +34,12 @@ name: E2E layout
 # chacune initialisee a sa visibilite. Le doublon de BUG-034 venait de l'ORDRE
 # de ces initialisations : aucun DOM simule ne le rejoue. Tuiles coupees,
 # donnees locales, faux portail servi par `page.route`.
+#
+# `chart-axis-bounds.spec.ts` (#1273) lit les ECHELLES Chart.js reellement
+# appliquees par type de graphique (bornes x-min / x-max / y-min / y-max), sur
+# le vrai DSFR Chart : la decision se teste sous happy-dom, pas l'axe dessine.
+# Quatre defauts mesures dans un navigateur etaient invisibles ailleurs
+# (categories fantomes, bornes ignorees, arrondi a la graduation).
 
 on:
   pull_request:
@@ -79,6 +85,7 @@ jobs:
           e2e/layout-grid.spec.ts
           e2e/layout-map.spec.ts
           e2e/chart-legend.spec.ts
+          e2e/chart-axis-bounds.spec.ts
           e2e/mobile-chrome.spec.ts
           e2e/source-lazy.spec.ts
           e2e/buttons.spec.ts
