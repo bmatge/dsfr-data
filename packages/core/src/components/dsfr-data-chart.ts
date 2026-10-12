@@ -2311,8 +2311,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    *
    * Les nombres sont rendus en fr-FR par la fonction du tableau de
    * `dsfr-data-a11y` (`formatTableCell`, #1244) : « 2,27 », pas `2.27`, au
-   * plus 2 décimales. Seul le TEXTE des cellules change ; les valeurs passées
-   * à DSFR Chart (`_processData`) ne passent pas par ici.
+   * plus 2 décimales — et deux chiffres significatifs pour une valeur non
+   * nulle inférieure à 0,01 (0,00123 → « 0,0012 », jamais « 0 », #1282). Seul
+   * le TEXTE des cellules change ; les valeurs passées à DSFR Chart
+   * (`_processData`) ne passent pas par ici.
    */
   private _databoxTableHtml(): string {
     const { headers, rows: allRows } = this._databoxTableModel();

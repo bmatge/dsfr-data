@@ -1830,7 +1830,8 @@ Regle : pour chaque couple attribut x type, la borne AGIT ou elle est SIGNALEE p
 L'attribut \`databox\` active l'habillage DataBox DSFR autour du graphique :
 cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
 téléchargement CSV, plein écran, tendance. Le tableau intégré rend ses nombres en fr-FR
-(« 2,27 », au plus 2 décimales), comme celui de dsfr-data-a11y ; sa colonne de libellé porte
+(« 2,27 », au plus 2 décimales ; une valeur non nulle inférieure à 0,01 garde deux chiffres
+significatifs, 0,00123 → « 0,0012 », jamais « 0 »), comme celui de dsfr-data-a11y ; sa colonne de libellé porte
 ce que l'axe affiche (\`empty-label\` compris) et son en-tête l'alias de \`label-field\`.
 
 | Attribut | Type | Défaut | Description |
@@ -1990,7 +1991,9 @@ La pagination suit le motif DSFR : première/dernière page, ellipses (\`1 2 3 �
 « Page N sur M » affiché et annoncé aux lecteurs d'écran (\`aria-current="page"\` sur la page
 courante). M vient de \`meta.total\` en mode serveur, sinon du nombre de lignes filtrées.
 Les cellules numériques (\`typeof number\`) sont rendues en fr-FR : \`2.27\` → « 2,27 », au plus
-2 décimales, ou exactement \`decimals\` décimales. Les chaînes ne sont JAMAIS reformatées
+2 décimales, ou exactement \`decimals\` décimales. Sans \`decimals\`, une valeur non nulle
+inférieure à 0,01 en valeur absolue garde deux chiffres significatifs (0,00123 → « 0,0012 ») :
+une cellule n'affiche jamais « 0 » pour une valeur qui ne l'est pas. Les chaînes ne sont JAMAIS reformatées
 (codes INSEE, SIREN, années en texte restent intacts) et l'export CSV/HTML reste brut.
 Pour arrondir la donnée elle-même (et pas seulement l'affichage), \`normalize round="champ:2"\`
 reste disponible.
@@ -3298,6 +3301,9 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
 - Les cellules numériques du tableau sont en fr-FR (\`2.27\` → « 2,27 », au plus 2 décimales
   ou \`decimals\`) ; les chaînes (codes INSEE, SIREN) restent intactes, le CSV reste brut (#666)
+- Un petit ratio ne s'affiche jamais « 0 » : sans \`decimals\`, une valeur non nulle inférieure à
+  0,01 en valeur absolue garde deux chiffres significatifs (0,00123 → « 0,0012 », #1282). Le CSV
+  porte toujours la valeur brute (\`0.00123\`), pas l'arrondi d'affichage
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)` +
       reference('dsfr-data-a11y'),
   },

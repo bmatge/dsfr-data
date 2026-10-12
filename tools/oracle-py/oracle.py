@@ -255,6 +255,37 @@ def arrondir(n: Fraction, decimals: int) -> float:
     return float(d.quantize(quantum, rounding=ROUND_HALF_UP))
 
 
+def texte_cellule(n: Fraction | None) -> str:
+    """Le texte qu'une cellule de tableau doit porter pour un nombre (#1282).
+
+    Absence : cellule vide. Zéro : « 0 ». Valeur absolue inférieure à 0,01 :
+    ses DEUX premiers chiffres significatifs, écrits en entier (0,00123 →
+    « 0,0012 », jamais « 0 » ni une notation scientifique). Sinon deux
+    décimales au plus, zéros de fin retirés, milliers séparés d'une espace
+    ordinaire, virgule décimale. Arrondi ``ROUND_HALF_UP`` — au demi supérieur
+    en valeur absolue — sur la valeur décimale exacte du jeu.
+    """
+    if n is None:
+        return ""
+    if n == 0:
+        return "0"
+    d = abs(Decimal(n.numerator) / Decimal(n.denominator))
+    if d < Decimal("0.01"):
+        # ``adjusted()`` : le rang du premier chiffre significatif (−3 pour 0,00123).
+        quantum = Decimal(1).scaleb(d.adjusted() - 1)
+    else:
+        quantum = Decimal("0.01")
+    ecrit = format(d.quantize(quantum, rounding=ROUND_HALF_UP), "f")
+    entier, _, fraction = ecrit.partition(".")
+    fraction = fraction.rstrip("0")
+    groupes = []
+    while len(entier) > 3:
+        groupes.insert(0, entier[-3:])
+        entier = entier[:-3]
+    groupes.insert(0, entier)
+    return ("-" if n < 0 else "") + " ".join(groupes) + ("," + fraction if fraction else "")
+
+
 # ---------------------------------------------------------------------------
 # Filtres
 # ---------------------------------------------------------------------------
@@ -1008,6 +1039,11 @@ def attendu_de(e: dict[str, Any], datasets: dict[str, list[Row]]) -> dict[str, A
     valeurs: list[Any] = []
     for r in rows:
         brut = r.get(e["column"])
+        if e.get("cellule"):
+            # Le texte de la cellule, recalculé (#1282) : chaîne contre chaîne.
+            valeur = to_num(brut)
+            valeurs.append((e.get("absent") or "") if valeur is None else texte_cellule(valeur * facteur))
+            continue
         if not e.get("numeric"):
             valeurs.append("" if brut is None else str_js(brut))
             continue

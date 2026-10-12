@@ -117,6 +117,9 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 - Le tableau est limite a 100 lignes ; le CSV contient toutes les données
 - Les cellules numériques du tableau sont en fr-FR (`2.27` → « 2,27 », au plus 2 décimales
   ou `decimals`) ; les chaînes (codes INSEE, SIREN) restent intactes, le CSV reste brut (#666)
+- Un petit ratio ne s'affiche jamais « 0 » : sans `decimals`, une valeur non nulle inférieure à
+  0,01 en valeur absolue garde deux chiffres significatifs (0,00123 → « 0,0012 », #1282). Le CSV
+  porte toujours la valeur brute (`0.00123`), pas l'arrondi d'affichage
 - Compatible avec tous les composants de rendu (chart, datalist, display, kpi)
 
 ### Référence `<dsfr-data-a11y>` (générée depuis le code)
@@ -127,7 +130,7 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `decimals` | `number \| null` | `null` | Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR. Le CSV n'est pas concerné. |
+| `decimals` | `number \| null` | `null` | Nombre de décimales des cellules numériques du tableau (#666). Absent : au plus 2 décimales, format fr-FR — sauf pour une valeur non nulle inférieure à 0,01 en valeur absolue, qui garde deux chiffres significatifs (0,00123 → « 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce nombre de décimales est tenu tel quel : `decimals="2"` rend « 0,00 ». Le CSV n'est pas concerné : il porte la valeur brute. |
 | `description` | `string` | `""` (vide) | Description textuelle du graphique, lue par les lecteurs d'écran. |
 | `download` | `boolean` | `false` | Affiche le bouton de téléchargement CSV. |
 | `empty-label` | `string` | `""` (vide) | Libellé substitué aux cellules VIDES (`null`, `undefined` ou `""`) de la colonne de libellé du tableau, et aux noms de série vides en mode `series-field` (#933). Même rôle que l'`empty-label` de `dsfr-data-chart` (#647) : sans lui, la barre du groupe non renseigné porte un nom sur l'axe alors que sa ligne dans le tableau équivalent a une cellule vide — le tableau dit autre chose que le graphique. Colonne de libellé = `label-field` s'il est posé, sinon la PREMIÈRE colonne rendue. Les colonnes de valeur ne sont jamais touchées : une mesure absente reste une cellule vide, on n'invente pas un libellé. Absent (défaut), le rendu est inchangé : la cellule reste vide. La valeur n'est PAS reprise du graphique visé par `for` — l'écrire sur les deux balises est volontaire, pour qu'aucune page existante ne voie son tableau changer. Le CSV téléchargé porte le même libellé que le tableau affiché. |
@@ -147,7 +150,7 @@ rendu : switch chart/tableau integre, CSV natif). Conserver uniquement :
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `formatCellValue(value: unknown)` | `string` | Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales, ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut. |
+| `formatCellValue(value: unknown)` | `string` | Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales, deux chiffres significatifs sous 0,01 — #1282 —, ou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut. |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

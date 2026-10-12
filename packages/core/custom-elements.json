@@ -8,7 +8,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-a11y> - Companion d'accessibilité pour visualisations\n\nOffre trois alternatives accessibles a un graphique, chacune activable :\n- `table`       : tableau HTML avec les données du graphique\n- `download`    : bouton de téléchargement CSV\n- `description` : transcription textuelle libre\n\nVia l'attribut `for`, il injecte :\n- Un skip link dans le graphique cible (visible au focus clavier)\n- `aria-describedby` vers un resume concis (screen readers)\n- `aria-details` vers le tableau (si active, progressive enhancement)\n\nLes cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,\nau plus 2 décimales, #666) ; les chaînes (codes INSEE, SIREN…) restent\nintactes et le CSV téléchargé reste brut. Avant #666, le contournement était\n`normalize round=\"champ:2\"`, qui arrondit mais ne localise pas.",
+          "description": "<dsfr-data-a11y> - Companion d'accessibilité pour visualisations\n\nOffre trois alternatives accessibles a un graphique, chacune activable :\n- `table`       : tableau HTML avec les données du graphique\n- `download`    : bouton de téléchargement CSV\n- `description` : transcription textuelle libre\n\nVia l'attribut `for`, il injecte :\n- Un skip link dans le graphique cible (visible au focus clavier)\n- `aria-describedby` vers un resume concis (screen readers)\n- `aria-details` vers le tableau (si active, progressive enhancement)\n\nLes cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,\nau plus 2 décimales, #666 ; une valeur non nulle inférieure à 0,01 garde\ndeux chiffres significatifs — 0,00123 → « 0,0012 », jamais « 0 », #1282) ;\nles chaînes (codes INSEE, SIREN…) restent intactes et le CSV téléchargé\nreste brut : il porte la donnée (`0.00123`), pas l'arrondi d'affichage. Avant #666, le contournement était\n`normalize round=\"champ:2\"`, qui arrondit mais ne localise pas.",
           "name": "DsfrDataA11y",
           "members": [
             {
@@ -138,7 +138,7 @@
                 "text": "number | null"
               },
               "default": "null",
-              "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.",
+              "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR — sauf pour une valeur non nulle\ninférieure à 0,01 en valeur absolue, qui garde deux chiffres significatifs\n(0,00123 → « 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce\nnombre de décimales est tenu tel quel : `decimals=\"2\"` rend « 0,00 ».\nLe CSV n'est pas concerné : il porte la valeur brute.",
               "attribute": "decimals"
             },
             {
@@ -563,7 +563,7 @@
                   }
                 }
               ],
-              "description": "Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,\nou `decimals`), tout le reste tel quel. Le CSV (`_buildCsv`) reste brut."
+              "description": "Texte d'une cellule du tableau : nombres en fr-FR (au plus 2 décimales,\ndeux chiffres significatifs sous 0,01 — #1282 —, ou `decimals`), tout le\nreste tel quel. Le CSV (`_buildCsv`) reste brut."
             },
             {
               "kind": "method",
@@ -715,7 +715,7 @@
                 "text": "number | null"
               },
               "default": "null",
-              "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR. Le CSV n'est pas concerné.",
+              "description": "Nombre de décimales des cellules numériques du tableau (#666). Absent :\nau plus 2 décimales, format fr-FR — sauf pour une valeur non nulle\ninférieure à 0,01 en valeur absolue, qui garde deux chiffres significatifs\n(0,00123 → « 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce\nnombre de décimales est tenu tel quel : `decimals=\"2\"` rend « 0,00 ».\nLe CSV n'est pas concerné : il porte la valeur brute.",
               "fieldName": "decimals"
             },
             {
@@ -2554,7 +2554,7 @@
                   "text": "string"
                 }
               },
-              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y). Chaîne vide sans colonne.\n\nLe tableau montre au plus `DATABOX_TABLE_MAX_ROWS` lignes, comme celui de\n`dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une\ncoupe muette laissait croire à un jeu de 100 lignes. La mention donne le\ntotal, pour que l'écart se lise sans compter.\n\nLes nombres sont rendus en fr-FR par la fonction du tableau de\n`dsfr-data-a11y` (`formatTableCell`, #1244) : « 2,27 », pas `2.27`, au\nplus 2 décimales. Seul le TEXTE des cellules change ; les valeurs passées\nà DSFR Chart (`_processData`) ne passent pas par ici."
+              "description": "HTML du tableau injecté dans la DataBox (même approche que\ndsfr-data-a11y). Chaîne vide sans colonne.\n\nLe tableau montre au plus `DATABOX_TABLE_MAX_ROWS` lignes, comme celui de\n`dsfr-data-a11y` — et, comme lui, il le DIT (BUG-035 du banc, #1230) : une\ncoupe muette laissait croire à un jeu de 100 lignes. La mention donne le\ntotal, pour que l'écart se lise sans compter.\n\nLes nombres sont rendus en fr-FR par la fonction du tableau de\n`dsfr-data-a11y` (`formatTableCell`, #1244) : « 2,27 », pas `2.27`, au\nplus 2 décimales — et deux chiffres significatifs pour une valeur non\nnulle inférieure à 0,01 (0,00123 → « 0,0012 », jamais « 0 », #1282). Seul\nle TEXTE des cellules change ; les valeurs passées à DSFR Chart\n(`_processData`) ne passent pas par ici."
             },
             {
               "kind": "method",
@@ -9866,7 +9866,7 @@
                 "text": "number | null"
               },
               "default": "null",
-              "description": "Nombre de décimales des cellules numériques (#666). Absent : au plus\n2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.",
+              "description": "Nombre de décimales des cellules numériques (#666). Absent : au plus\n2 décimales, format fr-FR — sauf pour une valeur non nulle inférieure à\n0,01 en valeur absolue, qui garde deux chiffres significatifs (0,00123 →\n« 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce nombre de\ndécimales est tenu tel quel : `decimals=\"2\"` rend « 0,00 ». Les exports\nCSV/HTML ne sont pas concernés.",
               "attribute": "decimals"
             },
             {
@@ -10435,7 +10435,7 @@
                   }
                 }
               ],
-              "description": "Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,\nnombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des\nchaînes : un code INSEE « 75056 » reste « 75056 »)."
+              "description": "Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,\nnombres en fr-FR (#666, deux chiffres significatifs sous 0,01 — #1282),\ntout le reste tel quel (jamais de parsing des\nchaînes : un code INSEE « 75056 » reste « 75056 »)."
             },
             {
               "kind": "method",
@@ -10781,7 +10781,7 @@
                 "text": "number | null"
               },
               "default": "null",
-              "description": "Nombre de décimales des cellules numériques (#666). Absent : au plus\n2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.",
+              "description": "Nombre de décimales des cellules numériques (#666). Absent : au plus\n2 décimales, format fr-FR — sauf pour une valeur non nulle inférieure à\n0,01 en valeur absolue, qui garde deux chiffres significatifs (0,00123 →\n« 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce nombre de\ndécimales est tenu tel quel : `decimals=\"2\"` rend « 0,00 ». Les exports\nCSV/HTML ne sont pas concernés.",
               "fieldName": "decimals"
             },
             {

@@ -189,7 +189,8 @@ Regle : pour chaque couple attribut x type, la borne AGIT ou elle est SIGNALEE p
 L'attribut `databox` active l'habillage DataBox DSFR autour du graphique :
 cadre editorial avec titre, source, date, switch chart/tableau integre, screenshot PNG,
 téléchargement CSV, plein écran, tendance. Le tableau intégré rend ses nombres en fr-FR
-(« 2,27 », au plus 2 décimales), comme celui de dsfr-data-a11y ; sa colonne de libellé porte
+(« 2,27 », au plus 2 décimales ; une valeur non nulle inférieure à 0,01 garde deux chiffres
+significatifs, 0,00123 → « 0,0012 », jamais « 0 »), comme celui de dsfr-data-a11y ; sa colonne de libellé porte
 ce que l'axe affiche (`empty-label` compris) et son en-tête l'alias de `label-field`.
 
 | Attribut | Type | Défaut | Description |

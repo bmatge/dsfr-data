@@ -1,0 +1,16 @@
+[
+  {"libelle":"Ratio ordinaire","ratio":2.27},
+  {"libelle":"Petit ratio","ratio":0.00123},
+  {"libelle":"Petit ratio négatif","ratio":-0.00123},
+  {"libelle":"Très petit ratio","ratio":0.0000456},
+  {"libelle":"Juste au-dessus du seuil","ratio":0.0149},
+  {"libelle":"Demi-centième","ratio":0.005},
+  {"libelle":"Juste sous le seuil","ratio":0.0099},
+  {"libelle":"Rejoint le seuil","ratio":0.00999},
+  {"libelle":"Zéro","ratio":0},
+  {"libelle":"Infime","ratio":0.000000000001},
+  {"libelle":"Entier","ratio":42},
+  {"libelle":"Grand nombre","ratio":1234567.891},
+  {"libelle":"Grand nombre négatif","ratio":-1234.5},
+  {"libelle":"Absent","ratio":null}
+]
