@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — bornes d'axe par type, sur le VRAI DSFR Chart (#1273)</title>
+  <!--
+    Les bornes d'axe se décident dans dsfr-data-chart, mais c'est DSFR Chart
+    puis Chart.js qui dessinent l'échelle : un test unitaire prouve la décision,
+    pas l'axe que l'usager lit. Ici la vraie bibliothèque de graphiques est
+    chargée depuis node_modules (pas de CDN : le test doit être déterministe),
+    et le spec lit les échelles Chart.js après le rendu différé.
+
+    Données : 12, 18, 27, 33 (seconde série 120, 300, 450, 510). Chaque
+    graphique est un couple attribut × type de la matrice de #1273.
+  -->
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { display: grid; grid-template-columns: repeat(3, 420px); gap: 12px; }
+    section { border: 1px solid #ddd; padding: 4px; }
+    h2 { font-size: 12px; margin: 2px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <dsfr-data-source id="cat" data='[
+    {"l":"A","v":12,"w":120},
+    {"l":"B","v":18,"w":300},
+    {"l":"C","v":27,"w":450},
+    {"l":"D","v":33,"w":510}
+  ]'></dsfr-data-source>
+  <dsfr-data-source id="num" data='[
+    {"l":"2020","v":12,"w":120},
+    {"l":"2021","v":18,"w":300},
+    {"l":"2022","v":27,"w":450},
+    {"l":"2023","v":33,"w":510}
+  ]'></dsfr-data-source>
+
+  <main>
+    <!-- Barres verticales -->
+    <section><h2>bar — y-min="-10" y-max="37"</h2>
+      <dsfr-data-chart id="barres-y" source="cat" type="bar" label-field="l" value-field="v"
+        y-min="-10" y-max="37"></dsfr-data-chart></section>
+    <section><h2>bar — y-min="5" (ignoré : des barres partent de zéro)</h2>
+      <dsfr-data-chart id="barres-min-positif" source="cat" type="bar" label-field="l" value-field="v"
+        y-min="5"></dsfr-data-chart></section>
+    <section><h2>bar — x-min="5" x-max="40" (sans effet, signalé)</h2>
+      <dsfr-data-chart id="barres-x" source="cat" type="bar" label-field="l" value-field="v"
+        x-min="5" x-max="40"></dsfr-data-chart></section>
+    <section><h2>bar stacked — y-max="600" / y-max="520" sous le cumul (543)</h2>
+      <dsfr-data-chart id="barres-empilees" source="cat" type="bar" stacked label-field="l"
+        value-field="v" value-fields="w" y-max="600"></dsfr-data-chart>
+      <dsfr-data-chart id="barres-empilees-sous-cumul" source="cat" type="bar" stacked label-field="l"
+        value-field="v" value-fields="w" y-max="520"></dsfr-data-chart></section>
+
+    <!-- Barres horizontales : l'axe des valeurs est l'échelle x -->
+    <section><h2>bar horizontal — y-min="-10" y-max="40"</h2>
+      <dsfr-data-chart id="barres-h-y" source="cat" type="bar" horizontal label-field="l" value-field="v"
+        y-min="-10" y-max="40"></dsfr-data-chart></section>
+    <section><h2>bar horizontal — x-max="40" (ce que le Builder écrit)</h2>
+      <dsfr-data-chart id="barres-h-x" source="cat" type="bar" horizontal label-field="l" value-field="v"
+        x-max="40"></dsfr-data-chart></section>
+
+    <!-- Courbe -->
+    <section><h2>line — y-min="5" y-max="37"</h2>
+      <dsfr-data-chart id="courbe-y" source="cat" type="line" label-field="l" value-field="v"
+        y-min="5" y-max="37"></dsfr-data-chart></section>
+    <section><h2>line — y-min="20" y-max="25" (masqueraient des points)</h2>
+      <dsfr-data-chart id="courbe-masque" source="cat" type="line" label-field="l" value-field="v"
+        y-min="20" y-max="25"></dsfr-data-chart></section>
+    <section><h2>line, étiquettes texte — x-min="5" x-max="40"</h2>
+      <dsfr-data-chart id="courbe-x-texte" source="cat" type="line" label-field="l" value-field="v"
+        x-min="5" x-max="40"></dsfr-data-chart></section>
+    <section><h2>line, étiquettes numériques — x-min="2018" x-max="2030"</h2>
+      <dsfr-data-chart id="courbe-x-num" source="num" type="line" label-field="l" value-field="v"
+        x-min="2018" x-max="2030"></dsfr-data-chart></section>
+
+    <!-- Barres + ligne : y-* borne l'axe des barres -->
+    <section><h2>bar-line — y-min="-10" y-max="37"</h2>
+      <dsfr-data-chart id="barres-ligne-y" source="cat" type="bar-line" label-field="l"
+        value-field="v" value-field-2="w" y-min="-10" y-max="37"></dsfr-data-chart></section>
+
+    <!-- Nuage -->
+    <section><h2>scatter — x-min="2018" y-min="-7"</h2>
+      <dsfr-data-chart id="nuage" source="num" type="scatter" label-field="l" value-field="v"
+        x-min="2018" y-min="-7"></dsfr-data-chart></section>
+
+    <!-- Radar et types sans axe -->
+    <section><h2>radar — y-min="0" y-max="40" x-min="3"</h2>
+      <dsfr-data-chart id="radar" source="cat" type="radar" label-field="l" value-field="v"
+        y-min="0" y-max="40" x-min="3"></dsfr-data-chart></section>
+    <section><h2>pie — y-min="0" (sans axe, signalé)</h2>
+      <dsfr-data-chart id="camembert" source="cat" type="pie" label-field="l" value-field="v"
+        y-min="0"></dsfr-data-chart></section>
+
+    <!-- Sous DataBox : le canvas est téléporté, l'instance doit être retrouvée -->
+    <section><h2>line + databox — y-min="5"</h2>
+      <dsfr-data-chart id="courbe-databox" source="cat" type="line" label-field="l" value-field="v"
+        y-min="5" databox databox-title="Courbe bornée"></dsfr-data-chart></section>
+
+    <!-- Un repère se place sur l'échelle BORNÉE, pas sur celle d'avant -->
+    <section><h2>line — y-min="5" + reference-lines (seuil 20)</h2>
+      <dsfr-data-chart id="courbe-repere" source="cat" type="line" label-field="l" value-field="v"
+        y-min="5" reference-lines='[{"axis":"y","value":20,"label":"Seuil"}]'></dsfr-data-chart></section>
+  </main>
+</body>
+</html>

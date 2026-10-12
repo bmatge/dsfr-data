@@ -9,6 +9,12 @@ import type { TargetsLayout } from '@/utils/chart-targets.js';
 interface ChartInternals {
   _data: unknown[];
   _radialBoundsRaf: number | null;
+  _axisPlan: {
+    attrs: Record<string, string>;
+    scales: Record<string, { min?: number; max?: number }>;
+    warnings: Array<{ attr: string; code: string; message: string }>;
+  };
+  _refreshAxisBounds(): void;
   unitTooltip: string;
   _processData(): {
     x: string;
@@ -260,6 +266,79 @@ describe('DsfrDataChart', () => {
     });
   });
 
+  describe('bornes d’axe par type (#1273)', () => {
+    const LIGNES = [
+      { l: 'A', v: 12, w: 120 },
+      { l: 'B', v: 18, w: 300 },
+      { l: 'C', v: 27, w: 450 },
+      { l: 'D', v: 33, w: 510 },
+    ];
+    const BORNES = ['x-min', 'x-max', 'y-min', 'y-max', 'y-bar-min', 'y-bar-max'];
+    const relayees = (attrs: Record<string, string>) =>
+      Object.fromEntries(BORNES.filter((b) => b in attrs).map((b) => [b, attrs[b]]));
+
+    beforeEach(() => {
+      internals(chart)._data = LIGNES;
+      chart.labelField = 'l';
+      chart.valueField = 'v';
+    });
+
+    it('courbe : y-* relayés, x-* jamais sur des étiquettes texte', () => {
+      chart.type = 'line';
+      chart.xMin = '5';
+      chart.xMax = '40';
+      chart.yMin = '5';
+      chart.yMax = '40';
+      const { attrs } = internals(chart)._getTypeSpecificAttributes();
+      expect(relayees(attrs)).toEqual({ 'y-min': '5', 'y-max': '40' });
+      expect(internals(chart)._axisPlan.scales).toEqual({ y: { min: 5, max: 40 } });
+    });
+
+    it('barres horizontales : y-* part vers l’axe des valeurs (x), plus vers les étiquettes', () => {
+      chart.type = 'bar';
+      chart.horizontal = true;
+      chart.yMin = '-10';
+      chart.yMax = '40';
+      const { attrs } = internals(chart)._getTypeSpecificAttributes();
+      expect(relayees(attrs)).toEqual({ 'x-min': '-10', 'x-max': '40' });
+      expect(internals(chart)._axisPlan.scales).toEqual({ x: { min: -10, max: 40 } });
+    });
+
+    it('barres + ligne : y-* devient y-bar-*, que DSFR Chart lit', () => {
+      chart.type = 'bar-line';
+      chart.valueField2 = 'w';
+      chart.yMax = '40';
+      const { attrs } = internals(chart)._getTypeSpecificAttributes();
+      expect(relayees(attrs)).toEqual({ 'y-bar-max': '40' });
+    });
+
+    it('barres : x-* n’est pas relayé, un minimum positif non plus', () => {
+      chart.type = 'bar';
+      chart.xMin = '5';
+      chart.yMin = '5';
+      const { attrs } = internals(chart)._getTypeSpecificAttributes();
+      expect(relayees(attrs)).toEqual({});
+      expect(internals(chart)._axisPlan.warnings.map((w) => w.attr)).toEqual(['x-min', 'y-min']);
+    });
+
+    it('avertit UNE fois par attribut et par motif, même si les données changent', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      chart.id = 'g';
+      chart.type = 'pie';
+      chart.yMin = '0';
+      internals(chart)._getTypeSpecificAttributes();
+      internals(chart)._refreshAxisBounds();
+      internals(chart)._data = LIGNES.slice(0, 2);
+      internals(chart)._getTypeSpecificAttributes();
+      internals(chart)._refreshAxisBounds();
+      const messages = warn.mock.calls.map((c) => String(c[0])).filter((m) => m.includes('y-min'));
+      expect(messages).toEqual([
+        'dsfr-data-chart[g]: y-min est sans effet sur type="pie" : ce type n\'a pas d\'axe',
+      ]);
+      warn.mockRestore();
+    });
+  });
+
   describe('_getCommonAttributes', () => {
     it('includes selected-palette', () => {
       chart.selectedPalette = 'sequential';
@@ -281,16 +360,18 @@ describe('DsfrDataChart', () => {
       expect(attrs['x-min']).toBeUndefined();
     });
 
-    it('includes axis bounds when set', () => {
+    it('les bornes d’axe ne sont plus des attributs communs (#1273)', () => {
+      // Elles étaient relayées telles quelles à l'échelle du même nom, y compris
+      // un axe d'étiquettes (catégories fantômes) : leur sort dépend du type.
       chart.xMin = '0';
       chart.xMax = '100';
       chart.yMin = '-10';
       chart.yMax = '50';
       const attrs = internals(chart)._getCommonAttributes();
-      expect(attrs['x-min']).toBe('0');
-      expect(attrs['x-max']).toBe('100');
-      expect(attrs['y-min']).toBe('-10');
-      expect(attrs['y-max']).toBe('50');
+      expect(attrs['x-min']).toBeUndefined();
+      expect(attrs['x-max']).toBeUndefined();
+      expect(attrs['y-min']).toBeUndefined();
+      expect(attrs['y-max']).toBeUndefined();
     });
 
     it('wraps plain string name in JSON array', () => {
@@ -1013,11 +1094,19 @@ describe('DsfrDataChart', () => {
         expect(attrs['y-max']).toBe('26');
       });
 
-      it('y-max non posé si l utilisateur a fixé le sien', () => {
+      it('la borne de l utilisateur prime sur celle de la cible', () => {
         chart.targets = '[{"x":2030,"value":26}]';
         chart.yMax = '40';
         const { attrs } = internals(chart)._getTypeSpecificAttributes();
-        expect(attrs['y-max']).toBeUndefined();
+        // Relayée par le plan de bornes (#1273), pas écrasée par la cible (26).
+        expect(attrs['y-max']).toBe('40');
+      });
+
+      it('une borne ÉCARTÉE (elle masquerait une donnée) laisse la cible élargir l axe', () => {
+        chart.targets = '[{"x":2030,"value":26}]';
+        chart.yMax = '11';
+        const { attrs } = internals(chart)._getTypeSpecificAttributes();
+        expect(attrs['y-max']).toBe('26');
       });
 
       it('y-min posé si la cible est sous le min des données', () => {
