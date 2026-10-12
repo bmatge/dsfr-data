@@ -4,6 +4,7 @@ import {
   lireCache,
   lireClasses,
   lireDiagnostics,
+  lireEchelle,
   lireFacettes,
   lireGraphique,
   lireKpi,
@@ -330,6 +331,48 @@ describe('vérification des données — lecteurs d’observation', () => {
 
     delete w.__verifConsole;
     expect(lireDiagnostics('sain')).toEqual({ configError: null, console: [] });
+  });
+
+  it('échelle : bornes et étiquettes de l’axe DESSINÉ, lues sur l’instance Chart.js', () => {
+    document.body.innerHTML = `
+      <div id="g" y-min="5"><line-chart y-min="5"></line-chart></div>
+      <div id="pas-pret"><bar-chart></bar-chart></div>
+      <div id="sans-chart"></div>`;
+    const poser = (id: string, chart: unknown) => {
+      const el = document.querySelector(`#${id} > *`) as unknown as { _instance: unknown };
+      el._instance = { proxy: { chart } };
+    };
+    poser('g', {
+      chartArea: { width: 400 },
+      scales: {
+        x: { type: 'category', min: 0, max: 3, getLabels: () => ['A', 'B', 'C', 5] },
+        y: { type: 'linear', min: 5, max: 40, getLabels: () => [] },
+      },
+    });
+    // L'instance existe avant d'avoir une aire tracée : rien à lire encore.
+    poser('pas-pret', {
+      chartArea: { width: 0 },
+      scales: { y: { type: 'linear', min: 0, max: 1 } },
+    });
+
+    // L'échelle appliquée, pas l'attribut relayé (qui dit « 5 » des deux côtés).
+    expect(lireEchelle({ id: 'g', axe: 'y' })).toEqual({
+      type: 'linear',
+      min: 5,
+      max: 40,
+      labels: [],
+    });
+    // Un axe d'étiquettes rend SES catégories — une catégorie fantôme s'y lit.
+    expect(lireEchelle({ id: 'g', axe: 'x' })).toEqual({
+      type: 'category',
+      min: 0,
+      max: 3,
+      labels: ['A', 'B', 'C', '5'],
+    });
+    expect(lireEchelle({ id: 'g', axe: 'yLine' })).toBeNull();
+    expect(lireEchelle({ id: 'pas-pret', axe: 'y' })).toBeNull();
+    expect(lireEchelle({ id: 'sans-chart', axe: 'y' })).toBeNull();
+    expect(lireEchelle({ id: 'absent', axe: 'y' })).toBeNull();
   });
 
   it('rayons : celui de chaque cercle tracé, lu dans ses arcs, dans l’ordre', () => {

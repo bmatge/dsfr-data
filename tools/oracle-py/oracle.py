@@ -53,6 +53,11 @@ Conventions ÉCRITES (README de l'oracle, « La troisième voix ») :
   entiers, arrondi ``ROUND_HALF_UP``, jamais sous 1 px — un cercle de rayon
   nul reste un point. L'arrondi de la racine se décide en fractions exactes,
   sans calculer de racine (``pixel``).
+- **Échelle d'un axe** (genre ``scale``, #1273) : les bornes que la page
+  déclare sont recopiées ; les étiquettes d'un axe de catégories sont la
+  chaîne de chaque valeur de la colonne, dans l'ordre ; l'étendue qu'un axe
+  numérique doit contenir est le minimum et le maximum EXACTS des colonnes de
+  valeurs, zéro compris pour des barres (``fromZero``).
 - **Hors v1** : ``derive`` (la grammaire ADR-105 est une seconde réécriture
   à part), ``class``, ``dots``, ``csv``, ``urls``, ``legend``, ``attr``,
   ``diagnostic``. Chaque attente non couverte est ÉCRITE avec sa raison.
@@ -90,7 +95,7 @@ SEPARATEUR_CLE = "\x1f"
 
 DECIMALES_LIGNES = 6
 
-GENRES_COUVERTS = ("kpi", "rows", "chart", "list", "facets", "text", "texts", "count")
+GENRES_COUVERTS = ("kpi", "rows", "chart", "list", "facets", "text", "texts", "count", "scale")
 RAISONS = {
     "derive": "derive : grammaire ADR-105, seconde réécriture hors v1",
     "class": "genre class : habillage par seuils, hors v1",
@@ -979,6 +984,24 @@ def attendu_de(e: dict[str, Any], datasets: dict[str, list[Row]]) -> dict[str, A
     if genre == "count":
         # Éléments tracés (#1059) : une forme par ligne que le recalcul laisse.
         return {"valeur": len(rows)}
+
+    if genre == "scale":
+        # Échelle appliquée à un axe (#1273) : les bornes que la page déclare,
+        # les étiquettes qu'un axe de catégories doit porter, l'étendue des
+        # valeurs qu'un axe numérique doit contenir (zéro compris pour des barres).
+        valeurs = [to_num(r.get(c)) for c in (e.get("valueColumns") or []) for r in rows]
+        valeurs = [v for v in valeurs if v is not None]
+        if e.get("fromZero"):
+            valeurs.append(Fraction(0))
+        colonne = e.get("labelColumn")
+        return {
+            "valeur": {
+                "min": e.get("min"),
+                "max": e.get("max"),
+                "labels": None if colonne is None else [cle_groupe(r.get(colonne)) for r in rows],
+                "etendue": {"min": json_pret(min(valeurs)), "max": json_pret(max(valeurs))} if valeurs else None,
+            }
+        }
 
     # texts
     facteur = Fraction(Decimal(str(e["scale"]))) if e.get("scale") is not None else Fraction(1)

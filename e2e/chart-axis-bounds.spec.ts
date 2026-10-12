@@ -237,17 +237,32 @@ test('un avertissement par attribut, pas un par rendu', async ({ page }) => {
 });
 
 test('un repère se place sur l’échelle bornée, pas sur celle d’avant', async ({ page }) => {
+  /** Écart, en pixels, entre le trait du seuil 20 et sa place sur l'échelle appliquée. */
+  const ecart = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('#courbe-repere line-chart') as Element & {
+        _instance: { proxy: { chart: { scales: { y: { getPixelForValue(v: number): number } } } } };
+      };
+      const ligne = document.querySelector('#courbe-repere .dsfr-data-chart__reflines line');
+      if (!ligne) return null;
+      const attendue = el._instance.proxy.chart.scales.y.getPixelForValue(20);
+      return Math.abs(Number(ligne.getAttribute('y1')) - attendue);
+    });
+
   await attendreEchelle(page, 'courbe-repere', 'y', [5, 40]);
-  const ligne = page.locator('#courbe-repere .dsfr-data-chart__reflines line').first();
-  await expect(ligne).toBeAttached({ timeout: 10_000 });
-  // La position du seuil 20, recalculée depuis l'échelle que Chart.js applique.
-  const attendue = await page.evaluate(() => {
-    const el = document.querySelector('#courbe-repere line-chart') as Element & {
-      _instance: { proxy: { chart: { scales: { y: { getPixelForValue(v: number): number } } } } };
-    };
-    return el._instance.proxy.chart.scales.y.getPixelForValue(20);
+  await expect.poll(ecart, { timeout: 10_000 }).toBeLessThan(1);
+
+  // La borne change APRÈS le premier rendu : DSFR Chart recrée le graphique
+  // sur l'échelle « suggérée » (0..40), puis la borne dure est posée. Le repère
+  // doit finir sur l'échelle bornée. Ce test garde le RÉSULTAT, pas un
+  // mécanisme : deux chemins y mènent aujourd'hui (le dessin des overlays pose
+  // la borne avant de lire la géométrie ; l'observateur de redimensionnement
+  // du canvas redessine), et retirer le premier seul ne le fait pas rougir.
+  await page.evaluate(() => {
+    document.getElementById('courbe-repere')!.setAttribute('y-min', '8');
   });
-  await expect
-    .poll(async () => Number(await ligne.getAttribute('y1')), { timeout: 10_000 })
-    .toBeCloseTo(attendue, 0);
+  await attendreEchelle(page, 'courbe-repere', 'y', [8, 40]);
+  // Le temps que tout redessin en vol soit passé : un repère mal placé le reste.
+  await page.waitForTimeout(600);
+  expect(await ecart()).toBeLessThan(1);
 });

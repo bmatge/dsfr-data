@@ -688,6 +688,40 @@ export interface ExpectAttr extends ExpectBase {
   scale?: number;
 }
 
+/**
+ * ÉCHELLE réellement appliquée à un axe du graphique rendu (#1273) — ce que
+ * l'usager lit le long de l'axe, relu sur l'instance Chart.js après le rendu,
+ * pas l'attribut relayé à DSFR Chart : une borne d'axe est une borne
+ * « suggérée » pour lui, arrondie à la graduation voisine, et posée sur un axe
+ * d'étiquettes elle devenait une catégorie fantôme. L'attribut était juste ;
+ * l'axe ne l'était pas.
+ *
+ * Trois choses se comparent, selon ce que l'axe porte :
+ * - `min` / `max` : la borne DÉCLARÉE par la page, attendue telle quelle ;
+ * - `labelColumn` : un axe d'ÉTIQUETTES porte celles du recalcul, dans
+ *   l'ordre, et rien d'autre ;
+ * - `valueColumns` (et `fromZero`) : un axe NUMÉRIQUE contient toutes les
+ *   valeurs du recalcul — aucune donnée hors de l'axe.
+ */
+export interface ExpectScale extends ExpectBase {
+  kind: 'scale';
+  /**
+   * Identifiant de l'échelle Chart.js : `x`, `y`, `yLine` (axe de la ligne
+   * d'un barres + ligne), `r` (échelle radiale d'un radar).
+   */
+  axis: string;
+  /** Borne minimale déclarée par la page, attendue exactement. */
+  min?: number;
+  /** Borne maximale déclarée par la page, attendue exactement. */
+  max?: number;
+  /** Colonne du recalcul portant les étiquettes de l'axe. */
+  labelColumn?: string;
+  /** Colonnes du recalcul dont l'axe doit contenir toutes les valeurs. */
+  valueColumns?: string[];
+  /** L'axe porte des BARRES : il doit aussi contenir zéro, d'où elles partent. */
+  fromZero?: boolean;
+}
+
 /** Contenu du fichier CSV que l'export du composant produit. */
 export interface ExpectCsv extends ExpectBase {
   kind: 'csv';
@@ -845,6 +879,7 @@ export type Expect =
   | ExpectCount
   | ExpectClass
   | ExpectAttr
+  | ExpectScale
   | ExpectCsv
   | ExpectDots
   | ExpectUrls

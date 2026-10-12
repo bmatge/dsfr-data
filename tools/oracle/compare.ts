@@ -19,6 +19,7 @@ import type {
   ObservationChart,
   ObservationClasses,
   ObservationDiagnostic,
+  ObservationEchelle,
   ObservationFacette,
   ObservationKpi,
   ObservationLegende,
@@ -100,6 +101,7 @@ export type Observation =
   | ObservationFacette[]
   | ObservationTexte
   | ObservationDiagnostic
+  | ObservationEchelle
   | string[]
   | string
   | number
@@ -300,6 +302,96 @@ export function comparer(
         ok,
         message: ok ? '' : `${e.attr} = ${brut}, recalculé ${nombre(arrondi)}`,
       };
+    }
+
+    case 'scale': {
+      // L'échelle APPLIQUÉE (#1273), dans l'ordre où un écart se lit : la
+      // nature de l'axe et ses étiquettes, la borne déclarée, puis l'étendue
+      // des données qu'il doit contenir.
+      const obs = observation as ObservationEchelle;
+      const e = expect as Extract<Expect, { kind: 'scale' }>;
+      const categories = obs.type === 'category';
+      const lib = categories
+        ? `[${obs.labels.join(', ')}]`
+        : `${nombre(obs.min)} … ${nombre(obs.max)}`;
+      const morceaux: string[] = [];
+      if (attendu.labels !== null) morceaux.push(`[${attendu.labels.join(', ')}]`);
+      if (attendu.min !== null) morceaux.push(`min ${nombre(attendu.min)}`);
+      if (attendu.max !== null) morceaux.push(`max ${nombre(attendu.max)}`);
+      if (attendu.etendue !== null) {
+        morceaux.push(`contient ${nombre(attendu.etendue.min)} … ${nombre(attendu.etendue.max)}`);
+      }
+      const rendu = { ...base, lib, oracle: morceaux.join(' ; ') || '—' };
+      let comparaisons = 0;
+
+      if (attendu.labels !== null) {
+        comparaisons++;
+        if (!categories) {
+          return {
+            ...rendu,
+            comparaisons,
+            message: `axe ${e.axis} : échelle « ${obs.type} », un axe d'étiquettes était attendu`,
+          };
+        }
+        const memes =
+          obs.labels.length === attendu.labels.length &&
+          obs.labels.every((l, i) => l === attendu.labels![i]);
+        if (!memes) {
+          return {
+            ...rendu,
+            comparaisons,
+            ecart: obs.labels.length - attendu.labels.length,
+            message: `axe ${e.axis} : étiquettes « ${obs.labels.join(', ')} », recalculé « ${attendu.labels.join(', ')} »`,
+          };
+        }
+      }
+
+      const numerique = attendu.min !== null || attendu.max !== null || attendu.etendue !== null;
+      if (numerique && categories) {
+        return {
+          ...rendu,
+          comparaisons: comparaisons + 1,
+          message: `axe ${e.axis} : axe d'étiquettes, une échelle numérique était attendue`,
+        };
+      }
+      for (const [nom, voulue, lue] of [
+        ['minimum', attendu.min, obs.min],
+        ['maximum', attendu.max, obs.max],
+      ] as const) {
+        if (voulue === null) continue;
+        comparaisons++;
+        if (lue === null || !closeEnough(lue, voulue, DECIMALES_LIGNES)) {
+          return {
+            ...rendu,
+            comparaisons,
+            ecart: lue === null ? null : lue - voulue,
+            message: `axe ${e.axis} : ${nom} appliqué ${nombre(lue)}, déclaré ${nombre(voulue)}`,
+          };
+        }
+      }
+      if (attendu.etendue !== null) {
+        comparaisons += 2;
+        if (obs.min === null || obs.min > attendu.etendue.min) {
+          return {
+            ...rendu,
+            comparaisons,
+            ecart: obs.min === null ? null : obs.min - attendu.etendue.min,
+            message: `axe ${e.axis} : il commence à ${nombre(obs.min)}, la plus petite valeur recalculée est ${nombre(attendu.etendue.min)} — donnée hors de l'axe`,
+          };
+        }
+        if (obs.max === null || obs.max < attendu.etendue.max) {
+          return {
+            ...rendu,
+            comparaisons,
+            ecart: obs.max === null ? null : obs.max - attendu.etendue.max,
+            message: `axe ${e.axis} : il s'arrête à ${nombre(obs.max)}, la plus grande valeur recalculée est ${nombre(attendu.etendue.max)} — donnée hors de l'axe`,
+          };
+        }
+      }
+      if (comparaisons === 0) {
+        return { ...rendu, message: `axe ${e.axis} : l'attente ne compare rien` };
+      }
+      return { ...rendu, comparaisons, ok: true };
     }
 
     case 'csv':

@@ -283,6 +283,65 @@ export function lireRayons({ id, selecteur }: { id: string; selecteur: string })
   });
 }
 
+export interface ObservationEchelle {
+  /** Type de l'échelle Chart.js : `category` (étiquettes), `linear`, `radialLinear`… */
+  type: string;
+  min: number | null;
+  max: number | null;
+  /** Étiquettes d'un axe de catégories, telles que Chart.js les porte ; vide sinon. */
+  labels: string[];
+}
+
+/**
+ * ÉCHELLE APPLIQUÉE à un axe du graphique rendu (#1273) : le minimum, le
+ * maximum et, pour un axe d'étiquettes, la liste des catégories — lus sur
+ * l'instance Chart.js que DSFR Chart a créée, c'est-à-dire sur l'axe DESSINÉ.
+ * L'attribut relayé (`lireAttribut`) dit ce qui a été demandé à DSFR Chart ;
+ * il ne dit pas ce que l'axe est devenu : une borne « suggérée » est arrondie,
+ * et sur un axe d'étiquettes elle s'ajoutait comme une catégorie de plus.
+ *
+ * `null` tant que le graphique n'a pas d'aire tracée — l'instance existe avant
+ * d'avoir calculé ses échelles — ou que l'échelle `axe` n'existe pas.
+ */
+export function lireEchelle({ id, axe }: { id: string; axe: string }): ObservationEchelle | null {
+  const hote = document.getElementById(id);
+  if (!hote) return null;
+  let el: Element | null = null;
+  for (const candidat of Array.from(hote.querySelectorAll('*'))) {
+    if (/-chart$/.test(candidat.tagName.toLowerCase())) {
+      el = candidat;
+      break;
+    }
+  }
+  if (!el) return null;
+  interface Echelle {
+    type?: string;
+    min?: number;
+    max?: number;
+    getLabels?: () => unknown[];
+  }
+  interface Instance {
+    chartArea?: { width?: number };
+    scales?: Record<string, Echelle | undefined>;
+  }
+  const vue = (
+    el as unknown as { _instance?: { proxy?: { chart?: Instance }; ctx?: { chart?: Instance } } }
+  )._instance;
+  const chart = vue?.proxy?.chart ?? vue?.ctx?.chart;
+  if (!chart || !chart.scales || !((chart.chartArea?.width ?? 0) > 0)) return null;
+  const echelle = chart.scales[axe];
+  if (!echelle) return null;
+  const fini = (n: unknown): number | null =>
+    typeof n === 'number' && Number.isFinite(n) ? n : null;
+  const type = String(echelle.type ?? '');
+  return {
+    type,
+    min: fini(echelle.min),
+    max: fini(echelle.max),
+    labels: type === 'category' ? (echelle.getLabels?.() ?? []).map((l) => String(l)) : [],
+  };
+}
+
 /**
  * NOMBRE d'éléments TRACÉS que `selecteur` désigne dans le composant (#1059) :
  * les formes SVG d'une couche `geoshape` ou `circle` (`path.<shape-class>`),
