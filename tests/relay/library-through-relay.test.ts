@@ -78,6 +78,8 @@ interface PortalModule {
   PORTAL_HOST: string;
   FORBIDDEN_PORTAL_HOST: string;
   EXPORT_PATH: string;
+  DATASET_PATH: string;
+  TOTAL_ORDER: string;
   REGIONS: string[];
   ROWS: Ligne[];
   TOTAL: number;
@@ -96,6 +98,9 @@ let recues: PortalUpstream['requests'];
 let HOTE: string;
 let HOTE_INTERDIT: string;
 let EXPORT: string;
+/** Chemin des métadonnées du jeu, et l'ordre total que l'adaptateur en tire (#1274). */
+let METADONNEES: string;
+let ORDRE_TOTAL: string;
 let REGIONS: string[];
 let JEU: Ligne[];
 let SOMME: number;
@@ -107,6 +112,8 @@ beforeAll(async () => {
     PORTAL_HOST: HOTE,
     FORBIDDEN_PORTAL_HOST: HOTE_INTERDIT,
     EXPORT_PATH: EXPORT,
+    DATASET_PATH: METADONNEES,
+    TOTAL_ORDER: ORDRE_TOTAL,
     REGIONS,
     ROWS: JEU,
     TOTAL: SOMME,
@@ -174,13 +181,21 @@ describe('la bibliothèque à travers le relais de référence (ADR-155, #1232)'
     expect(lignes.reduce((total, ligne) => total + ligne.montant, 0)).toBe(SOMME);
     expect(new Set(lignes.map((ligne) => ligne.id)).size).toBe(JEU.length);
 
-    // L'amont a reçu EXACTEMENT ce que l'adaptateur aurait envoyé en direct
+    // L'amont a reçu EXACTEMENT ce que l'adaptateur aurait envoyé en direct :
+    // la sonde, les métadonnées du jeu, puis les trois pages sur l'ordre total
+    // (#1274) — la clé de départage traverse le relais comme le reste.
     expect(recues.map((r) => r.url)).toEqual([
       cheminEtRequete(adapter.buildUrl(p, 100, 0)),
-      cheminEtRequete(adapter.buildUrl(p, 100, 100)),
-      cheminEtRequete(adapter.buildUrl(p, 100, 200)),
+      METADONNEES,
+      cheminEtRequete(adapter.buildUrl(p, 100, 0, ORDRE_TOTAL)),
+      cheminEtRequete(adapter.buildUrl(p, 100, 100, ORDRE_TOTAL)),
+      cheminEtRequete(adapter.buildUrl(p, 100, 200, ORDRE_TOTAL)),
     ]);
-    expect(recues[1].url).toContain('offset=100');
+    expect(recues[3].url).toContain('offset=100');
+    expect(new URL(recues[3].url, `https://${HOTE}`).searchParams.get('order_by')).toBe(
+      ORDRE_TOTAL
+    );
+    expect(result.caveats).toBeUndefined();
     expect(recues.every((r) => r.headers.host === HOTE)).toBe(true);
   });
 
@@ -209,8 +224,17 @@ describe('la bibliothèque à travers le relais de référence (ADR-155, #1232)'
     recues.length = 0;
     const result = await adapter.fetchPage(p, overlay, signal());
 
-    expect(recues).toHaveLength(1);
-    expect(recues[0].url).toBe(cheminEtRequete(adapter.buildServerSideUrl(p, overlay)));
+    // La page part sur l'ordre total (#1274), et `buildServerSideUrl` rend
+    // alors l'URL qui est partie. Les métadonnées du jeu, lues avant elle, ne
+    // remontent pas forcément jusqu'à l'amont : le relais les a en cache dès
+    // qu'un test précédent les a demandées.
+    const pages = recues.filter((r) => r.url !== METADONNEES);
+    expect(pages).toHaveLength(1);
+    expect(recues.length).toBeLessThanOrEqual(2);
+    expect(pages[0].url).toBe(cheminEtRequete(adapter.buildServerSideUrl(p, overlay)));
+    expect(new URL(pages[0].url, `https://${HOTE}`).searchParams.get('order_by')).toBe(
+      'id ASC, region, montant'
+    );
     expect((result.data as Ligne[]).map((ligne) => ligne.id)).toEqual(
       JEU.slice(40, 60).map((ligne) => ligne.id)
     );
@@ -241,12 +265,19 @@ describe('la bibliothèque à travers le relais de référence (ADR-155, #1232)'
       recues.length = 0;
       const premier = await adapter.fetchAll(p, signal());
       const vus = recues.length;
+      const lignesVues = recues.filter((r) => r.url !== METADONNEES).length;
       const urls = [...appels];
       appels.length = 0;
       const second = await adapter.fetchAll(p, signal());
 
-      expect(vus).toBe(3);
-      expect(appels).toEqual(urls); // au caractère près
+      // La sonde, puis trois pages sur l'ordre total (#1274). Les métadonnées
+      // du jeu sont parties elles aussi (cinq appels), mais le relais peut déjà
+      // les avoir en cache.
+      expect(lignesVues).toBe(4);
+      expect(urls).toHaveLength(5);
+      // Au caractère près. Les métadonnées du jeu ne sont pas redemandées :
+      // l'adaptateur les a gardées.
+      expect(appels).toEqual(urls.filter((url) => !url.endsWith(METADONNEES)));
       expect(recues).toHaveLength(vus); // servi par le cache du relais
       expect(second.data).toEqual(premier.data);
       // La requête de la bibliothèque est « simple » : ni en-tête, ni cookie

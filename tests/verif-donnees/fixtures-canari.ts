@@ -98,7 +98,7 @@ export function repondreCanari(url: URL): unknown | null {
     if (fin === 'records') return repondreOdsRecords(url, jeu);
     if (fin === 'exports/json') return repondreOdsExport(url, jeu);
     if (fin === 'facets') return repondreOdsFacets(url, jeu);
-    if (fin === '') return repondreOdsMetadonnees();
+    if (fin === '') return repondreOdsMetadonnees(jeu);
     return null;
   }
   const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX_CANARI;

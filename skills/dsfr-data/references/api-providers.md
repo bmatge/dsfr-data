@@ -56,6 +56,12 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
 </dsfr-data-query>
 ```
 
+Au-dela d'une page, la source pagine sur un ORDRE TOTAL (#1274) : l'API ne garantit aucun ordre d'une
+page a l'autre (lignes en double, lignes perdues, compte juste), elle relit donc le jeu trie sur le
+tri demande puis sur toutes ses colonnes triables — deux requetes de plus, et sans `order-by` des
+lignes livrees dans l'ordre des colonnes du jeu. Rien a ecrire dans la page ; pour un ordre precis,
+poser `order-by`.
+
 OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. `fetch-mode="export"`
 (#689) le charge en UNE requete sur `/exports/json`, memes clauses ODSQL. A activer pour une page
 « un fetch, N agregations client », un jeu de plus de 1 000 lignes, ou un group-by a beaucoup de

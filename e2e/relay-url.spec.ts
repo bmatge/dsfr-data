@@ -2,12 +2,14 @@ import { test, expect, type Page } from '@playwright/test';
 import { startReference } from '../tests/relay/support/reference.mjs';
 import {
   answerPortal,
+  DATASET_PATH,
   PORTAL_HOST,
   RECORDS_PATH,
   ROWS,
   startPortalUpstream,
   TOTAL,
   TOTAL_BY_REGION,
+  TOTAL_ORDER,
 } from '../tests/relay/support/portal-upstream.mjs';
 
 /**
@@ -49,6 +51,17 @@ const chiffres = (texte: string | null): string => (texte ?? '').replace(/\D/g, 
 
 /** Préfixe du relais, sans barre finale. */
 const relais = (): string => relay.url.href.replace(/\/+$/, '');
+
+/**
+ * Requête d'une page lue sur l'ordre total (#1274). Au-delà d'une page, la
+ * source relit le jeu trié sur toutes ses colonnes : la première page, sans
+ * tri, n'est qu'une sonde, et les métadonnées du jeu donnent les colonnes.
+ */
+function pageTriee(offset = 0): string {
+  const requete = new URLSearchParams({ order_by: TOTAL_ORDER, limit: '100' });
+  if (offset > 0) requete.set('offset', String(offset));
+  return requete.toString();
+}
 
 /** Sert le portail EN DIRECT (source sans relais) : même jeu que derrière le relais. */
 async function servirLePortailEnDirect(page: Page): Promise<string[]> {
@@ -113,17 +126,23 @@ test('une source Opendatasoft charge, pagine et délègue un group-by à travers
   const deB = relayees.filter((u) => u.includes('group_by='));
 
   // Critère 1 — la requête part vers le relais, sous <relais>/<hôte>/<chemin>?<requête>
-  for (const url of relayees) expect(url.startsWith(`${prefixe}?`)).toBe(true);
-  expect(deA).toEqual([
-    `${prefixe}?limit=100`,
-    `${prefixe}?limit=100&offset=100`,
-    `${prefixe}?limit=100&offset=200`,
-  ]);
+  const metadonnees = `${relais()}/${PORTAL_HOST}${DATASET_PATH}`;
+  for (const url of relayees) {
+    expect(url === metadonnees || url.startsWith(`${prefixe}?`)).toBe(true);
+  }
+  // La sonde, les métadonnées du jeu, puis les trois pages sur l'ordre total
+  // (#1274) : la clé de départage traverse le relais comme le reste.
+  const pagesDeA = [
+    `${prefixe}?${pageTriee()}`,
+    `${prefixe}?${pageTriee(100)}`,
+    `${prefixe}?${pageTriee(200)}`,
+  ];
+  expect(deA).toEqual([`${prefixe}?limit=100`, metadonnees, ...pagesDeA]);
   // … et deux cibles différentes produisent deux URL différentes
   expect(deB.length).toBeGreaterThanOrEqual(1);
   expect(new Set(deB).size).toBe(1);
   expect(deB[0]).toContain('group_by=region');
-  expect(new Set([...deA, ...deB]).size).toBe(4);
+  expect(new Set([...deA, ...deB]).size).toBe(6);
 
   // Le portail a reçu, par le relais, le chemin et la requête octet pour octet
   const recues = portal.requests.map((r) => r.url);
@@ -151,8 +170,11 @@ test('une source Opendatasoft charge, pagine et délègue un group-by à travers
   await page.evaluate(() =>
     (document.getElementById('a') as unknown as { reload(): void }).reload()
   );
-  await expect.poll(() => relayees.length).toBe(avant + 3);
-  expect(relayees.slice(avant)).toEqual(deA);
+  // La sonde et les trois pages : les métadonnées du jeu, déjà lues, ne sont
+  // pas redemandées.
+  const rejouees = [`${prefixe}?limit=100`, ...pagesDeA];
+  await expect.poll(() => relayees.length).toBe(avant + rejouees.length);
+  expect(relayees.slice(avant)).toEqual(rejouees);
   // … donc un cache la sert, et le portail n'est pas rappelé. Lequel, peu importe :
   // le cache HTTP du navigateur (le relais répond `Cache-Control: public, max-age`)
   // ou, s'il est coupé, celui du relais (`X-Relay-Cache: HIT`).
@@ -195,10 +217,16 @@ test('sans relais, rien ne change : la source voisine appelle le portail en dire
     .poll(async () => chiffres(await page.locator('#c-somme').textContent()))
     .toContain(String(TOTAL));
   // Critère 3 — la source c, sans `relay-url`, appelle le portail lui-même
-  expect(directes).toEqual([
+  // — la sonde, puis trois pages sur l'ordre total (#1274). Les métadonnées du
+  // jeu ne sont lues qu'UNE fois pour la page, par la première source qui en a
+  // besoin : en direct ou par le relais, selon laquelle arrive la première.
+  const lignesDirectes = directes.filter((u) => u !== `https://${PORTAL_HOST}${DATASET_PATH}`);
+  expect(directes.length - lignesDirectes.length).toBeLessThanOrEqual(1);
+  expect(lignesDirectes).toEqual([
     `https://${PORTAL_HOST}${RECORDS_PATH}?limit=100`,
-    `https://${PORTAL_HOST}${RECORDS_PATH}?limit=100&offset=100`,
-    `https://${PORTAL_HOST}${RECORDS_PATH}?limit=100&offset=200`,
+    `https://${PORTAL_HOST}${RECORDS_PATH}?${pageTriee()}`,
+    `https://${PORTAL_HOST}${RECORDS_PATH}?${pageTriee(100)}`,
+    `https://${PORTAL_HOST}${RECORDS_PATH}?${pageTriee(200)}`,
   ]);
 
   // … pendant que ses voisines, sur la même page, passent par le relais : mêmes chiffres

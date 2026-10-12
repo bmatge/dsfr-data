@@ -21,6 +21,9 @@ Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode `api-type="opendat
 IMPORTANT : `limit` est plafonne a 100 par requête par l'API ODS.
 dsfr-data-query gere automatiquement la pagination via offset quand la limite demandee > 100
 (ex: cartes departementales avec 101 departements). Max 10 pages (1000 resultats).
+`offset` ne garantit AUCUN ordre d'une page a l'autre sans un `order_by` total : la source
+complete donc le tri de toutes les colonnes triables du jeu des qu'elle lit plus d'une page (#1274).
+`offset + limit` doit rester sous 10 000 : au-dela, `fetch-mode="export"`.
 
 ### Fonctions d'agrégation ODSQL
 - count(*), count(champ)

@@ -73,6 +73,14 @@ export const RESSOURCE_TABULAR_EX_AEQUO = 'ea1b5c3d-0000-4000-8000-verifexaequo0
 export const EX_AEQUO: Row[] = exAequo;
 
 /**
+ * Le même jeu servi par le faux portail Opendatasoft (#1274) : 450 lignes,
+ * cinq pages de 100. `/records` y pagine par offset sans garantir l'ordre,
+ * comme le vrai : tant que l'`order_by` ne départage pas toutes les lignes,
+ * les ex-aequo changent d'ordre d'une page à l'autre.
+ */
+export const DATASET_EX_AEQUO = 'jeu-ex-aequo';
+
+/**
  * Préfixe du relais cachable du site hôte (ADR-155, #1232), tel qu'une page le
  * pose dans `relay-url`. Relatif : la requête reste sur l'origine de la page.
  */
@@ -162,6 +170,7 @@ function repondreJeuPagine(url: URL, jeu: Row[]): Record<string, unknown> {
 }
 
 const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET}`;
+const PREFIXE_ODS_EX_AEQUO = `/api/explore/v2.1/catalog/datasets/${DATASET_EX_AEQUO}`;
 
 /** Un agrégat ODSQL aliasé d'un `select` : `sum(population) as population__sum`. */
 const AGREGAT_ALIAS = /^(sum|avg|min|max|count)\s*\(\s*(.*?)\s*\)\s+as\s+(.+)$/i;
@@ -254,7 +263,14 @@ export function repondre(url: URL): unknown | null {
     }
     if (reste === '/exports/json') return repondreOdsExport(url, TERRITOIRES);
     if (reste === '/facets') return repondreOdsFacets(url, TERRITOIRES);
-    if (reste === '') return repondreOdsMetadonnees();
+    if (reste === '') return repondreOdsMetadonnees(TERRITOIRES);
+    return null;
+  }
+  if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS_EX_AEQUO)) {
+    const reste = url.pathname.slice(PREFIXE_ODS_EX_AEQUO.length);
+    if (reste === '/records') return repondreOdsRecords(url, EX_AEQUO);
+    if (reste === '/exports/json') return repondreOdsExport(url, EX_AEQUO);
+    if (reste === '') return repondreOdsMetadonnees(EX_AEQUO);
     return null;
   }
   if (url.origin === HOTE_TABULAR) {

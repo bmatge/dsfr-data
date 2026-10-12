@@ -114,7 +114,78 @@ const MELODI_URL =
   `https://api.insee.fr/melodi/data/${MELODI_DATASET}` +
   `?maxResult=1000&totalCount=TRUE&GEO=${MELODI_GEO}&TIME_PERIOD=${MELODI_PERIODE}`;
 
+/**
+ * Opendatasoft — taux de change de chancellerie (DGFiP), Haïti, monnaies en
+ * vigueur : le jeu sur lequel #1274 a été payé. 321 lignes au 2026-10-12,
+ * deux monnaies (HTG, USD), donc quatre pages de 100 côté adaptateur.
+ * L'oracle relève les lignes par l'export (`/exports/json`, une requête),
+ * que le défaut ne touche pas.
+ */
+const CHANGE_PORTAIL = 'https://data.economie.gouv.fr';
+const CHANGE_JEU = 'dgfip-taux-de-change';
+const CHANGE_WHERE = 'monnaievigueur = 1 AND code_pays = "HT"';
+
 const CHECKS: Check[] = [
+  {
+    id: 'ods-taux-de-change-pagination-vivant',
+    mode: 'live',
+    origin:
+      "data.economie.gouv.fr / taux de change de chancellerie — #1274, contre le vrai portail. Au-delà de 100 lignes, `/records` pagine par offset sans garantir l'ordre : sur Haïti, 321 lignes reçues pour 297 à 303 distinctes, faux dix fois sur dix le jour de l'issue, juste cinq fois sur cinq le 2026-10-12 — le défaut est intermittent. L'adaptateur relit donc sur un ordre total, le tri de départage étant fait de toutes les colonnes triables du jeu. Trois chiffres que seul l'ENSEMBLE exact des lignes rend juste : les lignes elles-mêmes (monnaie, date, taux, dans l'ordre livré), le nombre de taux en gourdes — celui que la page affichait faux, 162 au lieu de 154 — et le nombre de dates distinctes. CE CONTRÔLE GARDE AUSSI LA CLÉ DE DÉPARTAGE : si le portail venait à refuser un tri sur toutes les colonnes, l'adaptateur replierait en le disant, et le silence exigé ici serait rompu.",
+    feed: {
+      kind: 'raw',
+      source: { baseUrl: CHANGE_PORTAIL, dataset: CHANGE_JEU, where: CHANGE_WHERE },
+    },
+    markup: `
+  <dsfr-data-source id="s-change" api-type="opendatasoft"
+    base-url="${CHANGE_PORTAIL}" dataset-id="${CHANGE_JEU}"
+    where="${CHANGE_WHERE.replace(/"/g, '&quot;')}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-change-n" source="s-change" value="count" format="nombre" label="Taux"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-change-htg" source="s-change" value="count{monnaie_source:eq:HTG}" format="nombre"
+    label="Taux en gourdes"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-change-dates" source="s-change" value="date:distinct" format="nombre"
+    label="Dates"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-change',
+        key: ['monnaie_source', 'date'],
+        columns: ['taux'],
+        // L'ordre livré est celui de la clé de départage : les colonnes du
+        // jeu dans l'ordre de ses champs. Pour un seul pays, la monnaie puis
+        // la date suffisent à le dire.
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'monnaie_source', dir: 'asc' },
+              { column: 'date', dir: 'asc' },
+            ],
+          },
+        ],
+      },
+      { kind: 'kpi', id: 'k-change-n', agg: 'count' },
+      {
+        kind: 'kpi',
+        id: 'k-change-htg',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'monnaie_source', op: 'eq', value: 'HTG' }] },
+        ],
+      },
+      { kind: 'kpi', id: 'k-change-dates', agg: 'distinct', field: 'date' },
+      {
+        kind: 'urls',
+        id: 'change-pagine-sur-un-ordre-total',
+        among: `/datasets/${CHANGE_JEU}/records`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains:
+          'order_by=monnaie_source, nom_monnaie_source, pays_principal, code_pays, date, taux, monnaievigueur',
+        verdict: 'last',
+      },
+      { kind: 'diagnostic', id: 's-change', expect: 'silence', contains: 'sans ordre total' },
+    ],
+  },
+
   {
     id: 'ods-export-where-parenthese-vivant',
     mode: 'live',

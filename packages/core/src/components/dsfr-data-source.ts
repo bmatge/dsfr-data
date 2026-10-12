@@ -419,6 +419,21 @@ export class DsfrDataSource extends LitElement {
    *
    * Un chargement d'une seule page, et un regroupement trié sur sa seule
    * colonne de regroupement, gardent le tri du serveur tel quel.
+   *
+   * Sur Opendatasoft (#1274), la pagination par décalage n'a AUCUN ordre
+   * garanti : le défaut touche aussi un chargement sans `order-by`. Dès
+   * qu'un chargement dépasse une page (100 lignes), l'adaptateur relit donc
+   * sur un ordre total — le tri demandé, inchangé et en tête, complété de
+   * toutes les colonnes triables du jeu (texte, nombre, date, booléen, dans
+   * l'ordre de ses champs ; pour des groupes triés, les autres clés du
+   * `group-by`). Coût : deux requêtes de plus, la première page relue et les
+   * métadonnées du jeu, lues une fois. Sans `order-by`, les lignes d'un
+   * chargement de plus d'une page arrivent alors triées sur les colonnes du
+   * jeu, et non plus dans l'ordre, arbitraire, de l'API. Un chargement d'une
+   * seule page ne change pas : ni tri ajouté, ni requête de plus. Si l'API
+   * refuse ce tri, ou si les colonnes du jeu sont illisibles, la source
+   * charge comme avant et le volet Diagnostic signale une pagination sans
+   * ordre garanti.
    */
   @property({ type: String, attribute: 'order-by' })
   orderBy = '';
@@ -448,6 +463,20 @@ export class DsfrDataSource extends LitElement {
    *
    * Une requête qui délègue réellement son regroupement, ou qui ne regroupe
    * pas (filtre et tri d'un tableau paginé), n'est pas concernée.
+   *
+   * Les pages sont servies une à une et le jeu n'est jamais relu : seul le
+   * serveur peut tenir l'ordre d'une page à l'autre, faute de quoi un usager
+   * qui feuillette voit des lignes en double et n'en voit jamais d'autres.
+   * Chaque page est donc demandée sur un ordre total (#1274, #1233) : sur
+   * Opendatasoft, le tri de la liste (ou aucun) complété de toutes les
+   * colonnes triables du jeu, lues une fois dans ses métadonnées ; sur
+   * Tabular, le tri demandé complété de l'identifiant de ligne — sans tri,
+   * l'API suit déjà cet identifiant, rien n'est ajouté. Sur un très gros jeu
+   * sans filtre, ce tri allonge la réponse de la première page (mesuré sur
+   * 1,7 million de lignes : 5,5 s à froid, 0,7 s ensuite, contre 0,2 s sans
+   * tri) : un `order-by` sur une colonne unique ne coûte pas moins, un
+   * `where` qui réduit le jeu, si. Si l'API refuse la clé de départage, la
+   * page est servie comme avant et le volet Diagnostic le signale.
    */
   @property({ type: Boolean, attribute: 'server-side' })
   serverSide = false;
@@ -475,6 +504,12 @@ export class DsfrDataSource extends LitElement {
    * du serveur est gardé tel quel et le volet Diagnostic signale un tri
    * instable — des lignes à valeurs égales peuvent alors manquer ou être
    * doublées aux limites de page.
+   *
+   * Sur Opendatasoft (#1274), un chargement coupé rend de même les premières
+   * lignes d'un ordre total, avec ou sans `order-by` : le tri demandé puis
+   * toutes les colonnes triables du jeu (voir `order-by`). L'API n'y sert
+   * pas plus de 10 000 lignes par la pagination, quel que soit ce plafond :
+   * au-delà, `fetch-mode="export"`.
    */
   @property({ type: Number, attribute: 'max-records' })
   maxRecords = 0;
@@ -502,6 +537,11 @@ export class DsfrDataSource extends LitElement {
    * les rend tous d'un coup au lieu d'une page. À ne pas activer avec
    * `server-side` (pagination page par page), qui reste sur l'endpoint
    * paginé et signale la contradiction dans la console.
+   *
+   * Une seule requête n'a pas d'ordre à tenir d'une page à l'autre : le mode
+   * `export` n'est pas concerné par la relecture sur un ordre total que la
+   * pagination impose au-delà d'une page (#1274, voir `order-by`), et les
+   * lignes y arrivent dans l'ordre de l'API, ou dans celui d'`order-by`.
    *
    * En mode `export` le total serveur est inconnu : la troncature est
    * détectée en demandant une ligne de plus que le plafond `max-records`,
