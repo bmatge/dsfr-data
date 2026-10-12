@@ -16,6 +16,7 @@ import {
   isoToFrDate,
   legendClasses,
   runPipeline,
+  texteCellule,
   toNum,
 } from './compute.js';
 import { referenceInvariant, type AttenduInvariant } from './invariants.js';
@@ -337,6 +338,11 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
           kind: 'texts',
           valeurs: rows.map((r) => {
             const brute = r[e.column];
+            if (e.cellule) {
+              // Le texte de la cellule, recalculé (#1282) : chaîne contre chaîne.
+              const valeur = toNum(brute);
+              return valeur === null ? (e.absent ?? '') : texteCellule(valeur * facteur);
+            }
             if (!e.numeric) return brute === null || brute === undefined ? '' : String(brute);
             const n = toNum(brute);
             return n === null ? null : n * facteur;

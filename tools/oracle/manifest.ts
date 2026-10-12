@@ -594,6 +594,20 @@ export interface ExpectTexts extends ExpectBase {
   numeric?: boolean;
   /** Décimales de la comparaison numérique. */
   decimals?: number;
+  /**
+   * Comparer le TEXTE d'une cellule de tableau, recalculé par l'oracle
+   * (`texteCellule`, #1282), au lieu de relire un nombre : une comparaison
+   * numérique à deux décimales tient « 0 » pour égal à 0,00123, et ne peut
+   * donc pas voir un petit ratio annoncé nul. La colonne est lue comme un
+   * nombre, puis écrite comme la cellule doit l'être — chaîne contre chaîne,
+   * à l'identique. Ne se combine pas avec `numeric`.
+   */
+  cellule?: boolean;
+  /**
+   * Avec `cellule` : ce que la cellule MONTRE pour une valeur absente — le
+   * tiret cadratin de `dsfr-data-list`. Défaut : une cellule vide.
+   */
+  absent?: string;
   /** Facteur appliqué à la valeur recalculée (fraction → pourcentage…). */
   scale?: number;
   /** Motif que CHAQUE texte doit vérifier — la forme, pas la valeur. */

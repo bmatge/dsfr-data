@@ -110,22 +110,50 @@ export function formatValue(
 }
 
 /**
+ * En dessous de ce seuil (en valeur absolue), deux décimales ne disent plus
+ * rien : 0,00123 s'arrondirait à « 0 » (#1282).
+ */
+const SEUIL_PETITE_VALEUR = 0.01;
+/** Chiffres significatifs gardés sous le seuil : 0,00123 → « 0,0012 ». */
+const CHIFFRES_SIGNIFICATIFS_PETITE_VALEUR = 2;
+
+/**
  * Nombre en fr-FR pour un affichage (`typeof value === 'number'` seulement :
- * les chaînes — codes INSEE, SIREN — ne passent jamais par ici). Sans
- * `decimals`, au plus 2 décimales (les entiers restent entiers) ; avec
- * `decimals`, exactement ce nombre de décimales (colonnes alignées, même
- * sémantique que `decimals` du KPI). Non fini (NaN, Infinity) → '—'.
- * Réutilisé par dsfr-data-list, dsfr-data-a11y et le KPI (#665, #666).
+ * les chaînes — codes INSEE, SIREN — ne passent jamais par ici). Non fini
+ * (NaN, Infinity) → '—'. Réutilisé par dsfr-data-list, dsfr-data-a11y et le
+ * tableau de la DataBox de dsfr-data-chart (#665, #666, #1244).
+ *
+ * Sans `decimals` :
+ *   - zéro (et `-0`) → « 0 » ;
+ *   - valeur absolue inférieure à 0,01 → ses DEUX premiers chiffres
+ *     significatifs, écrits en entier (0,00123 → « 0,0012 », 1e-12 →
+ *     « 0,000000000001 » : jamais de notation scientifique). Une valeur non
+ *     nulle ne s'affiche donc jamais « 0 » ni « -0 » (#1282) ;
+ *   - sinon au plus 2 décimales (les entiers restent entiers), séparateur de
+ *     milliers : 1234567.891 → « 1 234 567,89 ».
+ * Les deux régimes se rejoignent au seuil : 0,00999 et 0,01 rendent « 0,01 ».
+ *
+ * Avec `decimals` : exactement ce nombre de décimales, sans exception (colonnes
+ * alignées, même sémantique que `decimals` du KPI) — 0,00123 à deux décimales
+ * rend « 0,00 », c'est le choix de l'auteur.
  */
 export function formatNumberFr(value: number, options: { decimals?: number } = {}): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
   const decimals = sanitizeDecimals(options.decimals);
-  return new Intl.NumberFormat(
-    'fr-FR',
-    decimals !== undefined
-      ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
-      : { maximumFractionDigits: 2 }
-  ).format(value);
+  if (decimals !== undefined) {
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
+  // `-0` compris : Intl l'écrirait « -0 ».
+  if (value === 0) return '0';
+  if (Math.abs(value) < SEUIL_PETITE_VALEUR) {
+    return new Intl.NumberFormat('fr-FR', {
+      maximumSignificantDigits: CHIFFRES_SIGNIFICATIFS_PETITE_VALEUR,
+    }).format(value);
+  }
+  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
 }
 
 /** Notation compacte fr-FR : 14 785 684 → "14,8 M", 6 676 → "6,7 k" (decimales : plafond, defaut 1) */

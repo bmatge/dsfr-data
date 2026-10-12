@@ -33,6 +33,7 @@ import zones from './jeux/affichages-zones.json' with { type: 'json' };
 import aides from './jeux/affichages-aides.json' with { type: 'json' };
 import symboles from './jeux/affichages-symboles.json' with { type: 'json' };
 import encarts from './jeux/affichages-encarts.json' with { type: 'json' };
+import ratios from './jeux/affichages-ratios.json' with { type: 'json' };
 
 /** Hôte fictif — TLD réservé (RFC 2606) : rien ne peut joindre le réseau. */
 export const HOTE_AFFICHAGES = 'https://affichages.verif.invalid';
@@ -121,7 +122,15 @@ export const SYMBOLES: Row[] = symboles;
  */
 export const ENCARTS: Row[] = encarts;
 
-/** Les dix jeux, sous le nom que les manifestes leur donnent. */
+/**
+ * Quatorze ratios pour le texte des cellules de tableau (#1282) : des valeurs
+ * non nulles sous le centième (qu'un arrondi à deux décimales annonce « 0 »),
+ * un négatif (« -0 »), les deux côtés du seuil 0,01, un vrai zéro, une valeur
+ * infime (jamais de notation scientifique), un grand nombre et une absence.
+ */
+export const RATIOS: Row[] = ratios;
+
+/** Les onze jeux, sous le nom que les manifestes leur donnent. */
 export const JEUX_AFFICHAGES = {
   communes: COMMUNES,
   serie: SERIE,
@@ -133,6 +142,7 @@ export const JEUX_AFFICHAGES = {
   aides: AIDES,
   symboles: SYMBOLES,
   encarts: ENCARTS,
+  ratios: RATIOS,
 } as const;
 
 /**

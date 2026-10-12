@@ -1182,6 +1182,54 @@ export function runPipeline(
   return rows;
 }
 
+/**
+ * Le TEXTE qu'une cellule de tableau doit porter pour un nombre (#1282) —
+ * tableau de la DataBox, `dsfr-data-a11y`, `dsfr-data-list`, sans attribut
+ * `decimals`. La règle, énoncée ici en chiffres décimaux et sans `Intl` :
+ *   - absence → cellule vide ; zéro → « 0 » ;
+ *   - valeur absolue inférieure à 0,01 → ses DEUX premiers chiffres
+ *     significatifs, écrits en entier (0,00123 → « 0,0012 », 1e-12 →
+ *     « 0,000000000001 ») : une valeur non nulle n'est jamais écrite « 0 » ;
+ *   - sinon deux décimales au plus, zéros de fin retirés, milliers séparés
+ *     d'une espace, virgule décimale.
+ * L'arrondi est au demi supérieur EN VALEUR ABSOLUE, sur l'écriture décimale
+ * la plus courte du nombre (celle de `String`) : 0,005 garde « 0,005 ».
+ * L'espace de milliers est l'espace ORDINAIRE — la lecture des textes replie
+ * les insécables (`lireTextes`).
+ */
+export function texteCellule(n: number | null): string {
+  if (n === null || !Number.isFinite(n)) return '';
+  if (n === 0) return '0';
+  // Écriture scientifique la plus courte : « 1.23e-3 » → chiffres 1,2,3 et rang −3.
+  const [mantisse, exposant] = Math.abs(n).toExponential().split('e');
+  const chiffres = mantisse.replace('.', '').split('').map(Number);
+  let rang = Number(exposant);
+  // Sous 0,01 (rang ≤ −3) : deux chiffres. Sinon : jusqu'au centième.
+  const gardes = rang < -2 ? 2 : rang + 3;
+  while (chiffres.length <= gardes) chiffres.push(0);
+  const retenus = chiffres.slice(0, gardes);
+  if (chiffres[gardes] >= 5) {
+    let i = gardes - 1;
+    while (i >= 0 && retenus[i] === 9) retenus[i--] = 0;
+    if (i >= 0) retenus[i] += 1;
+    else {
+      retenus.unshift(1);
+      rang += 1;
+    }
+  }
+  const ecrits = retenus.join('');
+  const entier = rang >= 0 ? ecrits.slice(0, rang + 1).padEnd(rang + 1, '0') : '0';
+  const fraction = (rang >= 0 ? ecrits.slice(rang + 1) : '0'.repeat(-rang - 1) + ecrits).replace(
+    /0+$/,
+    ''
+  );
+  const groupes: string[] = [];
+  for (let fin = entier.length; fin > 0; fin -= 3) {
+    groupes.unshift(entier.slice(Math.max(0, fin - 3), fin));
+  }
+  return `${n < 0 ? '-' : ''}${groupes.join(' ')}${fraction === '' ? '' : `,${fraction}`}`;
+}
+
 /** Arrondi à `decimals` décimales, comme l'affichage du KPI. */
 export function roundTo(n: number, decimals: number): number {
   const f = 10 ** decimals;
