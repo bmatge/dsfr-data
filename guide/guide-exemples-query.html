@@ -376,7 +376,7 @@
   &lt;dsfr-data-kpi source="src" value="count"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
   &lt;dsfr-data-kpi source="q-alim" value="count"
-    label="Dont alimentaires" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+    label="Dont alimentation" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;</pre>
           </div>
         </section>
@@ -556,12 +556,15 @@
         <h2 id="pagination-kpi" class="fr-mt-6w">Pagination serveur + KPI globaux</h2>
         <p>
           Quand <code>dsfr-data-source server-side</code> est actif, les composants en aval ne voient que la page courante.
-          Les KPI calcules sur une seule page sont trompeurs. La solution : utiliser <strong>deux sources</strong> —
-          une <code>dsfr-data-source server-side</code> pour la navigation + une <code>dsfr-data-source</code> avec <code>page-size</code> eleve pour les KPI globaux.
+          Un chiffre calcule sur une seule page serait partiel : une <code>dsfr-data-query</code> qui agrege derriere une source
+          paginee affiche d'ailleurs une erreur de configuration plutot qu'un chiffre faux.
+          La solution : lire le <strong>total publie par le portail</strong> avec <code>value="meta:total"</code>.
+          Il compte toutes les lignes que retient le <code>where</code> de la source, sans les charger.
         </p>
 
-        <h4 id="paginate-kpi">Double source — Navigation paginee + KPI sur un volume etendu</h4>
-        <p>Le datalist navigue page par page. Les KPI calculent les statistiques globales via une seconde source ODS avec page-size plus eleve.
+        <h4 id="paginate-kpi">Navigation paginee + KPI sur le jeu entier</h4>
+        <p>Le datalist navigue page par page. Chaque KPI lit le total d'une source qui ne charge qu'une ligne : le portail fait le compte.
+          Le <code>where</code> d'une source Opendatasoft s'ecrit dans la syntaxe du portail (ODSQL).
           <a href="../apps/playground/index.html?example=paginate-kpi-global" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
         <div class="example-loading" data-example>Chargement...</div>
@@ -575,27 +578,25 @@
   server-side page-size="20"
   order-by="date_publication:desc"&gt;&lt;/dsfr-data-source&gt;
 
-&lt;!-- Source 2 : chargement etendu pour les KPI globaux --&gt;
+&lt;!-- Sources 2 et 3 : une seule ligne chargee, le portail publie le total --&gt;
 &lt;dsfr-data-source id="stats-src" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="100"&gt;
+  server-side page-size="1"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-query id="global-stats" source="stats-src"
-  aggregate="libelle:count:total"&gt;
-&lt;/dsfr-data-query&gt;
-
-&lt;dsfr-data-query id="global-alim" source="stats-src"
-  filter="categorie_produit:contains:Aliment"
-  aggregate="libelle:count:total_alim"&gt;
-&lt;/dsfr-data-query&gt;
+&lt;dsfr-data-source id="alim-src" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  where='categorie_produit="alimentation"'
+  server-side page-size="1"&gt;
+&lt;/dsfr-data-source&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;"&gt;
-  &lt;dsfr-data-kpi source="global-stats" value="total:sum"
+  &lt;dsfr-data-kpi source="stats-src" value="meta:total"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="global-alim" value="total_alim:sum"
-    label="Dont alimentaires" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="alim-src" value="meta:total"
+    label="Dont alimentation" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;
 
 &lt;dsfr-data-list source="browse"
