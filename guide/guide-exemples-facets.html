@@ -70,7 +70,8 @@
 <pre class="example-code">&lt;dsfr-data-source id="raw" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="20"&gt;&lt;/dsfr-data-source&gt;
+  server-side page-size="20"
+  order-by="date_publication:desc"&gt;&lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-facets id="filtered" source="raw"
   server-facets
@@ -194,7 +195,8 @@
 <pre class="example-code">&lt;dsfr-data-source id="raw" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="20"&gt;&lt;/dsfr-data-source&gt;
+  server-side page-size="20"
+  order-by="date_publication:desc"&gt;&lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-facets id="filtered" source="raw"
   server-facets
@@ -228,7 +230,8 @@
 <pre class="example-code">&lt;dsfr-data-source id="q" api-type="opendatasoft"
   dataset-id="industrie-du-futur"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="12"&gt;
+  server-side page-size="12"
+  order-by="nom_departement:asc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-search id="recherche" source="q" server-search

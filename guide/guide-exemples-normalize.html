@@ -126,7 +126,8 @@
 <pre class="example-code">&lt;dsfr-data-source id="data" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="50"&gt;&lt;/dsfr-data-source&gt;
+  server-side page-size="50"
+  order-by="date_publication:desc"&gt;&lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-normalize id="clean" source="data"
   trim
