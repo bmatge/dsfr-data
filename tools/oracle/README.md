@@ -808,6 +808,14 @@ est donc immédiat, et le rendu Lit qui suit le geste est asynchrone. Lire
 trop tôt, c'est lire la valeur d'AVANT le geste — et comparer cette
 valeur-là, c'est être vert ou rouge au hasard de la machine.
 
+**Un geste peut être suivi d'une PANNE** (#1272). Jusqu'à la 0.48, une source
+ne lisait pas le corps d'une réponse d'erreur : la requête restait ouverte pour
+le navigateur, `networkidle` n'arrivait jamais, et le contrôle expirait au bout
+de 90 s au lieu de dire son chiffre. `kpi-source-en-panne-apres-chargement`
+(#1222) avait dû s'en passer et retirer le jeu depuis la page elle-même. Le
+corps est maintenant abandonné (`utils/http-error.ts`) :
+`marquage-perime-leve-au-rechargement` retire le jeu par un clic.
+
 `clock` fixe l'instant (`page.clock.setFixedTime`) ET le fuseau du navigateur
 (`timezoneId` du contexte). Sans elle, un contrôle sur `today`,
 `current-month`, `current-year` ou `last-n-days` serait vert 364 jours sur 365
@@ -963,6 +971,11 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | la tuile en panne rend `formatValue(0)` à la place du tiret (`_renderUnavailable`, `dsfr-data-kpi.ts`) | `kpi-source-introuvable-pas-un-nombre`, `kpi-source-en-panne-apres-chargement` | « affiché « 0 » (0), recalculé — » sur les cinq tuiles en panne ; le témoin, sur le jeu servi, reste à 15 909 531 (#1222) |
 | affichages | la tuile en panne rend la valeur calculée sur les lignes en mémoire (`_renderUnavailable`, `dsfr-data-kpi.ts`) | `kpi-source-en-panne-apres-chargement` | « affiché « 15 909 531 », recalculé — » et « affiché « 48 », recalculé — » : l'ancien chiffre sous une panne ; la source en 404 dès le départ, qui n'a jamais rien reçu, reste verte (#1222) |
 | affichages | l'état d'erreur n'est plus relu au montage (`_subscribeToSource`, `core/utils/source-subscriber.ts`) | `kpi-source-en-panne-apres-chargement` | « k-tardif : affiché « 15 909 531 », recalculé — » : la tuile montée après la panne ressort le chiffre resté en cache, à côté de deux voisines qui disent la panne (#1222) |
+| affichages | `dispatchDataError` ne sort plus les lignes du cache courant (appel à `retireDataCache` neutralisé, `core/utils/data-bridge.ts`) — l'état d'avant #1272 | `lecteur-hors-mixin-source-en-panne`, `marquage-perime-leve-au-rechargement` | « lu-cache : affiché « 15909531 », recalculé — », de même `lu-cache-requete` et `lu-getdata-requete` : le code d'intégrateur relit l'ancien jeu pendant la panne ; « lu-dernier : affiché « lignes non marquées », recalculé 15909531 » et « retour-marque : affiché « marquage encore posé » » : plus rien n'est daté (#1272) |
+| affichages | `getData()` rend `_data` sans regarder la panne, sur la source (`dsfr-data-source.ts`) et sur la requête (`dsfr-data-query.ts`) | `lecteur-hors-mixin-source-en-panne` | « lu-getdata : affiché « 15909531 », recalculé — » et « lu-getdata-requete : affiché « 15909531 », recalculé — » (#1272) |
+| affichages | `emitTransformedData` ne refuse plus d'émettre sous une entrée périmée (`core/utils/transformer-mixin.ts`) | `transformateur-amont-en-panne` | « k-jointure : affiché « 15 909 531 », recalculé — » et « k-pile : affiché « 31 819 062 », recalculé — » : l'autre entrée se recharge, la jointure et l'empilement recalculent sur l'ancien côté et l'aval quitte son état d'erreur (#1272) |
+| affichages | les trois verrous retirés ensemble — lignes laissées au cache, émission non refusée, erreur de l'amont non relue au branchement (`data-bridge.ts`, `transformer-mixin.ts`) : le comportement d'avant #1272 | `transformateur-amont-en-panne` (et les deux autres) | les QUATRE tuiles ressortent un chiffre : « k-tardif-requete : affiché « 15 909 531 » » (requête montée après la panne), « k-jointure », « k-pile : 31 819 062 », « k-normalise : 15 909 531 » (attribut changé pendant la panne). `k-tardif-requete` et `k-normalise` sont gardés par DEUX verrous : une seule mutation ne les rougit pas (#1272) |
+| affichages | `setDataCache` ne lève plus le marquage au chargement réussi (`staleData.delete` retiré, `core/utils/data-bridge.ts`) | `marquage-perime-leve-au-rechargement` | « retour-getdata : affiché « — », recalculé 15909531 » et « retour-marque : affiché « marquage encore posé » » : la source remarche et `getData()` reste muet (#1272) |
 | affichages | `last` lit la première ligne | `kpi-premiere-et-derniere-ligne` | affiché 120, recalculé 168 |
 | affichages | `evaluateParsed` ignore `rowFilter` | `kpi-filtre-entre-accolades-776` | affiché 100,00 %, recalculé 23,46 (#776) |
 | affichages | `meta:total` rend les lignes reçues | `kpi-meta-total-contre-count` | affiché 20, recalculé 137 — #659 |
