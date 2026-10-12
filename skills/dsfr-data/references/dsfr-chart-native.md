@@ -28,7 +28,7 @@ name='["Série A","Série B"]'
 - highlight-index='[3]' : mettre en avant une barre
 
 ### <line-chart>
-- x-min, x-max, y-min, y-max : limites des axes
+- x-min, x-max, y-min, y-max : bornes SUGGEREES des axes (elles ne font qu'elargir l'axe, et sont arrondies a la graduation voisine). Via dsfr-data-chart, les bornes sont posees exactement — voir « Bornes d'axe »
 
 ### <pie-chart>
 - fill="true" : camembert plein (défaut: anneau/donut)

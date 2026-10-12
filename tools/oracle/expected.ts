@@ -95,6 +95,19 @@ export interface AttenduAttr {
 }
 
 /**
+ * Échelle attendue d'un axe (#1273) : les bornes que la page déclare, les
+ * étiquettes qu'un axe de catégories doit porter, l'étendue des valeurs qu'un
+ * axe numérique doit contenir.
+ */
+export interface AttenduEchelle {
+  kind: 'scale';
+  min: number | null;
+  max: number | null;
+  labels: string[] | null;
+  etendue: { min: number; max: number } | null;
+}
+
+/**
  * Le seul attendu qui ne se CALCULE pas depuis les lignes : la présence d'un
  * fragment dans les URL appelées est énoncée par le contrôle lui-même. Il est
  * recopié ici pour que le mode vivant, qui relit `expected.json`, dispose de la
@@ -148,6 +161,7 @@ export type Attendu =
   | AttenduCompte
   | AttenduClasse
   | AttenduAttr
+  | AttenduEchelle
   | AttenduCsv
   | AttenduPastilles
   | AttenduFacettes
@@ -195,6 +209,7 @@ export function cleAttendu(e: Expect): string {
   const base = `${e.kind}:${e.id}`;
   if (e.kind === 'facets') return `${base}:${e.group}`;
   if (e.kind === 'attr') return `${base}:${e.attr}`;
+  if (e.kind === 'scale') return `${base}:${e.axis}`;
   if (e.kind === 'text') {
     // Deux nombres d'un même texte (#1068) : le rang fait partie de la clé.
     const rang = e.number === undefined ? '' : `#${e.number}`;
@@ -356,6 +371,28 @@ export function computeExpectedFor(check: Check, datasets: Record<string, Row[]>
           decimals: e.decimals ?? 0,
         };
         break;
+      case 'scale': {
+        // L'étendue se cherche valeur par valeur : jamais d'étalement d'une
+        // colonne de données en arguments.
+        let lo: number | null = null;
+        let hi: number | null = null;
+        const voir = (n: number | null) => {
+          if (n === null) return;
+          if (lo === null || n < lo) lo = n;
+          if (hi === null || n > hi) hi = n;
+        };
+        for (const col of e.valueColumns ?? []) for (const r of rows) voir(toNum(r[col]));
+        if (e.fromZero) voir(0);
+        const colonne = e.labelColumn;
+        values[cleAttendu(e)] = {
+          kind: 'scale',
+          min: e.min ?? null,
+          max: e.max ?? null,
+          labels: colonne === undefined ? null : rows.map((r) => String(r[colonne] ?? '')),
+          etendue: lo === null || hi === null ? null : { min: lo, max: hi },
+        };
+        break;
+      }
       case 'csv':
         values[cleAttendu(e)] = {
           kind: 'csv',

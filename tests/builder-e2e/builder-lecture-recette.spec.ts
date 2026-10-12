@@ -10,8 +10,11 @@
  *
  * C'est aussi ce qui garde la table « quel réglage pour quel type » de
  * `apps/builder/src/lecture.ts`, mesurée dans le navigateur : sur des barres
- * horizontales l'axe des valeurs est l'axe X, sur un barres + ligne les bornes
- * sont sans effet (le formulaire ne les y propose pas).
+ * horizontales l'axe des valeurs est l'axe X (le Builder écrit `x-*`), et le
+ * formulaire ne propose pas de bornes pour un barres + ligne. Depuis #1273 la
+ * bibliothèque y borne l'axe des barres avec `y-*` ; la table n'a pas été
+ * réalignée, pour qu'un favori enregistré régénère le même code (voir
+ * `lecture.ts`).
  *
  * RECETTE MANUELLE, HORS CI : l'aperçu du Builder charge DSFR et DSFR Chart
  * depuis leur CDN, donc le réseau. `builder-e2e.yml` nomme ses specs une par

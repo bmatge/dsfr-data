@@ -368,8 +368,9 @@ Jamais l'état interne qui a servi à produire un chiffre : ce que la page **mon
 | `lireTextes` | le texte de chaque élément d'un sélecteur (lignes d'un KPI, tendance, valeurs d'un podium, cellules d'un `dsfr-data-display`). Les espaces sont repliées en espaces ordinaires ; avec `keepNbsp` sur l'attente `texts`, les INSÉCABLES (U+00A0, U+202F) sont gardées, pour qu'un motif puisse exiger le codet (#1244) |
 | `lireCompte` | le NOMBRE d'éléments tracés sous un sélecteur — formes d'une couche de carte (voir « Les éléments tracés ») |
 | `lireRayons` | le RAYON tracé, en pixels, de chaque cercle d'une couche `circle` — lu dans les arcs du chemin SVG, dans l'ordre des lignes (attente `texts` avec `measure: 'radius'`, voir « Les éléments tracés ») |
+| `lireEchelle` | l'ÉCHELLE appliquée à un axe du graphique rendu — type, minimum, maximum et, pour un axe d'étiquettes, ses catégories — lue sur l'instance Chart.js, pas sur l'attribut relayé (voir « Les échelles ») |
 | `lireClasses` | les classes d'un élément — l'habillage que les seuils d'un KPI décident |
-| `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, bornes d'axes) ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
+| `lireAttribut` | un attribut de l'élément DSFR Chart rendu (résumé d'une carte, options de rendu) — ce qui a été DEMANDÉ à DSFR Chart, qui n'est pas toujours ce que l'axe est devenu (voir « Les échelles ») ; **jamais** l'hôte, qui porte l'attribut écrit par la page |
 | `lirePastilles` | la couleur des `span.legend_dot` d'un graphique (`color-map`, #813) |
 | `lireExportCsv` | le contenu du fichier produit par le bouton d'export — le téléchargement est intercepté, puis rendu tel qu'il était |
 | `lireUrls` | les URL d'API réellement appelées, décodées, dans l'ordre |
@@ -424,6 +425,39 @@ formes posées, contre le nombre de lignes que le recalcul laisse — une forme 
   une ligne par valeur distincte — c'est le nombre de marqueurs attendu. Le même lecteur compte les
   lignes du volet ouvert par un clic (`.dsfr-data-map-popup__panel-body tbody tr`), contre les
   enregistrements du groupe (`filter`) ; `texts` relit leurs libellés dans l'ordre du fichier.
+
+## Les échelles
+
+Une borne d'axe ne change aucune valeur et change tout ce qu'on lit : c'est l'**échelle appliquée**
+qui se contrôle, pas l'attribut relayé à DSFR Chart (#1273). Le contrôle historique
+`graphique-bornes-des-axes` lisait l'attribut (`attr`) : il était vert pendant qu'une courbe gagnait
+deux catégories fantômes — les bornes de `x-*`, ajoutées par Chart.js à un axe d'étiquettes — et que
+`y-min` / `y-max`, bornes « suggérées », étaient arrondis à la graduation voisine.
+
+```ts
+{ kind: 'scale', id: 'g', axis: 'y', min: 110, max: 185, valueColumns: ['valeur'], pipeline: [] }
+{ kind: 'scale', id: 'g', axis: 'x', labelColumn: 'mois', pipeline: [] }
+{ kind: 'scale', id: 'g', axis: 'y', valueColumns: ['valeur'], fromZero: true, pipeline: [] }
+```
+
+- **Observation** : `lireEchelle({ id, axe })` rend le type de l'échelle Chart.js (`category`,
+  `linear`, `radialLinear`), son minimum, son maximum et, pour un axe d'étiquettes, ses catégories —
+  lus sur l'instance que le composant Vue de DSFR Chart tient (`_instance.proxy.chart`), donc sur
+  l'axe DESSINÉ. `null` tant que le graphique n'a pas d'aire tracée, ou que l'échelle n'existe pas.
+  `axis` est l'identifiant Chart.js : `x`, `y`, `yLine` (l'axe de la ligne d'un barres + ligne), `r`
+  (radar). Sur des barres horizontales, l'axe des valeurs est `x`.
+- **Attendu**, trois choses selon ce que l'axe porte :
+  - `min` / `max` — la borne que la page DÉCLARE, attendue telle quelle (six décimales) ;
+  - `labelColumn` — un axe d'étiquettes porte celles du recalcul, dans l'ordre, et rien d'autre :
+    une catégorie fantôme fait un élément de trop ;
+  - `valueColumns` — un axe numérique CONTIENT toutes les valeurs du recalcul : une borne qui
+    masquerait une donnée se lit « il commence à 130, la plus petite valeur recalculée est 120 ».
+    `fromZero` ajoute zéro à ce que l'axe doit contenir : des barres en partent.
+- **Une borne écartée se contrôle des deux côtés** : l'axe contient toujours la donnée (`scale`),
+  et la bibliothèque l'a DIT (`diagnostic`, `expect: 'warning'`) — voir « Les silences ».
+- **Choisir des bornes hors graduation** (`110` et `185`, pas `100` et `200`) : sur une borne ronde,
+  la borne suggérée et la borne exacte donnent le même axe, et le contrôle ne garde plus rien.
+- **Troisième voix** : `oracle.py` le couvre (`valeur` = bornes, étiquettes, étendue).
 
 ## Une page d'application
 
@@ -984,6 +1018,12 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `_computeAggregate` rend 0 pour un groupe sans valeur (`dsfr-data-query.ts`) | `query-groupe-sans-valeur-null`, `graphique-format-large-valeur-absente` | « Stagiaires » : somme, moyenne, min et max affichés 0, recalculés `null` ; la barre est posée à zéro au lieu d'être absente (#1198, BUG-028) |
 | affichages | `fill(0)` au format long et `toNumber` non strict au format large (`dsfr-data-chart.ts`) | `graphique-format-long-cellule-absente`, `graphique-format-large-valeur-absente` | la cellule (Mars, Cadres) passée au graphique vaut 0, l'oracle dit `null` : une chute à zéro qui n'a pas eu lieu (#1198, BUG-029) |
 | affichages | `_mapNote` ne rend plus rien (`dsfr-data-chart.ts`) | `carte-resume-dit-ce-quil-ecarte` | « #g-carte-hors (text) n'a rien affiché » : le résumé écarte 3 lignes (316 habitants) sans le dire (#1201, PG-083) |
+| affichages | les quatre bornes relayées telles quelles, aucune borne dure — l'état d'avant #1273 (`_getTypeSpecificAttributes`, `dsfr-data-chart.ts`) | `graphique-bornes-des-axes`, `graphique-bornes-barres-horizontales-1273`, `graphique-bornes-barres-et-ligne-1273`, `graphique-bornes-axe-horizontal-numerique-1273` (et les deux `diagnostic` des bornes écartées) | « axe x : étiquettes « 2026-01, …, 2026-12, 0, 11 », recalculé « 2026-01, …, 2026-12 » » ; « axe y : étiquettes « Ouest, Est, Sud, Nord, 4300000 » » ; « axe y : maximum appliqué 200, déclaré 185 » sur le barres + ligne, qui ne lisait pas l'attribut |
+| affichages | `applyAxisBounds` ne pose plus rien : seules restent les bornes « suggérées » de DSFR Chart (`chart-axis-bounds.ts`) | `graphique-bornes-des-axes`, `graphique-bornes-barres-horizontales-1273`, `graphique-bornes-barres-et-ligne-1273`, `graphique-bornes-axe-horizontal-numerique-1273` | « axe y : minimum appliqué 100, déclaré 110 » ; « axe x : maximum appliqué 4500000, déclaré 4300000 » ; « axe x : minimum appliqué 100, déclaré 105 » — l'arrondi à la graduation |
+| affichages | des barres traitées comme une courbe (`const barres = false`, `chart-axis-bounds.ts`) | `graphique-bornes-barres-depuis-zero-1273` | « axe y : il commence à 100, la plus petite valeur recalculée est 0 — donnée hors de l'axe », et plus aucun avertissement |
+| affichages | une borne qui masque une donnée n'est plus écartée (`chart-axis-bounds.ts`) | `graphique-borne-qui-masquerait-une-donnee-1273` | « axe y : il commence à 130, la plus petite valeur recalculée est 120 — donnée hors de l'axe » : deux mois sous l'axe, deux au-dessus |
+| affichages | `map-summary-weight` prime sur `map-summary-value` (`_computeMapSummary`, `dsfr-data-chart.ts`) | `carte-resume-valeur-publiee-763` | « value = « 43.07 », attendu « 5.6 » » : la moyenne pondérée sous une carte qui annonce le chiffre officiel |
+| affichages | la valeur publiée lue par `Number()` au lieu de `toNumber(…, true)` (`dsfr-data-chart.ts`) | `carte-resume-valeur-publiee-763`, `carte-resume-valeur-publiee-illisible-763` | « value = « NaN », attendu « 5.6 » » (la virgule décimale n'est plus lue) ; « aucun marqueur data-dsfr-config-error » pour « non communiqué » |
 | banc-pages | troncature retirée de `_fetchViaExport` (`opendatasoft-adapter.ts`) | `plan-de-relance-plafond-max-records` | 1 001 projets chargés au lieu de 1 000 : `max-records` ne borne plus rien |
 | banc-pages | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) | `bofip-total-publie-par-la-source-serveur` | 10 au lieu de 9 148 : le compteur annonce la page, pas le jeu |
 | banc-pages | `_rowWeight` rend `1` (`dsfr-data-facets.ts`) | `ips-ecoles-facettes-ponderees` | l'ordre des départements change (Dordogne en tête au lieu de la Gironde) : une facette sur source pré-agrégée recompte des lignes, pas des écoles |

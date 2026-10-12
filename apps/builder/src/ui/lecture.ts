@@ -287,13 +287,17 @@ export function updateLectureVisibility(type: ChartType): void {
   if (unite) {
     unite.innerHTML = `${a.unitBar ? 'Unité de la ligne' : 'Unité'}<span class="fr-hint-text">Affichée dans l’infobulle, après la valeur (ex&nbsp;: %, €, hab.)</span>`;
   }
-  // Des barres partent toujours de zéro : le dire là où la borne se règle.
+  // Ce que la bibliothèque fait d'une borne (#1273), dit là où elle se règle :
+  // posée exactement, écartée si elle masquerait une donnée, et des barres
+  // partent toujours de zéro. Un radar, lui, est borné tel quel.
   const note = el('axis-bounds-note');
   if (note) {
     note.textContent =
       type === 'bar' || type === 'horizontalBar'
-        ? 'Les bornes sont arrondies à la graduation voisine. Des barres partent toujours de zéro : seul un minimum négatif est pris en compte.'
-        : 'Les bornes sont arrondies à la graduation voisine.';
+        ? 'Une borne qui masquerait une donnée est ignorée. Des barres partent toujours de zéro : seul un minimum négatif est pris en compte.'
+        : type === 'radar'
+          ? 'Les bornes fixent le centre et le bord du radar.'
+          : 'Une borne qui masquerait une donnée est ignorée.';
   }
   // La colonne « Mesure » d'une cible dépend du type.
   renderTargets();

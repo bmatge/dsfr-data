@@ -62,6 +62,13 @@ questions différentes ne mesure rien. La règle de calcul se lit dans le jeu
   une variation de 2 points remplit l'écran. Capytale (portail Éducation) : « 19 colonnes
   d'intensité, échelle tronquée » sur l'original → `type="bar" y-min="0"` : « l'écart visuel
   devient l'écart réel ».
+- **Ce que la bibliothèque garde elle-même** : des barres partent toujours de zéro — un
+  `y-min` positif sur `bar` ou `bar-line` est ignoré et signalé en console ; une borne qui
+  masquerait un point (minimum au-dessus de la plus petite valeur, maximum sous la plus
+  grande) l'est aussi ; une borne retenue est posée exactement, pas arrondie à la graduation.
+  `y-min` / `y-max` bornent l'axe des VALEURS, y compris sur des barres horizontales. Un axe
+  de courbe qui ne part pas de zéro (`y-min="80"` sur une base 100) reste un choix à dire
+  dans la `description`.
 - **Pas de double axe** : deux mesures d'échelles différentes → deux graphiques, ou base 100
   (`lics_100_2016`, publié par le producteur, trois courbes sur une échelle). Règle du skill
   `dataviz`, reprise ici parce que `type="bar-line"` la rend facile à violer.

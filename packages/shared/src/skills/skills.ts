@@ -1692,10 +1692,10 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | stacked | Boolean | \`false\` | non | Barres empilees (type bar uniquement) |
 | fill | Boolean | \`false\` | non | Camembert plein au lieu d'anneau (type pie) |
 | highlight-index | String | \`""\` | non | Indices a mettre en avant : \`"[0, 2]"\` |
-| x-min | String | \`""\` | non | Limite min axe X |
-| x-max | String | \`""\` | non | Limite max axe X |
-| y-min | String | \`""\` | non | Limite min axe Y. Pour type radar : borne min de l'echelle radiale (le centre du radar est fixe a y-min au lieu du minimum des donnees) |
-| y-max | String | \`""\` | non | Limite max axe Y. Pour type radar : borne max de l'echelle radiale ; si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
+| x-min | String | \`""\` | non | Borne min de l'axe HORIZONTAL quand il porte des nombres : scatter et line a etiquettes numeriques (annees, mesures), barres horizontales (ou c'est l'axe des valeurs). Sans effet, et signale en console, ailleurs. Voir « Bornes d'axe » ci-dessous |
+| x-max | String | \`""\` | non | Borne max de l'axe HORIZONTAL, memes types que x-min |
+| y-min | String | \`""\` | non | Borne min de l'axe des VALEURS, ou qu'il soit dessine : axe vertical (line, scatter, bar), axe horizontal de barres horizontales, axe des barres d'un bar-line, echelle radiale d'un radar (le centre du radar est fixe a y-min au lieu du minimum des donnees). Posee exactement. Ignoree et signalee si elle masquerait une donnee ou, sur des barres, si elle est positive |
+| y-max | String | \`""\` | non | Borne max de l'axe des VALEURS, memes types que y-min. Pour type radar : si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
 | gauge-value | Number | \`null\` | type gauge | Valeur de la jauge (0-100) |
 | code-field | String | \`""\` | types map* | Champ contenant le code : departement (map), region (map-reg : code INSEE, cle DSFR Chart IDF/20R/971 ou nom, traduits), academie (map-aca : nom accentue ou non, prefixe « Academie de » retire), code pays ISO 3166-1 alpha-2/alpha-3/numerique OU nom de pays en francais (map-monde : « Allemagne », « l'Allemagne », « Pays-Bas », converti en alpha-2) — prioritaire sur label-field. Une cle hors referentiel est ignoree ET comptee (console + volet Diagnostic) |
 | map-highlight | String | \`""\` | non | Departements/regions a surligner |
@@ -1731,16 +1731,34 @@ deriver une colonne d'affichage et laisser la brute intacte, puis pointer le cal
 
 Sur une somme l'ecart d'un arrondi amont reste marginal ; sur \`weighted\` il ne l'est pas.
 
+### Bornes d'axe : quel attribut agit sur quel type
+
+Regle : pour chaque couple attribut x type, la borne AGIT ou elle est SIGNALEE par un avertissement console — jamais ignoree en silence.
+
+| Type | y-min / y-max | x-min / x-max |
+|------|---------------|---------------|
+| line, scatter | axe vertical (valeurs) | axe horizontal SI les etiquettes sont numeriques (annees, mesures) ; sinon sans effet, signale |
+| bar | axe vertical (valeurs) | sans effet, signale (axe d'etiquettes) |
+| bar + horizontal | axe des valeurs, qui est l'axe horizontal | meme axe — l'emporte si les deux sont ecrits |
+| bar-line | axe des barres (a gauche) ; l'axe de la ligne (a droite) n'a pas de borne | sans effet, signale |
+| radar | echelle radiale | sans effet, signale |
+| pie, gauge, map* | sans effet, signale (pas d'axe) | sans effet, signale |
+
+- **La borne est posee exactement** : \`y-min="5"\` sur une courbe donne un axe qui part de 5, \`y-max="37"\` un axe qui s'arrete a 37 (pas d'arrondi a la graduation voisine).
+- **Une borne ne masque jamais une donnee** (hors radar) : un minimum au-dessus de la plus petite valeur, un maximum en dessous de la plus grande (du plus grand cumul pour des barres empilees) sont ignores et signales. Pour restreindre ce qui est affiche, filtrer en amont (dsfr-data-query \`where\`).
+- **Des barres partent de zero** (bar, bar-line) : un minimum positif est ignore et signale — tronquer l'axe fausserait la comparaison des longueurs. Seul un minimum negatif ou nul agit. Pour un axe qui ne part pas de zero, utiliser une courbe.
+- Petits multiples : poser les memes \`y-min\` / \`y-max\` sur chaque graphique pour une echelle commune.
+
 ### Attributs par type de graphique
 | Type | Attributs essentiels | Attributs optionnels |
 |------|---------------------|---------------------|
-| bar | source, type, label-field, value-field | horizontal, stacked, highlight-index, selected-palette |
+| bar | source, type, label-field, value-field | horizontal, stacked, highlight-index, selected-palette, y-min, y-max |
 | line | source, type, label-field, value-field | x-min, x-max, y-min, y-max, value-field-2 |
 | pie | source, type, label-field, value-field | fill (false=anneau, true=camembert plein) |
 | radar | source, type, label-field, value-field | value-field-2, name, y-min, y-max |
 | scatter | source, type, label-field, value-field | x-min, x-max, y-min, y-max |
 | gauge | source, type, gauge-value | - |
-| bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar |
+| bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar, y-min, y-max (axe des barres) |
 | map | source, type, code-field, value-field | selected-palette, map-highlight, map-summary, map-summary-weight, map-summary-value |
 | map-reg | source, type, code-field, value-field | selected-palette, map-highlight, map-summary, map-summary-weight, map-summary-value |
 | map-aca | source, type, code-field, value-field | selected-palette, map-highlight, map-summary, map-summary-weight, map-summary-value |
@@ -2312,7 +2330,7 @@ name='["Série A","Série B"]'
 - highlight-index='[3]' : mettre en avant une barre
 
 ### <line-chart>
-- x-min, x-max, y-min, y-max : limites des axes
+- x-min, x-max, y-min, y-max : bornes SUGGEREES des axes (elles ne font qu'elargir l'axe, et sont arrondies a la graduation voisine). Via dsfr-data-chart, les bornes sont posees exactement — voir « Bornes d'axe »
 
 ### <pie-chart>
 - fill="true" : camembert plein (défaut: anneau/donut)
@@ -2796,17 +2814,17 @@ Guide pour choisir le type de visualisation adapte aux données.
 - **Quand** : comparer des catégories (5-15 ideal)
 - **Champs** : label-field (catégories), value-field (valeurs)
 - **Options** : \`horizontal\` (barres horizontales), \`stacked\` (empile)
-- **Supporte** : value-field-2 ou value-fields pour N séries, highlight-index
+- **Supporte** : value-field-2 ou value-fields pour N séries, highlight-index, y-min/y-max (axe des valeurs, y compris en \`horizontal\` ; des barres partent de zero : un minimum positif est ignore et signale)
 
 ### Lignes (line)
 - **Quand** : evolution temporelle, tendances
 - **Champs** : label-field (dates/temps), value-field (valeurs)
-- **Supporte** : value-field-2 ou value-fields pour comparaison, x-min/x-max/y-min/y-max
+- **Supporte** : value-field-2 ou value-fields pour comparaison, y-min/y-max (axe des valeurs, poses exactement), x-min/x-max (seulement si les etiquettes sont numeriques, ex. des annees)
 
 ### Combine barres + ligne (bar-line)
 - **Quand** : comparer 2 metriques differentes (ex: CA en barres + objectif en ligne)
 - **Champs** : label-field, value-field (barres), value-field-2 (ligne)
-- **Options** : unit-tooltip (barres), unit-tooltip-bar (ligne)
+- **Options** : unit-tooltip (ligne), unit-tooltip-bar (barres), y-min/y-max (axe des barres, a gauche)
 
 ### Camembert / Anneau (pie)
 - **Quand** : parts d'un tout (100%), max 5-7 segments
@@ -2821,6 +2839,7 @@ Guide pour choisir le type de visualisation adapte aux données.
 ### Nuage de points (scatter)
 - **Quand** : correlation entre deux variables numériques
 - **Champs** : label-field (axe X numérique), value-field (axe Y)
+- **Supporte** : x-min/x-max et y-min/y-max (les deux axes sont numeriques)
 
 ### Jauge (gauge)
 - **Quand** : progression vers un objectif (0-100%)

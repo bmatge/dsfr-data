@@ -44,6 +44,12 @@ import {
   type RadialChartLike,
 } from '../utils/chart-radial-scale.js';
 import {
+  planAxisBounds,
+  applyAxisBounds,
+  type AxisBoundsPlan,
+  type AxisChartLike,
+} from '../utils/chart-axis-bounds.js';
+import {
   escapeHtml,
   toNumber,
   isValidDeptCode,
@@ -288,19 +294,27 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'highlight-index' })
   highlightIndex = '';
 
-  /** Limite min de l'axe X (types cartésiens : line, scatter, bar-line). */
+  /**
+   * Borne minimale de l'axe HORIZONTAL, quand il porte des nombres : `scatter` et `line` dont les étiquettes sont numériques (années, mesures), et barres horizontales (`type="bar" horizontal`), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur portée par l'axe) et, sur des barres horizontales, si elle est positive : des barres partent de zéro. Sans effet, et signalée en console, sur un axe d'étiquettes (`bar` vertical, `bar-line`, `line` ou `scatter` à étiquettes texte), sur `radar` et sur les types sans axe (`pie`, `gauge`, cartes).
+   */
   @property({ type: String, attribute: 'x-min' })
   xMin = '';
 
-  /** Limite max de l'axe X (types cartésiens : line, scatter, bar-line). */
+  /**
+   * Borne maximale de l'axe HORIZONTAL, quand il porte des nombres : `scatter` et `line` dont les étiquettes sont numériques (années, mesures), et barres horizontales (`type="bar" horizontal`), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur portée par l'axe). Sans effet, et signalée en console, sur un axe d'étiquettes (`bar` vertical, `bar-line`, `line` ou `scatter` à étiquettes texte), sur `radar` et sur les types sans axe (`pie`, `gauge`, cartes).
+   */
   @property({ type: String, attribute: 'x-max' })
   xMax = '';
 
-  /** Limite min de l'axe Y. Pour `type="radar"` : borne min de l'échelle radiale (le centre du radar est fixé à `y-min` au lieu du minimum des données). */
+  /**
+   * Borne minimale de l'axe des VALEURS, où qu'il soit dessiné : axe vertical de `line`, `scatter` et `bar`, axe horizontal de barres horizontales (`type="bar" horizontal` — `x-min` y fait la même chose et l'emporte si les deux sont écrits), axe des barres (à gauche) de `bar-line` (l'axe de la ligne, à droite, n'a pas de borne), échelle radiale de `radar` (le centre du radar est fixé à `y-min` au lieu du minimum des données). La borne est posée exactement (`y-min="5"` sur une courbe : l'axe part de 5). Hors `radar`, elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur) et, sur des barres (`bar`, `bar-line`), si elle est positive : des barres partent de zéro, seul un minimum négatif ou nul agit. Sans effet, et signalée en console, sur les types sans axe (`pie`, `gauge`, cartes).
+   */
   @property({ type: String, attribute: 'y-min' })
   yMin = '';
 
-  /** Limite max de l'axe Y. Pour `type="radar"` : borne max de l'echelle radiale ; si `y-min` et `y-max` sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1). */
+  /**
+   * Borne maximale de l'axe des VALEURS, où qu'il soit dessiné : axe vertical de `line`, `scatter` et `bar`, axe horizontal de barres horizontales (`type="bar" horizontal` — `x-max` y fait la même chose et l'emporte si les deux sont écrits), axe des barres (à gauche) de `bar-line` (l'axe de la ligne, à droite, n'a pas de borne), échelle radiale de `radar` (si `y-min` et `y-max` sont entiers avec une amplitude de 1 à 10, la grille utilise des anneaux entiers). La borne est posée exactement (`y-max="37"` : l'axe s'arrête à 37). Hors `radar`, elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur ; pour des barres empilées, du plus grand cumul). Sans effet, et signalée en console, sur les types sans axe (`pie`, `gauge`, cartes).
+   */
   @property({ type: String, attribute: 'y-max' })
   yMax = '';
 
@@ -560,6 +574,13 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   /** Bornes radar (y-min/y-max → scales.r) : poll rAF en cours */
   private _radialBoundsRaf: number | null = null;
 
+  /** Bornes d'axe (#1273) : décision du dernier rendu */
+  private _axisPlan: AxisBoundsPlan = { attrs: {}, scales: {}, warnings: [] };
+  /** Bornes d'axe : poll rAF en cours */
+  private _axisBoundsRaf: number | null = null;
+  /** Bornes d'axe : avertissements déjà émis (un par attribut et par motif) */
+  private _axisBoundsWarned = new Set<string>();
+
   /** Attributs poses par la mise a jour incrementale (#305) */
   private _managedChartAttrs = new Set<string>();
 
@@ -571,6 +592,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._pendingTimers.clear();
     this._cleanupChartOverlays();
     this._cancelRadialBoundsRaf();
+    this._cancelAxisBoundsRaf();
     this._cancelColorMapRaf();
   }
 
@@ -583,6 +605,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Bornes dures de l'echelle radiale (radar + y-min/y-max) : meme principe,
     // ré-appliquées après chaque rendu (le watcher Vue $props recrée le chart).
     this._refreshRadialScaleBounds();
+    // Bornes dures des axes cartésiens (#1273) : même principe. Le dessin des
+    // overlays les pose aussi avant de lire la géométrie des échelles.
+    this._refreshAxisBounds();
     // Couleur par modalité (#732) : même principe, l'upstream ne prend pas de
     // couleur de série en attribut.
     this._refreshColorMap();
@@ -1066,10 +1091,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
     if (this.selectedPalette) attrs['selected-palette'] = this.selectedPalette;
     if (this.unitTooltip) attrs['unit-tooltip'] = this.unitTooltip;
-    if (this.xMin) attrs['x-min'] = this.xMin;
-    if (this.xMax) attrs['x-max'] = this.xMax;
-    if (this.yMin) attrs['y-min'] = this.yMin;
-    if (this.yMax) attrs['y-max'] = this.yMax;
+    // Les bornes d'axe (x-min, x-max, y-min, y-max) ne sont PAS des attributs
+    // communs : ce qu'elles deviennent dépend du type et des données (#1273),
+    // voir _getTypeSpecificAttributes() et utils/chart-axis-bounds.ts.
 
     if (this.name) {
       // DSFR Chart attend un tableau JSON pour name (ex: '["Série 1"]')
@@ -1209,6 +1233,23 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
         break;
     }
 
+    // Bornes d'axe (#1273) : ce qui est relayé à DSFR Chart (base déclarative),
+    // ce qui sera posé en borne dure après le rendu, et ce qui est signalé.
+    // Les tableaux PADDÉS : une échéance de cible au-delà des données fait
+    // partie de ce que l'axe horizontal porte.
+    this._axisPlan = planAxisBounds({
+      type: this.type,
+      horizontal: this.horizontal,
+      stacked: this.stacked,
+      xMin: this.xMin,
+      xMax: this.xMax,
+      yMin: this.yMin,
+      yMax: this.yMax,
+      labels: paddedLabels,
+      series: paddedSeries,
+    });
+    Object.assign(attrs, this._axisPlan.attrs);
+
     if (activeTargets.length && this._data.length > 0) {
       this._applyTargetBounds(attrs, allSeries, activeTargets);
     }
@@ -1337,6 +1378,9 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     ) => {
       const finite = data.filter((v): v is number => v !== null && Number.isFinite(v));
       if (!finite.length || !targetVals.length) return;
+      // Une borne RETENUE de l'utilisateur prime (#1273) ; une borne écartée
+      // (elle aurait masqué une donnée) laisse la cible élargir l'axe.
+      if (attr in attrs) return;
       if (kind === 'max') {
         // `finite` est une série de DONNÉES : jamais étalée en arguments (BUG-038)
         const t = maxOf(targetVals);
@@ -1355,19 +1399,17 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       const lineTargets = activeTargets
         .filter((t) => this._targetSeriesIndex(t) !== 0)
         .map((t) => t.value);
-      if (!this.yMax) {
-        setBound('y-bar-max', 'max', barVals, barTargets);
-        setBound('y-line-max', 'max', lineVals, lineTargets);
-      }
-      if (!this.yMin) {
-        setBound('y-bar-min', 'min', barVals, barTargets);
-        setBound('y-line-min', 'min', lineVals, lineTargets);
-      }
+      // `y-min` / `y-max` ne bornent que l'axe des BARRES (#1273) : l'axe de la
+      // ligne suit toujours ses cibles.
+      setBound('y-bar-max', 'max', barVals, barTargets);
+      setBound('y-line-max', 'max', lineVals, lineTargets);
+      setBound('y-bar-min', 'min', barVals, barTargets);
+      setBound('y-line-min', 'min', lineVals, lineTargets);
     } else {
       const dataValues = allSeries.flat();
       const targetValues = activeTargets.map((t) => t.value);
-      if (!this.yMax) setBound('y-max', 'max', dataValues, targetValues);
-      if (!this.yMin) setBound('y-min', 'min', dataValues, targetValues);
+      setBound('y-max', 'max', dataValues, targetValues);
+      setBound('y-min', 'min', dataValues, targetValues);
     }
   }
 
@@ -1576,6 +1618,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const chart = resolveChartInstance(chartEl, canvas);
     if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
 
+    // Les bornes d'axe d'abord (#1273) : un repère ou une cible se place sur la
+    // géométrie des échelles, qui doit être celle que l'usager lira.
+    applyAxisBounds(chart as AxisChartLike, this._axisPlan.scales);
+
     this._removeChartOverlays();
 
     const w = canvas.clientWidth || canvas.width || 0;
@@ -1687,6 +1733,56 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const chart = resolveChartInstance(hosts.chartEl, hosts.canvas);
     if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
     return applyRadialScaleBounds(chart as RadialChartLike, bounds);
+  }
+
+  // --- Bornes des axes cartesiens : x-min, x-max, y-min, y-max (#1273) ---------
+  // DSFR Chart ne connait que des bornes SUGGEREES (`suggestedMin` / `Max`),
+  // arrondies a la graduation voisine, et les pose sur l'echelle du meme nom —
+  // y compris un axe d'etiquettes, ou elles deviennent des categories fantomes.
+  // `planAxisBounds` decide ce qui est relaye (base declarative), `applyAxisBounds`
+  // pose les bornes DURES sur l'instance Chart.js, avec le meme rAF-poll que
+  // l'echelle radiale. Ce qui ne peut pas agir est signale une fois.
+
+  private _cancelAxisBoundsRaf() {
+    if (this._axisBoundsRaf !== null) {
+      cancelAnimationFrame(this._axisBoundsRaf);
+      this._axisBoundsRaf = null;
+    }
+  }
+
+  /** Signale les bornes sans effet, puis (re)programme la pose des bornes dures. */
+  private _refreshAxisBounds() {
+    this._cancelAxisBoundsRaf();
+    for (const w of this._axisPlan.warnings) {
+      const cle = `${w.attr}:${w.code}`;
+      if (this._axisBoundsWarned.has(cle)) continue;
+      this._axisBoundsWarned.add(cle);
+      console.warn(`dsfr-data-chart[${this.id}]: ${w.message}`);
+    }
+    if (!Object.keys(this._axisPlan.scales).length) return;
+    this._scheduleAxisBoundsApply(120);
+  }
+
+  /** Poll rAF jusqu'a ce que l'instance Chart.js soit prête. */
+  private _scheduleAxisBoundsApply(framesLeft: number) {
+    if (typeof requestAnimationFrame === 'undefined') return;
+    this._axisBoundsRaf = requestAnimationFrame(() => {
+      this._axisBoundsRaf = null;
+      if (!this.isConnected) return;
+      if (this._applyAxisBounds()) return;
+      if (framesLeft > 0) this._scheduleAxisBoundsApply(framesLeft - 1);
+      // Degradation gracieuse sans warn : la base declarative (bornes
+      // suggerees) reste appliquee par DSFR Chart.
+    });
+  }
+
+  /** Pose les bornes sur l'instance. Retourne false si elle n'est pas prête. */
+  private _applyAxisBounds(): boolean {
+    const hosts = this._resolveOverlayHosts();
+    if (!hosts) return false;
+    const chart = resolveChartInstance(hosts.chartEl, hosts.canvas);
+    if (!chart || !chart.chartArea || chart.chartArea.width <= 0) return false;
+    return applyAxisBounds(chart as AxisChartLike, this._axisPlan.scales) !== 'pending';
   }
 
   // --- Couleur par modalite : color-map (#732) --------------------------------

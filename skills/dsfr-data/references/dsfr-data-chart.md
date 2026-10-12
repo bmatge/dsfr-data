@@ -54,10 +54,10 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | stacked | Boolean | `false` | non | Barres empilees (type bar uniquement) |
 | fill | Boolean | `false` | non | Camembert plein au lieu d'anneau (type pie) |
 | highlight-index | String | `""` | non | Indices a mettre en avant : `"[0, 2]"` |
-| x-min | String | `""` | non | Limite min axe X |
-| x-max | String | `""` | non | Limite max axe X |
-| y-min | String | `""` | non | Limite min axe Y. Pour type radar : borne min de l'echelle radiale (le centre du radar est fixe a y-min au lieu du minimum des donnees) |
-| y-max | String | `""` | non | Limite max axe Y. Pour type radar : borne max de l'echelle radiale ; si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
+| x-min | String | `""` | non | Borne min de l'axe HORIZONTAL quand il porte des nombres : scatter et line a etiquettes numeriques (annees, mesures), barres horizontales (ou c'est l'axe des valeurs). Sans effet, et signale en console, ailleurs. Voir « Bornes d'axe » ci-dessous |
+| x-max | String | `""` | non | Borne max de l'axe HORIZONTAL, memes types que x-min |
+| y-min | String | `""` | non | Borne min de l'axe des VALEURS, ou qu'il soit dessine : axe vertical (line, scatter, bar), axe horizontal de barres horizontales, axe des barres d'un bar-line, echelle radiale d'un radar (le centre du radar est fixe a y-min au lieu du minimum des donnees). Posee exactement. Ignoree et signalee si elle masquerait une donnee ou, sur des barres, si elle est positive |
+| y-max | String | `""` | non | Borne max de l'axe des VALEURS, memes types que y-min. Pour type radar : si y-min et y-max sont entiers avec une amplitude de 1 a 10, anneaux de grille entiers (stepSize 1) |
 | gauge-value | Number | `null` | type gauge | Valeur de la jauge (0-100) |
 | code-field | String | `""` | types map* | Champ contenant le code : departement (map), region (map-reg : code INSEE, cle DSFR Chart IDF/20R/971 ou nom, traduits), academie (map-aca : nom accentue ou non, prefixe « Academie de » retire), code pays ISO 3166-1 alpha-2/alpha-3/numerique OU nom de pays en francais (map-monde : « Allemagne », « l'Allemagne », « Pays-Bas », converti en alpha-2) — prioritaire sur label-field. Une cle hors referentiel est ignoree ET comptee (console + volet Diagnostic) |
 | map-highlight | String | `""` | non | Departements/regions a surligner |
@@ -93,16 +93,34 @@ deriver une colonne d'affichage et laisser la brute intacte, puis pointer le cal
 
 Sur une somme l'ecart d'un arrondi amont reste marginal ; sur `weighted` il ne l'est pas.
 
+### Bornes d'axe : quel attribut agit sur quel type
+
+Regle : pour chaque couple attribut x type, la borne AGIT ou elle est SIGNALEE par un avertissement console — jamais ignoree en silence.
+
+| Type | y-min / y-max | x-min / x-max |
+|------|---------------|---------------|
+| line, scatter | axe vertical (valeurs) | axe horizontal SI les etiquettes sont numeriques (annees, mesures) ; sinon sans effet, signale |
+| bar | axe vertical (valeurs) | sans effet, signale (axe d'etiquettes) |
+| bar + horizontal | axe des valeurs, qui est l'axe horizontal | meme axe — l'emporte si les deux sont ecrits |
+| bar-line | axe des barres (a gauche) ; l'axe de la ligne (a droite) n'a pas de borne | sans effet, signale |
+| radar | echelle radiale | sans effet, signale |
+| pie, gauge, map* | sans effet, signale (pas d'axe) | sans effet, signale |
+
+- **La borne est posee exactement** : `y-min="5"` sur une courbe donne un axe qui part de 5, `y-max="37"` un axe qui s'arrete a 37 (pas d'arrondi a la graduation voisine).
+- **Une borne ne masque jamais une donnee** (hors radar) : un minimum au-dessus de la plus petite valeur, un maximum en dessous de la plus grande (du plus grand cumul pour des barres empilees) sont ignores et signales. Pour restreindre ce qui est affiche, filtrer en amont (dsfr-data-query `where`).
+- **Des barres partent de zero** (bar, bar-line) : un minimum positif est ignore et signale — tronquer l'axe fausserait la comparaison des longueurs. Seul un minimum negatif ou nul agit. Pour un axe qui ne part pas de zero, utiliser une courbe.
+- Petits multiples : poser les memes `y-min` / `y-max` sur chaque graphique pour une echelle commune.
+
 ### Attributs par type de graphique
 | Type | Attributs essentiels | Attributs optionnels |
 |------|---------------------|---------------------|
-| bar | source, type, label-field, value-field | horizontal, stacked, highlight-index, selected-palette |
+| bar | source, type, label-field, value-field | horizontal, stacked, highlight-index, selected-palette, y-min, y-max |
 | line | source, type, label-field, value-field | x-min, x-max, y-min, y-max, value-field-2 |
 | pie | source, type, label-field, value-field | fill (false=anneau, true=camembert plein) |
 | radar | source, type, label-field, value-field | value-field-2, name, y-min, y-max |
 | scatter | source, type, label-field, value-field | x-min, x-max, y-min, y-max |
 | gauge | source, type, gauge-value | - |
-| bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar |
+| bar-line | source, type, label-field, value-field, value-field-2 | name, unit-tooltip, unit-tooltip-bar, y-min, y-max (axe des barres) |
 | map | source, type, code-field, value-field | selected-palette, map-highlight, map-summary, map-summary-weight, map-summary-value |
 | map-reg | source, type, code-field, value-field | selected-palette, map-highlight, map-summary, map-summary-weight, map-summary-value |
 | map-aca | source, type, code-field, value-field | selected-palette, map-highlight, map-summary, map-summary-weight, map-summary-value |
@@ -269,10 +287,10 @@ et l'annonce sous le tableau (« Affichage limité aux 100 premières lignes sur
 | `value-field` | `string` | `""` (vide) | Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) : `value-field="Panier_moyen:Panier moyen"` affiche « Panier moyen » dans la légende à la place du nom technique. Un `name` explicite prime sur l'alias. Un `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue). |
 | `value-field-2` | `string` | `""` (vide) | Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668). |
 | `value-fields` | `string` | `""` (vide) | Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score'). Alias inline `champ:Libellé` par série (#668) : `value-fields="budget:Budget, score:Score"`. Un `name` explicite (tableau JSON) prime sur les alias. |
-| `x-max` | `string` | `""` (vide) | Limite max de l'axe X (types cartésiens : line, scatter, bar-line). |
-| `x-min` | `string` | `""` (vide) | Limite min de l'axe X (types cartésiens : line, scatter, bar-line). |
-| `y-max` | `string` | `""` (vide) | Limite max de l'axe Y. Pour `type="radar"` : borne max de l'echelle radiale ; si `y-min` et `y-max` sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1). |
-| `y-min` | `string` | `""` (vide) | Limite min de l'axe Y. Pour `type="radar"` : borne min de l'échelle radiale (le centre du radar est fixé à `y-min` au lieu du minimum des données). |
+| `x-max` | `string` | `""` (vide) | Borne maximale de l'axe HORIZONTAL, quand il porte des nombres : `scatter` et `line` dont les étiquettes sont numériques (années, mesures), et barres horizontales (`type="bar" horizontal`), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur portée par l'axe). Sans effet, et signalée en console, sur un axe d'étiquettes (`bar` vertical, `bar-line`, `line` ou `scatter` à étiquettes texte), sur `radar` et sur les types sans axe (`pie`, `gauge`, cartes). |
+| `x-min` | `string` | `""` (vide) | Borne minimale de l'axe HORIZONTAL, quand il porte des nombres : `scatter` et `line` dont les étiquettes sont numériques (années, mesures), et barres horizontales (`type="bar" horizontal`), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur portée par l'axe) et, sur des barres horizontales, si elle est positive : des barres partent de zéro. Sans effet, et signalée en console, sur un axe d'étiquettes (`bar` vertical, `bar-line`, `line` ou `scatter` à étiquettes texte), sur `radar` et sur les types sans axe (`pie`, `gauge`, cartes). |
+| `y-max` | `string` | `""` (vide) | Borne maximale de l'axe des VALEURS, où qu'il soit dessiné : axe vertical de `line`, `scatter` et `bar`, axe horizontal de barres horizontales (`type="bar" horizontal` — `x-max` y fait la même chose et l'emporte si les deux sont écrits), axe des barres (à gauche) de `bar-line` (l'axe de la ligne, à droite, n'a pas de borne), échelle radiale de `radar` (si `y-min` et `y-max` sont entiers avec une amplitude de 1 à 10, la grille utilise des anneaux entiers). La borne est posée exactement (`y-max="37"` : l'axe s'arrête à 37). Hors `radar`, elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur ; pour des barres empilées, du plus grand cumul). Sans effet, et signalée en console, sur les types sans axe (`pie`, `gauge`, cartes). |
+| `y-min` | `string` | `""` (vide) | Borne minimale de l'axe des VALEURS, où qu'il soit dessiné : axe vertical de `line`, `scatter` et `bar`, axe horizontal de barres horizontales (`type="bar" horizontal` — `x-min` y fait la même chose et l'emporte si les deux sont écrits), axe des barres (à gauche) de `bar-line` (l'axe de la ligne, à droite, n'a pas de borne), échelle radiale de `radar` (le centre du radar est fixé à `y-min` au lieu du minimum des données). La borne est posée exactement (`y-min="5"` sur une courbe : l'axe part de 5). Hors `radar`, elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur) et, sur des barres (`bar`, `bar-line`), si elle est positive : des barres partent de zéro, seul un minimum négatif ou nul agit. Sans effet, et signalée en console, sur les types sans axe (`pie`, `gauge`, cartes). |
 
 
 **Méthodes publiques**

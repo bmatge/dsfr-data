@@ -61,10 +61,10 @@
                 <tr><td><code>name</code></td><td>String</td><td>Nom(s) de série. Chaîne simple recommandée (<code>name="Taux"</code>), enveloppée automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries (<code>name='["Réalisé","Objectif"]'</code>). Sur les cartes (<code>map*</code>), un seul nom : le premier élément d'un JSON est retenu (#653). Priorité (#668) : <code>name</code> explicite, sinon l'alias inline <code>champ:Libellé</code> de value-field(s), sinon le nom du champ (ou les valeurs de series-field en mode tidy).</td></tr>
                 <tr><td><code>unit-tooltip-bar</code></td><td>String</td><td>Unité pour les barres (bar-line uniquement)</td></tr>
                 <tr><td><code>highlight-index</code></td><td>String</td><td>Index des éléments à mettre en avant (ex: "[0, 2]")</td></tr>
-                <tr><td><code>x-min</code></td><td>String</td><td>Limite min de l'axe X (types cartésiens : line, scatter, bar-line).</td></tr>
-                <tr><td><code>x-max</code></td><td>String</td><td>Limite max de l'axe X (types cartésiens : line, scatter, bar-line).</td></tr>
-                <tr><td><code>y-min</code></td><td>String</td><td>Limite min de l'axe Y. Pour <code>type="radar"</code> : borne min de l'échelle radiale (le centre du radar est fixé à <code>y-min</code> au lieu du minimum des données).</td></tr>
-                <tr><td><code>y-max</code></td><td>String</td><td>Limite max de l'axe Y. Pour <code>type="radar"</code> : borne max de l'echelle radiale ; si <code>y-min</code> et <code>y-max</code> sont entiers avec une amplitude de 1 a 10, la grille utilise des anneaux entiers (stepSize 1).</td></tr>
+                <tr><td><code>x-min</code></td><td>String</td><td>Borne minimale de l'axe HORIZONTAL, quand il porte des nombres : <code>scatter</code> et <code>line</code> dont les étiquettes sont numériques (années, mesures), et barres horizontales (<code>type="bar" horizontal</code>), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur portée par l'axe) et, sur des barres horizontales, si elle est positive : des barres partent de zéro. Sans effet, et signalée en console, sur un axe d'étiquettes (<code>bar</code> vertical, <code>bar-line</code>, <code>line</code> ou <code>scatter</code> à étiquettes texte), sur <code>radar</code> et sur les types sans axe (<code>pie</code>, <code>gauge</code>, cartes).</td></tr>
+                <tr><td><code>x-max</code></td><td>String</td><td>Borne maximale de l'axe HORIZONTAL, quand il porte des nombres : <code>scatter</code> et <code>line</code> dont les étiquettes sont numériques (années, mesures), et barres horizontales (<code>type="bar" horizontal</code>), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur portée par l'axe). Sans effet, et signalée en console, sur un axe d'étiquettes (<code>bar</code> vertical, <code>bar-line</code>, <code>line</code> ou <code>scatter</code> à étiquettes texte), sur <code>radar</code> et sur les types sans axe (<code>pie</code>, <code>gauge</code>, cartes).</td></tr>
+                <tr><td><code>y-min</code></td><td>String</td><td>Borne minimale de l'axe des VALEURS, où qu'il soit dessiné : axe vertical de <code>line</code>, <code>scatter</code> et <code>bar</code>, axe horizontal de barres horizontales (<code>type="bar" horizontal</code> — <code>x-min</code> y fait la même chose et l'emporte si les deux sont écrits), axe des barres (à gauche) de <code>bar-line</code> (l'axe de la ligne, à droite, n'a pas de borne), échelle radiale de <code>radar</code> (le centre du radar est fixé à <code>y-min</code> au lieu du minimum des données). La borne est posée exactement (<code>y-min="5"</code> sur une courbe : l'axe part de 5). Hors <code>radar</code>, elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur) et, sur des barres (<code>bar</code>, <code>bar-line</code>), si elle est positive : des barres partent de zéro, seul un minimum négatif ou nul agit. Sans effet, et signalée en console, sur les types sans axe (<code>pie</code>, <code>gauge</code>, cartes).</td></tr>
+                <tr><td><code>y-max</code></td><td>String</td><td>Borne maximale de l'axe des VALEURS, où qu'il soit dessiné : axe vertical de <code>line</code>, <code>scatter</code> et <code>bar</code>, axe horizontal de barres horizontales (<code>type="bar" horizontal</code> — <code>x-max</code> y fait la même chose et l'emporte si les deux sont écrits), axe des barres (à gauche) de <code>bar-line</code> (l'axe de la ligne, à droite, n'a pas de borne), échelle radiale de <code>radar</code> (si <code>y-min</code> et <code>y-max</code> sont entiers avec une amplitude de 1 à 10, la grille utilise des anneaux entiers). La borne est posée exactement (<code>y-max="37"</code> : l'axe s'arrête à 37). Hors <code>radar</code>, elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur ; pour des barres empilées, du plus grand cumul). Sans effet, et signalée en console, sur les types sans axe (<code>pie</code>, <code>gauge</code>, cartes).</td></tr>
                 <tr><td><code>reference-lines</code></td><td>String</td><td>Lignes de référence (overlay) au format JSON. Graphiques cartésiens uniquement (line, bar, bar-line, scatter). Chaque item : <code>{ axis: "x"|"y", value: string|number, label?, color?, dash?, position? }</code>. <code>axis:"x"</code> → ligne verticale à une catégorie/date ; <code>axis:"y"</code> → ligne horizontale à un seuil. Ex : <code>reference-lines='[{"axis":"x","value":"2026-02", "label":"Lancement","color":"#c9191e","dash":true}]'</code>.</td></tr>
                 <tr><td><code>targets</code></td><td>String</td><td>Cibles / objectifs futurs (overlay) au format JSON. Types <code>line</code> et <code>bar-line</code> uniquement. Chaque item : <code>{ x: string|number (échéance, requis), value: number (requis), series?: string|number (nom de dataset ou index, défaut 0), label?: string, color?: string }</code>. L'axe X est étendu automatiquement si l'échéance est au-delà des données (séries paddées avec null : trait plein jusqu'au dernier point réel, trajectoire pointillée vers le losange). Ex : <code>targets='[{"x":2030,"value":26,"label":"Cible 2030 : 26 %"}]'</code>.</td></tr>
                 <tr><td><code>targets-zone</code></td><td>String</td><td>Zone future grisée + frontière pointillée réalisé/projeté. <code>"off"</code> désactive.</td></tr>
@@ -84,6 +84,62 @@
         requête n'a été faite, ce n'est pas un jeu de résultats vide. Le mécanisme est décrit sur
         <a href="dsfr-data-source.html#attributs">dsfr-data-source</a>.
       </p>
+
+      <h3 class="fr-mt-3w" id="bornes-des-axes">Bornes des axes</h3>
+      <p>
+        <code>y-min</code> et <code>y-max</code> bornent l'axe des <strong>valeurs</strong>, où qu'il soit
+        dessiné ; <code>x-min</code> et <code>x-max</code> bornent l'axe <strong>horizontal</strong> quand
+        il porte des nombres. Pour chaque couple attribut × type, la borne agit ou elle est signalée par
+        un avertissement dans la console : elle n'est jamais ignorée en silence.
+      </p>
+      <div class="fr-table">
+        <table class="attr-table">
+          <thead><tr><th>Type</th><th><code>y-min</code> / <code>y-max</code></th><th><code>x-min</code> / <code>x-max</code></th></tr></thead>
+          <tbody>
+            <tr><td><code>line</code>, <code>scatter</code></td><td>Axe vertical, celui des valeurs.</td><td>Axe horizontal, si les étiquettes sont numériques (années, mesures). Sans effet, et signalé, sur des étiquettes texte.</td></tr>
+            <tr><td><code>bar</code></td><td>Axe vertical, celui des valeurs.</td><td>Sans effet, et signalé : l'axe horizontal porte des étiquettes.</td></tr>
+            <tr><td><code>bar</code> + <code>horizontal</code></td><td>Axe des valeurs, qui est ici l'axe horizontal.</td><td>Le même axe. Si les deux sont écrits avec des valeurs différentes, <code>x-*</code> l'emporte et <code>y-*</code> est signalé.</td></tr>
+            <tr><td><code>bar-line</code></td><td>Axe des barres, à gauche. L'axe de la ligne, à droite, n'a pas de borne.</td><td>Sans effet, et signalé.</td></tr>
+            <tr><td><code>radar</code></td><td>Échelle radiale : le centre du radar est fixé à <code>y-min</code>.</td><td>Sans effet, et signalé.</td></tr>
+            <tr><td><code>pie</code>, <code>gauge</code>, <code>map</code>, <code>map-reg</code>, <code>map-aca</code>, <code>map-monde</code></td><td>Sans effet, et signalé : ce type n'a pas d'axe.</td><td>Sans effet, et signalé.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li>
+          <strong>La borne est posée exactement.</strong> <code>y-min="5"</code> sur une courbe donne un axe
+          qui part de 5, <code>y-max="37"</code> un axe qui s'arrête à 37 : elle n'est pas arrondie à la
+          graduation voisine.
+        </li>
+        <li>
+          <strong>Une borne ne masque jamais une donnée</strong> (hors radar). Un minimum au-dessus de la plus
+          petite valeur, un maximum en dessous de la plus grande — du plus grand cumul pour des barres
+          empilées — sont ignorés, et l'avertissement nomme la valeur qui aurait été cachée. Pour restreindre
+          ce qui est affiché, filtrer en amont (<code>where</code> de
+          <a href="dsfr-data-query.html">dsfr-data-query</a>).
+        </li>
+        <li>
+          <strong>Des barres partent de zéro</strong> (<code>bar</code>, <code>bar-line</code>). C'est la
+          longueur d'une barre qu'on compare : un axe tronqué fait d'un écart de 40 % un écart du simple au
+          triple. Un minimum positif y est donc ignoré et signalé ; seul un minimum négatif ou nul agit. Pour
+          un axe qui ne part pas de zéro, une courbe convient.
+        </li>
+        <li>
+          <strong>Petits multiples</strong> : les mêmes <code>y-min</code> et <code>y-max</code> sur chaque
+          graphique leur donnent une échelle commune.
+        </li>
+      </ul>
+      <div class="code-block">
+        <pre>&lt;!-- Taux sur une échelle fixe, de 0 à 100 --&gt;
+&lt;dsfr-data-chart source="taux" type="line"
+  label-field="annee" value-field="taux" y-min="0" y-max="100"&gt;
+&lt;/dsfr-data-chart&gt;
+
+&lt;!-- Barres horizontales : y-max borne l'axe des valeurs (horizontal) --&gt;
+&lt;dsfr-data-chart source="taux" type="bar" horizontal
+  label-field="region" value-field="taux" y-max="100"&gt;
+&lt;/dsfr-data-chart&gt;</pre>
+      </div>
 
       <h3 class="fr-mt-3w">Couleur fixée par modalité</h3>
       <p>

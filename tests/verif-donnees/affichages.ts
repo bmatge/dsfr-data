@@ -1068,19 +1068,174 @@ const CHECKS: Check[] = [
     id: 'graphique-bornes-des-axes',
     mode: 'deterministic',
     origin:
-      'Les bornes d’axes déclarées sont relayées telles quelles à l’élément DSFR Chart : une borne perdue en route change la lecture d’une courbe sans toucher à une seule valeur.',
+      '#1273 — une borne d’axe change ce qu’on lit sans toucher à une seule valeur, et c’est l’ÉCHELLE appliquée qui se lit, pas l’attribut relayé. Ce contrôle lisait l’attribut : il était vert pendant que la courbe gagnait deux catégories fantômes (« 0 » et « 11 », les bornes de `x-*` ajoutées à un axe d’étiquettes) et que `y-min` / `y-max` étaient arrondis à la graduation voisine. Sur une courbe, `y-*` borne l’axe des valeurs EXACTEMENT ; `x-*` est sans effet sur des étiquettes texte, et la bibliothèque le dit.',
     feed: { kind: 'fixture', datasets: { main: SERIE } },
     head: TETE_CHART,
     markup: `
   ${source('s-bornes-axes', 'serie')}
   <dsfr-data-chart id="g-bornes" source="s-bornes-axes" type="line"
     label-field="mois" value-field="valeur" name="Volume"
-    x-min="0" x-max="11" y-min="100" y-max="200"></dsfr-data-chart>`,
+    x-min="0" x-max="11" y-min="110" y-max="185"></dsfr-data-chart>`,
     expects: [
-      { kind: 'attr', id: 'g-bornes', attr: 'x-min', literal: '0' },
-      { kind: 'attr', id: 'g-bornes', attr: 'x-max', literal: '11' },
-      { kind: 'attr', id: 'g-bornes', attr: 'y-min', literal: '100' },
-      { kind: 'attr', id: 'g-bornes', attr: 'y-max', literal: '200' },
+      // Les bornes déclarées, telles quelles — et aucun point hors de l'axe.
+      {
+        kind: 'scale',
+        id: 'g-bornes',
+        axis: 'y',
+        min: 110,
+        max: 185,
+        valueColumns: ['valeur'],
+        pipeline: [],
+      },
+      // L'axe des étiquettes porte les douze mois, et rien d'autre.
+      { kind: 'scale', id: 'g-bornes', axis: 'x', labelColumn: 'mois', pipeline: [] },
+      { kind: 'diagnostic', id: 'g-bornes', expect: 'warning', contains: 'x-min est sans effet' },
+    ],
+  },
+
+  {
+    id: 'graphique-bornes-barres-horizontales-1273',
+    mode: 'deterministic',
+    origin:
+      '#1273 — sur des barres horizontales, l’axe des valeurs est l’axe HORIZONTAL. `y-max` y ajoutait une catégorie fantôme à l’axe des étiquettes (« 4300000 » sous les quatre zones) sans borner quoi que ce soit. Il borne désormais l’axe des valeurs, exactement, et l’axe des étiquettes ne porte que les zones.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-bornes-h', 'communes')}
+  <dsfr-data-query id="q-bornes-h" source="s-bornes-h" group-by="zone"
+    aggregate="population:sum:pop" order-by="pop:desc"></dsfr-data-query>
+  <dsfr-data-chart id="g-bornes-h" source="q-bornes-h" type="bar" horizontal
+    label-field="zone" value-field="pop" name="Habitants" y-max="4300000"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'scale',
+        id: 'g-bornes-h',
+        axis: 'x',
+        max: 4300000,
+        valueColumns: ['pop'],
+        fromZero: true,
+        pipeline: [
+          { op: 'group-by', by: 'zone', columns: { pop: { agg: 'sum', field: 'population' } } },
+          { op: 'order-by', column: 'pop', dir: 'desc' },
+        ],
+      },
+      {
+        kind: 'scale',
+        id: 'g-bornes-h',
+        axis: 'y',
+        labelColumn: 'zone',
+        pipeline: [
+          { op: 'group-by', by: 'zone', columns: { pop: { agg: 'sum', field: 'population' } } },
+          { op: 'order-by', column: 'pop', dir: 'desc' },
+        ],
+      },
+      { kind: 'diagnostic', id: 'g-bornes-h', expect: 'silence', contains: 'y-max' },
+    ],
+  },
+
+  {
+    id: 'graphique-bornes-barres-et-ligne-1273',
+    mode: 'deterministic',
+    origin:
+      '#1273 — `<bar-line-chart>` ne lit ni `y-min` ni `y-max` : il attend `y-bar-*` et `y-line-*`. La borne était ignorée sans un mot. `y-max` borne désormais l’axe des BARRES (à gauche) ; l’axe de la ligne (à droite) reste libre et contient toute sa série.',
+    feed: { kind: 'fixture', datasets: { main: SERIE } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-bornes-bl', 'serie')}
+  <dsfr-data-chart id="g-bornes-bl" source="s-bornes-bl" type="bar-line"
+    label-field="mois" value-field="valeur:Volume" value-field-2="objectif:Objectif"
+    y-max="185"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'scale',
+        id: 'g-bornes-bl',
+        axis: 'y',
+        max: 185,
+        valueColumns: ['valeur'],
+        fromZero: true,
+        pipeline: [],
+      },
+      { kind: 'scale', id: 'g-bornes-bl', axis: 'yLine', valueColumns: ['objectif'], pipeline: [] },
+      { kind: 'scale', id: 'g-bornes-bl', axis: 'x', labelColumn: 'mois', pipeline: [] },
+      { kind: 'diagnostic', id: 'g-bornes-bl', expect: 'silence', contains: 'y-max' },
+    ],
+  },
+
+  {
+    id: 'graphique-bornes-barres-depuis-zero-1273',
+    mode: 'deterministic',
+    origin:
+      '#1273 — des barres partent de zéro : leur LONGUEUR est ce qu’on compare, et un axe tronqué fait d’un écart de 40 % un écart du simple au triple. `y-min="100"` sur des barres n’agit donc pas — l’axe contient toujours zéro — et la bibliothèque le dit au lieu de se taire.',
+    feed: { kind: 'fixture', datasets: { main: SERIE } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-bornes-zero', 'serie')}
+  <dsfr-data-chart id="g-bornes-zero" source="s-bornes-zero" type="bar"
+    label-field="mois" value-field="valeur" name="Volume" y-min="100"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'scale',
+        id: 'g-bornes-zero',
+        axis: 'y',
+        valueColumns: ['valeur'],
+        fromZero: true,
+        pipeline: [],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'g-bornes-zero',
+        expect: 'warning',
+        contains: 'des barres partent de zéro',
+      },
+    ],
+  },
+
+  {
+    id: 'graphique-borne-qui-masquerait-une-donnee-1273',
+    mode: 'deterministic',
+    origin:
+      '#1273 — une borne ne masque jamais une donnée. `y-min="130" y-max="160"` couperait quatre des douze mois de la courbe (120, 127, 161, 168) : les deux bornes sont écartées, l’axe contient toute la série, et chaque borne écartée est signalée avec la valeur qu’elle aurait cachée.',
+    feed: { kind: 'fixture', datasets: { main: SERIE } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-bornes-masque', 'serie')}
+  <dsfr-data-chart id="g-bornes-masque" source="s-bornes-masque" type="line"
+    label-field="mois" value-field="valeur" name="Volume" y-min="130" y-max="160"></dsfr-data-chart>`,
+    expects: [
+      { kind: 'scale', id: 'g-bornes-masque', axis: 'y', valueColumns: ['valeur'], pipeline: [] },
+      {
+        kind: 'diagnostic',
+        id: 'g-bornes-masque',
+        expect: 'warning',
+        contains: 'la borne masquerait des données',
+      },
+    ],
+  },
+
+  {
+    id: 'graphique-bornes-axe-horizontal-numerique-1273',
+    mode: 'deterministic',
+    origin:
+      '#1273 — `x-min` / `x-max` bornent l’axe horizontal quand il porte des NOMBRES : ici un nuage dont l’abscisse est le volume. Les deux bornes élargissent l’axe au-delà des données (120 à 168) et sont posées exactement — une borne « suggérée » aurait rendu 100..180.',
+    feed: { kind: 'fixture', datasets: { main: SERIE } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-bornes-x', 'serie')}
+  <dsfr-data-chart id="g-bornes-x" source="s-bornes-x" type="scatter"
+    label-field="valeur" value-field="objectif" name="Objectif"
+    x-min="105" x-max="175"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'scale',
+        id: 'g-bornes-x',
+        axis: 'x',
+        min: 105,
+        max: 175,
+        valueColumns: ['valeur'],
+        pipeline: [],
+      },
+      { kind: 'scale', id: 'g-bornes-x', axis: 'y', valueColumns: ['objectif'], pipeline: [] },
+      { kind: 'diagnostic', id: 'g-bornes-x', expect: 'silence', contains: 'x-m' },
     ],
   },
 
@@ -1455,6 +1610,45 @@ const CHECKS: Check[] = [
         decimals: 2,
         column: 'v',
         pipeline: [{ op: 'global', columns: { v: { agg: 'sum', field: 'population' } } }],
+      },
+    ],
+  },
+  {
+    id: 'carte-resume-valeur-publiee-763',
+    mode: 'deterministic',
+    origin:
+      '#763, #1273 — `map-summary-value` affiche sous le titre d’une carte la valeur PUBLIÉE par ailleurs, qui fait autorité : elle prime sur tout calcul, y compris la moyenne pondérée demandée à côté, et s’écrit à la française (« 5,6 »). L’attribut n’avait aucun contrôle : une priorité inversée aurait affiché le taux pondéré (43,07) sous une carte qui annonce le chiffre officiel.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-carte-publiee', 'communes')}
+  <dsfr-data-chart id="g-carte-publiee" source="s-carte-publiee" type="map"
+    code-field="dept" value-field="taux" map-summary-weight="eleves"
+    map-summary-value="5,6" name="Taux"></dsfr-data-chart>`,
+    expects: [
+      { kind: 'attr', id: 'g-carte-publiee', attr: 'value', literal: '5.6' },
+      { kind: 'diagnostic', id: 'g-carte-publiee', expect: 'silence' },
+    ],
+  },
+
+  {
+    id: 'carte-resume-valeur-publiee-illisible-763',
+    mode: 'deterministic',
+    origin:
+      '#763, #1273 — une valeur publiée qui n’est pas un nombre est une erreur de configuration NOMMÉE : la carte ne remplace pas en silence le chiffre officiel par la moyenne calculée. Ce contrôle garde le MESSAGE ; l’absence de résumé, qui ne s’observe pas dans une page (rien à lire), est gardée par `tests/dsfr-data-chart-map-summary.test.ts`.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-carte-illisible', 'communes')}
+  <dsfr-data-chart id="g-carte-illisible" source="s-carte-illisible" type="map"
+    code-field="dept" value-field="taux" map-summary-value="non communiqué"
+    name="Taux"></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 'g-carte-illisible',
+        expect: 'config-error',
+        contains: 'map-summary-value="non communiqué" : attendu un nombre',
       },
     ],
   },

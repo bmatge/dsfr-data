@@ -96,6 +96,15 @@ export function attenduPython(entree: EntreePython, expect: Expect): Attendu | n
       };
     case 'count':
       return { kind: 'count', value: Number(entree.valeur) };
+    case 'scale': {
+      const v = entree.valeur as {
+        min: number | null;
+        max: number | null;
+        labels: string[] | null;
+        etendue: { min: number; max: number } | null;
+      };
+      return { kind: 'scale', min: v.min, max: v.max, labels: v.labels, etendue: v.etendue };
+    }
     default:
       return null;
   }
