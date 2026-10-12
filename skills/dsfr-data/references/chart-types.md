@@ -12,17 +12,17 @@ Guide pour choisir le type de visualisation adapte aux données.
 - **Quand** : comparer des catégories (5-15 ideal)
 - **Champs** : label-field (catégories), value-field (valeurs)
 - **Options** : `horizontal` (barres horizontales), `stacked` (empile)
-- **Supporte** : value-field-2 ou value-fields pour N séries, highlight-index
+- **Supporte** : value-field-2 ou value-fields pour N séries, highlight-index, y-min/y-max (axe des valeurs, y compris en `horizontal` ; des barres partent de zero : un minimum positif est ignore et signale)
 
 ### Lignes (line)
 - **Quand** : evolution temporelle, tendances
 - **Champs** : label-field (dates/temps), value-field (valeurs)
-- **Supporte** : value-field-2 ou value-fields pour comparaison, x-min/x-max/y-min/y-max
+- **Supporte** : value-field-2 ou value-fields pour comparaison, y-min/y-max (axe des valeurs, poses exactement), x-min/x-max (seulement si les etiquettes sont numeriques, ex. des annees)
 
 ### Combine barres + ligne (bar-line)
 - **Quand** : comparer 2 metriques differentes (ex: CA en barres + objectif en ligne)
 - **Champs** : label-field, value-field (barres), value-field-2 (ligne)
-- **Options** : unit-tooltip (barres), unit-tooltip-bar (ligne)
+- **Options** : unit-tooltip (ligne), unit-tooltip-bar (barres), y-min/y-max (axe des barres, a gauche)
 
 ### Camembert / Anneau (pie)
 - **Quand** : parts d'un tout (100%), max 5-7 segments
@@ -37,6 +37,7 @@ Guide pour choisir le type de visualisation adapte aux données.
 ### Nuage de points (scatter)
 - **Quand** : correlation entre deux variables numériques
 - **Champs** : label-field (axe X numérique), value-field (axe Y)
+- **Supporte** : x-min/x-max et y-min/y-max (les deux axes sont numeriques)
 
 ### Jauge (gauge)
 - **Quand** : progression vers un objectif (0-100%)
