@@ -631,7 +631,8 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   `dispatchDataIdle` (`require-where` qui repasse en attente n'est pas une panne). La `meta`
   (`__dsfrDataMeta`) n'est pas déplacée : la négociation d'une query la relit pendant la panne.
   **Aucun afficheur ne rend ces lignes** : l'affichage « dernières données connues, datées »
-  (proposition 3 de #1203) est une issue à part.
+  (proposition 3 de #1203) est une issue à part, #1288 — qui porte aussi les composants sans rendu
+  de panne (`dsfr-data-map-layer`, `dsfr-data-a11y` et son export CSV), laissés tels quels ici.
 - **Les lecteurs, un par un** (#1272) — `SourceSubscriberMixin` : rien au cache, erreur relue au
   registre ; ni erreur ni lignes mais `isDataStale` → un nouvel essai est en vol, le bloc monté à cet
   instant est en chargement. `TransformerMixin` : au branchement, l'erreur de l'amont est relue au
