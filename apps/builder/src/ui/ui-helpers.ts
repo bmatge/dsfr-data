@@ -24,6 +24,7 @@ import { isMapType, type MapType } from '../state.js';
 import { REFERENTIELS, champConvient, trouverChampGeo } from '../geo-codes.js';
 import { getLastGeneratedCode } from './code-generator.js';
 import { LECTURE_KEYS } from '../lecture.js';
+import { CADRE_KEYS } from '../cadre.js';
 
 /**
  * Build a serializable snapshot of the current builder state.
@@ -37,6 +38,9 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     valueField: state.valueField,
     valueFieldLabel: state.valueFieldLabel,
     valueField2: state.valueField2,
+    // Séries supplémentaires (#1263) : toutes, avec leurs libellés. `valueField2`
+    // reste écrit pour les lecteurs qui ne connaissent que lui.
+    extraSeries: state.extraSeries.map((serie) => ({ ...serie })),
     lineField: state.lineField,
     lineFieldLabel: state.lineFieldLabel,
     podiumMaxItems: state.podiumMaxItems,
@@ -71,6 +75,8 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     a11yDescription: state.a11yDescription,
     // Réglages de lecture (#1218)
     ...Object.fromEntries(LECTURE_KEYS.map((cle) => [cle, state[cle]])),
+    // Cadre officiel DSFR (#1263) : sans ces clés, un favori rouvert perdait son cadre.
+    ...Object.fromEntries(CADRE_KEYS.map((cle) => [cle, state[cle]])),
   };
 }
 

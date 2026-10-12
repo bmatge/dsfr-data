@@ -11,6 +11,7 @@
  */
 
 import { PALETTE_DISPLAY_NAMES } from '@dsfr-data/shared';
+import { actionsValue, hasModal } from '../cadre.js';
 
 import {
   state,
@@ -140,11 +141,13 @@ function buildSummaries(s: BuilderState, c: Completeness): Record<string, Sectio
     ? joinChecked([
         !!s.databoxTitle && 'titre',
         !!s.databoxSource && 'source',
-        !!s.databoxDate && 'date',
+        (!!s.databoxDate || !!s.databoxDateField) && 'date',
         s.databoxDownload && 'téléchargement',
         s.databoxScreenshot && 'capture',
-        s.databoxFullscreen && 'plein écran',
         !!s.databoxTrend && 'tendance',
+        (!!s.databoxTooltipTitle.trim() || !!s.databoxTooltipContent.trim()) && 'infobulle',
+        hasModal(s) && 'fenêtre',
+        actionsValue(s.databoxActions).length > 0 && 'actions',
       ]) || 'activé'
     : '';
 

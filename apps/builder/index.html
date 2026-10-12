@@ -724,7 +724,7 @@
           <h3><i class="ri-layout-4-line"></i> Cadre officiel DSFR</h3>
           <i class="ri-arrow-down-s-line collapse-icon"></i>
         </div>
-        <p class="fr-hint-text config-section-hint">Encadre le graphique dans le bloc officiel DSFR : titre, source, date, téléchargement, plein écran.</p>
+        <p class="fr-hint-text config-section-hint">Encadre le graphique dans le bloc officiel DSFR : titre, source, date, téléchargement, infobulle, fenêtre d’information.</p>
         <div class="config-section-content">
           <div class="fr-checkbox-group fr-checkbox-group--sm">
             <input type="checkbox" id="databox-toggle" data-repere="builder.cadre.activer" data-attribut="dsfr-data-chart:databox">
@@ -732,7 +732,8 @@
               Encadrer le graphique (titre, source, téléchargement)
             </label>
           </div>
-          <div id="databox-options" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem;">
+          <!-- Les réglages du cadre n'apparaissent que cadre activé (ui/cadre.ts, #1263). -->
+          <div id="databox-options" class="databox-options" style="display: none;">
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-title">Titre</label>
               <input class="fr-input fr-input--sm" type="text" id="databox-title" data-repere="builder.cadre.titre" data-attribut="dsfr-data-chart:databox-title" data-repere-libelle="Titre du cadre"
@@ -748,6 +749,16 @@
               <input class="fr-input fr-input--sm" type="text" id="databox-date" data-repere="builder.cadre.date" data-attribut="dsfr-data-chart:databox-date"
                 placeholder="Ex : Mars 2024">
             </div>
+            <div class="fr-select-group fr-select-group--sm fr-mb-1w">
+              <label class="fr-label" for="databox-date-field">
+                Date lue dans les données
+                <span class="fr-hint-text">Un champ de dates (AAAA-MM-JJ) : la plus récente s’affiche à la place d’une date saisie, et suit les données</span>
+              </label>
+              <select class="fr-select" id="databox-date-field" data-repere="builder.cadre.date-champ" data-attribut="dsfr-data-chart:databox-date-field" aria-describedby="databox-date-field-note">
+                <option value="">— Aucun —</option>
+              </select>
+              <p class="fr-hint-text fr-mt-1v" id="databox-date-field-note" aria-live="polite" hidden></p>
+            </div>
             <div class="fr-input-group fr-input-group--sm fr-mb-1w">
               <label class="fr-label" for="databox-trend">Tendance</label>
               <input class="fr-input fr-input--sm" type="text" id="databox-trend" data-repere="builder.cadre.tendance" data-attribut="dsfr-data-chart:databox-trend"
@@ -757,18 +768,51 @@
               <input type="checkbox" id="databox-download" data-repere="builder.cadre.telechargement" data-attribut="dsfr-data-chart:databox-download" data-repere-libelle="Téléchargement CSV du cadre" checked>
               <label class="fr-label" for="databox-download">Téléchargement CSV</label>
             </div>
-            <div class="fr-checkbox-group fr-checkbox-group--sm fr-mb-1w">
+            <div class="fr-checkbox-group fr-checkbox-group--sm">
               <input type="checkbox" id="databox-screenshot" data-repere="builder.cadre.capture" data-attribut="dsfr-data-chart:databox-screenshot">
               <label class="fr-label" for="databox-screenshot">Screenshot PNG</label>
             </div>
-            <div class="fr-checkbox-group fr-checkbox-group--sm">
-              <!-- DSFR Chart 2.1.1 n'affiche ce bouton qu'avec un titre de modale, qu'il ouvre :
-                   le graphique n'est pas agrandi. La case reste visible, mais sans effet (#1179). -->
-              <input type="checkbox" id="databox-fullscreen" data-repere="builder.cadre.plein-ecran" data-attribut="dsfr-data-chart:databox-fullscreen" disabled aria-describedby="databox-fullscreen-note">
-              <label class="fr-label" for="databox-fullscreen">Plein écran
-                <span class="fr-hint-text" id="databox-fullscreen-note">Sans effet avec la version actuelle de DSFR Chart (2.1.1) : le bouton n’apparaît qu’avec un titre de modale, et il ouvre cette modale.</span>
-              </label>
-            </div>
+
+            <!-- Infobulle et fenêtre d'information (#1263). DSFR Chart 2.1.1 n'ouvre la fenêtre
+                 que par son bouton « plein écran », et seulement avec un titre : le Builder écrit
+                 `databox-fullscreen` avec le titre, ce n'est plus une case (#1179). -->
+            <details class="query-advanced fr-mt-2w" id="databox-info-details" data-zone="builder.cadre.information" data-repere-libelle="Infobulle et fenêtre d’information">
+              <summary>Infobulle et fenêtre d’information</summary>
+              <div role="group" aria-labelledby="databox-tooltip-legend" class="fr-mt-1w">
+                <p class="fr-label fr-mb-0" id="databox-tooltip-legend">Infobulle</p>
+                <p class="fr-hint-text">Un bouton « i » à côté du titre ouvre une courte précision</p>
+                <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+                  <label class="fr-label" for="databox-tooltip-title">Titre de l’infobulle</label>
+                  <input class="fr-input fr-input--sm" type="text" id="databox-tooltip-title" data-repere="builder.cadre.information.infobulle-titre" data-attribut="dsfr-data-chart:databox-tooltip-title" placeholder="Ex : Méthode">
+                </div>
+                <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+                  <label class="fr-label" for="databox-tooltip-content">Contenu de l’infobulle<span class="fr-hint-text">Une ou deux phrases, en texte simple</span></label>
+                  <textarea class="fr-input" id="databox-tooltip-content" rows="2" data-repere="builder.cadre.information.infobulle-contenu" data-attribut="dsfr-data-chart:databox-tooltip-content" placeholder="Ex : Taux calculé sur la population de 15 à 64 ans."></textarea>
+                </div>
+              </div>
+              <div role="group" aria-labelledby="databox-modal-legend" class="fr-mt-2w">
+                <p class="fr-label fr-mb-0" id="databox-modal-legend">Fenêtre d’information</p>
+                <p class="fr-hint-text">Un bouton du cadre (icône « plein écran ») ouvre une fenêtre avec ce texte. Elle n’agrandit pas le graphique.</p>
+                <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+                  <label class="fr-label" for="databox-modal-title">Titre de la fenêtre<span class="fr-hint-text">Sans titre, la fenêtre n’est pas proposée</span></label>
+                  <input class="fr-input fr-input--sm" type="text" id="databox-modal-title" data-repere="builder.cadre.information.fenetre-titre" data-attribut="dsfr-data-chart:databox-modal-title" placeholder="Ex : En savoir plus">
+                </div>
+                <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+                  <label class="fr-label" for="databox-modal-content">Contenu de la fenêtre<span class="fr-hint-text">Texte simple : une ligne vide sépare deux paragraphes, les balises HTML sont affichées telles quelles</span></label>
+                  <textarea class="fr-input" id="databox-modal-content" rows="4" data-repere="builder.cadre.information.fenetre-contenu" data-attribut="dsfr-data-chart:databox-modal-content" placeholder="Ex : Définitions, méthode de calcul, précautions de lecture."></textarea>
+                </div>
+              </div>
+            </details>
+
+            <!-- Actions du menu « Plus d'actions » (#1263). Lignes rendues par ui/cadre.ts. -->
+            <details class="query-advanced fr-mt-2w" id="databox-actions-details" data-zone="builder.cadre.actions" data-repere-libelle="Actions du menu du cadre">
+              <summary>Actions du menu</summary>
+              <p class="fr-hint-text fr-mt-1w">Ajoute des entrées au menu « Plus d’actions » du cadre. Une entrée n’a pas d’effet par elle-même : un script de votre page doit écouter son clic (le code généré dit comment la reconnaître).</p>
+              <div id="databox-actions-container"></div>
+              <button type="button" class="fr-btn fr-btn--sm fr-btn--secondary fr-btn--icon-left fr-mt-1w" id="add-databox-action-btn" data-repere="builder.cadre.actions.ajouter" data-attribut="dsfr-data-chart:databox-actions">
+                <i class="ri-add-line" aria-hidden="true"></i> Ajouter une action
+              </button>
+            </details>
           </div>
         </div>
       </div>

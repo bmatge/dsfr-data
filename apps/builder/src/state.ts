@@ -6,6 +6,7 @@
 import type { Source } from '@dsfr-data/shared';
 import { REFERENTIELS } from './geo-codes.js';
 import { lectureDefaults, type LectureSettings } from './lecture.js';
+import { cadreDefaults, type CadreSettings } from './cadre.js';
 export { isMapType, MAP_TYPES, type MapType } from './geo-codes.js';
 export { PROXY_BASE_URL, PROXY_BASE_URL_EMBED, LIB_URL } from '@dsfr-data/shared';
 
@@ -176,6 +177,26 @@ export interface ExtraSeries {
   label: string;
 }
 
+/**
+ * Séries supplémentaires d'un état déposé (favori, retour d'une autre app),
+ * remises en forme (#1263). Avant ce lot l'instantané ne les portait pas :
+ * une clé absente ou mal formée rend une liste vide, et la série unique d'un
+ * ancien favori revient par `valueField2`, comme avant.
+ */
+export function normalizeExtraSeries(source: unknown): ExtraSeries[] {
+  if (!Array.isArray(source)) return [];
+  const out: ExtraSeries[] = [];
+  for (const item of source) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const { field, label } = item as Record<string, unknown>;
+    out.push({
+      field: typeof field === 'string' ? field : '',
+      label: typeof label === 'string' ? label : '',
+    });
+  }
+  return out;
+}
+
 /** A single data record (aggregated result) */
 export interface DataRecord {
   [key: string]: unknown;
@@ -206,9 +227,10 @@ export interface Favorite {
  * The builder state object (serializable parts for favorites).
  * Les réglages de lecture (#1218 : unité, bornes, lignes de référence, cibles,
  * couleurs fixées, catégories vides, synthèse de carte) sont décrits dans
- * `lecture.ts`.
+ * `lecture.ts` ; ceux du cadre officiel DSFR (#1263 : titre, source, date,
+ * infobulle, fenêtre d'information, actions) dans `cadre.ts`.
  */
-export interface BuilderState extends LectureSettings {
+export interface BuilderState extends LectureSettings, CadreSettings {
   sourceType: SourceType;
   apiUrl: string;
   savedSource: Source | null;
@@ -285,14 +307,6 @@ export interface BuilderState extends LectureSettings {
   a11yTable: boolean;
   a11yDownload: boolean;
   a11yDescription: string;
-  databoxEnabled: boolean;
-  databoxTitle: string;
-  databoxSource: string;
-  databoxDate: string;
-  databoxDownload: boolean;
-  databoxScreenshot: boolean;
-  databoxFullscreen: boolean;
-  databoxTrend: string;
   /** Chart.js instance for preview (not serialized) */
   chartInstance: unknown;
   /** True when using sample data (transient, not serialized) */
@@ -453,14 +467,7 @@ export const state: BuilderState = {
   a11yTable: true,
   a11yDownload: true,
   a11yDescription: '',
-  databoxEnabled: false,
-  databoxTitle: '',
-  databoxSource: '',
-  databoxDate: '',
-  databoxDownload: true,
-  databoxScreenshot: false,
-  databoxFullscreen: false,
-  databoxTrend: '',
   chartInstance: null,
   ...lectureDefaults(),
+  ...cadreDefaults(),
 };
