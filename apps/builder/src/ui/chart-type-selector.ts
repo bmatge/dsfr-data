@@ -13,6 +13,7 @@ import {
 } from '../state.js';
 import { syncSeriesExclusivity } from './formes.js';
 import { updateLectureVisibility } from './lecture.js';
+import { updateCadreVisibility } from './cadre.js';
 import { REFERENTIELS } from '../geo-codes.js';
 import { initDatalistColumns } from './datalist-config.js';
 import { renderPaletteSwatches, updateMapCodeFieldWarning } from './ui-helpers.js';
@@ -158,10 +159,9 @@ export function selectChartType(type: ChartType): void {
   // Réglages de lecture (#1218) : unité, bornes, repères, couleurs, synthèse de carte
   updateLectureVisibility(type);
 
-  // DataBox section: hide for non-chart types (KPI, gauge, datalist, podium)
-  const databoxSection = document.getElementById('section-databox') as HTMLElement | null;
-  if (databoxSection)
-    databoxSection.style.display = isSingleValue || isDatalist || isPodium ? 'none' : '';
+  // Cadre officiel : masqué pour les types que `dsfr-data-chart` ne rend pas
+  // (KPI, jauge, tableau, podium) — la table vit dans `cadre.ts`.
+  updateCadreVisibility(type);
 
   // Map chart needs code field for department codes
   const codeFieldGroup = document.getElementById('code-field-group') as HTMLElement | null;

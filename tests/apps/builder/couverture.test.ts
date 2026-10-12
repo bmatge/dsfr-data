@@ -264,6 +264,20 @@ const ATTRIBUTS_1218 = [
   'map-summary-value',
 ];
 
+/**
+ * Attributs du cadre officiel auxquels #1263 a donné un contrôle (arbitrage du
+ * 2026-10-12). `databox-fullscreen`, lui, n'a plus de case : il est écrit avec
+ * le titre de la fenêtre d'information (`ECRITS_SANS_CONTROLE`).
+ */
+const ATTRIBUTS_1263 = [
+  'databox-date-field',
+  'databox-tooltip-title',
+  'databox-tooltip-content',
+  'databox-modal-title',
+  'databox-modal-content',
+  'databox-actions',
+];
+
 /** Copie du manifeste, modifiable. */
 const copie = (): ManifesteCem => structuredClone(MANIFESTE);
 
@@ -331,6 +345,49 @@ describe('couverture du Builder — état versionné', () => {
     }
   });
 
+  it('ce que #1263 a ajouté au cadre officiel n’est plus exclu', () => {
+    const exclus = EXCLUSIONS.flatMap((x) => [...x.noms]);
+    for (const nom of ATTRIBUTS_1263) {
+      expect(exclus, nom).not.toContain(nom);
+      expect(REEL.exposes.has(`dsfr-data-chart:${nom}`), nom).toBe(true);
+    }
+    // Le bouton « plein écran » n'ouvre que la fenêtre d'information : plus de
+    // case, il est écrit avec son titre.
+    expect(REEL.exposes.has('dsfr-data-chart:databox-fullscreen')).toBe(false);
+    expect(ECRITS_SANS_CONTROLE.map((x) => x.attribut)).toContain('databox-fullscreen');
+  });
+
+  it('arbitrage du 2026-10-12 : highlight-index est exclu DÉFINITIVEMENT, avec sa raison', () => {
+    const exclusion = EXCLUSIONS.find((x) => x.noms.includes('highlight-index'));
+    expect(exclusion).toBeDefined();
+    // Pas d'issue de suite : ce n'est plus « à exposer plus tard ».
+    expect(exclusion!.suite).toBeUndefined();
+    expect(exclusion!.raison).toMatch(/rang/i);
+    expect(exclusion!.raison).toMatch(/tri ou les données/);
+    expect(exclusion!.raison).toContain('color-map');
+  });
+
+  it('databox-default-source est exclu hors périmètre : sans effet, mesuré', () => {
+    const exclusion = EXCLUSIONS.find((x) => x.noms.includes('databox-default-source'));
+    expect(exclusion?.suite).toBeUndefined();
+    expect(exclusion?.raison).toContain('sans effet');
+  });
+
+  it('ce qui attend un besoin reste exclu, vers l’issue de suite', () => {
+    for (const nom of [
+      'heading-level',
+      'map-highlight',
+      'map-summary-weight',
+      'map-summary-field',
+      'idle-message',
+      'dsfr-data-kpi-group',
+      'dsfr-data-display',
+    ]) {
+      const exclusion = EXCLUSIONS.find((x) => x.noms.includes(nom));
+      expect(exclusion?.suite, nom).toBe(ISSUE_DE_SUITE);
+    }
+  });
+
   it('chaque réglage « à exposer plus tard » cite l’issue de suite', () => {
     expect(ISSUE_DE_SUITE).toMatch(/^#\d+$/);
     const plusTard = EXCLUSIONS.filter((x) => x.suite !== undefined);
@@ -355,7 +412,10 @@ describe('attributs écrits sans contrôle : vérifiés sur du code généré', 
       palette: 'default',
       generationMode: 'dynamic',
       advancedMode: false,
-      databoxEnabled: false,
+      // Cadre activé, fenêtre d'information titrée : c'est ce titre qui fait
+      // écrire `databox-fullscreen` (#1263).
+      databoxEnabled: true,
+      databoxModalTitle: 'En savoir plus',
       fields: [
         { name: 'region', type: 'string', sample: 'Bretagne' },
         { name: 'budget', type: 'number', sample: 1 },
@@ -374,11 +434,17 @@ describe('attributs écrits sans contrôle : vérifiés sur du code généré', 
     return [...balise![1].matchAll(/\s([a-z][a-z0-9-]*)(?==|\s|$)/g)].map((m) => m[1]);
   }
 
-  it('source, name, horizontal et fill sont bien écrits par le générateur', () => {
+  it('source, name, horizontal, fill et databox-fullscreen sont bien écrits par le générateur', () => {
     const ecrits = new Set([...attributsEcrits('horizontalBar'), ...attributsEcrits('pie')]);
     for (const { attribut } of ECRITS_SANS_CONTROLE) {
       expect(ecrits.has(attribut), attribut).toBe(true);
     }
+  });
+
+  it('databox-fullscreen n’est écrit qu’avec un titre de fenêtre', () => {
+    state.databoxModalTitle = '';
+    expect(attributsEcrits('horizontalBar')).not.toContain('databox-fullscreen');
+    expect(attributsEcrits('horizontalBar')).toContain('databox');
   });
 });
 

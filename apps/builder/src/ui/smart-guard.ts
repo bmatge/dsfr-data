@@ -18,6 +18,7 @@
 
 import { state } from '../state.js';
 import { LECTURE_KEYS } from '../lecture.js';
+import { CADRE_KEYS } from '../cadre.js';
 import { selectChartType } from './chart-type-selector.js';
 import { lookupRealCardinality } from './real-cardinality.js';
 
@@ -241,14 +242,8 @@ function configSnapshot(): string {
     'datalistFiltres',
     'datalistExportCsv',
     'datalistExportHtml',
-    'databoxEnabled',
-    'databoxTitle',
-    'databoxSource',
-    'databoxDate',
-    'databoxTrend',
-    'databoxDownload',
-    'databoxScreenshot',
-    'databoxFullscreen',
+    // Cadre officiel DSFR (#1263)
+    ...CADRE_KEYS,
     'a11yEnabled',
     'a11yTable',
     'a11yDownload',

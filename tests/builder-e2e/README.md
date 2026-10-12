@@ -5,10 +5,12 @@
 > `studio-recette` et `studio-navigation-recette` (19 cas, #1081 : le Studio IA a remplacé
 > l'Assistant comme entrée usager), `studio-parite-recette` (19 cas, #1081 : le remplaçant de la
 > recette de l'ancien Assistant IA, retirée avec son app à l'étape 2). **120 cas**,
-> aucune API tierce. Playwright ramasse en plus par défaut deux recettes manuelles que la CI ne
-> nomme pas : `assistant-carto.spec.ts` (3 cas, #1016) et `builder-lecture-recette.spec.ts`
-> (11 cas, #1218 : les réglages de lecture du Builder, lus dans l'aperçu). Relevé `--list` du
-> 2026-10-05 : **142 cas** dans 7 fichiers, dont 128 dans les cinq specs de la CI.
+> aucune API tierce. Playwright ramasse en plus par défaut trois recettes manuelles que la CI ne
+> nomme pas : `assistant-carto.spec.ts` (3 cas, #1016), `builder-lecture-recette.spec.ts`
+> (11 cas, #1218 : les réglages de lecture du Builder, lus dans l'aperçu) et
+> `builder-cadre-recette.spec.ts` (10 cas, #1263 : le cadre officiel DSFR du Builder, lu dans
+> l'aperçu). Relevé `--list` du 2026-10-12 : **152 cas** dans 8 fichiers, dont 128 dans les
+> cinq specs de la CI.
 >
 > **Quatre specs historiques du Builder ont été ARCHIVÉES** (#868, 2026-09-19) : elles portent
 > l'extension `.archive.ts`, sortent du `testMatch`, et se relancent avec
@@ -43,7 +45,8 @@ lance rien : le chiffre ne dépend ni du serveur de dev ni de l'état de l'UI). 
 | `studio-parite-recette.spec.ts` | oui | 19 | **19 vert** (2026-10-03, #1081, 12 s) | Remplaçant de la recette de l'ancien Assistant IA (retirée à l'étape 2 de #1081) : le parcours d'une réponse du modèle jusqu'à l'aperçu, par l'interface — source choisie et annoncée, demande envoyée, prompt système qui décrit la source, `add_blocks` validé par le Studio, code et aperçu des 16 types, `finish` affiché ; plus le cas « sans IA configurée ». Modèle simulé sur `/ia-proxy`. |
 | `assistant-carto.spec.ts` | oui | 3 | **3 vert** (2026-09-23, #1005/#1016, 1,9 s) | **Recette manuelle, hors CI** : `builder-e2e.yml` nomme ses cinq specs une par une et ne le lance pas. Assistant contextuel de la carto : prérequis puis « Comportement au clic » sans aucune requête POST, constat lat/lon inversées → « Me montrer », « Demander à l'assistant » du volet. |
 | `builder-lecture-recette.spec.ts` | oui | 11 | **11 vert** (2026-10-05, #1218, 8 s) | **Recette manuelle, hors CI** : l'aperçu du Builder charge DSFR et DSFR Chart depuis leur CDN. Réglages de lecture du Builder « Créer un graphique » posés PAR L'INTERFACE sur un état déposé comme un favori, puis lus dans l'aperçu : échelles Chart.js, étiquettes, calques des lignes de référence et des cibles, chiffre de synthèse d'une carte. Plus un ancien favori rouvert sans réglage, le volet à 375 px et l'absence de défilement de page en bureau. |
-| | | **142** | | Le total que Playwright ramasse (`--list` du 2026-10-05 ; les comptes par ligne ci-dessus datent de leur relevé). La CI en exécute **128** (les cinq premiers specs). |
+| `builder-cadre-recette.spec.ts` | oui | 10 | **10 vert** (2026-10-12, #1263, 7 s) | **Recette manuelle, hors CI** : l'aperçu du Builder charge DSFR et DSFR Chart depuis leur CDN. Réglages du cadre officiel DSFR posés PAR L'INTERFACE sur un état déposé comme un favori, puis lus dans l'aperçu : date lue dans les données (données intégrées et chargement dynamique), infobulle, fenêtre d'information ouverte par son bouton et dont le contenu est échappé, entrées du menu « Plus d'actions ». Plus un ancien favori rouvert sans cadre, un favori d'après rouvert avec le sien, le volet à 375 px et l'absence de défilement de page en bureau. |
+| | | **152** | | Le total que Playwright ramasse (`--list` du 2026-10-12 ; les comptes par ligne ci-dessus datent de leur relevé). La CI en exécute **128** (les cinq premiers specs). |
 
 ### Archivés — hors `testMatch` depuis #868 (2026-09-19)
 
@@ -179,6 +182,22 @@ sur les trois variantes. Leçon générale : « partagée » se compte **après*
   mesurée et non déduite : sur des barres horizontales la borne agit sur l'axe X. La forme du
   code est couverte en CI par `tests/apps/builder/lecture-1218.test.ts`. Preuve de mutation :
   écrire `y-max` au lieu de `x-max` pour les barres horizontales rougit le cas correspondant.
+  Hors CI parce que l'aperçu charge DSFR et DSFR Chart depuis jsdelivr.
+
+- **`builder-cadre-recette.spec.ts`** (recette manuelle, hors CI) : le cadre officiel DSFR du
+  Builder « Créer un graphique » (#1263) dans un vrai navigateur. Chaque cas dépose un état
+  comme le fait la page Favoris, pose les réglages dans la section « Cadre officiel DSFR »,
+  clique « Générer » et lit le cadre que DSFR Chart a rendu dans l'iframe d'aperçu : attribut
+  `date` de `data-box` (la plus récente d'une colonne ISO, en données intégrées et à travers
+  l'agrégation de `dsfr-data-query` sur une API servie par `page.route`), bouton et texte de
+  l'infobulle, fenêtre d'information ouverte par le bouton « plein écran », entrées du menu
+  « Plus d'actions » et leur `data-action`. Il garde trois faits mesurés sur DSFR Chart 2.1.1 :
+  le menu, l'infobulle et la fenêtre ne s'ouvrent qu'avec le JavaScript du DSFR, que le code
+  généré charge quand le cadre est actif ; le contenu de la fenêtre est injecté comme du HTML,
+  et le Builder l'échappe (une balise `<img onerror>` saisie s'affiche, elle ne s'exécute pas) ;
+  le bouton de la fenêtre n'existe qu'avec un titre. La forme du code est couverte en CI par
+  `tests/apps/builder/cadre-1263.test.ts`. Preuve de mutation : faire rendre une chaîne vide à
+  `cadreDep()` (code-generator.ts) rougit les cas du menu, de la fenêtre et des actions.
   Hors CI parce que l'aperçu charge DSFR et DSFR Chart depuis jsdelivr.
 
 ### Specs archivés (extension `.archive.ts`, hors `testMatch`)

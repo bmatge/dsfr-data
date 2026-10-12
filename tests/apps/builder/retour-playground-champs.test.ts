@@ -294,4 +294,179 @@ describe('retour du Playground : les champs choisis sont conservés (#1176)', ()
     updateDirtyStatus();
     expect(texte()).toBe('Graphique à jour');
   });
+
+  // #1263 : le cadre officiel et les séries supplémentaires font le même
+  // aller-retour — ils n'étaient pas dans l'instantané, un favori rouvert
+  // perdait son cadre. Preuves de mutation : retirer `syncCadreControls()` de
+  // `loadFavoriteState` rend le premier cas rouge (état restauré, contrôles
+  // vides) ; retirer `restoreCadre(favoriteState)` rend le deuxième rouge
+  // (l'ancien favori hérite du cadre de la session) ; retirer `...CADRE_KEYS`
+  // de `configSnapshot` (smart-guard.ts) rend le troisième rouge ; retirer
+  // `state.extraSeries = normalizeExtraSeries(…)` rend le cinquième rouge.
+  const CONTROLES_CADRE = `
+    <input type="checkbox" id="databox-toggle">
+    <div id="databox-options" style="display: none;">
+      <input id="databox-title"><input id="databox-source"><input id="databox-date">
+      <select id="databox-date-field"></select><p id="databox-date-field-note" hidden></p>
+      <input id="databox-trend">
+      <input type="checkbox" id="databox-download" checked>
+      <input type="checkbox" id="databox-screenshot">
+      <details id="databox-info-details">
+        <input id="databox-tooltip-title"><textarea id="databox-tooltip-content"></textarea>
+        <input id="databox-modal-title"><textarea id="databox-modal-content"></textarea>
+      </details>
+      <details id="databox-actions-details"><div id="databox-actions-container"></div></details>
+    </div>
+    <input type="checkbox" id="a11y-table" checked><input type="checkbox" id="a11y-download" checked>
+    <p id="a11y-databox-note" hidden></p>`;
+
+  const CADRE = {
+    databoxEnabled: true,
+    databoxTitle: 'Bénéficiaires par région',
+    databoxSource: 'DGE, 2024',
+    databoxDateField: 'nom_region',
+    databoxDownload: false,
+    databoxScreenshot: true,
+    databoxTooltipTitle: 'Méthode',
+    databoxTooltipContent: 'Entreprises accompagnées.',
+    databoxModalTitle: 'En savoir plus',
+    databoxModalContent: 'Un paragraphe.\n\nUn second.',
+    databoxActions: ['Voir la méthode'],
+  };
+
+  it('cadre officiel (#1263) : état et contrôles restaurés', async () => {
+    document.body.insertAdjacentHTML('beforeend', CONTROLES_CADRE);
+    deposerLecture(CADRE);
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state).toMatchObject(CADRE);
+    // Les clés que le favori ne porte pas gardent leur défaut.
+    expect(state).toMatchObject({ databoxDate: '', databoxTrend: '' });
+    const valeur = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+    const cochee = (id: string) => (document.getElementById(id) as HTMLInputElement).checked;
+    expect(cochee('databox-toggle')).toBe(true);
+    expect(document.getElementById('databox-options')!.style.display).toBe('block');
+    expect(valeur('databox-title')).toBe('Bénéficiaires par région');
+    expect(valeur('databox-source')).toBe('DGE, 2024');
+    expect(valeur('databox-date-field')).toBe('nom_region');
+    expect(cochee('databox-download')).toBe(false);
+    expect(cochee('databox-screenshot')).toBe(true);
+    expect(valeur('databox-tooltip-content')).toBe('Entreprises accompagnées.');
+    expect(valeur('databox-modal-content')).toBe('Un paragraphe.\n\nUn second.');
+    expect(valeur('databox-action-0')).toBe('Voir la méthode');
+    expect((document.getElementById('databox-info-details') as HTMLDetailsElement).open).toBe(true);
+    expect((document.getElementById('databox-actions-details') as HTMLDetailsElement).open).toBe(
+      true
+    );
+    // Le cadre fournit le tableau et le CSV : les cases d'accessibilité le disent.
+    expect((document.getElementById('a11y-table') as HTMLInputElement).disabled).toBe(true);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('favori enregistré avant #1263 : rouvert sans cadre, même après une session qui en portait un', async () => {
+    document.body.insertAdjacentHTML('beforeend', CONTROLES_CADRE);
+    // La session en cours a un cadre complet…
+    Object.assign(state, CADRE, { databoxDate: 'Mars 2024', databoxTrend: '+5' });
+    // … puis un favori ancien, sans aucune clé du cadre, est rouvert.
+    deposerLecture({});
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state).toMatchObject({
+      databoxEnabled: false,
+      databoxTitle: '',
+      databoxSource: '',
+      databoxDate: '',
+      databoxDateField: '',
+      databoxTrend: '',
+      databoxDownload: true,
+      databoxScreenshot: false,
+      databoxTooltipTitle: '',
+      databoxTooltipContent: '',
+      databoxModalTitle: '',
+      databoxModalContent: '',
+      databoxActions: [],
+    });
+    expect((document.getElementById('databox-toggle') as HTMLInputElement).checked).toBe(false);
+    expect(document.getElementById('databox-options')!.style.display).toBe('none');
+    expect((document.getElementById('databox-title') as HTMLInputElement).value).toBe('');
+    expect(document.querySelectorAll('#databox-actions-container .lecture-row')).toHaveLength(0);
+    expect((document.getElementById('databox-info-details') as HTMLDetailsElement).open).toBe(
+      false
+    );
+    // Le reste du favori est rouvert à l'identique, et régénéré une fois.
+    expect(state).toMatchObject({ chartType: 'line', labelField: 'nom_region' });
+    expect(generateCodeForLocalData).toHaveBeenCalledTimes(1);
+    expect(toastError).not.toHaveBeenCalled();
+  });
+
+  it('un réglage du cadre modifié après génération : « Modifications non générées »', async () => {
+    document.body.insertAdjacentHTML('beforeend', CONTROLES_CADRE);
+    deposerLecture(CADRE);
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+    const texte = () => document.getElementById('builder-dirty-status-text')!.textContent;
+    expect(texte()).toBe('Graphique à jour');
+
+    const { updateDirtyStatus } = await import('../../../apps/builder/src/ui/smart-guard');
+    for (const modifier of [
+      () => (state.databoxModalContent = 'Autre texte.'),
+      () => (state.databoxTooltipTitle = 'Autre'),
+      () => (state.databoxDateField = ''),
+      () => state.databoxActions.push('Signaler une erreur'),
+    ]) {
+      const avant = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+      modifier();
+      updateDirtyStatus();
+      expect(texte()).toBe('Modifications non générées');
+      for (const cle of Object.keys(CADRE)) {
+        (state as unknown as Record<string, unknown>)[cle] = avant[cle];
+      }
+      updateDirtyStatus();
+      expect(texte()).toBe('Graphique à jour');
+    }
+  });
+
+  const SERIES = `
+    <select class="extra-series-field"></select>
+    <button id="add-series-btn"></button>`;
+
+  it('séries supplémentaires (#1263) : toutes reviennent, avec leurs libellés', async () => {
+    document.body.insertAdjacentHTML('beforeend', SERIES);
+    deposerLecture({
+      chartType: 'bar',
+      valueField2: 'nombre_beneficiaires',
+      extraSeries: [
+        { field: 'nombre_beneficiaires', label: 'Bénéficiaires' },
+        { field: 'nom_departement', label: 'Seconde' },
+      ],
+    });
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state.extraSeries).toEqual([
+      { field: 'nombre_beneficiaires', label: 'Bénéficiaires' },
+      { field: 'nom_departement', label: 'Seconde' },
+    ]);
+    const libelles = [...document.querySelectorAll<HTMLInputElement>('.extra-series-label')];
+    expect(libelles.map((i) => i.value)).toEqual(['Bénéficiaires', 'Seconde']);
+    expect(state.valueField2).toBe('nombre_beneficiaires');
+  });
+
+  it('favori enregistré avant #1263 : la série unique revient par valueField2, sans libellé, comme avant', async () => {
+    document.body.insertAdjacentHTML('beforeend', SERIES);
+    // La session en cours porte deux séries libellées…
+    state.extraSeries = [
+      { field: 'nom_departement', label: 'De la session' },
+      { field: 'nom_region', label: 'Aussi' },
+    ];
+    // … l'ancien favori n'a que `valueField2`.
+    deposerLecture({ chartType: 'bar', valueField2: 'nombre_beneficiaires' });
+    await loadFavoriteState();
+    await vi.runAllTimersAsync();
+
+    expect(state.extraSeries).toEqual([{ field: 'nombre_beneficiaires', label: '' }]);
+    expect(document.querySelectorAll('.extra-series-row')).toHaveLength(1);
+  });
 });

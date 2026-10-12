@@ -9,7 +9,7 @@
  * `index.html`, l'onglet Code, les deux modales de configuration (colonnes du
  * tableau, facettes) et leurs sous-zones. Les contrôles rendus par les
  * gabarits TS (`extra-series.ts`, `filter-builder.ts`, `datalist-config.ts`,
- * `facets-config.ts`, `sources.ts`, `lecture.ts`) n'ont pas d'ancêtre lexical : c'est
+ * `facets-config.ts`, `sources.ts`, `lecture.ts`, `cadre.ts`) n'ont pas d'ancêtre lexical : c'est
  * `tests/apps/builder/reperes-completude.test.ts`, qui REND chaque type de
  * graphique, qui les couvre.
  *
@@ -29,6 +29,7 @@ const config: ReperesConfig = {
     'src/ui/datalist-config.ts',
     'src/ui/facets-config.ts',
     'src/ui/lecture.ts',
+    'src/ui/cadre.ts',
   ],
   zonesDeReglage: [
     'builder.actions',
@@ -48,6 +49,8 @@ const config: ReperesConfig = {
     'builder.generation',
     'builder.nettoyage',
     'builder.cadre',
+    'builder.cadre.information',
+    'builder.cadre.actions',
     'builder.facettes',
     'builder.facettes.champs',
     'builder.partage',
@@ -101,6 +104,40 @@ const config: ReperesConfig = {
       'trait horizontal',
     ],
     'builder.apparence.axes.cibles.ajouter': ['cible', 'objectif', 'trajectoire', 'échéance'],
+    'builder.cadre.date-champ': [
+      'date des données',
+      'fraîcheur',
+      'dernière mise à jour',
+      'date automatique',
+      'databox-date-field',
+    ],
+    'builder.cadre.information.infobulle-titre': [
+      'infobulle',
+      'bulle d’aide',
+      'précision',
+      'tooltip',
+    ],
+    'builder.cadre.information.infobulle-contenu': ['infobulle', 'texte d’aide', 'tooltip'],
+    'builder.cadre.information.fenetre-titre': [
+      'fenêtre d’information',
+      'modale',
+      'en savoir plus',
+      'plein écran',
+      'méthodologie',
+    ],
+    'builder.cadre.information.fenetre-contenu': [
+      'modale',
+      'en savoir plus',
+      'méthodologie',
+      'note',
+    ],
+    'builder.cadre.actions.ajouter': [
+      'action du cadre',
+      'menu du cadre',
+      'plus d’actions',
+      'bouton personnalisé',
+      'databox-actions',
+    ],
     'builder.apparence.synthese-carte': [
       'chiffre de la carte',
       'moyenne de la carte',
