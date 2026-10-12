@@ -44,7 +44,7 @@ import {
   MARKUP_ENCARTS,
   urlAffichage,
 } from './fixtures-affichages.js';
-import { EX_AEQUO, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
+import { DATASET_EX_AEQUO, EX_AEQUO, HOTE_ODS, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
 
 /** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
 const TETE_CHART = `
@@ -1121,6 +1121,57 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
         selector: 'path.verif-encart',
         pipeline: [MUSEES, DANS_LA_GUADELOUPE],
       },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // Le compte est juste, les lignes non : la pagination Opendatasoft sans ordre
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-ods-pagination-sans-ordre',
+    mode: 'deterministic',
+    origin:
+      "Canari — #1274 : le piège a été payé par la reproduction de la page « Taux de change de chancellerie » d'economie.gouv.fr (jeu `dgfip-taux-de-change`). Pour Haïti, 321 taux en vigueur sur deux monnaies : le tableau d'historique annonçait 162 taux pour la gourde et 159 pour le dollar au lieu de 154 et 167, le total — 321 — était juste, et deux passages donnaient deux comptes différents. Au-delà de 100 lignes, l'adaptateur paginait par offset sans `order_by`, et l'API ne garantit alors aucun ordre : 321 lignes reçues, 297 distinctes. Ici la même forme — un filtre qui garde plus d'une page (113 lignes sur 450), puis un compte par sous-ensemble — et le jeu entier, par des chiffres que seul l'ENSEMBLE exact des lignes rend juste. `delegation/ods-pagination-*` tiennent chaque cas ligne à ligne, pagination serveur comprise.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-canari-ods-filtre" api-type="opendatasoft" base-url="${HOTE_ODS}"
+    dataset-id="${DATASET_EX_AEQUO}" where="categorie = &quot;Homicides&quot;"></dsfr-data-source>
+  ${kpi('k-canari-ods-n', 's-canari-ods-filtre', 'count')}
+  ${kpi('k-canari-ods-moitie', 's-canari-ods-filtre', 'count{id:lte:225}')}
+  ${kpi('k-canari-ods-somme', 's-canari-ods-filtre', 'id:sum')}
+  <dsfr-data-source id="s-canari-ods-tout" api-type="opendatasoft" base-url="${HOTE_ODS}"
+    dataset-id="${DATASET_EX_AEQUO}"></dsfr-data-source>
+  ${kpi('k-canari-ods-tout', 's-canari-ods-tout', 'id:sum')}`,
+    expects: [
+      // Le compte total : juste même quand les lignes ne le sont pas
+      {
+        kind: 'kpi',
+        id: 'k-canari-ods-n',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'eq', value: 'Homicides' }] },
+        ],
+      },
+      // Le compte d'un sous-ensemble : celui qui était faux (162 au lieu de 154)
+      {
+        kind: 'kpi',
+        id: 'k-canari-ods-moitie',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'eq', value: 'Homicides' }] },
+          { op: 'filter', filters: [{ field: 'id', op: 'lte', value: 225 }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-canari-ods-somme',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'eq', value: 'Homicides' }] },
+        ],
+      },
+      { kind: 'kpi', id: 'k-canari-ods-tout', agg: 'sum', field: 'id' },
     ],
   },
 ];

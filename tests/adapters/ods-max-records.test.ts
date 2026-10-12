@@ -16,11 +16,18 @@ globalThis.fetch = mockFetch;
 import { OpenDataSoftAdapter } from '@/adapters/opendatasoft-adapter.js';
 import { DsfrDataSource } from '@/components/dsfr-data-source.js';
 
-/** Mocke une API ODS de `total` records servis par pages de 100 */
+/**
+ * Mocke une API ODS de `total` records servis par pages de 100, et les
+ * métadonnées du jeu (une colonne triable, `id`) : au-delà d'une page,
+ * l'adaptateur les lit pour composer son ordre total (#1274).
+ */
 function mockOdsDataset(total: number) {
   mockFetch.mockReset();
   mockFetch.mockImplementation(async (url: string) => {
     const u = new URL(url);
+    if (!u.pathname.endsWith('/records')) {
+      return { ok: true, json: async () => ({ fields: [{ name: 'id', type: 'int' }] }) };
+    }
     const offset = parseInt(u.searchParams.get('offset') || '0', 10);
     const limit = parseInt(u.searchParams.get('limit') || '100', 10);
     const count = Math.max(0, Math.min(limit, total - offset));
@@ -58,7 +65,8 @@ describe('#233 — AC : max-records non défini → comportement actuel (cap 100
     const result = await adapter.fetchAll(PARAMS, new AbortController().signal);
 
     expect(result.data).toHaveLength(1000);
-    expect(mockFetch).toHaveBeenCalledTimes(10);
+    // 10 pages, plus la sonde et la lecture des métadonnées (#1274)
+    expect(mockFetch).toHaveBeenCalledTimes(12);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('pagination incomplete'));
     // #1032 : le diagnostic nomme le composant qui porte le reglage
     expect(warnSpy).toHaveBeenCalledWith(
@@ -81,7 +89,8 @@ describe('#233 — AC : max-records="5000" → pagination jusqu’à 5000', () =
     // Le dataset n'a que 2500 lignes : tout est récupéré (25 pages)
     expect(result.data).toHaveLength(2500);
     expect(result.totalCount).toBe(2500);
-    expect(mockFetch).toHaveBeenCalledTimes(25);
+    // 25 pages, plus la sonde et la lecture des métadonnées (#1274)
+    expect(mockFetch).toHaveBeenCalledTimes(27);
   });
 
   it('max-records="150" plafonne en dessous du défaut', async () => {
@@ -94,7 +103,8 @@ describe('#233 — AC : max-records="5000" → pagination jusqu’à 5000', () =
     );
 
     expect(result.data).toHaveLength(150);
-    expect(mockFetch).toHaveBeenCalledTimes(2); // 100 + 50
+    // 100 + 50, plus la sonde et la lecture des métadonnées (#1274)
+    expect(mockFetch).toHaveBeenCalledTimes(4);
   });
 
   it('limit explicite garde la priorité sur max-records', async () => {

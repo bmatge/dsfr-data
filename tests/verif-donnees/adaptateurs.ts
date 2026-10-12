@@ -20,7 +20,7 @@
  * Chaque contrôle a été vérifié EN ÉCHEC sur un défaut injecté dans la lib
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
-import type { Check, Manifest } from '../../tools/oracle/manifest.js';
+import type { Check, Manifest, Step } from '../../tools/oracle/manifest.js';
 import {
   CLE_ODS,
   DATASET_ADAPT,
@@ -41,6 +41,24 @@ import {
 
 /** La source Opendatasoft du lot, sans le mode de chargement. */
 const SOURCE_ODS = `api-type="opendatasoft" base-url="${HOTE_ODS_ADAPT}" dataset-id="${DATASET_ADAPT}"`;
+
+/**
+ * Les 120 premières lignes d'un chargement Opendatasoft plafonné (#1274) :
+ * au-delà d'une page, l'adaptateur pagine sur un ordre total, la clé de
+ * départage étant faite des colonnes triables du jeu dans l'ordre de ses
+ * métadonnées — ici `pays_iso2`, `academie`, puis `population`, unique.
+ */
+const PREMIERES_120: Step[] = [
+  {
+    op: 'order-by-keys',
+    keys: [
+      { column: 'pays_iso2', dir: 'asc' },
+      { column: 'academie', dir: 'asc' },
+      { column: 'population', dir: 'asc' },
+    ],
+  },
+  { op: 'limit', n: 120 },
+];
 
 const CHECKS: Check[] = [
   // -------------------------------------------------------------------------
@@ -95,7 +113,7 @@ const CHECKS: Check[] = [
     id: 'ods-plafond-max-records',
     mode: 'deterministic',
     origin:
-      '#233 — `max-records` borne la requête ENTIÈRE : la seconde page ne demande que le reste (100 + 20), et la page n’affiche jamais plus que le plafond.',
+      '#233 — `max-records` borne la requête ENTIÈRE : la seconde page ne demande que le reste (100 + 20), et la page n’affiche jamais plus que le plafond. Depuis #1274, un chargement de plus d’une page pagine sur un ordre total : les 120 lignes livrées sont les 120 PREMIÈRES de la clé de départage (les colonnes du jeu dans l’ordre de ses métadonnées), chacune une fois, et non plus 120 lignes dans l’ordre arbitraire de l’API.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES_ADAPT } },
     markup: `
   <dsfr-data-source id="s-cap" ${SOURCE_ODS} max-records="120"></dsfr-data-source>
@@ -118,7 +136,7 @@ const CHECKS: Check[] = [
         id: 'k-cap-pop',
         agg: 'sum',
         field: 'population',
-        pipeline: [{ op: 'limit', n: 120 }],
+        pipeline: PREMIERES_120,
       },
     ],
   },
@@ -138,7 +156,7 @@ const CHECKS: Check[] = [
         id: 's-cap2',
         key: 'code_dept',
         columns: ['population'],
-        pipeline: [{ op: 'limit', n: 120 }],
+        pipeline: PREMIERES_120,
         // 120 lignes émises sur 137 : l'invariant tient parce que la SOURCE
         // le dit (#1032), sans KPI `count` pour avertir.
         invariants: [{ kind: 'not-truncated' }],
@@ -148,7 +166,7 @@ const CHECKS: Check[] = [
         id: 'k-cap2-pop',
         agg: 'sum',
         field: 'population',
-        pipeline: [{ op: 'limit', n: 120 }],
+        pipeline: PREMIERES_120,
       },
       // Le mot de la SOURCE, qui nomme le composant portant le réglage.
       {

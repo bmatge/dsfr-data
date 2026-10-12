@@ -16,7 +16,12 @@
  * Plus la quatrieme, celle du mode `fetch-mode="export"` (#689, ADR-106) :
  * `/exports/json` rend TOUT le jeu en un tableau nu, borne par `limit`.
  *
- * Fidelite volontaire sur deux points contre-intuitifs :
+ * Fidelite volontaire sur trois points contre-intuitifs :
+ *   - `/records` pagine par offset SANS garantir l'ordre (#1274) : tant que
+ *     l'`order_by` ne departage pas toutes les lignes, les ex-aequo changent
+ *     d'ordre d'une page a l'autre — des lignes reviennent deux fois, d'autres
+ *     jamais, et `total_count` reste juste. Sans `order_by`, TOUTES les lignes
+ *     sont ex-aequo. Voir `repondreOdsRecords`.
  *   - sur une requete `group_by`, ODS renvoie un `total_count` egal a la
  *     TAILLE DE PAGE, pas au nombre de groupes (#641). L'adaptateur a raison
  *     de l'ignorer ; le faux serveur ment donc comme le vrai.
@@ -394,13 +399,28 @@ export function filtrerOdsql(lignes: Ligne[], where: string): Ligne[] {
   return lignes.filter(predicat);
 }
 
-/** `"champ DESC, autre ASC"` — la forme qu'emet `toOdsOrderBy`. */
+/**
+ * Les cles d'un `order_by` : `"champ DESC, autre ASC"`, la forme qu'emet
+ * `toOdsOrderBy`, ou un nom seul, eventuellement entre backquotes et a
+ * espaces (`` `Nombre d'habitants` ``) — la cle de departage (#1274).
+ */
+function lireTriOds(orderBy: string): Array<{ champ: string; descendant: boolean }> {
+  return orderBy
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const sens = /\s+(ASC|DESC)$/i.exec(part);
+      return {
+        champ: denuder(sens ? part.slice(0, sens.index).trim() : part),
+        descendant: sens?.[1].toUpperCase() === 'DESC',
+      };
+    });
+}
+
 function trierOds(lignes: Ligne[], orderBy: string): Ligne[] {
   if (!orderBy.trim()) return lignes;
-  const criteres = orderBy.split(',').map((part) => {
-    const [champ, direction = 'ASC'] = part.trim().split(/\s+/);
-    return { champ: denuder(champ), descendant: direction.toUpperCase() === 'DESC' };
-  });
+  const criteres = lireTriOds(orderBy);
   return [...lignes].sort((a, b) => {
     for (const { champ, descendant } of criteres) {
       const ga = a[champ];
@@ -465,8 +485,16 @@ function agregerGlobal(lignes: Ligne[], select: string): Ligne[] {
   return [sortie];
 }
 
-/** Le corps commun de `/records` et `/exports/json` : filtre, agregation, tri. */
-function calculerOds(jeu: Ligne[], p: URLSearchParams): Ligne[] {
+/**
+ * Le corps commun de `/records` et `/exports/json` : filtre, agregation, tri.
+ *
+ * `exAequoInverses` : les lignes BRUTES que le tri ne departage pas sortent
+ * dans l'ordre inverse (le tri est stable, on retourne le jeu avant lui) —
+ * c'est l'instabilite de la pagination `/records`, voir `repondreOdsRecords`.
+ * Des groupes n'y sont pas soumis : le portail les rend ordonnes par leur cle
+ * (mesure du 2026-10-12 : 262 groupes sur trois pages, tous distincts).
+ */
+function calculerOds(jeu: Ligne[], p: URLSearchParams, exAequoInverses = false): Ligne[] {
   const filtrees = filtrerOdsql(jeu, p.get('where') ?? '');
   const groupBy = p.get('group_by') ?? '';
   const select = p.get('select') ?? '';
@@ -474,8 +502,31 @@ function calculerOds(jeu: Ligne[], p: URLSearchParams): Ligne[] {
     ? agregerOds(filtrees, groupBy, select)
     : estAgregatSeul(select)
       ? agregerGlobal(filtrees, select)
-      : filtrees;
+      : exAequoInverses
+        ? [...filtrees].reverse()
+        : filtrees;
   return trierOds(completes, p.get('order_by') ?? '');
+}
+
+/**
+ * Tri refuse par le portail, ou `null` (#1274). Mesures du 2026-10-12 sur
+ * data.economie.gouv.fr : un champ absent du jeu rend 400 « Unknown field »,
+ * une geometrie 400 « Invalid field to sort on » (`order_by=geom`,
+ * `order_by=geo_point_2d`) — et un seul champ refuse fait tomber toute la
+ * requete, meme en derniere cle. Ne juge que des lignes brutes : dans une
+ * requete regroupee, le tri vise les colonnes de la reponse.
+ */
+function refusTriOds(jeu: Ligne[], p: URLSearchParams): string | null {
+  const orderBy = p.get('order_by') ?? '';
+  if (!orderBy.trim() || p.get('group_by') || estAgregatSeul(p.get('select') ?? '')) return null;
+  const connues = new Set(jeu.flatMap((ligne) => Object.keys(ligne)));
+  for (const { champ } of lireTriOds(orderBy)) {
+    if (!connues.has(champ)) return `Unknown field: ${champ}`;
+    if (jeu.some((ligne) => ligne[champ] !== null && typeof ligne[champ] === 'object')) {
+      return `Invalid field to sort on: ${champ}`;
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -486,6 +537,14 @@ function calculerOds(jeu: Ligne[], p: URLSearchParams): Ligne[] {
 export interface EnveloppeOds {
   total_count: number;
   results: Ligne[];
+  /**
+   * Requete refusee (#1274). Le vrai portail repond 400 avec `error_code` et
+   * `message` ; le faux les sert en 200 avec `results` VIDE, comme le faux
+   * Tabular — l'adaptateur lit alors zero ligne, et tout chiffre calcule
+   * dessus tombe, ce qui suffit a rougir le controle qui l'aurait provoque.
+   */
+  error_code?: string;
+  message?: string;
 }
 
 /**
@@ -494,6 +553,18 @@ export interface EnveloppeOds {
  * `total_count` sur une requete `group_by` vaut la taille de page, pas le
  * nombre de groupes : c'est le mensonge du vrai ODS (#641), reproduit ici
  * pour que la recette prouve que l'adaptateur a raison de l'ignorer.
+ *
+ * L'ORDRE N'EST PAS STABLE D'UNE PAGE A L'AUTRE (#1274), comme sur le vrai
+ * portail : mesure de l'issue sur `dgfip-taux-de-change` (data.economie.
+ * gouv.fr), 321 lignes lues par pages de 100 sans `order_by` → 297 a 303
+ * distinctes, faux dix fois sur dix ; par pages de 10 → 237 a 254. Le defaut
+ * est intermittent (rejoue le 2026-10-12 : 321 distinctes cinq fois sur cinq),
+ * ce qui le rend pire : une page juste un jour est fausse le lendemain. Le
+ * faux serveur l'imite de facon deterministe : sur une page de rang impair
+ * (la deuxieme, la quatrieme…), les lignes que le tri ne departage pas
+ * sortent dans l'ordre inverse. Un ordre TOTAL y resiste de lui-meme : il n'y
+ * a plus d'ex-aequo a inverser. L'export (`repondreOdsExport`) rend tout en
+ * une requete et n'y est pas soumis.
  */
 export function repondreOdsRecords(url: URL, jeu: Ligne[] = JEU): EnveloppeOds {
   const p = url.searchParams;
@@ -501,7 +572,20 @@ export function repondreOdsRecords(url: URL, jeu: Ligne[] = JEU): EnveloppeOds {
   const limite = Number(p.get('limit') ?? String(ODS_PAGE_SIZE));
   const decalage = Number(p.get('offset') ?? '0');
 
-  const triees = calculerOds(jeu, p);
+  const refus = refusTriOds(jeu, p);
+  if (refus !== null) {
+    return {
+      total_count: 0,
+      results: [],
+      error_code: 'ODSQLError',
+      message: `ODSQL query is malformed: ${refus}. Clause(s) containing the error(s): order_by.`,
+    };
+  }
+
+  // Rang de la page : `ceil` et non `floor`, pour qu'une derniere page
+  // reduite (`limit=37&offset=100`) reste la deuxieme.
+  const rang = limite > 0 ? Math.ceil(decalage / limite) : 0;
+  const triees = calculerOds(jeu, p, rang % 2 === 1);
   const page = triees.slice(decalage, decalage + limite);
 
   return { total_count: groupBy ? page.length : triees.length, results: page };
@@ -550,16 +634,50 @@ export function repondreOdsFacets(url: URL, jeu: Ligne[] = JEU): EnveloppeFacett
   };
 }
 
-/** Metadonnees du jeu ODS (`/datasets/ID`) — source de la decouverte de facettes (#680). */
-export function repondreOdsMetadonnees(): Record<string, unknown> {
+/** Libelles et facettes declares du jeu de recette (#680) — les autres champs n'en ont pas. */
+const CHAMPS_DECLARES: Record<string, { label: string; facet?: boolean }> = {
+  region: { label: 'Région', facet: true },
+  code_dept: { label: 'Code département', facet: true },
+  population: { label: 'Population' },
+};
+
+/** Type Opendatasoft d'une colonne, deduit de ses valeurs. */
+function typeOds(jeu: Ligne[], champ: string): string {
+  const valeurs = jeu.map((ligne) => ligne[champ]).filter((v) => v !== null && v !== undefined);
+  if (valeurs.length === 0) return 'text';
+  if (valeurs.every((v) => typeof v === 'number')) {
+    return valeurs.every((v) => Number.isInteger(v)) ? 'int' : 'double';
+  }
+  if (valeurs.every((v) => typeof v === 'boolean')) return 'boolean';
+  if (valeurs.every((v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v))) return 'date';
+  if (valeurs.some((v) => typeof v === 'object')) {
+    return valeurs.every((v) => typeof v === 'object' && v !== null && 'lon' in v && 'lat' in v)
+      ? 'geo_point_2d'
+      : 'geo_shape';
+  }
+  return 'text';
+}
+
+/**
+ * Metadonnees du jeu ODS (`/datasets/ID`) — source de la decouverte de
+ * facettes (#680) et des colonnes triables dont l'adaptateur fait sa cle de
+ * departage (#1274). TOUS les champs du jeu y figurent, avec leur type : un
+ * champ oublie ici manquerait a la cle, et un champ invente la ferait
+ * refuser (`refusTriOds`). Passer le jeu que la route sert.
+ */
+export function repondreOdsMetadonnees(jeu: Ligne[] = JEU): Record<string, unknown> {
+  const champs = [...new Set(jeu.flatMap((ligne) => Object.keys(ligne)))];
   return {
     dataset_id: RESSOURCES.datasetId,
-    fields: [
-      { name: 'region', label: 'Région', type: 'text', annotations: { facet: true } },
-      { name: 'code_dept', label: 'Code département', type: 'text', annotations: { facet: true } },
-      { name: 'population', label: 'Population', type: 'int' },
-      { name: CHAMP_PIEGE, label: CHAMP_PIEGE, type: 'int' },
-    ],
+    fields: champs.map((name) => {
+      const declare = CHAMPS_DECLARES[name];
+      return {
+        name,
+        label: declare?.label ?? name,
+        type: typeOds(jeu, name),
+        ...(declare?.facet ? { annotations: { facet: true } } : {}),
+      };
+    }),
   };
 }
 

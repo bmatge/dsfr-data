@@ -240,7 +240,8 @@
   dataset-id="prix-controle-technique"
   where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
   select="latitude,longitude,prix_visite/100 as poids"
-  limit="800"&gt;
+  limit="800"
+  order-by="cct_siret:asc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-map center="48.86,2.35" zoom="10" tiles="ign-plan" height="500px"
@@ -528,7 +529,8 @@ Zoom 11+   : centres de contrôle technique parisiens (ODS)</pre></div>
   dataset-id="prix-controle-technique"
   where="cat_vehicule_id=1 AND cat_energie_id=1"
   select="cct_denomination,latitude,longitude,prix_visite"
-  limit="1500"&gt;
+  limit="1500"
+  order-by="cct_siret:asc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="450px"

@@ -23,6 +23,7 @@ import {
   repondreGenerique,
   repondreOdsExport,
   repondreOdsFacets,
+  repondreOdsMetadonnees,
   repondreOdsRecords,
   repondreTabular,
 } from './api-fixtures';
@@ -63,12 +64,79 @@ describe('OpenDataSoft — /records', () => {
     expect(reponse.results).toHaveLength(ODS_PAGE_SIZE);
   });
 
-  it('pagine par offset', () => {
+  it('pagine par offset, sur un ordre total', () => {
     const seconde = repondreOdsRecords(
-      url(RECORDS, `limit=${ODS_PAGE_SIZE}&offset=${ODS_PAGE_SIZE}`)
+      url(RECORDS, `order_by=population DESC&limit=${ODS_PAGE_SIZE}&offset=${ODS_PAGE_SIZE}`)
     );
     expect(seconde.results).toHaveLength(NOMBRE_DE_LIGNES - ODS_PAGE_SIZE);
     expect(seconde.results[0]).toEqual(JEU[ODS_PAGE_SIZE]);
+  });
+
+  /** Les lignes lues en paginant jusqu'au bout, par pages de `taille`. */
+  function paginer(requete: string, taille: number): Array<Record<string, unknown>> {
+    const lues: Array<Record<string, unknown>> = [];
+    for (let decalage = 0; decalage < NOMBRE_DE_LIGNES; decalage += taille) {
+      lues.push(
+        ...repondreOdsRecords(url(RECORDS, `${requete}limit=${taille}&offset=${decalage}`)).results
+      );
+    }
+    return lues;
+  }
+  const distinctes = (lignes: Array<Record<string, unknown>>): number =>
+    new Set(lignes.map((ligne) => ligne.region)).size;
+
+  it('sans ordre total, l’ordre change d’une page a l’autre : doublons et pertes, a compte juste (#1274)', () => {
+    // Aucun tri : toutes les lignes sont ex-aequo
+    const sansTri = paginer('', ODS_PAGE_SIZE);
+    expect(sansTri).toHaveLength(NOMBRE_DE_LIGNES);
+    expect(distinctes(sansTri)).toBeLessThan(NOMBRE_DE_LIGNES);
+    // Tri sur une cle non unique : seuls les ex-aequo bougent
+    const triPartiel = paginer('order_by=academie ASC&', 20);
+    expect(triPartiel).toHaveLength(NOMBRE_DE_LIGNES);
+    expect(distinctes(triPartiel)).toBeLessThan(NOMBRE_DE_LIGNES);
+    expect(triPartiel.map((l) => l.academie)).toEqual(
+      [...triPartiel.map((l) => String(l.academie))].sort((a, b) => a.localeCompare(b, 'fr'))
+    );
+    // `total_count` reste juste : rien ne signale le defaut
+    expect(repondreOdsRecords(url(RECORDS, 'limit=100&offset=100')).total_count).toBe(
+      NOMBRE_DE_LIGNES
+    );
+  });
+
+  it('un ordre total y resiste, par pages de 100 comme par pages de 20 (#1274)', () => {
+    for (const taille of [ODS_PAGE_SIZE, 20]) {
+      const lues = paginer('order_by=academie ASC, region&', taille);
+      expect(distinctes(lues)).toBe(NOMBRE_DE_LIGNES);
+    }
+  });
+
+  it('une seule page, et l’export, ne sont pas touches (#1274)', () => {
+    expect(repondreOdsRecords(url(RECORDS, 'limit=100')).results).toEqual(JEU.slice(0, 100));
+    expect(repondreOdsExport(url(EXPORT))).toEqual(JEU);
+  });
+
+  it('refuse un tri sur un champ inconnu ou non triable, comme le portail (#1274)', () => {
+    const inconnu = repondreOdsRecords(url(RECORDS, 'order_by=_id&limit=10'));
+    expect(inconnu.results).toEqual([]);
+    expect(inconnu.message).toContain('Unknown field: _id');
+    const jeuGeo = JEU.slice(0, 3).map((ligne, i) => ({ ...ligne, geo: { lon: i, lat: i } }));
+    const geo = repondreOdsRecords(url(RECORDS, 'order_by=region, geo&limit=10'), jeuGeo);
+    expect(geo.results).toEqual([]);
+    expect(geo.message).toContain('Invalid field to sort on: geo');
+  });
+
+  it('les metadonnees nomment tous les champs du jeu, types (#1274)', () => {
+    const jeuGeo = [{ nom: 'a', n: 1, taux: 0.5, jour: '2026-01-06', geo: { lon: 1, lat: 2 } }];
+    const champs = repondreOdsMetadonnees(jeuGeo).fields as Array<{ name: string; type: string }>;
+    expect(champs.map((c) => `${c.name}:${c.type}`)).toEqual([
+      'nom:text',
+      'n:int',
+      'taux:double',
+      'jour:date',
+      'geo:geo_point_2d',
+    ]);
+    const recette = repondreOdsMetadonnees().fields as Array<{ name: string }>;
+    expect(recette.map((c) => c.name)).toEqual(Object.keys(JEU[0]));
   });
 
   it('agrege select/group_by et rend les alias demandes', () => {

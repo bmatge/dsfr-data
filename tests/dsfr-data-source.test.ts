@@ -571,6 +571,12 @@ describe('DsfrDataSource', () => {
     });
 
     it('uses serverSide mode with fetchPage when serverSide=true', async () => {
+      // Les métadonnées du jeu, que l'adaptateur lit avant la première page
+      // pour composer son ordre total (#1274), puis la page.
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ fields: [{ name: 'dep', type: 'text' }] }),
+      });
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -589,12 +595,13 @@ describe('DsfrDataSource', () => {
 
       await (source as any)._fetchViaAdapter();
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
       const meta = getDataMeta('test-source');
       expect(meta).toBeDefined();
       expect(meta!.page).toBe(1);
       expect(meta!.pageSize).toBe(20);
       expect(meta!.total).toBe(500);
+      expect(meta!.caveats).toBeUndefined();
     });
   });
 

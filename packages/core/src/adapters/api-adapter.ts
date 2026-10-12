@@ -173,7 +173,13 @@ export interface FetchResult {
  * Reserve d'un chargement (#1233), posee par un adapter :
  * - `unstable-sort` : tri laisse au serveur sur plusieurs pages sans ordre
  *   total — des lignes a valeurs egales peuvent manquer ou etre doublees aux
- *   limites de page (PG-033 du banc, API Tabular) ;
+ *   limites de page (PG-033 du banc, API Tabular : chargement tronque, ou
+ *   pagination serveur, quand la cle de departage est refusee) ;
+ * - `unstable-pagination` (#1274) : pagination par offset gardee SANS ordre
+ *   total, avec ou sans tri demande — l'API ne garantit pas l'ordre d'une
+ *   page a l'autre, des lignes peuvent manquer ou revenir deux fois, a compte
+ *   juste (API Opendatasoft, chargement de plus d'une page ou pagination
+ *   serveur, quand la cle de departage est refusee ou ne peut pas s'ecrire) ;
  * - `in-values-dropped` : une liste `in` / `notin` est partie au serveur avec
  *   une valeur qu'il ecarte en silence (PG-034, valeur a parenthese sur
  *   l'API Tabular, en pagination serveur, quand la liste entre guillemets
@@ -188,7 +194,11 @@ export interface FetchResult {
  *   par attributs (mode URL `paginate`).
  */
 export type FetchCaveat =
-  'unstable-sort' | 'in-values-dropped' | 'in-quoted-refused' | 'aggregate-on-page';
+  | 'unstable-sort'
+  | 'unstable-pagination'
+  | 'in-values-dropped'
+  | 'in-quoted-refused'
+  | 'aggregate-on-page';
 
 /**
  * Resultat d'une requête de facettes serveur.
