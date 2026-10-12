@@ -24,7 +24,7 @@
  *   cas « porte tout le cadre » et « aller-retour » rougissent ;
  * - retirer `extraSeries` de `getBuilderStateToSave` : le cas « porte toutes
  *   les séries » rougit ;
- * - ne plus appeler `echapperTexte` dans `modalContentHtml` (cadre.ts) : le cas
+ * - ne plus appeler `escapeText` dans `modalContentHtml` (cadre.ts) : le cas
  *   « une balise saisie est échappée » et les deux « texte piégé » rougissent ;
  * - écrire la valeur d'un attribut sans l'échapper dans `cadreAttrHtml`
  *   (code-generator.ts) : quatre cas rougissent, dont les deux « texte piégé » ;

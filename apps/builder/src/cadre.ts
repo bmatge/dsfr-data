@@ -4,7 +4,8 @@
  * données —, tendance, téléchargement, capture, infobulle, fenêtre
  * d'information, actions du menu.
  *
- * Module PUR (aucun accès au DOM, aucun import de l'état), sur le modèle de
+ * Module PUR (aucun accès au DOM, aucun import de l'état ; l'échappement est
+ * celui, partagé, de `@dsfr-data/shared`), sur le modèle de
  * `lecture.ts` : les types, les valeurs par défaut, la lecture défensive d'un
  * état déposé et la traduction en attributs — ceux de `dsfr-data-chart`
  * (`databox-*`) et ceux de la balise `<data-box>` nue des données intégrées.
@@ -40,6 +41,8 @@
  *   DSFR (`dsfr.module.min.js`) : le générateur l'ajoute aux dépendances dès
  *   que le cadre est actif.
  */
+
+import { escapeText } from '@dsfr-data/shared';
 
 /** Types du Builder (recopié de `state.ts` pour rester sans import d'état). */
 type TypeGraphique = string;
@@ -168,11 +171,6 @@ export function uneLigne(raw: string): string {
     .trim();
 }
 
-/** Échappement d'un texte destiné à un NŒUD HTML (pas à un attribut). */
-function echapperTexte(raw: string): string {
-  return raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 /**
  * Contenu de la fenêtre d'information, du texte saisi au HTML que DSFR Chart
  * injecte tel quel (`innerHTML`). Tout est ÉCHAPPÉ : une balise saisie
@@ -193,7 +191,7 @@ export function modalContentHtml(raw: string): string {
       (p) =>
         `<p>${p
           .split('\n')
-          .map((ligne) => echapperTexte(ligne.trim()))
+          .map((ligne) => escapeText(ligne.trim()))
           .join('<br>')}</p>`
     )
     .join('');
