@@ -14,7 +14,11 @@ import { fieldCardinality, isSampleComplete } from './ui/smart-guard.js';
  * l'échantillon ne couvre pas tout le jeu, le compte est un minimum et le
  * libellé le dit (#1172) : « 10 valeurs » d'un jeu de 101 lignes trompait.
  */
-function fieldDisplayText(field: { name: string; displayName?: string; type: string }): string {
+export function fieldDisplayText(field: {
+  name: string;
+  displayName?: string;
+  type: string;
+}): string {
   const base = field.displayName || field.name;
   if (field.type === 'string') {
     const n = fieldCardinality(field.name);

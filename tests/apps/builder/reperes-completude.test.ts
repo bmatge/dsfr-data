@@ -25,6 +25,7 @@ import { join, resolve } from 'node:path';
 import type { Repere } from '@dsfr-data/shared';
 import config from '../../../apps/builder/src/assistant/reperes.config';
 import { lectureApplicability } from '../../../apps/builder/src/lecture';
+import { cadreApplies } from '../../../apps/builder/src/cadre';
 import { REPERES } from '../../../apps/builder/src/assistant/reperes.generated';
 import {
   MULTI_SERIES_TYPES,
@@ -217,6 +218,11 @@ describe('repères du builder : complétude par le rendu (#1006)', () => {
         if (!actif) continue;
         cliquer(bouton);
         expect(document.querySelector(`${conteneur} .lecture-row`), conteneur).not.toBeNull();
+      }
+      // Actions du menu du cadre officiel (#1263) : rendues par `ui/cadre.ts`.
+      if (cadreApplies(type)) {
+        cliquer('#add-databox-action-btn');
+        expect(document.querySelector('#databox-actions-container .lecture-row')).not.toBeNull();
       }
       releve(type);
       expect(constats).toEqual([]);

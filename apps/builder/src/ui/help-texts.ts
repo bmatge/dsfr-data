@@ -30,7 +30,7 @@ export const TOOLTIPS = {
     "Ajoute des filtres interactifs sous le graphique. L'utilisateur final pourra filtrer les données par catégorie, année, etc. Fonctionne uniquement en mode dynamique.",
   a11y: "Ajoute un tableau de données et un bouton de téléchargement CSV sous le graphique, pour les lecteurs d'écran et l'open data. Recommandé pour l'accessibilité RGAA.",
   databox:
-    "Encadre le graphique dans une boîte avec titre, source, date et boutons (téléchargement, plein écran). C'est le style officiel DSFR pour présenter des données.",
+    "Encadre le graphique dans une boîte avec titre, source, date et boutons (téléchargement, infobulle, fenêtre d'information). C'est le style officiel DSFR pour présenter des données.",
 } as const;
 
 // ─── Improved hint texts (replace existing fr-hint-text) ───────────────

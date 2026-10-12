@@ -32,7 +32,9 @@
  * Issue qui tient la liste des réglages à exposer plus tard. #1218 a tenu ce
  * rôle après #1204 ; son lot livré (unité, bornes, lignes de référence, cibles,
  * couleurs fixées, catégories vides, synthèse de carte), le reste est passé à
- * #1263.
+ * #1263. L'arbitrage du 2026-10-12 sur #1263 a livré le cadre officiel d'un
+ * bloc et sorti définitivement `highlight-index` ; ce qui reste « à exposer
+ * plus tard » y attend un besoin.
  */
 export const ISSUE_DE_SUITE = '#1263';
 
@@ -59,6 +61,11 @@ export const ECRITS_SANS_CONTROLE: readonly { attribut: string; deduitDe: string
   { attribut: 'name', deduitDe: 'le titre et les libellés de séries' },
   { attribut: 'horizontal', deduitDe: 'la tuile « Barres H »' },
   { attribut: 'fill', deduitDe: 'le choix entre « Camembert » (plein) et « Anneau »' },
+  {
+    attribut: 'databox-fullscreen',
+    deduitDe:
+      'le titre de la fenêtre d’information du cadre : avec DSFR Chart 2.1.1, ce bouton n’existe qu’avec databox-modal-title et n’ouvre que cette fenêtre (#1179, #1263)',
+  },
 ];
 
 export const EXCLUSIONS: readonly ExclusionBuilder[] = [
@@ -98,14 +105,20 @@ export const EXCLUSIONS: readonly ExclusionBuilder[] = [
       'Valeur fixe d’une jauge, écrite à la main et sans source : le Builder part toujours d’une source, dont il agrège le champ de valeur.',
   },
 
-  // --- dsfr-data-chart : à exposer plus tard ------------------------------
   {
     genre: 'attribut',
     noms: ['highlight-index'],
     raison:
-      'Barre mise en avant : l’attribut désigne un rang, pas une catégorie, et le rang change avec le tri ou les données. « Couleurs par catégorie » (color-map) désigne la catégorie par son nom ; un contrôle par rang reste à arbitrer.',
-    suite: ISSUE_DE_SUITE,
+      'Barre mise en avant par son RANG : exclue définitivement (arbitrage du 2026-10-12 sur #1263). Un rang désigne une position, instable dès que le tri ou les données changent ; « Couleurs par catégorie » (color-map, 0.48.0) couvre le besoin en désignant la catégorie par son nom.',
   },
+  {
+    genre: 'attribut',
+    noms: ['databox-default-source'],
+    raison:
+      'Source par défaut du sélecteur multi-source du cadre : sans effet ici. dsfr-data-chart ne déclare au cadre qu’une source, nommée « default » — le sélecteur n’existe pas et l’attribut ne change rien (mesuré sur DSFR Chart 2.1.1, #1263).',
+  },
+
+  // --- dsfr-data-chart : à exposer plus tard ------------------------------
   {
     genre: 'attribut',
     noms: ['map-highlight'],
@@ -121,18 +134,9 @@ export const EXCLUSIONS: readonly ExclusionBuilder[] = [
   },
   {
     genre: 'attribut',
-    noms: [
-      'heading-level',
-      'databox-date-field',
-      'databox-tooltip-title',
-      'databox-tooltip-content',
-      'databox-modal-title',
-      'databox-modal-content',
-      'databox-actions',
-      'databox-default-source',
-    ],
+    noms: ['heading-level'],
     raison:
-      'Réglages fins du cadre officiel (niveau de titre, date lue dans les données, infobulle, fenêtre d’information, actions, source par défaut) : la section « Cadre officiel DSFR » n’expose que le titre, la source, la date, la tendance et les trois actions courantes.',
+      'Niveau du titre du cadre officiel (h2 à h6) : il dépend de la page qui accueille le graphique, que le Builder ne connaît pas. Le défaut de la bibliothèque (h3) s’applique ; le réglage attend un besoin.',
     suite: ISSUE_DE_SUITE,
   },
   {

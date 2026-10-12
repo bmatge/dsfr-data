@@ -46,6 +46,16 @@ import {
 } from '../state.js';
 import { REFERENTIELS } from '../geo-codes.js';
 import { hasLectureAttrs, lectureApplicability, lectureAttrs } from '../lecture.js';
+import {
+  actionsValue,
+  cadreActive,
+  cadreAttrs,
+  cadreDateField,
+  dataBoxAttrs,
+  dateColumn,
+  latestIsoDate,
+  type CadreAttr,
+} from '../cadre.js';
 import { renderPreview } from './preview.js';
 import { updateAccessibleTable } from './accessible-table.js';
 
@@ -106,18 +116,53 @@ function buildDatalistTriAttr(): string {
   return `\n    sort="${escapeHtml(field)}:${escapeHtml(state.sortOrder)}"`;
 }
 
-/** Generate DataBox attributes for dsfr-data-chart (dynamic mode) */
-function generateDataboxAttrs(): string {
-  if (!state.databoxEnabled) return '';
-  const attrs: string[] = ['\n    databox'];
-  if (state.databoxTitle) attrs.push(`databox-title="${escapeHtml(state.databoxTitle)}"`);
-  if (state.databoxSource) attrs.push(`databox-source="${escapeHtml(state.databoxSource)}"`);
-  if (state.databoxDate) attrs.push(`databox-date="${escapeHtml(state.databoxDate)}"`);
-  if (state.databoxDownload) attrs.push('databox-download');
-  if (state.databoxScreenshot) attrs.push('databox-screenshot');
-  if (state.databoxFullscreen) attrs.push('databox-fullscreen');
-  if (state.databoxTrend) attrs.push(`databox-trend="${escapeHtml(state.databoxTrend)}"`);
-  return attrs.join('\n    ');
+/** Un attribut du cadre, écrit : booléen, texte échappé, ou JSON entre guillemets simples. */
+function cadreAttrHtml(a: CadreAttr): string {
+  if (a.value === undefined) return a.name;
+  return a.json ? `${a.name}='${singleQuoteAttr(a.value)}'` : `${a.name}="${escapeHtml(a.value)}"`;
+}
+
+/**
+ * Attributs `databox-*` de dsfr-data-chart (#1263 : `cadre.ts` décide lesquels).
+ * `dateFieldColumn` : colonne qui porte la date lue dans les données, telle
+ * que produite en amont, ou chaîne vide.
+ */
+function generateDataboxAttrs(dateFieldColumn: string = ''): string {
+  const attrs = cadreAttrs(state.chartType, state, dateFieldColumn);
+  if (attrs.length === 0) return '';
+  return `\n    ${attrs.map(cadreAttrHtml).join('\n    ')}`;
+}
+
+/**
+ * Champ de dates du cadre à faire traverser l'agrégation (#1263), sous son
+ * chemin dans les lignes de la source, ou chaîne vide. `prefix` : préfixe des
+ * champs quand la source ne décrit pas de chemin (`fields.` pour Grist).
+ */
+function cadreDatePath(prefix: string = ''): string {
+  const name = cadreDateField(state.chartType, state);
+  if (!name) return '';
+  if (state.normalizeConfig.enabled && state.normalizeConfig.flatten) return name;
+  const info = state.fields.find((f) => f.name === name);
+  return info?.fullPath || `${prefix}${name}`;
+}
+
+/**
+ * Dépendance du cadre officiel (#1263) : son menu « Plus d'actions » (qui porte
+ * le téléchargement CSV et la capture), son infobulle et sa fenêtre
+ * d'information ne s'ouvrent qu'avec le JavaScript du DSFR — mesuré sur DSFR
+ * Chart 2.1.1. Chaîne vide sans cadre : le code d'un graphique non encadré
+ * sort inchangé.
+ */
+function cadreDep(): string {
+  if (!cadreActive(state.chartType, state)) return '';
+  return `\n<!-- Cadre officiel : son menu, son infobulle et sa fenêtre s’ouvrent avec le JavaScript du DSFR (ligne à retirer si la page le charge déjà) -->\n<script type="module" src="${CDN_URLS.dsfrModuleJs}"></script>`;
+}
+
+/** Commentaire qui dit comment brancher les actions du menu, ou chaîne vide. */
+function cadreActionsComment(): string {
+  if (!cadreActive(state.chartType, state)) return '';
+  if (actionsValue(state.databoxActions).length === 0) return '';
+  return '<!-- Actions du cadre : chaque entrée ajoutée au menu porte un attribut data-action (son libellé en minuscules, sans accents, mots joints par des tirets). Elle n’a pas de comportement : un script de la page doit écouter son clic. -->';
 }
 
 /** Generate optional dsfr-data-a11y element for accessible data companion */
@@ -147,24 +192,19 @@ function generateEmbeddedA11y(chartId: string): string {
 /** dsfr-data dependency line for embedded code when a11y is enabled */
 function a11yDep(): string {
   if (!state.a11yEnabled && !state.databoxEnabled) return '';
-  return `\n<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>`;
+  return `\n<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>${cadreDep()}`;
 }
 
 /** Wrap an embedded chart element with DataBox markup (open + close tags) */
 function wrapWithDatabox(chartHtml: string, chartId: string): string {
   if (!state.databoxEnabled) return chartHtml;
   const dbId = `databox-${chartId}`;
-  // DataBox attributes — name, source, date are required
-  // (DSFR Chart 2.1.0 renamed `title` to `name`)
-  const dbAttrs: string[] = [`id="${dbId}"`];
-  dbAttrs.push(`name="${escapeHtml(state.databoxTitle || ' ')}"`);
-  dbAttrs.push(`source="${escapeHtml(state.databoxSource || ' ')}"`);
-  dbAttrs.push(`date="${escapeHtml(state.databoxDate || new Date().toISOString().split('T')[0])}"`);
-  if (state.databoxDownload) dbAttrs.push('download');
-  if (state.databoxScreenshot) dbAttrs.push('screenshot');
-  if (state.databoxFullscreen) dbAttrs.push('fullscreen');
-  if (state.databoxTrend) dbAttrs.push(`trend="${escapeHtml(state.databoxTrend)}"`);
-  dbAttrs.push('segmented-control');
+  // `name`, `source` et `date` sont obligatoires (DSFR Chart 2.1.0 a renommé
+  // `title` en `name`). Infobulle, fenêtre et actions : `cadre.ts` (#1263).
+  const dbAttrs = dataBoxAttrs(state, dbId, new Date().toISOString().split('T')[0]).map(
+    cadreAttrHtml
+  );
+  const actionsNote = cadreActionsComment();
 
   // Add databox-id, databox-type, databox-source on the chart element
   const chartWithDbAttrs = chartHtml.replace(
@@ -175,7 +215,7 @@ function wrapWithDatabox(chartHtml: string, chartId: string): string {
   // DataBox and chart must be SIBLINGS (not parent-child).
   // DataBox uses Vue Teleport: it creates container divs, then chart teleports into them.
   // A hidden table stub lets DataBox create the table container for segmented control.
-  return `<data-box ${dbAttrs.join('\n    ')}></data-box>\n  ${chartWithDbAttrs}\n  <div databox-id="${dbId}" databox-type="table" databox-source="default" style="display:none"></div>`;
+  return `${actionsNote ? `${actionsNote}\n  ` : ''}<data-box ${dbAttrs.join('\n    ')}></data-box>\n  ${chartWithDbAttrs}\n  <div databox-id="${dbId}" databox-type="table" databox-source="default" style="display:none"></div>`;
 }
 
 /**
@@ -335,6 +375,8 @@ interface VisualSpec {
   seriesField: string;
   /** Attribut `code-field` déjà mis en forme (cartes), ou chaîne vide. */
   codeFieldAttr: string;
+  /** Colonne qui porte la date du cadre après l'agrégation (#1263), ou chaîne vide. */
+  dateField?: string;
 }
 
 /**
@@ -381,8 +423,9 @@ function visualElement(v: VisualSpec): string {
     extraFieldsAttr = `\n    value-field-2="${v.valueField2}"`;
   }
 
+  const actionsNote = cadreActionsComment();
   return `
-  <!-- Graphique DSFR (se met à jour automatiquement) -->
+  <!-- Graphique DSFR (se met à jour automatiquement) -->${actionsNote ? `\n  ${actionsNote}` : ''}
   <dsfr-data-chart
     id="chart"
     source="${v.source}"
@@ -390,7 +433,7 @@ function visualElement(v: VisualSpec): string {
     label-field="${v.labelField}"
     value-field="${valueFieldAttr(v.valueField)}"${extraFieldsAttr}
     ${nameAttr}
-    selected-palette="${effectivePalette()}"${lectureAttrsHtml()}${generateDataboxAttrs()}>
+    selected-palette="${effectivePalette()}"${lectureAttrsHtml()}${generateDataboxAttrs(v.dateField)}>
   </dsfr-data-chart>${generateA11yElement(v.source, 'chart')}`;
 }
 
@@ -915,7 +958,7 @@ export async function generateChart(): Promise<void> {
   } else if (isMap) {
     // Map: group by code field — limit=200 to fetch all departments (API default is 10)
     params = new URLSearchParams({
-      select: `${state.codeField}, ${valueExpression}`,
+      select: `${state.codeField}, ${valueExpression}${previewDateSelect()}`,
       group_by: state.codeField,
       limit: '200',
     });
@@ -934,7 +977,7 @@ export async function generateChart(): Promise<void> {
         ? advanced.map((a, i) => `${a.func}(${a.field}) as value${i === 0 ? '' : i + 1}`).join(', ')
         : `${valueExpression}${extraValueExpressions}`;
     const baseParams: Record<string, string> = {
-      select: `${groupBy}, ${aggSelect}`,
+      select: `${groupBy}, ${aggSelect}${previewDateSelect()}`,
       group_by: groupBy,
       limit: '200',
     };
@@ -985,6 +1028,15 @@ export async function generateChart(): Promise<void> {
 }
 
 /**
+ * Date du cadre dans la requête d'aperçu ODS (#1263) : `, max(champ) as
+ * champ__max`, sous le nom que lisent les lignes intégrées, ou chaîne vide.
+ */
+function previewDateSelect(): string {
+  const name = cadreDateField(state.chartType, state);
+  return name ? `, max(${name}) as ${embeddedDateColumn()}` : '';
+}
+
+/**
  * Aggregate local data client-side, render, and generate code.
  */
 export function generateChartFromLocalData(): void {
@@ -1027,6 +1079,9 @@ export function generateChartFromLocalData(): void {
   // Format long (#1204) : un groupe par étiquette ET par série.
   const seriesField = activeSeriesField(state);
   const groupParts: Record<string, { label: string; serie: string }> = {};
+  // Date du cadre (#1263) : les valeurs brutes du champ de dates, par groupe.
+  const dateName = cadreDateField(state.chartType, state);
+  const groupDates: Record<string, unknown[]> = {};
 
   // Apply advanced mode filter to local data
   let filteredLocal = state.localData || [];
@@ -1055,6 +1110,7 @@ export function generateChartFromLocalData(): void {
         };
       }
       aggregated[groupKey].values.push(value);
+      if (dateName) (groupDates[groupKey] ??= []).push(record[dateName]);
       activeExtraSeries.forEach((s, i) => {
         aggregated[groupKey].extraValues[i].push(toNumber(record[s.field]));
       });
@@ -1097,6 +1153,11 @@ export function generateChartFromLocalData(): void {
         result[`value${i + 2}`] = applyAgg(data.extraValues[i], data.count);
       }
     });
+
+    if (dateName) {
+      const latest = latestIsoDate(groupDates[groupKey] ?? []);
+      if (latest) result[dateColumn(dateName)] = latest;
+    }
 
     return result;
   });
@@ -1146,11 +1207,23 @@ export function usesLibEmbedded(): boolean {
   // et synthèse de carte sont dessinés ou calculés par `dsfr-data-chart` ; une
   // balise DSFR Chart nue ne les connaît pas. Dès qu'un de ces réglages est
   // posé, le graphique passe par la bibliothèque, quel que soit le mode.
+  // Date lue dans les données (#1263) : c'est `dsfr-data-chart` qui la lit
+  // dans les lignes ; la balise `<data-box>` nue n'a qu'une date écrite.
   return (
     LIB_RENDERED_TYPES.includes(state.chartType) ||
     !!activeSeriesField(state) ||
-    hasLectureAttrs(state.chartType, state)
+    hasLectureAttrs(state.chartType, state) ||
+    !!cadreDateField(state.chartType, state)
   );
+}
+
+/**
+ * Colonne des lignes intégrées qui porte la date du cadre (#1263), ou chaîne
+ * vide. L'agrégation locale et la requête d'aperçu la produisent sous ce nom.
+ */
+export function embeddedDateColumn(): string {
+  const name = cadreDateField(state.chartType, state);
+  return name ? dateColumn(name) : '';
 }
 
 /**
@@ -1185,7 +1258,7 @@ export function generateEmbeddedLibCode(): void {
 <link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">${chartDeps}
 
 <!-- Dépendances JS -->${chartJs}
-<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>${cadreDep()}
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1202,6 +1275,8 @@ ${visualElement({
   extraValueFields: traced.map((_, i) => `value${i + 2}`),
   seriesField: activeSeriesField(state),
   codeFieldAttr: isMap ? `\n    code-field="${escapeHtml(state.codeField)}"` : '',
+  // Les lignes intégrées portent la date la plus récente de chaque groupe (#1263).
+  dateField: embeddedDateColumn(),
 }).replace(/^\n/, '')}
 </div>`;
   displayGeneratedCode(code);
@@ -1460,6 +1535,34 @@ datalist.onSourceData(data);
 }
 
 /**
+ * Date du cadre dans une agrégation en syntaxe « champ:fonction » (#1263) :
+ * ` , champ:max` à ajouter à `aggregate`, et la colonne produite. Sur une
+ * colonne de dates ISO, `max` rend la plus récente (ordre lexicographique,
+ * #667) — côté client comme côté Tabular. Rien si aucun champ n'est choisi ;
+ * rien à ajouter si la colonne est déjà produite par un agrégat tracé.
+ */
+function colonDateAggregate(
+  path: string,
+  dejaProduites: readonly string[]
+): { expr: string; column: string } {
+  if (!path) return { expr: '', column: '' };
+  const column = dateColumn(path);
+  return { expr: dejaProduites.includes(column) ? '' : `, ${path}:max`, column };
+}
+
+/**
+ * Date du cadre dans un `select` ODSQL (#1263) : ajoute `max(champ) as
+ * champ__max` et rend l'alias. ODSQL n'accepte qu'un identifiant comme alias.
+ */
+function odsDateSelect(selectParts: string[], dejaProduites: readonly string[]): string {
+  const path = cadreDatePath();
+  if (!path) return '';
+  const alias = dateColumn(path.replace(/[^A-Za-z0-9_]/g, '_'));
+  if (!dejaProduites.includes(alias)) selectParts.push(`max(${path}) as ${alias}`);
+  return alias;
+}
+
+/**
  * Generate <dsfr-data-source> + <dsfr-data-query> for ODS sources.
  * Uses server-side aggregation (ODSQL) with automatic pagination.
  */
@@ -1476,6 +1579,8 @@ export function generateOdsQueryCode(
   valueField2: string;
   extraValueFields: string[];
   seriesField: string;
+  /** Colonne qui porte la date du cadre après l'agrégation (#1263), ou chaîne vide. */
+  dateField: string;
 } {
   // --- dsfr-data-source attributes (fetch + server-side processing) ---
   const srcAttrs: string[] = [];
@@ -1526,6 +1631,8 @@ export function generateOdsQueryCode(
       if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
     }
   }
+  // Date du cadre (#1263) : la plus récente de chaque groupe traverse l'agrégation.
+  const dateField = odsDateSelect(selectParts, [resultValueField, ...extraValueFields]);
   srcAttrs.push(`select="${escapeHtml(selectParts.join(', '))}"`);
 
   // Where / filter (static clause on source)
@@ -1561,6 +1668,7 @@ export function generateOdsQueryCode(
     valueField2: resultValueField2,
     extraValueFields,
     seriesField: seriesFieldPath,
+    dateField,
   };
 }
 
@@ -1581,6 +1689,8 @@ export function generateTabularQueryCode(
   valueField2: string;
   extraValueFields: string[];
   seriesField: string;
+  /** Colonne qui porte la date du cadre après l'agrégation (#1263), ou chaîne vide. */
+  dateField: string;
 } {
   // --- dsfr-data-source attributes (fetch + auto-pagination) ---
   const srcAttrs: string[] = [];
@@ -1626,6 +1736,10 @@ export function generateTabularQueryCode(
     });
     if (extraValueFields.length > 0) resultValueField2 = extraValueFields[0];
   }
+  // Date du cadre (#1263) : la plus récente de chaque groupe traverse l'agrégation.
+  const dateAgg = colonDateAggregate(cadreDatePath(), [resultValueField, ...extraValueFields]);
+  aggregateExpr += dateAgg.expr;
+  const dateField = dateAgg.column;
   qAttrs.push(`aggregate="${escapeHtml(aggregateExpr)}"`);
 
   // Filter (colon syntax)
@@ -1659,6 +1773,7 @@ export function generateTabularQueryCode(
     valueField2: resultValueField2,
     extraValueFields,
     seriesField: seriesFieldPath,
+    dateField,
   };
 }
 
@@ -1671,7 +1786,8 @@ export function generateDsfrDataQueryCode(
   sourceId: string,
   labelFieldPath: string,
   valueFieldPath: string,
-  seriesFieldPath: string = ''
+  seriesFieldPath: string = '',
+  datePrefix: string = ''
 ): {
   queryElement: string;
   chartSource: string;
@@ -1680,6 +1796,8 @@ export function generateDsfrDataQueryCode(
   valueField2: string;
   extraValueFields: string[];
   seriesField: string;
+  /** Colonne qui porte la date du cadre après l'agrégation (#1263), ou chaîne vide. */
+  dateField: string;
 } {
   const attrs: string[] = [];
   attrs.push(`source="${sourceId}"`);
@@ -1726,6 +1844,13 @@ export function generateDsfrDataQueryCode(
     sortField = `${valueFieldPath}__${state.aggregation}`;
     resultValueField = sortField;
   }
+  // Date du cadre (#1263) : la plus récente de chaque groupe traverse l'agrégation.
+  const dateAgg = colonDateAggregate(cadreDatePath(datePrefix), [
+    resultValueField,
+    ...extraValueFields,
+  ]);
+  aggregateExpr += dateAgg.expr;
+  const dateField = dateAgg.column;
   attrs.push(`aggregate="${escapeHtml(aggregateExpr)}"`);
 
   // Sort
@@ -1753,6 +1878,7 @@ export function generateDsfrDataQueryCode(
     valueField2: resultValueField2,
     extraValueFields,
     seriesField: seriesFieldPath,
+    dateField,
   };
 }
 
@@ -1878,11 +2004,13 @@ ${middlewareHtml}
     valueField2: queryValueField2,
     extraValueFields: queryExtraVFs,
     seriesField: querySeriesField,
+    dateField: queryDateField,
   } = generateDsfrDataQueryCode(
     querySourceId,
     groupByPath,
     valueFieldPath,
-    seriesPath(isFlattened ? '' : 'fields.')
+    seriesPath(isFlattened ? '' : 'fields.'),
+    isFlattened ? '' : 'fields.'
   );
 
   // Map-specific attributes
@@ -1900,7 +2028,7 @@ ${state.advancedMode ? '<!-- Mode avancé activé : filtrage et agrégation via 
 
 <!-- Dépendances JS -->
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>${cadreDep()}
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -1920,6 +2048,7 @@ ${middlewareHtml}${queryElement}${visualElement({
     extraValueFields: queryExtraVFs,
     seriesField: querySeriesField,
     codeFieldAttr,
+    dateField: queryDateField,
   })}
 </div>`;
 
@@ -2159,6 +2288,7 @@ ${middlewareHtml}
   let queryValueField2: string;
   let queryExtraVFs: string[];
   let querySeriesField: string;
+  let queryDateField: string;
   let sourceElement: string;
   let middlewareHtml = '';
   let facetsHtml = '';
@@ -2167,6 +2297,7 @@ ${middlewareHtml}
     const odsInfo = { baseUrl: apiBaseUrl, datasetId: resourceIds.datasetId };
     const result = generateOdsQueryCode(odsInfo, groupByPath, valueFieldPath, seriesPath());
     querySeriesField = result.seriesField;
+    queryDateField = result.dateField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -2187,6 +2318,7 @@ ${middlewareHtml}
     const tabularInfo = { baseUrl: apiBaseUrl, resourceId: resourceIds.resourceId };
     const result = generateTabularQueryCode(tabularInfo, groupByPath, valueFieldPath, seriesPath());
     querySeriesField = result.seriesField;
+    queryDateField = result.dateField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -2216,6 +2348,7 @@ ${middlewareHtml}
       seriesPath()
     );
     querySeriesField = result.seriesField;
+    queryDateField = result.dateField;
     queryElement = result.queryElement;
     chartSource = result.chartSource;
     queryLabelField = result.labelField;
@@ -2244,6 +2377,7 @@ ${middlewareHtml}
       queryValueField2 = cleanedFieldName(queryValueField2);
       queryExtraVFs = queryExtraVFs.map(cleanedFieldName);
       querySeriesField = cleanedFieldName(querySeriesField);
+      queryDateField = cleanedFieldName(queryDateField);
     }
   }
 
@@ -2262,7 +2396,7 @@ ${state.advancedMode ? '<!-- Mode avancé activé : filtrage et agrégation via 
 
 <!-- Dépendances JS -->
 <script type="module" src="${CDN_URLS.dsfrChartJs}"></script>
-<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>${cadreDep()}
 
 <div class="fr-container fr-my-4w">
   ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
@@ -2275,6 +2409,7 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}${visualElement({
     extraValueFields: queryExtraVFs,
     seriesField: querySeriesField,
     codeFieldAttr,
+    dateField: queryDateField,
   })}
 </div>`;
 
@@ -2287,7 +2422,10 @@ ${sourceElement}${middlewareHtml}${queryElement}${facetsHtml}${visualElement({
 export function generateCode(apiUrl: string): void {
   // Formes rendues par la bibliothèque dans tous les modes (#1204) : les
   // lignes agrégées, déjà chargées pour l'aperçu, sont intégrées telles quelles.
-  if (usesLibEmbedded()) {
+  // Cadre officiel (#1263) : ce chemin, qui recharge les données à l'ouverture
+  // par un script, n'a jamais écrit le cadre — coché, il restait sans effet.
+  // Encadré, le graphique passe donc par la bibliothèque, lignes intégrées.
+  if (usesLibEmbedded() || cadreActive(state.chartType, state)) {
     generateEmbeddedLibCode();
     return;
   }

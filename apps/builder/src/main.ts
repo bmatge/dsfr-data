@@ -36,7 +36,6 @@ import {
   toggleSection,
   syncFavoriteIcon,
   renderPaletteSwatches,
-  syncA11yWithDatabox,
   suggestGeoCodeField,
 } from './ui/ui-helpers.js';
 import type { ChartType } from './state.js';
@@ -47,6 +46,7 @@ import { setupUrlSyncListeners } from './ui/url-sync-config.js';
 import { addExtraSeries } from './ui/extra-series.js';
 import { setupFormesListeners } from './ui/formes.js';
 import { setupLectureListeners } from './ui/lecture.js';
+import { setupCadreListeners } from './ui/cadre.js';
 import { initHelpTooltips, updatePreviewSteps } from './ui/help-tooltips.js';
 import { applyAggregationDefault, updateAggregationBadge } from './ui/aggregation-smart.js';
 import { CARDINALITY_EVENT } from './ui/real-cardinality.js';
@@ -282,62 +282,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // DataBox toggle + sub-options
-  const databoxToggle = document.getElementById('databox-toggle') as HTMLInputElement | null;
-  const databoxOptions = document.getElementById('databox-options') as HTMLElement | null;
-  if (databoxToggle) {
-    databoxToggle.addEventListener('change', (e) => {
-      state.databoxEnabled = (e.target as HTMLInputElement).checked;
-      if (databoxOptions) databoxOptions.style.display = state.databoxEnabled ? 'block' : 'none';
-      syncA11yWithDatabox();
-    });
-  }
-  const databoxTitleEl = document.getElementById('databox-title') as HTMLInputElement | null;
-  if (databoxTitleEl) {
-    databoxTitleEl.addEventListener('input', (e) => {
-      state.databoxTitle = (e.target as HTMLInputElement).value;
-    });
-  }
-  const databoxSourceEl = document.getElementById('databox-source') as HTMLInputElement | null;
-  if (databoxSourceEl) {
-    databoxSourceEl.addEventListener('input', (e) => {
-      state.databoxSource = (e.target as HTMLInputElement).value;
-    });
-  }
-  const databoxDateEl = document.getElementById('databox-date') as HTMLInputElement | null;
-  if (databoxDateEl) {
-    databoxDateEl.addEventListener('input', (e) => {
-      state.databoxDate = (e.target as HTMLInputElement).value;
-    });
-  }
-  const databoxTrendEl = document.getElementById('databox-trend') as HTMLInputElement | null;
-  if (databoxTrendEl) {
-    databoxTrendEl.addEventListener('input', (e) => {
-      state.databoxTrend = (e.target as HTMLInputElement).value;
-    });
-  }
-  const databoxDownloadEl = document.getElementById('databox-download') as HTMLInputElement | null;
-  if (databoxDownloadEl) {
-    databoxDownloadEl.addEventListener('change', (e) => {
-      state.databoxDownload = (e.target as HTMLInputElement).checked;
-    });
-  }
-  const databoxScreenshotEl = document.getElementById(
-    'databox-screenshot'
-  ) as HTMLInputElement | null;
-  if (databoxScreenshotEl) {
-    databoxScreenshotEl.addEventListener('change', (e) => {
-      state.databoxScreenshot = (e.target as HTMLInputElement).checked;
-    });
-  }
-  const databoxFullscreenEl = document.getElementById(
-    'databox-fullscreen'
-  ) as HTMLInputElement | null;
-  if (databoxFullscreenEl) {
-    databoxFullscreenEl.addEventListener('change', (e) => {
-      state.databoxFullscreen = (e.target as HTMLInputElement).checked;
-    });
-  }
+  // Cadre officiel DSFR : titre, source, date, infobulle, fenêtre, actions (#1263)
+  setupCadreListeners();
 
   // Refonte v2 : plus de toggle « mode avancé » — advancedMode est déduit du
   // contenu (filtres / group-by / agrégats) par le builder de filtres.

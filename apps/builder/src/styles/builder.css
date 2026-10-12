@@ -1008,3 +1008,21 @@ body.builder-v2 .builder-config-panel {
 .lecture-row__remove {
   flex: 0 0 auto;
 }
+
+/* ---- Cadre officiel DSFR (#1263) : réglages affichés quand le cadre est activé ---- */
+.databox-options {
+  margin-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.databox-options textarea.fr-input {
+  resize: vertical;
+  min-height: 3rem;
+}
+
+/* Volet étroit (375 px) : le retrait ne doit pas rogner les champs. */
+@media (max-width: 30em) {
+  .databox-options {
+    margin-left: 0.5rem;
+  }
+}

@@ -36,7 +36,7 @@ import {
   messageEtatRefuse,
   MESSAGE_ORIGINE_INCONNUE,
 } from './etat-depose.js';
-import { state, type ChartType, type Source, type Field } from './state.js';
+import { state, normalizeExtraSeries, type ChartType, type Source, type Field } from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
 import {
@@ -45,12 +45,12 @@ import {
   updateAggregationBadge,
 } from './ui/aggregation-smart.js';
 import { generateCodeForLocalData } from './ui/code-generator.js';
-import { syncA11yWithDatabox } from './ui/ui-helpers.js';
 import { updateMiddlewareSections, autoEnableNormalizeForGrist } from './ui/normalize-config.js';
 import { updateUrlSyncSection, syncUrlSyncControls } from './ui/url-sync-config.js';
 import { restoreExtraSeriesFromState } from './ui/extra-series.js';
 import { syncFormesControls } from './ui/formes.js';
 import { restoreLecture, syncLectureControls } from './ui/lecture.js';
+import { restoreCadre, syncCadreControls } from './ui/cadre.js';
 import { updatePreviewSteps } from './ui/help-tooltips.js';
 import { markGenerated } from './ui/smart-guard.js';
 
@@ -609,6 +609,13 @@ export async function loadFavoriteState(): Promise<void> {
     // Réglages de lecture (#1218) : remis en forme ; un favori enregistré
     // avant ce lot n'en porte aucun et se rouvre sans.
     restoreLecture(favoriteState);
+    // Cadre officiel (#1263) : même remise en forme. Avant ce lot l'instantané
+    // n'en portait aucun réglage : le favori se rouvre sans cadre, comme avant.
+    restoreCadre(favoriteState);
+    // Séries supplémentaires (#1263) : l'instantané les porte désormais, avec
+    // leurs libellés. Un ancien favori n'a que `valueField2`, que
+    // `restoreExtraSeriesFromState` migre en une série sans libellé.
+    state.extraSeries = normalizeExtraSeries(favoriteState.extraSeries);
 
     // Restore source dropdown selection
     if (state.savedSource) {
@@ -689,32 +696,8 @@ export async function loadFavoriteState(): Promise<void> {
     const a11yDescEl = document.getElementById('a11y-description') as HTMLTextAreaElement | null;
     if (a11yDescEl) a11yDescEl.value = state.a11yDescription || '';
 
-    // Restore DataBox toggles
-    const databoxToggle = document.getElementById('databox-toggle') as HTMLInputElement | null;
-    if (databoxToggle) databoxToggle.checked = state.databoxEnabled || false;
-    const databoxOpts = document.getElementById('databox-options') as HTMLElement | null;
-    if (databoxOpts) databoxOpts.style.display = state.databoxEnabled ? 'block' : 'none';
-    const databoxTitleEl = document.getElementById('databox-title') as HTMLInputElement | null;
-    if (databoxTitleEl) databoxTitleEl.value = state.databoxTitle || '';
-    const databoxSourceEl = document.getElementById('databox-source') as HTMLInputElement | null;
-    if (databoxSourceEl) databoxSourceEl.value = state.databoxSource || '';
-    const databoxDateEl = document.getElementById('databox-date') as HTMLInputElement | null;
-    if (databoxDateEl) databoxDateEl.value = state.databoxDate || '';
-    const databoxTrendEl = document.getElementById('databox-trend') as HTMLInputElement | null;
-    if (databoxTrendEl) databoxTrendEl.value = state.databoxTrend || '';
-    const databoxDownloadEl = document.getElementById(
-      'databox-download'
-    ) as HTMLInputElement | null;
-    if (databoxDownloadEl) databoxDownloadEl.checked = state.databoxDownload ?? true;
-    const databoxScreenshotEl = document.getElementById(
-      'databox-screenshot'
-    ) as HTMLInputElement | null;
-    if (databoxScreenshotEl) databoxScreenshotEl.checked = state.databoxScreenshot || false;
-    const databoxFullscreenEl = document.getElementById(
-      'databox-fullscreen'
-    ) as HTMLInputElement | null;
-    if (databoxFullscreenEl) databoxFullscreenEl.checked = state.databoxFullscreen || false;
-    syncA11yWithDatabox(!!state.databoxEnabled);
+    // Cadre officiel DSFR (#1263)
+    syncCadreControls();
 
     // Réglages de lecture (#1218)
     syncLectureControls();
