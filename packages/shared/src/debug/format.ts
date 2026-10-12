@@ -219,6 +219,26 @@ function formatPivotStats(meta: NonNullable<StageState['meta']>): string[] {
   return lines;
 }
 
+/** Heure locale `HH:MM:SS`, sans dépendre de la locale du poste. */
+function formatHeure(at: number): string {
+  const d = new Date(at);
+  const two = (n: number): string => String(n).padStart(2, '0');
+  return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}`;
+}
+
+/**
+ * Lignes gardées périmées (#1272) : l'étape a échoué après avoir livré. Dit
+ * ce qui reste en mémoire, de quand, et par où le lire — pour qu'on ne cherche
+ * pas dans `getDataCache` des lignes qui n'y sont plus.
+ */
+export function formatStale(stale: NonNullable<StageState['stale']>): string {
+  const quoi = stale.rows !== undefined ? plural(stale.rows, 'ligne') : 'les lignes';
+  return (
+    `     ⚠ ${quoi} du dernier chargement réussi (${formatHeure(stale.loadedAt)}) ` +
+    `en mémoire, PÉRIMÉES : plus rien ne les reçoit (getLastKnownData les rend, datées).`
+  );
+}
+
 function formatMeta(node: StageNode, state: StageState): string[] {
   const meta = state.meta;
   if (!meta) return [];
@@ -564,6 +584,7 @@ export function formatTrace(trace: Trace, options: FormatOptions = {}): string {
     if (state.status === 'error' && state.attemptedUrl) {
       out.push(`     URL appelée : ${state.attemptedUrl}`);
     }
+    if (state.stale) out.push(formatStale(state.stale));
 
     if (node.tag === 'dsfr-data-query') {
       out.push(...formatDelegation(node, trace.delegation[node.id], state.rows));

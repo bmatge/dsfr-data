@@ -223,6 +223,14 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
     case 'error':
       lines.push(`ÉCHEC : ${state.message}`);
       if (state.attemptedUrl) lines.push(`URL réellement appelée : ${state.attemptedUrl}`);
+      if (state.stale) {
+        lines.push(
+          'Les lignes du dernier chargement réussi restent en mémoire, PÉRIMÉES' +
+            (state.stale.rows !== undefined ? ` (${state.stale.rows} lignes)` : '') +
+            ' : aucun composant ne les reçoit ; getDataCache et getData() ne les rendent plus, ' +
+            'getLastKnownData les rend avec leur date.'
+        );
+      }
       break;
     case 'loading':
       lines.push('Chargement en cours au moment du relevé.');

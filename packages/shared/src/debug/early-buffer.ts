@@ -100,8 +100,12 @@ export function drainEarlyBuffer(win: Window | null | undefined): BufferedBusEve
  * Filet de sécurité pour les pages qui n'ont PAS le tampon (code d'un tiers,
  * aperçu généré par une version antérieure) : `window.__dsfrDataCache` tient
  * la derniere valeur de chaque étape, on peut donc reconstituer l'essentiel
- * même en ayant tout manqué. Ne rattrape ni les erreurs ni la chronologie —
- * d'où le tampon, qui reste la voie principale.
+ * même en ayant tout manqué. Ne rattrape pas la chronologie — d'où le tampon,
+ * qui reste la voie principale.
+ *
+ * Une étape en panne n'y figure PAS (#1272) : la bibliothèque sort ses lignes
+ * du cache courant à l'erreur. Avant, ce relevé la déclarait « chargée » sur
+ * les lignes d'avant la panne. Son état se relève par `readErrorSnapshot`.
  */
 export function readCacheSnapshot(
   win: Window | null | undefined
@@ -111,5 +115,46 @@ export function readCacheSnapshot(
   if (!cache || typeof cache.forEach !== 'function') return [];
   const out: Array<{ sourceId: string; data: unknown }> = [];
   cache.forEach((data, sourceId) => out.push({ sourceId, data }));
+  return out;
+}
+
+/**
+ * Étapes EN PANNE, relevées sur le registre d'erreur de la page observée
+ * (`window.__dsfrDataErrors`, #1203), avec la date du dernier chargement
+ * réussi quand des lignes périmées restent en mémoire (#1272).
+ *
+ * Le pendant de `readCacheSnapshot` : sur une page sans tampon, le collecteur
+ * arrive après la panne et son événement est passé. Une bibliothèque
+ * antérieure à ce registre n'en expose pas : rien n'est rendu.
+ */
+export function readErrorSnapshot(
+  win: Window | null | undefined
+): Array<{ sourceId: string; error: unknown; attemptedUrl?: string; lastLoadedAt?: number }> {
+  const errors = (
+    win as
+      | (Window & {
+          __dsfrDataErrors?: Map<
+            string,
+            { error?: unknown; attemptedUrl?: string; lastLoadedAt?: number }
+          >;
+        })
+      | null
+      | undefined
+  )?.__dsfrDataErrors;
+  if (!errors || typeof errors.forEach !== 'function') return [];
+  const out: Array<{
+    sourceId: string;
+    error: unknown;
+    attemptedUrl?: string;
+    lastLoadedAt?: number;
+  }> = [];
+  errors.forEach((state, sourceId) => {
+    out.push({
+      sourceId,
+      error: state?.error,
+      ...(state?.attemptedUrl ? { attemptedUrl: state.attemptedUrl } : {}),
+      ...(typeof state?.lastLoadedAt === 'number' ? { lastLoadedAt: state.lastLoadedAt } : {}),
+    });
+  });
   return out;
 }

@@ -266,6 +266,27 @@ const CAS: CasRegle[] = [
     },
   },
   {
+    // #1272 : l'étape a échoué APRÈS avoir livré — ses lignes sont gardées, périmées.
+    regle: 'pipeline/lignes-perimees',
+    fautive: trace({
+      nodes: [SOURCE, CARTE],
+      states: {
+        src: {
+          status: 'error',
+          message: 'HTTP 503: Service Unavailable',
+          stale: { loadedAt: 1000, rows: 3 },
+          emissions: 1,
+        },
+      },
+    }),
+    attendu: {
+      id: 'pipeline/lignes-perimees@src',
+      gravite: 'info',
+      etape: 'src',
+      preuve: 'src → 3 lignes du dernier chargement réussi',
+    },
+  },
+  {
     regle: 'pipeline/jointure-faible',
     fautive: trace({
       nodes: [
