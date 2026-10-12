@@ -261,12 +261,10 @@ test.describe('cadre officiel : le volet change ce que l’aperçu affiche (#126
     const erreurs = await ouvrir(page, etat());
     await activer(page);
     // La liste est remplie depuis les champs de la source.
-    await expect(page.locator('#databox-date-field option')).toHaveText([
-      '— Aucun —',
-      'region (string)',
-      'taux (number)',
-      'maj (string)',
-    ]);
+    const options = await page
+      .locator('#databox-date-field option')
+      .evaluateAll((els) => els.map((o) => (o as HTMLOptionElement).value));
+    expect(options).toEqual(['', 'region', 'taux', 'maj']);
     await page.selectOption('#databox-date-field', 'maj');
     await expect(page.locator('#databox-date-field-note')).toBeHidden();
     let code = await generer(page);

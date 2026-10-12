@@ -23,6 +23,7 @@ import {
   type CadreSettings,
 } from '../cadre.js';
 import { syncA11yWithDatabox } from './ui-helpers.js';
+import { fieldDisplayText } from '../sources-fields.js';
 
 type CleTexte =
   | 'databoxTitle'
@@ -79,7 +80,7 @@ export function populateDateFieldSelect(): void {
   for (const champ of state.fields) {
     const option = document.createElement('option');
     option.value = champ.name;
-    option.textContent = `${champ.displayName || champ.name} (${champ.type})`;
+    option.textContent = fieldDisplayText(champ);
     select.appendChild(option);
   }
   const connu = state.fields.some((f) => f.name === state.databoxDateField);
