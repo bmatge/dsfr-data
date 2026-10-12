@@ -36,8 +36,10 @@ export type PageItem = number | 'ellipsis';
  * Affiche un tableau de données avec recherche, filtres et pagination.
  *
  * Les cellules numériques sont rendues en fr-FR (`2.27` → « 2,27 », au plus
- * 2 décimales ou `decimals`, #666) ; les chaînes (codes INSEE, SIREN…) restent
- * intactes et les exports CSV/HTML restent bruts. Avant #666, le contournement
+ * 2 décimales ou `decimals`, #666 ; une valeur non nulle inférieure à 0,01
+ * garde deux chiffres significatifs — 0,00123 → « 0,0012 », jamais « 0 »,
+ * #1282) ; les chaînes (codes INSEE, SIREN…) restent intactes et les exports
+ * CSV/HTML restent bruts. Avant #666, le contournement
  * était `normalize round="champ:2"`, qui arrondit mais ne localise pas.
  *
  * Le `caption` du tableau (RGAA 5.4, #669) vient de l'attribut `caption`, à
@@ -166,7 +168,11 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
 
   /**
    * Nombre de décimales des cellules numériques (#666). Absent : au plus
-   * 2 décimales, format fr-FR. Les exports CSV/HTML ne sont pas concernés.
+   * 2 décimales, format fr-FR — sauf pour une valeur non nulle inférieure à
+   * 0,01 en valeur absolue, qui garde deux chiffres significatifs (0,00123 →
+   * « 0,0012 ») au lieu de s'afficher « 0 » (#1282). Posé, ce nombre de
+   * décimales est tenu tel quel : `decimals="2"` rend « 0,00 ». Les exports
+   * CSV/HTML ne sont pas concernés.
    */
   @property({ type: Number })
   decimals: number | null = null;
@@ -735,7 +741,8 @@ ${bodyRows}
 
   /**
    * Texte d'une cellule : « — » pour l'absence, Oui/Non pour les booléens,
-   * nombres en fr-FR (#666), tout le reste tel quel (jamais de parsing des
+   * nombres en fr-FR (#666, deux chiffres significatifs sous 0,01 — #1282),
+   * tout le reste tel quel (jamais de parsing des
    * chaînes : un code INSEE « 75056 » reste « 75056 »).
    */
   formatCellValue(value: unknown): string {

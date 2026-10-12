@@ -315,8 +315,9 @@
         une série n'a pas d'observation. Le tableau montre 100 lignes au plus, comme celui de
         <code>dsfr-data-a11y</code>, et l'annonce sous le tableau : « Affichage limité aux 100 premières
         lignes sur N. » Les nombres y sont écrits en français, comme dans le tableau de
-        <code>dsfr-data-a11y</code> (« 2,27 », « 1 234,5 », au plus deux décimales) ; les valeurs
-        tracées, elles, ne changent pas. La colonne de libellé porte ce que l'axe affiche
+        <code>dsfr-data-a11y</code> (« 2,27 », « 1 234,5 », au plus deux décimales) ; une valeur non
+        nulle inférieure à 0,01 en valeur absolue garde deux chiffres significatifs (0,00123 s'écrit
+        « 0,0012 », jamais « 0 »). Les valeurs tracées, elles, ne changent pas. La colonne de libellé porte ce que l'axe affiche
         (<code>empty-label</code> compris), sous l'alias de <code>label-field</code> quand il est écrit :
         <code>label-field="dep_nom:Département"</code>.
       </p>

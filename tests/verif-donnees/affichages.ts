@@ -35,6 +35,7 @@ import {
   LIBELLES,
   LONG,
   MARKUP_ENCARTS,
+  RATIOS,
   ABSENCES,
   HORS_DECOUPAGE,
   RESSOURCE_TABULAR_AFFICHAGES,
@@ -119,6 +120,7 @@ const source = (
     | 'aides'
     | 'symboles'
     | 'encarts'
+    | 'ratios'
 ): string => `<dsfr-data-source id="${id}" url="${urlAffichage(jeu)}"></dsfr-data-source>`;
 
 /**
@@ -1377,6 +1379,71 @@ const CHECKS: Check[] = [
         labelColumn: 'nom',
         valueColumns: ['budget'],
         pipeline: [],
+      },
+    ],
+  },
+
+  {
+    id: 'tableaux-petit-ratio-jamais-zero',
+    mode: 'deterministic',
+    origin:
+      '#1282, suite de #1260 — les tableaux équivalents arrondissaient à deux décimales : un ratio de 0,00123 s’y lisait « 0 » (et −0,00123, « -0 ») pendant que le graphique traçait la valeur. La version accessible d’un graphique annonçait zéro pour une valeur qui ne l’est pas. Une comparaison NUMÉRIQUE à deux décimales ne peut pas le voir (« 0 » y vaut 0,00123) : le contrôle recalcule donc le TEXTE de chaque cellule (`texteCellule`, écrit dans les deux oracles sans `Intl`) et le compare à l’identique, dans les trois tableaux de la bibliothèque — DataBox, `dsfr-data-a11y`, `dsfr-data-list`. Sous 0,01 en valeur absolue, deux chiffres significatifs écrits en entier ; au-dessus, rien ne change. Les valeurs passées à DSFR Chart restent celles des lignes, et le CSV de `dsfr-data-a11y` porte la donnée brute, pas l’arrondi d’affichage.',
+    feed: { kind: 'fixture', datasets: { main: RATIOS } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-ratios', 'ratios')}
+  <dsfr-data-chart id="g-ratios" source="s-ratios" type="bar"
+    label-field="libelle" value-field="ratio:Ratio"
+    databox databox-title="Ratios"></dsfr-data-chart>
+  <dsfr-data-a11y id="a-ratios" source="s-ratios" table download
+    label-field="libelle:Libellé" value-field="ratio:Ratio"></dsfr-data-a11y>
+  <dsfr-data-list id="l-ratios" source="s-ratios"
+    columns="libelle:Libellé, ratio:Ratio"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'g-ratios',
+        selector: '.fr-table tbody td:nth-child(2)',
+        column: 'ratio',
+        cellule: true,
+        pipeline: [],
+      },
+      {
+        kind: 'texts',
+        id: 'a-ratios',
+        selector: 'tbody td:nth-child(2)',
+        column: 'ratio',
+        cellule: true,
+        pipeline: [],
+      },
+      // `dsfr-data-list` écrit une absence « — », là où les deux tableaux
+      // équivalents laissent la cellule vide.
+      {
+        kind: 'texts',
+        id: 'l-ratios',
+        selector: 'tbody td:nth-child(2)',
+        column: 'ratio',
+        cellule: true,
+        absent: '—',
+        pipeline: [],
+      },
+      // Ce qui est TRACÉ ne change pas : 0,00123 reste 0,00123.
+      {
+        kind: 'chart',
+        id: 'g-ratios',
+        labelColumn: 'libelle',
+        valueColumns: ['ratio'],
+        pipeline: [],
+      },
+      // Le fichier porte la donnée (`0.00123`), jamais « 0,0012 ».
+      {
+        kind: 'csv',
+        id: 'a-ratios',
+        pipeline: [],
+        columns: [
+          { column: 'libelle', label: 'Libellé' },
+          { column: 'ratio', label: 'Ratio' },
+        ],
       },
     ],
   },
