@@ -614,8 +614,16 @@ const RESERVES: Record<string, { titre: string; explication: string; action: str
   'unstable-sort': {
     titre: 'tri serveur instable d’une page à l’autre',
     explication:
-      "Le tri est laissé à l'API sur un chargement tronqué, sans clé de départage : elle pagine par offset, et des lignes à valeurs égales peuvent manquer ou revenir deux fois aux limites de page. Le nombre de lignes, lui, reste juste.",
-    action: 'Relever max-records pour charger tout le jeu : le tri se fait alors sur place',
+      "Le tri est laissé à l'API sur un chargement tronqué ou une pagination serveur, sans clé de départage : elle pagine par offset, et des lignes à valeurs égales peuvent manquer ou revenir deux fois aux limites de page. Le nombre de lignes, lui, reste juste.",
+    action:
+      'Relever max-records pour charger tout le jeu (le tri se fait alors sur place), ou trier sur une colonne unique',
+  },
+  'unstable-pagination': {
+    titre: 'pagination sans ordre garanti d’une page à l’autre',
+    explication:
+      "Le chargement s'étend sur plusieurs pages et l'API a refusé le tri de départage que l'adaptateur ajoute pour paginer (ou les colonnes du jeu n'ont pas pu être lues) : elle pagine par offset sans garantir l'ordre, et des lignes peuvent manquer ou revenir deux fois d'une page à l'autre. Le nombre de lignes, lui, reste juste.",
+    action:
+      'Poser un order-by sur une colonne unique, ou charger le jeu en une requête avec fetch-mode="export"',
   },
   'in-values-dropped': {
     titre: 'valeur d’un filtre « in » écartée par le serveur',
@@ -651,7 +659,8 @@ const reserveServeur: RegleConstat = {
       const connues = codes.map((code) => RESERVES[code]);
       const premiere = connues[0];
       const demande = [
-        codes.includes('unstable-sort') && node.attrs['order-by']
+        (codes.includes('unstable-sort') || codes.includes('unstable-pagination')) &&
+        node.attrs['order-by']
           ? `order-by="${node.attrs['order-by']}"`
           : '',
         (codes.includes('in-values-dropped') || codes.includes('in-quoted-refused')) &&

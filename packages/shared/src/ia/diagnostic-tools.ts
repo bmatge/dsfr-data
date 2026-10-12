@@ -192,6 +192,10 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
               ? ', TRI SERVEUR INSTABLE (lignes possiblement doublées ou manquantes)'
               : ''
           }${
+            state.meta.caveats?.includes('unstable-pagination')
+              ? ', PAGINATION SANS ORDRE TOTAL (lignes possiblement doublées ou manquantes)'
+              : ''
+          }${
             state.meta.caveats?.includes('in-values-dropped')
               ? ', VALEUR DE in ÉCARTÉE PAR LE SERVEUR (lignes manquantes)'
               : ''

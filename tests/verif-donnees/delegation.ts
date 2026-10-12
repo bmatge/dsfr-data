@@ -22,6 +22,7 @@
 import type { Check, Expect, Manifest, Step } from '../../tools/oracle/manifest.js';
 import {
   DATASET,
+  DATASET_EX_AEQUO,
   EX_AEQUO,
   HOTE_ODS,
   MESURES,
@@ -1261,6 +1262,283 @@ const TABULAR_PERTES: Check[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// 4 quinquies. Pagination par décalage sans ordre total (#1274, #1233)
+// ---------------------------------------------------------------------------
+
+/**
+ * La source Opendatasoft du jeu à ex-æquo : 450 lignes, cinq pages de 100.
+ *
+ * `/records` pagine par offset sans garantir l'ordre : sans `order_by`, ou sur
+ * un tri que ses ex-æquo ne départagent pas, des lignes reviennent deux fois
+ * d'une page à l'autre et d'autres jamais, à compte juste. Le faux portail
+ * l'imite (`repondreOdsRecords`). Les colonnes du jeu, dans l'ordre de ses
+ * métadonnées : `id` (unique), `categorie`, `nombre` — la clé de départage de
+ * l'adaptateur.
+ */
+const sourceOdsExAequo = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="opendatasoft" base-url="${HOTE_ODS}" dataset-id="${DATASET_EX_AEQUO}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+
+/** Toutes les requêtes vers ce jeu : lignes ET métadonnées. */
+const JEU_ODS_EX_AEQUO = `/datasets/${DATASET_EX_AEQUO}`;
+/** Ses seules requêtes de lignes. */
+const RECORDS_ODS_EX_AEQUO = `${JEU_ODS_EX_AEQUO}/records`;
+
+const TRI_NOMBRE_PUIS_ID: Step = {
+  op: 'order-by-keys',
+  keys: [
+    { column: 'nombre', dir: 'desc' },
+    { column: 'id', dir: 'asc' },
+  ],
+};
+
+const PAGINATION_ORDRE_TOTAL: Check[] = [
+  {
+    id: 'ods-pagination-complete-sans-tri',
+    mode: 'deterministic',
+    origin:
+      "#1274 — au-delà de 100 lignes, l'adaptateur Opendatasoft paginait par `limit` / `offset` SANS `order_by` : l'API ne garantit alors aucun ordre, des lignes reviennent deux fois et d'autres jamais (jeu `dgfip-taux-de-change`, Haïti : 321 lignes reçues, 297 distinctes, faux dix fois sur dix), et le compte reste juste. La première page, émise comme avant, sert de sonde ; puisqu'il y en a d'autres, la lecture repart sur un ordre TOTAL — toutes les colonnes triables du jeu, lues dans ses métadonnées. Les 450 lignes arrivent une fois chacune, dans cet ordre (ici celui de `id`, première colonne du jeu).",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${sourceOdsExAequo('s-ods-complet')}
+  <dsfr-data-kpi id="k-ods-complet" source="s-ods-complet" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'rows', id: 's-ods-complet', key: 'id', columns: ['nombre'], pipeline: [] },
+      // Le compte reste juste quand des lignes sont perdues : c'est la somme
+      // des identifiants qui trahit celles qui manquent et celles qui reviennent.
+      { kind: 'kpi', id: 'k-ods-complet', agg: 'sum', field: 'id' },
+      {
+        kind: 'urls',
+        id: 'pagination-sur-toutes-les-colonnes',
+        among: RECORDS_ODS_EX_AEQUO,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: 'order_by=id, categorie, nombre',
+        verdict: 'last',
+      },
+      {
+        kind: 'urls',
+        id: 'cinq-pages-lues',
+        among: RECORDS_ODS_EX_AEQUO,
+        contains: 'offset=400',
+        verdict: 'last',
+      },
+      { kind: 'diagnostic', id: 's-ods-complet', expect: 'silence', contains: 'sans ordre total' },
+    ],
+  },
+
+  {
+    id: 'ods-pagination-complete-tri-non-total',
+    mode: 'deterministic',
+    origin:
+      "#1274 — le même chargement avec un `order-by` de l'intégrateur sur une clé non unique (`nombre`, cinq valeurs pour 450 lignes). Le tri seul a été juste dix fois sur dix dans la mesure de l'issue, mais il n'est pas total et rien ne garantit l'ordre de ses ex-æquo : le faux portail les retourne d'une page à l'autre. L'adaptateur garde le tri demandé EN TÊTE et le complète des autres colonnes triables (`nombre DESC, id, categorie`) : 450 lignes distinctes, triées, les ex-æquo dans l'ordre de `id`.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${sourceOdsExAequo('s-ods-trie', 'order-by="nombre:desc"')}
+  <dsfr-data-kpi id="k-ods-trie" source="s-ods-trie" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-ods-trie',
+        key: 'id',
+        columns: ['nombre'],
+        pipeline: [TRI_NOMBRE_PUIS_ID],
+      },
+      { kind: 'kpi', id: 'k-ods-trie', agg: 'sum', field: 'id' },
+      {
+        kind: 'urls',
+        id: 'tri-demande-en-tete-puis-cle-de-departage',
+        among: RECORDS_ODS_EX_AEQUO,
+        contains: 'order_by=nombre DESC, id, categorie',
+        verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'ods-pagination-tronquee-ordre-total',
+    mode: 'deterministic',
+    origin:
+      '#1274 — un chargement TRONQUÉ ne relit jamais le jeu entier : seul le serveur peut en donner les PREMIÈRES lignes, et il lui faut un ordre total pour les donner une fois chacune. Deux coupes sur 450 lignes : `max-records="250"` avec un tri non total (les 250 premières de `nombre` décroissant puis `id`), et `limit="250"` sans tri (les 250 premières de la clé de départage, donc de `id`). Le chiffre qui les tient est la somme des identifiants des lignes livrées.',
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${sourceOdsExAequo('s-ods-plafond', 'order-by="nombre:desc" max-records="250"')}
+  <dsfr-data-kpi id="k-ods-plafond" source="s-ods-plafond" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>
+  ${sourceOdsExAequo('s-ods-limite', 'limit="250"')}
+  <dsfr-data-kpi id="k-ods-limite" source="s-ods-limite" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-ods-plafond',
+        key: 'id',
+        columns: ['nombre'],
+        pipeline: [TRI_NOMBRE_PUIS_ID, { op: 'limit', n: 250 }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-ods-plafond',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [TRI_NOMBRE_PUIS_ID, { op: 'limit', n: 250 }],
+      },
+      {
+        kind: 'rows',
+        id: 's-ods-limite',
+        key: 'id',
+        columns: ['nombre'],
+        pipeline: [{ op: 'limit', n: 250 }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-ods-limite',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [{ op: 'limit', n: 250 }],
+      },
+    ],
+  },
+
+  {
+    id: 'ods-pagination-serveur-page-deux',
+    mode: 'deterministic',
+    origin:
+      "#1274 — en pagination serveur (`server-side`) les pages sont servies une à une et le jeu n'est jamais relu : le défaut y est plus marqué (321 lignes feuilletées par 10 sans tri : 237 à 254 distinctes), et un usager qui feuillette voit des doublons sans jamais voir une partie des lignes. Chaque page part sur l'ordre total. Deux tableaux, pages de 40, lus à la page DEUX — une pagination fausse ne se voit jamais sur la première : sans tri (lignes 41 à 80 dans l'ordre de `id`), et trié sur `nombre`, clé non unique (lignes 41 à 80 de `nombre` décroissant puis `id`).",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${sourceOdsExAequo('s-ods-page', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-ods-page" source="s-ods-page" columns="id:Identifiant, nombre:Nombre"
+    server-sort></dsfr-data-list>
+  ${sourceOdsExAequo('s-ods-page-triee', `order-by="nombre:desc" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-ods-page-triee" source="s-ods-page-triee" columns="id:Identifiant, nombre:Nombre"
+    server-sort></dsfr-data-list>`,
+    actions: [
+      { kind: 'click', selector: '#l-ods-page .fr-pagination__link--next' },
+      { kind: 'click', selector: '#l-ods-page-triee .fr-pagination__link--next' },
+    ],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-ods-page',
+        columns: [
+          { column: 'id', numeric: true },
+          { column: 'nombre', numeric: true },
+        ],
+        pipeline: [{ op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        kind: 'list',
+        id: 'l-ods-page-triee',
+        columns: [
+          { column: 'id', numeric: true },
+          { column: 'nombre', numeric: true },
+        ],
+        pipeline: [TRI_NOMBRE_PUIS_ID, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        kind: 'urls',
+        id: 'chaque-page-sur-un-ordre-total',
+        among: RECORDS_ODS_EX_AEQUO,
+        contains: 'id, categorie',
+        verdict: 'all',
+      },
+      { kind: 'diagnostic', id: 's-ods-page', expect: 'silence', contains: 'sans ordre total' },
+    ],
+  },
+
+  {
+    id: 'ods-page-unique-inchangee',
+    mode: 'deterministic',
+    origin:
+      "#1274 — le garde-fou ne coûte rien à qui n'en a pas besoin. Un chargement qui tient en UNE page (ici 90 lignes sur 450, `nombre = 0`) ne pagine pas : aucun tri n'est ajouté, aucune requête de plus ne part — ni relecture, ni lecture des métadonnées du jeu —, et les lignes arrivent dans l'ordre de l'API, comme avant. De même avec `fetch-mode=\"export\"`, qui rend le jeu en une requête et n'a jamais été touché par le défaut.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${sourceOdsExAequo('s-ods-une-page', 'where="nombre = 0"')}
+  <dsfr-data-kpi id="k-ods-une-page" source="s-ods-une-page" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>
+  ${sourceOdsExAequo('s-ods-export', 'fetch-mode="export"')}
+  <dsfr-data-kpi id="k-ods-export" source="s-ods-export" value="id:sum" format="nombre"
+    label="Somme des identifiants"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 's-ods-une-page',
+        key: 'id',
+        columns: ['nombre'],
+        pipeline: [{ op: 'filter', filters: [{ field: 'nombre', op: 'eq', value: 0 }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-ods-une-page',
+        agg: 'sum',
+        field: 'id',
+        pipeline: [{ op: 'filter', filters: [{ field: 'nombre', op: 'eq', value: 0 }] }],
+      },
+      { kind: 'rows', id: 's-ods-export', key: 'id', columns: ['nombre'], pipeline: [] },
+      { kind: 'kpi', id: 'k-ods-export', agg: 'sum', field: 'id' },
+      {
+        kind: 'urls',
+        id: 'aucun-tri-ajoute',
+        among: JEU_ODS_EX_AEQUO,
+        contains: 'order_by',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'aucune-relecture',
+        among: JEU_ODS_EX_AEQUO,
+        contains: 'offset=',
+        verdict: 'none',
+      },
+      {
+        // Deux requêtes en tout, une par source : ni l'une ni l'autre ne lit
+        // les métadonnées du jeu (`/datasets/jeu-ex-aequo` sans suite)
+        kind: 'urls',
+        id: 'aucune-lecture-de-metadonnees',
+        among: JEU_ODS_EX_AEQUO,
+        contains: `${JEU_ODS_EX_AEQUO}/`,
+        verdict: 'all',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-tri-serveur-page-deux',
+    mode: 'deterministic',
+    constats: ['PG-033'],
+    origin:
+      "#1233, PG-033 du banc, ce qui restait — en pagination serveur (`server-side`), aucun des garde-fous du chargement complet ne jouait sur l'adaptateur Tabular : un tri sur une clé non unique y restait instable d'une page à l'autre, sans avertissement. Le jeu n'y est jamais relu, seul le serveur peut tenir l'ordre : le tri demandé reçoit la clé de départage déjà écrite pour le chargement tronqué (`nombre__sort=desc,\"__id\".asc`). Tableau de 450 lignes, pages de 40, lu à la page DEUX : les lignes 41 à 80 de `nombre` décroissant puis rang de la ligne. Le faux serveur retourne les ex-æquo sur les pages paires, comme l'API.",
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-tab-page-triee" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
+    order-by="nombre:desc" server-side page-size="${TAILLE_PAGE}"></dsfr-data-source>
+  <dsfr-data-list id="l-tab-page-triee" source="s-tab-page-triee" columns="id:Identifiant, nombre:Nombre"
+    server-sort></dsfr-data-list>`,
+    actions: [{ kind: 'click', selector: '#l-tab-page-triee .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-tab-page-triee',
+        columns: [
+          { column: 'id', numeric: true },
+          { column: 'nombre', numeric: true },
+        ],
+        pipeline: [TRI_NOMBRE_PUIS_ID, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        kind: 'urls',
+        id: 'tri-de-page-avec-cle-de-departage',
+        among: DATA_EX_AEQUO,
+        contains: 'nombre__sort=desc,"__id".asc',
+        verdict: 'all',
+      },
+      { kind: 'diagnostic', id: 's-tab-page-triee', expect: 'silence', contains: 'PG-033' },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // 5. Sans adaptateur : le même balisage, tout côté client
 // ---------------------------------------------------------------------------
 
@@ -1798,13 +2076,18 @@ const PART_PAR_GROUPE: Check[] = [
     markup: `
   ${sourceOds('s-part-page', { serverSide: true })}${BALISAGE_PART_PAR_PAYS('q-part-page', 's-part-page')}`,
     expects: [
-      // La page est arrivée : la requête a donc été servie, et a refusé.
+      // La page est arrivée : la requête a donc été servie, et a refusé. C'est
+      // la première page de l'ordre total sur lequel la source pagine (#1274) :
+      // les colonnes du jeu, donc `region`.
       {
         kind: 'rows',
         id: 's-part-page',
         key: 'region',
         columns: ['population'],
-        pipeline: [{ op: 'limit', n: TAILLE_PAGE }],
+        pipeline: [
+          { op: 'order-by', column: 'region', dir: 'asc' },
+          { op: 'limit', n: TAILLE_PAGE },
+        ],
       },
       {
         kind: 'diagnostic',
@@ -2052,6 +2335,11 @@ const RELAIS_CACHABLE: Check[] = [
  * l'ORDRE des lignes rendues, relu dans un tableau — `rows` compare par clé et
  * ne verrait pas un tri sauté.
  *
+ * Depuis #1274, une source Opendatasoft de plus d'une page pagine sur un
+ * ordre total et porte donc un `order_by` de départage (toutes les colonnes
+ * triables du jeu) : ces contrôles exigent l'absence de la colonne CALCULÉE
+ * dans l'URL, plus celle de tout `order_by`.
+ *
  * Les 137 territoires arrivent par population DÉCROISSANTE : les tris demandés
  * sont croissants, pour qu'un tri sauté ne ressemble pas à un tri fait.
  */
@@ -2101,7 +2389,7 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
     markup: BALISAGE_PART_CROISSANTE(sourceOds('s-tri-part')),
     expects: [
       ...ATTENTES_PART_CROISSANTE('q-tri-part', 'l-tri-part'),
-      urlsDe('tri-sur-part-non-delegue', 'ods', 'order_by', 'none'),
+      urlsDe('tri-sur-part-non-delegue', 'ods', 'population__share_percent', 'none'),
     ],
   },
 
@@ -2181,7 +2469,7 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
           { op: 'order-by', column: 'part', dir: 'asc' },
         ],
       },
-      urlsDe('tri-sur-part-non-delegue', 'ods', 'order_by', 'none'),
+      urlsDe('tri-sur-part-non-delegue', 'ods', 'order_by=part', 'none'),
     ],
   },
 
@@ -2189,7 +2477,7 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
     id: 'tri-sur-cumul-et-ecart-jamais-delegue',
     mode: 'deterministic',
     origin:
-      '#1244 — même défaut sur les CUMULS : `order-by` sur `population__running_sum` ou `population__diff` partait au serveur et n’était pas appliqué. Un cumul trié sur lui-même est calculé dans l’ordre REÇU, puis trié : les cinq plus grands cumuls sont les cinq dernières lignes reçues, dans l’ordre inverse. La bibliothèque le dit (le cumul suit l’ordre des lignes reçues, faute d’une clé de tri qui le précède).',
+      '#1244 — même défaut sur les CUMULS : `order-by` sur `population__running_sum` ou `population__diff` partait au serveur et n’était pas appliqué. Un cumul trié sur lui-même est calculé dans l’ordre REÇU, puis trié : les cinq plus grands cumuls sont les cinq dernières lignes reçues, dans l’ordre inverse. La bibliothèque le dit (le cumul suit l’ordre des lignes reçues, faute d’une clé de tri qui le précède). Depuis #1274, l’ordre reçu d’une source Opendatasoft de plus d’une page est celui de sa clé de départage — les colonnes du jeu, donc ici `region` — et non plus celui, arbitraire, de l’API : le cumul de ce contrôle a changé avec lui, ce qui est exactement ce qu’une page existante qui cumule sans trier constate.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
     markup: `
   ${sourceOds('s-tri-cumul')}
@@ -2208,6 +2496,8 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
         id: 'l-tri-cumul',
         columns: [{ column: 'region' }, { column: 'population__running_sum', numeric: true }],
         pipeline: [
+          // L'ordre reçu : la clé de départage de la pagination (#1274)
+          { op: 'order-by', column: 'region', dir: 'asc' },
           {
             op: 'running',
             from: 'population',
@@ -2244,7 +2534,7 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
           { op: 'limit', n: 5 },
         ],
       },
-      urlsDe('tri-sur-cumul-non-delegue', 'ods', 'order_by', 'none'),
+      urlsDe('tri-sur-cumul-non-delegue', 'ods', 'population__running_sum', 'none'),
       urlsDe('tri-sur-ecart-non-delegue', 'tabular', '__sort', 'none'),
     ],
   },
@@ -2274,7 +2564,7 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
           { op: 'limit', n: 5 },
         ],
       },
-      urlsDe('tri-sur-compute-non-delegue', 'ods', 'order_by', 'none'),
+      urlsDe('tri-sur-compute-non-delegue', 'ods', 'double', 'none'),
     ],
   },
 ];
@@ -2289,6 +2579,7 @@ export const DELEGATION: Manifest = {
     ...TRI_INITIAL,
     ...TRANSIT,
     ...TABULAR_PERTES,
+    ...PAGINATION_ORDRE_TOTAL,
     ...SANS_ADAPTATEUR,
     ...TABULAR_API,
     ...TABULAR_TRI_AGREGAT,

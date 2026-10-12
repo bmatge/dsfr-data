@@ -462,7 +462,8 @@ export const examples: Record<string, string> = {
   <dsfr-data-source id="browse" api-type="opendatasoft"
     dataset-id="industrie-du-futur"
     base-url="https://data.economie.gouv.fr"
-    server-side page-size="20">
+    server-side page-size="20"
+    order-by="nom_departement:asc">
   </dsfr-data-source>
 
   <!-- Source 2 : chargement complet pour les KPI globaux (101 records) -->
@@ -792,7 +793,8 @@ export const examples: Record<string, string> = {
 
   <dsfr-data-source id="raw" api-type="opendatasoft"
     dataset-id="industrie-du-futur"
-    base-url="https://data.economie.gouv.fr">
+    base-url="https://data.economie.gouv.fr"
+    order-by="nom_departement:asc">
   </dsfr-data-source>
 
   <dsfr-data-normalize id="clean" source="raw"
@@ -892,7 +894,8 @@ export const examples: Record<string, string> = {
   <dsfr-data-source id="q" api-type="opendatasoft"
     dataset-id="industrie-du-futur"
     base-url="https://data.economie.gouv.fr"
-    server-side page-size="6">
+    server-side page-size="6"
+    order-by="nom_departement:asc">
   </dsfr-data-source>
 
   <dsfr-data-display source="q" cols="3" pagination="6">
@@ -1080,7 +1083,8 @@ export const examples: Record<string, string> = {
   <dsfr-data-source id="q" api-type="opendatasoft"
     dataset-id="industrie-du-futur"
     base-url="https://data.economie.gouv.fr"
-    server-side page-size="9">
+    server-side page-size="9"
+    order-by="nom_departement:asc">
   </dsfr-data-source>
 
   <dsfr-data-search id="s" source="q"
@@ -1353,7 +1357,8 @@ export const examples: Record<string, string> = {
   <dsfr-data-source id="q" server-side page-size="12"
     api-type="opendatasoft"
     dataset-id="industrie-du-futur"
-    base-url="https://data.economie.gouv.fr">
+    base-url="https://data.economie.gouv.fr"
+    order-by="nom_departement:asc">
   </dsfr-data-source>
 
   <dsfr-data-search source="q" server-search
@@ -1814,7 +1819,8 @@ export const examples: Record<string, string> = {
     dataset-id="prix-controle-technique"
     where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
     select="latitude,longitude"
-    limit="1000">
+    limit="1000"
+    order-by="cct_siret:asc">
   </dsfr-data-source>
 
   <!-- Source detaillee pour les marqueurs (200 points, tries par prix) -->

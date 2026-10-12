@@ -99,6 +99,12 @@
           avec <code>cluster</code>. La librairie <code>leaflet.markercluster</code>
           est chargee dynamiquement. Ici, 5000 centres de controle technique.
         </p>
+        <p>
+          Avec un <code>limit</code>, c'est <code>order-by</code> qui dit quelles lignes sont retenues : ici les
+          5000 premiers centres dans l'ordre de leur SIRET, un identifiant sans rapport avec la géographie, donc
+          un échantillon réparti sur le territoire. Sans <code>order-by</code>, sur Opendatasoft, ce seraient les
+          premières lignes dans l'ordre des colonnes du jeu.
+        </p>
 
         <h4>5000 centres avec clustering</h4>
         <div class="example-loading" data-example>Chargement...</div>
@@ -110,7 +116,8 @@
   dataset-id="prix-controle-technique"
   where="cat_vehicule_id=1 AND cat_energie_id=1"
   select="cct_denomination,cct_commune,latitude,longitude,prix_visite"
-  limit="5000"&gt;
+  limit="5000"
+  order-by="cct_siret:asc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-map center="46.6,2.3" zoom="6" tiles="ign-plan" height="500px"&gt;
@@ -182,7 +189,8 @@
   dataset-id="prix-controle-technique"
   where="cat_vehicule_id=1 AND cat_energie_id=1 AND code_region=11"
   select="latitude,longitude,prix_visite"
-  limit="1000"&gt;
+  limit="1000"
+  order-by="cct_siret:asc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-map center="48.86,2.35" zoom="10" tiles="ign-cadastre" height="500px"&gt;

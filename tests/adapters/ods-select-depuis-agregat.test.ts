@@ -135,11 +135,16 @@ describe('#859 — ODS : le select est compose depuis l’agregat', () => {
       aggregate: 'montant:sum',
     });
 
+    // Colonnes du jeu connues sans requête (#1274) : une seule réponse simulée
+    const types = vi
+      .spyOn(adapter, 'describeFieldTypes')
+      .mockResolvedValue({ periode: 'text', montant: 'number' });
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ results: [{ an: '2024', montant: 10 }], total_count: 1 }),
     });
     const result = await adapter.fetchPage(params, overlay(), new AbortController().signal);
+    types.mockRestore();
 
     expect(result.needsClientProcessing).toBe(true);
     // Sans group_by, `total_count` redevient un nombre de LIGNES fiable

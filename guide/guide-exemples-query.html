@@ -419,7 +419,8 @@
 <pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="100"&gt;
+  server-side page-size="100"
+  order-by="date_publication:desc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query id="q" source="src"
@@ -443,7 +444,8 @@
 <pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="100"&gt;
+  server-side page-size="100"
+  order-by="date_publication:desc"&gt;
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query id="q" source="src"
@@ -612,6 +614,12 @@
           Avec <code>server-side</code>, <code>dsfr-data-source</code> ne charge qu'<strong>une page</strong> a la fois
           et ecoute les commandes des composants en aval (pagination, recherche, tri).
           C'est utile pour les gros datasets ou la recherche full-text doit etre deleguee au serveur.
+        </p>
+        <p>
+          Posez un <code>order-by</code> sur la source : c'est lui qui dit quelles lignes ouvrent la première page
+          (ici <code>date_publication:desc</code>, les rappels les plus récents). Sans <code>order-by</code>, sur
+          Opendatasoft, les lignes arrivent dans l'ordre des colonnes du jeu — la source pagine sur un ordre
+          total pour ne perdre aucune ligne d'une page à l'autre —, ce qui est rarement l'ordre qu'un lecteur attend.
         </p>
         <div class="fr-callout fr-callout--blue-ecume fr-mb-3w">
           <p class="fr-callout__text">

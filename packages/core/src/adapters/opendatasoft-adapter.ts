@@ -15,6 +15,7 @@ import type {
   AdapterCapabilities,
   AdapterParams,
   FetchResult,
+  FetchCaveat,
   ServerSideOverlay,
   FacetResult,
   FacetDescriptor,
@@ -107,6 +108,26 @@ function buildFetchOptions(
     opts.headers = normalizeProviderAuthHeaders(apiUrl, params.headers).headers;
   }
   return opts;
+}
+
+/**
+ * Types normalises sur lesquels l'API sait trier (#1274) — voir
+ * `_sortableColumns`. `geo` et `other` (geometrie, fichier, JSON) en sont
+ * exclus : l'API refuse d'y trier.
+ */
+const SORTABLE_KINDS: ReadonlySet<FieldKind> = new Set<FieldKind>([
+  'text',
+  'number',
+  'date',
+  'bool',
+]);
+
+/** L'API a refuse la premiere requete portant un ordre total compose (#1274). */
+class TotalOrderRefused extends Error {}
+
+/** Une annulation (changement de page, source retiree) n'est pas un refus. */
+function isAbortError(err: unknown, signal?: AbortSignal): boolean {
+  return signal?.aborted === true || (err instanceof Error && err.name === 'AbortError');
 }
 
 /** Nombre max de records par requête ODS */
@@ -266,6 +287,20 @@ function splitOdsqlAlias(item: string): { expr: string; alias: string } | null {
 }
 
 /**
+ * Nom sous lequel une cle de `group_by` se trie (#1274) : l'alias d'une
+ * expression aliasee (`year(date) as annee` → `annee`), le champ lui-meme
+ * pour un nom simple — nus, l'appelant echappe. `null` pour une expression
+ * sans alias, qui n'a pas de nom dans la reponse.
+ */
+function odsqlGroupKey(item: string): string | null {
+  const aliased = splitOdsqlAlias(item);
+  if (aliased) return aliased.alias;
+  const bare = item.replace(/`/g, '').trim();
+  if (!bare || isOdsqlExpression(bare)) return null;
+  return bare;
+}
+
+/**
  * Colonnes que SEUL le `select` de la source sait produire (#859) : un alias
  * pose sur une expression (`year(date) as annee`, `count(*) as total`), qui
  * n'existe pas comme champ du jeu de donnees. Un `periode as an` compte aussi :
@@ -400,8 +435,32 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       if (exported) return { ...exported, needsClientProcessing: delegationRefusee };
     }
 
+    return this._fetchRecords(params, signal, delegationRefusee, null);
+  }
+
+  /**
+   * La pagination `/records` elle-meme (voir `fetchAll`).
+   *
+   * `totalOrder` : l'`order_by` compose par `_totalOrder` quand cet appel est
+   * la relecture qui le porte ; `null` pour le chargement ordinaire, dont la
+   * premiere page — emise comme avant, sans rien ajouter — sert de sonde
+   * (#1274). Une seule page : rien ne change. Plusieurs : la pagination par
+   * `offset` n'est sure que sur un ordre TOTAL, et la lecture repart du debut
+   * avec lui (une requete de plus, la sonde, et une lecture des metadonnees du
+   * jeu, memorisee). Si l'API refuse cet ordre, ou s'il ne peut pas s'ecrire,
+   * la pagination historique continue depuis la sonde, et c'est DIT : en
+   * console et par la reserve `unstable-pagination`.
+   */
+  private async _fetchRecords(
+    params: AdapterParams,
+    signal: AbortSignal,
+    delegationRefusee: boolean,
+    totalOrder: string | null
+  ): Promise<FetchResult> {
     const fetchAllRecords = params.limit <= 0;
     const isGrouped = Boolean(params.groupBy) && !delegationRefusee;
+    // Pagination par offset gardee sans ordre total (#1274)
+    let unstable = false;
     // max-records (#233) : plafond configurable — le 1000 historique n'est
     // PAS une limite de l'API ODS, defaut conserve en garde-fou
     const maxRecords =
@@ -411,6 +470,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
     const maxPages = Math.ceil(maxRecords / ODS_PAGE_SIZE);
     const requestedLimit = fetchAllRecords ? maxRecords : params.limit;
     const pageSize = ODS_PAGE_SIZE;
+    const datasetKey = this._datasetKey(params);
     let allResults: unknown[] = [];
     let offset = 0;
     let totalCount = -1;
@@ -420,13 +480,33 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       const remaining = requestedLimit - allResults.length;
       if (remaining <= 0) break;
 
-      const apiUrl = this.buildUrl(params, Math.min(pageSize, remaining), offset);
+      const apiUrl = this.buildUrl(
+        params,
+        Math.min(pageSize, remaining),
+        offset,
+        totalOrder ?? undefined
+      );
       const url = resolveTransportUrl(apiUrl, params);
 
-      const response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
+      // La PREMIERE requete qui porte l'ordre total dit si l'API l'accepte :
+      // un refus (400, ou erreur reseau quand l'erreur part sans en-tete CORS)
+      // rend la main a l'appelant, qui replie. Une fois l'ordre accepte pour
+      // ce jeu, une panne est une panne et remonte.
+      const probesTotalOrder =
+        page === 0 && totalOrder !== null && !this._totalOrderAccepted.has(datasetKey);
+      let response: Response;
+      try {
+        response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
+      } catch (err) {
+        if (probesTotalOrder && !isAbortError(err, signal)) throw new TotalOrderRefused();
+        throw err;
+      }
       if (!response.ok) {
+        releaseBody(response);
+        if (probesTotalOrder) throw new TotalOrderRefused();
         throw httpError(response);
       }
+      if (totalOrder !== null) this._totalOrderAccepted.add(datasetKey);
 
       const json = await response.json();
       const pageResults = json.results || [];
@@ -439,6 +519,34 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
       if ((totalCount >= 0 && allResults.length >= totalCount) || pageResults.length < pageSize) {
         break;
+      }
+
+      // Une page de plus va etre lue (#1274) : la sonde ne suffit pas. L'API
+      // ne garantit aucun ordre sans `order_by`, et ne departage pas les
+      // ex-aequo d'un tri non total : d'une page a l'autre des lignes
+      // reviennent deux fois et d'autres jamais, a compte juste (mesure de
+      // l'issue : 321 lignes recues, 297 distinctes). La lecture repart donc
+      // du debut sur un ordre total.
+      if (
+        page === 0 &&
+        totalOrder === null &&
+        page + 1 < maxPages &&
+        requestedLimit > allResults.length
+      ) {
+        const order = await this._totalOrder(params, params.orderBy, isGrouped);
+        if (order === null || this._totalOrderRefused.has(datasetKey)) {
+          unstable = true;
+          this._warnUnstablePagination(params, order === null ? 'sans-cle' : 'refus');
+        } else if (order !== '') {
+          try {
+            return await this._fetchRecords(params, signal, delegationRefusee, order);
+          } catch (err) {
+            if (!(err instanceof TotalOrderRefused)) throw err;
+            this._totalOrderRefused.add(datasetKey);
+            unstable = true;
+            this._warnUnstablePagination(params, 'refus');
+          }
+        }
       }
 
       offset += pageResults.length;
@@ -476,7 +584,152 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       totalCount: isGrouped ? undefined : totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: delegationRefusee,
       ...(groupedAtCap ? { truncated: true } : {}),
+      ...(unstable ? { caveats: ['unstable-pagination'] as FetchCaveat[] } : {}),
     };
+  }
+
+  /**
+   * Jeux pour lesquels l'API a refuse (`_totalOrderRefused`) ou accepte
+   * (`_totalOrderAccepted`) un ordre total compose (#1274). Un refus est
+   * retenu : l'ordre n'est plus redemande pour ce jeu, la pagination reste
+   * celle d'avant, avec sa reserve. Une acceptation l'est aussi : une panne
+   * ulterieure n'est alors plus prise pour un refus.
+   */
+  private readonly _totalOrderRefused = new Set<string>();
+  private readonly _totalOrderAccepted = new Set<string>();
+
+  /** Colonnes triables deja lues, par jeu — pour `buildServerSideUrl`, synchrone. */
+  private readonly _sortableFields = new Map<string, string[]>();
+
+  /** Jeux deja signales en console pour leur pagination sans ordre total. */
+  private readonly _unstableWarned = new Set<string>();
+
+  /** Oublie ce que l'adaptateur a retenu de l'ordre total (tests). */
+  resetTotalOrderState(): void {
+    this._totalOrderRefused.clear();
+    this._totalOrderAccepted.clear();
+    this._sortableFields.clear();
+    this._unstableWarned.clear();
+  }
+
+  /**
+   * Colonnes du jeu sur lesquelles l'API sait trier (#1274), dans l'ordre de
+   * ses champs : celles dont le type declare est un texte, un nombre, une
+   * date ou un booleen. Liste BLANCHE : un tri sur une geometrie est refuse
+   * (mesure du 2026-10-12, `order_by=geo_point_2d` et `order_by=geom` →
+   * 400 « Invalid field to sort on »), et un seul champ refuse fait tomber
+   * toute la requete. Lues dans les metadonnees du jeu, la meme requete
+   * memorisee que `describeFieldTypes`.
+   */
+  private async _sortableColumns(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId' | 'headers' | 'proxyUrl' | 'relayUrl'>
+  ): Promise<string[]> {
+    const key = this._datasetKey(params);
+    const known = this._sortableFields.get(key);
+    if (known) return known;
+    const types = await this.describeFieldTypes(params);
+    const fields = Object.entries(types)
+      .filter(([, kind]) => SORTABLE_KINDS.has(kind))
+      .map(([name]) => name);
+    this._sortableFields.set(key, fields);
+    return fields;
+  }
+
+  /**
+   * `order_by` qui rend l'ordre TOTAL (#1274) : le tri demande, inchange et
+   * en tete, puis une cle de departage. `''` quand il n'y a rien a ajouter,
+   * `null` quand la cle ne peut pas s'ecrire.
+   *
+   * Cle de departage :
+   * - lignes brutes : toutes les colonnes triables du jeu que le tri ne nomme
+   *   pas deja (`_sortableColumns`). L'API n'a pas d'identifiant de ligne
+   *   DOCUMENTE. Un champ `_record_id` existe bien et se trie (mesure du
+   *   2026-10-12, data.economie.gouv.fr et data.opendatasoft.com), mais il
+   *   n'est dans aucune documentation, et son tri coute le parcours de toutes
+   *   les lignes retenues : 29,7 s a froid sur 1,7 million de lignes
+   *   (`signalconso`), contre 5,5 s pour un tri sur ses quinze colonnes et
+   *   0,2 s sans tri. Deux lignes egales sur TOUTES les colonnes triables
+   *   restent indiscernables : leur permutation ne change rien, sauf si elles
+   *   ne different que par une colonne non triable (geometrie, fichier) ;
+   * - groupes tries : les cles du `group_by` que le tri ne nomme pas — la cle
+   *   de groupe est unique. Sans tri, des groupes sortent deja ordonnes par
+   *   leur cle (mesure : 262 groupes sur trois pages, tous distincts, deja
+   *   tries) : rien n'est ajoute.
+   */
+  private async _totalOrder(
+    params: AdapterParams,
+    orderBy: string,
+    grouped: boolean
+  ): Promise<string | null> {
+    // Des groupes n'ont pas besoin des colonnes du jeu : pas de requete.
+    const columns = grouped ? [] : await this._sortableColumns(params);
+    return this._composeTotalOrder(params, orderBy, grouped, columns);
+  }
+
+  /**
+   * L'ordre total d'une page, SANS requete : `''` tant que les colonnes du
+   * jeu n'ont pas ete lues (lignes brutes) ou que l'API a refuse l'ordre.
+   */
+  private _knownTotalOrder(params: AdapterParams, orderBy: string): string {
+    const key = this._datasetKey(params);
+    if (this._totalOrderRefused.has(key)) return '';
+    const grouped = Boolean(params.groupBy) && this._delegatesGroupBy(params);
+    const columns = this._sortableFields.get(key);
+    if (!grouped && !columns) return '';
+    return this._composeTotalOrder(params, orderBy, grouped, columns ?? []) ?? '';
+  }
+
+  /** `_totalOrder`, les colonnes triables du jeu etant deja connues. */
+  private _composeTotalOrder(
+    params: AdapterParams,
+    orderBy: string,
+    grouped: boolean,
+    columns: string[]
+  ): string | null {
+    const parts = parseOrderBy(orderBy || '');
+    const sorted = new Set(parts.map((p) => p.field.replace(/`/g, '').trim()));
+    let tie: string[];
+    if (grouped) {
+      if (parts.length === 0) return '';
+      const keys = splitOdsqlList(params.groupBy).map(odsqlGroupKey);
+      if (keys.some((k) => k === null)) return null;
+      tie = (keys as string[]).filter((k) => !sorted.has(k));
+      if (tie.length === 0) return '';
+    } else {
+      // Aucune colonne lue (metadonnees illisibles, jeu sans colonne triable) :
+      // pas de cle.
+      if (columns.length === 0) return null;
+      tie = columns.filter((f) => !sorted.has(f));
+      // Le tri nomme deja toutes les colonnes triables : il est aussi total
+      // qu'il peut l'etre.
+      if (tie.length === 0) return '';
+    }
+    return [
+      ...parts.map((p) => `${p.field} ${p.direction.toUpperCase()}`),
+      ...tie.map(escapeOdsqlIdentifier),
+    ].join(', ');
+  }
+
+  /**
+   * Pagination par offset gardee sans ordre total (#1274) : dit une fois par
+   * jeu, en nommant la cause et l'issue.
+   */
+  private _warnUnstablePagination(
+    params: Pick<AdapterParams, 'baseUrl' | 'datasetId'>,
+    cause: 'refus' | 'sans-cle'
+  ): void {
+    const key = this._datasetKey(params);
+    if (this._unstableWarned.has(key)) return;
+    this._unstableWarned.add(key);
+    console.warn(
+      `[dsfr-data] opendatasoft: pagination de "${params.datasetId}" sans ordre total — ` +
+        (cause === 'refus'
+          ? `l'API a refusé le tri de départage ajouté par l'adaptateur`
+          : `aucune clé de départage n'a pu être écrite (colonnes du jeu illisibles, ou clé de regroupement sans alias)`) +
+        ` : l'API pagine par offset sans garantir l'ordre, des lignes peuvent manquer ou revenir ` +
+        `deux fois d'une page à l'autre, à compte juste. Posez un order-by sur une colonne ` +
+        `unique, ou chargez le jeu en une requête avec fetch-mode="export" (#1274).`
+    );
   }
 
   /**
@@ -512,22 +765,58 @@ export class OpenDataSoftAdapter implements ApiAdapter {
   /**
    * Fetch une seule page en mode server-side. Avec `group_by`, `total_count`
    * n'est pas fiable (taille de page, #641) : `totalCount` reste inconnu.
+   *
+   * Chaque page est demandee sur un ordre TOTAL (#1274) : le tri de l'overlay
+   * puis la cle de departage de `_totalOrder`. Les pages sont servies une a
+   * une, le jeu n'est jamais relu : seul le serveur peut tenir l'ordre d'une
+   * page a l'autre (mesure de l'issue : 321 lignes feuilletees par 10 sans
+   * tri, 237 a 254 distinctes). Si l'API refuse cet ordre, la page est
+   * redemandee comme avant, et la reserve `unstable-pagination` le dit.
    */
   async fetchPage(
     params: AdapterParams,
     overlay: ServerSideOverlay,
     signal: AbortSignal
   ): Promise<FetchResult> {
-    const apiUrl = this.buildServerSideUrl(params, overlay);
-    const url = resolveTransportUrl(apiUrl, params);
     // Meme refus qu'en fetch complet (#859) : sans `group_by` dans l'URL, la
     // page est faite de lignes brutes et `total_count` redevient fiable.
     const delegationRefusee = this._warnSelectConflict(params);
+    const grouped = Boolean(params.groupBy) && !delegationRefusee;
+    const datasetKey = this._datasetKey(params);
 
-    const response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
-    if (!response.ok) {
-      throw httpError(response);
+    const order = await this._totalOrder(params, overlay.orderBy, grouped);
+    const request = async (totalOrder: string): Promise<Response> => {
+      const apiUrl = this.buildServerSideUrl(params, overlay, totalOrder);
+      const res = await transportFetch(
+        resolveTransportUrl(apiUrl, params),
+        buildFetchOptions(params, apiUrl, signal),
+        params
+      );
+      if (!res.ok) throw httpError(res);
+      return res;
+    };
+
+    let response: Response | null = null;
+    if (order && !this._totalOrderRefused.has(datasetKey)) {
+      try {
+        response = await request(order);
+        this._totalOrderAccepted.add(datasetKey);
+      } catch (err) {
+        // Une annulation n'est pas un refus ; un ordre deja accepte non plus.
+        if (isAbortError(err, signal) || this._totalOrderAccepted.has(datasetKey)) throw err;
+      }
     }
+    // Sans ordre total : la page d'avant. Si elle echoue aussi, la panne ne
+    // venait pas du tri ajoute — elle remonte, et rien n'est retenu.
+    let unstable = order === null;
+    if (!response) {
+      response = await request('');
+      if (order) {
+        this._totalOrderRefused.add(datasetKey);
+        unstable = true;
+      }
+    }
+    if (unstable) this._warnUnstablePagination(params, order === null ? 'sans-cle' : 'refus');
 
     const json = await response.json();
     const data = json.results || [];
@@ -543,6 +832,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       totalCount,
       needsClientProcessing: delegationRefusee,
       rawJson: json,
+      ...(unstable ? { caveats: ['unstable-pagination'] as FetchCaveat[] } : {}),
     };
   }
 
@@ -550,9 +840,17 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * Construit une URL ODS pour le fetch complet (avec pagination).
    * limitOverride et pageOrOffsetOverride controlent la pagination per-page.
    */
-  buildUrl(params: AdapterParams, limitOverride?: number, pageOrOffsetOverride?: number): string {
+  buildUrl(
+    params: AdapterParams,
+    limitOverride?: number,
+    pageOrOffsetOverride?: number,
+    totalOrder?: string
+  ): string {
     const url = new URL(`${this._datasetUrl(params)}/records`);
     this._applyOdsqlClauses(url, params);
+    // Ordre total (#1274) : compose par `_totalOrder`, il remplace le tri
+    // demande, qu'il reprend en tete.
+    if (totalOrder) url.searchParams.set('order_by', totalOrder);
 
     if (limitOverride !== undefined) {
       url.searchParams.set('limit', String(limitOverride));
@@ -588,8 +886,18 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * son propre tri), mais pose les memes parametres de passe-plat (#726) : un
    * `timezone` doit valoir sur un tableau pagine comme sur un chargement
    * complet, sinon activer `server-side` decalerait les dates en silence.
+   *
+   * `totalOrder` (#1274) : l'`order_by` compose par `_totalOrder`, pose par
+   * `fetchPage` ; `''` pour le tri de l'overlay seul (le repli). Absent
+   * (appel de diagnostic, hors chargement) : l'ordre total est recompose si
+   * les colonnes du jeu ont deja ete lues et que l'API ne l'a pas refuse —
+   * l'URL montree est alors celle qui part.
    */
-  buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string {
+  buildServerSideUrl(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    totalOrder?: string
+  ): string {
     const base = params.baseUrl || 'https://data.opendatasoft.com';
     const url = new URL(`${base}/api/explore/v2.1/catalog/datasets/${params.datasetId}/records`);
 
@@ -613,7 +921,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     // ORDER BY: overlay prioritaire, fallback statique
     const effectiveOrderBy = overlay.orderBy;
-    if (effectiveOrderBy) {
+    const composed = totalOrder ?? this._knownTotalOrder(params, effectiveOrderBy);
+    if (composed) {
+      url.searchParams.set('order_by', composed);
+    } else if (effectiveOrderBy) {
       url.searchParams.set('order_by', toOdsOrderBy(effectiveOrderBy));
     }
 

@@ -70,6 +70,11 @@ let errorSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   mockFetch.mockReset();
+  // Les colonnes du jeu sont connues sans requête : la lecture des
+  // métadonnées (#1274) ne consomme aucune des réponses simulées ici.
+  vi.spyOn(OpenDataSoftAdapter.prototype, 'describeFieldTypes').mockResolvedValue({
+    id: 'number',
+  });
   warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
   errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 });

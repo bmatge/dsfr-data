@@ -20,6 +20,7 @@ import {
   HOTES,
   RESSOURCES,
   repondreOdsExport,
+  repondreOdsMetadonnees,
   repondreOdsFacets,
   repondreOdsRecords,
   repondreTabular,
@@ -319,13 +320,19 @@ const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET_ADAPT}`;
 
 /** Métadonnées du jeu ODS du lot — source de la découverte de facettes (#680). */
 function repondreMetadonnees(): Record<string, unknown> {
+  // Les champs DECLARES, avec leurs facettes, en tete ; puis tous les autres
+  // champs du jeu, types — l'adaptateur en fait sa cle de departage pour
+  // paginer (#1274), et un champ absent d'ici y manquerait.
+  const declares = [
+    { name: 'pays_iso2', label: 'Pays', type: 'text', annotations: { facet: true } },
+    { name: 'academie', label: 'Académie', type: 'text', annotations: { facet: true } },
+    { name: 'population', label: 'Population', type: 'int' },
+  ];
+  const noms = new Set(declares.map((champ) => champ.name));
+  const tous = repondreOdsMetadonnees(TERRITOIRES_ADAPT).fields as Array<{ name: string }>;
   return {
     dataset_id: DATASET_ADAPT,
-    fields: [
-      { name: 'pays_iso2', label: 'Pays', type: 'text', annotations: { facet: true } },
-      { name: 'academie', label: 'Académie', type: 'text', annotations: { facet: true } },
-      { name: 'population', label: 'Population', type: 'int' },
-    ],
+    fields: [...declares, ...tous.filter((champ) => !noms.has(champ.name))],
   };
 }
 

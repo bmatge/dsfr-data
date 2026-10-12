@@ -65,7 +65,16 @@ function repondre(cible: string): Response {
       const offset = Number(q.get('offset') ?? '0');
       return json({ total_count: 150, results: lignes(Math.min(limit, 150 - offset), offset) });
     }
-    return json({ dataset_id: 'jeu', fields: [] });
+    // Métadonnées du jeu : l'adaptateur y lit les colonnes triables dont il
+    // fait sa clé de départage au-delà d'une page (#1274)
+    return json({
+      dataset_id: 'jeu',
+      fields: [
+        { name: 'id', type: 'int' },
+        { name: 'region', type: 'text' },
+        { name: 'n', type: 'int' },
+      ],
+    });
   }
 
   if (url.hostname === 'tabular-api.data.gouv.fr') {
@@ -180,11 +189,21 @@ describe('Opendatasoft à travers le relais', () => {
   it('pagination : chaque page est reconstruite puis réécrite (offset cumulé)', async () => {
     const r = await jouer(creer, { ...ODS, maxRecords: 500 }, (a, p) => a.fetchAll(p, signal()));
     exigerRelayeEgalDirect(r.direct, r.relaye);
-    expect(r.relaye).toHaveLength(2);
+    // La sonde, les métadonnées du jeu, puis les deux pages sur l'ordre total
+    // (#1274) : la clé de départage et la lecture des colonnes passent par le
+    // relais comme le reste.
+    expect(r.relaye).toHaveLength(4);
     expect(r.relaye[0].url).toBe(
       '/donnees-relais/portail.example/api/explore/v2.1/catalog/datasets/jeu/records?limit=100'
     );
-    expect(r.relaye[1].url).toContain('offset=100');
+    expect(r.relaye[1].url).toBe(
+      '/donnees-relais/portail.example/api/explore/v2.1/catalog/datasets/jeu'
+    );
+    for (const page of [r.relaye[2], r.relaye[3]]) {
+      expect(new URL(cibleDe(page.url)).searchParams.get('order_by')).toBe('id, region, n');
+    }
+    expect(r.relaye[2].url).not.toContain('offset=');
+    expect(r.relaye[3].url).toContain('offset=100');
     expect((r.resultatRelaye as FetchResult).data).toEqual((r.resultatDirect as FetchResult).data);
     expect((r.resultatRelaye as FetchResult).data).toHaveLength(150);
     // En direct, la clé part bien : hors relais, rien ne change
@@ -217,11 +236,15 @@ describe('Opendatasoft à travers le relais', () => {
       a.fetchPage(p, overlay, signal())
     );
     exigerRelayeEgalDirect(r.direct, r.relaye);
-    expect(r.relaye).toHaveLength(1);
-    expect(cibleDe(r.relaye[0].url)).toBe(
-      new OpenDataSoftAdapter().buildServerSideUrl(params(ODS), overlay)
+    // Les métadonnées du jeu, puis la page sur l'ordre total (#1274)
+    expect(r.relaye).toHaveLength(2);
+    expect(r.relaye[0].url).toBe(
+      '/donnees-relais/portail.example/api/explore/v2.1/catalog/datasets/jeu'
     );
-    expect(r.relaye[0].url).toContain('offset=40');
+    expect(cibleDe(r.relaye[1].url)).toBe(
+      new OpenDataSoftAdapter().buildServerSideUrl(params(ODS), overlay, 'id DESC, region, n')
+    );
+    expect(r.relaye[1].url).toContain('offset=40');
   });
 
   it('fetch-mode="export" : une URL au lieu de N pages, donc une entrée de cache', async () => {

@@ -4,7 +4,7 @@
 // Le faux amont de la suite de conformance (`fake-upstream.mjs`) est hostile et
 // ne sert pas de jeu. Celui-ci fait l'inverse : il sert 250 lignes à la façon
 // d'un portail Opendatasoft (`/records` paginé par `limit` / `offset`, `group_by`
-// avec une somme, `/exports/json`), pour qu'un adaptateur de la bibliothèque
+// avec une somme, `/exports/json`, métadonnées du jeu), pour qu'un adaptateur de la bibliothèque
 // puisse charger, paginer et déléguer un regroupement À TRAVERS le relais.
 //
 // Il note chaque requête reçue (URL brute, en-têtes) : c'est ce qui prouve que
@@ -26,6 +26,10 @@ export const FORBIDDEN_PORTAL_HOST = 'interdit.conformance.test';
 export const PORTAL_DATASET = 'jeu';
 export const RECORDS_PATH = `/api/explore/v2.1/catalog/datasets/${PORTAL_DATASET}/records`;
 export const EXPORT_PATH = `/api/explore/v2.1/catalog/datasets/${PORTAL_DATASET}/exports/json`;
+/** Métadonnées du jeu : l'adaptateur y lit les colonnes dont il fait sa clé de départage (#1274). */
+export const DATASET_PATH = `/api/explore/v2.1/catalog/datasets/${PORTAL_DATASET}`;
+/** L'`order_by` que l'adaptateur compose au-delà d'une page, sans tri demandé. */
+export const TOTAL_ORDER = 'id, region, montant';
 
 export const REGIONS = ['Bretagne', 'Île-de-France', "Provence-Alpes-Côte d'Azur", 'Grand Est'];
 
@@ -55,6 +59,16 @@ for (const row of ROWS) {
 export function answerPortal(rawUrl) {
   const url = new URL(rawUrl, `https://${PORTAL_HOST}`);
   if (url.pathname === EXPORT_PATH) return ROWS;
+  if (url.pathname === DATASET_PATH) {
+    return {
+      dataset_id: PORTAL_DATASET,
+      fields: [
+        { name: 'id', type: 'int' },
+        { name: 'region', type: 'text' },
+        { name: 'montant', type: 'int' },
+      ],
+    };
+  }
   if (url.pathname !== RECORDS_PATH) return null;
   if (url.searchParams.get('group_by') === 'region') {
     const alias = /sum\(montant\)\s+as\s+(\w+)/.exec(url.searchParams.get('select') ?? '');
@@ -63,6 +77,8 @@ export function answerPortal(rawUrl) {
       results: [...TOTAL_BY_REGION].map(([region, total]) => ({ region, [column]: total })),
     };
   }
+  // Les lignes sortent dans l'ordre de `id` : c'est aussi celui de la clé de
+  // départage que l'adaptateur demande au-delà d'une page (`TOTAL_ORDER`).
   const limit = Number(url.searchParams.get('limit') ?? '10');
   const offset = Number(url.searchParams.get('offset') ?? '0');
   return { total_count: ROWS.length, results: ROWS.slice(offset, offset + limit) };

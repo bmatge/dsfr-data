@@ -25,6 +25,12 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   bandeau sur la carte) mais toujours INVISIBLE DANS LA PAGE. Repasser du mode export au mode
   adaptateur réapplique le plafond `max-records` de 1 000. Ouvrir le volet avant de publier
   un chiffre.
+- **Compte juste, lignes fausses** (pagination par décalage, #1274, #1233) : un jeu de plus d'une
+  page dont un sous-total, un cumul ou un historique varie d'un chargement à l'autre alors que
+  le total reste bon. La source le corrige seule sur OpenDataSoft et Tabular (ordre total) ;
+  si le volet Diagnostic affiche « pagination sans ordre garanti » ou « tri serveur instable »,
+  l'API a refusé la clé de départage : poser un `order-by` sur une colonne unique, ou charger
+  en une requête (`fetch-mode="export"`).
 - **Instance servie en retard** : un attribut inconnu de la version CHARGÉE est signalé (#727),
   mais une instance publique peut servir une version antérieure — `curl …/dist/skills-meta.json`
   donne sa `libVersion`.
@@ -75,6 +81,8 @@ volet Diagnostic).
 ### 3. Limite de 100 resultats (API ODS)
 L'API OpenDataSoft retourne maximum 100 enregistrements par requête.
 dsfr-data-query en mode `opendatasoft` gere automatiquement la pagination (max 10 pages = 1000 resultats).
+Au-dela de 100 lignes, sans `order-by`, les lignes arrivent triees sur les colonnes du jeu (#1274) : la source
+pagine sur un ordre total pour n'en perdre aucune. Poser `order-by` pour un autre ordre.
 Pour une dsfr-data-source brute, ajouter `limit=100` dans l'URL ou utiliser dsfr-data-query.
 
 ### 4. Nommage des champs agrégé

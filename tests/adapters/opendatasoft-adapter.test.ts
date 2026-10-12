@@ -25,11 +25,31 @@ function makeParams(overrides: Partial<AdapterParams> = {}): AdapterParams {
   };
 }
 
+/**
+ * La sonde d'un chargement de plus d'une page (#1274) : la première page, lue
+ * sans rien ajouter, puis écartée quand la lecture repart sur l'ordre total.
+ */
+function sonde(total: number) {
+  return {
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        results: Array.from({ length: 100 }, (_, i) => ({ id: i })),
+        total_count: total,
+      }),
+  };
+}
+
 describe('OpenDataSoftAdapter', () => {
   const adapter = new OpenDataSoftAdapter();
 
   beforeEach(() => {
     mockFetch.mockReset();
+    // Au-delà d'une page et en pagination serveur, l'adaptateur compose un
+    // ordre total avec les colonnes triables du jeu (#1274). Elles sont
+    // connues ici sans requête, et rien n'est retenu d'un test à l'autre.
+    adapter.resetTotalOrderState();
+    vi.spyOn(adapter, 'describeFieldTypes').mockResolvedValue({ id: 'number' });
   });
 
   describe('validate', () => {
@@ -215,7 +235,12 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('fetches multiple pages when limit > 100', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Au-delà d'une page, la lecture repart sur un ordre total (#1274) : la
+      // première page, la sonde, est relue triée.
+      const types = vi
+        .spyOn(adapter, 'describeFieldTypes')
+        .mockResolvedValue({ dep: 'text', value: 'number' });
+      const premiere = {
         ok: true,
         json: () =>
           Promise.resolve({
@@ -225,7 +250,9 @@ describe('OpenDataSoftAdapter', () => {
             })),
             total_count: 108,
           }),
-      });
+      };
+      mockFetch.mockResolvedValueOnce(premiere);
+      mockFetch.mockResolvedValueOnce(premiere);
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -243,9 +270,17 @@ describe('OpenDataSoftAdapter', () => {
         new AbortController().signal
       );
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      const urls = mockFetch.mock.calls.map((c) => new URL(c[0] as string).searchParams);
+      expect(urls[0].get('order_by')).toBeNull();
+      expect(urls[1].get('order_by')).toBe('dep, value');
+      expect(urls[1].get('offset')).toBeNull();
+      expect(urls[2].get('order_by')).toBe('dep, value');
+      expect(urls[2].get('offset')).toBe('100');
       expect(result.data).toHaveLength(108);
       expect(result.totalCount).toBe(108);
+      expect(result.caveats).toBeUndefined();
+      types.mockRestore();
     });
 
     it('stops when page returns fewer results than page size', async () => {
@@ -268,6 +303,7 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('sends correct offset in second page URL', async () => {
+      mockFetch.mockResolvedValueOnce(sonde(110));
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -290,12 +326,15 @@ describe('OpenDataSoftAdapter', () => {
 
       await adapter.fetchAll(makeParams({ limit: 110 }), new AbortController().signal);
 
-      const secondCallUrl = mockFetch.mock.calls[1][0] as string;
+      // Appel 0 : la sonde ; 1 et 2 : les deux pages sur l'ordre total
+      const secondCallUrl = mockFetch.mock.calls[2][0] as string;
       expect(secondCallUrl).toContain('offset=100');
       expect(secondCallUrl).toContain('limit=10');
+      expect(secondCallUrl).toContain('order_by=id');
     });
 
     it('fetches all records when limit=0, using total_count', async () => {
+      mockFetch.mockResolvedValueOnce(sonde(108));
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -318,7 +357,7 @@ describe('OpenDataSoftAdapter', () => {
 
       const result = await adapter.fetchAll(makeParams({ limit: 0 }), new AbortController().signal);
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(result.data).toHaveLength(108);
     });
 
@@ -599,7 +638,9 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('throws on HTTP error', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // La page est redemandée une fois sans la clé de départage (#1274) : si
+      // elle échoue encore, la panne ne venait pas du tri, et elle remonte.
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 404,
         statusText: 'Not Found',
@@ -612,6 +653,7 @@ describe('OpenDataSoftAdapter', () => {
           new AbortController().signal
         )
       ).rejects.toThrow('HTTP 404');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -972,7 +1014,9 @@ describe('OpenDataSoftAdapter', () => {
     });
 
     it('throws on HTTP error', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // La page est redemandée une fois sans la clé de départage (#1274) : si
+      // elle échoue encore, la panne ne venait pas du tri, et elle remonte.
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 503,
         statusText: 'Service Unavailable',
@@ -985,6 +1029,7 @@ describe('OpenDataSoftAdapter', () => {
           new AbortController().signal
         )
       ).rejects.toThrow('HTTP 503');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('handles page 3 with offset', async () => {
@@ -1078,6 +1123,7 @@ describe('OpenDataSoftAdapter', () => {
 
   describe('fetchAll pagination', () => {
     it('fetches multiple pages via offset', async () => {
+      mockFetch.mockResolvedValueOnce(sonde(150));
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () =>
@@ -1097,7 +1143,7 @@ describe('OpenDataSoftAdapter', () => {
 
       const result = await adapter.fetchAll(makeParams({ limit: 0 }), new AbortController().signal);
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(result.data).toHaveLength(150);
       expect(result.totalCount).toBe(150);
     });

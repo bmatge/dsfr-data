@@ -877,6 +877,7 @@ export class TabularAdapter implements ApiAdapter {
         throw httpError(response);
       }
       this._noteQuotedInAccepted(params, params.filter || params.where || '');
+      if (totalOrder !== null) this._totalOrderAccepted = true;
 
       const json = await response.json();
       const pageResults = json.data || [];
@@ -1054,6 +1055,47 @@ export class TabularAdapter implements ApiAdapter {
 
   /** L'API a refuse un ordre total compose : on ne le redemande plus (#1233). */
   private _totalOrderRefused = false;
+
+  /**
+   * L'API a deja lu un ordre total compose (#1274) : en pagination serveur,
+   * une panne ulterieure n'est alors plus prise pour un refus.
+   */
+  private _totalOrderAccepted = false;
+
+  /** Oublie ce que l'adaptateur a retenu de l'ordre total (tests). */
+  resetTotalOrderState(): void {
+    this._totalOrderRefused = false;
+    this._totalOrderAccepted = false;
+    this._unstableSortWarned = false;
+  }
+
+  /**
+   * Cle de tri d'une PAGE servie au serveur (#1233, #1274), ou `null` quand
+   * il n'y a rien a poser de plus que le tri demande.
+   *
+   * En pagination serveur le jeu n'est jamais relu : aucun des recours du
+   * chargement complet (relecture sans tri, tri sur place) n'existe, seul le
+   * serveur peut tenir l'ordre d'une page a l'autre.
+   * - Tri demande, non total : il est complete par `_totalOrder`, dans la
+   *   valeur de son premier `__sort` (forme non documentee, d'ou le repli de
+   *   `fetchPage`).
+   * - Aucun tri : rien n'est ajoute. Sans tri, l'API sert les lignes dans
+   *   l'ordre de `__id`, stable d'une page a l'autre (mesure du 2026-10-12,
+   *   ressource SSMSI, `annee = 2025`, cinq pages de 50 : les memes 250
+   *   lignes, dans le meme ordre, que `__id__sort=asc`, en autant de temps) —
+   *   c'est deja sur cet ordre que repose la relecture sans tri du chargement
+   *   complet (#1202). L'API ne le documente pas : le controle vivant de nuit
+   *   le garde.
+   */
+  private _pageSortKey(
+    params: AdapterParams,
+    serverSort: OrderByPart[],
+    grouped: boolean
+  ): { field: string; value: string } | null {
+    if (serverSort.length === 0) return null;
+    const value = this._totalOrder(params, serverSort, grouped);
+    return value ? { field: serverSort[0].field, value } : null;
+  }
 
   /**
    * Valeur de `champ__sort` qui rend le tri TOTAL (#1233), `''` quand il
@@ -1488,7 +1530,36 @@ export class TabularAdapter implements ApiAdapter {
     const asked = !!(params.groupBy || params.aggregate);
     const serverHandled = this._warnUndelegable(params, this._canServerProcessGroupBy(params));
     const where = overlay.effectiveWhere || params.filter || params.where || '';
-    const response = await this._fetchPageResponse(params, overlay, where, signal);
+
+    // Ordre total d'une page (#1233, #1274) : demande tant que l'API ne l'a
+    // pas refuse. Refuse — 400, ou erreur reseau faute d'en-tete CORS —, la
+    // page est redemandee avec le tri simple, et c'est retenu.
+    const serverSort = this._sortPlan(params, overlay.orderBy).server;
+    const key = this._pageSortKey(params, serverSort, serverHandled);
+    let response: Response | null = null;
+    if (key !== null && !this._totalOrderRefused) {
+      try {
+        response = await this._fetchPageResponse(params, overlay, where, signal, true);
+        this._totalOrderAccepted = true;
+      } catch (err) {
+        // Une annulation n'est pas un refus ; un ordre deja accepte non plus.
+        if (isAbort(err, signal) || this._totalOrderAccepted) throw err;
+      }
+    }
+    if (!response) {
+      // Si cette requete echoue aussi, la panne ne venait pas de l'ordre
+      // total : elle remonte, et rien n'est retenu.
+      response = await this._fetchPageResponse(params, overlay, where, signal, false);
+      if (key !== null) this._totalOrderRefused = true;
+    }
+    // Tri demande, reste non total (cle refusee, ou nom de colonne qui ne
+    // s'ecrit pas dans la valeur) : instable d'une page a l'autre, et c'est
+    // dit.
+    const unstableSort =
+      serverSort.length > 0 &&
+      this._totalOrder(params, serverSort, serverHandled) !== '' &&
+      (key === null || this._totalOrderRefused);
+    if (unstableSort) this._warnUnstableServerSort(overlay.orderBy, 'page');
 
     const json = await response.json();
     const data = json.data || [];
@@ -1511,8 +1582,13 @@ export class TabularAdapter implements ApiAdapter {
       totalCount,
       needsClientProcessing: asked && !serverHandled,
       rawJson: json,
-      ...(inDropped
-        ? { caveats: ['in-quoted-refused', 'in-values-dropped'] as FetchCaveat[] }
+      ...(inDropped || unstableSort
+        ? {
+            caveats: [
+              ...(unstableSort ? ['unstable-sort'] : []),
+              ...(inDropped ? ['in-quoted-refused', 'in-values-dropped'] : []),
+            ] as FetchCaveat[],
+          }
         : {}),
     };
   }
@@ -1530,13 +1606,14 @@ export class TabularAdapter implements ApiAdapter {
     params: AdapterParams,
     overlay: ServerSideOverlay,
     where: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    totalOrder: boolean
   ): Promise<Response> {
     const base = this._getBaseUrl(params);
     const quoted =
       this._splitWhere(where).local.length > 0 && this._quotedIn.get(base) !== 'refused';
     const request = async (): Promise<Response> => {
-      const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay), params);
+      const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay, totalOrder), params);
       const response = await transportFetch(url, buildFetchOptions(params, signal), params);
       if (!response.ok) throw httpError(response);
       return response;
@@ -1649,7 +1726,11 @@ export class TabularAdapter implements ApiAdapter {
     return TABULAR_PAGE_SIZE;
   }
 
-  buildServerSideUrl(params: AdapterParams, overlay: ServerSideOverlay): string {
+  buildServerSideUrl(
+    params: AdapterParams,
+    overlay: ServerSideOverlay,
+    totalOrder: boolean = !this._totalOrderRefused
+  ): string {
     const base = this._getBaseUrl(params);
     const origin =
       typeof window !== 'undefined' && window.location.origin !== 'null'
@@ -1667,15 +1748,26 @@ export class TabularAdapter implements ApiAdapter {
     // complet : la query qui a delegue saute son calcul client, la reponse
     // doit donc porter des GROUPES et la colonne d'agregat (#852).
     const bareFlags = this._groupByFlags(params);
+    const grouped = bareFlags.length > 0;
     // Projection `columns=` depuis `select`, comme en fetch complet (#985).
     const columns = this._columnsFlag(params);
     if (columns) bareFlags.push(columns);
 
     // ORDER BY de l'overlay — grammaire commune "field:dir, field2:dir2"
     // (#273). Jamais une colonne d'agregat (#1045) : `fetchPage` la trie
-    // lui-meme, sur les groupes complets.
-    for (const part of this._sortPlan(params, overlay.orderBy).server) {
-      url.searchParams.set(`${part.field}__sort`, part.direction);
+    // lui-meme, sur les groupes complets. `totalOrder` (#1233, #1274) : le
+    // tri est rendu total, voir `_pageSortKey` ; `false` est le repli.
+    const plan = this._sortPlan(params, overlay.orderBy);
+    const key =
+      totalOrder && plan.local.length === 0
+        ? this._pageSortKey(params, plan.server, grouped)
+        : null;
+    if (key) {
+      url.searchParams.set(`${key.field}__sort`, key.value);
+    } else {
+      for (const part of plan.server) {
+        url.searchParams.set(`${part.field}__sort`, part.direction);
+      }
     }
 
     // PAGINATION: une seule page, bornee au maximum de l'API (#1019) : au-dela,
@@ -1801,15 +1893,21 @@ export class TabularAdapter implements ApiAdapter {
    * Dernier recours de `_settlePagedSort` (#1233) : lignes brutes tronquees,
    * triees par l'API, sans ordre total possible.
    */
-  private _warnUnstableServerSort(orderBy: string): void {
+  private _warnUnstableServerSort(orderBy: string, load: 'tronque' | 'page' = 'tronque'): void {
     if (this._unstableSortWarned) return;
     this._unstableSortWarned = true;
     console.warn(
-      `[dsfr-data] tabular: tri "${orderBy}" laissé à l'API sur un chargement tronqué (limit ` +
-        `ou max-records), sans clé de départage — l'API pagine par offset et ne trie que sur ` +
+      `[dsfr-data] tabular: tri "${orderBy}" laissé à l'API sur ` +
+        (load === 'page'
+          ? `une pagination serveur (server-side)`
+          : `un chargement tronqué (limit ou max-records)`) +
+        `, sans clé de départage — l'API pagine par offset et ne trie que sur ` +
         `une clé : des lignes à valeurs égales peuvent manquer ou être doublées aux limites de ` +
-        `page (PG-033). Relevez max-records de dsfr-data-source pour que le tri se fasse sur ` +
-        `le jeu complet.`
+        `page (PG-033). ` +
+        (load === 'page'
+          ? `Triez sur une colonne unique, ou retirez server-side de dsfr-data-source pour ` +
+            `que le tri se fasse sur le jeu complet.`
+          : `Relevez max-records de dsfr-data-source pour que le tri se fasse sur le jeu complet.`)
     );
   }
 

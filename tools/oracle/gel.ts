@@ -167,7 +167,7 @@ export function repondreGel(
     exportJson: (url: URL, jeu: Row[]) => unknown;
     records: (url: URL, jeu: Row[]) => unknown;
     facets: (url: URL, jeu: Row[]) => unknown;
-    metadonnees: () => unknown;
+    metadonnees: (jeu: Row[]) => unknown;
   }
 ): unknown | null {
   if (url.origin !== HOTE_GEL) return null;
@@ -183,6 +183,6 @@ export function repondreGel(
   if (reste === '/exports/json') return repondeurs.exportJson(url, jeu);
   if (reste === '/records') return repondeurs.records(url, jeu);
   if (reste === '/facets') return repondeurs.facets(url, jeu);
-  if (reste === '' || reste === '/') return repondeurs.metadonnees();
+  if (reste === '' || reste === '/') return repondeurs.metadonnees(jeu);
   return null;
 }

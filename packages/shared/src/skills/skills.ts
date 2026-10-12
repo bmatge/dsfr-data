@@ -75,8 +75,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
-| order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\`. Tabular : au-dela d'une page, le jeu est relu sans tri et trie sur place, ou le tri est complete d'une cle de departage si \`limit\`/\`max-records\` coupe le chargement (#1202, #1233). |
-| server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). La source ne livre qu'UNE page : une dsfr-data-query en aval qui regroupe ou agrege cote client passe en erreur de configuration (#1242). |
+| order-by | String | \`""\` | non | Tri serveur. Ex: \`"population:desc"\`. Tabular : au-dela d'une page, le jeu est relu sans tri et trie sur place, ou le tri est complete d'une cle de departage si \`limit\`/\`max-records\` coupe le chargement (#1202, #1233). OpenDataSoft (#1274) : au-dela d'une page (100 lignes), le tri est complete de toutes les colonnes triables du jeu — et SANS \`order-by\`, les lignes arrivent triees sur ces colonnes, plus dans l'ordre arbitraire de l'API. |
+| server-side | Boolean | \`false\` | non | Active la pagination serveur page par page (datalist, tableaux). La source ne livre qu'UNE page : une dsfr-data-query en aval qui regroupe ou agrege cote client passe en erreur de configuration (#1242). Chaque page est demandee sur un ordre total (#1274, #1233) : tri de la liste + colonnes du jeu (OpenDataSoft), tri + identifiant de ligne (Tabular). |
 | limit | Number | \`0\` | non | Limite du nombre de resultats (0 = pas de limite). |
 | max-records | Number | \`0\` | non | Plafond du fetchAll en mode adapter, honore par ODS (#233) et Tabular (#1027). 0 = plafond par defaut de l'adapter (ODS : 1000, Tabular : 25000). A relever pour charger un jeu plus long (ex. les ~35 000 communes sur Tabular : \`max-records="40000"\`) ou pour les dashboards « un fetch, N agregations client » — attention au volume (requetes en boucle, memoire). |
 | fetch-mode | String | \`"records"\` | non | Strategie de chargement en mode adapter (#689). \`"export"\` charge tout le jeu en UNE requete via l'endpoint d'export du portail (ODS \`/exports/json\`), memes clauses select/where/group-by/order-by. A activer pour « un fetch, N agregations client », un jeu de plus de 1 000 lignes ou un group-by a beaucoup de groupes. Ignore avec \`server-side\` (avertissement console). Implemente par OpenDataSoft et Tabular ; repli automatique sur le chargement pagine si le portail n'expose pas d'export. Tabular (#1055) : lit l'export Parquet de data.gouv (lecteur ~22 Ko gzip charge a la demande), lignes brutes seulement — un where/group-by/aggregate/order-by delegue garde la pagination ; \`max-records\` borne les lignes lues. |
@@ -156,7 +156,19 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > sur une cle non unique perd des lignes d'une page a l'autre (compte juste, lignes doublees ou absentes). La source le
 > corrige seule, lignes brutes comme \`group-by\` : jeu complet → relu sans tri et trie sur place (une requete de plus,
 > ordre du pipeline : vides, nombres, textes) ; \`limit\` ou \`max-records\` atteint → tri serveur complete d'une cle de
-> departage. Une seule page : tri serveur inchange. Rien de tel en \`server-side\` : y trier sur une cle unique.
+> departage. Une seule page : tri serveur inchange. En \`server-side\` (#1274), le tri demande recoit la meme cle de
+> departage, page par page ; sans tri, l'API suit deja l'identifiant de ligne.
+> OpenDataSoft, plus de 100 lignes (#1274) : l'API pagine par decalage SANS garantir l'ordre — meme sans \`order-by\`,
+> des lignes reviennent deux fois d'une page a l'autre et d'autres jamais, a compte juste (mesure : 321 lignes recues,
+> 297 distinctes), et pas a chaque fois. La source le corrige seule : la premiere page sert de sonde ; s'il y en a
+> d'autres, elle relit tout sur un ordre total — le tri demande, puis toutes les colonnes triables du jeu (texte,
+> nombre, date, booleen ; pour des groupes tries, les autres cles du \`group-by\`). Deux requetes de plus (la sonde
+> relue, les metadonnees du jeu). Consequence : sans \`order-by\`, un jeu de plus de 100 lignes arrive TRIE sur les
+> colonnes du jeu, dans l'ordre de ses champs — pour un autre ordre, poser \`order-by\` (un cumul \`running_sum\` sans
+> \`order-by\` suit cet ordre). Une seule page, et \`fetch-mode="export"\` : rien ne change. En \`server-side\`, chaque
+> page part sur cet ordre ; sur un jeu de plus d'un million de lignes sans \`where\`, la premiere page peut prendre
+> quelques secondes. Si l'API refuse ce tri : la source charge comme avant, et le volet Diagnostic signale une
+> pagination sans ordre garanti.
 > Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause part au serveur,
 > la valeur ENTRE GUILLEMETS (nue, l'API l'ecarterait sans erreur) — une requete filtree, sur la source comme sur une
 > dsfr-data-query, en chargement complet comme en \`server-side\`. Si l'API refuse cette forme : en chargement complet
@@ -2720,6 +2732,9 @@ Syntaxe de requêtes utilisee par les APIs OpenDataSoft (mode \`api-type="openda
 IMPORTANT : \`limit\` est plafonne a 100 par requête par l'API ODS.
 dsfr-data-query gere automatiquement la pagination via offset quand la limite demandee > 100
 (ex: cartes departementales avec 101 departements). Max 10 pages (1000 resultats).
+\`offset\` ne garantit AUCUN ordre d'une page a l'autre sans un \`order_by\` total : la source
+complete donc le tri de toutes les colonnes triables du jeu des qu'elle lit plus d'une page (#1274).
+\`offset + limit\` doit rester sous 10 000 : au-dela, \`fetch-mode="export"\`.
 
 ### Fonctions d'agrégation ODSQL
 - count(*), count(champ)
@@ -2988,6 +3003,12 @@ Chaque provider a des capacites differentes pour la pagination, l'agrégation et
   order-by="total:desc" limit="10">
 </dsfr-data-query>
 \`\`\`
+
+Au-dela d'une page, la source pagine sur un ORDRE TOTAL (#1274) : l'API ne garantit aucun ordre d'une
+page a l'autre (lignes en double, lignes perdues, compte juste), elle relit donc le jeu trie sur le
+tri demande puis sur toutes ses colonnes triables — deux requetes de plus, et sans \`order-by\` des
+lignes livrees dans l'ordre des colonnes du jeu. Rien a ecrire dans la page ; pour un ordre precis,
+poser \`order-by\`.
 
 OpenDataSoft pagine par 100 : un jeu de 3 000 lignes coute 30 requetes. \`fetch-mode="export"\`
 (#689) le charge en UNE requete sur \`/exports/json\`, memes clauses ODSQL. A activer pour une page
@@ -3915,6 +3936,12 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   bandeau sur la carte) mais toujours INVISIBLE DANS LA PAGE. Repasser du mode export au mode
   adaptateur réapplique le plafond \`max-records\` de 1 000. Ouvrir le volet avant de publier
   un chiffre.
+- **Compte juste, lignes fausses** (pagination par décalage, #1274, #1233) : un jeu de plus d'une
+  page dont un sous-total, un cumul ou un historique varie d'un chargement à l'autre alors que
+  le total reste bon. La source le corrige seule sur OpenDataSoft et Tabular (ordre total) ;
+  si le volet Diagnostic affiche « pagination sans ordre garanti » ou « tri serveur instable »,
+  l'API a refusé la clé de départage : poser un \`order-by\` sur une colonne unique, ou charger
+  en une requête (\`fetch-mode="export"\`).
 - **Instance servie en retard** : un attribut inconnu de la version CHARGÉE est signalé (#727),
   mais une instance publique peut servir une version antérieure — \`curl …/dist/skills-meta.json\`
   donne sa \`libVersion\`.
@@ -3965,6 +3992,8 @@ volet Diagnostic).
 ### 3. Limite de 100 resultats (API ODS)
 L'API OpenDataSoft retourne maximum 100 enregistrements par requête.
 dsfr-data-query en mode \`opendatasoft\` gere automatiquement la pagination (max 10 pages = 1000 resultats).
+Au-dela de 100 lignes, sans \`order-by\`, les lignes arrivent triees sur les colonnes du jeu (#1274) : la source
+pagine sur un ordre total pour n'en perdre aucune. Poser \`order-by\` pour un autre ordre.
 Pour une dsfr-data-source brute, ajouter \`limit=100\` dans l'URL ou utiliser dsfr-data-query.
 
 ### 4. Nommage des champs agrégé
