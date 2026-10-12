@@ -40,10 +40,15 @@ export {
   DATA_EVENTS,
   subscribeToSource,
   getDataCache,
+  // Lignes du dernier chargement réussi, datées — la seule lecture qui en
+  // rend pendant une panne (#1272)
+  getLastKnownData,
+  isDataStale,
   dispatchDataLoaded,
   dispatchDataError,
   dispatchDataLoading,
 } from './utils/data-bridge.js';
+export type { LastKnownData, DataStaleness } from './utils/data-bridge.js';
 
 export { getByPath, hasPath, getByPathOrDefault } from './utils/json-path.js';
 export {

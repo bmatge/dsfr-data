@@ -823,6 +823,14 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       return nom ? `${nom}: ${phrase}` : phrase;
     }
     if (this.description) return this.description;
+    // Chargement (#1272) : la tuile ne montre aucun chiffre, la figure ne doit
+    // pas en nommer un — le dernier reçu serait lu au lecteur d'écran comme la
+    // valeur courante pendant tout le rechargement.
+    if (!this._blockingConfigError && this._sourceLoading) {
+      const nom =
+        this.heading && this.label ? `${this.heading} — ${this.label}` : this.heading || this.label;
+      return nom ? `${nom}: chargement en cours` : 'Chargement en cours';
+    }
 
     const value = this._computeValue();
     const formattedValue = this._formatDisplay(value);

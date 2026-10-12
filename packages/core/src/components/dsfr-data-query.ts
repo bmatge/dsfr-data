@@ -2475,10 +2475,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
 
   /**
    * Retourne les données actuelles
-   * (isLoading() et getError() sont fournis par TransformerMixin, #280)
+   * (isLoading() et getError() sont fournis par TransformerMixin, #280).
+   *
+   * Vide pendant une panne de l'amont (#1272) : le dernier résultat calculé
+   * n'est plus rendu comme s'il était à jour. Il reste lisible, daté, par
+   * `getLastKnownData()`.
    */
   public getData(): unknown[] {
-    return this._data;
+    return this.isStale() ? [] : this._data;
   }
 
   /**

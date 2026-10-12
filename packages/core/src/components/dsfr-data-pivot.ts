@@ -167,8 +167,9 @@ export class DsfrDataPivot extends TransformerMixin(LitElement) {
     return true;
   }
 
+  /** Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`). */
   getData(): Row[] {
-    return this._data;
+    return this.isStale() ? [] : this._data;
   }
 
   /** Statistiques du dernier pivot (colonnes générées, cellules vides), ou null avant le premier. */

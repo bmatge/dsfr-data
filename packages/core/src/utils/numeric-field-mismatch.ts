@@ -86,6 +86,8 @@ type Observed =
  * le type déclaré du jeu (#980).
  */
 function observeField(sourceId: string, field: string): Observed {
+  // Source en panne (#1272) : ses lignes ne sont plus au cache, la lecture
+  // rend `unknown` — on ne juge pas le type d'un champ sur un jeu périmé.
   const data = getDataCache(sourceId);
   if (!Array.isArray(data)) return { kind: 'unknown' };
   const rows = data as Record<string, unknown>[];

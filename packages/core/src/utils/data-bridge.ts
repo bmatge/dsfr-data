@@ -10,6 +10,13 @@ import type { FetchCaveat } from '../adapters/api-adapter.js';
 export interface DataLoadedEvent {
   sourceId: string;
   data: unknown;
+  /**
+   * Date (`Date.now()`) du chargement qui a produit ces lignes (#1272). Pour
+   * un transformateur, c'est la date de son entrée la plus ANCIENNE : une
+   * requête recalculée à l'instant sur des lignes chargées il y a une heure
+   * date d'il y a une heure.
+   */
+  loadedAt: number;
 }
 
 export interface DataErrorEvent {
@@ -28,6 +35,13 @@ export interface DataErrorEvent {
    * viennent pas d'un fetch (donnees inline invalides, config).
    */
   attemptedUrl?: string;
+  /**
+   * Date (`Date.now()`) du dernier chargement réussi de cette étape, quand ses
+   * lignes restent en mémoire, PÉRIMÉES (#1272) — à lire par
+   * `getLastKnownData(sourceId)`. Absent quand l'étape n'avait encore rien
+   * livré : il n'y a alors rien de périmé.
+   */
+  lastLoadedAt?: number;
 }
 
 export interface DataLoadingEvent {
@@ -152,6 +166,53 @@ export interface DataErrorState {
   sourcePage?: string;
   /** Horodatage de l'échec (`Date.now()`). */
   at: number;
+  /**
+   * Date du dernier chargement réussi de l'étape, quand ses lignes restent en
+   * mémoire, périmées (#1272). Absent : rien n'avait été livré.
+   */
+  lastLoadedAt?: number;
+}
+
+/** Pourquoi des lignes gardées en mémoire ne sont plus à jour (#1272). */
+export interface DataStaleness {
+  /** Horodatage du PREMIER échec depuis le dernier chargement réussi. */
+  since: number;
+  /** Cause du dernier échec, au sens du barème (`source-errors.ts`). */
+  cause: SourceErrorCause;
+  /** Source qui a réellement échoué, au bout de la chaîne. */
+  originId: string;
+}
+
+/**
+ * Les lignes du dernier chargement réussi d'une étape, DATÉES (#1272).
+ *
+ * Quand une étape échoue après avoir livré, ses lignes ne sont pas jetées :
+ * elles sortent du cache courant (`getDataCache` ne les rend plus) et restent
+ * lisibles ici, avec la date de leur chargement et la raison pour laquelle
+ * elles ne sont plus à jour. Les lignes et leur date voyagent dans le MÊME
+ * objet : on ne peut pas obtenir les unes sans l'autre.
+ */
+export interface LastKnownData {
+  data: unknown;
+  /** Date (`Date.now()`) du dernier chargement réussi. */
+  loadedAt: number;
+  /** Présent : ces lignes sont PÉRIMÉES. Absent : elles sont à jour. */
+  stale?: DataStaleness;
+}
+
+/** Lignes périmées d'une étape, telles que gardées pendant sa panne. */
+interface StaleEntry extends DataStaleness {
+  data: unknown;
+  loadedAt: number;
+}
+
+/** Options de `dispatchDataLoaded` (#1272). */
+export interface DataLoadedOptions {
+  /**
+   * Date des lignes, quand elle n'est pas « maintenant » : un transformateur
+   * y reporte la date de son amont.
+   */
+  loadedAt?: number;
 }
 
 /** Options de `dispatchDataError` (#1203). */
@@ -188,6 +249,8 @@ type WindowWithCache = Window & {
   __dsfrDataIdle?: Set<string>;
   __dsfrDataErrors?: Map<string, DataErrorState>;
   __dsfrDataStatusBanners?: Map<string, number>;
+  __dsfrDataLoadedAt?: Map<string, number>;
+  __dsfrDataStale?: Map<string, StaleEntry>;
 };
 const _win: WindowWithCache | Record<string, never> =
   typeof window !== 'undefined' ? (window as WindowWithCache) : {};
@@ -196,6 +259,8 @@ if (!_win.__dsfrDataMeta) _win.__dsfrDataMeta = new Map<string, PaginationMeta>(
 if (!_win.__dsfrDataIdle) _win.__dsfrDataIdle = new Set<string>();
 if (!_win.__dsfrDataErrors) _win.__dsfrDataErrors = new Map<string, DataErrorState>();
 if (!_win.__dsfrDataStatusBanners) _win.__dsfrDataStatusBanners = new Map<string, number>();
+if (!_win.__dsfrDataLoadedAt) _win.__dsfrDataLoadedAt = new Map<string, number>();
+if (!_win.__dsfrDataStale) _win.__dsfrDataStale = new Map<string, StaleEntry>();
 const dataCache: Map<string, unknown> = _win.__dsfrDataCache;
 const metaCache: Map<string, PaginationMeta> = _win.__dsfrDataMeta;
 /**
@@ -214,6 +279,22 @@ const errorStates: Map<string, DataErrorState> = _win.__dsfrDataErrors;
  * couvrir la même source, et le départ de l'un ne découvre pas l'autre.
  */
 const statusBanners: Map<string, number> = _win.__dsfrDataStatusBanners;
+/** Date du chargement des lignes de `dataCache`, par étape (#1272). */
+const loadedAtById: Map<string, number> = _win.__dsfrDataLoadedAt;
+/**
+ * Lignes PÉRIMÉES, par étape (#1272) : celles du dernier chargement réussi
+ * d'une étape aujourd'hui en panne.
+ *
+ * Elles ne restent PAS dans `dataCache`. Y laisser un jeu que seul un champ
+ * voisin dirait périmé, c'est compter sur chaque lecteur pour lire ce champ :
+ * c'est ainsi qu'un afficheur monté après la panne montrait l'ancien chiffre
+ * (#1222), et qu'un transformateur recalculait dessus. Ici, le chemin par
+ * défaut ne rend plus rien, et le seul chemin qui rend ces lignes
+ * (`getLastKnownData`) les rend avec leur date. Vaut aussi pour un lecteur qui
+ * passe par `window.__dsfrDataCache` (volet Diagnostic autonome, bundle d'une
+ * version antérieure chargé sur la même page).
+ */
+const staleData: Map<string, StaleEntry> = _win.__dsfrDataStale;
 
 /** Clé de `registerStatusBanner` pour « toutes les sources de la page ». */
 export const ALL_SOURCES = '*';
@@ -266,24 +347,89 @@ export function requestSourceRetry(sourceId: string): void {
 }
 
 /**
- * Enregistre des données dans le cache global
+ * Enregistre des données dans le cache global, datées (#1272) : ce sont les
+ * lignes COURANTES de l'étape, celles d'avant ne sont plus à garder.
  */
-export function setDataCache(sourceId: string, data: unknown): void {
+export function setDataCache(sourceId: string, data: unknown, loadedAt: number = Date.now()): void {
   dataCache.set(sourceId, data);
+  loadedAtById.set(sourceId, loadedAt);
+  staleData.delete(sourceId);
 }
 
 /**
- * Récupère des données depuis le cache global
+ * Lignes COURANTES d'une étape, ou `undefined`.
+ *
+ * `undefined` quand l'étape n'a rien livré, attend un filtre, **ou est en
+ * panne** (#1272) : les lignes de son dernier chargement réussi ne sont plus
+ * rendues ici, pour qu'aucun lecteur ne les prenne pour à jour. Elles restent
+ * lisibles, datées, par `getLastKnownData`.
  */
 export function getDataCache(sourceId: string): unknown | undefined {
   return dataCache.get(sourceId);
 }
 
 /**
- * Supprime des données du cache
+ * Lignes du dernier chargement réussi d'une étape, avec leur date (#1272), ou
+ * `undefined` si elle n'a jamais rien livré (ou a été remise à zéro).
+ *
+ * C'est la SEULE lecture qui rend des lignes pendant une panne. `stale` dit
+ * alors depuis quand, pourquoi, et quelle source a échoué ; il est absent tant
+ * que les lignes sont à jour.
+ */
+export function getLastKnownData(sourceId: string): LastKnownData | undefined {
+  if (dataCache.has(sourceId)) {
+    return { data: dataCache.get(sourceId), loadedAt: loadedAtById.get(sourceId) ?? 0 };
+  }
+  const kept = staleData.get(sourceId);
+  if (!kept) return undefined;
+  const { data, loadedAt, ...stale } = kept;
+  return { data, loadedAt, stale };
+}
+
+/**
+ * L'étape garde-t-elle en mémoire des lignes périmées (#1272) ? Vrai de son
+ * premier échec jusqu'à son prochain chargement réussi — y compris pendant le
+ * nouvel essai, où le registre d'erreur est déjà effacé.
+ */
+export function isDataStale(sourceId: string): boolean {
+  return staleData.has(sourceId);
+}
+
+/**
+ * Sort les lignes d'une étape du cache courant et les garde, périmées (#1272).
+ * Rend la date de leur chargement, ou `undefined` s'il n'y avait rien.
+ */
+function retireDataCache(sourceId: string, state: DataErrorState): number | undefined {
+  const reason = { cause: state.cause, originId: state.originId };
+  if (dataCache.has(sourceId)) {
+    const loadedAt = loadedAtById.get(sourceId) ?? state.at;
+    staleData.set(sourceId, {
+      data: dataCache.get(sourceId),
+      loadedAt,
+      since: state.at,
+      ...reason,
+    });
+    dataCache.delete(sourceId);
+    loadedAtById.delete(sourceId);
+    return loadedAt;
+  }
+  // Nouvel échec d'une étape déjà périmée (relance manquée) : les lignes et
+  // la date du premier échec restent, la cause est celle du dernier.
+  const kept = staleData.get(sourceId);
+  if (!kept) return undefined;
+  staleData.set(sourceId, { ...kept, ...reason });
+  return kept.loadedAt;
+}
+
+/**
+ * Supprime les données d'une étape : lignes courantes, lignes périmées, date,
+ * attente et erreur. C'est la remise à zéro (étape retirée du DOM, retour en
+ * attente d'un filtre) — pas une panne : rien n'est gardé.
  */
 export function clearDataCache(sourceId: string): void {
   dataCache.delete(sourceId);
+  loadedAtById.delete(sourceId);
+  staleData.delete(sourceId);
   idleSources.delete(sourceId);
   errorStates.delete(sourceId);
 }
@@ -318,17 +464,25 @@ export function clearDataMeta(sourceId: string): void {
 }
 
 /**
- * Dispatch un événement de données chargées
+ * Dispatch un événement de données chargées.
+ *
+ * Les lignes deviennent les lignes courantes de l'étape, datées (#1272) : ce
+ * chargement réussi lève l'état « périmé » qu'une panne avait posé.
  */
-export function dispatchDataLoaded(sourceId: string, data: unknown): void {
-  setDataCache(sourceId, data);
+export function dispatchDataLoaded(
+  sourceId: string,
+  data: unknown,
+  options: DataLoadedOptions = {}
+): void {
+  const loadedAt = options.loadedAt ?? Date.now();
+  setDataCache(sourceId, data, loadedAt);
   idleSources.delete(sourceId);
   errorStates.delete(sourceId);
 
   const event = new CustomEvent<DataLoadedEvent>(DATA_EVENTS.LOADED, {
     bubbles: true,
     composed: true,
-    detail: { sourceId, data },
+    detail: { sourceId, data, loadedAt },
   });
 
   document.dispatchEvent(event);
@@ -342,7 +496,11 @@ export function dispatchDataLoaded(sourceId: string, data: unknown): void {
  *
  * L'état d'erreur de l'étape est enregistré AVANT l'émission (#1203) : un
  * abonné qui se redessine dans son callback y lit déjà l'origine de la panne.
- * Le détail de l'événement, lui, ne change pas.
+ *
+ * Les lignes que l'étape avait livrées SORTENT du cache courant (#1272) :
+ * `getDataCache` ne les rend plus, `getLastKnownData` les rend datées et
+ * marquées périmées. Le détail de l'événement gagne alors `lastLoadedAt` ; il
+ * est inchangé quand l'étape n'avait rien livré.
  */
 export function dispatchDataError(
   sourceId: string,
@@ -356,7 +514,7 @@ export function dispatchDataError(
   const url = attemptedUrl ?? upstream?.attemptedUrl;
   const userMessage = options.userMessage ?? upstream?.userMessage;
   const sourcePage = safeSourcePage(options.sourcePage) ?? upstream?.sourcePage;
-  errorStates.set(sourceId, {
+  const state: DataErrorState = {
     error,
     originId: upstream?.originId ?? options.relayedFrom ?? sourceId,
     cause: upstream?.cause ?? classifySourceError(error, online),
@@ -364,18 +522,30 @@ export function dispatchDataError(
     ...(userMessage ? { userMessage } : {}),
     ...(sourcePage ? { sourcePage } : {}),
     at: upstream?.at ?? Date.now(),
-  });
+  };
+  const lastLoadedAt = retireDataCache(sourceId, state);
+  if (lastLoadedAt !== undefined) state.lastLoadedAt = lastLoadedAt;
+  errorStates.set(sourceId, state);
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {
     bubbles: true,
     composed: true,
-    detail: attemptedUrl ? { sourceId, error, attemptedUrl } : { sourceId, error },
+    detail: {
+      sourceId,
+      error,
+      ...(attemptedUrl ? { attemptedUrl } : {}),
+      ...(lastLoadedAt !== undefined ? { lastLoadedAt } : {}),
+    },
   });
 
   document.dispatchEvent(event);
 }
 
 /**
- * Dispatch un événement de chargement en cours
+ * Dispatch un événement de chargement en cours.
+ *
+ * Efface l'erreur, PAS l'état « périmé » (#1272) : un nouvel essai en cours ne
+ * rend pas à jour les lignes d'avant la panne. Seul un chargement réussi
+ * (`dispatchDataLoaded`) le lève.
  */
 export function dispatchDataLoading(sourceId: string): void {
   idleSources.delete(sourceId);

@@ -40,6 +40,7 @@ import {
 } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import { GRIST_CONFIG, resolveTransportUrl, transportFetch } from '@dsfr-data/shared/lib';
+import { httpError, releaseBody } from '../utils/http-error.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -128,7 +129,7 @@ export class GristAdapter implements ApiAdapter {
     // Mode Records (enrichi avec filter/sort/limit)
     const url = resolveTransportUrl(this.buildUrl(params), params);
     const response = await transportFetch(url, buildFetchOptions(params, signal), params);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!response.ok) throw httpError(response);
 
     const json = await response.json();
     const data = this._flattenRecords(json.records || []);
@@ -155,7 +156,7 @@ export class GristAdapter implements ApiAdapter {
     // Mode Records pagine
     const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay), params);
     const response = await transportFetch(url, buildFetchOptions(params, signal), params);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!response.ok) throw httpError(response);
 
     const json = await response.json();
     const data = this._flattenRecords(json.records || []);
@@ -264,7 +265,10 @@ export class GristAdapter implements ApiAdapter {
           signal,
         });
 
-        if (!response.ok) continue;
+        if (!response.ok) {
+          releaseBody(response);
+          continue;
+        }
 
         const json = await response.json();
         const rows: unknown[][] = json.records || [];
@@ -347,7 +351,10 @@ export class GristAdapter implements ApiAdapter {
     const url = resolveTransportUrl(params.baseUrl.replace(/\/records.*$/, '/columns'), params);
     try {
       const response = await transportFetch(url, buildFetchOptions(params, signal), params);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        releaseBody(response);
+        return [];
+      }
 
       const json = await response.json();
       return (json.columns || []).map((col: Record<string, unknown>) => {
@@ -376,7 +383,10 @@ export class GristAdapter implements ApiAdapter {
     );
     try {
       const response = await transportFetch(url, buildFetchOptions(params, signal), params);
-      if (!response.ok) return [];
+      if (!response.ok) {
+        releaseBody(response);
+        return [];
+      }
 
       const json = await response.json();
       return (json.tables || []).map((t: Record<string, unknown>) => ({
@@ -525,6 +535,7 @@ export class GristAdapter implements ApiAdapter {
     });
 
     if (!response.ok) {
+      releaseBody(response);
       // Fallback : si SQL indisponible, revenir au mode Records
       if (response.status === 404 || response.status === 403) {
         console.warn(
@@ -553,7 +564,7 @@ export class GristAdapter implements ApiAdapter {
   private async _fetchAllRecords(params: AdapterParams, signal: AbortSignal): Promise<FetchResult> {
     const url = resolveTransportUrl(this.buildUrl(params), params);
     const response = await transportFetch(url, buildFetchOptions(params, signal), params);
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!response.ok) throw httpError(response);
 
     const json = await response.json();
     const data = this._flattenRecords(json.records || []);
@@ -831,6 +842,8 @@ export class GristAdapter implements ApiAdapter {
         signal: probeSignal,
       });
       const available = response.ok;
+      // Sonde : seul le statut compte, le corps n'est jamais lu (#1272)
+      releaseBody(response);
       this._sqlAvailability.set(endpoint, {
         available,
         expiresAt:

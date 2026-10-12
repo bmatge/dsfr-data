@@ -76,6 +76,9 @@ import {
   dispatchDataLoaded,
   dispatchDataError,
   getDataErrorState,
+  getLastKnownData,
+  isDataStale,
+  type LastKnownData,
   dispatchDataLoading,
   dispatchDataIdle,
   clearDataCache,
@@ -87,6 +90,7 @@ import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
 import { safeSourcePage } from '../utils/source-errors.js';
 import { joinWhere } from '../utils/where.js';
+import { httpError } from '../utils/http-error.js';
 
 /**
  * La clé `key` est-elle réservée par l'adaptateur (#726, #1137) ? Chaque
@@ -125,10 +129,13 @@ function isReservedParamKey(reserved: ReadonlySet<string> | undefined, key: stri
  *   select="count(*) as total, region" group-by="region">
  * </dsfr-data-source>
  *
- * @fires dsfr-data-loaded - `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.
+ * @fires dsfr-data-loaded - `{ sourceId, data, loadedAt }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. `loadedAt` (#1272) date ce chargement (`Date.now()`).
  * @fires dsfr-data-loading - `{ sourceId }` sur `document` — un chargement demarre.
- * @fires dsfr-data-error - `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le
- *   parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique :
+ * @fires dsfr-data-error - `{ sourceId, error, attemptedUrl?, lastLoadedAt? }` sur `document` — le fetch ou le
+ *   parsing a echoue. `lastLoadedAt` (#1272) n'est present que si la source AVAIT livré : c'est la
+ *   date de son dernier chargement réussi, dont les lignes restent en mémoire, périmées. Elles
+ *   ne sont plus rendues par `getData()` ni par `getDataCache(id)` ; `getLastKnownData()` les rend
+ *   avec leur date et la cause de la panne. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique :
  *   elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste
  *   volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour
  *   une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).
@@ -837,8 +844,35 @@ export class DsfrDataSource extends LitElement {
     this._fetchData();
   }
 
+  /**
+   * Les lignes COURANTES de la source, ou `null`.
+   *
+   * `null` avant le premier chargement, en attente d'un filtre, **et pendant
+   * une panne** (#1272) : les lignes du dernier chargement réussi ne sont plus
+   * rendues comme si elles étaient à jour. Pour les lire quand même, datées :
+   * `getLastKnownData()`.
+   */
   public getData(): unknown {
-    return this._data;
+    return this._hasCurrentData() ? this._data : null;
+  }
+
+  /**
+   * Les lignes du dernier chargement réussi, avec leur date (#1272) :
+   * `{ data, loadedAt, stale? }`. `stale` est présent pendant une panne
+   * (`since`, `cause` du barème, `originId`) et absent tant que les lignes
+   * sont à jour. `undefined` si la source n'a jamais rien livré.
+   */
+  public getLastKnownData(): LastKnownData | undefined {
+    return this.id ? getLastKnownData(this.id) : undefined;
+  }
+
+  /**
+   * Les lignes de la source sont-elles périmées (#1272) ? Vrai de son premier
+   * échec après un chargement réussi jusqu'au chargement réussi suivant —
+   * nouvel essai en cours compris.
+   */
+  public isStale(): boolean {
+    return Boolean(this.id) && isDataStale(this.id);
   }
 
   public isLoading(): boolean {
@@ -851,6 +885,16 @@ export class DsfrDataSource extends LitElement {
 
   // --- Private methods ---
 
+  /**
+   * `_data` porte-t-il les lignes courantes (#1272) ? Après un échec, il garde
+   * celles du dernier chargement réussi : elles ne se rendent ni ne se
+   * ré-émettent comme une réponse — `dispatchDataLoaded` effacerait l'erreur
+   * et l'aval repasserait de « indisponible » à l'ancien jeu.
+   */
+  private _hasCurrentData(): boolean {
+    return this._data !== null && !this._error && !(this.id && isDataStale(this.id));
+  }
+
   private _dispatchInlineData() {
     if (!this.id) {
       reportConfigError(this, 'dsfr-data-source', 'attribut "id" requis pour identifier la source');
@@ -859,6 +903,7 @@ export class DsfrDataSource extends LitElement {
     try {
       const parsed = JSON.parse(this.data);
       this._data = parsed;
+      this._error = null;
       dispatchDataLoaded(this.id, this._data);
     } catch (e) {
       this._error = new Error('Données inline invalides (JSON attendu)');
@@ -974,7 +1019,7 @@ export class DsfrDataSource extends LitElement {
         }
         if (needsFetch) {
           this._scheduleFetch();
-        } else if (this._data !== null && !this._fetchScheduled && !this._loading) {
+        } else if (this._hasCurrentData() && !this._fetchScheduled && !this._loading) {
           // Le contrat « une commande produit toujours une emission » (#276)
           // tient aussi pour une commande refusee : l'emetteur attend une
           // reponse, le cache courant EST la reponse (rien n'a change)
@@ -1017,7 +1062,7 @@ export class DsfrDataSource extends LitElement {
 
       if (needsFetch) {
         this._scheduleFetch();
-      } else if (this._data !== null && !this._fetchScheduled && !this._loading) {
+      } else if (this._hasCurrentData() && !this._fetchScheduled && !this._loading) {
         // Commande entierement dedupliquee : re-emettre le cache pour qu'un
         // transformateur qui attend une emission post-commande ne gele pas
         // (#276). Contrat : une commande produit TOUJOURS une emission.
@@ -1035,7 +1080,7 @@ export class DsfrDataSource extends LitElement {
     setTimeout(() => {
       this._reemitScheduled = false;
       // Un fetch a pu etre demande entre-temps : son emission suffira
-      if (!this._fetchScheduled && !this._loading && this._data !== null) {
+      if (!this._fetchScheduled && !this._loading && this._hasCurrentData()) {
         dispatchDataLoaded(this.id, this._data);
       }
     }, 0);
@@ -1267,7 +1312,7 @@ export class DsfrDataSource extends LitElement {
         : await fetch(url, init);
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw httpError(response);
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

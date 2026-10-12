@@ -395,9 +395,12 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     this._applyFilter();
   }
 
-  /** Retourne les données actuellement filtrees */
+  /**
+   * Retourne les données actuellement filtrees. Vide pendant une panne de
+   * l'amont (#1272) : voir `getLastKnownData()`.
+   */
   getData(): Record<string, unknown>[] {
-    return this._filteredData;
+    return this.isStale() ? [] : this._filteredData;
   }
 
   /** Remplace le jeu de données source */

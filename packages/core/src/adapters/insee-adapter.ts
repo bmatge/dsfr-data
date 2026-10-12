@@ -25,6 +25,7 @@ import {
   applyInseeLabels,
 } from '@dsfr-data/shared/lib';
 import { buildColonFacetWhere, unescapeColonValue, isMultiFieldClause } from '../utils/where.js';
+import { httpError } from '../utils/http-error.js';
 
 /** Default base URL for the Melodi API */
 const INSEE_BASE_URL = 'https://api.insee.fr/melodi';
@@ -96,7 +97,7 @@ export class InseeAdapter implements ApiAdapter {
 
       const response = await transportFetch(url, buildFetchOptions(params, signal), params);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw httpError(response);
       }
 
       const json = await response.json();
@@ -145,7 +146,7 @@ export class InseeAdapter implements ApiAdapter {
 
     const response = await transportFetch(url, buildFetchOptions(params, signal), params);
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw httpError(response);
     }
 
     const json = await response.json();

@@ -297,6 +297,8 @@ export class DsfrDataContext extends LitElement {
       return typeof value === 'string' && value.trim() !== '';
     });
     if (restricted) return false;
+    // Source en panne (#1272) : ses lignes ne sont plus au cache, rien n'est
+    // jugé « absent » — le filtre part, et la source dira elle-même son état.
     const data = getDataCache(sourceId);
     const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
     if (rows.length === 0) return false;
