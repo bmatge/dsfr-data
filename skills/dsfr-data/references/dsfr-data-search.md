@@ -152,7 +152,7 @@ contradictoires (#654).
 | `clear()` | `void` | Efface le champ et restaure toutes les données |
 | `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente). Permet aux composants en aval (dsfr-data-facets) d'acceder a l'adapter sans connaitre la structure du pipeline. |
 | `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter résolus de la source amont (délégation transparente, headers api-key-ref inclus — #274). |
-| `getData()` | `Record<string, unknown>[]` | Retourne les données actuellement filtrees |
+| `getData()` | `Record<string, unknown>[]` | Retourne les données actuellement filtrees. Vide pendant une panne de l'amont (#1272) : voir `getLastKnownData()`. |
 | `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 | `search(term: string)` | `void` | Declenche une recherche programmatique |
 | `setData(data: Record<string, unknown>[])` | `void` | Remplace le jeu de données source |

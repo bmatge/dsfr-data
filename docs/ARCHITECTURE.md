@@ -615,7 +615,44 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   AVANT d'émettre, `{ error, originId, cause, attemptedUrl?, userMessage?, at }` sous l'id de l'étape ;
   `dsfr-data-loading`, `dsfr-data-loaded` et `clearDataCache` l'effacent. `originId` est la source qui
   a réellement échoué : `TransformerMixin` relaie l'erreur avec `{ relayedFrom }`, l'origine suit donc la
-  chaîne jusqu'aux afficheurs. Le détail de l'événement `dsfr-data-error` est INCHANGÉ.
+  chaîne jusqu'aux afficheurs. Le détail de l'événement `dsfr-data-error` ne gagne qu'un champ
+  optionnel, `lastLoadedAt` (#1272, ci-dessous).
+- **Lignes périmées et datées** (#1272) — `data-bridge.ts`, `window.__dsfrDataStale` et
+  `window.__dsfrDataLoadedAt`. Une étape qui échoue APRÈS avoir livré ne jette pas ses lignes, et ne
+  les laisse pas non plus au cache : `dispatchDataError` les SORT de `__dsfrDataCache` et les range
+  dans `__dsfrDataStale`, avec `loadedAt` (date du dernier chargement réussi), `since` (premier échec),
+  `cause` (barème) et `originId`. Conséquence voulue : **le chemin par défaut ne rend plus rien**
+  (`getDataCache(id)` → `undefined`), et le seul chemin qui rend ces lignes — `getLastKnownData(id)` →
+  `{ data, loadedAt, stale? }` — les rend avec leur date. Un champ « périmé » posé à côté du cache
+  aurait compté sur chaque lecteur pour être lu ; ce sont les lecteurs qui ne le lisaient pas que
+  l'issue visait. Cycle de vie : posé par `dispatchDataError` ; GARDÉ par `dispatchDataLoading` (le
+  nouvel essai efface l'erreur, pas le marquage — `isDataStale(id)` reste vrai) ; levé par
+  `dispatchDataLoaded` (nouvelle date) ; purgé par `clearDataCache` (étape retirée du DOM) et par
+  `dispatchDataIdle` (`require-where` qui repasse en attente n'est pas une panne). La `meta`
+  (`__dsfrDataMeta`) n'est pas déplacée : la négociation d'une query la relit pendant la panne.
+  **Aucun afficheur ne rend ces lignes** : l'affichage « dernières données connues, datées »
+  (proposition 3 de #1203) est une issue à part.
+- **Les lecteurs, un par un** (#1272) — `SourceSubscriberMixin` : rien au cache, erreur relue au
+  registre ; ni erreur ni lignes mais `isDataStale` → un nouvel essai est en vol, le bloc monté à cet
+  instant est en chargement. `TransformerMixin` : au branchement, l'erreur de l'amont est relue au
+  registre et relayée (`relayedFrom`) — une query montée après la panne n'était ni en erreur ni muette,
+  elle relisait l'ancien jeu ; à l'émission, `emitTransformedData` REFUSE tant qu'une entrée est en
+  erreur ou périmée (`_unusableInput`). Ce second verrou est le seul qui tienne pour les hôtes qui
+  gardent leur copie des lignes (`_rawData` de query, les deux côtés de join, les parts de concat) :
+  le rechargement de l'AUTRE entrée d'une jointure relançait le calcul et `dispatchDataLoaded` effaçait
+  l'erreur. `dsfr-data-source` : `getData()` et les ré-émissions de commande dédupliquée (#276) passent
+  par `_hasCurrentData()` — une commande sans effet ré-émettait l'ancien jeu en pleine panne.
+  `ScopeEmitter` (`scopes` de display / repeat) : même relevé du registre, erreur des ids scopés
+  relayée avec l'origine. `numeric-field-mismatch` et `_fieldMissingOn` de `dsfr-data-context` ne
+  jugent plus la forme d'un jeu périmé (cache vide → « inconnu »). Les `getData()` publics rendent
+  vide quand `isStale()`. Un transformateur ré-émet avec `loadedAt` = date de son entrée la plus
+  ancienne : recalculer ne rajeunit pas des lignes.
+- **Corps d'une réponse refusée** (#1272) — `utils/http-error.ts` (`httpError`, `releaseBody`). La
+  source et les adaptateurs ne lisaient pas le corps d'un 404 ou d'un 503 : la requête restait ouverte
+  pour le navigateur. Mesuré dans `npm run verif` : un geste suivi d'une panne faisait attendre
+  `networkidle` jusqu'à l'expiration du test (90 s) ; corps abandonné, 1 s. Tout `!response.ok` de
+  `adapters/` et de `dsfr-data-source.ts` passe par l'un des deux (`cancel()`, pas `text()` : rien
+  n'est téléchargé pour être jeté).
 - **Bloc** — `renderSourceError(classe, error, sourceId)` lit le registre : encart neutre (styles en
   ligne, qui l'emportent sur le rouge de la classe `__error` de chaque composant sans la toucher),
   `role="status"`, « Détails techniques » repliés.
@@ -634,8 +671,9 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   bouton, ni lien, ni détail. Les autres afficheurs gardent le gabarit complet. La hauteur est mesurée
   par `e2e/kpi-source-en-panne.spec.ts` (140 px, bureau et 375 px).
 - **Un bloc monté APRÈS la panne** (#1222) — `SourceSubscriberMixin` relit le registre d'erreur à
-  l'abonnement, comme il relit `isDataIdle`. `dispatchDataError` ne purge pas le cache des lignes : sans
-  ce relevé, le bloc tardif affichait l'ancien chiffre à côté de voisins en panne.
+  l'abonnement, comme il relit `isDataIdle`. Depuis #1272 le cache ne porte plus les lignes d'une
+  étape en panne : sans ce relevé, le bloc tardif ne montrerait plus l'ancien chiffre, mais resterait
+  vide au lieu de dire la panne.
 - **Lien vers la page des données** (#1222) — attribut `source-page` de la source, porté par le registre
   (`sourcePage`, relayé le long de la chaîne comme `userMessage`). Filtré par `safeSourcePage` : `http(s)`
   ou relatif, schéma lu par l'analyseur d'URL. Rendu pour la SEULE cause `donnees-introuvables`
@@ -724,7 +762,7 @@ n'est epingle en haut sur telephone, en portrait comme en paysage).
 - **La duplication des noms d'evenements est deliberee.** Le collecteur doit tourner **sans** `packages/core` (script autonome injecte sur une page tierce, #608) ; importer core ferait entrer tout un bundle dans un outil de diagnostic, et inverser la dependance creerait un cycle. Garde-fou : `tests/debug/alignment.test.ts` casse si un nom derive **ou** si un nouveau composant utilise `TransformerMixin` / `SourceSubscriberMixin` sans etre declare dans `STAGE_ROLES`. Le scan lit le decorateur `@customElement`, pas le nom de fichier.
 - **Le collecteur garde SA copie des donnees.** `TransformerMixin.disconnectedCallback` appelle `clearDataCache(this.id)` : une etape retiree du DOM perd son entree de cache. S'appuyer sur `__dsfrDataCache` ferait disparaitre la trace au moment precis ou on en a besoin.
 - **La quiescence exige silence ET aucune etape en chargement.** Il n'existe aucun evenement « le pipeline a fini », et une commande remontante peut relancer la chaine bien apres le dernier evenement. `waitForQuiescence()` rend `false` au plafond plutot qu'un faux calme.
-- **Une etape en echec invalide ses donnees.** Sans ca, l'aval rapporterait le compte du dernier succes et un afficheur se dirait « alimente » sous une source tombee — le faux calme, applique a l'erreur.
+- **Une etape en echec invalide ses donnees.** Sans ca, l'aval rapporterait le compte du dernier succes et un afficheur se dirait « alimente » sous une source tombee — le faux calme, applique a l'erreur. Ce que la bibliotheque garde en memoire (#1272) est releve a part, dans `StageState.stale` (`{ loadedAt, rows? }`, depuis `lastLoadedAt` de l'evenement) : pose a l'erreur, garde pendant le nouvel essai, leve au chargement reussi ou au retour en attente. La regle `pipeline/lignes-perimees` (`constats.ts`) en fait une RESERVE (`info`) sur l'etape en panne, et un AVERTISSEMENT sur une etape qui a emis APRES l'echec de son amont encore en panne (ordre lu dans `trace.events`) — ce qu'aucun transformateur de la bibliotheque ne fait plus, mais qu'un composant tiers ou une version anterieure observee par le bundle autonome fait encore, en se disant « chargee ». `formatTrace` et `diagnostic-tools.ts` le disent a l'etape.
 - **`Trace.order` porte l'ordre topologique.** `states` est un objet nu : JavaScript y range les cles entieres AVANT les autres, donc des ids numeriques inverseraient la lecture.
 - **`formatTrace()` est la fonction pivot.** Une seule implementation, consommee a l'identique par « Copier le diagnostic », « Demander a l'assistant » et l'outil `trace_pipeline` de la boucle agentique. Ce que l'utilisateur voit et ce que l'assistant recoit sont le **meme objet**.
 - **Le module est lib-safe mais hors des bundles publies.** Exporte depuis les DEUX barrels de `shared` (`index.ts` ET `lib.ts`), parce que l'entree autonome `packages/core/src/index-debug.ts` en depend et que la frontiere #319 interdit a `core` le barrel racine. Aucun COMPOSANT ne l'importe : il n'entre donc dans aucun des six bundles publies. Verrouille par `tests/debug/standalone-bundle.test.ts`, qui grepe les bundles **et** verifie qu'aucun fichier de `components/` ne reference le collecteur — la seconde moitie attrape la regression avant meme le build.
@@ -784,8 +822,11 @@ javascript:(function(){var s=document.createElement('script');s.src='https://VOT
 ```
 
 Sur une page tierce il n'y a pas de tampon precoce : le collecteur arrive
-apres le pipeline et reconstitue l'etat depuis `__dsfrDataCache`. On perd la
-chronologie et les erreurs deja passees — d'ou le bouton « Recharger » de l'incrustation, et l'avertissement
+apres le pipeline et reconstitue l'etat depuis `__dsfrDataCache` — et, pour
+les etapes EN PANNE, depuis le registre d'erreur `__dsfrDataErrors`
+(`readErrorSnapshot`, #1272) : leurs lignes ne sont plus au cache courant, ou
+ce releve les declarait « chargees » sur le jeu d'avant la panne. On perd la
+chronologie — d'ou le bouton « Recharger » de l'incrustation, et l'avertissement
 qu'elle affiche quand la trace a du etre reconstituee.
 
 **Outil MCP `diagnose_widget_code`.** Analyse STATIQUE, sans execution :
@@ -1478,6 +1519,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 - **Un tableau de couleurs posé sur un TRAIT n'est pas « une couleur par point »** (#1244) — `packages/core/src/utils/color-map.ts` (`applyColorMap`, branche « modalité »). Chart.js n'indexe un tableau de couleurs que pour ce qui se dessine élément par élément : barres, parts, POINTS (`pointBackgroundColor`…). Posé sur `borderColor` / `backgroundColor` d'une courbe ou d'un radar, il est lu à son premier élément : le trait entier prenait la couleur de la première modalité, l'aire d'un radar devenait opaque, la pastille de légende suivait (via `colorParse`, #968) — et les points, qui ont leurs propres propriétés, gardaient la palette. Mesuré : 652 px de trait rouge et 0 px vert sur une courbe à `color-map="1:#ff0000,3:#00aa00"`. Sur un jeu qui porte des couleurs de point, la branche « modalité » écrit donc les tableaux sur les propriétés de point et laisse le trait, l'aire et la légende à la série. Garde : même spec, trois types, bornes haute ET basse sur les pixels de chaque couleur.
 - **Une borne d'axe relayée à DSFR Chart n'est pas une borne, et elle part sur l'échelle du même NOM** (#1273) — `packages/core/src/utils/chart-axis-bounds.ts` (`planAxisBounds`, `applyAxisBounds`). DSFR Chart pose `x-min` / `x-max` / `y-min` / `y-max` en `suggestedMin` / `suggestedMax` sur `scales.x` / `scales.y`, quel que soit ce que l'axe porte. Trois conséquences, toutes mesurées dans un navigateur et invisibles à la lecture des attributs : (1) sur un axe d'ÉTIQUETTES (`category`), Chart.js ne trouve pas la borne parmi les libellés et l'AJOUTE — une catégorie fantôme par borne (`x-*` sur des barres, une courbe à étiquettes texte ou un `bar-line` ; `y-*` sur des barres horizontales, dont l'axe des valeurs est `scales.x`) ; (2) `<bar-line-chart>` ne lit ni `y-min` ni `y-max`, seulement `y-bar-*` et `y-line-*` ; (3) une borne suggérée ne fait qu'élargir et s'arrondit à la graduation (`y-min="5"` → axe depuis 0). Le composant ne relaie donc plus rien tel quel : `planAxisBounds` décide par type et par données ce qui est relayé (base déclarative, sous le nom que DSFR Chart lit pour CETTE échelle), ce qui est posé en borne dure sur l'instance après le rendu, et ce qui est signalé. Le type de l'axe horizontal d'une courbe ou d'un nuage se devine comme le fait DSFR Chart (`xAxisType` : la première étiquette est-elle numérique ?) ; `applyAxisBounds` relit le type réel de l'échelle et ne borne jamais un axe `category`. **Et la borne dure se pose par une transition de durée nulle, pas par `update('none')`** : elle arrive dès que l'instance est prête, donc pendant l'animation d'entrée ; un mode direct écrit la nouvelle géométrie sans arrêter les animations en vol, qui finissent sur les positions de l'ANCIENNE échelle (barres d'un `bar-line` décollées de zéro sous un axe correct). Même mécanisme que `refreshSeriesColors` ci-dessus, autre symptôme. `chart-radial-scale.ts` (radar) appelle encore `update('none')` : à surveiller. Gardes : `e2e/chart-axis-bounds.spec.ts` (échelles lues par type) et les contrôles `graphique-bornes-*` de `tests/verif-donnees/affichages.ts` (genre `scale`).
 - **Le tri du pipeline d'une query passe AVANT ses colonnes de fenêtre** (#1244) — `dsfr-data-query.ts` (`_processClientSide` : 3 tri, 3 bis fenêtres, 3 ter tri rejoué ; `_delegateOrderBy`, `_orderByReadsWindowColumn`). Un cumul se calcule après le tri, donc une part, un cumul ou un écart n'existent pas encore quand `order-by` est appliqué : un tri qui les nomme ne trouvait rien à trier, et côté négociation il partait au serveur, qui ne les connaît pas (`order_by=n__share_percent`, refusé par Tabular). Deux règles en découlent : une clé de tri qui nomme une colonne de fenêtre interdit la délégation du tri ENTIER, et le tri est rejoué après les fenêtres, avant `limit`. Les clés qui portent sur des colonnes déjà là gardent seules le premier passage — ce sont elles qui ordonnent un cumul. Toute nouvelle colonne produite par la query après le tri doit entrer dans `_windowColumns()`. Garde : `tests/query-order-by-client-column.test.ts` (cinq adaptateurs) et les contrôles `delegation/tri-sur-*`.
+- **Les lignes d'une étape en panne ne sont plus dans `__dsfrDataCache`** (#1272) — `packages/core/src/utils/data-bridge.ts` (`retireDataCache`, `getLastKnownData`, `isDataStale`), `transformer-mixin.ts` (`_unusableInput`, `_refuseStaleEmission`), `dsfr-data-source.ts` (`_hasCurrentData`). `dispatchDataError` DÉPLACE les lignes vers `__dsfrDataStale` (datées, cause du barème) au lieu de les laisser au cache : tout lecteur du chemin par défaut reçoit `undefined`, y compris un bundle d'une version antérieure chargé sur la même page et le collecteur de diagnostic. Trois pièges à distance : (a) **un composant qui garde SA copie des lignes doit se taire pendant la panne** — c'est `emitTransformedData` qui s'y refuse pour tous les transformateurs, et un hôte qui appellerait `dispatchDataLoaded` lui-même effacerait l'erreur de l'étape (l'aval repasse de « indisponible » à l'ancien chiffre) ; (b) **`dispatchDataLoading` efface l'erreur mais pas le marquage** : pendant un nouvel essai, « pas d'erreur » ne veut pas dire « lignes à jour » — lire `isDataStale` ; (c) **`getData()` d'une source ou d'un transformateur rend vide quand `isStale()`**, et la ré-émission d'une commande dédupliquée (#276) est suspendue : un test qui pose `_data` à la main sur une source dont un vrai fetch a échoué en arrière-plan ne verra plus de ré-émission. Tout nouvel adaptateur qui teste `!response.ok` passe par `httpError` / `releaseBody` (`utils/http-error.ts`) : un corps d'erreur non lu laisse la requête ouverte, et `networkidle` n'arrive jamais. Gardé par `tests/cache-perime-date.test.ts`, `tests/debug/lignes-perimees.test.ts` et trois contrôles de `tests/verif-donnees/affichages.ts`.
 
 ---
 

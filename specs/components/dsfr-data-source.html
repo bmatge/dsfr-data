@@ -958,12 +958,56 @@
           Le bouton « Réessayer » est un bouton DSFR d'au moins 44 px de haut.
         </p>
 
+        <h3 id="lignes-perimees" class="fr-mt-3w">Pendant la panne : les dernières lignes, périmées et datées</h3>
+        <p>
+          Une source qui échoue <strong>après avoir déjà livré</strong> ne jette pas ses lignes, mais
+          elles ne passent plus pour à jour. Les composants n'en affichent aucune : ils gardent le
+          message de panne décrit plus haut. Pour un script de la page, la règle est la même :
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Lecture</th><th>Source à jour</th><th>Source en panne</th></tr></thead>
+            <tbody>
+              <tr><td><code>element.getData()</code></td><td>les lignes</td><td><code>null</code> (<code>[]</code> sur une requête, une jointure, un empilement, un pivot)</td></tr>
+              <tr><td><code>DsfrData.getDataCache(id)</code></td><td>les lignes</td><td><code>undefined</code></td></tr>
+              <tr><td><code>element.isStale()</code></td><td><code>false</code></td><td><code>true</code>, jusqu'au prochain chargement réussi — nouvel essai en cours compris</td></tr>
+              <tr><td><code>element.getLastKnownData()</code><br><code>DsfrData.getLastKnownData(id)</code></td><td><code>{ data, loadedAt }</code></td><td><code>{ data, loadedAt, stale: { since, cause, originId } }</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>loadedAt</code> est la date (<code>Date.now()</code>) du dernier chargement réussi,
+          <code>since</code> celle du premier échec depuis, <code>cause</code> la cause du barème
+          (<code>service-indisponible</code>, <code>hors-connexion</code>, <code>service-sollicite</code>,
+          <code>donnees-introuvables</code>, <code>acces-restreint</code>, <code>page-mal-reglee</code>,
+          <code>reponse-bloquee</code>) et <code>originId</code> la source qui a réellement échoué.
+          Les lignes et leur date sont rendues ensemble : on ne peut pas obtenir les unes sans l'autre.
+          Le marquage se lève au premier chargement réussi ; une source remise en attente d'un filtre
+          (<code>require-where</code>) ou retirée de la page n'en garde aucune.
+        </p>
+        <div class="code-block">
+          <pre>&lt;script type="module"&gt;
+  document.addEventListener('dsfr-data-error', (e) =&gt; {
+    if (e.detail.sourceId !== 'prix' || e.detail.lastLoadedAt === undefined) return;
+    const { data, loadedAt, stale } = document.getElementById('prix').getLastKnownData();
+    // À n'afficher que DATÉ : « Données du … · mise à jour impossible »
+    console.log(data.length, 'lignes du', new Date(loadedAt).toLocaleString('fr-FR'), stale.cause);
+  });
+&lt;/script&gt;</pre>
+        </div>
+        <p>
+          Les transformateurs suivent la même règle : une requête, un <code>dsfr-data-normalize</code>,
+          une jointure, un empilement ou un pivot dont la source est en panne relaient l'erreur et ne
+          recalculent rien sur les anciennes lignes — ni quand un de leurs attributs change, ni quand
+          une autre de leurs entrées se recharge.
+        </p>
+
         <h2 id="evenements" class="fr-mt-4w">Événements</h2>
         <p>Le composant émet des événements personnalises via le système data-bridge :</p>
         <ul>
-          <li><code>dsfr-data-loaded</code> : Données chargées avec succès (detail : tableau de records)</li>
+          <li><code>dsfr-data-loaded</code> : Données chargées avec succès (detail : <code>{ sourceId, data, loadedAt }</code> — <code>loadedAt</code> date le chargement)</li>
           <li><code>dsfr-data-loading</code> : Chargement en cours</li>
-          <li><code>dsfr-data-error</code> : Erreur de chargement (detail : objet Error, dont le message porte le code HTTP). Inchangé par le message lisible des blocs : l'événement et la trace console restent la voie de l'intégrateur.</li>
+          <li><code>dsfr-data-error</code> : Erreur de chargement (detail : <code>{ sourceId, error, attemptedUrl?, lastLoadedAt? }</code>, le message de l'<code>Error</code> porte le code HTTP). <code>lastLoadedAt</code> n'est présent que si la source avait déjà livré : ses lignes restent en mémoire, périmées. Le message lisible des blocs ne change pas cet événement : avec la trace console, il reste la voie de l'intégrateur.</li>
           <li><code>cache-fallback</code> : Les données proviennent du cache serveur suite a une erreur API (mode DB uniquement)</li>
         </ul>
 
@@ -973,7 +1017,9 @@
             <thead><tr><th>Méthode</th><th>Retour</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>reload()</code></td><td>void</td><td>Force le rechargement des données, à l'identique. C'est ce que déclenche « Réessayer ».</td></tr>
-              <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles</td></tr>
+              <tr><td><code>getData()</code></td><td>unknown</td><td>Retourne les données actuelles. <code>null</code> avant le premier chargement, en attente d'un filtre, et pendant une panne : les lignes d'avant la panne ne sont pas rendues comme à jour (voir <a href="#lignes-perimees">les dernières lignes, périmées et datées</a>).</td></tr>
+              <tr><td><code>getLastKnownData()</code></td><td>{ data, loadedAt, stale? } | undefined</td><td>Les lignes du dernier chargement réussi et leur date. <code>stale</code> (<code>{ since, cause, originId }</code>) est présent pendant une panne, absent sinon. <code>undefined</code> si la source n'a jamais rien livré.</td></tr>
+              <tr><td><code>isStale()</code></td><td>Boolean</td><td><code>true</code> quand la source garde des lignes périmées : de sa panne jusqu'au prochain chargement réussi.</td></tr>
               <tr><td><code>isLoading()</code></td><td>Boolean</td><td>Indique si un chargement est en cours</td></tr>
               <tr><td><code>getError()</code></td><td>Error | null</td><td>Retourne l'erreur eventuelle</td></tr>
               <tr><td><code>getAdapter()</code></td><td>ApiAdapter | null</td><td>Retourne l'adapter actif (mode adapter uniquement, <code>null</code> en mode URL brute)</td></tr>

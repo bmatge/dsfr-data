@@ -112,7 +112,7 @@ dsfr-data-source (long) ──► [dsfr-data-query : filtre / facette] ──►
 |---|---|---|
 | `getAdapter()` | `import('../adapters/api-adapter.js').ApiAdapter \| null` | Retourne l'adapter de la source amont (délégation transparente), pour que facets / search en aval atteignent l'adapter à travers ce transformateur. |
 | `getAdapterParams()` | `import('../adapters/api-adapter.js').AdapterParams \| null` | Retourne les paramètres adapter résolus de la source amont (délégation, #274). |
-| `getData()` | `Row[]` | — |
+| `getData()` | `Row[]` | Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`). |
 | `getEffectiveWhere(excludeKey?: string)` | `string` | Retourne le where effectif de la source amont (délégation transparente). |
 | `getPivotStats()` | `PivotStats \| null` | Statistiques du dernier pivot (colonnes générées, cellules vides), ou null avant le premier. |
 | `transformsSchema()` | `boolean` | Le pivot fabrique ses colonnes à partir des données : le schéma aval ne correspond jamais à celui de la source qui fetch (#394). Une query en aval ne doit donc jamais déléguer ses opérations au serveur à travers lui. |

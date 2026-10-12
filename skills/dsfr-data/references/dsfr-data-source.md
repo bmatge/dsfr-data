@@ -48,13 +48,18 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | api-key-ref | String | `""` | non | Reference vers une clé API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
 
 ### Événements emis
-- `dsfr-data-loaded` : données chargees (detail : tableau de données)
+- `dsfr-data-loaded` : données chargees (detail : `{ sourceId, data, loadedAt }` — `loadedAt` date le chargement)
 - `dsfr-data-loading` : chargement en cours
-- `dsfr-data-error` : erreur (detail : objet Error)
+- `dsfr-data-error` : erreur (detail : `{ sourceId, error, attemptedUrl?, lastLoadedAt? }` — `lastLoadedAt`
+  n'est présent que si la source avait déjà livré : ses lignes restent en mémoire, périmées)
 
 ### Methodes publiques
 - `reload()` : force le rechargement des données
-- `getData()` : retourne les données actuelles (tableau d'objets)
+- `getData()` : retourne les données ACTUELLES (tableau d'objets). `null` avant le premier
+  chargement et PENDANT UNE PANNE : les lignes d'avant la panne ne sont jamais rendues comme à jour.
+- `getLastKnownData()` : `{ data, loadedAt, stale? }` — les lignes du dernier chargement réussi et
+  leur date. Pendant une panne, `stale` vaut `{ since, cause, originId }` ; absent sinon.
+- `isStale()` : `true` de la panne jusqu'au prochain chargement réussi (nouvel essai compris).
 
 ### Exemples
 ```html
@@ -210,6 +215,16 @@ La phrase dépend de la cause :
   n'a ni bouton, ni lien, ni détail.
 - L'événement `dsfr-data-error` et la trace console ne changent pas : le code HTTP reste dans
   `error.message`.
+- PENDANT la panne, les lignes du dernier chargement réussi ne sont pas jetées, mais elles ne
+  passent plus pour à jour (#1272) : `getData()` rend `null` (une requête, une jointure… rendent
+  `[]`), `DsfrData.getDataCache(id)` rend `undefined`, et aucun transformateur ne recalcule
+  dessus. Pour les lire quand même — un script qui veut afficher « dernières données connues » —,
+  une seule voie, qui donne toujours la date avec les lignes :
+  `element.getLastKnownData()` ou `DsfrData.getLastKnownData(id)` →
+  `{ data, loadedAt, stale: { since, cause, originId } }`. `cause` est celle du tableau ci-dessus
+  (`service-indisponible`, `hors-connexion`, `service-sollicite`, `donnees-introuvables`,
+  `acces-restreint`, `page-mal-reglee`, `reponse-bloquee`). Le marquage se lève au premier
+  chargement réussi. Aucun composant n'affiche ces lignes périmées : rien ne change à l'écran.
 
 ```html
 <dsfr-data-source-status source="prix"></dsfr-data-source-status>
@@ -268,10 +283,12 @@ La phrase dépend de la cause :
 |---|---|---|
 | `getAdapter()` | `ApiAdapter \| null` | Returns the adapter for this source (if in adapter mode) |
 | `getAdapterParams()` | `AdapterParams` | Paramètres adapter resolus, headers effectifs inclus (headers + api-key-ref). Consomme par les composants aval via SourceElement (#274). |
-| `getData()` | `unknown` | — |
+| `getData()` | `unknown` | Les lignes COURANTES de la source, ou `null`. `null` avant le premier chargement, en attente d'un filtre, **et pendant une panne** (#1272) : les lignes du dernier chargement réussi ne sont plus rendues comme si elles étaient à jour. Pour les lire quand même, datées : `getLastKnownData()`. |
 | `getEffectiveWhere(excludeKey?: string | string[])` | `string` | Returns the effective WHERE clause (static + all dynamic overlays merged). `excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 — une facette en mode `context` emet un whereKey PAR champ et doit les exclure tous du where de base de sa cascade). |
 | `getError()` | `Error \| null` | — |
+| `getLastKnownData()` | `LastKnownData \| undefined` | Les lignes du dernier chargement réussi, avec leur date (#1272) : `{ data, loadedAt, stale? }`. `stale` est présent pendant une panne (`since`, `cause` du barème, `originId`) et absent tant que les lignes sont à jour. `undefined` si la source n'a jamais rien livré. |
 | `isLoading()` | `boolean` | — |
+| `isStale()` | `boolean` | Les lignes de la source sont-elles périmées (#1272) ? Vrai de son premier échec après un chargement réussi jusqu'au chargement réussi suivant — nouvel essai en cours compris. |
 | `reload()` | `void` | Relance le chargement à l'identique (mêmes filtres, même page). C'est ce que fait « Réessayer » (#1203), par la commande `{ reload: true }`. |
 
 
@@ -280,9 +297,9 @@ La phrase dépend de la cause :
 | Événement | Payload | Direction | Quand |
 |---|---|---|---|
 | `cache-fallback` | — | émis | `{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307). |
-| `dsfr-data-loaded` | — | émis | `{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. |
+| `dsfr-data-loaded` | — | émis | `{ sourceId, data, loadedAt }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. `loadedAt` (#1272) date ce chargement (`Date.now()`). |
 | `dsfr-data-loading` | — | émis | `{ sourceId }` sur `document` — un chargement demarre. |
-| `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration). |
+| `dsfr-data-error` | — | émis | `{ sourceId, error, attemptedUrl?, lastLoadedAt? }` sur `document` — le fetch ou le parsing a echoue. `lastLoadedAt` (#1272) n'est present que si la source AVAIT livré : c'est la date de son dernier chargement réussi, dont les lignes restent en mémoire, périmées. Elles ne sont plus rendues par `getData()` ni par `getDataCache(id)` ; `getLastKnownData()` les rend avec leur date et la cause de la panne. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration). |
 | `dsfr-data-idle` | — | émis | `{ sourceId, reason }` sur `document` — la source attend un filtre (`require-where` posé, aucun filtre reçu). Aucune requête n'est partie : l'état est distinct d'un chargement, d'une erreur et d'un résultat vide. Les afficheurs le rendent en message « choisissez un filtre » (#690). Le contrat de cet événement ne change pas avec le message lisible des blocs (#1203) : le code HTTP reste dans `error.message`, et l'échec reste journalisé en console. |
 
 
