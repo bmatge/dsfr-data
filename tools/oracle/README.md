@@ -23,11 +23,13 @@ mutation · un contrôle que la bibliothèque ne passe pas · le rapport.
 graphe d'imports atteignable depuis les deux dossiers — un fichier neuf y entre sans avoir rien à
 déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
-État du dépôt (mesuré le 2026-10-12) : **330 contrôles déterministes** et **38 contrôles vivants**,
-répartis en onze domaines, pour 749 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+État du dépôt (mesuré le 2026-10-12 ; les trois chiffres déterministes — contrôles, observations,
+attentes de la troisième voix — remesurés le 2026-10-13 sur `out/manifests.json` et `attendus.json`) :
+**343 contrôles déterministes** et **38 contrôles vivants**,
+répartis en onze domaines, pour 802 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 550 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 595 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -998,6 +1000,13 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | `emitTransformedData` ne refuse plus d'émettre sous une entrée périmée (`core/utils/transformer-mixin.ts`) | `transformateur-amont-en-panne` | « k-jointure : affiché « 15 909 531 », recalculé — » et « k-pile : affiché « 31 819 062 », recalculé — » : l'autre entrée se recharge, la jointure et l'empilement recalculent sur l'ancien côté et l'aval quitte son état d'erreur (#1272) |
 | affichages | les trois verrous retirés ensemble — lignes laissées au cache, émission non refusée, erreur de l'amont non relue au branchement (`data-bridge.ts`, `transformer-mixin.ts`) : le comportement d'avant #1272 | `transformateur-amont-en-panne` (et les deux autres) | les QUATRE tuiles ressortent un chiffre : « k-tardif-requete : affiché « 15 909 531 » » (requête montée après la panne), « k-jointure », « k-pile : 31 819 062 », « k-normalise : 15 909 531 » (attribut changé pendant la panne). `k-tardif-requete` et `k-normalise` sont gardés par DEUX verrous : une seule mutation ne les rougit pas (#1272) |
 | affichages | `setDataCache` ne lève plus le marquage au chargement réussi (`staleData.delete` retiré, `core/utils/data-bridge.ts`) | `marquage-perime-leve-au-rechargement` | « retour-getdata : affiché « — », recalculé 15909531 » et « retour-marque : affiché « marquage encore posé » » : la source remarche et `getData()` reste muet (#1272) |
+| affichages | `_currentRows()` rend `_sourceData` sans regarder la panne (`dsfr-data-a11y.ts`) — l'état d'avant #1288 | `tableau-equivalent-source-en-panne` | « ta-tableau : affiché « 15909531 », recalculé — » et « ta-export : affiché « 15909531 », recalculé — » : le tableau garde ses 48 lignes et le bouton livre un fichier ; les trois lectures témoins restent justes (#1288) |
+| affichages | `onSourceError` vidé de son corps (`dsfr-data-map-layer.ts`) — l'état d'avant #1288 | `carte-couche-source-en-panne` | « cp-formes : affiché « 48 », recalculé 0 » et « cp-annonces : affiché « 57 », recalculé 9 » : les 48 cercles restent tracés et la description les compte encore ; la couche témoin garde ses 9 formes (#1288) |
+| affichages | `onSourceError` retire les formes mais ne lâche plus les lignes (`this._data = []` retiré, `dsfr-data-map-layer.ts`) | `carte-couche-source-en-panne` | « cp-annonces : affiché « 57 », recalculé 9 » seul : plus aucune forme, mais la description lue annonce toujours « 48 cercles » — c'est elle que ce second chiffre garde (#1288) |
+| affichages | l'encart d'une page refusée n'est plus rendu (`renderPageLoadError` neutralisé dans `_renderBody`, `dsfr-data-list.ts`) — l'état d'avant #1288 | `liste-page-refusee` | « pr-dit : affiché « aucune phrase », recalculé 19810000 » : les 20 lignes de la page 1 sont là (`list:l-pr` reste vert), et rien ne dit que la page 2 a été refusée (#1288) |
+| affichages | la page courante ne revient plus à la page affichée après un refus (`this.currentPage = this.previousPage` retiré, `pagination-controller.ts`) | `liste-page-refusee` | « pr-dit : affiché « phrase qui ne se recoupe pas » » : la phrase dit « toujours la page 2 » au-dessus des lignes de la page 1 (#1288) |
+| affichages | `_effectiveHideCounts` ne regarde plus la panne (`dsfr-data-facets.ts`) | `filtres-source-en-panne` | « fp-facettes : affiché « 48 », recalculé — » : les compteurs du dernier chargement restent à côté de filtres désactivés (#1288) |
+| affichages | le compte de la recherche rendu malgré la panne (`_renderCount()` sorti du test, `dsfr-data-search.ts`) | `filtres-source-en-panne` | « fp-recherche : affiché « 48 », recalculé — » : « 48 résultats » sous un tableau qui dit « indisponible » (#1288) |
 | affichages | `last` lit la première ligne | `kpi-premiere-et-derniere-ligne` | affiché 120, recalculé 168 |
 | affichages | `evaluateParsed` ignore `rowFilter` | `kpi-filtre-entre-accolades-776` | affiché 100,00 %, recalculé 23,46 (#776) |
 | affichages | `meta:total` rend les lignes reçues | `kpi-meta-total-contre-count` | affiché 20, recalculé 137 — #659 |

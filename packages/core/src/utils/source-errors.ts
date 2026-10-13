@@ -173,6 +173,44 @@ export function describeSourceError(
   return describeSourceCause(classifySourceError(error, online), error);
 }
 
+/**
+ * Ce qu'on dit d'une CHOSE rendue indisponible par la panne (#1288) — les
+ * filtres d'une source, les données d'un graphique : « Filtres momentanément
+ * indisponibles. », ou « Filtres indisponibles. Vous semblez hors connexion. »
+ *
+ * Les phrases sont celles du barème, pas des secondes : « momentanément » est
+ * le titre des deux causes où le service ne répond pas ; pour les autres, le
+ * titre de la cause suit, tel quel. `subject` est un pluriel (« Filtres »,
+ * « Données du graphique ») : l'accord de « indisponibles » en dépend.
+ */
+export function unavailablePhrase(subject: string, desc: SourceErrorDescription): string {
+  const momentary = desc.cause === 'service-indisponible' || desc.cause === 'reponse-bloquee';
+  return momentary
+    ? `${subject} momentanément indisponibles.`
+    : `${subject} indisponibles. ${desc.title}.`;
+}
+
+/**
+ * Le titre du barème à la suite d'un deux-points (#1288) : « Couche « Bornes »
+ * : données momentanément indisponibles. » — même phrase, initiale en
+ * minuscule, point final.
+ */
+export function inlineCauseTitle(desc: SourceErrorDescription): string {
+  const title = desc.title;
+  return `${title.charAt(0).toLocaleLowerCase('fr-FR')}${title.slice(1)}.`;
+}
+
+/**
+ * Les filtres d'une source en panne sont-ils désactivés (#1288) ? Oui, sauf
+ * quand le problème vient de la page (`page-mal-reglee`, typiquement une
+ * requête refusée en 400) : le filtre que l'usager vient de poser peut être
+ * la cause du refus, et le retirer est alors le seul remède — le lui interdire
+ * l'enfermerait dans la panne.
+ */
+export function filtersDisabledBy(cause: SourceErrorCause): boolean {
+  return cause !== 'page-mal-reglee';
+}
+
 /** Heure locale `HH:MM:SS` d'un échec, pour « Détails techniques ». */
 export function formatErrorTime(at: number): string {
   const d = new Date(at);

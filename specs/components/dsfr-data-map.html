@@ -217,6 +217,18 @@ dsfr-data-source (B) ──┘     ├── dsfr-data-map-layer <span class="to
         <!-- Événements / API -->
         <!-- ============================================================ -->
 
+        <h3 class="fr-mt-3w">Source en panne</h3>
+        <p>
+          Une couche dont la source échoue est <strong>vidée</strong> : la carte ne garde aucun point du
+          dernier chargement, et sa description ne compte plus ces marqueurs. Si plus aucune couche ne
+          trace, le message de panne des autres blocs est centré sur le fond, qui reste manipulable
+          (« Données momentanément indisponibles », « Réessayer », « Détails techniques »). Si une autre
+          couche trace encore, une ligne en bas de carte nomme la couche en panne : « Couche « Bornes de
+          recharge » : données momentanément indisponibles. » — le nom est le <code>label</code> de la
+          couche, sinon celui de sa légende. Les encarts se vident sans répéter le message. Voir
+          <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
+        </p>
+
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>
           Sur une page d'exploration, l'amont d'une couche peut porter <code>require-where</code>

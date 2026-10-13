@@ -176,6 +176,17 @@ export function urlJeuPagine(nom: keyof typeof JEUX): string {
   return `${HOTE_API}/pagine/${nom}`;
 }
 
+/**
+ * Le même jeu paginé, dont l'API ne sert que les `pages` premières pages
+ * (#1288) : au-delà, la ressource n'existe pas. C'est la panne d'un changement
+ * de page — une API qui borne son décalage (Opendatasoft refuse au-delà de
+ * 10 000 lignes), un service qui tombe entre deux pages. Appelée à travers le
+ * relais du site, la page refusée revient en 404 sans sortir du faux réseau.
+ */
+export function urlJeuPagineBorne(nom: keyof typeof JEUX, pages: number): string {
+  return `${HOTE_API}/pagine-borne/${pages}/${nom}`;
+}
+
 function repondreJeuPagine(url: URL, jeu: Row[]): Record<string, unknown> {
   const page = Number(url.searchParams.get('page') ?? '1');
   const taille = Number(url.searchParams.get('page_size') ?? String(PAGE_PAR_DEFAUT));
@@ -308,6 +319,12 @@ export function repondre(url: URL, corps?: string | null): unknown | null {
     if (pagine) {
       const jeu = JEUX[pagine[1] as keyof typeof JEUX];
       return jeu ? repondreJeuPagine(url, jeu) : null;
+    }
+    const borne = /^\/pagine-borne\/(\d+)\/(.+)$/.exec(url.pathname);
+    if (borne) {
+      const jeu = JEUX[borne[2] as keyof typeof JEUX];
+      const page = Number(url.searchParams.get('page') ?? '1');
+      return jeu && page <= Number(borne[1]) ? repondreJeuPagine(url, jeu) : null;
     }
     const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX;
     return JEUX[nom] ?? null;

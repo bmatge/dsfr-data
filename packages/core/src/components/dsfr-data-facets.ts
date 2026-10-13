@@ -16,6 +16,11 @@ import {
   type Scale,
 } from '../utils/grid-layout.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
+import {
+  renderFiltersUnavailable,
+  resolveFiltersUnavailable,
+  type FiltersUnavailableView,
+} from '../utils/status-templates.js';
 import { ContextBindingMixin } from '../utils/context-binding.js';
 import type { ContextHost } from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
@@ -164,6 +169,19 @@ class FacetFieldFilter implements ContextFilterLike {
  * contexte (un paramètre par champ), tags gratuits. Elle n'emet plus de
  * commande directe ; valeurs, compteurs et cascade restent calcules sur sa
  * `source` (client ou `server-facets`, inchanges).
+ *
+ * Source en panne (#1288) : les filtres sont DÉSACTIVÉS, sous la phrase
+ * « Filtres momentanément indisponibles. » (ou celle de la cause : hors
+ * connexion, données retirées… ; `error-message` de la source la suit). Les
+ * contrôles restent atteignables au clavier, `aria-disabled`, et désignent
+ * cette phrase comme leur raison ; les compteurs, qui datent du dernier
+ * chargement, sont masqués. La sélection déjà posée est GARDÉE : elle
+ * s'applique de nouveau dès que les données reviennent. Seul « Réinitialiser
+ * les filtres » reste actif — retirer un filtre est parfois ce qui fait
+ * repartir la requête. Les filtres restent actifs quand le refus vient de la
+ * page elle-même (requête refusée) : le filtre posé peut en être la cause.
+ * Sans désactivation, une case cochée pendant la panne ne produisait rien à
+ * l'écran — un transformateur n'émet pas sur une entrée en panne (#1272).
  *
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — selection de facettes relayee en filtre serveur (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
  */
@@ -390,10 +408,82 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     return !!this._weightField && this.serverFacets;
   }
 
-  /** Compteurs effectivement masques (force a true en mode static-values) */
+  /**
+   * Compteurs effectivement masques (force a true en mode static-values, et
+   * pendant une panne de la source, #1288 : ils datent du dernier chargement).
+   */
   get _effectiveHideCounts(): boolean {
-    return this.hideCounts || !!this.staticValues || this._weightUnsupported;
+    return (
+      this.hideCounts || !!this.staticValues || this._weightUnsupported || !!this._unavailable()
+    );
   }
+
+  /**
+   * Les filtres sont-ils désactivés par une panne de la source (#1288) ? Vrai
+   * de l'échec au prochain chargement réussi, nouvel essai compris.
+   */
+  _unavailable(): FiltersUnavailableView | null {
+    return resolveFiltersUnavailable(this.getError(), this.source);
+  }
+
+  /** Contrôles marqués `aria-disabled` au dernier rendu (#1288). */
+  private _controlsMarked = false;
+
+  /**
+   * Marque — ou libère — les contrôles des groupes (#1288). `aria-disabled` et
+   * non `disabled` : un contrôle qui portait le focus au moment de la panne
+   * le garde, et reste atteignable pour être lu avec sa raison. Posé après
+   * chaque rendu plutôt que dans les cinq gabarits de groupe : un contrôle
+   * recréé par Lit est marqué au même cycle.
+   */
+  private _syncUnavailableControls(): void {
+    const off = this._unavailable() !== null;
+    if (!off && !this._controlsMarked) return;
+    this._controlsMarked = off;
+    const reason = `${this._instanceUid}-unavailable`;
+    const controls = this.querySelectorAll(
+      '.dsfr-data-facets__group input, .dsfr-data-facets__group select, .dsfr-data-facets__group button'
+    );
+    for (const control of controls) {
+      const described = (control.getAttribute('aria-describedby') ?? '')
+        .split(/\s+/)
+        .filter(Boolean);
+      const others = described.filter((id) => id !== reason);
+      if (off) {
+        control.setAttribute('aria-disabled', 'true');
+        control.setAttribute('aria-describedby', [...others, reason].join(' '));
+      } else {
+        control.removeAttribute('aria-disabled');
+        if (others.length > 0) control.setAttribute('aria-describedby', others.join(' '));
+        else control.removeAttribute('aria-describedby');
+      }
+    }
+  }
+
+  /**
+   * Un geste sur un filtre désactivé ne fait rien (#1288) — arrêté en phase de
+   * capture, avant les écouteurs des gabarits. `aria-disabled` ne bloque rien
+   * par lui-même. La tabulation passe ; une liste déroulante changée malgré
+   * tout (écran tactile) est remise sur la sélection posée.
+   */
+  private _blockUnavailableGesture = (e: Event): void => {
+    const target = e.target as Element | null;
+    if (!target?.closest?.('.dsfr-data-facets__group') || !this._unavailable()) return;
+    if (e.type === 'keydown') {
+      const key = (e as KeyboardEvent).key;
+      if (key === 'Tab' || key === 'Shift' || key === 'Escape') return;
+    }
+    // Souris sur autre chose qu'une liste déroulante : laisser le focus se poser
+    if (e.type === 'mousedown' && target.tagName !== 'SELECT') return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (e.type === 'change' && target instanceof HTMLSelectElement) {
+      const field = (target.closest('[data-field]') as HTMLElement | null)?.dataset.field ?? '';
+      target.value = [...(this._activeSelections[field] ?? [])][0] ?? '';
+    }
+  };
+
+  private static readonly _BLOCKED_GESTURES = ['click', 'change', 'input', 'keydown', 'mousedown'];
 
   /**
    * Colonnage DSFR des facettes : "6" (global) ou "field:4 | field2:6" (par facette), en
@@ -532,6 +622,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-facets');
+    for (const type of DsfrDataFacets._BLOCKED_GESTURES) {
+      this.addEventListener(type, this._blockUnavailableGesture, true);
+    }
     document.addEventListener('click', this._onClickOutsideMultiselect);
     if (this._ownUrlSync) {
       this._popstateHandler = () => {
@@ -554,6 +647,9 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       this._searchDebounceTimer = null;
     }
     this._setBackgroundInert(false);
+    for (const type of DsfrDataFacets._BLOCKED_GESTURES) {
+      this.removeEventListener(type, this._blockUnavailableGesture, true);
+    }
     document.removeEventListener('click', this._onClickOutsideMultiselect);
     if (this._popstateHandler) {
       window.removeEventListener('popstate', this._popstateHandler);
@@ -569,6 +665,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    */
   updated(changed: Map<PropertyKey, unknown>) {
     super.updated(changed);
+    this._syncUnavailableControls();
     this._checkUrlParamConflicts();
     if (changed.has('span') || changed.has('perRow') || changed.has('cols')) {
       this._syncLayoutError();
@@ -2080,11 +2177,18 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       }
     }
 
+    const unavailable = this._unavailable();
+
     return html`
       ${facetsStyles}
-      <div class="dsfr-data-facets">
+      <div class="dsfr-data-facets${unavailable ? ' dsfr-data-facets--unavailable' : ''}">
         <div aria-live="polite" class="fr-sr-only">${this._liveAnnouncement}</div>
         ${this._renderBanners()}
+        ${
+          unavailable
+            ? renderFiltersUnavailable(`${this._instanceUid}-unavailable`, unavailable)
+            : nothing
+        }
         ${
           hasActiveFilters && !this.noReset
             ? html`

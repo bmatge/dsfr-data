@@ -134,6 +134,15 @@
           une recherche dans le navigateur, sur les seules lignes chargées, et un avertissement le dit.
         </p>
 
+        <h3 class="fr-mt-3w">Source en panne</h3>
+        <p>
+          Quand la source échoue, le champ est <strong>désactivé</strong> (lecture seule,
+          <code>aria-disabled</code>, toujours atteignable au clavier) sous la phrase « Filtres
+          momentanément indisponibles. », et le compte de résultats n'est plus affiché. Le terme déjà
+          saisi est gardé : il s'applique de nouveau au retour des données. La touche Échap efface
+          toujours le terme. Voir <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
+        </p>
+
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>
           Quand l'amont porte <code>require-where</code>, aucune requête n'est partie : le compteur de

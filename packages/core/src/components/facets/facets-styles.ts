@@ -29,6 +29,20 @@ export const facetsStyles = html`
     .dsfr-data-facets__group {
       min-width: 0;
     }
+    /*
+      Source en panne (#1288) : les groupes sont désactivés (aria-disabled sur
+      chaque contrôle). L'aspect est celui d'un contrôle inactif ; la raison,
+      elle, est écrite au-dessus en texte de plein contraste.
+    */
+    .dsfr-data-facets--unavailable .dsfr-data-facets__group {
+      opacity: 0.5;
+    }
+    .dsfr-data-facets--unavailable .dsfr-data-facets__group input,
+    .dsfr-data-facets--unavailable .dsfr-data-facets__group select,
+    .dsfr-data-facets--unavailable .dsfr-data-facets__group button,
+    .dsfr-data-facets--unavailable .dsfr-data-facets__group label {
+      cursor: not-allowed;
+    }
     .dsfr-data-facets__count {
       font-weight: 400;
       font-size: 0.75rem;

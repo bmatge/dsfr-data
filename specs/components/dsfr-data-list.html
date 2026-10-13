@@ -64,6 +64,16 @@
         <p class="fr-text--sm fr-text--light">Les anciens noms francais (<code>colonnes</code>, <code>recherche</code>, <code>filtres</code>, <code>tri</code>, <code>server-tri</code>) restent lus en alias deprecies (#300).</p>
         <p class="fr-text--sm fr-text--light"><strong>Événements :</strong> le composant n'émet pas d'événement custom ; il participe au data-bridge en consommateur (abonnement à la source) et émet des commandes <code>dsfr-data-source-command</code> (<code>page</code>, <code>orderBy</code>) en pagination/tri serveur.</p>
 
+        <h3 class="fr-mt-3w">Source en panne</h3>
+        <p>
+          Une liste dont la source échoue rend le message de panne et ne garde aucune ligne ; son export
+          (<code>export</code>) ne produit alors aucun fichier. Un seul cas garde des lignes : en
+          <strong>pagination serveur</strong>, un changement de page refusé laisse la page précédente
+          affichée, sous la phrase « La page 4 n'a pas pu être chargée. Vous consultez toujours la
+          page 3. » La pagination revient sur la page affichée, et redemander la page refusée relance la
+          source. Voir <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
+        </p>
+
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>
           Sur une page d'exploration, l'amont peut porter <code>require-where</code>

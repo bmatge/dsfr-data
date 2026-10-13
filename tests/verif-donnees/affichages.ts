@@ -22,7 +22,14 @@
  * (voir `tools/oracle/README.md`, « prouver une mutation »).
  */
 import type { Check, Manifest, Row, Step } from '../../tools/oracle/manifest.js';
-import { DATASET, HOTE_ODS, RELAIS, RESSOURCE_TABULAR, TERRITOIRES } from './fixtures.js';
+import {
+  DATASET,
+  HOTE_ODS,
+  RELAIS,
+  RESSOURCE_TABULAR,
+  TERRITOIRES,
+  urlJeuPagineBorne,
+} from './fixtures.js';
 import { urlsDe } from './fixtures-delegation.js';
 import {
   AIDES,
@@ -129,15 +136,77 @@ const OUTILS_LECTEUR = `
     }`;
 
 /** Une lecture hors composant : ce qu'elle rend est comparé à un tiret, ou à la somme. */
-const lecture = (id: string, pipeline: Step[]): Check['expects'][number] => ({
+const lecture = (id: string, pipeline: Step[], from?: string): Check['expects'][number] => ({
   kind: 'texts',
   id,
   selector: '.valeur',
   column: 'valeur',
   numeric: true,
   ...(pipeline === AUCUNE_LIGNE_RECUE ? { pattern: TIRET } : {}),
+  ...(from ? { from } : {}),
   pipeline,
 });
+
+/**
+ * Outils des pages de #1288 : lire ce qu'un afficheur MONTRE d'une source en
+ * panne, et l'écrire là où le contrôle le lit. Une absence ne s'observe pas
+ * directement (le harnais attend qu'il y ait quelque chose à lire) : la page
+ * relit donc elle-même le tableau, le fichier, les formes, et écrit le chiffre
+ * qu'elle y trouve — « — » quand il n'y a rien à sommer.
+ *
+ * `apresRendu` : le rendu Lit suit l'événement du bus d'un cycle, et ce script
+ * (classique, posé avant la bibliothèque) entend l'événement AVANT les
+ * composants.
+ */
+const OUTILS_PANNE = `${OUTILS_LECTEUR}
+    function apresRendu(suite) {
+      setTimeout(function () {
+        requestAnimationFrame(function () { requestAnimationFrame(function () { setTimeout(suite, 0); }); });
+      }, 0);
+    }
+    function entier(texte) { return Number(String(texte).replace(/[^0-9-]/g, '')); }
+    // Somme de la DERNIÈRE colonne des lignes d'un tableau rendu.
+    function sommeTableau(selecteur) {
+      var lignes = document.querySelectorAll(selecteur + ' tbody tr');
+      if (lignes.length === 0) return '—';
+      var total = 0;
+      for (var i = 0; i < lignes.length; i++) {
+        total += entier(lignes[i].cells[lignes[i].cells.length - 1].textContent);
+      }
+      return String(total);
+    }
+    // Le fichier que le bouton d'export produit, relu sans quitter la page :
+    // le bouton est cliqué, et le contenu remis au navigateur est lu tel quel.
+    function sommeExport(selecteur, suite) {
+      var contenu = null;
+      var creer = URL.createObjectURL;
+      var cliquer = HTMLAnchorElement.prototype.click;
+      URL.createObjectURL = function (b) { contenu = b; return 'blob:verif'; };
+      HTMLAnchorElement.prototype.click = function () {};
+      try { document.querySelector(selecteur + ' button').click(); }
+      finally { URL.createObjectURL = creer; HTMLAnchorElement.prototype.click = cliquer; }
+      if (!contenu) { suite('—'); return; }
+      contenu.text().then(function (csv) {
+        var lignes = csv.split(String.fromCharCode(10)).slice(1);
+        var total = 0, lues = 0;
+        for (var i = 0; i < lignes.length; i++) {
+          var cellules = lignes[i].trim().split(';');
+          if (cellules.length < 2) continue;
+          total += entier(cellules[cellules.length - 1]);
+          lues++;
+        }
+        suite(lues === 0 ? '—' : String(total));
+      });
+    }`;
+
+/** Le nombre de lignes d'un jeu : ce que trace une couche qui a ses lignes. */
+const NOMBRE_DE_LIGNES: Step[] = [{ op: 'global', columns: { valeur: { agg: 'count' } } }];
+
+/** Le nombre de lignes d'un jeu qui n'a rien livré : zéro forme, zéro marqueur annoncé. */
+const AUCUNE_FORME: Step[] = [{ op: 'limit', n: 0 }, ...NOMBRE_DE_LIGNES];
+
+/** Taille de page de la liste du contrôle `liste-page-refusee`. */
+const PAGE_REFUSEE_TAILLE = 20;
 
 /** Une source qui sert un jeu du lot, en tableau nu. */
 const source = (
@@ -3078,6 +3147,223 @@ const CHECKS: Check[] = [
       lecture('retour-cache', SOMME_POPULATION),
       lecture('retour-getdata', SOMME_POPULATION),
       { kind: 'kpi', id: 'k-retour', agg: 'sum', field: 'population', pattern: MILLIERS },
+    ],
+  },
+  // -------------------------------------------------------------------------
+  // #1288, proposition A — dire la panne PARTOUT. #1272 a sorti du cache les
+  // lignes d'une source en panne ; trois afficheurs gardaient pourtant leur
+  // copie à l'écran, sans date et sans un mot : le tableau équivalent (et son
+  // export), la couche de carte, la liste en pagination serveur.
+  // -------------------------------------------------------------------------
+  {
+    id: 'tableau-equivalent-source-en-panne',
+    mode: 'deterministic',
+    origin:
+      '#1288 — `dsfr-data-a11y` n’avait aucun rendu de panne : la source livre, puis le jeu est retiré (404), et le tableau équivalent gardait ses 48 lignes sous un graphique qui dit « indisponible » — pendant que « Télécharger en CSV » livrait ces lignes dans un fichier sans date. Pendant la panne le tableau n’a plus aucune ligne et le bouton ne produit plus aucun fichier : la somme des populations relue dans l’un et dans l’autre est « — ». Deux garde-fous contre un tiret qui ne prouverait rien : le même tableau AVANT la panne rend la somme (il avait bien ses lignes), et un tableau témoin, sur une source qui répond toujours, rend la somme au même instant, dans son tableau comme dans son fichier (la lecture sait lire).',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-ta" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-source id="s-ta-temoin" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-a11y id="a-panne" source="s-ta" table download
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <dsfr-data-a11y id="a-temoin" source="s-ta-temoin" table download
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="ta-avant"></div>
+  <div id="ta-tableau"></div>
+  <div id="ta-export"></div>
+  <div id="ta-temoin-tableau"></div>
+  <div id="ta-temoin-export"></div>
+  <script>
+    (function () {${OUTILS_PANNE}
+      var charge = {}, retire = false, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (retire || !e.detail) return;
+        charge[e.detail.sourceId] = true;
+        if (!charge['s-ta'] || !charge['s-ta-temoin']) return;
+        retire = true;
+        apresRendu(function () {
+          ecrire('ta-avant', sommeTableau('#a-panne'));
+          document.getElementById('s-ta').setAttribute('url', '${URL_JEU_RETIRE}');
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!retire || lu || !e.detail || e.detail.sourceId !== 's-ta') return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('ta-tableau', sommeTableau('#a-panne'));
+          ecrire('ta-temoin-tableau', sommeTableau('#a-temoin'));
+          sommeExport('#a-panne', function (v) { ecrire('ta-export', v); });
+          sommeExport('#a-temoin', function (v) { ecrire('ta-temoin-export', v); });
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('ta-tableau', AUCUNE_LIGNE_RECUE),
+      lecture('ta-export', AUCUNE_LIGNE_RECUE),
+      lecture('ta-avant', SOMME_POPULATION),
+      lecture('ta-temoin-tableau', SOMME_POPULATION),
+      lecture('ta-temoin-export', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'carte-couche-source-en-panne',
+    mode: 'deterministic',
+    origin:
+      '#1288 — `dsfr-data-map-layer` n’avait pas de rendu de panne : la source livre 48 communes, la couche les trace, puis le jeu est retiré (404) — et les 48 cercles restaient sur la carte, la description lue par un lecteur d’écran comptant toujours « 48 cercles ». Pendant la panne la couche ne trace plus AUCUNE forme (zéro, le compte d’un jeu qui n’a rien livré), et la description n’annonce plus que les formes de l’autre couche. Trois garde-fous : la couche avait bien tracé ses 48 formes avant la panne ; la couche témoin, sur une source qui répond toujours, garde les siennes — une panne ne vide que la couche de SA source ; et le nombre annoncé dans la description est celui du témoin seul.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES, temoin: SYMBOLES } },
+    markup: `
+  <dsfr-data-source id="s-cp" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-source id="s-cp-temoin" url="${urlAffichage('symboles')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-map id="carte-panne" center="46,2.5" zoom="5" height="300px" tiles="osm">
+    <dsfr-data-map-layer id="c-panne" source="s-cp" type="circle" radius="5"
+      lat-field="lat" lon-field="lon" shape-class="verif-panne"></dsfr-data-map-layer>
+    <dsfr-data-map-layer id="c-temoin" source="s-cp-temoin" type="circle" radius="5"
+      lat-field="lat" lon-field="lon" shape-class="verif-temoin"></dsfr-data-map-layer>
+  </dsfr-data-map>
+  <div id="cp-avant"></div>
+  <div id="cp-formes"></div>
+  <div id="cp-temoin-formes"></div>
+  <div id="cp-annonces"></div>
+  <script>
+    (function () {${OUTILS_PANNE}
+      function formes(classe) {
+        return String(document.querySelectorAll(
+          '#carte-panne > .dsfr-data-map__container path.' + classe).length);
+      }
+      // Le total des éléments que la description de la carte ANNONCE
+      // (« Couches : 48 cercles, 9 cercles. » → 57).
+      function annonces() {
+        var suite = document.getElementById('carte-panne-desc').textContent.split('Couches :')[1];
+        if (!suite) return '0';
+        var nombres = suite.split('.')[0].match(/[0-9]+/g) || [];
+        var total = 0;
+        for (var i = 0; i < nombres.length; i++) total += Number(nombres[i]);
+        return String(total);
+      }
+      var trace = {}, retire = false, lu = false;
+      document.addEventListener('dsfr-data-map-layer-render', function (e) {
+        if (retire || !e.detail || !(e.detail.rendered > 0)) return;
+        trace[e.target.id] = true;
+        if (!trace['c-panne'] || !trace['c-temoin']) return;
+        retire = true;
+        apresRendu(function () {
+          ecrire('cp-avant', formes('verif-panne'));
+          document.getElementById('s-cp').setAttribute('url', '${URL_JEU_RETIRE}');
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!retire || lu || !e.detail || e.detail.sourceId !== 's-cp') return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('cp-formes', formes('verif-panne'));
+          ecrire('cp-temoin-formes', formes('verif-temoin'));
+          ecrire('cp-annonces', annonces());
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('cp-formes', AUCUNE_FORME),
+      lecture('cp-annonces', NOMBRE_DE_LIGNES, 'temoin'),
+      lecture('cp-avant', NOMBRE_DE_LIGNES),
+      lecture('cp-temoin-formes', NOMBRE_DE_LIGNES, 'temoin'),
+    ],
+  },
+  {
+    id: 'liste-page-refusee',
+    mode: 'deterministic',
+    origin:
+      '#1288 — une liste en pagination serveur dont le changement de page échoue gardait la page précédente SANS RIEN DIRE : l’usager qui venait de demander la page suivante lisait les 20 mêmes lignes en les prenant pour les suivantes. L’API ne sert ici que sa première page ; « Page suivante » est refusée. La liste garde les lignes de la page 1 — ce sont bien les 20 premières du jeu, pas une ligne de la page 2 — et le DIT : la somme des populations affichées n’est écrite que si la phrase « La page 2 n’a pas pu être chargée. Vous consultez toujours la page 1. » est là, que la page qu’elle dit affichée est celle que la pagination désigne, et que la page refusée est la suivante. Sans phrase, ou avec des numéros qui ne se recoupent pas, la lecture rend un texte et le contrôle tombe.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-pr" url="${urlJeuPagineBorne('territoires', 1)}" relay-url="${RELAIS}"
+    paginate page-size="${PAGE_REFUSEE_TAILLE}"></dsfr-data-source>
+  <dsfr-data-list id="l-pr" source="s-pr" columns="region:Territoire, population:Habitants"></dsfr-data-list>
+  <div id="pr-dit"></div>
+  <script>
+    (function () {${OUTILS_PANNE}
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!e.detail || e.detail.sourceId !== 's-pr') return;
+        apresRendu(function () {
+          var phrase = document.querySelector('#l-pr .dsfr-data-status--page-error .dsfr-data-status__title');
+          var courante = document.querySelector('#l-pr [aria-current="page"]');
+          if (!phrase) { ecrire('pr-dit', 'aucune phrase'); return; }
+          // « La page R n'a pas pu être chargée. Vous consultez toujours la page A. »
+          var n = phrase.textContent.match(/[0-9]+/g) || [];
+          var recoupe = n.length === 2 && courante &&
+            Number(n[1]) === entier(courante.textContent) && Number(n[0]) === Number(n[1]) + 1;
+          ecrire('pr-dit', recoupe ? sommeTableau('#l-pr') : 'phrase qui ne se recoupe pas');
+        });
+      });
+    })();
+  </script>`,
+    actions: [{ kind: 'click', selector: '#l-pr button[aria-label="Page suivante"]' }],
+    expects: [
+      lecture('pr-dit', [
+        { op: 'page', size: PAGE_REFUSEE_TAILLE, number: 1 },
+        { op: 'global', columns: { valeur: { agg: 'sum', field: 'population' } } },
+      ]),
+      {
+        kind: 'list',
+        id: 'l-pr',
+        columns: [{ column: 'region' }, { column: 'population', numeric: true }],
+        pipeline: [{ op: 'page', size: PAGE_REFUSEE_TAILLE, number: 1 }],
+      },
+    ],
+  },
+  {
+    id: 'filtres-source-en-panne',
+    mode: 'deterministic',
+    origin:
+      '#1288 — les filtres d’une source en panne gardaient leurs CHIFFRES : le compteur de chaque valeur de facette (« Nord 12 ») et le compte de la recherche (« 48 résultats ») dataient du dernier chargement, sous des blocs qui disent « indisponible ». Pendant la panne ils ne sont plus affichés : la somme des compteurs de facette et le nombre lu dans le compte de la recherche valent « — ». Garde-fou : avant la panne, les mêmes lectures rendent le nombre de lignes du jeu — chaque commune a une zone et une seule, la somme des compteurs est donc le nombre de communes.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-fp" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-facets id="f-fp" source="s-fp" fields="zone"></dsfr-data-facets>
+  <dsfr-data-search id="r-fp" source="f-fp" fields="nom" count></dsfr-data-search>
+  <div id="fp-avant-facettes"></div>
+  <div id="fp-avant-recherche"></div>
+  <div id="fp-facettes"></div>
+  <div id="fp-recherche"></div>
+  <script>
+    (function () {${OUTILS_PANNE}
+      function compteurs() {
+        var lus = document.querySelectorAll('#f-fp .dsfr-data-facets__count');
+        if (lus.length === 0) return '—';
+        var total = 0;
+        for (var i = 0; i < lus.length; i++) total += entier(lus[i].textContent);
+        return String(total);
+      }
+      function compte() {
+        var lu = document.querySelector('#r-fp .dsfr-data-search-count');
+        return lu ? String(entier(lu.textContent)) : '—';
+      }
+      var retire = false, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (retire || !e.detail || e.detail.sourceId !== 'r-fp') return;
+        retire = true;
+        apresRendu(function () {
+          ecrire('fp-avant-facettes', compteurs());
+          ecrire('fp-avant-recherche', compte());
+          document.getElementById('s-fp').setAttribute('url', '${URL_JEU_RETIRE}');
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!retire || lu || !e.detail || e.detail.sourceId !== 'r-fp') return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('fp-facettes', compteurs());
+          ecrire('fp-recherche', compte());
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('fp-facettes', AUCUNE_LIGNE_RECUE),
+      lecture('fp-recherche', AUCUNE_LIGNE_RECUE),
+      lecture('fp-avant-facettes', NOMBRE_DE_LIGNES),
+      lecture('fp-avant-recherche', NOMBRE_DE_LIGNES),
     ],
   },
 ];
