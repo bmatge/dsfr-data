@@ -11,13 +11,35 @@
  * données, clippé par `fit-zone` (défaut métropole dès qu'un encart ultramarin
  * est présent, #687) ou à défaut par `max-bounds`.
  *
+ * Source en panne (#1288) : une couche dont la source échoue est vidée — la
+ * carte ne garde aucun point du dernier chargement. Si plus aucune couche ne
+ * trace, le message de panne des autres afficheurs (phrase de la cause,
+ * « Réessayer », détails) est centré sur le fond, qui reste manipulable ; si
+ * une autre couche trace encore, une ligne en bas de carte nomme la couche :
+ * « Couche « Bornes de recharge » : données momentanément indisponibles. »
+ * (libellé : `label` de la couche, sinon celui de sa légende). La description
+ * lue par les lecteurs d'écran ne compte plus les marqueurs de cette couche
+ * et dit la panne. Un bandeau `dsfr-data-source-status` qui couvre la source
+ * retire « Réessayer » et l'annonce de la carte. Les encarts se vident sans
+ * répéter le message. Le message tient pendant un nouvel essai et disparaît
+ * au chargement réussi.
+ *
  * @fires dsfr-data-map-tiles-change - `{ tiles }` sur la carte (bubbles, composed) — le lecteur a changé de fond avec le sélecteur `tiles-switcher`. Jamais émis quand `tiles` est changé par la page.
  * @fires dsfr-data-map-fullscreen-change - `{ fullscreen }` sur la carte (bubbles, composed) — la carte entre en plein écran ou en sort (bouton `fullscreen`, touche Échap ou geste du navigateur) (#780).
  */
-import { LitElement, nothing, render as renderTemplate } from 'lit';
+import { LitElement, html, nothing, render as renderTemplate } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { IDLE_MESSAGE_DEFAULT, renderSourceIdle } from '../utils/status-templates.js';
+import {
+  IDLE_MESSAGE_DEFAULT,
+  renderRetryButton,
+  renderSourceError,
+  renderSourceIdle,
+  renderSourcePageLink,
+  resolveSourceErrorKept,
+  type SourceErrorView,
+} from '../utils/status-templates.js';
+import { inlineCauseTitle } from '../utils/source-errors.js';
 import { METROPOLE_FIT_ZONE, expandInsets, hasOverseasTerritory } from '../utils/territories.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
@@ -328,7 +350,19 @@ type MapChildElement = Element & {
   _onMapReady?: () => void;
   _onViewportChange?: () => void;
   isIdle?: () => boolean;
+  /** Panne de la source de la couche (#1288), ou `null`. */
+  getSourceFailure?: () => { error: Error; sourceId: string } | null;
+  getRenderedCount?: () => number;
+  label?: string;
 };
+
+/** Une couche en panne, telle que la carte la dit (#1288). */
+interface FailedLayer {
+  layer: MapChildElement;
+  error: Error;
+  sourceId: string;
+  view: SourceErrorView;
+}
 
 @customElement('dsfr-data-map')
 export class DsfrDataMap extends LitElement {
@@ -442,6 +476,12 @@ export class DsfrDataMap extends LitElement {
   private _afterMapAnchor: HTMLDivElement | null = null;
   /** Bloc du message d'attente (`idle-message`), posé dans le conteneur Leaflet. */
   private _idleRoot: HTMLDivElement | null = null;
+  /** Bloc du message de panne (#1288), posé dans le conteneur Leaflet comme celui d'attente. */
+  private _errorRoot: HTMLDivElement | null = null;
+  /** Ligne d'état des couches en panne quand une autre couche trace encore (#1288). */
+  private _layerStatus: HTMLDivElement | null = null;
+  /** Ce que la description lue dit de la panne (#1288). */
+  private _errorTexts: string[] = [];
   /** Dernier résumé des couches reçu : la description se recompose quand l'attente change. */
   private _layerSummaries: string[] = [];
   /** Sélecteur de fond (#744) : bloc conteneur et menu déroulant. */
@@ -477,6 +517,8 @@ export class DsfrDataMap extends LitElement {
     // variante fonctionnelle (convention beacon.ts). Les types de couches
     // sont remontes par chaque dsfr-data-map-layer.
     sendWidgetBeacon('dsfr-data-map');
+    // Un rendu de couche peut changer ce que la carte dit d'une panne (#1288)
+    this.addEventListener('dsfr-data-map-layer-render', this._onLayerRendered);
     this._expandInsets();
     this._deferInitUntilVisible();
   }
@@ -545,6 +587,12 @@ export class DsfrDataMap extends LitElement {
     this._afterMapAnchor = null;
     this._idleRoot?.remove();
     this._idleRoot = null;
+    this._errorRoot?.remove();
+    this._errorRoot = null;
+    this._layerStatus?.remove();
+    this._layerStatus = null;
+    this._errorTexts = [];
+    this.removeEventListener('dsfr-data-map-layer-render', this._onLayerRendered);
     this._tilesSwitcherRoot?.remove();
     this._tilesSwitcherRoot = null;
     this._tilesSelect = null;
@@ -736,6 +784,9 @@ export class DsfrDataMap extends LitElement {
     // Carte en attente d'un filtre : la description le dit aussi, le bloc
     // visuel est posé dans un conteneur role="application".
     if (this._showsIdle()) parts.push(`${this._idleText()}.`);
+    // Couche en panne (#1288) : la description le dit, à la place du compte
+    // de marqueurs que la couche vidée ne fournit plus.
+    parts.push(...this._errorTexts);
     this._srDescription.textContent = parts.join(' ');
   }
 
@@ -790,6 +841,183 @@ export class DsfrDataMap extends LitElement {
     }
     renderTemplate(renderSourceIdle('dsfr-data-map', this.idleMessage), this._idleRoot);
     this.updateDescription(this._layerSummaries);
+  }
+
+  // --- Source en panne (#1288) ---
+
+  /** Appelé par une couche dont la source entre en panne ou en sort (#1288). */
+  _onLayerErrorChange(): void {
+    this._syncError();
+  }
+
+  /**
+   * Un rendu de couche change ce que la carte dit d'une panne (#1288) : le
+   * message centré vaut tant que PLUS RIEN n'est tracé, la ligne d'état dès
+   * qu'une autre couche trace — et un rendu peut finir après l'événement
+   * d'erreur (import différé des grappes ou de la carte de chaleur).
+   */
+  private _onLayerRendered = (): void => {
+    if (this._errorRoot || this._layerStatus) this._syncError();
+  };
+
+  /** Couches directes dont la source est en panne. Jamais dans un encart : la carte hôte le dit. */
+  private _failedLayers(): FailedLayer[] {
+    if (this.closest('dsfr-data-map-inset')) return [];
+    const failed: FailedLayer[] = [];
+    for (const el of this.querySelectorAll(':scope > dsfr-data-map-layer')) {
+      const layer = el as MapChildElement;
+      const failure = layer.getSourceFailure?.();
+      if (!failure) continue;
+      failed.push({
+        layer,
+        ...failure,
+        view: resolveSourceErrorKept(failure.error, failure.sourceId),
+      });
+    }
+    return failed;
+  }
+
+  /** Une couche directe trace-t-elle encore quelque chose ? */
+  private _hasTracingLayer(): boolean {
+    for (const el of this.querySelectorAll(':scope > dsfr-data-map-layer')) {
+      const layer = el as MapChildElement;
+      if (!layer.getSourceFailure?.() && (layer.getRenderedCount?.() ?? 0) > 0) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Nom d'une couche dans la ligne d'état : son `label`, sinon le libellé de
+   * la légende qui la décrit. Sans l'un ni l'autre, la couche n'est pas nommée
+   * — un id technique n'est pas un nom pour l'usager.
+   */
+  private _layerName(layer: MapChildElement): string {
+    if (layer.label) return layer.label;
+    const source = layer.getAttribute('source') ?? '';
+    for (const legend of this.querySelectorAll(':scope > dsfr-data-map-legend')) {
+      const target = legend.getAttribute('for');
+      const label = legend.getAttribute('label');
+      if (label && target && (target === layer.id || target === source)) return label;
+    }
+    return '';
+  }
+
+  /** « Couche « Bornes de recharge » : données momentanément indisponibles. » */
+  private _layerStatusText(failed: FailedLayer): string {
+    const name = this._layerName(failed.layer);
+    const head = name ? `Couche « ${name} »` : 'Une couche de cette carte';
+    return `${head} : ${failed.view.userMessage || inlineCauseTitle(failed.view.desc)}`;
+  }
+
+  /**
+   * Pose, met à jour ou retire le rendu de panne (#1288).
+   *
+   * - plus aucune couche ne trace : le gabarit commun (`renderSourceError`),
+   *   centré SUR le fond comme le message d'attente — le fond reste
+   *   manipulable autour, le bloc lui-même garde ses clics (« Réessayer »,
+   *   « Détails techniques ») sans les passer à Leaflet ;
+   * - une autre couche trace encore : une ligne par couche en panne, en bas
+   *   de carte, mise à jour EN PLACE (une région live recréée n'est pas
+   *   annoncée de façon fiable).
+   *
+   * Rien n'est redessiné pendant un nouvel essai : le message reste tel quel
+   * jusqu'au chargement réussi, qui le retire.
+   */
+  private _syncError(): void {
+    if (!this._container) return;
+    const failed = this._failedLayers();
+    const central = failed.length > 0 && !this._hasTracingLayer();
+
+    if (central) {
+      if (!this._errorRoot || this._errorRoot.parentNode !== this._container) {
+        this._errorRoot?.remove();
+        this._errorRoot = document.createElement('div');
+        this._errorRoot.className = 'dsfr-data-map__error-host';
+        // Leaflet impose sa police à tout son conteneur : le message garde
+        // celle de la page, comme dans les autres afficheurs.
+        this._errorRoot.style.fontFamily = getComputedStyle(this).fontFamily;
+        // Le bloc est dans le conteneur Leaflet : sans cela un clic sur
+        // « Réessayer » serait aussi un clic sur la carte, et un double-clic
+        // un zoom.
+        for (const type of [
+          'click',
+          'dblclick',
+          'mousedown',
+          'pointerdown',
+          'touchstart',
+          'wheel',
+        ]) {
+          this._errorRoot.addEventListener(type, (e) => {
+            if ((e.target as Element).closest?.('.dsfr-data-map__error')) e.stopPropagation();
+          });
+        }
+        this._container.appendChild(this._errorRoot);
+      }
+      const first = failed[0];
+      renderTemplate(
+        renderSourceError('dsfr-data-map', first.error, first.sourceId),
+        this._errorRoot
+      );
+      const { view } = first;
+      this._errorTexts = [
+        view.userMessage ||
+          [view.desc.title, view.desc.detail.replace(/\.$/, '')].filter(Boolean).join('. ') + '.',
+      ];
+    } else if (this._errorRoot) {
+      this._releaseFocus(this._errorRoot);
+      this._errorRoot.remove();
+      this._errorRoot = null;
+    }
+
+    if (failed.length > 0 && !central && !this.locked) {
+      if (!this._layerStatus || this._layerStatus.parentNode !== this) {
+        this._layerStatus?.remove();
+        this._layerStatus = document.createElement('div');
+        this._layerStatus.className = 'dsfr-data-map__layer-status';
+        this.appendChild(this._layerStatus);
+      }
+      // La panne est annoncée une fois : par le bandeau s'il couvre toutes
+      // les sources en panne, sinon par cette ligne.
+      if (failed.every((f) => f.view.covered)) {
+        this._layerStatus.removeAttribute('role');
+      } else {
+        this._layerStatus.setAttribute('role', 'status');
+      }
+      renderTemplate(
+        html`${failed.map(
+          (f) => html`
+            <p class="dsfr-data-map__layer-status-item" data-cause=${f.view.desc.cause}>
+              <span class="dsfr-data-map__layer-status-text">${this._layerStatusText(f)}</span>
+              ${f.view.showRetry ? renderRetryButton(f.sourceId, true) : nothing}
+              ${f.view.sourcePage ? renderSourcePageLink(f.view.sourcePage) : nothing}
+            </p>
+          `
+        )}`,
+        this._layerStatus
+      );
+      // Au-dessus des bandeaux « N affichés sur M » des couches qui tracent
+      let bottom = 10;
+      for (const banner of this.querySelectorAll<HTMLElement>('.dsfr-data-map__max-items-banner')) {
+        bottom += (banner.offsetHeight || 30) + 6;
+      }
+      this._layerStatus.style.bottom = `${bottom}px`;
+      this._errorTexts = failed.map((f) => this._layerStatusText(f));
+    } else if (this._layerStatus) {
+      this._releaseFocus(this._layerStatus);
+      this._layerStatus.remove();
+      this._layerStatus = null;
+    }
+
+    if (failed.length === 0 || (!central && this.locked)) this._errorTexts = [];
+    this.updateDescription(this._layerSummaries);
+  }
+
+  /**
+   * Le bloc qui porte le focus va disparaître (« Réessayer » a réussi) : le
+   * focus passe à la carte, il ne retombe pas en tête de page.
+   */
+  private _releaseFocus(block: HTMLElement): void {
+    if (block.contains(document.activeElement)) this._container?.focus({ preventScroll: true });
   }
 
   private _buildMapDescription(): string {
@@ -947,6 +1175,8 @@ export class DsfrDataMap extends LitElement {
 
     // Une couche peut attendre un filtre depuis avant l'init (#690)
     this._syncIdle();
+    // … ou sa source être en panne depuis avant l'init (#1288)
+    this._syncError();
 
     // Init terminee : libere le verrou (#298) — au cycle disconnect/
     // reconnect, disconnectedCallback detruit la carte et la reconnexion
@@ -1498,6 +1728,64 @@ export class DsfrDataMap extends LitElement {
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         font-size: 0.875rem;
         line-height: 1.4;
+      }
+      /* Message de panne (#1288) : meme place que le message d'attente. Le
+         fond reste manipulable autour ; le bloc, lui, capte le pointeur —
+         il porte « Réessayer » et « Détails techniques ». */
+      .dsfr-data-map__error-host {
+        position: absolute;
+        inset: 0;
+        /* Au-dessus des couches (volets Leaflet : 400 a 700), SOUS les
+           controles (1000) : sur un ecran etroit le bloc occupe presque toute
+           la carte, les boutons de zoom doivent rester atteignables. */
+        z-index: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        padding: 0.5rem;
+        pointer-events: none;
+      }
+      .dsfr-data-map__error {
+        pointer-events: auto;
+        box-sizing: border-box;
+        max-width: min(100%, 26rem);
+        max-height: 100%;
+        overflow: auto;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        cursor: default;
+      }
+      /* Ligne d'etat d'une couche en panne quand une autre trace encore
+         (#1288) : en bas de carte, lisible a 320 px. */
+      .dsfr-data-map__layer-status {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000; /* mobilier flottant — voir tiles-switcher */
+        box-sizing: border-box;
+        width: max-content;
+        max-width: calc(100% - 20px);
+        padding: 0.5rem 1rem;
+        color: var(--text-default-grey, #3a3a3a);
+        background: var(--background-alt-grey, #f6f6f6);
+        border-radius: 4px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        font-size: 0.875rem;
+        line-height: 1.4;
+      }
+      .dsfr-data-map__layer-status-item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.25rem 0.75rem;
+        margin: 0;
+        font-size: inherit;
+        line-height: inherit;
+        overflow-wrap: anywhere;
+      }
+      .dsfr-data-map__layer-status-item + .dsfr-data-map__layer-status-item {
+        margin-top: 0.25rem;
       }
       .dsfr-data-map__max-items-banner {
         position: absolute;

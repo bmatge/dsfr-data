@@ -177,7 +177,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   /**
    * Libellé de la couche — sert de libellé au tag du contexte en
-   * `refine-on-click` (#681). Vide = le nom du champ.
+   * `refine-on-click` (#681 ; vide = le nom du champ), et nomme la couche dans
+   * la ligne d'état de la carte quand sa source est en panne (#1288) :
+   * « Couche « Bornes de recharge » : données momentanément indisponibles. »
+   * (vide = le libellé de sa légende, sinon la couche n'est pas nommée).
    */
   @property({ type: String })
   label = '';
@@ -744,6 +747,8 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // L'attente se lit après chaque cycle du mixin (événement, registre au
     // montage) — avant même que la carte soit prête (BUG-039)
     this._syncIdleWithMap();
+    // Même lecture pour la panne (#1288) : événement, ou registre au montage
+    this._syncErrorWithMap();
     // Avant _onMapReady (cycle de montage inclus), rien a redessiner
     if (!this._leafletMap || !this._layerGroup) return;
     let needsRender = false;
@@ -783,6 +788,45 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       this._buildTimeFrames();
     }
     this._clearRendered();
+  }
+
+  /**
+   * La source est en panne (#1288) : la couche rend ce qu'elle avait tracé,
+   * comme au retour en attente. Sans ce hook, les points du dernier chargement
+   * restaient sur la carte — sans date, sous des blocs voisins qui disent
+   * « Données momentanément indisponibles » — et la description lue comptait
+   * toujours « N marqueurs ». Les lignes elles-mêmes sont lâchées : un
+   * déplacement de la carte, un pas de temps ou un attribut qui change ne
+   * doivent rien pouvoir retracer tant que la source n'a pas rechargé.
+   * La carte hôte est prévenue par `updated()`, qui suit ce hook.
+   */
+  onSourceError(_error: Error): void {
+    this._data = [];
+    if (this._timeSteps.length > 0) {
+      this._currentFrameIndex = -1;
+      this._buildTimeFrames();
+    }
+    this._clearRendered();
+  }
+
+  /**
+   * Panne de la source de cette couche (#1288), ou `null` : vrai de l'échec au
+   * prochain chargement réussi, nouvel essai compris. Lu par la carte hôte,
+   * qui pose le message.
+   */
+  getSourceFailure(): { error: Error; sourceId: string } | null {
+    return this._sourceError ? { error: this._sourceError, sourceId: this.source } : null;
+  }
+
+  /** Dernière panne signalée à la carte : elle n'est prévenue que d'un changement. */
+  private _errorNotified: Error | null = null;
+
+  /** Signale à la carte hôte que la panne de cette couche a changé (#1288). */
+  private _syncErrorWithMap(): void {
+    if (this._sourceError === this._errorNotified) return;
+    this._errorNotified = this._sourceError;
+    const map = this.closest('dsfr-data-map') as DsfrDataMap | null;
+    map?._onLayerErrorChange?.();
   }
 
   /**
@@ -1165,6 +1209,15 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     }
     this._detachFromMap();
     this._removeBanner();
+    // Une couche retirée n'est plus en panne pour la carte (#1288). Le mixin
+    // garde `_sourceError` : `getSourceFailure` ne doit plus compter, et la
+    // carte relit ses couches — celle-ci n'y est plus.
+    if (this._errorNotified) {
+      this._errorNotified = null;
+      (
+        this._mapParent ?? (this.closest('dsfr-data-map') as DsfrDataMap | null)
+      )?._onLayerErrorChange?.();
+    }
   }
 
   /**
