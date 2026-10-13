@@ -466,6 +466,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   }
 
   private _handleDownload() {
+    // Un rechargement est en cours : les lignes en mémoire sont celles
+    // d'avant, le bouton est `aria-disabled` (voir `render`).
+    if (this._sourceLoading) return;
     const data = this._currentRows();
     if (!data || !Array.isArray(data) || data.length === 0) return;
     const csv = this._buildCsv(data as Record<string, unknown>[]);
@@ -870,8 +873,8 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                       class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-download-line"
                       type="button"
                       @click="${this._handleDownload}"
-                      ?disabled="${!outage && (!hasData || this._sourceLoading)}"
-                      aria-disabled="${outage ? 'true' : nothing}"
+                      ?disabled="${!outage && !hasData && !this._sourceLoading}"
+                      aria-disabled="${outage || this._sourceLoading ? 'true' : nothing}"
                       aria-describedby="${outage ? unavailableId : nothing}"
                       title="Télécharger les données (CSV)"
                     >
@@ -901,9 +904,13 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
           box-sizing: border-box;
         }
         /*
-          Source en panne (#1288) : le bouton reste dans l'ordre de tabulation
-          (aria-disabled, pas disabled — un bouton qui avait le focus ne le
-          perd pas), il prend l'aspect d'un bouton DSFR désactivé.
+          Source en panne ou rechargement en cours (#1288) : le bouton reste
+          dans l'ordre de tabulation (aria-disabled, pas disabled), il prend
+          l'aspect d'un bouton DSFR désactivé. Un bouton désactivé pour de bon
+          perd le focus qu'il portait — et un service qui tombe passe d'abord
+          par « chargement » : désactivé à ce moment-là, le bouton avait perdu
+          le focus avant même que la panne soit dite (mesuré dans un
+          navigateur, service lent à refuser).
         */
         .dsfr-data-a11y .fr-btn[aria-disabled='true'] {
           color: var(--text-disabled-grey, #929292);

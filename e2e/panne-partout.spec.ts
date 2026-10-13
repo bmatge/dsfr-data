@@ -68,8 +68,10 @@ const COMMUNES = Array.from({ length: 13 }, (_, i) => ({
 /**
  * Le faux serveur. `pannes` : nom du jeu → code HTTP ; `pages:4` vise une
  * seule page d'un jeu paginé ; `reseau` coupe tout (les réponses viennent de
- * `page.route`, que `context.setOffline` seul ne ferait pas échouer). Vidé,
- * tout répond 200.
+ * `page.route`, que `context.setOffline` seul ne ferait pas échouer) ;
+ * `lenteur` fait attendre chaque réponse (en ms) — un service en panne répond
+ * rarement dans l'instant, et c'est pendant l'attente qu'un bouton désactivé
+ * trop tôt perd son focus. Vidé, tout répond 200 sans délai.
  */
 type Pannes = Record<string, number>;
 
@@ -83,6 +85,7 @@ async function serveur(page: Page): Promise<Pannes> {
   await page.route('**/e2e/panne-partout/**', async (route) => {
     const url = new URL(route.request().url());
     const nom = url.pathname.split('/').pop() as string;
+    if (pannes.lenteur) await new Promise((suite) => setTimeout(suite, pannes.lenteur));
     if (pannes.reseau) return route.abort('internetdisconnected');
     if (pannes[nom]) return route.fulfill(refus(pannes[nom]));
     if (nom.startsWith('pages')) {
@@ -202,8 +205,11 @@ for (const [nom, viewport] of LARGEURS) {
       const csv = readFileSync((await fichier.path()) as string, 'utf8');
       expect(csv).toContain('Occitanie;1640;82.3');
 
+      // Le service met du temps à refuser : le bloc passe par « chargement »
+      // avant la panne, et le bouton doit garder son focus tout du long.
       await bouton.focus();
       pannes.aides = 503;
+      pannes.lenteur = 400;
       await recharger(page, 'aides');
 
       await expect(page.locator('#acc table')).toHaveCount(0);
@@ -247,6 +253,7 @@ for (const [nom, viewport] of LARGEURS) {
 
       // Le service revient : « Réessayer » du graphique rend aussi le tableau.
       delete pannes.aides;
+      delete pannes.lenteur;
       await page.locator('#g button.dsfr-data-status__retry').click();
       await expect(page.locator('#acc tbody tr')).toHaveCount(4);
       await expect(bouton).not.toHaveAttribute('aria-disabled', /.*/);

@@ -246,6 +246,35 @@ describe('#1288 — dsfr-data-a11y : ni tableau ni export pendant une panne', ()
     expect(bouton(el).disabled).toBe(false);
   });
 
+  it('un rechargement ne désactive pas le bouton pour de bon : il ne garderait pas son focus', async () => {
+    const src = source('a11y-recharge');
+    const created = espionExport();
+    const el = await mountA11y(src);
+    dispatchDataLoaded(src, ROWS);
+    await el.updateComplete;
+
+    // La source recharge (rafraîchissement, « Réessayer ») : pas encore de panne
+    dispatchDataLoading(src);
+    await el.updateComplete;
+    expect(bouton(el).disabled).toBe(false);
+    expect(bouton(el).getAttribute('aria-disabled')).toBe('true');
+    // … et les lignes en mémoire, celles d'avant, ne s'exportent pas
+    bouton(el).click();
+    expect(created).not.toHaveBeenCalled();
+
+    dispatchDataLoaded(src, ROWS);
+    await el.updateComplete;
+    expect(bouton(el).hasAttribute('aria-disabled')).toBe(false);
+    bouton(el).click();
+    expect(created).toHaveBeenCalledTimes(1);
+  });
+
+  it('sans aucune donnée et sans chargement, le bouton reste désactivé comme avant', async () => {
+    const el = await mountA11y(source('a11y-vide'));
+    expect(bouton(el).disabled).toBe(true);
+    expect(bouton(el).hasAttribute('aria-disabled')).toBe(false);
+  });
+
   it('suit la cause : données retirées, rien ne « reviendra »', async () => {
     const src = source('a11y-404');
     const el = await mountA11y(src);
