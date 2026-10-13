@@ -45,11 +45,11 @@ describe('#1285 — splitWhere : ce qui part, ce qui reste', () => {
     expect(translateWhere(ods, 'nom:wordstart:Lycée prof')).toBe('nom like "lycee* prof*"');
   });
 
-  it('Opendatasoft : un wordstart dont un mot porte un signe reste au client', () => {
-    expect(splitWhere(ods, "marque:wordstart:kellogg's").client).toBe("marque:wordstart:kellogg's");
-    expect(splitWhere(ods, 'mail:wordstart:marseille.fr').client).toBe(
-      'mail:wordstart:marseille.fr'
-    );
+  it('Opendatasoft : un wordstart à signe entre deux chiffres reste au client', () => {
+    expect(splitWhere(ods, 'poids:wordstart:1%2C5').client).toBe('poids:wordstart:1%2C5');
+    // Apostrophe ou point entre deux lettres : mesurés, délégués.
+    expect(splitWhere(ods, "marque:wordstart:kellogg's").server).toBe("marque:wordstart:kellogg's");
+    expect(translateWhere(ods, 'mail:wordstart:marseille.fr')).toBe('mail like "marseille.fr*"');
   });
 
   it('Tabular : contains part, notcontains et wordstart restent', () => {

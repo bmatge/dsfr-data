@@ -1099,7 +1099,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * valent « alimentation » (mesuré le 2026-10-12). `contains` et
    * `notcontains`, recherches de sous-chaîne, n'ont donc aucun équivalent
    * ODSQL et restent au client ; `wordstart` part en `like "mot*"`, sauf
-   * quand un mot de la saisie porte un signe. Table de vérité partagée avec
+   * quand un mot de la saisie porte un signe entre deux chiffres. Table de vérité partagée avec
    * les exports : `serverComputesClause` de `@dsfr-data/shared`.
    */
   supportsServerClause(clause: string): boolean {

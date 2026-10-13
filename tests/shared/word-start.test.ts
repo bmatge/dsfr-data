@@ -19,7 +19,7 @@ import { motsDe, unMotCommencePar } from '../../tools/oracle/compute.js';
  * #1285 — l'opérateur `wordstart`, « un mot commence par ».
  *
  * Trois écritures de la même règle MESURÉE sur un portail Opendatasoft
- * (2026-10-13, 59 requêtes) doivent s'accorder : celle de la bibliothèque
+ * (2026-10-13, 63 requêtes) doivent s'accorder : celle de la bibliothèque
  * (`word-start.ts`, parcours des caractères), celle du faux portail des
  * recettes (`ods-like.ts`, expression régulière), celle de l'oracle
  * (`compute.ts`, recollage de morceaux). La quatrième, en Python, les
@@ -168,13 +168,23 @@ describe('#1285 — ce qui part au portail', () => {
     expect(filterToOdsql('nom:wordstart:a"b\\c')).toBe('nom like "a* b* c*"');
   });
 
-  it('un mot qui garde un signe n’est pas délégué', () => {
-    expect(wordStartLikePattern("kellogg's")).toBeNull();
-    expect(wordStartLikePattern('marseille.fr')).toBeNull();
-    expect(wordStartLikePattern('1,5')).toBeNull();
-    expect(wordStartLikePattern('école Ελλάδα')).toBeNull();
-    expect(odsqlCanExpress("marque:wordstart:kellogg's")).toBe(false);
-    expect(odsqlCanExpress('marque:wordstart:kellogg')).toBe(true);
+  it('un mot à apostrophe ou à point entre deux lettres part tel quel (mesuré)', () => {
+    // like "kellogg's*" -> 9, like "marseille.f*" -> 2 434 : le portail analyse
+    // le terme étoilé comme la valeur.
+    expect(wordStartLikePattern("Kellogg's")).toBe("kellogg's*");
+    expect(wordStartLikePattern('marseille.fr')).toBe('marseille.fr*');
+    expect(wordStartLikePattern('kellogg’s corn')).toBe("kellogg's* corn*");
+    expect(filterToOdsql("marque:wordstart:kellogg's")).toBe('marque like "kellogg\'s*"');
+    expect(likePortail("kellogg's", "kellogg's*")).toBe(true);
+    expect(likePortail('ce@ac-aix-marseille.fr', 'marseille.f*')).toBe(true);
+  });
+
+  it('un mot dont la lecture par le portail n’est pas établie n’est pas délégué', () => {
+    expect(wordStartLikePattern('1,5')).toBeNull(); // signe entre deux chiffres
+    expect(wordStartLikePattern('3.14')).toBeNull();
+    expect(wordStartLikePattern('école Ελλάδα')).toBeNull(); // hors alphabet latin
+    expect(odsqlCanExpress('poids:wordstart:1,5')).toBe(false);
+    expect(odsqlCanExpress("marque:wordstart:kellogg's")).toBe(true);
   });
 
   it('une saisie sans mot : like "", zéro ligne des deux côtés', () => {
@@ -244,7 +254,8 @@ describe('#1285 — table de délégation par fournisseur', () => {
     ['opendatasoft', 'n:contains:x', false],
     ['opendatasoft', 'n:notcontains:x', false],
     ['opendatasoft', 'n:wordstart:x', true],
-    ['opendatasoft', "n:wordstart:o'brien", false],
+    ['opendatasoft', "n:wordstart:o'brien", true],
+    ['opendatasoft', 'n:wordstart:1%2C5', false],
     ['opendatasoft', 'n:eq:x', true],
     ['tabular', 'n:contains:x', true],
     ['tabular', 'n:contains:100%', true], // échappé par l'adaptateur

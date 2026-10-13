@@ -140,10 +140,16 @@ const RAPPEL_JEU = 'rappelconso-v2-gtin-trie';
 const RAPPEL_WHERE =
   'categorie_produit in ("hygiène-beauté", "sports-loisirs", ' +
   '"automobiles et moyens de déplacement", "equipements de communication")';
-const RAPPEL_SOURCE = (id: string): string => `
+const RAPPEL_SOURCE = (id: string, where: string = RAPPEL_WHERE): string => `
   <dsfr-data-source id="${id}" api-type="opendatasoft"
     base-url="${RAPPEL_PORTAIL}" dataset-id="${RAPPEL_JEU}" max-records="2000"
-    where="${RAPPEL_WHERE.replace(/"/g, '&quot;')}"></dsfr-data-source>`;
+    where="${where.replace(/"/g, '&quot;')}"></dsfr-data-source>`;
+/**
+ * Second jeu du même contrôle : les céréales (957 lignes au 2026-10-13), où
+ * `marque_produit` porte « kellogg's » — une apostrophe HORS article, qui ne
+ * coupe pas le mot. C'est le cas d'un mot de saisie qui part avec son signe.
+ */
+const RAPPEL_CEREALES = 'sous_categorie_produit = "céréales et produits de boulangerie"';
 const rappelKpi = (id: string, source: string): string => `
   <dsfr-data-kpi id="${id}" source="${source}" value="count" format="nombre" label="${id}"></dsfr-data-kpi>`;
 const sousCategorie = (op: 'wordstart' | 'contains', value: string) => [
@@ -155,10 +161,13 @@ const CHECKS: Check[] = [
     id: 'ods-rappelconso-mots-vivant',
     mode: 'live',
     origin:
-      "data.economie.gouv.fr / RappelConso — #1285, contre le vrai portail. Le `like` d'Opendatasoft compare des MOTS, pas une sous-chaîne : la bibliothèque ne lui délègue donc plus `contains`, et lui délègue `wordstart` (« un mot commence par ») en `like \"mot*\"`, qu'elle calcule à l'identique dans le navigateur. CE CONTRÔLE GARDE L'ÉGALITÉ ENTRE LES DEUX : chaque saisie est jouée déléguée (une requête seule sur sa source : c'est le PORTAIL qui répond) et non déléguée (deux requêtes sur la même source : c'est le NAVIGATEUR), et recalculée par l'oracle depuis l'export. « hyg » : l'article de « produits d’hygiène » est élidé, apostrophe typographique comprise. « velo assist » : deux mots, accents repliés, sans adjacence. « cosm » : un début de mot simple. Si le portail changeait d'analyseur — racinisation, mots vides, autre découpage —, le chiffre délégué quitterait les deux autres. `contains:smétiqu`, pris au milieu d'un mot, ne trouve rien par `like` ; calculé côté client, il retient les « cosmétiques », et aucun `like` à pourcent ne part.",
+      "data.economie.gouv.fr / RappelConso — #1285, contre le vrai portail. Le `like` d'Opendatasoft compare des MOTS, pas une sous-chaîne : la bibliothèque ne lui délègue donc plus `contains`, et lui délègue `wordstart` (« un mot commence par ») en `like \"mot*\"`, qu'elle calcule à l'identique dans le navigateur. CE CONTRÔLE GARDE L'ÉGALITÉ ENTRE LES DEUX : chaque saisie est jouée déléguée (une requête seule sur sa source : c'est le PORTAIL qui répond) et non déléguée (deux requêtes sur la même source : c'est le NAVIGATEUR), et recalculée par l'oracle depuis l'export. « hyg » : l'article de « produits d’hygiène » est élidé, apostrophe typographique comprise. « velo assist » : deux mots, accents repliés, sans adjacence. « cosm » : un début de mot simple. « kellogg's » : un mot qui garde son apostrophe, délégué tel quel (`like \"kellogg's*\"`) — « kellogg » seul le trouve aussi, c'est un début de mot. Si le portail changeait d'analyseur — racinisation, mots vides, autre découpage —, le chiffre délégué quitterait les deux autres. `contains:smétiqu`, pris au milieu d'un mot, ne trouve rien par `like` ; calculé côté client, il retient les « cosmétiques », et aucun `like` à pourcent ne part.",
     feed: {
       kind: 'raw',
       source: { baseUrl: RAPPEL_PORTAIL, dataset: RAPPEL_JEU, where: RAPPEL_WHERE },
+      sources: {
+        cereales: { baseUrl: RAPPEL_PORTAIL, dataset: RAPPEL_JEU, where: RAPPEL_CEREALES },
+      },
     },
     markup: `${RAPPEL_SOURCE('s-rc-hyg')}
   <dsfr-data-query id="q-rc-hyg" source="s-rc-hyg" where="sous_categorie_produit:wordstart:hyg"></dsfr-data-query>${rappelKpi('k-rc-hyg', 'q-rc-hyg')}${RAPPEL_SOURCE('s-rc-velo')}
@@ -167,7 +176,10 @@ const CHECKS: Check[] = [
   <dsfr-data-query id="q-rc-milieu" source="s-rc-milieu" where="sous_categorie_produit:contains:smétiqu"></dsfr-data-query>${rappelKpi('k-rc-milieu', 'q-rc-milieu')}${RAPPEL_SOURCE('s-rc-client')}
   <dsfr-data-query id="q-rc-hyg-c" source="s-rc-client" where="sous_categorie_produit:wordstart:hyg"></dsfr-data-query>${rappelKpi('k-rc-hyg-c', 'q-rc-hyg-c')}
   <dsfr-data-query id="q-rc-velo-c" source="s-rc-client" where="sous_categorie_produit:wordstart:velo assist"></dsfr-data-query>${rappelKpi('k-rc-velo-c', 'q-rc-velo-c')}
-  <dsfr-data-query id="q-rc-cosm-c" source="s-rc-client" where="sous_categorie_produit:wordstart:cosm"></dsfr-data-query>${rappelKpi('k-rc-cosm-c', 'q-rc-cosm-c')}`,
+  <dsfr-data-query id="q-rc-cosm-c" source="s-rc-client" where="sous_categorie_produit:wordstart:cosm"></dsfr-data-query>${rappelKpi('k-rc-cosm-c', 'q-rc-cosm-c')}${RAPPEL_SOURCE('s-rc-apos', RAPPEL_CEREALES)}
+  <dsfr-data-query id="q-rc-apos" source="s-rc-apos" where="marque_produit:wordstart:kellogg's"></dsfr-data-query>${rappelKpi('k-rc-apos', 'q-rc-apos')}${RAPPEL_SOURCE('s-rc-apos-client', RAPPEL_CEREALES)}
+  <dsfr-data-query id="q-rc-apos-c" source="s-rc-apos-client" where="marque_produit:wordstart:kellogg's"></dsfr-data-query>${rappelKpi('k-rc-apos-c', 'q-rc-apos-c')}
+  <dsfr-data-query id="q-rc-kell-c" source="s-rc-apos-client" where="marque_produit:wordstart:kellogg"></dsfr-data-query>${rappelKpi('k-rc-kell-c', 'q-rc-kell-c')}`,
     expects: [
       { kind: 'kpi', id: 'k-rc-hyg', agg: 'count', pipeline: sousCategorie('wordstart', 'hyg') },
       { kind: 'kpi', id: 'k-rc-hyg-c', agg: 'count', pipeline: sousCategorie('wordstart', 'hyg') },
@@ -195,6 +207,31 @@ const CHECKS: Check[] = [
         id: 'k-rc-milieu',
         agg: 'count',
         pipeline: sousCategorie('contains', 'smétiqu'),
+      },
+      ...(
+        [
+          ['k-rc-apos', "kellogg's"],
+          ['k-rc-apos-c', "kellogg's"],
+          ['k-rc-kell-c', 'kellogg'],
+        ] as const
+      ).map(([id, value]) => ({
+        kind: 'kpi' as const,
+        id,
+        agg: 'count' as const,
+        from: 'cereales',
+        pipeline: [
+          {
+            op: 'filter' as const,
+            filters: [{ field: 'marque_produit', op: 'wordstart' as const, value }],
+          },
+        ],
+      })),
+      {
+        kind: 'urls',
+        id: 'rappel-wordstart-a-apostrophe-delegue',
+        among: `/datasets/${RAPPEL_JEU}/records`,
+        contains: 'marque_produit like "kellogg\'s*"',
+        verdict: 'some',
       },
       {
         kind: 'urls',

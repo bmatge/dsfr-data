@@ -9,7 +9,7 @@
  * même clause retienne les mêmes lignes qu'elle parte au portail ou non
  * (ADR-139).
  *
- * Tout ce qui suit a été MESURÉ le 2026-10-13, par 59 requêtes en lecture
+ * Tout ce qui suit a été MESURÉ le 2026-10-13, par 63 requêtes en lecture
  * seule, sur `rappelconso-v2-gtin-trie` (data.economie.gouv.fr, 18 559
  * lignes), `fr-en-annuaire-education` et `retours-formulaire-votre-avis-copie`
  * (data.education.gouv.fr). Le portail découpe comme le « standard tokenizer »
@@ -56,15 +56,22 @@
  *     like "a*" -> 16 682 (un caractère suffit) ;
  *     like "al*tion" -> 0, like "al*alimentation" -> 0 (l'étoile ne vaut qu'en fin de terme)
  *
+ *   TERME ÉTOILÉ PORTANT UN SIGNE : le portail l'analyse comme la valeur
+ *     marque_produit like "kellogg's*" -> 9 (= like "kellogg's")
+ *     mail like "marseille.f*" -> 2 434 (= like "marseille.fr")
+ *     conditionnements like "1,5*" -> 55 (28 pour like "1,5") : non concluant —
+ *       « 1,5 » en début de mot, ou « 1 » ET un mot en « 5 » ?
+ *
  * CE QUI PART AU PORTAIL. La saisie est découpée ICI, avec les mêmes règles,
  * et seuls ses MOTS partent, repliés, chacun suivi d'une étoile :
  * `like "lycee* prof*"`. Aucun caractère spécial de la saisie (`*`, `"`, `\`,
  * `%`, parenthèse…) n'atteint donc le portail — il n'y a rien à échapper.
- * RESTRICTION : un mot de la saisie qui garde un signe (« kellogg's »,
- * « marseille.fr », « 1,5 ») n'est PAS délégué — la lecture que le portail fait
- * d'un terme étoilé portant un signe n'a été mesurée que sur un cas — la
- * clause est alors calculée côté client. Même chose pour un mot hors de
- * l'alphabet latin replié et des chiffres.
+ * Un mot qui garde une apostrophe ou un point ENTRE DEUX LETTRES part tel
+ * quel (« kellogg's* », « marseille.fr* » : les deux formes mesurées).
+ * RESTRICTION : un mot qui garde un signe entre deux CHIFFRES (« 1,5 »,
+ * « 3.14 »), dont la lecture par le portail n'est pas établie, n'est PAS
+ * délégué — la clause est alors calculée côté client. Même chose pour un mot
+ * hors de l'alphabet latin replié et des chiffres.
  *
  * LIMITES CONNUES, non mesurables à ce coût : les écritures sans espace
  * (chinois, japonais, thaï), que le portail découpe caractère par caractère ;
@@ -236,18 +243,31 @@ export function matchesWordStartTokens(value: unknown, queryWords: readonly stri
   return queryWords.every((q) => mots.some((mot) => mot.startsWith(q)));
 }
 
-/** Un mot que le portail lit sans ambiguïté : lettres latines repliées et chiffres. */
-const MOT_SIMPLE = /^[a-z0-9]+$/;
+/**
+ * Un mot que le portail lit sans ambiguïté : lettres latines repliées et
+ * chiffres, avec au plus une apostrophe ou un point ENTRE DEUX LETTRES
+ * (« kellogg's », « marseille.fr » — mesurés). Un signe entre deux chiffres
+ * (« 1,5 ») n'en fait pas partie.
+ */
+function motDelegable(mot: string): boolean {
+  if (!/^[a-z0-9'.]+$/.test(mot)) return false;
+  for (let i = 0; i < mot.length; i++) {
+    if (mot[i] !== "'" && mot[i] !== '.') continue;
+    // Le signe doit être ENTRE deux lettres.
+    if (!/^[a-z]$/.test(mot[i - 1] ?? '') || !/^[a-z]$/.test(mot[i + 1] ?? '')) return false;
+  }
+  return true;
+}
 
 /**
  * Le motif `like` d'un portail Opendatasoft pour une saisie : ses mots,
  * repliés, chacun étoilé — `lycee* prof*`. Une saisie sans mot rend `''`
  * (`like ""`, 0 ligne, comme le client). `null` quand un mot de la saisie ne
- * peut pas être confié au portail (il porte un signe, ou sort de l'alphabet
- * latin) : la clause reste alors au client.
+ * peut pas être confié au portail (il porte un signe entre deux chiffres, ou
+ * sort de l'alphabet latin) : la clause reste alors au client.
  */
 export function wordStartLikePattern(term: string): string | null {
   const mots = wordTokens(term);
-  if (!mots.every((mot) => MOT_SIMPLE.test(mot))) return null;
+  if (!mots.every(motDelegable)) return null;
   return mots.map((mot) => `${mot}*`).join(' ');
 }

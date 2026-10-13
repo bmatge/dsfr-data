@@ -15,7 +15,7 @@
  * expression régulière à assertions, là où `word-start.ts` parcourt les
  * caractères) : deux écritures de la même règle mesurée.
  *
- * LA RÈGLE (59 requêtes en lecture seule, 2026-10-13, deux portails) :
+ * LA RÈGLE (63 requêtes en lecture seule, 2026-10-13, deux portails) :
  *
  * 1. Le motif est découpé en TERMES sur les blancs. Un terme terminé par `*`
  *    est un DÉBUT de mot, les autres des mots ENTIERS ; une étoile de tête est

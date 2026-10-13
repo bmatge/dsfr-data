@@ -292,7 +292,7 @@ def texte_cellule(n: Fraction | None) -> str:
 
 
 # « Un mot commence par » (#1285) — ce que rend un portail Opendatasoft pour
-# ``champ like "mot*"``, mesuré le 2026-10-13 par 59 requêtes en lecture seule.
+# ``champ like "mot*"``, mesuré le 2026-10-13 par 63 requêtes en lecture seule.
 # Un mot : des lettres, des chiffres, le souligné. Tiret, parenthèse, ``&``,
 # ``/`` et blancs coupent ; UN signe ne coupe pas quand il est entre deux
 # lettres (apostrophe, point, point médian) ou entre deux chiffres (apostrophe,

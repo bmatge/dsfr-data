@@ -131,8 +131,9 @@ function odsqlClause(field: string, op: string, rawVal: string, hasValue: boolea
   // Sous-chaîne : aucun équivalent ODSQL, la clause reste au client (#1285).
   if (op === 'contains' || op === 'notcontains') return '';
   if (op === WORD_START_OPERATOR) {
-    // Les MOTS de la saisie, repliés, chacun étoilé : rien à échapper. `null` :
-    // un mot porte un signe que le portail lirait autrement — clause au client.
+    // Les MOTS de la saisie, repliés, chacun étoilé : rien à échapper (un mot ne
+    // porte ni guillemet ni antislash). `null` : un mot dont la lecture par le
+    // portail n'est pas établie (« 1,5 ») — clause au client.
     const pattern = wordStartLikePattern(val);
     return pattern === null ? '' : `${field} like "${pattern}"`;
   }
@@ -158,8 +159,8 @@ function odsqlClause(field: string, op: string, rawVal: string, hasValue: boolea
  * Une clause colon a-t-elle une traduction ODSQL qui retient LES MÊMES lignes
  * que son calcul côté client (#1285, ADR-139) ? Faux pour `contains` et
  * `notcontains` (sous-chaîne, sans équivalent sur un portail qui compare des
- * mots), et pour un `wordstart` dont un mot de la saisie porte un signe
- * (« kellogg's », « marseille.fr ») ou sort de l'alphabet latin. Une clause
+ * mots), et pour un `wordstart` dont un mot de la saisie porte un signe entre
+ * deux chiffres (« 1,5 ») ou sort de l'alphabet latin. Une clause
  * mal formée ou d'opérateur inconnu rend vrai : ce n'est pas à cette fonction
  * de la refuser, elle est écartée par la validation.
  */

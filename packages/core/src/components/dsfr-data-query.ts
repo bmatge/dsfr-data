@@ -336,8 +336,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * que le reste du filtre laisse passer, dans la limite de `max-records` —
    * `fetch-mode="export"` et un `max-records` relevé pour un jeu de plus de
    * 1 000 lignes — là où `wordstart` ne charge que les lignes retenues. Un
-   * `wordstart` dont un mot saisi porte un signe (« kellogg's ») reste lui
-   * aussi au navigateur.
+   * `wordstart` dont un mot saisi porte un signe entre deux chiffres (« 1,5 »)
+   * reste lui aussi au navigateur.
    *
    * Calculée dans le navigateur, une telle clause garde le regroupement avec
    * elle (`group-by` n'est plus délégué : le serveur regrouperait des lignes

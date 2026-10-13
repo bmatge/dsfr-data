@@ -21,7 +21,7 @@
  * 2026-10-12, `categorie_produit like "%aliment%"` rend 0 ligne là où 14 366
  * valent « alimentation ». `contains` / `notcontains` n'ont donc aucun
  * équivalent ODSQL. (3) `wordstart` part en `like "mot*"`, sauf si un mot de
- * la saisie porte un signe (voir `word-start.ts`).
+ * la saisie porte un signe entre deux chiffres, « 1,5 » (voir `word-start.ts`).
  *
  * Tabular — mesuré le 2026-10-13 : (1) `champ__contains` est un `ilike`, vraie
  * sous-chaîne insensible à la casse et sensible aux accents, comme le client,

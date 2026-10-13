@@ -202,7 +202,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   (`like "lycee* prof*"`) — aucun caractère spécial de la saisie n'atteint le portail. Le découpage
   (Unicode UAX #29 : tiret, parenthèse, `&`, `/` coupent ; apostrophe ou point entre deux lettres,
   virgule entre deux chiffres ne coupent pas ; article élidé retiré ; casse, accents et ligatures
-  repliés ; champ multivalué mis en commun ; champ non texte sans mot) a été **mesuré** par 59
+  repliés ; champ multivalué mis en commun ; champ non texte sans mot) a été **mesuré** par 63
   requêtes sur deux portails ; le tableau des mesures est l'en-tête de `word-start.ts`.
   **Quatre écritures de la règle, et c'est voulu** : la bibliothèque (`word-start.ts`), le faux
   portail des recettes (`tests/builder-e2e/ods-like.ts`, qui lit désormais `like` comme le vrai — il
@@ -238,7 +238,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | gabarit de recherche par defaut | `search("{q}")` | `{fields}:contains:{q}` → `or=(…)`, sensible aux accents | — | — | — |
 | `contains` (sous-chaine) delegue (#1285) | **non** — `like` compare des mots | oui — `ilike`, `%` `_` `\` echappes | **non** — `LIKE` SQLite : casse ASCII seule, jokers | non (egalite seule) | n/a |
 | `notcontains` delegue (#1285) | **non** | **non** — l'API ecarte les valeurs absentes | **non** | non | n/a |
-| `wordstart` (un mot commence par) delegue (#1285) | oui — `like "mot*"`, sauf mot a signe | non | non | non | n/a |
+| `wordstart` (un mot commence par) delegue (#1285) | oui — `like "mot*"`, sauf mot a signe entre deux chiffres (« 1,5 ») | non | non | non | n/a |
 | clause non deleguee (`supportsServerClause`, #1285) | calculee par la source sur le jeu charge ; `server-side` → erreur de configuration | idem | idem | idem — tout sauf `eq` / `in` | n/a |
 | types declares (`describeFieldTypes`, #1138) | `int`/`double`/`decimal` → `number`… | — | — | — | — |
 | export (`fetch-mode="export"`) | `/exports/json`, memes clauses | Parquet data.gouv (#1055), lignes brutes seulement | — | — | — |
