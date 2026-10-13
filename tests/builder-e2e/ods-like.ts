@@ -130,7 +130,7 @@ export function likePortail(valeur: unknown, motif: string): boolean {
 
 /**
  * `search(champ, …, "terme")` et `search("terme")` d'un portail, TELS QUE
- * MESURÉS (#1285, ADR-159 lot 3 — 45 requêtes en lecture seule le 2026-10-13
+ * MESURÉS (#1285, ADR-159 lot 3 — une soixantaine de requêtes en lecture seule, le 2026-10-13
  * sur `rappelconso-v2-gtin-trie`, data.economie.gouv.fr, 18 563 lignes).
  *
  * C'est le moteur à qui la bibliothèque confie la recherche du contexte. Il
