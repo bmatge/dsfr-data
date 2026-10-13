@@ -4482,7 +4482,7 @@
         },
         {
           "kind": "class",
-          "description": "<dsfr-data-context> — chef d'orchestre de filtres transverses (#229).\n\nComposant OPT-IN et additif (epic #224, ADR-031) : il tient les filtres\ncommuns d'un dashboard multi-vues et les diffuse à N sources nommées —\nle fan-out qui manquait (chaque dsfr-data-source restait un pipeline\nisolé, un filtre commun exigeait du JS d'orchestration à la main).\nLes pages mono-graphique ne sont PAS concernées : sans contexte, tout\nfonctionne comme avant.\n\nIl ne fetch rien et ne transforme rien : il écoute ses filtres et émet\ndes commandes `where` via dispatchSourceCommand, un **whereKey stable\npar filtre** — le merge multi-émetteurs existant côté source fait le AND\n(ADR-031 : jamais « le dernier gagne », l'ordre des balises HTML ne\nchange rien).\n\nUn seul bus de diffusion (#678, ADR-104) : tout composant qui remplit le\ncontrat `ContextFilterLike` peut s'y enregistrer — les enfants\n<dsfr-data-context-filter>, mais aussi <dsfr-data-facets context=\"id\">\net <dsfr-data-search context=\"id\">, qui vivent hors du contexte dans la\nmise en page. Le whereKey est indexé sur `uid + champ` : stable à\nl'insertion tardive d'un filtre, quel que soit l'ordre du DOM.\n\n```html\n<dsfr-data-context id=\"ctx\" sources=\"src-a src-b\" url-sync>\n  <dsfr-data-context-filter field=\"categorie\" operator=\"in\" ui=\"select-cat\">\n  </dsfr-data-context-filter>\n</dsfr-data-context>\n<dsfr-data-facets context=\"ctx\" source=\"src-facettes\" server-facets\n  fields=\"region,departement\" display=\"region:select | departement:select\">\n</dsfr-data-facets>\n```",
+          "description": "<dsfr-data-context> — chef d'orchestre de filtres transverses (#229).\n\nComposant OPT-IN et additif (epic #224, ADR-031) : il tient les filtres\ncommuns d'un dashboard multi-vues et les diffuse à N sources nommées —\nle fan-out qui manquait (chaque dsfr-data-source restait un pipeline\nisolé, un filtre commun exigeait du JS d'orchestration à la main).\nLes pages mono-graphique ne sont PAS concernées : sans contexte, tout\nfonctionne comme avant.\n\nIl ne fetch rien et ne transforme rien : il écoute ses filtres et émet\ndes commandes `where` via dispatchSourceCommand, un **whereKey stable\npar filtre** — le merge multi-émetteurs existant côté source fait le AND\n(ADR-031 : jamais « le dernier gagne », l'ordre des balises HTML ne\nchange rien).\n\nUn seul bus de diffusion (#678, ADR-104) : tout composant qui remplit le\ncontrat `ContextFilterLike` peut s'y enregistrer — les enfants\n<dsfr-data-context-filter>, mais aussi <dsfr-data-facets context=\"id\">\net <dsfr-data-search context=\"id\">, qui vivent hors du contexte dans la\nmise en page. Le whereKey est indexé sur `uid + champ` : stable à\nl'insertion tardive d'un filtre, quel que soit l'ordre du DOM.\n\nUne RECHERCHE n'est pas un filtre (ADR-159, lot 3) : le terme d'une\n<dsfr-data-search context=\"id\"> est porté comme une recherche, et chaque\nsource cible la traduit. Quand son API a de quoi chercher, la recherche lui\nest confiée — moteur plein texte d'un portail Opendatasoft (par début de\nmot, casse et accents ignorés), sous-chaîne de Tabular et de Grist (casse\nignorée, accents respectés) — et elle entre dans le `where` de la source :\npagination serveur et facettes serveur comptent le même ensemble. Sinon\n(INSEE Melodi, adaptateur tiers) la source la calcule dans le navigateur,\nsur les lignes chargées, casse et accents ignorés. Dans l'URL et dans les\ntags, rien ne change : un paramètre au nom du champ, un tag « Recherche ».\n\n```html\n<dsfr-data-context id=\"ctx\" sources=\"src-a src-b\" url-sync>\n  <dsfr-data-context-filter field=\"categorie\" operator=\"in\" ui=\"select-cat\">\n  </dsfr-data-context-filter>\n</dsfr-data-context>\n<dsfr-data-facets context=\"ctx\" source=\"src-facettes\" server-facets\n  fields=\"region,departement\" display=\"region:select | departement:select\">\n</dsfr-data-facets>\n```",
           "name": "DsfrDataContext",
           "members": [
             {
@@ -4539,6 +4539,20 @@
               "privacy": "private",
               "default": "new Map<ContextFilterLike, string>()",
               "description": "whereKey de chaque filtre, indexé sur `uid + champ` (#678) — stable à\nl'insertion tardive : un filtre enregistré après coup ne décale pas les\nclés des autres (l'ancien index d'ordre DOM le faisait)."
+            },
+            {
+              "kind": "field",
+              "name": "_searchRoutes",
+              "privacy": "private",
+              "default": "new Map<ContextFilterLike, Map<string, ContextSearchRoute>>()",
+              "description": "Qui calcule la recherche de chaque filtre, par source cible (ADR-159\nlot 3) — tenu à jour à chaque diffusion, lu par la recherche pour savoir\nsi les lignes qu'elle reçoit sont déjà celles que le terme désigne."
+            },
+            {
+              "kind": "field",
+              "name": "_searchFallbackWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Recherches retombées dans le navigateur déjà signalées (un message par motif)."
             },
             {
               "kind": "field",
@@ -4623,6 +4637,104 @@
                 }
               ],
               "description": "Diffusion d'un filtre : recompose le where AU DIALECTE de chaque source\n(colon natif ; traduit en ODSQL via la couche partagée #275 quand\nl'adapter l'exige) et l'émet sur le whereKey du filtre."
+            },
+            {
+              "kind": "method",
+              "name": "_applySearch",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "filter",
+                  "type": {
+                    "text": "ContextFilterLike"
+                  }
+                },
+                {
+                  "name": "search",
+                  "type": {
+                    "text": "ContextSearch | null"
+                  }
+                }
+              ],
+              "description": "Diffusion d'une RECHERCHE (ADR-159, lot 3) : le terme qu'un visiteur a\nsaisi, que chaque source cible traduit à sa façon — voir `_routeSearch`.\nMême whereKey, mêmes cibles, même règle du champ absent (#805) que\n`_applyFilter` ; `null` retire la recherche de toutes les cibles."
+            },
+            {
+              "kind": "method",
+              "name": "_routeSearch",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ route: ContextSearchRoute; where: string }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "search",
+                  "type": {
+                    "text": "ContextSearch"
+                  }
+                }
+              ],
+              "description": "Une recherche, pour UNE source : confiée à son API, ou à calculer dans le\nnavigateur.\n\n- `server` : le fournisseur de la source déclare de quoi chercher\n  (`query.contextSearchTemplate`) — la clause part dans le dialecte de son\n  API, par le même chemin que `server-search` (`buildSearchClause`), et\n  entre dans le `where` de la source.\n- `client` : aucun moteur, ou une clause que l'API ne sait pas porter\n  (`supportsServerWhere`), ou un champ qui n'est pas du texte face à un\n  moteur qui n'en lit pas d'autre — la source calcule la recherche\n  elle-même, sur les lignes chargées (`clientSearch`).\n- `ignored` : source sans adaptateur (mode URL). Elle refuse les\n  commandes de filtre (#288) et le dit ; la commande part quand même,\n  pour que ce refus soit dit."
+            },
+            {
+              "kind": "method",
+              "name": "_observedNotText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ],
+              "description": "Les lignes DÉJÀ émises par la source montrent-elles un champ qui n'est\npas du texte (nombre, booléen) ? Même source de vérité que le garde-fou\n« champ absent » (#805). Sans ligne, ou sans valeur renseignée, on ne\nsait pas : `false`, la recherche part et l'API répondra."
+            },
+            {
+              "kind": "method",
+              "name": "_searchRouteFor",
+              "return": {
+                "type": {
+                  "text": "ContextSearchRoute | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "filter",
+                  "type": {
+                    "text": "ContextFilterLike"
+                  }
+                },
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Qui calcule la recherche de ce filtre pour cette source (ADR-159 lot 3) ?\n`null` : la source n'est pas une cible du filtre. Sans recherche active,\nrend la route qu'elle PRENDRAIT : une recherche qui laisse passer les\nlignes d'une source servie par son API le fait avec ou sans terme."
             },
             {
               "kind": "method",
@@ -4723,7 +4835,7 @@
                   "text": "ContextFilterLike[]"
                 }
               },
-              "description": "Filtres actifs du contexte (#232) — pour les composants d'affichage\n(tags). Un filtre est actif si sa clause courante est non vide. Tout\ntype de filtre confondu (#678) : filter, facettes, recherche."
+              "description": "Filtres actifs du contexte (#232) — pour les composants d'affichage\n(tags). Un filtre est actif si sa clause courante est non vide, ou s'il\nporte une recherche (ADR-159 lot 3 : la recherche n'a plus de clause).\nTout type de filtre confondu (#678) : filter, facettes, recherche."
             },
             {
               "kind": "method",
@@ -6939,7 +7051,7 @@
                   "text": "boolean"
                 }
               },
-              "description": "`server-facets` et clause calculée dans le navigateur (#1285, ADR-159).\nLes compteurs viennent de l'API, qui ne reçoit que la part du filtre qui\npeut lui être confiée : une clause gardée par la source (`contains` /\n`notcontains`, quand l'API compare des mots et non une sous-chaîne) leur\néchappe, et ils compteraient plus de lignes que la page n'en montre. Un compteur faux est pire qu'un compteur absent :\nERREUR DE CONFIGURATION (console + `data-dsfr-config-error` + bandeau),\naucune facette n'est rendue, et le message dit quoi écrire à la place.\nOn remonte la chaîne jusqu'à la source qui charge. Levée dès que la\nclause disparaît. Retourne `true` quand le fetch doit être abandonné."
+              "description": "`server-facets` et clause calculée dans le navigateur (#1285, ADR-159).\nLes compteurs viennent de l'API, qui ne reçoit que la part du filtre qui\npeut lui être confiée : une clause gardée par la source (`contains` /\n`notcontains`, quand l'API compare des mots et non une sous-chaîne) leur\néchappe, et ils compteraient plus de lignes que la page n'en montre. Un compteur faux est pire qu'un compteur absent :\nERREUR DE CONFIGURATION (console + `data-dsfr-config-error` + bandeau),\naucune facette n'est rendue, et le message dit quoi écrire à la place.\nOn remonte la chaîne jusqu'à la source qui charge. Levée dès que la\nclause disparaît. Retourne `true` quand le fetch doit être abandonné.\n\nMême règle pour une RECHERCHE du contexte que la source calcule\nelle-même (ADR-159 lot 3) — le cas d'une API sans moteur de recherche.\nUne recherche confiée à l'API n'est pas concernée : elle est dans le\n`where` de la source, et l'appel de facettes la porte."
             },
             {
               "kind": "method",
@@ -18892,7 +19004,7 @@
                 {
                   "name": "cmd",
                   "type": {
-                    "text": "{\n    where?: string;\n    clientWhere?: string;\n    whereKey?: string;\n  }"
+                    "text": "{\n    where?: string;\n    clientWhere?: string;\n    clientSearch?: { term: string } | null;\n    whereKey?: string;\n  }"
                   }
                 }
               ],
@@ -20807,7 +20919,7 @@
                 "text": "SearchOperator"
               },
               "default": "'contains'",
-              "description": "Mode de recherche : contains, starts, words",
+              "description": "Mode de recherche quand elle est calculée dans le navigateur, casse et\naccents ignorés : `contains` (le terme est une sous-chaîne), `starts` (un\nmot commence par le terme), `words` (tous les mots du terme sont\nprésents). Une recherche confiée à un serveur (`server-search`, ou cible\nde `context` dont l'API a de quoi chercher) suit la comparaison de ce\nserveur.",
               "attribute": "operator"
             },
             {
@@ -20894,7 +21006,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (un filtre de contexte porte un seul champ ; le OU entre\nchamps, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.\n\nVers une cible Opendatasoft (#1285), ce filtre `contains` est calculé\ndans le navigateur par la source, sur les lignes chargées (dans la limite\nde `max-records`) : une saisie partielle (« aliment ») y trouve enfin\n« alimentation ». Une cible en `server-side` passe en erreur de\nconfiguration — y préférer `server-search`.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche est confiée au contexte, qui la diffuse à ses cibles et porte\nl'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est\nnommé d'après le champ, ou via `url-param-map` du contexte). `fields` doit\nnommer UN seul champ (le OU entre champs, `a|b:contains:q` #1026, reste\npropre à `server-search`). Le contexte peut être déclaré après la\nrecherche dans la page. Vide = comportement autonome.\n\nLa recherche n'est pas un filtre `contains` (ADR-159) : CHAQUE CIBLE LA\nTRADUIT, selon ce que son API sait faire.\n- Opendatasoft : le moteur de recherche du portail, borné au champ\n  (`search(champ, \"terme\")`) — par DÉBUT DE MOT, casse et accents\n  ignorés : « aliment » trouve « alimentation », « mentation » non. Le\n  champ doit être du texte.\n- Tabular, Grist : une sous-chaîne (`champ:contains:terme`), casse\n  ignorée, accents respectés.\n- INSEE Melodi, adaptateur tiers : la source calcule la recherche dans le\n  navigateur, sur les lignes chargées (dans la limite de `max-records`),\n  avec `operator`, casse et accents ignorés.\n\nConfiée à l'API, la recherche entre dans le `where` de la source : une\ncible en `server-side` et des facettes `server-facets` voisines comptent\nle même ensemble. Ce composant laisse alors passer les lignes de sa source\nsans les refiltrer, et son compteur (`count`) annonce le total du serveur.\nCalculée dans le navigateur, elle exige que la source charge le jeu : une\ncible en `server-side` passe en erreur de configuration.",
               "attribute": "context"
             },
             {
@@ -20991,13 +21103,23 @@
             },
             {
               "kind": "field",
-              "name": "_lastPushedWhere",
+              "name": "_lastPushedSearch",
               "type": {
                 "text": "string | null"
               },
               "privacy": "private",
               "default": "null",
-              "description": "Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange"
+              "description": "Dernière recherche confiée au contexte — une donnée qui arrive ne re-diffuse pas un terme inchangé"
+            },
+            {
+              "kind": "field",
+              "name": "_servedByContext",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "En mode `context`, les lignes reçues sont-elles DÉJÀ celles que le terme\ndésigne (ADR-159 lot 3) ? Vrai quand la source amont est une cible du\ncontexte dont l'API sert la recherche : la refiltrer ici, avec une autre\nrègle, retirerait des lignes que le serveur a retenues (un portail\ncherche par mots, pas par sous-chaîne). Les lignes passent telles quelles,\navec la meta de l'amont — comme en `server-search`."
             },
             {
               "kind": "field",
@@ -21137,10 +21259,21 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "void"
+                  "text": "boolean"
                 }
               },
-              "description": "Confie le terme courant au contexte, qui diffuse (#678). Deduplique :\n_applyFilter est aussi appele a chaque arrivee de données, et une source\ncible re-emet après chaque commande — sans ce garde, boucle."
+              "description": "Confie la recherche courante au contexte, qui diffuse (#678, ADR-159).\nDédupliqué : _applyFilter est aussi appelé à chaque arrivée de données, et\nune source cible ré-émet après chaque commande — sans ce garde, boucle.\nRetourne `true` quand le contexte a été sollicité."
+            },
+            {
+              "kind": "method",
+              "name": "_upstreamSearchedByServer",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La source amont — en direct, ou au bout d'une chaîne de transformateurs\n(`source=\"…\"`) — est-elle une cible du contexte dont l'API sert la\nrecherche ? Voir `_servedByContext`."
             },
             {
               "kind": "method",
@@ -21258,7 +21391,7 @@
                   }
                 }
               ],
-              "description": "Meta amont propagee telle quelle en server-search (lignes pre-filtrees\npar le serveur, total valide). En filtre client le nombre de lignes\nchange : pas de meta (#282)."
+              "description": "Meta amont propagee telle quelle en server-search (lignes pre-filtrees\npar le serveur, total valide) — et en mode `context` quand l'API de la\nsource sert la recherche (ADR-159 lot 3). En filtre client le nombre de\nlignes change : pas de meta (#282)."
             },
             {
               "kind": "method",
@@ -21365,7 +21498,8 @@
                     "text": "SearchOperator"
                   }
                 }
-              ]
+              ],
+              "description": "Comparaison tolerante, partagee avec la source (`utils/search-match.ts`)."
             },
             {
               "kind": "method",
@@ -21573,7 +21707,7 @@
                 "text": "SearchOperator"
               },
               "default": "'contains'",
-              "description": "Mode de recherche : contains, starts, words",
+              "description": "Mode de recherche quand elle est calculée dans le navigateur, casse et\naccents ignorés : `contains` (le terme est une sous-chaîne), `starts` (un\nmot commence par le terme), `words` (tous les mots du terme sont\nprésents). Une recherche confiée à un serveur (`server-search`, ou cible\nde `context` dont l'API a de quoi chercher) suit la comparaison de ce\nserveur.",
               "fieldName": "operator"
             },
             {
@@ -21651,7 +21785,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (un filtre de contexte porte un seul champ ; le OU entre\nchamps, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.\n\nVers une cible Opendatasoft (#1285), ce filtre `contains` est calculé\ndans le navigateur par la source, sur les lignes chargées (dans la limite\nde `max-records`) : une saisie partielle (« aliment ») y trouve enfin\n« alimentation ». Une cible en `server-side` passe en erreur de\nconfiguration — y préférer `server-search`.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche est confiée au contexte, qui la diffuse à ses cibles et porte\nl'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est\nnommé d'après le champ, ou via `url-param-map` du contexte). `fields` doit\nnommer UN seul champ (le OU entre champs, `a|b:contains:q` #1026, reste\npropre à `server-search`). Le contexte peut être déclaré après la\nrecherche dans la page. Vide = comportement autonome.\n\nLa recherche n'est pas un filtre `contains` (ADR-159) : CHAQUE CIBLE LA\nTRADUIT, selon ce que son API sait faire.\n- Opendatasoft : le moteur de recherche du portail, borné au champ\n  (`search(champ, \"terme\")`) — par DÉBUT DE MOT, casse et accents\n  ignorés : « aliment » trouve « alimentation », « mentation » non. Le\n  champ doit être du texte.\n- Tabular, Grist : une sous-chaîne (`champ:contains:terme`), casse\n  ignorée, accents respectés.\n- INSEE Melodi, adaptateur tiers : la source calcule la recherche dans le\n  navigateur, sur les lignes chargées (dans la limite de `max-records`),\n  avec `operator`, casse et accents ignorés.\n\nConfiée à l'API, la recherche entre dans le `where` de la source : une\ncible en `server-side` et des facettes `server-facets` voisines comptent\nle même ensemble. Ce composant laisse alors passer les lignes de sa source\nsans les refiltrer, et son compteur (`count`) annonce le total du serveur.\nCalculée dans le navigateur, elle exige que la source charge le jeu : une\ncible en `server-side` passe en erreur de configuration.",
               "fieldName": "context"
             }
           ],
@@ -22403,6 +22537,13 @@
             },
             {
               "kind": "field",
+              "name": "_clientSearchOverlays",
+              "privacy": "private",
+              "default": "new Map<string, ContextSearch>()",
+              "description": "Recherches calculées DANS LE NAVIGATEUR, par émetteur (ADR-159 lot 3) :\nle terme d'une `dsfr-data-search` en mode `context`, quand l'API de cette\nsource n'a aucun moteur de recherche. Une recherche confiée au serveur\nest, elle, dans `_whereOverlays`."
+            },
+            {
+              "kind": "field",
               "name": "_orderByOverlay",
               "type": {
                 "text": "string"
@@ -22488,6 +22629,17 @@
                 }
               },
               "description": "Part du filtre calculée DANS LE NAVIGATEUR par la source (#1285,\nADR-159), en grammaire colon : les clauses qui ne sont pas confiées à\nl'API — `contains` / `notcontains` sur un portail Opendatasoft, dont le\n`like` compare des mots. Elles viennent des filtres de contexte et du\n`where` d'une `dsfr-data-query` seule lectrice. Vide = tout le filtre est\nconfié à l'API. `getEffectiveWhere()` rend l'autre part."
+            },
+            {
+              "kind": "method",
+              "name": "getClientSearches",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "ContextSearch[]"
+                }
+              },
+              "description": "Recherches que la source calcule DANS LE NAVIGATEUR (ADR-159 lot 3), sur\nles lignes chargées, avec la comparaison tolérante de `dsfr-data-search`\n(casse et accents ignorés) : celles qu'un `dsfr-data-context` lui confie\nquand son API n'a aucun moteur de recherche. Vide = aucune, ou toutes\nconfiées à l'API (elles sont alors dans `getEffectiveWhere()`)."
             },
             {
               "kind": "method",

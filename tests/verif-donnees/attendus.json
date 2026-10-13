@@ -568,6 +568,8 @@
 {"domaine": "delegation", "controle": "recherche-contexte-insee-dans-le-navigateur", "cle": "kpi:k-r-insee", "kind": "kpi", "valeur": 2.0, "brut": 2, "decimals": 0, "couvert": true},
 {"domaine": "delegation", "controle": "recherche-contexte-insee-dans-le-navigateur", "cle": "kpi:k-r-insee-somme", "kind": "kpi", "valeur": 122.0, "brut": 122, "decimals": 0, "couvert": true},
 {"domaine": "delegation", "controle": "recherche-contexte-insee-dans-le-navigateur", "cle": "urls:recherche-insee-rien-a-l-api", "kind": "urls", "couvert": false, "raison": "genre urls : pas un chiffre, énoncé par le contrôle"},
+{"domaine": "delegation", "controle": "recherche-contexte-insee-retrait", "cle": "kpi:k-r-insee-ret", "kind": "kpi", "valeur": 7.0, "brut": 7, "decimals": 0, "couvert": true},
+{"domaine": "delegation", "controle": "recherche-contexte-insee-retrait", "cle": "kpi:k-r-insee-ret-somme", "kind": "kpi", "valeur": 734.0, "brut": 734, "decimals": 0, "couvert": true},
 {"domaine": "delegation", "controle": "recherche-contexte-insee-server-side-refuse", "cle": "diagnostic:s-r-insee-page:config-error", "kind": "diagnostic", "couvert": false, "raison": "genre diagnostic : pas un chiffre, énoncé par le contrôle"},
 {"domaine": "delegation", "controle": "recherche-contexte-tabular-sous-chaine", "cle": "kpi:k-r-tab", "kind": "kpi", "valeur": 113.0, "brut": 113, "decimals": 0, "couvert": true},
 {"domaine": "delegation", "controle": "recherche-contexte-tabular-sous-chaine", "cle": "kpi:k-r-tab-somme", "kind": "kpi", "valeur": 225.0, "brut": 225, "decimals": 0, "couvert": true},

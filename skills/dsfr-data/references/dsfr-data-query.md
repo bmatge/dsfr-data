@@ -97,8 +97,10 @@ mot avec `like "alim*"`). Consequences a connaitre AVANT de generer :
 - derriere une source `server-side` (une page), ou a cote de `dsfr-data-facets server-facets`,
   c'est une ERREUR DE CONFIGURATION (`data-dsfr-config-error`), qui dit quoi ecrire : retirer
   `server-side` / `server-facets`, remplacer la clause par une egalite (`eq`, `in`) quand la
-  valeur est connue, ou, pour une saisie du visiteur, `dsfr-data-search server-search` (recherche
-  plein texte du portail, par debut de mot).
+  valeur est connue, ou, pour une saisie du visiteur, `dsfr-data-search` — en `server-search` ou
+  en mode `context` (recherche du portail, par debut de mot : une recherche n'est pas un filtre
+  `contains`, elle est confiee au moteur du portail et reste compatible avec `server-side` et
+  `server-facets`).
 Ne JAMAIS ecrire `champ like "%x%"` dans le `where` ODSQL d'une source pour « contient » : le
 portail n'y lit pas une sous-chaine. Tabular et Grist gardent `contains` delegue.
 

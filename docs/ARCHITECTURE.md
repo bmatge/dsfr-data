@@ -68,7 +68,8 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
             current-year, current-month ;│
             default=)                   │  s'enregistre par context="id", meme declare avant
   dsfr-data-facets  context="id" ───────┤  le contexte dans le DOM
-  dsfr-data-search  context="id" ───────┘  (facets : un filtre par champ ; search : contains)
+  dsfr-data-search  context="id" ───────┘  (facets : un filtre par champ ; search : une RECHERCHE,
+                                             que chaque source traduit — ADR-159)
   dsfr-data-context-tags  (recap supprimable des filtres actifs, tout type confondu)
   dsfr-data-context-value (la valeur d'un filtre dans une phrase — #742, bundle core)
 
@@ -108,7 +109,7 @@ dsfr-data-source  ──[fetch via adapter]──[paginate]──[cache]──�
 - Le where de dsfr-data-query est **colon-only** (l'ODSQL reste reserve au where de dsfr-data-source) ; en delegation serveur il est traduit au dialecte de l'adapter (#275). `transform`/`server-side`/`page-size`/`refresh` n'existent plus sur query (#277/#279) — le relais de commandes est toujours actif, le reste se configure sur la source.
 - Les erreurs de configuration passent par `reportConfigError` (console.error + attribut `data-dsfr-config-error`) sur TOUS les composants, source comprise (#283). Une seule se juge au TRAITEMENT et non a la validation des attributs : le regroupement client d'une query derriere une source en `server-side` (#1242, §12). Les composants d'affichage rendent erreur/loading via les templates partages `utils/status-templates.ts` (#284).
 - **dsfr-data-context** (opt-in, #224/ADR-031) orchestre des filtres transverses multi-sources : il ecoute des UI natives via ses enfants `dsfr-data-context-filter` et diffuse des commandes `where` a N sources nommees (un `whereKey` stable par filtre -> AND par le merge multi-emetteurs ; jamais « le dernier gagne »). Clause construite en colon puis traduite au `whereFormat` de chaque adapter. `url-sync` (defaut OFF) serialise les filtres dans l'URL (l'intention, pas les dates resolues). Sans contexte, chaque source reste autonome.
-- **Un seul bus de diffusion (#678, ADR-104, amende ADR-031)** : le contrat que le contexte attend d'un filtre est l'interface lib-safe `ContextFilterLike` (`packages/shared/src/query/context-filter.ts` : `field`, `applyTo`, `buildColonWhere()`, `displayLabel()`, `displayValue()`, `clear()`, `urlValue()`, `isConnected`). `dsfr-data-facets context="id"` s'enregistre **une fois par champ** (objet `FacetFieldFilter` : `eq` une valeur, `in` plusieurs), `dsfr-data-search context="id"` comme filtre `contains` sur le champ unique de `fields`, `dsfr-data-context-filter context="id"` peut vivre hors du contexte (repli `closest`). En mode `context`, facets et search **n'emettent plus** de `dsfr-data-source-command` (`_dispatchFacetCommand` est un no-op) et leur `url-sync`/`url-params` propre est ignore : le contexte porte l'URL, un parametre par champ (migration : reporter `url-param-map` sur le contexte). Facets continue de calculer valeurs, compteurs et cascade sur sa `source` — en `server-facets`, le where de base de la cascade exclut ses propres whereKeys (`getEffectiveWhere(string[])`, sinon chaque facette ne proposerait plus que sa selection quand sa source est aussi une cible). **Enregistrement tardif** : le contexte emet `dsfr-data-context-connected { id }` sur `document` a sa connexion ; un composant `context="id"` dont le contexte n'est pas encore la pose une erreur de config et s'enregistre a ce signal. **whereKey** = `uid + champ` (suffixe `-2` pour un second filtre sur le meme champ, AND conserve) : stable a l'insertion tardive, l'ancien index d'ordre DOM decalait les cles. `context-tags` liste `activeFilters()` quel que soit le type. Demonstration : `tests/context-facets-search.test.ts` (page « Comptabilite generale » sans `<option>` en dur).
+- **Un seul bus de diffusion (#678, ADR-104, amende ADR-031)** : le contrat que le contexte attend d'un filtre est l'interface lib-safe `ContextFilterLike` (`packages/shared/src/query/context-filter.ts` : `field`, `applyTo`, `buildColonWhere()`, `displayLabel()`, `displayValue()`, `clear()`, `urlValue()`, `isConnected`). `dsfr-data-facets context="id"` s'enregistre **une fois par champ** (objet `FacetFieldFilter` : `eq` une valeur, `in` plusieurs), `dsfr-data-search context="id"` avec une RECHERCHE sur le champ unique de `fields` (ADR-159 : `buildColonWhere()` y est vide, `buildSearch()` rend `{ term, fields, operator }` — voir « Une recherche n'est pas un filtre » plus bas), `dsfr-data-context-filter context="id"` peut vivre hors du contexte (repli `closest`). En mode `context`, facets et search **n'emettent plus** de `dsfr-data-source-command` (`_dispatchFacetCommand` est un no-op) et leur `url-sync`/`url-params` propre est ignore : le contexte porte l'URL, un parametre par champ (migration : reporter `url-param-map` sur le contexte). Facets continue de calculer valeurs, compteurs et cascade sur sa `source` — en `server-facets`, le where de base de la cascade exclut ses propres whereKeys (`getEffectiveWhere(string[])`, sinon chaque facette ne proposerait plus que sa selection quand sa source est aussi une cible). **Enregistrement tardif** : le contexte emet `dsfr-data-context-connected { id }` sur `document` a sa connexion ; un composant `context="id"` dont le contexte n'est pas encore la pose une erreur de config et s'enregistre a ce signal. **whereKey** = `uid + champ` (suffixe `-2` pour un second filtre sur le meme champ, AND conserve) : stable a l'insertion tardive, l'ancien index d'ordre DOM decalait les cles. `context-tags` liste `activeFilters()` quel que soit le type. Demonstration : `tests/context-facets-search.test.ts` (page « Comptabilite generale » sans `<option>` en dur).
 - **dsfr-data-context-value** (#742) rend la valeur courante d'un filtre dans une phrase (« Resultats pour {{departement}} ») la ou `context-tags` ne sait que lister. Il lit le registre `utils/context-registry.ts` par une vue structurelle, **sans importer `dsfr-data-context`** (meme precaution que #681 : la carte est dans un autre bundle, un import redefinirait le tag). Region live **opt-in** (`live`), a poser sur un seul element. Un `{{champ}}` non resolu bascule sur `fallback` en entier. Enregistre dans `index.ts` et `index-core.ts`, absent du bundle map.
 - **dsfr-data-repeat** (#890, ADR-135) est le seul noeud de **structure** : il ne rend pas la donnee, il fabrique des instances — pour chaque ligne de `source`, le `<template>` enfant est clone en DOM (`utils/template-clone.ts`) et ses placeholders resolus noeud par noeud avec le `renderTemplate` partage (`escape: false`) ; les composants du gabarit sont rehausses avec leurs attributs deja interpoles. `key-field` donne l'identite : a une re-emission, une cle qui subsiste garde ses noeuds (mise a jour en place), jamais de deconnexion-recreation sous le meme id. Rendu transparent (aucun `role`, aucun compteur). Regle d'usage : `display` quand la ligne est du contenu, `repeat` quand la ligne est un pipeline. `SourceSubscriberMixin` — mais **il emet aussi** depuis le lot 2 (`scopes`, #891) : il s'abonne en plus a chaque source declaree par `scopes`, la partitionne UNE fois par champ (`Map<cle, lignes>`) et `dispatchDataLoaded('<alias>-<cle>', lignes)` par ligne repetee, avec la meta reduite au `total` du scope (`truncated` et `serverSide` ne se relaient pas : aucun serveur ne pagine un id fabrique). Une cle sans lignes emet un **tableau vide**. Les etats `loading` / `error` / `idle` de la source scopee sont relayes tels quels sur chaque id scope, et rejoues pour une ligne qui vient de naitre (un evenement passe ne se rattrape pas au cache, contrairement aux lignes). Purge (`clearDataCache` + `clearDataMeta`) quand une ligne disparait et a la deconnexion. Ce qu'il ne fait pas : **aucune delegation** derriere un id scope — meme regle #765 que N queries sur une source partagee, la partition est cliente. `lazy` retient les elements `dsfr-data-*` du clone hors du document (un commentaire a leur place) jusqu'a l'entree de la ligne dans une marge de 200 px : jamais connectes, donc jamais abonnes ; le reste du gabarit est rendu d'emblee.
 - **dsfr-data-map** est le conteneur carte Leaflet. Il ne consomme pas de donnees ; ce sont les **dsfr-data-map-layer** enfants qui utilisent `SourceSubscriberMixin`.
@@ -196,8 +197,47 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   chaîne partagée ne délègue rien (#765), ni cette clause ni une autre : statu quo, elle filtre les
   lignes reçues. Le `where` propre d'une source n'est pas partagé : en ODSQL il part tel quel.
   **Hors lot 1** : Tabular et Grist gardent `contains` délégué sans échappement des jokers (lot 2),
-  `dsfr-data-search context` émet toujours un filtre `contains` (lot 3), la comparaison de texte
-  reste écrite à plusieurs endroits (lot 4).
+  la comparaison de texte du FILTRE reste écrite à plusieurs endroits (lot 4).
+- **Une recherche n'est pas un filtre : le contexte la porte, chaque source la traduit (#1285,
+  ADR-159, lot 3)**. `dsfr-data-search context="id"` n'émet plus de `champ:contains:terme`. Son
+  filtre (`SearchContextFilter`) rend une clause colon VIDE et une recherche par la méthode
+  optionnelle `buildSearch()` de `ContextFilterLike` (`ContextSearch` : `term`, `fields`,
+  `operator`) ; elle la confie au contexte par `_applySearch(filter, search)`, jumeau de
+  `_applyFilter` (même whereKey, mêmes cibles, même règle du champ absent). `activeFilters()` tient
+  pour actif un filtre qui a une clause OU une recherche : `url-sync`, `dsfr-data-context-tags` et
+  `dsfr-data-context-value`, qui ne lisent que `urlValue()`, `displayLabel()`, `displayValue()` et
+  `clear()`, ne voient aucune différence. **Qui cherche** se décide par cible, dans
+  `_routeSearch` :
+  - `server` — le fournisseur de la source déclare de quoi chercher,
+    `query.contextSearchTemplate` de sa `ProviderConfig` : Opendatasoft `search({fields}, "{q}")`
+    (son moteur, borné aux champs, séparateur `contextSearchFieldsJoin: ', '`), Tabular et Grist
+    `{fields}:contains:{q}` (la clause d'avant). La clause est dite par `buildSearchClause`
+    (`utils/search-clause.ts`) — gabarit, terme échappé par le dialecte de l'adaptateur,
+    `supportsServerWhere` — qui est aussi le chemin de `server-search` : il n'y a qu'une façon de
+    dire une recherche à une API. Elle part en `where`, et vit donc dans `_whereOverlays` de la
+    source : `getEffectiveWhere()` la rend, la pagination `server-side` et l'appel de facettes
+    serveur la portent sans rien savoir d'elle.
+  - `client` — aucun gabarit (INSEE, adaptateur tiers), clause que l'API ne sait pas porter, ou
+    champ observé NUMÉRIQUE dans les lignes déjà émises face à un moteur qui ne lit que du texte
+    (`contextSearchTextOnly`, Opendatasoft : HTTP 400 sinon). La commande porte `clientSearch`
+    (champ de `dsfr-data-source-command`, à côté de `clientWhere`) ; la source la garde dans
+    `_clientSearchOverlays`, la rend par `getClientSearches()` et la calcule dans
+    `fetchAllWithClientWhere`, après la clause colon, avec la comparaison tolérante de
+    `utils/search-match.ts` — la MÊME que `dsfr-data-search` applique à ses lignes (`contains`,
+    `starts`, `words` ; casse et accents ignorés). Mêmes erreurs de configuration que pour une
+    clause cliente : `server-side`, agrégat posé sur la source, `server-facets`.
+  - `ignored` — source sans adaptateur : elle refuse la commande et le dit (#288), comme avant.
+  **`contextSearchTemplate` n'est pas `searchTemplate`** : ce dernier reste le gabarit de l'attribut
+  `server-search` et n'a pas bougé (`search("{q}")` sur Opendatasoft, tous les champs ; `null` sur
+  Grist). Le premier dit ce que l'API fait d'un terme dans des champs NOMMÉS — c'est pourquoi Grist
+  en déclare un sans avoir de recherche plein texte : son SQL sait chercher une sous-chaîne dans
+  une colonne, et une page Grist existante garde ses lignes.
+  **Côté recherche**, `_servedByContext` : quand la source amont (en direct ou au bout d'une chaîne
+  de `source="…"`) est une cible que son API sert (`_searchRouteFor` du contexte rend `server`), le
+  composant ne refiltre pas — un portail cherche par mots, la sous-chaîne locale retirerait des
+  lignes qu'il a retenues (« lait prod » : 3 179 lignes au portail, aucune ne contient cette
+  chaîne). Il laisse passer lignes et meta, comme en `server-search`, n'émet rien entre la frappe
+  et la réponse de la source, et son compteur lit `meta.total`.
 
 #### Capacités des adapters
 
@@ -206,6 +246,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverFetch | oui | oui | oui | oui | non |
 | serverFacets | oui | non | oui | non | non |
 | serverSearch | oui | oui, multi-colonnes `or=(…)` (#1026) | non | non | non |
+| recherche du contexte (`query.contextSearchTemplate`, ADR-159 lot 3) | `search(champ, "q")` : moteur du portail, début de mot, casse et accents ignorés, champs texte | `champ:contains:q` : sous-chaîne, casse ignorée, accents respectés | `champ:contains:q` (SQL `LIKE`) : sous-chaîne, casse ignorée pour l'ASCII, accents respectés | — : calculée par la source, dans le navigateur | — (pas de fetch) |
 | serverGroupBy | oui | oui | oui | non | non |
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |

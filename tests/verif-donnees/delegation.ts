@@ -3097,6 +3097,30 @@ const RECHERCHE_PAR_LE_CONTEXTE: Check[] = [
   },
 
   {
+    id: 'recherche-contexte-insee-retrait',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — retirer une recherche que la source calcule elle-même. La recherche n’est pas dans le `where` de la source : elle vit à côté, et doit en partir quand le visiteur la retire par la croix de son tag. Sinon la source reste filtrée sur un terme que plus rien n’affiche — deux observations au lieu de sept, sans un mot.',
+    feed: { kind: 'fixture', datasets: { main: MELODI_LIGNES } },
+    markup: `
+  ${sourceInsee('s-r-insee-ret')}
+  <dsfr-data-context id="ctx-insee-ret" sources="s-r-insee-ret"></dsfr-data-context>
+  ${recherche('r-insee-ret', 's-r-insee-ret', 'ctx-insee-ret', 'GEO')}
+  <dsfr-data-context-tags id="t-insee-ret" for="ctx-insee-ret"></dsfr-data-context-tags>
+  <dsfr-data-kpi id="k-r-insee-ret" source="s-r-insee-ret" value="count" format="nombre" label="Observations"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-r-insee-ret-somme" source="s-r-insee-ret" value="OBS_VALUE:sum" format="nombre" label="Décès"></dsfr-data-kpi>`,
+    actions: [
+      { kind: 'fill', selector: '#r-insee-ret input', value: 'cote' },
+      { kind: 'click', selector: '#r-insee-ret button' },
+      { kind: 'click', selector: '#t-insee-ret .fr-tag' },
+    ],
+    expects: [
+      { kind: 'kpi', id: 'k-r-insee-ret', agg: 'count' },
+      { kind: 'kpi', id: 'k-r-insee-ret-somme', agg: 'sum', field: 'OBS_VALUE' },
+    ],
+  },
+
+  {
     id: 'recherche-contexte-insee-server-side-refuse',
     mode: 'deterministic',
     origin:

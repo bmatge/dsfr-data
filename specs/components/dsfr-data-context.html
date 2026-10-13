@@ -155,6 +155,20 @@
           </p>
         </div>
 
+        <h3 class="fr-mt-3w">Une recherche n'est pas un filtre (ADR-159)</h3>
+        <p>
+          Une <code>dsfr-data-search context="id"</code> s'enregistre auprès du contexte comme les autres, mais
+          elle ne lui confie pas une clause : elle lui confie une <strong>recherche</strong> — le terme saisi et
+          le champ où chercher. Le contexte la diffuse, et chaque source cible la traduit selon ce que son API
+          sait faire : le moteur de recherche d'un portail Opendatasoft (par début de mot, casse et accents
+          ignorés), une sous-chaîne sur Tabular et Grist (accents respectés), un calcul dans le navigateur
+          ailleurs. Un filtre <code>operator="contains"</code>, lui, reste une règle exacte : une sous-chaîne,
+          accents respectés, que la bibliothèque calcule elle-même quand l'API ne compare pas ainsi.
+          Pour l'URL, les tags et <code>dsfr-data-context-value</code>, la recherche se lit comme un filtre :
+          un paramètre au nom du champ, un tag « Recherche : terme », <code>{{champ}}</code>. Le tableau des
+          traductions est dans <a href="dsfr-data-search.html">dsfr-data-search</a>.
+        </p>
+
         <h2 class="fr-h4">Attributs — dsfr-data-context-tags</h2>
         <div class="fr-table fr-table--sm">
           <table>

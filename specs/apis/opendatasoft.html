@@ -166,8 +166,14 @@
             limite de <code>max-records</code>, et ce calcul n'est pas compatible avec <code>server-side</code> ni
             avec <code>server-facets</code> (erreur de configuration). Le <code>where</code> écrit en ODSQL sur la
             source, lui, part tel quel : un <code>like</code> y garde la sémantique du portail. Pour une recherche
-            saisie par le visiteur, <code>dsfr-data-search server-search</code> utilise la recherche plein texte du
-            portail (<code>search("…")</code>, par début de mot). Voir
+            saisie par le visiteur, <code>dsfr-data-search</code> utilise la recherche du portail, par début de
+            mot, casse et accents ignorés : <code>search("…")</code> dans tous les champs en
+            <code>server-search</code>, <code>search(champ, "…")</code> dans le champ nommé en mode
+            <code>context</code> (mesuré le 2026-10-13 sur le même jeu : <code>search("aliment")</code> rend
+            15 866 lignes, <code>search(categorie_produit, "aliment")</code> 15 636, et
+            <code>search(sous_categorie_produit, "iand")</code>, un milieu de mot, aucune ; un champ qui n'est pas
+            du texte fait répondre HTTP 400). Cette recherche-là entre dans le <code>where</code> de la source :
+            elle est compatible avec <code>server-side</code> et <code>server-facets</code>. Voir
             <a href="../components/dsfr-data-query.html#contains-sous-chaine">dsfr-data-query, « contains est une sous-chaîne »</a>.
           </p>
         </section>
