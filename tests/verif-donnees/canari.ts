@@ -936,6 +936,47 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
   },
 
   // -------------------------------------------------------------------------
+  // contains et le `like` du portail : des mots, pas une sous-chaîne (#1285)
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-contains-milieu-de-mot',
+    mode: 'deterministic',
+    origin:
+      'Canari — #1285, ADR-159 (trouvé en reprenant les exemples du guide, pas par le banc : aucun identifiant de registre). `where="libelle:contains:ancour"` : une sous-chaîne au MILIEU d’un mot. Sur une source Opendatasoft la clause partait en `libelle like "%ancour%"`, et le `like` du portail compare des MOTS : zéro ligne là où des « Élancourt » la contiennent, sans erreur. Mesuré sur data.economie.gouv.fr : `like "%aliment%"` rend 0 pour 14 366 « alimentation ». La clause n’est plus confiée au portail ; calculée dans le navigateur sur les lignes chargées, elle retient les mêmes lignes que sur la source en tableau nu. Le faux portail lit `like` comme le vrai : c’est ce qui rend ce canari capable d’échouer.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${SRC}${sourceOds('s-ods-c', DATASET_CANARI, 'max-records="100"')}
+  <dsfr-data-query id="q-c-ods" source="s-ods-c" where="libelle:contains:ancour"></dsfr-data-query>
+  ${kpi('k-c-ods', 'q-c-ods', 'count')}
+  <dsfr-data-query id="q-c-cli" source="s-canari" where="libelle:contains:ancour"></dsfr-data-query>
+  ${kpi('k-c-cli', 'q-c-cli', 'count')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-c-ods',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ancour' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-c-cli',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ancour' }] },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'contains-jamais-en-like',
+        among: `/datasets/${DATASET_CANARI}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
   // l'élément répété dans une cellule tableau
   // -------------------------------------------------------------------------
   {

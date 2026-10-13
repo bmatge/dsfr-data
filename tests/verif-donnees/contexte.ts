@@ -999,6 +999,125 @@ const CHECKS: Check[] = [
       { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'blagnac' }] },
     ]),
   },
+
+  {
+    id: 'recherche-contexte-saisie-partielle',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 — le cas que le défaut cassait : une saisie PARTIELLE dans une recherche en mode `context`. La recherche y émet un filtre `contains` (ADR-104) ; vers une cible Opendatasoft il partait en `libelle like "%lagna%"`, que le portail lit comme le mot entier « lagna » : zéro ligne. Il n’est plus confié au portail : la source le calcule dans le navigateur, sur les lignes chargées, et « lagna » retient « École de Blagnac ». Le contrôle voisin `recherche-contexte` n’était juste que par accident, « blagnac » étant un mot entier. Aucun `like` ne part.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rp')}
+  <dsfr-data-context id="ctx" sources="s-rp"></dsfr-data-context>
+  <dsfr-data-search id="r-par" source="s-rp" context="ctx" fields="libelle" debounce="0"
+    min-length="0" label="Rechercher un établissement"></dsfr-data-search>
+  ${kpiCount('k-n', 's-rp')}${kpiSomme('k-pop', 's-rp')}`,
+    actions: [{ kind: 'fill', selector: '#r-par input', value: 'lagna' }],
+    expects: [
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'lagna' }] },
+      ]),
+      {
+        kind: 'urls',
+        id: 'recherche-contexte-jamais-en-like',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'ctx-contains-ods-calcule-par-la-source',
+    mode: 'deterministic',
+    origin:
+      '#1285 — `dsfr-data-context-filter operator="contains"` vers une cible Opendatasoft. « ycée de » est une sous-chaîne à cheval sur deux mots, prise au milieu du premier : aucun `like` ne la trouve. La clause n’est plus traduite ; le contexte la confie à la source (`clientWhere`), qui la calcule sur les lignes chargées — sept « Lycée de … », pas « Lycée d’Antibes ». Aucun `like` ne part.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-cc')}
+  <label for="sel-cc">Libellé contient</label>
+  <select id="sel-cc"><option value="">Tous</option><option value="ycée de">ycée de</option></select>
+  <dsfr-data-context id="ctx" sources="s-cc">
+    <dsfr-data-context-filter field="libelle" operator="contains" ui="sel-cc"></dsfr-data-context-filter>
+  </dsfr-data-context>
+  ${kpiCount('k-n', 's-cc')}${kpiSomme('k-pop', 's-cc')}`,
+    actions: [{ kind: 'select', selector: '#sel-cc', value: 'ycée de' }],
+    expects: [
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ycée de' }] },
+      ]),
+      {
+        kind: 'urls',
+        id: 'contains-contexte-jamais-en-like',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'ctx-contains-ods-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — le même filtre `contains` vers une cible Opendatasoft en `server-side`. La source ne reçoit qu’une page : la clause, calculée côté client, n’en filtrerait que les lignes. Elle passe en erreur de configuration, qui nomme `server-side` et les corrections, au lieu d’afficher une page partielle.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `
+  <dsfr-data-source id="s-cp" api-type="opendatasoft" base-url="${HOTE_ODS_CONTEXTE}"
+    dataset-id="${DATASET_CONTEXTE}" server-side page-size="10"></dsfr-data-source>
+  <label for="sel-cp">Libellé contient</label>
+  <select id="sel-cp"><option value="">Tous</option><option value="ycée de">ycée de</option></select>
+  <dsfr-data-context id="ctx" sources="s-cp">
+    <dsfr-data-context-filter field="libelle" operator="contains" ui="sel-cp"></dsfr-data-context-filter>
+  </dsfr-data-context>`,
+    actions: [{ kind: 'select', selector: '#sel-cp', value: 'ycée de' }],
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-cp',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-cp"',
+      },
+      {
+        kind: 'urls',
+        id: 'contains-contexte-page-jamais-en-like',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
+  },
+  {
+    id: 'ctx-contains-ods-server-facets-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 — des facettes `server-facets` à côté d’un filtre `contains` vers une cible Opendatasoft. Les compteurs viennent de l’API, qui ne reçoit pas la clause (elle est calculée dans le navigateur) : ils compteraient les 25 établissements quand la page n’en montre que 7. Un compteur faux est pire qu’un compteur absent : les facettes passent en erreur de configuration, qui nomme la clause et dit de retirer `server-facets`. Les lignes, elles, restent justes (sept « Lycée de … »).',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-cf')}
+  <label for="sel-cf">Libellé contient</label>
+  <select id="sel-cf"><option value="">Tous</option><option value="ycée de">ycée de</option></select>
+  <dsfr-data-context id="ctx" sources="s-cf">
+    <dsfr-data-context-filter field="libelle" operator="contains" ui="sel-cf"></dsfr-data-context-filter>
+  </dsfr-data-context>
+  <dsfr-data-facets id="f-cf" source="s-cf" server-facets fields="region"
+    labels="region:Région"></dsfr-data-facets>
+  ${kpiCount('k-n', 'f-cf')}`,
+    actions: [{ kind: 'select', selector: '#sel-cf', value: 'ycée de' }],
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 'f-cf',
+        expect: 'config-error',
+        contains: 'Retirez server-facets',
+      },
+      {
+        kind: 'kpi',
+        id: 'k-n',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ycée de' }] },
+        ],
+      },
+    ],
+  },
 ];
 
 export const CONTEXTE: Manifest = { domain: 'contexte', checks: CHECKS };

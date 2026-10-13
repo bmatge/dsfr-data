@@ -32,6 +32,8 @@
  *     agregateur, comme le vrai.
  */
 
+import { likePortail } from './ods-like.js';
+
 /**
  * Une ligne du jeu de recette.
  *
@@ -250,7 +252,12 @@ function refus(where: string, position: number, raison: string): Error {
  * que la bibliotheque l'a correctement transmis — et l'echec accuserait le
  * mauvais coupable.
  *
- * Toute autre forme (`LIKE`, `date'…'`, fonctions) est REFUSEE, jamais ignoree :
+ * `champ like "motif"` est lu COMME LE VRAI PORTAIL (#1285, `ods-like.ts`) :
+ * une comparaison de MOTS, ou `%` n'est pas un joker — `like "%aliment%"` ne
+ * trouve pas « alimentation », `like "aliment*"` si. Le lire comme une
+ * sous-chaine ferait passer pour juste un `contains` delegue qui ne l'est pas.
+ *
+ * Toute autre forme (`date'…'`, fonctions) est REFUSEE, jamais ignoree :
  * rendre le jeu complet en silence transformerait un filtre perdu en succes.
  */
 function analyserOdsql(where: string): PredicatOdsql {
@@ -310,6 +317,12 @@ function analyserOdsql(where: string): PredicatOdsql {
   const comparaison = (): PredicatOdsql => {
     const champ = identifiant();
     blancs();
+    if (motCle('like')) {
+      blancs();
+      if (where[i] !== '"' && where[i] !== "'") throw refus(where, i, 'motif de like attendu');
+      const motif = chaine();
+      return (ligne) => likePortail(ligne[champ], motif);
+    }
     const operateur = OPERATEURS.find((o) => where.startsWith(o, i));
     if (!operateur) throw refus(where, i, 'operateur de comparaison attendu');
     i += operateur.length;

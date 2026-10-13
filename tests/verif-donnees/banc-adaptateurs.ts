@@ -153,7 +153,73 @@ const CHANGE_PORTAIL = 'https://data.economie.gouv.fr';
 const CHANGE_JEU = 'dgfip-taux-de-change';
 const CHANGE_WHERE = 'monnaievigueur = 1 AND code_pays = "HT"';
 
+/**
+ * Opendatasoft — RappelConso (DGCCRF), le jeu sur lequel #1285 a été trouvé et
+ * mesuré : `categorie_produit like "%aliment%"` y rend 0 ligne pour 14 366
+ * « alimentation ». Quatre catégories, 836 lignes au 2026-10-13 — assez pour
+ * que `sous_categorie_produit` porte des sous-chaînes qu'aucun mot entier ne
+ * trouve (« smétiqu » dans « cosmétiques »), une apostrophe typographique,
+ * des accents, des virgules, une parenthèse. La clause de l'oracle est écrite
+ * à la main, sans `like`.
+ */
+const RAPPEL_PORTAIL = 'https://data.economie.gouv.fr';
+const RAPPEL_JEU = 'rappelconso-v2-gtin-trie';
+const RAPPEL_WHERE =
+  'categorie_produit in ("hygiène-beauté", "sports-loisirs", ' +
+  '"automobiles et moyens de déplacement", "equipements de communication")';
+const RAPPEL_SOURCE = (id: string): string => `
+  <dsfr-data-source id="${id}" api-type="opendatasoft"
+    base-url="${RAPPEL_PORTAIL}" dataset-id="${RAPPEL_JEU}" max-records="2000"
+    where="${RAPPEL_WHERE.replace(/"/g, '&quot;')}"></dsfr-data-source>`;
+const rappelKpi = (id: string, source: string): string => `
+  <dsfr-data-kpi id="${id}" source="${source}" value="count" format="nombre" label="${id}"></dsfr-data-kpi>`;
+const sousCategorie = (op: 'contains' | 'notcontains', value: string) => [
+  { op: 'filter' as const, filters: [{ field: 'sous_categorie_produit', op, value }] },
+];
+
 const CHECKS: Check[] = [
+  {
+    id: 'ods-rappelconso-contains-vivant',
+    mode: 'live',
+    origin:
+      "data.economie.gouv.fr / RappelConso — #1285, ADR-159, contre le vrai portail. Le `like` d'Opendatasoft compare des MOTS, pas une sous-chaîne : la bibliothèque ne lui confie donc plus `contains` ni `notcontains`, qu'elle calcule dans le navigateur. Chaque clause est jouée par une requête seule lectrice de sa source — le chemin qui, avant #1285, partait au portail en `like \"%…%\"` — et recalculée par l'oracle depuis l'export. « smétiqu », pris au MILIEU d'un mot : `like \"%smétiqu%\"` rend ZÉRO ligne sur le portail, le navigateur retient les « cosmétiques ». « produits d », à cheval sur deux mots. `notcontains:smétiqu` : la négation, qui par `NOT like` gardait tout le jeu. Aucun `like` ne part. Si le défaut revenait, le premier chiffre tomberait à zéro contre le vrai portail — ce que le faux portail du dépôt, s'il redevenait complaisant, ne verrait pas.",
+    feed: {
+      kind: 'raw',
+      source: { baseUrl: RAPPEL_PORTAIL, dataset: RAPPEL_JEU, where: RAPPEL_WHERE },
+    },
+    markup: `${RAPPEL_SOURCE('s-rc-milieu')}
+  <dsfr-data-query id="q-rc-milieu" source="s-rc-milieu" where="sous_categorie_produit:contains:smétiqu"></dsfr-data-query>${rappelKpi('k-rc-milieu', 'q-rc-milieu')}${RAPPEL_SOURCE('s-rc-deux')}
+  <dsfr-data-query id="q-rc-deux" source="s-rc-deux" where="sous_categorie_produit:contains:produits d"></dsfr-data-query>${rappelKpi('k-rc-deux', 'q-rc-deux')}${RAPPEL_SOURCE('s-rc-sans')}
+  <dsfr-data-query id="q-rc-sans" source="s-rc-sans" where="sous_categorie_produit:notcontains:smétiqu"></dsfr-data-query>${rappelKpi('k-rc-sans', 'q-rc-sans')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-rc-milieu',
+        agg: 'count',
+        pipeline: sousCategorie('contains', 'smétiqu'),
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rc-deux',
+        agg: 'count',
+        pipeline: sousCategorie('contains', 'produits d'),
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rc-sans',
+        agg: 'count',
+        pipeline: sousCategorie('notcontains', 'smétiqu'),
+      },
+      {
+        kind: 'urls',
+        id: 'rappel-contains-jamais-en-like',
+        among: `/datasets/${RAPPEL_JEU}/records`,
+        contains: ' like ',
+        verdict: 'none',
+      },
+    ],
+  },
+
   {
     id: 'ods-taux-de-change-pagination-vivant',
     mode: 'live',

@@ -2762,6 +2762,180 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 18. `contains` / `notcontains` ne sont plus confiés à Opendatasoft (#1285)
+// ---------------------------------------------------------------------------
+
+/**
+ * Le `like` d'un portail Opendatasoft compare des MOTS : `like "%aliment%"`
+ * rend 0 ligne là où 14 366 valent « alimentation » (mesuré le 2026-10-12).
+ * La bibliothèque traduisait `contains` en `like "%x%"` ; le faux portail du
+ * dépôt lisait cette clause comme une sous-chaîne, et tous les contrôles
+ * étaient verts sur un comportement que le vrai portail n'a pas. Le faux
+ * portail lit désormais `like` comme le vrai (`tests/builder-e2e/ods-like.ts`).
+ *
+ * Lot 1 de l'ADR-159 : un filtre n'est confié au serveur que si la STRUCTURE
+ * de la comparaison y est la même. `contains` / `notcontains` restent une
+ * vraie sous-chaîne et ne partent plus au portail — mêmes lignes qu'une
+ * source sans adaptateur, milieu de mot compris ; les autres clauses du même
+ * filtre partent comme avant. Et la règle de #1242 pour ce qui est calculé
+ * dans le navigateur derrière `server-side`.
+ */
+const kpiLignes = (id: string, source: string): string => `
+  <dsfr-data-kpi id="${id}" source="${source}" value="count" format="nombre" label="${id}"></dsfr-data-kpi>`;
+
+const sourceClient = (id: string): string => `
+  <dsfr-data-source id="${id}" url="${urlJeu('territoires')}"></dsfr-data-source>`;
+
+/** « erritoire 0 » : au MILIEU d'un mot, et à cheval sur deux — rien qu'un mot entier ne trouve. */
+const MILIEU_DE_MOT: Step[] = [
+  { op: 'filter', filters: [{ field: 'region', op: 'contains', value: 'erritoire 0' }] },
+];
+const SANS_TERRITOIRE: Step[] = [
+  { op: 'filter', filters: [{ field: 'region', op: 'notcontains', value: 'erritoire' }] },
+];
+/** Une clause confiée au portail ET une clause calculée dans le navigateur. */
+const FR_ET_MILIEU_DE_MOT: Step[] = [
+  {
+    op: 'filter',
+    filters: [
+      { field: 'pays_iso2', op: 'eq', value: 'FR' },
+      { field: 'region', op: 'contains', value: 'erritoire' },
+    ],
+  },
+];
+
+const CONTAINS_NON_DELEGUE: Check[] = [
+  {
+    id: 'contains-ods-comme-le-client',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 — `where="region:contains:erritoire 0"` : une sous-chaîne prise au MILIEU d’un mot. Sur une source Opendatasoft, la clause partait en `region like "%erritoire 0%"`, que le portail lit comme les mots entiers « erritoire » et « 0 » : zéro ligne, HTTP 200, sans un message. Elle ne part plus : calculée sur les lignes chargées, elle retient les mêmes lignes que sur une source sans adaptateur. `notcontains` de même. Le contrôle d’URL vérifie qu’aucun `like` n’est parti — sans quoi il serait vert en mesurant un faux portail complaisant.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ods-milieu')}
+  <dsfr-data-query id="q-ods-milieu" source="s-ods-milieu" where="region:contains:erritoire 0"></dsfr-data-query>${kpiLignes('k-ods-milieu', 'q-ods-milieu')}
+  ${sourceOds('s-ods-sans')}
+  <dsfr-data-query id="q-ods-sans" source="s-ods-sans" where="region:notcontains:erritoire"></dsfr-data-query>${kpiLignes('k-ods-sans', 'q-ods-sans')}
+  ${sourceClient('s-cli')}
+  <dsfr-data-query id="q-cli-milieu" source="s-cli" where="region:contains:erritoire 0"></dsfr-data-query>${kpiLignes('k-cli-milieu', 'q-cli-milieu')}
+  <dsfr-data-query id="q-cli-sans" source="s-cli" where="region:notcontains:erritoire"></dsfr-data-query>${kpiLignes('k-cli-sans', 'q-cli-sans')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-ods-milieu', agg: 'count', pipeline: MILIEU_DE_MOT },
+      { kind: 'kpi', id: 'k-cli-milieu', agg: 'count', pipeline: MILIEU_DE_MOT },
+      { kind: 'kpi', id: 'k-ods-sans', agg: 'count', pipeline: SANS_TERRITOIRE },
+      { kind: 'kpi', id: 'k-cli-sans', agg: 'count', pipeline: SANS_TERRITOIRE },
+      urlsDe('contains-jamais-en-like', 'ods', 'like', 'none'),
+      { kind: 'diagnostic', id: 'q-ods-milieu', expect: 'silence', contains: 'contains' },
+    ],
+  },
+
+  {
+    id: 'contains-ods-autres-clauses-restent-deleguees',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 — un filtre à deux clauses : `pays_iso2:eq:FR`, que le portail calcule comme le navigateur, et `region:contains:erritoire`, qu’il ne sait pas calculer. Seule la seconde reste au navigateur : l’égalité part toujours (`pays_iso2 = "FR"`), de sorte que la source ne charge que les lignes françaises au lieu du jeu entier. Le chiffre est celui du filtre complet ; aucun `like` ne part.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ods-deux')}
+  <dsfr-data-query id="q-ods-deux" source="s-ods-deux" where="pays_iso2:eq:FR, region:contains:erritoire"></dsfr-data-query>${kpiLignes('k-ods-deux', 'q-ods-deux')}
+  ${sourceClient('s-cli-deux')}
+  <dsfr-data-query id="q-cli-deux" source="s-cli-deux" where="pays_iso2:eq:FR, region:contains:erritoire"></dsfr-data-query>${kpiLignes('k-cli-deux', 'q-cli-deux')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-ods-deux', agg: 'count', pipeline: FR_ET_MILIEU_DE_MOT },
+      { kind: 'kpi', id: 'k-cli-deux', agg: 'count', pipeline: FR_ET_MILIEU_DE_MOT },
+      urlsDe('contains-deux-clauses-egalite-deleguee', 'ods', 'pays_iso2 = "FR"', 'some'),
+      urlsDe('contains-deux-clauses-sans-like', 'ods', 'like', 'none'),
+    ],
+  },
+
+  {
+    id: 'contains-ods-regroupement-reste-client',
+    mode: 'deterministic',
+    origin:
+      '#1285 — le même `contains`, avec un regroupement. La clause étant calculée dans le navigateur, sur les lignes BRUTES, le regroupement doit y rester aussi : délégué, le serveur regrouperait des lignes non filtrées (137 territoires au lieu de 94). Ni `like` ni `group_by` ne partent ; les sommes par académie sont celles des lignes filtrées.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ods-groupe')}
+  <dsfr-data-query id="q-ods-groupe" source="s-ods-groupe" where="region:contains:erritoire 0"
+    group-by="academie" aggregate="population:sum:pop" order-by="academie:asc"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-ods-groupe',
+        key: 'academie',
+        columns: ['pop'],
+        pipeline: [
+          ...MILIEU_DE_MOT,
+          { op: 'group-by', by: 'academie', columns: { pop: { agg: 'sum', field: 'population' } } },
+          { op: 'order-by', column: 'academie', dir: 'asc' },
+        ],
+      },
+      urlsDe('contains-groupe-sans-like', 'ods', 'like', 'none'),
+      urlsDe('contains-groupe-sans-group-by', 'ods', 'group_by=', 'none'),
+    ],
+  },
+
+  {
+    id: 'contains-ods-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — un `contains` calculé dans le navigateur derrière une source Opendatasoft en `server-side` ne verrait qu’UNE page : 40 lignes filtrées sous un total qui les ignore. La requête confie sa clause à la source (seule lectrice), qui passe en ERREUR DE CONFIGURATION : elle nomme la clause, `server-side` et la correction — retirer `server-side`, ou `dsfr-data-search server-search` pour une saisie du visiteur — et ne charge rien.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-c-page', { serverSide: true })}
+  <dsfr-data-query id="q-c-page" source="s-c-page" where="region:contains:erritoire 0"></dsfr-data-query>
+  <dsfr-data-list id="l-c-page" source="q-c-page" columns="region:Région"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-c-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-c-page"',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-c-page',
+        expect: 'config-error',
+        contains: 'la clause "region:contains:erritoire 0"',
+      },
+    ],
+  },
+
+  {
+    id: 'contains-ods-server-side-source-partagee',
+    mode: 'deterministic',
+    origin:
+      '#1285 — le même montage quand une liste lit AUSSI la source : la requête ne lui délègue rien (#765), ni ce `contains` ni un autre opérateur. STATU QUO, et c’est voulu : un filtre posé sur une chaîne partagée a toujours porté sur les lignes reçues — c’est ce que fait une page qui répartit ses lignes en deux blocs. Aucune erreur ; la source garde sa pagination, la requête filtre la page (les 40 premières lignes de l’ordre total). Ce contrôle garde la frontière : seule une clause qui AURAIT été déléguée devient une erreur.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-c-part', { serverSide: true })}
+  <dsfr-data-list id="l-c-part" source="s-c-part" columns="region:Région" server-sort></dsfr-data-list>
+  <dsfr-data-query id="q-c-part" source="s-c-part" where="region:contains:erritoire 0"></dsfr-data-query>${kpiLignes('k-c-part', 'q-c-part')}${kpiLignes('k-c-part-page', 's-c-part')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-c-part-page',
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: TAILLE_PAGE }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-c-part',
+        agg: 'count',
+        pipeline: [
+          { op: 'order-by', column: 'region', dir: 'asc' },
+          { op: 'limit', n: TAILLE_PAGE },
+          ...MILIEU_DE_MOT,
+        ],
+      },
+      { kind: 'diagnostic', id: 'q-c-part', expect: 'silence', contains: 'server-side' },
+      { kind: 'diagnostic', id: 's-c-part', expect: 'silence', contains: 'server-side' },
+      urlsDe('contains-partagee-sans-like', 'ods', 'like', 'none'),
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -2783,5 +2957,6 @@ export const DELEGATION: Manifest = {
     ...REGROUPEMENT_SUR_UNE_PAGE,
     ...RELAIS_CACHABLE,
     ...TRI_SUR_COLONNE_CLIENT,
+    ...CONTAINS_NON_DELEGUE,
   ],
 };

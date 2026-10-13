@@ -282,6 +282,8 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   fixtures-adaptateurs.ts      les faux serveurs du domaine `adaptateurs` (Melodi, Grist, JSON)
   fixtures-transformations.ts  les jeux servis en `data` inline (aucun faux serveur)
   fixtures-contexte.ts         le faux serveur ODS du domaine `contexte`
+                               (son `like` est celui du VRAI portail, #1285 : des mots, pas une
+                               sous-chaîne — `tests/builder-e2e/ods-like.ts`, mesuré)
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   fixtures-affichages.ts       le faux serveur du domaine `affichages`
@@ -616,7 +618,7 @@ multivalué, un jeu de 1 001 lignes derrière un plafond de 1 000. Le canari
 (#882) est **un jeu de quarante lignes écrites à la main** — `jeux/canari.json`,
 chaque ligne décrite dans `jeux/README.md` —, une table de droite à doublon,
 un jeu de volume engendré à graine, un jeu de dix lignes pour les pièges de
-facette (`jeux/canari-facettes.json`), et **vingt et un contrôles** dans
+facette (`jeux/canari-facettes.json`), et **trente et un contrôles** dans
 `tests/verif-donnees/canari.ts`, un par piège, chacun citant le registre
 (`constats`) et nommant le contrôle existant qui couvrait déjà le cas plutôt
 que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
@@ -639,6 +641,7 @@ que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
 | volume au-delà du plafond d'arguments | `canari-volume-min-max` | `min` et `max` sur 150 150 valeurs — le jeu de volume empilé 150 fois, sans fichier de plus de 1 001 lignes — par le KPI et par l'agrégat global d'une query (BUG-038) |
 | entités d'avant le filtre gardées dans un encart de carte | `canari-encart-entites-remplacees` | on coche « Musée » : un lieu à La Réunion, un en Guadeloupe, quatre sur la carte principale — et non les anciens en plus (BUG-034 : un groupe Leaflet orphelin gardait les entités précédentes, six cercles pour deux lignes) |
 | `neq` et les nuls | `canari-neq-nuls-exclus`, `-delegue` | une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : `eq` 7 + `neq` 27 = 34 renseignées sur 40, `notin` 33 (il garde les nuls, comme le `NOT … in (…)` qu'il délègue), `isnull` 6 — et le même 27 que la clause parte au serveur ou non |
+| le `like` du portail compare des mots | `canari-contains-milieu-de-mot` | `contains:ancour`, une sous-chaîne au MILIEU d'un mot, retient ses trois lignes sur une source Opendatasoft comme sur un tableau nu — elle n'est plus traduite en `like "%ancour%"`, que le portail lit comme un mot entier et rend à ZÉRO (#1285, ADR-159 ; mesuré : `like "%aliment%"`, 0 pour 14 366). Ne mord que parce que le faux portail lit `like` comme le vrai |
 
 Ce que le canari a **appris en s'écrivant** — trois faux pas d'auteur, tous
 silencieux, tous sans erreur console : un KPI `champ:count` compte **tous** les
@@ -1091,6 +1094,11 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
 | nuit rouge | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) sur le contrôle VIVANT `bofip-total-publie-par-la-source-serveur` | verdict **bibliothèque** | « Verdicts de la nuit — 1 × « bibliothèque » » ; « lib 10, oracle 9 148, serveur 9 148 » ; le gel `out/gel/bofip-total-publie-par-la-source-serveur-gel.json` est écrit — copié sous `tests/verif-donnees/gel/`, il est **rouge en `npm run verif` sans réseau** (« affiché 10, recalculé 9148 », aucune requête sortie du faux réseau) et **vert** une fois la mutation retirée |
 | nuit rouge | `VERIF_SIMULER_DONNEE=bofip-total-publie-par-la-source-serveur` (date de traitement différente à la relecture), même mutation | verdict **donnée, rejoué** | « Verdicts de la nuit — 1 × « donnée, rejoué » » : le contrôle a été rejoué sur un attendu recalculé, et seul le second passage est rendu |
+| delegation, contexte, canari, banc-adaptateurs | LE DÉFAUT D'ORIGINE de #1285 réinjecté : `contains` / `notcontains` retraduits en `champ like "%x%"` et de nouveau jugés confiables au portail (`odsqlClause` et `odsqlCanExpress`, `shared/query/filter-translator.ts`) | `contains-ods-comme-le-client`, `contains-ods-autres-clauses-restent-deleguees`, `contains-ods-regroupement-reste-client`, `contains-ods-server-side-refuse`, `recherche-contexte-saisie-partielle`, `ctx-contains-ods-calcule-par-la-source`, `ctx-contains-ods-server-side-refuse`, `ctx-contains-ods-server-facets-refuse`, `canari-contains-milieu-de-mot` — et, contre le VRAI portail, `ods-rappelconso-contains-vivant` | 0 ligne au lieu de 94, de 19, de 7, de 3, de 1 ; les contrôles d'URL voient repartir un `like`, les marqueurs d'erreur de configuration disparaissent. Sur data.economie.gouv.fr (2026-10-13) : **0 au lieu de 344** « cosmétiques » pour `contains:smétiqu`, 0 au lieu de 12 pour `contains:produits d`, et **836 au lieu de 492** pour `notcontains:smétiqu` (verdict de la nuit : 4 × « bibliothèque »). `contains-ods-server-side-source-partagee` et `recherche-contexte` restent verts, et c'est juste : sur une chaîne partagée rien n'est délégué, et « blagnac » est un mot entier |
+| delegation, contexte, canari | le même défaut, ET le faux portail redevenu complaisant (`likePortail` lit le motif comme une sous-chaîne, `tests/builder-e2e/ods-like.ts`) | les neuf mêmes contrôles — mais PLUS AUCUN par un chiffre | tous les KPI repassent au vert (94, 19, 7, 3, 1 : le faux portail donne raison au défaut) ; ne restent rouges que les contrôles d'URL (« 1/1 URL portent like ») et les marqueurs d'erreur de configuration. C'est la preuve que la fidélité du faux portail fait mordre les chiffres, et que les contrôles d'URL sont le second filet |
+| delegation, contexte, canari | la source charge sans appliquer sa part cliente (`clientWhere` vidé dans `_fetchViaAdapter`, `dsfr-data-source.ts`) | `contains-ods-comme-le-client`, `contains-ods-autres-clauses-restent-deleguees`, `contains-ods-regroupement-reste-client`, `recherche-contexte-saisie-partielle`, `ctx-contains-ods-calcule-par-la-source`, `ctx-contains-ods-server-facets-refuse`, `canari-contains-milieu-de-mot` | 137 lignes au lieu de 94 et de 5 ; 20 au lieu de 19 (l'égalité déléguée a bien filtré, pas la sous-chaîne) ; sommes par académie fausses de 4 415 000 ; 25 au lieu de 1 et de 7 ; 40 au lieu de 3 |
+| delegation, contexte | la source ne refuse plus une clause cliente en pagination serveur (`_clientWhereConfigError` rend `null`, `dsfr-data-source.ts`) | `contains-ods-server-side-refuse`, `ctx-contains-ods-server-side-refuse` | aucun marqueur : la page de 40 lignes est filtrée sous un total qui l'ignore |
+| contexte | les facettes serveur ne refusent plus une clause cliente (appel de `_refuseClientWhere` retiré de `_fetchServerFacets`, `dsfr-data-facets.ts`) | `ctx-contains-ods-server-facets-refuse` | aucun marqueur : les facettes affichent les compteurs de l'API, qui n'a pas reçu la clause (25 établissements comptés pour 7 affichés) |
 
 ## Un contrôle que la bibliothèque ne passe pas
 
