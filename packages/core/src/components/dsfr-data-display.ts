@@ -13,6 +13,8 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
   renderSourceError,
+  renderPageLoadError,
+  pageLoadErrorText,
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
@@ -83,6 +85,12 @@ import { readChildTemplateHtml } from '../utils/child-template.js';
 let displayInstanceSeq = 0;
 
 /**
+ * Source en panne (#1288) : les éléments laissent place au message de panne,
+ * sans rien garder du dernier chargement. Seule exception, en pagination
+ * serveur : un CHANGEMENT DE PAGE refusé garde la page précédente et le dit —
+ * « La page 4 n'a pas pu être chargée. Vous consultez toujours la page 3. » ;
+ * la pagination et l'adresse (`url-sync`) reviennent sur la page affichée.
+ *
  * @fires dsfr-data-select - `{ record, elementId, selected }` sur le composant (bubbles, composed) — au clic sur un élément en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur le même élément, ou croix du tag de contexte).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `display-select-ID`. Avec `context`, c'est le contexte qui diffuse.
  */
@@ -290,9 +298,16 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   }
 
   onSourceError(_error: Error): void {
-    // En pagination serveur, revert a la page precedente sur echec du fetch
-    // — meme contrat que dsfr-data-list (#284/#304)
+    // Même contrat que dsfr-data-list (#284/#304, #1288) : un changement de
+    // page refusé en pagination serveur garde la page précédente et le dit ;
+    // tout autre échec ne laisse aucun élément du dernier chargement.
     this._pager.onError(this._data.length > 0);
+    const failed = this._pager.failedPage;
+    if (failed === null) {
+      this._data = [];
+      return;
+    }
+    this._announce(pageLoadErrorText(failed, this._currentPage));
   }
 
   onSourceData(data: unknown): void {
@@ -619,6 +634,10 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
       ? // Total inconnu : afficher au moins le nombre de lignes vues
         (this._serverTotal ?? (this._currentPage - 1) * this._serverPageSize + this._data.length)
       : this._data.length;
+    // Changement de page refusé en pagination serveur (#1288) : la page
+    // précédente reste, sous la phrase qui le dit. Toute autre erreur de
+    // source rend le message de panne, sans aucun élément.
+    const failedPage = this._sourceError ? this._pager.failedPage : null;
 
     return html`
       <div
@@ -632,7 +651,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
         ${
           this._sourceLoading
             ? renderSourceLoading('dsfr-data-display')
-            : this._sourceError && !(this._serverPagination && this._data.length > 0)
+            : this._sourceError && (failedPage === null || this._data.length === 0)
               ? renderSourceError('dsfr-data-display', this._sourceError, this.source)
               : this._sourceIdle
                 ? renderSourceIdle('dsfr-data-display', this.idleMessage)
@@ -655,6 +674,16 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
                             : `${totalItems} résultat${totalItems > 1 ? 's' : ''}`
                         }
                       </p>
+                      ${
+                        this._sourceError && failedPage !== null
+                          ? renderPageLoadError(
+                              'dsfr-data-display',
+                              { failed: failedPage, current: this._currentPage },
+                              this._sourceError,
+                              this.source
+                            )
+                          : nothing
+                      }
                       ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
                     `
         }
