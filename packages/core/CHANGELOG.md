@@ -1,5 +1,69 @@
 # dsfr-data
 
+## 0.49.1
+
+### Patch Changes
+
+- [#1291](https://github.com/bmatge/dsfr-data/pull/1291) [`4485dc4`](https://github.com/bmatge/dsfr-data/commit/4485dc4501d19e0daf72a1d4aea277f3eda8bb31) Thanks [@bmatge](https://github.com/bmatge)! - `dsfr-data-chart` — cadre officiel (`databox`) : le contenu de la fenêtre n'exécute plus de code, un `databox-actions` mal formé ne fait plus disparaître le cadre, les attributs sans effet et l'absence du JavaScript du DSFR sont signalés ([#1289](https://github.com/bmatge/dsfr-data/issues/1289)).
+  
+  **Contenu nettoyé avant d'être relayé à DSFR Chart.** DSFR Chart pose deux attributs dans la page par `innerHTML` : `databox-modal-content` (la fenêtre du cadre, rendue dès l'affichage — un `<img onerror>` écrit dans l'attribut s'exécutait sans aucun clic) et `unit-tooltip` / `unit-tooltip-bar` (l'infobulle du graphique, au survol). Les deux passent désormais par le nettoyeur de la bibliothèque. Tous les autres attributs étaient et restent rendus comme du texte.
+  
+  Ce qui est **gardé**, à l'identique : paragraphes, gras, italique, liens `http(s)`, `mailto:` et relatifs, listes, tableaux, images, `<sup>` / `<sub>` (une unité `m<sup>2</sup>` garde son exposant), classes et attributs ordinaires. Une page existante qui met un lien ou du gras dans la fenêtre ne change pas.
+  
+  Ce qui **disparaît** de ces deux attributs, et de eux seuls :
+  
+  - les éléments `script`, `iframe`, `object`, `embed`, `style`, `template`, `meta`, `base`, `link` ;
+  - les éléments `textarea`, `title`, `xmp`, `noscript`, `noembed`, `noframes`, `plaintext`, avec leur contenu ;
+  - les animations SVG `animate` et `set` ;
+  - tout attribut `on*` (`onclick`, `onerror`…) ;
+  - les URL `javascript:`, `vbscript:` et `data:` dans `href`, `src`, `xlink:href`, `action`, `formaction` — une image intégrée en `data:` perd donc sa source ;
+  - les commentaires HTML.
+  
+  Un retrait est signalé une fois dans la console, avec l'attribut en cause. Le nettoyage retire ce qui s'exécute, pas ce qui trompe (un formulaire, un lien restent) : une valeur lue dans les données s'échappe avant d'être écrite dans ces attributs.
+  
+  **Nettoyeur durci.** `nettoyerGabarit`, déjà appliqué aux blocs du Studio IA, laissait passer des charges qu'un navigateur exécutait : élément à texte brut (`<textarea>`, `<title>`, `<noscript>`…) dont la fermeture est cachée dans un attribut, nom d'attribut commençant par `=`, référence numérique sans point-virgule (`&#106avascript:`), animation SVG d'un `href`, morceaux qui se recollent après un retrait (`<<script></script>img onerror=…>`). Ces cas sont fermés ; le Studio IA en bénéficie aussi.
+  
+  **`databox-actions` validé.** Un JSON invalide, autre chose qu'un tableau, ou un tableau portant un nombre ou `null` faisait disparaître tout le cadre, sans message. C'est maintenant une erreur de configuration lisible (`data-dsfr-config-error`, console) : les entrées fautives sont écartées, les autres gardées, le cadre reste affiché. La documentation dit qu'une action n'a aucun comportement par elle-même et comment la page la branche (`data-action`).
+  
+  **Attributs sans effet signalés**, par un avertissement console unique qui nomme l'attribut et ce qui manque : `databox-default-source` (une seule source déclarée, aucun sélecteur), `databox-fullscreen` sans `databox-modal-title`, `databox-modal-title` sans `databox-fullscreen`, `databox-modal-content` sans titre. Aucun attribut n'est retiré.
+  
+  **JavaScript du DSFR absent.** Le menu « Plus d'actions » (téléchargement CSV, capture), l'infobulle et la fenêtre du cadre ne s'ouvrent qu'avec `dsfr.module.min.js`. Quand le cadre en porte un et que le script n'est pas chargé, un avertissement console unique le dit, après le chargement de la page (un script chargé en différé ne déclenche pas de faux positif).
+
+- [#1290](https://github.com/bmatge/dsfr-data/pull/1290) [`5e24b3f`](https://github.com/bmatge/dsfr-data/commit/5e24b3fd64b60805d98ae4b366d5fd2871a3f093) Thanks [@bmatge](https://github.com/bmatge)! - Grist en pagination serveur : chaque page montre enfin ses propres lignes, et un regroupement délégué n'arrive plus vide. INSEE Melodi : une observation revenue d'une page à l'autre est constatée et dite ([#1279](https://github.com/bmatge/dsfr-data/issues/1279)).
+  
+  L'issue listait, par lecture du code, les chemins qui paginent sans ordre total. Chacun a été mesuré contre l'API réelle le 2026-10-13. La mesure n'a trouvé d'ordre instable nulle part — elle a trouvé deux défauts plus graves sur Grist.
+  
+  **Ce qui est corrigé**
+  
+  - **Grist, `server-side` : la page deux était la page un.** L'endpoint `/records` de Grist ne connaît pas `offset` : `limit=5&offset=5` rend les lignes 1 à 5, comme `limit=5`, sans erreur (mesuré sur grist.numerique.gouv.fr ; le source de grist-core ne lit que `sort` et `limit`). L'adaptateur demandait la page N par `limit` + `offset` : un tableau paginé au serveur affichait les lignes de la première page à **toutes** les pages, et le bouton « suivant » ne s'éteignait jamais. La page N est désormais demandée par `limit = N × page-size`, et la source n'en garde que la dernière tranche.
+  - **Grist, endpoint SQL : la réponse n'était pas lue.** Dès qu'une requête demande un `group-by`, un `aggregate` ou un filtre que `/records` ne sait pas faire (`gte`, `contains`, `isnull`…), l'adaptateur passe par l'endpoint SQL du document. L'API y rend des lignes `{ fields: {…} }` ; l'adaptateur attendait des lignes en tableaux et une liste `columns` que l'API ne sert pas. Chaque ligne devenait un objet vide : un graphique ou un tableau en aval d'un regroupement délégué n'avait ni libellé ni valeur, et les facettes serveur d'une source Grist n'avaient aucune valeur.
+  - **Grist, endpoint SQL, `server-side`.** Le total d'une page était dit égal à son nombre de lignes : le tableau n'offrait jamais de page suivante. Il est désormais inconnu tant que la page est pleine, comme en mode `/records`. Et la page part sur un **ordre total** : le tri demandé, complété par l'identifiant de ligne de Grist (`id`) — ou, pour des groupes, par les colonnes du `group-by` que le tri ne nomme pas. Sans cela, des lignes à valeurs égales pouvaient changer de page d'une requête à l'autre.
+  
+  **Ce qui change pour une page existante**
+  
+  - **Un tableau Grist en `server-side` change de contenu à chaque page** : c'est le correctif.
+  - **La page N d'une source Grist en `server-side` coûte N pages de transfert** (mode `/records`) : l'API n'a pas de décalage. Garder un `page-size` raisonnable, ou retirer `server-side` — Grist rend toute la table en une requête.
+  - **Un tri paginé sur Grist porte `id` en dernière clé** (`sort=-population,id`). L'ordre des lignes à valeurs égales est celui de leur identifiant, le même par `/records` et par SQL.
+  - **Rien ne change** pour un chargement complet Grist (une requête, ni tri ni `limit` ajoutés), pour INSEE Melodi, Tabular et le mode URL : aucune de leurs requêtes n'est modifiée.
+  
+  **INSEE Melodi : constater, faute de pouvoir ordonner**
+  
+  L'API pagine par numéro de page et n'offre aucun paramètre de tri (`sort=` et `order_by=` sont refusés, `orderBy=` est accepté sans effet, la documentation n'en nomme pas). Son ordre a été mesuré stable : 1 678 observations distinctes sur 1 678, cinq passages, par pages de 1 000 comme de 200. Rien ne le garantit, et la source ne peut pas l'imposer. Au-delà d'une page, elle vérifie donc après coup qu'aucune observation — identifiée par ses dimensions — n'est revenue sur une autre page. Si c'est le cas, un avertissement console dit combien, et le volet Diagnostic affiche « lignes revenues d'une page à l'autre » (nouvelle réserve `repeated-rows`) : autant d'observations manquent, alors que le compte reste juste. Aucune requête de plus ; rien sur un chargement d'une page.
+  
+  **Mode URL `paginate`**
+  
+  La source ne connaît ni l'API ni un identifiant de ligne, et ne lit qu'une page : elle ne peut rien garantir ni rien détecter sans crier au loup. La documentation de l'attribut le dit — le tri total est à écrire dans l'URL.
+  
+  **Tabular sans tri : laissé tel quel, et pourquoi**
+  
+  L'ordre par défaut des lignes est celui de l'identifiant de ligne, et il est posé par le code de l'API (`order=__id.asc` ajouté à toute requête sans tri ni agrégat, source d'api-tabular) : demander `__id__sort=asc` n'apporterait rien et changerait toutes les URL sans tri.
+  
+  **Ce qui reste**
+  
+  - Tabular, **groupes** paginés sans tri (plus de 200 groupes) : l'API ne pose alors aucun ordre. Mesuré stable (1 818 groupes en dix pages, tous distincts, deux passages), non garanti.
+  - Grist par SQL : `SELECT *` rend `id` et `manualSort` avec les colonnes de la table, ce que `/records` ne fait pas — une page filtrée par un opérateur avancé porte deux colonnes de plus.
+  - INSEE Melodi en `server-side` : la source ne voit qu'une page et ne constate rien.
+
 ## 0.49.0
 
 ### Minor Changes
