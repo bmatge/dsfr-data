@@ -143,7 +143,7 @@
                 <tr><td><code>url</code></td><td>String</td><td>URL relative ou absolue</td><td>URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode <code>data</code> inline.</td></tr>
                 <tr><td><code>method</code></td><td><code>GET</code> · <code>POST</code></td><td><code>GET</code> | <code>POST</code></td><td>Méthode HTTP : <code>GET</code> (défaut) ou <code>POST</code>.</td></tr>
                 <tr><td><code>params</code></td><td>String</td><td><code>'{"limit": 100}'</code></td><td>Paramètres de requête en JSON. Mode URL : query string en GET, corps de la requête en POST. **Mode adaptateur** (#726) : les paires sont ajoutées à l'URL construite par l'adaptateur, ce qui sert les paramètres propres à l'API que la bibliothèque ne modélise pas — par exemple <code>params='{"timezone":"Europe/Paris"}'</code> pour lire des dates dans un fuseau donné, sans quitter le mode adaptateur. Les clés que l'adaptateur construit lui-même (il les déclare : clauses, pagination, projection, suffixes d'opérateur) sont réservées : elles sont refusées avec une erreur de configuration plutôt que d'écraser une clause (#1137). Seuls les adaptateurs qui acceptent des paramètres libres les transmettent (en chargement paginé comme en <code>fetch-mode="export"</code>) ; les autres les ignorent — voir la table des capacités d'ARCHITECTURE.</td></tr>
-                <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta. La source ne livre alors qu'UNE page. Une <code>dsfr-data-query</code> en aval qui regroupe ou agrège (<code>group-by</code>, <code>aggregate</code>, <code>explode</code>) calcule sur cette seule page : le chiffre est partiel. Le mode URL ne délègue rien et aucun attribut ne lui fait charger le jeu entier — sans <code>paginate</code>, c'est la page par défaut de l'API qui revient. La requête le dit donc sans se refuser (#1242) : avertissement en console, réserve au volet Diagnostic. Pour un chiffre sur tout le jeu, passer par un <code>api-type</code> qui sait le charger, ou par une URL qui rend déjà l'agrégat.</td></tr>
+                <tr><td><code>paginate</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Active la pagination serveur en mode URL : injecte page/page_size dans l'URL et publie la meta. La source ne livre alors qu'UNE page. Une <code>dsfr-data-query</code> en aval qui regroupe ou agrège (<code>group-by</code>, <code>aggregate</code>, <code>explode</code>) calcule sur cette seule page : le chiffre est partiel. Le mode URL ne délègue rien et aucun attribut ne lui fait charger le jeu entier — sans <code>paginate</code>, c'est la page par défaut de l'API qui revient. La requête le dit donc sans se refuser (#1242) : avertissement en console, réserve au volet Diagnostic. Pour un chiffre sur tout le jeu, passer par un <code>api-type</code> qui sait le charger, ou par une URL qui rend déjà l'agrégat. L'ORDRE des lignes est celui de l'API, et la source ne peut rien en garantir (#1279) : elle ne connaît ni l'API ni ses paramètres de tri, et ne lit qu'une page à la fois. Une API qui pagine sans ordre total peut rendre une ligne sur deux pages et n'en jamais servir une autre. C'est à l'URL de porter un tri sur une colonne UNIQUE (ou complété par une colonne unique) — le paramètre de tri de l'API, écrit dans <code>url</code> ou dans <code>params</code>.</td></tr>
                 <tr><td><code>page-size</code></td><td>Number</td><td>Entier positif. Défaut : <code>20</code></td><td>Taille de page pour la pagination serveur (nombre de records par page).</td></tr>
                 <tr><td><code>use-proxy</code></td><td>Boolean</td><td>Presence = <code>true</code></td><td>Force le passage par le proxy CORS générique (pour les APIs externes sans CORS). Ne vaut qu'en mode URL (<code>url="…"</code>) : avec un <code>api-type</code>, l'attribut est sans effet sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail Opendatasoft, par exemple) — la requête part en direct, et la source le signale une fois en console. Sans effet sur une requête qui part au relais (<code>relay-url</code>) : le relais prend toutes les requêtes GET vers une autre origine, <code>use-proxy</code> ne garde que ce que le relais ne porte pas (requêtes POST, cible hors <code>https</code>).</td></tr>
                 <tr><td><code>proxy-url</code></td><td>String</td><td><code>""</code></td><td>Domaine du proxy CORS pour CETTE source (#340), prioritaire sur <code>window.DSFR_DATA_PROXY</code> et la config build-time. Sert à la fois la réécriture des hôtes connus et le <code>use-proxy</code> générique. Vide = résolution proxy globale habituelle. Ex: <code>proxy-url="https://mon-proxy.fr"</code>. Seuls les hôtes connus sont relayés (Tabular, Grist gouv et SaaS, Albert, INSEE Melodi). Sur tout autre hôte — un portail Opendatasoft en mode adaptateur, ou une URL quelconque sans <code>use-proxy</code> — l'attribut est SANS EFFET : la requête part en direct vers l'API. La source l'écrit alors une fois en console (« proxy-url est sans effet »), et le volet Diagnostic le reprend. Pour faire passer un portail Opendatasoft (ou tout autre hôte) par le domaine du site, c'est <code>relay-url</code> qu'il faut poser : <code>proxy-url</code> désigne un autre contrat (endpoints dédiés et <code>/cors-proxy</code>, toutes méthodes, en-têtes transmis). Avec un relais, <code>proxy-url</code> ne sert plus que les requêtes que le relais ne porte pas (POST du mode SQL de Grist).</td></tr>
@@ -235,6 +235,27 @@
           charge comme avant et le volet Diagnostic le signale (« pagination sans ordre garanti » sur
           Opendatasoft, « tri serveur instable » sur Tabular) : poser alors un <code>order-by</code> sur
           une colonne unique, ou charger en une requête avec <code>fetch-mode="export"</code>.
+        </p>
+        <p>
+          <strong>Grist.</strong> Un chargement complet tient en une requête : rien à paginer. En
+          <code>server-side</code>, l'API <code>/records</code> ne sait pas sauter de lignes — son
+          paramètre <code>offset</code> est ignoré, sans erreur. La source demande donc la page N par
+          <code>limit = N × page-size</code> et n'en garde que la dernière tranche : chaque page est
+          juste, et la page N coûte N pages de transfert. Un <code>order-by</code> paginé est complété
+          par l'identifiant de ligne de Grist (<code>id</code>), pour que les ex-æquo ne changent pas
+          de page. Avec un <code>where</code> à opérateur avancé, un <code>group-by</code> ou un
+          <code>aggregate</code>, la requête passe par l'endpoint SQL du document, paginé sur le même
+          ordre total.
+        </p>
+        <p>
+          <strong>INSEE Melodi.</strong> Au-delà de 1 000 observations, la source pagine par numéro de
+          page, et l'API n'offre aucun paramètre de tri. L'ordre de ses observations a été mesuré stable
+          d'une page à l'autre ; rien ne le garantit, et la source ne peut pas l'imposer. Elle vérifie
+          donc, une fois toutes les pages reçues, qu'aucune observation n'est revenue deux fois — une
+          observation s'identifie par ses dimensions. Si c'est le cas, le volet Diagnostic affiche
+          « lignes revenues d'une page à l'autre » : autant d'observations manquent, alors que le compte
+          reste juste. Resserrer le <code>where</code> pour que le chargement tienne en une page, ou
+          recharger.
         </p>
 
         <h4 class="fr-mt-3w">Tout charger en un seul appel : <code>fetch-mode</code></h4>
@@ -642,6 +663,13 @@
           <p>
             Avec <code>paginate</code>, chaque changement de page dans un <code>dsfr-data-list</code>
             en aval declenche un nouvel appel API avec les paramètres de pagination.
+          </p>
+          <p>
+            L'ordre des lignes est celui de l'API : la source n'en connaît ni les paramètres de tri ni
+            un identifiant de ligne, et ne lit qu'une page à la fois. Une API qui pagine sans ordre total
+            peut rendre une ligne sur deux pages et n'en jamais servir une autre, sans que rien le
+            signale. C'est à l'URL de porter le tri de l'API sur une colonne unique — dans
+            <code>url</code>, ou dans <code>params</code>.
           </p>
           <div class="code-block"><pre><span class="tok-punct">&lt;</span><span class="tok-tag">dsfr-data-source</span>
   <span class="tok-attr">id</span><span class="tok-punct">=</span><span class="tok-string">"browse"</span>

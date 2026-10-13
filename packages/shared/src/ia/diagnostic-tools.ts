@@ -196,6 +196,10 @@ function describeStage(trace: Trace, nodeId: string, redact: boolean): string {
               ? ', PAGINATION SANS ORDRE TOTAL (lignes possiblement doublées ou manquantes)'
               : ''
           }${
+            state.meta.caveats?.includes('repeated-rows')
+              ? ", LIGNES REVENUES D'UNE PAGE À L'AUTRE (autant de lignes manquantes)"
+              : ''
+          }${
             state.meta.caveats?.includes('in-values-dropped')
               ? ', VALEUR DE in ÉCARTÉE PAR LE SERVEUR (lignes manquantes)'
               : ''

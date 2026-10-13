@@ -107,6 +107,31 @@ describe('fetchUrlRows', () => {
     expect(vues[1]).toBe('https://melodi.invalid/data/JEU?page=2');
   });
 
+  it('descend dans chaque élément par `rowPath` : les `fields` d’un enregistrement Grist', async () => {
+    const u = 'https://grist.invalid/api/docs/d/tables/t/records';
+    reseau({
+      [u]: {
+        records: [
+          { id: 1, fields: { region: 'Bretagne', n: 4 } },
+          { id: 2, fields: { region: 'Corse', n: 2 } },
+        ],
+      },
+    });
+    const lignes = await fetchUrlRows({ url: u, rowsPath: 'records', rowPath: 'fields' });
+    expect(lignes).toEqual([
+      { region: 'Bretagne', n: 4 },
+      { region: 'Corse', n: 2 },
+    ]);
+  });
+
+  it('refuse un élément sans objet au `rowPath` annoncé', async () => {
+    const u = 'https://grist.invalid/api/docs/d/tables/t/records';
+    reseau({ [u]: { records: [{ id: 1, fields: { n: 1 } }, { id: 2 }] } });
+    await expect(fetchUrlRows({ url: u, rowsPath: 'records', rowPath: 'fields' })).rejects.toThrow(
+      /pas d'objet en « fields »/
+    );
+  });
+
   it('s’arrête au plafond de pages plutôt que de boucler', async () => {
     const boucle = 'https://boucle.invalid/p';
     const vues = reseau({ [boucle]: { data: [{ n: 0 }], links: { next: boucle } } });

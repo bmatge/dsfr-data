@@ -25,7 +25,10 @@ import {
   CLE_ODS,
   DATASET_ADAPT,
   DATASET_INSEE,
+  DATASET_INSEE_GLISSE,
+  DATASET_INSEE_LONG,
   GRIST_LIGNES,
+  MELODI_LONG,
   HOTE_INSEE,
   HOTE_JSON,
   HOTE_ODS_ADAPT,
@@ -604,6 +607,42 @@ const CHECKS: Check[] = [
           },
           { op: 'order-by', column: 'pop', dir: 'desc' },
         ],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // INSEE Melodi — plus d'une page, sans tri possible
+  // -------------------------------------------------------------------------
+  {
+    id: 'insee-melodi-plusieurs-pages',
+    mode: 'deterministic',
+    origin:
+      "#1279 — au-delà de 1 000 observations, l'adaptateur INSEE Melodi pagine par numéro de page, et l'API n'offre AUCUN paramètre de tri (mesuré le 2026-10-13 : `sort=` et `order_by=` rendent 400, `orderBy=` est accepté sans effet, la documentation n'en nomme pas). L'ordre mesuré est arbitraire mais stable — 1 678 observations distinctes sur 1 678, cinq passages sur `DS_EC_DECES` ; rien ne le garantit. L'adaptateur ne peut pas ordonner : il CONSTATE. Une observation s'identifie par ses dimensions ; revenue d'une page à l'autre, elle signe un ordre qui a bougé, et autant d'autres n'ont jamais été servies. Deux jeux de 1 200 observations : sur le premier, stable, les chiffres sont ceux de l'oracle et la bibliothèque se tait ; sur le second, dont l'ordre glisse de sept observations après la première page, le compte reste JUSTE (1 200) — c'est la signature du piège — et la bibliothèque le dit.",
+    feed: { kind: 'fixture', datasets: { main: MELODI_LONG } },
+    markup: `
+  <dsfr-data-source id="s-insee-long" api-type="insee"
+    base-url="${HOTE_INSEE}" dataset-id="${DATASET_INSEE_LONG}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-insee-long-n" source="s-insee-long" value="count" format="nombre" label="Observations"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-insee-long-somme" source="s-insee-long" value="OBS_VALUE:sum" format="nombre" label="Somme"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-insee-long-zones" source="s-insee-long" value="ZONE:distinct" format="nombre" label="Zones"></dsfr-data-kpi>
+  <dsfr-data-source id="s-insee-glisse" api-type="insee"
+    base-url="${HOTE_INSEE}" dataset-id="${DATASET_INSEE_GLISSE}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-insee-glisse-n" source="s-insee-glisse" value="count" format="nombre" label="Observations"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-insee-long-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-insee-long-somme', agg: 'sum', field: 'OBS_VALUE' },
+      { kind: 'kpi', id: 'k-insee-long-zones', agg: 'distinct', field: 'ZONE' },
+      { kind: 'rows', id: 's-insee-long', key: 'ZONE', columns: ['OBS_VALUE'], pipeline: [] },
+      // Ordre stable : rien à dire
+      { kind: 'diagnostic', id: 's-insee-long', expect: 'silence', contains: DATASET_INSEE_LONG },
+      // Ordre qui glisse : le compte ne voit rien, la bibliothèque le dit
+      { kind: 'kpi', id: 'k-insee-glisse-n', agg: 'count' },
+      {
+        kind: 'diagnostic',
+        id: 's-insee-glisse',
+        expect: 'warning',
+        contains: `7 observation(s) de "${DATASET_INSEE_GLISSE}" sont revenues`,
       },
     ],
   },

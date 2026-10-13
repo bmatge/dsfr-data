@@ -27,10 +27,15 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   un chiffre.
 - **Compte juste, lignes fausses** (pagination par décalage, #1274, #1233) : un jeu de plus d'une
   page dont un sous-total, un cumul ou un historique varie d'un chargement à l'autre alors que
-  le total reste bon. La source le corrige seule sur OpenDataSoft et Tabular (ordre total) ;
+  le total reste bon. La source le corrige seule sur OpenDataSoft, Tabular et Grist (ordre total) ;
   si le volet Diagnostic affiche « pagination sans ordre garanti » ou « tri serveur instable »,
   l'API a refusé la clé de départage : poser un `order-by` sur une colonne unique, ou charger
-  en une requête (`fetch-mode="export"`).
+  en une requête (`fetch-mode="export"`). Sur INSEE Melodi, qui n'a pas de tri, la source ne
+  peut que le constater : « lignes revenues d'une page à l'autre » (#1279) — resserrer le
+  `where`. En mode URL `paginate`, rien ne le détecte : le tri total est à écrire dans l'URL.
+- **Tableau Grist paginé qui montre toujours les mêmes lignes** (#1279) :
+  `api-type="grist"` avec `server-side` affichait la première page à toutes les pages —
+  l'API ignore `offset`. Corrigé ; sur une instance servie en retard, retirer `server-side`.
 - **Instance servie en retard** : un attribut inconnu de la version CHARGÉE est signalé (#727),
   mais une instance publique peut servir une version antérieure — `curl …/dist/skills-meta.json`
   donne sa `libVersion`.

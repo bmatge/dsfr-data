@@ -6,12 +6,26 @@
  *
  * L'API ne supporte ni tri, ni agrégation, ni group-by, ni facettes,
  * ni recherche cote serveur. Tout traitement avance est client-side.
+ *
+ * PAGINATION SANS TRI (#1279). Melodi pagine par numero de page et n'offre
+ * aucun parametre de tri : sa documentation n'en nomme pas, `sort=` et
+ * `order_by=` rendent 400 (« La DSD ne possede pas le composant sort »), et
+ * `orderBy=`, accepte, ne change rien a l'ordre (mesure le 2026-10-13). Rien
+ * ne garantit donc qu'une observation ne revienne pas sur deux pages pendant
+ * qu'une autre n'est jamais servie. Mesure le meme jour sur `DS_EC_DECES`
+ * (1 678 observations) : l'ordre est arbitraire mais STABLE — 1 678 distinctes
+ * sur 1 678, cinq passages, par pages de 1 000 comme de 200. L'adaptateur ne
+ * peut pas imposer d'ordre ; il peut CONSTATER le defaut s'il survient : une
+ * observation s'identifie par ses dimensions, et celle qui revient d'une page
+ * a l'autre se compte (`_repeatedObservations`). Le chargement le dit alors
+ * (console, reserve `repeated-rows`). Une seule page : aucun controle.
  */
 
 import type {
   ApiAdapter,
   AdapterCapabilities,
   AdapterParams,
+  FetchCaveat,
   FetchResult,
   ServerSideOverlay,
 } from './api-adapter.js';
@@ -87,6 +101,9 @@ export class InseeAdapter implements ApiAdapter {
 
     let allResults: unknown[] = [];
     let totalCount = -1;
+    // Observations brutes, page par page : relues apres la boucle si le
+    // chargement en a compte plus d'une (#1279)
+    const pages: unknown[][] = [];
 
     for (let page = 1; page <= INSEE_MAX_PAGES; page++) {
       const remaining = requestedLimit - allResults.length;
@@ -104,6 +121,7 @@ export class InseeAdapter implements ApiAdapter {
       const observations = json.observations || [];
       const flat = this._flattenObservations(observations);
       allResults = allResults.concat(flat);
+      pages.push(observations);
 
       // Extract total count from paging
       if (json.paging && typeof json.paging.count === 'number') {
@@ -127,11 +145,56 @@ export class InseeAdapter implements ApiAdapter {
       );
     }
 
+    // Plusieurs pages sans tri possible (#1279) : une observation revenue
+    // d'une page a l'autre signe un ordre qui a bouge pendant le chargement
+    // — autant d'autres n'ont jamais ete servies, et le compte reste juste.
+    const repeated = pages.length > 1 ? this._repeatedObservations(pages) : 0;
+    if (repeated > 0) {
+      console.warn(
+        `dsfr-data-source[insee]: ${repeated} observation(s) de "${params.datasetId}" sont revenues ` +
+          `d'une page a l'autre sur ${pages.length} pages — l'API pagine sans tri et son ordre a change ` +
+          `pendant le chargement : autant d'observations manquent, le nombre de lignes reste juste. ` +
+          `Resserrer le filtre (where) pour tenir en une page de ${pageSize} observations, ou recharger.`
+      );
+    }
+
     return {
       data: await this._withLabels(allResults, params, signal),
       totalCount: totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: true, // all processing is client-side
+      ...(repeated > 0 ? { caveats: ['repeated-rows'] as FetchCaveat[] } : {}),
     };
+  }
+
+  /**
+   * Nombre d'observations deja vues sur une page PRECEDENTE (#1279).
+   *
+   * Une observation Melodi s'identifie par ses dimensions (la cle SDMX) : deux
+   * observations d'un meme jeu n'ont jamais les memes. La meme cle sur deux
+   * pages differentes est donc un fait, pas un indice — elle ne se produit
+   * que si l'ordre des observations a change entre deux requetes. Une cle
+   * repetee DANS une page n'est pas comptee : ce serait un defaut du jeu, pas
+   * de la pagination. Une observation sans dimensions lisibles : controle
+   * abandonne (0), plutot qu'une alerte sur une forme que l'adaptateur ne
+   * connait pas.
+   */
+  private _repeatedObservations(pages: unknown[][]): number {
+    const firstPage = new Map<string, number>();
+    let repeated = 0;
+    for (let i = 0; i < pages.length; i++) {
+      for (const observation of pages[i]) {
+        const dimensions = (observation as { dimensions?: unknown } | null)?.dimensions;
+        if (!dimensions || typeof dimensions !== 'object') return 0;
+        const entries = Object.entries(dimensions as Record<string, unknown>).sort((a, b) =>
+          a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0
+        );
+        const key = JSON.stringify(entries);
+        const seenOn = firstPage.get(key);
+        if (seenOn === undefined) firstPage.set(key, i);
+        else if (seenOn !== i) repeated++;
+      }
+    }
+    return repeated;
   }
 
   /**

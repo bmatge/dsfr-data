@@ -199,7 +199,8 @@ async function installerReseau(page: Page, fuites: string[], app = false): Promi
       await route.continue();
       return;
     }
-    const charge = repondre(url);
+    // Le corps d'un POST fait partie de la requête (endpoint SQL de Grist, #1279)
+    const charge = repondre(url, route.request().postData());
     // Un fichier (export Parquet, #1055) : servi PAR PLAGES, comme le S3 de
     // data.gouv — `Range: bytes=a-b` → 206 et la seule tranche demandée.
     if (estReponseBinaire(charge)) {

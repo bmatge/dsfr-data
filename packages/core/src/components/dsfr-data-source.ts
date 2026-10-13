@@ -205,6 +205,13 @@ export class DsfrDataSource extends LitElement {
    * refuser (#1242) : avertissement en console, réserve au volet Diagnostic.
    * Pour un chiffre sur tout le jeu, passer par un `api-type` qui sait le
    * charger, ou par une URL qui rend déjà l'agrégat.
+   *
+   * L'ORDRE des lignes est celui de l'API, et la source ne peut rien en
+   * garantir (#1279) : elle ne connaît ni l'API ni ses paramètres de tri, et
+   * ne lit qu'une page à la fois. Une API qui pagine sans ordre total peut
+   * rendre une ligne sur deux pages et n'en jamais servir une autre. C'est à
+   * l'URL de porter un tri sur une colonne UNIQUE (ou complété par une colonne
+   * unique) — le paramètre de tri de l'API, écrit dans `url` ou dans `params`.
    */
   @property({ type: Boolean })
   paginate = false;

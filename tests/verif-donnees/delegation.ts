@@ -24,12 +24,15 @@ import {
   DATASET,
   DATASET_EX_AEQUO,
   EX_AEQUO,
+  GRIST_EX_AEQUO,
+  GRIST_TABLE_EX_AEQUO,
   HOTE_ODS,
   MESURES,
   RELAIS,
   RESSOURCE_TABULAR,
   RESSOURCE_TABULAR_EX_AEQUO,
   TERRITOIRES,
+  URL_GRIST_EX_AEQUO,
   urlJeu,
   urlJeuPagine,
 } from './fixtures.js';
@@ -1539,6 +1542,196 @@ const PAGINATION_ORDRE_TOTAL: Check[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// 4 sexies. Grist : la pagination serveur, et la réponse de l'endpoint SQL (#1279)
+// ---------------------------------------------------------------------------
+
+/**
+ * La source Grist du jeu à ex-æquo : 450 lignes, `rang` unique (et égal à
+ * l'identifiant de ligne de Grist), `nombre` sur cinq valeurs.
+ *
+ * Le faux Grist (`fixtures-grist.ts`) se comporte comme le vrai, mesuré le
+ * 2026-10-13 : `/records` IGNORE `offset` ; `/sql` rend des lignes
+ * `{ fields }` et ne promet rien de l'ordre que l'`ORDER BY` ne départage pas.
+ */
+const sourceGristExAequo = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="grist" base-url="${URL_GRIST_EX_AEQUO}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+
+/** Les requêtes `/records` de cette table. */
+const RECORDS_GRIST_EX_AEQUO = `/tables/${GRIST_TABLE_EX_AEQUO}/records`;
+
+const TRI_NOMBRE_PUIS_RANG: Step = {
+  op: 'order-by-keys',
+  keys: [
+    { column: 'nombre', dir: 'desc' },
+    { column: 'rang', dir: 'asc' },
+  ],
+};
+
+const COLONNES_RANG_NOMBRE = [
+  { column: 'rang', numeric: true },
+  { column: 'nombre', numeric: true },
+];
+
+const GRIST_PAGINATION: Check[] = [
+  {
+    id: 'grist-pagination-serveur-page-deux',
+    mode: 'deterministic',
+    origin:
+      "#1279 — mesuré le 2026-10-13 sur grist.numerique.gouv.fr (document public, table de 101 lignes) : l'endpoint `/records` de Grist ne connaît pas `offset`. `limit=5&offset=5` rend les lignes 1 à 5, comme `limit=5`, sans erreur ; le source de grist-core ne lit que `sort` et `limit`. L'adaptateur demandait la page N par `limit` + `offset` : un tableau `server-side` montrait les lignes de la PREMIÈRE page sur toutes les pages, et le bouton « suivant » ne s'éteignait jamais. La page N part désormais en `limit = N × taille`, et l'adaptateur n'en garde que la dernière tranche. Deux tableaux de 450 lignes, pages de 40, lus à la page DEUX : sans tri (lignes 41 à 80), et trié sur `nombre`, clé non unique, complété par l'identifiant de ligne (`sort=-nombre,id`).",
+    feed: { kind: 'fixture', datasets: { main: GRIST_EX_AEQUO } },
+    markup: `
+  ${sourceGristExAequo('s-grist-page', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-grist-page" source="s-grist-page" columns="rang:Rang, nombre:Nombre"
+    server-sort></dsfr-data-list>
+  ${sourceGristExAequo('s-grist-page-triee', `order-by="nombre:desc" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-grist-page-triee" source="s-grist-page-triee" columns="rang:Rang, nombre:Nombre"
+    server-sort></dsfr-data-list>`,
+    actions: [
+      { kind: 'click', selector: '#l-grist-page .fr-pagination__link--next' },
+      { kind: 'click', selector: '#l-grist-page-triee .fr-pagination__link--next' },
+    ],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-grist-page',
+        columns: COLONNES_RANG_NOMBRE,
+        pipeline: [{ op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        kind: 'list',
+        id: 'l-grist-page-triee',
+        columns: COLONNES_RANG_NOMBRE,
+        pipeline: [TRI_NOMBRE_PUIS_RANG, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        kind: 'urls',
+        id: 'aucun-offset-sur-records',
+        among: RECORDS_GRIST_EX_AEQUO,
+        contains: 'offset=',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'page-deux-demandee-par-limit',
+        among: RECORDS_GRIST_EX_AEQUO,
+        contains: `limit=${2 * TAILLE_PAGE}`,
+        verdict: 'last',
+      },
+      {
+        kind: 'urls',
+        id: 'tri-de-page-avec-identifiant-de-ligne',
+        among: RECORDS_GRIST_EX_AEQUO,
+        contains: 'sort=-nombre,id',
+        verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'grist-pagination-sql-page-deux',
+    mode: 'deterministic',
+    origin:
+      "#1279 — dès qu'un filtre sort de ce que `/records` sait faire (ici `nombre:gte:0`), l'adaptateur Grist passe par l'endpoint SQL et pagine par `LIMIT` / `OFFSET`. Trois défauts s'y tenaient ensemble. (1) La réponse : `/sql` rend `{ records: [{ fields }] }`, l'adaptateur lisait des lignes en tableaux et un `columns` que l'API ne sert pas — chaque ligne devenait un objet VIDE (mesuré le 2026-10-13, GET et POST). (2) Le total : celui d'une page était dit égal à son nombre de lignes, et le tableau n'offrait jamais de page deux. (3) L'ordre : sans `ORDER BY`, ou sur une clé non unique, SQLite ne promet rien d'une requête à l'autre ; la page part désormais sur un ordre TOTAL, le tri demandé complété par l'identifiant de ligne (`ORDER BY \"nombre\" DESC, \"id\" ASC`). Deux tableaux, pages de 40, lus à la page DEUX. Le faux serveur retourne sur les pages de rang impair ce que l'`ORDER BY` ne départage pas, comme les faux Opendatasoft et Tabular de #1274.",
+    feed: { kind: 'fixture', datasets: { main: GRIST_EX_AEQUO } },
+    markup: `
+  ${sourceGristExAequo('s-grist-sql', `where="nombre:gte:0" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-grist-sql" source="s-grist-sql" columns="rang:Rang, nombre:Nombre"
+    server-sort></dsfr-data-list>
+  ${sourceGristExAequo('s-grist-sql-triee', `where="nombre:gte:0" order-by="nombre:desc" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-grist-sql-triee" source="s-grist-sql-triee" columns="rang:Rang, nombre:Nombre"
+    server-sort></dsfr-data-list>`,
+    actions: [
+      { kind: 'click', selector: '#l-grist-sql .fr-pagination__link--next' },
+      { kind: 'click', selector: '#l-grist-sql-triee .fr-pagination__link--next' },
+    ],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-grist-sql',
+        columns: COLONNES_RANG_NOMBRE,
+        pipeline: [{ op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        kind: 'list',
+        id: 'l-grist-sql-triee',
+        columns: COLONNES_RANG_NOMBRE,
+        pipeline: [TRI_NOMBRE_PUIS_RANG, { op: 'page', size: TAILLE_PAGE, number: 2 }],
+      },
+      {
+        // Le mode SQL ne lit jamais `/records` : s'il y retombait, les lignes
+        // seraient justes par un autre chemin, et ce contrôle ne garderait rien
+        kind: 'urls',
+        id: 'jamais-par-records',
+        among: GRIST_TABLE_EX_AEQUO,
+        contains: '/records',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'grist-regroupement-delegue-sql',
+    mode: 'deterministic',
+    origin:
+      "#1279, défaut voisin trouvé en mesurant — un regroupement délégué à Grist passe par l'endpoint SQL, dont l'adaptateur ne lisait pas la réponse : `{ records: [{ fields: { categorie, total } }] }` devenait autant d'objets vides que de groupes, et le graphique ou le tableau en aval n'avait ni libellé ni valeur. Quatre catégories, la somme de `nombre` par catégorie, triée : les chiffres de l'oracle, et pas une ligne vide. La requête est SEULE lectrice de sa source, condition de la délégation (#765).",
+    feed: { kind: 'fixture', datasets: { main: GRIST_EX_AEQUO } },
+    markup: `
+  ${sourceGristExAequo('s-grist-groupe')}
+  <dsfr-data-query id="q-grist-groupe" source="s-grist-groupe" group-by="categorie"
+    aggregate="nombre:sum:total, rang:count:lignes" order-by="total:desc"></dsfr-data-query>
+  <dsfr-data-list id="l-grist-groupe" source="q-grist-groupe"
+    columns="categorie:Catégorie, total:Total, lignes:Lignes"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-grist-groupe',
+        key: 'categorie',
+        columns: ['total', 'lignes'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'categorie',
+            columns: {
+              total: { agg: 'sum', field: 'nombre' },
+              lignes: { agg: 'count', field: 'rang' },
+            },
+          },
+          { op: 'order-by', column: 'total', dir: 'desc' },
+        ],
+      },
+      {
+        kind: 'list',
+        id: 'l-grist-groupe',
+        columns: [
+          { column: 'categorie' },
+          { column: 'total', numeric: true },
+          { column: 'lignes', numeric: true },
+        ],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'categorie',
+            columns: {
+              total: { agg: 'sum', field: 'nombre' },
+              lignes: { agg: 'count', field: 'rang' },
+            },
+          },
+          { op: 'order-by', column: 'total', dir: 'desc' },
+        ],
+      },
+      {
+        // La délégation a bien eu lieu : l'endpoint SQL est appelé, `/records` non
+        kind: 'urls',
+        id: 'regroupement-par-sql',
+        among: 'docExAequo',
+        contains: '/sql',
+        verdict: 'last',
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // 5. Sans adaptateur : le même balisage, tout côté client
 // ---------------------------------------------------------------------------
 
@@ -2580,6 +2773,7 @@ export const DELEGATION: Manifest = {
     ...TRANSIT,
     ...TABULAR_PERTES,
     ...PAGINATION_ORDRE_TOTAL,
+    ...GRIST_PAGINATION,
     ...SANS_ADAPTATEUR,
     ...TABULAR_API,
     ...TABULAR_TRI_AGREGAT,
