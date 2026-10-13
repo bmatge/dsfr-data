@@ -137,6 +137,16 @@
           et commandes <code>{ where, whereKey }</code> vers la source en mode serveur/statique.
         </p>
 
+        <h3 class="fr-mt-3w">Source en panne</h3>
+        <p>
+          Quand la source échoue, les filtres sont <strong>désactivés</strong> (<code>aria-disabled</code>,
+          toujours atteignables au clavier) sous la phrase « Filtres momentanément indisponibles. », et
+          leurs compteurs ne sont plus affichés. La sélection déjà posée est gardée : elle s'applique de
+          nouveau au retour des données. « Réinitialiser les filtres » reste actif. Les filtres restent
+          actifs quand c'est la requête elle-même qui est refusée (HTTP 400) : le filtre posé peut en être
+          la cause. Voir <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
+        </p>
+
         <h3 class="fr-mt-3w">Compter autre chose que des lignes : <code>weight-field</code></h3>
         <!-- ATTRS-PROSE:dsfr-data-facets fields="weight-field" -->
         <p>

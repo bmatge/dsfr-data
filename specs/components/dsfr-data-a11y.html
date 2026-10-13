@@ -77,6 +77,18 @@
         </div>
         <p class="fr-text--sm fr-mt-1w">Si ni <code>table</code>, ni <code>download</code>, ni <code>description</code> ne sont définis, les trois sont actives par défaut.</p>
 
+        <h3 class="fr-mt-3w">Source en panne</h3>
+        <p>
+          Quand la source échoue, le tableau est <strong>retiré</strong> et le téléchargement
+          <strong>désactivé</strong> : les lignes du dernier chargement ne sont ni montrées ni exportées. La
+          section dit « Données momentanément indisponibles. Le tableau et le téléchargement reviendront
+          avec les données. » (ou la phrase de la cause ; <code>error-message</code> de la source la
+          remplace). Le bouton reste atteignable au clavier, <code>aria-disabled</code>, et désigne cette
+          phrase comme sa raison (<code>aria-describedby</code>) ; la description liée au graphique
+          devient « Données du graphique momentanément indisponibles. » Tout revient au chargement
+          réussi. Voir <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
+        </p>
+
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>
           Sur une page d'exploration, l'amont peut refuser de charger tant qu'aucun filtre n'est posé

@@ -8,7 +8,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-a11y> - Companion d'accessibilité pour visualisations\n\nOffre trois alternatives accessibles a un graphique, chacune activable :\n- `table`       : tableau HTML avec les données du graphique\n- `download`    : bouton de téléchargement CSV\n- `description` : transcription textuelle libre\n\nVia l'attribut `for`, il injecte :\n- Un skip link dans le graphique cible (visible au focus clavier)\n- `aria-describedby` vers un resume concis (screen readers)\n- `aria-details` vers le tableau (si active, progressive enhancement)\n\nLes cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,\nau plus 2 décimales, #666 ; une valeur non nulle inférieure à 0,01 garde\ndeux chiffres significatifs — 0,00123 → « 0,0012 », jamais « 0 », #1282) ;\nles chaînes (codes INSEE, SIREN…) restent intactes et le CSV téléchargé\nreste brut : il porte la donnée (`0.00123`), pas l'arrondi d'affichage. Avant #666, le contournement était\n`normalize round=\"champ:2\"`, qui arrondit mais ne localise pas.",
+          "description": "<dsfr-data-a11y> - Companion d'accessibilité pour visualisations\n\nOffre trois alternatives accessibles a un graphique, chacune activable :\n- `table`       : tableau HTML avec les données du graphique\n- `download`    : bouton de téléchargement CSV\n- `description` : transcription textuelle libre\n\nVia l'attribut `for`, il injecte :\n- Un skip link dans le graphique cible (visible au focus clavier)\n- `aria-describedby` vers un resume concis (screen readers)\n- `aria-details` vers le tableau (si active, progressive enhancement)\n\nLes cellules numériques du tableau sont rendues en fr-FR (`2.27` → « 2,27 »,\nau plus 2 décimales, #666 ; une valeur non nulle inférieure à 0,01 garde\ndeux chiffres significatifs — 0,00123 → « 0,0012 », jamais « 0 », #1282) ;\nles chaînes (codes INSEE, SIREN…) restent intactes et le CSV téléchargé\nreste brut : il porte la donnée (`0.00123`), pas l'arrondi d'affichage. Avant #666, le contournement était\n`normalize round=\"champ:2\"`, qui arrondit mais ne localise pas.\n\nSource en panne (#1288) : le tableau est retiré et le téléchargement\ndésactivé — les lignes du dernier chargement ne sont ni montrées ni\nexportées, elles seraient prises pour les chiffres du jour. La section dit\n« Données momentanément indisponibles. Le tableau et le téléchargement\nreviendront avec les données. » (ou la phrase de la cause : hors connexion,\ndonnées retirées… ; `error-message` de la source la remplace), le bouton\nreste atteignable au clavier, `aria-disabled`, et désigne cette phrase\ncomme sa raison ; la description lue avec le graphique devient « Données du\ngraphique momentanément indisponibles. ». Le rendu de panne tient pendant un\nnouvel essai et tout revient au chargement réussi. Aucune annonce de plus :\nla panne est dite par le bandeau `dsfr-data-source-status`, sinon par le\ngraphique ou la carte visés — ce composant ne s'annonce lui-même que s'il\nn'accompagne rien (`for` absent).",
           "name": "DsfrDataA11y",
           "members": [
             {
@@ -280,6 +280,28 @@
               "kind": "method",
               "name": "_removeAria",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_outage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "SourceErrorView | null"
+                }
+              },
+              "description": "Ce que ce composant sait de la panne de sa source (#1288), ou `null`. Vrai\nde l'échec jusqu'au prochain chargement réussi, nouvel essai compris : le\nmixin ne vide pas `_sourceData` à l'erreur, et rien de ce qui suit ne doit\nlire ces lignes tant que la panne dure."
+            },
+            {
+              "kind": "method",
+              "name": "_currentRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "unknown"
+                }
+              },
+              "description": "Les lignes à rendre et à exporter : aucune pendant une panne (#1288)."
             },
             {
               "kind": "method",
@@ -593,8 +615,45 @@
                   "type": {
                     "text": "{ rows: unknown[][]; seriesCount: number }"
                   }
+                },
+                {
+                  "name": "outage",
+                  "default": "null",
+                  "type": {
+                    "text": "SourceErrorView | null"
+                  }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "_dataLabel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "« Données de la carte » quand `for` vise une carte, sinon « Données du graphique »."
+            },
+            {
+              "kind": "method",
+              "name": "_outageText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "outage",
+                  "type": {
+                    "text": "SourceErrorView"
+                  }
+                }
+              ],
+              "description": "Phrase de la section pendant une panne (#1288) : la cause (ou\n`error-message`), puis ce qui manque — nommé d'après ce que la section\nmontre d'ordinaire. « Reviendront avec les données » n'est promis que pour\nune cause passagère."
             }
           ],
           "attributes": [
@@ -4912,7 +4971,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "",
+          "description": "Source en panne (#1288) : les éléments laissent place au message de panne,\nsans rien garder du dernier chargement. Seule exception, en pagination\nserveur : un CHANGEMENT DE PAGE refusé garde la page précédente et le dit —\n« La page 4 n'a pas pu être chargée. Vous consultez toujours la page 3. » ;\nla pagination et l'adresse (`url-sync`) reviennent sur la page affichée.",
           "name": "DsfrDataDisplay",
           "members": [
             {
@@ -5906,8 +5965,56 @@
               "type": {
                 "text": "boolean"
               },
-              "description": "Compteurs effectivement masques (force a true en mode static-values)",
+              "description": "Compteurs effectivement masques (force a true en mode static-values, et\npendant une panne de la source, #1288 : ils datent du dernier chargement).",
               "readonly": true
+            },
+            {
+              "kind": "method",
+              "name": "_unavailable",
+              "return": {
+                "type": {
+                  "text": "FiltersUnavailableView | null"
+                }
+              },
+              "description": "Les filtres sont-ils désactivés par une panne de la source (#1288) ? Vrai\nde l'échec au prochain chargement réussi, nouvel essai compris."
+            },
+            {
+              "kind": "field",
+              "name": "_controlsMarked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "Contrôles marqués `aria-disabled` au dernier rendu (#1288)."
+            },
+            {
+              "kind": "method",
+              "name": "_syncUnavailableControls",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Marque — ou libère — les contrôles des groupes (#1288). `aria-disabled` et\nnon `disabled` : un contrôle qui portait le focus au moment de la panne\nle garde, et reste atteignable pour être lu avec sa raison. Posé après\nchaque rendu plutôt que dans les cinq gabarits de groupe : un contrôle\nrecréé par Lit est marqué au même cycle."
+            },
+            {
+              "kind": "field",
+              "name": "_blockUnavailableGesture",
+              "privacy": "private",
+              "description": "Un geste sur un filtre désactivé ne fait rien (#1288) — arrêté en phase de\ncapture, avant les écouteurs des gabarits. `aria-disabled` ne bloque rien\npar lui-même. La tabulation passe ; une liste déroulante changée malgré\ntout (écran tactile) est remise sur la sélection posée."
+            },
+            {
+              "kind": "field",
+              "name": "_BLOCKED_GESTURES",
+              "type": {
+                "text": "array"
+              },
+              "privacy": "private",
+              "static": true,
+              "readonly": true,
+              "default": "['click', 'change', 'input', 'keydown', 'mousedown']"
             },
             {
               "kind": "field",
@@ -9775,7 +9882,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "",
+          "description": "Source en panne (#1288) : le tableau laisse place au message de panne, sans\naucune ligne du dernier chargement, et l'export (`export`) ne produit aucun\nfichier. Seule exception, en pagination serveur : un CHANGEMENT DE PAGE\nrefusé garde la page précédente et le dit — « La page 4 n'a pas pu être\nchargée. Vous consultez toujours la page 3. » ; la pagination et l'adresse\n(`url-sync`) reviennent sur la page affichée, et redemander la page refusée\nrelance la source.",
           "name": "DsfrDataList",
           "members": [
             {
@@ -10468,6 +10575,17 @@
             },
             {
               "kind": "method",
+              "name": "_outage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La liste est-elle en panne, sans aucune ligne à montrer (#1288) ? Faux\nquand un changement de page a seulement été refusé : la page affichée est\ndite pour ce qu'elle est, et s'exporte."
+            },
+            {
+              "kind": "method",
               "name": "_exportCsv",
               "privacy": "private"
             },
@@ -10695,7 +10813,7 @@
                   }
                 }
               ],
-              "description": "Corps de la liste : etat de la source (chargement, erreur, attente d'un\nfiltre) ou le compte, le tableau et la pagination.\n\nUne erreur de source n'efface pas une page deja rendue en pagination\nserveur — l'ancienne page reste lisible."
+              "description": "Corps de la liste : etat de la source (chargement, erreur, attente d'un\nfiltre) ou le compte, le tableau et la pagination.\n\nUn changement de page refuse en pagination serveur n'efface pas la page\ndeja rendue : elle reste, sous la phrase qui dit quelle page n'a pas pu\netre chargee (#1288). Toute autre erreur de source rend le message de\npanne, sans aucune ligne."
             }
           ],
           "events": [
@@ -11304,7 +11422,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681). Vide = le nom du champ.",
+              "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681 ; vide = le nom du champ), et nomme la couche dans\nla ligne d'état de la carte quand sa source est en panne (#1288) :\n« Couche « Bornes de recharge » : données momentanément indisponibles. »\n(vide = le libellé de sa légende, sinon la couche n'est pas nommée).",
               "attribute": "label"
             },
             {
@@ -12250,6 +12368,55 @@
                 }
               },
               "description": "Retour en attente de l'amont (`require-where`, dernier filtre retiré) ou\nchangement de `source` (BUG-039) : la couche rend ce qu'elle avait tracé.\nSans ce hook, les marqueurs du dernier filtre restaient sur la carte, sous\nune page dont les autres afficheurs disent « choisissez un filtre ».\nAppelé aussi à chaque (ré)abonnement, avant la lecture du cache : sans\ncarte prête, il n'y a rien à vider."
+            },
+            {
+              "kind": "method",
+              "name": "onSourceError",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "_error",
+                  "type": {
+                    "text": "Error"
+                  }
+                }
+              ],
+              "description": "La source est en panne (#1288) : la couche rend ce qu'elle avait tracé,\ncomme au retour en attente. Sans ce hook, les points du dernier chargement\nrestaient sur la carte — sans date, sous des blocs voisins qui disent\n« Données momentanément indisponibles » — et la description lue comptait\ntoujours « N marqueurs ». Les lignes elles-mêmes sont lâchées : un\ndéplacement de la carte, un pas de temps ou un attribut qui change ne\ndoivent rien pouvoir retracer tant que la source n'a pas rechargé.\nLa carte hôte est prévenue par `updated()`, qui suit ce hook."
+            },
+            {
+              "kind": "method",
+              "name": "getSourceFailure",
+              "return": {
+                "type": {
+                  "text": "{ error: Error; sourceId: string } | null"
+                }
+              },
+              "description": "Panne de la source de cette couche (#1288), ou `null` : vrai de l'échec au\nprochain chargement réussi, nouvel essai compris. Lu par la carte hôte,\nqui pose le message."
+            },
+            {
+              "kind": "field",
+              "name": "_errorNotified",
+              "type": {
+                "text": "Error | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Dernière panne signalée à la carte : elle n'est prévenue que d'un changement."
+            },
+            {
+              "kind": "method",
+              "name": "_syncErrorWithMap",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Signale à la carte hôte que la panne de cette couche a changé (#1288)."
             },
             {
               "kind": "method",
@@ -13255,7 +13422,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681). Vide = le nom du champ.",
+              "description": "Libellé de la couche — sert de libellé au tag du contexte en\n`refine-on-click` (#681 ; vide = le nom du champ), et nomme la couche dans\nla ligne d'état de la carte quand sa source est en panne (#1288) :\n« Couche « Bornes de recharge » : données momentanément indisponibles. »\n(vide = le libellé de sa légende, sinon la couche n'est pas nommée).",
               "fieldName": "label"
             },
             {
@@ -15116,6 +15283,36 @@
             },
             {
               "kind": "field",
+              "name": "_errorRoot",
+              "type": {
+                "text": "HTMLDivElement | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Bloc du message de panne (#1288), posé dans le conteneur Leaflet comme celui d'attente."
+            },
+            {
+              "kind": "field",
+              "name": "_layerStatus",
+              "type": {
+                "text": "HTMLDivElement | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Ligne d'état des couches en panne quand une autre couche trace encore (#1288)."
+            },
+            {
+              "kind": "field",
+              "name": "_errorTexts",
+              "type": {
+                "text": "string[]"
+              },
+              "privacy": "private",
+              "default": "[]",
+              "description": "Ce que la description lue dit de la panne (#1288)."
+            },
+            {
+              "kind": "field",
               "name": "_layerSummaries",
               "type": {
                 "text": "string[]"
@@ -15408,6 +15605,112 @@
                 }
               },
               "description": "Pose ou retire le bloc d'attente — le même gabarit que les autres\nafficheurs (`renderSourceIdle`), centré SUR le fond de carte : celui-ci\nreste visible et manipulable, le bloc ne capte pas le pointeur."
+            },
+            {
+              "kind": "method",
+              "name": "_onLayerErrorChange",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Appelé par une couche dont la source entre en panne ou en sort (#1288)."
+            },
+            {
+              "kind": "field",
+              "name": "_onLayerRendered",
+              "privacy": "private",
+              "description": "Un rendu de couche change ce que la carte dit d'une panne (#1288) : le\nmessage centré vaut tant que PLUS RIEN n'est tracé, la ligne d'état dès\nqu'une autre couche trace — et un rendu peut finir après l'événement\nd'erreur (import différé des grappes ou de la carte de chaleur)."
+            },
+            {
+              "kind": "method",
+              "name": "_failedLayers",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "FailedLayer[]"
+                }
+              },
+              "description": "Couches directes dont la source est en panne. Jamais dans un encart : la carte hôte le dit."
+            },
+            {
+              "kind": "method",
+              "name": "_hasTracingLayer",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Une couche directe trace-t-elle encore quelque chose ?"
+            },
+            {
+              "kind": "method",
+              "name": "_layerName",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "layer",
+                  "type": {
+                    "text": "MapChildElement"
+                  }
+                }
+              ],
+              "description": "Nom d'une couche dans la ligne d'état : son `label`, sinon le libellé de\nla légende qui la décrit. Sans l'un ni l'autre, la couche n'est pas nommée\n— un id technique n'est pas un nom pour l'usager."
+            },
+            {
+              "kind": "method",
+              "name": "_layerStatusText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "failed",
+                  "type": {
+                    "text": "FailedLayer"
+                  }
+                }
+              ],
+              "description": "« Couche « Bornes de recharge » : données momentanément indisponibles. »"
+            },
+            {
+              "kind": "method",
+              "name": "_syncError",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Pose, met à jour ou retire le rendu de panne (#1288).\n\n- plus aucune couche ne trace : le gabarit commun (`renderSourceError`),\n  centré SUR le fond comme le message d'attente — le fond reste\n  manipulable autour, le bloc lui-même garde ses clics (« Réessayer »,\n  « Détails techniques ») sans les passer à Leaflet ;\n- une autre couche trace encore : une ligne par couche en panne, en bas\n  de carte, mise à jour EN PLACE (une région live recréée n'est pas\n  annoncée de façon fiable).\n\nRien n'est redessiné pendant un nouvel essai : le message reste tel quel\njusqu'au chargement réussi, qui le retire."
+            },
+            {
+              "kind": "method",
+              "name": "_releaseFocus",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "block",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                }
+              ],
+              "description": "Le bloc qui porte le focus va disparaître (« Réessayer » a réussi) : le\nfocus passe à la carte, il ne retombe pas en tête de page."
             },
             {
               "kind": "method",
@@ -21091,6 +21394,16 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "_unavailable",
+              "return": {
+                "type": {
+                  "text": "FiltersUnavailableView | null"
+                }
+              },
+              "description": "La recherche est-elle désactivée par une panne de la source (#1288) ? Vrai\nde l'échec au prochain chargement réussi, nouvel essai compris."
             },
             {
               "kind": "method",

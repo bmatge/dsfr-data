@@ -987,6 +987,50 @@
           « Réessayer » garde 44 px de haut.
         </p>
 
+        <h3 id="panne-partout" class="fr-mt-3w">Tableau équivalent, carte, filtres, pagination : aucun ancien chiffre</h3>
+        <p>
+          Pendant une panne, <strong>aucun bloc ne garde à l'écran une ligne du dernier chargement</strong> :
+          sans date, elle serait prise pour le chiffre du jour. Le graphique, le KPI, la liste, le podium et
+          les fiches rendent le message décrit plus haut. Les blocs ci-dessous, qui n'avaient pas de rendu de
+          panne, suivent la même règle.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Bloc</th><th>Pendant la panne</th><th>Phrase (service indisponible)</th></tr></thead>
+            <tbody>
+              <tr><td><code>dsfr-data-a11y</code></td><td>Le tableau est retiré. « Télécharger en CSV » est désactivé (<code>aria-disabled</code>, il garde le focus) et ne produit aucun fichier. La description lue avec le graphique ne compte plus de lignes.</td><td>Données momentanément indisponibles. Le tableau et le téléchargement reviendront avec les données.</td></tr>
+              <tr><td><code>dsfr-data-map</code>, <code>dsfr-data-map-layer</code></td><td>La couche en panne est vidée : formes, grappes, carte de chaleur, entrée de légende, bandeau de troncature, et ses clones dans les encarts. Le fond reste manipulable. Si plus rien n'est tracé, le message des autres blocs est centré sur la carte ; si une autre couche trace encore, une ligne en bas de carte nomme la couche (son <code>label</code>, sinon le libellé de sa légende). La description lue ne compte plus ses marqueurs.</td><td>Données momentanément indisponibles (message centré)<br>Couche « Bornes de recharge » : données momentanément indisponibles. (ligne d'état)</td></tr>
+              <tr><td><code>dsfr-data-list</code>, <code>dsfr-data-display</code> en pagination serveur</td><td>Un <strong>changement de page refusé</strong> garde la page précédente et le dit ; la pagination et l'adresse (<code>url-sync</code>) reviennent sur la page affichée, et redemander la page refusée relance la source. Tout autre échec (rafraîchissement, tri, filtre) rend le message de panne, sans aucune ligne.</td><td>La page 4 n'a pas pu être chargée. Vous consultez toujours la page 3.</td></tr>
+              <tr><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Les filtres sont désactivés (<code>aria-disabled</code>, toujours atteignables au clavier) ; leurs compteurs et le compte de résultats ne sont plus affichés. La sélection et le terme déjà posés sont gardés et s'appliquent de nouveau au retour des données. « Réinitialiser les filtres » et la touche Échap restent actifs.</td><td>Filtres momentanément indisponibles.</td></tr>
+              <tr><td>Export de <code>dsfr-data-list</code> (<code>export</code>)</td><td>Aucun fichier tant que la liste est en panne.</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Les phrases suivent la cause, comme l'encart : hors connexion, « Vous semblez hors connexion » ;
+          HTTP 429, « Le service est très sollicité » ; données introuvables, « Ces données ne sont plus
+          publiées à cette adresse » ; accès restreint, « Ces données ne sont pas accessibles
+          publiquement ». Pour les filtres et la description du tableau équivalent, la cause suit la
+          mention « indisponibles » : « Filtres indisponibles. Vous semblez hors connexion. »
+          <code>error-message</code> s'applique partout. Quand le refus vient de la page elle-même
+          (HTTP 400), les filtres restent actifs : le filtre posé peut être la cause du refus, et le
+          retirer est alors le seul remède.
+        </p>
+        <p>
+          Avec un bandeau <code>dsfr-data-source-status</code>, aucun de ces blocs ne porte « Réessayer » ni
+          n'annonce la panne une seconde fois : la carte et le tableau équivalent gardent leur phrase, sans
+          bouton. Sans bandeau, la carte porte « Réessayer » (dans le message centré comme dans la ligne
+          d'état) ; le tableau équivalent et les filtres n'annoncent rien de plus, la panne étant déjà dite
+          par le graphique, la carte ou la liste qu'ils accompagnent.
+        </p>
+        <p>
+          <strong>Pendant un nouvel essai</strong> (« Réessayer », retour du réseau, rafraîchissement
+          périodique) : le graphique, le KPI, la liste et les fiches affichent leur indicateur de
+          chargement ; le tableau équivalent, la carte et les filtres gardent leur rendu de panne, phrase
+          comprise, jusqu'au résultat — rien ne clignote. Au chargement réussi, tout revient sans
+          rechargement de la page.
+        </p>
+
         <h3 id="source-status" class="fr-mt-3w">dsfr-data-source-status : le bandeau qui dit la panne une fois</h3>
         <p>
           Sans bandeau, huit blocs branchés sur une source en panne affichent huit messages et huit boutons
@@ -1028,7 +1072,7 @@
         <p>
           Une source qui échoue <strong>après avoir déjà livré</strong> ne jette pas ses lignes, mais
           elles ne passent plus pour à jour. Les composants n'en affichent aucune : ils gardent le
-          message de panne décrit plus haut. Pour un script de la page, la règle est la même :
+          message de panne décrit plus haut — tableau équivalent, carte et export compris. Pour un script de la page, la règle est la même :
         </p>
         <div class="fr-table">
           <table class="attr-table">
