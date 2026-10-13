@@ -29,8 +29,11 @@ const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
 
 /**
  * La recherche vue par le contexte (#678, ADR-104) : UN filtre `contains`
- * sur le champ unique de `fields`. Le contexte diffuse a ses cibles (au
- * dialecte de chacune : `like "%q%"` en ODSQL), porte l'URL et le tag.
+ * sur le champ unique de `fields`. Le contexte diffuse a ses cibles, porte
+ * l'URL et le tag. Vers une cible Opendatasoft, ce `contains` n'est plus
+ * confie au portail (#1285 : son `like` compare des mots) : la source le
+ * calcule dans le navigateur. La recherche portee comme une recherche, et non
+ * comme un filtre, est le lot 3 de l'ADR-159.
  */
 class SearchContextFilter implements ContextFilterLike {
   readonly applyTo = '*';
@@ -215,6 +218,12 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
    * et `url-search-param` sont ignorés — le paramètre est nommé d'après le
    * champ, ou via `url-param-map` du contexte). Le contexte peut être
    * déclaré après la recherche dans la page. Vide = comportement autonome.
+   *
+   * Vers une cible Opendatasoft (#1285), ce filtre `contains` est calculé
+   * dans le navigateur par la source, sur les lignes chargées (dans la limite
+   * de `max-records`) : une saisie partielle (« aliment ») y trouve enfin
+   * « alimentation ». Une cible en `server-side` passe en erreur de
+   * configuration — y préférer `server-search`.
    */
   @property({ type: String })
   context = '';

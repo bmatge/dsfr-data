@@ -2,7 +2,7 @@ import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { dispatchSourceCommand, getDataCache } from '../utils/data-bridge.js';
-import { translateWhere, type WhereDialectCarrier } from '../utils/where.js';
+import { splitWhere, translateWhere, type WhereDialectCarrier } from '../utils/where.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
@@ -243,7 +243,7 @@ export class DsfrDataContext extends LitElement {
     const reached = targets.filter((id) => !missing.includes(id));
     this._reportMissingField(filter, missing, reached.length === 0 && missing.length > 0);
     for (const sourceId of reached) {
-      const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
+      const { where, clientWhere } = this._translateFor(sourceId, colonWhere);
       // Comparaison texte sur un champ que CETTE source publie en nombre
       // (#924) : la clause part inchangee, le piege est seulement dit. Sur
       // un filtre delegue a une source dont les lignes ne portent pas le
@@ -252,7 +252,14 @@ export class DsfrDataContext extends LitElement {
       // reste AVANT la commande : les lignes observees sont celles d'avant
       // ce filtre.
       if (colonWhere) void checkNumericFieldMismatch(sourceId, colonWhere);
-      dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
+      dispatchSourceCommand(sourceId, {
+        where,
+        // Seulement quand il y en a une (#1285) : une commande sans part
+        // cliente la libère côté source.
+        ...(clientWhere ? { clientWhere } : {}),
+        whereKey,
+        origin: this.id,
+      });
     }
     // Une cible exclue garde le where precedent de ce filtre s'il y en avait
     // un : on le libere, pour qu'elle ne reste pas filtree sur une valeur
@@ -487,12 +494,25 @@ export class DsfrDataContext extends LitElement {
   }
 
   /**
-   * Traduit la clause colon vers le dialecte de l'adapter de la source —
-   * même chemin que la délégation serveur de dsfr-data-query (#275).
+   * Prépare la clause colon pour une source — même chemin que la délégation
+   * serveur de dsfr-data-query (#275).
+   *
+   * La clause est d'abord PARTAGÉE (#1285, ADR-159) : `where` est ce qui est
+   * confié à l'API de la source, traduit dans son dialecte ; `clientWhere`
+   * (grammaire colon) est ce dont la comparaison n'a pas la même structure
+   * sur l'API — `contains` / `notcontains` sur un portail Opendatasoft, dont
+   * le `like` compare des mots — et que la source calcule elle-même, dans le
+   * navigateur, sur les lignes chargées.
    */
-  private _translateFor(sourceId: string, colonWhere: string): string {
+  private _translateFor(
+    sourceId: string,
+    colonWhere: string
+  ): { where: string; clientWhere: string } {
+    if (!colonWhere) return { where: '', clientWhere: '' };
     const sourceEl = document.getElementById(sourceId) as SourceWithAdapter | null;
-    return translateWhere(sourceEl?.getAdapter?.(), colonWhere);
+    const adapter = sourceEl?.getAdapter?.();
+    const { server, client } = splitWhere(adapter, colonWhere);
+    return { where: translateWhere(adapter, server), clientWhere: client };
   }
 
   render() {

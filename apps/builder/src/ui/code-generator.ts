@@ -20,6 +20,7 @@ import {
   CDN_URLS,
   DSFR_TAG_MAP,
   filterToOdsql,
+  splitFilterForOdsql,
   applyLocalFilter,
   detectProvider,
   extractResourceIds,
@@ -500,6 +501,43 @@ function dsfrDeferredScript(tagName: string): string {
 // filterToOdsql and applyLocalFilter imported from @dsfr-data/shared
 
 /**
+ * Le filtre avancé, partagé entre ce qui est confié à l'API du fournisseur
+ * (`server`) et ce qui est calculé dans le navigateur (`client`) — #1285,
+ * ADR-159.
+ *
+ * Un portail Opendatasoft ne sait pas chercher une sous-chaîne : son `like`
+ * compare des mots, et le `like "%x%"` que ce générateur écrivait pour
+ * « contient » rendait zéro ligne dès que la valeur n'était pas un mot entier.
+ * Quand `client` n'est pas vide, le code généré ne peut donc plus confier le
+ * filtre, le regroupement ni la pagination au serveur : la source charge le
+ * jeu, une `dsfr-data-query` filtre et regroupe. Les autres fournisseurs ne
+ * sont pas concernés : tout leur filtre reste `server`.
+ */
+function filterSplit(providerId: string): { server: string; client: string } {
+  if (!state.advancedMode || !state.queryFilter) return { server: '', client: '' };
+  if (providerId !== 'opendatasoft') return { server: state.queryFilter, client: '' };
+  const { server, client } = splitFilterForOdsql(state.queryFilter);
+  return { server, client };
+}
+
+/**
+ * Attribut d'une source Opendatasoft dont le filtre est calculé dans le
+ * navigateur (#1285) : le jeu en une requête (`fetch-mode="export"`). AUCUN
+ * plafond n'est écrit ici (ADR-159) : un nombre choisi par le générateur
+ * serait faux pour le jeu suivant. C'est `max-records` de la bibliothèque qui
+ * s'applique (1 000 lignes par défaut), et elle signale la troncature — le
+ * commentaire du code généré dit de le relever à la taille du jeu.
+ */
+const ODS_FULL_LOAD_ATTRS = ['fetch-mode="export"'];
+
+/** Commentaire du code généré quand le filtre est calculé dans le navigateur (#1285). */
+const CLIENT_FILTER_NOTE =
+  '<!-- « contient » cherche une sous-chaîne, un portail OpenDataSoft ne compare que des mots : ' +
+  'cette clause est calculée dans le navigateur, sur les lignes chargées. ' +
+  'La source charge 1 000 lignes au plus par défaut et signale la troncature : ' +
+  'pour un jeu plus long, ajoutez max-records="…" (le nombre de lignes du jeu) sur dsfr-data-source. -->';
+
+/**
  * Generate optional middleware elements (dsfr-data-normalize, dsfr-data-facets)
  * to insert between dsfr-data-source and dsfr-data-query/dsfr-data-chart.
  * Returns the generated HTML and the final source ID for downstream components.
@@ -900,13 +938,20 @@ export async function generateChart(): Promise<void> {
     } else {
       // For API sources, use raw data — limit=200 to fetch all records
       const params = new URLSearchParams({ limit: '200' });
-      if (state.advancedMode && state.queryFilter) {
-        const odsql = filterToOdsql(state.queryFilter);
-        if (odsql) params.set('where', odsql);
-      }
+      // Seules les clauses que le portail sait calculer partent (#1285) ; les
+      // autres (« contient ») sont appliquées ici, sur les lignes reçues.
+      const split = filterSplit('opendatasoft');
+      const odsql = filterToOdsql(split.server);
+      if (odsql) params.set('where', odsql);
       const apiUrl = appendQuery(state.apiUrl, String(params));
       try {
         state.data = await fetchOdsResults(apiUrl);
+        if (split.client) {
+          state.data = applyLocalFilter(
+            state.data as Record<string, unknown>[],
+            split.client
+          ) as typeof state.data;
+        }
         state.localData = state.data as Record<string, unknown>[];
         generateCode(apiUrl);
       } catch (error) {
@@ -925,11 +970,16 @@ export async function generateChart(): Promise<void> {
     state.savedSource?.type === 'api' &&
     state.apiUrl &&
     detectProvider(state.apiUrl).id === 'opendatasoft';
+  // Un filtre que le portail ne sait pas calculer (« contient », #1285) ne
+  // peut pas accompagner une agrégation serveur : elle porterait sur des
+  // lignes non filtrées. L'aperçu agrège alors les lignes locales, comme
+  // pour un fournisseur sans agrégation serveur.
+  const odsClientFilter = isOdsApiSource ? filterSplit('opendatasoft').client : '';
   if (
     state.sourceType === 'saved' &&
     state.localData &&
     state.localData.length > 0 &&
-    !isOdsApiSource
+    (!isOdsApiSource || odsClientFilter)
   ) {
     generateChartFromLocalData();
     return;
@@ -990,10 +1040,19 @@ export async function generateChart(): Promise<void> {
     params = new URLSearchParams(baseParams);
   }
 
-  // Apply advanced mode filter to API request
+  // Apply advanced mode filter to API request — la part que le portail sait
+  // calculer (#1285). Sans lignes locales pour appliquer le reste, l'aperçu
+  // le dit plutôt que d'afficher un chiffre comme s'il était filtré.
   if (state.advancedMode && state.queryFilter) {
-    const odsql = filterToOdsql(state.queryFilter);
+    const split = filterSplit('opendatasoft');
+    const odsql = filterToOdsql(split.server);
     if (odsql) params.set('where', odsql);
+    if (split.client) {
+      toastWarning(
+        `Le filtre « ${split.client} » n'est pas appliqué à cet aperçu : l'API ne sait pas ` +
+          'chercher une sous-chaîne. Il est bien appliqué par le code généré.'
+      );
+    }
   }
 
   const apiUrl = appendQuery(state.apiUrl, String(params));
@@ -1588,6 +1647,20 @@ export function generateOdsQueryCode(
   srcAttrs.push(`base-url="${odsInfo.baseUrl}"`);
   srcAttrs.push(`dataset-id="${odsInfo.datasetId}"`);
 
+  // Filtre que le portail ne sait pas calculer (« contient », #1285) : pas
+  // d'agrégation serveur, elle porterait sur des lignes non filtrées. La
+  // source charge le jeu, la query filtre et regroupe — elle délègue
+  // d'elle-même les clauses que le portail sait calculer.
+  if (filterSplit('opendatasoft').client) {
+    return generateClientAggregationCode(
+      [...srcAttrs, ...ODS_FULL_LOAD_ATTRS],
+      `${CLIENT_FILTER_NOTE}\n  <!-- Source ODS chargée en entier -->`,
+      labelFieldPath,
+      valueFieldPath,
+      seriesFieldPath
+    );
+  }
+
   // Group by
   const groupByField =
     state.advancedMode && state.queryGroupBy ? state.queryGroupBy : labelFieldPath;
@@ -1635,7 +1708,8 @@ export function generateOdsQueryCode(
   const dateField = odsDateSelect(selectParts, [resultValueField, ...extraValueFields]);
   srcAttrs.push(`select="${escapeHtml(selectParts.join(', '))}"`);
 
-  // Where / filter (static clause on source)
+  // Where / filter (static clause on source). Le filtre est ici entièrement
+  // traduisible : un filtre à clause non traduisible est sorti plus haut (#1285).
   if (state.advancedMode && state.queryFilter) {
     const odsql = filterToOdsql(state.queryFilter);
     if (odsql) srcAttrs.push(`where="${escapeHtml(odsql)}"`);
@@ -1697,7 +1771,37 @@ export function generateTabularQueryCode(
   srcAttrs.push('api-type="tabular"');
   srcAttrs.push(`base-url="${tabularInfo.baseUrl}"`);
   srcAttrs.push(`resource="${tabularInfo.resourceId}"`);
+  return generateClientAggregationCode(
+    srcAttrs,
+    '<!-- Source Tabular avec pagination automatique -->',
+    labelFieldPath,
+    valueFieldPath,
+    seriesFieldPath
+  );
+}
 
+/**
+ * Source qui charge les lignes + `dsfr-data-query` qui filtre, regroupe et
+ * agrège. C'est le montage de Tabular, et celui d'Opendatasoft quand le filtre
+ * porte une clause que le portail ne sait pas calculer (#1285). La query
+ * délègue d'elle-même au serveur ce qui peut l'être.
+ */
+function generateClientAggregationCode(
+  srcAttrs: string[],
+  sourceComment: string,
+  labelFieldPath: string,
+  valueFieldPath: string,
+  seriesFieldPath: string
+): {
+  queryElement: string;
+  chartSource: string;
+  labelField: string;
+  valueField: string;
+  valueField2: string;
+  extraValueFields: string[];
+  seriesField: string;
+  dateField: string;
+} {
   // --- dsfr-data-query attributes (client-side aggregation) ---
   const qAttrs: string[] = [];
   qAttrs.push('source="chart-src"');
@@ -1754,7 +1858,7 @@ export function generateTabularQueryCode(
   }
 
   const queryElement = `
-  <!-- Source Tabular avec pagination automatique -->
+  ${sourceComment}
   <dsfr-data-source
     id="chart-src"
     ${srcAttrs.join('\n    ')}>
@@ -2091,10 +2195,12 @@ export function generateDynamicCodeForApi(): void {
         state.aggregation === 'count'
           ? 'count(*) as value'
           : `${state.aggregation}(${valueFieldPath}) as value`;
-      const whereAttr =
-        state.advancedMode && state.queryFilter
-          ? `\n    where="${escapeHtml(filterToOdsql(state.queryFilter))}"`
-          : '';
+      // Le filtre, partagé (#1285) : ce que le portail calcule part sur la
+      // source ; une clause qu'il ne sait pas calculer (« contient ») interdit
+      // l'agrégat serveur — le KPI agrège alors lui-même les lignes chargées.
+      const split = filterSplit('opendatasoft');
+      const odsqlWhere = filterToOdsql(split.server);
+      const whereAttr = odsqlWhere ? `\n    where="${escapeHtml(odsqlWhere)}"` : '';
       const unitInput = document.getElementById('kpi-unit') as HTMLInputElement | null;
       const unit = unitInput?.value || '';
       const formatAttr =
@@ -2116,7 +2222,24 @@ export function generateDynamicCodeForApi(): void {
 <!-- Dépendances JS -->
 <script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
 
-<div class="fr-container fr-my-4w">
+<div class="fr-container fr-my-4w">${
+        split.client
+          ? `
+  ${CLIENT_FILTER_NOTE}
+  <dsfr-data-source
+    id="kpi-src"
+    api-type="opendatasoft"
+    base-url="${apiBaseUrl}"
+    dataset-id="${resourceIds.datasetId}"${whereAttr}
+    ${ODS_FULL_LOAD_ATTRS.join('\n    ')}${refreshAttr}>
+  </dsfr-data-source>
+  <dsfr-data-kpi
+    source="kpi-src"
+    where="${escapeHtml(split.client)}"
+    value="${escapeHtml(state.aggregation === 'count' ? 'count' : `${valueFieldPath}:${state.aggregation}`)}"
+    label="${escapeHtml(state.title)}"${formatAttr}>
+  </dsfr-data-kpi>`
+          : `
   <dsfr-data-source
     id="kpi-src"
     api-type="opendatasoft"
@@ -2128,7 +2251,8 @@ export function generateDynamicCodeForApi(): void {
     source="kpi-src"
     value="value"
     label="${escapeHtml(state.title)}"${formatAttr}>
-  </dsfr-data-kpi>
+  </dsfr-data-kpi>`
+      }
 </div>`;
       displayGeneratedCode(code);
       return;
@@ -2142,6 +2266,60 @@ export function generateDynamicCodeForApi(): void {
   if (state.chartType === 'datalist') {
     const colonnes = buildColonnesAttr();
     const triAttr = buildDatalistTriAttr();
+
+    // Filtre qui n'est pas confié au portail (« contient », #1285) : la
+    // pagination serveur ne livrerait qu'une page à filtrer. La source charge
+    // le jeu, une query filtre, la liste pagine dans le navigateur.
+    const split = filterSplit(provider.id);
+    if (split.client && provider.id === 'opendatasoft' && resourceIds?.datasetId) {
+      const serverWhere = filterToOdsql(split.server);
+      const whereAttr = serverWhere ? `\n    where="${escapeHtml(serverWhere)}"` : '';
+      const identity = `api-type="opendatasoft"
+    base-url="${apiBaseUrl}"
+    dataset-id="${resourceIds.datasetId}"${whereAttr}
+    ${ODS_FULL_LOAD_ATTRS.join('\n    ')}`;
+      const staticVals = computeStaticFacetValues();
+      const facets = generateFacetsElement(
+        'table-query',
+        staticVals ? { staticValues: staticVals } : undefined
+      );
+      const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
+      const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
+<!-- Source : ${escapeHtml(source.name)} (jeu chargé, filtré et paginé dans le navigateur) -->
+
+<!-- Dépendances CSS (DSFR) -->
+<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
+<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+
+<!-- Dépendances JS -->
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
+
+<div class="fr-container fr-my-4w">
+  ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
+  ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
+
+  ${CLIENT_FILTER_NOTE}
+  <dsfr-data-source
+    id="table-data"
+    ${identity}>
+  </dsfr-data-source>
+  <dsfr-data-query
+    id="table-query"
+    source="table-data"
+    where="${escapeHtml(split.client)}">
+  </dsfr-data-query>
+${facets.element}
+  <dsfr-data-list
+    id="my-datalist"
+    source="${datalistSource}"
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    pagination="20">
+  </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
+</div>`;
+      displayGeneratedCode(code);
+      return;
+    }
 
     if (provider.id === 'opendatasoft' && resourceIds?.datasetId) {
       const whereAttr =
@@ -2308,8 +2486,18 @@ ${middlewareHtml}
     // Facettes SERVEUR (#1171) : placées après l'agrégation, elles ne
     // voyaient que le champ d'axe. En `server-facets`, leurs valeurs viennent
     // de l'API et le filtre remonte en `where` jusqu'à la source, qui
-    // réagrège : tout champ du jeu est facettable.
-    const facets = generateFacetsElement(chartSource, { serverFacets: true });
+    // réagrège : tout champ du jeu est facettable. Sauf quand le filtre reste
+    // au navigateur (#1285) : les compteurs du serveur l'ignoreraient — les
+    // valeurs sont alors précalculées sur les lignes chargées, comme pour Tabular.
+    const staticOdsFacets = filterSplit('opendatasoft').client ? computeStaticFacetValues() : null;
+    const facets = generateFacetsElement(
+      chartSource,
+      filterSplit('opendatasoft').client
+        ? staticOdsFacets
+          ? { staticValues: staticOdsFacets }
+          : undefined
+        : { serverFacets: true }
+    );
     if (facets.element) {
       facetsHtml = facets.element;
       chartSource = facets.finalSourceId;

@@ -5,8 +5,19 @@
  *
  * Aligné sur la couche WHERE partagée (#271/#315) : valeurs percent-décodées
  * après découpage (`unescapeColonValue`), échappement ODSQL des guillemets
- * et antislashes, et parité serveur/local sur les 12 opérateurs
- * (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull).
+ * et antislashes, et parité serveur/local sur les opérateurs traduits
+ * (eq, neq, gt, gte, lt, lte, in, notin, isnull, isnotnull).
+ *
+ * `contains` / `notcontains` N'ONT PAS de traduction ODSQL (#1285). Ce sont
+ * des recherches de SOUS-CHAÎNE, et le `like` d'un portail Opendatasoft
+ * compare des MOTS : `categorie_produit like "%aliment%"` rend 0 ligne là où
+ * 14 366 valent « alimentation » (mesuré le 2026-10-12, data.economie.gouv.fr ;
+ * le `%` n'est pas un joker, « aliment » n'est pas un mot entier). Une
+ * sous-chaîne quelconque n'a aucun équivalent en ODSQL : ces deux opérateurs
+ * sont calculés côté client, sur les lignes chargées — {@link odsqlCanExpress}
+ * et {@link splitFilterForOdsql} disent ce qui part et ce qui reste (ADR-159 :
+ * un filtre n'est confié au serveur que si la STRUCTURE de la comparaison y
+ * est la même).
  */
 
 import { splitColonFields, unescapeColonValue } from '../utils/colon-escape.js';
@@ -36,11 +47,15 @@ function odsqlLiteral(value: string, preferNumeric: boolean): string {
 
 /**
  * Convert a dsfr-data-query filter expression (field:operator:value) to an ODSQL where clause.
- * Supports 12 operators: eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin, isnull, isnotnull.
+ * Traduit 10 des 12 opérateurs : eq, neq, gt, gte, lt, lte, in, notin,
+ * isnull, isnotnull. `contains` et `notcontains` n'ont PAS d'équivalent
+ * ODSQL (#1285, voir l'en-tête) : leur clause est ÉCARTÉE de la traduction,
+ * avec un avertissement — l'appelant doit la calculer côté client, et passe
+ * pour cela par {@link splitFilterForOdsql}, qui rend les deux parts.
  *
- * CHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le même
+ * CHAMPS MULTIPLES (#1026) : `nom|commune:eq:Martin` applique le même
  * opérateur et la même valeur à chaque champ, reliés par un OU parenthésé —
- * `(nom like "%martin%" OR commune like "%martin%")`.
+ * `(nom = "Martin" OR commune = "Martin")`.
  *
  * LES DEUX ÉCRITURES DE LA NÉGATION EN ODSQL (#958), mesurées le 2026-09-20 sur
  * `retours-formulaire-votre-avis-copie` de data.education.gouv.fr, champ
@@ -61,12 +76,12 @@ function odsqlLiteral(value: string, preferNumeric: boolean): string {
  *
  *   `neq`         -> `champ != v`             nulls exclus  -> le client aussi (#958)
  *   `notin`       -> `NOT champ in (…)`       nulls gardés  -> le client aussi
- *   `notcontains` -> `NOT champ like "%…%"`   nulls gardés  -> le client aussi
  *
- * `notin` et `notcontains` ne sont PAS alignés sur `neq` : ODSQL n'ayant pas
- * d'infixe `not in` / `not like`, la seule traduction possible est `NOT …`,
- * qui garde les nulles. Les aligner « par symétrie » rouvrirait la divergence
- * client/serveur que #958 ferme.
+ * `notin` n'est PAS aligné sur `neq` : ODSQL n'ayant pas d'infixe `not in`, la
+ * seule traduction possible est `NOT …`, qui garde les nulles. L'aligner « par
+ * symétrie » rouvrirait la divergence client/serveur que #958 ferme.
+ * `notcontains` garde les nulles lui aussi, mais n'est plus traduit (#1285) :
+ * il est calculé côté client.
  */
 export function filterToOdsql(filterExpr: string): string {
   return filterExpr
@@ -79,7 +94,10 @@ export function filterToOdsql(filterExpr: string): string {
       const fields = splitColonFields(segs[0]);
       const rawVal = segs.slice(2).join(':');
       const clauses = fields.map((f) => odsqlClause(f, segs[1], rawVal, segs.length >= 3));
-      if (clauses.length === 0 || clauses.some((c) => !c)) return '';
+      if (clauses.length === 0 || clauses.some((c) => !c)) {
+        if (!odsqlCanExpress(part)) warnOdsqlInexpressible(part);
+        return '';
+      }
       // Champs multiples (#1026) : même opérateur, même valeur, reliés par un
       // OU — parenthésés, puisque les clauses se joignent par ` AND `.
       return clauses.length === 1 ? clauses[0] : `(${clauses.join(' OR ')})`;
@@ -103,8 +121,8 @@ function odsqlClause(field: string, op: string, rawVal: string, hasValue: boolea
   if (op === 'isnotnull') return `${field} is not null`;
   if (!hasValue) return '';
   const val = unescapeColonValue(rawVal);
-  if (op === 'contains') return `${field} like "%${escapeOdsql(val)}%"`;
-  if (op === 'notcontains') return `NOT ${field} like "%${escapeOdsql(val)}%"`;
+  // Sous-chaîne : aucun équivalent ODSQL, la clause reste au client (#1285).
+  if (op === 'contains' || op === 'notcontains') return '';
   if (op === 'in')
     return `${field} in (${rawVal
       .split('|')
@@ -121,6 +139,66 @@ function odsqlClause(field: string, op: string, rawVal: string, hasValue: boolea
   // compare des strings ("9" > "10")
   const numeric = op === 'gt' || op === 'gte' || op === 'lt' || op === 'lte';
   return `${field} ${sqlOp} ${odsqlLiteral(val, numeric)}`;
+}
+
+/**
+ * Une clause colon a-t-elle une traduction ODSQL qui retient LES MÊMES lignes
+ * que son calcul côté client (#1285, ADR-139) ? Faux pour `contains` et
+ * `notcontains` (sous-chaîne, sans équivalent sur un portail qui compare des
+ * mots). Une clause mal formée ou d'opérateur inconnu rend vrai : ce n'est pas à cette fonction
+ * de la refuser, elle est écartée par la validation.
+ */
+export function odsqlCanExpress(clause: string): boolean {
+  const op = clause.trim().split(':')[1];
+  return op !== 'contains' && op !== 'notcontains';
+}
+
+/**
+ * Partage un filtre colon entre ce qu'un portail Opendatasoft sait calculer et
+ * ce qui reste au client (#1285) :
+ *
+ *   splitFilterForOdsql('annee:eq:2024, nom:contains:aliment')
+ *     -> { server: 'annee:eq:2024', client: 'nom:contains:aliment',
+ *          odsql: 'annee = "2024"' }
+ *
+ * `server` et `client` sont en grammaire colon (clauses jointes par `, `),
+ * `odsql` est la traduction de `server`. Les clauses étant reliées par un ET,
+ * appliquer `client` sur les lignes que `odsql` a retenues donne le résultat
+ * du filtre entier. C'est le point de passage de tout code qui ÉCRIT un
+ * `where` ODSQL à partir d'un filtre colon (exports du Builder, du Studio et
+ * du Tableau de bord) : il ne doit jamais ignorer `client`.
+ */
+export function splitFilterForOdsql(filterExpr: string): {
+  server: string;
+  client: string;
+  odsql: string;
+} {
+  const server: string[] = [];
+  const client: string[] = [];
+  for (const part of filterExpr
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)) {
+    (odsqlCanExpress(part) ? server : client).push(part);
+  }
+  return {
+    server: server.join(', '),
+    client: client.join(', '),
+    odsql: filterToOdsql(server.join(', ')),
+  };
+}
+
+const odsqlInexpressibleWarned = new Set<string>();
+
+/** Une clause sans traduction ODSQL a atteint le traducteur : dit une fois par clause. */
+function warnOdsqlInexpressible(clause: string): void {
+  if (odsqlInexpressibleWarned.has(clause) || odsqlInexpressibleWarned.size >= 50) return;
+  odsqlInexpressibleWarned.add(clause);
+  console.warn(
+    `dsfr-data: la clause "${clause}" n'a pas d'équivalent ODSQL (une recherche de ` +
+      `sous-chaîne ne se délègue pas à un portail qui compare des mots, #1285) — elle est ` +
+      `écartée de la clause serveur et doit être calculée côté client (splitFilterForOdsql).`
+  );
 }
 
 /**
@@ -392,7 +470,9 @@ export function validateColonFilter(filterExpr: string): string | null {
 
 /**
  * Apply a dsfr-data-query style filter (field:operator:value) to local data rows.
- * Supports the same 12 operators as filterToOdsql — same input, same rows kept.
+ * Les 12 opérateurs — même entrée, mêmes lignes gardées que la clause déléguée
+ * quand elle a une traduction (`contains` / `notcontains` n'en ont pas en
+ * ODSQL, #1285 : ils ne sont calculés qu'ici).
  * Sémantique null alignée sur dsfr-data-query (#278), puis sur le portail
  * (#958) : les opérateurs positifs (eq, in, contains, comparaisons) ne
  * matchent jamais null/undefined ; `neq` non plus désormais — une valeur

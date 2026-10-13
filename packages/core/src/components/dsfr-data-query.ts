@@ -21,6 +21,7 @@ import { computeExtremum, countDistinct } from '../utils/aggregations.js';
 import {
   unescapeColonValue,
   translateWhere,
+  splitWhere,
   parseOrderBy,
   splitColonFields,
 } from '../utils/where.js';
@@ -296,6 +297,37 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
    *
+   * `contains` ET `notcontains` SONT UNE SOUS-CHAÎNE, PARTOUT (#1285,
+   * ADR-159) : `champ:contains:tation` retient les lignes dont la valeur porte
+   * « tation » n'importe où, casse ignorée, accents respectés — « tation »
+   * trouve « alimentation », « ecole » ne trouve pas « École ». C'est la
+   * bibliothèque qui dit ce que le filtre retient, pas le serveur.
+   *
+   * Un portail Opendatasoft ne sait pas chercher une sous-chaîne : son `like`
+   * compare des MOTS (`like "%aliment%"` rend 0 ligne pour 14 366
+   * « alimentation », mesuré le 2026-10-12 ; il ne trouve qu'un mot entier, ou
+   * un début de mot avec `like "alim*"`). Sur Opendatasoft, ces deux
+   * opérateurs ne sont donc JAMAIS confiés au portail : ils sont calculés dans
+   * le navigateur, sur les lignes que le reste du filtre a laissées passer —
+   * les autres clauses (`eq`, `in`, comparaisons…) partent comme avant.
+   *
+   * Ce que cela coûte : la source charge toutes ces lignes au lieu des seules
+   * lignes retenues, dans la limite de `max-records` (au-delà, la troncature
+   * est signalée et le filtre ne porte que sur les lignes lues —
+   * `fetch-mode="export"` et un `max-records` relevé pour un grand jeu). Le
+   * regroupement suit la clause : `group-by` n'est alors plus délégué (le
+   * serveur regrouperait des lignes non filtrées), il est calculé ici.
+   *
+   * Quand cette requête est seule lectrice de sa chaîne, elle confie la
+   * clause à la source, qui la calcule sur le jeu chargé — et la REFUSE si
+   * elle est en `server-side`, où elle ne reçoit qu'une page : erreur de
+   * configuration, posée sur la source, qui nomme la clause et la correction
+   * (retirer `server-side` ; pour une saisie du visiteur, `dsfr-data-search
+   * server-search`). Sur une chaîne partagée rien n'est délégué, ni cette
+   * clause ni les autres : le filtre porte sur les lignes reçues, comme pour
+   * tout opérateur (#765). Tabular et Grist gardent leur délégation de
+   * `contains` (sous-chaîne sur ces deux API).
+   *
    * LISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au
    * serveur comme toute liste — l'adaptateur Tabular écrit entre guillemets
    * la valeur que l'API écarterait nue, et calcule la clause lui-même si
@@ -306,8 +338,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * ligne passe dès qu'un des champs satisfait la clause ; les clauses entre
    * elles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause
    * multi-champs par requête, valeur sans `,` `.` `(` `)` `"` `&`, ni
-   * `in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE
-   * et les sources sans adaptateur le calculent dans le navigateur.
+   * `in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) — sauf
+   * `contains` / `notcontains` sur Opendatasoft, calculés dans le navigateur
+   * (`nom|commune:contains:martin`, #1285) ; INSEE et les sources sans
+   * adaptateur le calculent dans le navigateur.
    *
    * CHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent
    * DANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,
@@ -339,10 +373,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * retrouver les lignes absentes, les nommer : `champ:isnull`.
    *
    * ⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est
-   * aligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se
-   * délèguent en `NOT champ in (…)` / `NOT champ like "%…%"`, une négation
-   * booléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois
-   * valeurs.
+   * aligné aussi : ODSQL n'a pas d'infixe `not in`, donc `notin` se délègue
+   * en `NOT champ in (…)`, une négation booléenne qui garde les nulles
+   * (mesuré : 52). Seul `!=` est à trois valeurs. `notcontains` n'est plus
+   * délégué à Opendatasoft (#1285) ; calculé dans le navigateur, il garde
+   * les valeurs absentes partout.
    *
    * ⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il
    * cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y
@@ -924,15 +959,22 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * posé. Une transition d'état rejoue le traitement local, car l'amont ne
    * réémet pas forcément (source inline, commande dédupliquée).
    */
-  protected onTransformerCommand(cmd: { where?: string; whereKey?: string }): void {
+  protected onTransformerCommand(cmd: {
+    where?: string;
+    clientWhere?: string;
+    whereKey?: string;
+  }): void {
     if (cmd.where === undefined) return;
     const key = cmd.whereKey || '__default';
     const previous = this._receivedWhere.get(key) ?? '';
-    if (cmd.where === previous) return;
+    // Les deux parts d'UN filtre (#1285) : celle que l'API calcule, et celle
+    // que la source calcule elle-même. L'une ou l'autre suffit à faire un filtre.
+    const received = [cmd.where, cmd.clientWhere].filter(Boolean).join(', ');
+    if (received === previous) return;
 
     const wasFiltered = this._hasFilter();
-    if (cmd.where) {
-      this._receivedWhere.set(key, cmd.where);
+    if (received) {
+      this._receivedWhere.set(key, received);
     } else {
       this._receivedWhere.delete(key);
     }
@@ -1127,6 +1169,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     ];
     if (
       !whereDelegation.ok ||
+      // Une clause qui n'est pas confiée à l'API (#1285, `contains` sur
+      // Opendatasoft) est calculée dans le navigateur, sur les lignes BRUTES :
+      // le regroupement doit donc y rester aussi, après elle.
+      whereDelegation.client ||
       !this._canDelegateFields(adapter, fields) ||
       !this._canDelegateAggregates(adapter, aggregates)
     ) {
@@ -1175,14 +1221,26 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (!this.filter && !this.where) return;
 
     const whereOnly = this._buildWhereDelegation(this.filter || this.where, adapter);
-    if (!whereOnly.ok || !whereOnly.where || !this._canDelegateFields(adapter, whereOnly.fields)) {
+    if (
+      !whereOnly.ok ||
+      (!whereOnly.where && !whereOnly.client) ||
+      !this._canDelegateFields(adapter, whereOnly.fields)
+    ) {
       return;
     }
     // BUG-027 : une clause sur un alias que la source fabrique (`n` de
     // `count(*) as n`) reste côté client, sur les lignes déjà regroupées.
     const aliases = sourceAliases(fetchingSourceOf(this.source));
-    if (whereOnly.fields.some((f) => aliases.has(f.trim()))) return;
+    if ([...whereOnly.fields, ...whereOnly.clientFields].some((f) => aliases.has(f.trim()))) {
+      return;
+    }
     cmd.where = whereOnly.where;
+    // Les clauses que l'API ne sait pas calculer comme le navigateur (#1285)
+    // sont confiées à la SOURCE elle aussi, à part : elle les calcule sur les
+    // lignes que les autres ont gardées (`clientWhere`). Le filtre entier
+    // reste donc porté par la source — `require-where` est levé (#854), et
+    // son total compte les lignes réellement retenues.
+    if (whereOnly.client) cmd.clientWhere = whereOnly.client;
     cmd.whereKey = this._whereOverlayKey();
     this._serverDelegated.where = true;
   }
@@ -1510,31 +1568,42 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _buildWhereDelegation(
     filterExpr: string,
     adapter?: ApiAdapter
-  ): { ok: boolean; where: string; fields: string[] } {
-    if (!filterExpr) return { ok: true, where: '', fields: [] };
+  ): { ok: boolean; where: string; fields: string[]; client: string; clientFields: string[] } {
+    const none = { where: '', fields: [], client: '', clientFields: [] };
+    if (!filterExpr) return { ok: true, ...none };
 
     // Meme grammaire que la validation #277 : une clause non parsable rend
     // le where intraduisible → aucune delegation.
-    if (this._validateFilterExpr(filterExpr) !== null) {
-      return { ok: false, where: '', fields: [] };
-    }
+    if (this._validateFilterExpr(filterExpr) !== null) return { ok: false, ...none };
+
+    // La STRUCTURE de la comparaison est-elle la meme sur l'API (#1285,
+    // ADR-159) ? `contains` / `notcontains` sur Opendatasoft, dont le `like`
+    // compare des mots, restent au navigateur, sur les lignes brutes :
+    // `client`. Le reste part : `server`.
+    const { server, client } = splitWhere(adapter, filterExpr);
 
     // Champs multiples (#1026) : chaque champ d'un `a|b` est un champ delegue
-    const fields = filterExpr
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean)
-      .flatMap((part) => splitColonFields(part.split(':')[0]));
+    const fieldsOf = (expr: string): string[] =>
+      expr
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .flatMap((part) => splitColonFields(part.split(':')[0]));
 
     // L'adaptateur sait-il ecrire la clause (#1026) ? Un OU entre champs que
     // son API ne sait pas dire (INSEE, generic, valeur non transmissible a
     // Tabular) reste au filtre client, sur les lignes brutes.
-    if (adapter?.supportsServerWhere?.(filterExpr) === false) {
-      return { ok: false, where: '', fields: [] };
+    if (server && adapter?.supportsServerWhere?.(server) === false) {
+      return { ok: false, ...none };
     }
 
-    const where = translateWhere(adapter, filterExpr);
-    return { ok: true, where, fields };
+    return {
+      ok: true,
+      where: translateWhere(adapter, server),
+      fields: fieldsOf(server),
+      client,
+      clientFields: fieldsOf(client),
+    };
   }
 
   /**
@@ -1876,6 +1945,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
               // Pour in/notin, on ne garde que string/number
               return typeof parsed === 'boolean' ? String(parsed) : parsed;
             }) as (string | number)[];
+          } else if (operator === 'contains' || operator === 'notcontains') {
+            // Recherche dans du TEXTE (#1285) : la valeur reste le texte écrit.
+            // Convertie en nombre, `code:contains:007` cherchait « 7 ».
+            value = unescapeColonValue(rawValue);
           } else {
             value = this._parseValue(unescapeColonValue(rawValue));
           }

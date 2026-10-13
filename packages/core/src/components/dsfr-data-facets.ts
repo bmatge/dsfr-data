@@ -1189,6 +1189,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       ? [this.id, ...[...this._contextFilters.values()].map((c) => c.whereKey)]
       : this.id;
     const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(ownKeys) || '';
+    if (this._refuseClientWhere()) return;
     const whereToFields = groupFieldsByWhere(fields, baseWhere, adapter, (field) =>
       this._buildFacetWhere(field)
     );
@@ -1226,6 +1227,67 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
     );
     this._syncContextFilters();
     this.requestUpdate();
+  }
+
+  /** Dernière erreur « clause calculée dans le navigateur » posée (#1285). */
+  private _clientWhereError: string | null = null;
+
+  /**
+   * `server-facets` et clause calculée dans le navigateur (#1285, ADR-159).
+   * Les compteurs viennent de l'API, qui ne reçoit que la part du filtre qui
+   * peut lui être confiée : une clause gardée par la source (`contains` /
+   * `notcontains`, quand l'API compare des mots et non une sous-chaîne) leur
+   * échappe, et ils compteraient plus de lignes que la page n'en montre. Un compteur faux est pire qu'un compteur absent :
+   * ERREUR DE CONFIGURATION (console + `data-dsfr-config-error` + bandeau),
+   * aucune facette n'est rendue, et le message dit quoi écrire à la place.
+   * On remonte la chaîne jusqu'à la source qui charge. Levée dès que la
+   * clause disparaît. Retourne `true` quand le fetch doit être abandonné.
+   */
+  private _refuseClientWhere(): boolean {
+    let el: Element | null = this.source ? document.getElementById(this.source) : null;
+    let clientWhere = '';
+    let sourceId = '';
+    for (let hop = 0; hop < 10 && el; hop++) {
+      const carrier = el as Element & { getClientWhere?: () => string };
+      if (typeof carrier.getClientWhere === 'function') {
+        clientWhere = carrier.getClientWhere();
+        sourceId = el.id;
+        break;
+      }
+      const next = el.getAttribute('source') || el.getAttribute('left');
+      el = next ? document.getElementById(next) : null;
+    }
+
+    if (!clientWhere) {
+      if (this._clientWhereError !== null) {
+        if (this.getAttribute('data-dsfr-config-error') === this._clientWhereError) {
+          clearConfigError(this);
+        }
+        if (this._facetsError === this._clientWhereError) this._facetsError = null;
+        this._clientWhereError = null;
+      }
+      return false;
+    }
+
+    const message =
+      `server-facets — la clause "${clientWhere}" est calculée dans le navigateur par ` +
+      `dsfr-data-source "${sourceId}" (contains cherche une sous-chaîne, que son API ne sait pas ` +
+      `calculer) : les compteurs des facettes, calculés par l'API, n'en tiendraient pas compte ` +
+      `et seraient faux. Retirez server-facets pour compter sur les lignes chargées, ou ` +
+      `remplacez la clause par une égalité (eq, in), que l'API calcule`;
+    if (this._clientWhereError !== message) {
+      this._clientWhereError = message;
+      reportConfigError(this, `dsfr-data-facets[${this.id}]`, message);
+    } else if (!this.hasAttribute('data-dsfr-config-error')) {
+      // Un cycle a pu lever le marqueur (`clearConfigError` du mode context)
+      this.setAttribute('data-dsfr-config-error', message);
+    }
+    this._facetsAbort?.abort();
+    this._facetsGeneration++;
+    this._facetsError = message;
+    this._facetGroups = [];
+    this.requestUpdate();
+    return true;
   }
 
   /** Un jeu sans facette declaree : un avertissement, pas un par cycle (#680). */

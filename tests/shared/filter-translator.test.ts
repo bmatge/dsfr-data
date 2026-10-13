@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { filterToOdsql, applyLocalFilter } from '../../packages/shared/src/query/filter-translator';
+import {
+  filterToOdsql,
+  applyLocalFilter,
+  odsqlCanExpress,
+  splitFilterForOdsql,
+} from '../../packages/shared/src/query/filter-translator';
 import { escapeColonValue } from '../../packages/shared/src/utils/colon-escape';
 
 /**
@@ -16,7 +21,6 @@ const ROWS = [
 describe('filterToOdsql (#315)', () => {
   it('échappe les guillemets et antislashes dans les valeurs', () => {
     expect(filterToOdsql('nom:eq:Saint-"Quote"')).toBe('nom = "Saint-\\"Quote\\""');
-    expect(filterToOdsql('nom:contains:a\\b')).toBe('nom like "%a\\\\b%"');
     expect(filterToOdsql('nom:in:A"B|C')).toBe('nom in ("A\\"B", "C")');
   });
 
@@ -32,19 +36,67 @@ describe('filterToOdsql (#315)', () => {
     expect(filterToOdsql(expr)).toBe('region = "Provence, Alpes"');
   });
 
-  it('couvre les 12 opérateurs', () => {
+  it('couvre les 10 opérateurs qui ont une traduction ODSQL (#1285)', () => {
     expect(filterToOdsql('a:eq:1')).toContain('=');
     expect(filterToOdsql('a:neq:1')).toContain('!=');
     expect(filterToOdsql('a:gt:1')).toContain('>');
     expect(filterToOdsql('a:gte:1')).toContain('>=');
     expect(filterToOdsql('a:lt:1')).toContain('<');
     expect(filterToOdsql('a:lte:1')).toContain('<=');
-    expect(filterToOdsql('a:contains:x')).toContain('like');
-    expect(filterToOdsql('a:notcontains:x')).toContain('NOT a like');
     expect(filterToOdsql('a:in:x|y')).toContain('in (');
     expect(filterToOdsql('a:notin:x|y')).toContain('NOT a in (');
     expect(filterToOdsql('a:isnull')).toBe('a is null');
     expect(filterToOdsql('a:isnotnull')).toBe('a is not null');
+  });
+});
+
+describe('contains / notcontains : aucune traduction ODSQL (#1285, ADR-159)', () => {
+  // Le `like` d'un portail Opendatasoft compare des MOTS : `like "%aliment%"`
+  // rend 0 ligne pour 14 366 « alimentation » (mesuré le 2026-10-12).
+  it('filterToOdsql n’écrit plus aucun like, et le dit', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(filterToOdsql('nom:contains:aliment')).toBe('');
+    expect(filterToOdsql('nom:notcontains:aliment')).toBe('');
+    expect(filterToOdsql('a|b:contains:x')).toBe('');
+    expect(filterToOdsql('annee:eq:2024, nom:contains:lim, dep:in:75|13')).toBe(
+      'annee = "2024" AND dep in ("75", "13")'
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('splitFilterForOdsql'));
+    warn.mockRestore();
+  });
+
+  it('odsqlCanExpress : tout sauf la sous-chaîne', () => {
+    expect(odsqlCanExpress('nom:contains:x')).toBe(false);
+    expect(odsqlCanExpress('a|b:notcontains:x')).toBe(false);
+    for (const clause of ['a:eq:1', 'a:neq:1', 'a:gte:1', 'a:in:x|y', 'a:notin:x', 'a:isnull']) {
+      expect(odsqlCanExpress(clause), clause).toBe(true);
+    }
+    // Une valeur qui porte le mot « contains » n'est pas un opérateur.
+    expect(odsqlCanExpress('a:eq:contains')).toBe(true);
+  });
+
+  it('splitFilterForOdsql rend les deux parts, dont la somme est le filtre', () => {
+    expect(splitFilterForOdsql('annee:eq:2024, nom:contains:aliment, x:notcontains:y')).toEqual({
+      server: 'annee:eq:2024',
+      client: 'nom:contains:aliment, x:notcontains:y',
+      odsql: 'annee = "2024"',
+    });
+    expect(splitFilterForOdsql('annee:eq:2024')).toEqual({
+      server: 'annee:eq:2024',
+      client: '',
+      odsql: 'annee = "2024"',
+    });
+    // Appliquer `client` aux lignes que `server` retient = appliquer le filtre entier.
+    const lignes = [
+      { annee: '2024', nom: 'alimentation' },
+      { annee: '2023', nom: 'alimentation' },
+      { annee: '2024', nom: 'habitat' },
+    ];
+    const filtre = 'annee:eq:2024, nom:contains:lim';
+    const { server, client } = splitFilterForOdsql(filtre);
+    expect(applyLocalFilter(applyLocalFilter(lignes, server), client)).toEqual(
+      applyLocalFilter(lignes, filtre)
+    );
   });
 });
 

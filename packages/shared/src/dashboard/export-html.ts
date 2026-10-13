@@ -20,7 +20,7 @@
 
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
 import { escapeColonValue, splitColonFields } from '../utils/colon-escape.js';
-import { filterToOdsql } from '../query/filter-translator.js';
+import { filterToOdsql, splitFilterForOdsql } from '../query/filter-translator.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -956,6 +956,13 @@ interface SourceConsumer {
    * non affichees comprises : elle a donc besoin de toutes les colonnes.
    */
   search?: boolean;
+  /**
+   * Le filtre propre du consommateur porte une clause qu'un portail
+   * Opendatasoft ne calcule pas (`contains` / `notcontains`, #1285) : elle est
+   * calculee dans le navigateur, sur le jeu charge — incompatible avec une
+   * source qui ne livre qu'une page.
+   */
+  substringFilter?: boolean;
 }
 
 /** Champ d'une entree `champ:Libellé` de `columns`, telle que la liste la decoupe. */
@@ -1132,6 +1139,7 @@ function builderChartConsumer(c: ChartConfig): SourceConsumer {
     ...(columns ? { columns } : {}),
     // `search` est emis des que la source ne pagine pas cote serveur.
     search: true,
+    ...(c.where && splitFilterForOdsql(c.where).client ? { substringFilter: true } : {}),
   };
 }
 
@@ -1171,6 +1179,11 @@ function kpiDedicated(c: ChartConfig, base: DashboardSource): DedicatedSource['k
   if (base.provider !== 'opendatasoft' || typeof resourceIds.datasetId !== 'string') return null;
   const fn = c.aggregation ?? 'sum';
   if (!ODSQL_KPI_FUNCTIONS.has(fn) || (fn !== 'count' && !c.valueField)) return null;
+  // Filtre qui n'est pas confie au portail (`contains`, #1285 : son `like`
+  // compare des mots, pas une sous-chaine) : pas d'agregat serveur, il
+  // porterait sur des lignes non filtrees. Le KPI reste sur la source
+  // partagee, derriere une query qui filtre les lignes chargees.
+  if (c.where && splitFilterForOdsql(c.where).client) return null;
   const alias = aggregatedAlias(c.valueField || 'lignes', fn);
   const expr = fn === 'count' ? 'count(*)' : `${fn}(${odsqlIdentifier(c.valueField)})`;
   return {
@@ -1270,6 +1283,11 @@ export function serverPaginatedSources(dashboard: DashboardData): Map<string, nu
     if (only.need !== 'liste-paginee') continue;
     const source = byId.get(id);
     if (!source || !supportsServerPagination(source)) continue;
+    // `contains` sur Opendatasoft (#1285, ADR-159) : la clause est calculee
+    // dans le navigateur, sur le jeu charge. Derriere `server-side`, la
+    // bibliotheque la refuse (erreur de configuration) : la source charge
+    // donc le jeu, et la liste pagine dans le navigateur.
+    if (only.substringFilter && source.provider === 'opendatasoft') continue;
     paginated.set(id, only.pageSize);
   }
   return paginated;

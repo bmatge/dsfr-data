@@ -118,6 +118,8 @@ export type { AliasedColumn } from './utils/aliased-columns.js';
 export { parseAliasedColumn, parseAliasedColumns } from './utils/aliased-columns.js';
 export {
   filterToOdsql,
+  odsqlCanExpress,
+  splitFilterForOdsql,
   applyLocalFilter,
   validateColonFilter,
   COLON_FILTER_OPERATORS,

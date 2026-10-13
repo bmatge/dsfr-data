@@ -89,7 +89,8 @@ import {
 import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
 import { safeSourcePage } from '../utils/source-errors.js';
-import { joinWhere } from '../utils/where.js';
+import { joinWhere, describeClientWhere } from '../utils/where.js';
+import { fetchAllWithClientWhere, selectComputes } from '../utils/client-where.js';
 import { httpError } from '../utils/http-error.js';
 
 /**
@@ -356,6 +357,27 @@ export class DsfrDataSource extends LitElement {
    * - en pagination serveur (`server-side`), où ce calcul n'est pas
    *   possible, la liste repart sans guillemets : la valeur est écartée par
    *   l'API et le résultat est incomplet.
+   *
+   * CLAUSE CALCULÉE PAR LA SOURCE (#1285, ADR-159). Un filtre n'est confié
+   * au serveur que si la STRUCTURE de la comparaison y est la même que dans
+   * le navigateur. `contains` et `notcontains` sont une sous-chaîne ; le
+   * `like` d'un portail Opendatasoft compare des mots (`like "%aliment%"` rend
+   * 0 ligne pour 14 366 « alimentation », mesuré). Sur Opendatasoft, une telle
+   * clause — venue d'un filtre de `dsfr-data-context` (dont
+   * `dsfr-data-search` en mode `context`) ou du `where` d'une
+   * `dsfr-data-query` seule lectrice de la source — n'est donc jamais confiée
+   * au portail : c'est la source qui la calcule, sur les lignes que le reste
+   * du filtre a laissées passer. Cet attribut-ci n'est pas concerné : sur
+   * Opendatasoft il est écrit en ODSQL et part tel quel (y écrire un `like`
+   * reste possible, avec sa sémantique de mots). Le résultat est juste, au
+   * prix d'un chargement plus large : toutes les lignes des autres clauses,
+   * sous `max-records` (au-delà, le filtre ne porte que sur les lignes lues,
+   * et la source le signale comme une troncature). Deux montages ne lui
+   * livrent pas le jeu et passent en ERREUR DE CONFIGURATION, qui nomme la
+   * clause et la correction : `server-side` (une page), et `group-by`,
+   * `aggregate` ou un `select` qui calcule posés sur la source (le serveur
+   * agrégerait des lignes non filtrées — porter le calcul par une
+   * `dsfr-data-query` en aval).
    */
   @property({ type: String })
   where = '';
@@ -721,6 +743,13 @@ export class DsfrDataSource extends LitElement {
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
+
+  /**
+   * Clauses calculées DANS LE NAVIGATEUR, par émetteur (#1285) — grammaire
+   * colon. Complément de `_whereOverlays` : ce qu'un filtre de contexte ou
+   * une query porte et qui n'est pas confié à l'API (`splitWhere`).
+   */
+  private _clientWhereOverlays = new Map<string, string>();
   /** Dynamic orderBy overlay from dsfr-data-list sort */
   private _orderByOverlay = '';
   /** Dynamic groupBy overlay from dsfr-data-query délégation */
@@ -877,6 +906,22 @@ export class DsfrDataSource extends LitElement {
       if (!excluded.has(key) && value) parts.push(value);
     }
     return joinWhere(this.getAdapter(), parts);
+  }
+
+  /**
+   * Part du filtre calculée DANS LE NAVIGATEUR par la source (#1285,
+   * ADR-159), en grammaire colon : les clauses qui ne sont pas confiées à
+   * l'API — `contains` / `notcontains` sur un portail Opendatasoft, dont le
+   * `like` compare des mots. Elles viennent des filtres de contexte et du
+   * `where` d'une `dsfr-data-query` seule lectrice. Vide = tout le filtre est
+   * confié à l'API. `getEffectiveWhere()` rend l'autre part.
+   */
+  public getClientWhere(): string {
+    const parts: string[] = [];
+    for (const value of this._clientWhereOverlays.values()) {
+      if (value) parts.push(value);
+    }
+    return parts.join(', ');
   }
 
   /**
@@ -1090,6 +1135,16 @@ export class DsfrDataSource extends LitElement {
           this._currentPage = 1;
           needsFetch = true;
         }
+        // Part cliente du même émetteur (#1285). Une commande `where` sans
+        // `clientWhere` la libère : les deux parts sont celles d'UN filtre.
+        const clientPrevious = this._clientWhereOverlays.get(key) ?? '';
+        const clientNext = cmd.clientWhere ?? '';
+        if (clientNext !== clientPrevious) {
+          if (clientNext) this._clientWhereOverlays.set(key, clientNext);
+          else this._clientWhereOverlays.delete(key);
+          this._currentPage = 1;
+          needsFetch = true;
+        }
       }
 
       if (cmd.orderBy !== undefined && cmd.orderBy !== this._orderByOverlay) {
@@ -1140,6 +1195,9 @@ export class DsfrDataSource extends LitElement {
    */
   private _hasReceivedWhere(): boolean {
     for (const value of this._whereOverlays.values()) {
+      if (value) return true;
+    }
+    for (const value of this._clientWhereOverlays.values()) {
       if (value) return true;
     }
     return false;
@@ -1478,7 +1536,18 @@ export class DsfrDataSource extends LitElement {
         result = await adapter.fetchPage(params, overlay, this._abortController.signal);
         this._publishPageMeta(result);
       } else {
-        result = await adapter.fetchAll(params, this._abortController.signal);
+        // Clauses qui ne sont pas confiées à l'API (#1285) : la source les
+        // calcule, sur les lignes que le reste du filtre garde.
+        const clientWhere = this.getClientWhere();
+        result = clientWhere
+          ? await fetchAllWithClientWhere(
+              adapter,
+              params,
+              clientWhere,
+              this._abortController.signal,
+              `dsfr-data-source[${this.id}]`
+            )
+          : await adapter.fetchAll(params, this._abortController.signal);
         this._publishFetchAllMeta(result);
       }
 
@@ -1537,6 +1606,16 @@ export class DsfrDataSource extends LitElement {
 
     clearConfigError(this);
 
+    // Clause calculée côté client sur un montage qui ne lui livre pas le jeu
+    // (#1285) : erreur de configuration, aucun chiffre partiel.
+    const clientWhereError = this._clientWhereConfigError(adapter);
+    if (clientWhereError) {
+      reportConfigError(this, `dsfr-data-source[${this.id}]`, clientWhereError);
+      this._error = new Error(clientWhereError);
+      dispatchDataError(this.id, this._error);
+      return null;
+    }
+
     // Configuration contradictoire, non bloquante (#689) : l'endpoint
     // d'export rend le jeu entier, la pagination serveur demande une page.
     // Le chargement continue sur le chemin pagine (getAdapterParams neutralise
@@ -1563,6 +1642,52 @@ export class DsfrDataSource extends LitElement {
     this._warnRelayDropsHeaders(relayed);
 
     return { adapter, params };
+  }
+
+  /**
+   * Une clause calculée côté client (#1285) ne se calcule que sur le jeu
+   * CHARGÉ, ligne à ligne. Deux montages ne le lui livrent pas — même règle
+   * que le regroupement gardé côté client (#1242) : erreur de configuration
+   * qui nomme les attributs et la correction, jamais un résultat partiel.
+   *
+   * - `server-side` : la source ne reçoit qu'une page, la clause n'en
+   *   filtrerait que les lignes ;
+   * - `group-by`, `aggregate` ou un `select` qui calcule, POSÉS SUR LA SOURCE :
+   *   le serveur agrégerait des lignes que la clause n'a pas filtrées, et
+   *   rien en aval ne recalcule l'agrégat d'une source. (Un regroupement
+   *   DÉLÉGUÉ par une `dsfr-data-query` n'est pas concerné : la requête le
+   *   reprend côté client, sur les lignes filtrées.)
+   */
+  private _clientWhereConfigError(adapter: ApiAdapter): string | null {
+    const clientWhere = this.getClientWhere();
+    if (!clientWhere) return null;
+    // Pourquoi, et ce que l'API sait faire à la place : dit par l'adaptateur.
+    const { cause, alternatives } = describeClientWhere(adapter, clientWhere);
+    const quoi = `la clause "${clientWhere}" est calculée dans le navigateur, sur les lignes chargées — ${cause}`;
+
+    if (this.serverSide) {
+      return (
+        `${quoi} — or la source est en pagination serveur (server-side) et ne livre qu'une ` +
+        `page : le résultat serait partiel. Retirez server-side de dsfr-data-source ` +
+        `"${this.id}" (le jeu est alors chargé en entier, dans la limite de max-records)` +
+        `${alternatives}.`
+      );
+    }
+    const computed = [
+      this.groupBy ? `group-by="${this.groupBy}"` : '',
+      this.aggregate ? `aggregate="${this.aggregate}"` : '',
+      selectComputes(this.select) ? `select="${this.select}"` : '',
+    ].filter(Boolean);
+    if (computed.length > 0) {
+      return (
+        `${quoi} — or ${computed.join(' ')} ${computed.length > 1 ? 'sont calculés' : 'est calculé'} ` +
+        `par le serveur, sur des lignes que cette clause n'a pas filtrées : le résultat serait ` +
+        `faux. Retirez ${computed.length > 1 ? 'ces attributs' : 'cet attribut'} de ` +
+        `dsfr-data-source "${this.id}" et portez le calcul par une dsfr-data-query en aval ` +
+        `(group-by, aggregate), qui regroupe les lignes filtrées${alternatives}.`
+      );
+    }
+    return null;
   }
 
   /** URL que l'adaptateur appellerait, AVANT tout proxy ; `''` s'il ne sait pas la construire. */
@@ -1953,6 +2078,7 @@ export class DsfrDataSource extends LitElement {
       datasetId: this.datasetId,
       resource: this.resource,
       where: this.getEffectiveWhere(),
+      clientWhere: this.getClientWhere(),
       select: this.select,
       groupBy: this.groupBy,
       aggregate: this.aggregate,

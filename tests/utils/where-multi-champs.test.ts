@@ -113,9 +113,9 @@ describe('#1026 — filtre client (applyLocalFilter)', () => {
 
 describe('#1026 — Opendatasoft : ODSQL `(… OR …)`', () => {
   it('filterToOdsql parenthèse le OU', () => {
-    expect(filterToOdsql('nom|prenom:contains:martin')).toBe(
-      '(nom like "%martin%" OR prenom like "%martin%")'
-    );
+    // #1285 : `contains` n'a plus de traduction ODSQL (le `like` du portail
+    // compare des mots) — le OU entre champs se dit avec les autres opérateurs.
+    expect(filterToOdsql('nom|prenom:eq:martin')).toBe('(nom = "martin" OR prenom = "martin")');
     expect(filterToOdsql('nom|prenom:eq:X, dept:eq:75')).toBe(
       '(nom = "X" OR prenom = "X") AND dept = "75"'
     );
@@ -248,7 +248,7 @@ interface QueryInternals {
   _buildWhereDelegation(
     expr: string,
     adapter?: ApiAdapter
-  ): { ok: boolean; where: string; fields: string[] };
+  ): { ok: boolean; where: string; fields: string[]; client: string; clientFields: string[] };
 }
 
 describe('#1026 — dsfr-data-query', () => {
@@ -266,12 +266,31 @@ describe('#1026 — dsfr-data-query', () => {
 
   it('délègue à Tabular avec les champs découpés', () => {
     const d = query._buildWhereDelegation('nom|prenom:contains:x', new TabularAdapter());
-    expect(d).toEqual({ ok: true, where: 'nom|prenom:contains:x', fields: ['nom', 'prenom'] });
+    expect(d).toEqual({
+      ok: true,
+      where: 'nom|prenom:contains:x',
+      fields: ['nom', 'prenom'],
+      client: '',
+      clientFields: [],
+    });
   });
 
-  it('traduit en ODSQL pour Opendatasoft', () => {
-    const d = query._buildWhereDelegation('nom|prenom:contains:x', new OpenDataSoftAdapter());
-    expect(d.where).toBe('(nom like "%x%" OR prenom like "%x%")');
+  it('Opendatasoft : le OU entre champs part en ODSQL, sauf avec contains (#1285)', () => {
+    const d = query._buildWhereDelegation('nom|prenom:eq:x', new OpenDataSoftAdapter());
+    expect(d.where).toBe('(nom = "x" OR prenom = "x")');
+    expect(d.client).toBe('');
+    // `contains`, que le portail ne sait pas calculer, est gardé pour le navigateur.
+    const c = query._buildWhereDelegation(
+      'dept:eq:75, nom|prenom:contains:x',
+      new OpenDataSoftAdapter()
+    );
+    expect(c).toEqual({
+      ok: true,
+      where: 'dept = "75"',
+      fields: ['dept'],
+      client: 'nom|prenom:contains:x',
+      clientFields: ['nom', 'prenom'],
+    });
   });
 
   it('ne délègue rien quand l’adaptateur refuse (INSEE, valeur intransmissible)', () => {

@@ -115,6 +115,8 @@ export type { DSFRChartType } from './charts/chart-types.js';
 // Query / Filters
 export {
   filterToOdsql,
+  odsqlCanExpress,
+  splitFilterForOdsql,
   applyLocalFilter,
   validateColonFilter,
   COLON_FILTER_OPERATORS,

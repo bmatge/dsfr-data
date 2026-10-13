@@ -15,7 +15,7 @@
  * `tests/lib-provider-neutrality.test.ts`).
  */
 
-import { escapeColonValue, filterToOdsql } from '@dsfr-data/shared/lib';
+import { escapeColonValue, filterToOdsql, odsqlCanExpress } from '@dsfr-data/shared/lib';
 import type { AdapterCapabilities, ApiAdapter } from './api-adapter.js';
 
 /**
@@ -38,7 +38,14 @@ export interface WhereDialect {
  * `capabilities.whereFormat`.
  */
 export type WhereDialectCarrier = Partial<
-  Pick<ApiAdapter, 'translateWhere' | 'joinWhere' | 'escapeSearchTerm'>
+  Pick<
+    ApiAdapter,
+    | 'translateWhere'
+    | 'joinWhere'
+    | 'escapeSearchTerm'
+    | 'supportsServerWhere'
+    | 'supportsServerClause'
+  >
 > & {
   capabilities?: Partial<Pick<AdapterCapabilities, 'whereFormat'>>;
 };
@@ -85,4 +92,83 @@ export function whereDialectOf(adapter: WhereDialectCarrier | null | undefined):
     join: (clauses) => adapter?.joinWhere?.(clauses) ?? fallback.join(clauses),
     escape: (term) => adapter?.escapeSearchTerm?.(term) ?? fallback.escape(term),
   };
+}
+
+/**
+ * Une clause colon peut-elle être confiée à l'API de cet adaptateur (#1285,
+ * ADR-159) ? Un filtre n'est confié au serveur que si la STRUCTURE de la
+ * comparaison y est la même que dans le navigateur — c'est
+ * `supportsServerClause` de l'adaptateur qui le dit. Sans cette méthode, tout
+ * opérateur part, sauf dans le dialecte ODSQL par défaut, qui suit
+ * `odsqlCanExpress` : `contains` / `notcontains` y sont refusés (une
+ * sous-chaîne n'a pas d'équivalent sur un portail qui compare des mots).
+ *
+ * Ne juge PAS le transport (`supportsServerWhere`, #1026 : valeur que l'API
+ * ne sait pas porter, OU entre champs qu'elle ne sait pas dire) : ce refus-là
+ * garde son traitement d'avant chez chaque appelant.
+ *
+ * `null` (source sans adaptateur) : tout part, comme avant — il n'y a
+ * personne pour calculer la clause ailleurs.
+ */
+export function canDelegateClause(
+  adapter: WhereDialectCarrier | null | undefined,
+  clause: string
+): boolean {
+  if (!adapter) return true;
+  const defaultOdsql = adapter.capabilities?.whereFormat === 'odsql' && !adapter.translateWhere;
+  return adapter.supportsServerClause?.(clause) ?? (defaultOdsql ? odsqlCanExpress(clause) : true);
+}
+
+/** Un filtre colon partagé entre l'API et le navigateur (voir {@link splitWhereFor}). */
+export interface WhereSplit {
+  /** Clauses confiées à l'API — grammaire colon, jointes par `, `. */
+  server: string;
+  /** Clauses calculées dans le navigateur, sur les lignes chargées — grammaire colon. */
+  client: string;
+}
+
+/**
+ * Partage un filtre colon entre ce qui peut être confié à l'API de
+ * l'adaptateur et ce qui est calculé dans le navigateur (#1285). Les clauses
+ * étant reliées par un ET, appliquer `client` aux lignes que `server` a
+ * retenues donne le filtre entier.
+ */
+export function splitWhereFor(
+  adapter: WhereDialectCarrier | null | undefined,
+  colonWhere: string
+): WhereSplit {
+  const server: string[] = [];
+  const client: string[] = [];
+  for (const clause of colonWhere
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)) {
+    (canDelegateClause(adapter, clause) ? server : client).push(clause);
+  }
+  return { server: server.join(', '), client: client.join(', ') };
+}
+
+/**
+ * Les mots d'une erreur de configuration « clause calculée dans le
+ * navigateur » (#1285), communs à `dsfr-data-source` et `dsfr-data-facets` :
+ * pourquoi l'API ne calcule pas la clause, et ce qu'elle sait faire à la
+ * place — dit seulement quand c'est vrai pour CET adaptateur. Les composants
+ * ne connaissent aucun fournisseur : c'est ici que le portail est nommé.
+ */
+export function describeClientWhere(
+  adapter: WhereDialectCarrier & { type?: string; capabilities?: { serverSearch?: boolean } },
+  clientWhere: string
+): { cause: string; alternatives: string } {
+  const substring = /:(not)?contains:/.test(clientWhere);
+  const cause =
+    `l'API ${adapter.type ?? 'de la source'} ne sait pas la calculer comme le navigateur` +
+    (substring && adapter.capabilities?.whereFormat === 'odsql'
+      ? ` (contains cherche une sous-chaîne, le like d'un portail Opendatasoft compare des mots)`
+      : '');
+  const search =
+    substring && adapter.capabilities?.serverSearch
+      ? `, ou, pour une recherche saisie par le visiteur, passez par dsfr-data-search ` +
+        `server-search (recherche plein texte de l'API, par début de mot)`
+      : '';
+  return { cause, alternatives: search };
 }
