@@ -1,21 +1,34 @@
 /**
- * Nettoyage d'un gabarit de popup ecrit par le modele (#1109).
+ * Nettoyage d'un fragment HTML qui n'est pas de confiance (#1109, #1289).
  *
- * `popupTemplate` est redige par l'assistant du Studio, qui peut etre
- * influence par les DONNEES qu'il lit (une cellule qui contient des
- * instructions). Le gabarit finit en HTML dans la page exportee — attribut
- * `popup-template` de la couche, ou `<template>` du compagnon — : on retire
- * donc a l'export ce qui execute du code ou charge un contenu actif :
+ * Ne a l'export du Studio — `popupTemplate` et le bloc de texte sont rediges
+ * par l'assistant, qui peut etre influence par les DONNEES qu'il lit (une
+ * cellule qui contient des instructions) — il sert aussi a la bibliotheque :
+ * `dsfr-data-chart` y passe ce que DSFR Chart pose par `innerHTML`
+ * (`databox-modal-content`, `unit-tooltip`, #1289). On retire ce qui execute
+ * du code ou charge un contenu actif :
  *   - les elements script, iframe, object, embed, style, template (avec leur
  *     contenu ; `template` fermerait aussi celui du compagnon) ;
+ *   - les elements a TEXTE BRUT — textarea, title, xmp, noembed, noframes,
+ *     noscript, plaintext — avec leur contenu : le navigateur n'y lit pas de
+ *     balise, si bien qu'un `</textarea>` ecrit dans une valeur d'attribut y
+ *     ferme l'element et libere la balise qui suit (#1289, mesure) ;
  *   - les elements meta, base et link, qui redirigent la page, deroutent ses
  *     URL relatives ou chargent une feuille de style (#1081) ;
+ *   - les animations SVG `animate` et `set`, qui posent un `href` en
+ *     `javascript:` sur le lien qui les contient (#1289, mesure) ;
  *   - tout attribut `on*` ;
  *   - les URL `javascript:`, `vbscript:` et `data:` dans href, src,
  *     xlink:href, action, formaction ;
  *   - les commentaires et declarations (`<!…>`, `<?…>`).
  * Le reste est rendu TEL QUEL, octet pour octet : texte, placeholders
  * `{champ}`, balises et attributs sains.
+ *
+ * CE QUE LE NETTOYAGE NE FAIT PAS : il retire ce qui s'EXECUTE, pas ce qui
+ * trompe. Un formulaire qui poste vers un tiers, un lien, une image distante,
+ * un attribut `style` ou `id` restent. Une donnee recopiee dans du HTML
+ * s'echappe d'abord (`escapeHtml`) : le nettoyage est un filet, pas une
+ * licence (docs/SECURITY.md).
  *
  * POURQUOI un analyseur maison et pas DOMParser : l'export tourne aussi hors
  * navigateur (garde-fou `check:studio-couverture` sous vite-node, tests), et
@@ -24,6 +37,16 @@
  * le texte (pas de retour arriere) : a chaque `<`, on lit une balise complete
  * ou on laisse le caractere comme texte. Choix conservateur : un element
  * dangereux non ferme emporte tout ce qui suit.
+ *
+ * Un analyseur maison n'est sur que s'il lit une balise COMME LE NAVIGATEUR.
+ * Trois ecarts ont ete mesures dans Chromium et fermes (#1289) : le nom
+ * d'attribut qui commence par `=` (`<a ="><img onerror=…>">` : le navigateur
+ * ferme la balise au premier `>`), la reference numerique sans point-virgule
+ * (`&#106avascript:`), et le RECOLLEMENT — ce qu'un retrait laisse se
+ * rejoindre (`<<script></script>img onerror=…>`, ou deux attributs sains de
+ * part et d'autre d'un attribut retire). Le recollement est ferme deux fois :
+ * a la source, et par une relecture — le resultat est repasse au filtre
+ * jusqu'a ce qu'il n'y trouve plus rien (`nettoyerGabarit`).
  */
 
 /** Elements retires avec tout leur contenu. */
@@ -33,10 +56,25 @@ const ELEMENTS_RETIRES: ReadonlySet<string> = new Set([
   'object',
   'style',
   'template',
+  // Texte brut (RCDATA / RAWTEXT / PLAINTEXT) : voir l'en-tete.
+  'textarea',
+  'title',
+  'xmp',
+  'noembed',
+  'noframes',
+  'noscript',
+  'plaintext',
 ]);
 
-/** Elements retires sans contenu (vides par nature). */
-const ELEMENTS_VIDES_RETIRES: ReadonlySet<string> = new Set(['embed', 'meta', 'base', 'link']);
+/** Elements retires sans contenu (vides par nature, ou simples porteurs d'attributs). */
+const ELEMENTS_VIDES_RETIRES: ReadonlySet<string> = new Set([
+  'embed',
+  'meta',
+  'base',
+  'link',
+  'animate',
+  'set',
+]);
 
 /** Attributs portant une URL. */
 const ATTRIBUTS_URL: ReadonlySet<string> = new Set([
@@ -57,10 +95,21 @@ function estEspace(c: string | undefined): boolean {
   return c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f';
 }
 
+function estChiffre(c: string | undefined, hexa: boolean): boolean {
+  if (c === undefined) return false;
+  if (c >= '0' && c <= '9') return true;
+  return hexa && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'));
+}
+
 /**
  * Decode les entites qui servent a masquer un schema (`&#106;avascript:`,
  * `java&Tab;script&colon;`) — numeriques et quelques nommees. Suffisant pour
  * lire le SCHEMA : la valeur emise, elle, reste l'originale.
+ *
+ * Une reference NUMERIQUE se lit comme le navigateur la lit : ses chiffres,
+ * puis un point-virgule FACULTATIF. `&#106avascript:` vaut `javascript:` dans
+ * un attribut (#1289) ; l'ancienne lecture cherchait le point-virgule et ne
+ * decodait rien sans lui. Un code hors d'Unicode ne leve pas (U+FFFD).
  */
 function decoderEntites(v: string): string {
   const nommees: Record<string, string> = { colon: ':', tab: '\t', newline: '\n' };
@@ -71,19 +120,24 @@ function decoderEntites(v: string): string {
       out += v[i++];
       continue;
     }
-    const fin = v.indexOf(';', i);
-    const corps = fin === -1 ? '' : v.slice(i + 1, fin);
-    let car: string | undefined;
-    if (corps.startsWith('#x') || corps.startsWith('#X')) {
-      const n = parseInt(corps.slice(2), 16);
-      if (Number.isFinite(n)) car = String.fromCodePoint(n);
-    } else if (corps.startsWith('#')) {
-      const n = parseInt(corps.slice(1), 10);
-      if (Number.isFinite(n)) car = String.fromCodePoint(n);
-    } else {
-      car = nommees[corps.toLowerCase()];
+    if (v[i + 1] === '#') {
+      const hexa = v[i + 2] === 'x' || v[i + 2] === 'X';
+      const debut = i + (hexa ? 3 : 2);
+      let j = debut;
+      while (estChiffre(v[j], hexa)) j++;
+      if (j > debut) {
+        // Au-dela de 8 chiffres le code est hors d'Unicode de toute facon.
+        const n = j - debut > 8 ? NaN : parseInt(v.slice(debut, j), hexa ? 16 : 10);
+        out += Number.isFinite(n) && n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '�';
+        i = v[j] === ';' ? j + 1 : j;
+        continue;
+      }
+      out += v[i++];
+      continue;
     }
-    if (car !== undefined && fin !== -1) {
+    const fin = v.indexOf(';', i);
+    const car = fin === -1 ? undefined : nommees[v.slice(i + 1, fin).toLowerCase()];
+    if (car !== undefined) {
       out += car;
       i = fin + 1;
     } else {
@@ -139,6 +193,11 @@ function lireBalise(html: string, debut: number): Balise {
       break;
     }
     const debutNomAttr = j;
+    // Un `=` en tete de nom FAIT PARTIE du nom, comme dans le navigateur
+    // (« before attribute name ») : `<a ="><img onerror=…>">` est une balise
+    // `a` fermee au premier `>`, suivie d'une balise `img`. Le lire comme une
+    // valeur entre guillemets laissait passer la seconde (#1289).
+    if (html[j] === '=') j++;
     while (
       j < html.length &&
       !estEspace(html[j]) &&
@@ -197,8 +256,24 @@ function attributDangereux(a: Attribut): boolean {
   return ATTRIBUTS_URL.has(a.nom) && a.valeur !== null && urlInterdite(a.valeur);
 }
 
-/** Gabarit nettoye (voir l'en-tete du module). Un gabarit sain est rendu a l'identique. */
-export function nettoyerGabarit(html: string): string {
+/**
+ * Un `<` (ou `</`) laisse comme TEXTE en fin de sortie devient `&lt;` des
+ * qu'un retrait le suit : sinon il se recolle a ce qui vient apres l'element
+ * retire et forme une balise (`<<script></script>img onerror=…>`).
+ */
+function neutraliserChevronFinal(out: string): string {
+  if (out.endsWith('</')) return `${out.slice(0, -2)}&lt;/`;
+  if (out.endsWith('<')) return `${out.slice(0, -1)}&lt;`;
+  return out;
+}
+
+/** Attribut garde, toujours SEPARE de ce qui le precede dans la balise reecrite. */
+function attributSepare(a: Attribut): string {
+  return estEspace(a.brut[0]) || a.brut[0] === '/' ? a.brut : ` ${a.brut}`;
+}
+
+/** Une passe du filtre. `nettoyerGabarit` la rejoue jusqu'au point fixe. */
+function passe(html: string): string {
   let out = '';
   let i = 0;
   while (i < html.length) {
@@ -211,6 +286,7 @@ export function nettoyerGabarit(html: string): string {
     const c1 = html[lt + 1];
     // Commentaire, declaration, instruction : retires.
     if (c1 === '!' || c1 === '?') {
+      out = neutraliserChevronFinal(out);
       if (html.startsWith('<!--', lt)) {
         const fin = html.indexOf('-->', lt + 4);
         i = fin === -1 ? html.length : fin + 3;
@@ -236,20 +312,25 @@ export function nettoyerGabarit(html: string): string {
       continue;
     }
     if (ELEMENTS_RETIRES.has(b.nom)) {
+      out = neutraliserChevronFinal(out);
       i = b.fermante ? b.fin : apresFermeture(html, b.nom, b.fin);
       continue;
     }
     if (ELEMENTS_VIDES_RETIRES.has(b.nom)) {
+      out = neutraliserChevronFinal(out);
       i = b.fin;
       continue;
     }
     if (b.attributs.some(attributDangereux)) {
       const gardes = b.attributs.filter((a) => !attributDangereux(a));
       const debutNom = lt + 1 + (b.fermante ? 1 : 0);
+      // Chaque attribut garde reste SEPARE du precedent : sans cela `o` et
+      // `nerror=…`, de part et d'autre d'un attribut retire, se recollent en
+      // `onerror=…` (#1289).
       out +=
         html.slice(lt, debutNom) +
         html.slice(debutNom, debutNom + b.nom.length) +
-        gardes.map((a) => a.brut).join('') +
+        gardes.map(attributSepare).join('') +
         b.queue +
         '>';
     } else {
@@ -258,4 +339,30 @@ export function nettoyerGabarit(html: string): string {
     i = b.fin;
   }
   return out;
+}
+
+/** Nombre de relectures avant de renoncer a garder du HTML. */
+const RELECTURES_MAX = 8;
+
+/**
+ * Fragment nettoye (voir l'en-tete du module). Un fragment sain est rendu a
+ * l'identique.
+ *
+ * Le resultat est RELU : il repasse au filtre jusqu'a ce que celui-ci n'y
+ * trouve plus rien a retirer. Un retrait peut faire se rejoindre deux
+ * morceaux inoffensifs ; la relecture garantit que ce qui sort n'est plus
+ * retouche par le filtre, donc qu'aucune construction qu'il sait reconnaitre
+ * n'y reste. Si le texte ne se stabilise pas en quelques passes — il a ete
+ * construit pour cela —, plus aucune balise n'est gardee : tout `<` devient
+ * `&lt;`. Fonction pure, sans DOM : elle rend la meme chose dans un
+ * navigateur et sous Node.
+ */
+export function nettoyerGabarit(html: string): string {
+  let courant = html;
+  for (let n = 0; n < RELECTURES_MAX; n++) {
+    const suivant = passe(courant);
+    if (suivant === courant) return courant;
+    courant = suivant;
+  }
+  return courant.split('<').join('&lt;');
 }

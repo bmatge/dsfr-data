@@ -34,6 +34,10 @@ export {
   jsonLiteral,
   jsStringLiteral,
 } from './utils/escape-html.js';
+// Nettoyage d'un fragment HTML (#1109, #1289) : analyseur maison, PUR — ni
+// DOM, ni reseau, aucun import. `dsfr-data-chart` y passe ce que DSFR Chart
+// pose par `innerHTML` (contenu de la fenetre du cadre, unite des infobulles).
+export { nettoyerGabarit } from './dashboard/sanitize-template.js';
 export {
   formatKPIValue,
   formatDateShort,
