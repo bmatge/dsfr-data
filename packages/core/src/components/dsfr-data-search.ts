@@ -832,7 +832,8 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       this._syncUrl();
     }
 
-    this._emitSearchChange(this._filteredData.length);
+    // Le compte annoncé : celui du serveur quand c'est lui qui a cherché.
+    this._emitSearchChange(this._resultCount);
   }
 
   /**

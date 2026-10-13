@@ -424,6 +424,7 @@
 {"domaine": "contexte", "controle": "recherche-contexte-ods-champ-numerique", "cle": "kpi:k-pop", "kind": "kpi", "valeur": 20200.0, "brut": 20200, "decimals": 0, "couvert": true},
 {"domaine": "contexte", "controle": "recherche-contexte-ods-champ-numerique", "cle": "urls:recherche-numerique-jamais-au-moteur", "kind": "urls", "couvert": false, "raison": "genre urls : pas un chiffre, énoncé par le contrôle"},
 {"domaine": "contexte", "controle": "recherche-contexte-ods-facettes-serveur", "cle": "diagnostic:f-rf:silence", "kind": "diagnostic", "couvert": false, "raison": "genre diagnostic : pas un chiffre, énoncé par le contrôle"},
+{"domaine": "contexte", "controle": "recherche-contexte-ods-facettes-serveur", "cle": "facets:f-rf-ctx:Catégorie", "kind": "facets", "valeur": [{"value": "École", "count": 10.0}], "couvert": true},
 {"domaine": "contexte", "controle": "recherche-contexte-ods-facettes-serveur", "cle": "facets:f-rf:Région", "kind": "facets", "valeur": [{"value": "Bretagne", "count": 4.0}, {"value": "Occitanie", "count": 3.0}, {"value": "Provence-Alpes-Côte d'Azur", "count": 2.0}, {"value": "Normandie", "count": 1.0}], "couvert": true},
 {"domaine": "contexte", "controle": "recherche-contexte-ods-facettes-serveur", "cle": "kpi:k-n", "kind": "kpi", "valeur": 10.0, "brut": 10, "decimals": 0, "couvert": true},
 {"domaine": "contexte", "controle": "recherche-contexte-ods-facettes-serveur", "cle": "kpi:k-pop", "kind": "kpi", "valeur": 7350.0, "brut": 7350, "decimals": 0, "couvert": true},

@@ -1064,6 +1064,8 @@ const CHECKS: Check[] = [
     min-length="0" label="Rechercher un établissement"></dsfr-data-search>
   <dsfr-data-facets id="f-rf" source="s-rf" server-facets fields="region"
     labels="region:Région"></dsfr-data-facets>
+  <dsfr-data-facets id="f-rf-ctx" source="s-rf" context="ctx" server-facets fields="categorie"
+    labels="categorie:Catégorie" no-reset></dsfr-data-facets>
   ${kpiCount('k-n', 'f-rf')}${kpiSomme('k-pop', 'f-rf')}`,
     actions: [{ kind: 'fill', selector: '#r-rf input', value: 'ecol' }],
     expects: [
@@ -1076,6 +1078,21 @@ const CHECKS: Check[] = [
         pipeline: [
           { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
           { op: 'group-by', by: 'region', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+        ],
+      },
+      {
+        // Les facettes enregistrées auprès du MÊME contexte (le montage le
+        // plus courant) : leur appel exclut leurs propres clauses, pas la
+        // recherche.
+        kind: 'facets',
+        id: 'f-rf-ctx',
+        group: 'Catégorie',
+        valueColumn: 'categorie',
+        countColumn: 'n',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+          { op: 'group-by', by: 'categorie', columns: { n: { agg: 'count' } } },
           { op: 'order-by', column: 'n', dir: 'desc' },
         ],
       },
