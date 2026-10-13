@@ -11,7 +11,12 @@ import {
 } from '../utils/template-clone.js';
 import { getByPath } from '../utils/json-path.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import { renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceError,
+  renderStaleNotice,
+  resolveStaleNotice,
+} from '../utils/status-templates.js';
+import type { StaleReading } from '../utils/stale-reading.js';
 import { parseScale, scaleToClasses } from '../utils/grid-layout.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 
@@ -338,7 +343,25 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
     this._renderRows();
   }
 
+  /**
+   * Dernier relevé (#1288). Les lignes du répéteur restent en place à
+   * l'erreur : seul un répéteur monté pendant la panne a quelque chose à
+   * reprendre du relevé.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (reading && !this._hasData) this.onSourceData(reading.data);
+  }
+
   render() {
+    // Dernier relevé (#1288, `stale-if-error`) : la mention qui date les
+    // lignes prend la place du message de panne, au-dessus d'elles. Les blocs
+    // du gabarit branchés sur un id scopé portent chacun la leur.
+    if (this._sourceStale && this._hasData) {
+      return renderStaleNotice(
+        REPEAT_TAG,
+        resolveStaleNotice(this._sourceStale, this._sourceError, this.source, this._sourceLoading)
+      );
+    }
     if (this._sourceError) return renderSourceError(REPEAT_TAG, this._sourceError, this.source);
     // `loading` et `idle` : rien de visible — c'est une structure, pas une feuille.
     if (this._hasData && this._data.length === 0 && this.empty && !this._sourceLoading) {

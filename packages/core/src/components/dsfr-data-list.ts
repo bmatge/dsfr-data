@@ -8,6 +8,9 @@ import {
   renderSourceLoading,
   renderSourceError,
   renderPageLoadError,
+  renderStaleNotice,
+  resolveStaleNotice,
+  type StaleNoticeView,
   pageLoadErrorText,
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
@@ -15,6 +18,7 @@ import {
 import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
 import { formatCountWithLabel } from '../utils/count-label.js';
 import { getDataMeta } from '../utils/data-bridge.js';
+import { readingExportSuffix, readingFilename, type StaleReading } from '../utils/stale-reading.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 import { parseCellClassRules, cellClassTokens } from '../utils/cell-class.js';
 import type { CellClassRule } from '../utils/cell-class.js';
@@ -387,6 +391,49 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
     this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
   }
 
+  /**
+   * Dernier relevé (#1288, `stale-if-error`). `onSourceError` vient de lâcher
+   * les lignes : la liste les reprend du relevé, qui les rend avec leur date,
+   * et les lâche de nouveau quand il échoit. Recherche, filtres de colonne,
+   * tri et pagination LOCAUX restent possibles — ils ne posent aucune requête.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (!reading) {
+      this._data = [];
+      return;
+    }
+    this._data = Array.isArray(reading.data) ? (reading.data as Record<string, unknown>[]) : [];
+    this._pager.onStale(this.source ? getDataMeta(this.source) : undefined);
+  }
+
+  /**
+   * Ce que la liste dit du relevé qu'elle montre (#1288), ou `null`. Jamais
+   * sur une page refusée : les lignes gardées sont alors celles de la page
+   * précédente, dites pour ce qu'elles sont par `renderPageLoadError`.
+   */
+  private _staleNotice(): StaleNoticeView | null {
+    if (!this._sourceStale || this._pager.failedPage !== null) return null;
+    const notice = resolveStaleNotice(
+      this._sourceStale,
+      this._sourceError,
+      this.source,
+      this._sourceLoading
+    );
+    // Pagination et tri SERVEUR : une autre page est une autre requête, qui
+    // échouerait — et ne laisserait plus rien à l'écran.
+    if (this._serverLocked()) {
+      notice.extra = [notice.extra, 'Les autres pages reviendront avec les données.']
+        .filter(Boolean)
+        .join(' ');
+    }
+    return notice;
+  }
+
+  /** Relevé affiché en pagination serveur (#1288) : page et tri serveur neutralisés. */
+  private _serverLocked(): boolean {
+    return this._sourceStale !== null && this._pager.failedPage === null && this._serverPagination;
+  }
+
   // --- Sélection au clic (#734, mixin partagé avec la carte) ---
 
   /** whereKey du chemin dégradé : `list-select-ID` */
@@ -620,6 +667,8 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   }
 
   private _handleSort(key: string) {
+    // Relevé en tri serveur (#1288) : trier est une autre requête
+    if (this._serverLocked() && (this.serverSort || this.serverTri)) return;
     const columns = this.parseColumns();
     const label = columns.find((c) => c.key === key)?.label ?? key;
     if (this._sort?.key === key) {
@@ -651,6 +700,8 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   }
 
   private _handlePageChange(page: number) {
+    // Relevé en pagination serveur (#1288) : les autres pages ne sont pas là
+    if (this._serverLocked()) return;
     this._pager.changePage(page);
     this._announce(this._pagePosition(page, this._getTotalPages()));
   }
@@ -691,7 +742,25 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
    * dite pour ce qu'elle est, et s'exporte.
    */
   private _outage(): boolean {
-    return this._sourceError !== null && this._pager.failedPage === null;
+    return (
+      this._sourceError !== null && this._pager.failedPage === null && this._sourceStale === null
+    );
+  }
+
+  /**
+   * Complément d'un bouton d'export pendant un relevé (#1288) : « (chiffres
+   * relevés à 14 h 32) ». Le fichier, lui, porte la date dans son nom ; son
+   * contenu reste brut.
+   */
+  private _exportSuffix(): string {
+    const stale = this._staleNotice();
+    return stale ? ` ${readingExportSuffix(stale.reading.loadedAt, stale.now)}` : '';
+  }
+
+  /** Nom du fichier exporté : daté du relevé pendant la panne (#1288). */
+  private _exportFilename(filename: string): string {
+    const stale = this._staleNotice();
+    return stale ? readingFilename(filename, stale.reading.loadedAt) : filename;
   }
 
   private _exportCsv() {
@@ -712,7 +781,7 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'export.csv';
+    a.download = this._exportFilename('export.csv');
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -763,7 +832,7 @@ ${bodyRows}
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'export.html';
+    a.download = this._exportFilename('export.html');
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -893,7 +962,7 @@ ${bodyRows}
                     aria-disabled="${this._outage() ? 'true' : nothing}"
                   >
                     <span class="fr-icon-download-line fr-icon--sm" aria-hidden="true"></span>
-                    Exporter CSV
+                    Exporter CSV${this._exportSuffix()}
                   </button>
                 `
               : ''
@@ -908,7 +977,7 @@ ${bodyRows}
                     aria-disabled="${this._outage() ? 'true' : nothing}"
                   >
                     <span class="fr-icon-code-s-slash-line fr-icon--sm" aria-hidden="true"></span>
-                    Exporter HTML
+                    Exporter HTML${this._exportSuffix()}
                   </button>
                 `
               : ''
@@ -1078,6 +1147,9 @@ ${bodyRows}
     const current = this._currentPage;
     const items = this.getPageItems(totalPages, current, totalKnown);
     const position = this._pagePosition(current, totalPages);
+    // Relevé en pagination serveur (#1288) : `aria-disabled`, pas `disabled` —
+    // le bouton qui porte le focus ne le perd pas quand la panne survient.
+    const locked = this._serverLocked() ? 'true' : nothing;
 
     return html`
       <nav
@@ -1095,6 +1167,7 @@ ${bodyRows}
             <button
               class="fr-pagination__link fr-pagination__link--first"
               ?disabled="${current === 1}"
+              aria-disabled="${locked}"
               @click="${() => this._handlePageChange(1)}"
               aria-label="Première page"
               type="button"
@@ -1106,6 +1179,7 @@ ${bodyRows}
             <button
               class="fr-pagination__link fr-pagination__link--prev fr-pagination__link--lg-label"
               ?disabled="${current === 1}"
+              aria-disabled="${locked}"
               @click="${() => this._handlePageChange(current - 1)}"
               aria-label="Page précédente"
               type="button"
@@ -1129,6 +1203,7 @@ ${bodyRows}
                         item === current ? 'fr-pagination__link--active' : ''
                       }"
                       @click="${() => this._handlePageChange(item)}"
+                      aria-disabled="${locked}"
                       aria-current="${item === current ? 'page' : nothing}"
                       aria-label="${this._pagePosition(item, totalPages)}"
                       type="button"
@@ -1142,6 +1217,7 @@ ${bodyRows}
             <button
               class="fr-pagination__link fr-pagination__link--next fr-pagination__link--lg-label"
               ?disabled="${current === totalPages}"
+              aria-disabled="${locked}"
               @click="${() => this._handlePageChange(current + 1)}"
               aria-label="Page suivante"
               type="button"
@@ -1156,6 +1232,7 @@ ${bodyRows}
                     <button
                       class="fr-pagination__link fr-pagination__link--last"
                       ?disabled="${current === totalPages}"
+                      aria-disabled="${locked}"
                       @click="${() => this._handlePageChange(totalPages)}"
                       aria-label="Dernière page"
                       type="button"
@@ -1206,14 +1283,17 @@ ${bodyRows}
    * panne, sans aucune ligne.
    */
   private _renderBody(columns: ReturnType<DsfrDataList['parseColumns']>) {
-    if (this._sourceLoading) {
+    // Dernier relevé (#1288) : les lignes restent, sous la mention qui les
+    // date — nouvel essai compris, la liste ne repasse pas par le sablier.
+    const stale = this._staleNotice();
+    if (!stale && this._sourceLoading) {
       return renderSourceLoading('dsfr-data-list', 'Chargement des données...');
     }
     const failedPage = this._sourceError ? this._pager.failedPage : null;
-    if (this._sourceError && (failedPage === null || this._data.length === 0)) {
+    if (!stale && this._sourceError && (failedPage === null || this._data.length === 0)) {
       return renderSourceError('dsfr-data-list', this._sourceError, this.source);
     }
-    if (this._sourceIdle) {
+    if (!stale && this._sourceIdle) {
       return renderSourceIdle('dsfr-data-list', this.idleMessage);
     }
 
@@ -1248,6 +1328,7 @@ ${bodyRows}
             )
           : nothing
       }
+      ${stale ? renderStaleNotice('dsfr-data-list', stale) : nothing}
       ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
     `;
   }

@@ -8,9 +8,20 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import {
   IDLE_MESSAGE_DEFAULT,
+  renderReadingTime,
+  renderStaleBadge,
   resolveSourceErrorKept,
+  resolveStaleNotice,
   type SourceErrorView,
+  type StaleNoticeView,
 } from '../utils/status-templates.js';
+import {
+  formatReadingMoment,
+  readingAccessibleSuffix,
+  readingExportSuffix,
+  readingFilename,
+  readingHead,
+} from '../utils/stale-reading.js';
 import { unavailablePhrase } from '../utils/source-errors.js';
 
 let autoIdCounter = 0;
@@ -457,22 +468,52 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
    * lire ces lignes tant que la panne dure.
    */
   private _outage(): SourceErrorView | null {
+    // Dernier relevé affiché (#1288) : ce n'est pas le rendu de panne
+    if (this._sourceStale) return null;
     return this._sourceError ? resolveSourceErrorKept(this._sourceError, this.source) : null;
   }
 
-  /** Les lignes à rendre et à exporter : aucune pendant une panne (#1288). */
+  /**
+   * Ce que la section dit du relevé qu'elle montre (#1288, `stale-if-error`),
+   * ou `null`. Les lignes viennent alors du relevé lui-même, qui les rend avec
+   * leur date — pas de `_sourceData`, qu'un bloc monté pendant la panne n'a
+   * jamais reçu.
+   */
+  private _stale(): StaleNoticeView | null {
+    if (!this._sourceStale) return null;
+    return resolveStaleNotice(
+      this._sourceStale,
+      this._sourceError,
+      this.source,
+      this._sourceLoading
+    );
+  }
+
+  /**
+   * Les lignes à rendre et à exporter : aucune pendant une panne (#1288),
+   * sauf celles du relevé quand l'intégrateur l'a demandé.
+   */
   private _currentRows(): unknown {
+    if (this._sourceStale) return this._sourceStale.data;
     return this._sourceError ? null : this._sourceData;
   }
 
   private _handleDownload() {
+    const stale = this._stale();
     // Un rechargement est en cours : les lignes en mémoire sont celles
-    // d'avant, le bouton est `aria-disabled` (voir `render`).
-    if (this._sourceLoading) return;
+    // d'avant, le bouton est `aria-disabled` (voir `render`). Un relevé, lui,
+    // reste exportable pendant l'essai : il est daté, et dit pour ce qu'il est.
+    if (this._sourceLoading && !stale) return;
     const data = this._currentRows();
     if (!data || !Array.isArray(data) || data.length === 0) return;
     const csv = this._buildCsv(data as Record<string, unknown>[]);
-    this._triggerDownload(csv);
+    // Le contenu reste brut (#1288) : une ligne de commentaire casserait les
+    // lecteurs de CSV, une colonne changerait le schéma. La date du relevé est
+    // dans le NOM du fichier, qui suit le fichier partout où il va.
+    this._triggerDownload(
+      csv,
+      stale ? readingFilename(this.filename, stale.reading.loadedAt) : this.filename
+    );
   }
 
   _buildCsv(data: Record<string, unknown>[]): string {
@@ -510,12 +551,12 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     });
   }
 
-  private _triggerDownload(csv: string) {
+  private _triggerDownload(csv: string, filename: string = this.filename) {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = this.filename;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -699,7 +740,8 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     hasData: boolean,
     data: unknown,
     model?: { rows: unknown[][]; seriesCount: number },
-    outage: SourceErrorView | null = null
+    outage: SourceErrorView | null = null,
+    stale: StaleNoticeView | null = null
   ): string {
     // En attente d'un filtre (#690) : dire ce qui manque, pas « aucune donnée »
     if (this._sourceIdle) return `${this.idleMessage || IDLE_MESSAGE_DEFAULT}.`;
@@ -722,6 +764,9 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     if (this.description) parts.push(this.description);
     if (this._showDownload) parts.push('Téléchargement CSV disponible.');
     if (this._showTable) parts.push('Tableau de données disponible.');
+    // Dernier relevé (#1288) : la description de la cible porte la date —
+    // elle est lue avec le graphique, sans ouvrir la section.
+    if (stale) parts.push(readingAccessibleSuffix(stale.reading.loadedAt, stale.now));
     return parts.join(' ');
   }
 
@@ -763,7 +808,13 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
 
   render() {
     const outage = this._outage();
+    const stale = this._stale();
     const data = this._currentRows();
+    // Bouton d'export pendant un relevé (#1288) : « … (chiffres relevés à 14 h 32) »
+    const exportSuffix =
+      stale && Array.isArray(data) && data.length > 0
+        ? ` ${readingExportSuffix(stale.reading.loadedAt, stale.now)}`
+        : '';
     const unavailableId = `${this.id}-unavailable`;
     const hasData = Array.isArray(data) && data.length > 0;
     const sectionLabel = this.label || 'Accessibilité : données et description';
@@ -787,7 +838,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       >
         <!-- Concise description for aria-describedby (sr-only) -->
         <p id="${descId}" class="dsfr-data-a11y__sr-only">
-          ${this._getAutoDescription(hasData, data, model, outage)}
+          ${this._getAutoDescription(hasData, data, model, outage, hasData ? stale : null)}
         </p>
 
         <details class="fr-accordion">
@@ -817,13 +868,45 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                 : nothing
             }
             ${
+              stale && hasData && !this._showTable && this._showDownload
+                ? html`
+                    <p class="fr-text--sm fr-mb-2w dsfr-data-a11y__stale">
+                      ${renderStaleBadge()} ${readingHead()}
+                      ${renderReadingTime(
+                        stale.reading.loadedAt,
+                        formatReadingMoment(stale.reading.loadedAt, stale.now)
+                      )}.
+                    </p>
+                  `
+                : nothing
+            }
+            ${
+              stale && hasData && !this.for && !stale.covered
+                ? html`
+                    <p class="dsfr-data-a11y__sr-only dsfr-data-a11y__stale-status" role="status">
+                      ${readingAccessibleSuffix(stale.reading.loadedAt, stale.now)}
+                    </p>
+                  `
+                : nothing
+            }
+            ${
               this._showTable && hasData
                 ? html`
                     <div class="fr-table fr-mb-2w" id="${tableId}">
                       <table>
-                        <caption class="dsfr-data-a11y__sr-only">
-                          ${this._dataLabel()}
-                        </caption>
+                        ${
+                          stale
+                            ? html`<caption class="dsfr-data-a11y__stale-caption">
+                                ${this._dataLabel()} — ${renderStaleBadge()} chiffres relevés
+                                ${renderReadingTime(
+                                  stale.reading.loadedAt,
+                                  formatReadingMoment(stale.reading.loadedAt, stale.now)
+                                )}
+                              </caption>`
+                            : html`<caption class="dsfr-data-a11y__sr-only">
+                                ${this._dataLabel()}
+                              </caption>`
+                        }
                         <thead>
                           <tr>
                             ${columns.map((col) => html`<th scope="col">${col}</th>`)}
@@ -874,11 +957,13 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                       type="button"
                       @click="${this._handleDownload}"
                       ?disabled="${!outage && !hasData && !this._sourceLoading}"
-                      aria-disabled="${outage || this._sourceLoading ? 'true' : nothing}"
+                      aria-disabled="${
+                        outage || (this._sourceLoading && !stale) ? 'true' : nothing
+                      }"
                       aria-describedby="${outage ? unavailableId : nothing}"
                       title="Télécharger les données (CSV)"
                     >
-                      Télécharger en CSV
+                      Télécharger en CSV${exportSuffix}
                     </button>
                   `
                 : nothing
@@ -917,6 +1002,18 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
           background-color: transparent;
           box-shadow: inset 0 0 0 1px var(--border-disabled-grey, #e5e5e5);
           cursor: not-allowed;
+        }
+        /* Dernier relevé (issue 1288) : la légende du tableau devient visible
+           et porte l'étiquette et la date — elle est lue avec le tableau. */
+        .dsfr-data-a11y .fr-table caption.dsfr-data-a11y__stale-caption {
+          caption-side: top;
+          text-align: left;
+          padding: 0 0 0.5rem;
+          margin: 0;
+          font-size: 0.8125rem;
+          line-height: 1.5;
+          font-weight: 400;
+          color: var(--text-default-grey, #3a3a3a);
         }
         .dsfr-data-a11y__sr-only {
           position: absolute;
