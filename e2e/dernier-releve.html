@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — le dernier relevé d'une source en panne (#1288)</title>
+  <!--
+    #1288, proposition B : quand la source porte `stale-if-error`, les afficheurs
+    gardent pendant une panne passagère leurs derniers chiffres — atténués, sous
+    l'étiquette « Non actualisé » et l'heure de leur relevé. Passé la durée, ils
+    reviennent d'eux-mêmes au message de panne.
+
+    Sur de vrais composants (DSFR Chart depuis node_modules, Leaflet) : tuiles de
+    KPI, graphique, cadre officiel, liste (locale et en pagination serveur),
+    tableau équivalent et son export, carte à une couche, carte à deux couches de
+    deux sources, classement.
+
+    Toutes les données viennent du spec (`page.route` sur `/e2e/dernier-releve/…`),
+    qui fait passer chaque jeu de 200 à 503 (ou 404…) puis le rend, et qui tient
+    l'horloge (`page.clock`). Aucun serveur tiers : les tuiles pointent sur un
+    gabarit local inexistant.
+
+    Variantes par l'URL, pour qu'une seule page serve tous les cas :
+      ?duree=N      valeur de `stale-if-error` (défaut 3600) ; `0` : sans l'attribut
+                    (rendu de la proposition A) ;
+      ?bandeau=1    pose un <dsfr-data-source-status> en tête ;
+      ?theme=dark   thème sombre du DSFR.
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    section { margin-bottom: 2rem; }
+  </style>
+  <!-- Avant le premier rendu : le thème se lit à la création des graphiques. -->
+  <script>
+    if (new URLSearchParams(location.search).get('theme') === 'dark') {
+      document.documentElement.setAttribute('data-fr-theme', 'dark');
+      document.documentElement.setAttribute('data-fr-scheme', 'dark');
+    }
+  </script>
+</head>
+<body>
+  <main id="page">
+    <h1 class="fr-h3">Aides à l'industrie du futur</h1>
+    <div id="tete"></div>
+
+    <dsfr-data-source id="aides" url="/e2e/dernier-releve/aides" stale-if-error="3600"></dsfr-data-source>
+    <dsfr-data-source id="entreprises" url="/e2e/dernier-releve/entreprises"></dsfr-data-source>
+    <dsfr-data-source id="bornes" url="/e2e/dernier-releve/bornes" stale-if-error="3600"></dsfr-data-source>
+    <dsfr-data-source id="stations" url="/e2e/dernier-releve/stations" stale-if-error="3600"></dsfr-data-source>
+    <dsfr-data-source id="pages" url="/e2e/dernier-releve/pages" paginate page-size="3" stale-if-error="3600"></dsfr-data-source>
+    <dsfr-data-query id="aides-triees" source="aides" order-by="beneficiaires:desc"></dsfr-data-query>
+
+    <section id="s-kpi">
+      <h2 class="fr-h5">Chiffres clés</h2>
+      <dsfr-data-kpi-group cols="3">
+        <dsfr-data-kpi id="k-beneficiaires" source="aides" value="beneficiaires:sum" label="Bénéficiaires"
+          threshold-green="1000"></dsfr-data-kpi>
+        <dsfr-data-kpi id="k-regions" source="aides" value="count" label="Régions aidées"></dsfr-data-kpi>
+        <dsfr-data-kpi id="k-entreprises" source="entreprises" value="count" label="Entreprises"></dsfr-data-kpi>
+      </dsfr-data-kpi-group>
+      <!-- À part : un titre de tuile hausse la rangée entière, il fausserait la mesure des 140 px. -->
+      <dsfr-data-kpi-group cols="3" class="fr-mt-2w">
+        <dsfr-data-kpi id="k-montant" source="aides" value="montant:sum" format="nombre" decimals="1"
+          unit="M€" label="Montant engagé" heading="Budget"></dsfr-data-kpi>
+      </dsfr-data-kpi-group>
+    </section>
+
+    <section id="s-graphique">
+      <h2 class="fr-h5">Graphique</h2>
+      <dsfr-data-chart id="g" source="aides" type="bar" label-field="region"
+        value-field="beneficiaires:Bénéficiaires" name="Bénéficiaires par région"></dsfr-data-chart>
+    </section>
+
+    <section id="s-cadre">
+      <h2 class="fr-h5">Graphique en cadre officiel</h2>
+      <dsfr-data-chart id="g-cadre" source="aides" type="bar" label-field="region"
+        value-field="beneficiaires:Bénéficiaires" databox databox-title="Bénéficiaires par région"
+        databox-source="Ministère" databox-date="31/12/2025" databox-download></dsfr-data-chart>
+    </section>
+
+    <section id="s-liste">
+      <h2 class="fr-h5">Liste</h2>
+      <dsfr-data-list id="liste" source="aides-triees" pagination="3" export="csv"
+        colonnes="region:Région,beneficiaires:Bénéficiaires,montant:Montant (M€)"></dsfr-data-list>
+    </section>
+
+    <section id="s-liste-serveur">
+      <h2 class="fr-h5">Liste en pagination serveur</h2>
+      <dsfr-data-list id="liste-serveur" source="pages" colonnes="nom:Commune,population:Population"></dsfr-data-list>
+    </section>
+
+    <section id="s-tableau">
+      <h2 class="fr-h5">Tableau équivalent et export</h2>
+      <dsfr-data-chart id="g-acc" source="aides" type="bar" label-field="region"
+        value-field="beneficiaires:Bénéficiaires" name="Bénéficiaires par région"></dsfr-data-chart>
+      <dsfr-data-a11y id="acc" for="g-acc" source="aides" table download
+        label-field="region:Région" value-field="beneficiaires:Bénéficiaires,montant:Montant (M€)"></dsfr-data-a11y>
+    </section>
+
+    <section id="s-carte-seule">
+      <h2 class="fr-h5">Carte, une seule couche</h2>
+      <dsfr-data-map id="carte-seule" name="Bornes de recharge" center="46.5,2.5" zoom="5" height="320px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="c-seule" source="bornes" type="circle" radius="8" color="#000091"
+          label="Bornes de recharge" shape-class="forme-seule"
+          lat-field="lat" lon-field="lon" popup-fields="nom"></dsfr-data-map-layer>
+        <dsfr-data-map-legend label="Bornes de recharge"></dsfr-data-map-legend>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+      </dsfr-data-map>
+    </section>
+
+    <section id="s-carte-deux">
+      <h2 class="fr-h5">Carte, deux couches de deux sources</h2>
+      <dsfr-data-map id="carte-deux" name="Bornes et stations" center="46.5,2.5" zoom="5" height="320px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="c-bornes" source="bornes" type="circle" radius="8" color="#000091"
+          label="Bornes de recharge" shape-class="forme-bornes"
+          lat-field="lat" lon-field="lon" tooltip-field="nom"></dsfr-data-map-layer>
+        <dsfr-data-map-layer id="c-stations" source="stations" type="circle" radius="8" color="#e1000f"
+          label="Stations" shape-class="forme-stations"
+          lat-field="lat" lon-field="lon" tooltip-field="nom"></dsfr-data-map-layer>
+      </dsfr-data-map>
+    </section>
+
+    <section id="s-classement">
+      <h2 class="fr-h5">Classement</h2>
+      <dsfr-data-podium id="classement" source="aides-triees" label-field="region"
+        value-field="beneficiaires" max-items="3"></dsfr-data-podium>
+    </section>
+  </main>
+
+  <!-- Script classique : il s'exécute AVANT le module de la bibliothèque (différé). -->
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var duree = params.get('duree');
+      if (duree !== null) {
+        document.querySelectorAll('dsfr-data-source[stale-if-error]').forEach(function (source) {
+          if (duree === '0') source.removeAttribute('stale-if-error');
+          else source.setAttribute('stale-if-error', duree);
+        });
+      }
+      if (params.get('bandeau')) {
+        var bandeau = document.createElement('dsfr-data-source-status');
+        bandeau.id = 'bandeau';
+        document.getElementById('tete').appendChild(bandeau);
+      }
+    })();
+  </script>
+</body>
+</html>

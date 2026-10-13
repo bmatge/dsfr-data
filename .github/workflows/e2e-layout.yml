@@ -57,6 +57,15 @@ name: E2E layout
 # plus repondre. happy-dom ne trace aucune forme, ne produit aucun fichier, ne
 # tient pas le focus d'un bouton desactive et ne mesure ni boite ni contraste.
 # Donnees servies par `page.route`, tuiles coupees, bureau et 375 px.
+#
+# `dernier-releve.spec.ts` (#1288, `stale-if-error`) fait tomber les memes
+# sources quand elles DEMANDENT le dernier releve : le chiffre reste, marque et
+# date de son chargement. Ce qu'aucun DOM simule ne voit : l'horloge
+# (`page.clock` — l'heure affichee est celle du chargement, et le bloc bascule
+# SEUL au message de panne passe la duree), le canevas et les formes Leaflet
+# desatures dont le contraste est mesure sur les pixels reellement peints
+# (3:1, en clair et en sombre), la tuile de KPI qui garde ses 140 px, le
+# fichier exporte date dans son nom. Memes criteres : deterministe, aucun reseau.
 
 on:
   pull_request:
@@ -111,6 +120,7 @@ jobs:
           e2e/kpi-source-en-panne.spec.ts
           e2e/map-insets.spec.ts
           e2e/panne-partout.spec.ts
+          e2e/dernier-releve.spec.ts
           --project=chromium
 
       - name: Upload traces on failure
