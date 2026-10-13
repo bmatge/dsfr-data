@@ -48,6 +48,15 @@ name: E2E layout
 # l'unite des infobulles par `innerHTML` ; happy-dom n'execute pas un
 # `onerror` et ne lit pas une balise comme Chromium. Meme criteres :
 # deterministe, DSFR Chart depuis node_modules, aucun reseau.
+#
+# `panne-partout.spec.ts` (#1288) fait tomber de vraies sources (200 puis 503,
+# 404, reseau coupe) sous de vrais composants : le tableau equivalent ne doit
+# plus rien exporter, la couche de carte ne plus rien tracer (formes Leaflet de
+# la carte hote ET de son encart, grappes, canevas de la carte de chaleur), une
+# page de liste refusee ne pas passer pour la page demandee, les filtres ne
+# plus repondre. happy-dom ne trace aucune forme, ne produit aucun fichier, ne
+# tient pas le focus d'un bouton desactive et ne mesure ni boite ni contraste.
+# Donnees servies par `page.route`, tuiles coupees, bureau et 375 px.
 
 on:
   pull_request:
@@ -101,6 +110,7 @@ jobs:
           e2e/map-idle.spec.ts
           e2e/kpi-source-en-panne.spec.ts
           e2e/map-insets.spec.ts
+          e2e/panne-partout.spec.ts
           --project=chromium
 
       - name: Upload traces on failure
