@@ -88,13 +88,18 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | api-key-ref | String | \`""\` | non | Reference vers une clé API dans window.DSFR_DATA_KEYS. Injecte la valeur comme header Authorization. |
 
 ### Événements emis
-- \`dsfr-data-loaded\` : données chargees (detail : tableau de données)
+- \`dsfr-data-loaded\` : données chargees (detail : \`{ sourceId, data, loadedAt }\` — \`loadedAt\` date le chargement)
 - \`dsfr-data-loading\` : chargement en cours
-- \`dsfr-data-error\` : erreur (detail : objet Error)
+- \`dsfr-data-error\` : erreur (detail : \`{ sourceId, error, attemptedUrl?, lastLoadedAt? }\` — \`lastLoadedAt\`
+  n'est présent que si la source avait déjà livré : ses lignes restent en mémoire, périmées)
 
 ### Methodes publiques
 - \`reload()\` : force le rechargement des données
-- \`getData()\` : retourne les données actuelles (tableau d'objets)
+- \`getData()\` : retourne les données ACTUELLES (tableau d'objets). \`null\` avant le premier
+  chargement et PENDANT UNE PANNE : les lignes d'avant la panne ne sont jamais rendues comme à jour.
+- \`getLastKnownData()\` : \`{ data, loadedAt, stale? }\` — les lignes du dernier chargement réussi et
+  leur date. Pendant une panne, \`stale\` vaut \`{ since, cause, originId }\` ; absent sinon.
+- \`isStale()\` : \`true\` de la panne jusqu'au prochain chargement réussi (nouvel essai compris).
 
 ### Exemples
 \`\`\`html
@@ -262,6 +267,16 @@ La phrase dépend de la cause :
   n'a ni bouton, ni lien, ni détail.
 - L'événement \`dsfr-data-error\` et la trace console ne changent pas : le code HTTP reste dans
   \`error.message\`.
+- PENDANT la panne, les lignes du dernier chargement réussi ne sont pas jetées, mais elles ne
+  passent plus pour à jour (#1272) : \`getData()\` rend \`null\` (une requête, une jointure… rendent
+  \`[]\`), \`DsfrData.getDataCache(id)\` rend \`undefined\`, et aucun transformateur ne recalcule
+  dessus. Pour les lire quand même — un script qui veut afficher « dernières données connues » —,
+  une seule voie, qui donne toujours la date avec les lignes :
+  \`element.getLastKnownData()\` ou \`DsfrData.getLastKnownData(id)\` →
+  \`{ data, loadedAt, stale: { since, cause, originId } }\`. \`cause\` est celle du tableau ci-dessus
+  (\`service-indisponible\`, \`hors-connexion\`, \`service-sollicite\`, \`donnees-introuvables\`,
+  \`acces-restreint\`, \`page-mal-reglee\`, \`reponse-bloquee\`). Le marquage se lève au premier
+  chargement réussi. Aucun composant n'affiche ces lignes périmées : rien ne change à l'écran.
 
 \`\`\`html
 <dsfr-data-source-status source="prix"></dsfr-data-source-status>
@@ -3932,6 +3947,15 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   donne sa \`libVersion\`.
 Méthode d'évaluation (les quatre verdicts, le chronométrage, le rendu différé) :
 \`docs/EVALUER-UNE-REPRODUCTION.md\`.
+
+### 0 ter. \`getData()\` rend \`null\` (ou \`[]\`) alors que la source avait chargé
+La source est en PANNE (#1272). Un script qui lit \`element.getData()\` ou
+\`DsfrData.getDataCache(id)\` ne reçoit plus les lignes d'avant la panne : elles sont gardées, mais
+marquées périmées. Lire \`element.getError()\` pour la cause, \`element.isStale()\` pour savoir si
+des lignes restent, et \`element.getLastKnownData()\` (\`{ data, loadedAt, stale }\`) pour les
+obtenir AVEC leur date — à n'afficher que datées (« Données du … · mise à jour impossible »).
+Une requête, une jointure ou un normalize en aval sont dans le même état : ils relaient l'erreur
+et ne recalculent rien tant que la source n'a pas rechargé.
 
 ### 0 bis. « … est en pagination serveur (server-side) et ne livre qu'une page »
 Erreur de configuration d'une \`dsfr-data-query\` (#1242) : elle regroupe ou agrège côté client

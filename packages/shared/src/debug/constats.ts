@@ -691,6 +691,67 @@ const reserveServeur: RegleConstat = {
     }),
 };
 
+/** Numéro du dernier événement de ce genre émis par l'étape, ou 0. */
+function dernierEvenement(trace: Trace, etape: string, genre: 'loaded' | 'error'): number {
+  let seq = 0;
+  for (const e of trace.events) if (e.node === etape && e.kind === genre) seq = e.seq;
+  return seq;
+}
+
+/**
+ * Lignes périmées (#1272). Deux faits, une règle :
+ *
+ * - une étape a échoué APRÈS avoir livré : la bibliothèque garde ses lignes,
+ *   datées et marquées périmées, hors du cache courant. C'est une RÉSERVE
+ *   (`info`) — la panne, elle, est déjà dite par `pipeline/etape-en-erreur` ou
+ *   par le journal réseau ;
+ * - une étape a ÉMIS après l'échec de son amont, encore en panne : ce qu'elle
+ *   livre a été calculé sur les lignes d'avant. Aucun transformateur de la
+ *   bibliothèque ne le fait plus ; un composant tiers, ou une page observée
+ *   avec une version antérieure, si — et rien d'autre ne le montre, puisque
+ *   l'étape se dit « chargée ».
+ */
+const lignesPerimees: RegleConstat = {
+  id: 'pipeline/lignes-perimees',
+  appliesTo: TOUTES,
+  evaluer: (trace) =>
+    parEtape(trace, (node, state) => {
+      if (!state) return [];
+      if (state.stale) {
+        return [
+          constat('pipeline/lignes-perimees', 'info', {
+            titre: `${node.id} : lignes du dernier chargement gardées, périmées`,
+            explication:
+              "L'étape avait livré avant d'échouer. Ses lignes restent en mémoire, datées et marquées périmées : aucun composant ne les reçoit, getDataCache et getData() ne les rendent plus.",
+            action: 'Pour les lire quand même, avec leur date : getLastKnownData',
+            preuve:
+              state.stale.rows !== undefined
+                ? `${node.id} → ${plural(state.stale.rows, 'ligne')} du dernier chargement réussi`
+                : `${node.id} → lignes du dernier chargement réussi`,
+            etape: node.id,
+          }),
+        ];
+      }
+      if (state.status !== 'loaded') return [];
+      const emis = dernierEvenement(trace, node.id, 'loaded');
+      const fautif = node.upstream.find(
+        (up) => trace.states[up]?.status === 'error' && dernierEvenement(trace, up, 'error') < emis
+      );
+      if (fautif === undefined || emis === 0) return [];
+      return [
+        constat('pipeline/lignes-perimees', 'avertissement', {
+          titre: `${node.id} : calculé sur des lignes périmées`,
+          explication:
+            "L'étape a émis alors que son amont était déjà en échec : ce qu'elle livre vient du chargement d'avant la panne, et l'aval l'affiche comme à jour.",
+          action:
+            "Mettre la bibliothèque à jour, ou faire relayer l'erreur de l'amont par le composant",
+          preuve: `amont en échec : ${fautif}`,
+          etape: node.id,
+        }),
+      ];
+    }),
+};
+
 const jointureFaible: RegleConstat = {
   id: 'pipeline/jointure-faible',
   appliesTo: TOUTES,
@@ -843,6 +904,7 @@ export const REGLES_GENERIQUES: readonly RegleConstat[] = [
   emissionsRepetees,
   tronque,
   reserveServeur,
+  lignesPerimees,
   jointureFaible,
   httpErreur,
   corsDeduit,

@@ -106,6 +106,39 @@ const AUCUNE_LIGNE_RECUE: Step[] = [
 /** Le tiret qui tient la place d'un chiffre absent — la forme, pas une valeur. */
 const TIRET = '^—$';
 
+/** La somme des populations du jeu servi : ce que rend un lecteur qui a les lignes. */
+const SOMME_POPULATION: Step[] = [
+  { op: 'global', columns: { valeur: { agg: 'sum', field: 'population' } } },
+];
+
+/**
+ * Outils des pages qui lisent les lignes HORS des composants (#1272) : la
+ * somme des populations d'un jeu de lignes — « — » quand il n'y a rien à
+ * sommer —, et l'écriture du résultat là où le contrôle le lit. Script
+ * classique, posé AVANT la bibliothèque : ses écouteurs voient tout.
+ */
+const OUTILS_LECTEUR = `
+    function somme(lignes) {
+      if (!Array.isArray(lignes) || lignes.length === 0) return '—';
+      var total = 0;
+      for (var i = 0; i < lignes.length; i++) total += lignes[i].population;
+      return String(total);
+    }
+    function ecrire(id, texte) {
+      document.getElementById(id).innerHTML = '<span class="valeur">' + texte + '</span>';
+    }`;
+
+/** Une lecture hors composant : ce qu'elle rend est comparé à un tiret, ou à la somme. */
+const lecture = (id: string, pipeline: Step[]): Check['expects'][number] => ({
+  kind: 'texts',
+  id,
+  selector: '.valeur',
+  column: 'valeur',
+  numeric: true,
+  ...(pipeline === AUCUNE_LIGNE_RECUE ? { pattern: TIRET } : {}),
+  pipeline,
+});
+
 /** Une source qui sert un jeu du lot, en tableau nu. */
 const source = (
   id: string,
@@ -2798,7 +2831,7 @@ const CHECKS: Check[] = [
     id: 'kpi-source-en-panne-apres-chargement',
     mode: 'deterministic',
     origin:
-      '#1222 — la source a d’abord LIVRÉ, puis le jeu est retiré et l’appel suivant répond 404. Les lignes du premier chargement sont toujours en mémoire : rendu sous une panne, l’ancien chiffre serait pris pour la valeur du jour. Deux tuiles : l’une montée dès le départ (elle a affiché sa somme, puis passe à « — »), l’autre montée APRÈS la panne (elle ne doit pas ressortir le chiffre resté en cache). La page retire le jeu elle-même, à la réception des données — sans geste : une réponse 404 dont le corps n’est pas lu laisse le réseau « occupé » pour Playwright, et un geste attendrait indéfiniment son retour au calme.',
+      '#1222 — la source a d’abord LIVRÉ, puis le jeu est retiré et l’appel suivant répond 404. Les lignes du premier chargement sont toujours en mémoire : rendu sous une panne, l’ancien chiffre serait pris pour la valeur du jour. Deux tuiles : l’une montée dès le départ (elle a affiché sa somme, puis passe à « — »), l’autre montée APRÈS la panne (elle ne doit pas ressortir le chiffre resté en cache). La page retire le jeu elle-même, à la réception des données — sans geste : quand ce contrôle a été écrit, une réponse 404 dont le corps n’était pas lu laissait le réseau « occupé » pour Playwright, et un geste attendait indéfiniment son retour au calme (corrigé par #1272, dont le contrôle `marquage-perime-leve-au-rechargement` passe, lui, par un clic).',
     feed: { kind: 'fixture', datasets: { main: COMMUNES } },
     markup: `
   <dsfr-data-source id="s-bascule" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
@@ -2849,6 +2882,202 @@ const CHECKS: Check[] = [
         pattern: TIRET,
         pipeline: AUCUNE_LIGNE_RECUE,
       },
+    ],
+  },
+  // -------------------------------------------------------------------------
+  // #1272 — les lignes d'une source en panne restent en mémoire, PÉRIMÉES ET
+  // DATÉES : aucun lecteur ne les reçoit plus comme des lignes à jour. #1222
+  // gardait les tuiles ; ces trois contrôles gardent tout le reste — le code
+  // de l'intégrateur, les transformateurs, et la levée du marquage.
+  // -------------------------------------------------------------------------
+  {
+    id: 'lecteur-hors-mixin-source-en-panne',
+    mode: 'deterministic',
+    origin:
+      '#1272 — un lecteur qui ne passe par AUCUN composant d’affichage : le code d’un intégrateur qui somme lui-même les lignes de `getDataCache(id)` ou de `element.getData()`. La source a livré, puis répond 404 : avant #1272 ces deux lectures rendaient encore l’ancien jeu, et la somme affichée restait celle d’avant la panne, sans rien pour la dire périmée. Elles ne rendent plus rien (« — »), sur la source comme sur la requête branchée dessus. Les lignes ne sont pas jetées pour autant : `getLastKnownData(id)` les rend, avec la date du chargement et la cause de la panne — la dernière lecture n’affiche la somme QUE si ce marquage est là.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-lu" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-query id="q-lu" source="s-lu" where="population:gt:0"></dsfr-data-query>
+  <div id="lu-dernier"></div>
+  <div id="lu-cache"></div>
+  <div id="lu-getdata"></div>
+  <div id="lu-cache-requete"></div>
+  <div id="lu-getdata-requete"></div>
+  <script>
+    (function () {${OUTILS_LECTEUR}
+      var retire = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (retire || !e.detail || e.detail.sourceId !== 'q-lu') return;
+        retire = true;
+        document.getElementById('s-lu').setAttribute('url', '${URL_JEU_RETIRE}');
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!retire || !e.detail || e.detail.sourceId !== 'q-lu') return;
+        var date = typeof e.detail.lastLoadedAt === 'number';
+        import('/dist/dsfr-data.esm.js').then(function (lib) {
+          ecrire('lu-cache', somme(lib.getDataCache('s-lu')));
+          ecrire('lu-getdata', somme(document.getElementById('s-lu').getData()));
+          ecrire('lu-cache-requete', somme(lib.getDataCache('q-lu')));
+          ecrire('lu-getdata-requete', somme(document.getElementById('q-lu').getData()));
+          var dernier = lib.getLastKnownData('s-lu');
+          var marque = dernier && dernier.stale &&
+            dernier.stale.cause === 'donnees-introuvables' &&
+            dernier.stale.originId === 's-lu' &&
+            dernier.loadedAt > 0 && dernier.loadedAt <= dernier.stale.since &&
+            date && document.getElementById('s-lu').isStale();
+          ecrire('lu-dernier', marque ? somme(dernier.data) : 'lignes non marquées');
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('lu-dernier', SOMME_POPULATION),
+      lecture('lu-cache', AUCUNE_LIGNE_RECUE),
+      lecture('lu-getdata', AUCUNE_LIGNE_RECUE),
+      lecture('lu-cache-requete', AUCUNE_LIGNE_RECUE),
+      lecture('lu-getdata-requete', AUCUNE_LIGNE_RECUE),
+    ],
+  },
+  {
+    id: 'transformateur-amont-en-panne',
+    mode: 'deterministic',
+    origin:
+      '#1272 — un transformateur garde SA copie des lignes reçues. Sa source est tombée (404 après avoir livré), puis quelque chose le fait recalculer : l’AUTRE entrée d’une jointure se recharge, l’autre source d’un empilement aussi, un attribut d’un `dsfr-data-normalize` change, une requête est montée après coup. Avant #1272 chacun recalculait sur l’ancien jeu et ré-émettait : l’aval quittait son état d’erreur et réaffichait le chiffre d’avant la panne, comme s’il était du jour. Les quatre tuiles restent à « — ». La dernière est montée une fois toutes les relances revenues : c’est elle qu’on attend d’abord.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-amont" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-source id="s-ref" data='[{"zone":"Nord","rang":1},{"zone":"Sud","rang":2},{"zone":"Est","rang":3},{"zone":"Ouest","rang":4}]'></dsfr-data-source>
+  ${source('s-pile', 'communes')}
+  <dsfr-data-join id="j-amont" left="s-amont" right="s-ref" on="zone" type="left"></dsfr-data-join>
+  <dsfr-data-concat id="c-amont" sources="s-amont,s-pile"></dsfr-data-concat>
+  <dsfr-data-normalize id="n-amont" source="s-amont" rename="population:habitants"></dsfr-data-normalize>
+  <dsfr-data-kpi id="k-jointure" source="j-amont" value="population:sum" format="nombre" label="Population (jointure)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-pile" source="c-amont" value="population:sum" format="nombre" label="Population (empilement)"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-normalise" source="n-amont" value="habitants:sum" format="nombre" label="Population (normalize)"></dsfr-data-kpi>
+  <div id="apres-la-panne"></div>
+  <script>
+    (function () {
+      var retire = false, relance = false, pile = 0;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        var id = e.detail && e.detail.sourceId;
+        if (!retire && id === 'c-amont') {
+          // Tout a livré une fois : le jeu de la source amont est retiré.
+          retire = true;
+          document.getElementById('s-amont').setAttribute('url', '${URL_JEU_RETIRE}');
+          return;
+        }
+        if (relance && id === 's-pile' && ++pile === 1) {
+          // L'autre source de l'empilement est revenue : tout ce qui pouvait
+          // recalculer l'a fait. La requête tardive ferme la marche.
+          setTimeout(function () {
+            document.getElementById('apres-la-panne').innerHTML =
+              '<dsfr-data-query id="q-tardif" source="s-amont" where="population:gt:0"></dsfr-data-query>' +
+              '<dsfr-data-kpi id="k-tardif-requete" source="q-tardif" value="population:sum" format="nombre" label="Population (requête tardive)"></dsfr-data-kpi>';
+          }, 0);
+        }
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!retire || relance || !e.detail || e.detail.sourceId !== 'c-amont') return;
+        relance = true;
+        setTimeout(function () {
+          document.getElementById('n-amont').setAttribute('rename', 'population:habitants | budget:credits');
+          document.getElementById('s-ref').reload();
+          document.getElementById('s-pile').reload();
+        }, 0);
+      });
+    })();
+  </script>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'k-tardif-requete',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      {
+        kind: 'texts',
+        id: 'k-jointure',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      {
+        kind: 'texts',
+        id: 'k-pile',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+      {
+        kind: 'texts',
+        id: 'k-normalise',
+        selector: '.dsfr-data-kpi__value',
+        column: 'valeur',
+        numeric: true,
+        pattern: TIRET,
+        pipeline: AUCUNE_LIGNE_RECUE,
+      },
+    ],
+  },
+  {
+    id: 'marquage-perime-leve-au-rechargement',
+    mode: 'deterministic',
+    origin:
+      '#1272 — le marquage « périmé » n’est pas un état terminal : il se lève au premier chargement réussi. La source livre, l’usager déclenche la panne (un clic retire le jeu : 404), puis le jeu revient et la source recharge. Après le retour, `getDataCache`, `getData()` et la tuile rendent de nouveau la somme, `getLastKnownData` ne porte plus `stale`, et sa date est celle du NOUVEAU chargement, postérieure à la panne. Un marquage qui resterait posé ferait taire à jamais une source qui remarche.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-retour" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-retour" source="s-retour" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <button type="button" id="retirer-le-jeu">Retirer le jeu</button>
+  <div id="retour-marque"></div>
+  <div id="retour-cache"></div>
+  <div id="retour-getdata"></div>
+  <script>
+    (function () {${OUTILS_LECTEUR}
+      var panne = 0, perimeDepuis = 0;
+      document.getElementById('retirer-le-jeu').addEventListener('click', function () {
+        panne = 1;
+        document.getElementById('s-retour').setAttribute('url', '${URL_JEU_RETIRE}');
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (panne !== 1 || !e.detail || e.detail.sourceId !== 's-retour') return;
+        panne = 2;
+        import('/dist/dsfr-data.esm.js').then(function (lib) {
+          var dernier = lib.getLastKnownData('s-retour');
+          perimeDepuis = dernier && dernier.stale ? dernier.stale.since : 0;
+          // Le jeu revient : la source recharge à la bonne adresse.
+          document.getElementById('s-retour').setAttribute('url', '${urlAffichage('communes')}');
+        });
+      });
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (panne !== 2 || !e.detail || e.detail.sourceId !== 's-retour') return;
+        panne = 3;
+        import('/dist/dsfr-data.esm.js').then(function (lib) {
+          var dernier = lib.getLastKnownData('s-retour');
+          var leve = perimeDepuis > 0 && dernier && !dernier.stale &&
+            dernier.loadedAt >= perimeDepuis && e.detail.loadedAt === dernier.loadedAt &&
+            !document.getElementById('s-retour').isStale();
+          ecrire('retour-cache', somme(lib.getDataCache('s-retour')));
+          ecrire('retour-getdata', somme(document.getElementById('s-retour').getData()));
+          ecrire('retour-marque', leve ? somme(dernier.data) : 'marquage encore posé');
+        });
+      });
+    })();
+  </script>`,
+    actions: [{ kind: 'click', selector: '#retirer-le-jeu' }],
+    expects: [
+      lecture('retour-marque', SOMME_POPULATION),
+      lecture('retour-cache', SOMME_POPULATION),
+      lecture('retour-getdata', SOMME_POPULATION),
+      { kind: 'kpi', id: 'k-retour', agg: 'sum', field: 'population', pattern: MILLIERS },
     ],
   },
 ];

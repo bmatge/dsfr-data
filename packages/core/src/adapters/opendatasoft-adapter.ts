@@ -35,6 +35,7 @@ import {
   transportFetch,
   normalizeProviderAuthHeaders,
 } from '@dsfr-data/shared/lib';
+import { httpError, releaseBody } from '../utils/http-error.js';
 
 /**
  * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).
@@ -501,8 +502,9 @@ export class OpenDataSoftAdapter implements ApiAdapter {
         throw err;
       }
       if (!response.ok) {
+        releaseBody(response);
         if (probesTotalOrder) throw new TotalOrderRefused();
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw httpError(response);
       }
       if (totalOrder !== null) this._totalOrderAccepted.add(datasetKey);
 
@@ -752,7 +754,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       buildFetchOptions(params, apiUrl, signal),
       params
     );
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    if (!response.ok) throw httpError(response);
     const json = await response.json();
     const first = Array.isArray(json.results) ? json.results[0] : undefined;
     const row =
@@ -790,7 +792,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
         buildFetchOptions(params, apiUrl, signal),
         params
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      if (!res.ok) throw httpError(res);
       return res;
     };
 
@@ -961,7 +963,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       params
     );
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw httpError(response);
     }
 
     const json = await response.json();
@@ -1018,6 +1020,8 @@ export class OpenDataSoftAdapter implements ApiAdapter {
           isDate: f.type === 'date' || f.type === 'datetime',
         }));
       }
+    } else {
+      releaseBody(metaResponse);
     }
 
     // Repli : /facets sans parametre liste les facettes servies (noms seuls)
@@ -1028,7 +1032,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
       params
     );
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw httpError(response);
     }
     const json = (await response.json()) as { facets?: Array<{ name: string }> };
     return (json.facets ?? []).map((f) => ({ field: f.name }));
@@ -1058,7 +1062,10 @@ export class OpenDataSoftAdapter implements ApiAdapter {
           buildFetchOptions(params, datasetUrl),
           params
         );
-        if (!response.ok) return {};
+        if (!response.ok) {
+          releaseBody(response);
+          return {};
+        }
         const meta = (await response.json()) as {
           fields?: Array<{ name?: unknown; type?: unknown }>;
         };
@@ -1241,6 +1248,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
 
     const response = await transportFetch(url, buildFetchOptions(params, apiUrl, signal), params);
     if (!response.ok) {
+      releaseBody(response);
       // Seul un 404 dit que l'export n'existe pas pour ce JEU (#1199, BUG-027).
       // Un 400 vise la CLAUSE (un `where` sur un alias d'agrégat, refusé par
       // le portail) : le memoriser condamnait l'export du jeu entier pour

@@ -58,7 +58,7 @@ source par millésime, par région ou par série, à rassembler dans un seul gra
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `getData()` | `Row[]` | — |
+| `getData()` | `Row[]` | Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`). |
 
 
 **Événements** (émis sur `document` : ecouter via `document.addEventListener`, filtrer sur `detail.sourceId`)

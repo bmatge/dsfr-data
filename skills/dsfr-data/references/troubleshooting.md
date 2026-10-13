@@ -37,6 +37,15 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
 Méthode d'évaluation (les quatre verdicts, le chronométrage, le rendu différé) :
 `docs/EVALUER-UNE-REPRODUCTION.md`.
 
+### 0 ter. `getData()` rend `null` (ou `[]`) alors que la source avait chargé
+La source est en PANNE (#1272). Un script qui lit `element.getData()` ou
+`DsfrData.getDataCache(id)` ne reçoit plus les lignes d'avant la panne : elles sont gardées, mais
+marquées périmées. Lire `element.getError()` pour la cause, `element.isStale()` pour savoir si
+des lignes restent, et `element.getLastKnownData()` (`{ data, loadedAt, stale }`) pour les
+obtenir AVEC leur date — à n'afficher que datées (« Données du … · mise à jour impossible »).
+Une requête, une jointure ou un normalize en aval sont dans le même état : ils relaient l'erreur
+et ne recalculent rien tant que la source n'a pas rechargé.
+
 ### 0 bis. « … est en pagination serveur (server-side) et ne livre qu'une page »
 Erreur de configuration d'une `dsfr-data-query` (#1242) : elle regroupe ou agrège côté client
 (part, cumul, `explode`, agrégat sans `group-by`, source partagée, transformateur amont qui

@@ -23,6 +23,7 @@ export {
   earlyBufferScript,
   drainEarlyBuffer,
   readCacheSnapshot,
+  readErrorSnapshot,
 } from './early-buffer.js';
 export type { BufferedBusEvent } from './early-buffer.js';
 export {

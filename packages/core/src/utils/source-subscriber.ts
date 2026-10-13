@@ -10,6 +10,7 @@ import {
   getDataCache,
   getDataErrorState,
   isDataIdle,
+  isDataStale,
   STATUS_COVERAGE_EVENT,
 } from './data-bridge.js';
 import { checkUnknownAttributes } from './unknown-attributes.js';
@@ -156,11 +157,15 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
       }
 
       // La source peut être tombée en panne AVANT ce montage (#1222) :
-      // l'événement est passé, et le cache garde les lignes du dernier
-      // chargement réussi. Sans ce relevé, un bloc monté après coup
-      // afficherait l'ancien chiffre à côté de voisins qui disent la panne.
+      // l'événement est passé. Ses lignes ne sont plus au cache (#1272, elles
+      // sont gardées périmées, hors de `getDataCache`) : sans ce relevé, le
+      // bloc monté après coup resterait vide au lieu de dire la panne.
       const failed = getDataErrorState(source);
       if (failed) this._sourceError = failed.error;
+      // Ni erreur ni lignes courantes, mais des lignes périmées (#1272) : un
+      // nouvel essai est en vol — `dsfr-data-loading` a effacé l'erreur et il
+      // est déjà passé. Le bloc monté à cet instant est en chargement.
+      else if (isDataStale(source)) this._sourceLoading = true;
 
       this._unsubscribeSource = subscribeToSource(source, {
         onLoaded: (data) => {

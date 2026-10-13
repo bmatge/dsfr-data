@@ -1,6 +1,7 @@
 import {
   subscribeToSource,
   getDataCache,
+  getDataErrorState,
   isDataIdle,
   dispatchDataLoaded,
   dispatchDataLoading,
@@ -145,10 +146,15 @@ export class ScopeEmitter {
       return;
     }
     for (const source of new Set(entries.map((e) => e.source))) {
+      // Une source déjà en panne (#1272) : son événement est passé et ses
+      // lignes ne sont plus au cache. Sans ce relevé, les ids scopés
+      // resteraient « en chargement » — ou, avant #1272, auraient été
+      // partitionnés sur l'ancien jeu.
+      const failed = getDataErrorState(source);
       const state: ScopeSourceState = {
-        status: isDataIdle(source) ? 'idle' : 'loading',
+        status: isDataIdle(source) ? 'idle' : failed ? 'error' : 'loading',
         rows: [],
-        error: null,
+        error: failed?.error ?? null,
         parts: new Map(),
       };
       this._states.set(source, state);
@@ -311,7 +317,11 @@ export class ScopeEmitter {
             dispatchDataLoading(id);
             break;
           case 'error':
-            dispatchDataError(id, state.error ?? new Error('source scopée en erreur'));
+            // Origine relayée (#1203, #1272) : « Réessayer » relance la source
+            // qui a échoué, pas un id fabriqué que personne ne sert.
+            dispatchDataError(id, state.error ?? new Error('source scopée en erreur'), undefined, {
+              relayedFrom: entry.source,
+            });
             break;
           case 'idle':
             dispatchDataIdle(id);

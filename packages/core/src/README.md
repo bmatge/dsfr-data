@@ -69,8 +69,9 @@ src/
 | `chart-reference-lines.ts` | Overlay SVG de repères (`reference-lines`) |
 | `chart-targets.ts` | Cibles/objectifs (`targets`) |
 | `config-error.ts` | `reportConfigError` (erreurs de configuration) |
-| `data-bridge.ts` | Bus d'événements entre composants (`DATA_EVENTS`) |
+| `data-bridge.ts` | Bus d'événements entre composants (`DATA_EVENTS`), cache des lignes, registre d'erreur, lignes périmées et datées (`getLastKnownData`) |
 | `formatters.ts` | Formatage (nombres, pourcentages, euros, compact, dates) |
+| `http-error.ts` | Erreur d'une réponse refusée, corps abandonné (`httpError`, `releaseBody`) |
 | `geo-value.ts` | Parse mémoïsé des géométries en chaine JSON (`geo-field`) |
 | `json-path.ts` | Acces par chemin (`getByPath`, clés unsafe bloquées) |
 | `kpi-lines.ts` | Lignes secondaires de KPI (`KpiLineSpec`) |

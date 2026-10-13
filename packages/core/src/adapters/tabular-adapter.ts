@@ -38,6 +38,7 @@ import {
   readParquetRows,
 } from './tabular-parquet.js';
 import type { ParquetExport } from './tabular-parquet.js';
+import { httpError, releaseBody } from '../utils/http-error.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -593,7 +594,7 @@ export class TabularAdapter implements ApiAdapter {
       `${base}|${params.resource}`,
       async (ownSignal) => {
         const response = await transportFetch(url, buildFetchOptions(params, ownSignal), params);
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) throw httpError(response);
         const json = (await response.json()) as { profile?: TabularProfile };
         return json.profile ?? {};
       },
@@ -624,7 +625,7 @@ export class TabularAdapter implements ApiAdapter {
         const response = await fetch(url, { credentials: 'omit', signal: ownSignal });
         // 404 : ressource inconnue de data.gouv (hote tabulaire tiers) — pas d'export
         if (response.status === 404) return null;
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) throw httpError(response);
         return parquetExportFromResource(await response.json());
       },
       signal
@@ -871,8 +872,9 @@ export class TabularAdapter implements ApiAdapter {
         throw err;
       }
       if (!response.ok) {
+        releaseBody(response);
         if (i === 0 && totalOrder !== null) throw new TotalOrderRefused();
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        throw httpError(response);
       }
       this._noteQuotedInAccepted(params, params.filter || params.where || '');
       if (totalOrder !== null) this._totalOrderAccepted = true;
@@ -1613,7 +1615,7 @@ export class TabularAdapter implements ApiAdapter {
     const request = async (): Promise<Response> => {
       const url = resolveTransportUrl(this.buildServerSideUrl(params, overlay, totalOrder), params);
       const response = await transportFetch(url, buildFetchOptions(params, signal), params);
-      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok) throw httpError(response);
       return response;
     };
 

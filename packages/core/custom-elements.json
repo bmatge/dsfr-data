@@ -3132,7 +3132,8 @@
                 "type": {
                   "text": "Row[]"
                 }
-              }
+              },
+              "description": "Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`)."
             },
             {
               "kind": "method",
@@ -8080,7 +8081,8 @@
                 "type": {
                   "text": "Row[]"
                 }
-              }
+              },
+              "description": "Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`)."
             },
             {
               "kind": "method",
@@ -16802,7 +16804,8 @@
                 "type": {
                   "text": "Row[]"
                 }
-              }
+              },
+              "description": "Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`)."
             },
             {
               "kind": "method",
@@ -19604,7 +19607,7 @@
                   "text": "unknown[]"
                 }
               },
-              "description": "Retourne les données actuelles\n(isLoading() et getError() sont fournis par TransformerMixin, #280)"
+              "description": "Retourne les données actuelles\n(isLoading() et getError() sont fournis par TransformerMixin, #280).\n\nVide pendant une panne de l'amont (#1272) : le dernier résultat calculé\nn'est plus rendu comme s'il était à jour. Il reste lisible, daté, par\n`getLastKnownData()`."
             },
             {
               "kind": "method",
@@ -20794,7 +20797,7 @@
                   "text": "Record<string, unknown>[]"
                 }
               },
-              "description": "Retourne les données actuellement filtrees"
+              "description": "Retourne les données actuellement filtrees. Vide pendant une panne de\nl'amont (#1272) : voir `getLastKnownData()`."
             },
             {
               "kind": "method",
@@ -22091,7 +22094,30 @@
                 "type": {
                   "text": "unknown"
                 }
-              }
+              },
+              "description": "Les lignes COURANTES de la source, ou `null`.\n\n`null` avant le premier chargement, en attente d'un filtre, **et pendant\nune panne** (#1272) : les lignes du dernier chargement réussi ne sont plus\nrendues comme si elles étaient à jour. Pour les lire quand même, datées :\n`getLastKnownData()`."
+            },
+            {
+              "kind": "method",
+              "name": "getLastKnownData",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "LastKnownData | undefined"
+                }
+              },
+              "description": "Les lignes du dernier chargement réussi, avec leur date (#1272) :\n`{ data, loadedAt, stale? }`. `stale` est présent pendant une panne\n(`since`, `cause` du barème, `originId`) et absent tant que les lignes\nsont à jour. `undefined` si la source n'a jamais rien livré."
+            },
+            {
+              "kind": "method",
+              "name": "isStale",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Les lignes de la source sont-elles périmées (#1272) ? Vrai de son premier\néchec après un chargement réussi jusqu'au chargement réussi suivant —\nnouvel essai en cours compris."
             },
             {
               "kind": "method",
@@ -22112,6 +22138,17 @@
                   "text": "Error | null"
                 }
               }
+            },
+            {
+              "kind": "method",
+              "name": "_hasCurrentData",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "`_data` porte-t-il les lignes courantes (#1272) ? Après un échec, il garde\ncelles du dernier chargement réussi : elles ne se rendent ni ne se\nré-émettent comme une réponse — `dispatchDataLoaded` effacerait l'erreur\net l'aval repasserait de « indisponible » à l'ancien jeu."
             },
             {
               "kind": "method",
@@ -22585,7 +22622,7 @@
               "description": "`{ sourceId }` sur l'élément — les données servies viennent du cache externe après un echec reseau (#307)."
             },
             {
-              "description": "`{ sourceId, data }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute.",
+              "description": "`{ sourceId, data, loadedAt }` sur `document` — données chargees et publiees sous l'`id` de cette source. C'est l'evenement que tout l'aval ecoute. `loadedAt` (#1272) date ce chargement (`Date.now()`).",
               "name": "dsfr-data-loaded"
             },
             {
@@ -22593,7 +22630,7 @@
               "name": "dsfr-data-loading"
             },
             {
-              "description": "`{ sourceId, error, attemptedUrl? }` sur `document` — le fetch ou le parsing a echoue. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).",
+              "description": "`{ sourceId, error, attemptedUrl?, lastLoadedAt? }` sur `document` — le fetch ou le parsing a echoue. `lastLoadedAt` (#1272) n'est present que si la source AVAIT livré : c'est la date de son dernier chargement réussi, dont les lignes restent en mémoire, périmées. Elles ne sont plus rendues par `getData()` ni par `getDataCache(id)` ; `getLastKnownData()` les rend avec leur date et la cause de la panne. `attemptedUrl` (#603) porte l'URL REELLEMENT appelee, proxy applique : elle diverge souvent du `base-url` ecrit dans le HTML, et le message de l'`Error` reste volontairement court. La cle est absente quand l'URL n'a pas pu être construite, ou pour une erreur qui ne vient pas d'un fetch (données inline invalides, configuration).",
               "name": "dsfr-data-error"
             },
             {
@@ -23076,7 +23113,8 @@
                 "type": {
                   "text": "Row[]"
                 }
-              }
+              },
+              "description": "Lignes courantes ; vide pendant une panne de l'amont (#1272, `getLastKnownData()`)."
             },
             {
               "kind": "method",

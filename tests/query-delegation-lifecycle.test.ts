@@ -312,9 +312,12 @@ describe('#276 — scénario bout-en-bout : gel résolu via la ré-émission', (
     sourceEl.id = 'b2-e2e-src-el'; // el distinct : la vraie source est hors DOM
     document.body.appendChild(sourceEl);
 
-    // État post-fetch de la 1re query : overlay groupBy en place, données servies
+    // État post-fetch de la 1re query : overlay groupBy en place, données servies.
+    // Le fetch « a déjà eu lieu » : il est neutralisé AVANT la commande — laissé
+    // partir, il échouerait pour de bon (hôte fictif), et une source en panne
+    // ne ré-émet pas ses anciennes lignes (#1272).
+    (source as any)._scheduleFetch = () => {};
     dispatchSourceCommand('b2-e2e-src', { groupBy: 'region', aggregate: 'population:sum:total' });
-    (source as any)._scheduleFetch = () => {}; // le fetch « a déjà eu lieu »
     (source as any)._fetchScheduled = false;
     (source as any)._data = AGGREGATED_ROWS;
     dispatchDataLoaded('b2-e2e-src', AGGREGATED_ROWS);

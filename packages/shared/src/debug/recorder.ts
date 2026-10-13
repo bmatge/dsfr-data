@@ -29,7 +29,12 @@ import {
   type BusPaginationMeta,
 } from './events.js';
 import { snapshotGraph, topoOrder, type DataflowGraph } from './graph.js';
-import { drainEarlyBuffer, readCacheSnapshot, type BufferedBusEvent } from './early-buffer.js';
+import {
+  drainEarlyBuffer,
+  readCacheSnapshot,
+  readErrorSnapshot,
+  type BufferedBusEvent,
+} from './early-buffer.js';
 import { summarizeStage, type StageSummary } from './summarize.js';
 import { drainerJournal, JOURNAL_MAX, type EntreeConsole, type EntreeReseau } from './journal.js';
 import type { Field, Row } from '../ia/data-tools.js';
@@ -48,7 +53,16 @@ export type TraceEvent =
       shape: StageSummary['shape'];
       meta?: BusPaginationMeta;
     }
-  | { seq: number; t: number; kind: 'error'; node: string; message: string; attemptedUrl?: string }
+  | {
+      seq: number;
+      t: number;
+      kind: 'error';
+      node: string;
+      message: string;
+      attemptedUrl?: string;
+      /** Date du dernier chargement réussi, si des lignes périmées restent en mémoire (#1272). */
+      lastLoadedAt?: number;
+    }
   | {
       seq: number;
       t: number;
@@ -88,6 +102,14 @@ export interface StageState {
   meta?: BusPaginationMeta;
   message?: string;
   attemptedUrl?: string;
+  /**
+   * L'étape a échoué APRÈS avoir livré (#1272) : la bibliothèque garde en
+   * mémoire les lignes de son dernier chargement réussi, datées et marquées
+   * périmées. `rows` est le compte que le collecteur avait relevé (absent s'il
+   * est arrivé après). Posé à l'erreur, gardé pendant le nouvel essai, levé au
+   * chargement réussi ou au retour en attente.
+   */
+  stale?: { loadedAt: number; rows?: number };
   /**
    * Pourquoi l'étape attend, quand `status` vaut `waiting` (#931) : un filtre
    * qui ne vient pas (`require-where`) ou personne qui regarde (`lazy`). Les
@@ -240,15 +262,22 @@ export class DataflowRecorder {
 
   /**
    * Filet de sécurité pour une page sans tampon : reconstitue l'état de
-   * chaque étape depuis le cache global. Ne rattrape ni les erreurs ni la
-   * chronologie — n'agit que sur les étapes encore inconnues, pour ne jamais
-   * écraser une observation directe par une valeur de cache plus ancienne.
+   * chaque étape depuis le cache global, et depuis le registre d'erreur pour
+   * les étapes en panne (#1272 — leurs lignes ne sont plus au cache courant).
+   * Ne rattrape pas la chronologie — n'agit que sur les étapes encore
+   * inconnues, pour ne jamais écraser une observation directe par une valeur
+   * plus ancienne.
    */
   backfillFromCache(win: Window | null | undefined): number {
     let filled = 0;
     for (const { sourceId, data } of readCacheSnapshot(win)) {
       if (this.states.has(sourceId)) continue;
       this.ingest({ name: BUS_EVENTS.LOADED, detail: { sourceId, data }, t: this.opts.now() });
+      filled += 1;
+    }
+    for (const { sourceId, ...detail } of readErrorSnapshot(win)) {
+      if (this.states.has(sourceId)) continue;
+      this.ingest({ name: BUS_EVENTS.ERROR, detail: { sourceId, ...detail }, t: this.opts.now() });
       filled += 1;
     }
     return filled;
@@ -372,6 +401,7 @@ export class DataflowRecorder {
       meta: undefined,
       message: undefined,
       attemptedUrl: undefined,
+      stale: undefined,
     });
   }
 
@@ -398,6 +428,7 @@ export class DataflowRecorder {
       ...(meta ? { meta } : {}),
       message: undefined,
       attemptedUrl: undefined,
+      stale: undefined,
       emissions: (previous?.emissions ?? 0) + 1,
     });
   }
@@ -414,7 +445,16 @@ export class DataflowRecorder {
       node: d.sourceId,
       message,
       ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
+      ...(typeof d.lastLoadedAt === 'number' ? { lastLoadedAt: d.lastLoadedAt } : {}),
     } as const);
+    // Lignes gardées périmées par la bibliothèque (#1272) : le compte est
+    // celui du dernier succès observé ICI, relevé avant d'être invalidé.
+    const avant = this.states.get(d.sourceId);
+    const rowsAvant = avant?.rows ?? avant?.stale?.rows;
+    const stale =
+      typeof d.lastLoadedAt === 'number'
+        ? { loadedAt: d.lastLoadedAt, ...(rowsAvant !== undefined ? { rows: rowsAvant } : {}) }
+        : undefined;
     // Les donnees du dernier succes sont PERIMEES : les garder ferait
     // rapporter a l'aval un compte de lignes que plus rien ne produit, et
     // un afficheur se declarerait alimente sous une source tombee. C'est le
@@ -427,6 +467,7 @@ export class DataflowRecorder {
       sample: undefined,
       shape: undefined,
       meta: undefined,
+      stale,
       ...(d.attemptedUrl ? { attemptedUrl: d.attemptedUrl } : {}),
     });
   }

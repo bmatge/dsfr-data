@@ -21,7 +21,10 @@
  *   meta du batch précédent) ;
  * - le relais des commandes aval (page, where, orderBy) vers l'amont
  *   (cible relue à chaque commande — join relaie vers sa source gauche) ;
- * - la validation de configuration via `reportConfigError`.
+ * - la validation de configuration via `reportConfigError` ;
+ * - le refus de calculer sur une entrée PÉRIMÉE (#1272) : une entrée en panne
+ *   n'alimente plus rien, ni au branchement (son erreur est relue au registre
+ *   et relayée), ni à l'émission (`emitTransformedData` s'y refuse).
  *
  * L'hôte garde sa logique métier dans les hooks `onTransformerData`,
  * `beforeTransformerSubscribe` et `transformMeta`.
@@ -34,7 +37,10 @@ import type { LitElement } from 'lit';
 import {
   subscribeToSource,
   getDataCache,
+  getDataErrorState,
   getDataMeta,
+  getLastKnownData,
+  isDataStale,
   setDataMeta,
   dispatchDataLoaded,
   dispatchDataError,
@@ -45,6 +51,7 @@ import {
   subscribeToSourceCommands,
   clearDataCache,
   clearDataMeta,
+  type LastKnownData,
   type PaginationMeta,
   type SourceCommandEvent,
 } from './data-bridge.js';
@@ -63,6 +70,10 @@ export interface TransformerInterface {
   isLoading(): boolean;
   getError(): Error | null;
   isIdle(): boolean;
+  /** Les lignes de cette étape sont-elles périmées (#1272) ? */
+  isStale(): boolean;
+  /** Lignes du dernier chargement réussi, datées, périmées ou non (#1272). */
+  getLastKnownData(): LastKnownData | undefined;
   /** L'amont attend un filtre (`require-where`, #690) — état « attente ». */
   _transformerIdle: boolean;
   reinitTransformer(): void;
@@ -296,6 +307,57 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     }
 
     /**
+     * Les lignes du dernier chargement réussi de cette étape, avec leur date
+     * (#1272). Pendant une panne de l'amont, `getData()` ne rend plus rien ;
+     * c'est ici qu'on lit ce qui avait été livré, marqué `stale`.
+     */
+    public getLastKnownData(): LastKnownData | undefined {
+      return this.id ? getLastKnownData(this.id) : undefined;
+    }
+
+    /**
+     * Les lignes de cette étape sont-elles périmées (#1272) ? Vrai du premier
+     * échec de l'amont jusqu'à son prochain chargement réussi. Les `getData()`
+     * des hôtes s'en servent pour ne pas rendre leur dernier résultat comme
+     * s'il était à jour.
+     */
+    public isStale(): boolean {
+      return Boolean(this.id) && isDataStale(this.id);
+    }
+
+    /**
+     * Première entrée qui ne peut pas alimenter un calcul (#1272) : en erreur,
+     * ou en nouvel essai après une erreur (ses lignes restent périmées tant
+     * qu'un chargement n'a pas réussi).
+     */
+    private _unusableInput(): string | undefined {
+      return this.transformerSources().find(
+        (id) => getDataErrorState(id) !== undefined || isDataStale(id)
+      );
+    }
+
+    /**
+     * L'hôte s'apprête à émettre alors qu'une entrée est périmée (#1272) : le
+     * résultat serait calculé sur d'anciennes lignes et livré comme à jour.
+     *
+     * Les hôtes gardent leur propre copie des lignes reçues (`_rawData` de
+     * query, les deux côtés de join, les parts de concat) : sans ce refus, un
+     * attribut qui change, une commande aval ou le rechargement de L'AUTRE
+     * entrée d'une jointure relançait le calcul dessus, et `dispatchDataLoaded`
+     * effaçait l'erreur de l'étape — l'aval repassait de « indisponible » à
+     * l'ancien chiffre. L'étape reste (ou repasse) en erreur, origine relayée.
+     */
+    private _refuseStaleEmission(inputId: string): void {
+      const failed = getDataErrorState(inputId);
+      // Nouvel essai en cours sur l'entrée : rien à dire, son issue arrive.
+      if (!failed) return;
+      this._transformerError = failed.error;
+      if (this.id && !getDataErrorState(this.id)) {
+        this.emitTransformerError(failed.error, inputId);
+      }
+    }
+
+    /**
      * Note l'état d'une entrée et en dérive celui du nœud (#897).
      *
      * L'ordre de priorité n'est pas l'ordre d'arrivée :
@@ -368,6 +430,14 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
         if (isDataIdle(sourceId)) {
           this._noteInputState(index, 'idle');
           this.emitTransformerIdle();
+        } else if (getDataErrorState(sourceId)) {
+          // Un amont déjà en panne (#1272) : son événement est passé, et ses
+          // lignes ne sont plus au cache. Sans cette relecture, ce nœud —
+          // monté ou rebranché après la panne — resterait muet, ou pire,
+          // recalculerait sur l'ancien jeu. Même relevé que
+          // `SourceSubscriberMixin` (#1222), origine relayée.
+          this._noteInputState(index, 'error');
+          this.emitTransformerError(getDataErrorState(sourceId)!.error, sourceId);
         } else if (this.shouldReadInitialCache(sourceId)) {
           const cached = getDataCache(sourceId);
           if (cached !== undefined) {
@@ -432,6 +502,11 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      */
     public emitTransformedData(data: unknown): void {
       if (!this.id) return;
+      const unusable = this._unusableInput();
+      if (unusable !== undefined) {
+        this._refuseStaleEmission(unusable);
+        return;
+      }
       this._transformerLoading = false;
       this._transformerError = null;
       this._transformerIdle = false;
@@ -451,7 +526,14 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       }
       if (meta) setDataMeta(this.id, meta);
 
-      dispatchDataLoaded(this.id, data);
+      // Les lignes datent de l'entrée la plus ancienne (#1272) : recalculer à
+      // l'instant ne les rajeunit pas.
+      let oldest: number | undefined;
+      for (const id of this.transformerSources()) {
+        const at = getLastKnownData(id)?.loadedAt;
+        if (at && (oldest === undefined || at < oldest)) oldest = at;
+      }
+      dispatchDataLoaded(this.id, data, oldest !== undefined ? { loadedAt: oldest } : {});
       this.requestUpdate();
     }
 

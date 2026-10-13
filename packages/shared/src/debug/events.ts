@@ -67,6 +67,8 @@ export interface BusSourceCommand {
 export interface BusLoadedDetail {
   sourceId: string;
   data: unknown;
+  /** Date du chargement qui a produit ces lignes (#1272) ; absent d'une bibliothèque antérieure. */
+  loadedAt?: number;
 }
 
 export interface BusErrorDetail {
@@ -74,6 +76,11 @@ export interface BusErrorDetail {
   error: Error;
   /** URL réellement appelée, proxy appliqué (#603). */
   attemptedUrl?: string;
+  /**
+   * Date du dernier chargement réussi de l'étape, quand ses lignes restent en
+   * mémoire, périmées (#1272). Absent : elle n'avait rien livré.
+   */
+  lastLoadedAt?: number;
 }
 
 export interface BusLoadingDetail {
