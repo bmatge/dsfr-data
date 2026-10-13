@@ -698,7 +698,9 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   Par afficheur : le KPI garde son chiffre (ni seuil, ni tendance, ni lignes complémentaires) ; le
   graphique rend la mention puis `_renderChart()`, et pose `dsfr-data-chart--stale` sur l'hôte ; la
   liste et les fiches reprennent leurs lignes (`PaginationController.onStale` : la page n'est pas
-  ramenée à 1) et neutralisent pagination et tri SERVEUR ; le tableau équivalent lit
+  ramenée à 1) et neutralisent pagination et tri SERVEUR ; le répéteur garde ses lignes sous la
+  mention — et, sans relevé ou à son échéance, les LÂCHE (`onSourceError` → `_clearRows`, ids
+  scopés compris) : il les gardait sous le message de panne jusqu'à cette version ; le tableau équivalent lit
   `_sourceStale.data`, rend sa légende visible et date le nom du fichier ; la couche de carte garde
   ses formes (`getSourceStale()`, `getSourceFailure()` rend alors `null`), la carte pose
   `dsfr-data-map--stale` et une ligne d'état datée. Mesuré par `e2e/dernier-releve.spec.ts`

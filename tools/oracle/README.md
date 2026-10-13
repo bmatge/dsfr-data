@@ -25,11 +25,11 @@ déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
 État du dépôt (mesuré le 2026-10-12 ; les trois chiffres déterministes — contrôles, observations,
 attentes de la troisième voix — remesurés le 2026-10-13 sur `out/manifests.json` et `attendus.json`) :
-**350 contrôles déterministes** et **38 contrôles vivants**,
-répartis en onze domaines, pour 826 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+**351 contrôles déterministes** et **38 contrôles vivants**,
+répartis en onze domaines, pour 830 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 619 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 623 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -1029,6 +1029,8 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | l'empreinte ignorée — le refus `autre-requete` neutralisé (`judgeStaleReading`, `stale-reading.ts`) | `releve-refuse-autre-requete` | « ar-kpi : affiché « 15909531 », recalculé — » : la somme de toutes les zones sous une requête filtrée qui a échoué ; le témoin (même appel) reste vert (#1288) |
 | affichages | le relevé gardé après un chargement réussi — `this._dropStale()` retiré de `onLoaded` (`source-subscriber.ts`) | `releve-leve-au-retour` | « lr-kpi : affiché « étiquette encore là », recalculé 3155097 » : le nouveau chiffre est juste, et toujours dit « non actualisé » (#1288) |
 | affichages | le fichier exporté sous son nom ordinaire pendant un relevé (`_handleDownload` de `dsfr-data-a11y.ts`, `_exportFilename` de `dsfr-data-list.ts`) | `export-date` | « ex-export : affiché « nom du fichier : données.csv », recalculé 15909531 » et « ex-liste : … export.csv » : les lignes d'avant la panne partent dans un fichier que rien ne date (#1288) |
+| affichages | le répéteur ne lâche plus ses lignes à l'erreur — `this._dropRows()` retiré de `onSourceError` (`dsfr-data-repeat.ts`), l'état d'avant #1288 | `repeteur-source-en-panne` | « rp-lignes : affiché « 15909531 », recalculé — » : les 48 lignes restent sous le message de panne ; le relevé, l'avant et le témoin restent verts (#1288) |
+| affichages | l'étiquette « Non actualisé » rendue vide (`renderStaleBadge`, `status-templates.ts`) | `repeteur-source-en-panne` | « rp-releve : affiché « aucune étiquette « Non actualisé » », recalculé 15909531 » : les lignes gardées par `stale-if-error` ne sont plus dites anciennes (#1288) |
 | affichages | `last` lit la première ligne | `kpi-premiere-et-derniere-ligne` | affiché 120, recalculé 168 |
 | affichages | `evaluateParsed` ignore `rowFilter` | `kpi-filtre-entre-accolades-776` | affiché 100,00 %, recalculé 23,46 (#776) |
 | affichages | `meta:total` rend les lignes reçues | `kpi-meta-total-contre-count` | affiché 20, recalculé 137 — #659 |

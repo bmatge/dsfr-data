@@ -292,7 +292,9 @@ La phrase dépend de la cause :
   - \`dsfr-data-facets\` et \`dsfr-data-search\` sont désactivés (« Filtres momentanément
     indisponibles. »), compteurs et compte de résultats masqués ; la sélection et le terme posés
     sont gardés et s'appliquent de nouveau au retour des données. Ils restent actifs sur un HTTP 400
-    (le filtre posé peut être la cause du refus).
+    (le filtre posé peut être la cause du refus) ;
+  - \`dsfr-data-repeat\` retire ses lignes (et les sources scopées de \`scopes\`) et rend le
+    message de panne à leur place ; elles sont recréées au chargement réussi.
   Ces phrases suivent la cause du tableau ci-dessus et \`error-message\`. Pendant un nouvel essai,
   tableau équivalent, carte et filtres gardent leur rendu de panne jusqu'au résultat.
 - LE DERNIER RELEVÉ, SUR DEMANDE (#1288) : \`stale-if-error="<secondes>"\` sur la source. Pendant

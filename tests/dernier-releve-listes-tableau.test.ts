@@ -13,11 +13,13 @@ globalThis.fetch = mockFetch;
 
 import { DsfrDataA11y } from '@/components/dsfr-data-a11y.js';
 import { DsfrDataDisplay } from '@/components/dsfr-data-display.js';
+import { DsfrDataKpi } from '@/components/dsfr-data-kpi.js';
 import { DsfrDataList } from '@/components/dsfr-data-list.js';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 import { DsfrDataRepeat } from '@/components/dsfr-data-repeat.js';
 import {
   dispatchDataLoading,
+  getDataCache,
   setDataMeta,
   subscribeToSourceCommands,
 } from '@/utils/data-bridge.js';
@@ -34,6 +36,7 @@ import {
 
 void DsfrDataA11y;
 void DsfrDataDisplay;
+void DsfrDataKpi;
 void DsfrDataList;
 void DsfrDataPodium;
 void DsfrDataRepeat;
@@ -312,6 +315,186 @@ describe('#1288 B — fiches, podium, répéteur', () => {
       mention.compareDocumentPosition(el.querySelector('.ligne')!) &
         Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+});
+
+describe('#1288 B — dsfr-data-repeat : ses lignes suivent la règle des autres afficheurs', () => {
+  const ROWS = [
+    { code: 'r1', libelle: 'Accueil', n: 41 },
+    { code: 'r2', libelle: 'Délais', n: 42 },
+  ];
+
+  /**
+   * Monté comme une page le fait : le balisage entier, analysé d'un coup. La
+   * source scopée y est déclarée — absente, le répéteur la dirait
+   * « introuvable », une autre panne que celle qu'on éprouve.
+   */
+  async function mountRepeat(src: string, gabarit: string, scopes = ''): Promise<DsfrDataRepeat> {
+    const hote = document.createElement('div');
+    document.body.appendChild(hote);
+    hote.innerHTML =
+      (scopes ? `<div id="${scopes.split(':')[0]}"></div>` : '') +
+      `<dsfr-data-repeat source="${src}" key-field="code"${scopes ? ` scopes="${scopes}"` : ''}>` +
+      `<template>${gabarit}</template></dsfr-data-repeat>`;
+    const el = hote.querySelector('dsfr-data-repeat') as DsfrDataRepeat;
+    await vi.advanceTimersByTimeAsync(5);
+    await el.updateComplete;
+    return el;
+  }
+
+  const lignes = (el: Element) => [...el.querySelectorAll('.ligne')].map((l) => texte(l));
+
+  it('sans la consigne : aucune ligne de l’ancien jeu sous le message de panne ; tout revient au retour', async () => {
+    const src = source('repeat-sans');
+    const el = await mountRepeat(src, '<p class="ligne">{{ libelle }} : {{ n }}</p>');
+    charge(src, ROWS);
+    await el.updateComplete;
+    expect(lignes(el)).toEqual(['Accueil : 41', 'Délais : 42']);
+
+    panne(src, { consigne: null });
+    await el.updateComplete;
+    expect(lignes(el)).toEqual([]);
+    expect(el.querySelector('.dsfr-data-repeat__error')).not.toBeNull();
+    expect(texte(el)).not.toMatch(/41|42/);
+
+    // Pendant un nouvel essai : toujours rien de l'ancien jeu
+    dispatchDataLoading(src);
+    await el.updateComplete;
+    expect(lignes(el)).toEqual([]);
+
+    charge(src, [{ code: 'r1', libelle: 'Accueil', n: 50 }]);
+    await el.updateComplete;
+    expect(lignes(el)).toEqual(['Accueil : 50']);
+    expect(el.querySelector('.dsfr-data-repeat__error')).toBeNull();
+  });
+
+  it('avec la consigne : les lignes sous la mention ; à l’échéance, plus de ligne et le message de panne', async () => {
+    const src = source('repeat-echeance');
+    const el = await mountRepeat(src, '<p class="ligne">{{ libelle }} : {{ n }}</p>');
+    charge(src, ROWS);
+    await el.updateComplete;
+    panne(src, { consigne: 600 });
+    await el.updateComplete;
+    expect(lignes(el)).toEqual(['Accueil : 41', 'Délais : 42']);
+    expect(texte(el.querySelector('.dsfr-data-repeat__stale .dsfr-data-status__stale-text'))).toBe(
+      'Chiffres relevés aujourd’hui à 14 h 32.'
+    );
+
+    vi.advanceTimersByTime(11 * MINUTE);
+    await el.updateComplete;
+    expect(lignes(el)).toEqual([]);
+    expect(el.querySelector('.dsfr-data-repeat__stale')).toBeNull();
+    expect(el.querySelector('.dsfr-data-repeat__error')).not.toBeNull();
+    expect(texte(el)).not.toMatch(/41|42/);
+  });
+
+  it('données retirées, ou autre requête, malgré la consigne : les lignes partent', async () => {
+    const src = source('repeat-refus');
+    const el = await mountRepeat(src, '<p class="ligne">{{ libelle }} : {{ n }}</p>');
+    charge(src, ROWS);
+    await el.updateComplete;
+    panne(src, { erreur: new Error('HTTP 404: Not Found') });
+    await el.updateComplete;
+    expect(lignes(el)).toEqual([]);
+
+    charge(src, ROWS, 'page=1');
+    await el.updateComplete;
+    expect(lignes(el)).toHaveLength(2);
+    panne(src, { key: 'page=2' });
+    await el.updateComplete;
+    expect(lignes(el)).toEqual([]);
+  });
+
+  describe('scopes', () => {
+    const SCORES = [
+      { code: 'r1', score: 10 },
+      { code: 'r1', score: 20 },
+      { code: 'r2', score: 120 },
+    ];
+    const GABARIT =
+      '<p class="ligne">{{ libelle }}</p>' +
+      '<dsfr-data-kpi class="score" source="{{$scope.sc}}" value="score:sum" label="Score"></dsfr-data-kpi>';
+    const valeurs = (el: Element) =>
+      [...el.querySelectorAll('.score .dsfr-data-kpi__value')].map((v) => texte(v));
+    const attendre = async (el: DsfrDataRepeat) => {
+      // Le répéteur diffère une partie de son montage d'une macro-tâche
+      await vi.advanceTimersByTimeAsync(5);
+      await el.updateComplete;
+      for (const k of el.querySelectorAll('dsfr-data-kpi')) {
+        await (k as DsfrDataKpi).updateComplete;
+      }
+    };
+
+    it('la source SCOPÉE tombe, avec la consigne : chaque tuile garde son chiffre, daté de la source', async () => {
+      const src = source('repeat-scopes');
+      const scores = source('repeat-scopes-scores');
+      charge(scores, SCORES);
+      charge(src, ROWS);
+      const el = await mountRepeat(src, GABARIT, `${scores}:code:sc`);
+      await attendre(el);
+      expect(valeurs(el)).toEqual(['30', '120']);
+
+      vi.setSystemTime(RELEVE + 6 * MINUTE);
+      panne(scores);
+      await attendre(el);
+      // Les lignes du répéteur ne sont pas touchées : sa source, elle, répond
+      expect(lignes(el)).toEqual(['Accueil', 'Délais']);
+      expect(el.querySelector('.dsfr-data-repeat__stale')).toBeNull();
+      expect(valeurs(el)).toEqual(['30', '120']);
+      const dates = [...el.querySelectorAll('.score time')].map((t) => t.getAttribute('datetime'));
+      expect(dates).toEqual([new Date(RELEVE).toISOString(), new Date(RELEVE).toISOString()]);
+      expect(
+        texte(el.querySelector('.score .dsfr-data-kpi__stale-line .dsfr-data-status__title'))
+      ).toBe('Relevé à 14 h 32 · non actualisé');
+    });
+
+    it('la source scopée tombe, sans la consigne : « — » dans chaque tuile', async () => {
+      const src = source('repeat-scopes-sans');
+      const scores = source('repeat-scopes-sans-scores');
+      charge(scores, SCORES);
+      charge(src, ROWS);
+      const el = await mountRepeat(src, GABARIT, `${scores}:code:sc`);
+      await attendre(el);
+      panne(scores, { consigne: null });
+      await attendre(el);
+      expect(valeurs(el)).toEqual(['—', '—']);
+    });
+
+    it('la source du RÉPÉTEUR tombe, sans la consigne : lignes, tuiles et ids scopés partent ; tout revient', async () => {
+      const src = source('repeat-scopes-hote');
+      const scores = source('repeat-scopes-hote-scores');
+      charge(scores, SCORES);
+      charge(src, ROWS);
+      const el = await mountRepeat(src, GABARIT, `${scores}:code:sc`);
+      await attendre(el);
+      expect(getDataCache('sc-r1')).toHaveLength(2);
+
+      panne(src, { consigne: null });
+      await attendre(el);
+      expect(lignes(el)).toEqual([]);
+      expect(el.querySelectorAll('dsfr-data-kpi')).toHaveLength(0);
+      expect(getDataCache('sc-r1')).toBeUndefined();
+
+      charge(src, ROWS);
+      await attendre(el);
+      expect(valeurs(el)).toEqual(['30', '120']);
+    });
+
+    it('la source du répéteur tombe, avec la consigne : lignes et tuiles restent, la mention date les lignes', async () => {
+      const src = source('repeat-scopes-releve');
+      const scores = source('repeat-scopes-releve-scores');
+      charge(scores, SCORES);
+      charge(src, ROWS);
+      const el = await mountRepeat(src, GABARIT, `${scores}:code:sc`);
+      await attendre(el);
+      panne(src);
+      await attendre(el);
+      expect(lignes(el)).toEqual(['Accueil', 'Délais']);
+      expect(el.querySelector('.dsfr-data-repeat__stale')).not.toBeNull();
+      // Les tuiles lisent une source qui répond : chiffres à jour, sans marque
+      expect(valeurs(el)).toEqual(['30', '120']);
+      expect(el.querySelector('.score time')).toBeNull();
+    });
   });
 });
 

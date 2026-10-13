@@ -344,12 +344,38 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
   }
 
   /**
-   * Dernier relevé (#1288). Les lignes du répéteur restent en place à
-   * l'erreur : seul un répéteur monté pendant la panne a quelque chose à
-   * reprendre du relevé.
+   * La source est en panne (#1288) : le répéteur lâche ses lignes, comme tout
+   * afficheur. Elles sont estampées depuis le dernier chargement — texte du
+   * gabarit, blocs branchés sur un id scopé — et restaient sous le message de
+   * panne, sans date. Les ids scopés partent avec elles (`_clearRows`).
+   *
+   * Sauf dernier relevé demandé (`stale-if-error`) : le mixin l'a déjà jugé
+   * (`_sourceStale`), les lignes en place SONT celles du relevé et restent,
+   * sous la mention qui les date.
+   */
+  onSourceError(_error: Error): void {
+    if (this._sourceStale) return;
+    this._dropRows();
+  }
+
+  /** Lâche les lignes (panne sans relevé, relevé échu). */
+  private _dropRows(): void {
+    this._data = [];
+    this._hasData = false;
+    this._clearRows();
+  }
+
+  /**
+   * Dernier relevé (#1288). Un répéteur monté pendant la panne (ou vidé par
+   * un échec précédent, sans relevé) reprend les lignes du relevé ; à
+   * l'échéance, il les lâche et revient au message de panne.
    */
   onSourceStale(reading: StaleReading | null): void {
-    if (reading && !this._hasData) this.onSourceData(reading.data);
+    if (!reading) {
+      this._dropRows();
+      return;
+    }
+    if (!this._hasData) this.onSourceData(reading.data);
   }
 
   render() {

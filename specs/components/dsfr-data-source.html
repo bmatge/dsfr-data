@@ -1003,6 +1003,7 @@
               <tr><td><code>dsfr-data-list</code>, <code>dsfr-data-display</code> en pagination serveur</td><td>Un <strong>changement de page refusé</strong> garde la page précédente et le dit ; la pagination et l'adresse (<code>url-sync</code>) reviennent sur la page affichée, et redemander la page refusée relance la source. Tout autre échec (rafraîchissement, tri, filtre) rend le message de panne, sans aucune ligne.</td><td>La page 4 n'a pas pu être chargée. Vous consultez toujours la page 3.</td></tr>
               <tr><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Les filtres sont désactivés (<code>aria-disabled</code>, toujours atteignables au clavier) ; leurs compteurs et le compte de résultats ne sont plus affichés. La sélection et le terme déjà posés sont gardés et s'appliquent de nouveau au retour des données. « Réinitialiser les filtres » et la touche Échap restent actifs.</td><td>Filtres momentanément indisponibles.</td></tr>
               <tr><td>Export de <code>dsfr-data-list</code> (<code>export</code>)</td><td>Aucun fichier tant que la liste est en panne.</td><td>—</td></tr>
+              <tr><td><code>dsfr-data-repeat</code></td><td>Les lignes estampées depuis le dernier chargement sont retirées — texte du gabarit et blocs qu'il contient —, avec les sources scopées (<code>scopes</code>) qu'elles servaient. Elles sont recréées au chargement réussi.</td><td>Données momentanément indisponibles (message à la place des lignes)</td></tr>
             </tbody>
           </table>
         </div>

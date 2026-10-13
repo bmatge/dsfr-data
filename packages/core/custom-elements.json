@@ -20798,6 +20798,35 @@
             },
             {
               "kind": "method",
+              "name": "onSourceError",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "_error",
+                  "type": {
+                    "text": "Error"
+                  }
+                }
+              ],
+              "description": "La source est en panne (#1288) : le répéteur lâche ses lignes, comme tout\nafficheur. Elles sont estampées depuis le dernier chargement — texte du\ngabarit, blocs branchés sur un id scopé — et restaient sous le message de\npanne, sans date. Les ids scopés partent avec elles (`_clearRows`).\n\nSauf dernier relevé demandé (`stale-if-error`) : le mixin l'a déjà jugé\n(`_sourceStale`), les lignes en place SONT celles du relevé et restent,\nsous la mention qui les date."
+            },
+            {
+              "kind": "method",
+              "name": "_dropRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Lâche les lignes (panne sans relevé, relevé échu)."
+            },
+            {
+              "kind": "method",
               "name": "onSourceStale",
               "return": {
                 "type": {
@@ -20812,7 +20841,7 @@
                   }
                 }
               ],
-              "description": "Dernier relevé (#1288). Les lignes du répéteur restent en place à\nl'erreur : seul un répéteur monté pendant la panne a quelque chose à\nreprendre du relevé."
+              "description": "Dernier relevé (#1288). Un répéteur monté pendant la panne (ou vidé par\nun échec précédent, sans relevé) reprend les lignes du relevé ; à\nl'échéance, il les lâche et revient au message de panne."
             },
             {
               "kind": "method",

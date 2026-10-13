@@ -3856,6 +3856,73 @@ const CHECKS: Check[] = [
       lecture('ex-avant', SOMME_POPULATION),
     ],
   },
+  {
+    id: 'repeteur-source-en-panne',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — `dsfr-data-repeat` gardait ses lignes sous le message de panne : estampées depuis le dernier chargement, elles montraient les chiffres d’avant, sans date, sous une phrase qui dit « indisponible ». Trois répéteurs sur le même jeu, dont chaque ligne écrit la population d’une commune. Le premier, sur une source qui échoue (503) sans rien demander : plus aucune ligne, la somme des populations affichées est « — » (garde-fou : il avait bien sa somme avant). Le deuxième, sur une source qui demande le relevé (`stale-if-error`) : ses lignes restent, et la somme n’est écrite que si la mention porte « Non actualisé » et l’heure du chargement. Le troisième, témoin, sur une source qui répond toujours : sa somme, au même instant — une panne ne vide que le répéteur de SA source.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-rp" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-source id="s-rp-releve" url="${URL_COMMUNES_PANNE_503}&jeu=releve" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-source id="s-rp-temoin" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-repeat id="rp-panne" source="s-rp" key-field="nom">
+    <template><p>{{ nom }} : <span class="pop">{{ population }}</span></p></template>
+  </dsfr-data-repeat>
+  <dsfr-data-repeat id="rp-garde" source="s-rp-releve" key-field="nom">
+    <template><p>{{ nom }} : <span class="pop">{{ population }}</span></p></template>
+  </dsfr-data-repeat>
+  <dsfr-data-repeat id="rp-sain" source="s-rp-temoin" key-field="nom">
+    <template><p>{{ nom }} : <span class="pop">{{ population }}</span></p></template>
+  </dsfr-data-repeat>
+  <div id="rp-avant"></div>
+  <div id="rp-lignes"></div>
+  <div id="rp-releve"></div>
+  <div id="rp-temoin"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      // Somme des populations écrites par les lignes d'un répéteur.
+      function sommeLignes(id) {
+        var lus = document.querySelectorAll('#' + id + ' .pop');
+        if (lus.length === 0) return '—';
+        var total = 0;
+        for (var i = 0; i < lus.length; i++) total += entier(lus[i].textContent);
+        return String(total);
+      }
+      var charge = {}, parti = false, tombe = {}, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (parti || !e.detail) return;
+        charge[e.detail.sourceId] = e.detail.loadedAt;
+        if (!charge['s-rp'] || !charge['s-rp-releve'] || !charge['s-rp-temoin']) return;
+        parti = true;
+        apresRendu(function () {
+          ecrire('rp-avant', sommeLignes('rp-panne'));
+          avance = 7 * 60 * 1000;
+          document.getElementById('s-rp').reload();
+          document.getElementById('s-rp-releve').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!parti || lu || !e.detail) return;
+        tombe[e.detail.sourceId] = true;
+        if (!tombe['s-rp'] || !tombe['s-rp-releve']) return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('rp-lignes', sommeLignes('rp-panne'));
+          ecrire('rp-releve', marque('#rp-garde .dsfr-data-repeat__status', charge['s-rp-releve']) || sommeLignes('rp-garde'));
+          ecrire('rp-temoin', sommeLignes('rp-sain'));
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('rp-lignes', AUCUNE_LIGNE_RECUE),
+      lecture('rp-releve', SOMME_POPULATION),
+      lecture('rp-avant', SOMME_POPULATION),
+      lecture('rp-temoin', SOMME_POPULATION),
+    ],
+  },
 ];
 
 export const AFFICHAGES: Manifest = { domain: 'affichages', checks: CHECKS };

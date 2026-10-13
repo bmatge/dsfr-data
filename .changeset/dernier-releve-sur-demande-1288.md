@@ -25,7 +25,9 @@ L'heure est celle où la page a reçu les chiffres, jamais celle de l'échec ni 
 
 **Ce qui ne change pas.** Sans `stale-if-error`, le rendu d'une panne est celui de la 0.49.1, bloc par bloc. `getData()` et `getDataCache(id)` rendent toujours vide pendant la panne, avec ou sans l'attribut : seuls les composants d'affichage lisent le relevé. `getLastKnownData()` rend les mêmes lignes et la même date qu'avant ; son champ `stale` gagne deux champs optionnels, `staleIfError` et `sameRequest`, présents seulement quand la source porte l'attribut.
 
-**Trois corrections qui touchent une page existante, sans l'attribut.**
+**Quatre corrections qui touchent une page existante, sans l'attribut.**
+
+- **`dsfr-data-repeat` ne garde plus ses lignes pendant une panne.** C'était le dernier afficheur à montrer des chiffres du dernier chargement, sans date, sous le message « Données momentanément indisponibles ». Désormais, quand sa source échoue, ses lignes sont retirées — le texte du gabarit, les blocs qu'il contient et les sources scopées (`scopes`) qu'elles servaient — et le message de panne les remplace ; elles sont recréées au chargement réussi, sans rechargement de la page. Un script qui lisait ces lignes pendant une panne n'y trouve plus rien. Avec `stale-if-error`, elles restent pendant une panne passagère, sous la mention datée, puis sont retirées passé la durée.
 
 - La date d'un jeu ré-émis sans rechargement (commande sans effet adressée à la source) restait celle de la ré-émission : `loadedAt` de `dsfr-data-loaded` et de `getLastKnownData()` est maintenant celle du chargement qui a produit les lignes.
 - Les sources scopées d'un `dsfr-data-repeat` (`scopes`) dataient leurs lignes de l'instant du découpage ; elles portent la date de leur source. Une ligne née pendant la panne ne perd plus la source d'origine de l'erreur : « Réessayer » y relance la bonne source.
